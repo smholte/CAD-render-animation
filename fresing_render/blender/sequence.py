@@ -317,12 +317,17 @@ def _home_push(home: dict, name: str, delta, uid: str = "") -> None:
 
 def _home_pop(home: dict, name: str, owns=None):
     """A Put together takes a part back to where its own Take apart found it (nested sequences, task 0140; any
-    order, task 0162). Entries above it were pushed by subassemblies round it, taken apart later: they found the
+    order, task 0162; an entry of another subassembly stays). Entries above it were pushed by subassemblies round it,
+    taken apart later: they found the
     part where this Take apart had left it – once this step has put it together, they find it where it ends now."""
     stack = home.get(name)
     if not stack:
         return None
     i = _home_index(stack, owns)
+    if owns is not None and not owns(stack[i][0]):
+        # none of its own (a Put together of a subassembly inside one taken apart as a whole): it brings the part to
+        # where that Take apart found it and leaves the entry, so that one's own Put together finds it home already
+        return stack[i][1]
     _uid, d = stack.pop(i)
     for j in range(i, len(stack)):
         stack[j] = (stack[j][0], d)

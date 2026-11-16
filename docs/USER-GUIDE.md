@@ -325,7 +325,7 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
   them.
 - Click a row to select it in the view. The arrow at the end of a row adds it to the selection, so you
   can select several. The eye hides or shows it (also in renders). After **Build animation** the eye, **Hide**,
-  **Show only** and **Show all** take the built animation off (a line in 1 Import says so): build it again, so
+  **Show only**, **Show all** and a visibility set take the built animation off (a line in 1 Import says so): build it again, so
   the video shows the parts as you left them.
 - Click a part in the view: the tree opens down to it and marks its row.
 - Identical parts next to each other are one row ("× 4"). Identical subassemblies get a number at the

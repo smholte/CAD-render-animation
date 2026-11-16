@@ -946,7 +946,13 @@ def bake(scene, anim) -> dict:
                 d_from = ostate.get(name, ident)
                 if any(abs(d_from[r][c] - ident[r][c]) > 1e-9 for r in range(4) for c in range(4)):
                     object_move(name, d_from, ident, f0, f1, b.easing)
-                seq_home.pop(name, None)            # (a part an Assembly sequence took apart is home again)
+                # a part an Assembly sequence took apart is home again: the Take aparts inside this step's scope
+                # are undone; one round it, still open, now finds it at its CAD place (task 0162)
+                stack = seq_home.get(name)
+                if stack and scope is not None:
+                    stack[:] = [(u, ident.copy()) for u, _d in stack if not inside(u)]
+                if not stack:
+                    seq_home.pop(name, None)
 
     if wx_blocks:
         from . import weather

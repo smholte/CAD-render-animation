@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 
 import bpy
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 from ..core.words import plural
 from . import build, faces, joints, logic, states
@@ -75,8 +75,19 @@ def records(objs) -> list[dict]:
             "key_b": tuple(_norm(c.get(build.PROP_NAME, c.name)) for c in chain),
             "leaf": _norm(ob.get(build.PROP_NAME, ob.name)),
             "pos": cad_matrix(ob).translation.copy(),
+            "centre": _centre(ob, cad_matrix(ob)),
         })
     return out
+
+
+def _centre(ob, m: Matrix):
+    """The middle of a part's box in the CAD pose (its origin for an assembly): a mesh file's nodes mostly all have
+    their origin at the model's origin, so "the same place" is the place of the part itself (task 0162)."""
+    if ob.type != "MESH" or ob.data is None or not len(ob.data.vertices):
+        return m.translation.copy()
+    lo = [min(c[k] for c in ob.bound_box) for k in range(3)]
+    hi = [max(c[k] for c in ob.bound_box) for k in range(3)]
+    return m @ Vector(tuple((a + b) / 2.0 for a, b in zip(lo, hi)))
 
 
 def _shape(ob):
@@ -89,19 +100,21 @@ def _shape(ob):
     return (len(ob.data.polygons),) + tuple(round((b - a) * 10000) for a, b in zip(lo, hi))
 
 
-def _candidates(olds: list[dict], news: list[dict], k: int = 8) -> list[tuple[float, int, int]]:
+def _candidates(olds: list[dict], news: list[dict], k: int = 8, at: str = "pos") -> list[tuple[float, int, int]]:
     """(distance, old index, new index) pairs, nearest first. Big groups (1,000 identical bolts)
-    use a k-d tree and only the k nearest neighbours instead of every pair."""
+    use a k-d tree and only the k nearest neighbours instead of every pair. ``at``: which place is compared."""
+    def p(r):
+        return r.get(at, r["pos"])
     if len(olds) * len(news) <= 40000:
-        return sorted(((o["pos"] - n["pos"]).length, i, j) for i, o in enumerate(olds) for j, n in enumerate(news))
+        return sorted(((p(o) - p(n)).length, i, j) for i, o in enumerate(olds) for j, n in enumerate(news))
     from mathutils.kdtree import KDTree
     tree = KDTree(len(news))
     for j, n in enumerate(news):
-        tree.insert(n["pos"], j)
+        tree.insert(p(n), j)
     tree.balance()
     cand = []
     for i, o in enumerate(olds):
-        for _co, j, dist in tree.find_n(o["pos"], min(k, len(news))):
+        for _co, j, dist in tree.find_n(p(o), min(k, len(news))):
             cand.append((dist, i, j))
     cand.sort()
     return cand
@@ -136,7 +149,10 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
 
     # 1b. names the mesh reader made (piece numbers, "Node 3") shift when a piece is added or removed: those match
     #     by shape and place first (task 0139, 0131 row 3); their assemblies by their parts (``_made_assemblies``)
-    made = (lambda r: (r["kind"], r["shape"], "made") if r.get("made") and r.get("shape") else None)
+    #     A part with a name of its own inside a made group ("B1" in "Node 5") keeps that name in the key, and the
+    #     place compared is the middle of its box, not its origin (all at the model's origin; task 0162)
+    made = (lambda r: (r["kind"], r["shape"], "made", "" if r.get("made_self") else r["leaf"])
+            if r.get("made") and r.get("shape") else None)
     # 2. name path, nearest first (a made name only in the same place); 3. same name anywhere, only if it did not
     #    move; 4. renamed: the same shape in the same place (task 0117), reported
     renamed = (lambda r: (r["kind"], r["shape"]) if r.get("shape") else None)
@@ -166,7 +182,7 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
                 if not rem_o or not rem_n:
                     break
                 progress = False
-                for dist, i, j in _candidates(rem_o, rem_n):
+                for dist, i, j in _candidates(rem_o, rem_n, at="centre" if key is made else "pos"):
                     o, n = rem_o[i], rem_n[j]
                     if id(o) in used_old or id(n) in used_new:
                         continue

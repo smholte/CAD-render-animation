@@ -332,7 +332,7 @@ def test_a_utf8_obj_with_one_cp1252_line_keeps_its_names(tmp_path):
     assert mesh_reader._decode("o Plåt\n".encode() + "# från\n".encode("cp1252") + "usemtl Stål".encode()) == \
         "o Plåt\n# från\nusemtl Stål"
     assert mesh_reader._decode("o Plåt".encode()[:-1] + b"") == "o Plå"     # (plain UTF-8 untouched)
-    assert mesh_reader._decode("# a\no Pl".encode() + "å".encode()[:1]) == "# a\no Pl"   # a read cut in a letter
+    assert mesh_reader._decode("# a\no Pl".encode() + "å".encode()[:1], cut=True) == "# a\no Pl"   # a read cut in a letter
     obj = ("# Exported by Ritprogrammet för Windows\n".encode("cp1252")
            + "o Plåt\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n".encode())
     (tmp_path / "mixed.obj").write_bytes(obj)
