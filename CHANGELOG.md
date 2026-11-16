@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.114 – 16 Nov 2026 – Cables, ropes, coils and tracks move on the web page (task 0142)
+
+- **Web 3D model with Include animation: what the app draws moves on the page too.** The power cable, wire ropes
+  (A&R, tipping, winches), the rope on drums and the coil on a carousel, hoses, track links and pads, drag-chain
+  links and a CPS set riding on a cable used to stand still in their CAD shape. Now the page shows them as the app
+  draws them and moves them with the animation: the coil winds down layer by layer, the cable follows the quadrant,
+  the links run round their wheels (within 1–2 mm of the app on the test models).
+- **The cable looks are on the page:** the power cable's yellow stripes and the steel wire rope's strands, wires and
+  grease, running along the cable as it is paid out (standing still on a drum or carousel, as in the app). Also
+  without Include animation, at the frame shown.
+- **A CAD coil that a drum or carousel hides is left out** of the web model, as in the app.
+- **Much smaller files with motion:** each moving part and cable keeps only the moments the page cannot blend in
+  between (at most 1 mm off), and the motion is packed like the shapes. The demo with its animation (Texture size
+  512, no baked light): 155 MB before, 46 MB now. The export takes longer on it (3.0 → 4.9 min on the 4-core test
+  machine): it reads every cable and link at every frame.
+
 ## 0.2.113 – 16 Nov 2026 – Build gives the same animation at any frame (task 0138)
 
 - **Build no longer depends on the frame shown.** Pressing Build at a late frame of the demo put the second end and
