@@ -573,6 +573,7 @@ class HeightMap:
         best = np.full(hw.shape, np.inf)
         flank = np.full(hw.shape, -1, np.int64)         # for a node on a wall: the move whose flank the wall is
         foot = np.full(hw.shape, np.inf)                # ... and for the wall's top node the height of its foot
+        mate = np.full(hw.shape + (2,), -9, np.int64)   # ... and the node at the other end of the wall (row, column)
         kinked = np.array([s.kind in (CONE, PROFILE) for s in self.shapes] + [False])
         # a cell's diagonal runs from its first corner up to the right where row + column is even, else from its
         # second corner up to the left (the hierarchy's finest triangles; the same in every tile)
@@ -595,6 +596,8 @@ class HeightMap:
                 X[ni, nj], Y[ni, nj], Z[ni, nj], best[ni, nj] = px[u], py[u], z[u], dist[u]
                 flank[ni, nj] = -1 if wall is None else wall[0][u]
                 foot[ni, nj] = np.inf if wall is None else wall[1][u]
+                mate[ni, nj, 0] = -9 if wall is None else wall[2][u]
+                mate[ni, nj, 1] = -9 if wall is None else wall[3][u]
 
         wtol = max(tol, 1e-6)
         for ei, ej, fi, fj, length in families:
@@ -714,9 +717,10 @@ class HeightMap:
                     a_goes = np.where(za[sel] >= zb[sel], mid <= 0.8, mid < 0.2)
                     # (a wall is the flank of the lower of the two moves)
                     whose = (np.where(one & wall, np.where(zA <= zB, pa, pb), -1), np.minimum(zA, zB))
-                    put(Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes), whose)
+                    put(Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes),
+                        whose + (Bi, Bj))
                     put(Bi, Bj, x0 + uB * dx, y0 + uB * dy, hB, (1.0 - uB) * length,
-                        there & (~one | wall | ~a_goes), whose)
+                        there & (~one | wall | ~a_goes), whose + (Ai, Aj))
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
                 continue
@@ -745,7 +749,10 @@ class HeightMap:
             px, py = x0 + s * dx, y0 + s * dy
             put(ai, aj, px, py, z, s * length, ok & (s <= 0.5))
             put(bi, bj, px, py, z, (1.0 - s) * length, ok & (s > 0.5))
-        return X, Y, Z, flank, foot
+        # (a wall whose other node is one of this tile's own is in the tile's surface; else it is the tile's side)
+        last = self.tile + 1
+        inner = (mate[:, :, 0] >= 1) & (mate[:, :, 0] <= last) & (mate[:, :, 1] >= 1) & (mate[:, :, 1] <= last)
+        return X, Y, Z, flank, np.where(inner, np.inf, foot)
 
     def _moves_at(self, r0: int, r1: int, c0: int, c1: int) -> np.ndarray:
         """The moves stamped so far (and the half-done ones) whose footprint reaches rows r0 .. r1, columns
@@ -869,7 +876,7 @@ class HeightMap:
         # that piece of the side carries the move whose flank the wall is. The rest of the side is a seam inside
         # the material.
         fz = np.maximum(wall_foot[ring], self.bottom)
-        is_top = (flank[ring] >= 0) & (fz < P[ring, 2] - 1e-9)
+        is_top = (flank[ring] >= 0) & (fz < P[ring, 2] - 1e-9)       # (its foot is a node of the next tile)
         walled = is_top & is_top[nxt]
         side = np.where(walled, self.tag[np.maximum(flank[ring], 0)], -2)
         ring = new[ring]
