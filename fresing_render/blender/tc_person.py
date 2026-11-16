@@ -227,8 +227,9 @@ def start_step(scene, f0: float, numbers: list, start: int, show: dict, spindle,
                 pass
         src = show.get(n, spindle) if n else spindle
         if n not in pend["copies"]:
-            pend["copies"][n] = (_tool_copy(f"FR tool T{n} in the operator's hand", src, col, CARRY, n).name,
-                                 src.name)
+            carried = _tool_copy(f"FR tool T{n} in the operator's hand", src, col, CARRY, n)
+            carried["fr_cnc_src"] = src.name                  # what shows the tool in the spindle
+            pend["copies"][n] = (carried.name, src.name)
             pend["trolley"][n] = _tool_copy(f"FR tool T{n} on the trolley", src, col, ON_TROLLEY, n).name
         key(bpy.data.objects[pend["trolley"][n]], f0, n == start)
         key(bpy.data.objects[pend["copies"][n][0]], f0, True)
@@ -402,13 +403,14 @@ def _tool_shape(ob, spindle) -> tuple:
     return _np4(F), p
 
 
-def _floor(scene, centre_xy, skip: set) -> core.Floor:
+def _floor(scene, centre_xy, skip: set, also=()) -> core.Floor:
     """What stands on the floor round ``centre_xy`` between knee and head height (every shown mesh but the operator,
-    its tools, people and items), and the door also open."""
+    its tools, people and items), and the door also open. ``also``: points the map must reach (the owner's spots)."""
     from . import surroundings as sur
     z = sur.floor_height(scene)
-    lo = np.array((centre_xy[0] - AREA, centre_xy[1] - AREA))
-    hi = np.array((centre_xy[0] + AREA, centre_xy[1] + AREA))
+    pts = np.array([tuple(centre_xy[:2])] + [tuple(p[:2]) for p in also], float)
+    lo = pts.min(axis=0) - AREA
+    hi = pts.max(axis=0) + AREA
     fl = core.Floor(lo, hi, z=z, cell=0.04)
     door = door_joint(scene)
     door_obs = {ob.name for ob in (_members(door) if door is not None else [])}
@@ -505,41 +507,50 @@ def bake(scene, anim) -> list:
     shapes = {}
     toward = np.array((0.0, -1.0, 0.0))
     st_ob, start_ob = spot(scene, "stand"), spot(scene, "start")
-    for ch in pend["changes"]:
-        scene.frame_set(int(round(ch["frame"])))
+    fps_b = fps
+
+    def sample_at(frame: float, n: int):
+        """(grip point, axis, the copy of tool n as it sits in the spindle, its tip frame, its points) at a frame."""
+        scene.frame_set(int(round(frame)))
         W = _np4(_world(spindle) @ gcode.tool_frame(spindle))     # the reference tip in the spindle
         axis = core.unit(W[:3, 2])
         nose = W[:3, 3] + axis * toolchange.ref_gauge(scene, mach)  # the spindle's gauge line (its nose)
-        grip_pt = nose - axis * core.GRIP_BELOW
+        depth = core.GRIP_BELOW
+        names = pend["copies"].get(n)
+        src = bpy.data.objects.get(names[1]) if names is not None else None
+        if src is None:
+            return nose - axis * depth, axis, None
+        if n not in shapes:
+            shapes[n] = _tool_shape(src, spindle)
+        F, pts = shapes[n]
+        g = pend.get("gauge", {}).get(n) or toolchange.ref_gauge(scene, mach)
+        Wsrc = _np4(_world(src))
+        tip = Wsrc @ F
+        own = tip[:3, 3] + core.unit(tip[:3, 2]) * g
+        if float(np.dot(own - nose, axis)) < 0.0:            # a tool shown lower than the spindle's nose
+            nose = own
+        depth = core.grip_depth(pts, g)
+        return nose - axis * depth, axis, (Wsrc, tip, pts)
+
+    for ch in pend["changes"]:
+        out_t, in_t = TC.person_events(ch["t0"], ch["length"], ch["door"])
+        f_out, f_in = 1.0 + out_t * fps_b - 0.5, 1.0 + in_t * fps_b + 0.5    # just before the old tool comes out,
+        g_old, ax_old, t_old = sample_at(f_out, ch["old"])                      # just after the new one is in
+        g_new, ax_new, t_new = sample_at(f_in, ch["new"])
         if first_H is None:
-            if st_ob is not None:
-                stand_xy = np.array(st_ob.matrix_world.translation[:2])
-            else:
-                stand_xy = None
-            first_H = grip_pt
-            first_stand = stand_xy
-        right_way = None
+            first_stand = np.array(st_ob.matrix_world.translation[:2]) if st_ob is not None else None
+            first_H = g_old
         tools = {}
-        for n in (ch["old"], ch["new"]):
-            names = pend["copies"].get(n)
-            if names is None:
-                continue
-            src = bpy.data.objects.get(names[1])
-            if src is None:
-                continue
-            if n not in shapes:
-                shapes[n] = _tool_shape(src, spindle)
-            F, pts = shapes[n]
-            # the copy as it sits in the spindle: its tip frame on the spindle's tip frame, lower by its length
-            # offset (gcode.tool_objects placed it so)
-            Wsrc = _np4(_world(src))
-            tip_world = Wsrc @ F
-            tools[n] = (Wsrc, tip_world, pts)
-        stations.append((ch, grip_pt, axis, tools))
+        if t_old is not None:
+            tools[ch["old"]] = t_old
+        if t_new is not None:
+            tools[ch["new"]] = t_new
+        stations.append((ch, (g_old, ax_old, f_out), (g_new, ax_new, f_in), tools))
     if first_H is None:
         return warnings
     # the stand spot: in front of the spindle (−y of the world, as the hand of task 0041), or the owner's
-    fl = _floor(scene, first_H[:2], skip)
+    fl = _floor(scene, first_H[:2], skip,
+                [np.array(o.matrix_world.translation[:2]) for o in (st_ob, start_ob) if o is not None])
     if first_stand is None:
         stand_xy = core.stand_spot(fl, first_H[:2], toward[:2])
         if stand_xy is None:
@@ -551,12 +562,10 @@ def bake(scene, anim) -> list:
             warnings.append("The operator's stand spot is too close to the machine: it may stand in it")
     heading = PL.heading_of(first_H[:2] - stand_xy)
     toward_p = np.array((stand_xy[0] - first_H[0], stand_xy[1] - first_H[1], 0.0))
-    right_way = core.unit(-np.array((*PL.left_of(heading), 0.0)) - np.array((*PL.facing(heading), 0.0)) * 0.35)
+    right_way = core.palm_way(heading)
     # the trolley
     c = settings(scene)
-    tr = core.trolley_spot(fl, stand_xy, heading, right=c.op_trolley_side == "RIGHT")
-    if tr is None:
-        tr = core.trolley_spot(fl, stand_xy, heading, right=c.op_trolley_side != "RIGHT")
+    tr = core.trolley_spot(fl, stand_xy, heading)
     trol_ob = ensure_trolley(scene)
     trol = None
     if tr is not None:
@@ -570,42 +579,54 @@ def bake(scene, anim) -> list:
         fl.add_triangles(_mesh_tris(trol_ob))
     else:
         trol_ob.hide_render = trol_ob.hide_viewport = True
-        warnings.append("The operator: there is no room for the tool trolley beside it: the tools are not laid down")
+        warnings.append("The operator: there is no room for the tool trolley on its right: the tools are not laid "
+                        "down (move the stand spot: Show the spots)")
     # the stations in the core's terms
     k_stations = []
-    for ch, grip_pt, axis, tools in stations:
+    for ch, (grip_pt, axis, f_out), (grip_n, axis_n, f_in), tools in stations:
         H = core.m4(core.frame_of(axis, right_way), grip_pt)
+        Hn = core.m4(core.frame_of(axis_n, right_way), grip_n)
         tw = {}
         for n, (Wsrc, tip_world, pts) in tools.items():
             tw[n] = Wsrc
             if n not in grips:
-                L = np.linalg.inv(Wsrc) @ H                  # the grip frame in the copy's own space
+                L = np.linalg.inv(Wsrc) @ (H if n == ch["old"] else Hn)   # the grip frame in the copy's own space
                 rad = np.linalg.norm(pts[:, :2], axis=1)
                 grips[n] = (L, float(rad.max()) if len(rad) else 0.03)
-        s = core.Station(ch["old"], ch["new"], ch["t0"], ch["length"], H, tw, grips,
-                         door=ch["door"])
+        s = core.Station(ch["old"], ch["new"], ch["t0"], ch["length"], H, tw, grips, door=ch["door"],
+                         spindle_new=Hn)
         hr = []
         for n, (Wsrc, tip_world, pts) in tools.items():
-            Lg = np.linalg.inv(tip_world) @ H
+            Lg = np.linalg.inv(tip_world) @ (H if n == ch["old"] else Hn)
             zg = Lg[2, 3]
             near = pts[np.abs(pts[:, 2] - zg) < 0.006]
             if len(near):
                 hr.append(float(np.linalg.norm(near[:, :2], axis=1).max()))
         s.holder_r = min(0.045, max(0.012, max(hr))) if hr else core.HOLDER_R
-        s.button = _button(scene, H, toward_p, skip) if c.op_button else None
+        if c.op_button:
+            scene.frame_set(int(round(f_out)))
+            s.button = _button(scene, H, toward_p, skip)
+            scene.frame_set(int(round(f_in)))
+            s.button_new = _button(scene, Hn, toward_p, skip)
+            if s.button is None or s.button_new is None:
+                s.button = s.button_new = None
         k_stations.append(s)
     numbers = sorted(pend["copies"])
     if trol is not None:
-        core.place_tools(trol, numbers, grips, heading)
+        left_over = core.place_tools(trol, numbers, grips, heading)
+        if left_over:
+            warnings.append("The operator: " + ", ".join(f"T{n}" for n in left_over) + " do not fit on the trolley "
+                            "(it holds about 6 tools): they appear and go in the hand")
         for n, M in trol.slots.items():
             lying = bpy.data.objects.get(pend["trolley"][n])
             if lying is not None:
                 lying.matrix_world = Matrix(M.tolist())
+        _cradles(scene, trol, grips, shapes, pend, spindle)
     # the start spot and the way in
     if start_ob is not None:
         start_xy = np.array(start_ob.matrix_world.translation[:2])
     else:
-        side = 1.0 if c.op_trolley_side == "RIGHT" else -1.0
+        side = -1.0                                 # from the left: the trolley stands on the right
         cand = [stand_xy + np.array(PL.facing(heading)) * -2.4 + np.array(PL.left_of(heading)) * side * 1.4,
                 stand_xy + np.array(PL.facing(heading)) * -2.6, stand_xy + np.array(PL.left_of(heading)) * side * 2.4]
         start_xy = None
@@ -636,10 +657,11 @@ def bake(scene, anim) -> list:
     person_rig.key_poses(ob, frames, [r[1] for r in rows], [r[0] for r in rows])
     ob.hide_render = ob.hide_viewport = False
     _key_carried(pend, frames, rows)
-    big = [m for m in op.misses if m[2] > 0.02]
+    big = [m for m in op.misses if m[4] and m[2] > 0.015]       # where it must be exact: on a tool, the handle
     if big:
         worst = max(big, key=lambda m: m[2])
-        warnings.append(f"The operator's hand stays {worst[2] * 100:.0f} cm short of the tool at {worst[0]:.1f} s "
+        what = "the door's handle" if worst[3] in core.DOOR_MOVES else "the tool"
+        warnings.append(f"The operator's hand stays {worst[2] * 100:.0f} cm short of {what} at {worst[0]:.1f} s "
                         f"({worst[3]}) – move the stand spot closer (Show the spots)")
     warnings += [f"The operator: {n}" for n in op.notes]
     c["fr_op_times"] = [float(x) for row in op.change_times() for x in row]
@@ -685,6 +707,77 @@ def body_mesh(ob):
     body.update()
     ob[clash.CLASH_MESH] = body
     return body
+
+
+def _cradles(scene, trol, grips: dict, shapes: dict, pend: dict, spindle) -> None:
+    """Two small rubber cradles under every tool lying on the trolley: one under its holder beyond the hand, one under
+    its cutter's side (the fist round the holder then clears the trolley's top)."""
+    boxes = []
+    for n, M in trol.slots.items():
+        if n not in shapes:
+            src = bpy.data.objects.get(pend["copies"][n][1])
+            if src is None:
+                continue
+            shapes[n] = _tool_shape(src, spindle)
+        F, pts = shapes[n]
+        zg = float((np.linalg.inv(F) @ grips[n][0])[2, 3])          # the grip along the axis (tip frame)
+        lo, hi = float(pts[:, 2].min()), float(pts[:, 2].max())
+        W = M @ F
+        axis = W[:3, 2]
+        across = np.cross(axis, (0.0, 0.0, 1.0))
+        across /= np.linalg.norm(across) or 1.0
+        for s in (min(hi - 0.004, zg + 0.052), max(lo + 0.006, zg - 0.062)):
+            near = pts[np.abs(pts[:, 2] - s) < 0.005]
+            if not len(near):
+                continue
+            wp = near @ W[:3, :3].T + W[:3, 3]
+            centre = W[:3, :3] @ np.array((0.0, 0.0, s)) + W[:3, 3]
+            boxes.append((centre[:2], axis[:2], across[:2], float(wp[:, 2].min()) - 0.0005))
+    ob = next((o for o in bpy.data.objects if o.get(TAG) == "cradles"), None)
+    if not boxes:
+        if ob is not None:
+            ob.hide_render = ob.hide_viewport = True
+        return
+    verts, faces = [], []
+    for c, ax, ac, top in boxes:
+        ax3 = np.array((ax[0], ax[1], 0.0))
+        ax3 /= np.linalg.norm(ax3) or 1.0
+        ac3 = np.array((ac[0], ac[1], 0.0))
+        base = len(verts)
+        for dz in (trol.top, top):
+            for i, j in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+                p = np.array((c[0], c[1], dz)) + ax3 * (0.005 * i) + ac3 * (0.02 * j)
+                verts.append(tuple(p))
+        faces += [(base, base + 3, base + 2, base + 1), (base + 4, base + 5, base + 6, base + 7),
+                  (base, base + 1, base + 5, base + 4), (base + 1, base + 2, base + 6, base + 5),
+                  (base + 2, base + 3, base + 7, base + 6), (base + 3, base, base + 4, base + 7)]
+    me = bpy.data.meshes.new("FR tool cradles")
+    me.from_pydata(verts, [], faces)
+    me.materials.append(_rubber())
+    if ob is None:
+        ob = bpy.data.objects.new("FR tool cradles", me)
+        ob[TAG] = "cradles"
+        _collection(scene).objects.link(ob)
+    else:
+        old = ob.data
+        ob.data = me
+        if old is not None and old.users == 0:
+            bpy.data.meshes.remove(old)
+    ob.hide_render = ob.hide_viewport = False
+
+
+def _rubber():
+    mat = bpy.data.materials.get("FR rubber cradle")
+    if mat is None:
+        mat = bpy.data.materials.new("FR rubber cradle")
+        mat.diffuse_color = (0.03, 0.03, 0.035, 1.0)
+        try:
+            bsdf = mat.node_tree.nodes.get("Principled BSDF")
+            bsdf.inputs["Base Color"].default_value = (0.03, 0.03, 0.035, 1.0)
+            bsdf.inputs["Roughness"].default_value = 0.8
+        except Exception:
+            pass
+    return mat
 
 
 def _height(c) -> float:
@@ -756,7 +849,7 @@ def _key_carried(pend: dict, frames: list, rows: list) -> None:
 
 def _hide_unused(scene) -> None:
     """No step had the person this Build: the operator and its trolley are hidden (they stay for the next one)."""
-    for ob in (operator(scene), trolley(scene)):
+    for ob in [operator(scene), trolley(scene)] + [o for o in bpy.data.objects if o.get(TAG) == "cradles"]:
         if ob is not None:
             ob.hide_render = ob.hide_viewport = True
 
@@ -777,7 +870,7 @@ def apply_visible(scene) -> None:
     """Show or hide the operator, its trolley and the tools it carries or laid down (``operator_visible``, saved with
     a shot). Hidden, the tools swap in the spindle as without anyone."""
     show = bool(getattr(scene.fresing, "operator_visible", True))
-    obs = [operator(scene), trolley(scene)]
+    obs = [operator(scene), trolley(scene)] + [o for o in bpy.data.objects if o.get(TAG) == "cradles"]
     obs += [o for o in bpy.data.objects if CARRY in o or ON_TROLLEY in o]
     for ob in obs:
         if ob is None:
@@ -787,8 +880,8 @@ def apply_visible(scene) -> None:
             fc.mute = not show
         if not show:
             ob.hide_render = ob.hide_viewport = True
-        elif not curves and ob.get(TAG) in ("person", "trolley"):
-            used = ob.get(TAG) == "trolley" and trolley(scene) is not None
+        elif not curves and ob.get(TAG) in ("person", "trolley", "cradles"):
+            used = ob.get(TAG) in ("trolley", "cradles") and trolley(scene) is not None
             if ob.get(TAG) == "person" and _built(ob) or used and _built(operator(scene)):
                 ob.hide_render = ob.hide_viewport = False
     try:
@@ -878,15 +971,17 @@ def set_up_test_model(scene, ngc_path: str):
         o = _part(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
-    gcode.use_tool(scene, _part(scene, "END MILL D10"))
+    t1 = _part(scene, "END MILL D10 BT30")
+    gcode.use_tool(scene, t1)
     gcode.use_workpiece(scene, _part(scene, "STOCK 200x200x40"))
     if gcode.problem(scene):
         raise RuntimeError(f"the CNC set-up is not ready: {gcode.problem(scene)}")
     for name in ("FINISHED PART", "BALL MILL D6"):          # a shape on the stock, a spare tool on the head
         logic.set_hidden(_part(scene, name), True)
-    end = tools.add_row(scene, "FLAT", 1)
-    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.09, "BT30", 0.06
-    end.place = "SPINDLE"                                    # T1 is in the spindle when the program starts
+    end = tools.add_row(scene, "FLAT", 1)                    # T1: the model's own end mill in its holder
+    tools.use_part(scene, end, t1)
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.036, "BT30", 0.084
+    end.gauge_length = 0.12                                  # tip to the flange's top (tools/make_test_mill_cabinet)
     ball = tools.add_row(scene, "BALL", 2)
     ball.diameter, ball.length, ball.holder, ball.holder_length = 0.008, 0.1, "BT30", 0.06
     door = _part(scene, "SLIDING DOOR")

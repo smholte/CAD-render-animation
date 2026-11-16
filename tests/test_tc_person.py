@@ -106,10 +106,10 @@ def test_tools_lie_on_the_trolley_without_touching():
     grips = {n: (L, 0.032) for n in (1, 2, 3, 4)}
     T.place_tools(tr, [1, 2, 3, 4], grips, math.pi)
     pts = np.array([tr.slots[n] @ L for n in (1, 2, 3, 4)])
-    assert np.allclose(pts[:, 2, 3], 0.96 + 0.032 + 0.002)                  # the axis a radius above the top
+    assert np.allclose(pts[:, 2, 3], 0.96 + T.CRADLE + 0.032)              # on cradles: the fist clears the top
     assert np.allclose(np.abs(pts[:, :3, 2] @ np.array((1.0, 0.0, 0.0))), 1.0, atol=1e-6)   # lying across
     d = np.linalg.norm(np.diff(pts[:, :2, 3], axis=0), axis=1)
-    assert d.min() >= 2 * 0.032 + 0.02
+    assert d.min() >= 2 * 0.032 + 0.02 - 1e-9
     assert np.all(np.abs(pts[:, 1, 3] - (-0.8)) < 0.68 / 2)
 
 
@@ -132,14 +132,11 @@ def test_the_fist_is_round_the_holder():
     H = T.m4(T.frame_of((0.0, 0.0, 1.0), (1.0, -0.3, 0.0)), (0.1, 0.2, 1.1))
     for r in (0.016, 0.025, 0.035):
         M = T.grip_hand(H, k, r, np.array((1.0, -0.35, 0.0)))
-        centre = M[:3, :3] @ PL._grip_local("r", k) + M[:3, 3]
-        off = centre - H[:3, 3]
-        axial = float(np.dot(off, H[:3, 2]))
-        radial = np.linalg.norm(off - H[:3, 2] * axial)
-        assert abs(axial) < 1e-9
-        assert radial == pytest.approx(r + T.GRIP_GAP - 0.016, abs=1e-6)       # the fist wraps the holder
-        thumb = -M[:3, 1]
-        assert float(np.dot(thumb, H[:3, 2])) == pytest.approx(math.cos(math.radians(T.THUMB_TILT)), abs=1e-6)
+        local = np.linalg.inv(M[:3, :3]) @ (H[:3, 3] - M[:3, 3])               # the axis in the hand's frame
+        assert local[0] == pytest.approx(T.PALM_HALF * k + r + T.GRIP_GAP)     # off the palm by the holder's radius
+        assert local[2] == pytest.approx(PL._grip_local("r", k)[2])            # where the fingers close
+        assert np.dot(M[:3, 0], H[:3, 3] - M[:3, 3]) > 0                       # the palm faces the holder
+        assert float(np.dot(-M[:3, 1], H[:3, 2])) == pytest.approx(-1.0)       # the thumb away from the spindle
 
 
 def test_the_index_finger_presses_the_button():
@@ -147,7 +144,7 @@ def test_the_index_finger_presses_the_button():
     face = np.array((0.0, -1.0, 0.0))
     M = T.press_hand(np.array((0.0, 0.0, 1.3)), face, k, press=0.003)
     tip = M[:3, :3] @ (np.asarray(T.INDEX_TIP) * k) + M[:3, 3]
-    assert np.allclose(tip, (0.0, -0.001, 1.3), atol=1e-9)
+    assert np.allclose(tip, (0.0, -(T.TIP_GAP - 0.003), 1.3), atol=1e-9)
     assert float(np.dot(-M[:3, 2], -face)) == pytest.approx(1.0)               # the finger points into the face
 
 

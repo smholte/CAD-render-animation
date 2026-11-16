@@ -2125,8 +2125,10 @@ change:
 
 1. it opens the machine's door by its handle (if you picked the door's joint, below),
 2. presses the drawbar's release button on the head with its left hand (when the head has a face beside the spindle
-   to press on) and takes the old tool out of the spindle by its holder with its right hand,
-3. lays the old tool on a tool trolley beside it, takes the new one from the trolley,
+   to press on) and takes the old tool out of the spindle by its holder with its right hand (palm forward, the
+   fingers round the holder below the spindle's nose),
+3. lays the old tool on a tool trolley at its right (the tools lie across the trolley on small rubber cradles; the one
+   in the spindle at the start is not there; the trolley holds about 6 tools), takes the new one from the trolley,
 4. pushes it into the spindle, lets go of the button, closes the door and stands back.
 
 After the last change it walks back to where it came from. The pause grows to what the person needs: about 6.5
@@ -2141,8 +2143,6 @@ The person's settings are in 4 Motion > CNC machine > **Tool changes** > **Perso
 
 - **Height** (1.65, 1.75 or 1.85 m) and **Clothes**; the operator always wears work gloves. **Helmet**: off by
   default (a machine shop).
-- **Trolley**: on the operator's right or left. The tools of the program lie on its top, across it; the one in the
-  spindle at the start is not there.
 - **Door**: the joint that opens the machine's door (make it in 4 Motion: a slide joint for a sliding door, a rotate
   joint for a hinged one; closed as in your CAD model). **Opens by**: how far it slides or turns to be open. The
   hand follows the handle as far as it reaches; a door that slides further runs on by itself. Empty: no door.
@@ -2156,6 +2156,8 @@ The person's settings are in 4 Motion > CNC machine > **Tool changes** > **Perso
 
 Good to know:
 
+- The spindle may move during the pause (it rises before a longer tool goes in): the hands follow it – the old tool
+  is taken where it is when it comes out, the new one put where the spindle is when it goes in.
 - The operator stands in front of the spindle as close as its feet allow. A machine whose spindle is far behind its
   door (more than about 60 cm from where the person can stand) is out of reach: the Build says "The operator's hand
   stays … cm short of the tool – move the stand spot closer". Move the arrow closer, or the head's change position

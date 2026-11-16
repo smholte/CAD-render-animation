@@ -47,6 +47,7 @@ SLABS = 24                   # … up to 2.4 m
 HEAD_R, CHEST_R = 0.11, 0.15  # m: the head and the upper chest kept off things when the person leans in
 TROLLEY_SIZE = (0.68, 0.46, 0.96)     # length, width, height (core/props_detail tool trolley)
 TROLLEY_BODY = 0.43          # m: the trolley's half diagonal, kept off the machine
+PALM_HALF = 0.016            # m: half the palm's thickness (props_detail's hand, 1.75 m person)
 GRIP_GAP = 0.004             # m: the hand's fist is this much wider than the holder (no skin in the steel)
 PRESS = 0.003                # m: the drawbar button goes in this far
 PULL = 0.05                  # m: the tool comes down this far out of the spindle (its taper out), then out
@@ -55,9 +56,12 @@ DEPART = 0.3                 # s: after the last pause the person waits this lon
 WALK_GAIT = "WALK"
 REACH = 0.985                # of the arm's length: what a hand can reach without straining
 HOLDER_R = 0.025             # m: the holder's radius where the hand grips it (BT30/BT40 flange ~ 23–32 mm)
+GRIP_MIN = 0.07              # m: the fist's middle at least this far below the gauge line (its thumb off the spindle)
 GRIP_BELOW = 0.085           # m: the fist's middle below the spindle's gauge line (its thumb points up along the holder)
-ELBOW = {"l": np.array((0.35, 0.25, -1.0)), "r": np.array((-0.5, 0.3, -1.0))}   # elbows down, a little out and back
-THUMB_TILT = 25.0            # degrees: the gripping thumb leans back from the tool's axis (it stays off the spindle)
+ELBOW = {"l": np.array((-0.1, 0.2, -1.0)), "r": np.array((-0.5, 0.3, -1.0))}   # elbows down, a little out and back
+LET_GO = 0.7                 # s: a hand that lets go of a door it cannot follow goes back to the side in this time
+EXACT = ("reach", "grip", "release", "set", "take", "insert", "clamp")   # moves whose end must be exactly on the aim
+ENTRY_LEFT = 0.3             # m: the same for the left hand at the button (12 cm lower: the arm never folds up)
 ENTRY = 0.3                  # m: a hand goes in and out of the machine through a point this far in front of the
                              # holder, at the holder's height (no straight line from the hip through the table)
 
@@ -228,6 +232,21 @@ class Floor:
         d2 = ((ii + a0 - i0) ** 2 + (jj + b0 - j0) ** 2) * self.cell ** 2
         return bool(d2.min() > radius * radius)
 
+    def inside(self, xy) -> bool:
+        i, j = self.ij(xy)
+        return 0 <= i < self.shape[0] and 0 <= j < self.shape[1]
+
+    def entry(self, a, b, radius: float = BODY):
+        """The first free point inside the map on the straight line from ``a`` (outside) towards ``b``."""
+        a, b = np.asarray(a[:2], float), np.asarray(b[:2], float)
+        n = max(2, int(np.linalg.norm(b - a) / (self.cell * 0.5)) + 1)
+        for u in np.linspace(0.0, 1.0, n):
+            p = a + (b - a) * u
+            if self.inside(p):
+                q = self.nearest_free(p, radius + WALK_MARGIN, 1.0)
+                return q
+        return None
+
     def clearance(self, xy) -> float:
         """How far ``xy`` is from the nearest taken cell (m; inf on an empty floor)."""
         if not self.occ.any():
@@ -320,10 +339,31 @@ class Floor:
         return out
 
 
+def grip_depth(points, gauge: float) -> float:
+    """How far below a tool's gauge line the fist holds it (m): on its holder's body, between ``GRIP_MIN`` and
+    ``GRIP_BELOW``. ``points``: the tool's points in its tip frame (z from the tip along the axis, m); ``gauge``: the
+    gauge line's z there."""
+    p = np.asarray(points, float).reshape(-1, 3)
+    p = p[p[:, 2] < gauge - 1e-4]
+    if not len(p):
+        return GRIP_BELOW
+    rad = np.hypot(p[:, 0], p[:, 1])
+    holder = p[rad >= 0.55 * float(rad.max())]
+    z_lo = float(holder[:, 2].min()) if len(holder) else gauge - GRIP_BELOW
+    return min(GRIP_BELOW, max(GRIP_MIN, (gauge - z_lo) * 0.6))
+
+
 def way_to(floor: Floor, start, goal, radius: float = BODY, margin: float = WALK_MARGIN) -> list | None:
     """A clear way from ``start`` to ``goal`` kept ``margin`` further off things than ``radius`` where it can be;
     the last stretch to a goal close to the machine is planned with ``radius`` alone."""
     a, b = np.asarray(start[:2], float), np.asarray(goal[:2], float)
+    outside = not floor.inside(a)
+    if outside:                                   # a start beyond the map: straight in to where the map begins
+        entry = floor.entry(a, b)
+        if entry is None:
+            return None
+        w = way_to(floor, entry, b, radius, margin)
+        return None if w is None else [a] + w
     w = floor.way(a, b, radius + margin)
     if w is not None:
         return w
@@ -371,15 +411,16 @@ def stand_spot(floor: Floor, holder_xy, front, radius: float = WORK_ROOM, near: 
     return None
 
 
-def trolley_spot(floor: Floor, stand_xy, heading: float, right: bool = True):
-    """Where the trolley stands beside the person (its centre, and its turn about z): on the right hand side (or the
-    left), its long side along the way the person faces, a little behind the person. None when it does not fit."""
+def trolley_spot(floor: Floor, stand_xy, heading: float):
+    """Where the trolley stands beside the person (its centre, and its turn about z): on its right hand side (the
+    hand that carries the tools), its long side along the way the person faces, a little behind the person. None
+    when it does not fit there."""
     f = PL.facing(heading)
     left = PL.left_of(heading)
-    s = -1.0 if right else 1.0
+    s = -1.0
     stand = np.asarray(stand_xy[:2], float)
-    for lat in (0.55, 0.62, 0.7):
-        for back in (0.08, 0.2, -0.04, 0.32):
+    for lat in (0.55, 0.6):
+        for back in (0.08, 0.16, 0.0, 0.24):
             c = stand + left * s * lat - f * back
             if floor.is_free(c, TROLLEY_BODY) and floor.clearance(c) >= TROLLEY_BODY:
                 return c, heading
@@ -449,6 +490,14 @@ class Station:
     button: tuple | None = None
     door: float = 0.0
     holder_r: float = HOLDER_R
+    spindle_new: np.ndarray | None = None    # the holder frame when the new tool goes in (the spindle may have
+    button_new: tuple | None = None          # risen for a longer tool meanwhile); None: as ``spindle`` / ``button``
+
+    def frame_new(self) -> np.ndarray:
+        return self.spindle if self.spindle_new is None else self.spindle_new
+
+    def button_in(self):
+        return self.button if self.button_new is None else self.button_new
 
 
 @dataclass
@@ -461,24 +510,34 @@ class Trolley:
     slots: dict = field(default_factory=dict)
 
 
-def place_tools(trolley: Trolley, numbers: list, grips: dict, person_heading: float) -> None:
-    """Lay the tools on the trolley's top in a row along its length (the way the person faces), each across it with
-    its taper to the person's left, the grip towards the near edge."""
+CRADLE = 0.026                # m: the tools lie on cradles this high (the fist round a holder clears the top)
+
+
+def place_tools(trolley: Trolley, numbers: list, grips: dict, person_heading: float) -> list:
+    """Lay the tools on cradles on the trolley's top in a row along its length (the way the person faces), each across
+    it with its taper to the person's left, the grip towards the near edge, at least 2 cm apart. Returns the tools
+    that do not fit (they get no place: the hand takes them from and puts them nowhere)."""
     f3 = np.array((*PL.facing(person_heading), 0.0))
     left3 = np.array((*PL.left_of(person_heading), 0.0))
-    L = TROLLEY_SIZE[0]
-    gap = max([2 * grips[n][1] + 0.025 for n in numbers if n in grips] + [0.07])
-    count = max(1, len(numbers))
-    span = min(L - 0.12, gap * (count - 1))
-    for k, n in enumerate(numbers):
-        if n not in grips:
-            continue
+    usable = TROLLEY_SIZE[0] - 0.08
+    have = [n for n in numbers if n in grips]
+    widths = [2 * grips[n][1] + 0.02 for n in have]
+    fit, total = [], 0.0
+    for n, w in zip(have, widths):
+        if total + w > usable + 1e-9:
+            break
+        fit.append((n, w))
+        total += w
+    along = -total / 2
+    p = np.asarray(trolley.centre[:2], float)
+    for n, w in fit:
         L_grip, r = grips[n]
-        along = (span / 2 - k * (span / max(1, count - 1))) if count > 1 else 0.0
-        p = np.asarray(trolley.centre[:2], float)
-        point = np.array((p[0], p[1], trolley.top + r + 0.002)) + f3 * along + left3 * 0.06
+        mid = along + w / 2
+        along += w
+        point = np.array((p[0], p[1], trolley.top + CRADLE + r)) - f3 * mid + left3 * 0.06
         H = m4(np.column_stack((np.cross((0.0, 0.0, 1.0), left3), (0.0, 0.0, 1.0), left3)), point)
         trolley.slots[n] = H @ PL.inv4(L_grip)
+    return [n for n in numbers if n not in trolley.slots]
 
 
 # ---------------------------------------------------------------------------
@@ -488,26 +547,34 @@ def place_tools(trolley: Trolley, numbers: list, grips: dict, person_heading: fl
 def grip_hand(H: np.ndarray, k: float, holder_r: float, right_way: np.ndarray, side: str = "r",
               open_by: float = 0.0) -> np.ndarray:
     """The right hand's frame (4x4, its head = the wrist) holding a holder whose grip frame is ``H`` (z along the axis
-    into the spindle): the palm beside the holder on the ``right_way`` side, facing it, the thumb along z, the
-    fingers round it. ``open_by``: the palm that much further off (reaching, letting go)."""
+    into the spindle): the palm on the ``right_way`` side of the holder (from the person: in front of it), facing it,
+    the fingers round it, the thumb pointing away from the spindle (a palm-forward grip: nothing of the hand goes up
+    into the spindle). ``open_by``: the palm that much further off (reaching, letting go)."""
     z = unit(H[:3, 2])
     y_h = np.asarray(right_way, float) - z * float(np.dot(right_way, z))
     y_h = unit(y_h)
     x_palm = -y_h                                     # into the palm: towards the holder
-    z0 = np.cross(x_palm, -z)
-    a = math.radians(THUMB_TILT)                      # the thumb up along the holder, tilted back off the spindle
-    thumb = z * math.cos(a) + z0 * math.sin(a)
-    y_hand = -thumb                                   # the thumb is -y of the hand
+    y_hand = z                                        # the thumb (-y of the hand) points away from the spindle
     z_hand = np.cross(x_palm, y_hand)
     Rh = np.column_stack((x_palm, y_hand, z_hand))
-    grip = PL._grip_local(side, k) + np.array((-(holder_r + GRIP_GAP - 0.016), 0.0, 0.0)) * (1.0 if side == "r" else -1.0)
+    grip = PL._grip_local(side, k).copy()
+    grip[0] = (1.0 if side == "r" else -1.0) * (PALM_HALF * k + holder_r + GRIP_GAP)   # the axis off the palm
     centre = H[:3, 3] + y_h * open_by
     return m4(Rh, centre - Rh @ grip)
+
+
+def palm_way(heading: float) -> np.ndarray:
+    """From a holder towards where the right palm is when the person (``heading``) holds it: towards the person, a
+    little to its right (the right hand reaches from there)."""
+    right = -np.array((*PL.left_of(heading), 0.0))
+    back = -np.array((*PL.facing(heading), 0.0))
+    return unit(back + right * 0.3)
 
 
 #: the index finger's tip in its hand bone's frame (props_detail._hand: the palm 0.095 long, the index finger 0.074,
 #: 0.03 to the thumb's side), metres of a 1.75 m person
 INDEX_TIP = (0.0, -0.03, -(0.095 + 0.074))
+TIP_GAP = 0.012              # m: the index finger's middle line ends this far off the button (its round end on it)
 
 
 def press_hand(point, face, k: float, side: str = "l", press: float = 0.0) -> np.ndarray:
@@ -522,7 +589,7 @@ def press_hand(point, face, k: float, side: str = "l", press: float = 0.0) -> np
     R2 = -Z
     Y = np.cross(R2, X)
     Rh = np.column_stack((X, Y, R2))
-    tip = np.asarray(point, float) + n * (0.004 - press)
+    tip = np.asarray(point, float) + n * (TIP_GAP - press)        # the finger's round end (r 7 mm) on the button
     return m4(Rh, tip - Rh @ (np.asarray(INDEX_TIP, float) * k))
 
 
@@ -654,33 +721,36 @@ class Operator:
         return v
 
     def _right_way(self, root) -> np.ndarray:
-        """From a holder towards where the right palm is: the person's right, a little towards the person."""
-        h = root[3]
-        right = -np.array((*PL.left_of(h), 0.0))
-        back = -np.array((*PL.facing(h), 0.0))
-        return unit(right + back * 0.35)
+        return palm_way(root[3])
 
     def _aims(self, s: Station, root) -> dict:
         """The hands' aims (world) at the end of each move of a change."""
         k = self.k
         rw = self._right_way(root)
-        H = s.spindle
-        down = m4(np.eye(3), -unit(H[:3, 2]) * PULL)
+        H, Hn = s.spindle, s.frame_new()
         r = s.holder_r
         at = grip_hand(H, k, r, rw)
+        at_n = grip_hand(Hn, k, r, rw)
         near = grip_hand(H, k, r, rw, open_by=0.035)
-        pulled = down @ at
+        pulled = m4(np.eye(3), -unit(H[:3, 2]) * PULL) @ at
+        pulled_n = m4(np.eye(3), -unit(Hn[:3, 2]) * PULL) @ at_n
         aims: dict = {}
         rest = Target(None)
         towards = np.array((*(-PL.facing(root[3])), 0.0))      # from the machine to the person
         e_in = at[:3, 3] + towards * ENTRY
         e_out = pulled[:3, 3] + towards * ENTRY
-        btn = btn_in = None
-        e_btn = None
+        e_out_n = pulled_n[:3, 3] + towards * ENTRY
+        btn = btn_in = btn_n = btn_n_in = None
+        e_btn = e_btn_n = None
         if s.button is not None:
             btn = Target(press_hand(s.button[0], s.button[1], k), 0.85, point=1.0)
             btn_in = Target(press_hand(s.button[0], s.button[1], k, press=PRESS), 0.85, point=1.0)
-            e_btn = btn.M[:3, 3] + towards * ENTRY
+            e_btn = btn.M[:3, 3] + towards * ENTRY_LEFT - np.array((0.0, 0.0, 0.12))
+        bn = s.button_in()
+        if bn is not None:
+            btn_n = Target(press_hand(bn[0], bn[1], k), 0.85, point=1.0)
+            btn_n_in = Target(press_hand(bn[0], bn[1], k, press=PRESS), 0.85, point=1.0)
+            e_btn_n = btn_n.M[:3, 3] + towards * ENTRY_LEFT - np.array((0.0, 0.0, 0.12))
         L_rest = rest
         L_out = Target(None, via=e_btn)
         btn_reach = Target(btn.M, 0.85, via=e_btn, point=1.0) if btn is not None else None
@@ -689,7 +759,7 @@ class Operator:
         aims["release"] = (Target(at, 0.8), btn_in or L_rest)
         aims["pull"] = (Target(pulled, 0.8), Target(btn.M, 0.85, point=1.0) if btn is not None else L_rest)
         slot_old = self._slot_hand(s, s.old, H, at)
-        slot_new = self._slot_hand(s, s.new, H, at)
+        slot_new = self._slot_hand(s, s.new, Hn, at_n)
         if slot_old is not None:
             above = m4(slot_old[:3, :3], slot_old[:3, 3] + np.array((0.0, 0.0, 0.07)))
             aims["away"] = (Target(above, 0.8, via=e_out), L_out)
@@ -703,11 +773,11 @@ class Operator:
             aims["take"] = (Target(slot_new, 0.8), L_rest)
         else:
             aims["take"] = (Target(None, 0.8), L_rest)
-        fetch_l = Target(btn_in.M, 0.85, via=e_btn, point=1.0) if btn_in is not None else L_rest
-        aims["fetch"] = (Target(pulled, 0.8, via=e_out), fetch_l)
-        aims["insert"] = (Target(at, 0.8), btn_in or L_rest)
-        aims["clamp"] = (Target(at, 0.8), Target(btn.M, 0.85, point=1.0) if btn is not None else L_rest)
-        aims["leave"] = (Target(None, via=e_in), L_out)
+        fetch_l = Target(btn_n_in.M, 0.85, via=e_btn_n, point=1.0) if btn_n_in is not None else L_rest
+        aims["fetch"] = (Target(pulled_n, 0.8, via=e_out_n), fetch_l)
+        aims["insert"] = (Target(at_n, 0.8), btn_n_in or L_rest)
+        aims["clamp"] = (Target(at_n, 0.8), btn_n or L_rest)
+        aims["leave"] = (Target(None, via=at_n[:3, 3] + towards * ENTRY), Target(None, via=e_btn_n))
         return aims
 
     def _slot_hand(self, s: Station, n: int, H, at) -> np.ndarray | None:
@@ -826,13 +896,13 @@ class Operator:
             return aims[nm][0 if side == "r" else 1]
 
         # the hands' aims (world) at the start and the end of this move
+        door_lean = None
         if door_move:
-            M_r, f_r = self._door_aim(t, root, base_pose, moves, name, a, b, u)
+            # the hand and the lean together: the lean follows the handle while the hand holds it, and eases away
+            # while the hand lets go (never the least each moment needs: that came and went within a few frames)
+            M_r, f_r, door_lean = self._door_aim(t, root, base_pose, moves, name, a, b, u)
             plan = {"r": (M_r, f_r)}
-            # the lean goes from the one of the move's start to the one of its end (not the least each moment
-            # needs: that came and went within a few frames)
-            bend_from = self._door_aim(a + 1e-6, root, base_pose, moves, name, a, b, 0.0)[0]
-            bend_to = self._door_aim(b - 1e-6, root, base_pose, moves, name, a, b, 1.0)[0]
+            bend_from = bend_to = None
             w_bend = u
         else:
             plan = {}
@@ -843,7 +913,7 @@ class Operator:
         # lean towards the right hand's aim (blended over the move), then look, then the arms
         lean_a = self._lean_for(base_pose, root, bend_from) if bend_from is not None else (0.0, 0.0, 1.0, 0.0)
         lean_b = self._lean_for(base_pose, root, bend_to) if bend_to is not None else (0.0, 0.0, 1.0, 0.0)
-        mix = tuple(x + (y - x) * w_bend for x, y in zip(lean_a, lean_b))
+        mix = tuple(x + (y - x) * w_bend for x, y in zip(lean_a, lean_b)) if door_lean is None else door_lean
         via = None if door_move else t_to["r"].via
         if via is not None and bend_from is not None and bend_to is not None:
             # a way through the entry point may need more lean half way than at its ends
@@ -895,7 +965,7 @@ class Operator:
                 Mf = to_fig(root, M)
                 miss = fig.arm_ik(pose, side, Mf[:3, 3], hand_R=Mf[:3, :3], elbow=ELBOW[side])
                 if miss > 0.004:
-                    self.misses.append((t, side, miss, name))
+                    self.misses.append((t, side, miss, name, (u > 0.97 and name in EXACT) or name in ("open", "close")))
             pose.fingers[side] = fingers
         # the tools the right hand carries
         out_tools = {}
@@ -905,10 +975,11 @@ class Operator:
         set_end = next(bb for _aa, bb, nm in moves if nm == "set")
         take_end = next(bb for _aa, bb, nm in moves if nm == "take")
         at = grip_hand(s.spindle, k, s.holder_r, self._right_way(root))
+        at_n = grip_hand(s.frame_new(), k, s.holder_r, self._right_way(root))
         if s.old in s.tools and out_t <= t <= set_end:
             out_tools[s.old] = hand @ PL.inv4(at) @ s.tools[s.old]
         if s.new in s.tools and take_end <= t <= in_t:
-            out_tools[s.new] = hand @ PL.inv4(at) @ s.tools[s.new]
+            out_tools[s.new] = hand @ PL.inv4(at_n) @ s.tools[s.new]
         return pose, out_tools, door_v
 
     def _door_aim(self, t, root, pose, moves, name, a, b, u):
@@ -936,26 +1007,34 @@ class Operator:
             memo = (last, self._reachable(root, pose, at(ka)))
             self._door_memo[(id(moves), key)] = memo
         last, start_ok = memo
-        if name in ("to_door", "to_close"):
-            if not start_ok:
-                return None, R.FINGERS_REST
-            return _blend_world(root, self.fig, pose, None, at(ka), u), 0.35 + 0.45 * u
-        if name in ("open", "close"):
-            if not start_ok:
-                return None, R.FINGERS_REST
-            if t <= last:
-                return at(t), 0.8
-            w = smooth((t - last) / 0.3)                  # out of reach: it lets go and the door runs on
-            return _blend_world(root, self.fig, pose, at(last), None, w), 0.8 - 0.45 * w
-        # let_go / let_go2: from where the hand let go (if it still held the door at the end)
+        zero = (0.0, 0.0, 1.0, 0.0)
+
+        def lean(M):
+            return self._lean_for(pose, root, M)
+
+        def mix(A, B, w):                                 # lean and turn blend; the way of the one that leans
+            way = A[2:] if A[0] >= B[0] else B[2:]
+            return (A[0] + (B[0] - A[0]) * w, A[1] + (B[1] - A[1]) * w) + tuple(way)
+
         if not start_ok:
-            return None, R.FINGERS_REST
+            return None, R.FINGERS_REST, zero
+        if name in ("to_door", "to_close"):
+            return _blend_world(root, self.fig, pose, None, at(ka), u), 0.35 + 0.45 * u, mix(zero, lean(at(ka)), u)
+        if name in ("open", "close"):
+            if t <= last:
+                return at(t), 0.8, lean(at(t))
+            w = smooth((t - last) / LET_GO)                  # out of reach: it lets go and the door runs on
+            L = lean(at(last))
+            return _blend_world(root, self.fig, pose, at(last), None, w), 0.8 - 0.45 * w, mix(L, zero, w)
+        # let_go / let_go2: from where the hand let go (if it still held the door at the end)
         if last < kb - 1e-6:                              # it let go during the door's move: that ends now
-            w = smooth((t - last) / 0.3)
+            w = smooth((t - last) / LET_GO)
             if w >= 1.0:
-                return None, R.FINGERS_REST
-            return _blend_world(root, self.fig, pose, at(last), None, w), 0.8 - 0.45 * w
-        return _blend_world(root, self.fig, pose, at(kb), None, u), 0.8 - 0.45 * u
+                return None, R.FINGERS_REST, zero
+            L = lean(at(last))
+            return _blend_world(root, self.fig, pose, at(last), None, w), 0.8 - 0.45 * w, mix(L, zero, w)
+        L = lean(at(kb))
+        return _blend_world(root, self.fig, pose, at(kb), None, u), 0.8 - 0.45 * u, mix(L, zero, u)
 
     def _close_contact(self, root, pose):
         """A point of the door to pull it closed by: the handle, or – when the open door took it out of reach – a

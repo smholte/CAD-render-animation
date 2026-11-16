@@ -2323,11 +2323,6 @@ class FRCnc(bpy.types.PropertyGroup):
         name="Door opens by", subtype="ANGLE", default=math.radians(90.0), soft_min=-math.pi, soft_max=math.pi,
         update=_cnc_changed,
         description="How far the hinged door turns to be open (from where it is in the CAD model, which is closed)")
-    op_trolley_side: EnumProperty(
-        name="Trolley", default="RIGHT", update=_cnc_changed,
-        items=[("RIGHT", "Right", "The tool trolley stands on the operator's right"),
-               ("LEFT", "Left", "The tool trolley stands on the operator's left")],
-        description="On which side of the operator the tool trolley stands, with the tools lying on its top")
     op_button: BoolProperty(
         name="Press the release button", default=True, update=_cnc_changed,
         description="The operator's left hand presses the drawbar button on the head while the right hand takes the "

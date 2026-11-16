@@ -330,7 +330,6 @@ def draw_operator(layout, context, scene, cnc) -> None:
     col = split_props(body)
     col.prop(cnc, "op_height", text="Height")
     col.prop(cnc, "op_outfit", text="Clothes")
-    col.prop(cnc, "op_trolley_side", text="Trolley")
     col.prop_search(cnc, "op_door", scene.fresing, "joints", text="Door", icon="SNAP_FACE")
     j = tc_person.door_joint(scene)
     if j is not None and j.kind == "SLIDE":

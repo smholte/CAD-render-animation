@@ -90,8 +90,9 @@ def test_the_hands_never_go_into_the_machine(built):
         dg = bpy.context.evaluated_depsgraph_get()
         tp = tree(op, dg)
         holding_door = any(x <= f <= y for x, y in door_span)
+        holding_t1 = f0 + keys[1][0] * 25 <= f <= f0 + TC.person_events(*c.hand, c.door)[0] * 25 + 2
         for o in parts:
-            if o.hide_render or (holding_door and o is door):
+            if o.hide_render or (holding_door and o is door) or (holding_t1 and o.name.startswith("END MILL")):
                 continue
             if tp.overlap(tree(o, dg)):
                 hits.setdefault(o.name, []).append(f)
@@ -107,7 +108,8 @@ def test_the_tools_go_where_the_hand_takes_them(built):
     lying = {o[tc_person.ON_TROLLEY]: o for o in sc.objects if tc_person.ON_TROLLEY in o}
     assert set(carried) == set(lying) == {1, 2}
     sc.frame_set(int(f0 + keys["release"][0] * 25))
-    in_spindle = next(o for o in sc.objects if o.get("fr_cnc_t") == 1 and not o.hide_render)
+    in_spindle = bpy.data.objects[carried[1]["fr_cnc_src"]]          # the model's own T1 in its holder
+    assert not in_spindle.hide_render
     spindle_place = np.array(tc_person._world(in_spindle))
     f = int(math.ceil(f0 + out_t * 25))
     sc.frame_set(f)
@@ -123,7 +125,7 @@ def test_the_tools_go_where_the_hand_takes_them(built):
     top = tc_person._trolley_top(sc, trolley, 0.0)
     for o in lying.values():
         v = np.array([tuple(o.matrix_world @ p.co) for p in o.data.vertices])
-        assert v[:, 2].min() > top - 0.002                                      # on the top, not in it
+        assert v[:, 2].min() > top + tc_person.core.CRADLE - 0.002            # on its cradles, not in the top
 
 
 def test_clash_check_and_hiding(built):
