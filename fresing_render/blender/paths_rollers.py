@@ -1,4 +1,4 @@
-"""Rollers the cable has left stand still (task 0125).
+"""Rollers and sheaves the cable has left stand still (task 0125; sheaves: task 0172).
 
 A roller of a cable (a ``ROLLER`` contact of ``blender/paths.py``) turns by a coupling: its rotate joint follows the
 cable's speed joint (or the joint at the top of that joint's chain, as the demo's horn rollers follow 'Cable
@@ -19,6 +19,11 @@ near a roller are looked at, all frames at once (NumPy).
 Where the roller is, as the cable part sees it: a roller whose carrier moves with the cable part (or a cable that
 stays as drawn) sits where CAD put it; one whose carrier moves with one of the cable's carriers (a horn on a tilting
 frame) goes with that carrier's place per frame. A roller on anything else keeps its coupling.
+
+Sheaves (task 0172, 0125's open point 5): a ``SHEAVE`` contact whose joint turns with the cable is tested the same
+way – a sheave the cable is lifted off (drawn straight past it) or that no drawn cable touches at a frame (its wire
+hangs off it, it was let go) stands still there. A sheave is one of the wheels the cable is solved round, so where it
+is per frame comes from its own slot (its joint's arrow: a sheave on a swivel head or a tilting handler goes along).
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ import numpy as np
 WAS = "fr_roller_was"          # on a joint's motion empty: its coupling put aside at Build (JSON)
 STILL = "fr_roller_still"      # on a joint's motion empty: its keys are this module's (the cables it was tested on)
 TOL = (0.005, 0.02)            # touching: 5 mm + 2 % of the cable's diameter (m) beyond the seat and the width
+KINDS = ("ROLLER", "SHEAVE")   # the contacts that stand still where the cable has left them (sheaves: task 0172)
 
 
 def _paths():
@@ -48,11 +54,11 @@ def _joints():
 # ---------------------------------------------------------------------------
 
 def _rollers_by_joint(scene) -> dict:
-    """{joint name: [(cable, contact), ...]} for every ROLLER contact with a joint, over every cable."""
+    """{joint name: [(cable, contact), ...]} for every ROLLER or SHEAVE contact with a joint, over every cable."""
     out: dict = {}
     for it in scene.fresing.cables:
         for c in it.contacts:
-            if c.kind == "ROLLER" and c.joint:
+            if c.kind in KINDS and c.joint:
                 out.setdefault(c.joint, []).append((it, c))
     return out
 
@@ -97,8 +103,12 @@ def _places(scene, item, c, rel, slots, memo: dict):
     if item.still or mine == flex._movers(item.part):
         m = (np.linalg.inv(paths._cad(item.part, memo)) @ cad_c)[None]
     else:
-        k = next((k for k, sl in enumerate(slots) if sl.part is None and not sl.role
-                  and flex._alive(scene, sl.carrier) and flex._movers(sl.carrier) == mine), None)
+        # a wheel's own slot first (a sheave on its joint's arrow: the arrow carries it, task 0172), else a slot that
+        # moves with the same things
+        k = next((k for k, sl in enumerate(slots) if sl.carrier == carrier and not sl.role), None)
+        if k is None:
+            k = next((k for k, sl in enumerate(slots) if sl.part is None and not sl.role
+                      and flex._alive(scene, sl.carrier) and flex._movers(sl.carrier) == mine), None)
         if k is None:
             return None
         m = rel[:, k] @ (np.linalg.inv(paths._cad(slots[k].carrier, memo)) @ cad_c)
@@ -283,8 +293,8 @@ def _write_keys(j, values, first: int) -> None:
 
 
 def after_bake(scene, first: int, frames: int, drawn: dict) -> list[str]:
-    """Build: every roller whose joint turns with a cable and which no drawn cable touches at some frame gets one key
-    per frame (standing still where it is not touched), its coupling put aside until 'Clear keys'. Returns
+    """Build: every roller or sheave whose joint turns with a cable and which no drawn cable touches at some frame gets
+    one key per frame (standing still where it is not touched), its coupling put aside until 'Clear keys'. Returns
     warnings."""
     after_clear(scene)                          # (a coupling still aside from an earlier Build first)
     if frames < 1 or not drawn:

@@ -39,6 +39,14 @@ the wheel's plane (a wheel tilted out of the catenary's vertical plane) – the 
 **free bend** of the wheel's radius from the wheel's tangent to the catenary's direction (in the plane of the two),
 and the catenary starts where that bend ends (a fixed point: the catenary's direction depends a little on where it
 starts). ``bend_points`` gives its points.
+
+**A wheel lying flat, near the seabed** (task 0172: the D tipped flat and set down, shot 11 of the demo). Where the
+cable hangs nearly straight down past a wheel lying flat, the catenary's direction direction says nothing about where round the wheel the cable goes: its sideways part flipped the
+leave point from one end of the gutter to its middle and back. For a wheel whose plane holds less than ``FLAT`` of
+"down" the wrap is read from the way the cable lies on the seabed (the lay direction from the touch-down towards S),
+blended in as the wheel lies flatter: the cable stays in the gutter to the end that points the way it lies. A free bend that would reach into the seabed turns only as far as
+fits above it (the cable comes off the bend onto the seabed: the touch-down) – before, it was left out and the cable
+kinked by up to 60° at the wheel.
 """
 
 from __future__ import annotations
@@ -55,7 +63,10 @@ ROUNDS = 64                     # bisection steps (2⁻⁶⁴ of the range in lo
 FIX_ROUNDS = 60                 # rounds of the fixed point on the wrap
 FIX_TOL = 1e-12                 # rad
 BEND_MIN = 1e-4                 # rad: a smaller kink is left as it is (no free bend)
-BEND_ROUNDS = 40                # rounds of the fixed point on the free bend's turn
+BEND_ROUNDS = 80                # rounds of the fixed point on the free bend's turn
+FLAT = 0.2                      # a wheel whose plane holds less of "down" than this lies (nearly) flat (as paths_sea.FLAT)
+BED_GAP = 1e-3                  # m: a free bend ends at least this far over the cable's middle on the seabed
+BED_BAND = 0.5                  # m: a free bend ending this near the seabed bends in the catenary's plane at the wheel
 SNAKE = 4.0                     # m: wavelength of cable piled on the seabed (only drawn in the warned case)
 _TINY = 1e-9
 
@@ -447,6 +458,22 @@ def _in_range(want, wmax):
     return best
 
 
+def _way(res: dict, k) -> np.ndarray:
+    """(F, 3): the direction the wrap is read from (task 0172) – the catenary's direction at T; for a wheel lying (nearly)
+    flat (its plane holds less than ``FLAT`` of "down": a quadrant tipped flat) blended towards the way the cable lies
+    on the seabed (the lay direction ``u``, from the touch-down towards S), fully that where it lies flat. A cable
+    hanging straight down past a flat wheel has no direction in the wheel's plane worth the name: its sideways part
+    moved the leave point from one end of the gutter to its middle and back."""
+    d = res["direction"]
+    d_in = d - (d * k).sum(1, keepdims=True) * k
+    u = res["u"]
+    u_in = u - (u * k).sum(1, keepdims=True) * k
+    down_in = np.sqrt(np.clip(1.0 - k[:, 2] ** 2, 0.0, 1.0))      # how much of "down" the wheel's plane holds
+    w = np.clip(1.0 - down_in / FLAT, 0.0, 1.0)
+    w = np.where(np.linalg.norm(u_in, axis=1) > 1e-9, w, 0.0)[:, None]
+    return (1.0 - w) * _unit(d_in) + w * _unit(u_in)
+
+
 def _bend(t, d):
     """(theta, m): the turn from the unit tangent t to the unit direction d, and the unit m square to t towards d."""
     c = np.clip((t * d).sum(1), -1.0, 1.0)
@@ -461,6 +488,34 @@ def _bend_low(T, t, m, r, theta) -> np.ndarray:
     phi = theta[:, None] * np.linspace(0.0, 1.0, 33)[None, :]
     z = T[:, 2, None] + r[:, None] * (np.sin(phi) * t[:, 2, None] + (1.0 - np.cos(phi)) * m[:, 2, None])
     return z.min(axis=1)
+
+
+def _bend_fit(T, t, m, r, theta, floor: float) -> np.ndarray:
+    """(F,): how far (≤ theta) a free bend from T along t, turning towards m on the radius r, turns before it comes
+    down to the height ``floor`` (task 0172: it ends there, on the seabed, instead of curling into it)."""
+    T, t, m = (np.asarray(x, dtype=float).reshape(-1, 3) for x in (T, t, m))
+    r = np.broadcast_to(np.asarray(r, dtype=float), (len(T),))
+    theta = np.asarray(theta, dtype=float)
+
+    def z(phi):
+        return T[:, 2] + r * (np.sin(phi) * t[:, 2] + (1.0 - np.cos(phi)) * m[:, 2])
+
+    n = 64
+    grid = theta[:, None] * np.linspace(0.0, 1.0, n + 1)[None, :]
+    zz = T[:, 2, None] + r[:, None] * (np.sin(grid) * t[:, 2, None] + (1.0 - np.cos(grid)) * m[:, 2, None])
+    below = zz <= floor
+    out = theta.copy()
+    hit = below.any(axis=1)
+    if hit.any():
+        first = np.argmax(below, axis=1)                    # the first step at or below the floor
+        lo = np.where(first > 0, grid[np.arange(len(T)), np.maximum(first - 1, 0)], 0.0)
+        hi = grid[np.arange(len(T)), first]
+        for _ in range(40):
+            mid = 0.5 * (lo + hi)
+            over = z(mid) > floor
+            lo, hi = np.where(over, mid, lo), np.where(over, hi, mid)
+        out = np.where(hit, np.where(first > 0, lo, 0.0), theta)
+    return out
 
 
 def bend_points(res: dict, n: int):
@@ -554,7 +609,7 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
     def at(p):
         T = centre + _rot(rho, k, p) * r[:, None]
         res = hang(T, start, aft, bottom_z, L0 - r * p)
-        return T, res, _in_range(_wrap_of(res["direction"], k, t0), wmax)
+        return T, res, _in_range(_wrap_of(_way(res, k), k, t0), wmax)
 
     done = np.zeros(F, dtype=bool)
     for _ in range(FIX_ROUNDS):
@@ -579,28 +634,38 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
     # the free bend from the wheel's tangent to the catenary's direction (task 0125): the catenary starts where it ends
     theta, m = _bend(tangent, res["direction"])
     use = (theta > BEND_MIN) & ~short
-    # (a wheel at the seabed – a quadrant set down on it: a free bend would curl into the seabed; the cable leaves it
-    # lying on the seabed instead)
-    use &= _bend_low(T, tangent, m, r, theta) > float(bottom_z) + 1e-3
-    theta = np.where(use, theta, 0.0)
+    floor = float(bottom_z) + BED_GAP
+    # Task 0172: a wheel near the seabed (a quadrant set down on it): a whole free bend would curl into the seabed. It
+    # turns as far as fits above it and the cable lies on the seabed from there (before: it was left out and the cable
+    # kinked at the wheel by up to 60°). Where the bend's end comes within ``BED_BAND`` of the seabed its plane turns
+    # from the catenary's direction at its end (which lies flat along the seabed there: no plane to bend down in) to
+    # the catenary's direction at the wheel – one plane on both sides of "it reaches the seabed", no jump.
+    m_T = m.copy()
+    theta = np.where(use, _bend_fit(T, tangent, m, r, theta, floor), 0.0)
     if use.any():
         L1 = L0 - r * psi
+        act = np.flatnonzero(use)                          # the moments still being worked out
         for _ in range(BEND_ROUNDS):
-            top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
-            res = hang(top, start, aft, bottom_z, L1 - r * theta)
-            new, m_new = _bend(tangent, res["direction"])
-            new = np.where(use, new, 0.0)
-            m = np.where(use[:, None], m_new, m)
-            done = np.abs(new - theta) < 1e-10
-            theta = new
-            if done.all():
+            Ta, ta, ra, th, ma = T[act], tangent[act], r[act], theta[act], m[act]
+            top = Ta + ra[:, None] * (np.sin(th)[:, None] * ta + (1.0 - np.cos(th))[:, None] * ma)
+            sub = hang(top, _rows(start, act, F), aft, bottom_z, (L1 - r * theta)[act])
+            want, m_E = _bend(ta, sub["direction"])
+            beta = np.clip(1.0 - (top[:, 2] - floor) / BED_BAND, 0.0, 1.0)[:, None]
+            m_new = (1.0 - beta) * m_E + beta * m_T[act]
+            m_new = m_new - (m_new * ta).sum(1, keepdims=True) * ta
+            m_new = np.where(np.linalg.norm(m_new, axis=1, keepdims=True) > 1e-9, _unit(m_new), m_T[act])
+            new = _bend_fit(Ta, ta, m_new, ra, want, floor)
+            done = (np.abs(new - th) < 1e-10) & (np.abs(m_new - ma).max(axis=1) < 1e-10)
+            # (half steps: where the bend's end hangs over the lay line the catenary's sideways pull changes side with
+            # it, and full steps went back and forth for ever; half steps settle between)
+            both = ma + m_new
+            m_half = np.where(np.linalg.norm(both, axis=1, keepdims=True) > 1e-9, _unit(both), m_new)
+            m[act] = np.where(done[:, None], m_new, m_half)
+            theta[act] = np.where(done, new, _bend_fit(Ta, ta, m[act], ra, 0.5 * (th + new), floor))
+            act = act[~done]
+            if not len(act):
                 break
         top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
-        # (a bend that came to end at or below the seabed while it was worked out: none there, after all)
-        low = use & (_bend_low(T, tangent, m, r, theta) <= float(bottom_z) + 1e-3)
-        if low.any():
-            theta = np.where(low, 0.0, theta)
-            top = T + r[:, None] * (np.sin(theta)[:, None] * tangent + (1.0 - np.cos(theta))[:, None] * m)
         res = hang(top, start, aft, bottom_z, L1 - r * theta)
     res["psi"], res["T_wheel"] = psi, T
     res["steep"], res["short"] = steep, short

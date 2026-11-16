@@ -83,6 +83,22 @@ are from the 4-core web machine.
 0173 after this task. Older Flex open points: a cable with a spline/helix stretch (refused), the fleet angle's kink at
 a sheave (0078), cables and hoses swaying in wind, tracks' playback cost (0159), the re-bake's 16 s final solve (0160).
 
+## Design (worker, 16 Nov 2026)
+
+Measured first on the small demo (4-core web machine, Blender as a module, made from `main` at 0.2.133):
+Make demo 352 s (Build 150 s = two Builds); shot 11's second end: worst turn per point between its start and the
+seabed 61.8°, a point jumping 5.2 m between frames, the leave point going from the gutter's far end (180°) to its
+middle (90°); the D's depth before Build 21 mm off the built one (no longer 0.38 m), so the second Build still ran.
+
+| Piece | Files | Owner |
+| --- | --- | --- |
+| 1 Shot 11: the wrap of a wheel lying flat is read from the lay direction (`catenary._way`, blended in below `FLAT` of "down" in the wheel's plane); a free bend that would reach into the seabed turns as far as fits (`_bend_fit`), its plane near the seabed taken from the catenary at the wheel (`BED_BAND`), half steps where the iteration went back and forth | `core/catenary.py`, `tests/test_catenary.py`, `tests/test_demo_project_quadrant.py` | worker |
+| 2 Sheaves the cable has left stand still: `paths_rollers` takes `SHEAVE` contacts too (`KINDS`), placed by their own slot | `blender/paths_rollers.py`, `tests/test_paths_rollers.py` | worker |
+| 3 The D's depth: the estimate and the check use one window (the set-down step, standing, 1 s of the hoist, `SET_DOWN_AFTER`) and the estimate models the hoist (`set_down_shares`); every mesh point near the lowest; no second Build | `blender/demo.py`, `tests/test_demo_project_quadrant.py` | worker |
+| 4a Swivel test model maker: `tools/make_test_swivel.py` → `tests/data/test_swivel.step` + copy in `fresing_render/data/`; `paths_swivel.set_up_test_model(scene) -> dict` (joints, cable, swivel, animation "Davit slews"); `tests/test_swivel_model.py` | those files only | subagent M (worktree) |
+| 4b Tour set + stop, PC-check line, function entry, guide, MIN counts | `tour.py`, `pccheck/checks.py`, `core/functions.py`, `docs/USER-GUIDE.md`, `tools/ci_check_pccheck.py`, `tools/ci_real_app.py` | worker |
+| Independent tester of 1–3 (gutter tipped at other angles, a D lowered on the other side, a sheave lifted and touched again) | `tests/test_flex_followups_independent.py` | subagent T (worktree) |
+
 ---
 
 ## Report (filled in by the chat that did the task)

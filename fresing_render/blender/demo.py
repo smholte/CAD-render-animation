@@ -265,7 +265,8 @@ class Demo:
 
     def set_down_error(self, t0: float, t1: float) -> float:
         """m: how much lower the A&R winch should lower the D for its lowest point (its mesh, every frame from ``t0`` to
-        ``t1`` of the built animation, vessel motion and all) to come to ``SET_DOWN_CLEAR`` over the seabed."""
+        ``t1`` of the built animation, vessel motion and all) to come to ``SET_DOWN_CLEAR`` over the seabed. Task 0172:
+        no longer a second Build at Make (the estimate before Build meets it): the demo's test checks it."""
         import numpy as np
 
         from . import animation, paths_sea
@@ -276,7 +277,7 @@ class Demo:
         for o in parts:
             co = np.empty(len(o.data.vertices) * 3)
             o.data.vertices.foreach_get("co", co)
-            pts.append(co.reshape(-1, 3)[::2])
+            pts.append(co.reshape(-1, 3))
         low = 1e9
         keep = sc.frame_current
         for f in range(animation.frame_of(self.animation, t0), animation.frame_of(self.animation, t1) + 1):
@@ -1776,18 +1777,42 @@ def _vessel_at(d: Demo, frames) -> "list":
     return out
 
 
-def set_down_depth(d: Demo, t0: float, t1: float, guess: float, l_from: float, secs: float) -> float:
+HOIST_SECONDS = 2.0                   # s: shot 12's first step, the A&R winch hoists the D off the seabed to lower_1
+SET_DOWN_AFTER = 1.0                  # s of that hoist the set-down is measured over (the D comes up ~0.5 of the way)
+SET_DOWN_BAND = 2.0                   # m: only the D's points this near its lowest one can come lowest (roll, pitch)
+
+
+def set_down_shares(d: Demo, t0: float, secs: float, up_at: float, up_secs: float, frames) -> "list":
+    """(F,) the share of the set-down step's travel (0 = ``l_from``, 1 = the set-down depth) at each frame: the
+    lowering from ``t0`` (``secs`` long, eased), standing, then the hoist from ``up_at`` (``up_secs`` long, eased) back
+    to ``l_from`` – as Build keys them (task 0172: the estimate before Build ran 0.5 s into the hoist as if the D still
+    stood there, while the check after Build stopped at the hoist's start: 21 mm apart, a second Build every Make)."""
+    import numpy as np
+
+    from . import animation
+    fps = animation.fps_of(d.animation)
+    f0, fu = animation.frame_of(d.animation, t0), animation.frame_of(d.animation, up_at)
+    out = []
+    for f in frames:
+        down = animation.ease("SMOOTH", min(1.0, max(0.0, (f - f0) / (secs * fps))))
+        up = animation.ease("SMOOTH", min(1.0, max(0.0, (f - fu) / (up_secs * fps)))) if f > fu else 0.0
+        out.append(down * (1.0 - up))
+    return np.array(out, dtype=float)
+
+
+def set_down_depth(d: Demo, t0: float, t1: float, guess: float, l_from: float, secs: float,
+                   up_at: float | None = None, up_secs: float = HOIST_SECONDS) -> float:
     """How far the A&R winch lowers the D (m of 'Quadrant lower', tipped flat) in its step from ``t0`` (``secs`` long,
     eased, from ``l_from``) so that up to ``t1`` its lowest point, heaving with the vessel, comes down to
     ``SET_DOWN_CLEAR`` over the seabed at the deepest moment and never lower (measured on its mesh points, at every
-    frame, with the value the step gives it then)."""
+    frame, with the value the steps give it then: the lowering, standing, and from ``up_at`` the hoist back to
+    ``l_from`` over ``up_secs`` – task 0172)."""
     import numpy as np
 
     from . import animation, paths_sea
     q = d.sheet("route")["quadrant"]
     frames = np.arange(animation.frame_of(d.animation, t0), animation.frame_of(d.animation, t1) + 1)
-    fps = animation.fps_of(d.animation)
-    share = np.array([animation.ease("SMOOTH", min(1.0, max(0.0, (f - frames[0]) / (secs * fps)))) for f in frames])
+    share = set_down_shares(d, t0, secs, t1 + 1.0 if up_at is None else up_at, up_secs, frames)
     V = _vessel_at(d, frames)
     R0 = np.array(d.root().matrix_basis)
     bed = paths_sea.waterline(d.scene) - SEA_DEPTH
@@ -1795,12 +1820,13 @@ def set_down_depth(d: Demo, t0: float, t1: float, guess: float, l_from: float, s
     pose = _Pose(d)
     try:
         def world(lv):
-            pts = pose.points(dict(base, **{LOWER: lv}), every=2) / 1000.0
+            pts = pose.points(dict(base, **{LOWER: lv})) / 1000.0
             return pts @ R0[:3, :3].T + R0[:3, 3]
         w0 = world(float(guess))
         way = (world(float(guess) + 1.0) - w0).mean(axis=0)          # the lowering: a straight slide, per metre
     finally:
         pose.put_back()
+    w0 = w0[w0[:, 2] < float(w0[:, 2].min()) + SET_DOWN_BAND]           # (every point that can come lowest)
 
     def low(l2: float) -> float:
         lv = l_from + (l2 - l_from) * share                          # (F,): the value at each frame
@@ -1834,12 +1860,13 @@ def shot_tip(d: Demo):
     t += secs
     # task 0125: lowered until the D, heaving with the vessel, just touches the seabed at its deepest (measured on its
     # mesh at every frame it stands there) – no longer to where the cable round the gutter would lie on the seabed
-    l2 = set_down_depth(d, t, t + 3.0 + LET_GO_AFTER + 0.5, l2, l1, 3.0)
+    up = t + 3.0 + LET_GO_AFTER                         # (shot 12 hoists from here: ``shot_back``)
+    l2 = set_down_depth(d, t, up + SET_DOWN_AFTER, l2, l1, 3.0, up_at=up)
     d.quadrant["lower_2"] = round(l2, 3)
     d.notes.append(f"shot 11: the D set down at {l2:.2f} m of lowering, {SET_DOWN_CLEAR * 1000:.0f} mm over the seabed "
                    "at the deepest heave")
     d.joint(LOWER, t, 3.0, l2, slide=True, label="Lowered onto the seabed")
-    d.set_down = (t, t + 3.0 + LET_GO_AFTER)            # (checked on the built animation: ``finish``)
+    d.set_down = (t, up + SET_DOWN_AFTER)               # (checked on the built animation by the demo's test)
     _pulley(d, t, 3.0, l2)
     t += 3.0
     sc = d.scene
@@ -1866,9 +1893,9 @@ def shot_back(d: Demo):
     l1, l2 = d.quadrant["lower_1"], d.quadrant["lower_2"]
     t = d.t
     d.camera_step("MOVE", t, 2.0, "", camera=d.scene.objects.get(OVER_THE_STERN))
-    d.joint(LOWER, t, 2.0, l1, slide=True, label="The A&R winch hoists the D off the seabed …")
-    _pulley(d, t, 2.0, l1)
-    t += 2.0
+    d.joint(LOWER, t, HOIST_SECONDS, l1, slide=True, label="The A&R winch hoists the D off the seabed …")
+    _pulley(d, t, HOIST_SECONDS, l1)
+    t += HOIST_SECONDS
     secs = 6.0
     d.joint(TIP, t, 2.0, q["hang_tip"])
     d.joint(LOWER, t, secs, 0.0, slide=True,
@@ -1971,17 +1998,6 @@ def finish(d: Demo):
     d.progress("Animation")
     t0 = time.time()
     r = animation.bake(sc, a)
-    if getattr(d, "set_down", None):            # task 0125: the D set down on the seabed, as built (heave and all)
-        off = d.set_down_error(*d.set_down)
-        if abs(off) > SET_DOWN_TOL:             # (the step's depth worked out before Build missed: once more)
-            blk = next(b for b in a.blocks if b.joint == LOWER and abs(b.start - d.set_down[0]) < 1e-3)
-            blk.to_dist = float(blk.to_dist) + off
-            r = animation.bake(sc, a)
-            d.quadrant["lower_2"] = round(float(blk.to_dist), 3)
-        was = (off + SET_DOWN_CLEAR) * 1000.0
-        d.notes.append(f"shot 11 as built: the D's lowest point {was:.0f} mm over the seabed at the deepest heave"
-                       + (f", its lowering corrected by {off * 1000:.0f} mm to {SET_DOWN_CLEAR * 1000:.0f} mm"
-                          if abs(off) > SET_DOWN_TOL else ""))
     d.timings["build"] = time.time() - t0
     if r["warnings"]:
         d.notes.append("animation: " + "; ".join(r["warnings"][:3]))

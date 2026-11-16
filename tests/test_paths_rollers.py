@@ -220,3 +220,82 @@ def test_nothing_changes_when_the_cable_stays_on_every_roller(folder):
         assert not [f for f in paths._fcurves(j.motion) if f.data_path == joints.COUPLING_PATH]
     animation.clear_keys(sc)
     assert {n: (joints.find(sc, j).follows, joints.find(sc, j).couple_ratio) for n, j in names.items()} == before
+
+
+# ---------------------------------------------------------------------------
+# task 0172: a sheave the cable has left stands still too (0125's open point 5)
+# ---------------------------------------------------------------------------
+
+PATHS_MODEL = os.path.join(HERE, "data", "test_paths_a.step")
+
+
+def _sheave_model(folder):
+    """The cable paths test model (test_paths_a.step) with SHEAVE 2 on a slide joint of its own, "Away", that carries
+    it up and forward out of the rope's way (as ``tests/test_paths.py`` ``lifting``); the rope runs at 10 m/min the
+    whole time while "Away" lifts the sheave off (1 … 2.5 s), holds it there and brings it back (4 … 5.5 s): the rope
+    leaves the sheave and comes onto it again."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
+    import make_test_paths as maker
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    paths.forget()
+    sc = bpy.context.scene
+    sc.fresing.out_folder = folder
+    assert bpy.ops.fresing.import_step(filepath=PATHS_MODEL, quality="draft") == {"FINISHED"}
+    centre = np.array(maker.NUMBERS["contacts"]["SHEAVE 2"]["axis_point"]) * 0.001
+    joints.create(sc, "SLIDE", [named(sc, "SHEAVE 2")], Vector(centre), Vector((0.8, 0.0, 0.6)), name="Away")
+    made = paths.set_up_test_model(sc)
+    it = paths.find(sc, made["cable"])
+    a = sc.fresing.animations.add()
+    a.name, a.tail, a.fps = "Sheave away", 0.0, "25"
+    b = a.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.easing = "MOTOR", it.joint, 0.0, 6.0, "LINEAR"
+    b.speed_mmin = 10.0
+    for start, to in ((1.0, 1.6), (4.0, 0.0)):
+        b = a.blocks.add()
+        b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", "Away", start, 1.5, "SMOOTH"
+        b.use_from, b.to_dist = True, to
+    sc.fresing.animations_index = len(sc.fresing.animations) - 1
+    return sc, it, a
+
+
+def test_a_sheave_the_cable_has_left_stands_still(folder):
+    """While SHEAVE 2 is carried out of the rope's way it does not turn (before task 0172 it turned on with its
+    coupling); before and after, touched again, it turns with the rope; SHEAVE 1 (always touched) keeps its coupling;
+    'Clear keys' puts SHEAVE 2's coupling back."""
+    sc, it, a = _sheave_model(folder)
+    c2 = next(c for c in it.contacts if c.name == "SHEAVE 2")
+    c1 = next(c for c in it.contacts if c.name == "SHEAVE 1")
+    j2, j1 = joints.find(sc, c2.joint), joints.find(sc, c1.joint)
+    assert c2.kind == c1.kind == "SHEAVE" and j2.follows == it.joint and j1.follows == it.joint
+    ratio2 = j2.couple_ratio
+    lead = joints.find(sc, it.joint)
+    r = animation.bake(sc, a)
+    frames = list(range(1, r["frames"] + 1))
+    pay = values(sc, lead, frames)
+    v2 = values(sc, joints.find(sc, c2.joint), frames)
+    v1 = values(sc, joints.find(sc, c1.joint), frames)
+    # where the rope lies on SHEAVE 2 (the solver's wrap) at each frame, from the drawn shapes
+    rel, first = paths._stored_places(sc, it, paths._inputs_of(it)[1])[:2]
+    res = paths._solve_item(sc, it, rel, first=first)
+    k2 = [c.name for c in paths._wheels(it)].index("SHEAVE 2")
+    on = np.asarray(res["wrap"])[:, k2] > 1e-6
+    assert on[0] and on[-1] and (~on).sum() > 25, on               # lifted off for over a second, on at both ends
+    j2 = joints.find(sc, c2.joint)
+    assert j2.follows == "" and paths_rollers.WAS in j2.motion       # its coupling put aside
+    step2, step1, steplead = np.diff(v2), np.diff(v1), np.diff(pay)
+    off = ~on[1:] & ~on[:-1]                                         # both frames lifted off: stands still
+    assert np.abs(step2[off]).max() < 1e-9, step2[off]
+    both = on[1:] & on[:-1]                                          # both on: turns with the rope
+    want = joints.factor("SLIDE", "ROTATE", ratio2) * steplead
+    assert np.allclose(step2[both], want[both], atol=1e-5)
+    assert abs(v2[-1] - v2[0]) > 1.0                                 # (it did turn, before and after)
+    j1 = joints.find(sc, c1.joint)
+    assert j1.follows == it.joint and paths_rollers.WAS not in j1.motion
+    assert np.allclose(step1, joints.factor("SLIDE", "ROTATE", j1.couple_ratio) * steplead, atol=1e-5)
+    print(f"\nSHEAVE 2 lifted off at {int((~on).sum())} of {len(on)} frames: stood still there")
+    animation.clear_keys(sc)
+    j2 = joints.find(sc, c2.joint)
+    assert j2.follows == it.joint and j2.couple_ratio == pytest.approx(ratio2, rel=1e-6)
+    assert paths_rollers.WAS not in j2.motion and paths_rollers.STILL not in j2.motion
