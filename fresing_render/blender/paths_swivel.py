@@ -396,3 +396,72 @@ def after_clear(scene) -> None:
         live(scene)
     except Exception as exc:
         print("Fresing Render: swivel clear failed:", exc)
+
+
+# ---------------------------------------------------------------------------
+# the test model (tests, the test tour, the PC check; task 0172)
+# ---------------------------------------------------------------------------
+
+TEST_ANIMATION = "Davit slews"
+TEST_CABLE = "Davit wire"
+TEST_SWIVEL = "Swivel"
+TEST_SLEW = "Slew"
+TEST_SLEW_STEPS = ((0.0, 2.0, 45.0), (2.5, 3.0, -45.0), (6.0, 1.5, 0.0))    # (start s, duration s, to degrees)
+
+
+def set_up_test_model(scene) -> dict:
+    """The set-up of the swivel test model (test_swivel.step, tools/make_test_swivel.py; task 0172), already
+    imported: the rotate joints "Slew" (DAVIT.ASM about the vertical axis through the pedestal, -90° … +90°) and
+    "Swivel" (SWIVEL HEAD.ASM about the vertical axis through the arm's tip, riding on Slew, no limits); the cable
+    "Davit wire" read from WIRE (steel wire rope look, from the fairlead over the sheave down into the hook block)
+    with "Winch keeps it tight" on (the run from the fixed fairlead to the slewing tip changes by metres), its
+    SHEAVE contact turned by the swivel; the animation "Davit slews": slew to +45° (0 … 2 s), to -45° (2.5 … 5.5 s)
+    and back to 0 (6 … 7.5 s). Not built. Returns the names made."""
+    import bpy
+    from mathutils import Vector
+
+    from . import build, paths
+
+    def named(name):
+        for ob in scene.objects:
+            if ob.get(build.PROP_NAME) == name:
+                return ob
+        raise paths.PathError(f"The model has no part '{name}'.")
+
+    davit, head = named("DAVIT.ASM"), named("SWIVEL HEAD.ASM")
+    root = build.model_root_of(davit) or davit
+    m = root.matrix_world
+    mm = 0.001
+
+    def at(x, y, z):
+        return m @ Vector((x * mm, y * mm, z * mm))
+
+    up = (m.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
+    with joints._batch(scene):
+        joints.create(scene, "ROTATE", [davit], at(0.0, 0.0, 500.0), up, name=TEST_SLEW)
+        joints.create(scene, "ROTATE", [head], at(3000.0, 0.0, 3300.0), up, name=TEST_SWIVEL)
+    slew = joints.find(scene, TEST_SLEW)
+    slew.rot_min, slew.rot_max = math.radians(-90.0), math.radians(90.0)
+    slew.use_limits = True
+    bpy.context.view_layer.update()
+    notes: list = []
+    item = paths.add_cable(scene, TEST_CABLE)
+    with paths._quiet(item):
+        item.look = "ROPE"
+    item["look_was"] = "ROPE"
+    notes += paths.read_cad(scene, item, named("WIRE"))
+    item = paths.find(scene, TEST_CABLE)
+    sheave = next(c for c in item.contacts if c.kind == "SHEAVE")
+    sheave.swivel = TEST_SWIVEL
+    notes += paths.set_keep_tight(scene, paths.find(scene, TEST_CABLE), True)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = TEST_ANIMATION, 0.0, "25"
+    for start, dur, to in TEST_SLEW_STEPS:
+        b = a.blocks.add()
+        b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", TEST_SLEW, start, dur, "SMOOTH"
+        b.use_from = True
+        b.to_angle = math.radians(to)
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    item = paths.find(scene, TEST_CABLE)
+    return {"joints": [TEST_SLEW, TEST_SWIVEL, item.joint], "cable": TEST_CABLE, "swivel": TEST_SWIVEL,
+            "animation": TEST_ANIMATION, "contacts": [c.name for c in item.contacts], "notes": notes}
