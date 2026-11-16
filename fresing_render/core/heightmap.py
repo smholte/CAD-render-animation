@@ -683,17 +683,13 @@ class HeightMap:
                     # task 0167: a node stays where it is when its own surface is rounded between it and the
                     # place it would go to (a corner radius' fillet, the flank of a ball, under a wall or a rim) -
                     # also seen from the node before it on the same line: moved, it would cut the rounded strip
-                    # off. The place then is a vertex of its own on the edge, with one halfway to it.
+                    # off. The place then is a vertex of its own on the edge (``_lost``). (A vertex halfway as well
+                    # came closer still, but drew a saw-tooth in the shading.)
                     wantA = there & (~one | wall | a_goes)
                     wantB = there & (~one | wall | ~a_goes)
                     pxA, pyA, pxB, pyB = x0 + uA * dx, y0 + uA * dy, x0 + uB * dx, y0 + uB * dy
-                    def lowest(x, y, cols=C):
-                        """The lowest of the candidates' surfaces at points (one per edge)."""
-                        kk = cols.shape[1]
-                        hh = self.height_of(cols.reshape(-1), np.repeat(x, kk), np.repeat(y, kk)).reshape(n, kk)
-                        return hh.min(axis=1)
-                    rndA, hmA = self._rounded(pa, Ai, Aj, Bi, Bj, pxA, pyA, hA, hw, ow, gx, gy, ROUNDED * self.tol, lowest)
-                    rndB, hmB = self._rounded(pb, Bi, Bj, Ai, Aj, pxB, pyB, hB, hw, ow, gx, gy, ROUNDED * self.tol, lowest)
+                    rndA = self._rounded(pa, Ai, Aj, Bi, Bj, pxA, pyA, hA, hw, ow, gx, gy, ROUNDED * self.tol)
+                    rndB = self._rounded(pb, Bi, Bj, Ai, Aj, pxB, pyB, hB, hw, ow, gx, gy, ROUNDED * self.tol)
                     rndA &= wantA
                     rndB &= wantB
                     # (task 0167: along a cell's diagonal a node does not go onto the other node itself - a wall
@@ -752,28 +748,25 @@ class HeightMap:
         extra = self._lost(places, X, Y, Z, gx, gy)
         return X, Y, Z, flank, np.where(inner, np.inf, foot), extra
 
-    def _rounded(self, q, Ai, Aj, Bi, Bj, px, py, pz, hw, ow, gx, gy, tol, lowest) -> tuple:
+    def _rounded(self, q, Ai, Aj, Bi, Bj, px, py, pz, hw, ow, gx, gy, tol) -> np.ndarray:
         """Whether node A's own surface (move ``q``) is rounded between A and the place (px, py, pz) it would go
-        to on the edge A - B, or between the node before A on that line and the place: (bool, the height of the
-        surface halfway from A to the place - ``lowest(x, y)``: of the moves that can reach the edge)."""
+        to on the edge A - B, or between the node before A on that line and the place (more than ``tol`` off the
+        straight line halfway). Not on the finished part (the map lies over it there and the part's faces decide,
+        ``_lift``), nor where the place is the node's own."""
         xa, ya = gx[Ai, Aj], gy[Ai, Aj]
-        mx, my = 0.5 * (xa + px), 0.5 * (ya + py)
-        hown = self.height_of(q, mx, my)
+        hown = self.height_of(q, 0.5 * (xa + px), 0.5 * (ya + py))
         cut = q >= 0
         out = cut & np.isfinite(hown) & (np.abs(hown - 0.5 * (hw[Ai, Aj] + pz)) > tol)
-        hm = np.minimum(hown, lowest(mx, my))
         Pi, Pj = 2 * Ai - Bi, 2 * Aj - Bj
         inw = (Pi >= 0) & (Pi < hw.shape[0]) & (Pj >= 0) & (Pj < hw.shape[1])
         Pi, Pj = np.clip(Pi, 0, hw.shape[0] - 1), np.clip(Pj, 0, hw.shape[1] - 1)
         h2 = self.height_of(q, 0.5 * (gx[Pi, Pj] + px), 0.5 * (gy[Pi, Pj] + py))
         out |= cut & inw & (ow[Pi, Pj] == q) & np.isfinite(h2) & (np.abs(h2 - 0.5 * (hw[Pi, Pj] + pz)) > tol)
-        # (only where the place is not the node's own: a place on the node itself is nothing to keep; and not
-        # on the finished part, where the map lies over it and the part's faces decide - ``_lift``)
-        far = (np.abs(px - xa) + np.abs(py - ya)) > 1e-3 * self.cell
+        out &= (np.abs(px - xa) + np.abs(py - ya)) > 1e-3 * self.cell
         if self.part is not None:
             pv = self._part_at(xa, ya)
-            far &= ~(np.isfinite(pv) & (hw[Ai, Aj] < pv + 3.0 * self.lift))
-        return out & far, hm
+            out &= ~(np.isfinite(pv) & (hw[Ai, Aj] < pv + 3.0 * self.lift))
+        return out
 
     @staticmethod
     def _lost(places, X, Y, Z, gx, gy) -> tuple:

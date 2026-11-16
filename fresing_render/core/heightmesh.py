@@ -643,9 +643,15 @@ def split_edges(tri: np.ndarray, edges: np.ndarray, first: int, P=None, keep=Non
     if not len(edges):
         return tri, done
     out = [list(t) for t in tri.tolist()]
-    # the triangles round each edge, by its two ends (either way round)
+    # the triangles round each edge, by its two ends (either way round) - only those that hold one of the edges
+    # (a Python dictionary of every triangle cost 18 ms a frame on M1)
+    big = int(max(tri.max(initial=0), edges.max(initial=0))) + 1
+    a_, b_ = np.minimum(tri, np.roll(tri, -1, axis=1)), np.maximum(tri, np.roll(tri, -1, axis=1))
+    want = np.minimum(edges[:, 0], edges[:, 1]) * big + np.maximum(edges[:, 0], edges[:, 1])
+    hit = np.isin(a_ * big + b_, want).any(axis=1)
     where: dict = {}
-    for k, t in enumerate(out):
+    for k in np.flatnonzero(hit).tolist():
+        t = out[k]
         for i in range(3):
             where.setdefault((min(t[i], t[(i + 1) % 3]), max(t[i], t[(i + 1) % 3])), []).append(k)
     for j, (u, v) in enumerate(edges.tolist()):

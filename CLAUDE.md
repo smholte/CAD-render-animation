@@ -1114,3 +1114,11 @@ the release → Delete); the next run on `main` publishes it again.
   (`core/catenary.hang_off_steady`), never from an earlier Build.
 - A `name` that other settings refer to needs an update callback that tells them (task 0160: a renamed cable left its
   drum without a cable). Blender gives no old value: keep it in a hidden property (`FRCable.name_was`).
+- Two surfaces that lie within micrometres of each other, joined by a boolean, make a mass of slivers: the height map
+  over "Finish at the CAD part" gave 34,000 extra triangles on the toolpath test model (task 0167). Keep one of them
+  clearly on one side (the map is lifted 12.5 µm over the part where it came down onto it, `HeightMap._lift`); a face
+  lying in the block's own top plane likewise got slivers of the top named after a move.
+- A mesh can be closer to the exact surface and look worse: vertices put halfway along a rounded strip, at different
+  distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
+  strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at
+  distances.

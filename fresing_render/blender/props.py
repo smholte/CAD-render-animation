@@ -1634,7 +1634,7 @@ class FRMilling(bpy.types.PropertyGroup):
                     "as a finishing program from CAM, is worked out as a height map: seconds instead of minutes. "
                     "V-bits and drills, side cuts, tilted and rotary moves and short programs are cut exactly as "
                     "before. Switch off to cut every move exactly: with the map, sharp outside corners of walls "
-                    "and steep rounded flanks can be 0.1 to 0.3 mm off at Detail Normal (half at Fine)")
+                    "can be up to 0.2 mm off and steep rounded flanks up to 0.1 mm at Detail Normal (half at Fine)")
     enabled: BoolProperty(
         name="Cut material", default=True, update=_mill_enabled_changed,
         description="Material disappears where the bits cut. Off: the workpiece shows as it came from CAD "

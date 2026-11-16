@@ -1255,24 +1255,35 @@ class _MapSide:
         self.columns[(J, I)] = (serial, solid)
         return solid
 
-    def _keep_piece(self, keep, J: int, I: int):   # noqa: E741
-        """The finished part inside a map tile's column (``_piece`` adds what of it is over the map's surface: where
-        the map went clearly under the part, the part's faces show; where it came down onto the part it lies a
-        little over it, ``HeightMap._lift``, so the two surfaces never lie on each other). Its faces are
+    def _keep_piece(self, keep, below, J: int, I: int):   # noqa: E741
+        """What of the finished part the map would have cut away inside a map tile (the part over the map's
+        surface): it stays (``_piece``). Where the map went clearly under the part, the part's faces show; where it
+        came down onto the part it lies a little over it, ``HeightMap._lift``, so the two surfaces never lie on
+        each other and nothing is left here (None). Its faces are
         named after the move that owns the map there - the move that was stopped at the finished part, as a
         boolean cut that stops there names them. (Where nothing was cut the block's own faces show: they come
         with the block.)"""
-        part = keep ^ self._column(J, I)
-        if part.is_empty():
+        part = (keep ^ self._column(J, I)) - below
+        if part.is_empty() or part.volume() < KEEP_NOTHING:
             return None
         m = part.to_mesh()
         v = np.array(m.vert_properties[:, :3], dtype=np.float32)      # (copies: read back from a Manifold they
         tr = np.array(m.tri_verts, dtype=np.uint32)                   # are read-only)
         cen = v[tr].astype(np.float64).mean(axis=1) @ self.R.T        # into the map's frame
         hm = self.hm
-        i = np.clip(np.rint((cen[:, 1] - hm.y0) / hm.cell).astype(np.int64), 0, hm.ny - 1)
-        j = np.clip(np.rint((cen[:, 0] - hm.x0) / hm.cell).astype(np.int64), 0, hm.nx - 1)
-        q = hm.owner[i, j]
+        # (the nearest of the four nodes round a face's middle that a move cut: a wall of the part stands between
+        # cut and uncut nodes, and its middle is as near to the uncut ones - task 0167)
+        fy, fx = (cen[:, 1] - hm.y0) / hm.cell, (cen[:, 0] - hm.x0) / hm.cell
+        i0 = np.clip(np.floor(fy).astype(np.int64), 0, hm.ny - 2)
+        j0 = np.clip(np.floor(fx).astype(np.int64), 0, hm.nx - 2)
+        q = np.full(len(cen), -1, np.int64)
+        best = np.full(len(cen), np.inf)
+        for di in (0, 1):
+            for dj in (0, 1):
+                qq = hm.owner[i0 + di, j0 + dj]
+                d = (fy - i0 - di) ** 2 + (fx - j0 - dj) ** 2
+                take = (qq >= 0) & (d < best)
+                q, best = np.where(take, qq, q), np.where(take, d, best)
         fid = np.where(q >= 0, hm.tag[np.maximum(q, 0)] + 2, 1).astype(np.uint32)
         rid = _mf.Manifold.reserve_ids(1)
         self.tl.wp.map_ids.add(int(rid))
@@ -1292,12 +1303,11 @@ class _MapSide:
         if hit is not None and hit[0] is t.solid and hit[1] == serial:
             return hit[2]
         t0 = time.perf_counter()
-        kept = self._keep_piece(t.keep, J, I) if t.keep is not None else None
         solid = t.solid ^ below
-        if kept is not None:
-            over = kept - below                        # the part over the map's surface: it stays
-            if over.volume() >= KEEP_NOTHING:          # (task 0167: else the part lies under the map's surface)
-                solid = solid + over
+        if t.keep is not None:
+            kept = self._keep_piece(t.keep, below, J, I)
+            if kept is not None:
+                solid = solid + kept
         st = self.tl.stats
         st.ops += 1
         st.seconds += time.perf_counter() - t0
