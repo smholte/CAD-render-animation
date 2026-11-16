@@ -56,6 +56,40 @@ another person, puts the box down, greets them (handshake or wave) and starts ta
 
 Crowds / random people, stairs and ladders, sitting, people on the web page (a later Web 3D task), lip-sync / voices.
 
+## Design (worker, 16 Nov 2026)
+
+**The rig (shared with 0156).** `core/person_rig.py` (no Blender) + `blender/person_rig.py`.
+- Bones = `props_detail.BONES` (17, same names, same parents). The mesh is made in the rest pose = `POSES["STANDING"]`,
+  scaled to the height and lifted onto z = 0 exactly as `props_detail.person()` does; the armature's bones sit on
+  `props_detail.skeleton()` of that pose, in the same (scaled, lifted) figure space: the figure faces -y, its right hand
+  at -x, z up, metres.
+- A pose is `person_rig.Pose`: `local[bone]` = 3×3 turn of the bone against its parent in `props_detail` frames (what
+  `props_detail._local` gives), `pelvis` = the pelvis head in figure space, `fingers` / `point` per hand (0 open … 1 fist;
+  index finger straight). `Figure(height)`: `rest()`, `from_angles(pose id or angle dict)`, `fk(pose)`,
+  `leg_ik`, `arm_ik`, `look`, `blender_quaternion(pose, bone)` (Q = C⁻¹ L_rest⁻¹ L C, C = the fixed turn from a
+  props_detail frame to Blender's bone frame, Y along the bone), `blender_location(pose)`.
+- Blender: the person object (the prop, `fr_prop = PERSON`) stays the thing that is placed and moved; its armature
+  "FR rig <name>" is its child with an identity local matrix; an Armature modifier comes before "FR prop detail".
+  Weights: every vertex takes the weights of its loft ring's centre (nearest bone, blended with the parent / child
+  bone near a joint); other shapes by their own points. Hand shapes: shape keys `open_l/r`, `grip_l/r`, `point_l/r`
+  (same topology, other curl) driven by simple-expression drivers from the armature's custom properties
+  `fr_open_l` … (keys live on the armature: Clear keys drops them). `person_rig.ensure(ob)`, `rig_of(ob)`,
+  `set_pose(ob, pose)`, `key_poses(ob, frames, poses, roots)`, `remove(ob)`; `props_scale.rebuild` hands a rigged
+  person to `person_rig.rebuild` (pose / height / clothes kept working).
+
+**People (0157).** `core/people.py` (no Blender): gaits, the path (smoothed corners, length, point at a length,
+ground per step through a `ground(x, y)` callback), footsteps (feet planted in the world, heel and toe roll, the step
+length fitted so the walk ends on the point; speed = step × cadence, so feet never slide), the schedule (actions in
+order, an implicit walk to an action's point, waits for another person's step, GREET / TALK paired with the other
+person's matching action: both start when the later one is ready), then `Plan.sample(name, t)` → root place + Pose,
+and the items' states (held by a hand / placed at a world matrix) with their times. `blender/people.py`: settings →
+specs, the path curve "FR path <name>" (poly curve, edited with Blender's own edit mode), ground by rays at rest,
+items ("FR item …", collection "FR people"; Child Of the hand bone with keyed influence), bake at Build (after
+`spool.bake`: keys on the person object, the armature and the items; frame_end stretched to the people's time),
+Clear keys puts them back, the Preview slider, the clash hook (people's rest-pose meshes checked as bodies; items left
+out), the path warning (rays from the path to the parts at frame 1). `ops_people.py`, `ui_people.py` (6 Animation >
+People). Settings: additive lines in `props.py` (`FRPersonSettings`: path, actions, start, carry; `FRPersonAction`).
+
 ---
 
 ## Report (filled in by the chat that did the task)

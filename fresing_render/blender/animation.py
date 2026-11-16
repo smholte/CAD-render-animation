@@ -82,9 +82,12 @@ def block_end(b) -> float:
 
 def length_seconds(anim) -> float:
     ends = [block_end(b) for b in anim.blocks if b.enabled]
-    if not ends:
-        return 1.0
-    return max(1.0 / fps_of(anim), max(ends) + anim.tail)
+    base = 1.0 if not ends else max(1.0 / fps_of(anim), max(ends) + anim.tail)
+    scene = anim.id_data
+    if isinstance(scene, bpy.types.Scene):
+        from . import people
+        base = max(base, people.length(scene))       # people walking and acting (task 0157) count too
+    return base
 
 
 def block_label(b, scene=None) -> str:
@@ -407,6 +410,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     paths.after_clear(scene)                       # cables follow their sheaves live again (task 0078)
     from . import weather
     weather.after_clear(scene)                     # the weather of the panel again (task 0109)
+    from . import people
+    people.after_clear(scene)                      # people and items back where they stand (task 0157)
     if was_baked:
         from . import linkages
         linkages.refresh_all(scene, force=True)    # the links kept the place of the last frame shown
@@ -611,8 +616,9 @@ def bake(scene, anim) -> dict:
     # clock (vessel motion, a seabed that sails) follow the frame even after Clear keys. Build ends there anyway.
     if scene.frame_current != 1 or scene.frame_subframe:
         scene.frame_set(1)
-    from . import sequence
+    from . import people, sequence
     sequence.end_preview(scene)          # parts an Assembly sequence preview moved go back first (task 0100)
+    people.end_preview(scene)            # people a preview moved go back too (task 0157)
     clear_keys(scene)
     warnings: list[str] = []
 
@@ -1102,6 +1108,7 @@ def bake(scene, anim) -> dict:
     warnings += paths.bake(scene, anim)            # cables over sheaves that move (task 0078): every frame's shape
     from . import spool
     warnings += spool.bake(scene, anim)            # drums and carousels (task 0080): empty, full, fleet angle
+    warnings += people.bake(scene, anim)           # people walk and act (task 0157): keys per frame
     scene.frame_set(1)
     return {"frames": f_end, "seconds": seconds, "warnings": warnings}
 

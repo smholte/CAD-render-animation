@@ -187,6 +187,80 @@ _HEIGHT_ITEMS = [("1.65", "1.65 m", "A shorter person: 1.65 m", 0), ("1.75", "1.
 from ..core import props_detail as _pd  # noqa: E402  (task 0155: the person's poses and clothes)
 
 
+from ..core import people as _pp  # noqa: E402  (task 0157: people walk and act)
+
+
+def _people_changed(self, context):
+    from . import people
+    people.forget()
+
+
+def _is_person(self, ob):
+    return ob is not None and ob.get("fr_prop") == "PERSON"
+
+
+def _is_item(self, ob):
+    return ob is not None and ob.get("fr_item") in _pp.ITEMS
+
+
+def _carry_changed(self, context):
+    from . import people
+    people.forget()
+    if context is not None and context.scene is not None and not context.scene.fresing.anim_baked:
+        people.rest_state(context.scene)
+
+
+def _preview_changed(self, context):
+    from . import people
+    if self.people_preview > 0.0:
+        people.preview(context.scene, self.people_preview)
+    else:
+        people.end_preview(context.scene)
+
+
+class FRPersonAction(bpy.types.PropertyGroup):
+    """One thing a person does (task 0157), in the order of the person's list."""
+    kind: EnumProperty(name="Action", default="WALK", update=_people_changed,
+                       description="What the person does in this step",
+                       items=[(i, n, d, k) for k, (i, n, d) in enumerate(_pp.ACTION_ITEMS)])
+    place: EnumProperty(name="Where", default="HERE", update=_people_changed,
+                        description="Where the person does it: where it stands, at a point of its path (it walks "
+                                    "there first) or at the path's end",
+                        items=[(i, n, d, k) for k, (i, n, d) in enumerate(_pp.PLACE_ITEMS)])
+    point: IntProperty(name="Point", default=1, min=0, max=999, update=_people_changed,
+                       description="The number of the path point (shown next to the point in the view; 0 = where "
+                                   "the person started)")
+    gait: EnumProperty(name="Gait", default="WALK", update=_people_changed,
+                       description="How the person walks there. The step length goes with the speed, so the feet "
+                                   "never slide. With something heavy in both hands Walk becomes Carry-walk",
+                       items=[(i, n, d, k) for k, (i, n, d) in enumerate(_pp.GAIT_ITEMS)])
+    duration: FloatProperty(name="Seconds", default=0.0, min=0.0, soft_max=60.0, unit="TIME_ABSOLUTE",
+                            update=_people_changed,
+                            description="How long it lasts. 0 = a sensible length for this action")
+    other: PointerProperty(name="With", type=bpy.types.Object, poll=_is_person, update=_people_changed,
+                           description="The other person: for Greet and Talk both must have the step with each "
+                                       "other – whoever is there first waits")
+    target_kind: EnumProperty(name="At", default="PART", update=_people_changed,
+                              description="What the person turns to, looks at, points at",
+                              items=[("PART", "A part", "A part of the model (its middle)", 0),
+                                     ("PERSON", "A person", "Another person", 1),
+                                     ("POINT", "A point", "A point you click in the view", 2)])
+    target_object: PointerProperty(name="Part", type=bpy.types.Object, update=_people_changed,
+                                   description="The part to turn to, look at or point at")
+    target_point: FloatVectorProperty(name="Point", size=3, subtype="TRANSLATION", unit="LENGTH",
+                                      update=_people_changed,
+                                      description="The point (click Pick point and click in the view)")
+    target_set: BoolProperty(name="Point picked", default=False, update=_people_changed,
+                             description="A point has been picked")
+    item: PointerProperty(name="Item", type=bpy.types.Object, poll=_is_item, update=_people_changed,
+                          description="The item to pick up (it must lie within reach of where the person stands)")
+    wait_person: PointerProperty(name="Wait for", type=bpy.types.Object, poll=_is_person, update=_people_changed,
+                                 description="Start this step only when that person has finished a step of its own")
+    wait_step: IntProperty(name="Their step", default=1, min=1, max=999, update=_people_changed,
+                           description="Which step of the other person (its number in that person's list) must be "
+                                       "done first")
+
+
 class FRPersonSettings(bpy.types.PropertyGroup):
     """A person prop's pose, height and clothes (task 0155; on the prop's object, Object.fresing_person)."""
     pose: EnumProperty(name="Pose", default="STANDING", update=_person_changed,
@@ -208,6 +282,16 @@ class FRPersonSettings(bpy.types.PropertyGroup):
     look: IntProperty(name="Look", default=0, min=0, max=3, update=_person_changed,
                       description="A different skin tone and hair (0 to 3), so two people side by side do not look "
                                   "the same")
+    # task 0157: people walk and act
+    path: PointerProperty(name="Path", type=bpy.types.Object, update=_people_changed,
+                          description="The curve the person walks along (its points are numbered in the view)")
+    actions: CollectionProperty(type=FRPersonAction)
+    actions_index: IntProperty(default=0)
+    start: FloatProperty(name="Starts after", default=0.0, min=0.0, soft_max=60.0, unit="TIME_ABSOLUTE",
+                         update=_people_changed,
+                         description="Seconds after the animation starts before the person does its first step")
+    carry: PointerProperty(name="Holds", type=bpy.types.Object, poll=_is_item, update=_carry_changed,
+                           description="An item the person holds at the start (add one in Items below)")
 
     @property
     def height(self) -> float:
@@ -3706,6 +3790,10 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                ("DETAILED", "Always detailed", "Every prop in full detail, however far away", 1),
                ("LIGHT", "Always light", "Every prop in its light version: quickest, for many props or a quick "
                                          "look", 2)])
+    people_preview: FloatProperty(name="Preview", default=0.0, min=0.0, max=1.0, subtype="FACTOR",
+                                  update=_preview_changed,
+                                  description="Drag to see the people at a moment of their time without building "
+                                              "(0 = the start). Build makes the keys")
     props_far: FloatProperty(name="Light beyond", default=30.0, min=1.0, soft_max=200.0, unit="LENGTH",
                              update=_props_detail_changed,
                              description="With Detail on Auto: props further than this from the camera use their "
@@ -3972,7 +4060,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D, FRWeather,
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
-           FRHouse, FRPersonSettings,
+           FRHouse, FRPersonAction, FRPersonSettings,
            FRSceneSettings)
 
 
