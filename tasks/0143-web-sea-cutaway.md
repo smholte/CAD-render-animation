@@ -1,6 +1,6 @@
 # 0143 – Web 3D model: under the sea – seabed, the cable in the water, the sea cut-away, the camera under water
 
-**Who:** worker · **Status:** done (0.2.128) · **Branch:**
+**Who:** worker · **Status:** done (0.2.129) · **Branch:**
 `task/0143-web-sea-cutaway`
 **Started by:** lead chat, 15 Nov 2026 (owner: "cutout is not visible in web 3D model") · **Model:** Opus · effort
 Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"

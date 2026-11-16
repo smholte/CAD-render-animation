@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.126"
+__version__ = "0.2.129"
 
 _modules = []
 
@@ -20,6 +20,7 @@ def _classes():
     from .blender import ops_section                # task 0086: 3 Looks > Cutaway
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
     from .blender import ops_vessel_motion, ui_vessel_motion   # task 0085: 5 Scene & Render > Vessel motion
+    from .blender import ops_vessel_work                # task 0154: 5 Scene & Render > Vessel at work
     from .blender import ops_flex, ui_flex          # task 0058: 4 Motion > Hoses and drag chains
     from .blender import ops_paths, ui_paths        # task 0078: 4 Motion > Cables and paths (after Hoses and drag chains)
     from .blender import ops_paths_sea              # task 0081: … > Into the sea, things on the cable
@@ -29,6 +30,7 @@ def _classes():
     from .blender import ops_web3d, ui_web3d     # task 0099: 5 Scene & Render > Web 3D model (after Turntable video)
     from .blender import ops_weather, ui_weather  # task 0109: 5 Scene & Render > Weather & time (after Vessel motion)
     from .blender import ops_house, ui_house      # task 0114: 5 Scene & Render > House from House Planner
+    from .blender import ops_people, ui_people    # task 0157: 6 Animation > People (before the Clash check)
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -51,7 +53,7 @@ def _classes():
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
-            + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
+            + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
             + ops_house.CLASSES)
 
 
@@ -90,6 +92,8 @@ def register():
     spool.register()                         # drums and carousels (task 0080): clash hook, caches
     from .blender import tracks
     tracks.register()                        # tracks and belts (task 0079): clash hook, caches
+    from .blender import people
+    people.register()                        # people (task 0157): clash hook, the paths' overlay
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -113,6 +117,8 @@ def unregister():
     from .blender import section
     section.unregister()
     hover.unregister()
+    from .blender import people
+    people.unregister()
     from .blender import tracks
     tracks.unregister()
     from .blender import spool

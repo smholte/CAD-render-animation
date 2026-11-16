@@ -1703,6 +1703,59 @@ def _check_sea_cable(scene):
             f"on the seabed still to {drift * 1000:.2f} mm, the CPS set {-low:.1f} m under the water")
 
 
+VESSEL_ANIM = "Vessel at work"
+
+
+@tour_set("vessel_work", "Vessel at work", "test_thrusters.step")
+def build_vessel_work(b: Build):
+    """Task 0154: a workboat with two azimuths and a bow thruster sails ahead at 8 knots, then pushes sideways."""
+    from mathutils import Matrix, Vector
+
+    from . import vessel_work
+    sc = b.scene
+    _look("PRODUCT")
+    vessel_work.set_up_test_model(sc)
+    _update()
+    cam = _camera(b, "ISO", "Tour view", lens=28.0)
+    at, look = Vector((-45.0, -50.0, 40.0)), Vector((5.0, 0.0, -3.0))
+    cam.matrix_world = Matrix.Translation(at) @ (look - at).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+    cam.data.clip_end = 5000.0
+    shot = _shot(b, "Tour: vessel at work")
+    a = _animation(b, VESSEL_ANIM, shot.name)
+    blk = a.blocks.add()
+    blk.kind, blk.start, blk.duration, blk.easing = "VESSEL", 3.0, 3.0, "SMOOTH"
+    blk.vw_mode, blk.vw_side, blk.vw_thrust = "DP", "STBD", 0.7
+    blk = a.blocks.add()                                  # (a still moment at the end)
+    blk.kind, blk.start, blk.duration, blk.easing = "VESSEL", 8.0, 2.0, "SMOOTH"
+    blk.vw_mode, blk.vw_side, blk.vw_thrust = "DP", "STBD", 0.7
+
+
+def _check_vessel_work(scene):
+    """Along the built animation: the wake's speed channel goes from 8 knots to 0, the bow thruster's load up, the
+    azimuths steer from 0 to -90° and every propeller turns."""
+    import math
+
+    from ..core import vessel_work as vw_core
+    from . import joints, vessel_work
+    rows = list(scene.fresing.vessel_work.thrusters)
+    _check([r.kind for r in rows] == ["AZIMUTH", "AZIMUTH", "TUNNEL"], "the three thrusters were not found")
+    out = []
+    for f in (scene.frame_start + 25, scene.frame_end):
+        scene.frame_set(f)
+        _update()
+        out.append((float(scene.get(vw_core.prop("ahead"), -1)), float(scene.get(vw_core.prop("t2"), -1)),
+                    joints.get_value(joints.find(scene, rows[0].steer)),
+                    [joints.get_value(joints.find(scene, r.joint)) for r in rows]))
+    (v0, t0, s0, p0), (v1, t1, s1, p1) = out
+    _check(abs(v0 - 8.0) < 1e-3 and v1 == 0.0, f"the speed went from {v0:.1f} to {v1:.1f} knots, not 8 to 0")
+    _check(t0 == 0.0 and abs(t1 - 0.7) < 1e-3, f"the bow thruster's load went from {t0:.2f} to {t1:.2f}, not 0 to 0.7")
+    _check(abs(s0) < 1e-4 and abs(s1 + math.pi / 2) < 1e-3, f"the azimuth steered from {math.degrees(s0):.0f}° to "
+           f"{math.degrees(s1):.0f}°, not 0 to -90°")
+    _check(all(abs(b - a) > 1.0 for a, b in zip(p0, p1)), "a propeller did not turn")
+    _check(vessel_work.stored_layout(scene) is not None, "the sea was built without the vessel's water")
+    return "8 kn to 0, bow thruster to 70 %, azimuths steered to -90°, 3 propellers turning"
+
+
 MOVING_ANIM = "Over the stern"
 
 
@@ -2935,6 +2988,26 @@ def _check_props(scene):
     return props_scale.check_line_up(scene)
 
 
+# ----- people walk, carry and meet (task 0157) -----
+
+PEOPLE_ANIM = "Two people meet"
+
+
+@tour_set("people", "People walk and meet", "test_crane_a.step")
+def build_people(b: Build):
+    from . import cameras, people
+    _look("PRODUCT")
+    anna, ben, box = people.set_up_example(b.scene)
+    cameras.add_camera(b.scene, "ISO", 50.0, "Tour people", points=people.example_corners(b.scene))
+    a = _animation(b, PEOPLE_ANIM)
+    a.start_shot = _shot(b, "@people").name
+
+
+def _check_people(scene):
+    from . import people
+    return people.check_example(scene)
+
+
 @tour_set("weather", "Weather and time of day", "test_crane_a.step")
 def build_weather(b: Build):
     from . import weather
@@ -3275,6 +3348,13 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "horn and the orange CPS set goes over the horn and down the curve on the cable.",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
      check=_check_sea_cable, auto="clip")
+stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
+     "A blue workboat sails ahead: a white wake trails behind its stern, fading and breaking up; its waves fan out "
+     "behind the bow in a wedge each side (about 20° to the track) and white water rolls off the bow. After 3 s it "
+     "slows to a stop and pushes sideways: the azimuths under the stern swing round, the wake fades, and white, boiling "
+     "jets stream out from the port side – the bow thruster's and the azimuths' – while the propellers turn.",
+     where="5 Scene & Render > Vessel at work; 6 Animation: Vessel at work step", animation=VESSEL_ANIM, play=True,
+     since="0.2.127", check=_check_vessel_work, auto="clip")
 stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
@@ -3336,6 +3416,12 @@ stop("backtocad", MOTION, "sequenceframe", "Back to CAD step",
      since="0.2.102", animation=BACK_ANIM, at=0.75, play=True, check=lambda scene: check_back_to_cad(scene),
      auto="clip")
 
+stop("people", MOTION, "people", "People walk, carry and meet",
+     "Beside the crane Anna (orange coverall) walks in carrying a red toolbox, her feet stepping without sliding. "
+     "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
+     "nodding, taking turns, gesturing with their hands.",
+     where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
+     at=0.55, play=True, check=_check_people, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs on its rails through a short program: lines, arcs, a tool change to T2 and drilling. The "
      "toolpath is drawn as a thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",

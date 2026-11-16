@@ -42,7 +42,7 @@ PROPS_COLLECTION = "FR Props"
 MAT_PREFIX = "FR_env "
 TAG = "fr_env"                     # on every object made here (value: its role)
 PROP_TAG = "fr_prop"               # on props (value: prop kind)
-MAT_VERSION = 4                    # 4: the new sea (task 0109)
+MAT_VERSION = 5                    # 4: the new sea (task 0109); 5: vessel at work (task 0154)
 TRANSPARENT_STEPS = 128
 CUT_ROLES = ("structure", "high", "lights", "contents")   # halls: what may stand in the camera's way
 # materials of floors and walls: never between the camera and the machine (both are inside the hall,
@@ -94,13 +94,16 @@ def _settings_key(s, kind: str) -> dict:
             key["wind"] = [round(bft, 2), round(toward, 1)]
         if _weather_on(s):                       # the white caps read the weather's foam channel; wake, spray
             key["wx"] = 1
-            if _speed(s) > 0:
-                key["speed"] = round(_speed(s), 2)
             if getattr(s.weather, "bow", "AUTO") != "AUTO":
                 key["bow"] = s.weather.bow           # task 0082: which way the wake and the bow spray go
             sw = _spray_wind(s)
             if sw is not None:
                 key["spray"] = [round(sw[0], 2), round(sw[1][0], 3), round(sw[1][1], 3)]
+        if _max_speed(s) > 0:                     # task 0154: the hull foam's reach (the speed itself: a channel)
+            key["speed"] = round(_max_speed(s), 2)
+        work = _work().sea_key(s.id_data)        # task 0154: the vessel sails / its thrusters run somewhere
+        if work:
+            key["work"] = work
         swell = _vessel().swell_key(s)        # vessel motion (task 0085): its swell; nothing when it is off
         if swell:
             key["swell"] = swell
@@ -117,6 +120,11 @@ def _settings_key(s, kind: str) -> dict:
 def _vessel():
     from . import vessel_motion
     return vessel_motion
+
+
+def _work():
+    from . import vessel_work
+    return vessel_work
 
 
 def _models_key(scene) -> list:
@@ -331,6 +339,8 @@ def _update_live(scene, s, root) -> None:
     if far > 0:
         fix_clip(scene, far)
     _update_under_water(scene, s, root)            # task 0081: the seabed's motion, the water's light
+    if root.get("fr_kind") in S.SEA_KINDS:
+        _work().sync(scene)                        # task 0154: the vessel's channels follow the panel
     _show_in_view(scene, s)
 
 
@@ -930,7 +940,18 @@ def _spray_wind(s):
 
 
 def _speed(s) -> float:
-    return float(s.weather.vessel_speed) if _weather_on(s) else 0.0
+    """Knots the vessel sails ahead (5 Scene & Render > Vessel at work, task 0154: the speed of Weather & time, also
+    with Weather & time off)."""
+    return _work().speed_now(s.id_data)
+
+
+def _max_speed(s) -> float:
+    """The fastest the vessel sails: now, or in a Vessel at work step of any animation (the hull foam's reach)."""
+    v = _speed(s)
+    for b in _work()._steps(s.id_data):
+        if b.vw_mode == "AHEAD":
+            v = max(v, float(b.vw_speed))
+    return v
 
 
 def _waves(state: str, swell=(), wind=None) -> list[tuple[float, float, float, float, float]]:
@@ -1148,7 +1169,7 @@ def _foam_threshold_socket(b: _NB, bft: float, weather: bool):
 def _wake_shader(b: _NB, x, y, t):
     """Foam of the wake behind the stern (``core/sea.wake``): its place and the speed from the sea object."""
     w = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_wake").outputs["Vector"]
-    v = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_wake_v").outputs["Fac"]
+    v = _work().speed_socket(b)          # task 0154: the speed is a channel (a Vessel at work step keys it)
     ws = b.sep(w)
     stern, mid, hb = ws["X"], ws["Y"], ws["Z"]
     flip = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_wake_flip").outputs["Fac"]
@@ -1175,8 +1196,10 @@ def _wake_shader(b: _NB, x, y, t):
     n.inputs["Roughness"].default_value = 0.65
     b.put(n.inputs["Vector"], flow)
     b.put(n.inputs["W"], b.math("MULTIPLY", t, 0.12))
-    lace = b.ramp(n.outputs["Fac"], 0.36, 0.64, 0.0, 1.0)
-    return b.math("MULTIPLY", b.ramp(wake, 0.0, 0.6, 0.0, 1.0), lace)
+    # task 0154: further behind the foam breaks up into patches (the lace's threshold rises with the distance)
+    late = b.ramp(xp, 0.0, b.math("MULTIPLY", length, 1.5), 0.0, 0.18)
+    lace = b.ramp(n.outputs["Fac"], b.math("ADD", late, 0.36), b.math("ADD", late, 0.64), 0.0, 1.0)
+    return b.math("MULTIPLY", b.ramp(wake, 0.0, 0.8, 0.0, 1.0), lace)
 
 
 def _water_shader(t: _NT, mat):
@@ -1258,6 +1281,18 @@ def _water_shader(t: _NT, mat):
     if wake and foam_on:
         w = _wake_shader(b, x, y, time)
         foam = w if foam is None else b.math("MAXIMUM", foam, w)
+    work = json.loads(mat.get("fr_vw", "") or "{}")
+    if work and foam_on:                 # task 0154: the Kelvin waves, the thrusters' jets
+        wf, wh = _work().water_nodes(b, x, y, time, dist, work)
+        if wf is not None:
+            foam = wf if foam is None else b.math("MAXIMUM", foam, wf)
+        if wh is not None:
+            bump2 = b.new("ShaderNodeBump")
+            bump2.inputs["Distance"].default_value = 1.0
+            bump2.inputs["Strength"].default_value = 1.0
+            b.put(bump2.inputs["Height"], wh)
+            b.put(bump2.inputs["Normal"], normal)
+            normal = bump2.outputs["Normal"]
     rough = b.ramp(dist, 20.0, 3000.0, *sea_core.ROUGHNESS)
     if foam is not None:
         col = _mix_color(t, foam, col, sea_core.FOAM)
@@ -1267,13 +1302,14 @@ def _water_shader(t: _NT, mat):
 
 
 def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swell=(), weather: bool = False,
-                    wake: bool = False, cut: bool = False) -> bpy.types.Material:
+                    wake: bool = False, cut: bool = False, work: dict | None = None) -> bpy.types.Material:
     bft, toward = wind if wind is not None else (sea_core.STATES.get(state, 3.0), sea_core.DEFAULT_TOWARD)
     own = _waves(state, (), (bft, toward))
     rows = own + [tuple(float(v) for v in w) for w in swell]
     name = (f"{MAT_PREFIX}water {state.lower()}{f' b{bft:.1f} d{toward:.0f}' if state == 'WIND' else ''}"
             f"{' foam' if foam else ''}{' moving' if moving else ''}{' weather' if weather else ''}"
-            f"{' wake' if wake else ''}{' swell ' + _rows_hash(swell) if swell else ''}{' cut' if cut else ''}")
+            f"{' wake' if wake else ''}{' swell ' + _rows_hash(swell) if swell else ''}"
+            f"{' work ' + _rows_hash(_work().layout_json(work)) if work else ''}{' cut' if cut else ''}")
     mat = bpy.data.materials.get(name)
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
@@ -1285,6 +1321,7 @@ def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swel
     mat["fr_toward"] = float(toward)
     mat["fr_sea_weather"] = bool(weather)
     mat["fr_wake"] = bool(wake)
+    mat["fr_vw"] = _work().layout_json(work) if work else ""
     mat["fr_waves"] = json.dumps([[round(float(v), 7) for v in r] for r in rows])
     mat["fr_n_own"] = len(own)
     try:
@@ -1400,7 +1437,7 @@ def _waterline(scene, s, kind: str, root, level: float):
     return hull
 
 
-def _hull_foam_mesh(name: str, outline: np.ndarray, width: float) -> bpy.types.Mesh:
+def _hull_foam_mesh(name: str, outline: np.ndarray, width: float, bow_sign: float = -1.0) -> bpy.types.Mesh:
     """A strip round the waterline from 0.8 m inside the hull out to 1.8 x the foam's reach, with the point
     attribute ``fr_d`` = distance from the hull / the reach there (wider at the bow and the stern)."""
     ring = _resample(outline, 1.0)
@@ -1429,6 +1466,10 @@ def _hull_foam_mesh(name: str, outline: np.ndarray, width: float) -> bpy.types.M
     me = m.to_mesh(name)
     at = me.attributes.new("fr_d", "FLOAT", "POINT")
     at.data.foreach_set("value", np.concatenate(dvals).astype(np.float32))
+    # task 0154: along the hull, 0 at the stern … 1 at the bow (the bow wave)
+    u = np.clip((ring[:, 0] - cx) / half * bow_sign * 0.5 + 0.5, 0.0, 1.0)
+    at = me.attributes.new("fr_u", "FLOAT", "POINT")
+    at.data.foreach_set("value", np.tile(u, len(rows)).astype(np.float32))
     return me
 
 
@@ -1457,7 +1498,6 @@ def _hull_foam_material(cut: bool = False) -> bpy.types.Material:
     b.put(edge.inputs["Vector"], co)
     b.put(edge.inputs["W"], b.math("MULTIPLY", tv.outputs[0], 0.35))
     reach = b.math("MULTIPLY_ADD", b.math("SUBTRACT", edge.outputs["Fac"], 0.5), 0.9, d)
-    band = b.ramp(reach, 0.3, 1.1, 1.0, 0.0, smooth=True)
     lace = b.new("ShaderNodeTexNoise", noise_dimensions="4D")
     lace.inputs["Scale"].default_value = 1.1
     lace.inputs["Detail"].default_value = 6.0
@@ -1465,6 +1505,17 @@ def _hull_foam_material(cut: bool = False) -> bpy.types.Material:
     b.put(lace.inputs["Vector"], co)
     b.put(lace.inputs["W"], b.math("MULTIPLY", tv.outputs[0], 0.6))
     k = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_foam_k").outputs["Fac"]
+    # task 0154: the bow wave and the wash along the sides grow with the speed (a channel); the strip was made for the
+    # fastest speed (fr_foam_w), the foam reaches as far as the speed now makes it
+    u = b.new("ShaderNodeAttribute", attribute_type="GEOMETRY", attribute_name="fr_u").outputs["Fac"]
+    k, more = _work().hull_nodes(b, u, k)
+    w0 = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_foam_w0").outputs["Fac"]
+    wb = b.new("ShaderNodeAttribute", attribute_type="OBJECT", attribute_name="fr_foam_w").outputs["Fac"]
+    w_now = b.math("MULTIPLY_ADD", _work().speed_socket(b), 0.35, w0)
+    scale = b.math("DIVIDE", wb, b.math("MAXIMUM", b.math("MULTIPLY", w_now, more), 0.1))
+    has = b.math("GREATER_THAN", wb, 0.0)                     # (a strip without the numbers: as before)
+    reach = b.math("MULTIPLY", reach, b.math("MULTIPLY_ADD", has, b.math("SUBTRACT", scale, 1.0), 1.0))
+    band = b.ramp(reach, 0.3, 1.1, 1.0, 0.0, smooth=True)
     alpha = b.math("MULTIPLY", b.math("MULTIPLY", band, b.ramp(lace.outputs["Fac"], 0.28, 0.6, 0.3, 1.0)), k)
     foam = _principled(t, sea_core.FOAM, 0.6)
     clear = t.node("ShaderNodeBsdfTransparent")
@@ -1526,12 +1577,14 @@ def _hull_foam_group(name: str, sea_ob, rows, moving: bool, near: float) -> bpy.
 
 def _build_hull_foam(scene, s, col, root, sea_ob, outline, bft: float, rows, near: float, detailed: bool,
                      cut: bool = False):
-    width = sea_core.hull_foam_width(bft, _speed(s))
-    me = _hull_foam_mesh("FR Sea: hull foam", outline, width)
+    width = sea_core.hull_foam_width(bft, _max_speed(s))
+    me = _hull_foam_mesh("FR Sea: hull foam", outline, width, bow_sign=-float(stern_side(s, outline)))
     mat = _hull_foam_material(cut)
     me.materials.append(mat)
     ob = _new_object("FR Sea: hull foam", me, "hull_foam", col, root)
-    ob["fr_foam_k"] = sea_core.hull_foam_strength(bft, _speed(s))
+    ob["fr_foam_k"] = sea_core.hull_foam_strength(bft, 0.0)    # task 0154: the speed's share is a channel
+    ob["fr_foam_w"] = float(width)
+    ob["fr_foam_w0"] = float(sea_core.hull_foam_width(bft, 0.0))
     ob.location = sea_ob.location
     for attr in ("visible_diffuse", "visible_shadow", "visible_transmission"):
         setattr(ob, attr, False)
@@ -1803,9 +1856,20 @@ def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bp
     swell = _vessel().swell_rows(s)
     cut = kind == "SEA" and bool(s.sea_cutaway)          # task 0081: the cut-away behind the stern
     me = _sea_mesh("FR Sea", detailed, near)
+    sail = _work().sea_key(scene)                         # task 0154: the vessel sails / its thrusters run somewhere
+    work = None
+    if foam and outline is not None and sail:
+        work = _work().layout(scene, outline, bow_sign=-float(stern_side(s, outline)))
+        work["ahead"] = bool(sail.get("ahead"))
+        if not sail.get("thr"):
+            work["thrusters"] = []
     me.materials.append(_water_material(scene, s.sea_state, foam, moving, (bft, toward), swell, weather,
-                                        wake=foam and speed > 0 and outline is not None, cut=cut))
+                                        wake=foam and bool(sail.get("ahead")) and outline is not None, cut=cut,
+                                        work=work))
     ob = _new_object("FR Sea", me, "sea", col, root)
+    if work:
+        ob[_work().LAYOUT_KEY] = _work().layout_json(work)
+    _work().sync(scene)
     ob.location.z = level
     if kind == "QUAY":
         ob.location.y = 0.0

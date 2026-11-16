@@ -702,7 +702,8 @@ def _draw_camera_step(context, box, b) -> None:
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
               "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL",
-              "SEQUENCE": "MOD_EXPLODE", "WEATHER": "OUTLINER_DATA_LIGHTPROBE", "CAD": "LOOP_BACK"}
+              "SEQUENCE": "MOD_EXPLODE", "WEATHER": "OUTLINER_DATA_LIGHTPROBE", "CAD": "LOOP_BACK",
+              "VESSEL": "MOD_OCEAN"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -757,6 +758,25 @@ def _draw_weather(context, box, scene, a, b) -> None:
     col.prop(b, "wx_snow_cover", text="Snow layer")
     col.prop(b, "wx_wind", text="Wind (Bft)")
     col.prop(b, "wx_wind_from", text="Wind from")
+
+
+def _draw_vessel(context, box, scene, a, b) -> None:
+    """The settings of a Vessel at work step (task 0154): what the vessel does at its end."""
+    from ..core import vessel_work as vw_core
+    from . import vessel_work
+    st = vessel_work.state_before(scene, a, b)
+    hint = wrap(box, context, "From " + vw_core.words(st).lower() + ". To:", inset=12)
+    hint.active = False
+    box.row(align=True).prop(b, "vw_mode", expand=True)
+    col = split_props(box)
+    if b.vw_mode == "AHEAD":
+        col.prop(b, "vw_speed", text="Speed (kn)")
+    elif b.vw_mode in ("DP", "TURN"):
+        col.row(align=True).prop(b, "vw_side", text="Bow to" if b.vw_mode == "TURN" else "Push to", expand=True)
+        col.prop(b, "vw_thrust", text="Thrust", slider=True)
+    if not len(scene.fresing.vessel_work.thrusters):
+        wrap(box, context, "No thrusters yet (5 Scene & Render > Vessel at work): the water changes, no propeller "
+                           "turns.", icon="INFO", inset=12)
 
 
 def _draw_sequence(context, box, b) -> None:
@@ -1018,6 +1038,8 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 _draw_camera_step(context, box, b)
             elif b.kind == "WEATHER":
                 _draw_weather(context, box, scene, a, b)
+            elif b.kind == "VESSEL":
+                _draw_vessel(context, box, scene, a, b)
             elif b.kind == "CAD":
                 _draw_cad(context, box, b)
             else:

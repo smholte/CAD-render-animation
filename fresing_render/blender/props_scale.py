@@ -83,6 +83,11 @@ def rebuild(ob) -> None:
     kind = ob.get(sur.PROP_TAG)
     if kind not in S.PROPS:
         return
+    if kind == "PERSON" and ob.get("fr_rigged"):
+        from . import person_rig                # task 0157: a person with a rig keeps it (pose on its bones)
+        if person_rig.rig_of(ob) is not None:
+            person_rig.rebuild(ob)
+            return
     old = ob.data
     settings = person_settings(ob) if kind == "PERSON" else {}
     name = old.name if old is not None else S.PROPS[kind][0]
