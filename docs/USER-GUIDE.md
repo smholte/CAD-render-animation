@@ -115,7 +115,7 @@ Fresing Render.
 2. Double-click **Install.bat**. If Windows says "Windows protected your PC", click **More info**, then
    **Run anyway**. Unpacking takes a few minutes without a progress bar: let it finish.
 3. Start **Fresing Render** from the Desktop: the shortcut, the Start menu, the window and the taskbar show the
-   green and white Fresing **F**, and the start-up screen carries the Fresing logo. Right-click the taskbar icon
+   Fresing **Fr** (the white F with its green swoosh and an r), and the start-up screen carries the Fresing logo. Right-click the taskbar icon
    > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.133 gets the new icon at the first
    start after **Update now**; if a pinned taskbar icon still shows Blender's, unpin it and pin it again.)
 4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes

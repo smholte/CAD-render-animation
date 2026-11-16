@@ -78,6 +78,7 @@ def ensure_icon(folder: str, shipped: str = SHIPPED_ICON) -> str:
                 with open(tmp, "wb") as fh:
                     fh.write(new)
                 os.replace(tmp, dst)
+                STATE["icon_changed"] = True            # shortcuts that already point here show a cached picture
             finally:
                 if os.path.exists(tmp):
                     os.remove(tmp)
@@ -444,7 +445,24 @@ def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", a
     if not (desktop and programs):
         d, p, a = known_folders()
         desktop, programs, appdata = desktop or d, programs or p, appdata or a
-    return refresh_shortcuts(folder, icon, shortcut_paths(desktop, programs, appdata))
+    paths = shortcut_paths(desktop, programs, appdata)
+    done = refresh_shortcuts(folder, icon, paths)
+    if STATE.pop("icon_changed", False):
+        redraw_icons(paths)
+        done.append("icon file replaced: Explorer told to redraw")
+    return done
+
+
+def redraw_icons(paths: list[str]) -> None:
+    """Windows: the icon file changed under shortcuts that point at it (a new icon in an update): tell Explorer to
+    draw those shortcuts again, and to drop its icon cache (SHCNE_ASSOCCHANGED)."""
+    w = _win()
+    for path in paths:
+        w.notify(path)
+    try:
+        w.shell32.SHChangeNotify(0x08000000, 0x0000, None, None)       # SHCNE_ASSOCCHANGED, SHCNF_IDLIST
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def set_process_app_id(app_id: str = APP_ID) -> None:

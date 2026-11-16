@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.134 – 16 Nov 2026 – The app icon says "Fr" (task 0169)
+
+- **The app icon is now "Fr" for Fresing Render:** the white F with its green swoosh and an r beside it, taken from
+  the Fresing word mark, on the same dark rounded square. It shows on the Desktop, in the Start menu, on the window
+  and in the taskbar, and stays sharp at the smallest sizes.
+- Nothing to do after **Update now**: the app swaps the icon file at its first start and tells Windows to redraw the
+  shortcuts. If a shortcut or a pinned taskbar icon still shows the plain F, press F5 on the Desktop, or unpin and pin
+  the taskbar icon again.
+
 ## 0.2.133 – 16 Nov 2026 – The Fresing icon and start-up screen (task 0169)
 
 - **Fresing Render now looks like Fresing everywhere in Windows:** the Desktop shortcut, the Start menu, the window and
