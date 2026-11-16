@@ -126,9 +126,13 @@ The other path (report pushed while a run was still going) did not occur in the 
 **Runs:** 3 GitHub runs, all needed. Branch 43969728373 (`ebdf9db`, full, green, 26.6 min); `main` then brought 0169's
 code, so the merge ran full again – correctly: 43974041173 (`acdaf05`, green, 27.6 min, precheck "code changed since
 every green commit of this push …"). `main` then moved by task-list pushes only (0174, 0176 briefs); this report +
-that merge went to `main` directly as the new path's first real case – its mode is in the line below.
+that merge went to `main` directly as the new path's first real case: run 43978390387 (`8ff50d8`) **docs, 1.7 min**,
+"only documentation/version lines changed since acdaf05 (proven green): TASKS.md, tasks/0169…, tasks/0170…, tasks/0174…,
+tasks/0176…". Without this task it would have been a full run of ~27 min.
 Both full runs on busy GitHub (other tasks' runs at the same time): pytest groups 10.5–17.6 min, demo 14.6–19.1.
 
 **Open points / follow-up tasks:**
 - `test_demo_clash.py` / `_b.py` have grown to 11–14 min: the demo groups now set the length after Windows.
+- `ci_status.py --wait` judges a push by its last commit only: a push of "merge main + report" whose last commit
+  touches only `tasks/` was reported as "no test run" although GitHub ran one (use `--run <id>`). Small fix for 0171.
 - Not watched: the next two other tasks' releases (the lead checks them; their precheck line names the green commit).
