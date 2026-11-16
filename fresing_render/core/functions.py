@@ -237,14 +237,16 @@ fn(id="scene.surroundings", title="Background & surroundings", family="scene", p
 fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", prop="lighting", guide="light",
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
-   guide="props", since="0.2.17")
+   guide="props", tour=("props",), pccheck=("scene.props",), since="0.2.17")
+fn(id="scene.props_detail", title="Props: detail by distance", family="scene", panel="FRESING_PT_props",
+   prop="props_detail", guide="props-detail", since="0.2.124")
 fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
    prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115")
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")
 fn(id="scene.start_scene_save", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
-   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.124")
+   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125")
 fn(id="scene.night", title="Night shift and work lights", family="scene", panel="FRESING_PT_weather",
    button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88")
 fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_camera", button="fresing.camera_add",

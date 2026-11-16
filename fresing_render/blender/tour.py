@@ -2918,6 +2918,23 @@ def _check_vessel(scene):
 WEATHER_ANIM = "Weather changes"
 
 
+# ----- props for scale in detail (task 0155) -----
+
+
+@tour_set("props", "Props for scale and people", "test_crane_a.step")
+def build_props(b: Build):
+    from . import cameras, props_scale
+    _look("PRODUCT")
+    obs = props_scale.line_up(b.scene)
+    cameras.add_camera(b.scene, "ISO", 50.0, "Tour props", points=props_scale.corners(obs))
+    _shot(b, "@props")
+
+
+def _check_props(scene):
+    from . import props_scale
+    return props_scale.check_line_up(scene)
+
+
 @tour_set("weather", "Weather and time of day", "test_crane_a.step")
 def build_weather(b: Build):
     from . import weather
@@ -3166,10 +3183,18 @@ stop("start_scene", LOOK, "weather", "Save into start scene",
      "Weather & time shows a box under its tick: \"Build puts back the start scene 'Clear day': Weather Grey North Sea "
      "→ Clear Day …\" with the button Save into start scene. Clicking it would keep the grey weather at Build (leave it "
      "here: the tour's weather video starts from a clear day).", where="5 Scene & Render > Weather & time",
-     since="0.2.124", shot="Weather: grey North Sea", check=_check_start_scene)
+     since="0.2.125", shot="Weather: grey North Sea", check=_check_start_scene)
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
      "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)
+stop("props", LOOK, "props", "Props for scale and people",
+     "Beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
+     "offshore coverall with reflective bands and gloves, one with both hands forward in office clothes and a "
+     "yellow vest – then a container with ribbed walls, a pallet of taped boxes, a red and white barrier, an IBC "
+     "tank in its cage, a rack of four gas bottles and a red tool trolley. Faces, fingers and shoe soles show close "
+     "up; nothing floats or sinks into the floor.",
+     where="5 Scene & Render > Props for scale (click a person for its pose and clothes)", since="0.2.124",
+     check=_check_props)
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks)

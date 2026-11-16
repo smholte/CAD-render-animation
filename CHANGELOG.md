@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.124 – 16 Nov 2026 – Cables and the sea after Build (task 0160)
+## 0.2.125 – 16 Nov 2026 – Cables and the sea after Build (task 0160)
 
 - **Renaming no longer loses a drum, carousel or track.** A renamed drum or carousel joint, layer follower (level
   wind, arm), track speed joint or wheel joint, or a renamed cable, is kept everywhere it is used: after a model
@@ -25,6 +25,21 @@ installer of that version was built from.
   at Build. Foam and moving waves are named too when Build puts them back.
 - **No more one-frame twitch** of a let-go cable settling onto the seabed (0.8 m and back), and two Builds give the
   same shape.
+## 0.2.124 – 16 Nov 2026 – Props for scale and people in detail (task 0155)
+
+- **People:** the grey mannequin is now a person in work clothes with a face (nobody's likeness), hands with fingers,
+  safety shoes and a helmet. Click a person in the view and choose under 5 Scene & Render > Props for scale:
+  **Pose** (standing, walking, pointing, hands on a panel, kneeling, operator at a machine), **Height** (1.65 /
+  1.75 / 1.85 m), **Clothes** (workshop overalls, orange offshore coverall with reflective bands, office clothes with a
+  yellow vest), **Helmet**, **Gloves** and **Look** (another skin tone and hair). The feet stay on the floor.
+- **Props in detail:** the container has ribbed walls, corner castings and door bars; the pallet carries taped boxes;
+  the barrier has a bent frame and feet. Three new props: **IBC tank**, **Gas bottle rack** and **Tool trolley**. No
+  brand names or logos.
+- **Quick with many props:** each prop has a light version for far away. Props further than 30 m from the camera use
+  it by themselves (5 Scene & Render > Props for scale > Detail, where you can also choose always detailed or always
+  light).
+- Projects made with an older version get the new props when you open them: same names, same places.
+
 ## 0.2.123 – 16 Nov 2026 – Served cable: the yellow lines run as a spiral (task 0164)
 
 - **Served cable (yarn):** the two yellow marker lines now wind round the whole cable as one continuous spiral, once

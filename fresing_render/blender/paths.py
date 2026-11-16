@@ -2800,7 +2800,7 @@ def cable_renamed(scene, item) -> None:
 
 
 def version_names(scene) -> None:
-    """Cables of a project made before 0.2.124 have no ``name_was``: they know their own name from now on."""
+    """Cables of a project made before 0.2.125 have no ``name_was``: they know their own name from now on."""
     if not hasattr(scene, "fresing"):
         return
     for it in scene.fresing.cables:

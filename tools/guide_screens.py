@@ -742,11 +742,16 @@ if MODE == "panels":
                 sc.fresing.camera_blur = "STRONG"
                 trolley = ob("TROLLEY")
                 cams.set_focus(cam, sc, trolley, trolley.matrix_world.translation)
-            elif name == "panel_5_props":               # two props next to the machine
+            elif name == "panel_5_props":               # two props; the person selected: its settings (task 0155)
                 sur = mod("blender.surroundings")
                 if not sur.props(sc):
-                    sur.add_prop(sc, "PERSON")
+                    person = sur.add_prop(sc, "PERSON")
                     sur.add_prop(sc, "CONTAINER")
+                    person.fresing_person.pose = "POINTING"
+                    for o in bpy.context.selected_objects:
+                        o.select_set(False)
+                    person.select_set(True)
+                    bpy.context.view_layer.objects.active = person
             elif name == "panel_5_vessel_motion":       # on, a beam sea, the trolley kept still
                 sc.fresing.env_detail = "DETAILED"
                 sc.fresing.background = "DECK"

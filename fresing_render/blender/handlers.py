@@ -174,6 +174,13 @@ def _on_load(_dummy=None):
                     fn(sc)
                 except Exception as exc:
                     print(f"Fresing Render: upgrade step '{step}' failed for scene '{sc.name}': {exc}")
+    try:                                     # task 0155: props of older projects get the detailed look
+        from . import props_scale
+        for sc in bpy.data.scenes:
+            if hasattr(sc, "fresing"):
+                props_scale.upgrade(sc)
+    except Exception as exc:
+        print(f"Fresing Render: props kept their old look: {exc}")
     try:                                     # say so when a delayed queue start was lost with the old project
         from . import queue
         note = queue.take_note()
