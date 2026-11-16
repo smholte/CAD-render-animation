@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.130 – 16 Nov 2026 – Web 3D page: part info, measure, cutaway, fade the rest (task 0135)
+## 0.2.131 – 16 Nov 2026 – Web 3D page: part info, measure, cutaway, fade the rest (task 0135)
 
 - **Four part tools on the left of the web page** (on PC and phone):
   - **Part info** (I): click a part – a card says what it is: its label's text, else its name. With **Hide part
@@ -26,6 +26,21 @@ installer of that version was built from.
   bottom (it covered the buttons), the buttons fit one column when the phone is held sideways, the hint speaks of
   fingers, not keys; the help says "1" with one saved view; a screenshot of a page whose title has letters like "å"
   or "–" now saves as a .png.
+
+## 0.2.130 – 16 Nov 2026 – Demo: a wind park round the cable-lay vessel (task 0166)
+
+- **The demo project now works inside an offshore wind park:** nine turbines on monopiles in three rows (1.2 km apart
+  along a row, 1.5 km between the rows) and an offshore substation between the rows. The turbines are invented, sized
+  from the IEA 15 MW reference turbine's public numbers (240 m rotor, 150 m hub height), with their platforms, boat
+  landings, J-tubes and scour rock; the substation has a jacket, three decks, a helideck, a crane and J-tubes.
+- **The park stands on the seabed:** it moves aft with the seabed as the cable is laid and never heaves or rolls with
+  the vessel. The cable's first end comes up the J-tube of turbine WTG 05 and runs over its scour rock down to the
+  seabed; shots 9–12 lay the second end down beside turbine WTG 06.
+- **The rotors turn** (clockwise seen from the front, all facing one wind, each at its own phase).
+- **Three new shots:** beside turbine WTG 05 (its boat landing and J-tube, the vessel laying away from it), the park
+  from above (the vessel laying on through the rows), and the park at night: red aviation lights on the nacelles and
+  yellow marine lights on the platforms flash together, the substation's floodlights burn.
+- Making the demo takes about two minutes longer; the animation is about 26 s longer.
 
 ## 0.2.129 – 16 Nov 2026 – Web 3D page: under the sea (task 0143)
 

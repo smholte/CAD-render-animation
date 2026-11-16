@@ -1,11 +1,11 @@
 # 0156 – Manual tool change: a realistic hand, and a full human doing the change
 
-**Who:** worker · **Status:** waiting – starts after 0155 is merged (uses its human figure) · **Branch:** `task/0156-human-tool-change`
+**Who:** worker · **Status:** open – can start (0157 merged, 0.2.128: use its rig) · **Branch:** `task/0156-human-tool-change`
 **Started by:** lead chat, 16 Nov 2026 (owner: props, hand and human more detailed and realistic; a full human doing a
 manual tool change) · **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation".
 Subagents allowed (CLAUDE.md section 2).
-**Area:** Tool-change lane: `blender/toolchange.py` (the hand "FR hand", manual changes), `core/toolchange.py` (the timed phases), the operator's figure from 0155, `ui_gcode.py` (its settings), their tests, the guide's tool-change section.
-**Do not edit:** milling / material removal (`machining.py`, 0146), the ATC code paths unless shared helpers need a parameter, the surroundings (0155 done before), the Web 3D lane.
+**Area:** Tool-change lane: `blender/toolchange.py` (the hand "FR hand", manual changes), `core/toolchange.py` (the timed phases), the operator's figure from 0155 posed with 0157's rig (read-only use of `core/person_rig.py`, `blender/person_rig.py`, `core/people.py`; a needed parameter there is additive), `ui_gcode.py` (its settings), their tests, the guide's tool-change section.
+**Do not edit:** milling / material removal (`machining.py`, `core/heightmap.py`: 0167 may run), the ATC code paths unless shared helpers need a parameter, the surroundings (0155 done before), the Web 3D lane.
 
 ## Goal
 
@@ -18,8 +18,9 @@ A manual tool change looks like a real operator doing it: a detailed gloved hand
 2. **Full human** (new choice next to *Hand* / *None*): the 0155 figure with an animation built from the change's
    timed phases (`core/toolchange.py`): walk in from a set spot, open the machine's door if it has one (a joint the
    owner picks, else skip), reach, grip, press the release, pull the tool down, put it in the rack / on a table, take
-   the new one, insert, release, close, step back. Inverse kinematics for the arms on the holder's place (Blender IK
-   constraints, baked to keys at Build, works with scripts off). The pause length (manual-change pause, 0–5 s) grows
+   the new one, insert, release, close, step back. **Use 0157's rig** (lead, 16 Nov – API in tasks/0157's report): arms by
+   `person_rig.arm_ik` on the holder's place, keys by `person_rig.key_poses` (tagged `fr_anim`, baked at Build, works
+   with scripts off), the walk in / out by 0157's walk paths (`core/people.py`); no Blender IK constraints, no second rig. The pause length (manual-change pause, 0–5 s) grows
    automatically to what the person needs, and the report says the time per change.
 3. The person never walks through the machine or the table: a clear path to a stand spot in front of the spindle
    (the owner can move the spot); the clash check knows the person (0 clashes on the tour's tool-change set).

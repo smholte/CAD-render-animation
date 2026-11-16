@@ -410,10 +410,24 @@ def _uid_strings_again(scene) -> None:
 
 
 BOUNDS_CAD = "fr_bounds_cad"           # on a part: the model's size counts its CAD shape, not what is drawn (0081)
+PROP_SCENERY = "fr_scenery"             # on a model and its objects: scenery round the machine (task 0166: the demo's
+#                                         wind park, km across): not counted in the model's size, so the floor, the
+#                                         sea, vessel motion's hull and the cameras still measure the machine
+
+
+def without_scenery(objs) -> list:
+    """``objs`` without scenery objects (``PROP_SCENERY``) – unless there is nothing else (the scenery's own size)."""
+    objs = list(objs)
+    if not any(ob.get(PROP_SCENERY) for ob in objs):
+        return objs
+    rest = [ob for ob in objs if not ob.get(PROP_SCENERY)]
+    return rest or objs
 
 
 def world_bounds(objs) -> tuple:
-    """(min, max) world-space corners of the given mesh objects (fast, uses bound boxes)."""
+    """(min, max) world-space corners of the given mesh objects (fast, uses bound boxes). Scenery objects count only
+    when nothing else is given (``without_scenery``, task 0166)."""
+    objs = without_scenery(objs)
     mins = np.array([np.inf] * 3)
     maxs = np.array([-np.inf] * 3)
     for ob in objs:

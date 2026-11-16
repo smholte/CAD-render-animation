@@ -21,8 +21,11 @@ Files (AP214, part names and colours, mm, waterline z = 0, transom at x = 0, x t
   demo_quadrant.step           quadrant system: D-quadrant, rails, handler, handling winch, tipping winches, wires
   demo_quay_loading.step       the quay (vessel moored starboard side to, same coordinates), the storage carousel,
                                the quay tower with its arch, the cable from it onto side A's highway
+  demo_park.step               the wind park round the vessel (task 0166, its own coordinates: park.py): nine
+                               turbines, the offshore substation, the cable's first end from turbine A's J-tube
   demo_cable_route.json        the cable's centrelines (the oval, the end at the core, the CPS slide, the quay
-                               route), what they lie on, sheaves, tracks, ropes, quadrant, arch, CPS store, quay
+                               route), what they lie on, sheaves, tracks, ropes, quadrant, arch, CPS store, quay,
+                               the park (its turbines, the substation, the first end's piece)
   demo_joints.json             every joint a set-up should make (task 0077 makes them by script)
 
 The model maker ships with the app (task 0077): ``fresing_render/demo_model/`` (``make.py`` is the same command;
