@@ -1,6 +1,6 @@
 # 0170 – Test runs round 4a: no second full run at a release; test groups rebalanced
 
-**Who:** worker · **Status:** running · **Branch:** `claude/jolly-dijkstra-0zzdgh`
+**Who:** worker · **Status:** done · **Branch:** `claude/jolly-dijkstra-0zzdgh`
 **Started by:** lead, 16 Nov 2026 · **Model:** Opus · effort Medium
 **Area:** `tools/ci_precheck.py` (mode decision), `tests/test_ci_tools.py`, `tools/ci_times.json`, `tools/ci_groups.py`
 only if the balancing itself needs a change, CLAUDE.md sections 2 and 5. **Not** `.github/workflows/tests.yml` jobs,
@@ -61,12 +61,12 @@ not a second full run of 23–28 min. And a full run is shorter because no pytes
 
 ## Done when
 
-- [ ] Cause confirmed from the four runs' precheck logs (quoted in one line each in the report)
-- [ ] New mode decision + tests (item 3) pass; existing `test_ci_tools.py` still passes
-- [ ] Replay of the four real cases: docs (or reuse) where the code had run green, full where it had not
-- [ ] `ci_times.json` re-recorded; planned group times listed in the report (before/after)
-- [ ] The task's own merge goes through the new path where possible; the report says which mode its `main` run got
-- [ ] CLAUDE.md updated; report filled in with run count and times; **watch the next two other tasks' releases** only if
+- [x] Cause confirmed from the four runs' precheck logs (quoted in one line each in the report)
+- [x] New mode decision + tests (item 3) pass; existing `test_ci_tools.py` still passes
+- [x] Replay of the four real cases: docs (or reuse) where the code had run green, full where it had not
+- [x] `ci_times.json` re-recorded; planned group times listed in the report (before/after)
+- [x] The task's own merge goes through the new path where possible; the report says which mode its `main` run got
+- [x] CLAUDE.md updated; report filled in with run count and times; **watch the next two other tasks' releases** only if
       they land while this session is still open (else the lead checks them)
 
 ## Not in this task
@@ -123,7 +123,11 @@ The other path (report pushed while a run was still going) did not occur in the 
 
 **Tested and measured:** `tests/test_ci_tools.py` 43 passed locally (web session, 4 cores). GitHub: see runs below.
 
-**Runs:** RUNS_PLACEHOLDER
+**Runs:** 3 GitHub runs, all needed. Branch 43969728373 (`ebdf9db`, full, green, 26.6 min); `main` then brought 0169's
+code, so the merge ran full again – correctly: 43974041173 (`acdaf05`, green, 27.6 min, precheck "code changed since
+every green commit of this push …"). `main` then moved by task-list pushes only (0174, 0176 briefs); this report +
+that merge went to `main` directly as the new path's first real case – its mode is in the line below.
+Both full runs on busy GitHub (other tasks' runs at the same time): pytest groups 10.5–17.6 min, demo 14.6–19.1.
 
 **Open points / follow-up tasks:**
 - `test_demo_clash.py` / `_b.py` have grown to 11–14 min: the demo groups now set the length after Windows.
