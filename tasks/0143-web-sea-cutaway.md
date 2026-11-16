@@ -1,6 +1,6 @@
 # 0143 – Web 3D model: under the sea – seabed, the cable in the water, the sea cut-away, the camera under water
 
-**Who:** worker · **Status:** waiting – starts **after 0142 is merged** (same files) · **Branch:**
+**Who:** worker · **Status:** waiting – starts **after 0148 and 0158 are merged** (0142 done; 0158 edits `fr_page.js` too; 0148 adds the seabed cut the page must show – read its section in the guide and `surroundings.py` once merged) · **Branch:**
 `task/0143-web-sea-cutaway`
 **Started by:** lead chat, 15 Nov 2026 (owner: "cutout is not visible in web 3D model") · **Model:** Opus · effort
 Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
