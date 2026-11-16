@@ -2078,7 +2078,8 @@ spirals; a thread mill and a slot cutter make chips like an end mill.
 
 Every tool change (M6) in the program plays by itself – on a machine without a tool changer, on one with a
 carousel or umbrella tool changer (ATC), and on one with a double-arm tool changer. Set it up in 4 Motion > CNC machine > **Tool changes**; what the video shows (the
-pause, the hand, a caption, the changer's speed) is set in the program step in 6 Animation.
+pause, who changes the tool – a gloved hand or a whole person –, a caption, the changer's speed) is set in the
+program step in 6 Animation.
 
 **Manual** (no tool changer)
 
@@ -2098,19 +2099,74 @@ program's point counts as that point's height. **Head goes**:
 
 In the program step (6 Animation > **Run G-code program** > **Lines, tool changes, spindle, toolpath**):
 
-<img class="panel" src="img/panel_6_gcode_toolchange.png" alt="The Run G-code program step with the fold open: Pause at M6 1 s, Show hand and Caption ticked, a note that the hand needs 2.8 s">
+<img class="panel" src="img/panel_6_gcode_toolchange.png" alt="The Run G-code program step with the fold open: Pause at M6 1 s, Changed by Hand, Caption ticked, a note that the hand needs 2.8 s">
 
 - **Pause at M6**: 1 second by default, 0 to 5 s with the slider. A long pause is boring in a video; the travel to
   the change position comes on top.
-- **Show hand** (off by default): a gloved hand reaches in, takes the old tool out of the spindle, brings the new
-  one and pushes it in, and leaves. It needs 2.8 seconds: a shorter pause grows to that, and the step says so
-  ("Tool change pause: 2.8 s, not 1.0 s – the hand needs 2.8 s"; also under **Details**). With a longer pause the
-  hand waits outside while fetching the new tool.
+- **Changed by**: **Nobody** (the tools swap half way through the pause), **Hand** or **Person** (below).
+  - **Hand**: a blue nitrile glove reaches in with its fingers open, closes them round the holder, takes the old
+    tool out of the spindle, brings the new one and pushes it in, opens its fingers and leaves. It needs 2.8
+    seconds: a shorter pause grows to that, and the step says so ("Tool change pause: 2.8 s, not 1.0 s – the hand
+    needs 2.8 s"; also under **Details**). With a longer pause the hand waits outside while fetching the new tool.
+  - **Person**: a whole person does the change – see [A person changes the tool](#tool-change-person).
 - **Caption**: a caption such as "Tool change: T3 Ø50 face mill" during every change of a video, in the brand
   kit's caption look (6 Animation > Video finishing). A name typed in the tool's row is added: "Tool change: T3 Ø5
   drill (Gühring 5 mm)".
 
-<img src="img/view_toolchange_hand.png" alt="The test gantry: the gloved hand holding the tool under the spindle at a manual tool change">
+<img src="img/view_toolchange_hand.png" alt="The test gantry: the gloved hand, its fingers closed round the holder, pulling the tool out of the spindle at a manual tool change">
+
+<a id="tool-change-person"></a>
+#### A person changes the tool
+
+With **Changed by: Person** a whole person – the operator – changes the tools. Before the first change it walks up
+to the machine from a spot a few metres away (round everything that stands in the way: it never walks through the
+machine or a table), turns to the spindle and waits while the head goes to the change position. Then, at every
+change:
+
+1. it opens the machine's door by its handle (if you picked the door's joint, below),
+2. presses the drawbar's release button on the head with its left hand (when the head has a face beside the spindle
+   to press on) and takes the old tool out of the spindle by its holder with its right hand,
+3. lays the old tool on a tool trolley beside it, takes the new one from the trolley,
+4. pushes it into the spindle, lets go of the button, closes the door and stands back.
+
+After the last change it walks back to where it came from. The pause grows to what the person needs: about 6.5
+seconds, plus the door (twice its travel time and the reach for its handle). The step's **Details** say how long
+each change takes ("The operator changes 1 tool, 9.2 s each at the machine").
+
+<img src="img/toolchange_person.jpg" alt="The test mill in its cabinet: the operator leans into the open door and pulls the end mill out of the spindle by its holder">
+
+<img src="img/toolchange_person_trolley.jpg" alt="The operator lays the end mill on the red tool trolley beside it; the ball mill waits on the trolley">
+
+The person's settings are in 4 Motion > CNC machine > **Tool changes** > **Person at the machine**:
+
+- **Height** (1.65, 1.75 or 1.85 m) and **Clothes**; the operator always wears work gloves. **Helmet**: off by
+  default (a machine shop).
+- **Trolley**: on the operator's right or left. The tools of the program lie on its top, across it; the one in the
+  spindle at the start is not there.
+- **Door**: the joint that opens the machine's door (make it in 4 Motion: a slide joint for a sliding door, a rotate
+  joint for a hinged one; closed as in your CAD model). **Opens by**: how far it slides or turns to be open. The
+  hand follows the handle as far as it reaches; a door that slides further runs on by itself. Empty: no door.
+- **Release button**: the left hand presses the button on the head while the right hand takes the tool out and puts
+  the new one in. Off: the left hand stays down.
+- **Show the spots**: two markers in the view – an arrow where the operator stands at the machine and a circle where
+  it comes from. The app picks them (the arrow in front of the spindle, on the machine's −Y side, as the hand comes
+  from); move them with G and build again. The **X** next to the button takes them away: the app picks the spots again.
+- **Show the operator**: off hides the operator, its trolley and the tools it carries (the tools then swap in the
+  spindle as with Nobody). It is saved with a scene: hide the operator for one shot only.
+
+Good to know:
+
+- The operator stands in front of the spindle as close as its feet allow. A machine whose spindle is far behind its
+  door (more than about 60 cm from where the person can stand) is out of reach: the Build says "The operator's hand
+  stays … cm short of the tool – move the stand spot closer". Move the arrow closer, or the head's change position
+  forwards (4 Motion > CNC machine > Tool changes > Head goes).
+- It leans in as far as its head and chest stay out of the machine (a person leans its head into a large door, not
+  through a panel). Its arms pass through the door's opening, never through the table, the part or the head.
+- The clash check knows the operator: its body (without the arms, which reach into the machine on purpose) is
+  checked against the machine along its way.
+- **Clear keys** puts the operator back where it stood; a Build with another choice than Person hides it. It stays
+  in the project (collection "FR operator") so its height and clothes are kept.
+- Works in the render queue, in saved scenes and in the product video like any other animation.
 
 **Carousel / umbrella** (called **Tool changer (ATC)** before 0.2.51; it works as before)
 

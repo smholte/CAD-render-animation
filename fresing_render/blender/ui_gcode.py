@@ -324,7 +324,7 @@ class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
 def draw_operator(layout, context, scene, cnc) -> None:
     """The operator who changes the tools when a step picks 'Person' (task 0156)."""
     from . import tc_person
-    body = fold(layout, "fr_cnc_operator", "Operator (a person changes the tool)", icon="ARMATURE_DATA")
+    body = fold(layout, "fr_cnc_operator", "Person at the machine", icon="ARMATURE_DATA")
     if not body:
         return
     col = split_props(body)
@@ -333,8 +333,10 @@ def draw_operator(layout, context, scene, cnc) -> None:
     col.prop(cnc, "op_trolley_side", text="Trolley")
     col.prop_search(cnc, "op_door", scene.fresing, "joints", text="Door", icon="SNAP_FACE")
     j = tc_person.door_joint(scene)
-    if j is not None:
-        col.prop(cnc, "op_door_open" if j.kind == "SLIDE" else "op_door_angle", text="Opens by")
+    if j is not None and j.kind == "SLIDE":
+        col.prop(cnc, "op_door_open", text="Opens by")
+    elif j is not None:
+        col.prop(cnc, "op_door_angle", text="Opens by")
     row = body.row(align=True)
     row.prop(cnc, "op_button", text="Release button")
     row.prop(cnc, "op_helmet", text="Helmet")

@@ -28,7 +28,7 @@ import math
 
 import bpy
 import numpy as np
-from mathutils import Matrix, Vector
+from mathutils import Matrix, Vector  # noqa: F401
 
 from ..core import people as PL
 from ..core import tc_person as core
@@ -833,6 +833,100 @@ def unregister() -> None:
     from . import clash
     while _clash_hook in clash.HOOKS:
         clash.HOOKS.remove(_clash_hook)
+
+
+# ---------------------------------------------------------------------------
+# the test model (tour set "operator", PC-check line "toolchange.person")
+# ---------------------------------------------------------------------------
+
+TEST_ANIM = "A person changes the tool"
+TEST_PROGRAM = """(OPERATOR: T1 END MILL D10, T2 BALL MILL D8 - BT30, CHANGED BY HAND)
+G21 G90 G94 G17 G54
+T1 M6 G43 H1
+S8000 M3
+G0 X-40 Y-30 Z5
+G1 Z-1 F2000
+G1 X40 F1500
+G0 Z40
+M5
+G0 X0 Y0 Z180
+T2 M6 G43 H2
+S9000 M3
+G0 X-40 Y30 Z5
+G1 Z-1 F2000
+G1 X40 F1500
+G0 Z60
+M5
+M30
+"""
+
+
+def _part(scene, name):
+    hits = sorted((o for o in scene.objects if o.get(build.PROP_NAME) == name), key=lambda o: o.get(build.PROP_UID))
+    if not hits:
+        raise RuntimeError(f"the test model has no part '{name}'")
+    return hits[0]
+
+
+def set_up_test_model(scene, ngc_path: str):
+    """The test mill on its cabinet (tests/data/test_mill_cabinet.step, tools/make_test_mill_cabinet.py) set up for
+    one manual change from T1 to T2 that the operator does: X/Y/Z joints, the CNC machine, two BT30 tools, the door's
+    slide joint "Door" (open at +530 mm), and an animation with the program (``TEST_PROGRAM`` written to
+    ``ngc_path``) whose tool changes are done by the person. Returns the animation."""
+    from . import logic, tools
+    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        o = _part(scene, asm)
+        joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    gcode.find_axes(scene)
+    gcode.use_tool(scene, _part(scene, "END MILL D10"))
+    gcode.use_workpiece(scene, _part(scene, "STOCK 200x200x40"))
+    if gcode.problem(scene):
+        raise RuntimeError(f"the CNC set-up is not ready: {gcode.problem(scene)}")
+    for name in ("FINISHED PART", "BALL MILL D6"):          # a shape on the stock, a spare tool on the head
+        logic.set_hidden(_part(scene, name), True)
+    end = tools.add_row(scene, "FLAT", 1)
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.09, "BT30", 0.06
+    end.place = "SPINDLE"                                    # T1 is in the spindle when the program starts
+    ball = tools.add_row(scene, "BALL", 2)
+    ball.diameter, ball.length, ball.holder, ball.holder_length = 0.008, 0.1, "BT30", 0.06
+    door = _part(scene, "SLIDING DOOR")
+    joints.create(scene, "SLIDE", [door], door.matrix_world.translation, Vector((1.0, 0.0, 0.0)), name="Door")
+    c = settings(scene)
+    c.op_door, c.op_door_open = "Door", 0.53
+    with open(ngc_path, "w", encoding="utf-8") as fh:
+        fh.write(TEST_PROGRAM)
+    a = scene.fresing.animations.add()
+    a.name, a.tail = TEST_ANIM, 0.0
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_speed, b.gcode_fit, b.gcode_tc_time, b.gcode_path = "FIT", 26.0, 1.0, False
+    b.gcode_operator = "PERSON"
+    b.gcode_file = ngc_path
+    gcode.step_changed(scene, b)
+    return a
+
+
+def test_camera_points() -> np.ndarray:
+    """Corners round the operator at the test mill (for a camera that frames them)."""
+    return np.array([(x, y, z) for x in (-0.9, 1.0) for y in (-2.0, 0.4) for z in (0.0, 1.9)])
+
+
+def check_test_model(scene) -> str:
+    """After the Build of ``set_up_test_model``'s animation: the operator is built and keyed, the door opens, the hand
+    carries the tool. Raises with a plain reason."""
+    ob = operator(scene)
+    if ob is None or not _built(ob):
+        raise RuntimeError("there is no operator with keys (Build the animation)")
+    if ob.hide_render and getattr(scene.fresing, "operator_visible", True):
+        raise RuntimeError("the operator is hidden")
+    j = scene.fresing.joints.get("Door")
+    if j is None:
+        raise RuntimeError("the door's joint is missing")
+    carried = [o for o in scene.objects if CARRY in o]
+    if len(carried) < 2:
+        raise RuntimeError("the tool copies the operator carries are missing")
+    return words(scene) or "the operator is built"
 
 
 def words(scene) -> str:

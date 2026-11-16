@@ -844,6 +844,13 @@ class Operator:
         lean_a = self._lean_for(base_pose, root, bend_from) if bend_from is not None else (0.0, 0.0, 1.0, 0.0)
         lean_b = self._lean_for(base_pose, root, bend_to) if bend_to is not None else (0.0, 0.0, 1.0, 0.0)
         mix = tuple(x + (y - x) * w_bend for x, y in zip(lean_a, lean_b))
+        via = None if door_move else t_to["r"].via
+        if via is not None and bend_from is not None and bend_to is not None:
+            # a way through the entry point may need more lean half way than at its ends
+            mid = m4(_blend4(bend_from, bend_to, 0.5)[:3, :3], via)
+            lean_m = self._lean_for(base_pose, root, mid)[0]
+            extra = max(0.0, lean_m - 0.5 * (lean_a[0] + lean_b[0]))
+            mix = (mix[0] + extra * math.sin(math.pi * u),) + mix[1:]
         _apply_bend(pose, mix[0], mix[1], mix[2], mix[3])
 
         def look_of(nm):

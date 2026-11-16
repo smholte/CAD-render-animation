@@ -201,6 +201,9 @@ fn(id="cnc.tools", title="Tools", family="cnc", panel="FRESING_PT_cnc_tools", bu
    guide="tools", tour=("tools",), pccheck=("milling.tools",), since="0.2.36")
 fn(id="cnc.toolchange_hand", title="Tool change by hand", family="cnc", panel="FRESING_PT_cnc_changes",
    prop="change_mode", guide="tool-changes", tour=("hand",), pccheck=("motion.toolchange",), since="0.2.45")
+fn(id="cnc.toolchange_person", title="A person changes the tool", family="cnc", panel="FRESING_PT_cnc_changes",
+   fold="fr_cnc_operator", button="fresing.operator_spots", guide="tool-change-person", tour=("operator",),
+   pccheck=("toolchange.person",), since="0.2.130")
 fn(id="cnc.atc", title="Tool changer with pockets", family="cnc", panel="FRESING_PT_cnc_changes",
    button="fresing.cnc_pocket_click", guide="tool-changes", tour=("atc",), pccheck=("motion.toolchange",),
    since="0.2.45")

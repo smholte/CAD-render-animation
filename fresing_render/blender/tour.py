@@ -2994,74 +2994,26 @@ PEOPLE_ANIM = "Two people meet"
 
 
 OPERATOR_ANIM = "A person changes the tool"
-OPERATOR_TOUR = """(OPERATOR: T1 END MILL D10, T2 BALL MILL D8 - BT30, CHANGED BY HAND)
-G21 G90 G94 G17 G54
-T1 M6 G43 H1
-S8000 M3
-G0 X-40 Y-30 Z5
-G1 Z-1 F2000
-G1 X40 F1500
-G0 Z40
-M5
-G0 X0 Y0 Z180
-T2 M6 G43 H2
-S9000 M3
-G0 X-40 Y30 Z5
-G1 Z-1 F2000
-G1 X40 F1500
-G0 Z60
-M5
-M30
-"""
 
 
 @tour_set("operator", "A person changes the tool", "test_mill_cabinet.step")
 def build_operator(b: Build):
     """The test mill on its cabinet (tools/make_test_mill_cabinet.py): one manual change from T1 to T2 done by the
     operator, who walks up, opens the sliding door, swaps the tools over the trolley, closes the door and walks
-    away (task 0156)."""
-    from mathutils import Vector
-
-    from . import gcode, joints, tools
+    away (task 0156; the set-up is shared with the PC check: ``tc_person.set_up_test_model``)."""
+    from . import cameras, tc_person
     sc = b.scene
     _look("PRODUCT")
-    _xyz(sc)
-    gcode.find_axes(sc)
-    tool, stock = _ob(sc, "END MILL D10"), _ob(sc, "STOCK 200x200x40")
-    gcode.use_tool(sc, tool)
-    gcode.use_workpiece(sc, stock)
-    _check(gcode.problem(sc) == "", f"the CNC set-up is not ready: {gcode.problem(sc)}")
-    _hide_finished(sc)
-    end = tools.add_row(sc, "FLAT", 1)
-    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.09, "BT30", 0.06
-    end.place = "SPINDLE"                          # T1 is in the spindle when the program starts
-    ball = tools.add_row(sc, "BALL", 2)
-    ball.diameter, ball.length, ball.holder, ball.holder_length = 0.008, 0.1, "BT30", 0.06
-    door = _ob(sc, "SLIDING DOOR")
-    joints.create(sc, "SLIDE", [door], door.matrix_world.translation, Vector((1.0, 0.0, 0.0)), name="Door")
-    c = gcode.settings(sc)
-    c.op_door, c.op_door_open = "Door", 0.53
-    a = _animation(b, OPERATOR_ANIM)
-    _gcode_step(a, _program(b, "Tour operator.ngc", OPERATOR_TOUR), sc, gcode_speed="FIT", gcode_fit=26.0,
-                gcode_tc_time=1.0, gcode_operator="PERSON", gcode_path=False)
-    import numpy as np
-    pts = np.array([(x, y, z) for x in (-0.9, 1.0) for y in (-2.0, 0.4) for z in (0.0, 1.9)])
-    from . import cameras
-    cam = cameras.add_camera(sc, "ISO", 40.0, "Tour operator", points=pts)
+    a = tc_person.set_up_test_model(sc, b.file("Tour operator.ngc"))
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+    cam = cameras.add_camera(sc, "ISO", 40.0, "Tour operator", points=tc_person.test_camera_points())
     sc.camera = cam
     a.start_shot = _shot(b, "@operator").name
 
 
 def _check_operator(scene):
     from . import tc_person
-    ob = tc_person.operator(scene)
-    _check(ob is not None, "there is no operator (Build the animation)")
-    _check(tc_person._built(ob), "the operator has no keys (Build the animation)")
-    _check(not ob.hide_render, "the operator is hidden")
-    carried = [o for o in scene.objects if tc_person.CARRY in o and not o.hide_render]
-    lying = [o for o in scene.objects if tc_person.ON_TROLLEY in o and not o.hide_render]
-    return (f"{tc_person.words(scene) or 'the operator is built'}; {len(carried)} tool in the hand, "
-            f"{len(lying)} on the trolley")
+    return tc_person.check_test_model(scene)
 
 
 @tour_set("people", "People walk and meet", "test_crane_a.step")

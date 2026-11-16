@@ -453,127 +453,84 @@ def notes(scene, sch) -> list[str]:
 # the hand
 # ---------------------------------------------------------------------------
 
-def _tube(pts, radii, ring: int = 10) -> tuple[list, list]:
-    """A closed tube along ``pts`` (rounded ends): (verts, faces)."""
-    pts = [Vector(p) for p in pts]
-    verts, faces = [], []
-    n = len(pts)
-    prev_x = None
-    rings = []
-    for k, (p, r) in enumerate(zip(pts, radii)):
-        t = (pts[min(k + 1, n - 1)] - pts[max(k - 1, 0)]).normalized()
-        x = prev_x if prev_x is not None else (t.orthogonal()).normalized()
-        x = (x - t * x.dot(t)).normalized()
-        y = t.cross(x)
-        prev_x = x
-        idx = []
-        for i in range(ring):
-            a = TC.TURN * i / ring
-            verts.append(p + (x * math.cos(a) + y * math.sin(a)) * r)
-            idx.append(len(verts) - 1)
-        rings.append(idx)
-    for a, b in zip(rings, rings[1:]):
-        for i in range(ring):
-            faces.append((a[i], a[(i + 1) % ring], b[(i + 1) % ring], b[i]))
-    for end, sign in ((0, -1), (n - 1, 1)):
-        t = (pts[min(end + 1, n - 1)] - pts[max(end - 1, 0)]).normalized() * sign
-        verts.append(pts[end] + t * radii[end] * 0.9)
-        c = len(verts) - 1
-        r = rings[end]
-        for i in range(ring):
-            if sign > 0:
-                faces.append((r[i], r[(i + 1) % ring], c))
-            else:
-                faces.append((r[(i + 1) % ring], r[i], c))
-    return verts, faces
-
-
-def _blob(centre, size, ring: int = 12, rows: int = 8) -> tuple[list, list]:
-    """An ellipsoid: (verts, faces)."""
-    cx, cy, cz = centre
-    sx, sy, sz = size
-    verts = [Vector((cx, cy, cz - sz))]
-    for r in range(1, rows):
-        phi = math.pi * r / rows - math.pi / 2
-        for i in range(ring):
-            a = TC.TURN * i / ring
-            verts.append(Vector((cx + sx * math.cos(phi) * math.cos(a), cy + sy * math.cos(phi) * math.sin(a),
-                                 cz + sz * math.sin(phi))))
-    verts.append(Vector((cx, cy, cz + sz)))
-    top = len(verts) - 1
-    faces = []
-    for i in range(ring):
-        faces.append((0, 1 + (i + 1) % ring, 1 + i))
-    for r in range(rows - 2):
-        a0, b0 = 1 + r * ring, 1 + (r + 1) * ring
-        for i in range(ring):
-            faces.append((a0 + i, a0 + (i + 1) % ring, b0 + (i + 1) % ring, b0 + i))
-    last = 1 + (rows - 2) * ring
-    for i in range(ring):
-        faces.append((last + i, last + (i + 1) % ring, top))
-    return verts, faces
-
-
-def hand_shapes(holder_r: float = 0.025) -> list:
-    """The gloved hand's pieces in its own space (m): the grip centre at the origin on the tool's axis (Z along the
-    tool, into the spindle); the palm on the -Y side (towards the operator), fingers wrapped round the holder."""
-    r = holder_r
-    parts = []
-    # palm: a flattened blob in front of the holder
-    parts.append(_blob((0.0, -(r + 0.016), -0.004), (0.045, 0.016, 0.048)))
-    # four fingers round the holder (right hand: from the palm's +X edge round the back), one above the other
-    for k, (z, length) in enumerate(((0.030, 0.076), (0.010, 0.084), (-0.010, 0.080), (-0.029, 0.066))):
-        rad = r + 0.010
-        a0 = math.radians(-60)
-        sweep = length / rad
-        pts = [(rad * math.cos(a0 + sweep * u), rad * math.sin(a0 + sweep * u), z - 0.004 * u)
-               for u in (i / 7 for i in range(8))]
-        pts = [(0.034, -(r + 0.016), z)] + pts
-        parts.append(_tube(pts, [0.0095] + [0.0092 - 0.0012 * (i / 7) for i in range(8)]))
-    # thumb round the other side, a little lower
-    rad = r + 0.011
-    pts = [(-0.036, -(r + 0.020), -0.035)] + [(rad * math.cos(a), rad * math.sin(a), -0.024 + 0.006 * i / 5)
-                                              for i, a in enumerate(math.radians(x) for x in
-                                                                    (-125, -145, -165, -185, -200, -212))]
-    parts.append(_tube(pts, [0.012, 0.0115, 0.011, 0.0105, 0.010, 0.0095, 0.009]))
-    # wrist and cuff, back towards the operator
-    parts.append(_tube([(0.0, -(r + 0.030), -0.010), (0.0, -(r + 0.090), -0.022), (0.0, -(r + 0.150), -0.034)],
-                       [0.030, 0.032, 0.036], ring=14))
-    return parts
-
-
 def glove_material() -> bpy.types.Material:
+    """Blue nitrile work glove (task 0156): a soft sheen, a fine grain in the coating (a bump from noise)."""
     mat = bpy.data.materials.get("FR glove")
+    if mat is not None and mat.get("fr_glove_ver") == 2:
+        return mat
     if mat is None:
         mat = bpy.data.materials.new("FR glove")
-        mat[gcode.TAG] = "glove"
-        rgb = (0.05, 0.22, 0.62, 1.0)                  # blue nitrile
-        mat.diffuse_color = rgb
-        mat.roughness = 0.5
-        try:
-            bsdf = mat.node_tree.nodes.get("Principled BSDF") if mat.node_tree else None
-            if bsdf is not None:
-                bsdf.inputs["Base Color"].default_value = rgb
-                bsdf.inputs["Roughness"].default_value = 0.5
-                bsdf.inputs["Coat Weight"].default_value = 0.15
-        except Exception:
-            pass
+    mat[gcode.TAG] = "glove"
+    mat["fr_glove_ver"] = 2
+    rgb = (0.045, 0.16, 0.5, 1.0)                     # blue nitrile
+    mat.diffuse_color = rgb
+    mat.roughness = 0.42
+    mat.use_nodes = True
+    nt = mat.node_tree
+    try:
+        bsdf = nt.nodes.get("Principled BSDF")
+        bsdf.inputs["Base Color"].default_value = rgb
+        bsdf.inputs["Roughness"].default_value = 0.42
+        bsdf.inputs["Coat Weight"].default_value = 0.12
+        bsdf.inputs["Coat Roughness"].default_value = 0.3
+        bsdf.inputs["Sheen Weight"].default_value = 0.25
+        bsdf.inputs["Subsurface Weight"].default_value = 0.05
+        noise = nt.nodes.new("ShaderNodeTexNoise")
+        noise.inputs["Scale"].default_value = 900.0
+        noise.inputs["Detail"].default_value = 2.0
+        bump = nt.nodes.new("ShaderNodeBump")
+        bump.inputs["Strength"].default_value = 0.12
+        bump.inputs["Distance"].default_value = 0.0003
+        nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
+        nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    except Exception:
+        pass
     return mat
 
 
 def hand_mesh(holder_r: float = 0.025) -> bpy.types.Mesh:
-    verts, faces = [], []
-    for v, f in hand_shapes(holder_r):
-        base = len(verts)
-        verts += [tuple(x) for x in v]
-        faces += [tuple(i + base for i in face) for face in f]
+    """The gloved hand closed round a holder (core/glove.py); its open shape is the shape key "Open"
+    (``hand_shape_keys``)."""
+    from ..core import glove
+    verts, faces = glove.glove(holder_r, 1.0)
     me = bpy.data.meshes.new(HAND_NAME)
-    me.from_pydata(verts, [], faces)
+    me.from_pydata([tuple(v) for v in verts], [], faces)
     me.shade_smooth()
     me.materials.append(glove_material())
     me[gcode.TAG] = "tool"
     me.update()
     return me
+
+
+OPEN_PROP = "fr_open"                    # on the hand object: 0 closed round the holder … 1 open (keyed)
+
+
+def hand_shape_keys(ob, holder_r: float = 0.025) -> None:
+    """The hand's shape key "Open" (the fingers straight), driven by the object's ``fr_open`` (a simple expression:
+    works with scripts off)."""
+    from ..core import glove
+    if ob.data.shape_keys is None:
+        ob.shape_key_add(name="Basis", from_mix=False)
+    kb = ob.data.shape_keys.key_blocks.get("Open") or ob.shape_key_add(name="Open", from_mix=False)
+    pts, _f = glove.glove(holder_r, 0.0)
+    kb.data.foreach_set("co", pts.astype(np.float32).ravel())
+    kb.slider_min, kb.slider_max = 0.0, 1.0
+    if OPEN_PROP not in ob:
+        ob[OPEN_PROP] = 1.0
+        ob.id_properties_ui(OPEN_PROP).update(min=0.0, max=1.0, description="How far the glove's fingers are open")
+    try:
+        kb.driver_remove("value")
+    except Exception:
+        pass
+    drv = kb.driver_add("value").driver
+    drv.type = "SCRIPTED"
+    drv.expression = "v"
+    var = drv.variables.new()
+    var.name = "v"
+    var.type = "SINGLE_PROP"
+    var.targets[0].id_type = "OBJECT"
+    var.targets[0].id = ob
+    var.targets[0].data_path = f'["{OPEN_PROP}"]'
 
 
 def hand_frame(scene, mach, offsets: dict, n: int) -> Matrix:
@@ -782,6 +739,7 @@ class _Hand:
         ob[build.PROP_KIND] = "cnc"
         ob.hide_select = True
         col.objects.link(ob)
+        hand_shape_keys(ob)
         gcode._place(ob, mach.tool.parent, self.grip)
         ob.hide_render = ob.hide_viewport = True
         self.ob = ob
@@ -789,6 +747,7 @@ class _Hand:
         self.carry = {}
         self.keys = []                  # (frame, location)
         self.vis = []                   # (frame, hidden)
+        self.open = []                  # (frame, 0 closed … 1 open)
 
     def carry_copy(self, n, src, col) -> None:
         """A copy of tool ``n`` in the hand, placed as it sits in the spindle when the hand grips it."""
@@ -825,6 +784,12 @@ class _Hand:
         self.vis += [(f0 + poses[0][0] * fps, False), (f0 + poses[-1][0] * fps, True)]
         grips = [t for t, p in poses if p == "grip"]
         outs = [t for t, p in poses if p == "out"]
+        # the fingers: open while it reaches in, closed round the holder from the first grip until the new tool is
+        # in, open again as it leaves
+        first_out = poses[0][0]
+        self.open += [(f0 + first_out * fps, 1.0), (f0 + max(first_out, grips[0] - 0.12) * fps, 1.0),
+                      (f0 + grips[0] * fps, 0.0), (f0 + grips[1] * fps, 0.0),
+                      (f0 + (grips[1] + 0.15) * fps, 1.0)]
         away_t = next(t for t in outs if t > grips[0])            # back outside with the old tool
         fetch = next(t for t in reversed(outs) if t < grips[1])     # outside again, with the new one
         co, cn = self.carry.get(old), self.carry.get(c.tool)
@@ -852,6 +817,9 @@ class _Hand:
                 rows.append(r)
         animation._write(cb, "hide_viewport", 0, rows)
         animation._write(cb, "hide_render", 0, rows)
+        if self.open:
+            animation._write(cb, f'["{OPEN_PROP}"]', 0,
+                             [(f, v, "BEZIER", "AUTO") for f, v in sorted(self.open, key=lambda r: r[0])])
         ob.hide_render = ob.hide_viewport = False
 
 

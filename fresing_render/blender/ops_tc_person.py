@@ -17,6 +17,13 @@ class FRESING_OT_operator_spots(bpy.types.Operator):
 
     remove: BoolProperty(default=False, options={"SKIP_SAVE"})
 
+    @classmethod
+    def description(cls, context, properties):
+        if properties.remove:
+            return ("Takes the two markers away: the app picks the operator's stand spot and start spot again at the "
+                    "next Build")
+        return " ".join(cls.__doc__.split())
+
     def execute(self, context):
         scene = context.scene
         if self.remove:
