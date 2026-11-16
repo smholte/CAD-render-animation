@@ -94,7 +94,8 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
         self._job = web3d.Job(scene, path, size=int(w.texture_size), hide_names=w.hide_names,
                               animation=w.animation, compress=None if w.compress else False,
                               surroundings=web3d_env.choice(scene), light=w.light, light_quality=w.light_quality,
-                              light_texels=w.light_texels, marine_detail=w.marine_detail)
+                              light_texels=w.light_texels, marine_detail=w.marine_detail,
+                              faces=w.measure_faces)
         if not self.modal_run or context.window is None:
             try:
                 out = self._job.run()

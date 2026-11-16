@@ -36,7 +36,9 @@ MATH_FILE = "fr_math.js"
 TUBES_FILE = "fr_tubes.js"           # task 0142: moving cables, ropes, hoses and spool ropes
 PAGE_FILE = "fr_page.js"
 PLAYER_FILE = "fr_player.js"         # task 0134: the player's controls (menu, playback, views, view tools)
-SCRIPTS = (THREE_FILE, MATH_FILE, TUBES_FILE, PAGE_FILE, PLAYER_FILE)   # in the page's order
+MEASURE_FILE = "fr_measure.js"       # task 0135: the measuring maths of the part tools
+TOOLS_FILE = "fr_tools.js"           # task 0135: the part tools (part info, measure, cutaway, fade the rest)
+SCRIPTS = (THREE_FILE, MATH_FILE, TUBES_FILE, MEASURE_FILE, PAGE_FILE, PLAYER_FILE, TOOLS_FILE)   # in the page's order
 G = 9.81
 SEA_RADIUS = 20000.0                 # m: the app's sea reaches this far (core/surroundings.SEA_RADIUS)
 SEA_RIM = 400.0                      # m: ... and its edge rises this much (no gap under the horizon)
@@ -575,8 +577,10 @@ _PAGE = """<!doctype html>
 {three}
 {math}
 {tubes}
+{measure}
 {page}
 {player}
+{tools}
 </body>
 </html>
 """
@@ -600,7 +604,8 @@ def page_html(title: str, glb: bytes, st: dict, pictures: dict | None = None, no
     return _PAGE.format(title=title_h, note=note, settings=text, data="\n".join(data),
                         three=_inline(_read(THREE_FILE)), math=_inline(_read(MATH_FILE)),
                         tubes=_inline(_read(TUBES_FILE)), page=_inline(_read(PAGE_FILE)),
-                        player=_inline(_read(PLAYER_FILE)))
+                        player=_inline(_read(PLAYER_FILE)), measure=_inline(_read(MEASURE_FILE)),
+                        tools=_inline(_read(TOOLS_FILE)))
 
 
 def page_settings(page: str) -> dict:
@@ -659,7 +664,8 @@ def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5",
     with ``probe=x,y;x,y`` in ``query``, screen places 0 … 1 from the top left), "player": the player's state
     {warned, gpu, level, paused, views, items, …} and "selftest": with ``selftest=1`` in ``query`` what the player's
     own check found {ok, menu, space, help, link, warned} (task 0134); "tubes": with ``tubes=1`` the drawn cables'
-    centre lines [{name, count, pay, points (Blender world, m)}] (task 0142)."""
+    centre lines [{name, count, pay, points (Blender world, m)}] (task 0142); "tools": with ``selftest=1`` what the
+    part tools' own check found {ok, buttons, pick, card, measure, fade, cut, faces} (task 0135)."""
     browser = browser or find_browser()
     if not browser:
         raise RuntimeError("no Edge, Chrome or Chromium found")
@@ -698,9 +704,9 @@ def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5",
     if m is None and "<html" not in dom:
         raise RuntimeError(f"the browser showed nothing (exit code {proc.returncode})")
     out = {"state": html.unescape(m.group(1)) if m else "loading", "light": None, "probe": None, "player": None,
-           "selftest": None, "tubes": None}
+           "selftest": None, "tubes": None, "tools": None}
     for key, attr in (("light", "data-fr-light"), ("probe", "data-fr-probe"), ("player", "data-fr-player"),
-                      ("selftest", "data-fr-selftest"), ("tubes", "data-fr-tubes")):
+                      ("selftest", "data-fr-selftest"), ("tubes", "data-fr-tubes"), ("tools", "data-fr-tools")):
         m = re.search(attr + r'="([^"]*)"', dom)
         if m:
             try:

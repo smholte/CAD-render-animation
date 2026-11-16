@@ -15,6 +15,9 @@
 // (A headless browser never hides or freezes its page itself – CDP's frozen state still runs animation frames – so
 // both are acted out by a small script put into the page before it loads.)
 //   {"drag": [x0, y0, x1, y1]}       a mouse drag on the view (pixels)
+//   {"tap": [x, y]}                  a mouse click at a pixel of the view (task 0135: the part tools)
+//   {"press": [x, y, ms]}            a press held for ms at a pixel, then let go (a long press)
+//   {"move": [x, y]}                 the mouse moved to a pixel (hover)
 //   {"shot": "<file.png>"}           a screenshot of the page
 //   {"reload": true}                 load the page again (same address: the remembered choices stay)
 // Prints {"ok", "errors", "out": [...], "state": {...frPage}}; ok is false when the page reported an error.
@@ -81,6 +84,13 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
       for (let k = 1; k <= 10; k++) await page.mouse.move(x0 + (x1 - x0) * k / 10, y0 + (y1 - y0) * k / 10);
       await page.mouse.up();
       out.push(null);
+    } else if (s.tap != null) {
+      await page.mouse.click(s.tap[0], s.tap[1]); await page.waitForTimeout(80); out.push(null);
+    } else if (s.press != null) {
+      await page.mouse.move(s.press[0], s.press[1]); await page.mouse.down();
+      await page.waitForTimeout(s.press[2] || 700); await page.mouse.up(); await page.waitForTimeout(80); out.push(null);
+    } else if (s.move != null) {
+      await page.mouse.move(s.move[0], s.move[1]); await page.waitForTimeout(150); out.push(null);
     } else if (s.shot != null) {                        // a big model drawn in software takes a while (task 0142)
       await page.screenshot({ path: s.shot, timeout: 300000 }); out.push(s.shot);
     }
