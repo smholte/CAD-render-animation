@@ -852,6 +852,7 @@ class Job:
         self.result: dict = {}
         self._baker = None
         self._drawn = None                     # task 0142: web3d_drawn.Drawn
+        self._bed_track = None                 # task 0143: (times, seabed's world x, y) over the animation
         self._tubes_done = False
 
     # -- names
@@ -1349,9 +1350,13 @@ class Job:
         from . import web3d_drawn
         rigid = {j: self._drawn.items[ob.name] for j, ob in enumerate(obs)
                  if self._drawn.kind(ob) == web3d_drawn.RIGID}
+        from . import web3d_env
+        bed = [] if self.surroundings is not None and web3d_env.seabed_object(scene) is not None else None
         try:
             for i, f in enumerate(frames):
                 scene.frame_set(f)
+                if bed is not None:            # task 0143: the seabed moves aft with a cable into the sea
+                    bed.append(web3d_env.bed_xy(scene))
                 now = {}
                 for j, ob in enumerate(obs):
                     if curves[j] is not None and not shown_at(curves[j], f):
@@ -1375,9 +1380,11 @@ class Job:
         for j in np.where(~shown.all(axis=0))[0]:  # hidden at the start: the place where it first shows
             first = int(np.argmax(shown[:, j])) if shown[:, j].any() else 0
             mats[:first, j] = mats[first, j]
+        times = (np.array(frames, np.float64) - frames[0]) / fps
+        if bed:
+            self._bed_track = (times, np.array(bed, np.float64))
         blink = ~shown.all(axis=0)
         moving = np.where((np.abs(mats - mats[:1]).max(axis=(0, 2, 3)) > 1e-6) | blink)[0]
-        times = (np.array(frames, np.float64) - frames[0]) / fps
         tubes = self._tubes(times)
         if not len(moving):
             return tubes
@@ -1462,6 +1469,8 @@ class Job:
             animated = bool(self.result.get("animated"))
             ch = self.surroundings if self.surroundings is not None else web3d_env.plain_choice(self.scene)
             st, pictures = web3d_env.block(self.scene, ch, *self._bounds, self._floor)
+            if st.get("under") and self._bed_track is not None:
+                st["under"] = env.under_motion(st["under"], *self._bed_track)
             if self._lit is not None:
                 st["light"] = env.light_block({"light": self.light, "scale": float(self._light_info["scale"]),
                                                "curve": 2.0, "sun": float(self._lit.sun_ratio)})

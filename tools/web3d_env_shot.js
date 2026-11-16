@@ -1,7 +1,7 @@
 // Screenshot and measurement of a Fresing Render web 3D page WITH surroundings (task 0106) in headless Chromium.
 //
 //   node tools/web3d_env_shot.js <page.html> <out.png|-> [width] [height] [--query=quality=BEST&auto=0&t=12]
-//        [--wait=<ms after it is ready, default 1500>] [--measure=<ms>] [--hide-ui]
+//        [--wait=<ms after it is ready, default 1500>] [--measure=<ms>] [--hide-ui] [--eval=<js run once it is ready>]
 //
 // Prints one line of JSON: {"ok", "load_ms" (until the first picture is drawn), "fps" (frames per second over
 // --measure ms), "level", "lowered", "errors", "webgl", "info"}. Software GL (SwiftShader) is not a graphics card:
@@ -30,6 +30,8 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
   if (process.argv.includes('--hide-ui')) {
     await page.evaluate(() => document.querySelectorAll('header, .note, #quality').forEach(e => e.style.display = 'none'));
   }
+  const ev = opt('eval');                 // task 0143: e.g. frPage.goView(1), a camera place, a menu switch
+  if (ev) await page.evaluate(ev);
   await page.waitForTimeout(wait);
   let fps = null;
   if (measure) {
@@ -40,10 +42,13 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
   }
   if (out && out !== '-') await page.screenshot({ path: out, timeout: 300000 });
   const st = await page.evaluate(() => ({ level: frPage.level, lowered: frPage.lowered, errors: frPage.errors,
-                                          webgl: frPage.info.webgl, info: frPage.info }));
+                                          webgl: frPage.info.webgl, info: frPage.info,
+                                          camera: frPage.cameraState && frPage.cameraState(),
+                                          under: frPage.underState ? frPage.underState() : null }));
   await browser.close();
   const all = errors.concat(st.errors);
   console.log(JSON.stringify({ ok: all.length === 0, load_ms: loadMs, fps, level: st.level, lowered: st.lowered,
-                               errors: all, webgl: st.webgl, info: st.info }));
+                               errors: all, webgl: st.webgl, info: st.info,
+                               camera: st.camera, under: st.under }));
   process.exit(all.length ? 1 : 0);
 })().catch(e => { console.log(JSON.stringify({ ok: false, error: String(e) })); process.exit(1); });

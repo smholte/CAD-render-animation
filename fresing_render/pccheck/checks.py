@@ -2376,6 +2376,65 @@ def web3d_moving(ctx):
     return note
 
 
+@line("web3d.under", "Web 3D model under the sea: seabed, cut-away, the camera under water", "0.2.128",
+      what="The sea cable test model (a cable over a stern horn into 15 m of water) with the cut-away behind the stern "
+           "and the ground in it, saved as a web 3D model with its animation and the sea: the page holds the seabed, "
+           "the box where the app has it, the water's clarity, the soil section and the seabed's drift; opened in "
+           "Edge or Chrome without a window, the page must show them, with 'Under the sea' and 'Camera under water' in "
+           "its settings")
+def web3d_under(ctx):
+    from ..blender import animation, paths_sea, surroundings, web3d, web3d_env
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    scene = ctx.fresh(SEA_CABLE)
+    s = scene.fresing
+    s.background, s.env_detail, s.sea_state, s.water_level = "SEA", "SIMPLE", "CALM", 2.0
+    s.sea_depth = 15.0
+    made = paths_sea.set_up_test_model(scene)
+    s.sea_cutaway = True
+    s.sea_cut_ground = True
+    animation.bake(scene, s.animations[made["animation"]])
+    s.web3d.env_mode = "PROJECT"
+    ch = web3d_env.choice(scene)
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Sea cable web 3D.glb"), size=512, surroundings=ch,
+                       animation=True)
+    with open(out["path"], "rb") as fh:
+        bad = core.problems(fh.read())
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    u = st.get("under")
+    _check(u is not None, "the page has no seabed although the project is on the open sea")
+    box = surroundings.sea_cut_box(scene)
+    _check(u["cut"] is not None and box is not None, "the page has no cut-away box")
+    off = max(abs(u["cut"]["origin"][i] - box["origin"][i]) for i in (0, 1))
+    _check(off < 0.01 and abs(u["cut"]["length"] - box["length"]) < 0.01,
+           f"the page's box is {off:.2f} m from the app's, {u['cut']['length']:.1f} m long ({box['length']:.1f} m)")
+    _check(abs(u["clarity"] - s.sea_clarity) < 1e-4, f"the page's clarity is {u['clarity']} m ({s.sea_clarity:.1f} m)")
+    _check(u["ground"] is not None, "the page has no soil section in the cut-away")
+    _check(u["motion"] is not None, "the page's seabed does not drift while the cable pays out")
+    ctx.metric("export", out["seconds"], "s")
+    note = (f"{out['text']}; on the page: {out.get('env_items', '')}; box {u['cut']['length']:.0f} x "
+            f"{u['cut']['width']:.0f} m, clarity {u['clarity']:.0f} m, soil {u['ground']['depth']:.0f} m deep")
+    browser = env.find_browser()
+    if not browser:
+        return note + "; no Edge or Chrome on this PC: the page itself was not opened"
+    try:
+        got = env.read_page(out["html"], browser, "auto=0&frames=3&t=4", seconds=120)
+    except RuntimeError as exc:
+        return note + f"; the page gave no answer ({exc}); not counted"
+    if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
+        return note + "; no WebGL in the browser without a window: not counted"
+    _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
+    pl = got.get("player") or {}
+    under = pl.get("under") or {}
+    _check(under.get("under") and under.get("cut") and under.get("ground") and under.get("dive"),
+           f"the page does not show the seabed, the box, the soil or the camera under water: {under}")
+    _check("under" in (pl.get("items") or []) and "dive" in (pl.get("items") or []),
+           "the page's settings have no 'Under the sea' or 'Camera under water'")
+    return note + "; the page shows them (Under the sea and Camera under water in its settings)"
+
+
 @line("web3d.bake", "Web 3D model with baked light", "0.2.89",
       what="The test mill saved as a web 3D model with Light: Soft light baked, sun live (Bake quality Draft): Cycles "
            "bakes the light on this PC's graphics card when it renders with one; every shown part gets its own baked "

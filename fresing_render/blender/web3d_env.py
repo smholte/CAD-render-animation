@@ -206,6 +206,54 @@ def vessel_block(scene, ch: dict, sea: dict | None) -> dict | None:
             "hull": [float(h["length"]), float(h["beam"])]}
 
 
+def seabed_object(scene):
+    """The open sea's seabed ("FR Sea: seabed", tag ``seabed``), None without one."""
+    sur = _sur()
+    return next((ob for ob in sur._objects(scene) if ob.get(sur.TAG) == "seabed"), None)
+
+
+def bed_xy(scene) -> tuple[float, float]:
+    """World (x, y) where the seabed's own coordinates start now (its ripples are drawn in them; a cable into the sea
+    moves it aft)."""
+    ob = seabed_object(scene)
+    if ob is None:
+        return 0.0, 0.0
+    at = ob.matrix_world.translation
+    return float(at.x), float(at.y)
+
+
+def under_block(scene, ch: dict, sea: dict | None) -> dict | None:
+    """The page's ``under`` (task 0143): the open sea's seabed, the cut-away box, the soil section and the water's
+    clarity, read from what the app built (the sea's ``fr_seacut_*``, the seabed object, the soil section's
+    ``fr_soil_depth``). None on a page without the sea, and when the project's surroundings are not the open sea
+    (the Vessel deck and the Quayside have no seabed)."""
+    if sea is None or not ch.get("sea"):
+        return None
+    sur = _sur()
+    root = sur.root_object()
+    if root is None or root.get("fr_kind") != "SEA":
+        return None
+    s = scene.fresing
+    bed = seabed_object(scene)
+    sea_ob = _vm()._sea_object()
+    if bed is None or sea_ob is None:
+        return None
+    level = float(sea_ob.matrix_world.translation.z)
+    depth = float(s.sea_depth)
+    cut = None
+    if all(k in sea_ob for k in sur.CUT_ATTRS):
+        o, u, size = (tuple(sea_ob[k]) for k in sur.CUT_ATTRS)
+        cut = {"origin": (float(o[0]), float(o[1])), "dir": (float(u[0]), float(u[1])),
+               "length": float(size[0]), "width": 2.0 * float(size[1])}
+    ground = None
+    if cut is not None:
+        soil = next((ob for ob in sur._objects(scene) if ob.get(sur.TAG) == "soil"), None)
+        if soil is not None and soil.get("fr_soil_depth") is not None:
+            ground = {"depth": float(soil["fr_soil_depth"])}
+    light = sur._light_now(s)
+    return env.under_settings(level - depth, depth, float(s.sea_clarity), light, cut, ground, bed_xy(scene))
+
+
 def _image_pixels(img) -> np.ndarray:
     w, h = img.size
     px = np.empty(w * h * 4, np.float32)
@@ -280,4 +328,7 @@ def block(scene, ch: dict, model_min, model_max, floor: float) -> tuple[dict, di
     st = env.settings(ch, model_min, model_max, sea=sea, vessel=vessel, sky=sky,
                       time_start=_seconds(scene, frame))
     st["floor"] = float(floor)
+    under = under_block(scene, ch, sea)
+    if under is not None:                   # task 0143: only with it (older pages stay as they were)
+        st["under"] = under
     return st, pictures

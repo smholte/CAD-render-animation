@@ -154,6 +154,118 @@ def haze_density(strength: float, size: float) -> float:
     return 3.0 / seen
 
 
+# ---------------------------------------------------------------------------
+# under the sea (task 0143): the seabed, the cut-away behind the stern, the soil section, the water's clarity
+# ---------------------------------------------------------------------------
+
+def under_settings(bed_z: float, depth: float, clarity: float, light: float = 1.0, cut: dict | None = None,
+                   ground: dict | None = None, bed_xy=(0.0, 0.0)) -> dict:
+    """The page's ``under`` entry: the seabed ``bed_z`` (world z, m) ``depth`` m under the water, the water's clarity
+    (m: 5 % left at that distance, ``core.sea``) and its light level (1 = a clear day), the cut-away box ``cut``
+    {origin (x, y) front middle, dir (x, y) aft, length, width} (None: no cut-away), the soil section ``ground``
+    {depth: m under the seabed} (None: the seabed stays closed) and where the seabed's own coordinates start
+    ``bed_xy`` (world x, y: the ripples' formula is in them; the seabed moves aft with a cable into the sea, the page
+    gets that motion as ``motion`` {t, xy} from the export). The look's numbers are the app's (``core.sea``)."""
+    from . import sea
+    vals = [float(v) for v in (bed_z, depth, clarity, light, *bed_xy)]
+    if not all(math.isfinite(v) for v in vals) or depth <= 0.0 or clarity <= 0.0:
+        raise ValueError(f"under the sea: bad numbers (seabed {bed_z}, depth {depth}, clarity {clarity})")
+    out = {"bed": float(bed_z), "depth": float(depth), "clarity": float(clarity),
+           "sigma": sea.absorption(clarity), "light": max(float(light), 0.0),
+           "colour": [float(c) for c in sea.UNDERWATER], "sand": [[float(c) for c in s] for s in sea.SAND],
+           "ripple": [sea.RIPPLE_LENGTH, sea.RIPPLE_HEIGHT], "bed_xy": [float(bed_xy[0]), float(bed_xy[1])],
+           "extent": SEA_RADIUS, "cut": None, "ground": None, "motion": None}
+    if cut is not None:
+        ox, oy = (float(v) for v in tuple(cut["origin"])[:2])
+        ux, uy = (float(v) for v in tuple(cut["dir"])[:2])
+        n = math.hypot(ux, uy)
+        length, width = float(cut["length"]), float(cut["width"])
+        if n < 1e-9 or not (length > 0 and width > 0) or not all(map(math.isfinite, (ox, oy, length, width))):
+            raise ValueError(f"under the sea: bad cut-away box {cut}")
+        out["cut"] = {"origin": [ox, oy], "dir": [ux / n, uy / n], "length": length, "width": width,
+                      "top": sea.CUT_TOP, "edge": sea.CUT_EDGE, "dark": list(sea.CUT_DARK)}
+        if ground is not None:
+            d = float(ground["depth"])
+            if not (math.isfinite(d) and d > 0):
+                raise ValueError(f"under the sea: bad soil depth {d}")
+            out["ground"] = {"depth": d, "top": sea.GROUND_TOP, "wobble": sea.SOIL_WOBBLE,
+                             "layers": [[float(a), [float(c) for c in col]] for a, col in sea.SOIL_LAYERS]}
+    return out
+
+
+def under_motion(under: dict, times, xy) -> dict:
+    """``under`` with the seabed's motion: ``times`` (s from the animation's start) and the seabed's world (x, y) at
+    each; nothing added when it stands still (within 1 mm)."""
+    xy = np.asarray(xy, float).reshape(-1, 2)
+    t = np.asarray(times, float).reshape(-1)
+    if len(t) != len(xy) or len(t) < 2 or np.abs(xy - xy[:1]).max() < 1e-3:
+        return under
+    keep = [0]                                  # only the moments a straight blend cannot give (1 mm)
+    for i in range(1, len(t) - 1):
+        a, b = keep[-1], i + 1
+        f = (t[i] - t[a]) / max(t[b] - t[a], 1e-12)
+        if np.abs(xy[a] + (xy[b] - xy[a]) * f - xy[i]).max() > 1e-3:
+            keep.append(i)
+    keep.append(len(t) - 1)
+    out = dict(under)
+    out["motion"] = {"t": [round(float(t[i]), 5) for i in keep], "xy": [[float(v) for v in xy[i]] for i in keep]}
+    return out
+
+
+def bed_offset(under: dict, t: float) -> list[float]:
+    """Where the seabed's coordinates start at ``t`` s (the page's formula: straight between the moments, the
+    animation repeats)."""
+    mo = under.get("motion")
+    if not mo:
+        return list(under["bed_xy"])
+    ts, xy = np.asarray(mo["t"], float), np.asarray(mo["xy"], float)
+    span = ts[-1]
+    if span > 0:
+        t = float(t) % span
+    return [float(np.interp(t, ts, xy[:, 0])), float(np.interp(t, ts, xy[:, 1]))]
+
+
+def water_length(under: dict, a, b) -> float:
+    """Metres of water between two points (Blender world) – the page's shader in plain Python: the stretch of the
+    straight line below the water's level (flat) and outside the cut-away box. What lies behind fades into the
+    water's colour by e^(-sigma x this)."""
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    level = float(under["bed"]) + float(under["depth"])
+    d = b - a
+    n = float(np.linalg.norm(d))
+    if n < 1e-12:
+        return 0.0
+
+    def below(t0, t1):                 # [t0, t1] ∩ {z(t) < level}
+        za, dz = a[2] - level, d[2]
+        if abs(dz) < 1e-12:
+            return (t0, t1) if za < 0 else (1.0, 0.0)
+        tc = -za / dz
+        return (max(t0, tc), t1) if dz < 0 else (t0, min(t1, tc))
+
+    w0, w1 = below(0.0, 1.0)
+    if w1 <= w0:
+        return 0.0
+    total = (w1 - w0) * n
+    cut = under.get("cut")
+    if cut:
+        o, u = np.array(cut["origin"], float), np.array(cut["dir"], float)
+        v = np.array([-u[1], u[0]])
+        lo, hi = w0, w1
+        for axis, (mn, mx) in ((u, (0.0, cut["length"])), (v, (-cut["width"] / 2, cut["width"] / 2))):
+            p0 = float(np.dot(a[:2] - o, axis))
+            dp = float(np.dot(d[:2], axis))
+            if abs(dp) < 1e-12:
+                if not (mn < p0 < mx):
+                    lo, hi = 1.0, 0.0
+                continue
+            ta, tb = sorted(((mn - p0) / dp, (mx - p0) / dp))
+            lo, hi = max(lo, ta), min(hi, tb)
+        if hi > lo:
+            total -= (hi - lo) * n
+    return max(total, 0.0)
+
+
 LIGHTS = ("SOFT", "ALL")             # baked light on the page (task 0107); "LIVE" = none
 PLAIN_BG = "#F1F3F5"                 # the plain form's background: the model-viewer page's (core/web3d._PAGE)
 
@@ -242,6 +354,10 @@ def items_text(st: dict) -> str:
         out.append(f"sea ({st['sea'].get('state', 'CALM').lower()})")
     if st.get("vessel"):
         out.append("vessel motion")
+    under = st.get("under") or {}
+    if under:
+        out.append("the seabed" + (" and the sea cut-away" if under.get("cut") else "")
+                   + (" with the ground" if under.get("ground") else ""))
     sky = st.get("sky") or {}
     if sky.get("kind") == "PHOTO":
         out.append("the project's light")

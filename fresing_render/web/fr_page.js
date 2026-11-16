@@ -57,7 +57,8 @@
     root.frPlayer = JSON.stringify({ warned: page.warned, gpu: page.gpu, level: page.level, auto: page.auto,
                                      paused: page.paused, duration: page.duration, views: page.views.length,
                                      items: page.items, fps: Math.round(page.fps * 10) / 10, raised: page.raised,
-                                     lowered: page.lowered, frames: page.frames });
+                                     lowered: page.lowered, frames: page.frames,
+                                     under: page.underState ? page.underState() : null });
   }
   page.mark = mark;
   window.addEventListener('error', function (e) { page.errors.push(String(e.message || e)); mark(); });
@@ -121,6 +122,95 @@
   var floorY = ST.floor != null ? ST.floor : ST.model.min[2];
   var hasSea = !!ST.sea;
   var camera = new T.PerspectiveCamera(30, 1, R * 0.01, hasSea ? 30000 : R * 400);
+
+  // ---------------------------------------------------------------- under the sea (task 0143)
+  // ST.under (the open sea only): the seabed, the cut-away box behind the stern (a box of water taken away, from the
+  // sky down to the seabed), the soil section under it (0148) and the water's clarity. What the camera sees through
+  // water fades into the water's colour as in the app (core/sea.py): seen = behind x T + colour x (1 - T),
+  // T = e^(-sigma d), d = the metres of the straight line from the camera that lie under the water's level and
+  // outside the box. Every material gets that through three's fog chunks (USE_FOG): with ST.under the page's fog is
+  // a plain Fog whose ``near`` carries the haze's density (0: none) and ``far`` the water's light (0: off), so the
+  // menu switches it without compiling a program again. The numbers of the box and the water are written into the
+  // shader as constants (one page = one project).
+  var UW = hasSea && ST.under ? ST.under : null;
+  var uwLevel = UW ? UW.bed + UW.depth : 0;              // three y of the water's level and of the seabed
+  var uwBed = UW ? UW.bed : 0;
+  var uwCut = UW && UW.cut ? UW.cut : null, uwGround = uwCut && UW.ground ? UW.ground : null;
+  var uwO = uwCut ? new T.Vector2(uwCut.origin[0], -uwCut.origin[1]) : null;     // three (x, z) of the box's front
+  var uwU = uwCut ? new T.Vector2(uwCut.dir[0], -uwCut.dir[1]) : null;           // aft
+  var uwV = uwCut ? new T.Vector2(-uwU.y, uwU.x) : null;                          // across
+  function inBox(x, z) {                  // a three (x, z) inside the cut-away box
+    if (!uwCut) return false;
+    var dx = x - uwO.x, dz = z - uwO.y, a = dx * uwU.x + dz * uwU.y, b = dx * uwV.x + dz * uwV.y;
+    return a > 0 && a < uwCut.length && Math.abs(b) < uwCut.width / 2;
+  }
+  function glf(v) { v = +v; return isFinite(v) ? (Math.abs(v - Math.round(v)) < 1e-9 ? v.toFixed(1) : String(v)) : '0.0'; }
+  var UW_GLSL = '';
+  if (UW) {
+    var wc = UW.colour;
+    UW_GLSL = [
+      '#ifndef FR_UW_GLSL', '#define FR_UW_GLSL',
+      '#define FR_LEVEL ' + glf(uwLevel),
+      '#define FR_SIGMA ' + glf(UW.sigma),
+      '#define FR_WATER vec3(' + glf(wc[0]) + ', ' + glf(wc[1]) + ', ' + glf(wc[2]) + ')',
+      uwCut ? '#define FR_CUT' : '',
+      uwCut ? '#define FR_CUT_O vec2(' + glf(uwO.x) + ', ' + glf(uwO.y) + ')' : '',
+      uwCut ? '#define FR_CUT_U vec2(' + glf(uwU.x) + ', ' + glf(uwU.y) + ')' : '',
+      uwCut ? '#define FR_CUT_V vec2(' + glf(uwV.x) + ', ' + glf(uwV.y) + ')' : '',
+      uwCut ? '#define FR_CUT_L ' + glf(uwCut.length) : '',
+      uwCut ? '#define FR_CUT_W ' + glf(uwCut.width / 2) : '',
+      // the water's colour (core.sea.UNDERWATER) a little lighter looking up, darker looking down
+      'vec3 frWaterColour(vec3 dir) { return FR_WATER * (0.75 + 0.5 * smoothstep(-1.0, 1.0, dir.y)); }',
+      'bool frInBox(vec2 p) {',
+      '#ifdef FR_CUT',
+      '  vec2 d = p - FR_CUT_O; float a = dot(d, FR_CUT_U), b = dot(d, FR_CUT_V);',
+      '  return a > 0.0 && a < FR_CUT_L && abs(b) < FR_CUT_W;',
+      '#else',
+      '  return false;',
+      '#endif',
+      '}',
+      'void frSlab(float p0, float dp, float mn, float mx, inout float lo, inout float hi) {',
+      '  if (abs(dp) < 1e-6) { if (p0 <= mn || p0 >= mx) { lo = 1.0; hi = 0.0; } return; }',
+      '  float ta = (mn - p0) / dp, tb = (mx - p0) / dp;',
+      '  lo = max(lo, min(ta, tb)); hi = min(hi, max(ta, tb));',
+      '}',
+      // metres of water on the straight line a -> b (three's coordinates): under the level, outside the box
+      'float frWaterLen(vec3 a, vec3 b) {',
+      '  vec3 d = b - a; float n = length(d);',
+      '  if (n < 1e-5) return 0.0;',
+      '  float t0 = 0.0, t1 = 1.0, za = a.y - FR_LEVEL;',
+      '  if (abs(d.y) < 1e-6) { if (za >= 0.0) return 0.0; }',
+      '  else { float tc = -za / d.y; if (d.y < 0.0) t0 = max(t0, tc); else t1 = min(t1, tc); }',
+      '  if (t1 <= t0) return 0.0;',
+      '  float total = (t1 - t0) * n;',
+      '#ifdef FR_CUT',
+      '  float lo = t0, hi = t1; vec2 a2 = a.xz - FR_CUT_O;',
+      '  frSlab(dot(a2, FR_CUT_U), dot(d.xz, FR_CUT_U), 0.0, FR_CUT_L, lo, hi);',
+      '  frSlab(dot(a2, FR_CUT_V), dot(d.xz, FR_CUT_V), -FR_CUT_W, FR_CUT_W, lo, hi);',
+      '  if (hi > lo) total -= (hi - lo) * n;',
+      '#endif',
+      '  return max(total, 0.0);',
+      '}', '#endif'].filter(Boolean).join('\n') + '\n';
+    var C = T.ShaderChunk;
+    C.fog_pars_vertex = C.fog_pars_vertex + '\n#ifdef USE_FOG\nvarying vec3 vFrW;\n#endif\n';
+    C.fog_vertex = C.fog_vertex + '\n#ifdef USE_FOG\n' +
+      'vFrW = transpose(mat3(viewMatrix)) * (mvPosition.xyz - viewMatrix[3].xyz);\n#endif\n';
+    C.fog_pars_fragment = C.fog_pars_fragment + '\n#if defined(USE_FOG) && !defined(FOG_EXP2)\n' +
+      'varying vec3 vFrW;\nfloat frL = 0.0;\n' + UW_GLSL +
+      'vec3 frWaterMix(vec3 c) {\n' +
+      '  if (fogFar <= 0.0) return c;\n' +
+      '  frL = frWaterLen(cameraPosition, vFrW);\n' +
+      '  float tr = exp(-FR_SIGMA * frL);\n' +
+      '  return c * tr + frWaterColour(normalize(vFrW - cameraPosition)) * fogFar * (1.0 - tr);\n}\n#endif\n';
+    C.opaque_fragment = C.opaque_fragment + '\n#if defined(USE_FOG) && !defined(FOG_EXP2) && !defined(FR_NO_WATER)\n' +
+      'gl_FragColor.rgb = frWaterMix(gl_FragColor.rgb);\n#endif\n';      // (the sea seen from above: its own look)
+    // the haze (three's FogExp2) over the stretch in air only
+    C.fog_fragment = '#ifdef USE_FOG\n#ifdef FOG_EXP2\n' +
+      'float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\n#else\n' +
+      'float frAir = vFogDepth * max(0.0, 1.0 - frL / max(length(vFrW - cameraPosition), 1e-5));\n' +
+      'float fogFactor = 1.0 - exp( - fogNear * fogNear * frAir * frAir );\n#endif\n' +
+      'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\n#endif\n';
+  }
 
   // ---------------------------------------------------------------- level of quality
   // the order: the link (?quality=, ?auto=), else the visitor's own choice last time (menu), else the export's
@@ -310,7 +400,8 @@
 
   // ---------------------------------------------------------------- haze
   var fog = ST.haze ? new T.FogExp2(horizon.clone(), ST.haze.density) : null;
-  scene.fog = fog;
+  var waterFog = UW ? new T.Fog(horizon.clone(), ST.haze ? ST.haze.density : 0, UW.light) : null;   // task 0143
+  scene.fog = waterFog || fog;
 
   // ---------------------------------------------------------------- the sea
   var sea = null, seaUniforms = null, rippleTex = null;
@@ -460,11 +551,247 @@
           'float kR = uBump / (1.0 + length(vViewPosition) * 0.004);',
           'normal = normalize(normal + (viewMatrix * vec4(-dr.x * kR, 0.0, -dr.y * kR, 0.0)).xyz);'].join('\n'));
     };
+    var seaBelow = null;
+    if (UW) {                              // task 0143: open inside the cut-away box; seen from below too
+      seaUniforms.uCutOn = { value: 0 };
+      seaUniforms.uBelow = { value: new T.Color().fromArray(UW.colour).multiplyScalar(3.0 * UW.light) };
+      var seaCompile = seaMat.onBeforeCompile;
+      var underCompile = function (sh) {
+        seaCompile(sh);
+        sh.uniforms.uCutOn = seaUniforms.uCutOn;
+        sh.uniforms.uBelow = seaUniforms.uBelow;
+        sh.fragmentShader = UW_GLSL + 'uniform float uCutOn; uniform vec3 uBelow;\n' + sh.fragmentShader
+          .replace('#include <color_fragment>', '#include <color_fragment>\n' +
+                   'if (uCutOn > 0.5 && frInBox(vRip)) discard;')
+          // from below: the surface lit through (lighter than the water far away, which the fade gives)
+          .replace('#include <opaque_fragment>', '#ifdef FR_BELOW\noutgoingLight = uBelow;\n#endif\n' +
+                   '#include <opaque_fragment>');
+      };
+      // the side seen from above carries no water code (it covers most of the screen: without a graphics card the
+      // fade's code alone cost half the pictures a second); the side seen from below is a second mesh
+      var belowMat = seaMat.clone();
+      seaMat.defines = { FR_NO_WATER: '' };
+      seaMat.onBeforeCompile = underCompile;
+      seaMat.customProgramCacheKey = function () { return 'fr-sea-above'; };
+      belowMat.side = T.BackSide;
+      belowMat.defines = { FR_BELOW: '' };
+      belowMat.onBeforeCompile = underCompile;
+      belowMat.customProgramCacheKey = function () { return 'fr-sea-below'; };
+      seaBelow = new T.Mesh(new T.BufferGeometry(), belowMat);
+      seaBelow.frustumCulled = false;
+    }
     sea = new T.Mesh(seaGeometry(L().seg), seaMat);
     sea.position.copy(b2t([S.origin[0], S.origin[1], S.level]));
     sea.frustumCulled = false;
     sea.receiveShadow = !!ST.shadows;
     scene.add(sea);
+    if (seaBelow) { seaBelow.position.copy(sea.position); scene.add(seaBelow); }
+  }
+
+  // ---------------------------------------------------------------- the seabed, the box's walls, the soil (0143)
+  var seabed = null, bedAround = null, cutWalls = null, soil = null, bedUniforms = null;
+  var BED_REACH = 6;                       // x the clarity: how far the seabed is drawn round the box and the camera
+  if (UW) {
+    var sand = UW.sand, rp = UW.ripple;
+    bedUniforms = { uBedOff: { value: new T.Vector2(UW.bed_xy[0], UW.bed_xy[1]) }, uGroundOn: { value: 0 } };
+    var bedMat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0.0 });
+    bedMat.onBeforeCompile = function (sh) {
+      Object.assign(sh.uniforms, bedUniforms);
+      sh.vertexShader = 'varying vec3 vBedW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>',
+        '#include <worldpos_vertex>\nvBedW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      var v3 = function (c) { return 'vec3(' + glf(c[0]) + ', ' + glf(c[1]) + ', ' + glf(c[2]) + ')'; };
+      sh.fragmentShader = [UW_GLSL + 'varying vec3 vBedW; uniform vec2 uBedOff; uniform float uGroundOn;',
+        'float frHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+        'float frNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(frHash(i), frHash(i + vec2(1, 0)), f.x), mix(frHash(i + vec2(0, 1)), frHash(i + vec2(1, 1)), f.x), f.y); }',
+        'float frFbm(vec2 p) { return 0.5 * frNoise(p) + 0.3 * frNoise(p * 2.1 + 5.3) + 0.2 * frNoise(p * 4.3 + 1.7); }',
+        ''].join('\n') + sh.fragmentShader
+        .replace('#include <color_fragment>', ['#include <color_fragment>',
+          'if (uGroundOn > 0.5 && frInBox(vBedW.xz)) discard;',       // the seabed is open over the soil section
+          // core.sea.seabed_ripples in the seabed's own coordinates (Blender x, y), and its slope
+          'vec2 bp = vec2(vBedW.x, -vBedW.z) - uBedOff;',
+          'float rk = 6.2831853 / ' + glf(rp[0]) + ';',
+          'float s1 = 0.13 * bp.x - 0.07 * bp.y, s2 = 0.21 * bp.y + 0.4;',
+          'float ph = rk * (0.96 * bp.x + 0.28 * bp.y) + 0.9 * sin(s2) + 0.5 * sin(s1);',
+          'float rr = sin(ph);',
+          'float phx = rk * 0.96 + 0.5 * 0.13 * cos(s1), phy = rk * 0.28 + 0.9 * 0.21 * cos(s2) - 0.5 * 0.07 * cos(s1);',
+          'float fw = clamp(1.5 - fwidth(ph), 0.0, 1.0);',       // far away the ripples are finer than a pixel
+          'float hx = ' + glf(rp[1]) + ' * cos(ph) * phx * fw + 0.12 * 0.23 * cos(0.23 * bp.x + 0.9) * sin(0.17 * bp.y + 0.3);',
+          'float hy = ' + glf(rp[1]) + ' * cos(ph) * phy * fw + 0.12 * 0.17 * sin(0.23 * bp.x + 0.9) * cos(0.17 * bp.y + 0.3);',
+          'float patches = frFbm(bp * 0.04);',
+          'vec3 sandC = mix(' + v3(sand[1]) + ', ' + v3(sand[0]) + ', smoothstep(0.35, 0.7, patches));',
+          'sandC = mix(sandC, ' + v3(sand[1]) + ' * 0.7, (1.0 - smoothstep(-1.0, 0.2, rr)) * 0.35 * fw);',
+          'float grain = frNoise(bp * 9.0);',
+          'sandC = mix(sandC, ' + v3(sand[0]) + ' * 0.75, smoothstep(0.3, 0.7, grain) * 0.25 * clamp(1.0 - fwidth(bp.x * 9.0), 0.0, 1.0));',
+          'diffuseColor.rgb = sandC;'].join('\n'))
+        .replace('#include <normal_fragment_maps>', ['#include <normal_fragment_maps>',
+          'normal = normalize((viewMatrix * vec4(-hx, 1.0, hy, 0.0)).xyz);'].join('\n'));
+    };
+    bedMat.customProgramCacheKey = function () { return 'fr-seabed'; };
+    // only where it can be seen: beyond BED_REACH x the clarity of water nothing is left of it (e^-18), and the
+    // water's colour behind (waterDome) is what the camera sees there. A patch round the box (seen from above) and
+    // one that follows the camera under water: a plane under the whole sea cost its shader on every pixel of the sea
+    // without a graphics card
+    var reach = BED_REACH * UW.clarity;
+    seabed = new T.Group();
+    var patch = function (w, h) {
+      var m = new T.Mesh(new T.PlaneGeometry(w, h, 4, 4), bedMat);
+      m.rotation.x = -Math.PI / 2;
+      m.receiveShadow = !!ST.shadows;
+      m.frustumCulled = false;
+      m.renderOrder = 1;                   // after the sea: where the sea hides it, its shader need not run
+      seabed.add(m);
+      return m;
+    };
+    if (uwCut) {
+      var bx = [0, 1].map(function (a) { return [-1, 1].map(function (b) {
+        return uwO.clone().addScaledVector(uwU, a * uwCut.length).addScaledVector(uwV, b * uwCut.width / 2); }); });
+      var flat = [].concat(bx[0], bx[1]);
+      var x0 = Math.min.apply(null, flat.map(function (p) { return p.x; })) - reach;
+      var x1 = Math.max.apply(null, flat.map(function (p) { return p.x; })) + reach;
+      var z0 = Math.min.apply(null, flat.map(function (p) { return p.y; })) - reach;
+      var z1 = Math.max.apply(null, flat.map(function (p) { return p.y; })) + reach;
+      patch(x1 - x0, z1 - z0).position.set((x0 + x1) / 2, uwBed, (z0 + z1) / 2);
+    }
+    bedAround = patch(2 * reach, 2 * reach);
+    bedAround.visible = false;
+    bedAround.position.y = uwBed;
+    scene.add(seabed);
+    page.info.under = { seabed: true, cut: !!uwCut, ground: !!uwGround };
+  }
+  if (uwCut) {
+    // the walls of the box (faces into it): the bright line along their top where the water was cut, darker with
+    // depth (core.sea.CUT_EDGE, CUT_DARK); the top follows the waves (the sea's own sum)
+    var wallBottom = uwGround ? uwBed + uwGround.top : uwBed - 2.0;
+    var corners = [[0, -1], [1, -1], [1, 1], [0, 1]].map(function (c) {
+      return uwO.clone().addScaledVector(uwU, c[0] * uwCut.length).addScaledVector(uwV, c[1] * uwCut.width / 2);
+    });
+    var wp = [], wtop = [], wd = [], widx = [], topY = uwLevel - uwCut.top;
+    for (var c = 0; c < 4; c++) {
+      var ca = corners[c], cb = corners[(c + 1) % 4], nseg = Math.max(1, Math.ceil(ca.distanceTo(cb) / 1.0));
+      for (var q = 0; q <= nseg; q++) {
+        var pq = ca.clone().lerp(cb, q / nseg), base = wp.length / 3;
+        wp.push(pq.x, topY, pq.y, pq.x, wallBottom, pq.y);
+        wtop.push(1, 0);
+        wd.push(0, topY - wallBottom);
+        if (q < nseg) widx.push(base, base + 1, base + 3, base, base + 3, base + 2);
+      }
+    }
+    var wg = new T.BufferGeometry();
+    wg.setAttribute('position', new T.BufferAttribute(new Float32Array(wp), 3));
+    wg.setAttribute('aTop', new T.BufferAttribute(new Float32Array(wtop), 1));
+    wg.setAttribute('aDtop', new T.BufferAttribute(new Float32Array(wd), 1));
+    wg.setIndex(widx);
+    // which way the faces look: into the box (the box's middle on their front side)
+    var mid = uwO.clone().addScaledVector(uwU, uwCut.length / 2), pa = corners[0], pb = corners[1];
+    var nrm = new T.Vector3(-(pb.y - pa.y), 0, pb.x - pa.x);      // (top -> bottom) x (top -> next bottom)
+    var inward = nrm.x * (mid.x - pa.x) + nrm.z * (mid.y - pa.y) > 0;
+    var wl = UW.light, dark = uwCut.dark;
+    var wallUniforms = { uTime: seaUniforms.uTime, uWave: seaUniforms.uWave, uPhase: seaUniforms.uPhase,
+                         uFadeR: seaUniforms.uFadeR, uCount: seaUniforms.uCount, uNear: seaUniforms.uNear,
+                         uLight: { value: wl } };
+    var so = ST.sea.origin;
+    cutWalls = new T.Mesh(wg, new T.ShaderMaterial({
+      uniforms: wallUniforms, transparent: true, depthWrite: false, side: inward ? T.FrontSide : T.BackSide,
+      vertexShader: ['uniform float uTime, uNear; uniform vec4 uWave[' + MAXW + ']; uniform float uPhase[' + MAXW + '];',
+        'uniform vec2 uFadeR[' + MAXW + ']; uniform int uCount; attribute float aTop, aDtop; varying float vDtop;',
+        'void main() {',
+        '  vec3 p = position;',
+        '  if (aTop > 0.5) {',
+        '    vec2 bxy = vec2(p.x - ' + glf(so[0]) + ', -p.z - ' + glf(so[1]) + ');',
+        '    float fadeW = 1.0 - smoothstep(uNear, 1.6 * uNear, length(bxy)), hW = 0.0;',
+        '    for (int i = 0; i < ' + MAXW + '; i++) {',
+        '      if (i >= uCount) break;',
+        '      vec4 w = uWave[i];',
+        '      float ph = w.w * (w.y * bxy.x + w.z * bxy.y) + uPhase[i] - sqrt(9.81 * w.w) * uTime;',
+        '      float wf = uFadeR[i].y > 0.0 ? clamp((uFadeR[i].y - length(bxy)) / (uFadeR[i].y - uFadeR[i].x), 0.0, 1.0) : 1.0;',
+        '      hW += w.x * sin(ph) * wf;',
+        '    }',
+        '    p.y += hW * fadeW;',
+        '  }',
+        '  vDtop = aDtop;',
+        '  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.0);',
+        '}'].join('\n'),
+      fragmentShader: ['uniform float uLight; varying float vDtop;',
+        'void main() {',
+        '  float line = (1.0 - smoothstep(0.0, ' + glf(uwCut.edge) + ', vDtop)) * 0.85;',
+        '  float dim = smoothstep(0.0, ' + glf(dark[1]) + ', vDtop) * ' + glf(dark[0]) + ';',
+        '  vec3 shade = vec3(' + glf(wc[0] * 0.25) + ', ' + glf(wc[1] * 0.25) + ', ' + glf(wc[2] * 0.25) + ') * uLight;',
+        '  vec3 edge = vec3(0.55, 0.80, 0.78) * uLight * 1.4;',
+        '  float a = 1.0 - (1.0 - dim) * (1.0 - line);',
+        '  vec3 col = (shade * dim * (1.0 - line) + edge * line) / max(a, 1e-4);',
+        '  gl_FragColor = vec4(col, a);',
+        '  #include <tonemapping_fragment>',
+        '  #include <colorspace_fragment>',
+        '}'].join('\n')
+    }));
+    cutWalls.frustumCulled = false;
+    scene.add(cutWalls);
+  }
+  if (uwGround) {
+    // the soil section (task 0148): the box's walls from just over the seabed down to the pit's floor, and the
+    // floor, faces into the box; layers from sand to clay by the depth under the seabed (core.sea.SOIL_LAYERS)
+    var gTop = uwBed + uwGround.top, gBot = uwBed - uwGround.depth;
+    var sp = [], sidx = [];
+    var gc = [[0, -1], [1, -1], [1, 1], [0, 1]].map(function (c) {
+      return uwO.clone().addScaledVector(uwU, c[0] * uwCut.length).addScaledVector(uwV, c[1] * uwCut.width / 2);
+    });
+    gc.forEach(function (pc) { sp.push(pc.x, gTop, pc.y); });
+    gc.forEach(function (pc) { sp.push(pc.x, gBot, pc.y); });
+    for (var gi = 0; gi < 4; gi++) { var gj = (gi + 1) % 4; sidx.push(gi, gj, 4 + gj, gi, 4 + gj, 4 + gi); }
+    sidx.push(4, 5, 6, 4, 6, 7);
+    var sg2 = new T.BufferGeometry();
+    sg2.setAttribute('position', new T.BufferAttribute(new Float32Array(sp), 3));
+    sg2.setIndex(sidx);
+    sg2 = sg2.toNonIndexed();
+    sg2.computeVertexNormals();
+    var layers = uwGround.layers, soilMat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95,
+                                                                           side: T.DoubleSide });
+    soilMat.onBeforeCompile = function (sh) {
+      sh.vertexShader = 'varying vec3 vSoilW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>',
+        '#include <worldpos_vertex>\nvSoilW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      var steps = ['vec3 sc = vec3(' + layers[0][1].map(glf).join(', ') + ');'];
+      for (var li = 1; li < layers.length; li++) {
+        steps.push('sc = mix(sc, vec3(' + layers[li][1].map(glf).join(', ') + '), smoothstep(' +
+                   glf(layers[li][0] - 0.12) + ', ' + glf(layers[li][0] + 0.12) + ', sd));');
+      }
+      sh.fragmentShader = ['varying vec3 vSoilW;',
+        'float sHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }',
+        'float sNoise(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(mix(sHash(i), sHash(i + vec3(1,0,0)), f.x), mix(sHash(i + vec3(0,1,0)), sHash(i + vec3(1,1,0)), f.x), f.y),',
+        '             mix(mix(sHash(i + vec3(0,0,1)), sHash(i + vec3(1,0,1)), f.x), mix(sHash(i + vec3(0,1,1)), sHash(i + vec3(1,1,1)), f.x), f.y), f.z); }',
+        ''].join('\n') + sh.fragmentShader.replace('#include <color_fragment>', ['#include <color_fragment>',
+          'float sd = ' + glf(uwBed) + ' - vSoilW.y + (sNoise(vSoilW * 0.12) - 0.5) * ' + glf(2 * uwGround.wobble) + ';']
+          .concat(steps).concat([
+          'sc = mix(sc, vec3(0.0), smoothstep(0.3, 0.7, sNoise(vSoilW * 7.0)) * 0.2);',
+          'diffuseColor.rgb = sc;']).join('\n'));
+    };
+    soilMat.customProgramCacheKey = function () { return 'fr-soil'; };
+    soil = new T.Mesh(sg2, soilMat);
+    soil.receiveShadow = !!ST.shadows;
+    soil.renderOrder = 1;
+    scene.add(soil);
+  }
+  // the water seen from under it where nothing is in the way (the sky does not show through water)
+  var waterDome = null;
+  if (UW) {
+    // at the far plane, after the sky (transparent, drawn where nothing else is): below the horizon only while the
+    // camera is above the water (seen through the cut-away's walls), all round under it
+    waterDome = new T.Mesh(new T.SphereGeometry(1, 24, 12), new T.ShaderMaterial({
+      uniforms: { uLight: { value: UW.light }, uFull: { value: 0 } }, side: T.BackSide, depthWrite: false,
+      transparent: true,
+      vertexShader: 'varying vec3 vDir;\nvoid main() { vDir = position;\n' +
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n' +
+        '  gl_Position.z = gl_Position.w; }',
+      fragmentShader: UW_GLSL + 'uniform float uLight, uFull; varying vec3 vDir;\nvoid main() {\n' +
+        '  vec3 d = normalize(vDir);\n  if (uFull < 0.5 && d.y > 0.0) discard;\n' +
+        '  gl_FragColor = vec4(frWaterColour(d) * uLight, 1.0);\n' +
+        '  #include <tonemapping_fragment>\n  #include <colorspace_fragment>\n}' }));
+    waterDome.scale.setScalar(800);
+    waterDome.renderOrder = -0.5;          // after the sky's dome (-1), before the box's walls
+    waterDome.frustumCulled = false;
+    waterDome.visible = false;
+    scene.add(waterDome);
   }
 
   // a floor that only shows the shadow (no sea)
@@ -1096,7 +1423,22 @@
   controls.target.copy(centre);
   controls.minDistance = R * 0.05;
   controls.maxDistance = hasSea ? Math.min(12000, R * 60) : R * 30;
-  if (hasSea) controls.maxPolarAngle = Math.PI * 0.497;
+  var HORIZON = Math.PI * 0.497;
+  if (hasSea) controls.maxPolarAngle = HORIZON;
+  // task 0143: the camera may dive (Camera under water); 0147 row 11: a saved view below the water or the floor is
+  // shown where it is – no clamp while the camera is on a saved view, until the visitor drags
+  var onView = false;
+  function diveOn() { return !!UW && on.under !== false && on.dive !== false && on.sea !== false; }
+  function polarNow() {
+    var off = camera.position.clone().sub(controls.target), d = Math.max(off.length(), 1e-9);
+    return Math.acos(T.MathUtils.clamp(off.y / d, -1, 1));
+  }
+  function limitPolar() {
+    if (!hasSea) return;                  // the plain page never had a limit
+    if (diveOn() || onView) { controls.maxPolarAngle = Math.PI; return; }
+    // back to the horizon, never with a jump: the limit follows the camera up from where it is
+    controls.maxPolarAngle = Math.max(HORIZON, Math.min(controls.maxPolarAngle, polarNow() + 1e-6));
+  }
   controls.autoRotateSpeed = 1.0;            // auto-turn: one turn a minute
   var FOV = 30;
 
@@ -1145,7 +1487,7 @@
     camera.updateProjectionMatrix();
     if (k >= 1) { fly = null; changed('view'); }
   }
-  controls.addEventListener('start', function () { fly = null; input(); });
+  controls.addEventListener('start', function () { fly = null; onView = false; limitPolar(); input(); });
   controls.addEventListener('change', function () { wake(); });
 
   // the project's saved cameras (task 0134; Blender world, ``vfov``/``hfov`` of the render in degrees): the page
@@ -1162,12 +1504,24 @@
   page.goView = function (k) {
     var v = page.views[k];
     if (!v) return;
+    onView = true;
+    limitPolar();
     flyTo({ pos: v.eye.clone(), target: v.target.clone(), fov: viewFov(v) });
     changed('view');
   };
-  page.resetView = function () { flyTo(homeView()); };
+  page.resetView = function () { onView = false; flyTo(homeView()); };
+  page.drawInfo = function () {           // tests: what one picture costs (draw calls, triangles, programs)
+    var r = renderer.info;
+    return { calls: r.render.calls, triangles: r.render.triangles, programs: (r.programs || []).length };
+  };
+  page.setCamera = function (pos, target) {   // tests, the PC check: a camera place (three's coordinates), as a drag
+    fly = null; onView = false;
+    camera.position.fromArray(pos); controls.target.fromArray(target);
+    limitPolar(); controls.update(); wake();
+  };
   page.cameraState = function () {          // tests: where the camera is (three's coordinates)
-    return { pos: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov, flying: !!fly };
+    return { pos: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov, flying: !!fly,
+             onView: onView, under: underNow, dive: diveOn(), maxPolar: controls.maxPolarAngle };
   };
 
   // the view as a link: camera, moment and menu choices in the address (task 0134)
@@ -1197,7 +1551,9 @@
   if (ST.haze) page.items.push('haze');
   if (ST.rain) page.items.push('rain');
   if (ST.shadows) page.items.push('shadows');
+  if (UW) page.items.push('under', 'dive');      // task 0143: Under the sea, Camera under water
   var offList = Q.has('off') ? Q.get('off').split(',') : (PREF.off || []);
+  var underKept = Q.has('off') || !!PREF.off;     // the visitor chose the items: Auto leaves Under the sea alone
   page.items.forEach(function (n) { on[n] = offList.indexOf(n) < 0; });
   if (page.warned && !Q.has('off') && !PREF.off) on.shadows = false;       // no graphics card: no shadows
   page.on = on;
@@ -1235,6 +1591,20 @@
     var hz = ST.haze && on.haze !== false;
     var fogWas = scene.fog;
     scene.fog = hz ? fog : null;
+    if (UW) {                              // task 0143: one fog for the haze and the water
+      var uOn = on.under !== false && on.sea !== false;
+      // off: the haze's own fog (or none), so no program carries the water's code (it costs the most without a
+      // graphics card)
+      scene.fog = uOn ? waterFog : hz ? fog : null;
+      waterFog.near = hz ? ST.haze.density : 0;
+      waterFog.far = uOn ? UW.light : 0;
+      seaUniforms.uCutOn.value = uOn && uwCut ? 1 : 0;
+      bedUniforms.uGroundOn.value = uOn && uwGround ? 1 : 0;
+      seabed.visible = uOn;
+      if (cutWalls) cutWalls.visible = uOn;
+      if (soil) soil.visible = uOn;
+      limitPolar();
+    }
     domeUniforms.uHaze.value = hz ? Math.min(1, ST.haze.strength * 1.4) : 0;
     var sh = !!ST.shadows && on.shadows !== false, shWas = renderer.shadowMap.enabled;
     sun.castShadow = sh;
@@ -1248,6 +1618,7 @@
   page.setItem = function (name, value) {
     if (page.items.indexOf(name) < 0) return;
     on[name] = !!value;
+    if (name === 'under') underKept = true;
     applyItems();
     if (!moving()) chain = false;
   };
@@ -1279,6 +1650,7 @@
       skyMesh.material.uniforms.rayleigh.value = clouds === 'OVERCAST' ? 0.6 : 1.4 + low;
     }
     if (fog) fog.color.copy(horizon);
+    if (waterFog) waterFog.color.copy(horizon);
     if (rainUniforms) rainUniforms.uColour.value.copy(horizon).lerp(new T.Color(0.9, 0.92, 0.95), 0.5);
     var now = performance.now();
     if (final || now - lastEnv > 300) {        // the sky's light on the parts: worked out again (a few ms)
@@ -1329,6 +1701,7 @@
     if (sea) {
       sea.geometry.dispose();
       sea.geometry = seaGeometry(l.seg);
+      if (seaBelow) seaBelow.geometry = sea.geometry;
       if (rippleTex) rippleTex.dispose();
       rippleTex = rippleTexture(l.ripple);
       seaUniforms.uRipple.value = rippleTex;
@@ -1402,6 +1775,36 @@
   var prevGap = hullEnds.map(function () { return 0; });
   var lowest = hasSea ? ST.sea.level + 1.5 * (ST.sea.amp || 0.25) + 0.3 : floorY;   // the camera stays above this
 
+  // task 0143: under the sea
+  var underNow = false;
+  function bottomAt(x, z) {              // the lowest the camera (or what it looks at) may go: just over the seabed,
+    if (uwGround && inBox(x, z)) return uwBed - uwGround.depth + 0.4;     // in the cut-away's pit over its floor
+    return uwBed + 0.4;
+  }
+  function cameraUnder(tSea) {           // the camera is in the water (not in the cut-away box): a little either way
+    if (!UW || on.sea === false) return false;           // of the wave's height, so a wave never makes it flicker
+    var cx = camera.position.x, cz = camera.position.z;
+    if (on.under !== false && inBox(cx, cz)) return false;
+    var h = ST.sea.level + M.seaHeight(ST.sea, cx - ST.sea.origin[0], -cz - ST.sea.origin[1], tSea);
+    return camera.position.y < h + (underNow ? 0.04 : -0.04);
+  }
+  function bedOffset(t, out) {           // where the seabed's own coordinates start at t (core.web3d_env.bed_offset)
+    var mo = UW.motion;
+    if (!mo) { out.set(UW.bed_xy[0], UW.bed_xy[1]); return out; }
+    var ts = mo.t, span = ts[ts.length - 1];
+    if (span > 0) t = t % span;
+    var k = 0;
+    while (k < ts.length - 2 && ts[k + 1] < t) k++;
+    var f = T.MathUtils.clamp((t - ts[k]) / Math.max(ts[k + 1] - ts[k], 1e-9), 0, 1);
+    out.set(mo.xy[k][0] + (mo.xy[k + 1][0] - mo.xy[k][0]) * f, mo.xy[k][1] + (mo.xy[k + 1][1] - mo.xy[k][1]) * f);
+    return out;
+  }
+  page.underState = function () {        // tests: what the page does under the sea now
+    return { under: !!UW, cut: !!uwCut, ground: !!uwGround, camera: underNow, dive: diveOn(), onView: onView,
+             fog: scene.fog ? [scene.fog.near, scene.fog.far] : null,
+             bed: UW ? bedOffset(ST.animated ? page.time % Math.max(page.duration, 1e-9) : 0, new T.Vector2()).toArray() : null };
+  };
+
   function toThree(mB) {                // a column-major Blender matrix -> three: B2T * m * T2B
     tmp.fromArray(mB);
     return new T.Matrix4().multiplyMatrices(B2T, tmp).multiply(T2B);
@@ -1437,11 +1840,21 @@
     var dist = camera.position.distanceTo(controls.target);
     camera.near = T.MathUtils.clamp(dist * 0.01, 0.002, 20);
     camera.updateProjectionMatrix();
-    if (controls.target.y < lowest - (hasSea ? 1.5 * (ST.sea.amp || 0.25) + 0.3 : 0)) {   // never under the water
-      var dy = lowest - (hasSea ? 1.5 * (ST.sea.amp || 0.25) + 0.3 : 0) - controls.target.y;
-      controls.target.y += dy; camera.position.y += dy;
+    limitPolar();
+    if (onView) {
+      // a saved view stays where it was saved (0147 row 11), also below the water or the floor
+    } else if (diveOn()) {                 // task 0143: under the water, never into the seabed
+      var tb = bottomAt(controls.target.x, controls.target.z);
+      if (controls.target.y < tb) { camera.position.y += tb - controls.target.y; controls.target.y = tb; }
+      var cb = bottomAt(camera.position.x, camera.position.z);
+      if (camera.position.y < cb) camera.position.y = cb;
+    } else {
+      if (controls.target.y < lowest - (hasSea ? 1.5 * (ST.sea.amp || 0.25) + 0.3 : 0)) {   // never under the water
+        var dy = lowest - (hasSea ? 1.5 * (ST.sea.amp || 0.25) + 0.3 : 0) - controls.target.y;
+        controls.target.y += dy; camera.position.y += dy;
+      }
+      if (camera.position.y < lowest) camera.position.y = lowest;
     }
-    if (camera.position.y < lowest) camera.position.y = lowest;
     if (mixer) mixer.setTime(ST.animated ? t : 0);
     if (tubes.length) {            // the moment the mixer shows: the animation repeats (t = its length is its start)
       var tt = ST.animated ? t : 0;
@@ -1457,6 +1870,24 @@
     }
     var tSea = hasSea && ST.sea.moving ? tScene : 0;
     if (sea) seaUniforms.uTime.value = tSea;
+    if (UW) {                              // task 0143: the seabed's drift; the water round a camera under it
+      var tb2 = ST.animated ? t : 0;
+      if (page.duration > 0) tb2 = tb2 % page.duration;
+      bedOffset(tb2, bedUniforms.uBedOff.value);
+      var under = cameraUnder(tSea);
+      if (under !== underNow) { underNow = under; changed('under'); }
+      var skyOn = on.sky !== false && !plain, uOn2 = on.under !== false && on.sea !== false;
+      waterDome.visible = uOn2;
+      waterDome.material.uniforms.uFull.value = under ? 1 : 0;
+      waterDome.position.copy(camera.position);
+      bedAround.visible = uOn2 && under;
+      // the sea seen from below only when the camera is low enough to see it (its waves cost every point again)
+      if (seaBelow) seaBelow.visible = uOn2 && camera.position.y < ST.sea.level + 2 * (ST.sea.amp || 0.25) + 0.5;
+      bedAround.position.x = camera.position.x;
+      bedAround.position.z = camera.position.z;
+      if (skyMesh) skyMesh.visible = skyOn && !under;
+      if (dome) dome.visible = skyOn && !under;
+    }
     domeUniforms.uTime.value = t;
     if (skyMesh) skyMesh.position.copy(camera.position);
     dome.position.copy(camera.position);
@@ -1544,6 +1975,13 @@
       mark();
     }
     if (!auto) return;
+    // task 0143: at Phone and still slow, Auto switches Under the sea off (once; not when the visitor chose it)
+    if (page.fps < 0.9 * AUTO_FPS && k === 0 && UW && on.under !== false && !underKept) {
+      underKept = true;
+      page.setItem('under', false);
+      note('Under the sea switched off to keep it smooth (settings: switch it on again)', 8);
+      return;
+    }
     if (page.fps < 0.9 * AUTO_FPS && k > 0) {
       var lower = LEVELS[k - 1];
       page.lowered++;

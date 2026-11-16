@@ -2636,7 +2636,7 @@ The page is a small player (the fold **On the page** in the panel lists it too).
 title and these controls:
 
 - **Gear** (or **M**): the settings. Switch the surroundings items the page holds on and off (sea, vessel motion,
-  sky, haze, rain and spray, sun shadows); **Quality** Auto, Phone, Balanced or Best (picking one switches Auto off);
+  sky, haze, rain and spray, sun shadows, under the sea, camera under water); **Quality** Auto, Phone, Balanced or Best (picking one switches Auto off);
   how many pictures a second the page draws right now; the **graphics card** the browser uses; **Auto-turn** (the
   machine turns slowly after 8 s without a touch and stops at the first one); **Sun / time of day** – a slider that
   moves the live sun from morning to evening (greyed with baked light: "Light is baked into this model"). The page
@@ -2713,6 +2713,37 @@ Measured on the 4-core test machine without a graphics card: the test mill (9 pa
 made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (35 MB without). Texture size 2048
 needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
 report.
+
+<a id="web3d-under"></a>
+#### Under the sea on the page
+
+On the **Open sea** the page also shows what lies under the water, as the app does (5 Scene & Render > Surroundings):
+
+- **The seabed** at the project's **Water depth**, with the app's sand, its patches and its ripples. With a cable into
+  the sea the seabed drifts aft under the vessel while the cable pays out, as in the app.
+- **The cut-away behind the stern** (when it is on in the project): the same box of water taken away, placed by the
+  cable or by your numbers, with the thin bright line along its top and the walls darkening with depth. Inside the box
+  you see the cable hang down to its touch-down; whatever lies behind a wall fades into the water's colour by the
+  project's **Water clarity** – the app's own formula, so a far wall looks as in your renders.
+- **The ground in the cut-away** (Show the ground in the cut-away): the soil section, sand to clay, and a pile or
+  monopile down to its toe.
+- **The camera can go under the water.** Drag the view below the surface: the water takes its colour and fades
+  everything by the clarity, the surface shows from below, the seabed is the floor (the camera stops just above it;
+  in the cut-away's pit just above its floor). The switch from above to below follows the waves without flicker.
+
+Two switches in the page's settings: **Under the sea** (the seabed, the box and the soil; off: the sea is closed as
+before) and **Camera under water** (on by default; off: the camera stays above the water). A saved camera below the
+water (an "At the seabed" view) is shown where you saved it, also with Camera under water off, until the visitor
+drags the view.
+
+Not on the page: the stones on the seabed (Detailed) and the rippled seabed as real shape (the page draws the
+ripples as light and shade, the app's formula). The Vessel deck and the Quayside have no seabed, as in the app.
+
+Measured on the 4-core test machine **without a graphics card** (software drawing, only the differences mean
+something): the sea cable test model's page draws about 4 pictures a second at Phone with Under the sea
+on and 8–10 with it off (Balanced about 1.5–2 against 7), looking into the box or at the vessel. So without a graphics
+card **Auto quality** switches Under the sea off at Phone when the page still cannot keep up – a note says so, and
+the settings switch it on again. It adds about 1 kB to the file. On a PC with a graphics card: not measured yet.
 
 <a id="web3d-light"></a>
 #### Light
