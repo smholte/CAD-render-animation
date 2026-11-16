@@ -2292,12 +2292,35 @@ the offshore surroundings take about as long as the studio; the halls 1.4 to 2.8
 
 <img class="panel" src="img/panel_5_props.png" alt="Props for scale">
 
-Things everyone knows the size of: **Person** (1.8 m), **20 ft container**, **Euro pallet**,
-**Safety barrier**.
+Things everyone knows the size of, made in detail so they hold up in a close shot: **Person**, **20 ft
+container** (ribbed walls, door bars), **Euro pallet** (two layers of taped boxes), **Safety barrier**, **IBC tank**
+(1,000 litres in its cage), **Gas bottle rack** (four bottles, shoulders coloured by gas) and **Tool trolley**. No
+brand names or logos anywhere.
 
 1. Click one: it stands next to the machine on the floor and is selected.
 2. Move it with the arrows in the view (or press G); R turns it, X deletes it.
 3. **Show props** hides or shows them all (a saved scene remembers it); **Delete all** removes them.
+
+<img class="shot" src="img/props_lineup.jpg" alt="Every prop and three people">
+
+**A person** is a figure in work clothes, safety shoes and (if you like) a helmet and gloves – a face without
+anybody's likeness. Click the person in the view and choose under **Selected person**:
+
+- **Pose**: Standing, Walking, Pointing, Hands on a panel, Kneeling, Operator at a machine. The feet stay on the
+  floor (kneeling: the knee), and the person keeps its place and turn.
+- **Height**: 1.65, 1.75 or 1.85 m (top of the head, without a helmet).
+- **Clothes**: Workshop (navy overalls), Offshore (orange coverall with reflective bands), Office / visitor (shirt,
+  trousers and a yellow high-visibility vest).
+- **Helmet**, **Gloves**, and **Look** (0–3: another skin tone and hair, so two people side by side differ).
+
+<img class="shot" src="img/props_people.jpg" alt="The people's poses and clothes">
+
+<a id="props-detail"></a>
+**Detail** (fold): each prop has a detailed and a light version in one object. **Auto (by distance)** shows the
+light one for props further than **Light beyond** (30 m) from the camera, so a quay full of props stays quick, and
+the detailed one close up. **Always detailed** or **Always light** overrides it for every prop.
+
+Projects made before version 0.2.123 get the new props by themselves when you open them: same names, same places.
 
 <a id="vessel-motion"></a>
 ### Vessel motion

@@ -170,6 +170,50 @@ def _props_shown(self, context):
     surroundings.set_props_visible(context.scene, self.props_visible)
 
 
+def _props_detail_changed(self, context):
+    from . import props_scale
+    props_scale.apply_detail(context.scene)
+
+
+def _person_changed(self, context):
+    from . import props_scale
+    props_scale.person_changed(self, context)
+
+
+_HEIGHT_ITEMS = [("1.65", "1.65 m", "A shorter person: 1.65 m", 0), ("1.75", "1.75 m", "An average person: 1.75 m", 1),
+                 ("1.85", "1.85 m", "A taller person: 1.85 m", 2)]
+
+
+from ..core import props_detail as _pd  # noqa: E402  (task 0155: the person's poses and clothes)
+
+
+class FRPersonSettings(bpy.types.PropertyGroup):
+    """A person prop's pose, height and clothes (task 0155; on the prop's object, Object.fresing_person)."""
+    pose: EnumProperty(name="Pose", default="STANDING", update=_person_changed,
+                       description="How the person stands: pick one and the figure takes that pose where it stands",
+                       items=[(i, n, d, k) for k, (i, n, d) in enumerate(
+                           _pd.POSE_ITEMS)])
+    height_choice: EnumProperty(name="Height", default="1.75", update=_person_changed, items=_HEIGHT_ITEMS,
+                                description="How tall the person is (top of the head, without a helmet). A known "
+                                            "height is what makes the machine's size readable")
+    outfit: EnumProperty(name="Clothes", default="WORKSHOP", update=_person_changed,
+                         description="What the person wears: workshop overalls, an offshore coverall or office "
+                                     "clothes with a high-visibility vest",
+                         items=[(i, n, d, k) for k, (i, n, d) in enumerate(
+                             _pd.OUTFIT_ITEMS)])
+    helmet: BoolProperty(name="Helmet", default=True, update=_person_changed,
+                         description="A safety helmet on the person's head. Off: you see the hair")
+    gloves: BoolProperty(name="Gloves", default=False, update=_person_changed,
+                         description="Work gloves on both hands. Off: bare hands")
+    look: IntProperty(name="Look", default=0, min=0, max=3, update=_person_changed,
+                      description="A different skin tone and hair (0 to 3), so two people side by side do not look "
+                                  "the same")
+
+    @property
+    def height(self) -> float:
+        return float(self.height_choice)
+
+
 def _env_view_changed(self, context):
     from . import surroundings
     surroundings._show_in_view(context.scene, self)
@@ -3630,6 +3674,18 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     props_visible: BoolProperty(name="Show props", default=True, update=_props_shown,
                                 description="Show or hide all props for scale (person, container, pallet, "
                                             "barrier) in the view and in renders")
+    props_detail: EnumProperty(
+        name="Detail", default="AUTO", update=_props_detail_changed,
+        description="How much detail the props have in the view and in renders. Auto keeps the light versions for "
+                    "props far from the camera, so many props stay quick",
+        items=[("AUTO", "Auto (by distance)", "Detailed near the camera, light beyond the distance below", 0),
+               ("DETAILED", "Always detailed", "Every prop in full detail, however far away", 1),
+               ("LIGHT", "Always light", "Every prop in its light version: quickest, for many props or a quick "
+                                         "look", 2)])
+    props_far: FloatProperty(name="Light beyond", default=30.0, min=1.0, soft_max=200.0, unit="LENGTH",
+                             update=_props_detail_changed,
+                             description="With Detail on Auto: props further than this from the camera use their "
+                                         "light version. Close-ups always show the detailed one")
 
     # ---- camera (task 0017) ----
     view_frame: EnumProperty(
@@ -3892,7 +3948,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D, FRWeather,
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
-           FRHouse,
+           FRHouse, FRPersonSettings,
            FRSceneSettings)
 
 
@@ -3900,9 +3956,11 @@ def register():
     for c in CLASSES:
         bpy.utils.register_class(c)
     bpy.types.Scene.fresing = PointerProperty(type=FRSceneSettings)
+    bpy.types.Object.fresing_person = PointerProperty(type=FRPersonSettings)     # task 0155
 
 
 def unregister():
+    del bpy.types.Object.fresing_person
     del bpy.types.Scene.fresing
     for c in reversed(CLASSES):
         bpy.utils.unregister_class(c)

@@ -30,6 +30,7 @@ import random
 import bpy
 import numpy as np
 
+from ..core import props_detail
 from ..core import ral
 from ..core import sea as sea_core
 from ..core import surroundings as S
@@ -441,6 +442,44 @@ class _Mesh:
             self._add(pts, faces, mat, smooth=True)
         elif isinstance(sh, S.Quad):
             self._add(sh.pts, [(0, 1, 2, 3)], mat)
+        elif isinstance(sh, S.Loft):
+            self.loft(sh, mat)
+
+    def loft(self, sh, mat):
+        """Rings stitched into quads (task 0155); closed rings get fan caps; faces turned to point outwards."""
+        rings = np.asarray(sh.rings, float)
+        m, n = rings.shape[0], rings.shape[1]
+        if m < 2 or n < 2:
+            return
+        pts = rings.reshape(-1, 3)
+        wrap = n if sh.closed else n - 1
+        faces = [(j * n + i, j * n + (i + 1) % n, (j + 1) * n + (i + 1) % n, (j + 1) * n + i)
+                 for j in range(m - 1) for i in range(wrap)]
+        caps = []
+        if sh.closed and sh.caps:
+            pts = np.concatenate([pts, rings[0].mean(0)[None], rings[-1].mean(0)[None]])
+            c0, c1 = m * n, m * n + 1
+            caps = [(c0, (i + 1) % n, i) for i in range(n)] + [(c1, (m - 1) * n + i, (m - 1) * n + (i + 1) % n)
+                                                              for i in range(n)]
+        if sh.closed:                       # outwards: the sum of (face centre - middle) · normal must be positive
+            mid = pts[: m * n].mean(0)
+            q = np.asarray(faces)
+            a, b, c = pts[q[:, 0]], pts[q[:, 1]], pts[q[:, 2]]
+            nrm = np.cross(b - a, c - b)
+            if float(np.einsum("ij,ij->", nrm, (a + c) / 2 - mid)) < 0:
+                faces = [f[::-1] for f in faces]
+                caps = [f[::-1] for f in caps]
+        base = self.n
+        self.verts.append(pts)
+        self.n += len(pts)
+        for f in faces:
+            self.faces.append(tuple(base + i for i in f))
+            self.mats.append(mat)
+            self.smooth.append(bool(sh.smooth))
+        for f in caps:
+            self.faces.append(tuple(base + i for i in f))
+            self.mats.append(mat)
+            self.smooth.append(bool(sh.smooth))
 
     def to_mesh(self, name: str) -> bpy.types.Mesh:
         me = bpy.data.meshes.new(name)
@@ -2582,25 +2621,19 @@ def props(scene=None) -> list:
 
 def add_prop(scene, kind: str) -> bpy.types.Object:
     """Put a prop next to the machine (in a row along its right-hand side, on the floor)."""
-    from . import logic
-    shapes = S.prop_shapes(kind)
-    keys = sorted({sh.mat for sh in shapes})
-    index = {k: i for i, k in enumerate(keys)}
-    m = _Mesh()
-    for sh in shapes:
-        m.shape(sh, index[sh.mat])
+    from . import logic, props_scale
     label = S.PROPS[kind][0]
-    me = m.to_mesh(label)
-    for k in keys:
-        me.materials.append(material(k))
+    me = props_scale.make_mesh(kind, label, dict(props_detail.PERSON_DEFAULTS) if kind == "PERSON" else {})
     ob = bpy.data.objects.new(label, me)
     _collection(scene, PROPS_COLLECTION).objects.link(ob)
     ob[PROP_TAG] = kind
+    ob[props_scale.VER_KEY] = props_scale.VERSION
+    props_scale.ensure_modifier(ob, scene)      # task 0155: detailed near the camera, light far away
     mn, mx = logic.cached_bounds(scene)
     existing = props(scene)
     sizes = []
     for p in existing:
-        sx, sy, _sz = S.prop_size(p[PROP_TAG]) if p.get(PROP_TAG) in S.PROPS else (1.0, 1.0, 1.0)
+        sx, sy, _sz = _prop_size(p[PROP_TAG]) if p.get(PROP_TAG) in S.PROPS else (1.0, 1.0, 1.0)
         sizes.append((sx, sy))
     index_new = existing.index(ob)
     x, y = S.prop_spot(index_new, (float(mn[0]), float(mx[0]), float(mn[1]), float(mx[1])), sizes)
@@ -2609,6 +2642,15 @@ def add_prop(scene, kind: str) -> bpy.types.Object:
     ob.hide_render = not show
     ob.hide_viewport = not show
     return ob
+
+
+_SIZES: dict = {}
+
+
+def _prop_size(kind):
+    if kind not in _SIZES:
+        _SIZES[kind] = S.prop_size(kind)
+    return _SIZES[kind]
 
 
 def set_props_visible(scene, visible: bool) -> None:

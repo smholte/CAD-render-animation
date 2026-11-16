@@ -986,6 +986,9 @@ class FRESING_PT_camera(_Panel, bpy.types.Panel):
                 sub.operator("fresing.focus_clear", text="", icon="X")
 
 
+_DETAIL_LABEL = {"AUTO": "auto", "DETAILED": "always detailed", "LIGHT": "always light"}
+
+
 class FRESING_PT_props(_Panel, bpy.types.Panel):
     bl_label = "Props for scale"
     bl_parent_id = "FRESING_PT_scene"
@@ -1006,7 +1009,8 @@ class FRESING_PT_props(_Panel, bpy.types.Panel):
         s = context.scene.fresing
         wrap(layout, context, "Things everyone knows the size of, next to the machine. Click to add one:")
         grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
-        icons = {"PERSON": "USER", "CONTAINER": "PACKAGE", "PALLET": "MESH_GRID", "BARRIER": "CON_TRACKTO"}
+        icons = {"PERSON": "USER", "CONTAINER": "PACKAGE", "PALLET": "MESH_GRID", "BARRIER": "CON_TRACKTO",
+                 "IBC": "MESH_CUBE", "GAS_RACK": "MOD_ARRAY", "TOOL_TROLLEY": "TOOL_SETTINGS"}
         for kind, (label, _desc) in env.PROPS.items():
             grid.operator("fresing.prop_add", text=label, icon=icons.get(kind, "ADD")).kind = kind
         if surroundings.props(context.scene):
@@ -1016,6 +1020,27 @@ class FRESING_PT_props(_Panel, bpy.types.Panel):
             row.prop(s, "props_visible", text="Show props", toggle=True,
                      icon="HIDE_OFF" if s.props_visible else "HIDE_ON")
             row.operator("fresing.props_remove", text="Delete all", icon="TRASH")
+            ob = context.active_object
+            if ob is not None and ob.get(surroundings.PROP_TAG) == "PERSON" and hasattr(ob, "fresing_person"):
+                person = ob.fresing_person         # task 0155: the selected person's pose and clothes
+                box = layout.box()
+                box.label(text=f"Selected person: {ob.name}", icon="USER")
+                col = box.column(align=True)
+                col.prop(person, "pose")
+                col.prop(person, "height_choice")
+                col.prop(person, "outfit")
+                row = box.row(align=True)
+                row.prop(person, "helmet", toggle=True)
+                row.prop(person, "gloves", toggle=True)
+                row.prop(person, "look")
+            else:
+                wrap(layout, context, "Click a person in the view to choose its pose, height and clothes.")
+            body = fold(layout, "fresing_props_detail", f"Detail: {_DETAIL_LABEL.get(s.props_detail, '')}",
+                        "MOD_DECIM")
+            if body is not None:
+                body.prop(s, "props_detail", text="")
+                if s.props_detail == "AUTO":
+                    body.prop(s, "props_far")
 
 
 def _viewport_rendered(context) -> bool:

@@ -2557,6 +2557,32 @@ def scene_hall(ctx):
     return f"rendered in {info['seconds']} s"
 
 
+@line("scene.props", "Props for scale and people in detail", "0.2.123",
+      what="Every prop beside the crane and three people in other poses and clothes (task 0155): all on the floor, "
+           "detailed near the camera and light far away, rendered small (processor, draft)")
+def scene_props(ctx):
+    import bpy
+
+    from ..blender import cameras, props_scale
+    scene = ctx.fresh(CRANE_A)
+    t0 = time.time()
+    obs = props_scale.line_up(scene)
+    ctx.metric("add every prop and three people", time.time() - t0, "s")
+    cameras.add_camera(scene, "ISO", 50.0, "PC check props", points=props_scale.corners(obs))
+    words = props_scale.check_line_up(scene)
+    cam = scene.camera
+    far = cam.location.copy()
+    cam.location = obs[0].matrix_world.translation + (cam.location - obs[0].matrix_world.translation).normalized() * (
+        scene.fresing.props_far + 10.0)
+    bpy.context.view_layer.update()
+    _check(props_scale.visible_level(obs[0]) == "LIGHT", "a person far from the camera still shows its detailed version")
+    cam.location = far
+    bpy.context.view_layer.update()
+    _small_output(scene.fresing)
+    info = _cpu_still(ctx, scene, "props", "Props for scale and people (processor, draft)", model_check=False)
+    return f"{words}; render {info['seconds']} s"
+
+
 @line("scene.looks", "Light looks", "0.2.17", what="All five light looks apply; Product studio rendered small")
 def scene_looks(ctx):
     import bpy

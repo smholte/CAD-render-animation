@@ -2918,6 +2918,23 @@ def _check_vessel(scene):
 WEATHER_ANIM = "Weather changes"
 
 
+# ----- props for scale in detail (task 0155) -----
+
+
+@tour_set("props", "Props for scale and people", "test_crane_a.step")
+def build_props(b: Build):
+    from . import cameras, props_scale
+    _look("PRODUCT")
+    obs = props_scale.line_up(b.scene)
+    cameras.add_camera(b.scene, "ISO", 50.0, "Tour props", points=props_scale.corners(obs))
+    _shot(b, "@props")
+
+
+def _check_props(scene):
+    from . import props_scale
+    return props_scale.check_line_up(scene)
+
+
 @tour_set("weather", "Weather and time of day", "test_crane_a.step")
 def build_weather(b: Build):
     from . import weather
@@ -3153,6 +3170,14 @@ stop("weather_step", LOOK, "weather", "Weather changes in a video",
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
      "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)
+stop("props", LOOK, "props", "Props for scale and people",
+     "Beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
+     "offshore coverall with reflective bands and gloves, one with both hands forward in office clothes and a "
+     "yellow vest – then a container with ribbed walls, a pallet of taped boxes, a red and white barrier, an IBC "
+     "tank in its cage, a rack of four gas bottles and a red tool trolley. Faces, fingers and shoe soles show close "
+     "up; nothing floats or sinks into the floor.",
+     where="5 Scene & Render > Props for scale (click a person for its pose and clothes)", since="0.2.123",
+     check=_check_props)
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks)
