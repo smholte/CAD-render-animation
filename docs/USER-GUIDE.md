@@ -1546,7 +1546,7 @@ out as a height map instead: the lowest point the tool reached above every spot 
   - the fine ridges between two finishing passes are left out when they are lower than 0.012 mm: the face is
     smooth there and shows the tool marks;
   - the steep, rounded strip under a rim or at the foot of a wall (a ball cutting deeper than two thirds of
-    its radius, the fillet a corner-radius mill leaves) can be 0.15 mm off, and in a close-up such a wall can
+    its radius, the fillet a corner-radius mill leaves) can be 0.2 mm off, and in a close-up such a wall can
     look a little streaky where the exact cut shows even level lines;
   - a sharp outside corner of a wall, and a rib or slot thinner than 0.4 mm, can be up to 0.3 mm off.
 

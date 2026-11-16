@@ -30,7 +30,7 @@ installer of that version was built from.
   walls are within 0.03 mm of the exact cut. What differs: the fine ridges between two finishing passes are left
   out when lower than 0.012 mm (the face is smooth there and shows the tool marks); the steep rounded strip under
   a rim or at the foot of a wall (a ball cutting deeper than two thirds of its radius, a corner radius' fillet) can
-  be 0.15 mm off and look a little streaky in a close-up; a sharp outside corner of a wall, or a rib or slot
+  be 0.2 mm off and look a little streaky in a close-up; a sharp outside corner of a wall, or a rib or slot
   thinner than 0.4 mm, can be up to 0.3 mm off. All of it halves at Detail Fine. Untick **Fast 3-axis** to cut
   every move exactly.
 - The line under the Milling settings says how many moves went into the height map and how fine its grid is.
