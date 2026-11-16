@@ -60,7 +60,7 @@ MM = 0.001
 TILE = 32                         # cells along a tile's side (a power of two: the triangle hierarchy)
 PAD = 0.02 * MM                   # a node nobody cut lies this far above the stock's top
 TIE = 1e-9                        # heights closer than this are equal: the later move owns the node
-SNAP_STEPS = 9                    # halvings when looking for the place two surfaces meet (cell / 500)
+SNAP_STEPS = 8                    # halvings when looking for the place two surfaces meet (cell / 250)
 SNAPSHOT_BYTES = 192e6            # memory for the kept states (going back in time)
 SNAPSHOT_MIN = 64                 # ... never closer together than this many moves
 
@@ -637,51 +637,47 @@ class HeightMap:
                     Ai, Aj, Bi, Bj, pa, pb = ai[sel], aj[sel], bi[sel], bj[sel], qa[sel], qb[sel]
                     x0, y0 = xa[sel], ya[sel]
                     dx, dy = xb[sel] - x0, yb[sel] - y0
-                    cands = [pa, pb]
-                    # (the others only count where they are the lowest somewhere on the edge: tried at 3 places)
-                    us = np.repeat(np.array([0.25, 0.5, 0.75]), len(pa))
-                    x3, y3 = np.tile(x0, 3) + us * np.tile(dx, 3), np.tile(y0, 3) + us * np.tile(dy, 3)
-                    low3 = np.minimum(self.height_of(np.tile(pa, 3), x3, y3), self.height_of(np.tile(pb, 3), x3, y3))
-                    seen = [pa, pb]
+                    n = len(pa)
+                    near = [pa, pb]
                     for ni, nj in ((Ai, Aj), (Bi, Bj)):
                         for di in (-1, 0, 1):
                             for dj in (-1, 0, 1):
-                                q = ow[np.clip(ni + di, 0, top_i), np.clip(nj + dj, 0, top_j)]
-                                if any(np.array_equal(q, old) for old in seen):
-                                    continue
-                                seen.append(q)
-                                h3 = self.height_of(np.tile(q, 3), x3, y3)
-                                if np.any(h3 < low3 - TIE):
-                                    cands.append(q)
-                                    low3 = np.minimum(low3, h3)
+                                if di or dj:
+                                    near.append(ow[np.clip(ni + di, 0, top_i), np.clip(nj + dj, 0, top_j)])
+                    C = np.stack(near, axis=1)          # (edges, candidates): columns 0 and 1 are A's and B's
 
-                    def reach(q, flip):
-                        """(last place the surface is still q's, first place it is not), along the edge from A."""
-                        lo, hi = np.zeros(len(q)), np.ones(len(q))
-                        for _k in range(SNAP_STEPS):
-                            t = 0.5 * (lo + hi)
-                            u = 1.0 - t if flip else t
-                            x, y = x0 + u * dx, y0 + u * dy
-                            mine = self.height_of(q, x, y)
-                            other = np.full(len(q), np.inf)
-                            for c in cands:
-                                if c is not q:
-                                    other = np.minimum(other, self.height_of(c, x, y))
-                            on = mine <= other + TIE
-                            lo = np.where(on, t, lo)
-                            hi = np.where(on, hi, t)
-                        return (1.0 - lo, 1.0 - hi) if flip else (lo, hi)
+                    def heights(cols, u, rim=False):
+                        """The candidates' surfaces at the places ``u`` (edges, places) along the edges:
+                        (edges, places, candidates)."""
+                        m, kk = u.shape[1], cols.shape[1]
+                        x = np.repeat((x0[:, None] + u * dx[:, None]).ravel(), kk)
+                        y = np.repeat((y0[:, None] + u * dy[:, None]).ravel(), kk)
+                        q = np.repeat(cols[:, None, :], m, axis=1).ravel()
+                        return self.height_of(q, x, y, rim=rim).reshape(n, m, kk)
 
-                    def end_height(q, u_on, u_off, fallback):
-                        x, y = x0 + u_on * dx, y0 + u_on * dy
-                        ends = ~np.isfinite(self.height_of(q, x0 + u_off * dx, y0 + u_off * dy))   # its footprint ends
-                        z = np.where(ends, self.height_of(q, x, y, rim=True), self.height_of(q, x, y))
-                        return np.where(np.isfinite(z), z, fallback)
-
-                    ua, ua_off = reach(pa, False)
-                    ub, ub_off = reach(pb, True)
-                    zA = end_height(pa, ua, ua_off, za[sel])
-                    zB = end_height(pb, ub, ub_off, zb[sel])
+                    # (only the candidates that are the lowest somewhere on some edge count: tried at 3 places)
+                    probe = heights(C, np.tile(np.array([0.25, 0.5, 0.75]), (n, 1)))
+                    pair = np.minimum(probe[:, :, 0], probe[:, :, 1])
+                    keep = np.any(probe < (pair - TIE)[:, :, None], axis=(0, 1))
+                    keep[:2] = True
+                    C = C[:, keep]
+                    lo, hi = np.zeros((n, 2)), np.ones((n, 2))       # for A (from A) and for B (from B)
+                    for _k in range(SNAP_STEPS):
+                        t = 0.5 * (lo + hi)
+                        u = np.stack([t[:, 0], 1.0 - t[:, 1]], axis=1)
+                        h = heights(C, u)
+                        lowest = h.min(axis=2)
+                        on = np.stack([h[:, 0, 0], h[:, 1, 1]], axis=1) <= lowest + TIE
+                        lo = np.where(on, t, lo)
+                        hi = np.where(on, hi, t)
+                    ua, ua_off, ub, ub_off = lo[:, 0], hi[:, 0], 1.0 - lo[:, 1], 1.0 - hi[:, 1]
+                    ends = heights(C[:, :2], np.stack([ua, ua_off, ub, ub_off], axis=1))
+                    rims = heights(C[:, :2], np.stack([ua, ub], axis=1), rim=True)
+                    # (a move's surface comes to its rim's height where its footprint ends)
+                    zA = np.where(np.isfinite(ends[:, 1, 0]), ends[:, 0, 0], rims[:, 0, 0])
+                    zB = np.where(np.isfinite(ends[:, 3, 1]), ends[:, 2, 1], rims[:, 1, 1])
+                    zA = np.where(np.isfinite(zA), zA, za[sel])
+                    zB = np.where(np.isfinite(zB), zB, zb[sel])
                     one = ub - ua < 0.05                # one place: a wall or a crease
                     mid = 0.5 * (ua + ub)
                     wall = np.abs(zA - zB) > wtol
@@ -690,10 +686,13 @@ class HeightMap:
                     hA = np.where(one & ~wall, low, zA)
                     hB = np.where(one & ~wall, low, zB)
                     there = (ua < 1.0 - 1e-3) | (ub > 1e-3)      # (else: nothing changes between the two)
-                    put(stay, Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length,
-                        there & (~one | wall | (mid <= 0.5)))
+                    # a crease takes one node: the higher one (at a rim: the node on the uncut top, which has
+                    # nothing to lose; the node in the cut keeps its place on the steep face), unless the crease
+                    # is right next to the lower one
+                    a_goes = np.where(za[sel] >= zb[sel], mid <= 0.8, mid < 0.2)
+                    put(stay, Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes))
                     put(stay, Bi, Bj, x0 + uB * dx, y0 + uB * dy, hB, (1.0 - uB) * length,
-                        there & (~one | wall | (mid > 0.5)))
+                        there & (~one | wall | ~a_goes))
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
                 continue

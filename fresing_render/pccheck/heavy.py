@@ -530,7 +530,7 @@ def heavy_milling_finish(ctx):
     from ..blender import machining
     from .checks import _finish_depth, _finish_scene, _top_of
     if small():
-        xs, ys = [-30.0 + 2.0 * k for k in range(31)], [-9.0 + 1.2 * k for k in range(16)]
+        xs, ys = [-30.0 + 1.0 * k for k in range(61)], [-6.0 + 0.6 * k for k in range(21)]
     else:
         xs, ys = [-50.0 + 0.5 * k for k in range(201)], [-30.0 + 0.3 * k for k in range(201)]
     t0 = time.time()
@@ -547,7 +547,7 @@ def heavy_milling_finish(ctx):
     status = machining.status(scene)
     _check("height map" in status, f"the long program was not worked out as a height map: '{status}'")
     faces = len(stock.data.polygons)
-    depth = _top_of(stock)
+    depth = _top_of(scene, stock)
     probes = [(xs[i], ys[j]) for i in (len(xs) // 5, len(xs) // 2, 4 * len(xs) // 5)
               for j in (len(ys) // 4, len(ys) // 2, 3 * len(ys) // 4)]
     off = max(abs(depth(x, y) - _finish_depth(x, y)) for x, y in probes)

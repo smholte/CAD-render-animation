@@ -27,8 +27,8 @@ How it works
   straight move; ``mesh_at(T, moves=True)`` names for each triangle the row of the move that made it last, and
   ``mark_faces`` turns that into what the cut-face material reads (``core/toolmarks.py`` is the contract).
 
-* **Dense 3-axis programs** (task 0146): with ``Timeline(..., fast=True)`` a program of at least
-  ``FAST_MIN_MOVES`` moves that cut straight from above (the tool along one of the workpiece's axes, a bit without
+* **Dense 3-axis programs** (task 0146): with ``Timeline(..., fast=True)`` a long program (``FAST_MANY_MOVES``
+  moves, or ``FAST_MIN_MOVES`` close together) whose moves cut straight from above (the tool along one of the workpiece's axes, a bit without
   undercut that reaches above the stock) puts those moves into a height map (``core/heightmap.py``) instead of a
   boolean each; every other move is cut as before. Cuts commute, so the two are worked out side by side and
   joined tile by tile with one boolean (``_MapSide``). What comes out are closed solids like before.
@@ -1077,6 +1077,8 @@ class Timeline:
 # ---------------------------------------------------------------------------
 
 FAST_MIN_MOVES = 300              # a program with fewer moves for the height map is cut with booleans alone
+FAST_MANY_MOVES = 3000            # ... with this many or more it always uses the map (booleans: half a minute up)
+FAST_MIN_DENSITY = 0.75           # ... in between only when its passes lie close: moves per mm² the paths cover
 
 # the map's frame for a tool along each of the workpiece's axes: rows = the map's x, y, z in workpiece coordinates
 _MAP_FRAMES = {
@@ -1093,7 +1095,8 @@ class _MapSide:
     A move is a **map move** when it cuts (``Moves.cuts``), its bit has a ``heightmap.Shape`` (no undercut), the
     tool's axis is the workpiece axis most such moves share (within 2 x ``ANGLE_TOL``), and the bit's top stays at
     or above the stock's top - then the move takes away everything above its bottom, which is all a height map
-    can say. A program with fewer than ``FAST_MIN_MOVES`` of them has no map at all.
+    can say. A program has a map when it has ``FAST_MANY_MOVES`` of them, or ``FAST_MIN_MOVES`` lying close
+    together (``density``); a short or thinly spread program is quicker, and lighter, cut exactly.
 
     ``join`` turns the tiles of the boolean part (``Tile``) into the tiles of the whole: for every map tile that
     has a cut node one solid ``tile ∩ below`` (``below``: everything under the map's surface inside the map
@@ -1131,7 +1134,9 @@ class _MapSide:
         length = np.array([s.length if s is not None else 0.0 for s in shapes] + [0.0])[mk.bit]
         z0, z1 = mk.o0 @ R[2], mk.o1 @ R[2]
         sel = ok & (code == best) & (np.minimum(z0, z1) + length >= hi[2] - 1e-7)
-        if int(sel.sum()) < FAST_MIN_MOVES:
+        count = int(sel.sum())
+        if count < FAST_MIN_MOVES or (count < FAST_MANY_MOVES and cls.density(mk.o0[sel] @ R[:2].T,
+                                                                               mk.o1[sel] @ R[:2].T) < FAST_MIN_DENSITY):
             return None
         used = sorted(set(mk.bit[sel].tolist()))
         cell = hmap.cell_for(tl.detail_name, hi[0] - lo[0], hi[1] - lo[1], min(shapes[b].R for b in used))
@@ -1149,6 +1154,21 @@ class _MapSide:
         hm.set_moves([shapes[b] for b in used], np.searchsorted(used, mk.bit[sel]), mk.o0[sel] @ R[:2].T,
                      mk.o1[sel] @ R[:2].T, z0[sel], z1[sel], tag, marks[tag], slots=max(1, len(tl.paths)))
         return cls(tl, R, hm, seg_q)
+
+    @staticmethod
+    def density(a: np.ndarray, b: np.ndarray) -> float:
+        """Moves per mm² of the area their paths cover (the 1 mm squares a path runs through). A finishing raster
+        with passes 0.3 mm apart in 1.4 mm moves gives 2.3; passes 1.2 mm apart in 2 mm moves 0.5: there the map
+        would have more faces than the exact cut and cost more per frame."""
+        length = np.linalg.norm(b - a, axis=1)
+        n = np.maximum(1, np.ceil(length / (0.5 * MM)).astype(np.int64))          # a point every 0.5 mm
+        total = int(n.sum())
+        if total > 5_000_000:                               # (a very long program is dense enough to be "many")
+            return math.inf
+        f = (np.arange(total) - np.repeat(np.cumsum(n) - n, n)) / np.repeat(n, n)
+        p = np.repeat(a, n, axis=0) + f[:, None] * np.repeat(b - a, n, axis=0)
+        cells = np.unique(np.floor(p / MM).astype(np.int64), axis=0)
+        return len(a) / max(1, len(cells))
 
     @staticmethod
     def mark_classes(tl, R: np.ndarray) -> np.ndarray:
