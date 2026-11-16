@@ -129,7 +129,14 @@ The renders themselves; the take-in session (tasks/0112's report); the app's own
 - GitHub run 43773631877 (branch) green, incl. Windows: PowerShell 5 parses the window and gives 5743 s / 21600 s as
   Python. Not tested anywhere: the windows themselves on a screen, nvidia-smi on a real card, sleep / shutdown – the
   owner's PC only.
-- Runs: 2 (the branch, then the merge with main).
+- Runs: 5 on the branch + 1 on main. 1 = the branch; 3 more because main moved three times while a run went (0130,
+  0137, 0139). The 5th was cancelled: "Linux - test suite 3" passed every test but hit GitHub's 40-minute job limit
+  (21.8 → 28.4 → 38.8 → 40+ min over the merges; the demo-project tests of other lanes, not the kit – its tests are in
+  group 6). **My slip:** my command fast-forwarded main to that commit without checking the result first. main's own
+  run on it (43789574586) was then green (group 3: 25.9 min), so main was never red. Open point for the Quality lane:
+  group 3 is close to the 40-minute limit on a busy GitHub – split it (`tests/test_demo_project.py`).
+- Site-kit run on main (43789574576) green; the zip on the draft release `site-kit` (16 Nov 02:03) holds
+  `kit_window.ps1` (CRLF), `kit_run.py`, `fresing_logo.png` and the new .bat (checked by download).
 
 **Independent review:** a helper agent that did not write the code read the .ps1, .bat and `kit_run.py` (8 findings,
 all fixed): exit code 4 could not reach the .bat (→ `run_result.txt`); a PowerShell that cannot run looked like
