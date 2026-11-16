@@ -3145,6 +3145,15 @@ class FRWeb3D(bpy.types.PropertyGroup):
         name="Hide part names", default=True,
         description="On: the parts are called Part 1, Part 2 … in the file, so a customer does not see your part "
                     "numbers. Off: the parts keep the names they have in the app")
+    marine_detail: EnumProperty(
+        name="Marine detail", default="NORMAL",
+        description="How fine the marine looks (growth band, streaks, barnacles) are on the page. Normal: small page. "
+                    "Fine: pictures four times as big for these parts, so the streaks and barnacles show on a part "
+                    "as big as a turbine tower, but the file is bigger, the export slower and the page heavier on "
+                    "a phone. The panel says the size and time",
+        items=[("NORMAL", "Normal", "The marine looks' pictures as before: small file, quick export"),
+               ("FINE", "Fine", "Four times the pixels for the marine looks (pictures of 4096 px): streaks and "
+                                "barnacles on big parts; bigger file, slower export, heavier on phones")])
     animation: BoolProperty(
         name="Include animation", default=False,
         description="Puts the motion of the built animation into the file: the page plays it in a loop. Cables, "

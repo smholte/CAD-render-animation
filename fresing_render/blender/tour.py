@@ -3417,6 +3417,8 @@ def _check_web3d(scene):
     info = core.summary(data)
     _check(info["parts"] == out["parts"] > 0, f"{info['parts']} parts in the file, {out['parts']} shown")
     _check(os.path.exists(out["html"]), "the viewer page was not written")
+    w = scene.fresing.web3d                              # task 0165: Marine detail starts at Normal (the crane has no marine look)
+    _check(w.marine_detail == "NORMAL" and web3d.marine_estimate(scene) is None, "Marine detail is not Normal")
     _check(info["names"][1:3] == ["Part 1", "Part 2"], "the part names are not hidden")
     from ..core import web3d_env as env                 # task 0134: the player is in the page, with the saved views
     with open(out["html"], encoding="utf-8") as fh:

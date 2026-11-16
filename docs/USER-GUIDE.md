@@ -2568,6 +2568,17 @@ waterline as the app does. The line under the button says on how many parts and 
 big part (a tower, a monopile) gets coarser pixels – the band and the streaks show, the finest streaks and barnacles
 may not ("too big for the fine streaks and barnacles"). These parts make the export slower and the file bigger.
 
+<a id="web3d-marine"></a>
+#### Marine detail: Normal or Fine
+
+Under the note about marine looks the panel shows **Marine detail**, per export (it appears only when a look in use
+is a marine look). **Normal** is the small page. **Fine** gives these parts pictures four times as big (4096 pixels;
+the other looks stay as they are): the run-down streaks and barnacles then show on a part as big as a turbine tower,
+at a bigger file, a slower export and a page that is heavier on a phone. The panel says, before you export, how fine it
+gets and what Fine costs ("Fine: … mm per pixel, +… MB, +… s"); the line under the button suggests Fine when the
+largest part is coarser than 10 mm per pixel. Measured on a 90 m tower of 3 m radius (4-core test machine, texture
+size 256): Normal 52 mm per pixel, +0.4 MB, 15 s; Fine 11.6 mm per pixel, +2.0 MB, 146 s (so the streaks and barnacles show). Fine cuts a very long part into pieces so the 4096-pixel pictures are used fully; it is the bake time that grows most. The panel's numbers before the export are estimates.
+
 <a id="web3d-moving"></a>
 #### Cables, ropes, hoses and tracks on the page
 
