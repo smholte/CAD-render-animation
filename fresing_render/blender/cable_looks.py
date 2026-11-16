@@ -264,8 +264,10 @@ def served_props(diameter: float = 0.0, distance: float = 0.0, width: float | No
 def yarn_starts(diameter: float, yarn_pitch: float, angle: float) -> int:
     """How many yarn strands go round a served cable (signed), as ``stripes`` but up to ``YARN_STARTS_MAX``."""
     t = math.tan(angle)
-    if yarn_pitch <= 0.0 or diameter <= 0.0 or abs(t) < 1e-9:
+    if yarn_pitch <= 0.0 or diameter <= 0.0:
         return 0
+    if abs(t) < 1e-9:                           # strands along the cable: as many as we draw
+        return -YARN_STARTS_MAX if angle < 0.0 else YARN_STARTS_MAX
     return int(max(-YARN_STARTS_MAX, min(YARN_STARTS_MAX, math.floor(math.pi * diameter / (yarn_pitch * t) + 0.5))))
 
 
@@ -319,8 +321,8 @@ def bands(s, paid_out, look=None, band=None, edge: float = 0.0):
             if edge > 0.0:
                 e = max(min(edge, w), 1e-9)
                 out = np.maximum(out, np.clip((0.5 * w - dd) / e + 0.5, 0.0, 1.0))
-            else:
-                out = np.maximum(out, (dd < 0.5 * w).astype(float))
+            else:                                  # [start, start + w): the left edge is paint
+                out = np.maximum(out, ((x - (c - 0.5 * w) >= 0.0) & (x - (c - 0.5 * w) < w)).astype(float))
     return float(out) if np.ndim(out) == 0 else out
 
 
@@ -486,8 +488,14 @@ def _served_nodes(b, d: dict, color, metallic, rough, normal):
              x=x0 + 700, y=y - 1850)
     gap = b.mix("FLOAT", b_given, v["gap"], bv.outputs[1], x=x0 + 550, y=y - 2000)
     pwear = b.mix("FLOAT", b_given, v["band_wear"], bv.outputs[2], x=x0 + 550, y=y - 2150)
-    yc = b.mix("RGBA", y_given, _linear(d["yarn"]), obj(YARN_RGB, y - 2350).outputs["Color"], x=x0 + 550, y=y - 2350)
-    bc = b.mix("RGBA", b_given, _linear(d["band"]), obj(BAND_RGB, y - 2550).outputs["Color"], x=x0 + 550, y=y - 2550)
+    # a colour property that is missing reads (0, 0, 0): the library's colour then (so pure black means "the library's")
+    def colour(name, lib, yy):
+        c = obj(name, yy).outputs
+        given = m("GREATER_THAN", b.vmath("LENGTH", c["Vector"], x=x0 + 250, y=yy + 80), 1e-6, x=x0 + 400, y=yy + 80)
+        return b.mix("RGBA", given, _linear(lib), c["Color"], x=x0 + 550, y=yy)
+
+    yc = colour(YARN_RGB, d["yarn"], y - 2350)
+    bc = colour(BAND_RGB, d["band"], y - 2550)
 
     x0 = -2400
     # ---- the yarn: g = (s − paid) / yarn pitch + starts · θ

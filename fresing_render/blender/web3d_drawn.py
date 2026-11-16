@@ -115,10 +115,9 @@ def look_of(ob) -> dict | None:
         served = None
         if kind == "SERVED":                    # task 0158: the yarn and the bands (the library's where missing)
             served = cable_looks._served(got[cable_looks.LOOK], got[cable_looks.YARN], got[cable_looks.BAND])
-            given = got[cable_looks.YARN] is not None and got[cable_looks.YARN][0] > 1e-6
-            served["yarn_rgb"] = got[cable_looks.YARN_RGB] if given and got[cable_looks.YARN_RGB] else None
-            given = got[cable_looks.BAND] is not None and got[cable_looks.BAND][0] > 0.5
-            served["band_rgb"] = got[cable_looks.BAND_RGB] if given and got[cable_looks.BAND_RGB] else None
+            for key, prop in (("yarn_rgb", cable_looks.YARN_RGB), ("band_rgb", cable_looks.BAND_RGB)):
+                c = got[prop]                   # (as the nodes: missing or (0, 0, 0) = the library's colour)
+                served[key] = c if c and sum(v * v for v in c[:3]) > 1e-12 else None
         return T.look_for_page(kind, got[cable_looks.LOOK], cable_looks.defaults(kind), ral.srgb_to_linear, served)
     return None
 
