@@ -1,6 +1,6 @@
 # 0169 – The Fresing logo as the app's icon and on the splash screen
 
-**Who:** worker · **Status:** running · **Branch:** `claude/eager-pasteur-w3w05t` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.133) · **Branch:** `claude/eager-pasteur-w3w05t` (the web session's branch)
 **Started by:** lead, 16 Nov 2026 · **Model:** Opus · effort Medium (Windows-only code)
 **Area:** `installer/` (Install / Uninstall scripts), `app_template/fresing_render/` (splash, start-up), a new icon
 file, a small Windows-only start-up hook in the extension (window/taskbar icon), its tests, guide line, CHANGELOG
@@ -84,10 +84,68 @@ Owner's question (16 Nov): "does the Fresing Render app icon show as the Fresing
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16 Nov 2026.
 
 **What changed:**
+- **Logo pack used** (the owner's `Logo.zip`, attached in the chat): `fresing-app-icon_512px.png` (icon, 32 px and up)
+  and `fresing-logo_full_reversed_2400px.png` (splash; its green line is the accent bar) are copied to `tools/brand/`
+  as the maker's inputs. Nothing else from the pack is committed (not the `OLD/` folder, no other sizes).
+- `tools/make_app_icon.py` (re-runnable, `--check`): writes `fresing_render/brand/fresing-render.ico` (16, 20, 24, 32,
+  40, 48, 64, 256; 256 as PNG, the rest 32-bit bitmaps) and `app_template/fresing_render/splash.png` (1000 × 500).
+  16/20/24 px are drawn on whole pixels: stem, green bar and middle bar at least 2 px, a 1 px gap under the bar.
+  Blender 5.2.3 reads only `splash.png` (its binary has no `splash_2x` string): no `_2x` file.
+- `fresing_render/appicon.py` (new, Windows only at run time): shortcut icon + AppUserModelID `Fresing.Render` through
+  COM (IShellLinkW / IPropertyStore), the window icon (WM_SETICON big + small and the window class icons, so later
+  windows of Blender's class – render window, preferences – have it too), the ID on the process and on each window with
+  the relaunch command/icon/name (a pin made from the running window pins Fresing Render). Start-up hook from the
+  extension's `register()`: only on Windows, not in background runs, only when started with the Fresing Render app
+  template, not with `FRESING_NO_APPICON`; every fault is one console line.
+- **Existing installs (item 4): refreshed by the app**, no "run Install.bat again". At start (in a thread) the app copies
+  the icon to `<install folder>\fresing-render.ico` and gives every `.lnk` on the Desktop, in Start menu > Fresing
+  Render and among the **pinned taskbar icons** whose target lies inside the install folder the Fresing icon; the ones
+  that start the app (`--app-template fresing_render`) get the ID too. A shortcut pointing anywhere else is never
+  touched; a right one is not written again.
+- Installer: copies the icon into the install folder, every shortcut (incl. the user guide) points there, then a
+  background Blender step sets the ID on the app shortcuts with the same code. The PC-check shortcuts the app makes
+  itself (`pccheck/ops.py`) use the icon too. Uninstall: the icon lives in the install folder, which is removed; the CI
+  now also fails when any "Fresing Render*.lnk" is left on the Desktop.
+- Guide (Install, step 3), CHANGELOG.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:**
+- Linux (web machine): `tests/test_appicon.py` (19: ico sizes/format, sharp F at 16/20/24, 256 = the pack's icon,
+  splash, files up to date, which shortcut gets what, never outside the install folder, start-up gate, installer and
+  PC-check shortcut text), `test_pccheck.py`, `test_updates.py`: pass.
+- Icon crops looked at: 16 px reads as a white F with a green bar on the dark rounded square, no grey blur; 32–64 px
+  are the pack's icon averaged down (no ringing).
+- Splash in the real Blender 5.2.3 app (Linux, xvfb): logo, "Fresing Render", subtitle; the version label stays clear.
+- GitHub's Windows job (`tools/ci_windows_install.ps1` 3b + `tools/appicon_test.py`): after Install.bat every shortcut's
+  `IconLocation` read back with WScript.Shell = the icon file, app shortcuts' ID read with Shell.Application; then two
+  shortcuts are turned back into the pre-0169 kind (Blender icon, no ID, icon file deleted), the app's refresh runs and
+  everything is read back again; on a window of its own the icon (WM_GETICON) and the window's ID are read back, and the
+  process ID. No Blender window exists there (background), so the hook's timer itself is not run on GitHub.
+- Independent review of the Windows code by a helper agent that did not write it (read-only): no crash-class fault in
+  the COM/ctypes code (vtable indices, GUIDs, PROPVARIANT, Release/CoInitialize balance checked). Fixed after it: the
+  icon file was copied by two writers at the first start after an update (now once, on the main thread, unique temp
+  name); only this thread's windows are taken (a console window could block); an empty icon path is never written;
+  a pinned plain-Blender icon is left alone (only pins that start the app are changed). Left: the hook's GUI timer is
+  not run on GitHub (no Blender window there); an old pin may show as a second button until the next sign-in; Windows'
+  own window properties are not cleared at close (harmless at exit).
+
+**GitHub runs:** 5 full runs. 1 real failure (my Windows test also judged the runner's own pinned Edge/Explorer icons,
+which the app rightly leaves alone; fixed), 3 version clashes (0166, 0135, 0156 merged first: renumbered 0.2.130 →
+0.2.131 → 0.2.132 → 0.2.133). Green branch run 43962917731; main fast-forwarded after merging two task-list commits.
 
 **Open points / follow-up tasks:**
+- Only the owner's PC can show the taskbar and a pinned icon for real (steps for the owner below).
+- Windows keeps an old pinned icon's picture in its icon cache; unpin + pin again fixes it (CHANGELOG and guide say so).
+
+**Steps for the owner (after Update now):**
+1. Close Fresing Render if it is open, then start it from the Desktop shortcut **Fresing Render**.
+2. Wait until the Fresing panel shows. Look at the **taskbar**: the running app shows the green and white Fresing F.
+3. Close the app. Look at the **Desktop**: "Fresing Render", "Fresing Render - PC check" and "(heavy)" show the Fresing
+   F (if not at once, press F5 on the Desktop).
+4. **Start menu** > Fresing Render folder: all its entries show the Fresing F.
+5. Start the app again, right-click its taskbar icon > **Pin to taskbar**, close the app: the pinned icon is the F; click
+   it: Fresing Render starts (not plain Blender). If you had pinned it before and it still shows Blender's logo: right-click
+   > Unpin from taskbar, start the app, pin again.
+6. The start-up screen shows the Fresing logo with a green line under it, "Fresing Render" and the subtitle.

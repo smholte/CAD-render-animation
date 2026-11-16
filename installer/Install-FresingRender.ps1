@@ -278,13 +278,20 @@ else:
     print("Fresing Render is not installed in this Blender")
 "@ | Set-Content -LiteralPath $Launcher -Encoding ASCII
 
+# The Fresing icon (task 0169): it ships inside the extension; a copy in the install folder does not move when an
+# update replaces the extension, so every shortcut points there (the app copies it again at start when it changed).
+$IconFile = Join-Path $InstallDir "fresing-render.ico"
+$ShippedIcon = Join-Path (Split-Path -Parent $Manifest) "brand\fresing-render.ico"
+if (Test-Path -LiteralPath $ShippedIcon) { Copy-Item -LiteralPath $ShippedIcon -Destination $IconFile -Force }
+$IconLoc = if (Test-Path -LiteralPath $IconFile) { "$IconFile,0" } else { "$BlenderExe,0" }
+
 $Shell = New-Object -ComObject WScript.Shell
 function MakeShortcut($path, $target, $arguments, $description) {
     $lnk = $Shell.CreateShortcut($path)
     $lnk.TargetPath = $target
     $lnk.Arguments = $arguments
     $lnk.WorkingDirectory = $BlenderDir
-    $lnk.IconLocation = "$BlenderExe,0"
+    $lnk.IconLocation = $IconLoc
     $lnk.Description = $description
     $lnk.Save()
 }
@@ -320,12 +327,33 @@ $GuideLnk = Join-Path $StartMenu "Fresing Render - User guide.lnk"
 if (Test-Path -LiteralPath $Guide) {
     $lnk = $Shell.CreateShortcut($GuideLnk)
     $lnk.TargetPath = $Guide
+    $lnk.IconLocation = $IconLoc
     $lnk.Description = "How to use Fresing Render, step by step"
     $lnk.Save()
 } else {
     Write-Host "   (no user guide in this version)"
     Remove-Item -LiteralPath $GuideLnk -Force -ErrorAction SilentlyContinue
 }
+
+# The app's ID on the shortcuts that start the app (task 0169): the running app sets the same ID, so the taskbar
+# groups its window under the Fresing icon and a pinned Fresing Render stays Fresing. WScript.Shell cannot set it:
+# the extension's own code does (fresing_render/appicon.py), the same that refreshes older installs at start.
+$ShortcutScript = Join-Path $InstallDir "set_shortcuts.py"
+@"
+import importlib, sys, addon_utils
+folder, desktop, programs, appdata = (sys.argv[sys.argv.index("--") + 1:] + ["", "", "", ""])[:4]
+for mod in addon_utils.modules():
+    if mod.__name__.endswith("fresing_render"):
+        icon = importlib.import_module(mod.__name__ + ".appicon")
+        done = icon.refresh_shortcuts(folder, icon.ensure_icon(folder), icon.shortcut_paths(desktop, programs, appdata))
+        print("Shortcuts: " + ("; ".join(done) if done else "already right"))
+        break
+else:
+    sys.exit("Fresing Render is not installed in this Blender")
+"@ | Set-Content -LiteralPath $ShortcutScript -Encoding ASCII
+$ok = Invoke-Blender @("--background", "--python-exit-code", "1", "--python", $ShortcutScript, "--",
+                       $InstallDir, $Desktop, (Split-Path -Parent $StartMenu), $env:APPDATA) "Setting the app's ID on the shortcuts" -AllowFailure
+if (-not $ok) { Write-Host "   (the shortcuts keep their icon; the app sets their ID at its next start)" -ForegroundColor Yellow }
 
 Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing Render $ver installed $(Get-Date -Format s)`r`nBlender $BlenderVersion`r`nUpdates from: $UpdateFrom"
 

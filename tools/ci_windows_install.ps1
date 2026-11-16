@@ -144,6 +144,8 @@ if ($Uninstall) {
     if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk")) { Problem "Uninstall left the Desktop shortcut" }
     if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render - PC check.lnk")) { Problem "Uninstall left the PC check shortcut" }
     if (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render")) { Problem "Uninstall left the Start-menu folder" }
+    $leftLinks = @(Get-ChildItem -LiteralPath $Desktop -Filter "Fresing Render*.lnk" -ErrorAction SilentlyContinue)
+    if ($leftLinks) { Problem "Uninstall left on the Desktop: $($leftLinks.Name -join ', ')" }
     if ($r.Text -notmatch "Fresing Render removed") { Problem "Uninstall did not say 'Fresing Render removed'" }
     $Summary += "| Uninstall.bat | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
 } else {
@@ -311,6 +313,69 @@ if ($Uninstall) {
         foreach ($k in $checks.Keys) {
             if (-not $checks[$k]) { Problem "missing after install: $k" }
             $Summary += "| $k | $(if ($checks[$k]) { '✅' } else { '❌' }) | |"
+        }
+
+        # ---- 3b. the Fresing icon (task 0169) ------------------------------------------------
+        $IconFile = Join-Path $InstallDir "fresing-render.ico"
+        $sh = New-Object -ComObject WScript.Shell
+        $shellApp = New-Object -ComObject Shell.Application
+        function Read-Lnk([string]$path) {
+            $l = $sh.CreateShortcut($path)
+            $id = ""
+            try { $id = "" + $shellApp.NameSpace((Split-Path -Parent $path)).ParseName((Split-Path -Leaf $path)).ExtendedProperty("System.AppUserModel.ID") } catch { }
+            return @{ Icon = $l.IconLocation; Target = $l.TargetPath; Args = $l.Arguments; Id = $id }
+        }
+        function Our-Links() {
+            @(Get-ChildItem -LiteralPath $Desktop -Filter "Fresing Render*.lnk" -ErrorAction SilentlyContinue) +
+            @(Get-ChildItem -LiteralPath (Join-Path $Programs "Fresing Render") -Filter "*.lnk" -ErrorAction SilentlyContinue)
+        }
+        function Check-Links([string]$when) {
+            $links = Our-Links
+            $bad = @()
+            foreach ($f in $links) {
+                $r = Read-Lnk $f.FullName
+                $iconOk = ($r.Icon -ieq "$IconFile,0") -and ($r.Icon -notmatch 'blender(-launcher)?\.exe')
+                if (-not $iconOk) { $bad += "$($f.Name): icon '$($r.Icon)'" }
+                if ($r.Args -match '--app-template fresing_render' -and $r.Id -ne "Fresing.Render") { $bad += "$($f.Name): app ID '$($r.Id)'" }
+                Write-Host "   $($f.Name): icon '$($r.Icon)', app ID '$($r.Id)'"
+            }
+            $ok = ($links.Count -ge 6) -and (-not $bad) -and (Test-Path -LiteralPath $IconFile)
+            if (-not $ok) { Problem "icon ($when): $($links.Count) shortcuts, icon file $(Test-Path -LiteralPath $IconFile); $($bad -join '; ')" }
+            $script:Summary += "| Fresing icon + app ID on every shortcut ($when, $($links.Count)) | $(if ($ok) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
+        }
+        Note "Fresing icon on the shortcuts (Install.bat)"
+        Check-Links "after Install.bat"
+
+        # an install from before 0169: Blender's icon, no app ID, no icon file; the app's start-up refresh fixes it
+        if ($BlenderExe) {
+            Note "An older install's shortcuts: refreshed by the app's code (tools/appicon_test.py)"
+            foreach ($old in @((Join-Path $Desktop "Fresing Render.lnk"), (Join-Path $Programs "Fresing Render\Fresing Render - Self test.lnk"))) {
+                $r = Read-Lnk $old
+                Remove-Item -LiteralPath $old -Force
+                $l = $sh.CreateShortcut($old)
+                $l.TargetPath = $r.Target; $l.Arguments = $r.Args; $l.WorkingDirectory = $BlenderExe.DirectoryName
+                $l.IconLocation = "$($BlenderExe.FullName),0"; $l.Save()
+            }
+            Remove-Item -LiteralPath $IconFile -Force -ErrorAction SilentlyContinue
+            $res = Join-Path $OutDir "appicon_test.json"
+            $script = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "tools\appicon_test.py"
+            $log = Join-Path $OutDir "appicon_test.log"
+            $t0 = Get-Date
+            $p = Start-Process -FilePath $BlenderExe.FullName -ArgumentList @("--background", "--python-exit-code", "1", "--python",
+                    "`"$script`"", "--", "`"$res`"") -NoNewWindow -PassThru -RedirectStandardOutput $log `
+                    -RedirectStandardError (Join-Path $OutDir "appicon_test.stderr.log")
+            $null = $p.Handle
+            if (-not $p.WaitForExit(5 * 60 * 1000)) { & taskkill /T /F /PID $p.Id | Out-Null; Problem "appicon_test.py did not finish in 5 minutes" }
+            Get-Content -LiteralPath $log | ForEach-Object { Write-Host "   $_" }
+            if (-not (Test-Path -LiteralPath $res)) { Problem "appicon_test.py wrote no results" }
+            else {
+                foreach ($c in (Get-Content -LiteralPath $res -Raw -Encoding utf8 | ConvertFrom-Json).checks) {
+                    $Summary += "| Icon: $($c[0]) | $(if ($c[1]) { '✅' } else { '❌ ' + $c[2] }) | |"
+                    if (-not $c[1]) { Problem "icon: $($c[0]) - $($c[2])" }
+                }
+            }
+            $Summary += "| Icon: older install refreshed + window checks | | $([math]::Round(((Get-Date) - $t0).TotalSeconds)) s |"
+            Check-Links "older install after the app's refresh"
         }
 
         # ---- 4. the self-test, started exactly like its Start-menu shortcut -------------------
