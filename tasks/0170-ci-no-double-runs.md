@@ -79,10 +79,52 @@ not a second full run of 23–28 min. And a full run is shorter because no pytes
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16–17 Nov 2026, branch `claude/jolly-dijkstra-0zzdgh`. No subagents (a small,
+well-tested change in one file; the replay against the real runs served as the independent check).
+
+**Cause (precheck logs of the four runs, confirmed):** `before` = main's old head, `green_base()` walked main's first
+parents only, so the green branch commit under "merge main + report" was never looked at:
+- 43894557321 `3c63201` – "code changed since b551640" (main's last green commit before 0155's code; 0155's `ecd603d` ran green)
+- 43899493566 `9df1f9d` – "code changed since 3c63201" (0160's `71d79cf` ran green)
+- 43913541189 `70c3e97` – "code changed since 0ee069d" (0154's `79e2042` ran green)
+- 43922154105 `7cea408` – "code changed since 70c3e97" (0157's `1ba81ca` ran green)
+The other path (report pushed while a run was still going) did not occur in the four.
 
 **What changed:**
+- `tools/ci_precheck.py` `decide()`: candidates = every commit the push brings (`before..sha`, all parents, newest 40),
+  then the old head and its 9 first parents. Each candidate whose diff to the pushed commit is documents/version
+  lines only (git, no API) is asked about its runs (at most 12): a finished run with build + verdict green
+  (`run_is_proven`) gives **docs**; red / cancelled / reuse-only runs count for nothing. A *docs* run still going is
+  waited for (30 s steps, ≤ 6 min); a *full* run still going is not (it would cost more than it saves). The reason text
+  names the green commit and the files, or for full the candidates it rejected. `has_green_run`/`green_base` removed
+  (only users were here).
+- `tests/test_ci_tools.py`: 10 new tests on real little git repositories with a fake API: merge of main + report,
+  report on a fast-forward (branch run proves it; reuse-only does not), main moved by TASKS.md only, a merge bringing
+  other code (full), candidate red / cancelled / full run going / reuse only (full, no waiting), a docs run still going
+  (waits, then docs; never ends → full after 6 min), version line only (docs) vs another line in `__init__.py` (full).
+- `tools/ci_replay_mode.py`: replays `decide()` for past runs against the real history and runs (runs started after
+  the replayed one hidden, runs still going then shown as going).
+- `tools/ci_times.json` re-recorded from runs 43954671134, 43958043514, 43962377331 (slowest of the 3 per file).
+- CLAUDE.md sections 2 and 5.
 
-**Tested and measured** (name the machine and the model):
+**Replay of the four runs** (`python3 tools/ci_replay_mode.py 43894557321 43899493566 43913541189 43922154105`):
+- 43894557321: then full → now **docs** – only documentation since `ecd603d` (proven green): TASKS.md, tasks/0155…, tasks/0166…
+- 43899493566: then full → now **docs** – since `71d79cf`: TASKS.md, tasks/0154…
+- 43913541189: then full → now **docs** – since `79e2042`: TASKS.md, tasks/0154…
+- 43922154105: then full → now **docs** – since `1ba81ca`: tasks/0154…, tasks/img/0157_people_meet.mp4
+
+**Groups (planned by `ci_groups.py`, slowest of last 3 runs per file):**
+- before: pytest 1–9 all ~16.0 min; demo 1–4 ~9.1 / 9.6 / 10.0 / 10.1 min
+- after: pytest 1–9 all ~13.8 min; demo 1–4 ~13.7 / 14.7 / 14.1 / 14.6 min (no group > 1.2 × median)
+- real in run 43962377331: pytest 10.2–15.4 min, demo 10.2–19.4 min, Windows 22.0 min (the run's longest job).
+- One file alone is longer than a group should be: **`tests/test_demo_clash.py` 13.7 min** (and `test_demo_clash_b.py`
+  11.4 min) – they were ~9 min in task 0108. Splitting them further = a follow-up (Clash/demo lane or 0171).
+  Next longest: `test_site_projects.py` 7.5, `test_render_kit.py` 7.3, `test_video_labels.py` 6.9 min.
+
+**Tested and measured:** `tests/test_ci_tools.py` 43 passed locally (web session, 4 cores). GitHub: see runs below.
+
+**Runs:** RUNS_PLACEHOLDER
 
 **Open points / follow-up tasks:**
+- `test_demo_clash.py` / `_b.py` have grown to 11–14 min: the demo groups now set the length after Windows.
+- Not watched: the next two other tasks' releases (the lead checks them; their precheck line names the green commit).
