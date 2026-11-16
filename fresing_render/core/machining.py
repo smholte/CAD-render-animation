@@ -1089,6 +1089,11 @@ _MAP_FRAMES = {
 }
 
 
+KEEP_NOTHING = 1e-15              # m³ (0.000001 mm³): less of the finished part than this over the map is nothing
+THIN_OF_SIDES = 2.0 / 3.0         # the map's thinning: this x how far the exact cut's many-sided bit lies inside
+#                                   the round one (with that the two are at most 0.03 mm apart up to a Ø10 bit)
+
+
 class _MapSide:
     """The height-map part of a timeline: which moves it takes, the map, and how its tiles are joined with the
     solids the booleans made.
@@ -1151,10 +1156,14 @@ class _MapSide:
         span = hmap.TILE * cell
         # (the nodes a little off the round numbers CAM programs use: a wall that runs exactly through a row of
         # nodes has them inside and outside the cut by rounding, one this way, the next that way)
+        # (task 0167: the mesh is thinned to two thirds of how far the exact cut's many-sided bit lies inside
+        # the round one - Ø10 at Normal 0.010 mm, Ø6 0.006 -, never finer than the detail level's tolerance)
+        seg = detail(tl.detail_name)["seg"]
+        thin = THIN_OF_SIDES * smallest * (1.0 - math.cos(math.pi / seg))
         hm = hmap.HeightMap(lo[0] - 2.3713 * cell, lo[1] - 2.6181 * cell, cell,
                             int(math.ceil((hi[0] - lo[0] + 5 * cell) / span)),
                             int(math.ceil((hi[1] - lo[1] + 5 * cell) / span)),
-                            top=hi[2], bottom=lo[2] - 1 * MM, tol=tl.tol)
+                            top=hi[2], bottom=lo[2] - 1 * MM, tol=tl.tol, thin=thin)
         seg_q = np.full(n, -1, dtype=np.int64)
         seg_q[sel] = np.arange(int(sel.sum()))
         for s in tl.segs:
@@ -1163,6 +1172,11 @@ class _MapSide:
         marks = cls.mark_classes(tl, R)
         hm.set_moves([shapes[b] for b in used], np.searchsorted(used, mk.bit[sel]), mk.o0[sel] @ R[:2].T,
                      mk.o1[sel] @ R[:2].T, z0[sel], z1[sel], tag, marks[tag], slots=max(1, len(tl.paths)))
+        keep = tl.wp.first[0].keep
+        if keep is not None:                            # (task 0167: the map goes just under the finished part)
+            km = keep.to_mesh()
+            hm.set_part(hmap.top_of(np.asarray(km.vert_properties[:, :3], float) @ R.T, np.asarray(km.tri_verts),
+                                    hm.xs, hm.ys))
         return cls(tl, R, hm, seg_q)
 
     @staticmethod
@@ -1241,12 +1255,14 @@ class _MapSide:
         self.columns[(J, I)] = (serial, solid)
         return solid
 
-    def _keep_piece(self, keep, below, J: int, I: int):   # noqa: E741
-        """What of the finished part the map would have cut away inside a map tile (the part of it above the
-        map's surface): it stays. Its faces are named after the move that owns the map there - the move that was
-        stopped at the finished part, as a boolean cut that stops there names them. (Where nothing was cut the
-        block's own faces show: they come with the block.)"""
-        part = (keep ^ self._column(J, I)) - below
+    def _keep_piece(self, keep, J: int, I: int):   # noqa: E741
+        """The finished part inside a map tile's column (``_piece`` adds what of it is over the map's surface: where
+        the map went clearly under the part, the part's faces show; where it came down onto the part it lies a
+        little over it, ``HeightMap._lift``, so the two surfaces never lie on each other). Its faces are
+        named after the move that owns the map there - the move that was stopped at the finished part, as a
+        boolean cut that stops there names them. (Where nothing was cut the block's own faces show: they come
+        with the block.)"""
+        part = keep ^ self._column(J, I)
         if part.is_empty():
             return None
         m = part.to_mesh()
@@ -1276,11 +1292,12 @@ class _MapSide:
         if hit is not None and hit[0] is t.solid and hit[1] == serial:
             return hit[2]
         t0 = time.perf_counter()
+        kept = self._keep_piece(t.keep, J, I) if t.keep is not None else None
         solid = t.solid ^ below
-        if t.keep is not None:
-            kept = self._keep_piece(t.keep, below, J, I)
-            if kept is not None:
-                solid = solid + kept
+        if kept is not None:
+            over = kept - below                        # the part over the map's surface: it stays
+            if over.volume() >= KEEP_NOTHING:          # (task 0167: else the part lies under the map's surface)
+                solid = solid + over
         st = self.tl.stats
         st.ops += 1
         st.seconds += time.perf_counter() - t0
