@@ -75,8 +75,8 @@
     for (i = 0; i < n; i++) {
       for (c = 0; c < 3; c++) {
         var v = a.lo[i * 3 + c];
-        if (k > 1 && a.step[i] > 0) {
-          var qa = a.q[(i * k + ka) * 3 + c], qb = a.q[(i * k + kb) * 3 + c];
+        if (k > 1 && a.step[i] > 0) {           // q: x, y, z, s per point, moment after moment
+          var qa = a.q[(ka * n + i) * 4 + c], qb = a.q[(kb * n + i) * 4 + c];
           v += a.step[i] * (qa * (1 - w) + qb * w);
         }
         p[i * 3 + c] = v;
@@ -90,7 +90,7 @@
     } else if (a.slo) {
       for (i = 0; i < n; i++) {
         var sv = a.slo[i];
-        if (k > 1 && a.sq && a.sstep[i] > 0) sv += a.sstep[i] * (a.sq[i * k + ka] * (1 - w) + a.sq[i * k + kb] * w);
+        if (k > 1 && a.sstep && a.sstep[i] > 0) sv += a.sstep[i] * (a.q[(ka * n + i) * 4 + 3] * (1 - w) + a.q[(kb * n + i) * 4 + 3] * w);
         s[i] = sv;
       }
     } else {
@@ -185,8 +185,8 @@
     if (a.nq && !a.trim) {
       var na = [0, 0, 0], nb = [0, 0, 0];
       for (i = 0; i < m; i++) {
-        octDecode(a.nq[(i * k + ka) * 2], a.nq[(i * k + ka) * 2 + 1], na, 0);
-        octDecode(a.nq[(i * k + kb) * 2], a.nq[(i * k + kb) * 2 + 1], nb, 0);
+        octDecode(a.nq[(ka * this.n + i) * 2], a.nq[(ka * this.n + i) * 2 + 1], na, 0);
+        octDecode(a.nq[(kb * this.n + i) * 2], a.nq[(kb * this.n + i) * 2 + 1], nb, 0);
         for (c = 0; c < 3; c++) nr[i * 3 + c] = na[c] * (1 - w) + nb[c] * w;
         orth(nr, tg, i * 3);
       }
@@ -249,7 +249,7 @@
   };
 
   var FRTubes = {
-    KEYS: ['times', 'lo', 'step', 'q', 'n0', 's0', 'pay_t', 'pay', 'trim_t', 'trim', 'trim_n0', 's', 'slo', 'sstep', 'sq', 'nq'],
+    KEYS: ['times', 'lo', 'step', 'q', 'n0', 's0', 'pay_t', 'pay', 'trim_t', 'trim', 'trim_n0', 's', 'slo', 'sstep', 'nq'],
     make: function (spec, arrays) { return new Tube(spec, arrays); },
     seek: seek
   };

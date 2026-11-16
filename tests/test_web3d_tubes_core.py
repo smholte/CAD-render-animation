@@ -120,10 +120,13 @@ def test_thin_node_turning_part():
 def test_pack_and_octahedral():
     rng = np.random.default_rng(7)
     p = rng.normal(size=(5, 30, 3)) * 0.01 + np.linspace(0, 20, 30)[None, :, None]
-    lo, step, q = T.pack(p)
+    sa = np.linspace(0, 300, 30)[None] + rng.normal(size=(5, 30)) * 0.01
+    lo, step, slo, sstep, q = T.pack(p, sa)
+    assert q.shape == (5, 30, 4) and q.dtype == np.uint16             # moment after moment, x y z s
     back = T.unpack(lo, step, q, 5)
     assert np.abs(back - p).max() <= step.max() * 0.51 + 4e-6          # (lo is float32: 2e-6 at 20 m)
-    lo1, step1, q1 = T.pack(p[:1])
+    assert np.abs(T.unpack_s(slo, sstep, q, 5) - sa).max() <= sstep.max() * 0.51 + 4e-5
+    lo1, step1, _sl, _ss, q1 = T.pack(p[:1])
     assert q1 is None and np.abs(T.unpack(lo1, step1, q1, 1) - p[:1]).max() < 1e-5
     n = rng.normal(size=(500, 3))
     n /= np.linalg.norm(n, axis=1)[:, None]
@@ -134,9 +137,9 @@ def _spec_and_arrays():
     """A small moving tube in the file's form (two kept moments, its own lengths, paid out metres)."""
     a = helix(30)
     b = helix(30, r=0.6)
-    lo, step, q = T.pack(np.stack([a, b]))
+    lo, step, _slo, _sstep, q = T.pack(np.stack([a, b]))
     spec = {"v": 1, "n": 30, "k": 2, "sides": 8, "r": 0.02, "unit": 1.0}
-    arrays = {"times": np.array([0.0, 2.0]), "lo": lo, "step": step, "q": q.reshape(-1, 3),
+    arrays = {"times": np.array([0.0, 2.0]), "lo": lo, "step": step, "q": q.reshape(-1, 4),
               "n0": np.array([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]), "s0": np.array([0.0, 0.5]),
               "pay_t": np.array([0.0, 2.0]), "pay": np.array([0.0, 4.0])}
     return spec, arrays
@@ -161,7 +164,14 @@ def test_javascript_twin_gives_the_same():
     sarr = {"lo": p, "s": s, "n0": np.array([[0.0, 0.0, 1.0]]), "s0": s[:1], "trim_t": np.array([0.0, 2.0]),
             "trim": np.array([[s[5], s[30]], [s[12], s[20] + 0.01]]),
             "trim_n0": np.array([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]])}
-    jobs = [(spec, arrays), (spool, sarr)]
+    # its own lengths in the 4th slot, the app's ring turns per point (nq), short pieces looked past (tmin)
+    own = dict(spec, tmin=0.05)
+    lo, step, slo, sstep, q = T.pack(np.stack([helix(30), helix(30, r=0.6)]), np.stack([np.linspace(0, 3, 30),
+                                                                                       np.linspace(1, 5, 30)]))
+    tg = np.stack([T.tangents(helix(30)), T.tangents(helix(30, r=0.6))])
+    nq = T.oct_encode(T.transport_many(tg, np.array([[1.0, 0, 0], [0, 1.0, 0]])))
+    oarr = dict(arrays, lo=lo, step=step, q=q.reshape(-1, 4), slo=slo, sstep=sstep, nq=nq.reshape(-1, 2))
+    jobs = [(spec, arrays), (spool, sarr), (own, oarr)]
     times = [0.0, 0.3, 1.0, 1.7, 2.0, 3.0]
     payload = {"jobs": [[sp, {k: np.asarray(v, float).ravel().tolist() for k, v in ar.items()}] for sp, ar in jobs],
                "ts": times}

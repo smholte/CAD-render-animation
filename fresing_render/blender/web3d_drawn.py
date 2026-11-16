@@ -427,18 +427,24 @@ def tube_spec(gltf, it: Item, times) -> dict | None:
         del parts
         keep = T.thin_frames(x, tol, times) if len(frames) > 1 else np.arange(1)
         del x
-        lo, step, q = T.pack(pts[keep])
+        lo, step, slo, sstep, q = T.pack(pts[keep], sa[keep] if own_s else None)
         spec.update(n=int(pts.shape[1]), k=int(len(keep)))
         if len(keep) > 1:
             spec["times"] = acc(times[keep].astype(np.float32), "SCALAR")
             spec["step"] = acc(step, "SCALAR")
-            spec["q"] = gltf.accessor(q.reshape(-1, 3), "VEC3", core.USHORT)
+            # x, y, z (and s) as 16-bit numbers, moment after moment
+            spec["q"] = gltf.accessor(q.reshape(-1, 4), "VEC4", core.USHORT, pack=True)
             spec["tmin"] = float(32.0 * float(step.max()))          # pieces shorter than that: looked past
         spec["lo"] = acc(lo, "VEC3")
         spec["n0"] = acc(n0[keep].astype(np.float32), "VEC3")
         spec["s0"] = acc(s0[keep].astype(np.float32), "SCALAR")
-        # the ring's turn: carried along by the page from the first one, unless that is off somewhere (a line with
-        # pieces shorter than the 16-bit points can carry the direction of: a cable piled on the seabed)
+        if own_s:
+            spec["slo"] = acc(slo, "SCALAR")
+            if len(keep) > 1:
+                spec["sstep"] = acc(sstep, "SCALAR")
+        # the ring's turn: carried along by the page from the first one, unless that is more than TURN_TOL off
+        # somewhere (a line with pieces shorter than its 16-bit points can carry the direction of: a cable piled on
+        # the seabed); it only turns the looks' pattern round the cable
         back = T.unpack(lo, step, q, len(keep))
         tmin = float(spec.get("tmin", 0.0))
         tg = np.stack([T.tangents(b, tmin) for b in back])
@@ -446,16 +452,10 @@ def tube_spec(gltf, it: Item, times) -> dict | None:
         own = T.oct_decode(np.stack([frames[i][4] for i in keep]))
         own -= tg * (own * tg).sum(axis=2, keepdims=True)
         own /= np.maximum(np.linalg.norm(own, axis=2, keepdims=True), 1e-300)
-        off = float(np.linalg.norm(carried - own, axis=2).max()) * it.radius
-        if off > tol:
-            spec["nq"] = gltf.accessor(np.ascontiguousarray(
-                np.stack([frames[i][4] for i in keep]).transpose(1, 0, 2)).reshape(-1, 2), "VEC2", core.SHORT)
-        if own_s:
-            slo, sstep, sq = T.pack_s(sa[keep])
-            spec["slo"] = acc(slo, "SCALAR")
-            if sq is not None:
-                spec["sstep"] = acc(sstep, "SCALAR")
-                spec["sq"] = gltf.accessor(sq.reshape(-1), "SCALAR", core.USHORT)
+        off = float(np.linalg.norm(carried - own, axis=2).max())
+        if off > T.TURN_TOL and it.look is not None:
+            spec["nq"] = gltf.accessor(np.ascontiguousarray(np.stack([frames[i][4] for i in keep])).reshape(-1, 2),
+                                       "VEC2", core.SHORT, pack=True)
         channel("pay", pay, T.S_TOL)
         return spec
     # SPOOL: the whole wound path once, its cut per frame

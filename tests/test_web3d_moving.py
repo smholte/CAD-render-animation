@@ -29,8 +29,7 @@ from fresing_render.core import web3d as core, web3d_env as env, web3d_tubes as 
 DATA = os.path.join(HERE, "data")
 NODE = shutil.which("node")
 TUBES_JS = os.path.join(core.WEB_DIR, env.TUBES_FILE)
-KEYS = ("times", "lo", "step", "q", "n0", "s0", "pay_t", "pay", "trim_t", "trim", "trim_n0", "s", "slo", "sstep",
-        "sq", "nq")
+KEYS = ("times", "lo", "step", "q", "n0", "s0", "pay_t", "pay", "trim_t", "trim", "trim_n0", "s", "slo", "sstep", "nq")
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -73,7 +72,7 @@ def arrays(doc, binary, spec) -> dict:
         v = spec.get(k)
         if isinstance(v, int) and not isinstance(v, bool):
             a[k] = core.accessor_array(doc, binary, v)
-    for k in ("times", "step", "s0", "pay_t", "pay", "trim_t", "s", "slo", "sstep", "sq"):
+    for k in ("times", "step", "s0", "pay_t", "pay", "trim_t", "s", "slo", "sstep"):
         if k in a:
             a[k] = a[k].reshape(-1)
     return a
@@ -210,6 +209,11 @@ def test_spool_ropes_cables_and_their_looks(tmp_path):
     assert "pay_t" in specs["POWER CABLE"]
     w = compare_tubes(sc, job, doc, binary, [1, 57, 101, 160, 201])
     assert w["centre"] < 0.002 and w["ring"] < 0.003 and w["s"] < 0.002 and w["pay"] < 0.002, w
+    # a compressed file (meshopt, as big models are): the same shapes
+    jobc, outc, docc, binc = export(sc, tmp_path, "packed.glb", animation=True, compress=True)
+    assert outc["compressed"] and outc["size"] < out["size"]
+    w = compare_tubes(sc, jobc, docc, binc, [57, 160])
+    assert w["centre"] < 0.002 and w["ring"] < 0.003, w
     if NODE:
         twin = node_twin(doc, binary, specs, [0.0, 2.3, 4.0, 8.0])
         for r in twin:

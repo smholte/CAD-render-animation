@@ -325,8 +325,9 @@ class Gltf:
                "count": int(count), "mode": mode}
         self._bin.extend(enc)
         self._fallback = (self._fallback + 3) // 4 * 4
-        view = {"buffer": 1, "byteOffset": self._fallback, "byteLength": count * elem, "target": target,
-                "extensions": {MESHOPT: ext}}
+        view = {"buffer": 1, "byteOffset": self._fallback, "byteLength": count * elem, "extensions": {MESHOPT: ext}}
+        if target:
+            view["target"] = target
         if stride:
             view["byteStride"] = stride
         self._fallback += count * elem
@@ -335,7 +336,9 @@ class Gltf:
         return len(self.doc["bufferViews"]) - 1
 
     def accessor(self, values: np.ndarray, kind: str, ctype: int = FLOAT, normalized: bool = False,
-                 target: int | None = None, minmax: bool = False) -> int:
+                 target: int | None = None, minmax: bool = False, pack: bool = False) -> int:
+        """``pack``: meshopt-compressed in a compressed file also when it is no vertex data (animation, the moving
+        cables' centre lines, task 0142); its elements must be a multiple of 4 bytes."""
         a = np.ascontiguousarray(np.asarray(values).astype(_NP[ctype], copy=False))
         n_comp = _COMPONENTS[kind]
         count = len(a) if a.ndim > 1 or n_comp == 1 else len(a) // n_comp
@@ -347,7 +350,7 @@ class Gltf:
             pad = (4 - elem % 4) // _SIZES[ctype]
             data = np.concatenate([a2, np.zeros((count, pad), a2.dtype)], axis=1)
             stride = data.shape[1] * _SIZES[ctype]
-        if self.compress and target in (ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER) and count:
+        if self.compress and count and (target in (ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER) or (pack and elem % 4 == 0)):
             raw = np.ascontiguousarray(data).view(np.uint8).reshape(count, -1)
             view = self._packed_view(raw, target, stride)
         else:
@@ -510,7 +513,7 @@ class Gltf:
             a = np.asarray(tm, np.float32)
             key = (len(a), a.tobytes())
             if key not in inputs:
-                inputs[key] = self.accessor(a, "SCALAR", FLOAT, minmax=True)
+                inputs[key] = self.accessor(a, "SCALAR", FLOAT, minmax=True, pack=True)
             return inputs[key]
 
         anim = {"name": name, "samplers": [], "channels": []}
@@ -519,7 +522,7 @@ class Gltf:
             kind = "VEC4" if path == "rotation" else "VEC3"
             src = time_input(track[4] if len(track) > 4 and track[4] is not None else times)
             anim["samplers"].append({"input": src, "interpolation": track[3] if len(track) > 3 else "LINEAR",
-                                     "output": self.accessor(np.asarray(values, np.float32), kind, FLOAT)})
+                                     "output": self.accessor(np.asarray(values, np.float32), kind, FLOAT, pack=True)})
             anim["channels"].append({"sampler": len(anim["samplers"]) - 1, "target": {"node": node, "path": path}})
         self.doc.setdefault("animations", []).append(anim)
         return len(self.doc["animations"]) - 1

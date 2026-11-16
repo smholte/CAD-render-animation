@@ -2239,11 +2239,11 @@ def web3d_moving(ctx):
         dg = bpy.context.evaluated_depsgraph_get()
         for name, sp in specs.items():
             arr = {}
-            for k in ("times", "lo", "step", "q", "n0", "s0", "trim_t", "trim", "trim_n0", "s", "slo", "sstep", "sq",
+            for k in ("times", "lo", "step", "q", "n0", "s0", "trim_t", "trim", "trim_n0", "s", "slo", "sstep",
                       "nq", "pay_t", "pay"):
                 if isinstance(sp.get(k), int) and not isinstance(sp.get(k), bool):
                     a = core.accessor_array(doc, binary, sp[k])
-                    arr[k] = a.reshape(-1) if k in ("times", "step", "s0", "trim_t", "s", "slo", "sstep", "sq",
+                    arr[k] = a.reshape(-1) if k in ("times", "step", "s0", "trim_t", "s", "slo", "sstep",
                                                     "pay_t", "pay") else a
             page = T.at(sp, arr, (f - scene.frame_start) / fps)
             me = bpy.data.objects[name].evaluated_get(dg).data

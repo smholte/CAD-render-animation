@@ -30,6 +30,7 @@ import numpy as np
 POS_TOL = 0.001          # m: a kept moment may be off by this much (points, the ring's turn at the radius)
 S_TOL = 0.002            # m: ... the length along the cable and the metres paid out (the look's stripes)
 NODE_TOL = 0.001         # m: a moving part's place (at the far end of the part from its origin)
+TURN_TOL = math.radians(3.0)   # the page's own ring turn may be this far off the app's (only the looks' angle)
 SIDES_MAX = 64           # most sides a ring is looked for with
 FIT = 4                  # points a rigid move is fitted from
 RIGID_TOL = 2e-5         # m (per metre of size): the evaluated mesh is the part's own moved as one piece
@@ -393,50 +394,54 @@ def thin_node(t, q, s=None, reach: float = 1.0, tol: float = NODE_TOL, frames=No
 # into the file
 # ---------------------------------------------------------------------------
 
-def pack(points) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
-    """Kept centre lines (K, n, 3) -> (lo (n, 3) float32, step (n,) float32, q (n, K, 3) uint16 or None when K == 1).
-    Each point has its own range over time (a point that hardly moves keeps micrometres); the page works out
-    ``lo + step * q``."""
+def pack(points, s=None):
+    """Kept centre lines (K, n, 3) and, when given, the lengths along the cable (K, n) -> (lo (n, 3) float32, step
+    (n,) float32, slo (n,) float32 or None, sstep (n,) or None, q (K, n, 4) uint16 or None when K == 1). Each point
+    has its own range over time (a point that hardly moves keeps micrometres); the page works out ``lo + step * q``
+    (and ``slo + sstep * q[3]``). Moment after moment (key-major): meshopt packs that tighter."""
     p = np.asarray(points, np.float64)
-    k = len(p)
+    k, n = p.shape[:2]
+    sa = None if s is None else np.asarray(s, np.float64)
     if k == 1:
-        return p[0].astype(np.float32), np.zeros(p.shape[1], np.float32), None
+        return (p[0].astype(np.float32), np.zeros(n, np.float32), None if sa is None else sa[0].astype(np.float32),
+                None if sa is None else np.zeros(n, np.float32), None)
+
+    def ranged(v, lo):
+        step = (v.max(axis=0) - lo.astype(np.float64)) / 65535.0
+        if step.ndim > 1:
+            step = step.max(axis=1)
+        return np.where(step > 0.0, step, 0.0).astype(np.float32)
+
     lo = p.min(axis=0).astype(np.float32)
-    hi = p.max(axis=0)
-    step = (hi - lo.astype(np.float64)).max(axis=1) / 65535.0
-    step = np.where(step > 0.0, step, 0.0).astype(np.float32)
+    step = ranged(p, lo)
+    q = np.zeros((k, n, 4), np.uint16)
     safe = np.where(step > 0.0, step.astype(np.float64), 1.0)
-    q = np.clip(np.round((p - lo.astype(np.float64)[None]) / safe[None, :, None]), 0, 65535).astype(np.uint16)
-    return lo, step, np.ascontiguousarray(q.transpose(1, 0, 2))
+    q[..., :3] = np.clip(np.round((p - lo.astype(np.float64)[None]) / safe[None, :, None]), 0, 65535)
+    slo = sstep = None
+    if sa is not None:
+        slo = sa.min(axis=0).astype(np.float32)
+        sstep = ranged(sa, slo)
+        ssafe = np.where(sstep > 0.0, sstep.astype(np.float64), 1.0)
+        q[..., 3] = np.clip(np.round((sa - slo.astype(np.float64)[None]) / ssafe[None]), 0, 65535)
+    return lo, step, slo, sstep, q
 
 
 def unpack(lo, step, q, k: int) -> np.ndarray:
-    """``pack`` back: (K, n, 3) float64."""
-    lo = np.asarray(lo, np.float64)
+    """``pack``'s points back: (K, n, 3) float64."""
+    lo = np.asarray(lo, np.float64).reshape(-1, 3)
     if q is None or k == 1:
         return lo[None]
-    q = np.asarray(q, np.float64).reshape(len(lo), k, 3)
-    return (lo[:, None] + np.asarray(step, np.float64)[:, None, None] * q).transpose(1, 0, 2)
+    q = np.asarray(q, np.float64).reshape(k, len(lo), 4)
+    return lo[None] + np.asarray(step, np.float64).reshape(-1)[None, :, None] * q[..., :3]
 
 
-def pack_s(s) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
-    """Lengths along the cable at the kept moments (K, n) as ``pack`` does points: per point lo, step, q (n, K)."""
-    s = np.asarray(s, np.float64)
-    if len(s) == 1:
-        return s[0].astype(np.float32), np.zeros(s.shape[1], np.float32), None
-    lo = s.min(axis=0).astype(np.float32)
-    step = ((s.max(axis=0) - lo.astype(np.float64)) / 65535.0).astype(np.float32)
-    safe = np.where(step > 0.0, step.astype(np.float64), 1.0)
-    q = np.clip(np.round((s - lo.astype(np.float64)[None]) / safe[None]), 0, 65535).astype(np.uint16)
-    return lo, step, np.ascontiguousarray(q.T)
-
-
-def unpack_s(lo, step, q, k: int) -> np.ndarray:
-    lo = np.asarray(lo, np.float64).reshape(-1)
+def unpack_s(slo, sstep, q, k: int) -> np.ndarray:
+    """``pack``'s lengths along the cable back: (K, n)."""
+    slo = np.asarray(slo, np.float64).reshape(-1)
     if q is None or k == 1:
-        return lo[None]
-    q = np.asarray(q, np.float64).reshape(len(lo), k)
-    return (lo[:, None] + np.asarray(step, np.float64).reshape(-1)[:, None] * q).T
+        return slo[None]
+    q = np.asarray(q, np.float64).reshape(k, len(slo), 4)
+    return slo[None] + np.asarray(sstep, np.float64).reshape(-1)[None] * q[..., 3]
 
 
 def blend_at(times, values, t: float):
@@ -504,7 +509,7 @@ def at(spec: dict, arrays: dict, t: float) -> dict:
     if arrays.get("s") is not None:
         s = np.asarray(arrays["s"], np.float64)
     elif arrays.get("slo") is not None:
-        sk = unpack_s(arrays["slo"], arrays.get("sstep"), arrays.get("sq"), k)
+        sk = unpack_s(arrays["slo"], arrays.get("sstep"), arrays.get("q"), k)
         s = blend_at(times, sk, t)
     else:
         s = s0 + chords(p) * unit
@@ -516,8 +521,7 @@ def at(spec: dict, arrays: dict, t: float) -> dict:
             n0 = blend_at(np.zeros(1) if tt is None else tt, np.asarray(arrays["trim_n0"], np.float64).reshape(-1, 3), t)
     tg = tangents(p, float(spec.get("tmin", 0.0)))
     if arrays.get("nq") is not None:            # the app's own ring turns (a line the page cannot carry them along)
-        nk = oct_decode(np.asarray(arrays["nq"]).reshape(len(p) if arrays.get("trim") is None else -1, k, 2)
-                        ).transpose(1, 0, 2)
+        nk = oct_decode(np.asarray(arrays["nq"]).reshape(k, -1, 2))
         nr = blend_at(times, nk, t)
         nr = nr - tg * (nr * tg).sum(axis=1, keepdims=True)
         nr /= np.maximum(np.linalg.norm(nr, axis=1, keepdims=True), 1e-300)
