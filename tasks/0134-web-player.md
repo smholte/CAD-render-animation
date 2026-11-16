@@ -141,4 +141,9 @@ picture"); fullscreen is not offered where the browser has none (iPhone Safari).
 failure (the headless browser stopped before the player's self-test answered: it now runs the moment the page is
 ready, the check retries once and counts a missing answer as "not counted"), 4 more because other tasks took
 0.2.108–0.2.111 first; the last green run 43790944832; `main` then only had task-list commits on top.
+- **For the lead (not this task's code):** `main`'s first run of 0.2.112 (43793756492) was cancelled – test group 3
+  passed GitHub's 40-minute job limit: `tests/test_demo_project.py` has grown to ~22 min alone (tasks 0126/0137; one
+  test 8.5 min). `tools/ci_times.json` re-recorded (184708b) gives it a group of its own; `main`'s run 43798006405 then
+  went green and published 0.2.112, but that group took 35.1 min: the demo project's tests need splitting (as
+  `test_demo_clash.py` was) before the next one pushes it over 40 again.
 
