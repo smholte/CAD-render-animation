@@ -76,6 +76,55 @@ end, which can be **wound fully out and fully in** – the layers come off and g
 - The owner's check on his PC goes in the report as numbered steps (Help > Make demo project, the carousel camera,
   scrub the cable payout fully out and in; the winches' close-ups).
 
+## Design (worker, 16 Nov 2026)
+
+**Measured first (4-core web machine, `core/spool.py`):** the demo's full carousel (Ø 200 mm, 24 layers, 45.7 km of
+wound path) is 33,120 pieces; drawn at today's tolerance (sag d/60) it is 132,000 points – as a tube of 8 sides 1.06 M
+points / 2.1 M triangles. The A&R drum (Ø 56 mm, 6 Lebus layers, 710 m) is 8,000 points. One Geometry Nodes tube over
+all of it, trimmed at every frame, would cost tens of ms a frame: too much.
+
+**What a viewer can see.** Only the layer being paid out changes from frame to frame; every layer below it is full and
+does not change until the payout reaches it. So the coil is drawn in two kinds of objects:
+
+1. **The live rope** (as today, "FR spool <name>"): the current layer only (`DRAWN = 1` for drums and carousels),
+   from where it begins to the leave point, trimmed every frame by its two driven lengths. Its Start is no longer a
+   table of keys but a **simple expression** of the cable joint: `S0 + (L > F1) * (S1 - S0) + …` with
+   `L = W0 - sign (k a + c)` (one term per layer; plain arithmetic, works with scripts off).
+2. **One static object per full layer** ("FR spool layer <k> <name>", role `layer`, layers 0 … n - 2: the top layer
+   is never covered): its own mesh is that layer's stretch of the wound path's polyline (points + edges, `fr_L`, from
+   where the climb into it begins to where the climb out of it begins – exactly the points the live rope uses, so the
+   seams meet point on point), and a Geometry Nodes modifier "FR spool layer" (new tree, no Object Info, no time, no
+   driven input) sweeps it into the same tube with the same look attributes (`fr_cable` with s = L - W0: the served
+   bands and the wire's lay run on across every seam). Nothing in it changes with the frame: Blender works it out
+   once and keeps it. Its **visibility** is one simple-expression driver on `hide_viewport` / `hide_render`:
+   `max(part hidden, spool off, L <= F(k+1))` – hidden while the payout has reached its layer, with the very same
+   comparison as the live rope's Start, so the drawn stretches always meet (no gap, no double layer).
+
+Per frame: n - 1 tiny drivers; the static tubes cost nothing until a layer change shows or hides one. The solid
+(`_solid_mesh`, "FR spool solid") is gone. The web page draws the whole coil as one spool rope (the wound path from the
+anchor to the window's end, cut from 0) when that adds < 5 MB, else as today.
+
+**Wind fully in and out.** The tables already span the whole range (W0 - total … W0); the live window is rewritten
+when posed outside it (`after_draw`) and at Build for the animation's range. Tests drive the cable joint from all paid
+out (nothing on the spool, the free cable starts at the anchor) to full and back, live and after Build.
+
+**Old projects** (0.2.118-style, with a solid): `load_post` finds a spool with a solid or without its layer objects
+and draws it again (`spool.upgrade`).
+
+**Core additions** (`core/spool.py`): `layer_spans(path)` (start, end of each layer's drawn stretch), `shown_layers`
+and `drawn_from` (the two expressions in plain Python, for the tests), `turn_gaps` (the closest approach between the
+rope's middle line and the turns beside and below it, for the "touch, no overlap" tests).
+
+**Demo winches** (stage `winch_wires`, after `wires`, only the winch set-up): every winch drum of the vessel gets its
+wire as a spooled cable with the steel wire rope look – handling winch 2 as handling winch 1; each tipping winch's
+fixed wire (drum → foot sheave → post top) as a cable spooled on its drum whose speed joint follows the tipping wire's
+speed one to one (so the drum pays out what the kept-tight wire takes; the drum's ratio coupling becomes the spool's
+table); the deck crane gets an invented hoist drum + wire in `demo_model/vessel.py`. The park's cranes and davits:
+listed in the report.
+
+**Subagents:** an independent tester (did not write the code) tries to break it (the brief's list); the guide text and
+picture at the end. No parallel writers: the change sits in one file (`blender/spool.py`).
+
 ## Done when
 
 - [ ] 1–3 done on carousels and drums, the solid gone, one continuous cable, full range in and out
