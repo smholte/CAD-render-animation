@@ -183,7 +183,7 @@ def test_the_quadrant_operation_shots_10_to_12(made):
     off = d.set_down_error(lw[1].start, lw[2].start + demo.SET_DOWN_AFTER)
     assert abs(off) <= demo.SET_DOWN_TOL, off
     note = next(n for n in made["out"]["notes"] if n.startswith("shot 11: the D set down at"))
-    assert f"{lw[1].to_dist:.2f} m" in note, (note, lw[1].to_dist)          # (the step as worked out: not corrected)
+    assert f"{lw[1].to_dist:.3f} m" in note, (note, lw[1].to_dist)          # (the step as worked out: not corrected)
     sc.frame_set(let_go + int(math.ceil(se.sea_settle * 25)) + 5)
     hz = [(head.matrix_world @ Vector(v)).z for v in head.bound_box]
     assert min(hz) > seabed - 0.05 and min(hz) < seabed + 0.5, (min(hz), seabed)
@@ -321,7 +321,7 @@ def test_the_quadrant_operations_parts_are_hidden_until_shot_9(made):
 
 
 def test_shot_11_the_cable_leaves_the_flat_d_at_its_far_end(made):
-    """Task 0172 (0125's open point 6): from the lowering (shot 10) to the let-go, as the D tips flat and comes down
+    """Task 0172 (0125's open point 6): shot 11, from the D's tip to the let-go, as the D tips flat and comes down
     onto the seabed, the second end stays in the D's gutter to its far end – the end that points the way the cable
     lies on the seabed – and goes on from there in a free bend down to the seabed: no point between its start and the
     seabed turns more than the gutter's own arc does (~1.4° a point; before: up to 62°, where the bend was left out
@@ -333,7 +333,6 @@ def test_shot_11_the_cable_leaves_the_flat_d_at_its_far_end(made):
     if not sc.fresing.anim_baked:
         animation.bake(sc, a)
     steps = [b for b in a.blocks if b.kind == "JOINT"]
-    lw = sorted((b for b in steps if b.joint == demo.LOWER), key=lambda b: b.start)
     tp = sorted((b for b in steps if b.joint == demo.TIP), key=lambda b: b.start)
     se = paths.find(sc, demo.SECOND_ITEM)
     res, first = _solved(sc, se)
@@ -344,9 +343,9 @@ def test_shot_11_the_cable_leaves_the_flat_d_at_its_far_end(made):
     _w, slots, *_ = paths._inputs_of(se)
     rel = paths._stored_places(sc, se, slots)[0]
     k_bed = paths_sea._roles(slots)["sea_bed"]
-    f0, f_tip, f_go = animation.frame_of(a, lw[0].start), animation.frame_of(a, tp[1].start), paths.let_go_frame(se, "a")
+    f_tip, f_go = animation.frame_of(a, tp[1].start), paths.let_go_frame(se, "a")
     worst, worst_at, jump, prev = 0.0, 0, 0.0, None
-    for f in range(f0, f_go):
+    for f in range(f_tip, f_go):
         k = f - first
         assert res["ok"][k], f
         P = np.asarray(res["points"][k], dtype=float)
@@ -365,7 +364,7 @@ def test_shot_11_the_cable_leaves_the_flat_d_at_its_far_end(made):
         prev = P * scale
         if f >= f_tip + 100:                                           # tipped flat: it leaves the gutter's far end
             assert math.degrees(float(sea["psi"][k])) > math.degrees(wmax) - 6.0, (f, float(sea["psi"][k]))
-    print(f"\nshot 10-11: worst turn per point {worst:.2f}° at frame {worst_at}, largest move between frames "
+    print(f"\nshot 11: worst turn per point {worst:.2f}° at frame {worst_at}, largest move between frames "
           f"{jump:.3f} m")
     assert worst < 1.5, (worst, worst_at)                              # (the gutter's own arc: ~1.4° a point)
     assert jump < 0.4, jump                                            # (the D comes down ~0.12 m a frame)

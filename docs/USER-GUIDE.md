@@ -1300,6 +1300,15 @@ sea it stays on the seabed and passes aft with it, while the quadrant is lifted 
 ("It stays where it was from frame 231 on"); the button beside it, **Hold again**, takes it back. Build animation
 reads the place at that frame again, so a changed motion is taken along.
 
+**A chute or quadrant lying flat.** A quadrant tipped flat over the seabed holds the cable in its gutter: the cable
+goes round to the gutter's end that points the way it lies on the seabed and leaves there, in a bend of the gutter's
+radius down to the seabed. Lowered so close that a whole bend no longer fits, the bend turns only as far as fits and
+the cable lies on the seabed from there – it never kinks at the gutter or curls into the seabed.
+
+**Rollers and sheaves the cable has left stand still.** A roller or sheave that turns with the cable's speed turns
+only while the drawn cable touches it: one the cable has lifted off, runs past or no longer reaches stands still for
+those frames (Build animation keys it frame by frame; its coupling is put aside until **Clear keys**).
+
 Try it in the test tour ("A cable on a moving part"): a trolley carries a block with a sheave over the stern, the
 lift wire stays tight and the cable end is let go near the seabed.
 
@@ -3689,8 +3698,9 @@ place in front of the cable end, which is connected to its rear end as the next 
 operation at the second end** (shots 9–12): both tensioners open, the lanes' cradles drop, the D-quadrant travels
 aft between the tensioners onto the handler with the cable end on it, the tipping wires are connected and the
 handler tilts over the stern (9); the handler goes on to 110°, the D swings to hang plumb from the A&R wire and is
-lowered through the cut-away to near the seabed (10); it tips flat, the cable and its CPS are let go and lie on
-the seabed (11); the D comes back up, onto the handler, the handler tilts back and the D travels back to its
+lowered through the cut-away to near the seabed (10); it tips flat and is set down – the cable stays in the
+gutter to its far end, the end that points the way the cable lies, and bends down from there onto the seabed – then
+the cable and its CPS are let go and lie on the seabed (11); the D comes back up, onto the handler, the handler tilts back and the D travels back to its
 place, the tensioners close (12). Last, **the park at night** (shot 13): a Weather & time step to Night shift, turbine
 WTG 06 beside the vessel, the red and yellow lights flashing together across the park. The rotors and propellers
 turn all the time. The captions say where it runs faster than real. Click **Build & play**, or put it in the render

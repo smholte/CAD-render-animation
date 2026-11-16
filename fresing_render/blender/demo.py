@@ -183,7 +183,7 @@ class Demo:
         self.stage = ""
         self.timings: dict[str, float] = {}
         self.notes: list[str] = []
-        self.set_down = None                     # (t0, t1) of the D set down on the seabed (task 0125)
+        self.set_down = None                     # (start, hoist, from) of the D's set-down step (tasks 0125, 0172)
         self.t = 0.0
         self._sheets: dict = {}
 
@@ -266,7 +266,7 @@ class Demo:
     def set_down_error(self, t0: float, t1: float) -> float:
         """m: how much lower the A&R winch should lower the D for its lowest point (its mesh, every frame from ``t0`` to
         ``t1`` of the built animation, vessel motion and all) to come to ``SET_DOWN_CLEAR`` over the seabed. Task 0172:
-        no longer a second Build at Make (the estimate before Build meets it): the demo's test checks it."""
+        no longer a second Build at Make (``set_down_again`` meets it): the demo's test checks it."""
         import numpy as np
 
         from . import animation, paths_sea
@@ -1863,10 +1863,10 @@ def shot_tip(d: Demo):
     up = t + 3.0 + LET_GO_AFTER                         # (shot 12 hoists from here: ``shot_back``)
     l2 = set_down_depth(d, t, up + SET_DOWN_AFTER, l2, l1, 3.0, up_at=up)
     d.quadrant["lower_2"] = round(l2, 3)
-    d.notes.append(f"shot 11: the D set down at {l2:.2f} m of lowering, {SET_DOWN_CLEAR * 1000:.0f} mm over the seabed "
-                   "at the deepest heave")
     d.joint(LOWER, t, 3.0, l2, slide=True, label="Lowered onto the seabed")
-    d.set_down = (t, up + SET_DOWN_AFTER)               # (checked on the built animation by the demo's test)
+    # (worked out once more just before Build, ``finish``: a later stage moves the D's set-down by ~20 mm; checked on
+    # the built animation by the demo's test)
+    d.set_down = (t, up, l1)
     _pulley(d, t, 3.0, l2)
     t += 3.0
     sc = d.scene
@@ -1989,6 +1989,25 @@ def propulsion(d: Demo):
                    f"{t + DP_CHANGE:.1f} s")
 
 
+def set_down_again(d: Demo) -> float:
+    """Task 0172: the D's set-down depth worked out again on the finished scene, just before the one Build (the stages
+    after shot 11 move it by ~20 mm; worked out here it is the built one to micrometres – before, a second Build
+    corrected it at every Make, +55 s): the lowering step and the top pulley's turn with it. Returns the depth."""
+    t, up, l1 = d.set_down
+    blk = next(b for b in d.animation.blocks if b.kind == "JOINT" and b.joint == LOWER and abs(b.start - t) < 1e-3)
+    l2 = set_down_depth(d, t, up + SET_DOWN_AFTER, float(blk.to_dist), l1, 3.0, up_at=up)
+    blk.to_dist = l2
+    pul = next((b for b in d.animation.blocks if b.kind == "JOINT" and b.joint == PULLEY_TURN
+                and abs(b.start - t) < 1e-3), None)
+    if pul is not None:
+        dpm = next(j for j in d.sheet("joints")["joints"] if j["name"] == PULLEY_TURN)["drive"]["deg_per_mm"]
+        pul.to_angle = math.radians(l2 * 1000.0 * float(dpm))
+    d.quadrant["lower_2"] = round(l2, 3)
+    d.notes.append(f"shot 11: the D set down at {l2:.3f} m of lowering, {SET_DOWN_CLEAR * 1000:.0f} mm over the "
+                   "seabed at the deepest heave")
+    return l2
+
+
 @stage("finish", "Animation")
 def finish(d: Demo):
     from . import animation
@@ -1997,6 +2016,8 @@ def finish(d: Demo):
     d.s.animations_index = list(d.s.animations).index(a)
     d.progress("Animation")
     t0 = time.time()
+    if getattr(d, "set_down", None):
+        set_down_again(d)
     r = animation.bake(sc, a)
     d.timings["build"] = time.time() - t0
     if r["warnings"]:
