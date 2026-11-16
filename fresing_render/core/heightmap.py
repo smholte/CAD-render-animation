@@ -717,10 +717,7 @@ class HeightMap:
                                    rndA, rib & ~rndA))
                     places.append((Ai, Aj, Bi, Bj, pxB, pyB, hB, np.where(wantB & (rndB | rib), pb, -9), uB,
                                    rndB, rib & ~rndB))
-                    places.append((Ai, Aj, Bi, Bj, 0.5 * (x0 + pxA), 0.5 * (y0 + pyA), hmA,
-                                   np.where(rndA, pa, -9), 0.5 * uA, no, no))
-                    places.append((Ai, Aj, Bi, Bj, 0.5 * (x0 + dx + pxB), 0.5 * (y0 + dy + pyB), hmB,
-                                   np.where(rndB, pb, -9), 0.5 * (1.0 + uB), no, no))
+
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
                 continue
@@ -982,7 +979,7 @@ class HeightMap:
             # on the toolpath test model)
             pins = _hmesh.pins_of(edges[ex[4]], n) if edges is not None and ex[4].any() else None
             strips = _hmesh.own(P.reshape(n, n, 3), Q.reshape(n, n, 3), cls.reshape(n, n), self.thin,
-                                strips=bool(self._done[J, I]), pins=pins)
+                                strips=bool(self._done[J, I]) and edges is None, pins=pins)
             need = strips["need"]
             flank, foot = flank[1:-1, 1:-1].reshape(-1).copy(), foot[1:-1, 1:-1].reshape(-1).copy()
             if edges is not None:                       # (the extra vertices after the nodes)

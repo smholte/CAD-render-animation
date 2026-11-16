@@ -232,6 +232,12 @@ fresing_render/            the Blender extension (Python package)
                            toolmarks.py (tool marks on cut faces, task 0061: the contract between the milled mesh and
                            the cut-face material – four per-face attributes ``fr_mk_o/d/a/p``, six kinds of marks – and
                            the formula in plain Python the tests compare a render with; strengths per material),
+                           heightmap.py (task 0146: long 3-axis programs as a height map - swept bit shapes, stamping
+                           with snapshots, a tile's nodes moved onto walls and rims (`_snap`), extra vertices where a node
+                           cannot stand (task 0167: a wall's foot over a rounded strip, a rib's second rim), the map lifted
+                           12.5 um over the finished part), heightmesh.py (task 0167: thinning one tile - right triangles,
+                           or long strips along x/y checked against the grid's own triangles; a node a neighbour keeps on
+                           the border is fanned in, so tiles meet vertex for vertex),
                            cut_normals.py (the milled mesh's corner normals in NumPy: flat faces flat, round walls smooth,
                            needle triangles take their neighbour's, a big flat face keeps its own next to small facets),
                            web3d.py (web 3D model, task 0099: the glTF 2.0 writer/reader + checks, box UVs in 0.2 m
