@@ -556,3 +556,176 @@ def test_render_clarity_fades_what_is_behind_a_wall(scene, tmp_path):
     night = px[12:20, 20:28].mean(axis=(0, 1))
     want = sea.seen_through(np.ones(3), 5.0, 5.0, light)
     assert np.allclose(night, want, atol=0.003, rtol=0.03), (night, want)
+
+
+# ---------------------------------------------------------------------------
+# the ground in the cut-away (task 0148)
+# ---------------------------------------------------------------------------
+
+
+def test_soil_layers_and_depth_numbers():
+    starts = [d for d, _c in sea.SOIL_LAYERS]
+    assert starts[0] == 0.0 and starts == sorted(starts)
+    assert sea.soil_layer(0.0) == 0 and sea.soil_layer(3.9) == 0 and sea.soil_layer(4.1) == 1
+    assert sea.soil_layer(100.0) == len(starts) - 1
+    assert sea.soil_layer(3.5, wobble=1.0) == 1                       # the boundary wanders
+    assert sea.soil_colour(1.0) == sea.SOIL_LAYERS[0][1]
+    assert sea.soil_colour(1.0) != sea.soil_colour(20.0)
+    # 30 m of pile in the ground: the cut shows 5 m more
+    assert sea.ground_depth(-60.0, -30.0) == pytest.approx(35.0)
+    assert sea.ground_depth(-31.0, -30.0) == sea.GROUND_MIN            # at least a few metres
+    assert sea.ground_depth(-5000.0, -30.0) == sea.GROUND_MAX
+    assert sea.reaches_ground(-60.0, -30.0) and not sea.reaches_ground(-30.01, -30.0)
+
+
+def _pile(scene, z0, z1, radius=1.5):
+    """A bright red pile (emission) from z0 to z1 at the origin, part of the model."""
+    import bmesh
+    me = bpy.data.meshes.new("Pile")
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=radius, radius2=radius, depth=z1 - z0)
+    bmesh.ops.translate(bm, vec=(0.0, 0.0, (z0 + z1) / 2), verts=bm.verts)
+    bm.to_mesh(me)
+    bm.free()
+    mat = bpy.data.materials.new("pile red")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Color"].default_value = (1.0, 0.0, 0.0, 1.0)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+    me.materials.append(mat)
+    ob = bpy.data.objects.new("Pile", me)
+    scene.collection.objects.link(ob)
+    root = bpy.data.objects.get("Invented vessel")
+    ob.parent = root
+    ob["fr_kind"] = "part"
+    ob["fr_uid"] = "pile"
+    bpy.context.view_layer.update()
+    return ob
+
+
+def _with_pile(scene, into=30.0):
+    """The hull, plus a pile that goes ``into`` m into the ground; the water 4 m up as in the other tests. Returns
+    (water z, seabed z, the pile's foot z)."""
+    s = scene.fresing
+    s.sea_depth = 30.0
+    foot = (WATER - 30.0) - into
+    _pile(scene, foot, WATER + 8.0)
+    s.water_level = WATER - foot                                      # the water 4 m up, the pile's foot the lowest
+    return WATER, WATER - 30.0, foot
+
+
+def _is_red(px):
+    return px[..., 0] > 0.4 and px[..., 1] < 0.1
+
+
+def test_ground_setting_goes_on_by_itself_only_when_a_part_reaches_below_the_seabed(scene):
+    s = scene.fresing
+    assert s.sea_cut_ground is False                                  # old projects: off
+    s.sea_cutaway = True                                              # the hull stands above the seabed
+    assert s.sea_cut_ground is False
+    s.sea_cutaway = False
+    _with_pile(scene)
+    s.sea_cutaway = True
+    assert s.sea_cut_ground is True
+    _apply(scene)
+    soil = _env("soil")
+    assert len(soil) == 1
+    pit = soil[0]["fr_soil_depth"]
+    assert pit == pytest.approx(35.0, abs=0.2)                       # 30 m of pile in the ground + 5 m
+    assert soil[0]["fr_soil_top"] == pytest.approx(WATER - 30.0)
+    # the walls reach GROUND_TOP over the seabed (its ripples leave no gap at the rim) and the water ring stops there
+    zs = [soil[0].matrix_world @ v.co for v in soil[0].data.vertices]
+    assert max(z.z for z in zs) == pytest.approx(WATER - 30.0 + sea.GROUND_TOP, abs=1e-3)
+    ring = _env("sea_cut")[0]
+    assert min((ring.matrix_world @ v.co).z for v in ring.data.vertices) == pytest.approx(
+        WATER - 30.0 + sea.GROUND_TOP, abs=1e-3)
+    s.sea_cut_ground = False
+    _apply(scene)
+    assert not _env("soil")
+    assert "ground" not in surroundings._cut_key(s)                  # the key of an old project is unchanged
+    s.sea_cut_ground = True
+    assert surroundings._cut_key(s)["ground"] == 1
+
+
+def test_seabed_closed_without_the_ground_and_open_with_it(scene):
+    s = scene.fresing
+    _with_pile(scene)
+    s.sea_cut_auto = False
+    s.sea_cutaway = True
+    s.sea_cut_ground = False
+    _apply(scene)
+    bed = _env("seabed")[0]
+    assert not bed.data.materials[0].get("fr_seacut") and "fr_seacut_o" not in bed
+    s.sea_cut_ground = True
+    _apply(scene)
+    bed = _env("seabed")[0]
+    assert bed.data.materials[0].get("fr_seacut") and "fr_seacut_o" in bed
+
+
+def _box_over_pile(scene, aside=0.0):
+    """A 30 x 30 m box centred on the pile (aside > 0: moved that far to starboard-negative y)."""
+    s = scene.fresing
+    s.sea_cut_auto = False
+    s.sea_cut_length = s.sea_cut_width = 30.0
+    mn = surroundings.root_object().get("fr_min")
+    mx = surroundings.root_object().get("fr_max")
+    s.sea_cut_start = float(mn[0]) - 15.0
+    s.sea_cut_side = -float(mn[1] + mx[1]) / 2.0 + aside
+
+
+def test_render_the_pile_shows_below_the_seabed_inside_the_cut_and_not_outside(scene, tmp_path):
+    s = scene.fresing
+    water, bed, foot = _with_pile(scene)
+    s.sea_cutaway = True
+    _apply(scene)
+    _box_over_pile(scene)
+    _apply(scene)
+    target = (0.0, 0.0, bed - 15.0)                       # 15 m under the seabed on the pile's axis
+    # from above the box's edge, straight at that point: the pile is in view inside the cut
+    _camera(scene, (-12.0, 0.0, water + 14.0), target, lens=60.0)
+    inside = _render(scene, tmp_path / "pile_in.exr", size=(64, 48), samples=4)
+    assert _is_red(inside[22:26, 30:34].mean(axis=(0, 1))), inside[22:26, 30:34].mean(axis=(0, 1))
+    # the same view without the ground: the seabed is closed, the water too: no pile
+    s.sea_cut_ground = False
+    _apply(scene)
+    closed = _render(scene, tmp_path / "pile_closed.exr", size=(64, 48), samples=4)
+    assert not _is_red(closed[22:26, 30:34].mean(axis=(0, 1)))
+    # the box beside the pile: a camera in the box looks at the pile through the ground: soil wall, no pile
+    s.sea_cut_ground = True
+    _box_over_pile(scene, aside=40.0)                     # the pile now lies 25 m outside the box's side wall
+    _apply(scene)
+    _camera(scene, (0.0, 40.0, water + 6.0), (0.0, 0.0, bed - 15.0), lens=60.0)
+    outside = _render(scene, tmp_path / "pile_out.exr", size=(64, 48), samples=4)
+    assert not _is_red(outside[22:26, 30:34].mean(axis=(0, 1)))
+
+
+def test_render_soil_layers_follow_the_depth(scene, tmp_path):
+    """Looking straight at the box's wall: the section's colour at 2, 7, 14 and 24 m under the seabed is the colour
+    of ``core.sea.soil_colour`` there (the lighting is taken out: the base colour is shown as an emission)."""
+    s = scene.fresing
+    water, bed, foot = _with_pile(scene, into=40.0)
+    s.sea_cutaway = True
+    _apply(scene)
+    _box_over_pile(scene)
+    _apply(scene)
+    soil = _env("soil")[0]
+    mat = soil.data.materials[0]
+    assert mat["fr_env"] == "soil"
+    nt = mat.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    em = nt.nodes.new("ShaderNodeEmission")
+    nt.links.new(bsdf.inputs["Base Color"].links[0].from_socket, em.inputs["Color"])
+    out = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+    prev = None
+    for depth in (2.0, 7.0, 14.0, 24.0):
+        _camera(scene, (10.0, 8.0, bed - depth), (-15.0, 8.0, bed - depth), lens=40.0)
+        px = _render(scene, tmp_path / f"soil_{depth}.exr", size=(32, 24), samples=8)
+        got = px[8:16, 12:20].mean(axis=(0, 1))
+        want = np.array(sea.soil_colour(depth))
+        assert np.allclose(got, want * 0.9, rtol=0.2, atol=0.004), (depth, got, want)
+        assert prev is None or tuple(want) != prev                  # a new layer each time
+        prev = tuple(want)

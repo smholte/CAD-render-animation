@@ -1229,6 +1229,16 @@ waterline, the seabed further away, the cable beyond the box.
 
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 
+<a id="sea-ground"></a>
+**The ground in the cut-away.** The cut can go on into the ground. Under 5 Scene & Render > Surroundings, with the
+cut-away ticked, **Show the ground in the cut-away** opens the seabed inside the box and shows a soil section there:
+layers from sand to clay, their edges a little wavy, down to 5 m under the lowest part of the machine. A pile, a
+J-tube or any other part that reaches below the seabed is then seen down to its end – the water level over the
+machine's lowest point is more than the **Water depth**, so the lowest part lies in the ground. Outside the box the
+seabed stays closed and hides what lies under it. The setting goes on by itself when you tick the cut-away and a part
+reaches below the seabed; a project from an older version keeps it off. The offshore wind turbine of the site's kit
+uses it: its "Seabed" shot looks at the 45 m of monopile in the ground, with the scour protection on top.
+
 <a id="moving-cable"></a>
 #### A cable on a moving part
 

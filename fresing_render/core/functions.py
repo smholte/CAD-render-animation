@@ -219,7 +219,7 @@ fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel=
    guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73")
 fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", family="milling",
    panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
-   pccheck=("milling.fast_map",), since="0.2.115")
+   pccheck=("milling.fast_map",), since="0.2.116")
 fn(id="milling.chips", title="Chips", family="milling", panel="FRESING_PT_milling_chips", prop="chips",
    guide="chips", tour=("chips",), pccheck=("milling.chips",), since="0.2.22")
 fn(id="milling.toolpath", title="Make a toolpath", family="milling", panel="FRESING_PT_milling_toolpath",
@@ -235,6 +235,8 @@ fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", pr
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
    guide="props", since="0.2.17")
+fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
+   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115")
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")

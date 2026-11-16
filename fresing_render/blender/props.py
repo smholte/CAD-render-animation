@@ -156,6 +156,15 @@ def _world_changed(self, context):
             print("Fresing Render: background update failed:", exc)
 
 
+def _sea_cutaway_changed(self, context):
+    """The cut-away went on or off. Task 0148: when a part reaches below the seabed (the water level over the machine's
+    lowest point is more than the water depth) the ground is cut too: its setting goes on by itself."""
+    if self.sea_cutaway and not self.sea_cut_ground and self.water_level > self.sea_depth + 0.05:
+        self.sea_cut_ground = True               # (its own update builds the surroundings)
+        return
+    _world_changed(self, context)
+
+
 def _props_shown(self, context):
     from . import surroundings
     surroundings.set_props_visible(context.scene, self.props_visible)
@@ -3532,9 +3541,14 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         description="How far you can see through the water (m): 5 to 10 m is a usual North Sea, 30 to 40 m very "
                     "clear water. Things further away behind the water fade into the water's colour")
     sea_cutaway: BoolProperty(
-        name="Cut-away behind the stern", default=False, update=_world_changed,
+        name="Cut-away behind the stern", default=False, update=_sea_cutaway_changed,
         description="Takes a box of water away behind the stern so you see the cable hang down to the seabed. "
                     "Its walls show the water's colour and clarity")
+    sea_cut_ground: BoolProperty(
+        name="Show the ground in the cut-away", default=False, update=_world_changed,
+        description="The cut goes on into the ground: a soil section (layers from sand to clay) where the box cuts the "
+                    "seabed, so a pile or anything else below the seabed shows down to its end. It goes on by itself "
+                    "when a part reaches below the seabed. Off: the seabed stays closed")
     sea_cut_auto: BoolProperty(
         name="Place it by the cable", default=True, update=_world_changed,
         description="On: the box reaches from the stern to past the touch-down of the cable into the sea. Off: "

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.115 – 16 Nov 2026 – Long milling programs are worked out in seconds (task 0146)
+## 0.2.116 – 16 Nov 2026 – Long milling programs are worked out in seconds (task 0146)
 
 - **Fast 3-axis** (4 Motion > Milling, under Detail; on by itself, also in older projects). A long program that
   cuts straight from above – a finishing program from CAM, or the app's own **Make a toolpath** – is now worked out
@@ -36,6 +36,16 @@ installer of that version was built from.
 - The line under the Milling settings says how many moves went into the height map and how fine its grid is.
 - **PC check:** the new Full line "Milling: a long finishing program as a height map" cuts one program both ways
   and compares them; the new Heavy line "Milling: a long finishing program (height map)" times 40,000 points.
+## 0.2.115 – 16 Nov 2026 – The sea cut-away also cuts the ground (task 0148)
+
+- **The cut goes on into the ground.** With the cut-away on, the seabed opens inside the box and shows a soil section:
+  layers from sand to clay down to 5 m under the lowest part of the machine. A pile below the seabed is seen down to
+  its toe; outside the box the seabed still hides it. New setting **Show the ground in the cut-away** (5 Scene &
+  Render > Surroundings): it goes on by itself when a part reaches below the seabed, and stays off in older projects.
+  The panel now also has **Water depth**, **Water clarity** and **Cut-away behind the stern**.
+- **Wind turbine for the site:** the 45 m of monopile in the ground is no longer hidden; the "Seabed" shot looks at it
+  from inside the ground.
+
 ## 0.2.114 – 16 Nov 2026 – Cables, ropes, coils and tracks move on the web page (task 0142)
 
 - **Web 3D model with Include animation: what the app draws moves on the page too.** The power cable, wire ropes

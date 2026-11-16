@@ -43,7 +43,7 @@ NREL/TP-5000-75698, 2020). The STEP files of the render kit (`iea15_offshore.ste
 `tools/make_site_projects.py`) are **modified** copies of its SolidWorks model, and say so in their header. Changes:
 the model moved so the tower stands on z and the sea level is z 0 (on land 14 m lower); the tower solid cut into tower
 and monopile, a door opening cut into it; modelling aids hidden (the stand-in main bearing rings, the blades' root
-discs, a ball at the hub's centre, the monopile below the seabed); added by Fresing: nacelle cover with hatch, cooler,
+discs, a ball at the hub's centre); added by Fresing: nacelle cover with hatch, cooler,
 helicopter-hoist platform, aviation lights and wind sensors, tower door, steps, tower flanges, yaw seal, transition
 piece, working platform, davit, cabinet, ladder, boat landing, J-tubes (offshore), concrete foundation and stair (on
 land), signs, looks and the motion (yaw, rotor, pitch, door, davit). Nothing of the IEA model is in this repository;
