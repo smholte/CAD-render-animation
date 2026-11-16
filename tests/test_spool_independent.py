@@ -618,50 +618,60 @@ def test_drawn_rope_plus_paid_out_is_what_was_wound(made, name, cable):
         assert gap < LENGTH_TOL, (p, gap * 1000)
 
 
-def test_carousel_solid_and_top_layer_keep_the_cable(made):
-    """The carousel's solid below the drawn layer and the rope drawn on top: (the solid's evaluated volume x pi/4 for
-    the packing) + drawn length x section = (wound - paid out) x section, within 1 %."""
+def _curve_of(ob, wound):
+    """``rope_curve`` for any drawn spool object (the moving rope or a full layer's): ring centres (world), fr_s."""
+    class _Sp:
+        owner = ob
+    _Sp.wound = wound
+    return rope_curve(None, _Sp)
+
+
+def test_carousel_layers_and_top_layer_keep_the_cable(made):
+    """Task 0174 (the solid of 0080 is gone): the full layers shown below the moving rope and the moving rope itself
+    are one cable – their drawn lengths add up to what is on the carousel (W0 - p) within 1 mm, each stretch begins
+    where the one before ends (within 1 mm), and no stretch is drawn twice for more than a climb."""
     sc = made
     sp = spool.find(sc, "Carousel")
     W0 = float(sp.wound)
-    d = float(paths.find(sc, sp.cable).diameter)
-    section = math.pi * d * d / 4
-    solid = spool._made(sc, sp, "solid")
     for p in (-60.0, 0.0, 30.0, 80.0):
         pay(sc, "Power cable", p)
-        dg = bpy.context.evaluated_depsgraph_get()
-        ev = solid.evaluated_get(dg)
-        me = ev.data
-        m = np.array(ev.matrix_world)
-        co = np.array([m[:3, :3] @ np.array(v.co) + m[:3, 3] for v in me.vertices])
-        vol = 0.0
-        for poly in me.polygons:
-            idx = list(poly.vertices)
-            for i in range(1, len(idx) - 1):
-                vol += np.dot(co[idx[0]], np.cross(co[idx[i]], co[idx[i + 1]])) / 6.0
-        vol = abs(vol)
-        _c, s = rope_curve(sc, sp)
-        drawn = s.max() - s.min()
-        assert vol * math.pi / 4 + drawn * section == pytest.approx((W0 - p) * section, rel=VOLUME_TOL), p
+        parts = []
+        for ob in spool.layer_objects(sc, sp):
+            if ob.hide_get() or ob.hide_viewport:
+                continue
+            parts.append(_curve_of(ob, W0))
+        parts.append(rope_curve(sc, sp))
+        parts = [(c, s_) for c, s_ in parts if len(s_) > 1]
+        parts.sort(key=lambda cs: cs[1].min())
+        assert parts[0][1].min() + W0 == pytest.approx(0.0, abs=LENGTH_TOL), p        # from the anchor
+        for (c0, s0), (c1, s1) in zip(parts, parts[1:]):
+            assert s1.min() <= s0.max() + LENGTH_TOL, p                                  # no gap
+            assert float(np.linalg.norm(c1[0] - c0[np.argmin(np.abs(s0 - s1.min()))])) < LENGTH_TOL, p
+        assert parts[-1][1].max() + W0 + p == pytest.approx(W0, abs=LENGTH_TOL), p       # to the leave point
+        drawn = sum(np.linalg.norm(np.diff(c, axis=0), axis=1).sum() for c, _s in parts)
+        overlap = sum(max(s0.max() - s1.min(), 0.0) for (_c0, s0), (_c1, s1) in zip(parts, parts[1:]))
+        assert drawn - overlap == pytest.approx(W0 - p, abs=0.01), p
 
 
-def test_carousel_solid_spans_the_rope_middles(made):
-    """The solid under the drawn layer stands for the full layers' cable by its volume (the brief: within 1 %), so it
-    spans the rope middles – half a cable narrower on each side than the coil's edges. (The tester found the narrower
-    look; the worker kept the volume, task 0080 report.)"""
+def test_carousel_layers_span_the_coil(made):
+    """Every full layer shown is the coil's whole width (task 0174; 0080's solid spanned the rope middles): its rope
+    middles run from the core's first turn to the rim's last – r_in … r_out within 2 mm – and it lies one cable on
+    the layer below."""
     sc = made
     sp = spool.find(sc, "Carousel")
     d = float(paths.find(sc, sp.cable).diameter)
     pay(sc, "Power cable", 0.0)
-    solid = spool._made(sc, sp, "solid")
-    dg = bpy.context.evaluated_depsgraph_get()
-    ev = solid.evaluated_get(dg)
-    m = np.array(ev.matrix_world)
-    co = np.array([m[:3, :3] @ np.array(v.co) + m[:3, 3] for v in ev.data.vertices])
-    rho = np.array([math.hypot(*to_spool(sc, sp, x)[:2]) for x in co])
-    assert rho.max() == pytest.approx(float(sp.r_out), abs=0.002)
-    assert rho.min() == pytest.approx(float(sp.r_in), abs=0.002)
-    assert d > 0.0
+    shown = [ob for ob in spool.layer_objects(sc, sp) if not ob.hide_viewport]
+    assert shown, "no full layer under the moving rope"
+    for k, ob in enumerate(shown):
+        c, _s = _curve_of(ob, float(sp.wound))
+        loc = np.array([to_spool(sc, sp, x) for x in c])
+        rho = np.hypot(loc[:, 0], loc[:, 1])
+        assert rho.max() == pytest.approx(float(sp.r_out), abs=0.002), ob.name
+        assert rho.min() == pytest.approx(float(sp.r_in), abs=0.002), ob.name
+        flat = loc[np.abs(loc[:, 2] - np.median(loc[:, 2])) < 1e-6, 2]
+        assert len(flat) > len(loc) // 2, ob.name
+        assert float(np.median(loc[:, 2])) == pytest.approx(float(sp.a_bot) + d / 2 + k * d, abs=1e-4), ob.name
 
 
 def test_level_wind_rides_with_the_wrap_and_back(made):

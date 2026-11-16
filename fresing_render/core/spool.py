@@ -52,7 +52,12 @@ length then ends exactly at the leave point. Every second point lies on the path
 little (about ``r * step^2 / 12``), onto the circle of points that lie the right distances from both neighbours.
 
 **The stack** (``stack``): only the top layers are drawn as rope, the full layers below as one solid (a drum: a
-sleeve with the outer radius of the top full layer; a carousel: a ring as high as the full layers).
+sleeve with the outer radius of the top full layer; a carousel: a ring as high as the full layers). Since task 0174
+the app draws every layer as rope: the layer being paid out (``drawn_from`` … the leave point, trimmed at every frame)
+and each full layer below it as a static stretch of the same path (``layer_spans``), shown while the leave point lies
+above it (``shown_layers``). ``layer_switches`` is where each full layer's stretch comes and goes; the two use the same
+comparison, so the drawn stretches always meet. ``turn_gaps`` measures how close the rope's middle comes to itself a
+turn away (neighbouring turns touch, they do not overlap).
 """
 
 from __future__ import annotations
@@ -708,6 +713,77 @@ def stack_breaks(path: Path, W0: float, p_lo: float, p_hi: float, drawn_layers: 
     ks = range(max(int(drawn_layers), 1), path.layer_count)
     p = np.array([W0 - _first_of_layer(path, k) for k in ks], dtype=np.float64)
     return np.sort(p[(p > p_lo) & (p < p_hi)])
+
+
+# ---------------------------------------------------------------------------------------------------------
+# every layer as rope (task 0174)
+# ---------------------------------------------------------------------------------------------------------
+
+SWITCH_EPS = 1e-9   # m: the leave point must lie this far above a layer's switch to cover it (as ``_stack_low``)
+
+
+def layer_spans(path: Path) -> np.ndarray:
+    """(n, 2): the stretch of the wound path each layer's rope is drawn over – from where the climb into it begins
+    to where the climb out of it begins (the last layer to the end). They follow each other without a gap."""
+    starts = np.array([layer_start(path, k) for k in range(path.layer_count + 1)], dtype=np.float64)
+    return np.stack([starts[:-1], starts[1:]], axis=1)
+
+
+SHOW_EARLY = 1e-3   # m: a full layer's own stretch shows at least this much before the moving rope leaves it
+
+
+def layer_switches(path: Path) -> np.ndarray:
+    """(n - 1,): for each layer below the top one, the length on the spool above which the rope that changes with
+    the payout begins above it (the start of the next layer's own pieces, after the climb; as ``stack``)."""
+    return np.array([_first_of_layer(path, k + 1) for k in range(path.layer_count - 1)], dtype=np.float64)
+
+
+def layer_shows(path: Path) -> np.ndarray:
+    """(n - 1,): for each layer below the top one, the length on the spool above which its own stretch is drawn as a
+    whole: half way up the climb out of it (it is full from the climb's start on), and at least ``SHOW_EARLY`` before
+    its switch. So it shows a little *before* the moving rope gives it up (both draw it for a moment: the same points,
+    no gap even when the two read the payout a hair apart – 32-bit keys)."""
+    spans = layer_spans(path)
+    sw = layer_switches(path)
+    return np.minimum(0.5 * (spans[:-1, 1] + sw), sw - SHOW_EARLY)
+
+
+def shown_layers(path: Path, W0, p):
+    """Bool (..., n - 1): which full layers are drawn as a whole after paying out p (W0 - p on the spool)."""
+    left = np.asarray(W0, dtype=np.float64) - np.asarray(p, dtype=np.float64)
+    return left[..., None] > layer_shows(path)
+
+
+def drawn_from(path: Path, W0, p):
+    """The length where the rope that changes with the payout begins (the start of the layer being paid out, with
+    its climb). The same as ``stack(path, W0, p, 1)[0]``. Vectorised over p."""
+    spans = layer_spans(path)
+    left = np.asarray(W0, dtype=np.float64) - np.asarray(p, dtype=np.float64)
+    past = left[..., None] - SWITCH_EPS > layer_switches(path)
+    return (past * (spans[:-1, 1] - spans[:-1, 0])).sum(axis=-1) + spans[0, 0]
+
+
+def turn_gaps(path: Path, L_lo: float = 0.0, L_hi: float | None = None, step: float | None = None,
+              apart: float = 0.75):
+    """How close the rope's middle comes to itself further along the path (at least ``apart`` of a turn further:
+    the turns beside it in its layer and the layers below and above). Samples the path every ``step`` (default
+    d / 4) from L_lo to L_hi; gives (L (m,), the smallest distance from each sample to any other sample at least
+    ``apart`` turn away along the path (m,)). For small test spools: it compares every pair (O(m^2) in blocks)."""
+    L_hi = path.total if L_hi is None else float(L_hi)
+    d = path.spool.d
+    step = d / 4.0 if step is None else float(step)
+    L = np.arange(float(L_lo), L_hi + 0.5 * step, step)
+    L = L[L <= L_hi + 1e-12]
+    phi, a, r, _k = at(path, L)
+    pts = xyz(phi, a, r)
+    circ = 2.0 * math.pi * np.asarray(r, dtype=np.float64)          # one turn's length here
+    out = np.full(len(L), np.inf)
+    for s in range(0, len(L), 512):
+        dd = np.linalg.norm(pts[s:s + 512, None, :] - pts[None, :, :], axis=-1)
+        far = np.abs(L[s:s + 512, None] - L[None, :]) >= apart * circ[s:s + 512, None]
+        dd = np.where(far, dd, np.inf)
+        out[s:s + 512] = dd.min(axis=1)
+    return L, out
 
 
 # ---------------------------------------------------------------------------------------------------------

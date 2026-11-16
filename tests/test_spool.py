@@ -217,7 +217,9 @@ def test_drivers_need_no_python(made):
     assert joints.couplings_simple(sc)
     for name in ("Drum", "Carousel"):
         sp = spool.find(sc, name)
-        for ob in (sp.owner, spool._made(sc, sp, "solid")):
+        layers = spool.layer_objects(sc, sp)
+        assert layers and spool._made(sc, sp, "solid") is None, name     # (task 0174: every layer as rope)
+        for ob in [sp.owner] + layers:
             for fc in ob.animation_data.drivers:
                 assert fc.driver.type in ("MAX", "AVERAGE") or fc.driver.is_simple_expression, fc.data_path
 

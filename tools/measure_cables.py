@@ -12,7 +12,8 @@ what the live view waits for before it draws), not EEVEE's drawing. Prints one t
 - playback: ms per frame over evenly spaced frames, and again with the app-made cable / spool / track drawings
   switched off – the difference is what drawing them costs per frame
 - memory: the process's resident memory after opening, after Build
-- triangles: the evaluated carousel rope, its solid, every cable tube, the CAD coil
+- triangles: the evaluated carousel rope, its full layers (task 0174; before: its solid), every cable tube, the CAD coil
+- project size: the saved .blend (MB)
 - live: ms per step of the cable's speed joint after "Clear keys" (the live handlers' cost while posing)
 - render (``--render``): one Cycles frame of the carousel shot, 480 x 270, 16 samples, on the processor
 """
@@ -73,7 +74,8 @@ def made_objects(sc):
     mods = []
     for ob in sc.objects:
         for m in ob.modifiers:
-            if m.type == "NODES" and m.name in (spool.MOD, paths.MOD, tracks.MOD):
+            if m.type == "NODES" and m.name in (spool.MOD, getattr(spool, "LAYER_MOD", spool.MOD), paths.MOD,
+                                                tracks.MOD):
                 mods.append(m)
     return mods
 
@@ -97,6 +99,10 @@ def triangles(sc) -> dict:
             ob = spool._made(sc, sp, what)
             if ob is not None:
                 out[f"spool {sp.name} {what}"] = tris(ob)
+        layers = spool.layer_objects(sc, sp) if hasattr(spool, "layer_objects") else []
+        if layers:                                  # task 0174: every full layer (shown now or not)
+            got = [tris(ob) for ob in layers]
+            out[f"spool {sp.name} layers ({len(layers)})"] = (sum(t for t, _v in got), sum(v for _t, v in got))
         if sp.coil is not None:
             out[f"spool {sp.name} CAD coil (hidden)"] = (sum(len(p.vertices) - 2 for p in sp.coil.data.polygons),
                                                         len(sp.coil.data.vertices))
@@ -143,6 +149,7 @@ def main() -> int:
     t0 = time.perf_counter()
     bpy.ops.wm.open_mainfile(filepath=info["out"]["path"])
     res["open_seconds"] = round(time.perf_counter() - t0, 1)
+    res["project_mb"] = round(os.path.getsize(info["out"]["path"]) / 1e6, 1)
     sc = bpy.context.scene
     res["rss_open_mb"] = round(rss_mb())
     a = sc.fresing.animations[demo.ANIM]

@@ -17,10 +17,14 @@ the spool. Everything follows from p alone, so it is written once as tables and 
 * **The rope on the spool is drawn by the app** on an object of its own ("FR spool <name>", a child of the part that
   was clicked, so it turns with the spool): Geometry Nodes make a tube along the whole wound path (a hidden polyline
   mesh "FR spool shapes <name>", in that object's coordinates) and trim it by two driven lengths – the end at
-  ``W0 - p`` (a simple expression on the cable's joint), the start at the first layer still drawn as rope (a table
-  that steps at each layer). The full layers below are one solid ("FR spool solid <name>": a sleeve on a drum, a ring
-  on a carousel) whose size steps with the layers (a table on its scale). The CAD coil or wire solid is hidden by an
-  empty Geometry Nodes modifier; switching the spool off shows it again.
+  ``W0 - p`` (a simple expression on the cable's joint), the start at the layer being paid out (a table that steps
+  at each layer). **Every full layer below it is rope too** (task 0174; before, one solid stood for them): one static
+  object per layer ("FR spool layer <k> <name>", role ``layer``) whose own mesh is that layer's stretch of the same
+  polyline and whose Geometry Nodes ("FR spool layer") sweep it into the same tube once – nothing in it changes with
+  the frame. A simple-expression driver on its visibility shows it while the leave point lies above it
+  (``core/spool.layer_shows``: a hair before the moving rope gives it up, so the two always meet). One continuous
+  cable from the anchor to the leave point, its look's pattern running on across every seam (s = L - W0 everywhere).
+  The CAD coil or wire solid is hidden by an empty Geometry Nodes modifier; switching the spool off shows it again.
 * **The cable starts where the rope leaves the spool** (``FRCable.a_kind = "SPOOL"``): ``blender/paths.py`` asks
   ``starts`` for that point at every moment it solves. It reads the spool's turned place and the payout like any
   other carrier (the spool's motion empty and the cable joint's arrow and motion are "live" slots of the cable), so
@@ -52,15 +56,20 @@ HIDE = "FR spool hides"             # the modifier that hides the CAD coil
 TREE = "FR spool rope"
 HIDE_TREE = "FR spool nothing"
 VERSION = 2
+LAYER_TREE = "FR spool layer"       # the tree of a full layer's static tube (task 0174)
+LAYER_MOD = "FR spool layer"
+LAYER_VERSION = 1
+DRAW = 2                            # on the rope object: 2 = every layer as rope (task 0174); older projects: a solid
 S_ATTR = "fr_L"                     # on the shapes' points: the metres from the anchor (the look's s = L - Wound)
 OFF = "fr_off"                      # on a made object: 1 hides it (the spool is off)
 SIDES = {"DRUM": 12, "CAROUSEL": 8}
-DRAWN = {"DRUM": 2, "CAROUSEL": 1}  # layers drawn as rope (the rest: one solid)
+DRAWN = {"DRUM": 1, "CAROUSEL": 1}  # layers drawn by the moving rope (the full ones below: static layer objects)
 GROOVE = 1.06                       # a spiral groove's pitch in rope diameters, when none was typed
 COIL_WORDS = ("COIL", "WIRE", "ROPE", "CABLE", "SPOOL", "WOUND")
 _INPUTS = (("Shapes", "NodeSocketObject"), ("Wound", "NodeSocketFloat"), ("Start", "NodeSocketFloat"),
            ("End", "NodeSocketFloat"),
            ("Radius", "NodeSocketFloat"), ("Sides", "NodeSocketInt"))
+_LAYER_INPUTS = (("Wound", "NodeSocketFloat"), ("Radius", "NodeSocketFloat"), ("Sides", "NodeSocketInt"))
 
 _STATE = {"busy": 0, "path": {}, "poly": {}, "inputs": {}}
 
@@ -787,8 +796,15 @@ def _build_tree(ng) -> None:
     cut = b.new("GeometryNodeDeleteGeometry", domain="POINT")
     b.link(store_l.outputs[0], cut.inputs["Geometry"])
     b.link(gone.outputs[0], cut.inputs["Selection"])
+    _tube(b, gin, gout, cut.outputs[0])
+
+
+def _tube(b, gin, gout, mesh) -> None:
+    """The tube along a polyline mesh whose points carry ``fr_L``: the cable look's attribute (cos, sin of the
+    profile's angle, s = L - Wound), the material slot. Shared by the moving rope and the full layers."""
+    from . import paths
     curve = b.new("GeometryNodeMeshToCurve")
-    b.link(cut.outputs[0], curve.inputs["Mesh"])
+    b.link(mesh, curve.inputs["Mesh"])
     src2 = b.new("GeometryNodeInputNamedAttribute", data_type="FLOAT")
     src2.inputs["Name"].default_value = S_ATTR
     s_val = _math(b, "SUBTRACT", flex._sock(src2.outputs, "Attribute"), gin.outputs["Wound"])   # the look's s
@@ -835,6 +851,30 @@ def _tree():
     return ng
 
 
+def _build_layer_tree(ng) -> None:
+    """A full layer: its own polyline (points with ``fr_L``) swept into the tube – no time, nothing driven."""
+    b = flex._Nodes(ng)
+    gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
+    _tube(b, gin, gout, gin.outputs[0])
+
+
+def _layer_tree():
+    ng = bpy.data.node_groups.get(LAYER_TREE)
+    if ng is not None and ng.get(TAG) == LAYER_VERSION:
+        return ng
+    if ng is not None:
+        ng.name = LAYER_TREE + " old"
+    ng = bpy.data.node_groups.new(LAYER_TREE, "GeometryNodeTree")
+    ng[TAG] = LAYER_VERSION
+    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+    for name, kind in _LAYER_INPUTS:
+        ng.interface.new_socket(name, in_out="INPUT", socket_type=kind)
+    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    _build_layer_tree(ng)
+    _STATE["inputs"].pop(LAYER_TREE, None)
+    return ng
+
+
 def _hide_tree():
     """A tree that gives nothing: the CAD coil's shape is gone while the spool draws the rope."""
     ng = bpy.data.node_groups.get(HIDE_TREE)
@@ -859,28 +899,40 @@ def _inputs(ng) -> dict:
 
 
 def _made(scene, sp, what: str):
-    """The object this spool made for ``what`` ("rope", "shapes", "solid"), or None."""
+    """The object this spool made for ``what`` ("rope", "shapes"; "solid" in projects before task 0174), or None."""
     for ob in bpy.data.objects:
         if ob.get(TAG) == sp.name and ob.get("fr_spool_role") == what:
             return ob
     return None
 
 
+def layer_objects(scene, sp) -> list:
+    """The static objects of the full layers (task 0174), by layer: [layer 1, layer 2 …]."""
+    out = [ob for ob in bpy.data.objects if ob.get(TAG) == sp.name and ob.get("fr_spool_role") == "layer"]
+    return sorted(out, key=lambda ob: int(ob.get("fr_spool_layer", 0)))
+
+
+def _remove_object(ob) -> None:
+    me = ob.data
+    bpy.data.objects.remove(ob)
+    if me is not None and me.users == 0:
+        bpy.data.meshes.remove(me)
+
+
 def _remove_made(scene, sp) -> None:
     for what in ("rope", "shapes", "solid"):
         ob = _made(scene, sp, what)
         if ob is not None:
-            me = ob.data
-            bpy.data.objects.remove(ob)
-            if me is not None and me.users == 0:
-                bpy.data.meshes.remove(me)
+            _remove_object(ob)
+    for ob in layer_objects(scene, sp):
+        _remove_object(ob)
 
 
 COLLECTION = "FR spools"
 
 
 def _own_collection(scene):
-    """The collection the drawn ropes and solids are in: their own, so a model update (which sets aside the
+    """The collection the drawn ropes and layers are in: their own, so a model update (which sets aside the
     collections that hold only the old model) is not held up by them."""
     col = bpy.data.collections.get(COLLECTION)
     if col is None:
@@ -977,45 +1029,97 @@ def _owner_matrix(scene, sp, memo: dict) -> np.ndarray:
     return np.linalg.inv(_np_cad(sp.part, memo)) @ frame_cad(scene, sp, memo) @ _rz(float(sp.phase))
 
 
-def _solid_mesh(sp, path, scene) -> bpy.types.Mesh:
-    """A unit sleeve (drum: radius 1 between the flanges) or a unit ring (carousel: height 1 from the coil's
-    bottom), in its own frame: scaling it in x, y (drum) or z (carousel) gives the full layers' solid."""
-    d = diameter(scene, sp)
-    n = 96
-    t = np.linspace(0.0, 2.0 * math.pi, n, endpoint=False)
-    if sp.kind == "DRUM":
-        z0, z1 = float(sp.a_lo), float(sp.a_hi)
-        rings = [(1.0, z0), (1.0, z1)]
-        inner = 0.0
-    else:
-        z0, z1 = 0.0, 1.0
-        r_lo, r_hi = S.ring_radii(core_spool(scene, sp))      # (an Archimedean spiral leaves half a band free)
-        rings = [(r_hi, z0), (r_hi, z1)]
-        inner = r_lo
-    verts = []
-    for r, z in rings:
-        verts += [(r * math.cos(a), r * math.sin(a), z) for a in t]
-    if inner > 0.0:
-        for z in (z1, z0):
-            verts += [(inner * math.cos(a), inner * math.sin(a), z) for a in t]
-    faces = []
-    for k in range(n):
-        k2 = (k + 1) % n
-        faces.append((k, k2, n + k2, n + k))                     # outside
-    if inner > 0.0:
-        for k in range(n):
-            k2 = (k + 1) % n
-            faces.append((n + k, n + k2, 2 * n + k2, 2 * n + k))         # top
-            faces.append((2 * n + k, 2 * n + k2, 3 * n + k2, 3 * n + k))  # inside
-            faces.append((3 * n + k, 3 * n + k2, k2, k))                   # bottom
-    else:
-        faces.append(tuple(range(n - 1, -1, -1)))
-        faces.append(tuple(range(n, 2 * n)))
-    me = bpy.data.meshes.new(f"FR spool solid {label(sp)}")
-    me.from_pydata(verts, [], faces)
-    me.shade_flat()
-    me.update()
-    return me
+def _layer_driver(ob, path: str, part, source, A: float, B: float, T: float) -> None:
+    """``ob``'s ``path`` (hide_viewport / hide_render) = max(the part hidden in renders, the spool off,
+    W0 - p <= T): a simple expression of the cable joint's value (``a``), W0 - p = A a + B."""
+    try:
+        ob.driver_remove(path)
+    except TypeError:
+        pass
+    fc = ob.driver_add(path)
+    for m in list(fc.modifiers):
+        fc.modifiers.remove(m)
+    drv = fc.driver
+    drv.type = "SCRIPTED"
+    for name, target, data_path in (("a", source, joints.COUPLING_PATH), ("h", part, "hide_render"),
+                                    ("o", ob, f'["{OFF}"]')):
+        var = drv.variables.new()
+        var.name = name
+        var.type = "SINGLE_PROP"
+        var.targets[0].id_type = "OBJECT"
+        var.targets[0].id = target
+        var.targets[0].data_path = data_path
+    drv.expression = f"max(h, o, {joints.expression(A, B)} <= {float(T)!r})"
+
+
+def _hide_static(ob, part) -> None:
+    """A layer object with no cable joint to read: shown with its part (as the rope)."""
+    for prop in ("hide_viewport", "hide_render"):
+        _hide_driver(ob, part, prop)
+
+
+def _write_layers(scene, sp, path, M, scale: float, top, k: float, c: float, sign: float) -> None:
+    """The full layers' static objects: one per layer below the top one, its own mesh that layer's stretch of the
+    drawing polyline (in the clicked part's coordinates, ``fr_L`` = metres from the anchor), the tube made once by
+    "FR spool layer", shown by a driver while the leave point lies above it (``S.layer_shows``)."""
+    n = int(path.layer_count) - 1
+    have = {int(ob.get("fr_spool_layer", -1)): ob for ob in layer_objects(scene, sp)}
+    for kk, ob in list(have.items()):
+        if not 0 <= kk < n:
+            _remove_object(ob)
+            have.pop(kk)
+    if n <= 0:
+        return
+    pts, Ls = polyline_of(scene, sp)
+    spans = S.layer_spans(path)
+    shows = S.layer_shows(path)
+    W0 = float(sp.wound)
+    tree = _layer_tree()
+    ins = _inputs(tree)
+    key = repr((_key(scene, sp), round(sag_of(scene, sp), 9), [round(v, 9) for v in M.reshape(-1)]))
+    for kk in range(n):
+        ob = have.get(kk)
+        if ob is None:
+            ob = _new_made(scene, sp, "layer", sp.part, bpy.data.meshes.new(f"FR spool layer {kk + 1} {label(sp)}"))
+            ob.name = f"FR spool layer {kk + 1} {label(sp)}"
+            ob["fr_spool_layer"] = kk
+        if ob.parent != sp.part:
+            ob.parent = sp.part
+            ob.matrix_parent_inverse = Matrix.Identity(4)
+        ob.matrix_basis = Matrix.Identity(4)
+        if ob.get("fr_layer_key") != key:               # its stretch of the polyline (exactly the moving rope's points)
+            i0 = max(int(np.searchsorted(Ls, spans[kk, 0] - 1e-9, side="left")), 0)
+            i1 = min(int(np.searchsorted(Ls, spans[kk, 1] + 1e-9, side="right")), len(Ls))
+            i1 = max(i1, i0 + 2)
+            p_, l_ = pts[i0:i1], Ls[i0:i1]
+            m = len(p_)
+            me = bpy.data.meshes.new(ob.name)
+            me.vertices.add(m)
+            me.vertices.foreach_set("co", np.ascontiguousarray(flex._at(M, p_), np.float32).reshape(-1))
+            me.edges.add(m - 1)
+            me.edges.foreach_set("vertices", np.c_[np.arange(m - 1), np.arange(1, m)].astype(np.int32).reshape(-1))
+            me.attributes.new(S_ATTR, "FLOAT", "POINT").data.foreach_set("value", l_.astype(np.float32))
+            me.update()
+            old = ob.data
+            ob.data = me
+            if old is not None and old.users == 0:
+                bpy.data.meshes.remove(old)
+            ob["fr_layer_key"] = key
+        mod = ob.modifiers.get(LAYER_MOD)
+        if mod is None or mod.type != "NODES":
+            mod = ob.modifiers.new(LAYER_MOD, "NODES")
+        if mod.node_group != tree:
+            mod.node_group = tree
+        flex._put(mod, ins["Radius"], 0.5 * diameter(scene, sp) / scale)
+        flex._put(mod, ins["Sides"], SIDES[sp.kind])
+        flex._put(mod, ins["Wound"], W0)
+        ob[OFF] = 0 if sp.enabled else 1
+        if top is not None and top.motion is not None:
+            for prop in ("hide_viewport", "hide_render"):
+                _layer_driver(ob, prop, sp.part, top.motion, -sign * k, W0 - sign * c, float(shows[kk]))
+        else:
+            _hide_static(ob, sp.part)
+        _materials(scene, sp, ob)
 
 
 def follow_look(scene, item) -> None:
@@ -1023,8 +1127,7 @@ def follow_look(scene, item) -> None:
     sp = of_cable(scene, item)
     if sp is None:
         return
-    for what in ("rope", "solid"):
-        ob = _made(scene, sp, what)
+    for ob in [_made(scene, sp, "rope")] + layer_objects(scene, sp):
         if ob is not None:
             _materials(scene, sp, ob)
             ob.update_tag()
@@ -1111,7 +1214,7 @@ def _window_holds(scene, sp, p: float) -> bool:
 
 
 def _draw(scene, sp) -> None:
-    """The rope object, its shapes, its drivers; the solid; the CAD coil hidden."""
+    """The rope object, its shapes, its drivers; the full layers' objects; the CAD coil hidden."""
     j = _joint(scene, sp)
     it = _cable(scene, sp)
     if j is None or it is None or not _alive(scene, sp.part):
@@ -1154,47 +1257,12 @@ def _draw(scene, sp) -> None:
     rope[OFF] = 0 if sp.enabled else 1
     _materials(scene, sp, rope)
     rope.update_tag()
-    # the solid: the full layers under the rope drawn
-    solid = _made(scene, sp, "solid")
-    if solid is None:
-        solid = _new_made(scene, sp, "solid", sp.part, _solid_mesh(sp, path, scene))
-    else:
-        old = solid.data
-        solid.data = _solid_mesh(sp, path, scene)
-        if old is not None and old.users == 0:
-            bpy.data.meshes.remove(old)
-    F = M.copy()
-    if sp.kind == "CAROUSEL":
-        F = M @ np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, float(sp.a_bot)], [0, 0, 0, 1.0]])
-    if solid.parent != sp.part:
-        solid.parent = sp.part
-        solid.matrix_parent_inverse = Matrix.Identity(4)
-    loc, rot, _sc = Matrix([list(r) for r in F]).decompose()
-    solid.matrix_basis = Matrix.LocRotScale(loc, rot, None)
-    solid.scale = (scale, scale, scale)
-    if top is not None and top.motion is not None:
-        d = diameter(scene, sp)
-        if sp.kind == "DRUM":
-            r_low = max(float(sp.r1) - 0.5 * d, 1e-4)
-            xs, ys = _steps(scene, sp, path, W0, lambda _lo, sol: np.where(sol > 0.0, sol, r_low))
-            for i in (0, 1):
-                _step_driver(solid, "scale", top.motion, xs, ys / scale, index=i)
-            try:
-                solid.driver_remove("scale", 2)
-            except TypeError:
-                pass
-            solid.scale[2] = 1.0 / scale
-        else:
-            xs, ys = _steps(scene, sp, path, W0, lambda _lo, sol: np.maximum(sol, 1e-4))
-            _step_driver(solid, "scale", top.motion, xs, ys / scale, index=2)
-            for i in (0, 1):
-                try:
-                    solid.driver_remove("scale", i)
-                except TypeError:
-                    pass
-            solid.scale[0] = solid.scale[1] = 1.0 / scale
-    solid[OFF] = 0 if sp.enabled else 1
-    _materials(scene, sp, solid)
+    rope["fr_spool_draw"] = DRAW
+    # every full layer below: a static object each (task 0174); a solid of an older project goes
+    old = _made(scene, sp, "solid")
+    if old is not None:
+        _remove_object(old)
+    _write_layers(scene, sp, path, M, scale, top, k, c, sign)
     # the CAD coil: hidden while the spool draws it
     coil = sp.coil if _alive(scene, sp.coil) else None
     if coil is not None and coil.type == "MESH":
@@ -1803,9 +1871,42 @@ def forget() -> None:
     _STATE["inputs"].clear()
 
 
+def needs_upgrade(scene, sp) -> bool:
+    """A spool drawn before task 0174 (a solid under the top layers, no layer objects): it is drawn again."""
+    if not sp.enabled:
+        return False
+    rope = _made(scene, sp, "rope")
+    return _made(scene, sp, "solid") is not None or (rope is not None and rope.get("fr_spool_draw") != DRAW)
+
+
+def upgrade(scene) -> int:
+    """Older projects open with every layer drawn as rope (task 0174): each spool that still has its solid is drawn
+    again. Returns how many."""
+    n = 0
+    for i in range(len(scene.fresing.spools)):
+        sp = scene.fresing.spools[i]
+        if not needs_upgrade(scene, sp):
+            continue
+        _STATE["busy"] += 1
+        try:
+            _draw(scene, sp)
+            n += 1
+        except Exception as exc:                    # (an old project always opens)
+            print(f"Fresing Render: drum or carousel '{label(sp)}' could not be drawn again: {exc}")
+        finally:
+            _STATE["busy"] -= 1
+    return n
+
+
 @persistent
 def _on_load(_dummy=None):
     forget()
+    for scene in bpy.data.scenes:
+        try:
+            if hasattr(scene, "fresing") and len(scene.fresing.spools):
+                upgrade(scene)
+        except Exception:                           # (never in the way of opening a file)
+            pass
 
 
 def _handlers():
