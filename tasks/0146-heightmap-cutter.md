@@ -119,10 +119,98 @@ brief by an agent that did not write the cutter, findings sent back to the worke
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16 Nov 2026 (branch `ccr-5bfdc6c9-l2tm60`). Version **0.2.115**.
 
-**What changed:**
+**What changed**
 
-**Tested and measured** (name the machine and the model):
+- New `core/heightmap.py` (NumPy only): the map, the swept shapes (flat, ball, corner radius; cone and convex
+  outline exist but are not used), stamping with snapshots to go back in time, meshing per 32 x 32-cell tile (edges
+  found on the exact heights, right-triangle thinning, mark classes, fine ridges left out), its own corner normals
+  and the weld across tiles.
+- `core/machining.py`: `Timeline(..., fast=True)`; `_MapSide` plans which moves go to the map (see Design: per
+  program by count and density, then per move) and joins the map's tiles with the Manifold solids (one boolean per
+  tile; pieces kept while unchanged; "Finish at the CAD part" kept). What comes out are closed solids as before, so
+  the clash check, volumes, tool marks and the Blender side are unchanged.
+- App: setting **Fast 3-axis** (4 Motion > Milling under Detail, on by default, tooltip); the status line says how
+  many moves went into the map and the grid ("… 7243 as height map, 0.2 mm grid").
+- PC check: Full line `milling.fast_map` (one 1,281-point program cut both ways and compared), Heavy line
+  `heavy.milling_finish` (40,401 points as a G-code step). Function list entry `milling.fast_map`, guide section
+  "Long programs: Fast 3-axis", CHANGELOG. `tools/bench_milling_dense.py` (M1 and the dome, `--fast`).
+- One existing test changed: `tests/test_toolpath.py::test_cut_never_into_the_part` switches Fast 3-axis off (it
+  gauges the *program* to 0.01 mm with the milled block; the map is not that fine at steps thinner than its grid).
 
-**Open points / follow-up tasks:**
+**Tested and measured** (4-core web machine, no graphics card, core only unless said, Detail Normal)
+
+| | before (exact cut per move) | after (height map) |
+| --- | --- | --- |
+| **M1** (ball Ø6, 100 x 60 mm, 0.3 mm step-over, 40,401 points = 14,008 moves): whole cut | 143.9 s | **3.5 s** |
+| M1 after 1,000 / 3,000 / 6,000 / 10,000 moves | 7.4 / 25.9 / 57.1 / 103.5 s | 0.5 / 1.3 / 2.2 / 3.4 s |
+| M1 triangles | 255,974 | **29,540** |
+| M1 one frame forward (8 points), marks | 53 ms | 38 ms |
+| M1 one frame forward with exact normals | 164 ms | 90 ms |
+| M1 one frame back | 235 ms | 72 ms |
+| M1 removed volume | 15,132.7 mm³ | 15,158.5 mm³ (+0.17 %: the exact bit has 40 corners) |
+| M1 peak memory | 1,128 MB | 715 MB |
+| **Dome** (3,750 moves, 0.5 mm step-over): whole cut | 32.4 s | **1.6 s** |
+| Dome triangles | 61,664 | 21,006 |
+| Dome frame forward / with normals / back | 33 / 106 / 220 ms | 35 / 68 / 69 ms |
+| **Toolpath test model in the app** (7,243 moves, rough + finish, bpy module): cut to the end | 119–131 s | **7.5 s** |
+| Toolpath test model faces | 96,588 | 145,146 (more: walls and steps) |
+| PC check Full line (1,281 points, in the app) | 4.1 s, 10,448 faces | 1.0 s, 26,096 faces, 0.014 mm apart |
+| PC check Heavy line (40,401 points, in the app, full size) | – | step built 2.9 s, motion read 2.9 s, whole cut 4.5 s, 67,270 faces |
+
+(The "after" timings were taken while the tester's runs had ended; an earlier run under load gave 3.9 s / 65 ms for
+M1. The brief's "dome 3,586 s" was a misreading of the study's "3,586 segments, 30 s".)
+
+Pictures: `tasks/img/0146_m1.jpg` (M1, same look) and `tasks/img/0146_toolpath.jpg` (the toolpath test model: same
+shape; the walls with a rounded foot look streakier with the map, the boss top is smooth where the exact cut shows
+the 0.008 mm ridges).
+
+Surface deviation between the two methods (independent tester, block 30 x 20 x 10 mm, points on one mesh against the
+other, both ways): ball finishing 0.019 mm, pockets 0.007–0.010, steps and L-shaped block 0.0004, round block 0.023,
+arcs 0.026, through window 0.007, tool along -Z / +X / -Y 0.007–0.019, block of 1.0 x 0.8 m (grid 0.52 mm) 0.033;
+steep strips: corner-radius pocket 0.110, flat ramps 0.138; island corners 0.169, two bits crossing 0.109, 0.3 mm
+ribs 0.295 (0.5 mm ribs 0.007). Volumes within 0.6 %.
+
+Tests: `tests/test_heightmap.py` (38, the worker's), `tests/test_heightmap_independent.py` (101: 96 pass, 5 are
+strict expected failures = the open faults below). Locally also: `test_machining*.py`, `test_toolmarks*.py`,
+`test_cut_normals.py`, `test_toolpath.py`, `test_pccheck.py`, `test_functions.py`, `test_user_guide.py`, tour and tour
+clash for the toolpath set (the tour's program runs on the map), precheck, tooltip check.
+
+**Subagents**
+
+- *bench* (Sonnet): wrote `tools/bench_milling_dense.py` and measured the "before" numbers (7 min).
+- *independent tester* (did not write the cutter; two rounds, 101 tests). First report: 10 findings, 19 failing
+  tests. What changed because of them: (1) with a finished part the block's own faces stay the block's and tiles no
+  longer overlap; (2) the grid starts off the round numbers (a wall exactly through a row of nodes was 0.08 mm off
+  with folded triangles); (3) V-bits, drills and custom outlines are cut exactly (their grooves are narrower than a
+  cell: 0.37 mm off, 4 % volume); (4) a wall along a tile's border carries its move; (5) a cut that ends exactly on
+  the block's side leaves no skin; (6)–(9) the stated tolerances were rewritten to what was measured (steep rounded
+  strips 0.15 mm, features thinner than two cells 0.3 mm); `shape_of` refuses a pin below a wide body; a crash in
+  the finished-part piece. Second report: 95 of 101 pass; one more fix (which tile labels a border wall).
+- Re-done by the worker after merging: nothing of the subagents' files; the worker marked the five remaining
+  faults in the tester's file as strict expected failures (the house convention).
+
+**GitHub runs:** see the last lines of this report (filled in after the merge).
+
+**Open points / follow-up tasks**
+
+1. **Walls and steps cost faces.** A program with many walls (roughing) gets about 1.5 x the faces of the exact cut
+   (toolpath test model 145,000 against 97,000), a single slot far more. The thinning is isotropic (right
+   triangles); long thin triangles along walls would fix it. The density rule keeps thin programs on the exact cut.
+2. **Steep rounded flanks** (ball deeper than 2/3 R, a corner radius' fillet): up to 0.15 mm off at Normal and a
+   little streaky in close-ups (picture). Normals taken from the tool's own shape on such faces, or a finer grid
+   next to walls, would cure it. Fine halves it.
+3. Five known faults kept as expected failures in `tests/test_heightmap_independent.py`: a wall exactly on a grid
+   line *and* a tile border (0.05 mm, faces twice; rare since the grid is off the round numbers); about 3 % of the
+   wall faces of small plunged holes lie folded (shape right to 0.007 mm); about 3 mm² of wall without a move where
+   through holes cross tile borders (no tool marks there); a 0.04 mm rib between two grooves is lost (within the
+   stated 0.3 mm).
+4. Tiles do not always meet vertex for vertex near a tile's corner (a node forced by a third tile is not passed
+   on); the gap is under the thinning tolerance (5 µm), no case showed in the tests.
+5. Per frame the map costs about 35–40 ms whatever the program (tiles re-meshed round the tool); for programs with
+   few moves per frame the exact cut is quicker per frame – hence the density rule. A fast path without a boolean
+   for tiles inside a plain block would roughly halve it.
+6. Not measured: Detail Fine and Fast; the owner's PC (the Heavy line will show it); a real CAM program of the
+   owner's. V-bit and drill programs stay as slow as before.
+7. Not in this task: a tour stop of its own (the toolpath stop shows it: its program runs on the map).
