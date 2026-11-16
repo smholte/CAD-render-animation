@@ -97,6 +97,11 @@ def register():
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
+    try:
+        from . import appicon
+        appicon.startup()                    # task 0169: the Fresing icon on the windows, taskbar and shortcuts
+    except Exception as exc:  # noqa: BLE001 - never stop the app from starting
+        print("Fresing Render (icon):", exc)
     from .blender import ops_house
     ops_house.register_menu()                # task 0114: File > Import > House Planner scene (.hpscene)
     from .blender import ops_import

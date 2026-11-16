@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.130 – 16 Nov 2026 – The Fresing icon and start-up screen (task 0169)
+
+- **Fresing Render now looks like Fresing everywhere in Windows:** the Desktop shortcut, the Start menu, the window and
+  the taskbar while the app runs show the green and white Fresing **F** instead of Blender's logo. The taskbar groups
+  the app under it, and **Pin to taskbar** keeps Fresing Render with its own icon.
+- **Already installed?** Nothing to do: at the first start after **Update now** the app puts the new icon on its
+  shortcuts (Desktop, Start menu and a pinned taskbar icon). If a pinned icon still shows Blender's logo, unpin it and
+  pin it again (Windows keeps its old picture for a while).
+- **New start-up screen** with the Fresing logo; its accent line is now Fresing Green instead of amber.
+
 ## 0.2.129 – 16 Nov 2026 – Web 3D page: under the sea (task 0143)
 
 - **The web page shows what lies under the water**, as the app does, when the project is on the **Open sea** and
