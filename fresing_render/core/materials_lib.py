@@ -178,6 +178,11 @@ MATERIALS: dict[str, dict] = {
     # bright galvanised wires, 6 strands; pitch = the lay length (one full turn of a strand)
     "wire_rope": dict(label="Steel wire rope", category="Metal", base_color=(0.62, 0.63, 0.64), metallic=1.0,
                       roughness=0.4, cable=dict(kind="ROPE", pitch=0.16, starts=6, width=0.0)),
+    # task 0158: a large export / array cable's outer serving: black polypropylene yarn served almost square to the
+    # cable (fibres, a slight sheen along the strands, dust), pairs of yellow bands painted on it every 1.25 m
+    "cable_served": dict(label="Served cable, black yarn with yellow bands", category="Plastic & rubber",
+                         base_color=(0.032, 0.032, 0.034), roughness=0.82, sheen=0.5, sheen_roughness=0.35,
+                         cable=dict(kind="SERVED", pitch=1.25, starts=0, width=0.035)),
 
     # ---- task 0116: offshore structures (wind turbine foundations, J-tubes, boat landings) --------------------
     # cast concrete: light warm grey, matte, a calm tone variation over metres, fine pores
@@ -267,6 +272,7 @@ UIDS: dict[str, int] = {
     "paint_marine_streaks": 53,
     "from_file": 54,
     "paint_blade_eroded": 55,
+    "cable_served": 56,
 }
 
 DEFAULT_COLOR = "RAL 7035"

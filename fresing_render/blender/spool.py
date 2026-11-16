@@ -995,6 +995,18 @@ def _solid_mesh(sp, path, scene) -> bpy.types.Mesh:
     return me
 
 
+def follow_look(scene, item) -> None:
+    """The cable's look changed (paths.py): its spool's rope and full layers take it at once (task 0158)."""
+    sp = of_cable(scene, item)
+    if sp is None:
+        return
+    for what in ("rope", "solid"):
+        ob = _made(scene, sp, what)
+        if ob is not None:
+            _materials(scene, sp, ob)
+            ob.update_tag()
+
+
 def _materials(scene, sp, ob) -> None:
     it = _cable(scene, sp)
     part = it.part if it is not None else None
@@ -1010,10 +1022,11 @@ def _materials(scene, sp, ob) -> None:
         m = mats[k] if k < len(mats) else None
         if slot.material != m:
             slot.material = m
-    if _alive(scene, part) and cable_looks.LOOK in part:
-        idprops.store_array(ob, cable_looks.LOOK, np.asarray(part[cable_looks.LOOK], dtype=float))
-    elif cable_looks.LOOK in ob:
-        del ob[cable_looks.LOOK]
+    for key in cable_looks.PROPS:               # the look and (served cable, task 0158) its yarn and bands
+        if _alive(scene, part) and key in part:
+            idprops.store_array(ob, key, np.asarray(part[key], dtype=float))
+        elif key in ob:
+            del ob[key]
     ob[cable_looks.PAY] = cable_looks.PAY_BIAS
 
 

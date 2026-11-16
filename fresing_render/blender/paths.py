@@ -85,7 +85,7 @@ TREES = {False: "FR cable still", True: "FR cable moving"}
 VERSION = 1                             # of the node trees: an older tree is made again
 SIDES = 20                              # of the tube's cross-section
 S_ATTR = "fr_s"                         # on the shapes mesh's points: the exact length along the cable (m)
-GROUPS = {"POWER": "Power cables", "ROPE": "Wire ropes"}
+GROUPS = {"POWER": "Power cables", "ROPE": "Wire ropes", "SERVED": "Served cables"}
 WAS = "group_was"                       # on the cable item: the group its part was in by hand before its look put
 #                                         it into a cable group ('' = none)
 SHAPING = ("SHEAVE", "CHUTE", "BEND")   # the kinds the cable bends round
@@ -1198,9 +1198,16 @@ def read_cad(scene, item, part) -> list[str]:
     return notes
 
 
+def _usual_pitch(look: str, diameter: float) -> float:
+    """A look's pitch when none was typed: a rope's lay length, a power cable's stripe distance, a served cable's band
+    distance (task 0158: the library's, whatever the diameter)."""
+    if look == "SERVED":
+        return float(cable_looks.defaults("SERVED")["pitch"])
+    return ROPE_LAY * diameter if look == "ROPE" else max(0.1, round(POWER_PITCH * diameter, 2))
+
+
 def _default_pitch(item) -> float:
-    d = float(item.diameter)
-    return ROPE_LAY * d if item.look == "ROPE" else max(0.1, round(POWER_PITCH * d, 2))
+    return _usual_pitch(item.look, float(item.diameter))
 
 
 def _cad_rel(item, memo: dict) -> np.ndarray:
@@ -2529,24 +2536,43 @@ def look_of(item) -> list:
     plain look."""
     if item.look not in cable_looks.KINDS:
         return []
+    if item.look == "SERVED":
+        return look_props(item)[cable_looks.LOOK]
     return cable_looks.look_values(item.look, float(item.diameter), float(item.pitch), HAND * float(item.angle),
                                    float(item.stripe))
+
+
+def look_props(item) -> dict:
+    """Every property the cable's look puts on its part: {name: numbers} (task 0158; {} for the plain look)."""
+    if item.look not in cable_looks.KINDS:
+        return {}
+    if item.look == "SERVED":
+        return cable_looks.served_props(
+            float(item.diameter), float(item.pitch), float(item.band_width), 2 if item.band_count == "PAIR" else 1,
+            float(item.band_gap), float(item.yarn_pitch), HAND * float(item.yarn_angle), float(item.wear),
+            float(item.band_wear), tuple(item.yarn_color), tuple(item.band_color))
+    return {cable_looks.LOOK: cable_looks.look_values(item.look, float(item.diameter), float(item.pitch),
+                                                      HAND * float(item.angle), float(item.stripe))}
 
 
 def _apply_look(scene, item) -> None:
     part = item.part
     if not _alive(scene, part):
         return
-    values = look_of(item)
-    if values:
-        have = list(part[cable_looks.LOOK]) if cable_looks.LOOK in part else []
-        if len(have) != len(values) or any(abs(a - b) > 1e-9 for a, b in zip(have, values)):
-            idprops.store_array(part, cable_looks.LOOK, values)
+    want = look_props(item)
+    for key in cable_looks.PROPS:
+        values = want.get(key)
+        if values:
+            have = list(part[key]) if key in part else []
+            if len(have) != len(values) or any(abs(a - b) > 1e-9 for a, b in zip(have, values)):
+                idprops.store_array(part, key, values)
+                part.update_tag()
+        elif key in part:
+            del part[key]
             part.update_tag()
-    elif cable_looks.LOOK in part:
-        del part[cable_looks.LOOK]
-        part.update_tag()
     _group(scene, item)
+    from . import spool as _spool
+    _spool.follow_look(scene, item)             # the coil on its drum or carousel too (task 0158)
 
 
 def _group(scene, item) -> None:
@@ -2622,7 +2648,7 @@ def _strip(scene, item, part) -> None:
             part.driver_remove(f'["{cable_looks.PAY}"]')
         except TypeError:
             pass
-        for key in (cable_looks.PAY, cable_looks.LOOK, PART):
+        for key in (cable_looks.PAY, *cable_looks.PROPS, PART):
             if key in part:
                 del part[key]
         if WAS in item:
@@ -2706,7 +2732,7 @@ def changed(scene, item) -> None:
     if _alive(scene, item.part):
         if item.get("look_was", item.look) != item.look:      # another look: its usual pitch, unless one was typed
             was = item["look_was"]
-            usual = ROPE_LAY * item.diameter if was == "ROPE" else max(0.1, round(POWER_PITCH * item.diameter, 2))
+            usual = _usual_pitch(was, float(item.diameter))
             if abs(item.pitch - usual) < 1e-6 or abs(item.pitch - 0.5) < 1e-9:
                 with _quiet(item):
                     item.pitch = _default_pitch(item)

@@ -1095,7 +1095,7 @@ metres of cable paid out, so the same cable can be moved by hand in 4 Motion, li
 **The look**
 
 The setting **Look** says how the cable looks. The look is a material (see 3 Looks), and the cable's part is put
-into the group "Power cables" or "Wire ropes" for it.
+into the group "Power cables", "Served cables" or "Wire ropes" for it.
 
 | Look | Settings |
 | --- | --- |
@@ -1104,6 +1104,29 @@ into the group "Power cables" or "Wire ropes" for it.
 | **Plain** | The look the part has in 3 Looks. Nothing shows that the cable moves. |
 
 <img class="wide" src="img/view_cables_looks.jpg" alt="The wire rope on a sheave: left as steel strands, right with the power cable look">
+
+<a id="served-cable"></a>
+**Served cable (yarn)**
+
+Large export and array cables have an outer layer of black polypropylene yarn wound almost straight round the
+cable, with pairs of yellow marker bands painted on it every metre or so. The look **Served cable (yarn)** draws
+that: fine grooves round the cable, some strands a little darker or lighter, a little dust between them, and the
+painted bands with ragged edges. Like the stripes, the bands and the yarn run along with the cable – also on its
+drum or carousel. The cable's part goes into the group "Served cables".
+
+| Setting | What it does |
+| --- | --- |
+| **Band distance** | From one group of bands to the next, along the cable (1250 mm). |
+| **Bands** | **Pairs** (two bands with a gap) or **Single**. |
+| **Band width**, **Band gap** | The width of one band (35 mm) and the black gap between the two of a pair (30 mm). |
+| **Band colour** | Traffic yellow; click it to pick another colour. |
+| **Paint wear** | 0 = fresh paint with clean edges. Higher: ragged edges, paint gone from the grooves, black smudges. |
+| **Yarn** (fold) | **Yarn pitch**: how far apart the strands lie (2.5 mm). **Lay angle**: 90° = straight round the cable (82°). **Yarn colour**. **Wear**: 0 = new, higher = dusty with lint between the strands. |
+
+<img class="wide" src="img/view_cables_served.jpg" alt="Close-up of a served cable leaving a carousel: black yarn grooves and a pair of yellow bands">
+
+The grooves are 2–3 mm apart: from far away they blend into a dark grey surface; close up they show. The demo
+project's power cable has this look. The web 3D model draws it too.
 
 **What it touches**
 

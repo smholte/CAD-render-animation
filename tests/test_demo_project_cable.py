@@ -30,7 +30,7 @@ from fresing_render.blender import demo  # noqa: E402
 
 def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     """Task 0078: the CAD cable is a cable on its path (bends as drawn, the rollers it rests on found, none of their
-    joints changed), it has the power-cable look, and in shot 4 a Run motor step moves "Cable travel" at 10 m/min:
+    joints changed), it has the served-cable look (task 0158), and in shot 4 a Run motor step moves "Cable travel" at 10 m/min:
     the stripes (the look's driver) and a roller's rim go exactly as far."""
     import numpy as np
 
@@ -38,7 +38,7 @@ def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     sc = _scene()
     sc.frame_set(sc.frame_start)
     it = paths.find(sc, demo.CABLE_ITEM)
-    assert it is not None and it.joint == demo.CABLE and not it.made_joint and it.still and it.look == "POWER"
+    assert it is not None and it.joint == demo.CABLE and not it.made_joint and it.still and it.look == "SERVED"
     assert it.part.get(build.PROP_NAME) == "CABLE" and paths.status(sc, it)[1] in ("OK", "WARN"), paths.status(sc, it)
     kinds = [c.kind for c in it.contacts]
     assert 8 <= kinds.count("BEND") + kinds.count("CHUTE") <= 14 and 175 <= kinds.count("ROLLER") <= 230, \
@@ -51,8 +51,13 @@ def test_the_cable_is_on_its_path_and_runs_at_10_m_per_min(made):
     n = paths_sea.numbers(sc, it)
     on_deck = it.length - n["hanging"] - n["laid"]
     assert it.b_kind == "SEA" and 150.0 < on_deck < 165.0 and abs(it.diameter - 0.2) < 0.002, on_deck
-    assert it.part.get("fr_group_manual") == paths.GROUPS["POWER"]
-    assert it.part.material_slots[0].material.get("fr_material") == "cable_power"
+    assert it.part.get("fr_group_manual") == paths.GROUPS["SERVED"]
+    assert it.part.material_slots[0].material.get("fr_material") == "cable_served"
+    # its yarn and bands on the part, and on the carousel's coil (task 0158)
+    assert list(it.part[cable_looks.LOOK])[3] == 3.0 and all(k in it.part for k in cable_looks.PROPS)
+    coils = [o for o in bpy.data.objects if o.name.startswith("FR spool") and cable_looks.LOOK in o
+             and float(o[cable_looks.LOOK][3]) == 3.0]
+    assert coils and all(list(o[cable_looks.YARN]) == list(it.part[cable_looks.YARN]) for o in coils)
     # the drawn tube: the app's, with the attribute the look reads
     dg = bpy.context.evaluated_depsgraph_get()
     me = it.part.evaluated_get(dg).data

@@ -23,6 +23,19 @@ installer of that version was built from.
   the bow). Making the demo takes about 12 % longer.
 - **Test tour:** the demo stop's check now expects the animation's real length (about 2 ½ minutes).
 
+## 0.2.116 – 16 Nov 2026 – Served cable look: black yarn with yellow marker bands (task 0158)
+
+- **New cable look "Served cable (yarn)"** in 4 Motion > Cables and paths > Look, next to Power cable and Steel wire
+  rope: the outer layer of a large export or array cable – black yarn served almost straight round the cable (fine
+  grooves 2.5 mm apart, darker and lighter strands, a slight sheen, some dust) with pairs of yellow painted marker
+  bands every 1.25 m (ragged edges, paint thinner in the grooves, smudged with wear). Settings: band distance, pairs
+  or single, band width and gap, band colour, paint wear; in the fold **Yarn**: yarn pitch, lay angle, yarn colour,
+  wear. The bands and the yarn run along with the cable, also on its drum or carousel, in Cycles and EEVEE, and on the
+  web 3D model's page.
+- **The demo project's power cable now has this look** (the lay cable and the second end); Power cable is still a
+  choice.
+- **Fixed:** when a cable's look was changed, the coil on its drum or carousel kept the old look until it was built
+  again. It now changes at once.
 ## 0.2.115 – 16 Nov 2026 – The sea cut-away also cuts the ground (task 0148)
 
 - **The cut goes on into the ground.** With the cut-away on, the seabed opens inside the box and shows a soil section:
