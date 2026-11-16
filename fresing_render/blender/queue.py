@@ -1176,6 +1176,8 @@ def _scene_settings(s):
     for key in states.WORLD_KEYS + ("camera_blur",):
         if key == "weather":                     # task 0109: the Weather & time panel
             yield key, tuple((w, states._plain(getattr(s.weather, w))) for w in states.WEATHER_KEYS)
+        elif key == "vessel_work":               # task 0154: what the vessel does
+            yield key, tuple((w, states._plain(getattr(s.vessel_work, w))) for w in states.VESSEL_WORK_KEYS)
         elif hasattr(s, key):
             yield key, states._plain(getattr(s, key))
     for g in s.groups:

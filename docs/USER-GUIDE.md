@@ -2388,6 +2388,51 @@ update and saved scenes (it is one setting for the whole project, not per saved 
 (measured on a 4-core test machine without a graphics card: 2.25 s per Draft frame with it, 2.27 s without) and
 about 6 ms per frame of playback on a 3,000-part machine.
 
+<a id="vessel-work"></a>
+### Vessel at work
+
+<img class="panel" src="img/panel_5_vessel_work.png" alt="Vessel at work">
+
+What the vessel does shows in the water: sailing ahead it leaves a white wake behind the stern and its waves fan out
+behind the bow, holding its place on its thrusters it throws white, boiling jets out beside the hull – and the
+propellers turn with it. It works on the **Open sea** and the **Vessel deck**, with **Foam** ticked (Background &
+surroundings).
+
+1. Open **Thrusters** and press **Find thrusters**: the app looks for joints whose names say propeller (screw,
+   schroef, Schraube) and reads what kind each one is – an **Azimuth** (a propeller in a pod that steers round on
+   its own upright joint: that joint is its **Steer joint**), a **Tunnel** thruster (pushes water to port or
+   starboard through a tunnel across the hull) or a **Shaft** propeller (only pushes ahead). Not found? Pick the
+   propeller's joint in 4 Motion > Joints and press **+**. Up to 6 thrusters.
+   - Below the list, for the selected thruster: its **Propeller** joint, **Kind**, **Steer joint** (an azimuth's
+     CAD position must push the vessel ahead), **Full speed (rpm)** – how fast it turns at full power in the video
+     (30 to 120 look right; real propellers turn so fast they flicker) – and **Turns the other way** when it turns
+     backwards.
+2. Pick what the vessel does:
+   - **Still**: no wake, no jets, the propellers stop.
+   - **Ahead** at **Speed (kn)** (the same vessel speed as in Weather & time): a white wake behind the stern that
+     fades and breaks up, the waves of a ship – a wedge of about 19.5° each side behind the bow, their crests
+     2πV²/g apart (about 10 m at 8 knots) – white water rolling off the bow and along the sides. The propellers
+     push, the azimuths point aft.
+   - **Sideways** (DP: holding or shifting the vessel's place): **Push to** port or starboard with **Thrust** (1 = full
+     power). The azimuths swing round, the tunnel thrusters run; white jets stream out on the other side, where the
+     water goes, as long and as white as the thrust makes them.
+   - **Turning** on the spot: **Bow to** port or starboard. The thrusters forward push the bow one way, those aft the
+     stern the other.
+
+The line under it says what the water shows; the panel's header shows "Ahead 8 kn", "Sideways to starboard 60%" or
+"Still". The steer joints turn at once; the propellers' turning is seen in a video.
+
+<a id="vessel-work-step"></a>
+**In a video:** add a **Vessel at work** step in 6 Animation. It starts from what the vessel did before it (the
+panel's setting, or the step before) and changes to its own over the step's time: from **Ahead** to **Sideways** the
+vessel slows, the wake fades, the azimuths swing round and the jets grow. **Build & play** turns the propellers – each
+as fast as its load, speeding up and slowing down with the steps – and steers the azimuths. A propeller that another
+step already moves (a Run motor step) is left to that step; Build says so. Saved scenes keep what the vessel does.
+
+It plays with "Auto Run Python Scripts" off, in EEVEE and Cycles and in the render queue. The waves and jets are drawn
+in the water's surface (light and shading, no real height): from low over the water the bow wave looks flat. No bubbles
+under water yet.
+
 <a id="weather"></a>
 ### Weather & time
 
@@ -2636,7 +2681,7 @@ The page is a small player (the fold **On the page** in the panel lists it too).
 title and these controls:
 
 - **Gear** (or **M**): the settings. Switch the surroundings items the page holds on and off (sea, vessel motion,
-  sky, haze, rain and spray, sun shadows); **Quality** Auto, Phone, Balanced or Best (picking one switches Auto off);
+  sky, haze, rain and spray, sun shadows, under the sea, camera under water); **Quality** Auto, Phone, Balanced or Best (picking one switches Auto off);
   how many pictures a second the page draws right now; the **graphics card** the browser uses; **Auto-turn** (the
   machine turns slowly after 8 s without a touch and stops at the first one); **Sun / time of day** – a slider that
   moves the live sun from morning to evening (greyed with baked light: "Light is baked into this model"). The page
@@ -2713,6 +2758,37 @@ Measured on the 4-core test machine without a graphics card: the test mill (9 pa
 made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (35 MB without). Texture size 2048
 needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
 report.
+
+<a id="web3d-under"></a>
+#### Under the sea on the page
+
+On the **Open sea** the page also shows what lies under the water, as the app does (5 Scene & Render > Surroundings):
+
+- **The seabed** at the project's **Water depth**, with the app's sand, its patches and its ripples. With a cable into
+  the sea the seabed drifts aft under the vessel while the cable pays out, as in the app.
+- **The cut-away behind the stern** (when it is on in the project): the same box of water taken away, placed by the
+  cable or by your numbers, with the thin bright line along its top and the walls darkening with depth. Inside the box
+  you see the cable hang down to its touch-down; whatever lies behind a wall fades into the water's colour by the
+  project's **Water clarity** – the app's own formula, so a far wall looks as in your renders.
+- **The ground in the cut-away** (Show the ground in the cut-away): the soil section, sand to clay, and a pile or
+  monopile down to its toe.
+- **The camera can go under the water.** Drag the view below the surface: the water takes its colour and fades
+  everything by the clarity, the surface shows from below, the seabed is the floor (the camera stops just above it;
+  in the cut-away's pit just above its floor). The switch from above to below follows the waves without flicker.
+
+Two switches in the page's settings: **Under the sea** (the seabed, the box and the soil; off: the sea is closed as
+before) and **Camera under water** (on by default; off: the camera stays above the water). A saved camera below the
+water (an "At the seabed" view) is shown where you saved it, also with Camera under water off, until the visitor
+drags the view.
+
+Not on the page: the stones on the seabed (Detailed) and the rippled seabed as real shape (the page draws the
+ripples as light and shade, the app's formula). The Vessel deck and the Quayside have no seabed, as in the app.
+
+Measured on the 4-core test machine **without a graphics card** (software drawing, only the differences mean
+something): the sea cable test model's page draws about 4 pictures a second at Phone with Under the sea
+on and 8–10 with it off (Balanced about 1.5–2 against 7), looking into the box or at the vessel. So without a graphics
+card **Auto quality** switches Under the sea off at Phone when the page still cannot keep up – a note says so, and
+the settings switch it on again. It adds about 1 kB to the file. On a PC with a graphics card: not measured yet.
 
 <a id="web3d-light"></a>
 #### Light
@@ -3168,6 +3244,44 @@ a music file under it. Both only go into MP4 videos.
 
 Use music you have the rights to: the app does not check. The video gets a normal sound track (AAC), so it
 plays everywhere.
+
+<a id="people"></a>
+**People: walk, carry and meet**
+
+<img class="panel" src="img/panel_6_people.png" alt="6 Animation > People: Anna selected, her path and four steps"> <img class="panel" src="img/people_meet.jpg" alt="Anna puts the toolbox down by Ben, they shake hands">
+
+People who walk along a path and do things: carry a toolbox in, put it down, shake hands, talk, point at the
+machine, work at a panel. **Build** turns it into keys like the rest of the animation.
+
+1. **Add person** and click on the floor (or the deck) where the person stands. Its **name**, height, clothes,
+   helmet, gloves and look are in the box below the list. **Example: two people meet** sets up a ready example
+   beside the machine (Anna with a toolbox and Ben) – a quick way to see how it works.
+2. **Draw path**: click the points the person walks through, then **Enter** (or right-click); **Backspace** takes
+   the last point back. The points are numbered in the view: **0** is where the person starts. **Edit points**
+   lets you drag points (**G**), add one between two (right-click > **Subdivide**) or delete one (**X**); click
+   **Done editing** when finished. Corners are walked round smoothly.
+3. **Steps** (the person does them from top to bottom; **+** adds one after the selected step):
+   - **Walk** to a point or to the path's end with a **gait**: **Stroll**, **Walk**, **Brisk**, **Carry-walk**
+     (something heavy in both hands; a plain Walk becomes it by itself) or **Run**. The step length goes with the
+     speed, so the feet never slide.
+   - **Stop**, **Idle** (shifts weight, looks round), **Turn to face** a part, a person or a point.
+   - **Pick up** an item lying within reach, **Put down** the carried item on whatever is in front – the floor, a
+     table, the top of a part.
+   - **Wave**, **Greet** (a handshake: both people need a Greet step with each other), **Talk** (they face each
+     other, take turns, nod and gesture), **Point at** and **Look at** a part, a person or a point, **Operate**
+     (both hands on a panel: **Pick point** and click on it).
+   - Every step can happen **where the person is**, **at a point** or **at the end** of its path – the person walks
+     there first.
+4. **Waiting for each other.** A Greet or a Talk starts when both people are there: whoever arrives first waits and
+   looks at the other. Any step can also **Wait for** another person's step (its number in that person's list).
+5. **Items**: **Add item** puts a toolbox, clipboard, tablet, hard hat, cable drum, crate, spanner or hose on the
+   floor in front of the selected person; move it like any object. **Holds** gives a person an item from the start.
+6. Drag **Preview** to see the people at any moment without building, then **Build & play** above.
+
+The people's own time counts in the animation's length: an animation shorter than the people's steps gets longer.
+Build warns when a path runs into a part (keep about 0.25 m clear on each side) or climbs over something, and the
+**Clash check** below checks people that act like parts. People are made with their bones (a rig): they keep the
+detail switch of props for scale (light far from the camera).
 
 <a id="clash"></a>
 **Clash check: parts that run into each other**

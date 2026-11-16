@@ -19,7 +19,8 @@
   var Q = new URLSearchParams(location.search);
   var root = document.documentElement;
   var LEVELS = ['AUTO', 'PHONE', 'BALANCED', 'BEST'];
-  var NAMES = { sea: 'Sea', vessel: 'Vessel motion', sky: 'Sky', haze: 'Haze', rain: 'Rain', shadows: 'Sun shadows' };
+  var NAMES = { sea: 'Sea', vessel: 'Vessel motion', sky: 'Sky', haze: 'Haze', rain: 'Rain', shadows: 'Sun shadows',
+                under: 'Under the sea', dive: 'Camera under water' };     // task 0143: the seabed, the cut-away
   if (page.settings.rain && page.settings.rain.spray) NAMES.rain = 'Rain and spray';
 
   // ---------------------------------------------------------------- look

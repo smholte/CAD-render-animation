@@ -5,6 +5,57 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.129 – 16 Nov 2026 – Web 3D page: under the sea (task 0143)
+
+- **The web page shows what lies under the water**, as the app does, when the project is on the **Open sea** and
+  Surroundings on the page is **As in the project**: the seabed with its sand and ripples, the **cut-away behind the
+  stern** (the same box, placed by the cable or by your numbers, with its bright top line and walls darkening with
+  depth), the cable hanging down to its touch-down, and the **ground in the cut-away** (soil layers, a pile down to its
+  toe). What lies behind the box's walls fades into the water's colour by the project's **Water clarity** – the app's
+  own formula. With a cable into the sea the seabed drifts aft while the cable pays out.
+- **The camera can go under the water** on the page: the water takes its colour and fades everything by the clarity,
+  the surface shows from below, the seabed is the floor. No flicker when it crosses the surface.
+- Two switches in the page's settings: **Under the sea** and **Camera under water**. Without a graphics card Auto
+  quality switches Under the sea off at Phone when the page cannot keep up (a note says so).
+- A **saved camera below the water or the floor** (an "At the seabed" view) now shows where you saved it; before, the
+  page pushed it up to the surface.
+- The Vessel deck and the Quayside have no seabed, as in the app; a page without the open sea is unchanged.
+
+## 0.2.128 – 16 Nov 2026 – People walk, carry and meet (task 0157)
+
+- **People who move:** new panel 6 Animation > **People**. **Add person** and click on the floor (or the deck), **Draw
+  path** by clicking the points it walks through (numbered in the view; drag, add or delete them afterwards with
+  **Edit points**), then list its **steps**: walk (stroll, walk, brisk, carry-walk or run), stop, turn to face, pick
+  up, put down, wave, greet (a handshake), talk, point at, look at, idle, operate a panel. **Build & play** makes the
+  animation; the **Preview** slider shows any moment without building.
+- **Real steps:** the feet are put down on the floor and roll from heel to toe; the step length goes with the speed,
+  so nothing slides. The person follows the floor's height and is warned about where a path runs into the machine.
+- **Meetings line up:** a greeting or a talk starts when both people are there – whoever is first waits and looks at
+  the other. Any step can wait for another person's step.
+- **Items:** a toolbox, clipboard, tablet, hard hat, cable drum, crate, spanner or hose, carried in the right hand(s)
+  and put down on whatever is in front – the floor, a table, a part's top.
+- **Example: two people meet** sets up Anna walking in with a toolbox, putting it down by Ben, a handshake and a talk.
+- People with steps are checked by the Clash check like parts. People keep the light version far from the camera.
+## 0.2.127 – 16 Nov 2026 – Vessel at work: wake, ship waves, bow wave and thruster jets (task 0154)
+
+- **What the vessel does shows in the water.** New panel 5 Scene & Render > **Vessel at work**: **Still**, **Ahead**
+  (at the vessel speed), **Sideways** (DP: the thrusters push it to port or starboard) or **Turning** on the spot.
+  - **Ahead:** a white wake behind the stern that fades and breaks up further back, the ship's waves fanning out
+    behind the bow in a wedge of 19.5° each side (their spacing follows the speed), white water rolling off the bow and
+    along the sides.
+  - **Sideways / Turning:** white, boiling jets stream out beside the hull where each thruster pushes its water, as
+    long and as white as the thrust makes them.
+  - Works in Cycles and EEVEE, with Auto Run Python Scripts off and in the render queue; needs Foam ticked.
+- **Thrusters:** **Find thrusters** reads the propellers from your joints (names with propeller, screw, schroef,
+  Schraube) and tells azimuths (with their steer joint), tunnel thrusters and shaft propellers apart. The azimuths
+  steer round at once; in a video every propeller turns as hard as it works.
+- **In a video:** a new step **Vessel at work** in 6 Animation changes what the vessel does over its time – it slows,
+  the wake fades, the azimuths swing round, the jets grow. Saved scenes keep the setting; Build tells you when the
+  start scene would put back another one (Save into start scene).
+- The vessel speed (Weather & time) now also works with Weather & time off.
+- **Demo project:** the vessel sails in at 6 knots in the first two shots, then holds its place on DP.
+- Test tour: new stop "Vessel at work: wake and jets"; PC check: new line "Vessel at work".
+
 ## 0.2.126 – 16 Nov 2026 – Web 3D: Marine detail Normal or Fine (task 0165)
 
 - New choice **Marine detail** in 5 Scene & Render > Web 3D model (shown when a marine look is in use). **Normal** is

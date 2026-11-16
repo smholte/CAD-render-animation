@@ -373,7 +373,29 @@ def test_the_vessel_in_detail(made):
     assert len(names) == 6
     t0, t1 = 20.0, 26.0
     f0, f1 = animation_frame(a, t0), animation_frame(a, t1)
+    # task 0154: the propellers follow Vessel at work (ahead 6 kn, then DP from shot 3): at 20-26 s on DP
+    from fresing_render.core import vessel_work as vw_core
+    from fresing_render.blender import vessel_work
+    v = sc.fresing.vessel_work
+    assert len(v.thrusters) == 4 and sorted(r.kind for r in v.thrusters) == ["AZIMUTH", "AZIMUTH", "TUNNEL", "TUNNEL"]
+    steps = [b for b in a.blocks if b.kind == "VESSEL"]
+    assert len(steps) == 1 and steps[0].vw_mode == "DP" and steps[0].start + steps[0].duration < t0
+    assert vessel_work.setting(sc).mode == "AHEAD" and vessel_work.setting(sc).speed == demo.TRANSIT_KNOTS
+    ths = vessel_work.thrusters(sc)
+    cmd = vw_core.command(vessel_work.block_setting(steps[0]), ths)
+    for i, r in enumerate(v.thrusters):
+        j = joints.find(sc, r.joint)
+        assert joints.is_motor(j) and r.joint in names, r.joint
+        sc.frame_set(f0)
+        v0 = joints.get_value(j)
+        sc.frame_set(f1)
+        v1 = joints.get_value(j)
+        fps = sc.render.fps / sc.render.fps_base
+        want = vw_core.rate(ths[i].kind, cmd.loads[i], cmd.jets[i], r.rpm, r.reverse) * (f1 - f0) / fps
+        assert abs(want) > 0.5 and v1 - v0 == pytest.approx(want, rel=0.02), r.joint
     for n in names:
+        if n.endswith("Propeller turn"):
+            continue
         j = joints.find(sc, n)
         assert joints.is_motor(j), n
         blk = [b for b in a.blocks if b.kind == "MOTOR" and b.joint == n]

@@ -988,6 +988,11 @@ class FRESING_OT_block_add(bpy.types.Operator):
             b.duration = 5.0
             b.easing = "LINEAR"
             weather.step_init(context.scene, a, b)
+        elif self.kind == "VESSEL":                      # task 0154: what the vessel does
+            from . import vessel_work
+            b.duration = 6.0
+            b.easing = "SMOOTH"
+            vessel_work.step_init(context.scene, a, b)
         elif self.kind == "CAMERA":
             b.camera = context.scene.camera if context.scene.camera and not context.scene.camera.get(
                 "fr_anim_camera") else None

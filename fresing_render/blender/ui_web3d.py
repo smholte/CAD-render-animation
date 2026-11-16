@@ -67,7 +67,7 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
             op = row.operator("fresing.show_in_folder", text="Show in folder", icon="FILE_FOLDER")
             op.path = w.last_path
         wrap(layout, context, "Not in the web model: edge wear, the shine along brushed or turned metal, tool marks, "
-                              "the cutaway, milling, chips and coolant (as at the frame shown)"
+                              "the cutaway of parts (the sea's cut-away is on the page), milling, chips and coolant (as at the frame shown)"
                               + (", the halls and the quay." if w.env_mode == "PROJECT" else
                                  ", the surroundings (see Surroundings on the page)."), icon="INFO")
         if web3d.has_marine_looks():              # task 0161: those parts are baked one by one

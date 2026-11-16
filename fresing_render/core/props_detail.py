@@ -469,9 +469,10 @@ def _outfit_mats(outfit: str):
             "OFFICE": ("cloth_trousers", "cloth_shirt", "glove_grey", "helmet_white", "boots_brown")}[outfit]
 
 
-def person(height: float = DEFAULT_HEIGHT, pose: str = "STANDING", outfit: str = "WORKSHOP", helmet: bool = True,
+def person(height: float = DEFAULT_HEIGHT, pose: str | dict = "STANDING", outfit: str = "WORKSHOP", helmet: bool = True,
            gloves: bool = False, look: int = 0, lod: str = DETAILED) -> list:
-    """The person's shapes: posed, scaled to ``height`` (top of the head, without a helmet) and standing on z = 0."""
+    """The person's shapes: posed, scaled to ``height`` (top of the head, without a helmet) and standing on z = 0.
+    ``pose``: a ``POSES`` id or an angle dict as ``POSES`` holds them (task 0157: the rig's hand shapes)."""
     shapes, _sk, lift = _raw_person(pose, outfit, helmet, gloves, look, lod)
     k = float(height) / REST_HEIGHT
     return [_scaled(sh, k, lift) for sh in shapes]
@@ -479,13 +480,12 @@ def person(height: float = DEFAULT_HEIGHT, pose: str = "STANDING", outfit: str =
 
 def _raw_person(pose, outfit, helmet, gloves, look, lod):
     """(shapes before the move to the floor, skeleton, lift that puts the lowest point on z = 0)."""
-    if pose not in POSES:
-        pose = "STANDING"
+    pose_d = pose if isinstance(pose, dict) else POSES.get(pose, POSES["STANDING"])   # task 0157: any angles
     if outfit not in OUTFITS:
         outfit = "WORKSHOP"
     skin, hair = LOOKS[int(look) % len(LOOKS)]
     legs, top, glove, helmet_mat, shoes = _outfit_mats(outfit)
-    sk = skeleton(pose)
+    sk = skeleton(pose_d)
     b = _Body(sk, lod)
     # torso (two parts: trousers and shirt), the arms, the legs
     if outfit == "OFFICE":
@@ -533,7 +533,6 @@ def _raw_person(pose, outfit, helmet, gloves, look, lod):
             b.limb("reflective", f"{side}_arm", ((0.55, 0.0505, 0.0525), (0.68, 0.048, 0.05)), caps=False)
             b.limb("reflective", f"{side}_shin", ((0.3, 0.063, 0.066, 0.0, 0.008), (0.42, 0.06, 0.064, 0.0, 0.008)),
                    caps=False)
-        pose_d = POSES[pose]
         _hand(b, sd, side, glove if gloves else skin, pose_d.get(f"{side}_fingers", 0.35),
               pose_d.get(f"{side}_point", 0.0))
         # leg: thigh, knee, shin
