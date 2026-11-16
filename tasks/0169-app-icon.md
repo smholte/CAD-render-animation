@@ -1,6 +1,6 @@
 # 0169 – The Fresing logo as the app's icon and on the splash screen
 
-**Who:** worker · **Status:** open · **Branch:** `task/0169-app-icon`
+**Who:** worker · **Status:** running · **Branch:** `claude/eager-pasteur-w3w05t` (the web session's branch)
 **Started by:** lead, 16 Nov 2026 · **Model:** Opus · effort Medium (Windows-only code)
 **Area:** `installer/` (Install / Uninstall scripts), `app_template/fresing_render/` (splash, start-up), a new icon
 file, a small Windows-only start-up hook in the extension (window/taskbar icon), its tests, guide line, CHANGELOG
