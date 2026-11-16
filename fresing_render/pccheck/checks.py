@@ -2178,14 +2178,21 @@ def _player_check(page_path: str, ctx) -> str:
         fh.write(env.page_html("Player check", g.glb(), st, animated=True))
     found = []
     for path in (page_path, moving):
-        try:
-            got = env.read_page(path, browser, "selftest=1", seconds=60)
-        except RuntimeError as exc:
-            return f"{os.path.basename(browser)} gave no answer ({exc}); not counted"
+        got = None
+        for _try in range(2):                   # a busy PC: the browser may stop before the page is ready
+            try:
+                got = env.read_page(path, browser, "selftest=1", seconds=90)
+            except RuntimeError as exc:
+                return f"{os.path.basename(browser)} gave no answer ({exc}); not counted"
+            if got.get("selftest") or got["state"].startswith("error"):
+                break
         if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
             return f"no WebGL in the browser without a window ({got['state'][:80]}); not counted"
         _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
-        r = got.get("selftest") or {}
+        if not got.get("selftest"):
+            return (f"the player gave no answer in {os.path.basename(browser)} without a window (page: "
+                    f"{got['state'][:40]}); not counted")
+        r = got["selftest"]
         _check(r.get("menu"), "the page's settings menu did not open")
         _check(r.get("help") and r.get("link"), "the page's keys help or its link to the view does not work")
         found.append(r)

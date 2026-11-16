@@ -455,7 +455,8 @@
       r.ok = r.menu && r.help && r.link && r.space !== false;
       root.dataset.frSelftest = JSON.stringify(r);
     };
-    var wait = function () { if (page.ready) setTimeout(test, 50); else setTimeout(wait, 100); };
-    wait();
+    // at once when the page is ready (a browser without a window may stop soon after: no timer to wait for)
+    if (page.ready) test();
+    else page.listeners.push(function (what) { if (what === 'ready' && !root.dataset.frSelftest) test(); });
   }
 })();
