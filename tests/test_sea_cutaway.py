@@ -203,10 +203,10 @@ def test_plain_sea_is_as_before(scene):
     s.weather.vessel_speed = 6.0                          # with the wake and the hull foam
     s.sea_state = "ROUGH"
     _apply(scene)
-    assert surroundings.MAT_VERSION == 4
+    assert surroundings.MAT_VERSION == 5                  # 5: task 0154 (vessel at work)
     sea_ob = _env("sea")[0]
     plain = sea_ob.data.materials[0]
-    assert plain.name == "FR_env water rough foam moving weather wake"
+    assert plain.name.startswith("FR_env water rough foam moving weather wake work ")   # (0154: the wave pattern)
     assert "fr_seacut" not in plain
     foam = _env("hull_foam")[0].data.materials[0]
     assert foam.name == "FR_env hull foam" and "fr_seacut" not in foam
@@ -217,7 +217,8 @@ def test_plain_sea_is_as_before(scene):
     key = json.loads(surroundings.root_object()["fr_key"])
     assert "cut" not in key and key["depth"] == 30.0
     # the same material made again with the cut-away off is node for node the same
-    fresh = surroundings._water_material(scene, "ROUGH", True, True, surroundings.sea_wind(s), (), True, wake=True)
+    fresh = surroundings._water_material(scene, "ROUGH", True, True, surroundings.sea_wind(s), (), True, wake=True,
+                                         work=json.loads(plain["fr_vw"]))
     assert fresh == plain
     s.sea_cutaway = True
     _apply(scene)

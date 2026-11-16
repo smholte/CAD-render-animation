@@ -901,7 +901,9 @@ BLOCK_KINDS = [
     ("WEATHER", "Weather & time", "Changes the weather and the time of day over the step: day to dusk, the rain "
      "starting, the fog lifting (5 Scene & Render > Weather & time)", "OUTLINER_DATA_LIGHTPROBE", 12),
     ("CAD", "Back to CAD", "Brings every joint (of the whole model or of one subassembly) back to where the CAD file "
-     "has it, and moved parts back to their places, over the step's duration: undoes a pose", "LOOP_BACK", 13),
+     "has it, and moved parts back to their places, over the step's duration: undoes a pose", "LOOP_BACK", 13),    ("VESSEL", "Vessel at work", "Changes what the vessel does over the step: sail ahead, push sideways on its "
+     "thrusters, turn, or lie still. The propellers, the wake and the thrusters' jets follow (5 Scene & Render > "
+     "Vessel at work)", "MOD_OCEAN", 14),
 ]
 
 
@@ -1385,6 +1387,28 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                                        "white caps follow it (the waves themselves keep the wind of the start)")
     wx_wind_from: FloatProperty(name="Wind from", default=225.0, min=-360.0, max=360.0, precision=0,
                                 description="Where the wind comes from at the end of the step (as in Weather & time)")
+
+    # ---- Vessel at work step (task 0154): what the vessel does at the step's end (it starts from what it did) ----
+    vw_mode: EnumProperty(
+        name="Vessel", default="AHEAD",
+        description="What the vessel does at the end of the step. The propellers, the wake and the thrusters' jets "
+                    "change over the step from what it did before",
+        items=[("STILL", "Still", "Lies still: the propellers stop, no wake, no jets"),
+               ("AHEAD", "Ahead", "Sails ahead at the speed below: the propellers push, a wake and a bow wave"),
+               ("DP", "Sideways", "Pushed sideways by its thrusters (DP, holding or shifting its place): tunnel "
+                                  "thrusters and azimuths push to one side, white jets beside the hull"),
+               ("TURN", "Turning", "Turns on the spot: the bow thrusters push one way, the stern thrusters the other")])
+    vw_speed: FloatProperty(name="Speed", default=8.0, min=0.0, max=20.0, precision=1,
+                            description="Speed ahead (knots) at the end of the step: the wake, the bow wave and the "
+                                        "propellers follow it. A cable-lay vessel lays at walking pace or slower")
+    vw_side: EnumProperty(
+        name="To", default="STBD",
+        description="Sideways: where the vessel is pushed to. Turning: where the bow turns to",
+        items=[("PORT", "Port", "To port (left, seen from the stern looking to the bow)"),
+               ("STBD", "Starboard", "To starboard (right, seen from the stern looking to the bow)")])
+    vw_thrust: FloatProperty(name="Thrust", default=0.6, min=0.0, max=1.0, subtype="FACTOR",
+                             description="How hard the thrusters push at the end of the step (1 = full power): "
+                                         "the propellers' speed and the size of the jets follow it")
 
 
 class FRAnimation(bpy.types.PropertyGroup):
@@ -3015,6 +3039,80 @@ def _vessel_sea_changed(self, context):
         print("Fresing Render: vessel motion update failed:", exc)
 
 
+def _vessel_work_changed(self, context):
+    """5 Scene & Render > Vessel at work (task 0154): channels, steer joints and maybe the sea follow."""
+    if context is None or context.scene is None:
+        return
+    from . import vessel_work
+    try:
+        vessel_work.changed(context.scene)
+    except Exception as exc:                 # never break the UI over a preview update
+        print("Fresing Render: vessel at work update failed:", exc)
+
+
+def _vessel_work_layout_changed(self, context):
+    """A thruster's kind or joints changed: the sea's jets are worked out again."""
+    if context is None or context.scene is None:
+        return
+    from . import vessel_work
+    try:
+        vessel_work.changed(context.scene, layout=True)
+    except Exception as exc:
+        print("Fresing Render: vessel at work update failed:", exc)
+
+
+class FRVesselThruster(bpy.types.PropertyGroup):
+    """A propeller of the vessel (task 0154): its joint, its kind, its steer joint."""
+    name: StringProperty(name="Name", description="The thruster's name (from its joint)")
+    joint: StringProperty(name="Propeller", update=_vessel_work_layout_changed,
+                          description="The joint that turns the propeller (a rotate joint; tick Motor on it in "
+                                      "4 Motion so it turns without end)")
+    kind: EnumProperty(
+        name="Kind", default="AZIMUTH", update=_vessel_work_layout_changed,
+        description="What kind of thruster this is: it decides where its jet goes",
+        items=[("AZIMUTH", "Azimuth", "A propeller in a pod or nozzle under the hull that steers all the way round "
+                                      "on its own joint (azimuth thruster)"),
+               ("TUNNEL", "Tunnel", "A propeller in a tunnel across the hull: it pushes water to port or to "
+                                    "starboard (bow or stern thruster)"),
+               ("SHAFT", "Shaft", "A fixed propeller on a shaft: it only pushes the vessel ahead")])
+    steer: StringProperty(name="Steer joint", update=_vessel_work_layout_changed,
+                          description="Azimuth: the joint that turns the thruster about its upright axis. Its CAD "
+                                      "position (0) must push the vessel ahead (the propeller's jet goes aft)")
+    rpm: FloatProperty(name="Full speed", default=60.0, min=0.0, soft_max=600.0, precision=0,
+                       update=_vessel_work_changed,
+                       description="How fast the propeller turns at full power, in turns per minute of the video. "
+                                   "Real propellers turn faster, but then they flicker in a video: 30 to 120 look "
+                                   "right")
+    reverse: BoolProperty(name="Turns the other way", default=False, update=_vessel_work_changed,
+                          description="On: the propeller's joint turns the other way round (tick it when the "
+                                      "propeller turns backwards in the video)")
+
+
+class FRVesselWork(bpy.types.PropertyGroup):
+    """5 Scene & Render > Vessel at work (task 0154): what the vessel does, and its thrusters."""
+    mode: EnumProperty(
+        name="The vessel", default="AHEAD", update=_vessel_work_changed,
+        description="What the vessel does: the propellers turn, the water shows a wake, a bow wave or the thrusters' "
+                    "jets. A Vessel at work step in 6 Animation changes it during a video",
+        items=[("STILL", "Still", "Lies still: the propellers stop, no wake, no jets"),
+               ("AHEAD", "Ahead", "Sails ahead at the vessel speed: the propellers push, a wake trails behind the "
+                                  "stern, a bow wave at the stem (0 knots: lies still)"),
+               ("DP", "Sideways", "Pushed sideways by its thrusters (DP, holding or shifting its place): tunnel "
+                                  "thrusters and azimuths push to one side, white jets beside the hull"),
+               ("TURN", "Turning", "Turns on the spot: the bow thrusters push one way, the stern thrusters the other")])
+    side: EnumProperty(
+        name="To", default="STBD", update=_vessel_work_changed,
+        description="Sideways: where the vessel is pushed to. Turning: where the bow turns to",
+        items=[("PORT", "Port", "To port (left, seen from the stern looking to the bow)"),
+               ("STBD", "Starboard", "To starboard (right, seen from the stern looking to the bow)")])
+    thrust: FloatProperty(name="Thrust", default=0.6, min=0.0, max=1.0, subtype="FACTOR",
+                          update=_vessel_work_changed,
+                          description="How hard the thrusters push (1 = full power): the propellers' speed and the "
+                                      "size of the jets follow it")
+    thrusters: CollectionProperty(type=FRVesselThruster)
+    thrusters_index: IntProperty(default=0, description="The vessel's propellers and thrusters")
+
+
 class FRVesselStill(bpy.types.PropertyGroup):
     """A subassembly that keeps its place while the vessel moves (task 0085)."""
     uid: StringProperty()                # part ID (stays right through a model update)
@@ -3428,6 +3526,12 @@ def _weather_changed(self, context):
         weather.changed(context.scene)
     except Exception as exc:                 # never break the UI over a preview update
         print("Fresing Render: weather update failed:", exc)
+    if context.scene.fresing.background in ("SEA", "DECK", "QUAY"):   # the vessel speed (task 0154)
+        from . import vessel_work
+        try:
+            vessel_work.changed(context.scene)
+        except Exception as exc:
+            print("Fresing Render: vessel at work update failed:", exc)
 
 
 def _weather_preset_changed(self, context):
@@ -3543,8 +3647,9 @@ class FRWeather(bpy.types.PropertyGroup):
         description="A flag on a pole at the stern (or the back of the machine) that flies in the wind")
     vessel_speed: FloatProperty(
         name="Vessel speed", default=0.0, min=0.0, max=20.0, precision=1, update=_weather_changed,
-        description="How fast the vessel sails (knots): a wake of foam behind the stern. 0 for a vessel that lays "
-                    "cable (walking pace or slower) or lies still")
+        description="How fast the vessel sails (knots): a wake with its wave pattern behind the stern, a bow wave, "
+                    "the propellers turn (5 Scene & Render > Vessel at work: Ahead). 0 for a vessel that lays cable "
+                    "(walking pace or slower) or lies still")
     bow: EnumProperty(
         name="Bow", default="AUTO", update=_weather_changed,
         items=(("AUTO", "From the hull", "The end where the hull is narrower at the waterline is the bow (a hull as "
@@ -4038,6 +4143,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     toolpath: PointerProperty(type=FRToolpath)
     # ---- vessel motion at sea (task 0085) ----
     vessel: PointerProperty(type=FRVessel)
+    vessel_work: PointerProperty(type=FRVesselWork, description="What the vessel does: still, ahead, sideways or "
+                                                                 "turning (5 Scene & Render > Vessel at work)")
     # ---- hoses, cables and drag chains (task 0058) ----
     flex: CollectionProperty(type=FRFlex)
     flex_index: IntProperty(default=0)
@@ -4074,7 +4181,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
-           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRWeb3D, FRWeather,
+           FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRVesselThruster, FRVesselWork, FRWeb3D, FRWeather,
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
            FRHouse, FRPersonAction, FRPersonSettings,

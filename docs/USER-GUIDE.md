@@ -2388,6 +2388,51 @@ update and saved scenes (it is one setting for the whole project, not per saved 
 (measured on a 4-core test machine without a graphics card: 2.25 s per Draft frame with it, 2.27 s without) and
 about 6 ms per frame of playback on a 3,000-part machine.
 
+<a id="vessel-work"></a>
+### Vessel at work
+
+<img class="panel" src="img/panel_5_vessel_work.png" alt="Vessel at work">
+
+What the vessel does shows in the water: sailing ahead it leaves a white wake behind the stern and its waves fan out
+behind the bow, holding its place on its thrusters it throws white, boiling jets out beside the hull – and the
+propellers turn with it. It works on the **Open sea** and the **Vessel deck**, with **Foam** ticked (Background &
+surroundings).
+
+1. Open **Thrusters** and press **Find thrusters**: the app looks for joints whose names say propeller (screw,
+   schroef, Schraube) and reads what kind each one is – an **Azimuth** (a propeller in a pod that steers round on
+   its own upright joint: that joint is its **Steer joint**), a **Tunnel** thruster (pushes water to port or
+   starboard through a tunnel across the hull) or a **Shaft** propeller (only pushes ahead). Not found? Pick the
+   propeller's joint in 4 Motion > Joints and press **+**. Up to 6 thrusters.
+   - Below the list, for the selected thruster: its **Propeller** joint, **Kind**, **Steer joint** (an azimuth's
+     CAD position must push the vessel ahead), **Full speed (rpm)** – how fast it turns at full power in the video
+     (30 to 120 look right; real propellers turn so fast they flicker) – and **Turns the other way** when it turns
+     backwards.
+2. Pick what the vessel does:
+   - **Still**: no wake, no jets, the propellers stop.
+   - **Ahead** at **Speed (kn)** (the same vessel speed as in Weather & time): a white wake behind the stern that
+     fades and breaks up, the waves of a ship – a wedge of about 19.5° each side behind the bow, their crests
+     2πV²/g apart (about 10 m at 8 knots) – white water rolling off the bow and along the sides. The propellers
+     push, the azimuths point aft.
+   - **Sideways** (DP: holding or shifting the vessel's place): **Push to** port or starboard with **Thrust** (1 = full
+     power). The azimuths swing round, the tunnel thrusters run; white jets stream out on the other side, where the
+     water goes, as long and as white as the thrust makes them.
+   - **Turning** on the spot: **Bow to** port or starboard. The thrusters forward push the bow one way, those aft the
+     stern the other.
+
+The line under it says what the water shows; the panel's header shows "Ahead 8 kn", "Sideways to starboard 60%" or
+"Still". The steer joints turn at once; the propellers' turning is seen in a video.
+
+<a id="vessel-work-step"></a>
+**In a video:** add a **Vessel at work** step in 6 Animation. It starts from what the vessel did before it (the
+panel's setting, or the step before) and changes to its own over the step's time: from **Ahead** to **Sideways** the
+vessel slows, the wake fades, the azimuths swing round and the jets grow. **Build & play** turns the propellers – each
+as fast as its load, speeding up and slowing down with the steps – and steers the azimuths. A propeller that another
+step already moves (a Run motor step) is left to that step; Build says so. Saved scenes keep what the vessel does.
+
+It plays with "Auto Run Python Scripts" off, in EEVEE and Cycles and in the render queue. The waves and jets are drawn
+in the water's surface (light and shading, no real height): from low over the water the bow wave looks flat. No bubbles
+under water yet.
+
 <a id="weather"></a>
 ### Weather & time
 

@@ -94,10 +94,74 @@ People). Settings: additive lines in `props.py` (`FRPersonSettings`: path, actio
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16 Nov 2026 (branch `claude/nifty-darwin-mwn2nz`, the session's assigned name
+instead of `task/0157-…`). Version **0.2.128**.
 
 **What changed:**
+- **The person's rig (also for 0156)** – `core/person_rig.py` (no Blender) and `blender/person_rig.py`. API below.
+- `core/people.py` (no Blender): gaits (stroll 0.9, walk 1.35, brisk 1.75, carry-walk 1.0, run 3.2 m/s), paths
+  (corners rounded, a sharp turn-back walked as two walks with a turn), footsteps planted in the world with heel and
+  toe roll on the floor's tilt (step length fitted to the walk, speed = step × steps per second), the schedule
+  (implicit walks to an action's point, waits for another person's step, Greet / Talk paired: both turn to each other
+  in the same time and start together; circles of waits found up front, left out and warned), 12 actions, 8 items
+  (grips per hand; the person steps up to an item to pick it up; the bend depth is worked out so the hand is on the item
+  at the grab), the frames (`Plan.sample`, `pose_at`).
+- `blender/people.py`: settings → plan (rays down for the floor, vessel at rest), Build keys (person object, armature,
+  items with keyed Child Of influences; the animation's length includes the people), Clear keys puts everyone back, the
+  Preview slider, the path curve "FR path <name>" (Blender's own edit mode), the point numbers drawn in the view, the
+  clash hook (acting people checked as bodies), the path warning, the example and its check. `ops_people.py` (12
+  operators), `ui_people.py` (6 Animation > People). Additive: `props.py` (`FRPersonAction`, person path / steps /
+  start / holds, `people_preview`), `animation.py` (length, bake, clear), `props_scale.rebuild` (a rigged person keeps
+  its rig), `props_detail.person()` takes an angle dict as pose (the hand shape keys need it).
+- Tour stop `people` (set "People walk and meet"), PC-check line `people.walk`, function entry `animation.people`,
+  guide section "People: walk, carry and meet" (`panel_6_people.png`, `people_meet.jpg`; modes `people_panel` and
+  `people` in `tools/guide_screens.py`), `tools/measure_people.py`, tooltip report knows the panel (0 missing).
 
-**Tested and measured** (name the machine and the model):
+**The rig API (0156: pose and key a person with it)**
+- `person_rig.ensure(ob)` → the armature "FR rig <name>" (child of the person object, identity; 17 bones named as
+  `props_detail.BONES`; Armature modifier "FR rig" before "FR prop detail"; vertex groups; hand shape keys driven by
+  the armature's `fr_open_l/r`, `fr_grip_l/r`, `fr_point_l/r`). `rig_of(ob)`, `figure(ob)` → `core.Figure`, `remove(ob)`.
+- `core.person_rig.Figure(height)`: figure space = the person object's local space (metres, z up, faces -y, right hand
+  at -x, soles on z = 0). `rest()`, `from_angles(pose id or props_detail angle dict)`, `fk(pose)` → {bone: (head, R,
+  tail)}, `frame(pose, bone)`, `palm(pose, side)`, `sole_points(pose, side)`, `leg_ik(pose, side, ankle, foot_R, knee)`,
+  `arm_ik(pose, side, wrist, elbow=None, hand_R=None)` (returns the miss in m), `look(pose, direction, amount,
+  chest_share)`, `blender_quaternion(pose, bone)`, `blender_location(pose)`. `Pose`: `local[bone]` (3×3 against the
+  parent, props_detail frames), `pelvis` (its head), `fingers[s]` 0 open … 1 fist, `point[s]`. `blend(a, b, w)`.
+- `person_rig.set_pose(ob, pose)` (now, no keys); `key_poses(ob, frames, poses, roots=None)` (keys tagged `fr_anim`:
+  Clear keys drops them; `roots` = (x, y, z, heading) per frame keys the person object too); `bone_world(ob, bone)`.
+- Items in a hand: a Child Of on `arm` + subtarget `"<s>_hand"`, inverse identity, its basis = the grip in Blender's
+  bone frame (`people._basis_in_bone`, `core.people.hand_in_item`).
+
+**Tested and measured** (4-core web machine, no graphics card; test crane `test_crane_a.step`):
+- Tests: `tests/test_people.py` (29, mine), `tests/test_people_independent.py` (136) and
+  `tests/test_people_blender_independent.py` (18) by an independent tester; tour (77 incl. the new stop: Go + check),
+  `test_tour_clash.py` people set 0 clashes, PC-check line `people.walk` OK.
+- The example: Anna walks, puts the box down, they shake hands together (same moment to 1 ms), feet slide ≤ 0.6 mm
+  read back from the built keys, the box on the floor; Build 0.8 s, 1.3 ms a frame, render 2.6 s (PC-check line).
+- Speed (`tools/measure_people.py`, Vessel deck, calm beam sea, 427 frames): 1 / 5 / 20 people: Build 0.4 / 1.9 /
+  7.6 s, frame time 0.9 / 2.0 / 7.5 ms (0.2 / 0.3 / 0.6 ms with the people hidden): about 0.35 ms per person a frame.
+- Mesh per rigged person: 4,476 points (both levels); building the rig ~0.3 s.
+- Clip: `tasks/img/0157_people_meet.mp4` – the example on the test crane, 480×270, 17 s at 12.5 frames/s, Cycles on
+  the processor (8 samples, 4.3 min for 216 frames), 51 KB.
+
+**Subagents:** one independent tester (worktree; wrote the two `*_independent` files from the brief, did not see my
+tests). It found 11 real faults, all fixed by me afterwards and now covered: a U-turn path crashed; the swinging foot
+snapped down at landing (pelvis limit ignored the swinging foot); feet stayed level on a ramp (21 mm into a 1:10 ramp);
+a circle of waits pumped the time to 222 s; waits for a missing step and greeting oneself gave no warning; handshake
+hands 115 mm apart for different heights; items jumped 0.2–0.7 m into / out of the hand (the head turn moved the chest
+after the arm was solved; the bend was too shallow); an item could be taken from someone holding it, or held by two
+people at the start; the toolbox hung 4 cm into the leg. One test helper was adjusted for the tilted feet (it measured
+heel/toe as if the foot were flat).
+
+**GitHub runs:** RUNS.
 
 **Open points / follow-up tasks:**
+- The person is still the 0155 lofted figure: linear-blend skinning shows creases at a deep squat and the shoulders
+  when an arm is raised high; fine at the usual distance. A CC0 base mesh with real weights is the step after (0155's
+  open point).
+- No stairs, ladders, sitting, crowds (as briefed). A path over a part's top is walked on it and warned about.
+- The path warning uses the parts' places at the first frame; moving parts are found by the Clash check (people are in
+  it, items are not). With vessel motion the path line in the view does not ride with the deck (the people do).
+- A put-down spot is where the person stands + a fixed offset; picking up an item lying more than 2.5 m away is warned
+  (walk the person closer with a Walk step first).
+- 0156 can use `arm_ik` + `key_poses`; its hand "FR hand" is separate.

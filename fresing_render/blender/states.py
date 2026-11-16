@@ -271,7 +271,9 @@ WORLD_KEYS = ("background", "background_color", "lighting", "hdri_path", "light_
               # weather of the sky (task 0017)
               "sky_weather",
               # weather and time of day (task 0109): the whole Weather & time panel
-              "weather")
+              "weather",
+              # what the vessel does (task 0154): Vessel at work's setting (not its thruster list)
+              "vessel_work")
 OUTPUT_KEYS = ("out_format", "out_resolution", "out_orientation", "out_dpi", "out_use_bleed", "out_bleed_mm",
                "out_custom_w", "out_custom_h", "out_file_type", "quality")
 CURRENT = "__current__"      # "use what the scene shows now" (stored inside the scene item)
@@ -289,7 +291,10 @@ def _plain(v):
 WEATHER_KEYS = ("enabled", "preset", "hour", "use_date", "day", "latitude", "north", "clouds", "low_clouds",
                 "visibility", "rain", "drop_size", "wet", "snow", "snow_cover", "wind", "wind_from", "wind_ref",
                 "floodlights", "flood_strength", "spray", "flag", "vessel_speed")
+VESSEL_WORK_NAMES = {"mode": "The vessel", "side": "Push / turn to", "thrust": "Thrust"}    # (task 0154)
 
+
+VESSEL_WORK_KEYS = ("mode", "side", "thrust")      # what the vessel does (task 0154): saved with the scene
 
 # what Build puts back from the start scene and says so when it differs (task 0160, bug hunt 0147 row 12): the sea,
 # the water and Weather & time (vessel speed included). Key -> its name in a warning.
@@ -353,6 +358,15 @@ def start_scene_changes(scene, shot_name: str, keys=None) -> list[tuple]:
             now = _plain(getattr(s.weather, k))
             if _differs(now, w[k]):
                 out.append((full, WEATHER_NAMES.get(k, k.replace("_", " ").capitalize()), now, w[k]))
+    vw = data.get("vessel_work")                 # what the vessel does (task 0154)
+    if isinstance(vw, dict):
+        for k in VESSEL_WORK_KEYS:
+            full = f"vessel_work.{k}"
+            if k not in vw or (keys is not None and full not in keys and "vessel_work" not in keys):
+                continue
+            now = _plain(getattr(s.vessel_work, k))
+            if _differs(now, vw[k]):
+                out.append((full, VESSEL_WORK_NAMES[k], now, vw[k]))
     return out
 
 
@@ -364,6 +378,7 @@ def _tracked(scene) -> dict:
     s = scene.fresing
     out = {k: _plain(getattr(s, k)) for k in BUILD_KEYS}
     out.update({f"weather.{k}": _plain(getattr(s.weather, k)) for k in WEATHER_KEYS})
+    out.update({f"vessel_work.{k}": _plain(getattr(s.vessel_work, k)) for k in VESSEL_WORK_KEYS})
     return out
 
 
@@ -418,6 +433,8 @@ def save_into_start_scene(scene, shot_name: str, keys=None) -> list[str]:
     for k, _name, now, _then in changes:
         if k.startswith("weather."):
             data.setdefault("weather", {})[k.split(".", 1)[1]] = now
+        elif k.startswith("vessel_work."):
+            data.setdefault("vessel_work", {})[k.split(".", 1)[1]] = now
         else:
             data[k] = now
     shot.world = json.dumps(data)
@@ -426,7 +443,8 @@ def save_into_start_scene(scene, shot_name: str, keys=None) -> list[str]:
 
 def settings_json(s, keys) -> str:
     return json.dumps({k: ({w: _plain(getattr(s.weather, w)) for w in WEATHER_KEYS} if k == "weather"
-                           else _plain(getattr(s, k))) for k in keys})
+                           else {w: _plain(getattr(s.vessel_work, w)) for w in VESSEL_WORK_KEYS}
+                           if k == "vessel_work" else _plain(getattr(s, k))) for k in keys})
 
 
 def _apply_weather(w, data) -> None:
@@ -463,6 +481,19 @@ def apply_settings_json(scene, text: str) -> None:
         for k, v in data.items():
             if k == "weather":
                 _apply_weather(s.weather, v)
+                continue
+            if k == "vessel_work":
+                if isinstance(v, dict):
+                    for w, x in v.items():
+                        if w in VESSEL_WORK_KEYS:
+                            try:
+                                s.vessel_work[w] = s.vessel_work.bl_rna.properties[w].enum_items[x].value \
+                                    if w in ("mode", "side") else float(x)
+                            except (KeyError, TypeError, ValueError):
+                                pass
+                    from . import vessel_work
+                    vessel_work.sync(scene)
+                    vessel_work.pose(scene)
                 continue
             if hasattr(s, k):
                 try:
