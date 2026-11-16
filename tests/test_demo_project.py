@@ -379,7 +379,10 @@ def test_the_vessel_in_detail(made):
     v = sc.fresing.vessel_work
     assert len(v.thrusters) == 4 and sorted(r.kind for r in v.thrusters) == ["AZIMUTH", "AZIMUTH", "TUNNEL", "TUNNEL"]
     steps = [b for b in a.blocks if b.kind == "VESSEL"]
-    assert len(steps) == 1 and steps[0].vw_mode == "DP" and steps[0].start + steps[0].duration < t0
+    assert len(steps) == 1 and steps[0].vw_mode == "DP"
+    t0 = steps[0].start + steps[0].duration + 0.5            # (task 0166: shot 2b puts shot 3 at 22 s)
+    t1 = t0 + 6.0
+    f0, f1 = animation_frame(a, t0), animation_frame(a, t1)
     assert vessel_work.setting(sc).mode == "AHEAD" and vessel_work.setting(sc).speed == demo.TRANSIT_KNOTS
     ths = vessel_work.thrusters(sc)
     cmd = vw_core.command(vessel_work.block_setting(steps[0]), ths)
