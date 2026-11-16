@@ -105,6 +105,20 @@ def _name(ob) -> str:
     return str(ob.get(build.PROP_NAME, "") or ob.name) if ob is not None else ""
 
 
+def joint_renamed(scene, old: str, new: str) -> None:
+    """A joint was renamed (``joints.rename``): the tracks that run on it and the wheels it turns name it by its new
+    name (task 0160; before, a model update made a new speed joint at 0 and the wheels stood still). Written without
+    the update callbacks: nothing else changed."""
+    if not old or old == new:
+        return
+    for it in scene.fresing.tracks:
+        if it.joint == old:
+            it["joint"] = new
+        for w in it.wheels:
+            if w.joint == old:
+                w["joint"] = new
+
+
 def key_of(item) -> str:
     """What the track's parts, loop and app-made joints are tagged with: fixed when it is made (a renamed track keeps
     its parts)."""

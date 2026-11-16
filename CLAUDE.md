@@ -303,6 +303,10 @@ fresing_render/            the Blender extension (Python package)
                            lean of the normal + the anisotropic tangent; inputs Size, Strength, Pixel angle), wired into a
                            material by ``materials.build_nodes`` when its spec has ``toolmarks``
     idprops.py             store_array: arrays into ID properties safely (task 0038)
+    rebake.py              the re-bake after a sea / vessel / water change after Build (task 0160): one long job
+                           (``fresing.rebake`` in ops_paths.py) for hoses and sea cables – the pass through the frames
+                           in steps (``flex.read_steps``), then the solves from what was read (``_motion_bake(kept=)``);
+                           progress + Cancel in 4 Motion > Cables and paths; Cancel takes the Build off. Background: at once
     longjob.py             the long modal jobs (web 3D export, House bake, clash check) swallow Ctrl+Z while they run
                            (task 0120); queue.busy_job: the queue waits / refuses / a save warns while one runs
     waycover.py            way covers (task 0034): sections are slide joints that follow one axis joint with
@@ -1096,3 +1100,11 @@ the release → Delete); the next run on `main` publishes it again.
   leaves the partly paid-out top layer at its innermost turn, so that layer must be an even one (an odd number of full
   layers): with 24 full layers the top layer ran the other way, paying out moved the cable towards the core and it left
   the arch's guide-cage rollers (found by the demo's joint-sheet check, task 0159).
+- Everything a re-bake after Build reads must be read as Build reads it – from the animation's first frame (task 0160):
+  the cables were (`flex.at_first_frame`), but the sea itself, made again when its state changed, measured the model at
+  the frame shown (0.24 m lower waterline and other wave phases at the demo's last frame). `world.apply` makes a built
+  animation's surroundings at its first frame. A solver warm-started from the LAST Build's numbers (`paths_sea._hang_of`
+  `prev`) made two Builds differ: along an animation each moment starts from the moment before
+  (`core/catenary.hang_off_steady`), never from an earlier Build.
+- A `name` that other settings refer to needs an update callback that tells them (task 0160: a renamed cable left its
+  drum without a cable). Blender gives no old value: keep it in a hidden property (`FRCable.name_was`).

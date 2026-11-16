@@ -315,6 +315,58 @@ class FRESING_OT_aim_target(bpy.types.Operator):
         return {"FINISHED"}
 
 
+
+class FRESING_OT_save_into_start_scene(bpy.types.Operator):
+    """Saves the sea, water level and weather you set now into the start scene of the animation, so Build keeps
+    them. Without it, Build puts the start scene's values back (and says so in its warnings)"""
+
+    bl_idname = "fresing.save_into_start_scene"
+    bl_label = "Save into start scene"
+    bl_options = {"REGISTER", "UNDO"}
+
+    keys: bpy.props.StringProperty(default="", options={"SKIP_SAVE"})   # comma list; empty: all of them
+
+    def execute(self, context):
+        from . import states
+        scene = context.scene
+        shot = start_shot(scene)
+        if not shot:
+            self.report({"WARNING"}, "The animation has no start scene")
+            return {"CANCELLED"}
+        keys = [k for k in self.keys.split(",") if k] or None
+        saved = states.save_into_start_scene(scene, shot, keys)
+        msg = (f"Saved into the start scene '{shot}': {', '.join(dict.fromkeys(saved))}" if saved
+               else f"The start scene '{shot}' has these values already")
+        scene.fresing.last_message = msg
+        self.report({"INFO"}, msg)
+        return {"FINISHED"}
+
+
+def start_shot(scene) -> str:
+    """The start scene of the animation picked in 6 Animation ('' when it has none)."""
+    s = scene.fresing
+    if not len(s.animations):
+        return ""
+    a = s.animations[min(max(s.animations_index, 0), len(s.animations) - 1)]
+    return a.start_shot if a.start_shot and s.shots.get(a.start_shot) is not None else ""
+
+
+def draw_start_scene(layout, context, keys) -> None:
+    """Under a sea, water or weather setting: when Build would put the start scene's value back, say so and offer
+    'Save into start scene' (task 0160)."""
+    from . import states
+    from .ui import wrap
+    scene = context.scene
+    shot = start_shot(scene)
+    changes = states.start_scene_changes(scene, shot, keys) if shot else []
+    if not changes:
+        return
+    box = layout.box()
+    wrap(box, context, f"Build puts back the start scene '{shot}': {states.start_scene_words(changes)}",
+         icon="INFO")
+    op = box.operator("fresing.save_into_start_scene", icon="FILE_TICK")
+    op.keys = ",".join(keys)
+
 CLASSES = (FRESING_OT_light_look, FRESING_OT_focus_pick, FRESING_OT_focus_clear, FRESING_OT_env_simple,
            FRESING_OT_turntable, FRESING_OT_path_from_cameras, FRESING_OT_path_add_view, FRESING_OT_path_remove_point,
-           FRESING_OT_path_clear, FRESING_OT_aim_target)
+           FRESING_OT_path_clear, FRESING_OT_aim_target, FRESING_OT_save_into_start_scene)

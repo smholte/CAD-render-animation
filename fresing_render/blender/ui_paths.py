@@ -401,6 +401,12 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
+        from . import rebake                    # the re-bake after a sea change runs (task 0160)
+        if rebake.running(scene):
+            box = layout.box()
+            box.label(text=f"Working the cables out again for the new sea: {100.0 * rebake.progress():.0f} %",
+                      icon="TIME")
+            box.operator("fresing.rebake_cancel", text="Cancel", icon="CANCEL")
         if not len(s.cables):
             steps(layout, context, ["Click the cable or wire rope in the 3D view",
                                     "Press 'Add cable': the app reads what it runs over and makes all of that "

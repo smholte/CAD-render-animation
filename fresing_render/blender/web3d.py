@@ -536,7 +536,7 @@ class Baker:
             self.scene.collection.objects.unlink(tmp)
         return out
 
-    def own(self, ob, me, mw, looks: list, wanted_tpm: float) -> dict:
+    def own(self, ob, me, mw, looks: list, wanted_tpm: float, detail: str = "NORMAL") -> dict:
         """Task 0161 (0147 row 10): the looks of one part baked on its own UVs, with the part where it stands
         (``mw``): marine growth, streaks and the worn blade edge depend on world height, up and the part's own axes,
         which a flat tile cannot carry. ``looks``: a Look (or None) per material slot. Returns {"uv": (m*3, 2) per
@@ -547,7 +547,11 @@ class Baker:
         md = lightbake._read_mesh(me)
         m3 = np.array([[mw[r][c] for c in range(3)] for r in range(3)], np.float64)
         un = lm.unwrap(md.points @ m3.T, md.tris)               # charts in metres of the world (the part's scale)
-        tpm, side, places = core.own_atlas(un.size, un.area, wanted_tpm)
+        if detail == "FINE":                                    # task 0165: long strips cut into pieces a picture holds
+            area_tpm = math.sqrt(core.OWN_FILLS[detail] * core.OWN_MAX_PX[detail] ** 2 / max(un.area, 1e-12))
+            un = core.cut_charts(un, 0.3 * core.OWN_MAX_PX[detail] / min(wanted_tpm, area_tpm))
+        tpm, side, places = core.own_atlas(un.size, un.area, wanted_tpm, core.OWN_MAX_PX[detail],
+                                           fill=core.OWN_FILLS[detail])
         uv, _atlas = lm.place_uv(un, tpm, places, core.OWN_PADDING, side)
         # a triangle copy of the part (its own coordinates, corner normals, UV layers), the bake UVs active
         bme = bpy.data.meshes.new(BAKE_NAME)
@@ -821,9 +825,10 @@ class Job:
     def __init__(self, scene, path: str, size: int = core.DEFAULT_SIZE, hide_names: bool = True,
                  animation: bool = False, page: bool = True, compress: bool | None = None,
                  surroundings: dict | None = None, light: str = "LIVE", light_quality: str = "NORMAL",
-                 light_texels: float = 0.0, light_samples: int = 0):
+                 light_texels: float = 0.0, light_samples: int = 0, marine_detail: str = "NORMAL"):
         from . import lightbake
         self.scene = scene
+        self.marine_detail = marine_detail if marine_detail in core.MARINE_DETAILS else "NORMAL"
         self.light = lightbake.choice_id(light)  # task 0107: LIVE | SOFT | ALL
         self.light_quality = light_quality
         self.light_texels = float(light_texels or 0.0)
@@ -1004,12 +1009,12 @@ class Job:
             from . import lightbake
             area = sum(lightbake._world_area(lightbake._read_mesh(self._drawn.mesh(ob)), self._drawn.place(ob))
                        for ob in own_objs)
-            own_tpm = core.own_tpm(self.size, area)
+            own_tpm = core.own_tpm(self.size, area, self.marine_detail)
         for i, ob in enumerate(own_objs):
             self.text = f"Baking the marine looks of part {i + 1} of {len(own_objs)}"
             yield 0.05 + 0.45 * done / max(n_bakes, 1)
             lks = [Look(sl.material) if sl.material is not None else None for sl in ob.material_slots] or [None]
-            got = self._baker.own(ob, self._drawn.mesh(ob), self._drawn.place(ob), lks, own_tpm)
+            got = self._baker.own(ob, self._drawn.mesh(ob), self._drawn.place(ob), lks, own_tpm, self.marine_detail)
             own_mm.append(1000.0 / got["tpm"])
             keys = {}
             for ch, arr in got["channels"].items():
@@ -1495,7 +1500,7 @@ class Job:
             self.result["text"] += " · " + core.light_line(self.light, int(self._light_bytes), lit.seconds)
         if self.result.get("own"):                       # task 0161: the marine looks baked on the parts themselves
             o = self.result["own"]
-            self.result["text"] += " · " + core.own_line(o["parts"], o["finest_mm"], o["coarsest_mm"])
+            self.result["text"] += " · " + core.own_line(o["parts"], o["finest_mm"], o["coarsest_mm"], self.marine_detail)
         if self.result.get("drawn_still"):              # task 0142: what the page could not move
             from ..core.words import plural
             self.result["text"] += (f" · {plural(len(self.result['drawn_still']), 'part')} whose modifier changes "
@@ -1561,6 +1566,24 @@ def light_estimate(scene) -> dict:
         rt["estimate"] = lightbake.quick_estimate(obs, w.light, w.light_quality, w.light_texels or None,
                                                   key[-1])
     return rt["estimate"]
+
+
+def marine_estimate(scene) -> dict | None:
+    """Task 0165: what the marine looks cost for each Marine detail, before the export (None: no part has one).
+    Kept while the parts and the texture size stay the same."""
+    from . import lightbake
+    obs = [ob for ob in light_targets(scene) if needs_own_bake(ob)]
+    if not obs:
+        return None
+    w = settings(scene)
+    rt = runtime(scene)
+    key = (len(obs), sum(len(ob.data.polygons) for ob in obs), w.texture_size)
+    if rt.get("marine_key") != key:
+        area = sum(lightbake._world_area(lightbake._read_mesh(ob.data), ob.matrix_world) for ob in obs)
+        rt["marine_key"] = key
+        longest = max(max(ob.dimensions) for ob in obs)
+        rt["marine_est"] = {d: core.own_estimate(area, int(w.texture_size), d, longest) for d in core.MARINE_DETAILS}
+    return rt["marine_est"]
 
 
 def needs_light_question(scene) -> bool:

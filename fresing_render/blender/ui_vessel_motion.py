@@ -52,6 +52,8 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
         col = split_props(layout)
         row = col.row(align=True)
         row.prop(s, "sea_state", text="Sea", expand=True)
+        from .ops_scene import draw_start_scene             # Build puts the start scene's sea back (task 0160)
+        draw_start_scene(col, context, ["sea_state"])
         col.prop(v, "heading", text="Waves from")
         col.prop(v, "strength", text="Strength")
         text = vessel_motion.words(scene)

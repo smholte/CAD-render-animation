@@ -630,10 +630,17 @@ def bake(scene, anim) -> dict:
 
     if anim.start_shot:
         before = states.settings_json(s, ("weather",))
+        # never silently (task 0160): what the owner set since the last Build or scene switch and the start scene
+        # puts back is named in the warnings
+        changes = states.set_since_seen(scene, states.start_scene_changes(scene, anim.start_shot))
         warnings += states.apply_shot(scene, anim.start_shot)
         note = _weather_note(anim.start_shot, before, states.settings_json(s, ("weather",)))
         if note:
             warnings.append(note)
+            changes = [c for c in changes if c[0] != "weather.enabled"]
+        if changes:
+            warnings.append(states.start_scene_note(anim.start_shot, changes))
+    states.remember_seen(scene)
     bpy.context.view_layer.update()
     _fresh_blur(scene, anim)
 

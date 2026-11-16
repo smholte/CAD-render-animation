@@ -3006,6 +3006,17 @@ def _check_weather(scene):
     return weather.header(scene)
 
 
+def _check_start_scene(scene):
+    """Task 0160: the weather shown is not the start scene's: Build would put it back, and the panel says so."""
+    from . import states
+    a = scene.fresing.animations.get(WEATHER_ANIM)
+    _check(a is not None and a.start_shot, "the weather video has no start scene")
+    scene.fresing.animations_index = list(scene.fresing.animations).index(a)
+    changes = states.start_scene_changes(scene, a.start_shot, ["weather"])
+    _check(changes, f"the weather shown is the start scene's '{a.start_shot}': nothing to save into it")
+    return f"Build puts back '{a.start_shot}': {states.start_scene_words(changes)}"
+
+
 def _check_night(scene):
     from . import weather
     _check(weather.enabled(scene), "Weather & time is off")
@@ -3188,6 +3199,11 @@ stop("weather_step", LOOK, "weather", "Weather changes in a video",
      "turns orange, clouds come in, the rain starts and the crane gets wet.",
      where="6 Animation > Weather & time step", since="0.2.88", animation=WEATHER_ANIM, at=1.0, play=True,
      check=_check_weather, auto="clip")
+stop("start_scene", LOOK, "weather", "Save into start scene",
+     "Weather & time shows a box under its tick: \"Build puts back the start scene 'Clear day': Weather Grey North Sea "
+     "→ Clear Day …\" with the button Save into start scene. Clicking it would keep the grey weather at Build (leave it "
+     "here: the tour's weather video starts from a clear day).", where="5 Scene & Render > Weather & time",
+     since="0.2.125", shot="Weather: grey North Sea", check=_check_start_scene)
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
      "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)
@@ -3468,6 +3484,8 @@ def _check_web3d(scene):
     info = core.summary(data)
     _check(info["parts"] == out["parts"] > 0, f"{info['parts']} parts in the file, {out['parts']} shown")
     _check(os.path.exists(out["html"]), "the viewer page was not written")
+    w = scene.fresing.web3d                              # task 0165: Marine detail starts at Normal (the crane has no marine look)
+    _check(w.marine_detail == "NORMAL" and web3d.marine_estimate(scene) is None, "Marine detail is not Normal")
     _check(info["names"][1:3] == ["Part 1", "Part 2"], "the part names are not hidden")
     from ..core import web3d_env as env                 # task 0134: the player is in the page, with the saved views
     with open(out["html"], encoding="utf-8") as fh:

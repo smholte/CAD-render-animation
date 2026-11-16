@@ -82,6 +82,8 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         s = scene.fresing
         w = s.weather
         layout.prop(w, "enabled", text="Weather & time")
+        from .ops_scene import draw_start_scene             # Build puts the start scene's weather back (task 0160)
+        draw_start_scene(layout, context, ["weather"])
         if not w.enabled:
             steps(layout, context, ["Tick 'Weather & time'",
                                     "Pick a preset (Clear day, Grey North Sea, Storm, Snow at the quay, Night shift)",
