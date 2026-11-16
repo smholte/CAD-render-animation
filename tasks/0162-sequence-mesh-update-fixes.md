@@ -53,10 +53,44 @@ The other rows of 0147 (0160, 0161, 0163); the files of running tasks named abov
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Opus, effort Medium), 16 Nov 2026. Version 0.2.118.
 
 **What changed:**
+- Row 7 (`sequence.py`): the home stack holds (subassembly, place). A Put together undoes the newest Take apart of its
+  own subassembly or one inside it; entries of subassemblies round it, pushed later, then find the part where it ends.
+  With no entry of its own it uses the newest entry and leaves it. A part already home stays (no keys). Back to CAD of
+  one subassembly (`animation.py`) drops only the entries inside its scope; outer ones then find the part at CAD.
+- Row 9: Put together with Stay shows parts hidden or faded before from their come-in (`_show_again`).
+- Row 13: a rider that is out already starts where it is and blends onto its line over its own frames.
+- Row 21c (`ops_main.py`, `ops_panels.py`, `ops_motion.py`): the row eye, Show only (row and selected), Hide, Show
+  all, Show everything again, Use visibility set and Show only these (3 Looks) take the Build off ("Build again").
+- Row 3 (`reimport.py`): assemblies whose own name the reader made are left out of the name and place rules and pair
+  only through their parts. A named part inside one keeps its name in the shape-and-place key, and the place compared
+  is the middle of its box, not its origin.
+- Row 21b (`mesh_reader._decode`): UTF-8 for the whole file, else line by line. Only the short credit read may end in
+  the middle of a letter (`cut=True`).
+- Guide: the sequence section, 2 Structure and mesh-model updates. Tooltips name "Build again".
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender as a module):
+- Each row has a test that failed on the old code: `tests/test_sequence.py` (task 0162 section) and
+  `tests/test_mesh_import_fixes.py`. Old code: the carriage was still 126 mm out after its own Put together; 0 of 12
+  parts showed after Hide → Stay; the rider stepped 10.8 mm per frame while the other parts stepped at most 7.5 mm;
+  "Node 4" took group B's Hide step; "PlÃ¥t".
+- Independent tester (subagent, worktree): 52 tests in `tests/test_seq_mesh_0162_independent.py` (three-level STEP
+  and glTF models made in tmp_path). 18 failed on the first version, from 5 faults: unnamed groups still mixed up
+  when parts share a shape; four show/hide buttons without the hook; inner Put together popped the outer entry;
+  Back to CAD cleared the outer entries; `_decode` dropped a last cp1252 letter. All are fixed and all pass now.
+- Local: sequence, product video, panels, phase2, same-step-twice, model update, the mesh files, guide and updates
+  tests pass. Tooltip check: 755 ok.
+
+**Subagents:** one independent tester (Opus). It wrote the test file above. I fixed its five faults myself.
 
 **Open points / follow-up tasks:**
+- When an update leaves only **one** unnamed group, the mesh reader makes that group the model's root. Work on the old
+  group then has no target (Hide step "gone"). This is an Import lane follow-up: match a made-name root to the old
+  group whose parts it holds.
+- Row 7's order can be physically impossible. Example: the slide unit comes home while the base plate (lifted by the
+  whole model's Take apart) still hangs over it. The clash check shows it, and the guide says so. There is no Build
+  warning.
+- The tester saw that on an animation with 6 steps, step references kept in a Python list read wrong values (a start
+  time near 0) after more steps were added. Look them up again by index (test style, not app code).
