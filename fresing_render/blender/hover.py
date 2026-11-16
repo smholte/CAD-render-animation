@@ -48,8 +48,10 @@ NO = (0.90, 0.12, 0.10)             # a part this picker refuses
 FILL_ALPHA = 0.35
 DARK = (0.05, 0.05, 0.05, 0.85)     # under the outline and the axis: they read on any paint
 
-_MESH: dict = {}                    # mesh name -> (polygon count, face starts, triangles, points)
-_FACE: dict = {}                    # (mesh name, polygon count, face) -> (fill points, outline points), part coordinates
+# keyed by the mesh's session id, never its name: after a model update a new mesh can get an old one's name back
+# (0131 row 16c: an OBJ read in m, then in mm drew the old points 1000x too big)
+_MESH: dict = {}                    # mesh session id -> (polygon count, face starts, triangles, points)
+_FACE: dict = {}                    # (mesh session id, polygon count, face) -> (fill points, outline points), part coords
 _S: dict = {"op": None, "prompt": "", "hover": None, "mouse": None, "area": 0, "handles": [], "batches": {},
             "status": None}
 
@@ -93,7 +95,7 @@ def _mesh(me):
     """(polygons, CAD face starts, triangles (n, 3), points (m, 3)) of a mesh, read once. Never writes the mesh."""
     from . import faces
     n = len(me.polygons)
-    hit = _MESH.get(me.name)
+    hit = _MESH.get(me.session_uid)
     if hit is not None and hit[0] == n and len(hit[3]) == len(me.vertices):
         return hit
     starts = None
@@ -106,14 +108,14 @@ def _mesh(me):
     co = np.empty(len(me.vertices) * 3, dtype=np.float32)
     me.vertices.foreach_get("co", co)
     hit = (n, starts, faces._triangles(me), co.reshape(-1, 3))
-    _MESH[me.name] = hit
+    _MESH[me.session_uid] = hit
     return hit
 
 
 def face_shape(me, face: int):
     """Fill (triangle corners) and outline (edge ends) of one CAD face, part coordinates, float32; cached."""
     n, starts, tris, co = _mesh(me)
-    key = (me.name, n, face)
+    key = (me.session_uid, n, face)
     hit = _FACE.get(key)
     if hit is not None:
         return hit

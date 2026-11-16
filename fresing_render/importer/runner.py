@@ -54,9 +54,30 @@ def cache_is_valid(cache_dir: str) -> bool:
     try:
         with open(tree, encoding="utf-8") as fh:
             head = json.load(fh)
-        return head.get("version") == step_reader.CACHE_VERSION
     except (OSError, ValueError):
         return False
+    if head.get("version") != step_reader.CACHE_VERSION:
+        return False
+    return not side_files_changed(head)
+
+
+def side_files_changed(head: dict) -> bool:
+    """A mesh model's MTL, textures or .bin changed (size or time), or one that was missing is there now: the cache
+    is old (task 0139, 0131 row 13). The main file is in the cache's key."""
+    for row in head.get("side_files") or []:
+        try:
+            full, size, mtime_ns = row[0], int(row[1]), int(row[2])
+        except (TypeError, ValueError, IndexError):
+            return True
+        try:
+            st = os.stat(full)
+        except OSError:
+            if size >= 0:
+                return True
+            continue
+        if size < 0 or st.st_size != size or int(st.st_mtime_ns) != mtime_ns:
+            return True
+    return False
 
 
 def python_executable() -> str:

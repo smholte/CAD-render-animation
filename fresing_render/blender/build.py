@@ -31,6 +31,7 @@ PROP_SOURCE = "fr_source"      # STEP path on the root
 PROP_LOCKED = "fr_locked"      # subassembly locked (moves with parent only)
 PROP_EXCLUDED = "fr_excluded"  # hidden for good (clean-up)
 PROP_INSTANCE = "fr_instance"  # occurrence name in the CAD file (e.g. "Frame:1"), may be ''
+PROP_MADE_NAME = "fr_made_name"  # a mesh file's part whose name the reader made ("Node 3", "Weldment 2"; task 0139)
 PROP_CAD_BASIS = "fr_cad_basis"    # local matrix from the CAD file (16 floats)
 PROP_REST_BASIS = "fr_rest_basis"  # local matrix with no free move applied (changes when a joint carries it)
 PROP_CAD_PARENT = "fr_cad_parent"  # CAD parent, set while a joint carries the object
@@ -260,6 +261,8 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
         ob[PROP_COLOR] = ral.rgb_to_hex(n["color"]) if n.get("color") else ""
         ob[PROP_CAD_MATERIAL] = n.get("material") or ""
         ob[PROP_INSTANCE] = n.get("instance", "") or ""
+        if n.get("made_name"):
+            ob[PROP_MADE_NAME] = True
         if n["parent"] >= 0:
             ob.parent = objects[n["parent"]]
         ob.matrix_basis = _matrix(n.get("matrix"))

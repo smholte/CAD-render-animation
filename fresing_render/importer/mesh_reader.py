@@ -107,10 +107,37 @@ class Model:
         self.up = "y"                      # the file's up axis
         self.unit = 1.0                    # metres per file unit
 
-    def node(self, name, parent=-1, matrix=None, geoms=(), instance=""):
+    def node(self, name, parent=-1, matrix=None, geoms=(), instance="", made=False):
+        """``made``: the name is the reader's own ("Node 3"), not the file's (task 0139)."""
         self.nodes.append({"name": name, "parent": parent, "matrix": np.eye(4) if matrix is None else matrix,
-                           "geoms": list(geoms), "instance": instance})
+                           "geoms": list(geoms), "instance": instance, "made": bool(made)})
         return len(self.nodes) - 1
+
+
+# Files next to the model that the reader read (or looked for): MTL, textures, a .gltf's .bin, a licence text. The
+# cache lists them with size and time, so a change to one of them reads the model again (task 0139, 0131 row 13).
+_SIDE_FILES: list[str] = []
+
+
+def _side(full: str) -> None:
+    full = os.path.abspath(full)
+    if full not in _SIDE_FILES:
+        _SIDE_FILES.append(full)
+
+
+def side_file_stamps(paths, skip_under: str = "") -> list:
+    """[path, size, mtime_ns] per side file; size -1 for a file that is not there (it may come later)."""
+    out = []
+    skip = os.path.abspath(skip_under) + os.sep if skip_under else None
+    for full in paths:
+        if skip and full.startswith(skip):
+            continue                                       # the reader's own temporary files (a converted GLB)
+        try:
+            st = os.stat(full)
+            out.append([full, int(st.st_size), int(st.st_mtime_ns)])
+        except OSError:
+            out.append([full, -1, 0])
+    return out
 
 
 def _note(model: Model, text: str) -> None:
@@ -188,6 +215,7 @@ def _read_uri(path: str, uri: str) -> bytes:
         head, _, body = uri.partition(",")
         return base64.b64decode(body) if head.endswith(";base64") else urllib.parse.unquote_to_bytes(body)
     full = os.path.join(os.path.dirname(os.path.abspath(path)), urllib.parse.unquote(uri))
+    _side(full)
     with open(full, "rb") as fh:
         return fh.read()
 
@@ -429,7 +457,9 @@ def _read_gltf(path: str) -> Model:
 
     nodes = doc.get("nodes", [])
     scenes = doc.get("scenes", [])
-    scene = doc.get("scene", 0)
+    scene = doc.get("scene")
+    if scene is None:              # no default scene named: the first one with something in it (0131 row 16e)
+        scene = next((k for k, sc in enumerate(scenes) if isinstance(sc, dict) and sc.get("nodes")), 0)
     if scenes and isinstance(scene, int) and 0 <= scene < len(scenes):
         roots = list(scenes[scene].get("nodes", []))
     else:
@@ -446,9 +476,9 @@ def _read_gltf(path: str) -> Model:
         geoms = geoms_of(nd["mesh"]) if isinstance(nd.get("mesh"), int) else []
         if nd.get("extensions", {}).get("EXT_mesh_gpu_instancing"):
             _note(model, "GPU instances (EXT_mesh_gpu_instancing) are read once, at their node")
-        name = _clean_name(nd.get("name") or (doc["meshes"][nd["mesh"]].get("name") if geoms else ""),
-                           f"Node {k + 1}")
-        idx = model.node(name, parent, _node_matrix(nd), geoms)
+        given = _clean_name(nd.get("name") or (doc["meshes"][nd["mesh"]].get("name") if geoms else ""), "")
+        name = given or f"Node {k + 1}"
+        idx = model.node(name, parent, _node_matrix(nd), geoms, made=not given)
         for c in reversed(nd.get("children", [])):
             stack.append((c, idx))
     if lines_left[0]:
@@ -531,7 +561,8 @@ def read_credit_files(model: Model, path: str) -> None:
     for name in pick[:3]:
         try:
             with open(os.path.join(folder, name), "rb") as fh:
-                text = fh.read(CREDIT_MAX * 4).decode("utf-8", "replace")
+                text = _decode(fh.read(CREDIT_MAX * 4))
+            _side(os.path.join(folder, name))
         except OSError:
             continue
         text = "".join(ch for ch in text if ch >= " " or ch in "\n\t").strip()
@@ -567,10 +598,22 @@ def _credit_line_from_text(text: str) -> str:
 # OBJ / MTL
 # ---------------------------------------------------------------------------
 
+def _decode(raw: bytes) -> str:
+    """UTF-8 (with or without its mark); a file that is not UTF-8 is read as Windows' Western code page (cp1252), as
+    older Windows programs write OBJ / MTL files ("Plåt", "stål.png"; 0131 row 16d)."""
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return raw[3:].decode("utf-8", "replace")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("cp1252", "replace")
+
+
 def _text_lines(path: str) -> list[str]:
+    _side(path)
     with open(path, "rb") as fh:
         raw = fh.read()
-    text = raw.decode("utf-8", "replace") if not raw.startswith(b"\xef\xbb\xbf") else raw[3:].decode("utf-8", "replace")
+    text = _decode(raw)
     text = text.replace("\\\r\n", " ").replace("\\\n", " ")
     return text.splitlines()
 
@@ -631,15 +674,18 @@ def read_mtl(path: str, model: Model, by_name: dict, obj_folder: str = "") -> No
                 continue
             data = None
             base = os.path.basename(file.replace("\\", "/"))
-            for full in (os.path.join(folder, file.replace("\\", os.sep)), os.path.join(folder, base),
-                         os.path.join(obj_folder or folder, base)):
+            tries = (os.path.join(folder, file.replace("\\", os.sep)), os.path.join(folder, base),
+                     os.path.join(obj_folder or folder, base))
+            for full in tries:
                 try:
                     with open(full, "rb") as fh:
                         data = fh.read()
+                    _side(full)
                     break
                 except OSError:
                     continue
             if data is None:
+                _side(tries[0])                    # missing: when it comes, the model is read again
                 _note(model, f"texture '{file}' is missing: its material shows its colour only")
                 continue
             model.images.append({"name": os.path.splitext(os.path.basename(file))[0], "data": data,
@@ -1004,6 +1050,7 @@ def _sub(g: Geom, tris: np.ndarray, name: str) -> Geom:
 # ---------------------------------------------------------------------------
 
 def read_model(path: str, out_dir: str, converter: str | None = None) -> Model:
+    _SIDE_FILES.clear()
     ext = os.path.splitext(path)[1].lower()
     if ext in (".glb", ".gltf"):
         try:
@@ -1113,7 +1160,7 @@ def read_mesh(path: str, out_dir: str, units: str = "auto", up: str = "auto", sp
         kids.setdefault(cn["parent"], []).append(c)
     counts: dict = {}
 
-    def add(name, parent, matrix, kind, mesh=-1, color=None, material="", instance=""):
+    def add(name, parent, matrix, kind, mesh=-1, color=None, material="", instance="", made=False):
         key = (parent, name)
         counts[key] = counts.get(key, 0) + 1
         puid = nodes[parent]["uid"] if parent >= 0 else ""
@@ -1123,20 +1170,22 @@ def read_mesh(path: str, out_dir: str, units: str = "auto", up: str = "auto", sp
                 "matrix": matrix, "kind": kind, "mesh": mesh, "color": color}
         if material:
             node["material"] = material
+        if made:
+            node["made_name"] = True       # the reader's own name: an update matches it by shape and place (0139)
         nodes.append(node)
         return len(nodes) - 1
 
-    def part_of(gi, parent, matrix, name):
+    def part_of(gi, parent, matrix, name, made=False):
         """One geom under ``parent``: a part, or an assembly of its loose pieces."""
         pieces = geom_pieces[gi]
         mat = model.materials[model.geoms[gi].material] if model.geoms[gi].material >= 0 else None
         colour = mat["color"] if mat else None
         mname = mat["name"] if mat else ""
         if len(pieces) == 1:
-            return add(name, parent, matrix, "part", pieces[0][0], colour, mname)
-        asm = add(name, parent, matrix, "assembly")
+            return add(name, parent, matrix, "part", pieces[0][0], colour, mname, made=made)
+        asm = add(name, parent, matrix, "assembly", made=made)
         for mid, suffix in pieces:
-            add(name + suffix, asm, None, "part", mid, colour, mname)
+            add(name + suffix, asm, None, "part", mid, colour, mname, made=True)     # piece numbers: the reader's
         return asm
 
     for k, nd in enumerate(model.nodes):
@@ -1148,13 +1197,14 @@ def read_mesh(path: str, out_dir: str, units: str = "auto", up: str = "auto", sp
         geoms = nd["geoms"]
         children = any(has_geom[c] for c in kids.get(k, ()))
         if len(geoms) == 1 and not children:
-            idx_of[k] = part_of(geoms[0], parent, mat, nd["name"])
+            idx_of[k] = part_of(geoms[0], parent, mat, nd["name"], nd.get("made", False))
             continue
-        idx_of[k] = add(nd["name"], parent, mat, "assembly")
+        idx_of[k] = add(nd["name"], parent, mat, "assembly", made=nd.get("made", False))
         for gi in geoms:
             g = model.geoms[gi]
             mname = model.materials[g.material]["name"] if g.material >= 0 else ""
-            part_of(gi, idx_of[k], None, (mname if len(geoms) > 1 and mname else nd["name"]))
+            by_mat = len(geoms) > 1 and mname
+            part_of(gi, idx_of[k], None, (mname if by_mat else nd["name"]), (not by_mat) and nd.get("made", False))
     if not any(n["kind"] == "part" for n in nodes):
         raise MeshError("the file has no faces to show (only points, lines, cameras or lights)")
 
@@ -1190,6 +1240,7 @@ def read_mesh(path: str, out_dir: str, units: str = "auto", up: str = "auto", sp
         "source_size": os.path.getsize(path),
         "source_mtime": os.path.getmtime(path),
         "source_kind": "mesh",
+        "side_files": side_file_stamps(_SIDE_FILES, out_dir),
         "quality": "mesh",
         "units": "m",
         "options": {"units": unit_name, "up": model.up, "split": bool(do_split), "format": ext[1:]},
