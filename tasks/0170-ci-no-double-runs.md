@@ -1,6 +1,6 @@
 # 0170 – Test runs round 4a: no second full run at a release; test groups rebalanced
 
-**Who:** worker · **Status:** open · **Branch:** `task/0170-ci-no-double-runs`
+**Who:** worker · **Status:** running · **Branch:** `claude/jolly-dijkstra-0zzdgh`
 **Started by:** lead, 16 Nov 2026 · **Model:** Opus · effort Medium
 **Area:** `tools/ci_precheck.py` (mode decision), `tests/test_ci_tools.py`, `tools/ci_times.json`, `tools/ci_groups.py`
 only if the balancing itself needs a change, CLAUDE.md sections 2 and 5. **Not** `.github/workflows/tests.yml` jobs,
