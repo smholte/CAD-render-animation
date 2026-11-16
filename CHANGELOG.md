@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.118 – 16 Nov 2026 – Full carousel, faster cables (task 0159)
+
+- **The demo's carousel is full.** The coil now fills the carousel up to its rim: 23 full layers and the top layer,
+  partly paid out as before – 43.5 km of cable instead of 28.8 km. The loading arch stands 1.2 m higher (room for its
+  guide rollers above the fuller coil) and the carousel shot's camera looks a little higher; the other shots are as
+  before. Make the demo project again (Help > Make demo project) to see it.
+- **Build is faster.** Build's pass through the frames for hoses and cables now lets Blender work out only the parts
+  it reads and what they hang on, not the whole model at every frame: on the demo the Build takes 48–50 s instead of
+  68–72 s on the 4-core test machine (making the demo 250 → 210 s), with exactly the same shapes and keys as before.
+- **Moving a cable that hangs into the sea by hand is faster:** one step of "Cable travel" on the demo 133–153 →
+  87–106 ms on the test machine.
+- **A drum's or carousel's rope is set up faster:** the full carousel's whole wound path 3.0 → 1.1 s.
+- Playback, renders and memory cost the same with the full carousel as with the part-filled one: the full layers are
+  one light solid, only the top layer is drawn as rope.
+
 ## 0.2.117 – 16 Nov 2026 – Long milling programs are worked out in seconds (task 0146)
 
 - **Fast 3-axis** (4 Motion > Milling, under Detail; on by itself, also in older projects). A long program that
