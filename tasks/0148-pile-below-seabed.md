@@ -1,6 +1,6 @@
 # 0148 – Sea cut-away also cuts the seabed: the monopile visible down to its toe
 
-**Who:** worker · **Status:** open – can start now · **Branch:** `task/0148-pile-below-seabed`
+**Who:** worker · **Status:** running · **Branch:** `task/0148-pile-below-seabed`
 **Started by:** lead chat, 16 Nov 2026 (open point of 0128) · **Model:** Sonnet · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area (Scene & Render – sea):** `blender/surroundings.py` (the seabed and `_cutaway`), `core/surroundings.py` /
