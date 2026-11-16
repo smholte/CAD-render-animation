@@ -5,6 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.121 – 16 Nov 2026 – Web 3D model: marine looks on the page, safer light bake (task 0161)
+
+- **Marine looks on the web page.** Marine growth, run-down streaks and the worn blade edge now show on the page as
+  in the app: each part with one of them is baked on its own, where it stands (before, the page showed plain paint).
+  The line under Export says on how many parts and how fine ("… mm per pixel"), and when a very big part (a tower)
+  is too big for the finest streaks and barnacles. These parts make the export slower and the file bigger (the test
+  crane: 0.2 → 0.8 MB, 2.5 → 25 s).
+- **No crash in the light bake.** An export with Soft light or Everything baked (and the House bake) keeps the
+  app's live functions (cables, hoses, vessel motion …) away from its working copy, as the looks bake already did.
+- **Isometric views at the right size.** A saved Isometric camera shows the same frame on the page as in the app
+  (it was almost twice as wide).
+- **Any camera name works.** A camera name with `<!--` or `<script` in it no longer stops the page at "Loading".
+
 ## 0.2.120 – 16 Nov 2026 – The demo vessel in detail (task 0153)
 
 - **The demo's vessel looks like a real offshore vessel close up.** A shaped hull: a raked bow with flare and a bulbous
