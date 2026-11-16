@@ -2583,7 +2583,7 @@ def scene_props(ctx):
     return f"{words}; render {info['seconds']} s"
 
 
-@line("people.walk", "People walk, carry and meet", "0.2.125",
+@line("people.walk", "People walk, carry and meet", "0.2.127",
       what="Two people beside the crane (task 0157): Anna walks in with a toolbox, puts it down, they shake hands "
            "and talk. Build, feet on the floor without sliding, the box on the floor, the frame time with them, a "
            "small render (processor, draft)")

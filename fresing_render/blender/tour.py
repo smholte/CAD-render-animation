@@ -3360,7 +3360,7 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "Beside the crane Anna (orange coverall) walks in carrying a red toolbox, her feet stepping without sliding. "
      "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
      "nodding, taking turns, gesturing with their hands.",
-     where="6 Animation > People (Example: two people meet, then Build)", since="0.2.125", animation=PEOPLE_ANIM,
+     where="6 Animation > People (Example: two people meet, then Build)", since="0.2.127", animation=PEOPLE_ANIM,
      at=0.55, play=True, check=_check_people, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs on its rails through a short program: lines, arcs, a tool change to T2 and drilling. The "

@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.127 – 16 Nov 2026 – People walk, carry and meet (task 0157)
+
+- **People who move:** new panel 6 Animation > **People**. **Add person** and click on the floor (or the deck), **Draw
+  path** by clicking the points it walks through (numbered in the view; drag, add or delete them afterwards with
+  **Edit points**), then list its **steps**: walk (stroll, walk, brisk, carry-walk or run), stop, turn to face, pick
+  up, put down, wave, greet (a handshake), talk, point at, look at, idle, operate a panel. **Build & play** makes the
+  animation; the **Preview** slider shows any moment without building.
+- **Real steps:** the feet are put down on the floor and roll from heel to toe; the step length goes with the speed,
+  so nothing slides. The person follows the floor's height and is warned about where a path runs into the machine.
+- **Meetings line up:** a greeting or a talk starts when both people are there – whoever is first waits and looks at
+  the other. Any step can wait for another person's step.
+- **Items:** a toolbox, clipboard, tablet, hard hat, cable drum, crate, spanner or hose, carried in the right hand(s)
+  and put down on whatever is in front – the floor, a table, a part's top.
+- **Example: two people meet** sets up Anna walking in with a toolbox, putting it down by Ben, a handshake and a talk.
+- People with steps are checked by the Clash check like parts. People keep the light version far from the camera.
+
 ## 0.2.126 – 16 Nov 2026 – Web 3D: Marine detail Normal or Fine (task 0165)
 
 - New choice **Marine detail** in 5 Scene & Render > Web 3D model (shown when a marine look is in use). **Normal** is

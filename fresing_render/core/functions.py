@@ -239,7 +239,7 @@ fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", pr
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
    guide="props", tour=("props",), pccheck=("scene.props",), since="0.2.17")
 fn(id="animation.people", title="People walk, carry and meet", family="animation", panel="FRESING_PT_people",
-   button="fresing.person_add", guide="people", tour=("people",), pccheck=("people.walk",), since="0.2.125")
+   button="fresing.person_add", guide="people", tour=("people",), pccheck=("people.walk",), since="0.2.127")
 fn(id="scene.props_detail", title="Props: detail by distance", family="scene", panel="FRESING_PT_props",
    prop="props_detail", guide="props-detail", since="0.2.124")
 fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
