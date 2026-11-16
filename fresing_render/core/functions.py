@@ -165,6 +165,9 @@ fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRE
 # ----- 4 Motion: cables, drums; the sea -----
 fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_add", guide="cables", tour=("cables",), pccheck=("motion.paths",), since="0.2.80")
+fn(id="offshore.served_cable", title="Served cable look: yarn and marker bands", family="offshore",
+   panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),
+   pccheck=("looks.served_cable",), since="0.2.115")
 fn(id="offshore.sea_cable", title="Cable into the sea", family="offshore", panel="FRESING_PT_cables",
    fold="fr_cables_sea", button="fresing.cable_sea_add", guide="into-the-sea", tour=("sea_cable",),
    pccheck=("motion.sea_cable",), since="0.2.91")

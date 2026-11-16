@@ -459,6 +459,21 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
             col.prop(cb, "stripe", text="Stripe width")
         elif cb.look == "ROPE":
             col.prop(cb, "pitch", text="Lay length")
+        elif cb.look == "SERVED":                  # (task 0158)
+            col.prop(cb, "pitch", text="Band distance")
+            col.prop(cb, "band_count", text="Bands")
+            col.prop(cb, "band_width", text="Band width")
+            if cb.band_count == "PAIR":
+                col.prop(cb, "band_gap", text="Band gap")
+            col.prop(cb, "band_color", text="Band colour")
+            col.prop(cb, "band_wear", text="Paint wear")
+            body = fold(layout, "fr_cables_yarn", "Yarn", "TEXTURE")
+            if body:
+                col = split_props(body)
+                col.prop(cb, "yarn_pitch", text="Yarn pitch")
+                col.prop(cb, "yarn_angle", text="Lay angle")
+                col.prop(cb, "yarn_color", text="Yarn colour")
+                col.prop(cb, "wear", text="Wear")
         layout.operator("fresing.cable_read", text="From CAD cable again", icon="FILE_REFRESH")
 
         # -- what it touches

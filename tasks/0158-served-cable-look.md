@@ -39,6 +39,31 @@ helical stripes instead.
 - [ ] Tooltips, guide (pictures of the cable looks from the test model / the invented demo only), PC-check line / tour
       stop, function list for anything the owner sees; GitHub run green; merged; version (CLAUDE.md section 7); report.
 
+## Design (worker, 16 Nov 2026)
+
+A third cable look **SERVED** (kind number 3, material `cable_served`, group "Served cables"), next to POWER and ROPE.
+Shader nodes only (no picture), as the other two: works with scripts off, Cycles, EEVEE, the queue.
+
+Data on the cable object (the tube part, and copied to the spool's rope object):
+- `fr_cable_look` = `[band distance m, 0, band width m, 3]` (the same 4-number property as the other looks)
+- `fr_cable_yarn` = `[yarn pitch m (axial, strand to strand), yarn starts (signed whole number: strands per lay; from
+  the lay angle as the power cable's stripes), cable diameter m, wear 0 … 1]`
+- `fr_cable_band` = `[bands per group 1 | 2, gap m, paint wear 0 … 1, 0]`
+- `fr_cable_yarn_rgb`, `fr_cable_band_rgb` = colours (3 floats, scene linear)
+- missing properties (a part given the material by hand): the library entry's defaults.
+
+Formula (plain Python in `cable_looks`, the nodes and the page's shader draw the same):
+- yarn phase `g = (s − paid out) / yarn pitch + starts · φ / 2π`; strand height `sqrt(1 − (2 fract g − 1)²)`;
+  strand colour from a white noise of `floor(g)`; fibres = noise stretched along the strand; dust in the grooves.
+- band: `x = (s − paid out) mod distance`; band 1 = `[0, w)`, band 2 = `[w + gap, 2w + gap)`; ragged edges (noise,
+  ±a few mm, more with wear), paint thinner in the grooves and smudged black by wear. `bands()` gives the clean mask.
+
+Code: `blender/cable_looks.py` (formula, nodes, `served_props`), `core/materials_lib.py` (entry 56), `props.py`
+(FRCable settings), `ui_paths.py` (the look's settings), `paths.py` only where the look is written (`_apply_look`,
+`_strip`, `_default_pitch`, `GROUPS`), `spool.py` (copies all look properties), `web3d_drawn.py` +
+`core/web3d_tubes.py` + `web/fr_page.js` (the page), `demo.py` (the power cables get SERVED), tour set "served",
+PC-check line `looks.served_cable`, function `cables.served_look`, guide.
+
 ---
 
 ## Report (filled in by the chat that did the task)

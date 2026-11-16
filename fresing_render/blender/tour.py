@@ -1563,6 +1563,81 @@ def build_spool(b: Build):
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
 
 
+SERVED_CABLE = "POWER CABLE"     # the test spool model's cable that gets the served look (task 0158)
+
+
+def served_demo(scene) -> dict:
+    """test_spool.step (imported) set up as for the spooling stop, its power cable (and the coil on the carousel) with
+    the served-cable look: black yarn, pairs of yellow marker bands (task 0158). Shared by the tour, the PC check and
+    the guide pictures. Returns ``spool.set_up_test_model``'s dict with "cable" = the cable item's name."""
+    from . import build, paths, spool
+    made = spool.set_up_test_model(scene)
+    it = next(i for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
+    it.look = "SERVED"
+    made["cable"] = it.name
+    return made
+
+
+def served_camera(scene, name: str = "Served cable"):
+    """A close-up of the served cable where it leaves the carousel's coil: the coil, the bands, the yarn."""
+    import numpy as np
+
+    from . import cameras, paths
+    it = paths.find(scene, served_demo_cable(scene))
+    pts = np.asarray(paths.shape_now(scene, it), float)
+    c = pts[len(pts) // 3]
+    box = np.array([c + 0.22 * np.array((dx, dy, dz)) for dx in (-1, 1) for dy in (-1, 1) for dz in (-1, 1)])
+    cam = cameras.add_camera(scene, "ISO", 50.0, name, points=box)
+    scene.camera = cam
+    return cam
+
+
+def served_demo_cable(scene) -> str:
+    from . import build, paths
+    return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
+
+
+@tour_set("served", "Served cable look", "test_spool.step")
+def build_served(b: Build):
+    sc = b.scene
+    _look("PRODUCT")
+    made = served_demo(sc)
+    _check(made["animation"] == SPOOL_ANIM, f"the animation is called '{made['animation']}'")
+    _update()
+    served_camera(sc, "Tour served cable")
+    shot = _shot(b, "Tour: served cable")
+    a = sc.fresing.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_served(scene):
+    """The power cable and its coil have the served look; the bands run with the paid-out length."""
+    from . import cable_looks, joints, paths, spool
+    it = paths.find(scene, served_demo_cable(scene))
+    _check(it is not None and it.look == "SERVED", "the cable has not got the served look")
+    part = it.part
+    _check(all(k in part for k in cable_looks.PROPS), "the cable's part lacks the served look's settings")
+    mat = part.material_slots[0].material if part.material_slots else None
+    _check(mat is not None and cable_looks.NODE_YARN in cable_looks.nodes_of(mat), "the material draws no yarn")
+    sp = spool.of_cable(scene, it)
+    coil = spool._made(scene, sp, "rope") if sp is not None else None
+    _check(coil is not None and list(coil.get(cable_looks.YARN, [])) == list(part[cable_looks.YARN]),
+           "the coil on the carousel has not got the served look")
+    cab = joints.find(scene, it.joint)
+    ran = []
+    for f in (scene.frame_start, scene.frame_end):
+        scene.frame_set(f)
+        _update()
+        ran.append((joints.get_value(cab), float(part[cable_looks.PAY]) - cable_looks.PAY_BIAS))
+    sign = -1.0 if it.reverse else 1.0
+    moved = ran[1][1] - ran[0][1]
+    _check(abs(moved - sign * (ran[1][0] - ran[0][0])) < 1e-3 and abs(moved) > 0.5,
+           f"the bands moved {moved:.3f} m while the cable ran {ran[1][0] - ran[0][0]:.3f} m")
+    n = int(round(part[cable_looks.YARN][1]))
+    return f"served look on the cable and its coil, {abs(n)} yarn strands round it, the bands ran {abs(moved):.2f} m"
+
+
 SEA_ANIM = "Cable into the sea"
 
 
@@ -3052,6 +3127,12 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      "run-down streaks; the block in front is light grey concrete.",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
            "streaks; Concrete)", since="0.2.94", check=_check_marine)
+stop("served", LOOK, "served", "Served cable with marker bands",
+     "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
+     "grooves, some strands darker or lighter, a little dust – and every 1.25 m a pair of yellow painted bands with "
+     "ragged edges, the paint thinner in the grooves. Played, the bands run along with the cable, also on the coil.",
+     where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
+     since="0.2.115", check=_check_served, auto="clip")
 stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
      "The crane stands in the open sea with waves; the sky and the light come from the sea set-up.",
      where="5 Scene & Render > Background & surroundings", check=_check_sea)
