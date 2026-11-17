@@ -6,8 +6,14 @@ order in `TASKS.md`); the lead re-reads this brief and the panels as they are th
 **Started by:** lead chat, 10 Nov 2026 (owner's wish)
 **Lane:** touches every panel file (`blender/ui*.py`), `app_template/fresing_render/__init__.py`, `blender/props.py`
 (additive), guide pictures – so it runs **alone** (no other task with UI changes at the same time)
-**Model:** Opus · effort Medium (lead to confirm when it starts) · **Place:** Claude Code on the web, environment
+**Model:** Fable · effort High (owner agreed 17 Nov: it runs alone and touches every panel; fallback Opus · High) ·
+**Place:** Claude Code on the web, environment
 "CAD-render-animation"
+
+**Lead note 17 Nov 2026 – order and pre-study (owner agreed 22:00):** 0062 runs **before Lifting L4** (the Lifting
+panels are then built once in the new layout). Its one stop (point 5, and the Client view lock level) moves to the
+findings-only study **0197**: the owner picks from 0197's page before 0062 starts and the lead writes the picks here –
+0062 then runs **without stopping**. 0197's panel inventory and workspace map are 0062's starting point.
 
 **Lead note 14 Nov 2026 – interactive learning (study 0123):** the owner wants this overhaul and the learning modes (Show me / Build it yourself on the test models, the guide inside the app) to work as one. Before this task starts the lead adds 0123's results here: the families come from the one function list (registry), and the shared panel helpers get the hook that lets a lesson highlight a button and open its folds. The modes themselves are built after this task.
 
@@ -18,7 +24,9 @@ Take the code from branch `claude/practical-heisenberg-jm99vr` (`fresing_render/
 **only these six looks**, not the other 23.
 - **Button C** (spotlight: rest of the side panel dimmed, the button clear with a thin outline) – default. As clipped,
   C also dims the Lesson panel and greys its *Do it for me*: build it with the **Lesson panel left clear** (look M's
-  two markers already do this) unless the owner says otherwise.
+  two markers already do this). **Owner's 0185 pick (17 Nov 21:52): C bright** – the Lesson panel keeps full
+  brightness (instruction, Back, Do it for me, Stop lesson), the rest of the side panel dimmed; see 0185's page,
+  `step4_C_bright` on branch `task/0185-look-c-wide`. No dark variant.
 - **Button D** (bar on the button's left edge, button tinted, breathing) – check the white label on the tint stays
   readable at Windows display scaling 100–200 %.
 - **Section 5** (header label in the colour, fold arrow nods slowly) – default · **Section 4** (bar on the header's
@@ -99,12 +107,12 @@ tidy start every time the app opens.
 5. **"And more improvements"** – the worker first makes a short list from the panels as they are then (screenshots
    with `tools/ui_screens.py`), e.g.: long sections split or moved into folds, the same words for the same things
    everywhere, rarely used settings in "More", sub-panels in a sensible order, a short "what's next" hint at the top
-   of a new project. **The owner picks from that list before the build** (the worker shows it in one message with
-   small screenshots and waits; this is the one stop in the task).
+   of a new project. **The owner picks from that list before the build** – done in study **0197** (17 Nov): the picks are
+   written in this brief before the task starts; no stop in this task.
 
 ## Done when
 
-- [ ] The owner's choice from point 5 is in the report.
+- [ ] The owner's picks from 0197 (point 5, lock level, the word) built; any pick left out is named in the report.
 - [ ] Ticks per family, built-in sets and own sets (save, rename, delete; one file each in the library folder; a
       copied file shows up after Refresh / restart – tested with a second settings folder).
 - [ ] Function families can be switched on and off at any time in a project; hiding one that is in use shows the
