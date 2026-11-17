@@ -183,6 +183,11 @@ its pass-count expectations changed from "one extra pass" to "no extra pass" aft
   (the tester's note; flex Build comes before the cables) – nothing in the demo does this.
 - The touch-down drifts ~3 m aft over shots 1–8b and moves ±1 m with the heave; the ROV could follow it with a joint
   keyed after the cables' Build if wanted.
+- The test tour's `spool` stop fails on some GitHub runners (the tight-string solver takes the other branch round
+  GUIDE SHEAVE at frame 233, where the full spool's leave point moves on) – Flex lane (0174's stop); seen in 0179 and
+  here, green on a re-run both times.
+- `tools/ci_times.json` not re-recorded: the new demo file (`test_demo_project_realism.py`, ~3.5 min here) and
+  `test_tight_followers_independent.py` (~1.5 min) join their groups with the default estimate.
 - 0152 #7 / #8 (pull-in variants): owner decides.
 
 **Stills** (invented content, Cycles CPU, 1280 × 720, 24 samples): `tasks/img/0173_shot8_lay_data_rov.jpg` (shot 8:
@@ -190,7 +195,14 @@ the Lay data box, the ROV beside the touch-down, the caption with "surface lay")
 (shot 5's caption), `tasks/img/0173_tipping_winch.jpg` (a tipping winch's narrow drum with its wire in layers going
 up the swivel post while the D is lowered). No night still: the ROV is hidden in shot 13.
 
-**GitHub runs:** see below.
+**GitHub runs:** 6 full runs started. Red: suite 2 (my label test left the add-on registered: fixed) and demo 2
+(expected numbers for the ROV's joints and stage order: fixed); one red in the precheck (0179 took 0.2.140:
+merged, renumbered to 0.2.141); two cancelled by newer pushes; run 44065946876 on 32d286e red only on the test
+tour's `spool` stop ("no longer touches 'GUIDE SHEAVE' at frame 233"), green after re-running that job twice.
+That stop is 0174's and fails on some GitHub runners only (0179's report, open point 4); measured here, the wrap
+round GUIDE SHEAVE at frames 220–244 stays 0.92–1.44 rad (CAD 1.52), far from "lifted" – the runner's solver picks
+the other branch at frame 233. It passed here alone, under full CPU load, and after group 5's other files.
+`main` fast-forwarded to the merge of main (documents only) on top of the green commit.
 
 **The owner's check on the RTX 3090:**
 1. Install 0.2.141 (Update now), then **Help > Make demo project…** > **Make it**; open it when it is ready.
