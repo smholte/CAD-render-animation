@@ -1,6 +1,6 @@
 # 0182 – Lifting plans L1: the checks and the load-chart format in plain Python
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0182-lifting-checks`
+**Who:** worker · **Status:** running · **Branch:** `task/0182-lifting-checks`
 **Started by:** lead chat, 17 Nov 2026 (study 0180, task L1; owner's answers the same day) · **Lane:** Lifting (new files
 only: `fresing_render/core/lifting.py`, `tests/test_lifting.py`, `tests/test_lifting_independent.py`; nothing in `blender/`)
 **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation"
