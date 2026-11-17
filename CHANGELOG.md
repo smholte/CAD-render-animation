@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.136 – 17 Nov 2026 – Drums and carousels full of real cable (task 0174)
+## 0.2.137 – 17 Nov 2026 – Drums and carousels full of real cable (task 0174)
 
 - **Every layer is cable now.** A drum or carousel (4 Motion > Drums and carousels) no longer shows a grey sleeve or
   ring under its top layer: the whole coil is one cable, from where it is fixed at the core or the flange, layer on
@@ -20,6 +20,15 @@ installer of that version was built from.
 - Projects made with an older version show the full layers as cable when opened.
 - The web 3D model keeps showing the full layers of a coil as one solid under the moving top layer (the whole coil as
   cable would make the page far too big).
+
+## 0.2.136 – 17 Nov 2026 – The app icon says "Fr" (task 0169)
+
+- **The app icon is now "Fr" for Fresing Render:** the white F with its green swoosh and an r beside it, taken from
+  the Fresing word mark, on the same dark rounded square. It shows on the Desktop, in the Start menu, on the window
+  and in the taskbar, and stays sharp at the smallest sizes.
+- Nothing to do after **Update now**: the app swaps the icon file at its first start and tells Windows to redraw the
+  shortcuts. If a shortcut or a pinned taskbar icon still shows the plain F, press F5 on the Desktop, or unpin and pin
+  the taskbar icon again.
 
 ## 0.2.135 – 17 Nov 2026 – The Fresing logo as a watermark (task 0176)
 
