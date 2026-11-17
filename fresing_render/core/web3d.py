@@ -85,6 +85,7 @@ OWN_MAX_PX = {"NORMAL": ATLAS_MAX, "FINE": 2 * ATLAS_MAX}
 OWN_FILLS = {"NORMAL": OWN_FILL, "FINE": 0.75}
 OWN_BYTES_PER_TEXEL = 0.12         # file bytes per texel, all channels (measured on a plain growth tower: 0.10; streaks cost more)
 OWN_SECONDS_PER_MTEXEL = 8.0       # bake seconds per million texels, all channels (measured: 146 s for 16.8 M, 4 cores)
+OWN_SECONDS_PER_BAKE = 2.0         # task 0189: and per part baked (a bake object, a bake per channel …); set below
 
 
 def own_tpm(texture_size: int, area_m2: float, detail: str = "NORMAL") -> float:
@@ -96,9 +97,12 @@ def own_tpm(texture_size: int, area_m2: float, detail: str = "NORMAL") -> float:
     return tpm
 
 
-def own_estimate(area_m2: float, texture_size: int, detail: str = "NORMAL", longest_m: float = 0.0) -> dict:
+def own_estimate(area_m2: float, texture_size: int, detail: str = "NORMAL", longest_m: float = 0.0,
+                 bakes: int = 0, unique_area: float | None = None) -> dict:
     """The panel's estimate before the export (task 0165): the marine looks' pixel size, file size and bake time for
-    ``area_m2`` of world surface. Picture sizes only: parts whose charts leave gaps come out a little bigger."""
+    ``area_m2`` of world surface. Picture sizes only: parts whose charts leave gaps come out a little bigger. Task
+    0189 (0183 row 9): ``bakes`` parts are baked (copies share one bake), ``unique_area`` m² of them – the pictures
+    and the file count only those, and every bake costs ``OWN_SECONDS_PER_BAKE`` besides its pixels."""
     tpm = own_tpm(texture_size, area_m2, detail)
     fill = OWN_FILLS.get(detail, OWN_FILL)
     max_px = OWN_MAX_PX.get(detail, ATLAS_MAX)
@@ -106,8 +110,11 @@ def own_estimate(area_m2: float, texture_size: int, detail: str = "NORMAL", long
     if detail != "FINE" and longest_m > 0:           # Normal keeps a long chart whole: it must fit one picture
         tpm = min(tpm, (max_px - 10) / longest_m)
     texels = min(float(area_m2) * tpm * tpm / max(fill, 0.1), float(OWN_BUDGETS.get(detail, OWN_BUDGET)) * 2.0)
+    if unique_area is not None and area_m2 > 0:
+        texels *= min(1.0, max(float(unique_area), 0.0) / float(area_m2))
     return {"mm": 1000.0 / tpm, "bytes": int(texels * OWN_BYTES_PER_TEXEL),
-            "seconds": texels / 1e6 * OWN_SECONDS_PER_MTEXEL}
+            "seconds": texels / 1e6 * OWN_SECONDS_PER_MTEXEL + max(int(bakes), 0) * OWN_SECONDS_PER_BAKE,
+            "bakes": max(int(bakes), 0)}
 
 
 def cut_charts(un, max_m: float):
@@ -172,8 +179,9 @@ def own_atlas(sizes_m: np.ndarray, area_m2: float, wanted_tpm: float, max_px: in
     return tpm, side, lm.pack([px], side)[0]
 
 
-def own_line(parts: int, finest_mm: float, coarsest_mm: float, detail: str = "NORMAL") -> str:
-    """The export line's words for the parts baked on their own (marine looks)."""
+def own_line(parts: int, finest_mm: float, coarsest_mm: float, detail: str = "NORMAL", bakes: int | None = None) -> str:
+    """The export line's words for the parts baked on their own (marine looks); ``bakes``: how many were baked
+    (task 0189: copies share one)."""
     from .words import plural
     if parts <= 0:
         return ""
@@ -182,6 +190,8 @@ def own_line(parts: int, finest_mm: float, coarsest_mm: float, detail: str = "NO
     else:
         size = f"{finest_mm:.1f}–{coarsest_mm:.0f} mm"
     text = f"marine looks baked on {plural(parts, 'part')} ({size} per pixel"
+    if bakes is not None and 0 < bakes < parts:
+        text += f"; copies share: {plural(bakes, 'bake')}"
     if coarsest_mm > OWN_DETAIL_MM:
         text += ("; the largest are too big for the fine streaks and barnacles at this size"
                  + ("; Marine detail Fine makes them finer" if detail != "FINE" else ""))

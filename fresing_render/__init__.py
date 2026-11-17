@@ -79,6 +79,8 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
     clash.register()
+    from .blender import web3d
+    web3d.register()                         # task 0189: the Web 3D panel's estimates kept until a change
     from .blender import section
     section.register()                       # cutaways (task 0086): new materials of cut parts get wrapped
     hover.register()
@@ -145,6 +147,8 @@ def unregister():
     from .blender import vessel_motion
     vessel_motion.unregister()
     clash.unregister()
+    from .blender import web3d
+    web3d.unregister()
     from .blender import waycover
     waycover.unregister()
     linkages.unregister()

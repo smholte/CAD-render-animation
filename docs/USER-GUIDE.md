@@ -2750,6 +2750,10 @@ part with one of them is baked **on its own**, where it stands in the view: the 
 waterline as the app does. The line under the button says on how many parts and how fine ("… mm per pixel"); a very
 big part (a tower, a monopile) gets coarser pixels – the band and the streaks show, the finest streaks and barnacles
 may not ("too big for the fine streaks and barnacles"). These parts make the export slower and the file bigger.
+**Copies share one bake:** parts with the same shape and looks that stand at the same height and tilt (the clamps of
+every turbine of a wind park, turned and placed anywhere across) get the pictures of the first one – the same look, one
+bake. The panel says before the export how many parts are baked ("12 parts baked (copies share one)") and about how
+long it takes; most of that time is per part baked, not per pixel. MEASURED_0189
 
 <a id="web3d-marine"></a>
 #### Marine detail: Normal or Fine
@@ -2847,6 +2851,8 @@ pointer lights up.
 - **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
   Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
   (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 40.0 mm**.
+  A label's live numbers ({speed}, {top} … of a cable into the sea) are filled in as at the frame shown on a still
+  page; on a page with the animation the lines that hold one are left out (the card cannot follow them while it plays).
 - **Measure** (D): click two faces. **Faces** (the default) measures what was clicked:
   - two **flat faces** – parallel (within 1°): the **distance between the planes**; not parallel: the **angle**
     between them and how far the two points lie apart;
@@ -2887,7 +2893,10 @@ them back.
   project without a sea gets one under the machine. With the **Vessel deck**, the deck goes on the page too.
 - **Vessel motion** (only when the project has it on, 5 Scene & Render > Vessel motion) – the machine and the deck
   heave, pitch and roll in step with the waves, with the app's numbers; parts marked **Still** or **Level** stay as
-  in the app. It works together with Include animation.
+  in the app. It works together with Include animation. With a **cable into the sea** on the page the visitor cannot
+  switch the motion off (the cable hangs from the moving vessel onto a still seabed: without the motion it would leave
+  the seabed). Exported without Vessel motion, the cable's points on the seabed lie where the app lays them and its
+  top stays on the vessel; in between it goes smoothly from one to the other.
 - **Sky** – the page's background and its light. **Sky from: The project** takes the project's sky and sun; with a
   360° photo or a studio look the page gets that picture as its light (and the photo as its background), so shiny
   metal mirrors what the app shows. **Time of day** draws a sky with the sun at **Sun height** and **Sun direction**;

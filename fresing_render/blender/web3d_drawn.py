@@ -153,6 +153,7 @@ class Drawn:
         self.items: dict = {}
         self.copies: list = []
         self.notes: list = []
+        self.fixes: dict = {}               # task 0189: name -> fn(ob, local points (m, 3), dg) -> points (TUBE)
         dg = bpy.context.evaluated_depsgraph_get()
         later = []
         for ob in obs:
@@ -306,6 +307,19 @@ class Drawn:
         finally:
             sc.frame_set(keep)
 
+    def fix(self, name: str, fn) -> bool:
+        """Task 0189 (0183 row 6): ``fn(ob, points, dg)`` moves a TUBE's points (its own coordinates) before they are
+        read at every frame, and its drawn copy now. False when ``name`` is not a drawn tube."""
+        it = self.items.get(name)
+        if it is None or it.kind != TUBE or it.mesh is None:
+            return False
+        self.fixes[name] = fn
+        dg = bpy.context.evaluated_depsgraph_get()
+        co = fn(it.ob, _vertices(it.mesh).astype(np.float64), dg)
+        it.mesh.vertices.foreach_set("co", np.asarray(co, np.float32).ravel())
+        it.mesh.update()
+        return True
+
     # -- per frame
     def read(self, dg, shown: dict) -> None:
         """Read every item at the frame now set; ``shown`` {name: bool}: an object hidden now keeps its last."""
@@ -322,7 +336,7 @@ class Drawn:
                 if it.kind == RIGID:              # its 4 points; the moves are fitted all at once (``moves``)
                     got = np.array([tuple(me.vertices[int(i)].co) for i in it.fit], np.float32)
                 elif it.kind == TUBE:
-                    got = self._tube_now(it, ev, me)
+                    got = self._tube_now(it, ev, me, dg)
                 elif it.kind == SPOOL:
                     got = self._spool_now(it, ev, me)
             except (IndexError, ValueError, AttributeError):
@@ -332,10 +346,13 @@ class Drawn:
                 got = it.frames[-1] if it.frames else None
             it.frames.append(got)
 
-    def _tube_now(self, it: Item, ev, me):
+    def _tube_now(self, it: Item, ev, me, dg=None):
         co = _vertices(me)
         if len(co) != it.count * it.sides:
             return None
+        fn = self.fixes.get(it.name)
+        if fn is not None:
+            co = fn(it.ob, co.astype(np.float64), dg if dg is not None else bpy.context.evaluated_depsgraph_get())
         r = co.reshape(it.count, it.sides, 3).astype(np.float64)
         c = r.mean(axis=1)
         nr = r[:, 0] - c
