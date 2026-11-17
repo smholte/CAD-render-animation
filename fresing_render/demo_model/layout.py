@@ -27,6 +27,7 @@ from . import deck as dk
 from . import geom as g
 from . import machines as m
 from . import park as pk
+from . import rov as rv
 from . import route as rt
 from . import vessel as vs
 from .geom import Asm, Part, Rot, T
@@ -44,8 +45,10 @@ FILES = {
     "quadrant": "demo_quadrant.step",
     "quay_loading": "demo_quay_loading.step",
     "park": "demo_park.step",           # task 0166: the wind park round the vessel (park.py), its own model in the demo
+    "rov": "demo_rov.step",             # task 0173: the work-class ROV at the touch-down (rov.py), its own model
 }
-MACHINE_FILES = ("carousel", "storage_carousel", "tensioner", "handling_winch", "quadrant", "quay_loading", "park")
+MACHINE_FILES = ("carousel", "storage_carousel", "tensioner", "handling_winch", "quadrant", "quay_loading", "park",
+                 "rov")
 ROUTE_JSON = "demo_cable_route.json"
 JOINTS_JSON = "demo_joints.json"
 
@@ -165,8 +168,11 @@ def _stations(route: rt.Route, keys: set, step: float, margin: float = 400.0):
 # Build
 # ---------------------------------------------------------------------------------------------------------
 
-def build(p: Params | None = None, with_lebus: bool = True, with_park: bool = False) -> Scene:
+def build(p: Params | None = None, with_lebus: bool = True, with_park: bool = False,
+          with_rov: bool | None = None) -> Scene:
+    """The whole spread. ``with_park``: also the wind park and (unless ``with_rov`` says otherwise) the ROV."""
     p = p or Params()
+    with_rov = with_park if with_rov is None else with_rov
     S = Scene(p)
     pos, kit = S.pos, S.kit
     R, Rq, cr = p.bend_r, p.quadrant_r, p.cable_r
@@ -306,6 +312,11 @@ def build(p: Params | None = None, with_lebus: bool = True, with_park: bool = Fa
         t = time.time()
         S.files["park"], S.info["park"] = pk.build(p, ParkParams())
         S.timings["park"] = time.time() - t
+    # ---- the ROV at the touch-down (task 0173; its own file and coordinates, rov.py)
+    if with_rov:
+        t = time.time()
+        S.files["rov"], S.info["rov"] = rv.build(p)
+        S.timings["rov"] = time.time() - t
     S.files["assembly"] = root
     S.root = root
     S.timings["total"] = time.time() - t0
@@ -1047,6 +1058,7 @@ def route_sheet(S: Scene) -> dict:
                  "storage_carousel_centre": _r(list(q["carousel_xy"]) + [q["carousel_z"]]),
                  "tower": _r(list(q["tower_xy"]) + [0.0]), "moored": "starboard side to the quay"},
         "park": _park_sheet(S.info["park"]) if "park" in S.info else None,
+        "rov": _park_sheet(S.info["rov"]) if "rov" in S.info else None,
         "roller_stations": S.stations,
         "positions": {k: (round(v, 3) if isinstance(v, float) else v) for k, v in pos.items()},
     }
@@ -1091,7 +1103,8 @@ def write(out_dir: str, p: Params | None = None, log=print, only: tuple = (), pr
     """Write the files (``only``: these keys of FILES, else all) and the two sheets. ``progress(done, total)`` is
     called before each file (the app's demo project shows "Writing the model 2/3")."""
     os.makedirs(out_dir, exist_ok=True)
-    S = build(p, with_lebus=not only or "drum_lebus" in only, with_park=not only or "park" in only)
+    S = build(p, with_lebus=not only or "drum_lebus" in only, with_park=not only or "park" in only,
+              with_rov=not only or "rov" in only)
     keys = [k for k in FILES if k in S.files and (not only or k in only)]
     for i, key in enumerate(keys):
         fname = FILES[key]
