@@ -1,6 +1,6 @@
 # 0180 – Study: the Lifting plans workspace – 3D lifting plans with ready-rigged cranes, forklifts and lifting tools (findings + design only)
 
-**Who:** worker · **Status:** open – can start · **Branch:** none (report on `main`, touching only `tasks/`)
+**Who:** worker · **Status:** running · **Branch:** none (report on `main`, touching only `tasks/`)
 **Started by:** lead chat, 17 Nov 2026 (owner's wish + his answers the same day) · **Model:** Opus · effort High ·
 **Place:** a **new chat in the claude.ai project "STEP rendering App"** (it must open web pages; CLAUDE.md section 2,
 as 0113 / 0150–0152). Findings only: no app code, no test run – it does not count towards the four code tasks.
