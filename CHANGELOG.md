@@ -5,6 +5,25 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.148 – 17 Nov 2026 – Lifting plans: twelve ready-rigged sample cranes (task 0191)
+
+Nothing new to click yet: the Lifting panels come in a later update. What comes in this update are the cranes they
+will use, inside the app:
+
+- **Twelve invented cranes in size classes**, each a 3D model with its joints already made:
+  - mobile telescopic cranes (all-terrain) **AT-40, AT-100, AT-250, AT-500**: slew, luff with its cylinder, a telescopic
+    boom whose sections run out together, four two-stage outriggers with jacks, the hook block on the hoist rope;
+  - crawler cranes with a lattice boom **CC-100, CC-300, CC-750, CC-1600** (the two big ones with a luffing jib): travel
+    with tracks that really run (the shoes on the ground stand still while the crane drives), slew, luff;
+  - knuckle-boom cranes on a truck **KB-20, KB-50, KB-100, KB-200**: column, main boom and knuckle with their cylinders,
+    extensions, four stabilisers, a small winch.
+  The hook block always hangs straight down, whatever the boom does.
+- **Each crane has its masses, centres of gravity and sample load charts** (per boom length, counterweight and
+  outrigger spread; crawlers also per jib; knuckle booms per outreach). Every chart is marked "SAMPLE – not for real
+  lifts": the numbers are invented with a plausible shape and belong to no real crane. A chart where the empty crane
+  would lean back too far (heaviest counterweight on the narrowest spread) is left out, as on real charts.
+- The user guide names them under **Own lifting equipment**.
+
 ## 0.2.147 – 17 Nov 2026 – Web 3D export of the demo 8x faster, and small page fixes (task 0189)
 
 - **Web 3D model with marine looks is much faster.** The small demo project took 29 minutes to export, now 3.5 minutes

@@ -286,3 +286,16 @@ def test_charts_module_matches_files():
     for name in NAMES:
         assert K.charts_of(name) == load(name)["charts"]
         assert E.masses(name) == load(name)["mass"]
+
+
+def test_every_built_in_reads_with_the_library():
+    """Task 0190's reader: the 12 built-ins with no problem, warning or note, as SAMPLE built-ins with model and
+    picture."""
+    from fresing_render.core import lifting_library as LL
+    items = LL.list_items(None)
+    assert sorted(it.cls for it in items) == sorted(NAMES)
+    for it in items:
+        assert it.builtin and it.sample and it.ok, (it.cls, it.problems)
+        assert it.warnings == [] and it.notes == [], (it.cls, it.warnings, it.notes)
+        assert it.model.endswith(f"{it.cls}.step") and it.picture.endswith(f"{it.cls}.png")
+        assert it.kind in LL.KINDS

@@ -3841,6 +3841,19 @@ A chart can also be read from CSV: one line per row, `radius;capacity` (decimal 
 capacity of 0 or less, a capacity that rises with the radius, or a wave-height column holding more than a calmer one;
 it names the line. The capacity is always taken at the next longer radius of the chart, never in between.
 
+**The cranes that come with the app** (twelve invented size classes, each with its model, its joints and its sample
+charts; the panels that place them in a project come in a later update):
+
+- **Mobile telescopic cranes (all-terrain)** AT-40, AT-100, AT-250, AT-500 – the number is the t at the shortest
+  radius. Charts per boom length, counterweight and outrigger spread.
+- **Crawler cranes with a lattice boom** CC-100, CC-300, CC-750, CC-1600 – CC-750 and CC-1600 also with a luffing jib.
+  Charts per boom length (and jib length) and counterweight.
+- **Knuckle-boom cranes on a truck** KB-20, KB-50, KB-100, KB-200 – the number is the lifting
+  moment in t·m. Charts per outreach (how many extensions are out) and stabiliser spread.
+
+None of them is a real crane, and every chart says "SAMPLE": the shape of each chart is plausible, the numbers are not
+a maker's. Before you plan a real lift, copy the class nearest your crane and enter its real chart.
+
 <a id="tips"></a>
 ## Tips
 
