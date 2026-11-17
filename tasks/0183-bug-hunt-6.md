@@ -1,6 +1,6 @@
 # 0183 – Bug hunt round 6 (findings only): everything merged since 0.2.114 used together
 
-**Who:** worker · **Status:** open – can start · **Branch:** none (report on `main`, touching only `tasks/`)
+**Who:** worker · **Status:** running (17 Nov) · **Branch:** none (report on `main`, touching only `tasks/`)
 **Started by:** lead chat, 17 Nov 2026 (plan before 0062) · **Model:** Opus · effort High · **Place:** Claude Code on
 the web, environment "CAD-render-animation". Findings only: no app code, no version, no test run of its own.
 
