@@ -214,6 +214,55 @@ foreach ($withResume in @($true, $false)) {
     Test-Window $name $u
 }
 
+# ---- the start window still does what it did (task 0144): untick a model, start at a time, Back to standard ----
+$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("kit_layout_" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+$factory = [pscustomobject]@{ load = 100; max_temp = 0; quiet_on = $false; quiet_start = "22:00"; quiet_end = "07:00";
+    quiet_load = 60; quiet_max_temp = 0; when_done = "nothing" }
+$est = [pscustomobject]@{ standard = $std; factory = $factory; resume = $null; models = $models;
+    standard_file = (Join-Path $tmp "std\site_kit.json") }
+$Estimate = Join-Path $tmp "estimate.json"
+$Choices = Join-Path $tmp "run_choices.json"
+Write-Utf8 $Estimate (ConvertTo-Json -InputObject $est -Depth 5)
+$script:seen = @{}
+$TestOnShown = {                                        # runs inside Show-StartWindow: its controls are in scope
+    $script:seen.loadBefore = $load.Value
+    $script:seen.expected = $expected.Text
+    $back.PerformClick()
+    $script:seen.loadBack = $load.Value
+    $script:seen.quietBack = $quiet.Checked
+    $load.Value = 75
+    $list.Items[1].Checked = $false
+    $at.Checked = $true
+    $atTime.Value = [datetime]::Today.AddHours(2).AddMinutes(15)
+    $done.SelectedIndex = 1
+    $start.PerformClick()
+}
+$rc = @(Show-StartWindow)[-1]
+$TestOnShown = $null
+$want = @($models | Where-Object { $_.found } | ForEach-Object { $_.id } | Where-Object { $_ -ne "m2" })
+try {
+    $ch = Get-Content -LiteralPath $Choices -Raw | ConvertFrom-Json
+    $sf = Get-Content -LiteralPath $est.standard_file -Raw | ConvertFrom-Json
+    $why = @()
+    if ($rc -ne 0) { $why += "returned $rc, not 0" }
+    if ($script:seen.loadBefore -ne 70) { $why += "the standard's load 70 was shown as $($script:seen.loadBefore)" }
+    if ($script:seen.expected -notlike "Expected: about *") { $why += "expected time '$($script:seen.expected)'" }
+    if ($script:seen.loadBack -ne 100 -or $script:seen.quietBack) { $why += "Back to standard gave load $($script:seen.loadBack), quiet $($script:seen.quietBack)" }
+    if ((@($ch.models) -join ",") -ne ($want -join ",")) { $why += "models $(@($ch.models) -join ',') instead of $($want -join ',')" }
+    if ($ch.load -ne 75 -or $ch.start_at -ne "02:15" -or $ch.when_done -ne "sleep" -or $ch.resume -or $ch.quiet_on) {
+        $why += "choices $(ConvertTo-Json -InputObject $ch -Compress)"
+    }
+    if ($sf.load -ne 75 -or $sf.when_done -ne "sleep" -or $sf.PSObject.Properties.Name -contains "models") {
+        $why += "standard $(ConvertTo-Json -InputObject $sf -Compress)"
+    }
+    foreach ($w in $why) { [void]$Problems.Add("LAYOUT PROBLEM $Tag start window clicked through: $w") }
+} catch {
+    [void]$Problems.Add("LAYOUT PROBLEM $Tag start window clicked through: no choices written ($($_.Exception.Message))")
+}
+Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+if (-not $Problems.Count) { Write-Host "   $Tag start window clicked through: choices and standard as asked" }
+
 $texts = @(
     @("Waiting to start", "Starts at 02:15", "load 60 %"),
     @("Model 8 of 8: IEA 15 MW offshore wind turbine", "Picture 2 of 2 (ISO_LEFT)",

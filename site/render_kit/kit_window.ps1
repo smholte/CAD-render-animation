@@ -181,7 +181,7 @@ function Get-Natural($c) {                              # the size a control nee
 
 function Set-Row([array]$Items, [int]$X0, [int]$Y, [int]$Right, [int]$Indent = -1) {
     <# Places controls left to right from X0, vertically centred on their line; returns the bottom of the last line.
-       An item: @{ c = control; w = width (else its natural width); gap = space before it (else Sc 6);
+       An item: @{ c = control; w = width (else its natural width); gap = space before it (else Px 6);
        brk = a new line may start here (else it stays with the item before it); fill = a label that takes the rest of
        the line and wraps (minw: else it goes onto a line of its own) }. A new line starts at Indent. #>
     if ($Indent -lt 0) { $Indent = $X0 }
@@ -517,7 +517,7 @@ function Set-StartBody($U, [int]$Right) {               # the settings and model
     $y += Px 14
     $y = Set-Row @(@{ c = $U.quiet }, @{ c = $U.qStart; gap = (Px 2) }, @{ c = $U.lTo }, @{ c = $U.qEnd },
         @{ c = $U.lQLoad; brk = $true; gap = (Px 16) }, @{ c = $U.qLoad }, @{ c = $U.lPct; gap = (Px 3) },
-        @{ c = $U.lMax; brk = $true; gap = (Px 12) }, @{ c = $U.qTemp }) $M $y $Right ($M + (Px 20))
+        @{ c = $U.lMax; gap = (Px 12) }, @{ c = $U.qTemp }) $M $y $Right ($M + (Px 20))
     $y += Px 16
     $y = Set-Row @(@{ c = $U.hModels }) $M $y $Right
     $y += Px 4
@@ -682,6 +682,7 @@ function Show-StartWindow {
     $start.add_Click({ $form.DialogResult = [System.Windows.Forms.DialogResult]::OK; $form.Close() })
     $cancel.add_Click({ $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel; $form.Close() })
 
+    if ($TestOnShown) { $form.add_Shown($TestOnShown) }   # the layout check clicks through the window
     $result = $form.ShowDialog()
     if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return 10 }
 
