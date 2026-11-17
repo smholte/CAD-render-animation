@@ -5,6 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.140 – 17 Nov 2026 – The demo reads like a real lay: lay data, an ROV, a lighter cable, every winch spooled (task 0173)
+
+- **Labels with live numbers and several lines** (5 Scene & Render > Labels): type **\n** in a label's words for a new
+  line. A label on a cable that hangs into the sea can show its numbers, worked out again in every frame of a video:
+  {top} and {bottom} (tension in kN), {layback}, {angle}, {depth}, {speed} (m/min), {laid}, {hanging}. Example:
+  "Top tension {top} kN" shows "Top tension 19.4 kN".
+- **The demo project** (make it again to see it):
+  - Shot 8 has a **Lay data** box on the cable – top and bottom tension, layback, departure angle, lay speed and water
+    depth, as a lay supervisor watches them; the caption says "surface lay".
+  - An invented **work-class ROV** hovers beside the touch-down and watches it, its lights on, its propellers turning,
+    its tether to the stern following the vessel's motion. It is there while the cable is laid (shots 1–8b).
+  - The two **tipping winches** at the stern now hold their wire in layers on narrow drums (fleet angle 1.7°, was
+    6.5°): the drum pays out what the tipping wire takes as the D-quadrant is lowered and tipped. Every winch of the
+    demo is spooled now.
+  - Captions: the handler's tilt in shots 9 and 12 says "x 30" like the other time-lapses; shot 5 names the
+    tensioner (15–20 t class) and the cable (Ø 200 mm, MBR 3.5 m).
+- **A power cable weighs 38 kg/m in water at Ø 200 mm** when you leave the weight at 0 (was 51; real cables of that size
+  weigh 22–39). With the layback typed (the usual way) the cable hangs exactly as before; only the tensions shown are
+  lower (the demo: 7.3 kN at the seabed, 19.4 kN at the top, was 9.8 and 26.1).
+- **Build animation:** a cable whose speed follows a winch that keeps its wire tight – or that lies on a part such a
+  winch moves – now moves at the first Build (before, only after a second one), without a second pass through the
+  frames.
+
 ## 0.2.139 – 17 Nov 2026 – Drums and carousels full of real cable (task 0174)
 
 - **Every layer is cable now.** A drum or carousel (4 Motion > Drums and carousels) no longer shows a grey sleeve or
