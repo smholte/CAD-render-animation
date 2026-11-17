@@ -55,7 +55,8 @@ def write(path, kind="plain", animated=True, light=None, views=VIEWS, shadows=Fa
     glb = model(animated)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(env.page_html("Player test", glb, st, animated=animated, note="Made with Fresing Render"))
-    return str(path), len(glb)
+    import gzip
+    return str(path), len(gzip.compress(glb, 9, mtime=0))     # task 0175: the page holds (and the bar counts) it packed
 
 
 _WORKS: dict = {}
