@@ -186,15 +186,15 @@ def s_after_click():
 
 
 def first_header():
-    """Window position of the title row of the first side-panel section (1 Import).
+    """Window position of the fold arrow in the first row of the side panel (the Workspace row, task 0062).
 
-    A click there only folds that section, whatever the panels below look like; a click in the
-    middle of the side panel lands on whatever button the layout puts there (a drop-down opened
-    by it takes the next click in the view)."""
+    A click there only opens or folds the workspace's details, whatever the panels below look like; a click in
+    the middle of the side panel lands on whatever button the layout puts there (the middle of this row is the
+    workspace drop-down: a drop-down opened by a click takes the next click in the view)."""
     win, area, region = ui()
     sidebar = next(r for r in area.regions if r.type == "UI")
     scale = bpy.context.preferences.system.ui_scale or 1.0
-    return sidebar.x + sidebar.width // 2, sidebar.y + sidebar.height - int(19 * scale)
+    return sidebar.x + int(24 * scale), sidebar.y + sidebar.height - int(22 * scale)
 
 
 def ray_hits_part(x, y):

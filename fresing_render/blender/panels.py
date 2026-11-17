@@ -106,6 +106,25 @@ def only(name: str) -> None:
     OPEN.add(name)
 
 
+_ONLY: set = set()           # tests and pictures: when not empty, only these panels (and what is above them) show
+
+
+def show_only(names=(), opened: bool = True) -> None:
+    """For real-app tests and pictures: show only these panels of the Fresing tab (with the panels above them, so
+    they can show at all), opened. ``show_only()`` without names shows everything again. The top of the tab
+    (Workspace, tabs, Make …) is hidden too unless named."""
+    _ONLY.clear()
+    for name in names:
+        n, seen = name, set()
+        while n and n not in seen:
+            seen.add(n)
+            _ONLY.add(n)
+            if opened or n != name:
+                OPEN.add(n)
+            n = PARENT.get(n, "")
+    redraw()
+
+
 def saved_text() -> str:
     return ",".join(sorted(OPEN))
 
@@ -163,6 +182,8 @@ def on_save(scene) -> None:
 
 def visible(name: str, context) -> bool:
     """Tab, parents and workspace: does this panel show now?"""
+    if _ONLY and name not in _ONLY:
+        return False
     sec = section_of(name)
     if sec:
         t = tab_section()
@@ -386,6 +407,7 @@ def register() -> None:
         name="Open", default=True, options={"SKIP_SAVE"},
         description="A fold a lesson points into is open while the lesson is there")
     _TAB["v"] = "ALL"
+    _ONLY.clear()
     OPEN.clear()
     OPEN.update(DEFAULT_OPEN)
 
