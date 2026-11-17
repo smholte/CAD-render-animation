@@ -1138,6 +1138,12 @@ the release → Delete); the next run on `main` publishes it again.
   (`core/catenary.hang_off_steady`), never from an earlier Build.
 - A `name` that other settings refer to needs an update callback that tells them (task 0160: a renamed cable left its
   drum without a cable). Blender gives no old value: keep it in a hidden property (`FRCable.name_was`).
+- A push to `main` that changes only `TASKS.md` / `tasks/` starts no run, and a run started by hand (workflow_dispatch)
+  tests but never publishes a release (task 0173: the fast-forward's run failed on a TASKS.md table row, the fix was a
+  task-list-only push, so no release followed). Check `python3 tools/ci_precheck.py` before pushing to `main`; to get a
+  release after such a fix, push a documents change on top of the green commit (a docs run, then the release jobs).
+- A label's or caption's place: shot 8's captions cover the lower ~20 % of the picture, and the sea surface outside the
+  cut-away hides what lies on the camera's side of a cable under water (task 0173 framed the ROV on the far side).
 - Two surfaces that lie within micrometres of each other, joined by a boolean, make a mass of slivers: the height map
   over "Finish at the CAD part" gave 34,000 extra triangles on the toolpath test model (task 0167). Keep one of them
   clearly on one side (the map is lifted 12.5 µm over the part where it came down onto it, `HeightMap._lift`); a face
