@@ -1603,6 +1603,10 @@ def resume_read() -> None:
         pz[3]()
 
 
+class ReadLost(RuntimeError):
+    """An object the pass through the frames reads was deleted meanwhile (task 0192): the re-bake starts over."""
+
+
 def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, also=(), keep: bool = False):
     """``read_places`` as a generator (task 0160: the re-bake after a sea change runs as a long job with progress and
     Cancel): yields how far it is (0 … 1) after each frame, returns the places. Closed early (Cancel), it puts the
@@ -1627,24 +1631,40 @@ def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, als
     shy = [(o, o.hide_viewport) for o in scene.objects if o.name not in needed
            and (used is not None and o.name not in used or any(m.type == "NODES" for m in getattr(o, "modifiers", ())))
            and (not o.hide_viewport or used is not None)]
-    muted = [fc for o, _h in shy if used is not None for fc in _hide_curves(o) if not fc.mute]
-    for fc in muted:
+    for fc in [fc for o, _h in shy if used is not None for fc in _hide_curves(o) if not fc.mute]:
         fc.mute = True
     for o, _h in shy:
         if not o.hide_viewport:
             o.hide_viewport = True
+    # task 0192 (the owner's "StructRNA of type Object has been removed"): a sea, weather or vessel setting changed
+    # while the re-bake job ran makes the surroundings again – the objects this pass hid are deleted meanwhile. Kept by
+    # name and looked up again: what is gone is skipped
+    muted = [(o.name, fc.data_path, fc.array_index) for o, _h in shy if used is not None
+             for fc in _hide_curves(o) if not fc.mute]
+    shy = [(o.name, h) for o, h in shy]
+
+    def _curves():
+        for name, path, index in muted:
+            o = bpy.data.objects.get(name)
+            fc = next((c for c in _hide_curves(o) if c.data_path == path and c.array_index == index), None) \
+                if o is not None else None
+            if fc is not None:
+                yield fc
+
     def _back():                                 # visibility and keys as they were (also for a save in the job)
-        for fc in muted:
+        for fc in _curves():
             fc.mute = False
-        for o, h in shy:
-            if o.hide_viewport != h:
+        for name, h in shy:
+            o = bpy.data.objects.get(name)
+            if o is not None and o.hide_viewport != h:
                 o.hide_viewport = h
 
     def _again():
-        for fc in muted:
+        for fc in _curves():
             fc.mute = True
-        for o, _h in shy:
-            if not o.hide_viewport:
+        for name, _h in shy:
+            o = bpy.data.objects.get(name)
+            if o is not None and not o.hide_viewport:
                 o.hide_viewport = True
 
     _STATE["pause"] = (scene.name, keep_at, _back, _again)
@@ -1653,7 +1673,10 @@ def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, als
             for k in range(frames):
                 scene.frame_set(first + k)
                 _STATE["steps"] += 1
-                for n, ob in every.items():
+                for n in every:
+                    ob = bpy.data.objects.get(n)
+                    if ob is None:              # (deleted meanwhile: the places read so far are of no use)
+                        raise ReadLost(n)
                     out[n][k] = _np(_world(ob))
                 yield (k + 1) / frames
     finally:
@@ -1826,11 +1849,11 @@ def motion_changed(scene, force: bool = True) -> None:
     from . import vessel_motion
     if not force and not vessel_motion.moved_since(scene, MOTION_KEY, seabed=False):
         return
-    if bpy.app.background:
-        _motion_bake(scene)
+    from . import rebake
+    if bpy.app.background:                      # one pass with whatever else the change needs (task 0192)
+        rebake.background(scene, "flex", force)
         return
-    from . import rebake                        # in the window: a long job with progress and Cancel (task 0160)
-    rebake.request(scene, "flex", force)
+    rebake.request(scene, "flex", force)      # in the window: a long job with progress and Cancel (task 0160)
 
 
 @contextmanager

@@ -1571,6 +1571,28 @@ def _detach(scene, sp) -> list[str]:
         _STATE["busy"] -= 1
 
 
+def after_same_update(scene, item) -> list[str]:
+    """The model update brought the same model back (task 0192): the spool the cable comes off takes its start again
+    and is drawn again on the new parts, nothing read again."""
+    sp = of_cable(scene, item)
+    if sp is None or not sp.enabled:
+        return []
+    j = _joint(scene, sp)
+    if j is None:
+        return []
+    from . import paths
+    with paths._quiet(item):
+        item.a_kind = "SPOOL"
+        item.a_part = j.motion
+        item.a_uid = ""
+        item.a_point = (0.0, 0.0, 0.0)
+        item.a_free_end = False
+    try:
+        return _setup(scene, sp)
+    except SpoolError as exc:
+        return [f"Drum or carousel '{label(sp)}': {exc}"]
+
+
 def after_read(scene, item) -> list[str]:
     """paths.read_cad read the cable again: a spool it comes off takes its start again (and its tables, which
     depend on the cable's first contact)."""
@@ -1654,8 +1676,10 @@ def add(scene, kind: str, part, cable: str, axis=None, name: str = "", coil=None
     return _spool(scene, i)
 
 
-def _setup(scene, sp, read: bool = False) -> list[str]:
-    """Read (with ``read``), take the cable's start, write the tables, draw. Returns notes."""
+def _setup(scene, sp, read: bool = False, attach: bool = False) -> list[str]:
+    """Read (with ``read``), take the cable's start, write the tables, draw. Returns notes. ``attach``: take the
+    cable's start again without reading (a follower came: the bends it moves and the CAD-pose wraps, as a read gives
+    them – task 0192, else the first model update changed the route)."""
     from . import paths
     i = index_of(scene, sp)
     it = _cable(scene, sp)
@@ -1707,6 +1731,9 @@ def _setup(scene, sp, read: bool = False) -> list[str]:
                 with flex._quiet(sp):
                     sp.wound = W0
             sp["wound_was"] = float(sp.wound)          # (a length typed from now on is the user's)
+            _attach(scene, sp)
+            sp = _spool(scene, i)
+        elif attach and it.a_kind == "SPOOL":
             _attach(scene, sp)
             sp = _spool(scene, i)
         # the rope's end at W0 leaves where the tangent to the first contact touches its layer (as the CAD cable
@@ -1820,7 +1847,7 @@ def add_follower(scene, sp, joint_name: str, mode: str = "") -> str:
         f.point = (0.0, 0.0, 0.0)
         sp.followers_index = len(sp.followers) - 1
     try:
-        _setup(scene, _spool(scene, i))
+        _setup(scene, _spool(scene, i), attach=True)
     except Exception:
         sp = _spool(scene, i)
         sp.followers.remove(len(sp.followers) - 1)
@@ -2025,7 +2052,9 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             _STATE["busy"] -= 1
         sp = s.spools[i]
         it = _cable(scene, sp)
-        if it is not None and it.a_kind == "SPOOL":    # read again as the plain CAD cable; after_read takes it again
+        same = paths.same_model(scene, by_uid)           # (the same model: the cable is not read again, task 0192)
+        if it is not None and it.a_kind == "SPOOL" and not same:   # read again as the plain CAD cable; after_read
+            #                                                          takes it again
             with paths._quiet(it):
                 it.a_kind = "FIXED"
                 it.a_part = None
