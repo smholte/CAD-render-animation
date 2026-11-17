@@ -103,10 +103,63 @@ middle (90°); the D's depth before Build 21 mm off the built one (no longer 0.3
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+
+**Chat / date:** Claude Code on the web, 16–17 Nov 2026 (branch `claude/confident-archimedes-takeq0`), version **0.2.135**.
 
 **What changed:**
+- **1 Shot 11** (`core/catenary.hang_off`): for a wheel lying (nearly) flat – its plane holds less than `FLAT` (0.2) of
+  "down" – the wrap is read from the lay direction (the way the cable lies on the seabed, blended in as the wheel lies
+  flatter; `_way`); a piled (slack) cable reads its wrap from straight down, not from its sideways pull to the lay
+  line. A free bend that would reach into the seabed turns as far as fits above it (`_bend_fit`) instead of being left
+  out; within `BED_BAND` (2 m) of the seabed its plane comes from the catenary at the wheel; half steps where the
+  bend's fixed point went back and forth; the loop only works on moments not yet settled. In the demo the cable stays
+  in the D's gutter to its far end (180°, the end pointing the way it lies) and bends down onto the seabed. Shot 12:
+  it now leaves the let-go gutter at the same end (180°, was 90°) – no jump at the let-go.
+- **2 Sheaves** (`blender/paths_rollers.py`): `SHEAVE` contacts too (`KINDS`); a wheel is placed by its own slot (its
+  joint's arrow). A sheave the cable is lifted off, runs past or no longer reaches stands still at those frames (keys
+  per frame, coupling put aside, back at Clear keys).
+- **3 The D's depth** (`blender/demo.py`): **cause found** – before the first Build the scene still runs at Blender's
+  24 fps, and `_vessel_at` read the vessel's heave at `scene.render.fps` while the animation runs at 25 fps (heave
+  30 mm different at those frames: the D 20 mm off). It now uses the animation's frame rate. The estimate and the
+  demo test's check cover the same window (set-down step, standing, 1 s of the hoist, `SET_DOWN_AFTER`), the estimate
+  models the hoist (`set_down_shares`, with the steps' frames as Build works them out from their 32-bit start and
+  length) and uses every mesh point near the lowest. The second Build is gone; the check after Build is now the demo
+  test's (`test_the_quadrant_operation_shots_10_to_12`, within `SET_DOWN_TOL`: it did not fire).
+- **4 Swivel:** test model `tools/make_test_swivel.py` → `test_swivel.step` (a deck davit slews ±45°, its wire from a
+  fixed fairlead over a sheave on a swivel head and down the swivel's axis into a hook block; Winch keeps it tight),
+  `paths_swivel.set_up_test_model`, tour set + stop "Sheave turns to follow its wire", PC-check line `motion.swivel`,
+  `offshore.swivel` names both; MIN counts Full 92, Tour 71, `MIN_CHECKS["tour"]` 71. Guide: the quadrant chapter
+  (shot 11), "A chute or quadrant lying flat", "Rollers and sheaves the cable has left stand still", the swivel's stop.
 
-**Tested and measured** (name the machine and the model):
+**Subagents:** M (swivel model maker, set-up, `tests/test_swivel_model.py`: 8 tests, worst in-plane angle 8.6e-6°,
+0 clash rows; merged as is). T (independent tester of 1–3, `tests/test_flex_followups_independent.py`, 20 tests):
+found 5 faults – the worker fixed 3 (the bend's end jumping near the seabed: `BED_BAND` 0.5 → 2 m; the same set-up
+turned about the vertical gave another answer: a piled cable's wrap from straight down; `set_down_shares` a frame off
+for a step starting between frames) and kept 2 as strict xfails (open points 1–2). Sheaves held in every case T tried.
+
+**Tested and measured** (4-core web machine, Blender as a module, the small demo):
+- Shot 11 (frames 3341–3590 now: 0153/0166 lengthened the animation since the brief's 2500–2600), from the cable's
+  start to where it reaches the seabed: worst turn per point **61.8° → 1.38°** (the gutter's own arc ~1.4°), largest
+  move of a point between frames **5.16 m → 0.13 m** (the D comes down ~0.12 m a frame), leave point **89.9…180° →
+  177…180°** (no change of end), free bend max 94.8° → 89.9°, frames without a path 0. Shot 10 as before (7.5° at the
+  pile's touch-down, 0.37 m), shot 12 1.4° and 0.02 m; 0125's numbers (D on the seabed, pull head) – demo tests pass.
+- Sheaves standing still: paths test model with SHEAVE 2 slid away – still while lifted off, turning with the rope
+  before and after. **Demo: none** (its tipping sheaves stay touched, the handling winch's fairlead sheave follows
+  Cable travel, the A&R top pulley is keyed) – the same was true for its rollers before.
+- The D's depth: estimate before Build 37.950 m vs built 37.970 m → now **37.970 m before Build**; built check within
+  `SET_DOWN_TOL` (the 0125 note's 0.38 m had already shrunk to 21 mm on `main`).
+- **Make demo 352 s → 284–302 s** (one Build 80–87 s instead of two, 150 s). Build with the new code 81 s
+  (`tools/measure_cables.py`); the second end's solve 11.1 s → 10.3 s – not slower.
+- Tests: cable/sea/moving/settle/kept files 171 passed; `test_catenary.py` +2 and `test_paths_rollers.py` +1 (fail
+  before the change), the demo's shot-11 test (fails before); demo files 36 passed; tour 72 + the swivel set's clash
+  test; PC-check line `motion.swivel` OK.
 
 **Open points / follow-up tasks:**
+1. A gutter tipping through ~6° towards flat with a slack cable beside the lay line can still move its leave point in
+   one step (T's strict xfail: 51° at 6.3° of tilt; before this task 90° at 11.6°, before 0125's code 4.95 m at
+   8.5°). Not seen in the demo.
+2. Where a free bend is cut at the seabed the cable comes off it onto the seabed with a corner (T's strict xfail: up
+   to 49° for a normal cable; 66° in the demo just before set-down), like a piled cable's touch-down. A reverse bend
+   back to the seabed would need the piled hang rounded too to stay continuous (Flex lane).
+3. Two cables over one sheave were not tried (no small model has one).
+4. `set_down_depth` returns `guess + 20 m` without the joint's limits when nothing reaches the seabed (T, by reading).
