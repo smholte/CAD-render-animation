@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.137 – 17 Nov 2026 – Task Manager says "Fresing Render" (task 0177)
+## 0.2.137 – 17 Nov 2026 – Task Manager says "Fresing Render" (task 0178)
 
 - **Task Manager now shows the app as "Fresing Render"**, with its Fr icon, not as "Blender" – also for renders the
   render queue runs in the background. The app's shortcuts start **Fresing Render.exe**: Blender's own program under

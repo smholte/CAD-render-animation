@@ -1,10 +1,12 @@
-# 0177 – "Fresing Render" in Task Manager (a branded copy of blender.exe)
+# 0178 – "Fresing Render" in Task Manager (a branded copy of blender.exe)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0177-exe-name`
+**Who:** worker · **Status:** running · **Branch:** `claude/eager-pasteur-w3w05t` (worktree `task/0177-exe-name`)
 **Started by:** owner, directly in the 0169 session (17 Nov 2026) · **Model:** Opus · effort Medium (Windows-only code)
 **Area:** new `fresing_render/winexe.py`; `fresing_render/appicon.py` (shortcut target), `blender/updates.py`
 (restart), `update_helper.py` (names it waits for), `pccheck/ops.py` (console runs), `installer/*.ps1`,
 `tools/ci_windows_install.ps1`, `tools/appicon_test.py`, tests, guide line, CHANGELOG.
+**Number:** started as 0177; the lead gave 0177 to the render-kit window task at the same time, so this one is
+0178. The code comments written before that say "task 0177" – the next change to those files corrects them.
 **Lane:** Quality & delivery (`installer/`). **0171 (Windows job split) touches `tools/ci_windows_install.ps1` too: do
 not run both at once.**
 
