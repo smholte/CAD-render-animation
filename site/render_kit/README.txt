@@ -43,8 +43,8 @@ The start window
   is at or above it, the next frame waits until the card is 3 C cooler.
 - Quiet hours: from - to (for example 22:00 to 07:00) with their own load and max. temperature
   (for example 60 % and 70 C); outside them the load above. The expected time counts both.
-- Models: untick the ones you do not want this time. A model whose STEP file is missing is
-  unticked and skipped.
+- Models: untick the ones you do not want this time. The time next to each is at full load.
+  A model whose STEP file is missing is unticked and skipped.
 - Start: Now, or At a time (the PC stays awake until then).
 - When done: Nothing, Sleep or Shut down. A 60-second countdown with Cancel comes first.
   After Stop nothing happens.
@@ -52,6 +52,8 @@ The start window
   in a newly downloaded kit (they live in %LOCALAPPDATA%\Fresing Render\site_kit.json).
   "Back to standard" puts the kit's own settings back: 100 %, no temperature limit, no quiet
   hours, nothing when done.
+- The window follows Windows' display scale (100-200 %). On a small screen its middle part
+  scrolls; Start and Cancel stay at the bottom.
 - If the start window cannot open, the black window asks for the start time instead and uses
   your saved standard.
 
