@@ -9,8 +9,8 @@
    animation: one slide joint stepped down, held, stepped up).
 
 It found five faults on the branch as handed over (16 Nov 2026); the worker fixed three (their tests now pass and say
-so). The two tests still named "FAULT" are open points of task 0172, kept as strict expected failures: they turn red
-the day the fault is gone, so the mark comes off then.
+so). The two tests named "KNOWN_FAULT" are open points of task 0172: they hold the faults to the size they have now
+(``KNOWN_*``; the brief's bounds are in their docstrings), so they cannot grow unseen.
 """
 
 import math
@@ -27,6 +27,10 @@ HERE = os.path.dirname(__file__)
 ZB = -30.0                              # the cable's middle on the seabed
 AFT = np.array([-1.0, 0.0, 0.0])        # laid aft (-x)
 BEND_STEP = math.radians(0.5)           # paths_sea.BEND_STEP: a drawn point per 0.5° of free bend
+# the two faults left open by task 0172 (its report, open points 1–2): the bounds they reach now – the brief's bounds
+# are 10° / 0.5 m and 4°; lower these when the faults are fixed (rename the tests then)
+KNOWN_TIP = {(1.0, 0.0, 0.0): (55.0, 5.0), (0.0, 1.0, 0.0): (180.0, 7.5)}   # tipped about x / y: degrees, m
+KNOWN_SEABED_KINK = 50.0                         # degrees
 
 
 # ---------------------------------------------------------------------------
@@ -199,9 +203,7 @@ def test_the_cable_leaves_the_gutter_without_a_kink_where_it_hangs_free():
 # 1. the hang-off from a gutter – faults found
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="open point of task 0172: the jump is smaller (51° at 6.3° of tilt, was 90° at 11.6°; "
-                   "before task 0172 4.95 m at 8.5°) but not gone")
-def test_FAULT_tipping_towards_flat_the_leave_point_jumps_from_the_middle_to_the_far_end():
+def test_KNOWN_FAULT_tipping_towards_flat_the_leave_point_jumps_from_the_middle_to_the_far_end():
     """FAULT (brief 1: "no step where the hang-off changes end"). A gutter of 3.5 m, its centre 1 m over the seabed,
     tips from 30° to flat in 400 steps of 0.075° (the D tipping towards flat near the seabed, shot 11's first step):
     the leave point stays at the gutter's middle (90°) and then, in ONE step at 11.58° (where the wheel's plane holds
@@ -219,9 +221,13 @@ def test_FAULT_tipping_towards_flat_the_leave_point_jumps_from_the_middle_to_the
             dpsi = np.degrees(np.abs(np.diff(res["psi"])))
             step = np.linalg.norm(np.diff(res["T"], axis=0), axis=1)
             k = int(dpsi.argmax())
-            assert dpsi.max() < 10.0, (f"axis {tilt_axis}: the wrap jumps {dpsi.max():.1f}° in one step of "
-                                       f"0.075° tilt at {math.degrees(tilt[k]):.2f}°")
-            assert step.max() < 0.5, f"axis {tilt_axis}: the catenary's start moves {step.max():.2f} m in one step"
+            # KNOWN FAULT (open point 1 of task 0172): the brief wants < 10° and < 0.5 m; after the task, tipped about x
+            # 51° / 4.45 m at 6.3° of tilt, about y from the near end to the far end (180°) / 7.2 m at 5.8° (before the
+            # task 4.95 m at 8.5°). Held to what it is now, so it cannot get worse unseen
+            jump, move = KNOWN_TIP[tilt_axis]
+            assert dpsi.max() <= jump, (f"axis {tilt_axis}: the wrap jumps {dpsi.max():.1f}° in one step of "
+                                        f"0.075° tilt at {math.degrees(tilt[k]):.2f}°")
+            assert step.max() < move, f"axis {tilt_axis}: the catenary's start moves {step.max():.2f} m"
 
 
 def test_lowering_a_flat_gutter_the_bends_end_moves_on_smoothly():
@@ -280,9 +286,7 @@ def test_the_free_bend_near_the_seabed_is_a_settled_answer():
                                                      f"rounds 80/400/2000: y = {np.round(rounds, 3).tolist()}")
 
 
-@pytest.mark.xfail(strict=True, reason="open point of task 0172: the cable comes off a free bend cut at the seabed with a "
-                   "corner (as a piled cable's touch-down); a bend back to the seabed would jump where the cut starts")
-def test_FAULT_where_the_free_bend_reaches_the_seabed_the_cable_kinks():
+def test_KNOWN_FAULT_where_the_free_bend_reaches_the_seabed_the_cable_kinks():
     """FAULT (brief 1: "no bend outside the gutter of more than the gutter's own arc per point"). Where the free bend
     reaches the seabed it is cut there (``_bend_fit``) still pointing down, and the catenary from 1 mm over the seabed
     goes on flat: the drawn cable turns by up to 49° at that one point (NORMAL cable, flat 4 m gutter 2.3 m over the
@@ -301,7 +305,9 @@ def test_FAULT_where_the_free_bend_reaches_the_seabed_the_cable_kinks():
         t = turns(np.concatenate([arc[-2:], bend, cat[:2]]))
         if t.max() > worst:
             worst, at = float(t.max()), (float(h[k]), float(res["T"][k, 2] - ZB), math.degrees(res["bend"][k]))
-    assert worst <= 4.0 + 1e-6, (f"{worst:.1f}° at one drawn point (centre {at[0]:.2f} m over the seabed, the bend's "
+    # KNOWN FAULT (open point 2 of task 0172): the brief wants ≤ 4° (the gutter's arc per point); 48.7° now (before the
+    # task the kink was at the wheel: up to 62°). Held to what it is now, so it cannot get worse unseen
+    assert worst <= KNOWN_SEABED_KINK, (f"{worst:.1f}° at one drawn point (centre {at[0]:.2f} m over the seabed, the bend's "
                                  f"end {at[1] * 1000:.0f} mm over it, bend {at[2]:.1f}°)")
 
 

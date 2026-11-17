@@ -135,7 +135,8 @@ middle (90°); the D's depth before Build 21 mm off the built one (no longer 0.3
 0 clash rows; merged as is). T (independent tester of 1–3, `tests/test_flex_followups_independent.py`, 20 tests):
 found 5 faults – the worker fixed 3 (the bend's end jumping near the seabed: `BED_BAND` 0.5 → 2 m; the same set-up
 turned about the vertical gave another answer: a piled cable's wrap from straight down; `set_down_shares` a frame off
-for a step starting between frames) and kept 2 as strict xfails (open points 1–2). Sheaves held in every case T tried.
+for a step starting between frames) and kept 2 as tests that hold today's size (`KNOWN_FAULT`, open points 1–2;
+strict xfails count as skipped tests on GitHub, where a group allows one). Sheaves held in every case T tried.
 
 **Tested and measured** (4-core web machine, Blender as a module, the small demo):
 - Shot 11 (frames 3341–3590 now: 0153/0166 lengthened the animation since the brief's 2500–2600), from the cable's
@@ -155,11 +156,13 @@ for a step starting between frames) and kept 2 as strict xfails (open points 1�
   test; PC-check line `motion.swivel` OK.
 
 **Open points / follow-up tasks:**
-1. A gutter tipping through ~6° towards flat with a slack cable beside the lay line can still move its leave point in
-   one step (T's strict xfail: 51° at 6.3° of tilt; before this task 90° at 11.6°, before 0125's code 4.95 m at
-   8.5°). Not seen in the demo.
-2. Where a free bend is cut at the seabed the cable comes off it onto the seabed with a corner (T's strict xfail: up
-   to 49° for a normal cable; 66° in the demo just before set-down), like a piled cable's touch-down. A reverse bend
+1. A gutter tipping through ~6° towards flat with a slack cable can still move its leave point in one step (T's test,
+   now `test_KNOWN_FAULT_…` holding today's size: tipped about x 51° / 4.45 m at 6.3°; tipped about y – its downhill
+   side away from the lay direction – from the near end to the far end, 7.2 m at 5.8°; before this task 4.95 m at
+   8.5°). A slack cable on a gutter that tips through flat has two places to lie; it needs a rule over time (keep the
+   end it was at until the other is clearly better), not per moment. Not seen in the demo.
+2. Where a free bend is cut at the seabed the cable comes off it onto the seabed with a corner (T's
+   `test_KNOWN_FAULT_…`, held at today's 49° for a normal cable; 66° in the demo just before set-down), like a piled cable's touch-down. A reverse bend
    back to the seabed would need the piled hang rounded too to stay continuous (Flex lane).
 3. Two cables over one sheave were not tried (no small model has one).
 4. `set_down_depth` returns `guess + 20 m` without the joint's limits when nothing reaches the seabed (T, by reading).
