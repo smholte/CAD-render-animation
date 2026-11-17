@@ -96,6 +96,7 @@ def _prefer_push(runs):
     return (push or runs)[0]
 
 
+TASK_LIST_GRACE = 90                             # s: --wait looks this long for a run before "task list only: no run"
 TIMES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ci_times.json")
 SLOW = 1.5                                       # flag a job that takes more than 1.5 x its recorded time
 
@@ -141,7 +142,10 @@ def run_mode(jobs) -> str:
     if m.group(1) == "reuse":
         return f"reuse - no tests: this tree already ran green in run {m.group(2)}"
     return {"docs": "docs - documentation-only change: build, tooltip check, guide",
-            "full": "full - all tests"}.get(m.group(1), m.group(1))
+            "full": "full - all tests",
+            "lane": "lane - only the tests of the changed files (version not raised yet); not a release check: the "
+                    "full run comes with the version raise or '[full run]' in the commit message"
+            }.get(m.group(1), m.group(1))
 
 
 def show(run, log_filter: str | None) -> int:
@@ -227,6 +231,10 @@ def record(run) -> int:
         print(f"Run {run['id']} is not green: its times are not recorded.")
         return 1
     jobs = gh(f"repos/{REPO}/actions/runs/{run['id']}/jobs?per_page=100")["jobs"]
+    if not run_mode(jobs).startswith("full"):
+        print(f"Run {run['id']} is not a full run (mode {run_mode(jobs).split(' ')[0] or '?'}): its times are not "
+              "recorded (its groups are not the full run's).")
+        return 1
     with open(TIMES, encoding="utf-8") as fh:
         times = json.load(fh)
     for j in jobs:
@@ -263,8 +271,14 @@ def main() -> int:
     ap.add_argument("--record", action="store_true", help="copy this green run's times into tools/ci_times.json")
     args = ap.parse_args()
     end = time.time() + 90 * 60
+    grace = time.time() + TASK_LIST_GRACE
     while True:
         run = find_run(args)
+        # task 0171 (0170's open point): a push of "merge main + report" whose LAST commit touches only tasks/ does get
+        # a run (GitHub looks at everything the push brought); it just appears a few seconds after the push
+        if run is None and args.wait and not args.run and time.time() < grace:
+            time.sleep(15)
+            continue
         if run is None and not args.run and only_task_list(commit_of(args)):
             print("No test run for this commit: it changes only the task list (TASKS.md, tasks/), which the "
                   "tests skip. The run of the commit before it counts.")

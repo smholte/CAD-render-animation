@@ -17,6 +17,11 @@
      text block (pccheck_last_run.txt) to -OutDir; judged afterwards by tools/ci_check_pccheck.py.
   With -Uninstall it instead runs Uninstall.bat and checks that everything is gone.
 
+  -Part (task 0171: GitHub runs two parts at once, each on its own Windows machine):
+    all  everything below (the default; the owner's or a chat's own run)
+    a    the in-app update, Install.bat twice, files, icons, Fresing Render.exe, self-test, PC check Full
+    b    Install.bat once, files, PC check Heavy (scaled down)
+
   In-app update (task 0020), before step 2 when -OldReleaseZip is given:
   U1. Install.bat of an old build (the same code as version 0.0.1 with the app template of 0.2.10),
       fresh, with -UpdateUrl pointing at -UpdateRepo (a local copy of the update listing, in a folder with
@@ -46,7 +51,8 @@ param(
     [string]$UpdateFrom = "",        # ...or from this address ("github" = the newest release on GitHub)
     [string]$Expect = "",            # the version the update must bring (default: the one in -ReleaseZip)
     [switch]$OnlyUpdate,
-    [string]$PcCheckOnly = ""        # run only these lines of the PC check (Full): comma-separated ids (task 0063)
+    [string]$PcCheckOnly = "",       # run only these lines of the PC check (Full): comma-separated ids (task 0063)
+    [ValidateSet("all", "a", "b")] [string]$Part = "all"   # task 0171: which part of the test (see above)
 )
 
 $ErrorActionPreference = "Stop"
@@ -108,7 +114,7 @@ New-Item -ItemType Directory -Force -Path $LocalAppData | Out-Null
 # it must parse there, and its expected-time loop must give the numbers of kit_run.wall_seconds (tests/test_kit_window.py).
 $KitWindow = Join-Path $PSScriptRoot "..\site\render_kit\kit_window.ps1"
 $KitLayoutRuns = @("1.0 1920x1080", "1.25 1920x1080", "1.5 1366x768", "1.5 1920x1080", "1.75 1920x1080", "2.0 1920x1080")
-if (-not $Uninstall -and (Test-Path -LiteralPath $KitWindow)) {
+if (-not $Uninstall -and $Part -ne "b" -and (Test-Path -LiteralPath $KitWindow)) {
     Note "Render kit window: parse and expected time in Windows PowerShell 5.1"
     $probe = Join-Path $WorkDir "kit_window_probe.ps1"
     $kitPath = (Resolve-Path -LiteralPath $KitWindow).Path
@@ -299,7 +305,7 @@ if ($Uninstall) {
     }
     if (-not $OnlyUpdate) {
         # ---- 2. install twice: fresh, then repair over it ----------------------------------
-        foreach ($round in @("install", "repair")) {
+        foreach ($round in $(if ($Part -eq "b") { @("install") } else { @("install", "repair") })) {
             Note "Install.bat ($round)"
             $r = Run-Bat $bat.FullName $round
             $done = $r.Text -match "Done\. Start 'Fresing Render' from the Desktop\."
@@ -338,6 +344,7 @@ if ($Uninstall) {
             $Summary += "| $k | $(if ($checks[$k]) { '✅' } else { '❌' }) | |"
         }
 
+        if ($Part -ne "b") {             # part b: only what the PC check Heavy needs
         # ---- 3b. the Fresing icon (task 0169) ------------------------------------------------
         $IconFile = Join-Path $InstallDir "fresing-render.ico"
         $sh = New-Object -ComObject WScript.Shell
@@ -454,10 +461,11 @@ if ($Uninstall) {
             $Summary += "| Icon: older install refreshed + window checks | | $([math]::Round(((Get-Date) - $t0).TotalSeconds)) s |"
             Check-Links "older install after the app's refresh"
         }
+        }
 
         # ---- 4. the self-test, started exactly like its Start-menu shortcut -------------------
         $lnkPath = Join-Path $Programs "Fresing Render\Fresing Render - Self test.lnk"
-        if (Test-Path -LiteralPath $lnkPath) {
+        if ($Part -ne "b" -and (Test-Path -LiteralPath $lnkPath)) {
             $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($lnkPath)
             Note "Self-test: `"$($lnk.TargetPath)`" $($lnk.Arguments)"
             $report = Join-Path $Desktop "Fresing Render self-test.txt"
@@ -486,7 +494,8 @@ if ($Uninstall) {
 
         # ---- 6. the PC check (Full), then Heavy scaled down (task 0033), each started exactly like its
         #         Start-menu shortcut ---------------------------------------------------------------------
-        foreach ($pcMode in @("full", "heavy")) {
+        $pcModes = switch ($Part) { "a" { @("full") } "b" { @("heavy") } default { @("full", "heavy") } }
+        foreach ($pcMode in $pcModes) {
         $pcLnk = Join-Path $Programs "Fresing Render\Fresing Render - PC check ($pcMode).lnk"
         $pcTag = if ($pcMode -eq "heavy") { "pccheck_heavy" } else { "pccheck" }
         $env:FRESING_PCCHECK_HEAVY_SMALL = if ($pcMode -eq "heavy") { "1" } else { "" }
@@ -528,7 +537,7 @@ if ($Uninstall) {
     }
 }
 
-$table = @("### Windows install ($(if ($Uninstall) { 'uninstall' } else { 'install' })): $(if ($Problems) { 'FAILED' } else { 'passed' })", "",
+$table = @("### Windows install ($(if ($Uninstall) { 'uninstall' } elseif ($Part -ne 'all') { "install, part $($Part.ToUpper())" } else { 'install' })): $(if ($Problems) { 'FAILED' } else { 'passed' })", "",
            "| Step | Result | Time |", "| --- | --- | --- |") + $Summary
 if ($Problems) { $table += @("", "**Problems:**", "") + ($Problems | ForEach-Object { "- $_" }) }
 $text = ($table -join "`n") + "`n"
