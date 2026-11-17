@@ -1603,7 +1603,7 @@
   var on = {};
   page.items = [];
   if (hasSea) page.items.push('sea');
-  if (ST.vessel) page.items.push('vessel');
+  if (ST.vessel && !ST.vessel.keep) page.items.push('vessel');   // task 0189: kept on when a sea cable hangs from it
   if (!plain) page.items.push('sky');
   if (ST.haze) page.items.push('haze');
   if (ST.rain) page.items.push('rain');

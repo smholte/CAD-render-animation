@@ -747,14 +747,16 @@ def take(folder: str, keep_old: bool = False) -> dict:
     return media
 
 
-def _tidy(media: dict) -> None:
-    """Remove media files and model entries nothing uses any more."""
+def _tidy(media: dict, drop: tuple = ()) -> None:
+    """Remove media files nothing uses any more, and the model entries named in ``drop`` when nothing uses them.
+    Task 0189 (0179's note): other model entries stay – a model's credit may be written before its pictures come
+    (the two IEA 15 MW turbines, rendered later with the kit); adding a web model dropped them."""
     used = set(media_files(media)) | {"media.json"}
     for f in os.listdir(MEDIA):
         if f not in used:
             os.remove(os.path.join(MEDIA, f))
     keep = set(used_models(media))
-    media["models"] = {k: v for k, v in media.get("models", {}).items() if k in keep}
+    media["models"] = {k: v for k, v in media.get("models", {}).items() if k in keep or k not in drop}
 
 
 def hero_video(src: str, start: float, length: float, model: str, caption: str, keep: bool = True) -> dict:
@@ -898,7 +900,7 @@ def remove_web_model(wid: str) -> dict:
         w["order"] = i + 1
     media.pop("web_model", None)
     media["web_models"] = items
-    _tidy(media)
+    _tidy(media, drop=tuple(w.get("model", "") for w in web_models(load_media()) if w["id"] == wid))
     save_media(media)
     return media
 

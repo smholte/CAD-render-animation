@@ -173,3 +173,137 @@ def test_marine_detail_core_numbers():
     assert f["mm"] < n["mm"] and f["bytes"] > n["bytes"] and f["seconds"] > n["seconds"]
     assert "Fine makes them finer" in core.own_line(1, 20.0, 40.0)
     assert "Fine" not in core.own_line(1, 20.0, 40.0, "FINE") and "Fine" not in core.own_line(1, 2.0, 5.0)
+
+
+def _base_picture(doc, binary, node_name, tmp_path):
+    """(the node's mesh index, (local z, colour) of each of its points read from its base colour picture)."""
+    part = next(n for n in doc["nodes"] if n.get("name") == node_name)
+    child = doc["nodes"][part["children"][0]] if "children" in part else part
+    prim = doc["meshes"][child["mesh"]]["primitives"][0]
+    tex = doc["materials"][prim["material"]]["pbrMetallicRoughness"]["baseColorTexture"]["index"]
+    pic = _picture(doc, binary, tex, tmp_path)
+    pos = core.accessor_array(doc, binary, prim["attributes"]["POSITION"]).astype(np.float64)
+    pos = pos * np.array(child.get("scale", [1, 1, 1])) + np.array(child.get("translation", [0, 0, 0]))
+    uv = core.accessor_array(doc, binary, prim["attributes"]["TEXCOORD_0"]).astype(np.float64)
+    h, w = pic.shape[:2]
+    col = pic[np.clip((uv[:, 1] * h).astype(int), 0, h - 1), np.clip((uv[:, 0] * w).astype(int), 0, w - 1)]
+    return child["mesh"], pos[:, 2], col
+
+
+def _bands(z, col):
+    """The mean colour in 0.5 m bands of height (the growth band, the splash zone, the paint)."""
+    k = np.floor(z / 0.5).astype(int)
+    return {int(b): col[k == b].mean(axis=0) for b in np.unique(k)}
+
+
+def test_copies_share_one_marine_bake(tmp_path):
+    """Task 0189 (0183 row 9): the demo's wind park baked every clamp of every turbine on its own (264 bakes, ~7 s each,
+    36 min). Copies with the same mesh and looks at the same height and tilt share one bake – also turned about the
+    vertical and moved across – and give the same picture as their own bake; a copy at another height bakes its own."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    first = _plate(sc, "first", nz=14)
+    materials.assign(first, materials.ensure_material("G growth", "paint_marine_growth", "RAL 1023", 0.0))
+    copies = []
+    for k, (dx, turn, dz) in enumerate(((4.0, 75.0, 0.0), (8.0, -40.0, 0.0), (12.0, 30.0, 1.0))):
+        c = first.copy()                                     # the same mesh and material, as the importer's copies
+        c.name = f"copy {k}"
+        sc.collection.objects.link(c)
+        c.location = (dx, 2.0 * k, dz)
+        c.rotation_euler.z = math.radians(turn)
+        copies.append(c)
+    sc[ML.WATERLINE] = 0.0
+    bpy.context.view_layer.update()
+    out = web3d.export(sc, str(tmp_path / "copies.glb"), size=256, compress=False, page=False, hide_names=False)
+    assert out["own"]["parts"] == 4 and out["own"]["bakes"] == 2, out["own"]      # the raised copy bakes its own
+    assert "marine looks baked on 4 parts" in out["text"] and "copies share: 2 bakes" in out["text"], out["text"]
+    doc, binary = core.read_glb((tmp_path / "copies.glb").read_bytes())
+    m0, z0, c0 = _base_picture(doc, binary, "first", tmp_path)
+    m1, z1, c1 = _base_picture(doc, binary, "copy 1", tmp_path)
+    m2, z2, c2 = _base_picture(doc, binary, "copy 2", tmp_path)
+    assert m0 == m1 and m2 != m0                              # one mesh in the file for the shared ones
+    b0, b2 = _bands(z0, c0), _bands(z2, c2)                   # (copy 2 stands 1 m higher: its own band)
+    assert max(float(np.abs(b0[k] - b2[k]).max()) for k in b0) > 0.1
+    # the same look as its own bake: copy 1 exported alone
+    for ob in [first] + copies:
+        ob.hide_set(ob.name != "copy 1")
+    bpy.context.view_layer.update()
+    alone = web3d.export(sc, str(tmp_path / "alone.glb"), size=256, compress=False, page=False, hide_names=False)
+    assert alone["own"]["bakes"] == 1
+    doc_a, bin_a = core.read_glb((tmp_path / "alone.glb").read_bytes())
+    _m, za, ca = _base_picture(doc_a, bin_a, "copy 1", tmp_path)
+    ba, b1 = _bands(za, ca), _bands(z1, c1)
+    assert set(ba) == set(b1)
+    worst = max(float(np.abs(ba[k] - b1[k]).max()) for k in ba)
+    assert worst < 0.03, worst
+
+
+def test_panel_estimates_are_kept_until_something_changes(monkeypatch):
+    """Task 0189 (0183 row 17): every draw of the Web 3D panel walked every part (45–60 ms on the small demo). The
+    estimates are kept until the scene changes (a depsgraph update, undo, a file load); the marine estimate
+    counts the bakes copies share."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    first = _plate(sc, "first", nz=14)
+    materials.assign(first, materials.ensure_material("G growth", "paint_marine_growth", "RAL 1023", 0.0))
+    for k in range(3):
+        c = first.copy()
+        sc.collection.objects.link(c)
+        c.location.x = 4.0 * (k + 1)
+    bpy.context.view_layer.update()
+    w = web3d.settings(sc)
+    w.light = "SOFT"
+    bpy.context.view_layer.update()
+    calls = []
+    real = web3d.objects
+    monkeypatch.setattr(web3d, "objects", lambda scene: calls.append(1) or real(scene))
+
+    def draw():                                              # what the panel draws (the button's check stays exact)
+        return None, web3d.marine_estimate(sc), web3d.light_estimate(sc)
+
+    a = draw()
+    n = len(calls)
+    assert n > 0 and a[1]["NORMAL"]["bakes"] == 1            # four copies, one bake
+    for _ in range(5):
+        assert draw() == a
+    assert len(calls) == n                                   # nothing changed: no part walked again
+    first.location.z += 1.0                                  # a change: one copy now stands higher
+    bpy.context.view_layer.update()
+    b = draw()
+    assert len(calls) > n and b[1]["NORMAL"]["bakes"] == 2
+    one = core.own_estimate(10.0, 1024, bakes=1, unique_area=10.0)
+    many = core.own_estimate(10.0, 1024, bakes=40, unique_area=10.0)
+    assert many["seconds"] - one["seconds"] == pytest.approx(39 * core.OWN_SECONDS_PER_BAKE)
+
+
+def test_the_bake_scene_does_not_pull_in_the_project():
+    """Task 0189 (0183 row 9): the bake scene is a copy of the project's scene. It kept the compositor's tree (whose
+    Render Layers node reads the project's scene) and the project's settings (labels pointing at parts …), so every bake
+    built the depsgraph of the whole project: 0.6 s per bake on the small demo, 0.07 s without."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    ob = _plate(sc, "project part", nz=2)
+    from fresing_render.blender import callouts
+    callouts.add(sc, ob, ob.matrix_world.translation, text="A label on the part")
+    tree = bpy.data.node_groups.new("comp", "CompositorNodeTree")
+    rl = tree.nodes.new("CompositorNodeRLayers")
+    rl.scene = sc
+    if hasattr(sc, "compositing_node_group"):
+        sc.compositing_node_group = tree
+    sc["fr_some_object"] = ob
+    bpy.context.view_layer.update()
+    b = web3d.Baker(sc)
+    try:
+        bake_vl = b.scene.view_layers[0]
+        with bpy.context.temp_override(scene=b.scene, view_layer=bake_vl):
+            dg = bpy.context.evaluated_depsgraph_get()
+            names = {i.original.name for i in dg.ids}
+        assert ob.name not in names and sc.name not in names, sorted(names)
+        assert sc.fresing.callouts and sc.get("fr_some_object") is ob          # the project keeps its own
+    finally:
+        b.close()

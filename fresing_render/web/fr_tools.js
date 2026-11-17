@@ -74,7 +74,8 @@
     '@media (max-width: 600px) {',
     '  #fr-tpanel { left: calc(12px + var(--sa-l, 0px)); right: calc(62px + var(--sa-r, 0px)); width: auto; top: auto;',
     '    bottom: 8px; max-height: 38%; z-index: 5; background: rgba(20,28,34,.96); } }',
-    '@media (max-height: 480px) { #fr-tpanel { max-height: calc(100% - var(--fr-head, 50px) - 8px); } }'
+    // task 0189 (0183 row 12): sideways too the panel ends above the bottom stack (views, time line; --fr-stack)
+    '@media (max-height: 480px) { #fr-tpanel { max-height: calc(100% - var(--fr-head, 50px) - var(--fr-stack, 110px) - 8px); } }'
   ].join('\n');
   var style = document.createElement('style');
   style.textContent = css;
@@ -145,6 +146,7 @@
     panel.innerHTML = '';
     if (!st.tool && !st.cut.on) { panel.style.display = 'none'; pressed(); return; }
     panel.style.display = 'block';
+    if (page.hideHint) page.hideHint();        // task 0189: the first-visit bubble sits where the panel goes on a phone
     var titles = { info: 'Part info', measure: 'Measure', fade: 'Fade the rest' };
     if (st.tool) {
       var h = el('h2', {}, titles[st.tool]);
