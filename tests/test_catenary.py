@@ -155,3 +155,55 @@ def test_laid_length_is_the_advance_plus_what_was_there():
     half = C.hang_off(cF + shift, axF, r, side, arrF + shift, math.radians(90.0), S, U, ZB,
                       an["length0"] + 0.5 * adv)
     assert np.all(np.diff(half["layback"]) > 0.0)        # paid out slower than it moves: pulled flatter
+
+
+# ---------------------------------------------------------------------------
+# task 0172: a wheel lying flat near the seabed (the demo's D tipped flat and set down, shot 11)
+# ---------------------------------------------------------------------------
+
+def _flat_gutter(F, height, R=4.0):
+    """A 180° gutter lying flat (axis +z), its centre ``height`` (F,) over the cable's middle on the seabed; the cable
+    arrives at +y going +x and goes round over +x to its far end at -y, where it points -x: the way it is laid (U)."""
+    c = np.zeros((F, 3))
+    c[:, 2] = ZB + np.asarray(height, dtype=float)
+    ax = np.tile([0.0, 0.0, 1.0], (F, 1))
+    return c, ax, R, -1.0, c + [0.0, R, 0.0]
+
+
+def test_a_flat_gutter_is_left_at_the_end_the_cable_lies_towards():
+    """Before: a slack cable hanging straight down past a flat gutter took the leave point from its tiny sideways
+    pull – the middle of the gutter (90°), whichever side of the lay line the cable's end lay. Now: the far end (180°),
+    where the gutter points the way the cable lies, for the end a little to either side of the gutter's end."""
+    for lateral in np.linspace(-4.6, -3.4, 13):
+        c, ax, r, side, arrive = _flat_gutter(1, [3.0])
+        res = C.hang_off(c, ax, r, side, arrive, math.pi, np.array([-60.0, lateral, ZB]), U, ZB, np.array([150.0]))
+        assert res["kind"][0] == C.PILED
+        assert math.degrees(res["psi"][0]) == pytest.approx(180.0, abs=0.5), lateral
+    # a gutter standing upright (axis along y) is not touched by this: its wrap still follows the catenary
+    c = np.array([[0.0, 0.0, ZB + 10.0]])
+    up = C.hang_off(c, np.array([[0.0, 1.0, 0.0]]), 4.0, -1.0, c + [0.0, 0.0, 4.0], math.pi,
+                    np.array([-60.0, 0.0, ZB]), U, ZB, np.array([150.0]))
+    assert math.degrees(up["psi"][0]) == pytest.approx(90.0, abs=1.0) and up["bend"][0] < 1e-6
+
+
+def test_a_free_bend_near_the_seabed_turns_as_far_as_fits():
+    """The flat gutter lowered from 6 m to 2 cm over the seabed: the free bend from its end turns down as far as it
+    fits above the seabed and the cable lies on the seabed from there – it is never left out (before: the cable then
+    left the wheel with a kink and the bend's end jumped back onto the wheel, 1.2 m in one step), never curls into the
+    seabed, and the bend's end moves on smoothly."""
+    F = 400
+    height = np.linspace(6.0, 0.02, F)
+    c, ax, r, side, arrive = _flat_gutter(F, height)
+    res = C.hang_off(c, ax, r, side, arrive, math.pi, np.array([-60.0, -4.3, ZB]), U, ZB, np.full(F, 150.0))
+    assert np.isfinite(res["T"]).all() and np.isfinite(res["bend"]).all()
+    assert np.allclose(np.degrees(res["psi"]), 180.0, atol=0.5)
+    pts, _s = C.bend_points(res, 60)
+    assert (pts[..., 2] - ZB).min() >= C.BED_GAP - 1e-9                       # never into the seabed
+    high = height > r + 0.5
+    assert np.allclose(np.degrees(res["bend"][high]), 90.0, atol=1.0)         # high up: a whole bend, straight down
+    low = height < r - 0.5                                                     # as far as fits: it ends on the seabed
+    assert np.abs((pts[low][:, -1, 2] - ZB) - C.BED_GAP).max() < 1e-6
+    assert np.all(np.diff(res["bend"][low]) < 0.0)                             # less and less as it comes down
+    assert np.all(res["bend"] > 0.0)                                           # never left out
+    step = np.linalg.norm(np.diff(res["T"], axis=0), axis=1)                  # the catenary's start, moment to moment
+    assert step.max() < 0.4, step.max()                                        # (the gutter goes down 15 mm a step)

@@ -178,7 +178,7 @@ fn(id="offshore.settle", title="A let-go cable settles onto the seabed", family=
    fold="fr_cables_sea", prop="sea_settle", guide="settle", tour=("moving_cable",), pccheck=("motion.moving_cable",),
    since="0.2.103")
 fn(id="offshore.swivel", title="A sheave on a swivel turns to its wire", family="offshore", panel="FRESING_PT_cables",
-   prop="swivel", guide="swivel", since="0.2.103")
+   prop="swivel", guide="swivel", tour=("swivel",), pccheck=("motion.swivel",), since="0.2.103")
 fn(id="offshore.spool", title="Drums and carousels", family="offshore", panel="FRESING_PT_spools",
    button="fresing.spool_add", guide="drums", tour=("spool",), pccheck=("motion.spool",), since="0.2.85")
 fn(id="offshore.vessel_motion", title="Vessel motion at sea", family="offshore", panel="FRESING_PT_vessel_motion",

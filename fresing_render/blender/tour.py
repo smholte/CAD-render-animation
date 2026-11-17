@@ -1841,6 +1841,55 @@ def _check_moving_cable(scene):
             f"{went:.1f} m on")
 
 
+SWIVEL_ANIM = "Davit slews"
+
+
+@tour_set("swivel", "A sheave on a swivel", "test_swivel.step")
+def build_swivel(b: Build):
+    from . import paths, paths_swivel
+    sc = b.scene
+    _look("PRODUCT")
+    made = paths_swivel.set_up_test_model(sc)
+    _check(made["animation"] == SWIVEL_ANIM, f"the animation is called '{made['animation']}'")
+    it = paths.find(sc, made["cable"])
+    _check(it is not None and not it.problem, f"'{made['cable']}': {it.problem if it is not None else 'missing'}")
+    _update()
+    _camera(b, "ISO", "Tour view", lens=35.0)
+    shot = _shot(b, "Tour: swivel")
+    a = sc.fresing.animations[made["animation"]]
+    a.start_shot = shot.name
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+def _check_swivel(scene):
+    """Along the built animation (task 0172): the davit slews ±45° and the swivel head turns with the wire – the wire
+    from the fairlead comes into the sheave in the sheave's plane (within 1°) at every 5th frame – over a range of
+    more than 30°, the wire kept tight and with no warning."""
+    import numpy as np
+
+    from . import joints, paths, paths_swivel
+    it = paths.find(scene, paths_swivel.TEST_CABLE)
+    _check(it is not None, "the davit wire is missing")
+    _check(paths.status(scene, it)[1] == "OK", f"the wire says: {paths.status(scene, it)[0]}")
+    sw = joints.find(scene, paths_swivel.TEST_SWIVEL)
+    _check(sw is not None, "the swivel joint is missing")
+    worst, turns = 0.0, []
+    for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 5)) | {scene.frame_end}):
+        scene.frame_set(f)
+        _update()
+        it = paths.find(scene, paths_swivel.TEST_CABLE)
+        pts = np.array(paths.shape_now(scene, it), dtype=float)
+        run = pts[1] - pts[0]
+        run /= max(float(np.linalg.norm(run)), 1e-12)
+        axis = np.asarray(paths.wheels_now(scene, it)[0].axis, dtype=float)
+        worst = max(worst, math.degrees(math.asin(min(1.0, abs(float(run @ axis))))))
+        turns.append(math.degrees(joints.get_value(sw)))
+    span = max(turns) - min(turns)
+    _check(worst < 1.0, f"the wire comes into the sheave {worst:.2f}° out of its plane")
+    _check(span > 30.0, f"the swivel turned only {span:.1f}°")
+    return f"the swivel turned {span:.1f}° with the wire, the wire in the sheave's plane to {worst:.3f}°"
+
+
 TRACKS_ANIM = "Tracks"
 
 
@@ -3447,6 +3496,13 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      where="4 Motion > Cables and paths (Winch keeps it tight, Let go here, Into the sea > Settles in)",
      animation=MOVING_ANIM, play=True,
      since="0.2.95", check=_check_moving_cable, auto="clip")
+stop("swivel", MOTION, "swivel", "Sheave turns to follow its wire",
+     "A yellow deck davit slews 45° one way, 90° back and home again. Its grey wire comes from a fairlead on the deck, "
+     "over a sheave under the arm's tip and straight down into the orange hook block. The sheave hangs in a swivel "
+     "head: as the arm swings, the head turns about the tip so the wire from the fairlead always runs straight into "
+     "the sheave's groove, never across its side; the hook block hangs still under the tip.",
+     where="4 Motion > Cables and paths > What it touches: the sheave's Swivel", animation=SWIVEL_ANIM, play=True,
+     since="0.2.138", check=_check_swivel, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

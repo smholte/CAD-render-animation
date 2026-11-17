@@ -269,7 +269,7 @@ def test_test_models_in_the_extension_are_the_test_data():
                  "test_4axis.step", "test_5axis.step", "test_clash.step", "test_waycover_c.step",
                  "test_flex_hoses_a.step", "test_flex_chains_a.step", "test_paths_a.step", "test_sequence.step",
                  "test_sequence_frame.step",
-                 "test_spool.step", "test_tracks.step", "test_sea.step", "test_moving.step",
+                 "test_spool.step", "test_tracks.step", "test_sea.step", "test_moving.step", "test_swivel.step",
                  "test_cylinder_a.step", "test_waycover_b.step"):
         a = os.path.join(ROOT, "fresing_render", "data", name)
         b = os.path.join(ROOT, "tests", "data", name)

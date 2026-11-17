@@ -177,6 +177,13 @@ def test_the_quadrant_operation_shots_10_to_12(made):
             M = np.array(o.matrix_world)
             lowest = min(lowest, float((co.reshape(-1, 3) @ M[2, :3] + M[2, 3]).min()))
     assert seabed - 0.05 < lowest < seabed + 0.3, (lowest, seabed)
+    # task 0172: the depth worked out before Build is the built one – one Build (no correction): the D's lowest point
+    # (every mesh point, every frame from the set-down step to SET_DOWN_AFTER into the hoist) within SET_DOWN_TOL of
+    # SET_DOWN_CLEAR over the seabed
+    off = d.set_down_error(lw[1].start, lw[2].start + demo.SET_DOWN_AFTER)
+    assert abs(off) <= demo.SET_DOWN_TOL, off
+    note = next(n for n in made["out"]["notes"] if n.startswith("shot 11: the D set down at"))
+    assert f"{lw[1].to_dist:.3f} m" in note, (note, lw[1].to_dist)          # (the step as worked out: not corrected)
     sc.frame_set(let_go + int(math.ceil(se.sea_settle * 25)) + 5)
     hz = [(head.matrix_world @ Vector(v)).z for v in head.bound_box]
     assert min(hz) > seabed - 0.05 and min(hz) < seabed + 0.5, (min(hz), seabed)
@@ -311,3 +318,53 @@ def test_the_quadrant_operations_parts_are_hidden_until_shot_9(made):
     assert math.degrees(s.joints[demo.TILT].rot_max) == pytest.approx(110.0, abs=1e-3)
     assert s.joints[demo.AR_DRUM].couple_table == f"spool:{demo.AR_SPOOL}"
     assert "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn on tilt" not in s.joints
+
+
+def test_shot_11_the_cable_leaves_the_flat_d_at_its_far_end(made):
+    """Task 0172 (0125's open point 6): shot 11, from the D's tip to the let-go, as the D tips flat and comes down
+    onto the seabed, the second end stays in the D's gutter to its far end – the end that points the way the cable
+    lies on the seabed – and goes on from there in a free bend down to the seabed: no point between its start and the
+    seabed turns more than the gutter's own arc does (~1.4° a point; before: up to 62°, where the bend was left out
+    near the seabed), the leave point never changes end (before: it went from the end to the gutter's middle and
+    back, 0.56 m in a frame) and no point jumps between frames (before: 5.2 m), every frame has a path."""
+    from fresing_render.blender import animation, paths, paths_sea
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    if not sc.fresing.anim_baked:
+        animation.bake(sc, a)
+    steps = [b for b in a.blocks if b.kind == "JOINT"]
+    tp = sorted((b for b in steps if b.joint == demo.TIP), key=lambda b: b.start)
+    se = paths.find(sc, demo.SECOND_ITEM)
+    res, first = _solved(sc, se)
+    sea, scale = res["sea"], res["scale"]
+    gutter = paths._wheels(se)[0]
+    wmax = paths_sea._wrap_max(se, gutter)
+    bed = paths_sea.bottom_z(sc, se)
+    _w, slots, *_ = paths._inputs_of(se)
+    rel = paths._stored_places(sc, se, slots)[0]
+    k_bed = paths_sea._roles(slots)["sea_bed"]
+    f_tip, f_go = animation.frame_of(a, tp[1].start), paths.let_go_frame(se, "a")
+    worst, worst_at, jump, prev = 0.0, 0, 0.0, None
+    for f in range(f_tip, f_go):
+        k = f - first
+        assert res["ok"][k], f
+        P = np.asarray(res["points"][k], dtype=float)
+        inv = np.linalg.inv(rel[min(k, len(rel) - 1), k_bed])
+        z = (P @ inv[2, :3] + inv[2, 3]) * scale - bed                 # over the seabed
+        down = np.flatnonzero(z < 0.05)
+        Q = P[: int(down[0]) + 1 if len(down) else len(P)] * scale     # from its start to where it reaches the seabed
+        d = np.diff(Q, axis=0)
+        n = np.linalg.norm(d, axis=1)
+        u = d[n > 1e-6] / n[n > 1e-6, None]
+        turn = float(np.degrees(np.arccos(np.clip((u[1:] * u[:-1]).sum(1), -1.0, 1.0))).max())
+        if turn > worst:
+            worst, worst_at = turn, f
+        if prev is not None and len(prev) >= len(Q):
+            jump = max(jump, float(np.linalg.norm(Q - prev[: len(Q)], axis=1).max()))
+        prev = P * scale
+        if f >= f_tip + 100:                                           # tipped flat: it leaves the gutter's far end
+            assert math.degrees(float(sea["psi"][k])) > math.degrees(wmax) - 6.0, (f, float(sea["psi"][k]))
+    print(f"\nshot 11: worst turn per point {worst:.2f}° at frame {worst_at}, largest move between frames "
+          f"{jump:.3f} m")
+    assert worst < 1.5, (worst, worst_at)                              # (the gutter's own arc: ~1.4° a point)
+    assert jump < 0.4, jump                                            # (the D comes down ~0.12 m a frame)

@@ -49,6 +49,7 @@ SPOOL = os.path.join(DATA, "test_spool.step")
 TRACKS = os.path.join(DATA, "test_tracks.step")
 SEA_CABLE = os.path.join(DATA, "test_sea.step")
 MOVING_CABLE = os.path.join(DATA, "test_moving.step")
+SWIVEL = os.path.join(DATA, "test_swivel.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 SEQUENCE_FRAME = os.path.join(DATA, "test_sequence_frame.step")
 MESH_CRANE = os.path.join(DATA, "test_mesh_crane.glb")
@@ -848,6 +849,34 @@ def motion_moving_cable(ctx):
     render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "moving_cable", "The block lifted away from the cable end it let go on the seabed, the lift wire "
                                       "tight over the head sheave (processor, draft)")
+    return note
+
+
+@line("motion.swivel", "A sheave on a swivel turns to follow its wire", "0.2.138",
+      what="A deck davit slews ±45° while its wire runs from a fixed fairlead over a sheave on a swivel head at the "
+           "arm's tip and down into the hook block: Build turns the swivel at every frame so the wire comes into the "
+           "sheave in its plane (task 0172)")
+def motion_swivel(ctx):
+    from ..blender import animation, cameras, paths_swivel, render, tour
+    scene = ctx.fresh(SWIVEL)
+    s = scene.fresing
+    t0 = time.time()
+    made = paths_swivel.set_up_test_model(scene)
+    ctx.metric("set up the swivel", time.time() - t0, "s")
+    scene.camera = cameras.add_camera(scene, "ISO", 35.0, "Swivel view")
+    a = s.animations[made["animation"]]
+    t0 = time.time()
+    info = animation.bake(scene, a)
+    ctx.metric("build with a swivel", time.time() - t0, "s")
+    _check(not info["warnings"], "; ".join(info["warnings"][:2]))
+    note = tour._check_swivel(scene)
+    _small_output(s)
+    s.use_gpu = False
+    scene.frame_set(scene.frame_start + int(0.3 * (scene.frame_end - scene.frame_start)))
+    path = os.path.join(ctx.work, "swivel.png")
+    render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "swivel", "The davit slewed, its swivel head turned so the wire runs straight into the sheave "
+                                "(processor, draft)")
     return note
 
 
