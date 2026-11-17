@@ -165,19 +165,19 @@ def s_brand_kit():
     bm = mod("core.brand")
     s = bpy.context.scene.fresing
     logo = make_logo(os.path.join(OUT, "logo.png"))
-    s.brand_name = "Fresing"
+    s.brand_name = "Acme"
     s.brand_logo = logo
     s.brand_color1 = bm.rgb_linear("#204060")
     s.brand_color2 = bm.rgb_linear("#FFFFFF")
     s.brand_contact = "fresing.nl"
     check("Save kit available with a name", bpy.ops.fresing.brand_save.poll())
     r = op("fresing.brand_save")
-    check("kit saved in the library folder", r == {"FINISHED"} and os.path.isfile(os.path.join(LIB, "Fresing.json"))
-          and os.path.isfile(os.path.join(LIB, "Fresing_logo.png")), os.listdir(LIB) if os.path.isdir(LIB) else "")
+    check("kit saved in the library folder", r == {"FINISHED"} and os.path.isfile(os.path.join(LIB, "Acme.json"))
+          and os.path.isfile(os.path.join(LIB, "Acme_logo.png")), os.listdir(LIB) if os.path.isdir(LIB) else "")
     s.brand_contact = "changed"
     s.brand_name = "Other"
-    r = op("fresing.brand_load", name="Fresing")
-    check("kit loaded back", r == {"FINISHED"} and s.brand_name == "Fresing" and s.brand_contact == "fresing.nl")
+    r = op("fresing.brand_load", name="Acme")
+    check("kit loaded back", r == {"FINISHED"} and s.brand_name == "Acme" and s.brand_contact == "fresing.nl")
     return 0.5
 
 
@@ -318,7 +318,7 @@ def s_reopened():
     s = bpy.context.scene.fresing
     a = s.animations[STATE["anim"]]
     check("reopened: kit, finishing and watermark settings kept",
-          s.brand_name == "Fresing" and s.brand_contact == "fresing.nl" and a.fin_logo == "TR" and a.fin_title_on
+          s.brand_name == "Acme" and s.brand_contact == "fresing.nl" and a.fin_logo == "TR" and a.fin_title_on
           and a.fin_end_on and a.fin_captions and a.shape_fit == "CROP" and s.wm_kind == "DRAFT"
           and s.still_logo == "BL", (s.brand_name, a.fin_logo, a.shape_fit))
     return 0.5

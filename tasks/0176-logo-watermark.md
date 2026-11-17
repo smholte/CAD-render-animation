@@ -1,6 +1,6 @@
 # 0176 – The Fresing logo as a watermark (and a ready-made Fresing brand kit) for pictures and videos
 
-**Who:** worker · **Status:** open · **Branch:** `task/0176-logo-watermark` (a web session may name its own)
+**Who:** worker · **Status:** done (0.2.135) · **Branch:** `task/0176-logo-watermark` (a web session may name its own)
 **Started by:** lead chat, 17 Nov 2026 (owner's wish after 0169) · **Model:** Sonnet · effort Medium · **Place:** Claude
 Code on the web, environment "CAD-render-animation".
 **Area:** Scene & Render lane, video finishing only: `core/brand.py`, `blender/video.py`, `blender/render.py`
@@ -52,9 +52,9 @@ brand kit or a PNG first. The logo is the one 0169 put in the app (green F on da
 
 ## Done when
 
-- [ ] Logo watermark (Fresing / brand kit) on stills, videos, queue, product video; three places; colour choice
-- [ ] Shipped Fresing brand kit; old projects unchanged
-- [ ] Tests, tour stop, PC-check line, function list, guide, tooltips; GitHub run green; merged; version; report
+- [x] Logo watermark (Fresing / brand kit) on stills, videos, queue, product video; three places; colour choice
+- [x] Shipped Fresing brand kit; old projects unchanged
+- [x] Tests, tour stop, PC-check line, function list, guide, tooltips; GitHub run green; merged; version; report
 
 ## Not in this task
 
@@ -64,10 +64,24 @@ Animated logo intros/outros (the title/end cards stay as they are); the logo on 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 17 Nov 2026.
 
-**What changed:**
+**What changed:** Watermark (5 Scene & Render) now offers Fresing logo and Brand kit logo next to the words; Place
+Centre / Tiled / corner, Logo colour Colour / White / Dark (tinting in `core/brand.py`, tiles as one picture turned 25°;
+one image strip on channel 127, so it works on stills, videos, queue and product video through the same `Finishing`).
+Logos in `fresing_render/brand/` (colour + reversed, 2400 px, made from `site/brand/*.svg` with the pre-installed Chromium;
+copies in `tools/brand/`). The shipped kit "Fresing" is always first in the kit list, cannot be deleted or saved over;
+load it and save under another name for a copy. Old projects: DRAFT stays DRAFT, new choices default off.
+Test changes: kits named "Fresing" in `test_video.py` and `ui_test_video.py` are now "Acme".
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no GPU): `tests/test_watermark_logo.py` (30 tests: box inside picture,
+tint, tiles cover the turned picture, centre/corner/tiled/colour/white/dark on a still, a video frame, missing logo,
+shipped kit), `test_video.py`, PC-check line `video.finishing` (extended: Fresing logo tiled + centre, 8 s), tooltip
+check (830 ok). Looked at one tiled still: even pattern, readable. GitHub: 2 pushes failed first (a real-app test
+saved a kit called "Fresing"; a version clash with 0.2.134), then the full run was green (24.4 min).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** (1) No new tour stop and no new PC-check line: the existing "finishing" stop checks the
+logo file exists, the PC-check line covers the rendering – MIN counts unchanged. (2) "Auto" colour by the brightness
+under the logo not done (optional). (3) The guide pictures `panel_5_watermark.png` / `panel_5_brand.png` are not
+replaced: `tools/guide_screens.py` has no maker for them. A follow-up for a lead: add them there. (4) Tiled at 4K builds
+a ~4400 x 4400 picture in memory (~80 MB); not measured on the owner's PC.

@@ -115,8 +115,8 @@ Fresing Render.
 2. Double-click **Install.bat**. If Windows says "Windows protected your PC", click **More info**, then
    **Run anyway**. Unpacking takes a few minutes without a progress bar: let it finish.
 3. Start **Fresing Render** from the Desktop: the shortcut, the Start menu, the window and the taskbar show the
-   green and white Fresing **F**, and the start-up screen carries the Fresing logo. Right-click the taskbar icon
-   > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.133 gets the new icon at the first
+   Fresing **Fr** (the white F with its green swoosh and an r), and the start-up screen carries the Fresing logo. Right-click the taskbar icon
+   > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.136 gets the new icon at the first
    start after **Update now**; if a pinned taskbar icon still shows Blender's, unpin it and pin it again.)
 4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
@@ -2941,6 +2941,9 @@ line. You work for your own company and for others, so there is one kit per comp
 one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
 shared library it is in your Documents folder, under Fresing Render).
 
+The kit **Fresing** comes with the app (Fresing's logo and colours). It is always in the list of kits and cannot
+be changed or deleted: load it, give it another name and **Save kit** to make a copy of your own.
+
 1. Type a name in **Kit** (the company).
 2. **Logo**: pick the logo picture. It must be a **PNG or JPG** (a PNG with a see-through background looks
    best). A logo in another format, such as SVG, cannot be used: export it as PNG first.
@@ -2958,10 +2961,14 @@ shared library it is in your Documents folder, under Fresing Render).
 
 <img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
 
-Words across the picture, for a draft you send before the final render.
+Words or a logo across the picture, for a draft you send before the final render.
 
-1. **Words**: **DRAFT**, **CONFIDENTIAL** or **Own text**. **Size** is how tall the letters are,
-   **See-through** how strong they are (1 = solid).
+1. **Watermark**: the words **DRAFT**, **CONFIDENTIAL** or **Own text**, or a logo: **Fresing logo** or
+   **Brand kit logo** (the logo of the kit above). **Size** is how tall the letters are (for a logo: how big it
+   is), **See-through** how strong it is (1 = solid).
+   A logo has two more choices. **Place**: **Centre** (one logo in the middle), **Tiled** (a pattern of logos
+   across the whole picture, turned like the words) or a small one in a **corner**. **Logo colour**: **Colour**
+   (as it is), **White** (for dark pictures) or **Dark** (for light pictures).
 2. Switch **Watermark on the next renders** on. Every image or video you render, or add to 7 Render queue,
    while it is on gets the watermark; the job remembers it (its name says "with watermark").
 3. Switch it off again, add the same render to the queue once more, and the final comes out clean. The

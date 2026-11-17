@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.136 – 17 Nov 2026 – The app icon says "Fr" (task 0169)
+
+- **The app icon is now "Fr" for Fresing Render:** the white F with its green swoosh and an r beside it, taken from
+  the Fresing word mark, on the same dark rounded square. It shows on the Desktop, in the Start menu, on the window
+  and in the taskbar, and stays sharp at the smallest sizes.
+- Nothing to do after **Update now**: the app swaps the icon file at its first start and tells Windows to redraw the
+  shortcuts. If a shortcut or a pinned taskbar icon still shows the plain F, press F5 on the Desktop, or unpin and pin
+  the taskbar icon again.
+## 0.2.135 – 17 Nov 2026 – The Fresing logo as a watermark (task 0176)
+
+- **The Fresing logo as a watermark:** in 5 Scene & Render > Watermark you can now pick **Fresing logo** (or **Brand kit
+  logo**, the logo of your own kit) instead of words. **Place** it in the **Centre**, **Tiled** across the whole picture
+  (turned like the words) or small in a **corner**, and choose its colour: **Colour**, **White** (for dark pictures) or
+  **Dark** (for light pictures). Size and See-through work as before. It goes on stills, videos, the render queue and the
+  product video, the same as the words. Old projects keep their DRAFT or CONFIDENTIAL words.
+- **A ready-made "Fresing" brand kit** comes with the app: Fresing's logo (sharp in 4K) and colours. It is always in the
+  list of kits, cannot be changed or deleted, and you can load it, give it another name and save a copy of your own.
+
 ## 0.2.134 – 16 Nov 2026 – Fast 3-axis: fewer faces, truer flanks (task 0167)
 
 - **Long milling programs (Fast 3-axis) give lighter, cleaner surfaces.** Faces along the passes, walls and steps are

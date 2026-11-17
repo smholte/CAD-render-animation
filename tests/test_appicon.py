@@ -53,6 +53,7 @@ def _image(size):
 
 @pytest.mark.parametrize("size", [16, 20, 24])
 def test_small_sizes_keep_a_sharp_f(size):
+    """The F's stem, its swoosh and the gap under it (the r beside it: test_small_sizes_show_two_letters)."""
     a = _image(size)
     white = (a[..., :3] == 255).all(-1) & (a[..., 3] == 255)
     green = (np.abs(a[..., :3] - GREEN).sum(-1) == 0) & (a[..., 3] == 255)
@@ -67,10 +68,26 @@ def test_small_sizes_keep_a_sharp_f(size):
     assert a[0, 0, 3] < 128 and a[size // 2, size // 2, 3] == 255    # rounded corners, solid middle
 
 
-def test_big_size_matches_the_logo_pack():
-    src = Image.open(os.path.join(ROOT, "tools", "brand", "fresing-app-icon_512px.png")).convert("RGBA")
-    want = np.asarray(src.resize((256, 256), Image.BOX)).astype(int)
-    assert np.abs(_image(256) - want).max() <= 1
+def test_big_size_is_fr_from_the_logo():
+    """The icon is "Fr" (owner, 16 Nov 2026): the F with its green swoosh, then the r - two white letters."""
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import make_app_icon as m
+    want = np.asarray(m.master_icon().resize((256, 256), Image.BOX)).astype(int)
+    a = _image(256)
+    assert np.abs(a - want).max() <= 1
+    white = (a[..., :3] > 240).all(-1) & (a[..., 3] == 255)     # see-through corner pixels have no colour
+    cols = white.any(0)
+    starts = np.flatnonzero(cols[1:] & ~cols[:-1]) + 1
+    assert len(starts) == 2                            # F and r: two separate white letters
+    green = (np.abs(a[..., :3] - GREEN).sum(-1) <= 6)
+    assert np.flatnonzero(green.any(1)).max() < np.flatnonzero(white.any(1)).min()   # the swoosh above them
+
+
+@pytest.mark.parametrize("size", [16, 20, 24])
+def test_small_sizes_show_two_letters(size):
+    white = (_image(size)[..., :3] == 255).all(-1)
+    cols = white.any(0)
+    assert (cols[1:] & ~cols[:-1]).sum() == 2          # F and r start apart: a gap column between them
 
 
 def test_splash_has_the_logo_in_fresing_green():
@@ -218,3 +235,11 @@ def test_no_icon_file_writes_nothing(tmp_path):
 def test_ensure_icon_leaves_no_temp_file(tmp_path):
     ai.ensure_icon(str(tmp_path))
     assert os.listdir(tmp_path) == [ai.ICON_FILE]
+
+
+def test_a_replaced_icon_file_is_flagged_for_a_redraw(tmp_path):
+    ai.STATE.pop("icon_changed", None)
+    ai.ensure_icon(str(tmp_path))
+    assert ai.STATE.pop("icon_changed", False)
+    ai.ensure_icon(str(tmp_path))                                  # the same again: nothing to redraw
+    assert not ai.STATE.pop("icon_changed", False)

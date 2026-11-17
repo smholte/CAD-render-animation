@@ -186,6 +186,10 @@ class Finishing:
     watermark: str = ""                   # "" = no watermark
     watermark_size: float = 0.12          # text height as a part of the picture height
     watermark_opacity: float = 0.25
+    # task 0176: a logo as the watermark (picture, not words)
+    wm_logo_file: str = ""                # full path of the logo picture ("" = none)
+    wm_place: str = "CENTRE"              # CENTRE / TILED / TL / TR / BL / BR
+    wm_tint: str = "COLOUR"               # COLOUR / WHITE / DARK
     # task 0025: labels pointing at parts, picture cards, music
     label_track: dict = field(default_factory=dict)   # {frame of the animation (1-based): [LabelDraw]}
     label_px: int = 0                     # text size of the labels in pixels
@@ -196,7 +200,7 @@ class Finishing:
     @property
     def active(self) -> bool:
         return bool(self.logo_corner in CORNERS and self.logo_file) or self.title_on or self.end_on \
-            or self.captions_on or bool(self.watermark) or bool(self.label_track) or bool(self.cards) \
+            or self.captions_on or bool(self.watermark) or bool(self.wm_logo_file) or bool(self.label_track) or bool(self.cards) \
             or self.music is not None
 
     @property
@@ -343,3 +347,117 @@ def linear_to_srgb(c: float) -> float:
 def linear_to_hex(rgb) -> str:
     """Blender's colour boxes hold scene-linear values: '#RRGGBB' of what the box shows on screen."""
     return rgb_to_hex(tuple(linear_to_srgb(c) for c in rgb[:3]))
+
+
+# ---------------------------------------------------------------------------
+# the logo as a watermark (task 0176)
+# ---------------------------------------------------------------------------
+
+WM_PLACES = ("CENTRE", "TILED") + CORNERS
+WM_TINTS = ("COLOUR", "WHITE", "DARK")
+WM_LOGO_KINDS = ("FRESING_LOGO", "KIT_LOGO")
+DARK_RGB = (0x1A, 0x20, 0x27)                  # Fresing's dark colour: the "Dark" logo
+TILE_GAP = 1.2                                 # a tile cell is the logo's size times this (room between logos)
+
+
+def wm_logo_width(place: str, size: float) -> float:
+    """Width of one logo as a part of the picture width, for the Size setting (0.03 .. 0.4)."""
+    if place == "TILED":
+        return min(0.5, size * 2.0)
+    if place == "CENTRE":
+        return min(0.9, size * 3.0)
+    return min(0.4, size * 1.2)
+
+
+def wm_logo_box(place: str, width: int, height: int, logo_w: int, logo_h: int, size: float) -> tuple[int, int, int, int]:
+    """(x, y, w, h) of a centred or corner logo watermark, y from the bottom. Never wider or taller than the picture."""
+    frac = wm_logo_width(place, size)
+    if place == "CENTRE":
+        scale = min(frac * width / max(1, logo_w), 0.9 * height / max(1, logo_h))
+        w, h = max(1, round(logo_w * scale)), max(1, round(logo_h * scale))
+        return (width - w) // 2, (height - h) // 2, w, h
+    return logo_box(place if place in CORNERS else "BR", width, height, logo_w, logo_h, frac)
+
+
+def tile_canvas_size(width: int, height: int) -> tuple[int, int]:
+    """Size of the picture of tiles: it must still cover the picture after it is turned (the picture's diagonal)."""
+    d = int(((width * width + height * height) ** 0.5) + 2)
+    return d, d
+
+
+def tile_cell(width: int, logo_w: int, logo_h: int, size: float) -> tuple[int, int, int, int]:
+    """(logo width, logo height, cell width, cell height) in pixels of one tile of the tiled watermark."""
+    w = max(2, round(wm_logo_width("TILED", size) * width))
+    h = max(2, round(w * logo_h / max(1, logo_w)))
+    return w, h, round(w * TILE_GAP), round(h * TILE_GAP * 1.6)
+
+
+def tint_rgba(px, tint: str):
+    """Pixels (H, W, 4) floats 0..1 of a logo in the chosen tint: the shape (its see-through) stays, the colour
+    becomes white or Fresing dark. COLOUR gives the pixels back unchanged."""
+    import numpy as np
+    out = np.array(px, dtype=np.float32, copy=True)
+    if tint == "WHITE":
+        out[..., :3] = 1.0
+    elif tint == "DARK":
+        out[..., :3] = np.array(DARK_RGB, dtype=np.float32) / 255.0
+    return out
+
+
+def tile_pixels(logo, cell_w: int, cell_h: int, canvas_w: int, canvas_h: int):
+    """A transparent picture of ``canvas_w`` x ``canvas_h`` with ``logo`` (H, W, 4) repeated every cell; every
+    second row of tiles is shifted half a cell (a brick pattern, it looks even when turned)."""
+    import numpy as np
+    lh, lw = logo.shape[:2]
+    cell = np.zeros((cell_h, cell_w, 4), logo.dtype)
+    ox, oy = (cell_w - lw) // 2, (cell_h - lh) // 2
+    cell[oy:oy + lh, ox:ox + lw] = logo
+    rows = []
+    for r in range(-(-canvas_h // cell_h) + 1):
+        row = np.tile(cell, (1, -(-canvas_w // cell_w) + 2, 1))
+        if r % 2:
+            row = np.roll(row, cell_w // 2, axis=1)
+        rows.append(row[:, :canvas_w])
+    return np.concatenate(rows, axis=0)[:canvas_h]
+
+
+def write_png(path: str, rgba) -> None:
+    """Write (H, W, 4) uint8 pixels, top row first, as a PNG (no Blender, no Pillow: a big tiled picture
+    must not need a float copy of itself in memory)."""
+    import struct
+    import zlib
+    import numpy as np
+    a = np.ascontiguousarray(rgba, dtype=np.uint8)
+    h, w = a.shape[:2]
+    raw = np.concatenate([np.zeros((h, 1), np.uint8), a.reshape(h, w * 4)], axis=1).tobytes()
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        c = struct.pack(">I", len(data)) + kind + data
+        return c + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    with open(path, "wb") as fh:
+        fh.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
+                 + chunk(b"IDAT", zlib.compress(raw, 3)) + chunk(b"IEND", b""))
+
+
+# ---------------------------------------------------------------------------
+# the kit that ships with the app
+# ---------------------------------------------------------------------------
+
+SHIPPED_NAME = "Fresing"
+SHIPPED_LOGO = "fresing-logo_full_colour_2400px.png"
+SHIPPED_LOGO_REVERSED = "fresing-logo_full_reversed_2400px.png"
+
+
+def shipped_kit() -> BrandKit:
+    """The ready-made Fresing kit (the logo file lives in the extension's ``brand`` folder)."""
+    return BrandKit(name=SHIPPED_NAME, logo=SHIPPED_LOGO_REVERSED, color1="#1A2027", color2="#FFFFFF",
+                    contact="fresing.nl")
+
+
+def is_shipped(name: str) -> bool:
+    return (name or "").strip().lower() == SHIPPED_NAME.lower()
+
+
+def all_kits(folder: str) -> list[BrandKit]:
+    """The library's kits plus the shipped one (first). A library kit with the same name is hidden by it."""
+    return [shipped_kit()] + [k for k in list_kits(folder) if not is_shipped(k.name)]
