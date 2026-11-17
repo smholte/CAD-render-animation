@@ -30,6 +30,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -319,27 +320,121 @@ def find_proven_run(tree: str, own_run: str, api=gh_api) -> tuple[dict | None, s
     return None, why
 
 
-def has_green_run(sha: str, api=gh_api) -> bool:
-    runs = api(f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?head_sha={sha}&status=success&per_page=20")
-    return any(r["head_sha"] == sha for r in runs["workflow_runs"])
+def runs_of(sha: str, api=gh_api) -> list[dict]:
+    """Every run of this workflow on exactly this commit (any branch, any state)."""
+    runs = api(f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?head_sha={sha}&per_page=20")
+    return [r for r in runs["workflow_runs"] if r["head_sha"] == sha]
 
 
-def green_base(start: str, api=gh_api, depth: int = 10) -> str:
-    """The nearest commit at or before start (first parents, at most depth) with a green run; '' when none.
+# Task 0170: the commits whose green run may stand for this push. A task's last push to main is often "merge main
+# + report" on top of a branch commit that already ran green, while main moved only by task-list pushes. The old
+# rule walked main's first parents only and found main's green commit from before the task: "code changed".
+CANDIDATES = 40            # newest commits of the push (every parent) that are looked at
+API_CHECKS = 12            # at most this many candidates (with a documents-only diff) asked about their runs
+WAIT_LIMIT = 6 * 60        # s: a candidate's docs run that is still going is waited for this long (a docs run: ~3 min)
+WAIT_STEP = 30
+TEST_JOBS = ("Linux - test suite", "Linux - real app", "Windows - install", "Linux - make the demo")
 
-    Commits in between may have no run (task-list-only pushes) or a red/cancelled one: the docs check then
-    compares with the green commit, so everything changed since the last proven state is looked at."""
-    sha = start
+
+def candidates(sha: str, before: str, base: str, depth: int = 10) -> list[str]:
+    """Commits that may have run green, nearest first: those the push brings (every parent, newest first),
+    then base and its first parents. sha itself is left out (its run is this one)."""
+    out = []
+    if before:
+        out += git("rev-list", "--topo-order", f"--max-count={CANDIDATES}", sha, f"^{before}").split()
+    c = base
     for _ in range(depth):
-        if not sha:
-            return ""
-        if has_green_run(sha, api):
-            return sha
-        sha = git("rev-parse", "--verify", "-q", f"{sha}^")
-    return ""
+        if not c:
+            break
+        out.append(c)
+        c = git("rev-parse", "--verify", "-q", f"{c}^")
+    seen, res = {sha}, []
+    for c in out:
+        if c and c not in seen:
+            seen.add(c)
+            res.append(c)
+    return res
 
 
-def decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api) -> tuple[str, str, str]:
+def changed_files(a: str, b: str) -> list[str]:
+    return git("diff", "--name-only", a, b).splitlines()
+
+
+def is_docs_run(jobs: list[dict]) -> bool:
+    """A run still going whose precheck chose docs: its test jobs are skipped (or not made), its build is not."""
+    pre = [j for j in jobs if j["name"].startswith("Precheck")]
+    if not pre or pre[0].get("conclusion") != "success":
+        return False
+    tests = [j for j in jobs if j["name"].startswith(TEST_JOBS)]
+    build = [j for j in jobs if j["name"].startswith(BUILD_JOB)]
+    return bool(build) and all(j.get("conclusion") == "skipped" for j in tests) \
+        and all(j.get("conclusion") != "skipped" for j in build)
+
+
+def proven_state(sha: str, api=gh_api) -> tuple[str, str]:
+    """('proven' | 'running' | 'no', why) for the runs of one commit. Only a finished run with build + verdict green
+    proves it (a reuse run has no build: it counts through the commit whose run it reused). 'running' only for a
+    docs run still going (worth a short wait); a full run still going is not waited for."""
+    runs = runs_of(sha, api)
+    if not runs:
+        return "no", "no run"
+    why, running = "", False
+    for run in sorted(runs, key=lambda r: r.get("created_at", ""), reverse=True):
+        jobs = api(f"repos/{REPO}/actions/runs/{run['id']}/jobs?per_page=100")["jobs"]
+        if run.get("status") == "completed":
+            ok, w = run_is_proven(run, jobs)
+            if ok:
+                return "proven", w
+            why = why or (f"run {run['id']} {run.get('conclusion')}" if run.get("conclusion") != "success" else w)
+        elif is_docs_run(jobs):
+            running = True
+            why = f"run {run['id']} (docs) still going"
+        else:
+            why = why or f"run {run['id']} still going (not a short docs run: not waited for)"
+    return ("running" if running else "no"), why
+
+
+def docs_basis(sha: str, cands: list[str], api=gh_api, sleep=time.sleep, wait: float = WAIT_LIMIT) \
+        -> tuple[str, list[str], list[str]]:
+    """The nearest candidate with a proven green run and only documentation/version lines changed from it to sha:
+    (commit, its changed files, notes). ('', [], notes) when none."""
+    notes, pending, asked = [], [], 0
+    for c in cands:
+        files = changed_files(c, sha)
+        if not docs_only(files, lambda f, c=c: git("diff", "-U0", c, sha, "--", f)):
+            continue
+        if asked >= API_CHECKS:
+            notes.append(f"stopped after {API_CHECKS} commits with a documents-only difference")
+            break
+        asked += 1
+        state, why = proven_state(c, api)
+        if state == "proven":
+            return c, files, notes
+        notes.append(f"{c[:7]}: {why}")
+        if state == "running":
+            pending.append((c, files))
+    waited = 0.0
+    while pending and waited < wait:
+        sleep(WAIT_STEP)
+        waited += WAIT_STEP
+        still = []
+        for c, files in pending:
+            state, why = proven_state(c, api)
+            if state == "proven":
+                notes.append(f"waited {waited:.0f} s for {c[:7]}'s run")
+                return c, files, notes
+            if state == "running":
+                still.append((c, files))
+            else:
+                notes.append(f"{c[:7]} after waiting: {why}")
+        pending = still
+    if pending:
+        notes.append(f"stopped waiting after {wait:.0f} s")
+    return "", [], notes
+
+
+def decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api,
+           sleep=time.sleep) -> tuple[str, str, str]:
     """(mode, artifacts run id, why)."""
     if event == "workflow_dispatch":
         return "full", run_id, "started by hand: everything"
@@ -350,19 +445,17 @@ def decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api)
         if run:
             return "reuse", str(run["id"]), (f"this tree ({tree[:7]}) already ran green in run {run['id']} on "
                                              f"{run['head_branch']} @ {run['head_sha'][:7]}: no tests again")
-    base = before if event == "push" and before and before != ZERO and git("cat-file", "-t", before) else ""
-    if not base:
-        base = git("merge-base", sha, "origin/main")
+    before = before if event == "push" and before and before != ZERO and git("cat-file", "-t", before) else ""
+    base = before or git("merge-base", sha, "origin/main")
     if not base or base == sha:
         return "full", run_id, "no earlier commit to compare with: everything"
-    gb = green_base(base, api)
-    if not gb:
-        return "full", run_id, f"no green run on {base[:7]} or the 9 commits before it: everything"
-    files = git("diff", "--name-only", gb, sha).splitlines()
-    if docs_only(files, lambda f: git("diff", "-U0", gb, sha, "--", f)):
-        return "docs", run_id, (f"only documentation/version lines changed since {gb[:7]} (green): "
+    gb, files, notes = docs_basis(sha, candidates(sha, before, base), api, sleep)
+    if gb:
+        return "docs", run_id, (f"only documentation/version lines changed since {gb[:7]} (proven green): "
                                 f"{', '.join(files[:8])}{' …' if len(files) > 8 else ''}")
-    return "full", run_id, f"code changed since {gb[:7]}: everything"
+    extra = f" ({'; '.join(notes[:4])})" if notes else ""
+    return "full", run_id, (f"code changed since every green commit of this push and the 9 before {base[:7]}: "
+                            f"everything{extra}")
 
 
 # ---------------------------------------------------------------------------------------------- main

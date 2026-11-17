@@ -405,3 +405,202 @@ def test_ci_status_keeps_the_slowest_of_the_last_runs():
         ci_status.merge_file_times(times, {"tests/test_a.py": secs})
     assert times["pytest_files"]["tests/test_a.py"] == 30.0
     assert times["pytest_history"]["tests/test_a.py"] == [30.0, 25.0, 22.0]
+
+
+# ------------------------------------------------- task 0170: the mode of a task's last push (merge main + report)
+
+class _Repo:
+    """A small git repository in tmp_path; commits named by a label."""
+
+    def __init__(self, path):
+        import subprocess
+        self.path, self.sha = str(path), {}
+        self._sp = subprocess
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "t")
+        self.commit("M0", {"fresing_render/__init__.py": '__version__ = "0.2.10"\nX = 1\n',
+                           "fresing_render/blender_manifest.toml": 'version = "0.2.10"\n',
+                           "fresing_render/a.py": "a = 1\n", "TASKS.md": "t0\n", "CHANGELOG.md": "c\n"})
+
+    def git(self, *args):
+        return self._sp.run(["git", "-C", self.path, *args], capture_output=True, text=True,
+                            check=True).stdout.strip()
+
+    def commit(self, label, files):
+        for rel, text in files.items():
+            full = os.path.join(self.path, rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                fh.write(text)
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", label)
+        self.sha[label] = self.git("rev-parse", "HEAD")
+        return self.sha[label]
+
+    def merge(self, label, other):
+        self.git("merge", "-q", "--no-ff", "-m", label, other)
+        self.sha[label] = self.git("rev-parse", "HEAD")
+        return self.sha[label]
+
+
+class _Runs:
+    """Fake GitHub API: runs per commit. state: green | docs-green | reuse | red | cancelled | running-full |
+    running-docs (turns docs-green after `turns` polls)."""
+
+    def __init__(self, states, turns=99):
+        self.states, self.turns, self.polls, self.ids = dict(states), turns, 0, {}
+
+    def _run(self, sha, state):
+        i = self.ids.setdefault(sha, 1000 + len(self.ids))
+        if state == "running-docs" and self.polls >= self.turns:
+            state = "docs-green"
+        done = not state.startswith("running")
+        concl = {"red": "failure", "cancelled": "cancelled"}.get(state, "success") if done else None
+        return {"id": i, "status": "completed" if done else "in_progress", "conclusion": concl, "head_sha": sha,
+                "created_at": "2026-11-16T10:00:00Z", "head_branch": "task/x", "head_commit": {"tree_id": "none"},
+                "_state": state}
+
+    def _jobs(self, state):
+        pre = _job("Precheck (version, counts, groups; picks the mode)")
+        if state in ("green", "red", "cancelled"):
+            c = {"red": "failure", "cancelled": "cancelled"}.get(state, "success")
+            return [pre, _job("Linux - test suite 1", c), _job("Build the Windows installer zip"),
+                    _job("Tests - verdict", c)]
+        if state == "docs-green":
+            return [pre, _job("Linux - test suite 1", "skipped"), _job("Build the Windows installer zip"),
+                    _job("Tests - verdict")]
+        if state == "reuse":
+            return [pre, _job("Linux - test suite 1", "skipped"), _job("Build the Windows installer zip", "skipped"),
+                    _job("Tests - verdict")]
+        if state == "running-docs":
+            return [pre, _job("Linux - test suite 1", "skipped"), _job("Build the Windows installer zip", None),
+                    _job("Tests - verdict", None)]
+        return [pre, _job("Linux - test suite 1", None), _job("Build the Windows installer zip", None)]
+
+    def __call__(self, path):
+        import re
+        if "status=success&per_page=100" in path:                     # reuse: no tree matches in these cases
+            return {"workflow_runs": []}
+        m = re.search(r"head_sha=([0-9a-f]+)", path)
+        if m:
+            sha = m.group(1)
+            return {"workflow_runs": [self._run(sha, self.states[sha])] if sha in self.states else []}
+        m = re.search(r"runs/(\d+)/jobs", path)
+        if m:
+            sha = {v: k for k, v in self.ids.items()}[int(m.group(1))]
+            return {"jobs": self._jobs(self._run(sha, self.states[sha])["_state"])}
+        raise AssertionError(path)
+
+    def sleep(self, s):
+        self.polls += 1
+
+
+@pytest.fixture
+def repo(tmp_path, monkeypatch):
+    P = _pre()
+    monkeypatch.setattr(P, "ROOT", str(tmp_path))
+    return _Repo(tmp_path)
+
+
+def _decide(repo, runs, sha, before, ref="refs/heads/main"):
+    P = _pre()
+    return P.decide("push", ref, repo.sha.get(sha, sha), repo.sha.get(before, before), "1", runs, sleep=runs.sleep)
+
+
+def _task_branch(r):
+    """main M0; the task's code B1 on its branch (ran green); main moves by the task list only (T1)."""
+    r.git("checkout", "-q", "-b", "task")
+    r.commit("B1", {"fresing_render/a.py": "a = 2\n", "CHANGELOG.md": "c\nnew\n"})
+    r.git("checkout", "-q", "main")
+    r.commit("T1", {"TASKS.md": "t1\n", "tasks/0099-x.md": "brief\n"})
+
+
+def test_mode_merge_of_main_and_report_is_docs(repo):
+    """Run 43894557321 / 43913541189: the green branch commit, then 'merge main' + report pushed to main."""
+    _task_branch(repo)
+    repo.git("checkout", "-q", "task")
+    repo.merge("B2", "main")
+    repo.commit("R", {"tasks/0170-x.md": "report\n", "TASKS.md": "t2\n"})
+    runs = _Runs({repo.sha["M0"]: "green", repo.sha["B1"]: "green"})
+    mode, _, why = _decide(repo, runs, "R", "T1")
+    assert mode == "docs" and repo.sha["B1"][:7] in why, why
+    # the old rule walked main's first parents only: M0 (before the task's code) -> full
+    assert "TASKS.md" in why
+
+
+def test_mode_report_on_a_fast_forward_is_docs(repo):
+    """The code merge was a fast-forward (its run on main a reuse run); the report comes on top of it."""
+    _task_branch(repo)
+    repo.git("checkout", "-q", "task")
+    repo.merge("B2", "main")
+    repo.git("checkout", "-q", "main")
+    repo.git("merge", "-q", "--ff-only", "task")
+    repo.commit("R", {"tasks/0170-x.md": "report\n"})
+    # B2 ran full on the branch; on main the same commit got a reuse run (no build): the branch run proves it
+    runs = _Runs({repo.sha["B2"]: "green"})
+    assert _decide(repo, runs, "R", "B2")[0] == "docs"
+    runs = _Runs({repo.sha["B2"]: "reuse"})                      # only a reuse run: not proven by itself
+    assert _decide(repo, runs, "R", "B2")[0] == "full"
+
+
+def test_mode_main_moved_by_the_task_list_only(repo):
+    """Run 43899493566: main moved by TASKS.md pushes (no runs) between the green code and the report."""
+    _task_branch(repo)
+    repo.git("checkout", "-q", "task")
+    repo.merge("B2", "main")
+    repo.git("checkout", "-q", "main")
+    repo.git("merge", "-q", "--ff-only", "task")
+    repo.commit("T2", {"TASKS.md": "t3\n"})                     # the lead's push: no run
+    repo.commit("T3", {"tasks/0100-y.md": "brief\n"})
+    repo.commit("R", {"TASKS.md": "t4\n"})
+    runs = _Runs({repo.sha["B2"]: "green"})
+    mode, _, why = _decide(repo, runs, "R", "T3")
+    assert mode == "docs" and repo.sha["B2"][:7] in why, why
+
+
+def test_mode_a_merge_that_brings_other_code_is_full(repo):
+    _task_branch(repo)
+    repo.commit("M1", {"fresing_render/b.py": "b = 1\n"})        # another task's code on main, green there
+    repo.git("checkout", "-q", "task")
+    repo.merge("B2", "main")
+    repo.commit("R", {"tasks/0170-x.md": "report\n"})
+    runs = _Runs({repo.sha["M0"]: "green", repo.sha["B1"]: "green", repo.sha["M1"]: "green"})
+    mode, _, why = _decide(repo, runs, "R", "M1")
+    assert mode == "full" and "code changed" in why, why
+
+
+@pytest.mark.parametrize("state", ["red", "cancelled", "running-full", "reuse"])
+def test_mode_a_candidate_that_did_not_run_green_gives_full(repo, state):
+    _task_branch(repo)
+    repo.git("checkout", "-q", "task")
+    repo.merge("B2", "main")
+    repo.commit("R", {"tasks/0170-x.md": "report\n"})
+    runs = _Runs({repo.sha["M0"]: "green", repo.sha["B1"]: state})
+    assert _decide(repo, runs, "R", "T1")[0] == "full"
+    assert runs.polls == 0                                        # a full run still going is not waited for
+
+
+def test_mode_waits_for_a_docs_run_still_going(repo):
+    _task_branch(repo)
+    repo.git("checkout", "-q", "task")
+    repo.merge("B2", "main")
+    repo.commit("R", {"tasks/0170-x.md": "report\n"})
+    runs = _Runs({repo.sha["B2"]: "running-docs"}, turns=3)
+    mode, _, why = _decide(repo, runs, "R", "T1")
+    assert mode == "docs" and runs.polls == 3, (mode, why)
+    runs = _Runs({repo.sha["B2"]: "running-docs"}, turns=999)    # never ends: bounded wait, then full
+    mode, _, why = _decide(repo, runs, "R", "T1")
+    assert mode == "full" and runs.polls == _pre().WAIT_LIMIT // _pre().WAIT_STEP and "stopped waiting" in why
+
+
+def test_mode_version_line_only_is_docs_other_lines_full(repo):
+    _task_branch(repo)
+    repo.git("checkout", "-q", "task")
+    base = repo.sha["B1"]
+    repo.commit("V", {"fresing_render/__init__.py": '__version__ = "0.2.11"\nX = 1\n',
+                      "fresing_render/blender_manifest.toml": 'version = "0.2.11"\n', "CHANGELOG.md": "c\n0.2.11\n"})
+    runs = _Runs({base: "green"})
+    assert _decide(repo, runs, "V", "B1", ref="refs/heads/task")[0] == "docs"
+    repo.commit("W", {"fresing_render/__init__.py": '__version__ = "0.2.11"\nX = 2\n'})
+    assert _decide(repo, runs, "W", "V", ref="refs/heads/task")[0] == "full"

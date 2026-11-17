@@ -5,6 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.134 – 16 Nov 2026 – Fast 3-axis: fewer faces, truer flanks (task 0167)
+
+- **Long milling programs (Fast 3-axis) give lighter, cleaner surfaces.** Faces along the passes, walls and steps are
+  now long strips instead of many small triangles: the test finishing program (40,000 points) has 24,700 faces
+  instead of 29,500, the app's own toolpath test model 117,000 instead of 182,000 (the exact cut: 96,000).
+- **Closer to the exact cut where it was furthest off:** the rounded strip at the start of a flat bit's ramp 0.055 mm
+  (was 0.14), the fillet of a corner-radius mill 0.075 mm (was 0.11), and a thin rib left between two cuts is kept
+  (was up to 0.29 mm off). A wall that stands exactly on the map's grid is no longer off.
+- **Finish at the CAD part:** where a finishing pass ran right on the finished part the surface now lies a hair
+  (0.0125 mm) over it instead of mixing with it into thousands of slivers.
+- What you might notice: scrubbing through such a program is a little slower per frame (about 5–10 ms on the test
+  machine).
+
 ## 0.2.133 – 16 Nov 2026 – The Fresing icon and start-up screen (task 0169)
 
 - **Fresing Render now looks like Fresing everywhere in Windows:** the Desktop shortcut, the Start menu, the window and

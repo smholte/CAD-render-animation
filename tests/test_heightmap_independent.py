@@ -23,11 +23,13 @@ long triangles), their distance to the other mesh's faces, both ways. Tiles are 
 have faces inside the material where two tiles touch; such a face has a face that looks the other way lying on it
 and is left out. Lengths in the programs are mm, in the app metres.
 
-Faults found and not fixed in task 0146 (the open points of the report in tasks/0146-heightmap-cutter.md) are marked
-``KNOWN FAULT`` below: the worker, after the tester's second report, replaced the stated bound in those five places by
-a bound a little above what was measured, so the test says how bad the fault is and fails if it gets worse. (Strict
-expected failures were tried first: GitHub's summary counts them as skipped tests, of which a group may have one.)
-When a fault is fixed, put the stated bound back.
+Faults found and not fixed in task 0146 (the open points of the report in tasks/0146-heightmap-cutter.md) were marked
+``KNOWN FAULT`` below: the stated bound replaced by one a little above what was measured, so the test says how bad the
+fault is and fails if it gets worse. (Strict expected failures were tried first: GitHub's summary counts them as skipped
+tests, of which a group may have one.) Task 0167 fixed two of the five places (the 0.04 mm rib, the wall on a grid line
+0.048 mm off) and the folded faces of the plunged holes; the three left are what remains of one fault - a wall that
+crosses a tile's border lies there partly twice - with their new, smaller sizes. When a fault is fixed, put the stated
+bound back.
 """
 
 import contextlib
@@ -744,10 +746,6 @@ def test_surfaces_and_walls_within_3_hundredths(name):
         assert abs((xa * MM - hm.x0) / (hm.tile * hm.cell) - 1.0) < 1e-9
     far, where = worst(r.cmp)
     limit = SURFACE * scale(r)
-    if name == "pocket_on_a_line":
-        # KNOWN FAULT (finding 4 of the second report): a wall that stands exactly on a line of the map's grid and
-        # on a tile's border (rare: the grid is off the round numbers) is 0.048 mm off. Stated: 0.03.
-        limit = 0.06 * MM
     assert far <= limit, (f"{name}: the fast cut is {far / MM:.3f} mm off the exact one (stated: {limit / MM:.3f}). "
                           f"{where}")
 
@@ -784,13 +782,9 @@ def test_steep_flank_of_a_deep_ball_groove():
     under the rim."""
     r = run("ball_grooves")
     far, where = worst(r.cmp)
-    # KNOWN FAULT (finding 1 of the second report): towards x = 27 the rims of the second and the third groove come
-    # within 0.04 mm of each other (y = 13), and the strip of top between them is lost where it is thinner than two
-    # cells: 0.289 mm there (0.3 mm is stated for features that thin). Everywhere else the steep strip is within
-    # its 0.2 mm.
-    assert far <= 0.3 * MM, f"{far / MM:.3f} mm off (0.3 for a feature thinner than two cells). {where}"
-    rest, where = worst(r.cmp, lambda P: ~((np.abs(P[:, 1] - 13 * MM) < 0.45 * MM) & (P[:, 0] > 15 * MM)))
-    assert rest <= STEEP, f"{rest / MM:.3f} mm off (stated: 0.2 on the steep strip under the rim). {where}"
+    # (task 0167: towards x = 27 the rims of the second and the third groove come within 0.04 mm of each other
+    # (y = 13); the strip of top between them is kept now - it was lost, 0.289 mm off)
+    assert far <= STEEP, f"{far / MM:.3f} mm off (stated: 0.2 on the steep strip under the rim). {where}"
 
 
 def test_corner_radius_pocket_with_ramps():
@@ -973,9 +967,11 @@ def test_every_face_that_can_be_seen_is_the_stocks_or_a_moves(name):
     seen, area = r.cmp["bare"] / MM, r.cmp["bare_mm2"]
     where = "" if not len(seen) else (f"between {np.round(seen.min(axis=0), 2).tolist()} and "
                                       f"{np.round(seen.max(axis=0), 2).tolist()} mm, e.g. {np.round(seen[0], 3).tolist()}")
-    # KNOWN FAULT (finding 3 of the second report): where the wall of a through hole crosses a tile's border a
-    # little wall names no move (no tool marks there): 1.7 mm2 on the 10 through holes of "plunges". Stated: none.
-    limit = 2.5 if name == "plunges" else 0.05
+    # KNOWN FAULT (finding 3 of 0146's second report; task 0167 explains it): where the wall of a through hole
+    # crosses a tile's border, both border nodes go onto the wall (its top and its foot), so a piece of the wall
+    # lies in the side the two tiles share and both carry it; there a little wall shows as the tiles' side, without
+    # a move (no tool marks): 1.8 mm2 on the 10 through holes of "plunges". Stated: none (0.05).
+    limit = 2.0 if name == "plunges" else 0.05
     assert area < limit, f"{name}: about {area:.1f} mm2 of faces without a label can be seen ({len(seen)} points), {where}"
 
 
@@ -1354,9 +1350,10 @@ def test_a_pockets_walls_are_there_once(name):
     R = r.sc["tools"][0].radius / MM
     want = (2 * (xb - xa - 2 * R) + 2 * (yb - ya - 2 * R) + 2 * math.pi * R) * 3.0
     walls = f.cut & (f.c[:, 2] < -1e-6) & (f.c[:, 2] > -3.0 + 1e-6)
-    # KNOWN FAULT (finding 4 of the second report): with a wall exactly on a grid line and a tile's border some
-    # wall faces lie there twice: 233.6 mm2 for 217.7. Stated: once (1 %).
-    assert f.area[walls].sum() == pytest.approx(want, rel=0.09 if name == "pocket_on_a_line" else 0.01), (
+    # KNOWN FAULT (finding 4 of 0146's second report, much smaller since task 0167): with a wall exactly on a grid
+    # line and a tile's border a little of the wall lies in the side the two tiles share and is there twice:
+    # 221.9 mm2 for 217.7 (was 233.6). Stated: once (1 %).
+    assert f.area[walls].sum() == pytest.approx(want, rel=0.025 if name == "pocket_on_a_line" else 0.01), (
         f"{name}: {f.area[walls].sum():.1f} mm2 of wall faces name a move; the pocket has {want:.1f} mm2 of wall")
 
 
@@ -1399,14 +1396,14 @@ def test_walls_of_plunged_holes_face_into_the_hole():
     turned_in = np.flatnonzero(wall)[away > 0]
     folded, true = float(f.area[turned_in].sum()), 4 * math.pi * (10 * 2 + 10 * 4 + 10 * 6)
     per_hole = np.bincount(k[turned_in], weights=f.area[turned_in], minlength=len(holes))
-    # KNOWN FAULT (finding 2 of the second report): on these 4 mm holes about 3 % of the wall faces lie folded over
-    # their neighbours (49 mm2 of 1,508; the wall faces add up to 1,606 mm2). The shape is right to 0.007 mm.
-    # Stated: under 1 mm2 and 0.5 %.
-    assert folded <= 0.045 * true, (
+    assert folded <= 1.0 and folded <= 0.005 * true, (
         f"{len(turned_in)} wall faces, {folded:.1f} mm2 of {true:.0f} mm2 of wall, are turned inside out (their normal "
         f"points away from the hole's axis, into the material) on {int((per_hole > 0).sum())} of 30 holes, up to "
         f"{per_hole.max():.1f} mm2 on one; the wall faces add up to {f.area[wall].sum():.0f} mm2")
-    assert f.area[wall].sum() == pytest.approx(true, rel=0.08)
+    # KNOWN FAULT (finding 2 of 0146's second report; the folded faces are gone since task 0167): where a hole's
+    # wall crosses a tile's border a little of it lies in the side the two tiles share and is there twice: the
+    # wall faces add up to 1,554 mm2 for 1,508 (+3.1 %; was 1,606). Stated: 2 %.
+    assert f.area[wall].sum() == pytest.approx(true, rel=0.04)
 
 
 @pytest.mark.parametrize("name", ["pocket", "pocket_on_a_line"])
@@ -1662,9 +1659,9 @@ def _border(hm, v, t, mv):
 def test_heightmap_tiles_are_closed_and_meet_at_their_borders():
     """A map of 3 x 2 tiles: a flat pocket, ball passes over a tile corner, a V groove, a plunge, a wall along a
     tile's border - at several times and with a move under way. Every tile's mesh is closed and turned outwards
-    and lies in the map. Tiles meet vertex for vertex, but for a node one tile keeps because a third forced it:
-    so every point of a tile's border (its vertices, the middles of its edges) lies on a neighbouring tile's
-    mesh within the thinning tolerance - but the points of a wall that the tile's side carries."""
+    and lies in the map. Tiles meet vertex for vertex, also near a corner where a third tile forced a node (task
+    0167; it was "within the thinning tolerance" before): every point of a tile's border (its vertices, the middles
+    of its edges) lies on a neighbouring tile's mesh - but the points of a wall that the tile's side carries."""
     cell = 0.2 * MM
     shapes = [H.shape_of(t, M.Cutter(t, "NORMAL").profile) for t in (FLAT4, BALL6, VEE90, DRILL5)]
     moves = []                                             # (shape, a, b, z0, z1, class)
@@ -1706,10 +1703,10 @@ def test_heightmap_tiles_are_closed_and_meet_at_their_borders():
                     gap = np.minimum(gap, surf.near(pts))
             j = int(np.argmax(gap))
             worst_gap = max(worst_gap, float(gap[j]))
-            assert gap[j] <= hm.tol + 1e-9, (
+            assert gap[j] <= 1e-9, (
                 f"after {k} moves the point {np.round(pts[j] / MM, 4).tolist()} mm on the border of tile {where} lies "
                 f"{'more than 0.06' if gap[j] >= NEAR else round(gap[j] / MM, 4)} mm from every other tile "
-                f"(thinning tolerance {hm.tol / MM} mm)")
+                f"(they meet vertex for vertex)")
 
 
 def test_heightmap_goto_is_the_same_from_anywhere():

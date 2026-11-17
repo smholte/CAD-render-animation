@@ -135,6 +135,9 @@ Owner's question (16 Nov): "does the Fresing Render app icon show as the Fresing
 which the app rightly leaves alone; fixed), 3 version clashes (0166, 0135, 0156 merged first: renumbered 0.2.130 →
 0.2.131 → 0.2.132 → 0.2.133). Green branch run 43962917731; main fast-forwarded after merging two task-list commits.
 
+**On the owner's PC (16 Nov 2026, after Update now to 0.2.133, his screenshots):** the start-up screen with the logo,
+the Fresing F on the taskbar while the app runs, and the three Desktop shortcuts with the F – all as intended.
+
 **Open points / follow-up tasks:**
 - Only the owner's PC can show the taskbar and a pinned icon for real (steps for the owner below).
 - Windows keeps an old pinned icon's picture in its icon cache; unpin + pin again fixes it (CHANGELOG and guide say so).
