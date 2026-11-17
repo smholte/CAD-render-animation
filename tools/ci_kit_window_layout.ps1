@@ -186,6 +186,31 @@ function Test-Window([string]$Name, $U) {
     $form.Dispose()
 }
 
+# ---- the check itself: a cut text, an overlap and a control outside its window must be found ----
+$probe = New-Form "probe"
+$probe.W = Px 300
+$pa = New-Text "A label much too long for its little box"
+$pa.SetBounds((Px 10), (Px 80), (Px 40), (Px 10))
+$pb = New-Text "x"
+$pb.SetBounds((Px 20), (Px 84), (Px 40), (Px 20))
+$pc = New-Button "Out"
+$pc.SetBounds((Px 260), (Px 120), (Px 100), (Px 30))
+$probe.form.Controls.AddRange(@($pa, $pb, $pc))
+[void](Set-Head $probe)
+Set-ClientSize $probe.form (Px 300) (Px 200)
+$probe.form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$probe.form.ShowInTaskbar = $false
+$probe.form.Show()
+[System.Windows.Forms.Application]::DoEvents()
+$before = $Problems.Count
+Test-Children "probe" $probe.form $probe.form.ClientSize.Width $probe.form.ClientSize.Height
+$probe.form.Close()
+$found = @($Problems | Select-Object -Skip $before)
+if ($found.Count) { $Problems.RemoveRange($before, $found.Count) }
+foreach ($k in @("needs", "overlaps", "outside")) {
+    if (-not ($found | Where-Object { $_ -like "*$k*" })) { [void]$Problems.Add("LAYOUT PROBLEM $Tag the check itself finds no control that $k (found: $($found -join ' / '))") }
+}
+
 # ---- sample data: the kit's own model titles, long times, a missing file, a run to continue ----
 $titles = @(Get-Content -LiteralPath (Join-Path $KitDir "models.ini") | Where-Object { $_ -match '^title\s*=' } |
     ForEach-Object { ($_ -split "=", 2)[1].Trim() })
