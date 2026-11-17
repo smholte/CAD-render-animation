@@ -149,6 +149,14 @@ a full run takes about 12 minutes alone (parallel jobs, task 0108; more while ot
 - **Push when the work is ready, not after every edit.** A newer push to the same branch cancels the running
   run. Run the tests of your area locally first; push once with code, tests and guide together. Reports,
   `TASKS.md` and `tasks/` files go in a **separate last push** that touches only those (no run starts).
+- **Lane runs while you build (task 0171).** A branch push whose version is **not raised yet** runs only the tests
+  that name the files your branch changed (mode **lane**: e.g. a change in `blender/web3d.py` starts 2 pytest jobs,
+  no real app, no Windows). The precheck lists what it picked and why. A shared file (`props.py`, `ui.py`,
+  `reimport.py`, `animation.py`, `handlers.py`, `build.py`, `tour.py`, `pccheck/`, `importer/`, packaging,
+  `installer/`, `tools/ci_*`, `.github/`) or a file no test names gives a full run. A lane run is **not a release
+  check** and proves nothing: the full run comes with the version raise. A task that does not raise the version
+  (tools, docs) puts **`[full run]`** in its last code commit's message before merging; so does a worker who wants
+  everything earlier.
 - **Documentation-only pushes are cheap.** A push that changes only `docs/`, `CHANGELOG.md`, `CLAUDE.md`,
   `README.md`, `TASKS.md`, `tasks/` and at most the version line of the two version files, on top of a commit
   whose run is green, runs mode **docs**: build, tooltip check, guide and their tests, a few minutes.
@@ -601,6 +609,14 @@ animation's first frame so it is as strict as one whole check). The first job,
   decision of a past run.
 - **reuse** – a push to `main` whose git tree already has a green run (the fast-forward of section 2): no tests;
   the release jobs take that run's installer files after `release_tools.py verify-run` checked it again.
+- **lane** (task 0171) – a branch push whose version equals the version where it left `main` (still being built),
+  without `[full run]` / `[release rehearsal]` in its commit message: `tools/ci_groups.py` `lane_plan` maps the files
+  changed since `main` to the tests that name them (a test file or real-app script naming the module's file name as a
+  word; `ops_x` / `ui_x` also pick the tests of `x`), regrouped into fewer jobs of ~10 min; the build + Windows part A
+  only for Windows code (`WINDOWS_FILES`, `ctypes`, `sys.platform` …), the packaged self-test only for `selftest.py`.
+  The PC check and the test tour never run in a lane run. Shared files (`FULL_FILES`, `FULL_PREFIXES`) or a file no
+  test names → full. The verdict job is called "Tests - verdict (lane run - not a release check)", and such a run is
+  never the green basis of a docs or reuse run. Try a mapping: `python3 tools/ci_groups.py --lane <file> …`.
 
 When the precheck fails, nothing else starts. On `main` with a new version, three release jobs follow (below):
 
@@ -612,7 +628,9 @@ When the precheck fails, nothing else starts. On `main` with a new version, thre
 | Linux - real app pccheck / pccheck-b / callouts / paths-heavy / tour / tour-b / ui / scenes / motion / machines | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck + pccheck-b = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`) in two halves – `pccheck2` runs `video.labels`, `queue.time_test`, `render.eevee` and `queue.eevee` (+ `import.crane` they need; task 0108), `pccheck` all other Full lines (`tools/ci_pccheck_lines.py`; the precheck fails when they stop adding up to every Full line); machines = milling, cylinder, linkage, waycover, gcode, tourui, doublearm (`ui_test_doublearm.py`, task 0064) … and `paths_test_blender.py` (task 0108); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = the PC check Heavy (scaled down, task 0033); tour + tour-b = the automatic test tour in two halves, every other stop each, both make the tour projects first (`tools/ci_pccheck_lines.py tour1` / `tour2`, task 0108; mode Tour,
 task 0059; its own group since task 0060); the other groups' tests: `GROUPS` in `tools/ci_real_app.py` (`python tools/ci_groups.py` prints every group; task 0108 moved ui2 + faces to motion, rulesets + decals to scenes, paths to machines); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
-| Windows - install + self-test | `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (the Windows lines of Full, then Heavy scaled down) from their Start-menu shortcuts, then `Uninstall.bat`. **Which PC-check lines run where (task 0063):** Linux runs all Full lines (the two halves above); Windows runs all Full lines except `video.labels`, `queue.time_test`, `queue.video`, `scene.turntable`, `tour.make`, `looks.materials`, `milling.coolant`, `milling.toolpath`, `motion.fade` (task 0108) (long renders of the app's own code, `WINDOWS_SKIPS` in `tools/ci_pccheck_lines.py`) – the Windows-specific parts (install, start, import, CPU render, the queue's background Blender, update check, the launch from the shortcut, the report) stay | 5.7–6.7 min (was 14.6); starts after the build |
+| Windows - install A / B (task 0171: two jobs at once, `-Part a` / `-Part b`, `WINDOWS_PARTS` in `tools/ci_groups.py`) | **A:** `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (the Windows lines of Full, then Heavy scaled down) from their Start-menu shortcuts, then `Uninstall.bat`. **B:** `Install.bat` once, files, the PC check Heavy (scaled
+down) from its Start-menu shortcut. The one job took 15–23 min (Heavy 9–11, Full 6–8, self-test 2–2.5, the rest ~1.5).
+**Which PC-check lines run where (task 0063):** Linux runs all Full lines (the two halves above); Windows runs all Full lines except `video.labels`, `queue.time_test`, `queue.video`, `scene.turntable`, `tour.make`, `looks.materials`, `milling.coolant`, `milling.toolpath`, `motion.fade` (task 0108) (long renders of the app's own code, `WINDOWS_SKIPS` in `tools/ci_pccheck_lines.py`) – the Windows-specific parts (install, start, import, CPU render, the queue's background Blender, update check, the launch from the shortcut, the report) stay | A and B ~12 min each (one job: 15–23); start after the build |
 | Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green; the release jobs need it | < 0.1 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
 | Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |

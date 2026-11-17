@@ -19,6 +19,12 @@ Mode of the run (output `mode`):
   docs   the push changes only documentation (docs/, CHANGELOG.md, CLAUDE.md, README.md, TASKS.md, tasks/) and at
          most the version line of the two version files, compared with a commit whose run is green: the build job with
          the tooltip check, the guide and their tests; no full suite, no real app, no Windows install.
+  lane   (task 0171) a branch push whose version is not raised yet (the task is still being built; CLAUDE.md: the
+         version is taken last) and whose changed files (against where it left main) are named by tests: only those
+         tests' jobs (`ci_groups.lane_plan`), plus the build and Windows part A when Windows code changed. A shared
+         file, a file no test names, a raised version, `main`, a pull request, "[full run]" or "[release rehearsal]"
+         in the commit message → full. A lane run proves nothing (its verdict job says "lane run"): never the basis of
+         a docs or reuse run.
   full   everything else: all tests.
 """
 
@@ -289,6 +295,8 @@ def run_is_proven(run: dict, jobs: list[dict]) -> tuple[bool, str]:
     if not build or any(j["conclusion"] != "success" for j in build):
         return False, f"run {run.get('id')}: the build job did not run green"
     verdict = ok(VERDICT_JOB)
+    if any(LANE_MARK in j["name"] for j in verdict):
+        return False, f"run {run.get('id')} was a lane run (only some tests): it proves nothing"
     if verdict:
         if any(j["conclusion"] != "success" for j in verdict):
             return False, f"run {run.get('id')}: the verdict job is not green"
@@ -334,6 +342,8 @@ API_CHECKS = 12            # at most this many candidates (with a documents-only
 WAIT_LIMIT = 6 * 60        # s: a candidate's docs run that is still going is waited for this long (a docs run: ~3 min)
 WAIT_STEP = 30
 TEST_JOBS = ("Linux - test suite", "Linux - real app", "Windows - install", "Linux - make the demo")
+LANE_MARK = "lane run"     # in the verdict job's name of a lane run: such a run proves nothing (task 0171)
+FULL_WORDS = ("[full run]", "[release rehearsal]")
 
 
 def candidates(sha: str, before: str, base: str, depth: int = 10) -> list[str]:
@@ -433,9 +443,59 @@ def docs_basis(sha: str, cands: list[str], api=gh_api, sleep=time.sleep, wait: f
     return "", [], notes
 
 
+def lane_base(sha: str) -> str:
+    """Where the branch left main (merge-base with origin/main, or a local main)."""
+    for ref in ("origin/main", "main"):
+        if git("rev-parse", "--verify", "-q", ref):
+            mb = git("merge-base", sha, ref)
+            if mb:
+                return mb
+    return ""
+
+
+def lane_decision(event: str, ref: str, sha: str, message: str | None = None) -> tuple[dict | None, str]:
+    """(plan, why) for a lane run (task 0171), or (None, why not)."""
+    if event != "push" or ref == "refs/heads/main":
+        return None, "main or a pull request"
+    message = git("log", "-1", "--format=%B", sha) if message is None else message
+    word = next((w for w in FULL_WORDS if w in message), "")
+    if word:
+        return None, f"'{word}' in the commit message"
+    mb = lane_base(sha)
+    if not mb or mb == sha:
+        return None, "no commit of main to compare with"
+    v_here, v_base = version_at(sha), version_at(mb)
+    if not v_here or v_here != v_base:
+        return None, f"version raised ({v_base or '?'} → {v_here or '?'}): the full run that comes with the version"
+    import ci_groups
+    files = changed_files(mb, sha)
+    plan = ci_groups.lane_plan(files, ROOT)
+    if plan["full"]:
+        return None, "; ".join(plan["why"][:4]) + (" …" if len(plan["why"]) > 4 else "")
+    return plan, (f"version {v_here} not raised yet (a task still being built): only the tests of the "
+                  f"{len(files)} changed files since {mb[:7]} on main")
+
+
 def decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api,
            sleep=time.sleep) -> tuple[str, str, str]:
     """(mode, artifacts run id, why)."""
+    return decide_plan(event, ref, sha, before, run_id, api, sleep)[:3]
+
+
+def decide_plan(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api, sleep=time.sleep,
+                message: str | None = None) -> tuple[str, str, str, dict | None]:
+    """(mode, artifacts run id, why, lane plan or None)."""
+    mode, art, why = _decide(event, ref, sha, before, run_id, api, sleep)
+    if mode != "full":
+        return mode, art, why, None
+    plan, lane_why = lane_decision(event, ref, sha, message)
+    if plan:
+        return "lane", run_id, lane_why, plan
+    return mode, art, f"{why} – not a lane run: {lane_why}", None
+
+
+def _decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api,
+            sleep=time.sleep) -> tuple[str, str, str]:
     if event == "workflow_dispatch":
         return "full", run_id, "started by hand: everything"
     on_main = ref == "refs/heads/main"
@@ -498,9 +558,12 @@ def main(argv=None) -> int:
 
     import ci_groups
     pytest_m, real_m, demo_m = ci_groups.matrix_pytest(), ci_groups.matrix_real_app(), ci_groups.matrix_demo()
-    mode, art_run, why = ("failed" if problems else "full"), args.run, "checks only"
+    win_m, build = ci_groups.matrix_windows(), True
+    mode, art_run, why, plan = ("failed" if problems else "full"), args.run, "checks only", None
     if args.github and not problems:
-        mode, art_run, why = decide(args.event, ref, sha, args.before, args.run)
+        mode, art_run, why, plan = decide_plan(args.event, ref, sha, args.before, args.run)
+    if plan:
+        pytest_m, real_m, demo_m, win_m, build = plan["pytest"], plan["realapp"], plan["demo"], plan["windows"], plan["build"]
 
     out = ["### Precheck: " + ("FAILED" if problems else "passed"), ""]
     out += [f"- ❌ {p}" for p in problems] + [f"- {n}" for n in notes]
@@ -511,6 +574,11 @@ def main(argv=None) -> int:
                     for g in pytest_m]
             out += [f"- pytest group {g['name']} (after the demo is made once): ~{g['minutes']} min" for g in demo_m]
             out += [f"- real-app group {g['name']}: {g['tests']}" for g in real_m]
+            out += [f"- Windows part {p['name']}: {p['what']}" for p in win_m]
+        if mode == "lane":
+            out += ["- **lane run – not a release check**: the full run comes with the version raise "
+                    "(or put [full run] in the commit message)"]
+            out += [f"- {line}" for line in ci_groups.describe(plan)]
     text = "\n".join(out) + "\n"
     print(text)
     print(f"MODE: {mode} {art_run if mode == 'reuse' else ''}".rstrip())     # read by tools/ci_status.py
@@ -523,6 +591,7 @@ def main(argv=None) -> int:
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
             fh.write(f"mode={mode}\nartifacts_run={art_run}\n")
             fh.write(f"pytest={json.dumps(pytest_m)}\nrealapp={json.dumps(real_m)}\ndemo={json.dumps(demo_m)}\n")
+            fh.write(f"windows={json.dumps(win_m)}\nbuild={'true' if build else 'false'}\n")
     return 1 if problems else 0
 
 
