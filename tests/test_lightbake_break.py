@@ -413,13 +413,18 @@ def test_compressed_file_keeps_every_copys_light_uvs(mill_compressed):
             pos = core.accessor_array(doc, binary, p["attributes"]["POSITION"]).astype(np.float64) * s + t
             idx = core.accessor_array(doc, binary, p["indices"]).ravel().astype(np.int64)
             uv1 = core.accessor_array(doc, binary, p["attributes"]["TEXCOORD_1"]).astype(np.float64)
+            # task 0175: whole steps of a quarter texel, scaled back by the occlusion texture's transform
+            occ = doc["materials"][p["material"]].get("occlusionTexture", {})
+            f = ((occ.get("extensions") or {}).get("KHR_texture_transform") or {}).get("scale", [1.0, 1.0])[0]
+            uv1 *= f
+            tol = max(2.0 / 65535, 0.51 * f / 65535)
             uv1[:, 1] = 1.0 - uv1[:, 1]
             for s0 in range(0, len(idx), 500):
                 cc = idx[s0:s0 + 500]
                 d2 = ((pos[cc][:, None, :] - cpos[None, :, :]) ** 2).sum(-1)
                 du = np.abs(it.uv[None, :, :] - uv1[cc][:, None, :]).max(-1)
                 du = np.where(d2 <= d2.min(1)[:, None] + 1e-9, du, np.inf)
-                assert float(du.min(1).max()) < 2.0 / 65535, ob.name
+                assert float(du.min(1).max()) < tol, ob.name
                 checked += len(cc)
     assert checked > 1000
 
