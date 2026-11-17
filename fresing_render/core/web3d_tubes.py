@@ -437,6 +437,34 @@ def pack(points, s=None, max_step: float | None = None):
     return lo, step, slo, sstep, q
 
 
+def delta(q) -> np.ndarray:
+    """(K, n, c) 16-bit numbers -> the first moment, then each moment minus the one before (wrapping round 2^16, as
+    the page's Uint16Array / Int16Array add them back; task 0175): meshopt packs the small steps of a slowly moving
+    line far tighter than the moments themselves."""
+    q = np.asarray(q)
+    d = np.diff(q.astype(np.int64), axis=0, prepend=np.zeros((1,) + q.shape[1:], np.int64))
+    return (d & 0xFFFF).astype(np.uint16).view(q.dtype) if q.dtype in (np.uint16, np.int16) else d.astype(q.dtype)
+
+
+def undelta(q) -> np.ndarray:
+    """``delta`` back: (K, n, c) of the same 16-bit type."""
+    q = np.asarray(q)
+    return (np.cumsum(q.astype(np.int64), axis=0) & 0xFFFF).astype(np.uint16).view(q.dtype)
+
+
+def read_arrays(spec: dict, arrays: dict) -> dict:
+    """The accessors of ``spec`` as the page uses them: ``q`` / ``nq`` summed back when they hold differences."""
+    out = dict(arrays)
+    k = int(spec.get("k", 1))
+    if spec.get("qd") and out.get("q") is not None:
+        q = np.asarray(out["q"])
+        out["q"] = undelta(q.reshape(k, -1, 4)).reshape(q.shape)
+    if spec.get("nqd") and out.get("nq") is not None:
+        q = np.asarray(out["nq"])
+        out["nq"] = undelta(q.reshape(k, -1, 2)).reshape(q.shape)
+    return out
+
+
 def unpack(lo, step, q, k: int) -> np.ndarray:
     """``pack``'s points back: (K, n, 3) float64."""
     lo = np.asarray(lo, np.float64).reshape(-1, 3)
@@ -508,6 +536,7 @@ def at(spec: dict, arrays: dict, t: float) -> dict:
     "tangents", "s" (m,), "pay"} in the part's own coordinates. ``arrays``: the accessors of ``spec`` read back
     ({"times", "lo", "step", "q", "n0", "s0", "pay_t", "pay", "trim_t", "trim", "s"} as present)."""
     k = int(spec.get("k", 1))
+    arrays = read_arrays(spec, arrays)
     pts = unpack(arrays["lo"], arrays.get("step"), arrays.get("q"), k)
     times = arrays.get("times")
     if times is None or k == 1:

@@ -787,6 +787,12 @@ USE_WEBP = True                # tests switch it off: the JPG every Blender can 
 WEBP_LOG: list = []            # (kind, jpg bytes, webp bytes, kept) of the last export's pictures
 
 
+def light_steps(px: int) -> int:
+    """Light-map UVs as whole numbers 0 … steps (task 0175): at least 2 steps a texel of a ``px`` atlas (off by at
+    most a quarter texel), a power of two (4096 on 2048 px), at most 65535 (the old full 16 bits)."""
+    return int(min(65535, 2 ** math.ceil(math.log2(max(2 * int(px), 2)))))
+
+
 def best(pixels: np.ndarray, kind: str, jpg_q: int) -> bytes:
     """(h, w, 3) bytes -> WebP when it is smaller than the JPG and as faithful (task 0175: its mean difference to
     the pixels at most 1.25 x the JPG's + 0.25, and its worst 0.1 % at most the JPG's + 2 of 255 – smooth light
@@ -1451,7 +1457,8 @@ class Job:
             if it is not None and it.kind == "MAP" and it.uv is not None and ob.data is not None:
                 first_uv.setdefault(ob.data.name_full, it.uv)
         self._light_bytes = self.gltf.image_bytes - before
-        return {"scale": scale, "atlas": atlas, "lit": {}, "first_uv": first_uv, "ref": ref, "by_name": by_name}
+        return {"scale": scale, "atlas": atlas, "lit": {}, "first_uv": first_uv, "ref": ref, "by_name": by_name,
+                "px": [int(max(np.asarray(a).shape[:2])) for a in res.atlases]}
 
     def _lit_mesh(self, ob, mesh: int, light: dict) -> int:
         """The mesh a baked copy shows: ``mesh`` plus its own light UVs or light per vertex."""
@@ -1464,7 +1471,10 @@ class Job:
         if it.kind == "MAP" and it.uv is not None:
             uv = np.asarray(it.uv, np.float64)[first]
             uv[:, 1] = 1.0 - uv[:, 1]                    # glTF's V runs down the picture
-            q = np.clip(np.round(uv * 65535.0), 0, 65535).astype(np.uint16)
+            # task 0175: steps of at most a quarter texel of the atlas (12 bits on 2048 px), scaled back by the
+            # material's texture transform – small numbers meshopt packs tighter (6.7 -> 4.1 MB on the demo)
+            steps = light_steps(light["px"][it.atlas])
+            q = np.clip(np.round(uv * steps), 0, steps).astype(np.uint16)
             acc = self.gltf.vertex_attribute(mesh, q, "VEC2", core.USHORT)
             swap = {}
             for p in self.gltf.doc["meshes"][mesh]["primitives"]:
@@ -1474,7 +1484,10 @@ class Job:
                     mat = (json.loads(json.dumps(self.gltf.doc["materials"][m])) if m is not None else
                            {"name": "Look", "pbrMetallicRoughness": {"baseColorFactor": [0.8, 0.8, 0.8, 1.0],
                                                                      "metallicFactor": 0.0, "roughnessFactor": 0.5}})
+                    f = 65535.0 / light_steps(light["px"][it.atlas])
                     mat["occlusionTexture"] = {"index": light["atlas"][it.atlas], "texCoord": 1}
+                    if abs(f - 1.0) > 1e-9:
+                        mat["occlusionTexture"]["extensions"] = {"KHR_texture_transform": {"scale": [f, f]}}
                     mat["name"] = f"{mat.get('name', 'Look')} · light {it.atlas + 1}"
                     light["lit"][key] = self.gltf.material(mat)
                 swap[m] = light["lit"][key]

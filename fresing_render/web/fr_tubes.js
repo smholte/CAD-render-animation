@@ -46,7 +46,16 @@
     unit(out, i);
   }
 
+  // task 0175: q / nq hold each moment minus the one before (16-bit, wrapping): summed back here
+  function undelta(src, per, Typed) {
+    var out = new Typed(src.length);
+    for (var i = 0; i < src.length; i++) out[i] = (i >= per ? out[i - per] : 0) + src[i];
+    return out;
+  }
+
   function Tube(spec, a) {
+    if (spec.qd && a.q) { a = Object.assign({}, a); a.q = undelta(a.q, (spec.n | 0) * 4, Uint16Array); }
+    if (spec.nqd && a.nq) { a = Object.assign({}, a); a.nq = undelta(a.nq, (spec.n | 0) * 2, Int16Array); }
     this.spec = spec;
     this.a = a;
     this.n = spec.n | 0;

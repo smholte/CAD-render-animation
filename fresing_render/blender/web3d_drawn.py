@@ -484,7 +484,11 @@ def tube_spec(gltf, it: Item, times) -> dict | None:
             spec["times"] = acc(times[keep].astype(np.float32), "SCALAR")
             spec["step"] = acc(step, "SCALAR")
             # x, y, z (and s) as 16-bit numbers, moment after moment
-            spec["q"] = gltf.accessor(q.reshape(-1, 4), "VEC4", core.FLOAT if wide else core.USHORT, pack=True)
+            if wide:
+                spec["q"] = gltf.accessor(q.reshape(-1, 4), "VEC4", core.FLOAT, pack=True)
+            else:                                # task 0175: moment-to-moment differences (11.0 -> 3.3 MB, demo)
+                spec["q"] = gltf.accessor(T.delta(q).reshape(-1, 4), "VEC4", core.USHORT, pack=True)
+                spec["qd"] = 1
             if not wide:
                 spec["tmin"] = float(32.0 * float(step.max()))      # pieces shorter than that: looked past
         spec["lo"] = acc(lo, "VEC3")
@@ -506,8 +510,9 @@ def tube_spec(gltf, it: Item, times) -> dict | None:
         own /= np.maximum(np.linalg.norm(own, axis=2, keepdims=True), 1e-300)
         off = float(np.linalg.norm(carried - own, axis=2).max())
         if off > T.TURN_TOL and it.look is not None:
-            spec["nq"] = gltf.accessor(np.ascontiguousarray(np.stack([frames[i][4] for i in keep])).reshape(-1, 2),
+            spec["nq"] = gltf.accessor(T.delta(np.stack([frames[i][4] for i in keep]).astype(np.int16)).reshape(-1, 2),
                                        "VEC2", core.SHORT, pack=True)
+            spec["nqd"] = 1                      # task 0175: differences, as ``q``
         channel("pay", pay, T.S_TOL)
         return spec
     # SPOOL: the whole wound path once, its cut per frame
