@@ -15,6 +15,17 @@ pytest.importorskip("OCP")
 import lifting_rig as LR  # noqa: E402
 
 
+@pytest.fixture(scope="module", autouse=True)
+def addon():
+    """Registered for this file only, as every other test module does (the next module registers it again)."""
+    import bpy
+    import fresing_render
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    fresing_render.register()
+    yield
+    fresing_render.unregister()
+
+
 @pytest.mark.parametrize("name", ["AT-40", "AT-100", "AT-250", "AT-500"])
 def test_mobile_crane_in_the_app(name, tmp_path):
     r = LR.Rigged(name, out=str(tmp_path))

@@ -162,6 +162,9 @@ branch, not `task/0191-…`). Version 0.2.148.
   reach rounded up 5 cm, AT boom lengths not the telescope steps). All fixed and now tested; its checks of flags, units,
   validation and `crane_use` were fine. It noted that `pick_chart` needs `jib=None` to pick a crawler's main-boom chart
   when jib charts exist (core behaviour, for L4).
+- GitHub runs: the first full run was cancelled by my next push; the second failed in suite 6 – my in-app test
+  files registered the add-on and never took it off, so the next module in the group could not register it
+  (`test_lightbake`); they now register per module like every other test file.
 - Public pages: none opened in this session; magnitudes from the study 0180 table (its sources) and general knowledge.
   **No maker's chart, name, logo or model in the repository** (tested).
 
