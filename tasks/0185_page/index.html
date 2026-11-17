@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Look C wide</title>
+<style>
+@font-face{font-family:"IBM Plex Sans";font-weight:400;src:url(fonts/IBMPlexSans-Regular-Latin1.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:600;src:url(fonts/IBMPlexSans-SemiBold-Latin1.woff2) format("woff2")}
+:root{--green:#479B29;--green-bright:#5CBF37;--deep:#1A2027;--panel:#252E36;--line:#3A4650;--text:#E8ECEF;--mute:#9AA6B0;
+--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--deep);color:var(--text);font:16px/1.5 var(--sans)}
+main{max-width:1500px;margin:0 auto;padding:16px}
+h1{font-size:26px;margin:12px 0 6px}
+h2{font-size:21px;margin:30px 0 6px;padding-top:8px;border-top:1px solid var(--line)}
+p.lead{color:var(--mute);margin:4px 0 12px;max-width:75ch}
+.bar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:5;background:rgba(26,32,39,.96);
+border-bottom:1px solid var(--line);padding:10px 16px;margin:0 -16px}
+.bar label{cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+.bar button,#answer button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);
+border-radius:8px;padding:6px 14px;cursor:pointer}
+.bar button[aria-pressed=true]{background:var(--green);border-color:var(--green)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.one .pair{grid-template-columns:1fr}
+.one .pair .cell:not(.on){display:none}
+.cell{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+.cell h3{margin:0 0 6px;font-size:17px}
+.cell p{margin:0 0 8px;color:var(--mute);font-size:14px}
+video{display:block;width:100%;height:auto;background:#111;border-radius:6px}
+.ref{margin-top:12px}
+.one .ref{display:none}
+.ref .cell{max-width:50%}
+.meta{color:var(--mute);font-size:13px;margin-top:6px}
+#answer{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 16px;margin:32px -16px 0;
+display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#answer code{flex:1 1 300px;background:#111;border-radius:6px;padding:8px 10px;font-size:14px}
+#answer input[type=text]{font:inherit;flex:1 1 200px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:#111;color:var(--text)}
+#answer .go{background:var(--green);border-color:var(--green)}
+@media (max-width:760px){.pair{grid-template-columns:1fr}.ref .cell{max-width:100%}}
+</style></head><body><main>
+<h1>Button look C – the whole app window</h1>
+<p class="lead">Look C is the spotlight: everything else is dimmed, the lesson's button is clear with a thin Fresing Green outline.
+Left: the <b>Lesson panel dimmed too</b> (as in the first round). Right: the <b>Lesson panel bright</b>. The dimming of the rest of the
+side panel is the same. Under it D for comparison. 3 s loops. Keys <b>1</b>/<b>2</b>/<b>3</b> or <b>←</b> <b>→</b> in one-at-a-time view.</p>
+<div class="bar"><span>View:</span>
+<button id="vboth" aria-pressed="true">Side by side</button><button id="vone" aria-pressed="false">One at a time</button>
+<span id="which" style="color:var(--mute)"></span></div>
+<div id="steps"></div>
+<div id="answer"><b>Your pick:</b>
+<label><input type="radio" name="p" value="C dark"> C dark</label>
+<label><input type="radio" name="p" value="C bright"> C bright</label>
+<input type="text" id="note" placeholder="note (optional)" aria-label="Note">
+<code id="line">0185 pick: –</code><button class="go" id="copy">Copy</button></div>
+</main>
+<script>
+const DATA={"steps": [{"id": "step3", "title": "Step 3 \u2013 Add rotate joint (joined to Add slide joint)"}, {"id": "step4", "title": "Step 4 \u2013 Add slide joint, the trolley runs along the boom"}], "costs": {"step3 C": 0.17153539744185764, "step3 C_bright": 0.16562888459959188, "step3 D": 0.04132320512512823, "step4 C": 0.1262575640980802, "step4 C_bright": 0.1661591410457055, "step4 D": 0.040305961568684816}};
+const KINDS=[["C","C dark","Lesson panel dimmed too"],["C_bright","C bright","Lesson panel bright"],["D","D","reference: the second button pick"]];
+let one=false,cur=0;
+const steps=document.getElementById("steps");
+function cell(s,k){const [key,name,sub]=KINDS[k];return `<div class="cell" data-k="${k}"><h3>${name}</h3><p>${sub}</p>`+
+`<video muted loop playsinline preload="auto" poster="clips/${s.id}_${key}.jpg" src="clips/${s.id}_${key}.mp4" data-k="${k}"></video>`+
+(DATA.costs[s.id+" "+key]!=null?`<div class="meta">drawing cost ${DATA.costs[s.id+" "+key].toFixed(2)} ms per redraw</div>`:"")+`</div>`}
+steps.innerHTML=DATA.steps.map(s=>`<h2>${s.title}</h2><div class="pair">${cell(s,0)}${cell(s,1)}</div><div class="ref">${cell(s,2)}</div>`).join("");
+const vids=[...document.querySelectorAll("video")];
+function sync(){vids.forEach(v=>{v.currentTime=0;v.play().catch(()=>{})})}
+function show(){document.body.classList.toggle("one",one);
+document.querySelectorAll(".pair .cell").forEach(c=>c.classList.toggle("on",+c.dataset.k===Math.min(cur,1)));
+document.getElementById("vboth").setAttribute("aria-pressed",!one);document.getElementById("vone").setAttribute("aria-pressed",one);
+document.getElementById("which").textContent=one?"Showing: "+KINDS[cur][1]+"  (← → to flip)":"";
+if(one&&cur===2){/* D lives in the reference row: show it */document.querySelectorAll(".one .ref").forEach(r=>r.style.display="block")}
+else document.querySelectorAll(".ref").forEach(r=>r.style.display="")}
+function flip(n){if(!one){one=true}cur=(n+3)%3;
+const t=vids[0].currentTime;
+document.querySelectorAll(".cell").forEach(c=>{const on=+c.dataset.k===cur;c.classList.toggle("on",on);
+ if(c.parentElement.classList.contains("ref")){c.parentElement.style.display=on?"block":"none";c.style.maxWidth="100%"}});
+show2();vids.forEach(v=>{if(!v.paused||true){v.currentTime=t}})}
+function show2(){document.body.classList.toggle("one",one);
+document.getElementById("vboth").setAttribute("aria-pressed",!one);document.getElementById("vone").setAttribute("aria-pressed",one);
+document.getElementById("which").textContent=one?"Showing: "+KINDS[cur][1]+"  (← → or 1 2 3 to flip)":""}
+document.getElementById("vboth").onclick=()=>{one=false;document.querySelectorAll(".cell").forEach(c=>{c.classList.remove("on");c.style.maxWidth=""});
+ document.querySelectorAll(".ref").forEach(r=>r.style.display="");show2()};
+document.getElementById("vone").onclick=()=>flip(cur);
+addEventListener("keydown",e=>{if(e.target.tagName==="INPUT")return;
+ if(e.key==="ArrowRight")flip(cur+1);else if(e.key==="ArrowLeft")flip(cur-1);
+ else if("123".includes(e.key)&&e.key)flip(+e.key-1)});
+const line=document.getElementById("line"),note=document.getElementById("note");
+function upd(){const r=document.querySelector("input[name=p]:checked");
+ line.textContent="0185 pick: "+(r?r.value:"–")+(note.value.trim()?" – "+note.value.trim():"");
+ try{localStorage.setItem("0185",JSON.stringify({p:r?r.value:"",n:note.value}))}catch(e){}}
+document.querySelectorAll("input[name=p]").forEach(i=>i.onchange=upd);note.oninput=upd;
+try{const s=JSON.parse(localStorage.getItem("0185")||"null");if(s){note.value=s.n||"";
+ const r=[...document.querySelectorAll("input[name=p]")].find(i=>i.value===s.p);if(r)r.checked=true}}catch(e){}
+upd();
+document.getElementById("copy").onclick=async()=>{try{await navigator.clipboard.writeText(line.textContent)}catch(e){
+ const t=document.createElement("textarea");t.value=line.textContent;document.body.appendChild(t);t.select();try{document.execCommand("copy")}catch(_){}t.remove()}
+ document.getElementById("copy").textContent="Copied";setTimeout(()=>document.getElementById("copy").textContent="Copy",1500)};
+addEventListener("load",sync);
+</script></body></html>
