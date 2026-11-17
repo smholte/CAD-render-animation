@@ -1,6 +1,6 @@
 # 0174 – Spools full of real cable: every layer drawn as one continuous cable on carousels and drums, wound fully in and out; every winch of the demo with its steel wire rope
 
-**Who:** worker (web session) · **Status:** running · **Branch:** `task/0174-full-spools` (a web session may name its own)
+**Who:** worker (web session) · **Status:** done (0.2.139) · **Branch:** `task/0174-full-spools` (a web session may name its own)
 **Started by:** lead chat, 17 Nov 2026 (owner's wish, 16 Nov 23:59, with a screenshot of the demo's carousel) ·
 **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation". Subagents
 allowed (CLAUDE.md section 2).
@@ -142,7 +142,7 @@ task – both edit `demo.py`); anchor chains; cables or hoses swaying in wind.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker session), 16–17 Nov 2026. GitHub runs: see the end.
+**Chat / date:** Claude Code on the web (worker session), 16–17 Nov 2026. Released as **0.2.139**.
 
 **What changed:**
 - **Every layer is cable** (`blender/spool.py`, `core/spool.py`): the solid under the top layer is gone. The layer
@@ -237,3 +237,12 @@ twice) – both fixed by the worker, its tests kept. No parallel writers.
 - The demo's tipping winches have a 6.5° fleet angle (no level wind, 2.6 m lead): a demo-model change if wanted, before
   they are spooled.
 - 0172 runs beside this task in the Flex lane: whoever merges second updates the demo tests' expected numbers.
+
+**GitHub runs:** 7 full runs of the branch. Early pushes: one cancelled by a newer push; one red with three real
+failures (the Heavy line's placeholder version, the vessel's WINCH DRUM count, and the tipping drum wire that a Build
+baked as standing still – the tipping winches were then taken out, see above); one red on a line break in a test. Then
+green four times, three of them only because `main` moved under the branch (0169, 0178, 0177 and 0172 took 0.2.136 –
+0.2.138): merge, renumber, run again. Green run 44004866932 on cd1026e, `main` fast-forwarded to it.
+
+**Branches to delete on GitHub:** `task/0174-full-spools` (merged).
+
