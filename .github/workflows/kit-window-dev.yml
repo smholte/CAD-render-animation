@@ -1,0 +1,31 @@
+# TEMPORARY (task 0177): a quick run of the render kit's window layout check on Windows while the task is worked on.
+# Deleted before the task merges.
+name: Kit window layout (task 0177, temporary)
+on:
+  push:
+    branches: [task/0177-kit-window-layout]
+jobs:
+  layout:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Layout at 100-200 %
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms
+          "screen: $([System.Windows.Forms.SystemInformation]::PrimaryMonitorSize) max track $([System.Windows.Forms.SystemInformation]::MaxWindowTrackSize)"
+          $fail = 0
+          foreach ($run in @("1.0 1920x1080", "1.25 1920x1080", "1.5 1366x768", "1.5 1920x1080", "1.75 1920x1080", "2.0 1920x1080")) {
+            $scale, $screen = $run.Split(" ")
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File tools\ci_kit_window_layout.ps1 -Scale $scale -Screen $screen -OutDir out 2>&1 | ForEach-Object { "$_" }
+            if ($LASTEXITCODE) { $fail = 1 }
+          }
+          Get-ChildItem out -Filter *.png | Where-Object { $_.Name -match '^kit_(1\.00_1920-1080_(start_continue|status2|end_shut)|1\.50_1366-768_start_continue(_scrolled)?|2\.00_1920-1080_(start|status4))\.png$' } |
+            ForEach-Object { "PNG $($_.Name) $([Convert]::ToBase64String([IO.File]::ReadAllBytes($_.FullName)))" }
+          exit $fail
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: kit-window
+          path: out/

@@ -107,6 +107,7 @@ New-Item -ItemType Directory -Force -Path $LocalAppData | Out-Null
 # Task 0144: the render kit's window script runs in Windows PowerShell 5.1 (the kit's .bat starts powershell.exe):
 # it must parse there, and its expected-time loop must give the numbers of kit_run.wall_seconds (tests/test_kit_window.py).
 $KitWindow = Join-Path $PSScriptRoot "..\site\render_kit\kit_window.ps1"
+$KitLayoutRuns = @("1.0 1920x1080", "1.25 1920x1080", "1.5 1366x768", "1.5 1920x1080", "1.75 1920x1080", "2.0 1920x1080")
 if (-not $Uninstall -and (Test-Path -LiteralPath $KitWindow)) {
     Note "Render kit window: parse and expected time in Windows PowerShell 5.1"
     $probe = Join-Path $WorkDir "kit_window_probe.ps1"
@@ -132,6 +133,28 @@ if (`$errs.Count) { `$errs | ForEach-Object { 'PARSE line ' + `$_.Extent.StartLi
     $want = @("WALL 5743", "WALL 21600", "PS 5")
     if ($code -ne 0 -or ($want | Where-Object { $said -notcontains $_ })) {
         Problem "the render kit's kit_window.ps1 does not parse or compute in Windows PowerShell 5.1 (exit $code): $($said -join ' / ')"
+    }
+
+    # Task 0177: the kit's windows at 100-200 % display scale (fonts and distances as at that scale; the start window must
+    # also fit a 1366 x 768 screen at 150 %): every text fits, nothing overlaps; a picture of each in <OutDir>\kit_window.
+    Note "Render kit windows: layout at 100-200 % display scale"
+    $layout = Join-Path $PSScriptRoot "ci_kit_window_layout.ps1"
+    $shots = Join-Path $OutDir "kit_window"
+    foreach ($run in $KitLayoutRuns) {
+        $scale, $screen = $run.Split(" ")
+        Remove-Item Env:PSModulePath -ErrorAction SilentlyContinue
+        try {
+            $said = & powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File $layout -Scale $scale -Screen $screen -OutDir $shots 2>&1 |
+                ForEach-Object { "$_" }
+            $code = $LASTEXITCODE
+        } finally {
+            $env:PSModulePath = $savedModulePath
+        }
+        $said | ForEach-Object { Write-Host "   $_" }
+        if ($code -ne 0) {
+            $bad = @($said | Where-Object { $_ -like "LAYOUT PROBLEM*" -or $_ -like "*Exception*" -or $_ -like "*error*" }) | Select-Object -First 6
+            Problem "the render kit's windows do not fit at $run (exit $code): $($bad -join ' / ')"
+        }
     }
 }
 
