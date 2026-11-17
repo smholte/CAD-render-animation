@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.144 – 17 Nov 2026 – Cables: saving and undo around "Working the cables out again" (task 0187)
+## 0.2.146 – 17 Nov 2026 – Cables: saving and undo around "Working the cables out again" (task 0187)
 
 - **Saving while the cables are worked out again no longer saves a half-hidden project.** Ctrl+S or autosave during
   the job used to write the file with most parts hidden and at another frame. Now the save gets the project as it
@@ -17,6 +17,23 @@ installer of that version was built from.
 - **Two drums can no longer share a name:** renaming a drum or carousel to a name that is taken gives it a free one
   ("Drum 2"), as cables do.
 - **A web 3D export run from a script** (PC check, site pictures) no longer saves the hidden drum solids into the project.
+## 0.2.145 – 17 Nov 2026 – Fast 3-axis no longer leaves a hole through the block (task 0186)
+
+- **Milling with Fast 3-axis: no more square hole straight through the workpiece.** On some programs one small square
+  of the block (about 6 × 6 mm) vanished for a few frames, all the way through, although the program never cut there.
+  Where a wall met the edge of one of the fast method's squares, its two corner points were joined in the wrong order;
+  that square is now built the right way.
+- Should a square ever still come out broken, the app now draws it the simpler way, or as uncut block – never as a hole.
+
+## 0.2.144 – 17 Nov 2026 – Model update keeps the work on a moved group without a name (task 0188)
+
+- **Mesh model update (glTF, OBJ, FBX): a group without a name in the file keeps its work when it moves.** Before,
+  when the new revision moved such a group ("Node 4"), its parts came in as new, its Hide step lost its target, its
+  eye in 2 Structure was lost and a joint on one of its parts was deleted. Now its parts with names of their own are
+  found by name wherever they went, and the group follows them: all parts kept, the steps, the eye and the joint stay.
+- **The same when only that group is left in the file.** The app then makes that group the model itself; the work on
+  the old group now goes to it instead of being lost.
+- STEP model updates are unchanged.
 
 ## 0.2.143 – 17 Nov 2026 – Smaller web 3D files (task 0175)
 

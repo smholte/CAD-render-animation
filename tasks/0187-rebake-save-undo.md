@@ -52,7 +52,7 @@ Rows 1, 7, 8, 10 (next Flex-lane task); web 3D files other than what row 11 need
 
 **Chat / date:** worker (Claude Code on the web, Sonnet), 17 Nov 2026
 
-**What changed:** version 0.2.144 (number to be confirmed at merge).
+**What changed:** version 0.2.146.
 - Row 3: `queue.busy_job` names the re-bake ("Cable re-bake", so Save warns and the queue / delayed start wait); a
   `save_pre` (`flex.pause_read_for_save`) puts the hidden parts, muted keys and frame back for the save and `save_post`
   (`flex.resume_read`) hides them again.
