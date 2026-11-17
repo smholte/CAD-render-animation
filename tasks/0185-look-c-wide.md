@@ -1,6 +1,6 @@
 # 0185 – Look C wide: the spotlight with the Lesson panel dark or bright, shown with more of the app
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0185-look-c-wide`, made from
+**Who:** worker · **Status:** done (17 Nov 2026) – lead publishes the page · **Branch:** `task/0185-look-c-wide`, made from
 `claude/practical-heisenberg-jm99vr` (0168's branch, **never merged**; a session branch `claude/…` is fine – say which
 in the report)
 **Started by:** lead chat, 17 Nov 2026 (owner after his 0168 pick) · **Model:** Sonnet · effort Medium · **Place:**
@@ -73,3 +73,49 @@ Any other look, colour or group; the highlight hook itself (0062); app code on `
 ---
 
 ## Report (filled in by the chat that did the task)
+
+**Chat / date:** Claude Code on the web (worker, Sonnet), 17 Nov 2026. Branch **`task/0185-look-c-wide`** (made from
+`claude/practical-heisenberg-jm99vr`, 0168's session branch; pushed with `[skip ci]`, never merged; commit `7e8dd05`).
+Page: **`tasks/0185_page/index.html`** on that branch (+ `clips/`, `fonts/`).
+
+### In short (for the owner)
+
+One page, two steps (*Add rotate joint* and *Add slide joint*), each with **C dark** (Lesson panel dimmed, as in 0168) and
+**C bright** (Lesson panel fully clear) side by side, D underneath. "One at a time" shows one clip big; keys 1/2/3 or
+← → flip between C dark, C bright, D at the same play position. Pick box at the bottom, Copy line `0185 pick: C dark` /
+`C bright` (+ optional note), remembered in the browser. Fresing Green only. Stills: `tasks/img/0185_step3_C_dark.jpg`,
+`0185_step3_C_bright.jpg`.
+Honest notes: (1) the picture shows the **whole window** at UI scale **0.7** on a 2000 x 1900 window (scaled to 1600 wide):
+at scale 2.0 the Lesson panel and the Motion buttons are never on screen together – the Lesson panel sits ~900 px above them,
+below the 1 Import panel and above 2 Structure / 3 Looks. So text is small; the Lesson panel is the one at the top of the side
+panel. (2) The brief's "a step whose button is near the Lesson panel" does not exist in the crane lesson (steps 1-2 are done
+by the time the lesson is shown); both clips are at the Motion section, at the same distance. Step 3 is 0168's step.
+(3) The Lesson step's text card in the 3D view is not dimmed in either variant (it lives in the view, not the side panel).
+
+### What changed (branch only)
+
+| File | What |
+| --- | --- |
+| `fresing_render/blender/lesson.py` | `C_bright` in `BUTTON_LOOKS` / `_BUTTON_DRAW` (`_look_c_bright`): C's dimming (0.62, same fade) with holes for the button and the Lesson panel's band (the two markers 0168 added for look M). `C` unchanged, all other looks unchanged |
+| `tools/lesson_clips_wide.py` | new: whole app window, any step (`LESSON_STEP`), looks (`LESSON_LOOKS`), scrolls the side panel until the Lesson markers and the button are both in view, 75 pictures at 25/s, H.264 veryfast CRF 27 yuv420p faststart, scaled to 1600 px wide, poster |
+| `tools/lesson_wide_page.py` | new: builds `tasks/0185_page/` |
+| `tasks/0185_page/` | 6 clips + 6 posters + page + fonts |
+
+### Tested and measured
+
+Web session, 4 cores, software GL, Blender 5.2.3 under xvfb, test crane; two Blender runs at once, ~2 min each, 0 failed
+checks. Six clips are 3 s loops, 78 drawn redraws each.
+- **Page folder 1.6 MB** (limit ~15). Headless Chromium: no script errors; side by side looked at (screenshot); the flip key
+  switched to "Showing: C bright"; a pick plus note gave `0185 pick: C bright – ok`. Videos not played in headless Chromium
+  (posters shown); the clips themselves are the usual H.264.
+- **Cost per side-panel redraw** (drawing only, Python side, 4 cores shared): step 3 – C 0.172 ms, **C_bright 0.166 ms**, D 0.041;
+  step 4 – C 0.126, C_bright 0.166, D 0.040. C_bright is the same as C within noise (one more rectangle pair, two more pixel
+  searches that the read does anyway for look M).
+- `tools/lesson_proto_app.py`: 0 failed checks; `tools/lesson_looks_app.py`: 12 of 12 OK (both on the branch, scale 1.0).
+- No subagents, no GitHub run (`[skip ci]`). Runs: none.
+
+### Open points
+
+- Lead: publish `tasks/0185_page/` from the branch as a private artifact (multi-file publish); the owner's "0185 pick" goes into
+  the 0062 brief and the progress note.
+- If the owner wants bigger text: a taller step with the Lesson panel closer needs the side panel's sections 2/3 folded; not done.
