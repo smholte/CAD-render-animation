@@ -1,6 +1,6 @@
 # 0189 – Fix: web 3D export of the demo too slow + small page faults (bug hunt 6, rows 9, 6, 12, 13, 17)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0189-web3d-follow-ups`
+**Who:** worker · **Status:** running · **Branch:** `task/0189-web3d-follow-ups`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183) · **Model:** Opus · effort Medium · **Place:** Claude Code on the
 web, environment "CAD-render-animation"
 **Area:** Web 3D lane (`blender/web3d.py`, `core/web3d.py`, `ui_web3d.py`, the page's `fr_*.js`, their tests)
