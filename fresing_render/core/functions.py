@@ -50,7 +50,7 @@ MENUS = {
 READING = {
     "layout", "start", "install", "navigate", "first-render", "scene", "tips", "inventor-export", "faster-renders",
     "troubleshooting", "self-test", "updates-not-arriving", "renders-folder", "panel-gone", "import-problems",
-    "render-problems",
+    "render-problems", "lifting-equipment",
 }
 
 
