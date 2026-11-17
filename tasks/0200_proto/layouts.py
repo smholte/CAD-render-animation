@@ -72,7 +72,7 @@ class FRESING_PT_make_product(bpy.types.Panel):
 
 
 def draw_make(layout, context, big=True):
-    grid = layout.grid_flow(columns=3, even_columns=True, even_rows=True, align=True)
+    grid = layout.grid_flow(columns=2, even_columns=True, even_rows=True, align=True)
     for key, text, icon, panel, _op, _t in OUTPUTS:
         col = grid.column(align=True)
         col.scale_y = 1.6 if big else 1.0
@@ -215,7 +215,21 @@ def enable_tabs():
     regate()
 
 
+def widen(names=("FRESING_PT_output", "FRESING_PT_turntable", "FRESING_PT_web3d"), units=18):
+    """A side-panel sub-panel shown as a popover is only ~10 units wide (text cut off): give it a width.
+    Measured: bl_ui_units_x must be set before registration (register again)."""
+    for n in names:
+        cls = getattr(bpy.types, n)
+        try:
+            bpy.utils.unregister_class(cls)
+            cls.bl_ui_units_x = units
+            bpy.utils.register_class(cls)
+        except Exception as exc:
+            print("[0200] widen", n, exc)
+
+
 def enable_make(a=True, b=True, c=True):
+    widen()
     for cls in (FRESING_PT_make_anim, FRESING_PT_make_product, FRESING_PT_make_header, FRESING_MT_make):
         bpy.utils.register_class(cls)
     if a:

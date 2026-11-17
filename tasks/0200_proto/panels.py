@@ -83,7 +83,7 @@ def redraw():
 
 def scroll(down):
     with override("UI"):
-        for _ in range(60):
+        for _ in range(int(os.environ.get("P_SCROLLS", "60"))):
             if down:
                 bpy.ops.view2d.scroll_down(deltax=0, deltay=400, page=False)
             else:
@@ -217,10 +217,10 @@ def layout_steps():
         crop(p, 0, 0, win.width, int(26 * SCALE), "LC_topbar")
         return 0.3
 
-    def popover_of(panel, name, at=(0.62, 0.85)):
+    def popover_of(panel, name, at=(0.62, 0.85), xy=None):
         def s_open():
             win, area, region, sb = areas()
-            x, y = region.x + region.width * at[0], region.y + region.height * at[1]
+            x, y = xy or (region.x + region.width * at[0], region.y + region.height * at[1])
             win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=int(x), y=int(y))
             with override():
                 try:
@@ -228,7 +228,7 @@ def layout_steps():
                     log("POPOVER", panel, "opened")
                 except Exception as exc:
                     log("POPOVER", panel, "FAILED", exc)
-            return 1.5
+            return 0.35                          # shot before a tooltip shows
 
         def s_shot():
             shot(name)
@@ -243,12 +243,12 @@ def layout_steps():
     popover_of("FRESING_PT_output", "LA_pop_still", at=(0.45, 0.8))
     popover_of("FRESING_PT_make_anim", "LA_pop_anim", at=(0.45, 0.8))
     popover_of("FRESING_PT_web3d", "LA_pop_web", at=(0.45, 0.95))
-    popover_of("FRESING_PT_make_header", "LB_pop", at=(0.8, 0.97))
+    popover_of("FRESING_PT_make_header", "LB_pop", xy=(1514, 1200 - 58))
 
     @step
     def s_menu():
         win, area, region, sb = areas()
-        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=int(330 * SCALE), y=win.height - 14)
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=402, y=win.height - 18)
         with override():
             bpy.ops.wm.call_menu(name="FRESING_MT_make")
         return 1.5
@@ -298,6 +298,25 @@ def layout_steps():
         wiggle()
         p = shot("LK_after")
         sidebar_crop(p, "LK_sidebar_after")
+        return 0.3
+
+
+    @step
+    def s_ctrl_click2():
+        """Then Ctrl+click on '4 Motion' (5th row under the Make panel): only that section opens?"""
+        win, area, region, sb = areas()
+        y = sb.y + sb.height - int(461 * SCALE / 1.5)
+        x = sb.x + int(90 * SCALE)
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+        win.event_simulate(type="LEFTMOUSE", value="PRESS", x=x, y=y, ctrl=True)
+        win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x, y=y, ctrl=True)
+        return 2.0
+
+    @step
+    def s_ctrl_shot2():
+        wiggle()
+        p = shot("LK_after2")
+        sidebar_crop(p, "LK_sidebar_after2")
         return 0.3
 
 
