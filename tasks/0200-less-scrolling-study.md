@@ -1,6 +1,6 @@
 # 0200 – Study + prototype (findings only): less scrolling – a floating set-up window, and all ways to render side by side
 
-**Who:** worker · **Status:** open – can start (findings only: no merge of app code, does not count as a code task) ·
+**Who:** worker · **Status:** running (findings only: no merge of app code, does not count as a code task) ·
 **Branch:** the session's own; prototype code pushed with `[skip ci]`, never merged; report + page to `main` as
 `tasks/` files only
 **Started by:** lead chat, 17 Nov 2026 22:30 (owner's wishes) · **Lane:** Start & learn (study; feeds 0062)
