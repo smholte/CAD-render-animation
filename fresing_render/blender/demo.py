@@ -1329,7 +1329,7 @@ SEA_LAID_FIRST = 60.0                 # task 0166: the lay cable's (from turbine
 SEA_CLARITY = 12.0                    # m: water clarity in the cut-away's walls
 SEA_SHOT_SECONDS = 10.0
 INTO_SEA = "Into the sea"             # the saved camera of shot 8
-SEA_ORBIT = -5.0                      # deg: its orbit about the vessel's middle (task 0173: was -10, which took the
+SEA_ORBIT = -3.0                      # deg: its orbit about the vessel's middle (task 0173: was -10, which took the
 #                                       touch-down and the ROV out of the picture – or under the caption – at the end)
 
 
@@ -1377,9 +1377,9 @@ VIEWS = {
     "Handling winch": ((-2600.0, -3200.0, 1300.0), "WINCH DRUM", 45.0),
     "Stern": ((-13000.0, -21000.0, 13000.0), (6000.0, 0.0, 4000.0), 28.0),
     "Quadrant": ((-7000.0, 15000.0, 9000.0), "QUADRANT FRAME", 26.0),
-    # task 0173: aimed lower and wider, so the touch-down and the ROV beside it are in the picture with horn A, the
-    # ROV above the caption's band
-    INTO_SEA: ((-52000.0, -46000.0, 18000.0), (-27000.0, -8000.0, -20000.0), 19.0),
+    # task 0173: aimed lower and wider, so the touch-down and the ROV beside it (on the far side of the cable, seen
+    # through the cut-away) are in the picture with horn A, the ROV above the caption's band
+    INTO_SEA: ((-48000.0, -40000.0, 22000.0), (-23000.0, 0.0, -20000.0), 22.0),
     "Over the stern": ((-38000.0, -30000.0, 10000.0), (-3000.0, 0.0, -10000.0), 30.0),       # shots 10, 12 (0082)
     "At the seabed": ((-24000.0, -6000.0, -12000.0), (-4000.0, 0.0, -28500.0), 32.0),        # shot 11, under water
     "CPS rack": ((11000.0, 23000.0, 14000.0), (24000.0, 6500.0, 5200.0), 26.0),              # shot 8b (0126)

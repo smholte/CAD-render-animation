@@ -3,14 +3,15 @@
 lay cable's touch-down in shot 8, with its tether to the vessel's transom.
 
 **Where it is.** The maker puts the ROV at its station in the vessel's coordinates (``rov.station``): level with the
-touch-down (horn A's leave point minus the 32 m layback), 8 m outboard of the cable's line and 2.5 m over the seabed,
+touch-down (horn A's leave point minus the 32 m layback), 8 m inboard of the cable's line (the far side seen from
+shot 8's camera, which looks down on it through the cut-away) and 2.5 m over the seabed,
 looking across at the touch-down (its camera tilted 20° down). The vessel stands still in the scene and the seabed
 moves aft under it with the lay, so a ROV that keeps its place in the scene keeps pace with the lay: no joint needs to
 move it. Its root's basis is the vessel root's basis @ the station; **5 Scene & Render > Vessel motion** keeps it
 **Still** – it does not heave, roll or pitch with the vessel (it flies on its own thrusters).
 
 **Its tether** is a hose of 4 Motion > Hoses and drag chains: the CAD tether (a slack tube from the ROV's bend
-restrictor to the transom, 4 m outboard of the cable, 1 m under water) is read as a hose whose ends stay on the
+restrictor to the transom, 4 m inboard of the cable, 1 m under water) is read as a hose whose ends stay on the
 restrictor and on the hull's bottom plate, so it follows the vessel's heave and pitch at every frame (Build solves it
 with the other hoses).
 

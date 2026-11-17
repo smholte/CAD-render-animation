@@ -245,7 +245,7 @@ def test_the_station_is_beside_the_touch_down_and_looks_at_it(placed):
     tdp = np.array([x_leave - rov.LAYBACK, HORN[1], -rov.DEPTH])
     at = P[:3, 3]
     assert at[0] == pytest.approx(tdp[0]) and at[2] == pytest.approx(-rov.DEPTH + rov.ABOVE)
-    assert abs(at[1] - HORN[1]) == pytest.approx(rov.SIDE) and abs(at[1]) > abs(HORN[1])     # outboard of the cable
+    assert abs(at[1] - HORN[1]) == pytest.approx(rov.SIDE) and (at[1] - HORN[1]) * HORN[1] < 0     # inboard of it
     fwd = P[:3, :3] @ np.array([1.0, 0.0, 0.0])
     to_tdp = (tdp - at)[:2] / np.linalg.norm((tdp - at)[:2])
     assert float(fwd[:2] @ to_tdp) > 0.999 and abs(fwd[2]) < 1e-9                             # level, facing it
@@ -268,10 +268,10 @@ def test_the_tether_runs_slack_from_the_restrictor_to_the_transom(placed):
     assert np.linalg.norm(pts - tip, axis=1).min() < rov.TETHER_R + 3.0       # it starts at the restrictor's end
     assert np.linalg.norm(pts - top_l[:3], axis=1).min() < rov.TETHER_R + 3.0  # and ends at its point on the transom
     top = np.array(info["tether_top"])
-    assert top[0] < 0.0 and top[2] < 0.0 and abs(top[1]) > abs(HORN[1])     # aft of the transom, under water, outboard
+    assert top[0] < 0.0 and top[2] < 0.0 and (top[1] - HORN[1]) * HORN[1] < 0    # aft of the transom, under water, inboard
     chord = np.linalg.norm((P @ np.r_[tip, 1.0])[:3] - top)
     assert 1.02 * chord < info["tether_length"] < 1.15 * chord
-    # it stays outboard of the cable's line (the cable runs at y = HORN[1]) and over the seabed
+    # it stays inboard of the cable's line (the cable runs at y = HORN[1]), 3 m and more away, and over the seabed
     wp = pts @ P[:3, :3].T + P[:3, 3]
-    assert (np.abs(wp[:, 1]) > abs(HORN[1]) + 3000.0).all()
+    assert ((wp[:, 1] - HORN[1]) * -np.sign(HORN[1]) > 3000.0).all()
     assert wp[:, 2].min() > -rov.DEPTH + 1000.0                         # a metre and more over the seabed

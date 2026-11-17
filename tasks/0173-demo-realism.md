@@ -76,14 +76,14 @@ Split (one owner per file):
 
 ## Done when
 
-- [ ] Points 1–7; Make demo project runs; its clash check stays at 0 rows (ROV left out, its clearances tested)
-- [ ] Expected numbers in the demo / catenary / sea tests updated with a one-line reason each; nothing loosened
-- [ ] Stills of shot 8 (lay data box + ROV, day and night if shot 13 shows it), shot 5's caption and a tipping-winch
+- [x] Points 1–7; Make demo project runs; its clash check stays at 0 rows (ROV left out, its clearances tested)
+- [x] Expected numbers in the demo / catenary / sea tests updated with a one-line reason each; nothing loosened
+- [x] Stills of shot 8 (lay data box + ROV, day and night if shot 13 shows it), shot 5's caption and a tipping-winch
       close-up, as `tasks/img/0173_*` (the demo is invented – fine to commit), named in the report
-- [ ] Make demo time and the project size before/after in the report
-- [ ] An independent tester (a subagent that did not write the code) checks points 2 and 6 by reading and running
+- [x] Make demo time and the project size before/after in the report
+- [x] An independent tester (a subagent that did not write the code) checks points 2 and 6 by reading and running
 - [ ] Tests added/updated; full suite passes on GitHub; report filled in; merged; release as usual (section 7)
-- [ ] Report ends with the owner's steps (which shots to look at on the RTX 3090)
+- [x] Report ends with the owner's steps (which shots to look at on the RTX 3090)
 
 ## Not in this task
 
@@ -120,7 +120,8 @@ Split (one owner per file):
 3. **The ROV** (`demo_model/rov.py`, own file `demo_rov.step`, made by a subagent; `blender/demo_rov.py`): frame,
    buoyancy, skids, 7 ducted thrusters (propellers turn, Run motor), two lights (emission lenses), a pan-tilt camera,
    two manipulators, bend restrictor. 31,014 triangles at Normal (the brief's budget 40,000), plus its tether.
-   Station from the maker (`rov.station`): level with the touch-down, 8 m outboard of the cable, 2.5 m over the
+   Station from the maker (`rov.station`): level with the touch-down, 8 m inboard of the cable (the far side from shot
+   8's camera, seen through the cut-away), 2.5 m over the
    seabed, facing it. It is **Still** for vessel motion; no joint is needed to keep pace (the vessel stands still in
    the scene, the seabed moves). Measured: the touch-down moves ±1 m with the heave and drifts up to ~3 m aft over
    shots 1–8b (the lay's lengths are fixed per moment); the ROV keeps its station and the touch-down in view (within
@@ -186,8 +187,8 @@ its pass-count expectations changed from "one extra pass" to "no extra pass" aft
 
 **Stills** (invented content, Cycles CPU, 1280 × 720, 24 samples): `tasks/img/0173_shot8_lay_data_rov.jpg` (shot 8:
 the Lay data box, the ROV beside the touch-down, the caption with "surface lay"), `tasks/img/0173_shot5_caption.jpg`
-(shot 5's caption), `tasks/img/0173_tipping_winch.jpg` (the port tipping winch's narrow drum with its wire in layers
-while the D is lowered). No night still: the ROV is hidden in shot 13.
+(shot 5's caption), `tasks/img/0173_tipping_winch.jpg` (a tipping winch's narrow drum with its wire in layers going
+up the swivel post while the D is lowered). No night still: the ROV is hidden in shot 13.
 
 **GitHub runs:** see below.
 
@@ -200,4 +201,4 @@ while the D is lowered). No night still: the ROV is hidden in shot 13.
 4. Shot 5: the first caption names the 15–20 t tensioner and the Ø 200 mm cable (MBR 3.5 m).
 5. Shots 9 and 12: the handler's tilt captions end "(x 30)".
 6. Shots 10–11 (the D lowered and tipped): the two tipping winches at the stern turn and their wire comes off the
-   drum layer by layer (5 Scene & Render > Cameras > "Stern" shows them).
+   drum layer by layer (seen at the stern, behind the CPS rack).

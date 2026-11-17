@@ -244,7 +244,7 @@ def build(p: Params | None = None, place=None, cable_y: float | None = None) -> 
     """(root Asm, info for the route sheet; ROV coordinates, mm). ``place`` (task 0173): the ROV's station in the
     vessel's coordinates (``station``) – then it gets its tether to the transom ("ROV TETHER", a slack tube the app
     makes a hose of) and ``info["place"]``, ``info["tether_top"]`` (vessel mm). ``cable_y``: the lay cable's line (y,
-    vessel mm): the tether's top is ``TETHER_TOP[1]`` outboard of it."""
+    vessel mm): the tether's top is ``TETHER_TOP[1]`` inboard of it."""
     del p                                              # (the ROV does not depend on the cable)
     root = Asm(ROOT)
     root.add(Part("ROV FRAME", frame(), ALU))
@@ -288,7 +288,7 @@ def build(p: Params | None = None, place=None, cable_y: float | None = None) -> 
     extra = {}
     if place is not None:
         P = np.asarray(place, float)
-        side = -1.0 if (cable_y or 0.0) < 0 else 1.0
+        side = 1.0 if (cable_y or 0.0) < 0 else -1.0                       # inboard, as the ROV
         top = np.array([TETHER_TOP[0], (cable_y or 0.0) + side * abs(TETHER_TOP[1]), TETHER_TOP[2]])
         Pi = np.linalg.inv(P)
         top_l = (Pi @ np.r_[top, 1.0])[:3]
@@ -325,22 +325,23 @@ def build(p: Params | None = None, place=None, cable_y: float | None = None) -> 
 LAYBACK = 32000.0                      # mm from where the cable leaves horn A to the touch-down (demo.SEA_LAYBACK)
 DEPTH = 30000.0                        # mm of water (demo.SEA_DEPTH); the waterline is the vessel's z = 0
 LEAVE_DEG = 68.0                       # the cable leaves horn A this far below horizontal (30 m, 32 m layback)
-SIDE = 8000.0                          # mm outboard of the cable's line, level with the touch-down
+SIDE = 8000.0                          # mm inboard of the cable's line (towards the vessel's middle), level with the
+#                                        touch-down: the far side seen from shot 8's camera, which looks down on it
 ABOVE = 2500.0                         # mm: the skids over the seabed
-TETHER_TOP = (-2.0, -4000.0, -1000.0)  # mm: the tether's end on the transom (x), outboard of the cable (y), under water
+TETHER_TOP = (-2.0, 4000.0, -1000.0)   # mm: the tether's end on the transom (x), inboard of the cable (y), under water
 TETHER_SLACK = 1.06                    # the tether's length / the straight line between its ends (a hose: it hangs)
 TETHER_R = 20.0                        # mm (a Ø 40 mm tether)
 
 
 def station(horn_centre, horn_r: float) -> np.ndarray:
-    """The ROV's place in the vessel's coordinates (4 x 4, mm): level with the touch-down, ``SIDE`` outboard of the
-    cable's line (the cable runs on the side its y says), ``ABOVE`` the seabed, looking (+x) across at the touch-down.
+    """The ROV's place in the vessel's coordinates (4 x 4, mm): level with the touch-down, ``SIDE`` inboard of the
+    cable's line (towards the vessel's middle line), ``ABOVE`` the seabed, looking (+x) across at the touch-down.
     ``horn_centre``: horn A's bend centre (vessel mm), ``horn_r``: its bend radius."""
     hc = np.asarray(horn_centre, float)
     x_leave = hc[0] - horn_r * math.sin(math.radians(LEAVE_DEG))
-    side = -1.0 if hc[1] < 0 else 1.0                       # outboard: away from the centre line
+    side = 1.0 if hc[1] < 0 else -1.0                       # inboard: towards the middle line
     at = np.array([x_leave - LAYBACK, hc[1] + side * SIDE, -DEPTH + ABOVE])
-    return T(*at) @ g.Rot((0.0, 0.0, 1.0), 90.0 if side < 0 else -90.0)
+    return T(*at) @ g.Rot((0.0, 0.0, 1.0), 90.0 if side < 0 else -90.0)     # +x towards the cable
 
 
 def tether_points(start, d0, end, d1, slack: float = TETHER_SLACK, n: int = 40) -> np.ndarray:
