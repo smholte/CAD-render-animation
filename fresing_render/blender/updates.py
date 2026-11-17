@@ -278,8 +278,13 @@ def restart_command(context) -> list[str]:
 
 def build_restart(exe: str, template: str, filepath: str, windows: bool) -> list[str]:
     if windows:                                 # starts Blender without a console window (as the shortcut)
+        from .. import winexe                   # task 0177: "Fresing Render.exe" when it is there and usable
+        copy = winexe.copy_path(winexe.blender_exe_of(exe))
         launcher = os.path.join(os.path.dirname(exe), "blender-launcher.exe")
-        if os.path.isfile(launcher):
+        if winexe.is_copy(exe) or (os.path.isfile(copy) and winexe.usable(winexe.blender_exe_of(exe))
+                                   and winexe.sac_state() == 0):
+            exe = copy
+        elif os.path.isfile(launcher):
             exe = launcher
     cmd = [exe]
     if template:

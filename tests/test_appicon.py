@@ -106,24 +106,24 @@ def info(**kw):
 
 
 def test_plan_an_old_app_shortcut_gets_icon_and_id():
-    assert ai.plan(info(), INST, ICON) == {"icon": True, "app_id": ai.APP_ID}
+    assert ai.plan(info(), INST, ICON) == {"icon": True, "app_id": ai.APP_ID, "target": ""}
 
 
 def test_plan_a_right_shortcut_needs_nothing():
-    assert ai.plan(info(icon=ICON, app_id=ai.APP_ID), INST, ICON) == {"icon": False, "app_id": ""}
+    assert ai.plan(info(icon=ICON, app_id=ai.APP_ID), INST, ICON) == {"icon": False, "app_id": "", "target": ""}
     assert ai.plan(info(icon=ICON.upper(), app_id=ai.APP_ID), INST, ICON)["icon"] is (os.path.normcase("A") == "A")
 
 
 def test_plan_other_shortcuts_get_the_icon_but_no_id():
     pc = info(target=EXE, arguments='--background --python "x\\launcher.py" -- "D" quick')
-    assert ai.plan(pc, INST, ICON) == {"icon": True, "app_id": ""}
+    assert ai.plan(pc, INST, ICON) == {"icon": True, "app_id": "", "target": ""}
     assert ai.plan(info(icon=ICON, icon_index=3, app_id=ai.APP_ID), INST, ICON)["icon"]
 
 
 def test_plan_never_touches_a_shortcut_outside_the_install():
     other = info(target=os.path.join(os.sep, "x", "FresingRenderOld", "blender.exe"))
-    assert ai.plan(other, INST, ICON) == {"icon": False, "app_id": ""}
-    assert ai.plan(info(target=""), INST, ICON) == {"icon": False, "app_id": ""}
+    assert ai.plan(other, INST, ICON) == {"icon": False, "app_id": "", "target": ""}
+    assert ai.plan(info(target=""), INST, ICON) == {"icon": False, "app_id": "", "target": ""}
 
 
 def test_install_dir_needs_installed_txt(tmp_path):
@@ -204,8 +204,8 @@ def test_the_icon_ships_inside_the_extension():
 
 def test_a_pinned_plain_blender_keeps_its_icon():
     plain = info(target=EXE, arguments="")
-    assert ai.plan(plain, INST, ICON, pinned=True) == {"icon": False, "app_id": ""}
-    assert ai.plan(info(), INST, ICON, pinned=True) == {"icon": True, "app_id": ai.APP_ID}
+    assert ai.plan(plain, INST, ICON, pinned=True) == {"icon": False, "app_id": "", "target": ""}
+    assert ai.plan(info(), INST, ICON, pinned=True) == {"icon": True, "app_id": ai.APP_ID, "target": ""}
     assert ai.is_pinned(os.path.join("C:", "AppData", ai.PINNED, "Fresing Render.lnk"))
     assert not ai.is_pinned(os.path.join("C:", "Desktop", "Fresing Render.lnk"))
 
