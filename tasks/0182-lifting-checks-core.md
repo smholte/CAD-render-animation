@@ -1,6 +1,6 @@
 # 0182 – Lifting plans L1: the checks and the load-chart format in plain Python
 
-**Who:** worker · **Status:** running · **Branch:** `task/0182-lifting-checks`
+**Who:** worker · **Status:** done · **Branch:** `task/0182-lifting-checks`
 **Started by:** lead chat, 17 Nov 2026 (study 0180, task L1; owner's answers the same day) · **Lane:** Lifting (new files
 only: `fresing_render/core/lifting.py`, `tests/test_lifting.py`, `tests/test_lifting_independent.py`; nothing in `blender/`)
 **Model:** Opus · effort High · **Place:** Claude Code on the web, environment "CAD-render-animation"
@@ -41,9 +41,9 @@ checks the app must not do), section 4 (chart format, sample mark), section 8 (t
 
 ## Done when
 
-- [ ] C1–C9 + chart lookup / validation (rising radius, falling capacity, units) + status + limits in `core/lifting.py`.
-- [ ] Every worked case of section 3 passes to the study's digits; the independent tests pass.
-- [ ] Full GitHub run green (put `[full run]` in the last code commit – no version raise, nothing visible); merged to
+- [x] C1–C9 + chart lookup / validation (rising radius, falling capacity, units) + status + limits in `core/lifting.py`.
+- [x] Every worked case of section 3 passes to the study's digits; the independent tests pass.
+- [x] Full GitHub run green (put `[full run]` in the last code commit – no version raise, nothing visible); merged to
       `main`; report filled in; `TASKS.md`.
 
 ## Not in this task
@@ -183,10 +183,44 @@ and never used by a check (owner: always the next longer radius).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 17 Nov 2026. 1 full GitHub run (no version raise: nothing the owner can see).
 
 **What changed:**
+- `fresing_render/core/lifting.py` (new, plain Python, no Blender or NumPy): the nine checks of study 0180 –
+  C1 `crane_use`, C2 `two_leg`, C3 `multi_leg` (rigid / equalised / DNV 1.25, assembly rating 2.1× / 1.5×, none
+  above 60°), C4 `wll_use`, C5 `outrigger_reactions` / `outriggers` / `outriggers_sweep` (lift-off, tipping, every
+  slew angle loaded and unloaded), C6 `tracks`, C7 `forklift`, C8 `static_hook_load` / `daf_for` / `dynamic_load`
+  (preset `DAF_DNV_OS_H205_2014` + `DAF_NOTE`), C9 `upending`; the load chart (`Chart`, `lookup` = next longer
+  radius, gaps "not allowed here", `validate_chart(s)`, `pick_chart` = next longer boom / next higher Hs column,
+  `chart_from_dict` / `chart_to_dict` in t / kg / lb and m / mm / ft); `Result` (inputs, formula, value, limit, use,
+  status, words, message, details, notes, parts, leaves out; `to_dict`), `status_of`, `worst_status`, `worst`;
+  `Limits` 75 % / 90 % / 90 %; lift categories BS 7121 (default) and ASME P30.1 with `suggest_category`; the words of
+  section 8 (`PLANNING_AID`, `SAMPLE_MARK`, `NOT_CHECKED_BY_APP`, `NOT_DONE`, `FORBIDDEN_WORDS`). SI inside.
+- `capacity_interpolated` gives only the study's interpolated number; no check calls it (owner: next longer radius).
+- Tests: `tests/test_lifting.py` (27, every worked case of section 3 to the study's digits) and
+  `tests/test_lifting_independent.py` (241). `CLAUDE.md` section 3: the new module.
+- No tour stop, PC-check line, function entry or guide section: nothing the owner can see yet (L4 adds them).
 
-**Tested and measured** (name the machine and the model):
+**Subagents:** one independent tester (worktree, did not read `lifting.py`) wrote `tests/test_lifting_independent.py`
+from section 3 and the Design only. 236 of its 241 tests passed against the code at once. The 5 others were places
+the Design left open, all settled its way and written into the Design: a missing WLL in C4 gives "not checked"
+(was an error), the DAF preset is flat rows `(top, onshore, inshore, offshore)`, the DAF note's exact text. Its other
+readings matched the code (band tops inclusive, the lifted corner's reaction 0, the unloaded crane at every slew).
+
+**Tested and measured** (4-core web machine, no model): `pytest tests/test_lifting*.py` – 268 passed in 0.2 s.
+Worked cases, e.g.: C1 13.6 t at 11.3 m → 24.0 t at 12 m → 56.7 %; C2 legs 6.988 / 4.881 t; C3 12.289 t (98.3 %
+amber), assembly 76.2 %; C5 27.863 / 19.590 / 12.210 / 3.937 t, 121.4 kPa; lift-off 55.846 / 10.359 / 9.795 t; C6
+378.5 / 442.7 kPa; C7 1,785.7 kg (106.4 % red), 2,053.6 kg; C8 DHL 480 t (80.0 %); C9 900 / 960 / 2,060 t.
+GitHub: 1 full run on the branch (`[full run]`), green; main checked after the fast-forward.
 
 **Open points / follow-up tasks:**
+- Study's C2 case says "amber at 75 %" for the rigging; with the owner's 90 % default it is green (87.3 %). The tests
+  check both.
+- The planning-aid line itself contains "approved" (a competent person approves); it is the one allowed place –
+  the word check leaves that line out.
+- A radius shorter than the chart's first row gives no capacity (red, "closer than the chart's shortest radius").
+- C5 uses one mat size for all four outriggers and a symmetric rectangle round a given centre; L4–L6 may want a mat
+  per outrigger.
+- C3 rigid rule takes W/2 on the most loaded leg geometry (largest L/h); with very uneven legs the hang solver (L5)
+  gives the real share.
+- The DAF preset is the 2014 table; L9 checks it against the current DNV-ST-N001.
