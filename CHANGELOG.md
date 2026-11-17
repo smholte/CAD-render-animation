@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.142 – 17 Nov 2026 – A carousel is read the same on every computer (task 0184)
+
+- **Drums and carousels:** when a guide sheave touches the coil (no free cable between them), the way the cable is
+  wound was read from a piece of cable with no length. On some processors that came out the wrong way round: the
+  carousel then turned the other way, its arm swung to the other side, and the cable "no longer touched" the guide.
+  The winding is now read from the cable's arc on the coil itself, so every PC sets the same model up the same way.
+  (It made the test tour's spool stop fail now and then on GitHub's test machines.)
+
 ## 0.2.141 – 17 Nov 2026 – The demo reads like a real lay: lay data, an ROV, a lighter cable, every winch spooled (task 0173)
 
 - **Labels with live numbers and several lines** (5 Scene & Render > Labels): type **\n** in a label's words for a new

@@ -1153,6 +1153,12 @@ the release → Delete); the next run on `main` publishes it again.
   over "Finish at the CAD part" gave 34,000 extra triangles on the toolpath test model (task 0167). Keep one of them
   clearly on one side (the map is lifted 12.5 µm over the part where it came down onto it, `HeightMap._lift`); a face
   lying in the block's own top plane likewise got slivers of the top named after a move.
+- A test that fails "at random" on GitHub but always at the same frame is not a race: it is the processor (task 0184).
+  GitHub's runners are a mix (AMD EPYC 7763 / 9V45 / 9V74, several Xeons); the tour's spool stop failed on every EPYC
+  7763 and nowhere else. A direction taken from a straight of length nothing (a guide touching the coil) is rounding
+  noise and differs per CPU; take it from what has a length (the arc). Find such a case with a temporary workflow that
+  runs the case on many runners at once and prints `lscpu` with the numbers (task 0184's branch history), not by
+  repeating it locally – here no load, thread count or hash seed changed one bit.
 - A mesh can be closer to the exact surface and look worse: vertices put halfway along a rounded strip, at different
   distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
   strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at
