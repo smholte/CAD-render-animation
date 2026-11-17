@@ -849,7 +849,7 @@ def motion_moving_cable(ctx):
     return note
 
 
-@line("motion.swivel", "A sheave on a swivel turns to follow its wire", "0.2.136",
+@line("motion.swivel", "A sheave on a swivel turns to follow its wire", "0.2.137",
       what="A deck davit slews ±45° while its wire runs from a fixed fairlead over a sheave on a swivel head at the "
            "arm's tip and down into the hook block: Build turns the swivel at every frame so the wire comes into the "
            "sheave in its plane (task 0172)")

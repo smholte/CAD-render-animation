@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.136 – 17 Nov 2026 – The demo's quadrant on the seabed, sheaves that stand still, a swivel to try (task 0172)
+## 0.2.137 – 17 Nov 2026 – The demo's quadrant on the seabed, sheaves that stand still, a swivel to try (task 0172)
 
 - **Shot 11 of the demo:** as the D-quadrant tips flat and is set down on the seabed, the cable stays in its gutter to
   the far end – the end that points the way the cable lies – and bends down from there onto the seabed. Before, it
@@ -20,6 +20,15 @@ installer of that version was built from.
 - **New in the test tour and the PC check: "Sheave turns to follow its wire"** – a deck davit slews while its wire runs
   from a fairlead on the deck over a sheave on a swivel head; the head turns so the wire always runs straight into the
   groove.
+
+## 0.2.136 – 17 Nov 2026 – The app icon says "Fr" (task 0169)
+
+- **The app icon is now "Fr" for Fresing Render:** the white F with its green swoosh and an r beside it, taken from
+  the Fresing word mark, on the same dark rounded square. It shows on the Desktop, in the Start menu, on the window
+  and in the taskbar, and stays sharp at the smallest sizes.
+- Nothing to do after **Update now**: the app swaps the icon file at its first start and tells Windows to redraw the
+  shortcuts. If a shortcut or a pinned taskbar icon still shows the plain F, press F5 on the Desktop, or unpin and pin
+  the taskbar icon again.
 
 ## 0.2.135 – 17 Nov 2026 – The Fresing logo as a watermark (task 0176)
 

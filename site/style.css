@@ -40,6 +40,7 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .hero { background: var(--deep); color: var(--white); padding: 48px 0 56px; }
 .hero-in { display: grid; grid-template-columns: 5fr 7fr; gap: 40px; align-items: center; }
 .hero h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -.01em; }
+.hero h1 .app-icon { display: inline-block; width: .95em; height: .95em; vertical-align: -.14em; margin-right: .3em; border-radius: 22%; box-shadow: 0 0 0 1px #3A4550; }
 .hero h1::after { content: ""; display: block; width: 56px; height: 5px; background: var(--green); margin-top: 14px; }
 .lead { font-size: 1.15rem; color: var(--line); margin: 0 0 28px; }
 .download { display: inline-flex; flex-direction: column; gap: 2px; background: var(--green); color: var(--white);

@@ -104,7 +104,7 @@ middle (90°); the D's depth before Build 21 mm off the built one (no longer 0.3
 ## Report (filled in by the chat that did the task)
 
 
-**Chat / date:** Claude Code on the web, 16–17 Nov 2026 (branch `claude/confident-archimedes-takeq0`), version **0.2.136**.
+**Chat / date:** Claude Code on the web, 16–17 Nov 2026 (branch `claude/confident-archimedes-takeq0`), version **0.2.137**.
 
 **What changed:**
 - **1 Shot 11** (`core/catenary.hang_off`): for a wheel lying (nearly) flat – its plane holds less than `FLAT` (0.2) of

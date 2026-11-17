@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fresing Render app mark "Fr" · from Fresing logo rev 01 · Fresing Green #479B29, Charcoal #252E36 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 316.5 242.0" width="316.5" height="242.0">
+<title>Fresing Render</title>
+<path id="swoosh" fill="#FFFFFF" d="M0.087 49 A52 52 0 0 1 52 0 L189.5 0 L172.7 40 L54.5 40 A16 16 0 0 0 40.113 49 Z"/>
+<path id="letters" fill="#FFFFFF" d="M0 60 L38.5 60 L38.5 102 L166.5 102 L151.8 137 L38.5 137 L38.5 242 L0 242 Z M193.5 242 L193.5 123 A52 52 0 0 1 245.5 71 L316.5 71 L303.9 101 L244.5 101 A16 16 0 0 0 228.5 117 L228.5 242 Z"/>
+</svg>
