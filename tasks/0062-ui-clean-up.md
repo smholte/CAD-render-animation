@@ -1,8 +1,8 @@
 # 0062 – A cleaner side panel: show only the functions a project needs, clearer separation, tidy start-up
 
-**Who:** worker · **Status:** open – can start (18 Nov 00:05, owner's overnight run); **first wait until 0198 is on
-`main`** (see the lead note of 18 Nov)
-· **Branch:** `task/0062-ui-clean-up`
+**Who:** worker · **Status:** running (18 Nov, owner's overnight run; 0198 on `main` first for the app template,
+see the lead note of 18 Nov)
+· **Branch:** `claude/youthful-goldberg-52dvm2` (the web session's own)
 **Started by:** lead chat, 10 Nov 2026 (owner's wish)
 **Lane:** touches every panel file (`blender/ui*.py`), `app_template/fresing_render/__init__.py`, `blender/props.py`
 (additive), guide pictures – so it runs **alone** (no other task with UI changes at the same time)
