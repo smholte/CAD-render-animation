@@ -85,10 +85,61 @@ had chosen "At 02:15" and quiet hours for that run (owner, 17 Nov 01:55) – no 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 17 Nov 2026.
 
 **What changed:**
+- `site/render_kit/kit_window.ps1`: the three windows (start, status, end countdown) no longer place anything at fixed
+  96-DPI pixels. Every distance goes through `Px` (= the screen's DPI / 96 after `SetProcessDPIAware`), `AutoScaleMode`
+  None, every text is measured with its own font (`TextRenderer`, and labels now draw with it too), a row helper
+  (`Set-Row`) puts controls side by side and starts a new line when they do not fit; long hints wrap and the window
+  grows. The models list is a `ListView` with check boxes and its own column "Time at full load". When the start window
+  is taller than the screen's working area its middle part scrolls; the expected time and Back / Cancel / Start stay
+  visible. The status window lays out again on each new text, never shrinks (Pause / Stop do not jump) and is left
+  alone while minimised. Over a scrolling start window the mouse wheel on the load slider / number box scrolls the
+  window instead of changing the load. Behaviour otherwise as in 0144 (choices file, standard, resume, Pause / Stop,
+  countdown, exit codes). Lesson: `Sc` (first name of the scale helper) is a Windows PowerShell 5.1 alias of
+  Set-Content and wins over a function – a test now refuses function names that are 5.1 aliases.
+- `tools/ci_kit_window_layout.ps1` (new): the layout check. Loads the window script with `-Mode layout -TestScale`
+  (fonts and distances as at that display scale on a 96-DPI screen) and `-TestScreen` (switches the runner's screen to
+  that size for its own process, `ChangeDisplaySettings` CDS_FULLSCREEN – the runner has 1024 x 768 and Windows cut
+  bigger windows to it). Builds the start window (with / without "Continue the run", an extra 89-hour model with a long
+  name), the status window with its five longest texts and the end countdown; checks every visible control:
+  `TextRenderer` text size vs its client size (labels wrapped at their width; check boxes with the box; buttons with
+  both captions; drop-downs every item + arrow; time and number boxes "23:59" / "100" + spin buttons; list columns and
+  every row visible), no overlap between neighbours, everything inside its window / panel, the window not taller than the
+  screen's working area. First it proves on a deliberately broken window that it finds a cut text, an overlap and a
+  control outside. Then it clicks through the start window (Back to standard, untick a model, At 02:15, load 75, Sleep,
+  Start) and checks the choices file and the standard. One PNG per window and scale (`DrawToBitmap`, plus the scrolled
+  lower half) in the Windows job's artifact `windows-install`, folder `kit_window/`.
+- `tools/ci_windows_install.ps1`: runs it in Windows PowerShell 5.1 at 1.0, 1.25, 1.5 (1366 x 768 and 1920 x 1080),
+  1.75 and 2.0; a fault is a Problem of the Windows job with the control's name and text.
+- `tests/test_kit_window.py`: `test_window_layout_from_the_dpi` (no bare pixel numbers in SetBounds / sizes, no function
+  named like a 5.1 alias, ASCII + CRLF, the Windows job's scales); the pwsh parse test also parses the check.
+- `site/render_kit/README.txt`: the time column, the window follows the display scale and scrolls on a small screen.
 
 **Tested and measured** (name the machine and the model):
+- GitHub's Windows runner (windows-2025, Windows PowerShell 5.1, screen switched to 1920 x 1080 / 1366 x 768): LAYOUT OK
+  at all six runs; click-through OK at all six. Window sizes measured there: start 580 x 762 px at 100 % (with
+  "Continue"), 870 x 638 at 150 % on 1366 x 768 (middle scrolls), 1160 x 906 at 200 % on 1920 x 1080 (scrolls); status
+  460 x 235 at 100 %, 920 x 478 at 200 %. I looked at the pictures at 100 %, 150 % (1366 x 768, top and scrolled) and
+  200 %: every word, field and time in full.
+- Not testable here: the real DPI path (Windows at 150 % – the check emulates it with fonts × scale at 96 DPI, so the
+  title bar, check-box glyph, list row height and slider are the 96-DPI ones). Measuring with the real fonts and system
+  sizes makes it the same layout, but only the owner's PC proves it.
+- Independent review (a helper that did not write the code) of `kit_window.ps1`, the check and the Windows-job step: no
+  blocking defect; its four points were fixed (right-click / double-click on a model name flipped the tick through my
+  own click handler – removed, the list ticks by its box as normal; a minimised status window was resized every 2 s;
+  the status window could shrink and grow; the mouse wheel over the slider changed the load while scrolling).
+- Local: `tests/test_kit_window.py`, `tests/test_render_kit.py`, `tests/test_site.py` pass.
+- Runs: a temporary workflow ran only the check on Windows 5 times while the layout was worked on (first: the `Sc`
+  alias; then green), deleted before the merge; full runs: see below.
 
 **Open points / follow-up tasks:**
+- The owner's check on his PC (below). His display scale was not known when the task was done.
+- Owner's steps: 1. On the draft release `site-kit` (github.com/smholte/CAD-render-animation/releases) download the kit
+  zip again (its date is today's) and unzip it over the old one (the `models` folder stays). 2. Double-click
+  "Make site pictures.bat". 3. In the start window every heading, the load value, "Max. temperature" with its drop-down,
+  the grey hints, the quiet-hours times "22:00" / "07:00", every model with its time in the right column, "Now", "At
+  23:00", "When done" and "Back to standard" show in full. On a small screen the middle part has a scroll bar and Start
+  stays at the bottom. 4. Click Cancel (or start a run) – the status window shows "Waiting to start" / the model and
+  "Closing this window does not stop the run." in full.
