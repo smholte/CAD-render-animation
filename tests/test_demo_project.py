@@ -71,7 +71,9 @@ def test_every_joint_of_the_sheet(made):
     # task 0174: the wire speeds of handling winch 2, the crane's hoist and (task 0173) the two tipping winches' drums
     travels = ["HANDLING WINCH 2: Wire travel", demo.CRANE_TRAVEL] + [demo.TIP_TRAVEL.format(KEY=k.upper())
                                                                       for k, _n in demo.TIP_ITEMS]
-    assert len(by) == len(sheet) + 2 + 4 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    rov = made["sheet"]["machine_files"]["demo_rov.step"]             # task 0173: the ROV's 7 thrusters
+    assert len(rov) == 7 and all(j["name"] in by for j in rov)
+    assert len(by) == len(sheet) + 2 + 4 + 5 + len(park) + len(rov) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
     assert all(t in by for t in travels)
     cable_turned = spooled = 0
     for row in sheet:
@@ -318,7 +320,8 @@ def test_a_failure_leaves_nothing(made, tmp_path, monkeypatch):
 def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
     assert ids[:5] == ["model", "looks", "hold", "marks", "joints"] and ids[-1] == "finish"   # hold: 0082, marks: 0153
-    assert ids[-3:-1] == ["propulsion", "park_rotors"]   # tasks 0153, 0166: propellers and rotors turn all the time
+    assert ids[-4:-1] == ["propulsion", "park_rotors", "rov_thrusters"]   # tasks 0153, 0166, 0173: propellers, rotors
+    #                                                                       and the ROV's thrusters turn all the time
     assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_turbine_a", "shot_carousel",
                                                        "shot_rollers", "shot_tensioner", "shot_drum", "shot_sea",
                                                        "shot_park", "shot_cps", "shot_quadrant", "shot_lower",

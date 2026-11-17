@@ -1329,6 +1329,8 @@ SEA_LAID_FIRST = 60.0                 # task 0166: the lay cable's (from turbine
 SEA_CLARITY = 12.0                    # m: water clarity in the cut-away's walls
 SEA_SHOT_SECONDS = 10.0
 INTO_SEA = "Into the sea"             # the saved camera of shot 8
+SEA_ORBIT = -6.0                      # deg: its orbit about the vessel's middle (task 0173: was -10, which took the
+#                                       touch-down and the ROV out of the picture at the end)
 
 
 @stage("sea", "Cable into the sea: catenary to the seabed, cut-away behind the stern", after="surroundings")
@@ -1376,7 +1378,7 @@ VIEWS = {
     "Stern": ((-13000.0, -21000.0, 13000.0), (6000.0, 0.0, 4000.0), 28.0),
     "Quadrant": ((-7000.0, 15000.0, 9000.0), "QUADRANT FRAME", 26.0),
     # task 0173: aimed lower and wider, so the touch-down and the ROV beside it are in the picture with horn A
-    INTO_SEA: ((-48000.0, -40000.0, 22000.0), (-21000.0, -5000.0, -14000.0), 22.0),
+    INTO_SEA: ((-48000.0, -40000.0, 22000.0), (-24000.0, -6000.0, -17000.0), 20.0),
     "Over the stern": ((-38000.0, -30000.0, 10000.0), (-3000.0, 0.0, -10000.0), 30.0),       # shots 10, 12 (0082)
     "At the seabed": ((-24000.0, -6000.0, -12000.0), (-4000.0, 0.0, -28500.0), 32.0),        # shot 11, under water
     "CPS rack": ((11000.0, 23000.0, 14000.0), (24000.0, 6500.0, 5200.0), 26.0),              # shot 8b (0126)
@@ -1617,7 +1619,7 @@ def shot_sea(d: Demo):
     vessel (it moves with the lay), vessel motion Calm."""
     cam = d.scene.objects.get(INTO_SEA)
     d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    d.camera_step("ORBIT", d.t, SEA_SHOT_SECONDS, SEA_CAPTION, orbit_angle=math.radians(-10.0), easing="SMOOTH")
+    d.camera_step("ORBIT", d.t, SEA_SHOT_SECONDS, SEA_CAPTION, orbit_angle=math.radians(SEA_ORBIT), easing="SMOOTH")
     lay_data_label(d, SEA_CAPTION)
     blk = d.animation.blocks.add()
     blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, d.t, SEA_SHOT_SECONDS, "LINEAR"

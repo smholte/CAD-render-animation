@@ -179,7 +179,7 @@ def rov_stage(d: Demo):
     d.timings["rov"] = time.time() - t0
 
 
-@stage("rov_off", "The ROV is hidden from shot 9 on (the second end is laid elsewhere)", after="park_shift")
+@stage("rov_off", "The ROV is hidden from shot 9 on (the second end is laid elsewhere)", after="shot_cps")
 def rov_off(d: Demo):
     blk = demo._step(d, "HIDE", root(d), d.t, "")
     blk.name = ""
