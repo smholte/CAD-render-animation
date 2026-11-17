@@ -167,8 +167,19 @@ The demo vessel (owner decides later). Rendering the final pictures (owner's PC)
 > `~/venv/bin/python tools/build_site.py --take <zip>` (add `--keep-old` only if its log.txt says a model was skipped),
 > build and check the page (`tools/build_site.py`), look at the contact sheet's clips, and merge.
 
+**Take-in done (17 Nov 2026):** `site_pictures_2026-11-17.zip` (log: 9 pictures, 3 videos, 0 problems, 2 h 19 min on the
+owner's RTX 3090) taken with `build_site.py --take` (no model skipped, no `--keep-old`). New on the page: Thor (2 pictures
++ product video), CEB press (2 pictures + product video), IEA 15 MW offshore (3 pictures + loop), onshore (2 pictures).
+Gone by `--take`: the first kit's EVO router and FarmBot pictures (CREDITS.md keeps their credit lines). The zip carries
+no `functions`, so the 12 items got guide links by hand in `media.json` (`test_how_its_done_links_to_the_guide`). Page
+built and checked (0 problems, 31 MB); `tests/test_site.py` 26 passed; GitHub run 44039620616 green (docs mode).
+**Clips looked at** (frames from the three videos, the contact sheet itself is only on the owner's PC): press and turbine
+loop fine. **Thor's product video: the arm drifts to the bottom edge and out of frame in about half of the frames**
+(camera does not follow it; some close-ups show only the gripper). Follow-up for the lead: reframe Thor's product video
+in the kit (camera target on the arm's centre) and render it again.
+
 **Open points / follow-up tasks:**
-- The owner renders and uploads (README steps); then the take-in session above.
+- ~~The owner renders and uploads~~ done, see above.
 - 0111 can reuse Thor: `tools/make_site_projects.py thor --out <dir> --project` (or `build_project` from Python).
 - OpenArm and FarmBot STEP files are not in their git repositories: the kit takes them (and EVO) from the first kit's
   `models` folder next to it; a later kit could fetch them if the owner wants it fully self-contained.
