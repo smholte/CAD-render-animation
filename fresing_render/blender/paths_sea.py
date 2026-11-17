@@ -181,6 +181,7 @@ def _speed_ms(scene) -> float:
 
 
 KNOT = 0.514444                         # m/s
+KEYED_AT = "fr_bed_keyed_at"            # on the scene: the panel's speed and mode when the bed was keyed (0192)
 SAILED = "fr_bed_sailed"                # on the bed: its keys hold the metres sailed since the first frame (task 0192)
 
 
@@ -211,6 +212,16 @@ def sailed(scene, knots) -> np.ndarray:
     if len(v) > 1:
         out[1:] = np.cumsum(0.5 * (v[1:] + v[:-1]) * dt)
     return out
+
+
+def speed_key(scene) -> str:
+    """The panel's vessel setting the seabed's speed comes from (Weather & time's speed, Vessel at work's mode)."""
+    from . import vessel_work
+    try:
+        st = vessel_work.setting(scene)
+        return json.dumps([st.mode, round(float(st.speed), 4), round(float(st.thrust), 4), st.side])
+    except Exception:
+        return ""
 
 
 def bed_key(scene) -> list:
@@ -296,6 +307,7 @@ def sync_bed(scene) -> None:
         for i in (0, 1):
             animation._write(cb, "location", i, [(first + f, float(s[f] * u[i]), "LINEAR", "AUTO") for f in keep])
         ob[SAILED] = True
+        scene[KEYED_AT] = speed_key(scene)      # (the panel the keys were built from: weather_changed compares)
     elif moves_by_time(scene, it):
         v = _speed_ms(scene)
         for i in (0, 1):
@@ -889,8 +901,19 @@ def remove_sea_end(scene, item) -> None:
     paths.changed(scene, item)
 
 
+STALE = ("The vessel's speed changed after Build, and Vessel at work steps keyed the speed at Build: the seabed under "
+         "the cable would sail at the old one. The built animation was taken off: press Build again")
+
+
 def weather_changed(scene) -> None:
-    """Weather & time changed (its vessel speed, on or off): the seabed of a cable sailing at that speed follows."""
+    """Weather & time or Vessel at work changed (the vessel speed, on or off, the vessel's mode): the seabed of a cable
+    sailing at that speed follows. Task 0192 (the independent tester): with Vessel at work steps the speed was keyed
+    at Build and those keys are now old – the built animation comes off ("Build again")."""
+    sailing = any(it.b_kind == "SEA" and it.sea_speed == "WEATHER" and it.enabled for it in scene.fresing.cables)
+    if sailing and ahead_keys(scene) is not None and scene.get(KEYED_AT) != speed_key(scene):
+        from . import animation
+        animation.clear_keys(scene)
+        scene.fresing.last_message = STALE
     if any(it.b_kind == "SEA" and it.sea_speed == "WEATHER" for it in scene.fresing.cables):
         sync_bed(scene)
         _paths().refresh(scene)

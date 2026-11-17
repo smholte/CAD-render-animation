@@ -119,3 +119,19 @@ def test_a_step_ahead_1_kn_sails_the_seabed_at_1_kn(folder):
     got = _sailed(sc, [1, 101, 289])
     v = np.diff(got) / (np.diff([1, 101, 289]) / FPS) / KN
     assert v[0] == pytest.approx(3.0, abs=0.02) and v[1] == pytest.approx(1.0, abs=0.02), v   # (before: 3 kn)
+
+
+def test_a_new_speed_after_a_build_with_steps_takes_the_build_off(folder):
+    """The independent tester of task 0192: the steps' speed is keyed at Build; a new vessel speed afterwards made
+    them old and the seabed sailed on at 3 kn (the cable's end 4.6 m off a Build at 5 kn). Now: "Build again"."""
+    sc = _scene(folder)
+    a = _step(sc, 4.0, 1.0, "STILL")
+    animation.bake(sc, a)
+    assert sc.fresing.anim_baked
+    sc.fresing.weather.vessel_speed = 3.0                 # (the same speed again: nothing happens)
+    assert sc.fresing.anim_baked
+    sc.fresing.weather.vessel_speed = 5.0
+    assert not sc.fresing.anim_baked and "Build again" in sc.fresing.last_message
+    animation.bake(sc, a)                                 # built again: the steps at 5 kn
+    got = _sailed(sc, [1, 101])
+    assert abs(got[-1] - 5.0 * KN * 4.0) < 1e-3, got

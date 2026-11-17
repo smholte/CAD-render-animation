@@ -1238,7 +1238,8 @@ direction is the horn's, without a kink. Under **4 Motion > Cables and paths**, 
    same distance behind it; or **Vessel speed of Weather & time** – the vessel's own speed, the one the wake shows:
    5 Scene & Render > Vessel at work **Ahead** at the vessel speed of Weather & time (on or off), 0 when the vessel
    lies still, pushes sideways or turns, and in a video what its **Vessel at work** steps set (Build follows them:
-   a step to Still stops the seabed). The touch-down then comes nearer or moves further back when the speeds differ.
+   a step to Still stops the seabed; change the vessel's speed or setting after such a Build and the built animation
+   is taken off – press **Build animation** again). The touch-down then comes nearer or moves further back when the speeds differ.
 
 The touch-down is set in the pose at the animation's first frame (with nothing built: the pose shown), whatever
 frame is shown, so **Build** gives the same animation at any frame. **Touch-down here** sets it again (after you

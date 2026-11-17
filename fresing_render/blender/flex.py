@@ -1673,11 +1673,11 @@ def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, als
             for k in range(frames):
                 scene.frame_set(first + k)
                 _STATE["steps"] += 1
-                for n in every:
-                    ob = bpy.data.objects.get(n)
-                    if ob is None:              # (deleted meanwhile: the places read so far are of no use)
-                        raise ReadLost(n)
-                    out[n][k] = _np(_world(ob))
+                for n, ob in every.items():
+                    try:
+                        out[n][k] = _np(_world(ob))
+                    except ReferenceError:      # (deleted meanwhile: the places read so far are of no use)
+                        raise ReadLost(n) from None
                 yield (k + 1) / frames
     finally:
         _STATE["pause"] = None

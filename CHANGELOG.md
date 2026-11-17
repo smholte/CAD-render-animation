@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.148 – 17 Nov 2026 – Cables: model update keeps routes, re-bake also redoes riding cameras, seabed follows Vessel at work
+
+- **Model update with the same file changes nothing in the cables.** A contact you took off a cable's list stays off
+  (also after an update to a changed file); "From CAD cable again" still brings it back. On the demo, an update of the
+  vessel with its own file followed by Build now gives exactly the saved animation – before, the A&R wire came out
+  74.9 m long instead of 2.8 m ("cannot go round HANDLER TOP PULLEY"), the tipping wires got back a bend the demo had
+  taken off and the lay data label showed 32.3 instead of 32.0 m.
+- **The re-bake after a sea change no longer fails with "StructRNA of type Object has been removed"** (seen on the
+  demo in 0.2.146). It happened when the sea, the weather or the vessel was changed again while the cables were still
+  being worked out again. Now the job finishes and then runs once more for the newest setting.
+- **A camera that rides on a part, flies a path or keeps a part in the middle** is worked out again with the cables
+  after a change of the sea or the vessel motion (before: it kept the old sea's heave, up to 1.5 m off on the demo).
+- **The seabed under a cable into the sea sails at the vessel's own speed:** 5 Scene & Render > Vessel at work
+  (Ahead at the vessel speed; 0 when the vessel lies still) and its steps in a video – with Weather & time on or off.
+  Before, it sailed at the Weather & time speed even when the vessel lay still, and not at all with Weather & time off.
+- In scripts and the render queue a sea change works the cables out in one pass (before: two or three); the window's
+  job redraws between the cables.
+
 ## 0.2.147 – 17 Nov 2026 – Web 3D export of the demo 8x faster, and small page fixes (task 0189)
 
 - **Web 3D model with marine looks is much faster.** The small demo project took 29 minutes to export, now 3.5 minutes

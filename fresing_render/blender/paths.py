@@ -3676,8 +3676,8 @@ def _bake_steps(scene, notes: list):
                         if new is None:
                             rel = read
                             break
-                        rel, done = got, float(np.abs(new - values).max(initial=0.0)) <= TIGHT_TOL
-                        if not done:
+                        rel, held = got, float(np.abs(new - values).max(initial=0.0)) <= TIGHT_TOL
+                        if not held:
                             values = new
                             _write_tight(scene, it, values, first)
                         else:
