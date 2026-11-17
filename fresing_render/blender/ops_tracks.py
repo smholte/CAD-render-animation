@@ -256,7 +256,7 @@ class FRESING_OT_track_select(_NeedsItem, bpy.types.Operator):
 
 class FRESING_OT_track_motor_step(_NeedsItem, bpy.types.Operator):
     """Adds a step 'Run motor' on this track's speed joint to the selected animation: 10 m/min for 5 seconds.
-    Then set the speed and the time in 6 Animation and press Build animation: the pads run round and the wheels
+    Then set the speed and the time in 6 Animation and press Build & play: the pads run round and the wheels
     turn"""
 
     bl_idname = "fresing.track_motor_step"
@@ -273,7 +273,7 @@ class FRESING_OT_track_motor_step(_NeedsItem, bpy.types.Operator):
         item = _item(context)
         a, b = add_motor_step(context.scene, item)
         _say(context, self, f"Step 'Run motor' added to animation '{a.name}': '{item.joint}' runs at "
-             f"{MOTOR_SPEED:.0f} m/min for {b.duration:.0f} s. Set it in 6 Animation, then press Build animation")
+             f"{MOTOR_SPEED:.0f} m/min for {b.duration:.0f} s. Set it in 6 Animation, then press Build & play")
         return {"FINISHED"}
 
 

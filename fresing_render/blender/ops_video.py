@@ -1,4 +1,4 @@
-"""Operators for the brand kit (panel 5 Scene & Render, task 0018)."""
+"""Operators for the brand kit (6 Animation > Brand kit & logo; task 0018, moved there by 0062)."""
 
 from __future__ import annotations
 

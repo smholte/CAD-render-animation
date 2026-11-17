@@ -386,7 +386,7 @@ class FRESING_OT_rule_add(bpy.types.Operator):
 
 
 class FRESING_OT_rule_remove(bpy.types.Operator):
-    """Delete the selected sorting rule. Press 'Sort parts into groups' to sort again without it"""
+    """Removes the selected sorting rule. Press 'Sort parts into groups' to sort again without it"""
 
     bl_idname = "fresing.rule_remove"
     bl_label = "Remove rule"
@@ -485,10 +485,10 @@ class FRESING_OT_scheme_apply(bpy.types.Operator):
 
 
 class FRESING_OT_scheme_remove(bpy.types.Operator):
-    """Delete the selected paint scheme. The groups keep the materials they have now"""
+    """Removes the selected paint scheme. The groups keep the materials they have now"""
 
     bl_idname = "fresing.scheme_remove"
-    bl_label = "Delete scheme"
+    bl_label = "Remove scheme"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -877,10 +877,10 @@ class FRESING_OT_camera_fit(bpy.types.Operator):
 
 
 class FRESING_OT_camera_remove(bpy.types.Operator):
-    """Deletes this camera. Saved scenes that used it then have no camera (Ctrl+Z brings it back)"""
+    """Removes this camera. Saved scenes that used it then have no camera (Ctrl+Z brings it back)"""
 
     bl_idname = "fresing.camera_remove"
-    bl_label = "Delete camera"
+    bl_label = "Remove camera"
     bl_options = {"REGISTER", "UNDO"}
 
     name: StringProperty(options={"SKIP_SAVE"})
@@ -960,6 +960,7 @@ class FRESING_OT_render(bpy.types.Operator):
     _timer = None
 
     def execute(self, context):
+        context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
         scene = context.scene
         s = scene.fresing
         if scene.camera is None:

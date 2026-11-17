@@ -58,6 +58,52 @@ def _classes():
             + ops_house.CLASSES + ops_tc_person.CLASSES)
 
 
+def _all_classes():
+    """Every class in the order it is registered (task 0062): the panels of the Fresing tab sorted the way the tab
+    shows them – update notice, test tour, Workspace, What's next, tabs, Make, then each section with its
+    sub-panels in the order of ``core/places.py`` (a sub-panel shows in registration order) – and each of them
+    given the app's own title row and its ``poll`` (``panels.install``)."""
+    import bpy
+
+    from .blender import lock, ops_workspace, panels, ui_top
+    from .core import places
+    classes = list(_classes())
+    for extra in (ops_setup_classes(), ):
+        classes += [c for c in extra if c not in classes]
+    tab = [c for c in classes if isinstance(c, type) and issubclass(c, bpy.types.Panel)
+           and getattr(c, "bl_region_type", "") == "UI" and getattr(c, "bl_category", "") == "Fresing"]
+    rest = [c for c in classes if c not in tab]
+    by_name = {c.__name__: c for c in tab}
+    known = set(places.SECTIONS) | set(places.PLACES)
+    top = [c for c in tab if c.__name__ not in known and not getattr(c, "bl_parent_id", "")]
+    ordered = top + list(ui_top.TOP)
+
+    def under(parent):
+        for name in places.children(parent):
+            if name in by_name:
+                ordered.append(by_name[name])
+                under(name)
+
+    for sec in places.SECTIONS:
+        if sec in by_name:
+            ordered.append(by_name[sec])
+            under(sec)
+    ordered += [c for c in tab if c not in ordered]             # a panel core/places.py does not know yet: at the end
+    out = (list(panels.CLASSES) + list(lock.CLASSES) + list(ops_workspace.CLASSES) + rest + ordered
+           + list(ui_top.POPOVERS))
+    panels.install(out)
+    return tuple(out)
+
+
+def ops_setup_classes():
+    """The Set-up window (ui_setup.py / ops_setup.py)."""
+    try:
+        from .blender import ops_setup, ui_setup
+    except ImportError:
+        return ()
+    return tuple(ops_setup.CLASSES) + tuple(ui_setup.CLASSES)
+
+
 def register():
     import bpy
 
@@ -65,13 +111,19 @@ def register():
     from .blender import vessel_motion
     props.register()
     decals.register()
-    for cls in _classes():
+    from .blender import panels
+    panels.register()                        # task 0062: the section tab's setting, before the panels that draw it
+    for cls in _all_classes():
         if issubclass(cls, bpy.types.Operator) and cls.__doc__ and "\n" in cls.__doc__:
             # the docstring is the tooltip: Blender keeps its line breaks, so a docstring wrapped in the
             # source would show a sentence broken in the middle
             cls.__doc__ = " ".join(cls.__doc__.split())
         bpy.utils.register_class(cls)
     handlers.register()
+    from .blender import lock, ui_top, workspaces
+    lock.register()                          # task 0062: the Client view's lock (keys, new objects)
+    workspaces.register()                    # the project's workspace after a load; the open sections at a save
+    ui_top.register_header()                 # "Make" in the 3D view's header
     from .blender import ops_tour
     ops_tour.register_handlers()
     project_lock.register()
@@ -158,10 +210,15 @@ def unregister():
     handlers.unregister()
     from .blender import ops_tour
     ops_tour.unregister_handlers()
-    for cls in reversed(_classes()):
+    from .blender import lock, panels, ui_top, workspaces
+    ui_top.unregister_header()
+    workspaces.unregister()
+    lock.unregister()
+    for cls in reversed(_all_classes()):
         try:
             bpy.utils.unregister_class(cls)
         except RuntimeError:
             pass
+    panels.unregister()
     decals.unregister()
     props.unregister()

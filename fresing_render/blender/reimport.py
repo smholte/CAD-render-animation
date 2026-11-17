@@ -24,6 +24,7 @@ import re
 import bpy
 from mathutils import Matrix, Vector
 
+from ..core import places
 from ..core.words import plural
 from . import build, faces, joints, logic, states
 
@@ -490,7 +491,7 @@ def _repoint(scene, by_name: dict, notes: list[str]) -> None:
                 c.part = None
                 notes.append(f"Label '{c.text.strip() or 'Label'}': its part "
                              f"'{part.get(build.PROP_NAME, part.name)}' is not in the new model, so it is left out "
-                             "of renders. Pick its point again (5 Scene & Render > Labels)")
+                             f"of renders. Pick its point again ({places.where('labels')})")
     for ob in bpy.data.objects:
         if not ob.get(cameras.PROP_FOCUS):
             continue

@@ -84,21 +84,137 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 - The other areas (the lists top right, the timeline at the bottom) are Blender's own. You rarely need
   them.
 
-<img class="panel" src="img/sidebar_sections.png" alt="The seven sections, closed">
+<img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the seven sections, folded">
 
-The side panel has seven sections. Click a section's name to open or close it. A closed section still
-shows its state on the right: the model, the number of parts, unsorted parts (in red), joints, the
-length of the animation, the progress of the queue.
+The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work. Above them
+are the **Workspace** row, the section tabs and **Make**.
 
 Every section works the same way:
 
 - Work from top to bottom: what you choose comes before the button that uses it.
-- The main button of a section is big and blue.
+- Each section has **one blue button**: the one thing the section is for (**Import STEP…**, **Sort parts
+  into groups**, **Render image**, **Build & play**, **Start queue**). The main button of a sub-panel is
+  big and grey.
+- The steps of a panel stand apart, with a little space between them. A grey text is a hint; a red text
+  is a problem.
+- A numbered how-to is in a fold **How it works**. It is open the first time and folds away by itself
+  once the project has the thing (a cut, a cylinder, a cable). Click it to read it again.
 - Click an item in a list; its details appear right under the list. Double-click a name to rename it.
 - Rarely used settings are in folds that start closed (for example **More**).
 - Rest the mouse on a button or setting to see what it does.
 - <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes almost everything, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>
   redoes it.
+
+The same word always means the same thing: **Remove** takes something out of the project, **Clear**
+empties a list or a result, **Delete** deletes a file in the library, **Show in folder** opens the folder
+in Explorer, **Add** makes a new thing, **Use as** takes the part you clicked, **Back to …** says where
+you go back to.
+
+<a id="sections"></a>
+### Sections: folded at the start, tabs, Ctrl+click
+
+<img class="panel" src="img/panel_top_tabs.png" alt="The section tabs All, 1 to 7">
+
+- **Every time the app starts or a project opens, sections 1 to 7 are folded.** Each title row still
+  shows the section's state on the right: the model, the number of parts, unsorted parts (in red),
+  joints, the surroundings, the animations, the queue. So does every sub-panel ("2 cuts", "3 decals",
+  "1920 × 1080").
+- **Click a title** to open or fold it.
+- **<kbd>Ctrl</kbd>+click a title**: only that one stays open, the others on its level fold. The quick
+  way to a calm panel.
+- **The tabs All · 1 … 7** under the Workspace row show one section at a time, opened. **All** brings the
+  seven back.
+- Want the sections as you left them instead? **Edit > Preferences > Add-ons > Fresing Render >
+  Keep sections as I left them**. There too: **Keep How it works open**.
+
+<a id="workspaces"></a>
+### Workspaces: only the functions your work needs
+
+<img class="panel" src="img/panel_top_workspace.png" alt="The Workspace row with the list of workspaces">
+
+A crane project never needs milling; a mill demo never needs the sea. The **Workspace** row at the top of
+the Fresing tab picks what the side panel shows:
+
+| Workspace | Shows | Hides |
+| --- | --- | --- |
+| **All functions** | everything (new projects start here) | – |
+| **CNC & machining** | CNC machine, tools, tool changes, milling, way covers, clash check | sea, vessel, cables and drums, weather, exploded views |
+| **Offshore & cable laying** | sea and seabed, vessel motion, cables, drums and carousels, weather | CNC machine, milling, way covers |
+| **Product design & R&D** | looks, exploded views, assembly sequence, cutaway, turntable, web 3D model | CNC, milling, cables, sea, weather |
+| **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
+| **Education & training** | every kind of motion, animation, camera | web 3D model |
+| **Full access** | everything, plus Blender's own tabs, toolbar and menus | – |
+
+**Hiding never deletes or switches off anything.** What is set up stays in the project and keeps working
+in renders, in the queue and after a model update; only the panels go away. Pick another workspace, or
+**Show everything**, and it is all back as it was.
+
+Blender's own row of tabs at the top of the window (Layout, Modeling, Sculpting …) is hidden in every
+workspace except **Full access**: the word "workspace" means only one thing in the app.
+
+The workspace is saved with the project. A project made before workspaces opens in your default
+workspace **with everything it uses shown**. To choose the workspace new projects start in: open the
+Workspace row (the small arrow) and press **Use for new projects**.
+
+<a id="families"></a>
+### Functions in this project: families on and off
+
+Open the Workspace row with the small arrow. Under **Functions in this project** every family of
+functions has a tick: Motion, Machine motion, CNC machine, Milling, Cables, drums & sea, Animation, Video
+finishing, Render queue, Web 3D model, Houses. Click a tick to show or hide that family in this project,
+as often as you like. "in use" behind a name means the project has something of that family.
+
+Hiding a family the project uses asks first. The question names what is set up – "This project has a CNC
+machine, 3 tools and a G-code step. They stay in the project and keep working in renders; only the panels
+are hidden." – with **Hide anyway** and **Cancel**. When something in use is hidden, a red line under
+the Workspace row says so, with **Show**.
+
+<a id="own-workspaces"></a>
+### Your own workspaces
+
+1. Pick the workspace that is closest and set the ticks the way you want them.
+2. Press **Save as my own…**, give it a name ("Offshore cranes", "Mill demos") and press **Save**.
+
+Your workspace is one file in the library folder **Workspaces** (in the shared library when one is set
+in the preferences, else in Documents\Fresing Render). **A colleague gets it by copying that file into
+his own Workspaces folder** and pressing **Refresh**. **Show in folder** opens the folder; **Rename…**
+and **Delete…** work on your own workspaces only – the built-in ones cannot be changed. A workspace of
+your own with the name of a built-in one is used instead of it, and the panel says so. A project keeps
+its own copy of the workspace, so it opens the same on a PC that does not have the file.
+
+<a id="client-view"></a>
+### Client view: the project locked against changes
+
+For showing a finished project, or handing the PC to someone who should only look and render. In the
+**Client view**:
+
+- every button that changes the project is greyed out (its tooltip says why), and the editing panels are
+  hidden;
+- no part can be clicked, moved or deleted – also not with Blender's own keys (<kbd>G</kbd>,
+  <kbd>X</kbd>, <kbd>Delete</kbd>, <kbd>Tab</kbd>);
+- Blender's list of objects (top right) is replaced, and File > Save As, Import and Export are off.
+
+Importing, the surroundings, camera views, saved scenes, the turntable, **Render image** and the queue
+still work. **Workspace > Full access** (or any other workspace) undoes the lock completely. There is
+no password: it stops accidents, not people.
+
+<a id="whats-next"></a>
+### The What's next card
+
+In a new project a small card above the tabs says what to do next (import, sort the parts into groups,
+then the surroundings and **Render image**) with a button that opens that section. It goes away after
+the first render; the **×** hides it for this project.
+
+<a id="make"></a>
+### Make: every picture, video and 3D page in one place
+
+<img class="panel" src="img/panel_top_make.png" alt="The Make list: Picture, Product video, Turntable, 3D page, Animation, Queue">
+
+**Make**, above 1 Import, lists every kind of output side by side: **Picture**, **Product video**,
+**Turntable**, **3D page** (the web 3D model), **Animation** and **Queue**. Each button opens that
+output's own settings with its Make button – the same settings as in 5 Scene & Render, 6 Animation and
+7 Render queue, nothing is moved. The same list is in the header of the 3D view (**Make**, top of the
+view), so it is there whatever the side panel shows.
 
 This guide is in the app under **Help > Fresing Render user guide**, and in the Start menu under
 Fresing Render.

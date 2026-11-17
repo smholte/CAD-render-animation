@@ -171,3 +171,12 @@ def test_plural_says_one_part_and_two_parts():
     assert plural(5, "face set") == "5 face sets"
     assert plural(1, "copy", "copies") == "1 copy" and plural(3, "copy", "copies") == "3 copies"
     assert verb(1, "matches", "match") == "matches" and verb(4, "matches", "match") == "match"
+
+
+def test_plural_of_words_that_do_not_just_take_an_s():
+    """Task 0062 (found by study 0200): 4 Motion > Mechanisms said "7 subassemblys"."""
+    from fresing_render.core.words import plural
+    assert plural(7, "subassembly") == "7 subassemblies" and plural(1, "subassembly") == "1 subassembly"
+    assert plural(2, "family") == "2 families" and plural(2, "day") == "2 days"       # vowel + y just takes an s
+    assert plural(3, "box") == "3 boxes" and plural(2, "near miss") == "2 near misses" and plural(2, "clash") == "2 clashes"
+    assert plural(2, "part") == "2 parts" and plural(0, "copy", "copies") == "0 copies"

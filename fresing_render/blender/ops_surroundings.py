@@ -63,11 +63,11 @@ class FRESING_OT_prop_add(bpy.types.Operator):
 
 
 class FRESING_OT_props_remove(bpy.types.Operator):
-    """Deletes every prop for scale (person, container, pallet, barrier). To keep them but not
+    """Removes every prop for scale (person, container, pallet, barrier). To keep them but not
     show them, untick 'Show props' instead"""
 
     bl_idname = "fresing.props_remove"
-    bl_label = "Delete all props"
+    bl_label = "Remove all props"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
