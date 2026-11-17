@@ -17,7 +17,7 @@
     -Mode layout loads Windows Forms and defines the window builders without showing anything: the layout check
                  (tools/ci_kit_window_layout.ps1) builds the windows with -TestScale / -TestScreen.
 
-  Layout (task 0177): nothing is placed at fixed 96-DPI pixels. Every distance goes through Sc (the screen's DPI / 96),
+  Layout (task 0177): nothing is placed at fixed 96-DPI pixels. Every distance goes through Px (the screen's DPI / 96),
   every text is measured with its own font (TextRenderer, as the controls draw it), long hints wrap and the window grows
   to fit them; a start window taller than the screen's working area scrolls its middle part, the buttons stay visible.
   -TestScale multiplies the fonts and distances as a display scale would on a 96-DPI screen (the check on GitHub).
@@ -127,10 +127,10 @@ $TextFlags = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Wind
 # ---------------------------------------------------------------------------------------------------------------
 # layout helpers: sizes from the DPI and the measured texts
 # ---------------------------------------------------------------------------------------------------------------
-function Sc([double]$V) { return [int][math]::Round($V * $UiScale) }    # 96-DPI pixels -> this screen's pixels
+function Px([double]$V) { return [int][math]::Round($V * $UiScale) }    # 96-DPI pixels -> this screen's pixels
 
 function Get-ArrowWidth {                               # the spin / drop-down buttons of a field
-    return [math]::Max([int]([System.Windows.Forms.SystemInformation]::VerticalScrollBarWidth * $TestScale), (Sc 17))
+    return [math]::Max([int]([System.Windows.Forms.SystemInformation]::VerticalScrollBarWidth * $TestScale), (Px 17))
 }
 
 function Measure-UiText([string]$Text, $F, [int]$MaxW = 100000) {
@@ -149,34 +149,34 @@ function Get-Natural($c) {                              # the size a control nee
     $arrow = Get-ArrowWidth
     if ($c -is [System.Windows.Forms.Label]) {
         $m = Measure-UiText $c.Text $f
-        return New-Object System.Drawing.Size(($m.Width + (Sc 3)), ($m.Height + (Sc 2)))
+        return New-Object System.Drawing.Size(($m.Width + (Px 3)), ($m.Height + (Px 2)))
     }
     if ($c -is [System.Windows.Forms.CheckBox] -or $c -is [System.Windows.Forms.RadioButton]) {
         $m = Measure-UiText $c.Text $f
         $p = $c.GetPreferredSize([System.Drawing.Size]::Empty)
-        $w = [math]::Max($p.Width, $m.Width + (Sc 22)) + (Sc 4)
-        $h = [math]::Max([math]::Max($p.Height, $m.Height), (Sc 16)) + (Sc 4)
+        $w = [math]::Max($p.Width, $m.Width + (Px 22)) + (Px 4)
+        $h = [math]::Max([math]::Max($p.Height, $m.Height), (Px 16)) + (Px 4)
         return New-Object System.Drawing.Size($w, $h)
     }
     if ($c -is [System.Windows.Forms.Button]) {
-        $w = Sc 110
-        foreach ($t in (Get-FitTexts $c)) { $w = [math]::Max($w, (Measure-UiText $t $f).Width + (Sc 28)) }
-        return New-Object System.Drawing.Size($w, [math]::Max((Sc 30), $f.Height + (Sc 14)))
+        $w = Px 110
+        foreach ($t in (Get-FitTexts $c)) { $w = [math]::Max($w, (Measure-UiText $t $f).Width + (Px 28)) }
+        return New-Object System.Drawing.Size($w, [math]::Max((Px 30), $f.Height + (Px 14)))
     }
     if ($c -is [System.Windows.Forms.ComboBox]) {
         $w = 0
         foreach ($t in $c.Items) { $w = [math]::Max($w, (Measure-UiText ([string]$t) $f).Width) }
-        return New-Object System.Drawing.Size(($w + $arrow + (Sc 14)), $c.PreferredHeight)
+        return New-Object System.Drawing.Size(($w + $arrow + (Px 14)), $c.PreferredHeight)
     }
     if ($c -is [System.Windows.Forms.DateTimePicker]) {
         $w = (Measure-UiText "88:88" $f).Width
-        return New-Object System.Drawing.Size(($w + $arrow + (Sc 16)), $c.PreferredHeight)
+        return New-Object System.Drawing.Size(($w + $arrow + (Px 16)), $c.PreferredHeight)
     }
     if ($c -is [System.Windows.Forms.NumericUpDown]) {
         $w = (Measure-UiText "100" $f).Width
-        return New-Object System.Drawing.Size(($w + $arrow + (Sc 16)), $c.PreferredHeight)
+        return New-Object System.Drawing.Size(($w + $arrow + (Px 16)), $c.PreferredHeight)
     }
-    return New-Object System.Drawing.Size((Sc 100), $c.Height)
+    return New-Object System.Drawing.Size((Px 100), $c.Height)
 }
 
 function Set-Row([array]$Items, [int]$X0, [int]$Y, [int]$Right, [int]$Indent = -1) {
@@ -197,15 +197,15 @@ function Set-Row([array]$Items, [int]$X0, [int]$Y, [int]$Right, [int]$Indent = -
         $first = $seg[0]
         if ($first.fill) {
             $gap = 0
-            if ($line.Count) { $gap = Sc 6; if ($first.ContainsKey("gap")) { $gap = $first.gap } }
-            $minw = Sc 150
+            if ($line.Count) { $gap = Px 6; if ($first.ContainsKey("gap")) { $gap = $first.gap } }
+            $minw = Px 150
             if ($first.minw) { $minw = $first.minw }
             if ($line.Count -and ($Right - $x - $gap) -lt $minw) {
                 [void]$lines.Add($line); $line = [System.Collections.ArrayList]::new(); $x = $Indent; $gap = 0
             }
             $w = $Right - $x - $gap
-            $m = Measure-UiText $first.c.Text $first.c.Font ($w - (Sc 3))
-            [void]$line.Add(@{ c = $first.c; x = ($x + $gap); w = $w; h = ($m.Height + (Sc 2)) })
+            $m = Measure-UiText $first.c.Text $first.c.Font ($w - (Px 3))
+            [void]$line.Add(@{ c = $first.c; x = ($x + $gap); w = $w; h = ($m.Height + (Px 2)) })
             $x = $Right
             continue
         }
@@ -216,7 +216,7 @@ function Set-Row([array]$Items, [int]$X0, [int]$Y, [int]$Right, [int]$Indent = -
             $n = Get-Natural $it.c
             $w = $n.Width
             if ($it.w) { $w = $it.w }
-            $gap = Sc 6
+            $gap = Px 6
             if ($it.ContainsKey("gap")) { $gap = $it.gap }
             $sizes += , @($w, $n.Height, $gap)
             $segW += $w
@@ -240,7 +240,7 @@ function Set-Row([array]$Items, [int]$X0, [int]$Y, [int]$Right, [int]$Indent = -
         foreach ($p in $ln) { $rowH = [math]::Max($rowH, $p.h) }
         foreach ($p in $ln) { $p.c.SetBounds($p.x, ($Y + [int][math]::Floor(($rowH - $p.h) / 2)), $p.w, $p.h) }
         $bottom = $Y + $rowH
-        $Y = $bottom + (Sc 4)
+        $Y = $bottom + (Px 4)
     }
     return $bottom
 }
@@ -358,11 +358,11 @@ function New-Form([string]$Title) {
 }
 
 function Set-Head($U) {                                 # the dark band with the logo; returns its height
-    $hh = Sc 64
+    $hh = Px 64
     $U.head.SetBounds(0, 0, $U.W, $hh)
-    if ($U.pic) { $U.pic.SetBounds((Sc 16), (Sc 10), (Sc 152), (Sc 44)) }
+    if ($U.pic) { $U.pic.SetBounds((Px 16), (Px 10), (Px 152), (Px 44)) }
     $n = Get-Natural $U.title
-    $U.title.SetBounds(($U.W - (Sc 16) - $n.Width), [int](($hh - $n.Height) / 2), $n.Width, $n.Height)
+    $U.title.SetBounds(($U.W - (Px 16) - $n.Width), [int](($hh - $n.Height) / 2), $n.Width, $n.Height)
     return $hh
 }
 
@@ -376,7 +376,7 @@ function Build-StartWindow($Est) {
     $resume = $Est.resume
     $models = @($Est.models)
     $u = New-Form "Fresing site pictures - start"
-    $u.W = Sc 580
+    $u.W = Px 580
     $form = $u.form
     $body = New-Object System.Windows.Forms.Panel        # the settings + models: scrolls on a small screen
     $foot = New-Object System.Windows.Forms.Panel        # the expected time and the buttons: always visible
@@ -474,90 +474,90 @@ function Build-StartWindow($Est) {
 
 function Set-ListSize($U, [int]$X, [int]$Y, [int]$Width) {   # all models visible, the time column fits its texts
     $lv = $U.list
-    $lv.SetBounds($X, $Y, $Width, (Sc 600))         # tall: no scroll bar while the columns are set
+    $lv.SetBounds($X, $Y, $Width, (Px 600))         # tall: no scroll bar while the columns are set
     $null = $lv.Handle                                  # item rectangles need the window
     $c2 = (Measure-UiText $lv.Columns[1].Text $lv.Font).Width
     foreach ($it in $lv.Items) { $c2 = [math]::Max($c2, (Measure-UiText $it.SubItems[1].Text $lv.Font).Width) }
-    $c2 += Sc 24
+    $c2 += Px 24
     $lv.Columns[1].Width = $c2
-    $lv.Columns[0].Width = [math]::Max((Sc 60), $lv.ClientSize.Width - $c2 - 1)
+    $lv.Columns[0].Width = [math]::Max((Px 60), $lv.ClientSize.Width - $c2 - 1)
     $frame = $lv.Height - $lv.ClientSize.Height
     $n = [math]::Max(1, $lv.Items.Count)
-    $top = $lv.Font.Height + (Sc 10)
-    $ih = $lv.Font.Height + (Sc 4)
+    $top = $lv.Font.Height + (Px 10)
+    $ih = $lv.Font.Height + (Px 4)
     if ($lv.Items.Count -gt 0) {
         $r = $lv.GetItemRect(0)
         if ($r.Height -gt 0) { $top = $r.Top; $ih = $r.Height }
     }
-    $lv.Height = $top + $n * $ih + $frame + (Sc 3)
+    $lv.Height = $top + $n * $ih + $frame + (Px 3)
     return $lv.Bottom
 }
 
 function Set-StartBody($U, [int]$Right) {               # the settings and models inside the body; returns its height
-    $M = Sc 16
+    $M = Px 16
     $col = 0
     foreach ($l in @($U.lLoad, $U.lTemp, $U.lStart, $U.lDone)) { $col = [math]::Max($col, (Get-Natural $l).Width) }
-    $col += Sc 10
-    $y = Sc 12
+    $col += Px 10
+    $y = Px 12
     if ($U.resumeBox) {
         $y = Set-Row @(@{ c = $U.resumeBox; fill = $false }) $M $y $Right
-        $y = Set-Row @(@{ c = $U.resumeHint; fill = $true }) ($M + (Sc 20)) ($y + (Sc 1)) $Right
-        $y += Sc 14
+        $y = Set-Row @(@{ c = $U.resumeHint; fill = $true }) ($M + (Px 20)) ($y + (Px 1)) $Right
+        $y += Px 14
     }
     $y = Set-Row @(@{ c = $U.hGpu }) $M $y $Right
-    $y += Sc 6
-    $ltw = (Get-Natural $U.loadText).Width + (Sc 4)
-    $trackW = $Right - ($M + $col) - (Sc 6) - $ltw
+    $y += Px 6
+    $ltw = (Get-Natural $U.loadText).Width + (Px 4)
+    $trackW = $Right - ($M + $col) - (Px 6) - $ltw
     $y = Set-Row @(@{ c = $U.lLoad; w = $col }, @{ c = $U.load; w = $trackW; gap = 0 }, @{ c = $U.loadText; w = $ltw }) $M $y $Right
-    $y += Sc 6
+    $y += Px 6
     $y = Set-Row @(@{ c = $U.lTemp; w = $col }, @{ c = $U.maxTemp; gap = 0 },
-        @{ c = $U.tempHint; fill = $true; minw = (Sc 170); gap = (Sc 10) }) $M $y $Right ($M + $col)
-    $y += Sc 6
+        @{ c = $U.tempHint; fill = $true; minw = (Px 170); gap = (Px 10) }) $M $y $Right ($M + $col)
+    $y += Px 6
     $y = Set-Row @(@{ c = $U.loadHint; fill = $true }) $M $y $Right
-    $y += Sc 14
-    $y = Set-Row @(@{ c = $U.quiet }, @{ c = $U.qStart; gap = (Sc 2) }, @{ c = $U.lTo }, @{ c = $U.qEnd },
-        @{ c = $U.lQLoad; brk = $true; gap = (Sc 16) }, @{ c = $U.qLoad }, @{ c = $U.lPct; gap = (Sc 3) },
-        @{ c = $U.lMax; brk = $true; gap = (Sc 12) }, @{ c = $U.qTemp }) $M $y $Right ($M + (Sc 20))
-    $y += Sc 16
+    $y += Px 14
+    $y = Set-Row @(@{ c = $U.quiet }, @{ c = $U.qStart; gap = (Px 2) }, @{ c = $U.lTo }, @{ c = $U.qEnd },
+        @{ c = $U.lQLoad; brk = $true; gap = (Px 16) }, @{ c = $U.qLoad }, @{ c = $U.lPct; gap = (Px 3) },
+        @{ c = $U.lMax; brk = $true; gap = (Px 12) }, @{ c = $U.qTemp }) $M $y $Right ($M + (Px 20))
+    $y += Px 16
     $y = Set-Row @(@{ c = $U.hModels }) $M $y $Right
-    $y += Sc 4
+    $y += Px 4
     $y = Set-ListSize $U $M $y ($Right - $M)
-    $y += Sc 14
-    $y = Set-Row @(@{ c = $U.lStart; w = $col }, @{ c = $U.now; gap = 0 }, @{ c = $U.at; gap = (Sc 10) },
+    $y += Px 14
+    $y = Set-Row @(@{ c = $U.lStart; w = $col }, @{ c = $U.now; gap = 0 }, @{ c = $U.at; gap = (Px 10) },
         @{ c = $U.atTime; gap = 0 }) $M $y $Right ($M + $col)
-    $y += Sc 8
+    $y += Px 8
     $y = Set-Row @(@{ c = $U.lDone; w = $col }, @{ c = $U.done; gap = 0 },
-        @{ c = $U.doneHint; fill = $true; minw = (Sc 170); gap = (Sc 10) }) $M $y $Right ($M + $col)
-    return $y + (Sc 12)
+        @{ c = $U.doneHint; fill = $true; minw = (Px 170); gap = (Px 10) }) $M $y $Right ($M + $col)
+    return $y + (Px 12)
 }
 
 function Set-StartLayout($U) {
     $W = $U.W
-    $M = Sc 16
+    $M = Px 16
     $headH = Set-Head $U
     # the foot: the expected time (room for its longest text) and the buttons
-    $expH = (Measure-UiText $ExpectedLongest $U.expected.Font ($W - 2 * $M - (Sc 3))).Height + (Sc 2)
-    $fy = Sc 8
+    $expH = (Measure-UiText $ExpectedLongest $U.expected.Font ($W - 2 * $M - (Px 3))).Height + (Px 2)
+    $fy = Px 8
     $U.expected.SetBounds($M, $fy, ($W - 2 * $M), $expH)
-    $fy += $expH + (Sc 10)
+    $fy += $expH + (Px 10)
     $nb = Get-Natural $U.back
     $nc = Get-Natural $U.cancel
     $ns = Get-Natural $U.start
     $bh = [math]::Max($nb.Height, [math]::Max($nc.Height, $ns.Height))
     $U.start.SetBounds(($W - $M - $ns.Width), $fy, $ns.Width, $bh)
-    $U.cancel.SetBounds(($W - $M - $ns.Width - (Sc 10) - $nc.Width), $fy, $nc.Width, $bh)
+    $U.cancel.SetBounds(($W - $M - $ns.Width - (Px 10) - $nc.Width), $fy, $nc.Width, $bh)
     $U.back.SetBounds($M, $fy, $nb.Width, $bh)
-    $footH = $fy + $bh + (Sc 14)
+    $footH = $fy + $bh + (Px 14)
     # the body: all of it, or as much as the screen allows and a scroll bar
     $form = $U.form
-    Set-ClientSize $form $W (Sc 400)
+    Set-ClientSize $form $W (Px 400)
     $maxClient = (Get-WorkArea).Height - (Get-FrameHeight $form)
     $U.body.AutoScroll = $false
     $bodyH = Set-StartBody $U ($W - $M)
     if ($headH + $bodyH + $footH -gt $maxClient) {
         $U.body.AutoScroll = $true
         [void](Set-StartBody $U ($W - $M - (Get-ArrowWidth)))
-        $bodyH = [math]::Max((Sc 120), $maxClient - $headH - $footH)
+        $bodyH = [math]::Max((Px 120), $maxClient - $headH - $footH)
     }
     $U.body.SetBounds(0, $headH, $W, $bodyH)
     $U.foot.SetBounds(0, ($headH + $bodyH), $W, $footH)
@@ -718,7 +718,7 @@ function Show-StartWindow {
 # ---------------------------------------------------------------------------------------------------------------
 function Build-StatusWindow {
     $u = New-Form "Fresing site pictures - running"
-    $u.W = Sc 460
+    $u.W = Px 460
     $u.line1 = New-Text "Starting..." $Bold
     $u.line2 = New-Text ""
     $u.bar = New-Object System.Windows.Forms.ProgressBar
@@ -734,18 +734,18 @@ function Build-StatusWindow {
 
 function Set-StatusLayout($U) {                         # again after every new text: long lines wrap, the window grows
     $W = $U.W
-    $M = Sc 16
+    $M = Px 16
     $R = $W - $M
-    $y = (Set-Head $U) + (Sc 12)
+    $y = (Set-Head $U) + (Px 12)
     $y = Set-Row @(@{ c = $U.line1; fill = $true }) $M $y $R
-    $y = Set-Row @(@{ c = $U.line2; fill = $true }) $M ($y + (Sc 4)) $R
-    $y += Sc 8
-    $U.bar.SetBounds($M, $y, ($R - $M), (Sc 18))
-    $y += Sc 26
+    $y = Set-Row @(@{ c = $U.line2; fill = $true }) $M ($y + (Px 4)) $R
+    $y += Px 8
+    $U.bar.SetBounds($M, $y, ($R - $M), (Px 18))
+    $y += Px 26
     $y = Set-Row @(@{ c = $U.line3; fill = $true }) $M $y $R
-    $y += Sc 18
-    $y = Set-Row @(@{ c = $U.pause }, @{ c = $U.stop; gap = (Sc 10) }, @{ c = $U.hint; fill = $true; minw = (Sc 140); gap = (Sc 10) }) $M $y $R
-    Set-ClientSize $U.form $W ($y + (Sc 14))
+    $y += Px 18
+    $y = Set-Row @(@{ c = $U.pause }, @{ c = $U.stop; gap = (Px 10) }, @{ c = $U.hint; fill = $true; minw = (Px 140); gap = (Px 10) }) $M $y $R
+    Set-ClientSize $U.form $W ($y + (Px 14))
 }
 
 function Show-StatusWindow {
@@ -843,22 +843,22 @@ function Show-StatusWindow {
 # ---------------------------------------------------------------------------------------------------------------
 function Build-EndWindow([string]$Verb) {
     $u = New-Form "Fresing site pictures - done"
-    $u.W = Sc 420
+    $u.W = Px 420
     $u.msg = New-Text "" $Bold
     $u.go = New-Button "Now" $true
     $u.cancel = New-Button "Cancel"
     $u.form.Controls.AddRange(@($u.msg, $u.go, $u.cancel))
     $W = $u.W
-    $M = Sc 16
-    $y = (Set-Head $u) + (Sc 12)
-    $h = (Measure-UiText "The pictures are done. The PC will $Verb in 60 s." $Bold ($W - 2 * $M - (Sc 3))).Height + (Sc 2)
+    $M = Px 16
+    $y = (Set-Head $u) + (Px 12)
+    $h = (Measure-UiText "The pictures are done. The PC will $Verb in 60 s." $Bold ($W - 2 * $M - (Px 3))).Height + (Px 2)
     $u.msg.SetBounds($M, $y, ($W - 2 * $M), $h)
-    $y += $h + (Sc 12)
+    $y += $h + (Px 12)
     $ng = Get-Natural $u.go
     $nc = Get-Natural $u.cancel
     $u.cancel.SetBounds(($W - $M - $nc.Width), $y, $nc.Width, $nc.Height)
-    $u.go.SetBounds(($W - $M - $nc.Width - (Sc 10) - $ng.Width), $y, $ng.Width, $ng.Height)
-    Set-ClientSize $u.form $W ($y + $nc.Height + (Sc 14))
+    $u.go.SetBounds(($W - $M - $nc.Width - (Px 10) - $ng.Width), $y, $ng.Width, $ng.Height)
+    Set-ClientSize $u.form $W ($y + $nc.Height + (Px 14))
     return $u
 }
 

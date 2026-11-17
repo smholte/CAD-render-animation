@@ -79,40 +79,40 @@ function Test-TextFits([string]$Where, $C) {
         if ($m.Width -gt $cw -or $m.Height -gt $ch) { Bad $Where $C "needs $($m.Width) x $($m.Height), has $cw x $ch" }
     } elseif ($C -is [System.Windows.Forms.CheckBox] -or $C -is [System.Windows.Forms.RadioButton]) {
         $m = Measure-UiText $C.Text $f
-        $need = $m.Width + (Sc 18)
+        $need = $m.Width + (Px 18)
         if ($need -gt $cw -or $m.Height -gt $ch) { Bad $Where $C "needs $need x $($m.Height) with its box, has $cw x $ch" }
     } elseif ($C -is [System.Windows.Forms.Button]) {
         foreach ($t in (Get-FitTexts $C)) {
             $m = Measure-UiText $t $f
-            if ($m.Width + (Sc 10) -gt $cw -or $m.Height -gt $ch) { Bad $Where $C "text '$t' needs $($m.Width) x $($m.Height), has $cw x $ch" }
+            if ($m.Width + (Px 10) -gt $cw -or $m.Height -gt $ch) { Bad $Where $C "text '$t' needs $($m.Width) x $($m.Height), has $cw x $ch" }
         }
     } elseif ($C -is [System.Windows.Forms.ComboBox]) {
         foreach ($t in $C.Items) {
             $m = Measure-UiText ([string]$t) $f
-            if ($m.Width + $arrow + (Sc 4) -gt $C.Width) { Bad $Where $C "item '$t' needs $($m.Width) + the arrow, has $($C.Width)" }
+            if ($m.Width + $arrow + (Px 4) -gt $C.Width) { Bad $Where $C "item '$t' needs $($m.Width) + the arrow, has $($C.Width)" }
         }
     } elseif ($C -is [System.Windows.Forms.DateTimePicker]) {
         $m = Measure-UiText "23:59" $f
-        if ($m.Width + $arrow + (Sc 4) -gt $C.Width) { Bad $Where $C "a time needs $($m.Width) + the spin buttons, has $($C.Width)" }
+        if ($m.Width + $arrow + (Px 4) -gt $C.Width) { Bad $Where $C "a time needs $($m.Width) + the spin buttons, has $($C.Width)" }
         if ($C.Height -lt $C.PreferredHeight) { Bad $Where $C "is $($C.Height) high, needs $($C.PreferredHeight)" }
     } elseif ($C -is [System.Windows.Forms.NumericUpDown]) {
         $m = Measure-UiText "100" $f
-        if ($m.Width + $arrow + (Sc 4) -gt $C.Width) { Bad $Where $C "'100' needs $($m.Width) + the spin buttons, has $($C.Width)" }
+        if ($m.Width + $arrow + (Px 4) -gt $C.Width) { Bad $Where $C "'100' needs $($m.Width) + the spin buttons, has $($C.Width)" }
         if ($C.Height -lt $C.PreferredHeight) { Bad $Where $C "is $($C.Height) high, needs $($C.PreferredHeight)" }
     } elseif ($C -is [System.Windows.Forms.ListView]) {
         $sum = 0
         foreach ($col in $C.Columns) {
             $sum += $col.Width
             $m = Measure-UiText $col.Text $f
-            if ($m.Width + (Sc 8) -gt $col.Width) { Bad $Where $C "column '$($col.Text)' is $($col.Width) wide, its title needs $($m.Width)" }
+            if ($m.Width + (Px 8) -gt $col.Width) { Bad $Where $C "column '$($col.Text)' is $($col.Width) wide, its title needs $($m.Width)" }
         }
         if ($sum -gt $cw) { Bad $Where $C "columns are $sum wide, the list shows $cw (a sideways scroll bar)" }
         foreach ($it in $C.Items) {
             $m0 = Measure-UiText $it.Text $f
-            if ($m0.Width + (Sc 30) -gt $C.Columns[0].Width) { Bad $Where $C "model '$($it.Text)' needs $($m0.Width) + its box, column is $($C.Columns[0].Width)" }
+            if ($m0.Width + (Px 30) -gt $C.Columns[0].Width) { Bad $Where $C "model '$($it.Text)' needs $($m0.Width) + its box, column is $($C.Columns[0].Width)" }
             $t1 = $it.SubItems[1].Text
             $m1 = Measure-UiText $t1 $f
-            if ($m1.Width + (Sc 8) -gt $C.Columns[1].Width) { Bad $Where $C "time '$t1' needs $($m1.Width), column is $($C.Columns[1].Width)" }
+            if ($m1.Width + (Px 8) -gt $C.Columns[1].Width) { Bad $Where $C "time '$t1' needs $($m1.Width), column is $($C.Columns[1].Width)" }
             $r = $C.GetItemRect($it.Index)
             if ($r.Bottom -gt $ch) { Bad $Where $C "model '$($it.Text)' is below the list's bottom ($($r.Bottom) > $ch)" }
         }
