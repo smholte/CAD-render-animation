@@ -747,11 +747,13 @@ def _textured(mat: dict) -> bool:
 
 
 def part_labels(scene) -> dict:
-    """{part object name: the text of its first label that is on} (task 0025's labels; task 0135's cards)."""
+    """{part object name: the text of its first label that is on} (task 0025's labels; task 0135's cards). A label's
+    live fields (task 0173: a sea cable's numbers) are filled in as at the frame exported, its lines kept."""
+    from . import callouts
     out: dict = {}
     for c in getattr(scene.fresing, "callouts", []):
         if c.enabled and c.part is not None and c.text.strip() and c.part.name not in out:
-            out[c.part.name] = c.text.strip()
+            out[c.part.name] = callouts.label_text(scene, c)
     return out
 
 

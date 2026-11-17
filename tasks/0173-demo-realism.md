@@ -108,9 +108,10 @@ Split (one owner per file):
    `blender/callouts.label_text` / `live_values`; `video._lines` draws them left-aligned at the measured line step).
    The demo's label "Lay data" (top/bottom tension, layback, departure angle, lay speed, water depth) points at the
    middle of the hanging cable (the touch-down lies at the picture's lower edge) during shot 8; the caption says
-   "surface lay". Shot 8's camera aimed lower and wider (lens 20, orbit −6° instead of −10°) so horn A, the
-   touch-down and the ROV stay in the picture all through. Web page: not changed (the Web 3D lane runs 0179) – a
-   label with fields would show its raw words there on a part card; noted as an open point.
+   "surface lay". Shot 8's camera aimed lower and wider so horn A, the
+   touch-down and the ROV stay in the picture all through (lens 19, orbit −5°; the ROV above the caption's band).
+   Web page: a part card shows a label's fields filled in as at the frame exported (`web3d.part_labels`, one line
+   after 0179 was merged); the card shows one block of text (its line breaks as the page's CSS treats them).
 2. **38 kg/m at Ø 200** (`core/catenary.WET_200`, scaled with Ø² as before). Layback mode keeps the shape: the demo's
    cable leaves horn A at 68° with the touch-down 32.0 m behind; tensions now **7.3 kN bottom, 19.4 kN top** (were
    9.8 / 26.1; the brief's 7.7 / 18.9 used h = 30 m, the demo's horn leaves 32.7 m over the seabed). Test models,
@@ -175,8 +176,8 @@ cable carried by a part whose joint follows a kept-tight winch stayed still – 
 its pass-count expectations changed from "one extra pass" to "no extra pass" after the second design).
 
 **Open points / follow-up tasks:**
-- Web page: a label with fields shows its raw words (`{top}`) on the page's part card (`web3d.part_labels`) – Web 3D
-  lane, after 0179 (fill the fields at the frame exported, or skip such labels).
+- Web page: a label's live numbers are those of the frame exported, not moving with the page's animation; its line
+  breaks follow the card's CSS (Web 3D lane, if wanted).
 - Hoses (flex) and swivels on a part moved by a follower of a kept-tight winch are still read before the payouts
   (the tester's note; flex Build comes before the cables) – nothing in the demo does this.
 - The touch-down drifts ~3 m aft over shots 1–8b and moves ±1 m with the heave; the ROV could follow it with a joint

@@ -110,6 +110,11 @@ def test_a_label_on_a_sea_cable_shows_its_numbers_at_every_frame(addon, tmp_path
         if f == mid:
             assert float(rows[5].split()[1]) == pytest.approx(blk.speed_mmin, rel=0.02)
     assert len(seen) > 1                                    # the speed changes from running to standing
+    # the web page's part card shows the numbers too, not the fields as typed
+    from fresing_render.blender import web3d
+    sc.frame_set(mid)
+    card = web3d.part_labels(sc)[c.part.name]
+    assert "{" not in card and card == callouts.label_text(sc, c) and card.count("\n") == 6
     # several lines: the box is as high as its lines
     w1, h1 = callouts.measure("Top tension 18.9 kN", 40)
     w7, h7 = callouts.measure(callouts.label_text(sc, c), 40)
