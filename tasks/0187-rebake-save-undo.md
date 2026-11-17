@@ -50,10 +50,28 @@ Rows 1, 7, 8, 10 (next Flex-lane task); web 3D files other than what row 11 need
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker (Claude Code on the web, Sonnet), 17 Nov 2026
 
-**What changed:**
+**What changed:** version 0.2.144 (number to be confirmed at merge).
+- Row 3: `queue.busy_job` names the re-bake ("Cable re-bake", so Save warns and the queue / delayed start wait); a
+  `save_pre` (`flex.pause_read_for_save`) puts the hidden parts, muted keys and frame back for the save and `save_post`
+  (`flex.resume_read`) hides them again.
+- Row 4: `flex._on_undo` / `paths._on_undo` call `motion_changed(force=False)` after an undo/redo: when the key of the
+  motion the shapes were worked out for differs from the scene's motion, the re-bake is requested (window: the job;
+  background: at once).
+- Row 11: `spool.web_end` removes the solids at once in a background Blender.
+- Row 14: `paths_sea.numbers` gives `top` / `bottom` = None when the cable hangs less than 1 mm (height or length);
+  the panel and the labels show "–".
+- Row 15: `spool.renamed` gives a drum or carousel a free name ("Drum 2") when the new one is taken.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, test_sea.step / test_spool.step): new tests that failed before the fix –
+`test_paths_sea.py` (no tension on the seabed, undo brings back a re-bake, save during the read pass + busy_job),
+`test_spool.py` (solids gone at once, no duplicate drum name); real app `ui_test_undo_rebake.py` (group `undorebake`,
+4 checks, in `machines`): real `bpy.ops.ed.undo()` after a re-bake – fails without the fix (key back at the old
+speed), passes with it. Note: a simulated Ctrl+Z key press (`event_simulate`) did nothing in the test, so it calls the
+undo operator. Not tried: the 3-minute re-bake on the demo with a real Ctrl+S in the job (the read pass is covered by
+the unit test with the same objects and handler functions).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** rows 1, 7, 8, 10 stay for the next Flex-lane task. The save puts the frame back but
+does not make the job's partial shapes "built": a file saved mid-job is right but the re-bake is not in it (it is
+requested again on opening only if the motion key differs – not checked).
