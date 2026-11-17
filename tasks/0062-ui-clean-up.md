@@ -15,6 +15,14 @@ panels are then built once in the new layout). Its one stop (point 5, and the Cl
 findings-only study **0197**: the owner picks from 0197's page before 0062 starts and the lead writes the picks here –
 0062 then runs **without stopping**. 0197's panel inventory and workspace map are 0062's starting point.
 
+**Lead note 17 Nov 2026 22:30 – owner's new wishes (Start & learn lane):** point 3's "every project opens in the
+app's layout" and a way back to a hidden Fresing panel move to **0198** (done before 0062; 0062 keeps "sections 1–7
+start folded"). A top-bar "Fresing" menu, the welcome and What's new go to **0199** (before 0062; 0062 keeps its menu
+as it is). New for 0062, from the owner: **all ways to render side by side** (3D page, turntable, current view and the
+others), **less scrolling**, and **a floating, draggable set-up window** (e.g. setting up a CNC mill or a mechanism)
+– study **0200** measures what Blender allows and puts options on a page; the owner picks there and the lead writes
+the picks here with 0197's. Order: 0198 → 0199 → 0062; 0200 beside them; 0062 starts only when both pages are picked.
+
 **Lead note 14 Nov 2026 – interactive learning (study 0123):** the owner wants this overhaul and the learning modes (Show me / Build it yourself on the test models, the guide inside the app) to work as one. Before this task starts the lead adds 0123's results here: the families come from the one function list (registry), and the shared panel helpers get the hook that lets a lesson highlight a button and open its folds. The modes themselves are built after this task.
 
 **Lead note 17 Nov 2026 – highlight looks (owner's pick from 0168):** `button C + D, section 5 + 4, part 3 + 1,
