@@ -73,6 +73,46 @@ later task (L4) can drop one into a project and plan a lift with it.
 The library reader (0190), the Lifting panel and placing a crane in a project (L4), rigging and the hang solver (L5),
 offshore / vessel cranes (L9), forklifts, hoists, slings and spreaders (L8).
 
+## Design (worker, 17 Nov 2026)
+
+Files: `fresing_render/lifting_model/` – `classes.py` (pure Python: the 12 parameter sets, the derived geometry and the
+forward kinematics `hook_point(cls, values)` in mm), `charts.py` (pure Python: the invented sample charts from the
+parameters, `core/lifting.py` types), `equipment.py` (pure Python: the equipment JSON of a class), `common.py` (OCP:
+shapes and helpers on top of `demo_model/geom.py` – box tubes, lattice, wheels, cab, hook block, cylinders fitted to a
+range), `mobile.py`, `crawler.py`, `knuckle.py` (OCP: the tree `Asm` + the rig), `make.py` (writes a class folder:
+STEP, JSON). `tools/make_lifting_cranes.py` = the command line (+ `--pictures`: Cycles, bpy module). Tests:
+`tests/test_lifting_cranes.py` (no Blender: charts, JSON, words), `tests/lifting_rig.py` (helper: import + rig in the
+app), `tests/test_lifting_cranes_<kind>.py` (bpy, one file per kind).
+
+Model frame (all kinds): STEP in mm, Z up, the ground z = 0, the slew axis = the z axis, the boom in the CAD pose along
++x (y across). Radius = horizontal distance of the hook point from the slew axis. Joint values: 0 = CAD pose; degrees
+and mm in the sheet (as `site/render_kit/projects.py`).
+
+Rig (`"rig"` of the JSON, the render-kit sheet's form: `joints` with `rides_on` / `follows` + `ratio` / `limits`,
+`cylinders`, `poses`, `start_pose`) plus, for L4: `groups` (mass group -> its sub-assemblies and the joint that moves
+it), `hook` (the hook block's sub-assembly, its hook point in the CAD pose), `cables` (the hoist rope part from the boom
+head to the hook block: L4 makes it a cable of 4 Motion > Cables and paths, its end on the hook block), `tracks`
+(crawlers: wheels, one link, one shoe, the speed joint "Travel": tracks.add).
+
+- **Hook plumb at every pose:** "Hook swing" (rotate about the head sheave's axis, rides on the boom tip) follows
+  "Luff" with ratio -1 (knuckle: "Hook swing" follows "Main boom", "Hook swing 2" follows "Knuckle"); "Hoist" (slide
+  straight down) rides on it and moves the hook block. Hook point = head sheave centre - (d0 + hoist) z.
+- **Telescope:** section k rides on section k-1; "Telescope" moves section 2, sections 3..N follow it with ratio 1
+  (boom length = L0 + (N-1) x value). Knuckle extensions the same ("Extension").
+- **Outriggers / stabilisers:** "Outriggers" (front-left beam out), the other three follow (ratio 1, each along its own
+  outward direction); "Jacks" (front-left jack down, to the ground at full stroke), the other three follow.
+- **Cylinders** (luff, main boom, knuckle) sit at the model's top level (a cylinder's parts move with no joint); their
+  pins and lengths come from `common.fit_cylinder` (the rod stays in the barrel over the whole range, checked).
+- **Crawler:** "Travel" (slide along x) moves the whole crane (`CRANE.ASM`, the root never moves); the tracks run on
+  "Travel" (the app's tracks, 0079), "Slew" moves the upper works, "Luff" the lattice boom (wire-luffed: no cylinder),
+  CC-750 / CC-1600 also "Jib" (a luffing jib, rides on "Luff").
+- **Masses / CoG:** masses per group from the parameters (invented, brochure magnitudes); CoG from the group's solids
+  (one density) in the CAD pose, m.
+- **Charts:** capacity = min(rated top, boom strength / radius, 75 % tipping rule over the outrigger / track edge with
+  the boom's own moment), rounded down, then never more than a shorter boom at the same radius; every chart through
+  `lifting.validate_charts`. Configurations: mobile boom x counterweight x outrigger spread, crawler boom (+ jib) x
+  counterweight, knuckle outreach (extensions out) x stabiliser spread.
+
 ---
 
 ## Report (filled in by the chat that did the task)

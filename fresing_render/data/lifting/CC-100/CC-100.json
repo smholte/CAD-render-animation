@@ -1,0 +1,1164 @@
+{
+  "format": "fresing-lifting-equipment",
+  "format_version": "1.0",
+  "kind": "crawler_crane",
+  "class": "CC-100",
+  "name": "CC-100",
+  "units": {
+    "mass": "t",
+    "length": "m"
+  },
+  "mass": {
+    "lower": 36.0,
+    "upper": 26.0,
+    "counterweight": 38.0,
+    "boom": 11.0,
+    "hook_block": 1.3
+  },
+  "cog": {
+    "lower": [
+      0.0,
+      0.0,
+      0.6
+    ],
+    "upper": [
+      -0.85,
+      0.428,
+      2.811
+    ],
+    "counterweight": [
+      -4.6,
+      -0.0,
+      1.982
+    ],
+    "boom": [
+      8.346,
+      -0.0,
+      14.989
+    ],
+    "hook_block": [
+      19.121,
+      0.0,
+      31.521
+    ]
+  },
+  "rig": {
+    "step": "CC-100.step",
+    "units": "mm",
+    "angles": "deg",
+    "up_axis": "Z",
+    "frame": "ground z = 0, slew axis = z axis, boom along +x in the CAD pose (joint values 0)",
+    "joints": [
+      {
+        "name": "Travel",
+        "kind": "SLIDE",
+        "parts": [
+          "CRANE.ASM"
+        ],
+        "point": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          -30000.0,
+          30000.0
+        ]
+      },
+      {
+        "name": "Slew",
+        "kind": "ROTATE",
+        "parts": [
+          "UPPER WORKS.ASM"
+        ],
+        "point": [
+          0.0,
+          0.0,
+          1394.7407
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "rides_on": "Travel",
+        "limits": [
+          -180.0,
+          180.0
+        ]
+      },
+      {
+        "name": "Luff",
+        "kind": "ROTATE",
+        "parts": [
+          "LATTICE BOOM.ASM"
+        ],
+        "point": [
+          1130.0,
+          0.0,
+          2469.7407
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Slew",
+        "limits": [
+          -30.0,
+          24.0
+        ]
+      },
+      {
+        "name": "Hook swing",
+        "kind": "ROTATE",
+        "parts": [
+          "HOOK SWING.ASM"
+        ],
+        "point": [
+          19130.0,
+          0.0,
+          33646.6552
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Luff",
+        "limits": null,
+        "follows": "Luff",
+        "ratio": -1.0
+      },
+      {
+        "name": "Hoist",
+        "kind": "SLIDE",
+        "parts": [
+          "HOOK BLOCK.ASM"
+        ],
+        "point": [
+          19130.0,
+          0.0,
+          33646.6552
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Hook swing",
+        "limits": [
+          0.0,
+          38319.7407
+        ]
+      }
+    ],
+    "cylinders": [
+      {
+        "name": "Boom pendant L",
+        "barrel": [
+          "BOOM PENDANT BAR L"
+        ],
+        "rod": [
+          "BOOM PENDANT ROD L"
+        ],
+        "barrel_pin": {
+          "point": [
+            -2530.0,
+            1040.0,
+            6419.740661031255
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "UPPER WORKS.ASM"
+        },
+        "rod_pin": {
+          "point": [
+            17710.13485025341,
+            1040.0,
+            33167.37661801355
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "LATTICE BOOM.ASM"
+        }
+      },
+      {
+        "name": "Boom pendant R",
+        "barrel": [
+          "BOOM PENDANT BAR R"
+        ],
+        "rod": [
+          "BOOM PENDANT ROD R"
+        ],
+        "barrel_pin": {
+          "point": [
+            -2530.0,
+            -1040.0,
+            6419.740661031255
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "UPPER WORKS.ASM"
+        },
+        "rod_pin": {
+          "point": [
+            17710.13485025341,
+            -1040.0,
+            33167.37661801355
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "LATTICE BOOM.ASM"
+        }
+      }
+    ],
+    "poses": [
+      {
+        "name": "Working",
+        "values": {
+          "Hoist": 15327.9
+        }
+      },
+      {
+        "name": "Steep",
+        "values": {
+          "Luff": 20.0,
+          "Hoist": 22991.8
+        }
+      },
+      {
+        "name": "Long reach",
+        "values": {
+          "Luff": -25.0,
+          "Slew": -60.0,
+          "Hoist": 11495.9,
+          "Travel": 4000.0
+        }
+      }
+    ],
+    "start_pose": "Working",
+    "groups": {
+      "lower": {
+        "parts": [
+          "LOWER WORKS.ASM"
+        ],
+        "moves_with": "Travel"
+      },
+      "upper": {
+        "parts": [
+          "UPPER WORKS.ASM",
+          "BOOM PENDANT BAR L",
+          "BOOM PENDANT BAR R",
+          "BOOM PENDANT ROD L",
+          "BOOM PENDANT ROD R"
+        ],
+        "moves_with": "Slew"
+      },
+      "counterweight": {
+        "parts": [
+          "COUNTERWEIGHT.ASM"
+        ],
+        "moves_with": "Slew"
+      },
+      "boom": {
+        "parts": [
+          "LATTICE BOOM.ASM"
+        ],
+        "moves_with": "Luff"
+      },
+      "hook_block": {
+        "parts": [
+          "HOOK BLOCK.ASM"
+        ],
+        "moves_with": "Hoist"
+      }
+    },
+    "hook": {
+      "assembly": "HOOK BLOCK.ASM",
+      "point": [
+        19130.0,
+        0.0,
+        30496.655
+      ],
+      "joint": "Hoist",
+      "plumb": "the hook swing joints follow the boom's turns (ratio -1): the block hangs plumb"
+    },
+    "cables": [
+      {
+        "name": "Hoist rope",
+        "part": "HOIST ROPE",
+        "end_on": "HOOK BLOCK.ASM",
+        "look": "ROPE",
+        "note": "drawn in the CAD from the head sheave to the hook block: make it a cable whose end stays on the hook block, so it follows the hoist"
+      }
+    ],
+    "tracks": [
+      {
+        "name": "Left track",
+        "wheels": [
+          "DRIVE SPROCKET L",
+          "IDLER L"
+        ],
+        "link": "TRACK LINK L",
+        "riders": [
+          "TRACK SHOE L"
+        ],
+        "joint": "Travel"
+      },
+      {
+        "name": "Right track",
+        "wheels": [
+          "DRIVE SPROCKET R",
+          "IDLER R"
+        ],
+        "link": "TRACK LINK R",
+        "riders": [
+          "TRACK SHOE R"
+        ],
+        "joint": "Travel"
+      }
+    ]
+  },
+  "charts": [
+    {
+      "name": "SAMPLE – 360°, boom 18 m, counterweight 20 t",
+      "config": {
+        "boom": 18.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0
+      ],
+      "capacity": [
+        100.0,
+        84.4,
+        69.2,
+        50.7,
+        39.8,
+        32.6,
+        27.6,
+        23.8,
+        20.9,
+        18.5,
+        15.0,
+        12.6
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 24 m, counterweight 20 t",
+      "config": {
+        "boom": 24.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        81.7,
+        73.0,
+        66.3,
+        50.2,
+        39.3,
+        32.1,
+        27.0,
+        23.2,
+        20.3,
+        17.9,
+        14.4,
+        11.9,
+        10.1,
+        8.68
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 30 m, counterweight 20 t",
+      "config": {
+        "boom": 30.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0
+      ],
+      "capacity": [
+        56.7,
+        48.3,
+        38.7,
+        31.5,
+        26.4,
+        22.6,
+        19.6,
+        17.3,
+        13.8,
+        11.3,
+        9.47,
+        8.03,
+        6.87,
+        5.93,
+        5.14
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 36 m, counterweight 20 t",
+      "config": {
+        "boom": 36.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0
+      ],
+      "capacity": [
+        49.9,
+        42.5,
+        37.3,
+        30.9,
+        25.8,
+        22.0,
+        19.0,
+        16.7,
+        13.2,
+        10.7,
+        8.83,
+        7.38,
+        6.22,
+        5.27,
+        4.48,
+        3.82,
+        3.25,
+        2.75
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 42 m, counterweight 20 t",
+      "config": {
+        "boom": 42.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0
+      ],
+      "capacity": [
+        38.1,
+        33.4,
+        29.9,
+        25.2,
+        21.4,
+        18.4,
+        16.1,
+        12.5,
+        10.0,
+        8.19,
+        6.73,
+        5.57,
+        4.62,
+        3.83,
+        3.16,
+        2.58,
+        2.09,
+        1.65,
+        1.27
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 48 m, counterweight 20 t",
+      "config": {
+        "boom": 48.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0
+      ],
+      "capacity": [
+        30.4,
+        27.3,
+        24.6,
+        20.8,
+        17.8,
+        15.4,
+        11.9,
+        9.43,
+        7.54,
+        6.08,
+        4.91,
+        3.96,
+        3.17,
+        2.5,
+        1.92,
+        1.42,
+        0.99,
+        0.61
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 54 m, counterweight 20 t",
+      "config": {
+        "boom": 54.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0
+      ],
+      "capacity": [
+        28.0,
+        25.1,
+        22.8,
+        20.2,
+        17.2,
+        14.8,
+        11.3,
+        8.79,
+        6.9,
+        5.43,
+        4.26,
+        3.31,
+        2.51,
+        1.84,
+        1.26,
+        0.76,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 20 t",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 20.0
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        23.3,
+        21.2,
+        19.5,
+        16.6,
+        14.2,
+        10.6,
+        8.16,
+        6.26,
+        4.79,
+        3.61,
+        2.65,
+        1.85,
+        1.18,
+        0.6
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 18 m, counterweight 38 t",
+      "config": {
+        "boom": 18.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0
+      ],
+      "capacity": [
+        100.0,
+        89.3,
+        81.1,
+        69.0,
+        58.6,
+        48.2,
+        40.9,
+        35.4,
+        31.2,
+        27.8,
+        22.7,
+        19.1
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 24 m, counterweight 38 t",
+      "config": {
+        "boom": 24.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        81.7,
+        73.0,
+        66.3,
+        56.4,
+        49.5,
+        44.3,
+        40.3,
+        34.8,
+        30.6,
+        27.2,
+        22.1,
+        18.5,
+        15.8,
+        13.7
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 30 m, counterweight 38 t",
+      "config": {
+        "boom": 30.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0
+      ],
+      "capacity": [
+        56.7,
+        48.3,
+        42.3,
+        37.9,
+        34.5,
+        31.7,
+        29.4,
+        26.5,
+        21.5,
+        17.9,
+        15.2,
+        13.1,
+        11.4,
+        10.1,
+        8.96
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 36 m, counterweight 38 t",
+      "config": {
+        "boom": 36.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0
+      ],
+      "capacity": [
+        49.9,
+        42.5,
+        37.3,
+        33.4,
+        30.3,
+        27.9,
+        25.9,
+        24.2,
+        20.9,
+        17.2,
+        14.5,
+        12.4,
+        10.8,
+        9.44,
+        8.3,
+        7.34,
+        6.52,
+        5.8
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 42 m, counterweight 38 t",
+      "config": {
+        "boom": 42.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0
+      ],
+      "capacity": [
+        38.1,
+        33.4,
+        29.9,
+        27.2,
+        25.0,
+        23.2,
+        21.7,
+        19.3,
+        16.6,
+        13.9,
+        11.8,
+        10.1,
+        8.79,
+        7.65,
+        6.68,
+        5.86,
+        5.14,
+        4.52,
+        3.96
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 48 m, counterweight 38 t",
+      "config": {
+        "boom": 48.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0
+      ],
+      "capacity": [
+        30.4,
+        27.3,
+        24.8,
+        22.8,
+        21.1,
+        19.8,
+        17.6,
+        15.9,
+        13.2,
+        11.1,
+        9.51,
+        8.13,
+        6.99,
+        6.02,
+        5.19,
+        4.48,
+        3.85,
+        3.3,
+        2.81,
+        2.37
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 54 m, counterweight 38 t",
+      "config": {
+        "boom": 54.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0,
+        44.0
+      ],
+      "capacity": [
+        28.0,
+        25.1,
+        22.8,
+        21.0,
+        19.5,
+        18.2,
+        16.2,
+        14.6,
+        12.6,
+        10.5,
+        8.85,
+        7.48,
+        6.33,
+        5.36,
+        4.53,
+        3.81,
+        3.18,
+        2.63,
+        2.14,
+        1.7,
+        0.94
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 38 t",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 38.0
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0
+      ],
+      "capacity": [
+        23.3,
+        21.2,
+        19.5,
+        18.1,
+        16.9,
+        15.0,
+        13.6,
+        12.0,
+        9.89,
+        8.2,
+        6.82,
+        5.67,
+        4.7,
+        3.87,
+        3.15,
+        2.52,
+        1.96,
+        1.47,
+        1.03
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    }
+  ],
+  "hook_blocks": [
+    {
+      "name": "main",
+      "mass": 1.3,
+      "falls": 8,
+      "sheaves": 4,
+      "wll": 100.0
+    }
+  ],
+  "limits": {
+    "slew": [
+      -180.0,
+      180.0
+    ],
+    "hoist": [
+      0.0,
+      38.32
+    ],
+    "max_line_pull": 8.0,
+    "boom_angle": [
+      30.0,
+      84.0
+    ],
+    "boom_lengths": [
+      18,
+      24,
+      30,
+      36,
+      42,
+      48,
+      54,
+      60
+    ],
+    "model_boom": 36.0,
+    "counterweight_steps": [
+      20.0,
+      38.0
+    ]
+  },
+  "sample": true,
+  "source": "invented sample – Fresing Render",
+  "tracks": {
+    "gauge": 4.3,
+    "length": 5.6,
+    "width": 0.8,
+    "centre": [
+      0.0,
+      0.0
+    ],
+    "joint": "Travel"
+  }
+}

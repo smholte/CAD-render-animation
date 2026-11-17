@@ -1,0 +1,3377 @@
+{
+  "format": "fresing-lifting-equipment",
+  "format_version": "1.0",
+  "kind": "mobile_crane",
+  "class": "AT-100",
+  "name": "AT-100",
+  "units": {
+    "mass": "t",
+    "length": "m"
+  },
+  "mass": {
+    "carrier": 33.0,
+    "superstructure": 10.0,
+    "counterweight": 30.0,
+    "boom": 17.0,
+    "hook_block": 1.0
+  },
+  "cog": {
+    "carrier": [
+      4.406,
+      0.079,
+      1.296
+    ],
+    "superstructure": [
+      -0.348,
+      -0.484,
+      2.469
+    ],
+    "counterweight": [
+      -3.7,
+      -0.0,
+      2.425
+    ],
+    "boom": [
+      3.917,
+      -0.0,
+      3.884
+    ],
+    "hook_block": [
+      11.826,
+      0.0,
+      2.475
+    ]
+  },
+  "rig": {
+    "step": "AT-100.step",
+    "units": "mm",
+    "angles": "deg",
+    "up_axis": "Z",
+    "frame": "ground z = 0, slew axis = z axis, boom along +x in the CAD pose (joint values 0)",
+    "joints": [
+      {
+        "name": "Slew",
+        "kind": "ROTATE",
+        "parts": [
+          "SUPERSTRUCTURE.ASM"
+        ],
+        "point": [
+          0.0,
+          0.0,
+          1780.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "rides_on": null,
+        "limits": [
+          -180.0,
+          180.0
+        ]
+      },
+      {
+        "name": "Luff",
+        "kind": "ROTATE",
+        "parts": [
+          "BOOM BASE.ASM"
+        ],
+        "point": [
+          -960.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Slew",
+        "limits": [
+          0.0,
+          82.0
+        ]
+      },
+      {
+        "name": "Telescope",
+        "kind": "SLIDE",
+        "parts": [
+          "BOOM SECTION 2.ASM"
+        ],
+        "point": [
+          -960.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "rides_on": "Luff",
+        "limits": [
+          0.0,
+          7866.6667
+        ]
+      },
+      {
+        "name": "Telescope 3",
+        "kind": "SLIDE",
+        "parts": [
+          "BOOM SECTION 3.ASM"
+        ],
+        "point": [
+          -960.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "rides_on": "Telescope",
+        "limits": [
+          0.0,
+          7866.6667
+        ],
+        "follows": "Telescope",
+        "ratio": 1.0
+      },
+      {
+        "name": "Telescope 4",
+        "kind": "SLIDE",
+        "parts": [
+          "BOOM SECTION 4.ASM"
+        ],
+        "point": [
+          -960.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "rides_on": "Telescope 3",
+        "limits": [
+          0.0,
+          7866.6667
+        ],
+        "follows": "Telescope",
+        "ratio": 1.0
+      },
+      {
+        "name": "Telescope 5",
+        "kind": "SLIDE",
+        "parts": [
+          "BOOM SECTION 5.ASM"
+        ],
+        "point": [
+          -960.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "rides_on": "Telescope 4",
+        "limits": [
+          0.0,
+          7866.6667
+        ],
+        "follows": "Telescope",
+        "ratio": 1.0
+      },
+      {
+        "name": "Telescope 6",
+        "kind": "SLIDE",
+        "parts": [
+          "BOOM SECTION 6.ASM"
+        ],
+        "point": [
+          -960.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "rides_on": "Telescope 5",
+        "limits": [
+          0.0,
+          7866.6667
+        ],
+        "follows": "Telescope",
+        "ratio": 1.0
+      },
+      {
+        "name": "Telescope 7",
+        "kind": "SLIDE",
+        "parts": [
+          "BOOM SECTION 7.ASM"
+        ],
+        "point": [
+          -960.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "rides_on": "Telescope 6",
+        "limits": [
+          0.0,
+          7866.6667
+        ],
+        "follows": "Telescope",
+        "ratio": 1.0
+      },
+      {
+        "name": "Hook swing",
+        "kind": "ROTATE",
+        "parts": [
+          "HOOK SWING.ASM"
+        ],
+        "point": [
+          11840.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Telescope 7",
+        "limits": null,
+        "follows": "Luff",
+        "ratio": -1.0
+      },
+      {
+        "name": "Hoist",
+        "kind": "SLIDE",
+        "parts": [
+          "HOOK BLOCK.ASM"
+        ],
+        "point": [
+          11840.0,
+          0.0,
+          3885.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Hook swing",
+        "limits": [
+          0.0,
+          64544.96
+        ]
+      },
+      {
+        "name": "Outriggers",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM FL.ASM"
+        ],
+        "point": [
+          3850.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1122.5
+        ]
+      },
+      {
+        "name": "Outrigger FL 2",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM FL 2.ASM"
+        ],
+        "point": [
+          3850.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": "Outriggers",
+        "limits": [
+          0.0,
+          1122.5
+        ],
+        "follows": "Outriggers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Jacks",
+        "kind": "SLIDE",
+        "parts": [
+          "JACK FL.ASM"
+        ],
+        "point": [
+          3850.0,
+          1555.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Outrigger FL 2",
+        "limits": [
+          0.0,
+          427.8
+        ]
+      },
+      {
+        "name": "Outrigger FR",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM FR.ASM"
+        ],
+        "point": [
+          3350.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1122.5
+        ],
+        "follows": "Outriggers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Outrigger FR 2",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM FR 2.ASM"
+        ],
+        "point": [
+          3350.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Outrigger FR",
+        "limits": [
+          0.0,
+          1122.5
+        ],
+        "follows": "Outriggers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Jack FR",
+        "kind": "SLIDE",
+        "parts": [
+          "JACK FR.ASM"
+        ],
+        "point": [
+          3350.0,
+          -1555.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Outrigger FR 2",
+        "limits": [
+          0.0,
+          427.8
+        ],
+        "follows": "Jacks",
+        "ratio": 1.0
+      },
+      {
+        "name": "Outrigger RL",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM RL.ASM"
+        ],
+        "point": [
+          -3350.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1122.5
+        ],
+        "follows": "Outriggers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Outrigger RL 2",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM RL 2.ASM"
+        ],
+        "point": [
+          -3350.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": "Outrigger RL",
+        "limits": [
+          0.0,
+          1122.5
+        ],
+        "follows": "Outriggers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Jack RL",
+        "kind": "SLIDE",
+        "parts": [
+          "JACK RL.ASM"
+        ],
+        "point": [
+          -3350.0,
+          1555.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Outrigger RL 2",
+        "limits": [
+          0.0,
+          427.8
+        ],
+        "follows": "Jacks",
+        "ratio": 1.0
+      },
+      {
+        "name": "Outrigger RR",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM RR.ASM"
+        ],
+        "point": [
+          -3850.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1122.5
+        ],
+        "follows": "Outriggers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Outrigger RR 2",
+        "kind": "SLIDE",
+        "parts": [
+          "OUTRIGGER BEAM RR 2.ASM"
+        ],
+        "point": [
+          -3850.0,
+          0.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Outrigger RR",
+        "limits": [
+          0.0,
+          1122.5
+        ],
+        "follows": "Outriggers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Jack RR",
+        "kind": "SLIDE",
+        "parts": [
+          "JACK RR.ASM"
+        ],
+        "point": [
+          -3850.0,
+          -1555.0,
+          1100.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Outrigger RR 2",
+        "limits": [
+          0.0,
+          427.8
+        ],
+        "follows": "Jacks",
+        "ratio": 1.0
+      }
+    ],
+    "cylinders": [
+      {
+        "name": "Luff cylinder",
+        "barrel": [
+          "LUFF CYLINDER BARREL"
+        ],
+        "rod": [
+          "LUFF CYLINDER ROD"
+        ],
+        "barrel_pin": {
+          "point": [
+            -63.999999999999886,
+            0.0,
+            2380.0
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "SUPERSTRUCTURE.ASM"
+        },
+        "rod_pin": {
+          "point": [
+            4160.0,
+            0.0,
+            3110.0
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "BOOM BASE.ASM"
+        }
+      }
+    ],
+    "poses": [
+      {
+        "name": "Travel",
+        "values": {}
+      },
+      {
+        "name": "Set up",
+        "values": {
+          "Outriggers": 1122.5,
+          "Jacks": 427.8
+        }
+      },
+      {
+        "name": "Working",
+        "values": {
+          "Outriggers": 1122.5,
+          "Jacks": 427.8,
+          "Luff": 60.0,
+          "Telescope": 3933.3,
+          "Hoist": 22590.7
+        }
+      },
+      {
+        "name": "Long reach",
+        "values": {
+          "Outriggers": 1122.5,
+          "Jacks": 427.8,
+          "Luff": 35.0,
+          "Telescope": 7866.666666666667,
+          "Slew": 90.0,
+          "Hoist": 16136.2
+        }
+      }
+    ],
+    "start_pose": "Travel",
+    "groups": {
+      "carrier": {
+        "parts": [
+          "CARRIER.ASM",
+          "OUTRIGGER BEAM FL.ASM",
+          "OUTRIGGER BEAM FR.ASM",
+          "OUTRIGGER BEAM RL.ASM",
+          "OUTRIGGER BEAM RR.ASM"
+        ],
+        "moves_with": null
+      },
+      "superstructure": {
+        "parts": [
+          "SUPERSTRUCTURE.ASM",
+          "LUFF CYLINDER BARREL",
+          "LUFF CYLINDER ROD"
+        ],
+        "moves_with": "Slew"
+      },
+      "counterweight": {
+        "parts": [
+          "COUNTERWEIGHT.ASM"
+        ],
+        "moves_with": "Slew"
+      },
+      "boom": {
+        "parts": [
+          "BOOM BASE.ASM"
+        ],
+        "moves_with": "Luff"
+      },
+      "hook_block": {
+        "parts": [
+          "HOOK BLOCK.ASM"
+        ],
+        "moves_with": "Hoist"
+      }
+    },
+    "hook": {
+      "assembly": "HOOK BLOCK.ASM",
+      "point": [
+        11840.0,
+        0.0,
+        1544.96
+      ],
+      "joint": "Hoist",
+      "plumb": "the hook swing joints follow the boom's turns (ratio -1): the block hangs plumb"
+    },
+    "cables": [
+      {
+        "name": "Hoist rope",
+        "part": "HOIST ROPE",
+        "end_on": "HOOK BLOCK.ASM",
+        "look": "ROPE",
+        "note": "drawn in the CAD from the head sheave to the hook block: make it a cable whose end stays on the hook block, so it follows the hoist"
+      }
+    ]
+  },
+  "charts": [
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 0 t, outriggers 7.6 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 0.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        79.7,
+        72.4,
+        66.3,
+        48.3,
+        34.1,
+        26.3,
+        21.5,
+        18.0,
+        14.8
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 0 t, outriggers 7.6 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 0.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        36.4,
+        31.8,
+        26.3,
+        21.5,
+        18.0,
+        14.8,
+        12.4,
+        9.05,
+        6.72,
+        5.04,
+        3.78
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 0 t, outriggers 7.6 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 0.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        23.9,
+        21.1,
+        19.0,
+        17.2,
+        14.8,
+        12.4,
+        9.05,
+        6.72,
+        5.04,
+        3.78,
+        2.78,
+        1.98,
+        1.33,
+        0.78,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 0 t, outriggers 7.6 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 0.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        15.3,
+        13.9,
+        12.6,
+        11.6,
+        9.05,
+        6.72,
+        5.04,
+        3.78,
+        2.78,
+        1.98,
+        1.33,
+        0.78,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 0 t, outriggers 7.6 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 0.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        10.6,
+        9.79,
+        8.35,
+        6.72,
+        5.04,
+        3.78,
+        2.78,
+        1.98,
+        1.33,
+        0.78,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 0 t, outriggers 7.6 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 0.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.49,
+        7.22,
+        6.23,
+        5.04,
+        3.78,
+        2.78,
+        1.98,
+        1.33,
+        0.78,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 15 t, outriggers 7.6 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 15.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        79.7,
+        72.4,
+        66.3,
+        56.7,
+        49.5,
+        43.9,
+        36.7,
+        30.8,
+        25.9
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 15 t, outriggers 7.6 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 15.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        36.4,
+        31.8,
+        28.1,
+        25.3,
+        22.9,
+        20.9,
+        19.2,
+        16.5,
+        13.3,
+        10.7,
+        8.78
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 15 t, outriggers 7.6 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 15.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        23.9,
+        21.1,
+        19.0,
+        17.2,
+        15.6,
+        14.4,
+        12.3,
+        10.7,
+        9.47,
+        8.42,
+        7.25,
+        6.01,
+        4.99,
+        4.15,
+        3.43
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 15 t, outriggers 7.6 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 15.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        15.3,
+        13.9,
+        12.6,
+        11.6,
+        9.93,
+        8.62,
+        7.57,
+        6.7,
+        5.97,
+        5.34,
+        4.79,
+        4.15,
+        3.43,
+        2.81,
+        2.27,
+        1.8,
+        1.38
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 15 t, outriggers 7.6 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 15.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0,
+        44.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        10.6,
+        9.79,
+        8.35,
+        7.22,
+        6.32,
+        5.57,
+        4.93,
+        4.39,
+        3.91,
+        3.49,
+        3.11,
+        2.77,
+        2.27,
+        1.8,
+        1.38,
+        1.01,
+        0.38
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 15 t, outriggers 7.6 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 15.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0,
+        44.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.49,
+        7.22,
+        6.23,
+        5.43,
+        4.76,
+        4.2,
+        3.71,
+        3.29,
+        2.91,
+        2.56,
+        2.25,
+        1.97,
+        1.71,
+        1.38,
+        1.01,
+        0.38
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 30 t, outriggers 7.6 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 30.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        79.7,
+        72.4,
+        66.3,
+        56.7,
+        49.5,
+        43.9,
+        39.5,
+        35.8,
+        32.7
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 30 t, outriggers 7.6 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 30.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        36.4,
+        31.8,
+        28.1,
+        25.3,
+        22.9,
+        20.9,
+        19.2,
+        16.5,
+        14.4,
+        12.7,
+        11.4
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 30 t, outriggers 7.6 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 30.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        23.9,
+        21.1,
+        19.0,
+        17.2,
+        15.6,
+        14.4,
+        12.3,
+        10.7,
+        9.47,
+        8.42,
+        7.54,
+        6.79,
+        6.13,
+        5.56,
+        5.04
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 30 t, outriggers 7.6 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 30.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        15.3,
+        13.9,
+        12.6,
+        11.6,
+        9.93,
+        8.62,
+        7.57,
+        6.7,
+        5.97,
+        5.34,
+        4.79,
+        4.31,
+        3.88,
+        3.49,
+        3.13,
+        2.8,
+        2.5
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 30 t, outriggers 7.6 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 30.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0,
+        44.0,
+        48.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        10.6,
+        9.79,
+        8.35,
+        7.22,
+        6.32,
+        5.57,
+        4.93,
+        4.39,
+        3.91,
+        3.49,
+        3.11,
+        2.77,
+        2.45,
+        2.16,
+        1.89,
+        1.64,
+        1.19,
+        0.78
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 30 t, outriggers 7.6 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 30.0,
+        "outriggers": 7.6
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0,
+        44.0,
+        48.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.49,
+        7.22,
+        6.23,
+        5.43,
+        4.76,
+        4.2,
+        3.71,
+        3.29,
+        2.91,
+        2.56,
+        2.25,
+        1.97,
+        1.71,
+        1.46,
+        1.23,
+        0.81,
+        0.43
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 0 t, outriggers 5.8 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 0.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        79.7,
+        58.4,
+        44.5,
+        30.1,
+        22.8,
+        18.3,
+        14.6,
+        11.8,
+        9.71
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 0 t, outriggers 5.8 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 0.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        30.1,
+        22.8,
+        18.3,
+        14.6,
+        11.8,
+        9.71,
+        8.05,
+        5.64,
+        3.96,
+        2.72,
+        1.78
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 0 t, outriggers 5.8 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 0.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        22.8,
+        18.3,
+        14.6,
+        11.8,
+        9.71,
+        8.05,
+        5.64,
+        3.96,
+        2.72,
+        1.78,
+        1.03,
+        0.43
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 0 t, outriggers 5.8 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 0.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        14.6,
+        11.8,
+        9.71,
+        8.05,
+        5.64,
+        3.96,
+        2.72,
+        1.78,
+        1.03,
+        0.43
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 0 t, outriggers 5.8 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 0.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        9.71,
+        8.05,
+        5.64,
+        3.96,
+        2.72,
+        1.78,
+        1.03,
+        0.43
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 0 t, outriggers 5.8 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 0.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.05,
+        5.64,
+        3.96,
+        2.72,
+        1.78,
+        1.03,
+        0.43
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 15 t, outriggers 5.8 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 15.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        79.7,
+        72.4,
+        66.3,
+        54.1,
+        40.9,
+        32.8,
+        26.8,
+        22.2,
+        18.8
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 15 t, outriggers 5.8 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 15.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        36.4,
+        31.8,
+        28.1,
+        25.3,
+        22.2,
+        18.8,
+        16.2,
+        12.3,
+        9.63,
+        7.64,
+        6.12
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 15 t, outriggers 5.8 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 15.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        23.9,
+        21.1,
+        19.0,
+        17.2,
+        15.6,
+        14.4,
+        12.3,
+        9.63,
+        7.64,
+        6.12,
+        4.92,
+        3.94,
+        3.14,
+        2.46,
+        1.88
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 15 t, outriggers 5.8 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 15.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        15.3,
+        13.9,
+        12.6,
+        11.6,
+        9.93,
+        8.62,
+        7.57,
+        6.12,
+        4.92,
+        3.94,
+        3.14,
+        2.46,
+        1.88,
+        1.39,
+        0.95,
+        0.57
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 15 t, outriggers 5.8 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 15.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        10.6,
+        9.79,
+        8.35,
+        7.22,
+        6.32,
+        5.57,
+        4.92,
+        3.94,
+        3.14,
+        2.46,
+        1.88,
+        1.39,
+        0.95,
+        0.57
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 15 t, outriggers 5.8 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 15.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.49,
+        7.22,
+        6.23,
+        5.43,
+        4.76,
+        4.2,
+        3.71,
+        3.14,
+        2.46,
+        1.88,
+        1.39,
+        0.95,
+        0.57
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 30 t, outriggers 5.8 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 30.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        79.7,
+        72.4,
+        66.3,
+        56.7,
+        49.5,
+        43.9,
+        39.0,
+        32.7,
+        28.0
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 30 t, outriggers 5.8 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 30.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        36.4,
+        31.8,
+        28.1,
+        25.3,
+        22.9,
+        20.9,
+        19.2,
+        16.5,
+        14.4,
+        12.5,
+        10.4
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 30 t, outriggers 5.8 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 30.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        23.9,
+        21.1,
+        19.0,
+        17.2,
+        15.6,
+        14.4,
+        12.3,
+        10.7,
+        9.47,
+        8.42,
+        7.54,
+        6.79,
+        6.13,
+        5.42,
+        4.62
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 30 t, outriggers 5.8 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 30.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        15.3,
+        13.9,
+        12.6,
+        11.6,
+        9.93,
+        8.62,
+        7.57,
+        6.7,
+        5.97,
+        5.34,
+        4.79,
+        4.31,
+        3.88,
+        3.49,
+        3.13,
+        2.8,
+        2.35
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 30 t, outriggers 5.8 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 30.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0,
+        44.0,
+        48.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        10.6,
+        9.79,
+        8.35,
+        7.22,
+        6.32,
+        5.57,
+        4.93,
+        4.39,
+        3.91,
+        3.49,
+        3.11,
+        2.77,
+        2.45,
+        2.16,
+        1.89,
+        1.64,
+        1.19,
+        0.64
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 30 t, outriggers 5.8 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 30.0,
+        "outriggers": 5.8
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0,
+        44.0,
+        48.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.49,
+        7.22,
+        6.23,
+        5.43,
+        4.76,
+        4.2,
+        3.71,
+        3.29,
+        2.91,
+        2.56,
+        2.25,
+        1.97,
+        1.71,
+        1.46,
+        1.23,
+        0.81,
+        0.43
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 0 t, outriggers 4.2 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 0.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        75.2,
+        48.3,
+        35.6,
+        28.2,
+        23.3,
+        17.3,
+        13.0,
+        9.95,
+        7.73,
+        6.08,
+        4.79
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 0 t, outriggers 4.2 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 0.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0
+      ],
+      "capacity": [
+        64.2,
+        48.3,
+        35.6,
+        28.2,
+        23.3,
+        17.3,
+        13.0,
+        9.95,
+        7.73,
+        6.08,
+        4.79,
+        3.77,
+        2.23,
+        1.14,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 0 t, outriggers 4.2 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 0.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0
+      ],
+      "capacity": [
+        42.9,
+        35.6,
+        28.2,
+        23.3,
+        17.3,
+        13.0,
+        9.95,
+        7.73,
+        6.08,
+        4.79,
+        3.77,
+        2.23,
+        1.14,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 0 t, outriggers 4.2 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 0.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0
+      ],
+      "capacity": [
+        23.3,
+        17.3,
+        13.0,
+        9.95,
+        7.73,
+        6.08,
+        4.79,
+        3.77,
+        2.23,
+        1.14,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 0 t, outriggers 4.2 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 0.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0
+      ],
+      "capacity": [
+        13.0,
+        9.95,
+        7.73,
+        6.08,
+        4.79,
+        3.77,
+        2.23,
+        1.14,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 0 t, outriggers 4.2 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 0.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0
+      ],
+      "capacity": [
+        9.95,
+        7.73,
+        6.08,
+        4.79,
+        3.77,
+        2.23,
+        1.14,
+        0.32
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 15 t, outriggers 4.2 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 15.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        69.9,
+        55.4,
+        45.8,
+        34.0,
+        26.4,
+        21.0,
+        17.1,
+        14.3,
+        12.1
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 15 t, outriggers 4.2 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 15.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        34.0,
+        26.4,
+        21.0,
+        17.1,
+        14.3,
+        12.1,
+        10.3,
+        7.72,
+        5.83,
+        4.43,
+        3.33
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 15 t, outriggers 4.2 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 15.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        23.9,
+        21.0,
+        17.1,
+        14.3,
+        12.1,
+        10.3,
+        7.72,
+        5.83,
+        4.43,
+        3.33,
+        2.46,
+        1.75,
+        1.15,
+        0.65
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 15 t, outriggers 4.2 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 15.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        15.3,
+        13.9,
+        12.1,
+        10.3,
+        7.72,
+        5.83,
+        4.43,
+        3.33,
+        2.46,
+        1.75,
+        1.15,
+        0.65
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 15 t, outriggers 4.2 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 15.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        10.6,
+        9.79,
+        7.72,
+        5.83,
+        4.43,
+        3.33,
+        2.46,
+        1.75,
+        1.15,
+        0.65
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 15 t, outriggers 4.2 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 15.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.49,
+        7.22,
+        5.83,
+        4.43,
+        3.33,
+        2.46,
+        1.75,
+        1.15,
+        0.65
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 12.8 m, counterweight 30 t, outriggers 4.2 m",
+      "config": {
+        "boom": 12.8,
+        "counterweight": 30.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0
+      ],
+      "capacity": [
+        100.0,
+        88.7,
+        79.7,
+        72.4,
+        66.3,
+        50.8,
+        39.7,
+        32.0,
+        26.6,
+        22.6,
+        19.4
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 22.24 m, counterweight 30 t, outriggers 4.2 m",
+      "config": {
+        "boom": 22.24,
+        "counterweight": 30.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0
+      ],
+      "capacity": [
+        64.2,
+        57.0,
+        51.2,
+        46.5,
+        42.6,
+        36.4,
+        31.8,
+        28.1,
+        25.3,
+        22.6,
+        19.4,
+        16.9,
+        13.2,
+        10.5,
+        8.53,
+        6.98
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 31.68 m, counterweight 30 t, outriggers 4.2 m",
+      "config": {
+        "boom": 31.68,
+        "counterweight": 30.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0
+      ],
+      "capacity": [
+        42.9,
+        38.6,
+        35.0,
+        32.0,
+        27.4,
+        23.9,
+        21.1,
+        19.0,
+        17.2,
+        15.6,
+        14.4,
+        12.3,
+        10.5,
+        8.53,
+        6.98,
+        5.74,
+        4.72,
+        3.88,
+        3.17,
+        2.56
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 41.12 m, counterweight 30 t, outriggers 4.2 m",
+      "config": {
+        "boom": 41.12,
+        "counterweight": 30.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0
+      ],
+      "capacity": [
+        26.0,
+        22.2,
+        19.3,
+        17.1,
+        15.3,
+        13.9,
+        12.6,
+        11.6,
+        9.93,
+        8.62,
+        7.57,
+        6.7,
+        5.74,
+        4.72,
+        3.88,
+        3.17,
+        2.56,
+        2.03,
+        1.56,
+        1.15,
+        0.79
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 50.56 m, counterweight 30 t, outriggers 4.2 m",
+      "config": {
+        "boom": 50.56,
+        "counterweight": 30.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0
+      ],
+      "capacity": [
+        16.4,
+        14.5,
+        12.9,
+        11.7,
+        10.6,
+        9.79,
+        8.35,
+        7.22,
+        6.32,
+        5.57,
+        4.93,
+        4.39,
+        3.88,
+        3.17,
+        2.56,
+        2.03,
+        1.56,
+        1.15,
+        0.79,
+        0.47
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, boom 60 m, counterweight 30 t, outriggers 4.2 m",
+      "config": {
+        "boom": 60.0,
+        "counterweight": 30.0,
+        "outriggers": 4.2
+      },
+      "radius": [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        28.0,
+        30.0,
+        32.0,
+        34.0,
+        36.0,
+        38.0,
+        40.0
+      ],
+      "capacity": [
+        12.6,
+        11.2,
+        10.2,
+        9.28,
+        8.49,
+        7.22,
+        6.23,
+        5.43,
+        4.76,
+        4.2,
+        3.71,
+        3.29,
+        2.91,
+        2.56,
+        2.03,
+        1.56,
+        1.15,
+        0.79,
+        0.47
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 9.8,
+      "sample": true
+    }
+  ],
+  "hook_blocks": [
+    {
+      "name": "main",
+      "mass": 1.0,
+      "falls": 8,
+      "sheaves": 4,
+      "wll": 100.0
+    }
+  ],
+  "limits": {
+    "slew": [
+      -180.0,
+      180.0
+    ],
+    "hoist": [
+      0.0,
+      64.54
+    ],
+    "max_line_pull": 6.5,
+    "boom_angle": [
+      0.0,
+      82.0
+    ],
+    "boom_length": [
+      12.8,
+      60.0
+    ],
+    "telescope_sections": 6,
+    "counterweight_steps": [
+      0.0,
+      15.0,
+      30.0
+    ],
+    "outrigger_spreads": [
+      7.6,
+      5.8,
+      4.2
+    ]
+  },
+  "sample": true,
+  "source": "invented sample – Fresing Render",
+  "outriggers": {
+    "centre": [
+      0.0,
+      0.0
+    ],
+    "a": 3.6,
+    "spreads": {
+      "full": 3.8,
+      "middle": 2.9,
+      "narrow": 2.1
+    },
+    "spread_meaning": "b = half the spread across (pad centre to the crane's middle line)",
+    "stages": 2,
+    "b_in": 1.555,
+    "joint_meaning": "each of the 2 beam stages moves the joint's value: b = b_in + 2 x value",
+    "pad": [
+      0.6,
+      0.6
+    ],
+    "joint": "Outriggers",
+    "jack_joint": "Jacks"
+  },
+  "axles": {
+    "x": [
+      -2.49,
+      -0.84,
+      5.949,
+      7.598,
+      9.248
+    ],
+    "tyres_per_axle": 2
+  }
+}

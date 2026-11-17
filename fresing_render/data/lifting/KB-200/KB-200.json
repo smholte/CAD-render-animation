@@ -1,0 +1,1679 @@
+{
+  "format": "fresing-lifting-equipment",
+  "format_version": "1.0",
+  "kind": "knuckle_boom_crane",
+  "class": "KB-200",
+  "name": "KB-200",
+  "units": {
+    "mass": "t",
+    "length": "m"
+  },
+  "mass": {
+    "truck": 32.0,
+    "column": 4.4,
+    "main_boom": 4.2,
+    "outer_boom": 7.6,
+    "hook_block": 0.4
+  },
+  "cog": {
+    "truck": [
+      0.547,
+      -0.0,
+      1.712
+    ],
+    "column": [
+      0.106,
+      -0.263,
+      2.263
+    ],
+    "main_boom": [
+      3.133,
+      0.0,
+      4.446
+    ],
+    "outer_boom": [
+      7.877,
+      0.0,
+      4.609
+    ],
+    "hook_block": [
+      10.582,
+      -0.0,
+      2.654
+    ]
+  },
+  "rig": {
+    "step": "KB-200.step",
+    "units": "mm",
+    "angles": "deg",
+    "up_axis": "Z",
+    "frame": "ground z = 0, slew axis = z axis, boom along +x in the CAD pose (joint values 0)",
+    "joints": [
+      {
+        "name": "Slew",
+        "kind": "ROTATE",
+        "parts": [
+          "COLUMN.ASM"
+        ],
+        "point": [
+          0.0,
+          0.0,
+          1700.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "rides_on": null,
+        "limits": [
+          -200.0,
+          200.0
+        ]
+      },
+      {
+        "name": "Main boom",
+        "kind": "ROTATE",
+        "parts": [
+          "MAIN BOOM.ASM"
+        ],
+        "point": [
+          0.0,
+          0.0,
+          3158.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Slew",
+        "limits": [
+          -20.0,
+          55.0
+        ]
+      },
+      {
+        "name": "Knuckle",
+        "kind": "ROTATE",
+        "parts": [
+          "OUTER BOOM.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Main boom",
+        "limits": [
+          -50.0,
+          40.0
+        ]
+      },
+      {
+        "name": "Extension",
+        "kind": "SLIDE",
+        "parts": [
+          "EXTENSION 1.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.939693,
+          0.0,
+          -0.34202
+        ],
+        "rides_on": "Knuckle",
+        "limits": [
+          0.0,
+          2250.0
+        ]
+      },
+      {
+        "name": "Extension 2",
+        "kind": "SLIDE",
+        "parts": [
+          "EXTENSION 2.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.939693,
+          0.0,
+          -0.34202
+        ],
+        "rides_on": "Extension",
+        "limits": [
+          0.0,
+          2250.0
+        ],
+        "follows": "Extension",
+        "ratio": 1.0
+      },
+      {
+        "name": "Extension 3",
+        "kind": "SLIDE",
+        "parts": [
+          "EXTENSION 3.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.939693,
+          0.0,
+          -0.34202
+        ],
+        "rides_on": "Extension 2",
+        "limits": [
+          0.0,
+          2250.0
+        ],
+        "follows": "Extension",
+        "ratio": 1.0
+      },
+      {
+        "name": "Extension 4",
+        "kind": "SLIDE",
+        "parts": [
+          "EXTENSION 4.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.939693,
+          0.0,
+          -0.34202
+        ],
+        "rides_on": "Extension 3",
+        "limits": [
+          0.0,
+          2250.0
+        ],
+        "follows": "Extension",
+        "ratio": 1.0
+      },
+      {
+        "name": "Extension 5",
+        "kind": "SLIDE",
+        "parts": [
+          "EXTENSION 5.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.939693,
+          0.0,
+          -0.34202
+        ],
+        "rides_on": "Extension 4",
+        "limits": [
+          0.0,
+          2250.0
+        ],
+        "follows": "Extension",
+        "ratio": 1.0
+      },
+      {
+        "name": "Extension 6",
+        "kind": "SLIDE",
+        "parts": [
+          "EXTENSION 6.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.939693,
+          0.0,
+          -0.34202
+        ],
+        "rides_on": "Extension 5",
+        "limits": [
+          0.0,
+          2250.0
+        ],
+        "follows": "Extension",
+        "ratio": 1.0
+      },
+      {
+        "name": "Extension 7",
+        "kind": "SLIDE",
+        "parts": [
+          "EXTENSION 7.ASM"
+        ],
+        "point": [
+          5920.0635,
+          0.0,
+          5312.7269
+        ],
+        "direction": [
+          0.939693,
+          0.0,
+          -0.34202
+        ],
+        "rides_on": "Extension 6",
+        "limits": [
+          0.0,
+          2250.0
+        ],
+        "follows": "Extension",
+        "ratio": 1.0
+      },
+      {
+        "name": "Hook swing",
+        "kind": "ROTATE",
+        "parts": [
+          "HOOK SWING.ASM"
+        ],
+        "point": [
+          10618.5266,
+          0.0,
+          3602.6262
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Extension 7",
+        "limits": null,
+        "follows": "Main boom",
+        "ratio": -1.0
+      },
+      {
+        "name": "Hook swing 2",
+        "kind": "ROTATE",
+        "parts": [
+          "HOOK SWING 2.ASM"
+        ],
+        "point": [
+          10618.5266,
+          0.0,
+          3602.6262
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Hook swing",
+        "limits": null,
+        "follows": "Knuckle",
+        "ratio": -1.0
+      },
+      {
+        "name": "Hoist",
+        "kind": "SLIDE",
+        "parts": [
+          "HOOK BLOCK.ASM"
+        ],
+        "point": [
+          10618.5266,
+          0.0,
+          3602.6262
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Hook swing 2",
+        "limits": [
+          0.0,
+          22656.0
+        ]
+      },
+      {
+        "name": "Stabilisers",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM FL.ASM"
+        ],
+        "point": [
+          132.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1832.5
+        ]
+      },
+      {
+        "name": "Stabiliser FL 2",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM FL 2.ASM"
+        ],
+        "point": [
+          132.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": "Stabilisers",
+        "limits": [
+          0.0,
+          1832.5
+        ],
+        "follows": "Stabilisers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Legs",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER LEG FL.ASM"
+        ],
+        "point": [
+          132.0,
+          1435.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Stabiliser FL 2",
+        "limits": [
+          0.0,
+          308.0
+        ]
+      },
+      {
+        "name": "Stabiliser FR",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM FR.ASM"
+        ],
+        "point": [
+          -132.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1832.5
+        ],
+        "follows": "Stabilisers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Stabiliser FR 2",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM FR 2.ASM"
+        ],
+        "point": [
+          -132.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Stabiliser FR",
+        "limits": [
+          0.0,
+          1832.5
+        ],
+        "follows": "Stabilisers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Leg FR",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER LEG FR.ASM"
+        ],
+        "point": [
+          -132.0,
+          -1435.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Stabiliser FR 2",
+        "limits": [
+          0.0,
+          308.0
+        ],
+        "follows": "Legs",
+        "ratio": 1.0
+      },
+      {
+        "name": "Stabiliser RL",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM RL.ASM"
+        ],
+        "point": [
+          7557.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1832.5
+        ],
+        "follows": "Stabilisers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Stabiliser RL 2",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM RL 2.ASM"
+        ],
+        "point": [
+          7557.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "rides_on": "Stabiliser RL",
+        "limits": [
+          0.0,
+          1832.5
+        ],
+        "follows": "Stabilisers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Leg RL",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER LEG RL.ASM"
+        ],
+        "point": [
+          7557.0,
+          1435.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Stabiliser RL 2",
+        "limits": [
+          0.0,
+          308.0
+        ],
+        "follows": "Legs",
+        "ratio": 1.0
+      },
+      {
+        "name": "Stabiliser RR",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM RR.ASM"
+        ],
+        "point": [
+          7293.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": null,
+        "limits": [
+          0.0,
+          1832.5
+        ],
+        "follows": "Stabilisers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Stabiliser RR 2",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER BEAM RR 2.ASM"
+        ],
+        "point": [
+          7293.0,
+          0.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "rides_on": "Stabiliser RR",
+        "limits": [
+          0.0,
+          1832.5
+        ],
+        "follows": "Stabilisers",
+        "ratio": 1.0
+      },
+      {
+        "name": "Leg RR",
+        "kind": "SLIDE",
+        "parts": [
+          "STABILISER LEG RR.ASM"
+        ],
+        "point": [
+          7293.0,
+          -1435.0,
+          1070.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "rides_on": "Stabiliser RR 2",
+        "limits": [
+          0.0,
+          308.0
+        ],
+        "follows": "Legs",
+        "ratio": 1.0
+      }
+    ],
+    "cylinders": [
+      {
+        "name": "Main boom cylinder",
+        "barrel": [
+          "MAIN CYLINDER BARREL"
+        ],
+        "rod": [
+          "MAIN CYLINDER ROD"
+        ],
+        "barrel_pin": {
+          "point": [
+            234.0,
+            0.0,
+            2000.0
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "COLUMN.ASM"
+        },
+        "rod_pin": {
+          "point": [
+            2671.117551995375,
+            0.0,
+            3555.5512840153287
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "MAIN BOOM.ASM"
+        }
+      },
+      {
+        "name": "Knuckle cylinder",
+        "barrel": [
+          "KNUCKLE CYLINDER BARREL"
+        ],
+        "rod": [
+          "KNUCKLE CYLINDER ROD"
+        ],
+        "barrel_pin": {
+          "point": [
+            2112.1943371728894,
+            0.0,
+            4722.780841528544
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "MAIN BOOM.ASM"
+        },
+        "rod_pin": {
+          "point": [
+            6268.924057143406,
+            0.0,
+            6271.21337615334
+          ],
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "carrier": "OUTER BOOM.ASM"
+        }
+      }
+    ],
+    "poses": [
+      {
+        "name": "Travel",
+        "values": {}
+      },
+      {
+        "name": "Set up",
+        "values": {
+          "Stabilisers": 1832.5,
+          "Legs": 308.0
+        }
+      },
+      {
+        "name": "Working",
+        "values": {
+          "Stabilisers": 1832.5,
+          "Legs": 308.0,
+          "Main boom": 25.0,
+          "Knuckle": 15.0,
+          "Extension": 1125.0,
+          "Hoist": 1500.0
+        }
+      },
+      {
+        "name": "Long reach",
+        "values": {
+          "Stabilisers": 1832.5,
+          "Legs": 308.0,
+          "Main boom": -15.0,
+          "Knuckle": 35.0,
+          "Extension": 2250.0,
+          "Slew": -90.0,
+          "Hoist": 1000.0
+        }
+      }
+    ],
+    "start_pose": "Travel",
+    "groups": {
+      "truck": {
+        "parts": [
+          "TRUCK.ASM",
+          "STABILISER BEAM FL.ASM",
+          "STABILISER BEAM FR.ASM",
+          "STABILISER BEAM RL.ASM",
+          "STABILISER BEAM RR.ASM"
+        ],
+        "moves_with": null
+      },
+      "column": {
+        "parts": [
+          "COLUMN.ASM",
+          "MAIN CYLINDER BARREL",
+          "MAIN CYLINDER ROD"
+        ],
+        "moves_with": "Slew"
+      },
+      "main_boom": {
+        "parts": [
+          "MAIN BOOM.ASM",
+          "KNUCKLE CYLINDER BARREL",
+          "KNUCKLE CYLINDER ROD"
+        ],
+        "moves_with": "Main boom"
+      },
+      "outer_boom": {
+        "parts": [
+          "OUTER BOOM.ASM"
+        ],
+        "moves_with": "Knuckle"
+      },
+      "hook_block": {
+        "parts": [
+          "HOOK BLOCK.ASM"
+        ],
+        "moves_with": "Hoist"
+      }
+    },
+    "hook": {
+      "assembly": "HOOK BLOCK.ASM",
+      "point": [
+        10618.527,
+        0.0,
+        2154.226
+      ],
+      "joint": "Hoist",
+      "plumb": "the hook swing joints follow the boom's turns (ratio -1): the block hangs plumb"
+    },
+    "cables": [
+      {
+        "name": "Hoist rope",
+        "part": "HOIST ROPE",
+        "end_on": "HOOK BLOCK.ASM",
+        "look": "ROPE",
+        "note": "drawn in the CAD from the head sheave to the hook block: make it a cable whose end stays on the hook block, so it follows the hoist"
+      }
+    ]
+  },
+  "charts": [
+    {
+      "name": "SAMPLE – 360°, outreach 11.3 m (0 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 11.3,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        11.3
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        52.0,
+        50.0,
+        44.4,
+        40.0,
+        33.3,
+        28.5,
+        25.0,
+        22.2,
+        20.0,
+        18.1,
+        17.6
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 13.55 m (1 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 13.55,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.55
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        52.0,
+        48.2,
+        42.8,
+        38.6,
+        32.1,
+        27.5,
+        24.1,
+        21.4,
+        19.3,
+        17.5,
+        16.0,
+        14.2
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 15.8 m (2 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 15.8,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        15.8
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        52.0,
+        46.5,
+        41.3,
+        37.2,
+        31.0,
+        26.5,
+        23.2,
+        20.6,
+        18.6,
+        16.9,
+        15.5,
+        13.2,
+        11.7
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 18.05 m (3 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 18.05,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        51.1,
+        44.7,
+        39.7,
+        35.8,
+        29.8,
+        25.5,
+        22.3,
+        19.8,
+        17.9,
+        16.2,
+        14.9,
+        12.7,
+        11.1,
+        9.94
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 20.3 m (4 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 20.3,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        20.3
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        49.1,
+        43.0,
+        38.2,
+        34.4,
+        28.6,
+        24.5,
+        21.5,
+        19.1,
+        17.2,
+        15.6,
+        14.3,
+        12.2,
+        10.7,
+        9.55,
+        8.6,
+        8.38
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 22.55 m (5 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 22.55,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        22.55
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        47.1,
+        41.2,
+        36.6,
+        33.0,
+        27.5,
+        23.5,
+        20.6,
+        18.3,
+        16.5,
+        15.0,
+        13.7,
+        11.7,
+        10.3,
+        9.16,
+        8.25,
+        7.14,
+        6.78
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 24.8 m (6 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 24.8,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        24.8
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        45.1,
+        39.5,
+        35.1,
+        31.6,
+        26.3,
+        22.5,
+        19.7,
+        17.5,
+        15.8,
+        14.3,
+        13.1,
+        11.2,
+        9.87,
+        8.77,
+        7.9,
+        7.14,
+        5.96,
+        5.55
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 27.05 m (7 of 7 extensions out), stabilisers 10.2 m",
+      "config": {
+        "boom": 27.05,
+        "outriggers": 10.2
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0,
+        26.0,
+        27.05
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        50.3,
+        43.1,
+        37.7,
+        33.5,
+        30.2,
+        25.1,
+        21.5,
+        18.8,
+        16.7,
+        15.1,
+        13.7,
+        12.5,
+        10.7,
+        9.43,
+        8.38,
+        7.55,
+        6.86,
+        5.96,
+        5.0,
+        4.57
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 11.3 m (0 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 11.3,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        11.3
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        52.0,
+        50.0,
+        40.4,
+        32.2,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        6.75
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 13.55 m (1 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 13.55,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.55
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        52.0,
+        48.2,
+        40.4,
+        32.2,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        5.96,
+        4.55
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 15.8 m (2 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 15.8,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        15.8
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        52.0,
+        46.5,
+        40.4,
+        32.2,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        5.96,
+        4.21,
+        3.1
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 18.05 m (3 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 18.05,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        51.1,
+        44.7,
+        39.7,
+        32.2,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        5.96,
+        4.21,
+        2.99,
+        2.08
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 20.3 m (4 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 20.3,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        20.3
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        49.1,
+        43.0,
+        38.2,
+        32.2,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        5.96,
+        4.21,
+        2.99,
+        2.08,
+        1.38,
+        1.29
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 22.55 m (5 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 22.55,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        22.55
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        47.1,
+        41.2,
+        36.6,
+        32.2,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        5.96,
+        4.21,
+        2.99,
+        2.08,
+        1.38,
+        0.83,
+        0.7
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 24.8 m (6 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 24.8,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        52.0,
+        45.1,
+        39.5,
+        35.1,
+        31.6,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        5.96,
+        4.21,
+        2.99,
+        2.08,
+        1.38,
+        0.83,
+        0.38
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    },
+    {
+      "name": "SAMPLE – 360°, outreach 27.05 m (7 of 7 extensions out), stabilisers 5.1 m",
+      "config": {
+        "boom": 27.05,
+        "outriggers": 5.1
+      },
+      "radius": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        14.0,
+        16.0,
+        18.0,
+        20.0,
+        22.0,
+        24.0
+      ],
+      "capacity": [
+        52.0,
+        52.0,
+        50.3,
+        43.1,
+        37.7,
+        33.5,
+        30.2,
+        22.8,
+        17.1,
+        13.2,
+        10.5,
+        8.63,
+        7.14,
+        5.96,
+        4.21,
+        2.99,
+        2.08,
+        1.38,
+        0.83,
+        0.38
+      ],
+      "includes_hook_block": false,
+      "interpolate": false,
+      "wind_max": 12.5,
+      "sample": true
+    }
+  ],
+  "hook_blocks": [
+    {
+      "name": "main",
+      "mass": 0.4,
+      "falls": 1,
+      "wll": 52.0
+    }
+  ],
+  "limits": {
+    "slew": [
+      -200.0,
+      200.0
+    ],
+    "hoist": [
+      0.0,
+      22.66
+    ],
+    "max_line_pull": 5.0,
+    "main_boom_angle": [
+      0.0,
+      75.0
+    ],
+    "knuckle_angle": [
+      -90.0,
+      0.0
+    ],
+    "extensions": 7,
+    "lifting_moment_tm": 200.0,
+    "stabiliser_spreads": [
+      10.2,
+      5.1
+    ]
+  },
+  "sample": true,
+  "source": "invented sample – Fresing Render",
+  "outriggers": {
+    "centre": [
+      3.712,
+      0.0
+    ],
+    "a": 3.712,
+    "spreads": {
+      "full": 5.1,
+      "narrow": 2.55
+    },
+    "spread_meaning": "b = half the spread across (pad centre to the crane's middle line)",
+    "stages": 2,
+    "b_in": 1.435,
+    "joint_meaning": "each of the 2 beam stages moves the joint's value: b = b_in + 2 x value",
+    "pad": [
+      0.4,
+      0.4
+    ],
+    "joint": "Stabilisers",
+    "jack_joint": "Legs"
+  },
+  "axles": {
+    "x": [
+      -1.5,
+      -0.08,
+      5.865,
+      7.285
+    ],
+    "tyres_per_axle": 2
+  }
+}
