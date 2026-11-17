@@ -37,6 +37,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
+from ..core import places
+
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(HERE, "data")
 
@@ -3675,11 +3677,11 @@ stop("turntable", OUT, HUB_SET, "Turntable video",
 stop("finishing", OUT, HUB_SET, "Finished video: cards, captions",
      "The animation 'Finished video' has a title card, an end card, a caption 'The boom goes up', the tour logo "
      "and a TEST TOUR watermark. They are put on in the rendered MP4 video: render it with the queue (Render queue stop).",
-     where="6 Animation > Video finishing; 5 Scene & Render > Brand kit", animation="Finished video",
+     where=f"{places.where('finishing')}; {places.where('brand')}", animation="Finished video",
      check=_check_finishing)
 stop("labels", OUT, HUB_SET, "Labels with lines",
      "Two labels, 'Boom' and 'Trolley', with lines to their parts. Labels are drawn in rendered pictures and "
-     "videos: press Render picture to see them.", where="5 Scene & Render > Labels", check=_check_labels,
+     "videos: press Render picture to see them.", where=places.where("labels"), check=_check_labels,
      setup=_labels_on)
 stop("queue", OUT, HUB_SET, "Render queue: picture + video",
      "7 Render queue holds a picture and a short video, both waiting. Start queue renders them in the background "

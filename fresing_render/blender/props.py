@@ -8,7 +8,7 @@ import bpy
 from bpy.props import (BoolProperty, CollectionProperty, EnumProperty, FloatProperty, FloatVectorProperty,
                        IntProperty, PointerProperty, StringProperty)
 
-from ..core import materials_lib, presets
+from ..core import materials_lib, places, presets
 from ..core import rules as R
 from ..core import studio
 from ..core import surroundings as env
@@ -1501,7 +1501,7 @@ class FRAnimation(bpy.types.PropertyGroup):
     fin_logo: EnumProperty(
         name="Logo", default="NONE",
         description="Puts the brand kit's logo in one corner of the whole video. Needs a logo in the brand kit "
-                    "(5 Scene & Render > Brand kit)",
+                    f"({places.where('brand')})",
         items=[("NONE", "No logo", "No logo in the picture"), ("TL", "Top left", "Logo in the top left corner"),
                ("TR", "Top right", "Logo in the top right corner"),
                ("BL", "Bottom left", "Logo in the bottom left corner"),
