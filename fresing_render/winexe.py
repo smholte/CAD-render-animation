@@ -227,6 +227,35 @@ def is_copy(path: str) -> bool:
     return os.path.basename(path or "").lower() == COPY_NAME.lower()
 
 
+LOG_NAME = "Fresing Render console.log"
+
+
+def output_to_file(binary_path: str) -> str:
+    """Started as "Fresing Render.exe" from a shortcut (a windowed program), Python has no console: ``sys.stdout`` and
+    ``sys.stderr`` are None, and code that writes to them would fail. They then go to a log file next to the program
+    (the console text Window > Toggle System Console showed before), started afresh at every start. Returns its path."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return ""
+    path = os.path.join(os.path.dirname(os.path.abspath(binary_path or ".")), LOG_NAME)
+    try:
+        fh = open(path, "w", encoding="utf-8", errors="replace", buffering=1)
+    except OSError:
+        fh = open(os.devnull, "w", encoding="utf-8")
+        path = os.devnull
+    if sys.stdout is None:
+        sys.stdout = fh
+    if sys.stderr is None:
+        sys.stderr = fh
+    return path
+
+
+def is_blender_program(path_or_name: str) -> bool:
+    """Blender's program under either name: "blender…" or the app's copy (found by the independent review: five places
+    took only names starting with "blender", so the queue and the mesh import broke when the app ran as the copy)."""
+    name = os.path.basename(path_or_name or "").lower()
+    return name.startswith("blender") or name == COPY_NAME.lower()
+
+
 def blender_exe_of(binary_path: str) -> str:
     """``blender.exe`` next to the running program (the copy or Blender itself)."""
     folder = os.path.dirname(os.path.abspath(binary_path or ""))
@@ -418,6 +447,16 @@ def ensure(blender_exe: str, icon: str) -> str:
     have = read_stamp(blender_exe)
     if os.path.isfile(dst) and have.get("ok") is True and all(have.get(k) == v for k, v in want.items()):
         return dst
+    same_blender = all(have.get(k) == want[k] for k in ("blender_size", "blender_mtime"))
+    if have.get("gone") and same_blender:
+        return ""                                  # it vanished once already for this Blender: not again
+    if have.get("ok") is True and same_blender and not os.path.isfile(dst):
+        # made, checked, and then removed by something else (an antivirus?): do not make it again for this Blender –
+        # the app stays on Blender's own programs; Install.bat (a new Blender) or deleting the stamp tries again
+        with open(os.path.join(folder, STAMP_NAME), "w", encoding="utf-8") as fh:
+            json.dump(dict(want, ok=False, gone=True), fh)
+        log("the copy was removed by something else (an antivirus?): the app stays on blender.exe")
+        return ""
     tmp = os.path.join(folder, "Fresing Render.new.exe")
     try:
         _remove(tmp)
@@ -429,7 +468,11 @@ def ensure(blender_exe: str, icon: str) -> str:
             os.replace(tmp, dst)
         except PermissionError:                    # the copy is running (this app): move it aside, it can be renamed
             os.replace(dst, old)
-            os.replace(tmp, dst)
+            try:
+                os.replace(tmp, dst)
+            except OSError:
+                os.replace(old, dst)               # put the running one back: never leave no copy at all
+                raise
         with open(os.path.join(folder, STAMP_NAME), "w", encoding="utf-8") as fh:
             json.dump(dict(want, ok=True, said=said), fh)
         log("made", dst, "-", said)

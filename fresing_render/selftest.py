@@ -219,7 +219,8 @@ def main(report_path: str | None = None) -> bool:
     def _template():
         import subprocess
         exe = bpy.app.binary_path
-        if not exe or not os.path.basename(exe).lower().startswith("blender"):
+        from . import winexe
+        if not exe or not winexe.is_blender_program(exe):
             return "skipped (not started from Blender)"
         code = ("import bpy\n"
                 "if not any(k.endswith('fresing_render') for k in bpy.context.preferences.addons.keys()):\n"

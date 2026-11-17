@@ -199,3 +199,19 @@ def test_restart_after_update_keeps_the_copy(tmp_path):
     icon.write_bytes(b"i")
     (tmp_path / w.STAMP_NAME).write_text(json.dumps(dict(w.stamp_for(str(tmp_path / "blender.exe"), str(icon)), ok=True)))
     assert updates.build_restart(str(tmp_path / "blender.exe"), "", "", windows=True) == [str(copy)]
+
+
+def test_safe_start_is_never_pointed_at_the_copy():
+    assert ai.plan(link(), INST, ICON, app_target=COPY, keep_target=True)["target"] == ""
+    assert ai.SAFE_START.endswith(".lnk")
+
+
+def test_output_goes_to_a_file_when_there_is_no_console(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", None)
+    path = w.output_to_file(str(tmp_path / w.COPY_NAME))
+    print("hello")
+    sys.stdout.flush()
+    assert path == str(tmp_path / w.LOG_NAME) and "hello" in open(path, encoding="utf-8").read()
+    monkeypatch.undo()
+    assert w.output_to_file(str(tmp_path / w.COPY_NAME)) == ""       # a console is there: nothing changes

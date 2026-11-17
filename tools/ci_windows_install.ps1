@@ -338,7 +338,8 @@ if ($Uninstall) {
                 if (-not $iconOk) { $bad += "$($f.Name): icon '$($r.Icon)'" }
                 if ($r.Args -match '--app-template fresing_render' -and $r.Id -ne "Fresing.Render") { $bad += "$($f.Name): app ID '$($r.Id)'" }
                 # task 0177: the app's shortcuts start "Fresing Render.exe" (the console ones stay on blender.exe)
-                if ($r.Args -match '--app-template fresing_render' -and $AppExe -and $r.Target -ine $AppExe) { $bad += "$($f.Name): starts '$($r.Target)'" }
+                $wantExe = $(if ($f.Name -eq "Fresing Render - safe start.lnk") { Join-Path $BlenderExe.DirectoryName "blender-launcher.exe" } else { $AppExe })
+                if ($r.Args -match '--app-template fresing_render' -and $AppExe -and $r.Target -ine $wantExe) { $bad += "$($f.Name): starts '$($r.Target)'" }
                 Write-Host "   $($f.Name): icon '$($r.Icon)', app ID '$($r.Id)', starts '$(Split-Path -Leaf $r.Target)'"
             }
             $ok = ($links.Count -ge 6) -and (-not $bad) -and (Test-Path -LiteralPath $IconFile)
@@ -409,6 +410,7 @@ if ($Uninstall) {
             foreach ($f in @("Fresing Render.exe", "fresing-render-exe.json")) {
                 Remove-Item -LiteralPath (Join-Path $BlenderExe.DirectoryName $f) -Force -ErrorAction SilentlyContinue
             }
+            Remove-Item -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - safe start.lnk") -Force -ErrorAction SilentlyContinue
             $res = Join-Path $OutDir "appicon_test.json"
             $script = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "tools\appicon_test.py"
             $log = Join-Path $OutDir "appicon_test.log"

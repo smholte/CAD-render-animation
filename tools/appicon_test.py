@@ -76,7 +76,11 @@ def main():
               and info["icon_index"] == 0, f'{info["icon"]},{info["icon_index"]}')
         if ai.is_app_shortcut(info["arguments"]):
             check(f"{name}: app ID", info["app_id"] == ai.APP_ID, info["app_id"])
-            check(f"{name}: starts Fresing Render.exe", w.is_copy(info["target"]), info["target"])
+            if name.lower() == ai.SAFE_START.lower():
+                check(f"{name}: stays on blender-launcher.exe", info["target"].lower().endswith("blender-launcher.exe"),
+                      info["target"])
+            else:
+                check(f"{name}: starts Fresing Render.exe", w.is_copy(info["target"]), info["target"])
         elif ai.is_inside(info["target"], folder) and info["target"].lower().endswith(".exe"):
             check(f"{name}: console run stays on blender.exe", os.path.basename(info["target"]).lower() == "blender.exe",
                   info["target"])
@@ -86,6 +90,7 @@ def main():
     # task 0177: the copy the refresh made
     copy = w.copy_path(exe)
     check("Fresing Render.exe made again by the app", os.path.isfile(copy) and w.usable(exe), copy)
+    check("safe-start shortcut there", os.path.isfile(os.path.join(programs, ai.START_MENU_FOLDER, ai.SAFE_START)))
     s = w.strings(w.parse_version(w.read_resource(copy, w.RT_VERSION, 1)))
     check("its version resource says Fresing Render", s.get("FileDescription") == "Fresing Render"
           and s.get("ProductName") == "Fresing Render" and s.get("OriginalFilename") == "blender.exe", s)

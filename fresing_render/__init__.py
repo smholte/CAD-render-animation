@@ -101,6 +101,11 @@ def register():
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
     try:
+        from . import winexe
+        winexe.output_to_file(bpy.app.binary_path)   # task 0177: a windowed program has no console to print to
+    except Exception:  # noqa: BLE001 - never stop the app from starting
+        pass
+    try:
         from . import appicon
         appicon.startup()                    # task 0169: the Fresing icon on the windows, taskbar and shortcuts
     except Exception as exc:  # noqa: BLE001 - never stop the app from starting

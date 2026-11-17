@@ -304,6 +304,8 @@ New-Item -ItemType Directory -Force -Path $StartMenu | Out-Null
 Step "Creating shortcuts"
 MakeShortcut (Join-Path $Desktop "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
 MakeShortcut (Join-Path $StartMenu "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
+# task 0177: the app's shortcuts are pointed at "Fresing Render.exe" below; this one always starts Blender's own launcher
+MakeShortcut (Join-Path $StartMenu "Fresing Render - safe start.lnk") $GuiExe "--app-template fresing_render" "Starts Fresing Render with Blender's own program. Use it only if Fresing Render does not start from its usual shortcut"
 MakeShortcut (Join-Path $StartMenu "Fresing Render - Self test.lnk") $BlenderExe "--background --python `"$Launcher`" -- `"$Desktop`"" "Check this PC and write a report on the Desktop"
 
 # PC check (task 0032): every main function with the test models; the launcher lives inside the installed
