@@ -459,7 +459,7 @@ def unregister_menu() -> None:
 
 
 class FRESING_OT_clear_cache(bpy.types.Operator):
-    """Deletes the stored copies of earlier imports to free disk space. The next import of a file reads it
+    """Clears the stored copies of earlier imports to free disk space. The next import of a file reads it
     in full again"""
 
     bl_idname = "fresing.clear_cache"

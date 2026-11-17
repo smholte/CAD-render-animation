@@ -112,7 +112,7 @@ class FRESING_OT_callout_move(_PickPart, bpy.types.Operator):
 
 
 class FRESING_OT_callout_remove(bpy.types.Operator):
-    """Deletes the selected label"""
+    """Removes the selected label"""
     bl_idname = "fresing.callout_remove"
     bl_label = "Remove label"
     bl_options = {"REGISTER", "UNDO"}

@@ -1372,7 +1372,7 @@ def _summary(scene, item, geo: dict) -> list[str]:
         movers = sorted({c.name for c in _wheels(item) if flex._movers(c.carrier) != flex._movers(item.part)})
         if movers:
             which = ", ".join(repr(m) for m in movers[:4]) + (" …" if len(movers) > 4 else "")
-            notes.append(f"Cable '{name}' follows what it lies on when that moves ({which}): Build animation works "
+            notes.append(f"Cable '{name}' follows what it lies on when that moves ({which}): Build & play works "
                          "out a shape for every frame")
     odd = [c for c in item.contacts if c.note and not c.note.startswith("the CAD cable is drawn")]
     for c in odd[:8]:

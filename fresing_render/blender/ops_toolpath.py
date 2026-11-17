@@ -31,7 +31,7 @@ def _done_message(scene, out: dict) -> str:
 class FRESING_OT_toolpath_make(bpy.types.Operator):
     """Works out a roughing and a finishing program that cut the workpiece into the finished part, never into the
     part, writes it next to the project and adds it as a 'Run G-code program' step to the animation shown in 6
-    Animation (made again: that step gets the new program). Then press Build animation"""
+    Animation (made again: that step gets the new program). Then press Build & play"""
 
     bl_idname = "fresing.toolpath_make"
     bl_label = "Make toolpath"

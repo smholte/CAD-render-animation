@@ -1379,7 +1379,8 @@ class FRAnimBlock(bpy.types.PropertyGroup):
         name="Preview", subtype="PERCENTAGE", default=0.0, min=0.0, max=100.0, precision=0,
         update=_seq_preview_changed,
         description="Drag to see the step in the view without building: 0 % = the start, 100 % = the end. Back to "
-                    "0 % (or Build) puts the parts back. A built animation is taken off when you start: build it again after")
+                    "0 % (or Build & play) puts the parts back. A built animation is taken off when you start: Build & play "
+                    "again after")
     seq_count: IntProperty(default=0)
     seq_fasteners: IntProperty(default=0)
     seq_left_out: IntProperty(default=0)
@@ -4103,7 +4104,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         description="About how long the video is, cards included. The steps share the time between them")
     pv_sub: EnumProperty(
         name="Take apart", default="AUTO",
-        items=[("AUTO", "The biggest subassembly", "The subassembly with the most parts (at least 5) that is not "
+        items=[("AUTO", "Biggest (automatic)", "The subassembly with the most parts (at least 5) that is not "
                                                    "the whole model"),
                ("SELECTED", "The selected one", "The subassembly selected in the structure list (3 Structure)"),
                ("NONE", "None", "No take-apart in the video")],

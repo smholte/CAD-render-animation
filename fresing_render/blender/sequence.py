@@ -939,7 +939,7 @@ def preview(scene, b, share: float) -> None:
         animation.clear_keys(scene)                   # keys would hold the parts where Build left them
         b["seq_preview"] = keep                       # (clear_keys ends every preview: this one goes on)
         scene.fresing.last_message = ("The Assembly sequence preview took the built animation off: "
-                                      "press Build animation again when done")
+                                      "press Build & play again when done")
     for ob in scene.objects:                          # back to where they were, then plan from there
         if PREVIEW in ob:
             m = build.get_mat(ob, PREVIEW)

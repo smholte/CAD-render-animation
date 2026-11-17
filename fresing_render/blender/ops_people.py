@@ -167,10 +167,10 @@ class FRESING_OT_person_select(bpy.types.Operator):
 
 
 class FRESING_OT_person_remove(bpy.types.Operator):
-    """Deletes the selected person with its path (its items stay where they lie)"""
+    """Removes the selected person with its path (its items stay where they lie)"""
 
     bl_idname = "fresing.person_remove"
-    bl_label = "Delete person"
+    bl_label = "Remove person"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -270,10 +270,10 @@ class FRESING_OT_person_path_edit(bpy.types.Operator):
 
 
 class FRESING_OT_person_path_clear(bpy.types.Operator):
-    """Deletes the selected person's path (its actions stay)"""
+    """Removes the selected person's path (its actions stay)"""
 
     bl_idname = "fresing.person_path_clear"
-    bl_label = "Delete path"
+    bl_label = "Remove path"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -325,10 +325,10 @@ class FRESING_OT_person_action_add(bpy.types.Operator):
 
 
 class FRESING_OT_person_action_remove(bpy.types.Operator):
-    """Deletes the selected step of the selected person"""
+    """Removes the selected step of the selected person"""
 
     bl_idname = "fresing.person_action_remove"
-    bl_label = "Delete step"
+    bl_label = "Remove step"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
