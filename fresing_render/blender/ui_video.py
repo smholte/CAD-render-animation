@@ -80,18 +80,26 @@ class FRESING_PT_watermark(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Words across the picture, for drafts you send before the final render. Every "
+        wrap(layout, context, "Words or a logo across the picture, for drafts you send before the final render. Every "
                               "queue job remembers whether it was added with the watermark on.")
         row = big_row(layout, 1.4)
         row.prop(s, "wm_on", text="Watermark on the next renders", toggle=True,
                  icon="CHECKBOX_HLT" if s.wm_on else "CHECKBOX_DEHLT")
         col = split_props(layout)
-        col.prop(s, "wm_kind", text="Words")
+        col.prop(s, "wm_kind", text="Watermark")
         if s.wm_kind == "CUSTOM":
             col.prop(s, "wm_text", text="Own text")
+        logo = s.wm_kind in ("FRESING_LOGO", "KIT_LOGO")
+        if logo:
+            col.prop(s, "wm_place", text="Place")
+            col.prop(s, "wm_tint", text="Logo colour")
         col.prop(s, "wm_size", text="Size")
         col.prop(s, "wm_opacity", text="See-through")
-        if s.wm_on and not video.watermark_words(s):
+        if s.wm_on and logo and not video.watermark_logo(s):
+            wrap(layout, context, "The logo cannot be found: " + ("add a PNG or JPG logo in Brand kit & logo above."
+                 if s.wm_kind == "KIT_LOGO" else "the Fresing logo file is missing, repair the installation."),
+                 icon="ERROR", alert=True, inset=12)
+        elif s.wm_on and not logo and not video.watermark_words(s):
             wrap(layout, context, "Type your own words above.", icon="ERROR", alert=True, inset=12)
 
 

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.135 – 17 Nov 2026 – The demo's quadrant on the seabed, sheaves that stand still, a swivel to try (task 0172)
+## 0.2.136 – 17 Nov 2026 – The demo's quadrant on the seabed, sheaves that stand still, a swivel to try (task 0172)
 
 - **Shot 11 of the demo:** as the D-quadrant tips flat and is set down on the seabed, the cable stays in its gutter to
   the far end – the end that points the way the cable lies – and bends down from there onto the seabed. Before, it
@@ -20,6 +20,16 @@ installer of that version was built from.
 - **New in the test tour and the PC check: "Sheave turns to follow its wire"** – a deck davit slews while its wire runs
   from a fairlead on the deck over a sheave on a swivel head; the head turns so the wire always runs straight into the
   groove.
+
+## 0.2.135 – 17 Nov 2026 – The Fresing logo as a watermark (task 0176)
+
+- **The Fresing logo as a watermark:** in 5 Scene & Render > Watermark you can now pick **Fresing logo** (or **Brand kit
+  logo**, the logo of your own kit) instead of words. **Place** it in the **Centre**, **Tiled** across the whole picture
+  (turned like the words) or small in a **corner**, and choose its colour: **Colour**, **White** (for dark pictures) or
+  **Dark** (for light pictures). Size and See-through work as before. It goes on stills, videos, the render queue and the
+  product video, the same as the words. Old projects keep their DRAFT or CONFIDENTIAL words.
+- **A ready-made "Fresing" brand kit** comes with the app: Fresing's logo (sharp in 4K) and colours. It is always in the
+  list of kits, cannot be changed or deleted, and you can load it, give it another name and save a copy of your own.
 
 ## 0.2.134 – 16 Nov 2026 – Fast 3-axis: fewer faces, truer flanks (task 0167)
 

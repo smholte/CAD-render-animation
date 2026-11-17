@@ -795,7 +795,15 @@ def _check_finishing(scene):
     from . import video
     _check(video.captions_of(a, scene), "no captions")
     _check(bool(video._logo_path(scene.fresing)), "the brand kit's logo file is missing")
-    return "title, end card, captions, logo"
+    s = scene.fresing
+    was = s.wm_kind
+    try:                                      # task 0176: the Fresing logo is there as a watermark choice
+        s.wm_kind = "FRESING_LOGO"
+        fin = video.finishing_for_still(scene, True)
+    finally:
+        s.wm_kind = was
+    _check(bool(fin.wm_logo_file) and not fin.watermark, "the Fresing logo watermark file is missing")
+    return "title, end card, captions, logo, Fresing logo watermark"
 
 
 def _labels_on(scene):
@@ -3444,7 +3452,7 @@ stop("swivel", MOTION, "swivel", "Sheave turns to follow its wire",
      "head: as the arm swings, the head turns about the tip so the wire from the fairlead always runs straight into "
      "the sheave's groove, never across its side; the hook block hangs still under the tip.",
      where="4 Motion > Cables and paths > What it touches: the sheave's Swivel", animation=SWIVEL_ANIM, play=True,
-     since="0.2.135", check=_check_swivel, auto="clip")
+     since="0.2.136", check=_check_swivel, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)
