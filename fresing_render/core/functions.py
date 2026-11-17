@@ -44,6 +44,7 @@ FAMILIES = {
 MENUS = {
     "TOPBAR_MT_help": "Help menu",
     "TOPBAR_MT_file_import": "File > Import",
+    "VIEW3D_HT_header": "3D view header",
 }
 
 # Guide sections that are only reading (no function of their own): no entry needs to name them.
@@ -368,6 +369,8 @@ fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", but
    guide="tour", pccheck=("tour.make",), since="0.2.47")
 fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
    button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
+fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="VIEW3D_HT_header",
+   button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.149")
 
 
 # ---------------------------------------------------------------------------

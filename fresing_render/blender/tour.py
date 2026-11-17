@@ -3851,6 +3851,24 @@ stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
      auto=lambda ctx, scene, st: "")
 
+def _check_panel_back(scene):
+    """The header button and its operator (task 0198)."""
+    import bpy
+
+    from . import ui_header
+    _check(hasattr(bpy.ops.fresing, "show_panel"), "the operator 'Show the Fresing panel' is missing")
+    _check(ui_header._draw_header in bpy.types.VIEW3D_HT_header.draw._draw_funcs,
+           "the Fresing button is not in the 3D view's header")
+
+
+stop("panel_back", OUT, HUB_SET, "Fresing panel always back",
+     "Move the mouse over the 3D view and press N: the side panel goes away, and a small Fresing button appears at "
+     "the right end of the 3D view's header. Click it: the side panel is back on the Fresing tab and the button "
+     "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab with Blender's "
+     "toolbar folded. Live preview stays on or off as you left it when you go to another test tour project.",
+     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.149",
+     check=_check_panel_back, auto=lambda ctx, scene, st: "")
+
 # ---------------------------------------------------------------------------
 # building the tour
 # ---------------------------------------------------------------------------
