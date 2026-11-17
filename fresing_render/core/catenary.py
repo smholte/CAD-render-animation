@@ -58,7 +58,8 @@ import numpy as np
 G = 9.81                        # m/s²
 NORMAL, LIFTED, PILED, STRETCHED = 0, 1, 2, 3
 KINDS = ("touches down", "lifts off its end", "piles up on the seabed", "is too short")
-WET_200 = 51.0                  # kg/m in water of a 200 mm power cable (500 N/m; task 0083's numbers)
+WET_200 = 38.0                  # kg/m in water of a 200 mm power cable (task 0173: study 0152's public cables are
+#                                 22–39 kg/m at Ø 200 – the heavy, lead-sheathed end; it was 51 = 0083's 500 N/m)
 ROUNDS = 64                     # bisection steps (2⁻⁶⁴ of the range in log: far below a micrometre)
 FIX_ROUNDS = 60                 # rounds of the fixed point on the wrap
 FIX_TOL = 1e-12                 # rad

@@ -35,9 +35,16 @@ def test_formulas():
     assert float(C.a_for_span(X, h)) == pytest.approx(a, rel=1e-12)
     for X_ in (0.01, 1.0, 50.0, 5000.0):
         assert float(C.span(C.a_for_span(X_, h), h)) == pytest.approx(X_, rel=1e-10)
-    bottom, top = C.tensions(a, h, 51.0)
-    assert float(top - bottom) == pytest.approx(51.0 * C.G * h / 1000.0)        # T_top = T_bottom + w h
-    assert C.wet_weight(0.2) == pytest.approx(51.0) and C.wet_weight(0.05) == pytest.approx(51.0 / 16)
+    bottom, top = C.tensions(a, h, 38.0)
+    assert float(top - bottom) == pytest.approx(38.0 * C.G * h / 1000.0)        # T_top = T_bottom + w h
+    # task 0173: 38 kg/m at Ø 200 (study 0152: public cables 22–39 kg/m at Ø 200; it was 51)
+    assert C.wet_weight(0.2) == pytest.approx(38.0) and C.wet_weight(0.05) == pytest.approx(38.0 / 16)
+    # the demo's lay (the cable leaves the horn ~30 m over the seabed, layback 32 m): bottom ≈ 7.7 kN, top ≈ 18.9 kN, 66°
+    hh = 30.0
+    aa = float(C.a_for_span(32.0, hh))
+    bt, tp = C.tensions(aa, hh, C.wet_weight(0.2))
+    assert float(bt) == pytest.approx(7.7, abs=0.15) and float(tp) == pytest.approx(18.9, abs=0.2)
+    assert math.degrees(math.atan2(float(C.suspended(aa, hh)), aa)) == pytest.approx(66.0, abs=1.0)
     # 0083's numbers: 10 kN at the bottom, 500 N/m, 20–50 m deep: layback 26–39 m, 60–75° below horizontal
     for depth in (20.0, 50.0):
         aa = 10000.0 / 500.0

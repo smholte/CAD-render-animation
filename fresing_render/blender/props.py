@@ -2754,7 +2754,7 @@ class FRCable(bpy.types.PropertyGroup):
     sea_weight: FloatProperty(
         name="Weight in water", default=0.0, min=0.0, soft_max=1000.0, precision=1, update=_sea_end_changed,
         description="What one metre of cable weighs in water, in kg/m. 0 = worked out from the diameter (about "
-                    "51 kg/m for a 200 mm power cable)")
+                    "38 kg/m for a 200 mm power cable)")
     sea_depth: FloatProperty(
         name="Water depth", unit="LENGTH", default=0.0, min=0.0, soft_max=500.0, precision=2,
         update=_sea_end_changed,

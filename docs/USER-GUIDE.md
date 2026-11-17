@@ -1227,7 +1227,7 @@ direction is the horn's, without a kink. Under **4 Motion > Cables and paths**, 
    becomes its end on the seabed.
 3. Set where it touches the seabed: **Layback** (how far behind the horn, measured flat; 26 to 39 m is usual in 20
    to 50 m of water) or **Bottom tension** (the pull along the seabed in kN) with the **Weight in water** (kg/m; 0
-   = worked out from the diameter, about 51 kg/m for a 200 mm power cable). The box below shows the other numbers:
+   = worked out from the diameter, about 38 kg/m for a 200 mm power cable). The box below shows the other numbers:
    layback, the angle at which it leaves the horn, the tension at the seabed and at the top, how much hangs and how
    much lies on the seabed.
 4. **On the seabed**: how much cable already lies there behind the touch-down. **Water depth** 0 takes the sea's.
