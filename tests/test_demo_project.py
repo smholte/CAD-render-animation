@@ -68,10 +68,9 @@ def test_every_joint_of_the_sheet(made):
              + tuple(n for _k, n in demo.TIP_ITEMS)]
     park = made["sheet"]["machine_files"]["demo_park.step"]           # task 0166: the wind park's 19 joints
     assert len(park) == 19 and all(j["name"] in by for j in park)
-    # task 0174: the wire speeds of handling winch 2, the two tipping winches' drums and the crane's hoist
-    travels = ["HANDLING WINCH 2: Wire travel", demo.CRANE_TRAVEL] + [demo.TIP_TRAVEL.format(KEY=k.upper())
-                                                                      for k, _n in demo.TIP_ITEMS]
-    assert len(by) == len(sheet) + 2 + 4 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    # task 0174: the wire speeds of handling winch 2 and the crane's hoist
+    travels = ["HANDLING WINCH 2: Wire travel", demo.CRANE_TRAVEL]
+    assert len(by) == len(sheet) + 2 + 2 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
     assert all(t in by for t in travels)
     cable_turned = spooled = 0
     for row in sheet:
@@ -94,8 +93,8 @@ def test_every_joint_of_the_sheet(made):
         drive = row["drive"]
         if j.couple_table:                                          # follows its spool's layer by table (task 0080)
             assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}",
-                                      f"spool:{demo.AR_SPOOL}", "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}",
-                                      *[f"spool:{demo.TIP_SPOOL.format(key=k)}" for k, _n in demo.TIP_ITEMS]), row["name"]
+                                      f"spool:{demo.AR_SPOOL}", "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}"),
+                    row["name"]
             spooled += 1
         elif j.follows in wires:                                    # turned by a tipping wire (task 0082)
             assert "TIPPING" in row["name"] or "Swivel sheave" in row["name"], row["name"]
@@ -125,8 +124,8 @@ def test_every_joint_of_the_sheet(made):
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
     assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
     #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
-    assert spooled == 11      # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081); A&R drum (0082);
-    #                           task 0174: handling winch 2's drum + level wind, both tipping drums, the crane's hoist drum
+    assert spooled == 9       # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081); A&R drum (0082);
+    #                           task 0174: handling winch 2's drum + level wind, the crane's hoist drum
 
 
 def test_a_coupling_turns_at_its_ratio(made):

@@ -1078,28 +1078,24 @@ def _handling_winch(d: Demo, k: int) -> None:
     WINCH_SPOOLS[name] = f"handling winch {k}: fairlead wire on its Lebus drum, level wind follows"
 
 
-TIP_SPOOL = "Tipping winch {key}"          # the drum: 4 Motion > Drums and carousels
-TIP_DRUM_WIRE = "Tipping drum wire {key}"   # its fixed lead (drum -> foot sheave -> post top) as a cable
-TIP_TRAVEL = "TIPPING WINCH {KEY}: Wire travel"
 CRANE_SPOOL = "Crane hoist"
 CRANE_WIRE = "Crane hoist wire"
 CRANE_TRAVEL = "DECK CRANE: Hoist wire travel"
 
 
-@stage("winch_wires", "Every winch with its wire rope on its drum", after="wires")
+@stage("winch_wires", "Handling winch 2 and the deck crane's hoist: their wire ropes on their drums", after="wires")
 def winch_wires(d: Demo):
     """Task 0174: every winch drum of the vessel holds its wire as a cable in layers (4 Motion > Drums and carousels),
     the steel wire rope look:
 
     - handling winch 2 as handling winch 1 (stage "spool"): its fairlead rope a cable on a speed joint of its own;
-    - each tipping winch: its fixed lead in the CAD (drum -> foot sheave -> up the swivel post) becomes a cable spooled
-      on the drum; its speed follows the tipping wire's (kept tight, stage "wires") one to one, so the drum pays out
-      what the tipping wire takes – the drum turns by the spool's table instead of a ratio;
-    - the A&R winch and handling winch 1 are spooled already (stages "wires", "spool")."""
+    - the deck crane's hoist (an invented drum at the boom's foot, ``demo_model/vessel.hoist``): its wire to the hook;
+    - the A&R winch and handling winch 1 are spooled already (stages "wires", "spool"); the tipping winches are not
+      (see the note in the body)."""
     import numpy as np
     from mathutils import Vector
 
-    from . import build, joints, logic, paths, spool
+    from . import build, joints, paths, spool
     sc = d.scene
     t0 = time.time()
     WINCH_SPOOLS.clear()
@@ -1108,59 +1104,9 @@ def winch_wires(d: Demo):
     d.progress("Handling winch 2's drum")
     _handling_winch(d, 2)
     deck = d.part("MAIN DECK", root=d.root())
-    for key, tip_item in TIP_ITEMS:
-        d.progress(f"The tipping winch {key}'s drum")
-        drum_joint = f"QUADRANT SYSTEM: TIPPING WINCH {key.upper()}: Drum turn"
-        drum, on_drum, parts, winch = _winch_parts(d, drum_joint)
-        mine = {o.name for o in logic.descendants(winch)}
-        centre = np.array(joints.find(sc, drum_joint).frame.matrix_world.translation)
-
-        def gap(o):
-            n = len(o.data.vertices)
-            if not n:
-                return 1e9
-            co = np.empty(3 * n, np.float32)
-            o.data.vertices.foreach_get("co", co)
-            m = np.array(o.matrix_world)
-            v = co.reshape(-1, 3).astype(float) @ m[:3, :3].T + m[:3, 3]
-            return float(np.linalg.norm(v - centre, axis=1).min())
-        leads = [o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in mine]
-        lead = min(leads, key=gap)
-        if gap(lead) > 2.0:
-            raise RuntimeError(f"tipping winch {key}: no wire lead found at its drum")
-        name, wire, travel = (TIP_SPOOL.format(key=key), TIP_DRUM_WIRE.format(key=key),
-                              TIP_TRAVEL.format(KEY=key.upper()))
-        with joints._batch(sc):
-            j = joints.create(sc, "SLIDE", [], Vector(centre), Vector((0.0, 0.0, 1.0)), name=travel, base=deck,
-                              allow_empty=True)
-        j.use_limits = False
-        item = paths.add_cable(sc, wire, joint=travel)
-        with paths._quiet(item):
-            item.look = "ROPE"
-        item["look_was"] = "ROPE"
-        paths.read_cad(sc, item, lead)
-        spool.add(sc, "DRUM", drum, wire, coil=on_drum, name=name)
-        # its speed: the tipping wire's, one to one (both counted as paid out)
-        tip = paths.find(sc, tip_item)
-        mine_it = paths.find(sc, wire)
-        ratio = (-1.0 if tip.reverse else 1.0) * (-1.0 if mine_it.reverse else 1.0)
-        joints.set_follows(sc, joints.find(sc, travel), tip.joint, ratio=ratio)
-        sp = spool.find(sc, name)
-        # the lead to the foot sheave is short (the winch stands 2.6 m from its post): its fleet angle is some 6.5°,
-        # more than the usual 1.5° – the demo's tipping winches have no level wind; the warning is set just above it
-        lo, hi = spool.fleet(sc, sp)
-        if max(lo, hi) > float(sp.fleet_limit):
-            sp.fleet_limit = math.radians(math.ceil(math.degrees(max(lo, hi))) + 0.5)
-            sp = spool.find(sc, name)
-            d.notes.append(f"tipping winch {key}: fleet angle {math.degrees(max(lo, hi)):.1f}° (short lead, no level "
-                           f"wind): its warning set to {math.degrees(sp.fleet_limit):.1f}°")
-        spool.status(sc, sp)
-        sp = spool.find(sc, name)
-        if sp.problem:
-            raise RuntimeError(f"tipping winch {key}: {sp.problem}")
-        d.notes.append("spool: " + spool.summary(sc, sp))
-        WINCH_SPOOLS[name] = (f"tipping winch {key}: its lead (drum, foot sheave, up the post) on its drum, paying out "
-                              f"what the kept-tight tipping wire takes")
+    # (the tipping winches are not spooled: their wires are kept tight, and a Build reads the places of every cable
+    # before it writes the kept-tight payouts – a drum cable whose speed followed them stood still at Build; they keep
+    # turning by ratio with their CAD wire. Task 0174's report: a follow-up in paths._bake after task 0172.)
     # the deck crane's hoist (an invented drum at the boom's foot, task 0174): its wire to the hook block, parked
     d.progress("The deck crane's hoist")
     drum_joint = _joint_ending(d, "DECK CRANE: Hoist drum turn")

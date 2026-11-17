@@ -266,7 +266,7 @@ def test_part_counts(made):
     assert count("TRACK PAD") == 4 * n and count("PAD BACK PLATE") == 4 * n and count("TRACK CHAIN LINK") == 4 * n
     assert count("DRIVE SPROCKET") == 4 and count("IDLER SPROCKET") == 4
     assert count("FAIRLEAD SHEAVE") == 2 and count("TIPPING SHEAVE") == 2 and count("HANDLER TOP PULLEY") == 1
-    assert count("WINCH DRUM") == 5                       # 2 handling, quadrant handling, 2 tipping
+    assert count("WINCH DRUM") == 6                       # 2 handling, quadrant handling, 2 tipping, crane hoist (0174)
     assert count("CABLE ROLLER") >= 60 and count("SUPPORT ROLLER") >= 24 and count("GUIDE ROLLER") >= 40
     assert count("ROLLER CRADLE") >= 20 and count("ROLLER TRESTLE") >= 20 and count("GRATING WALKWAY") >= 3
     assert count("CABLE ENGINE WHEEL") == 8
