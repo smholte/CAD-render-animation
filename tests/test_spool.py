@@ -260,3 +260,28 @@ def test_off_shows_the_cad_and_on_again(made):
     sp = spool.find(sc, "Carousel")
     assert paths.find(sc, "Power cable").a_kind == "SPOOL" and sp.owner is not None and not sp.problem
     assert joints.find(sc, "Arm slew").couple_table == "spool:Carousel"
+
+
+# ---------------------------------------------------------------------------
+# task 0184: the leave direction from the spool's own arc, not from a straight of length nothing
+# ---------------------------------------------------------------------------
+
+def test_leave_direction_is_the_arc_end_whatever_comes_after():
+    """A quarter arc (r 0.6 m, 25 points) followed by a next point a hair away in any direction: the direction is the
+    arc's tangent at its end. Before 0184 it was the hair's direction (rounding noise when a guide touches the coil)."""
+    phi = np.linspace(math.pi / 2, 0.0, 25)
+    arc = np.stack([0.6 * np.cos(phi), 0.6 * np.sin(phi), np.zeros_like(phi)], axis=1)
+    want = np.array([0.0, -1.0, 0.0])                    # the end (0.6, 0, 0), going clockwise
+    rng = np.random.default_rng(184)
+    for _ in range(50):
+        hair = rng.normal(size=3)
+        line = np.vstack([arc, arc[-1] + rng.choice([0.0, 1e-9, 1e-6, 1e-4]) * hair / np.linalg.norm(hair),
+                          arc[-1] + [1.0, -2.0, 0.0]])
+        t = spool.leave_direction(line, 0, len(arc) - 1)
+        assert abs(float(np.linalg.norm(t)) - 1.0) < 1e-9
+        assert float(t @ want) > math.cos(math.radians(0.1)), t
+    t = spool.leave_direction(arc[-2:], 0, 1)            # two points on the arc: its last chord
+    assert float(t @ want) > math.cos(math.radians(2.0))
+    line = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 3.0]])
+    assert np.allclose(spool.leave_direction(line, 0, 0), [0.0, 0.0, 1.0])     # no arc: the first piece with a length
+

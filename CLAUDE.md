@@ -285,6 +285,11 @@ fresing_render/            the Blender extension (Python package)
                            angles, lofted skin, face without a likeness, hands, shoes, outfits; heights 1.65/1.75/1.85, put
                            on the floor after posing – and the detailed container, pallet, barrier, IBC, gas rack, tool
                            trolley; every prop in DETAILED and LIGHT; ``Loft`` shape in surroundings.py)
+                           lifting.py (lifting plans, task 0182: the checks C1–C9 of study 0180 – crane use at the
+                           chart's next longer radius, sling legs 2-leg / 3–4-leg rigid, WLLs, outriggers + mats, crawler
+                           tracks, forklift load centre, offshore DAF, upending – each a `Result` with inputs, formula,
+                           status ok / amber / red / not_checked; load charts: lookup, validation, units; `Limits`
+                           75 % / 90 % / 90 %; the plan's words, never "safe"; SI inside: kg, m, N, Pa)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -1148,6 +1153,12 @@ the release → Delete); the next run on `main` publishes it again.
   over "Finish at the CAD part" gave 34,000 extra triangles on the toolpath test model (task 0167). Keep one of them
   clearly on one side (the map is lifted 12.5 µm over the part where it came down onto it, `HeightMap._lift`); a face
   lying in the block's own top plane likewise got slivers of the top named after a move.
+- A test that fails "at random" on GitHub but always at the same frame is not a race: it is the processor (task 0184).
+  GitHub's runners are a mix (AMD EPYC 7763 / 9V45 / 9V74, several Xeons); the tour's spool stop failed on every EPYC
+  7763 and nowhere else. A direction taken from a straight of length nothing (a guide touching the coil) is rounding
+  noise and differs per CPU; take it from what has a length (the arc). Find such a case with a temporary workflow that
+  runs the case on many runners at once and prints `lscpu` with the numbers (task 0184's branch history), not by
+  repeating it locally – here no load, thread count or hash seed changed one bit.
 - A mesh can be closer to the exact surface and look worse: vertices put halfway along a rounded strip, at different
   distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
   strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at

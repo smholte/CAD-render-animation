@@ -425,6 +425,35 @@ def _on_spool(scene, item, j, turning: set) -> list[int]:
     return out
 
 
+def leave_direction(line: np.ndarray, a0: int, i0: int) -> np.ndarray:
+    """The unit direction the cable leaves its spool at ``line[i0]``: the end of the spool's arc ``line[a0 … i0]``.
+
+    Task 0184: taken from the arc itself (a second-order backward difference over its last three points, its last
+    chord with two), never from the straight after it. When the next guide touches the coil, that straight is a
+    fraction of a millimetre long or nothing, and its direction is rounding noise: on one kind of processor (AMD
+    EPYC 7763) it pointed outwards and the carousel was read as wound the other way round – its turn, the arm and
+    every leave point mirrored, and the tour's spool stop failed there only. With no arc on the spool (an end drawn
+    on it), the first piece of the line."""
+    def unit(v):
+        n = float(np.linalg.norm(v))
+        return v / n if n > 1e-9 else None
+
+    p = np.asarray(line, dtype=float)
+    if i0 - a0 >= 2:
+        t = unit(3.0 * p[i0] - 4.0 * p[i0 - 1] + p[i0 - 2])
+        if t is not None:
+            return t
+    if i0 - a0 >= 1:
+        t = unit(p[i0] - p[i0 - 1])
+        if t is not None:
+            return t
+    for k in range(i0 + 1, len(p)):             # (no arc: the first piece of the line that has a length)
+        t = unit(p[k] - p[i0])
+        if t is not None:
+            return t
+    return np.array([1.0, 0.0, 0.0])
+
+
 def _leave_cad(scene, item, on: list[int], memo: dict):
     """Where and which way the CAD cable leaves the spool (world, CAD pose), and the point it runs to next (where it
     comes onto the first contact after the spool, else its end) with the object that carries that point."""
@@ -436,13 +465,13 @@ def _leave_cad(scene, item, on: list[int], memo: dict):
     wi = [k for k, c in enumerate(wheels) if any(item.contacts[i] == c for i in on)]
     if wi:
         last = max(wi)
-        i0 = int(res["first"][last]) + int(res["counts"][last]) - 1
+        a0 = int(res["first"][last])
+        i0 = a0 + int(res["counts"][last]) - 1
     else:
-        last, i0 = -1, 0
+        last, a0, i0 = -1, 0, 0
     i0 = min(max(i0, 0), len(line) - 2)
     leave = line[i0]
-    t = line[i0 + 1] - line[i0]
-    t = t / max(float(np.linalg.norm(t)), 1e-12)
+    t = leave_direction(line, min(max(a0, 0), i0) if wi else i0, i0)
     after = last + 1
     if 0 <= after < len(wheels):                # where the cable comes onto it: what an arm holds over the turn
         k = int(res["first"][after])
