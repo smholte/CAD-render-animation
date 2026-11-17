@@ -261,7 +261,8 @@ def converter() -> str:
     Blender as a Python module (tests): this Python, which has bpy."""
     import sys
     exe = bpy.app.binary_path or ""
-    if exe and os.path.basename(exe).lower().startswith("blender") and os.path.isfile(exe):
+    from .. import winexe
+    if exe and winexe.is_blender_program(exe) and os.path.isfile(exe):
         return exe
     return sys.executable
 

@@ -280,8 +280,9 @@ def _pid_alive_os(pid: int) -> bool:
             size = wintypes.DWORD(1024)
             if not kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
                 return False
+            from .. import winexe
             exe = os.path.basename(buf.value).lower()
-            return exe.startswith("blender") or exe.startswith("python")
+            return winexe.is_blender_program(exe) or exe.startswith("python")
         finally:
             kernel32.CloseHandle(handle)
     try:
@@ -305,8 +306,9 @@ PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def runner_command(queue_dir: str) -> list[str]:
+    from .. import winexe
     exe = bpy.app.binary_path
-    if exe and os.path.basename(exe).lower().startswith("blender"):
+    if exe and winexe.is_blender_program(exe):          # "Fresing Render.exe" too (task 0177)
         return [exe, "--background", "--python", RUNNER, "--", queue_dir, PACKAGE]
     # Blender as a Python module (tests): run the runner with this Python and import the
     # package by its folder name (Blender's "bl_ext" namespace only exists inside Blender)

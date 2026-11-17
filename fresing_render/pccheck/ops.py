@@ -134,7 +134,8 @@ class FRESING_OT_pc_check(bpy.types.Operator):
             if not (os.path.isfile(model) and model.lower().endswith((".step", ".stp"))):
                 self.report({"ERROR"}, "Pick a STEP file (.step or .stp) first")
                 return {"CANCELLED"}
-        exe = bpy.app.binary_path
+        from .. import winexe
+        exe = winexe.console_exe(bpy.app.binary_path)      # its own console window: blender.exe (task 0177)
         if not exe:
             self.report({"ERROR"}, "Blender's program was not found: start the PC check from the Start menu")
             return {"CANCELLED"}
@@ -218,7 +219,8 @@ def ensure_shortcuts() -> str:
         return ""                                        # not installed with Install.bat: leave the menu alone
     desktop = runner.desktop_dir()
     missing = missing_shortcuts(folder, desktop)
-    exe = bpy.app.binary_path
+    from .. import winexe
+    exe = winexe.console_exe(bpy.app.binary_path)          # the PC check shows its console: blender.exe (task 0177)
     if not missing or not exe or not os.path.isfile(exe):
         return ""
     from .. import appicon

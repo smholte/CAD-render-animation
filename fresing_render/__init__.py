@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.136"
+__version__ = "0.2.137"
 
 _modules = []
 
@@ -100,6 +100,11 @@ def register():
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
+    try:
+        from . import winexe
+        winexe.output_to_file(bpy.app.binary_path)   # task 0177: a windowed program has no console to print to
+    except Exception:  # noqa: BLE001 - never stop the app from starting
+        pass
     try:
         from . import appicon
         appicon.startup()                    # task 0169: the Fresing icon on the windows, taskbar and shortcuts

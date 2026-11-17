@@ -118,6 +118,12 @@ Fresing Render.
    Fresing **Fr** (the white F with its green swoosh and an r), and the start-up screen carries the Fresing logo. Right-click the taskbar icon
    > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.136 gets the new icon at the first
    start after **Update now**; if a pinned taskbar icon still shows Blender's, unpin it and pin it again.)
+   Task Manager shows the app as **Fresing Render** too: the shortcuts start `Fresing Render.exe`, Blender's own
+   program under the app's name and icon, which the app makes next to `blender.exe` (at the first start after
+   **Update now** on a PC that had an older version). If Fresing Render ever does not start from its shortcut – a
+   virus scanner can remove that copy – use Start menu > Fresing Render > **Fresing Render - safe start**: it starts
+   the app with Blender's own program, and Task Manager says "Blender" then. While Windows 11's *Smart App Control* is
+   on, the app always works this way (that setting blocks programs without a signature).
 4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
    (see [Troubleshooting](#troubleshooting)).

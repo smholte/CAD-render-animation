@@ -132,6 +132,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
+| 0178 | "Fresing Render" in Task Manager: Fresing Render.exe (blender.exe under the app's name and icon, no console), shortcuts / restart / queue start it; safe start; off under Smart App Control | 0.2.137 |
 | 0176 | The Fresing logo as a watermark (owner after 0169): Watermark gets Fresing logo / Brand kit logo – centre, tiled or corner, colour/white/dark – on stills, videos, queue, product video; a ready-made Fresing brand kit ships with the app | 0.2.135 |
 | 0170 | Test runs 4a: a task's last push to `main` (merge main + report) gets a docs run when its code already ran green – the four full runs of 16 Nov replay as docs; pytest groups re-recorded (plan 16.0 → 13.8 min each). Open: `test_demo_clash.py` 13.7 min alone | – (CI only) |
 | 0169 | The Fresing logo (owner's logo pack) as the app icon: every shortcut, window + taskbar (AppUserModelID Fresing.Render), older installs refreshed by the app at start, splash with the logo in Fresing Green | 0.2.133 |

@@ -247,7 +247,7 @@ if ($Uninstall) {
             # the app started again (and the helper) must be gone before Install.bat runs over it
             $gone = (Get-Date).AddSeconds(90)
             do {
-                $left = Get-Process -Name blender, blender-launcher, python -ErrorAction SilentlyContinue |
+                $left = Get-Process -Name blender, blender-launcher, "Fresing Render", python -ErrorAction SilentlyContinue |
                     Where-Object { $procPath = $_.Path; $procPath -and $procPath.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
                 if ($left) { Start-Sleep -Seconds 1 }
             } while ($left -and (Get-Date) -lt $gone)
@@ -360,26 +360,80 @@ if ($Uninstall) {
                 $iconOk = ($r.Icon -ieq "$IconFile,0") -and ($r.Icon -notmatch 'blender(-launcher)?\.exe')
                 if (-not $iconOk) { $bad += "$($f.Name): icon '$($r.Icon)'" }
                 if ($r.Args -match '--app-template fresing_render' -and $r.Id -ne "Fresing.Render") { $bad += "$($f.Name): app ID '$($r.Id)'" }
-                Write-Host "   $($f.Name): icon '$($r.Icon)', app ID '$($r.Id)'"
+                # task 0177: the app's shortcuts start "Fresing Render.exe" (the console ones stay on blender.exe)
+                $wantExe = $(if ($f.Name -eq "Fresing Render - safe start.lnk") { Join-Path $BlenderExe.DirectoryName "blender-launcher.exe" } else { $AppExe })
+                if ($r.Args -match '--app-template fresing_render' -and $AppExe -and $r.Target -ine $wantExe) { $bad += "$($f.Name): starts '$($r.Target)'" }
+                Write-Host "   $($f.Name): icon '$($r.Icon)', app ID '$($r.Id)', starts '$(Split-Path -Leaf $r.Target)'"
             }
             $ok = ($links.Count -ge 6) -and (-not $bad) -and (Test-Path -LiteralPath $IconFile)
             if (-not $ok) { Problem "icon ($when): $($links.Count) shortcuts, icon file $(Test-Path -LiteralPath $IconFile); $($bad -join '; ')" }
             $script:Summary += "| Fresing icon + app ID on every shortcut ($when, $($links.Count)) | $(if ($ok) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
         }
+        # ---- 3c. "Fresing Render.exe" (task 0177): Task Manager's name, no console, Defender, no Mark of the Web -------
+        $AppExe = ""
+        if ($BlenderExe) {
+            $AppExe = Join-Path $BlenderExe.DirectoryName "Fresing Render.exe"
+            $exeOk = Test-Path -LiteralPath $AppExe
+            $Summary += "| Fresing Render.exe made by Install.bat | $(if ($exeOk) { '✅' } else { '❌' }) | |"
+            if (-not $exeOk) { Problem "Install.bat made no Fresing Render.exe"; $AppExe = "" }
+        }
+        if ($AppExe) {
+            $fileDesc = (Get-Item -LiteralPath $AppExe).VersionInfo.FileDescription
+            $zone = Get-Item -LiteralPath $AppExe -Stream Zone.Identifier -ErrorAction SilentlyContinue
+            # the running process, as Task Manager reads it (a background run that waits a little)
+            $p = Start-Process -FilePath $AppExe -ArgumentList @("--background", "--factory-startup", "--python-expr",
+                    "`"import time; time.sleep(25)`"") -WorkingDirectory $BlenderExe.DirectoryName -PassThru -WindowStyle Hidden
+            $runDesc = ""; $runProduct = ""
+            for ($i = 0; $i -lt 20 -and -not $runDesc; $i++) {
+                Start-Sleep -Seconds 1
+                try { $gp = Get-Process -Id $p.Id -ErrorAction Stop; $runDesc = $gp.Description; $runProduct = $gp.Product } catch { }
+            }
+            $running = [bool](Get-Process -Id $p.Id -ErrorAction SilentlyContinue)
+            if ($running) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+            Write-Host "   Fresing Render.exe: file '$fileDesc', running process '$runDesc' / '$runProduct'"
+            $rows = [ordered]@{
+                "Fresing Render.exe: FileDescription of the file = Fresing Render ('$fileDesc')" = ($fileDesc -eq "Fresing Render")
+                "Fresing Render.exe: the running process is called Fresing Render ('$runDesc')" = ($runDesc -eq "Fresing Render" -and $runProduct -eq "Fresing Render")
+                "Fresing Render.exe: kept running until stopped (not blocked)" = $running
+                "Fresing Render.exe: no Mark of the Web (SmartScreen does not check it)" = (-not $zone)
+            }
+            # Windows Defender: scan the copy (exit code 0 = nothing found, 2 = a threat)
+            $mpcmd = Join-Path $env:ProgramFiles "Windows Defender\MpCmdRun.exe"
+            if (Test-Path -LiteralPath $mpcmd) {
+                $scan = & $mpcmd -Scan -ScanType 3 -File $AppExe -DisableRemediation 2>&1 | ForEach-Object { "$_" }
+                $scanCode = $LASTEXITCODE
+                $scan | Select-Object -Last 6 | ForEach-Object { Write-Host "   (Defender) $_" }
+                $rows["Fresing Render.exe: Windows Defender scan finds nothing (exit code $scanCode)"] = ($scanCode -eq 0)
+            } else {
+                $Summary += "| Fresing Render.exe: Windows Defender scan | skipped: no Defender on this machine | |"
+            }
+            foreach ($k in $rows.Keys) {
+                if (-not $rows[$k]) { Problem $k }
+                $Summary += "| $k | $(if ($rows[$k]) { '✅' } else { '❌' }) | |"
+            }
+        }
+
         Note "Fresing icon on the shortcuts (Install.bat)"
         Check-Links "after Install.bat"
 
-        # an install from before 0169: Blender's icon, no app ID, no icon file; the app's start-up refresh fixes it
+        # an install from before 0169 / 0177: Blender's icon, no app ID, no icon file, the app shortcut on Blender's
+        # launcher and no Fresing Render.exe; the app's start-up refresh fixes it
         if ($BlenderExe) {
             Note "An older install's shortcuts: refreshed by the app's code (tools/appicon_test.py)"
+            $launcher = Join-Path $BlenderExe.DirectoryName "blender-launcher.exe"
             foreach ($old in @((Join-Path $Desktop "Fresing Render.lnk"), (Join-Path $Programs "Fresing Render\Fresing Render - Self test.lnk"))) {
                 $r = Read-Lnk $old
                 Remove-Item -LiteralPath $old -Force
                 $l = $sh.CreateShortcut($old)
-                $l.TargetPath = $r.Target; $l.Arguments = $r.Args; $l.WorkingDirectory = $BlenderExe.DirectoryName
+                $l.TargetPath = $(if ($r.Args -match 'app-template') { $launcher } else { $r.Target })
+                $l.Arguments = $r.Args; $l.WorkingDirectory = $BlenderExe.DirectoryName
                 $l.IconLocation = "$($BlenderExe.FullName),0"; $l.Save()
             }
             Remove-Item -LiteralPath $IconFile -Force -ErrorAction SilentlyContinue
+            foreach ($f in @("Fresing Render.exe", "fresing-render-exe.json")) {
+                Remove-Item -LiteralPath (Join-Path $BlenderExe.DirectoryName $f) -Force -ErrorAction SilentlyContinue
+            }
+            Remove-Item -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - safe start.lnk") -Force -ErrorAction SilentlyContinue
             $res = Join-Path $OutDir "appicon_test.json"
             $script = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "tools\appicon_test.py"
             $log = Join-Path $OutDir "appicon_test.log"
