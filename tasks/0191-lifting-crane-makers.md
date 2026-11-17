@@ -1,6 +1,6 @@
 # 0191 – Lifting L3: ready-rigged generic cranes (mobile telescopic, crawler, knuckle-boom) with sample charts
 
-**Who:** worker · **Status:** done 17 Nov 2026 (0.2.148) · **Branch:** `claude/nice-dijkstra-2wdjla` (the web session's branch)
+**Who:** worker · **Status:** done 17 Nov 2026 (0.2.149) · **Branch:** `claude/nice-dijkstra-2wdjla` (the web session's branch)
 **Started by:** lead chat, 17 Nov 2026 (study 0180, task split L3) · **Model:** Opus · effort High · **Place:** Claude Code on
 the web, environment "CAD-render-animation"
 **Area:** Lifting lane – new package `fresing_render/lifting_model/`, new `tools/make_lifting_cranes.py`, the built-in
@@ -118,7 +118,7 @@ head to the hook block: L4 makes it a cable of 4 Motion > Cables and paths, its 
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web, 17 Nov 2026, branch `claude/nice-dijkstra-2wdjla` (the web session's own
-branch, not `task/0191-…`). Version 0.2.148.
+branch, not `task/0191-…`). Version 0.2.149.
 
 **What changed:**
 - `fresing_render/lifting_model/` (new): `classes.py` (the 12 classes, their layout, joints and the hook's forward

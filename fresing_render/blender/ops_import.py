@@ -73,6 +73,11 @@ def frame_views(context, scene) -> None:
             r3d.view_distance = size * 1.2
             area.spaces.active.clip_end = max(area.spaces.active.clip_end, size * 20)
             area.tag_redraw()
+    try:
+        from . import surroundings
+        surroundings.fix_view_clip(scene)      # task 0193: the sea and park reach further than the model
+    except Exception:
+        pass
 
 
 class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
