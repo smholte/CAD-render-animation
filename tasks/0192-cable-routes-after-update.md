@@ -83,8 +83,9 @@ gutter, drum layers crossing).
   and every reading keeps it. An end keeps the part it rested on when that part has become a cable since. An update
   that brings back **the same model** (every part same place and shape, none new / missing: `paths.same_model`) keeps
   every cable and spool as it was, only hung on the new parts (`_keep_after_update`, `spool.after_same_update`);
-  a changed model is read again as before. `spool.add_follower` now takes the cable's start again (`_setup(attach=)`):
-  bends on the arm and the CAD-pose wraps as a reading gives them. The model update carries `fr_bounds_cad` over (lost
+  a changed model is read again as before. (Tried and taken back: `spool.add_follower` taking the cable's start again
+  as a reading does – it changed the made demo: the Build then took the guide cage's 8 rollers as left by the cable and
+  freed them, and shot 11's D came 35 m off; GitHub run 44176599891.) The model update carries `fr_bounds_cad` over (lost
   on every part: the sea and the camera measured the model with the cable down to the seabed).
 - **Why the tipping-wire ends changed:** the end rested on the tipping winch's lead (a `WIRE ROPE` part). Stage
   `winch_wires` made that lead a cable afterwards, and cable parts are left out of the touch search (`_read`'s `skip`),
@@ -138,5 +139,7 @@ gutter, drum layers crossing).
   state carried needs its own task (Flex / cable paths).
 - Vessel at work steps' channels (`fr_vw_*`) are keyed at Build and go stale when the panel changes after it (0154,
   `vessel_work.py`): the wake too. Here only the seabed's case takes the Build off.
-- A model update to a *changed* STEP of the demo was not tried (no changed demo model).
+- A model update to a *changed* STEP of the demo was not tried (no changed demo model). There the carousel's bends
+  move onto the arch (a reading carries them by the arm follower, the made demo has them on the root since its arm
+  follower is added after its spool) – the made demo's Build and a read-again one differ; worth its own look.
 - GitHub runs: see below.

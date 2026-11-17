@@ -1676,10 +1676,8 @@ def add(scene, kind: str, part, cable: str, axis=None, name: str = "", coil=None
     return _spool(scene, i)
 
 
-def _setup(scene, sp, read: bool = False, attach: bool = False) -> list[str]:
-    """Read (with ``read``), take the cable's start, write the tables, draw. Returns notes. ``attach``: take the
-    cable's start again without reading (a follower came: the bends it moves and the CAD-pose wraps, as a read gives
-    them – task 0192, else the first model update changed the route)."""
+def _setup(scene, sp, read: bool = False) -> list[str]:
+    """Read (with ``read``), take the cable's start, write the tables, draw. Returns notes."""
     from . import paths
     i = index_of(scene, sp)
     it = _cable(scene, sp)
@@ -1731,9 +1729,6 @@ def _setup(scene, sp, read: bool = False, attach: bool = False) -> list[str]:
                 with flex._quiet(sp):
                     sp.wound = W0
             sp["wound_was"] = float(sp.wound)          # (a length typed from now on is the user's)
-            _attach(scene, sp)
-            sp = _spool(scene, i)
-        elif attach and it.a_kind == "SPOOL":
             _attach(scene, sp)
             sp = _spool(scene, i)
         # the rope's end at W0 leaves where the tangent to the first contact touches its layer (as the CAD cable
@@ -1847,7 +1842,7 @@ def add_follower(scene, sp, joint_name: str, mode: str = "") -> str:
         f.point = (0.0, 0.0, 0.0)
         sp.followers_index = len(sp.followers) - 1
     try:
-        _setup(scene, _spool(scene, i), attach=True)
+        _setup(scene, _spool(scene, i))
     except Exception:
         sp = _spool(scene, i)
         sp.followers.remove(len(sp.followers) - 1)

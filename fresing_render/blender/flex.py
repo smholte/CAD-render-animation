@@ -1631,16 +1631,17 @@ def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, als
     shy = [(o, o.hide_viewport) for o in scene.objects if o.name not in needed
            and (used is not None and o.name not in used or any(m.type == "NODES" for m in getattr(o, "modifiers", ())))
            and (not o.hide_viewport or used is not None)]
-    for fc in [fc for o, _h in shy if used is not None for fc in _hide_curves(o) if not fc.mute]:
-        fc.mute = True
-    for o, _h in shy:
-        if not o.hide_viewport:
-            o.hide_viewport = True
     # task 0192 (the owner's "StructRNA of type Object has been removed"): a sea, weather or vessel setting changed
     # while the re-bake job ran makes the surroundings again – the objects this pass hid are deleted meanwhile. Kept by
     # name and looked up again: what is gone is skipped
     muted = [(o.name, fc.data_path, fc.array_index) for o, _h in shy if used is not None
              for fc in _hide_curves(o) if not fc.mute]
+    for o, _h in shy:
+        if used is not None:
+            for fc in _hide_curves(o):
+                fc.mute = True
+        if not o.hide_viewport:
+            o.hide_viewport = True
     shy = [(o.name, h) for o, h in shy]
 
     def _curves():

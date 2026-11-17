@@ -5,7 +5,8 @@ Before (small demo, 0.2.141 … 0.2.146): the A&R wire 2.82 -> 74.92 m ("cannot 
 round": its hand-set CAD-pose wrap was worked out again), the tipping wires' removed bend came back ("no longer touches
 'Bend 1'") and their start left the winch lead (made a cable later, so left out of the touch search), the second end
 up to 2.8 m off, the lay cable's bends hung on another carrier (the carousel's arm follower came after its spool was
-set up: a reading put them on the arm), lay label 32.3 instead of 32.0 m, rollers keyed to stand still.
+set up: a reading put them on the arm), lay label 32.3 instead of 32.0 m, rollers keyed to stand still. Now an update
+that brings back the same model keeps every cable and spool as it was (``paths.same_model``).
 
 The saved project IS a Build (checked in task 0192: a fresh Build of it gives every key and shape bit for bit), so the
 saved state is the reference: one update and one Build here. The demo project is made once per run and shared by the
