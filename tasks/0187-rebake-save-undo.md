@@ -1,6 +1,6 @@
 # 0187 – Fix: saving or undoing around the cable re-bake; small cable/spool rows (bug hunt 6, rows 3, 4, 11, 14, 15)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0187-rebake-save-undo`
+**Who:** worker · **Status:** done (0.2.146) · **Branch:** `task/0187-rebake-save-undo`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183) · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the
 web, environment "CAD-render-animation"
 **Area:** Flex parts lane – cables (`blender/rebake.py`, `flex.py` `read_steps`, `paths.py` / `flex.py` undo handlers, `queue.busy_job`, `paths_sea.numbers`, `spool.py` `renamed` / `web_end`, their tests)
@@ -75,3 +75,5 @@ the unit test with the same objects and handler functions).
 **Open points / follow-up tasks:** rows 1, 7, 8, 10 stay for the next Flex-lane task. The save puts the frame back but
 does not make the job's partial shapes "built": a file saved mid-job is right but the re-bake is not in it (it is
 requested again on opening only if the motion key differs – not checked).
+
+Runs: three on the branch. The Windows job failed on `web3d.small` (and once `web3d.under`: the headless browser's page gave no places) three times in a row without any change of mine near it, then passed on the third re-run – looks like a flaky Windows browser check, worth a look by the lead. Then 0186 and 0188 took 0.2.144 / 0.2.145: merged main, renumbered to 0.2.146, second full run green. Row 11 first removed the solids at once, which broke `test_web3d_moving` (the export's own list still named them): now swept before every save (`spool.web_sweep`).
