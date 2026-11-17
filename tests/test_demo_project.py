@@ -92,9 +92,8 @@ def test_every_joint_of_the_sheet(made):
         assert (below.name if below else None) == row.get("rides_on"), row["name"]
         drive = row["drive"]
         if j.couple_table:                                          # follows its spool's layer by table (task 0080)
-            assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}",
-                                      f"spool:{demo.AR_SPOOL}", "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}"),
-                    row["name"]
+            assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}", f"spool:{demo.AR_SPOOL}",
+                                      "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}"), row["name"]
             spooled += 1
         elif j.follows in wires:                                    # turned by a tipping wire (task 0082)
             assert "TIPPING" in row["name"] or "Swivel sheave" in row["name"], row["name"]
