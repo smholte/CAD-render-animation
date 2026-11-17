@@ -1,6 +1,6 @@
 # 0195 – Study: the cable-lay demo project running smoothly in the app – every function measured, ranked proposals
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0195-demo-smooth-study`
+**Who:** worker · **Status:** running · **Branch:** `claude/cool-thompson-esiw6v` (the web session's branch)
 **Started by:** lead chat, 17 Nov 2026 (owner: "look through the entire model of the cable-lay demo project and all the
 functions on how to optimise it, to get it to run smoothly in the app") · **Model:** Opus · effort High · **Place:**
 Claude Code on the web, environment "CAD-render-animation"
