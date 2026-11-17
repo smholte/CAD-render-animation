@@ -33,8 +33,9 @@ def _link_shapes(pp: float, hh: float, s: float, sw: float):
     t = 0.06 * sw                                        # plate thickness
 
     def plates(y0, y1, holes):
-        sh = g.fuse(g.box(-pp / 2, y0, -hh, pp, y1 - y0, 2 * hh),
-                    g.cyl(hh, y1 - y0, (-pp / 2, y0, 0), (0, 1, 0)), g.cyl(hh, y1 - y0, (pp / 2, y0, 0), (0, 1, 0)))
+        # straight plates (round ends cost ~half the track's triangles); the hinges stay round
+        L = 1.25 * pp if holes else pp + 1.6 * pr
+        sh = g.box(-L / 2, y0, -hh, L, y1 - y0, 2 * hh)
         if holes:
             sh = g.cut(sh, g.cyl(pr + 1, 4 * s, (-pp / 2, -2 * s, 0), (0, 1, 0)),
                        g.cyl(pr + 1, 4 * s, (pp / 2, -2 * s, 0), (0, 1, 0)))

@@ -1,6 +1,6 @@
 # 0191 – Lifting L3: ready-rigged generic cranes (mobile telescopic, crawler, knuckle-boom) with sample charts
 
-**Who:** worker · **Status:** running · **Branch:** `claude/nice-dijkstra-2wdjla` (the web session's branch)
+**Who:** worker · **Status:** done 17 Nov 2026 (0.2.148) · **Branch:** `claude/nice-dijkstra-2wdjla` (the web session's branch)
 **Started by:** lead chat, 17 Nov 2026 (study 0180, task split L3) · **Model:** Opus · effort High · **Place:** Claude Code on
 the web, environment "CAD-render-animation"
 **Area:** Lifting lane – new package `fresing_render/lifting_model/`, new `tools/make_lifting_cranes.py`, the built-in
@@ -63,10 +63,10 @@ later task (L4) can drop one into a project and plan a lift with it.
 
 ## Done when
 
-- [ ] 12 classes (AT ×4, CC ×4, KB ×4) made by `lifting_model/`, each with STEP + JSON + picture, rigged and charted.
-- [ ] The tests above pass locally and on GitHub; sizes and triangle counts in the report.
-- [ ] No maker's data or name in the repository (say so in the report).
-- [ ] Report below filled in; TASKS.md row moved to Done.
+- [x] 12 classes (AT ×4, CC ×4, KB ×4) made by `lifting_model/`, each with STEP + JSON + picture, rigged and charted.
+- [x] The tests above pass locally and on GitHub; sizes and triangle counts in the report.
+- [x] No maker's data or name in the repository (say so in the report).
+- [x] Report below filled in; TASKS.md row moved to Done.
 
 ## Not in this task
 
@@ -117,10 +117,62 @@ head to the hook block: L4 makes it a cable of 4 Motion > Cables and paths, its 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 17 Nov 2026, branch `claude/nice-dijkstra-2wdjla` (the web session's own
+branch, not `task/0191-…`). Version 0.2.148.
 
 **What changed:**
+- `fresing_render/lifting_model/` (new): `classes.py` (the 12 classes, their layout, joints and the hook's forward
+  kinematics – plain Python), `charts.py` (SAMPLE charts), `equipment.py` (the equipment file), `common.py` +
+  `mobile.py` / `crawler.py` / `knuckle.py` (OpenCascade on `demo_model/geom.py`, one solid per part), `make.py`.
+  `tools/make_lifting_cranes.py` rebuilds STEP + JSON, `--pictures` (Cycles, bpy module), `--check`.
+- `fresing_render/data/lifting/<class>/<class>.step / .json / .png` for AT-40/100/250/500, CC-100/300/750/1600,
+  KB-20/50/100/200. **Shipped as built-ins:** 11.0 MB on disk (STEP 10.6 MB, JSON 0.4, pictures 0.3), 2.1 MB zipped –
+  a little over the brief's ~10 MB; making them on first use would have put an OpenCascade run into L4's placing,
+  so I kept the files. The STEP files are written without 2D parameter curves (half the size; the importer makes them).
+- The rig (`"rig"` in each JSON): the render kit's sheet (joints with `rides_on` / `follows`, cylinders, poses) +
+  `groups` (mass group → sub-assemblies + the joint that carries it), `hook` (block + hook point), `cables` (the hoist
+  rope: L4 makes it a cable with its end on the hook block – tested), `tracks` (crawlers: tracks.add on "Travel" –
+  tested). The hook stays plumb by "Hook swing" joints that follow the boom joints with ratio -1. Telescope sections
+  and extensions follow the first one (ratio 1); outriggers / stabilisers are two-stage beams (b = b_in + 2 × value).
+- Charts: AT per boom (6) × counterweight (3) × spread (3); CC per boom × counterweight (+ jib × counterweight on
+  CC-750/1600); KB per outreach (0…N extensions) × stabiliser spread. 46–54 / 16–22 / 8–16 charts per class. A model
+  of strength (luff moment, boom length, the boom's own weight) and 75 % tipping (85 % knuckle) with backward
+  stability: configurations where the empty crane leans back past 15 % of the tipping distance are left out.
+- Guide: a paragraph naming the built-ins under **Own lifting equipment**. CLAUDE.md section 3: `lifting_model/`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender 5.2.3 as a module):
+- `tests/test_lifting_cranes.py` (101 tests, 2 s, no Blender): files present and equal to a fresh make, every chart
+  `validate_charts` with 0 errors and 0 warnings, shape rules (class number at the shortest radius, tip-load end, more
+  counterweight / wider spread never less, jib ≤ its boom, knuckle capacity × outreach ≤ class moment, backward
+  stability), `crane_use` at three radii + past the chart and `pick_chart` on every class, the hook kinematics against
+  hand trigonometry (1 mm), cylinders and telescope overlaps over their ranges, no crane maker's name (38 names) in the
+  files or code, every built-in read by `lifting_library` (0190) with no problem, warning or note.
+- `tests/test_lifting_cranes_{mobile,crawler,knuckle}.py` (4 classes each, ~12 / 23 / 15 s): import with the app's
+  importer, rig from the JSON, every driven joint min → max in 4 steps + 3 random poses: every jointed sub-assembly
+  within **0.03 mm / 0.01°** of the maker's kinematics (limit 1 mm), cylinders within their stroke and in line, the hook
+  at every named pose within **0.01 mm** of the maker's numbers (limit 10 mm), the hoist rope cable's end on the hook
+  block (≤ 20 mm) after two hoists, pads on the ground when set up (≤ 3 mm), crawler shoes on the ground standing still
+  (≤ 3 mm) while the crane drives 1 m.
+- Triangles at Normal: AT 36 / 48 / 55 / 67 k, KB 32 / 37 / 42 / 43 k, CC-100 130 k, CC-300 135 k, **CC-750 163 k,
+  CC-1600 170 k** (over the ~150 k aim: the 2 × 76 track links; their round plate ends were already taken off, −40 k).
+  Parts: AT 61–85, KB 50–62, CC 401–564. Import 0.9–3 s each.
+- Independent review of the charts (a subagent that did not write them): found 6 faults – backward tipping on AT-500's
+  narrow spread with 165 t, jib charts above the bare boom (+36…65 %), KB-100/200 losing most of their moment at reach,
+  crawler mid-radius capacities ~30–45 % low, AT long-boom ends 2–3× high, labels ("boom" for a knuckle's outreach,
+  reach rounded up 5 cm, AT boom lengths not the telescope steps). All fixed and now tested; its checks of flags, units,
+  validation and `crane_use` were fine. It noted that `pick_chart` needs `jib=None` to pick a crawler's main-boom chart
+  when jib charts exist (core behaviour, for L4).
+- Public pages: none opened in this session; magnitudes from the study 0180 table (its sources) and general knowledge.
+  **No maker's chart, name, logo or model in the repository** (tested).
 
 **Open points / follow-up tasks:**
+- L4: place a class from the library – the sheet reader lives in `site/render_kit/projects.py` (not in the
+  extension): move it into the app; `tests/lifting_rig.py` shows the whole set-up (joints, cylinders, poses, the rope
+  as a cable, the tracks).
+- Crawler luffing ropes are drawn as two sliding pendant bars per side (the app's cylinders); real rope reeving later.
+- Knuckle cylinders are direct (no link system): main boom 0…75°, knuckle −90…0° relative – no fully folded transport
+  pose.
+- Charts: one per configuration with 360° slew; no over-rear charts, no pick-and-carry, no counterweight in between
+  (`pick_chart` answers "No chart" for an in-between counterweight or spread – L4 should offer the next safer one).
+- The clash check was not run on the cranes (not asked): parts of different moving groups may touch at extreme
+  poses (a boom luffed fully down onto its carrier, a knuckle boom against its truck).
