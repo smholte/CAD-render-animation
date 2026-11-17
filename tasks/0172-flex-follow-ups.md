@@ -1,6 +1,6 @@
 # 0172 – Flex follow-ups from 0125: shot 11's bend past the gutter, lifted sheaves stand still, the D's depth right before Build, a swivel to test
 
-**Who:** worker · **Status:** running · **Branch:** `claude/confident-archimedes-takeq0`
+**Who:** worker · **Status:** done (0.2.138) · **Branch:** `claude/confident-archimedes-takeq0`
 **Started by:** lead chat, 16 Nov 2026 (open points 3–6 of task 0125) · **Model:** Opus · effort High · **Place:** Claude
 Code on the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
 **Area:** Flex parts lane: `core/paths.py`, `core/catenary.py`, `blender/paths*.py` (`paths_sea.py`, `paths_rollers.py`,
@@ -166,3 +166,9 @@ strict xfails count as skipped tests on GitHub, where a group allows one). Sheav
    back to the seabed would need the piled hang rounded too to stay continuous (Flex lane).
 3. Two cables over one sheave were not tried (no small model has one).
 4. `set_down_depth` returns `guess + 20 m` without the joint's limits when nothing reaches the seabed (T, by reading).
+
+**GitHub runs:** 5 full runs on the branch – 1st stopped in the precheck (0.2.135 taken by 0176), 2nd red (a pytest
+group allows one skipped test: the tester's two strict xfails counted as skipped → kept as `KNOWN_FAULT` tests), 3rd
+green (run 43994355860) but 0.2.137 was taken meanwhile (0178), 4th green (43997157208) but `main` moved by code
+(0177), 5th green (run 44000431848, 24.5 min); `main` fast-forwarded to it (reuse). Leftover branches to delete on
+github.com: `claude/confident-archimedes-takeq0` once read.
