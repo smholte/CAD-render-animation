@@ -57,6 +57,7 @@ BUTTON_LOOKS = {
     "A": "Soft green glow round the button, breathes slowly (one breath in 2 s)",
     "B": "Thin steady green outline, an arrow at the panel's edge that moves gently, the step's number on the button",
     "C": "Spotlight: the rest of the side panel dimmed, the button clear with a thin outline",
+    "C_bright": "Spotlight as C, but the Lesson panel stays fully clear (task 0185)",
     "D": "Green bar on the button's left edge, the button tinted green, breathing",
     "E": "Corner brackets that close in once, then stay",
     "F": "Blender-blue outline with a light that runs round it (once in 2 s)",
@@ -553,6 +554,18 @@ def _look_c(box, rw, rh, col):
     _frame(x0 - 2, y0 - 2, x1 + 2, y1 + 2, col, 0.9, 1.3)
 
 
+def _look_c_bright(box, rw, rh, col):
+    """Task 0185: C's dimming (same strength), the Lesson panel left clear like look M does."""
+    x0, y0, x1, y1 = box
+    a = 0.62 * min(1.0, _age() / 0.4) * _out()
+    holes = [(x0 - 3, y0 - 3, x1 + 3, y1 + 3)]
+    lb = _S.get("lesson_band")
+    if lb:
+        holes.append((0, lb[0], rw, lb[1]))
+    _dim_except(rw, rh, holes, (*CHARCOAL, a))
+    _frame(x0 - 2, y0 - 2, x1 + 2, y1 + 2, col, 0.9, 1.3)
+
+
 def _look_d(box, rw, rh, col):
     x0, y0, x1, y1 = box
     p = _pulse()
@@ -738,7 +751,7 @@ def _look_n(box, rw, rh, col):
     _tris2d([(bx + 6, ty - 5), (bx + 6, ty + 5), (bx + 15, ty)], (1, 1, 1, 1))
     _text(bx + 26, ty, str(_S["step"] + 1), 11, (1, 1, 1, 1), centre=True)
 
-_BUTTON_DRAW = {"A": _look_a, "B": _look_b, "C": _look_c, "D": _look_d, "E": _look_e, "F": _look_f,
+_BUTTON_DRAW = {"A": _look_a, "B": _look_b, "C": _look_c, "C_bright": _look_c_bright, "D": _look_d, "E": _look_e, "F": _look_f,
                 "G": _look_g, "H": _look_h, "I": _look_i, "J": _look_j, "K": _look_k, "L": _look_l, "M": _look_m,
                 "N": _look_n}
 
