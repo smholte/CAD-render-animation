@@ -1,0 +1,153 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0200 less scrolling</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc)}
+.item{display:flex;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.pick{flex:0 0 64px;font-size:1.1rem}.pick input{width:20px;height:20px}.star{color:var(--acc)}
+.body{flex:1;min-width:0}h3{margin:0 0 6px;font-size:1rem}.tag{font-weight:normal;color:var(--mut);font-size:.85rem}
+.why,.risk{color:var(--mut);font-size:.92rem;margin:4px 0}.pics{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:flex-start}
+.pics img{max-width:100%;height:auto;border:1px solid var(--line);display:block}
+.strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}.strip img{flex:0 0 auto;max-width:none;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}th,td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+.y{color:var(--acc);font-weight:600}.n{color:var(--warn);font-weight:600}.d{color:var(--mut);font-size:.82rem}
+.scroll{overflow-x:auto}ol li{margin:4px 0}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:240px;word-break:break-word}button{font:inherit;padding:8px 18px;background:var(--acc);color:#fff;border:0;border-radius:6px;cursor:pointer}
+</style></head><body><main>
+<h1>0200 – Less scrolling: all outputs together, a floating set-up window</h1>
+<p>All pictures are the <b>real app</b> (Blender 5.2.3, on the 4-core web test machine without a graphics card, under a virtual screen), with the test crane, the test gantry and the test linkage – nothing of yours. UI scale 1.5, shown at their own size. These are <b>prototypes</b>: nothing here is in the app yet; 0062 builds what you tick. ★ = my recommendation (ticked to start with). Tick, press <b>Copy</b> and paste the line to the lead.</p>
+
+<h2>1 · All ways to make an output, together</h2>
+<p><b>Today</b> the outputs sit in three sections, several screens apart:</p>
+<div class="scroll"><table>
+<tr><th>Output</th><th>Where today</th><th>Settings it needs</th></tr>
+<tr><td>Picture of this view (Render image, Live preview)</td><td>5 Scene &amp; Render › Image size &amp; render</td><td>format, size, orientation, quality; fold Files &amp; graphics card</td></tr>
+<tr><td>Turntable video</td><td>5 Scene &amp; Render › Turntable video</td><td>length, camera height, quality; size and file from 6 Animation's "Turntable"</td></tr>
+<tr><td>3D page (web 3D model)</td><td>5 Scene &amp; Render › Web 3D model</td><td>texture size, names, views, folds Surroundings / Light / On the page; Export…</td></tr>
+<tr><td>Saved scenes to the queue (Queue this / Queue all)</td><td>5 Scene &amp; Render › Saved scenes</td><td>a saved scene</td></tr>
+<tr><td>Animation video (Build &amp; play, Time test, Render animation)</td><td>6 Animation, below all the steps</td><td>size, shape, file, quality of the selected animation</td></tr>
+<tr><td>Product video</td><td>6 Animation › fold Make a product video</td><td>its own settings in the fold</td></tr>
+<tr><td>Titles, brand, pictures, music (finishing a video)</td><td>6 Animation › Finishing, Pictures, Music; 5 › Brand kit, Labels, Watermark</td><td>–</td></tr>
+<tr><td>Render queue: current view, all scenes, every paint scheme, Start / Start later</td><td>7 Render queue</td><td>the queue list</td></tr>
+<tr><td>House: Bake and export (only with a house)</td><td>5 Scene &amp; Render › House from House Planner</td><td>moments, sizes</td></tr>
+</table></div>
+<p class="d">Not outputs in this sense: Make toolpath (writes a G-code file, 4 Motion › Milling), the clash check's rows, the PC check report.</p>
+<p><b>Measured:</b> the app's <i>own</i> sub-panels open as floating popovers (<code>layout.popover</code> / <code>wm.call_panel</code>) – nothing has to be copied. They need a width set (they open ~10 units narrow), and the app's text wrapping measures the side panel, so a few long hints are cut with "…" inside a popover (0062 fixes the helper). A popover closes when you click in the 3D view – fine for output settings, which need no clicks in the view.</p>
+
+<section class="item"><label class="pick"><input type="checkbox" name="render" value="A" checked> <b>A</b> <span class="star" title="recommended">★</span></label>
+<div class="body"><h3>A "Make" panel at the top of the Fresing tab <span class="tag">cost for 0062: M</span></h3>
+<p>Six big buttons side by side: <b>Picture, Product video, Turntable, 3D page, Animation, Queue</b>. Each opens that output's settings and its Make button as a floating popover (the same panels as today). The sections 1–7 keep their numbers and their panels, so <b>none of the ~510 section references in the code and ~150 in the guide change</b>.</p>
+<p class="why"><b>Why ★:</b> every output is one click from the top, whatever section you are in, and it costs no renumbering.</p>
+<p class="risk"><b>Could break:</b> the panel adds ~310 px at the top (scale 1.5): real-app tests that click fixed spots in the side panel move (0197 lists 19 files) unless it starts folded; guide pictures of 1 Import.</p>
+<div class="pics"><img src="img/o_a_make.png" alt="Make panel"><img src="img/o_pop_turntable.png" alt="Turntable settings as a popover"><img src="img/o_pop_picture.png" alt="Picture settings as a popover"><img src="img/o_pop_animation.png" alt="Animation video popover"><img src="img/o_pop_web.png" alt="3D page popover"></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" name="render" value="B" checked> <b>B</b> <span class="star" title="recommended">★</span></label>
+<div class="body"><h3>A "Make" button in the 3D view's header <span class="tag">cost: S once A exists</span></h3>
+<p>Always on screen, also while the side panel shows another tab (or the set-up window is open). Each line: the Make button, and a ⚙ that opens the settings (the same popovers as A).</p>
+<p class="why"><b>Why ★:</b> the same list as A in one more place, a few lines of code; it does not take side-panel height.</p>
+<p class="risk"><b>Could break:</b> nothing in the side panel; the header gets one button wider.</p>
+<div class="pics"><img src="img/o_b_header.png" alt="header with Make"><img src="img/o_b_header_pop.png" alt="Make popover from the header"></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" name="render" value="C"> <b>C</b></label>
+<div class="body"><h3>A "Make" menu in the top bar (File Edit Render Window Help <b>Make</b>) <span class="tag">cost: S</span></h3>
+<p>One click per output. A menu cannot hold settings: it starts with the settings as they are. Pairs with 0199's Fresing top-bar menu (0199 may put it there).</p>
+<p class="why"><b>Why not ★:</b> no settings, and Blender already has a "Render" menu next to it that makes Blender's own render, not ours – easy to mix up.</p>
+<div class="pics"><img src="img/o_c_topbar.png" alt="top bar with Make"><img src="img/o_c_menu.png" alt="Make menu"></div></div></section>
+
+<h2>2 · The floating set-up window</h2>
+<p>Each of Blender's ways, measured in the real app with simulated mouse and keys (the CNC mill set-up as the content):</p>
+<div class="scroll"><table>
+<tr><th>Way</th><th>Drag it</th><th>Click a part in the 3D view</th><th>Redraw · Ctrl+Z · Ctrl+S</th><th>Second monitor</th><th>Draw time</th></tr>
+<tr><td><b>Popover</b> (<code>wm.call_panel</code>, keep open)</td><td class="y">yes, by its top edge</td><td class="n">it closes, and the click is used up (nothing selected)</td><td>stays open on a frame change; Ctrl+Z / Ctrl+S while it is open do nothing (file <b>not</b> saved), also with the mouse over the view</td><td class="n">no – inside the app window</td><td>0.5–0.7 ms</td></tr>
+<tr><td><b>Dialog</b> (<code>invoke_props_dialog</code>)</td><td class="y">yes</td><td class="n">closes, click used up</td><td>stays open on a frame change; Ctrl+Z / Ctrl+S with the mouse over it do nothing (not saved)</td><td class="n">no</td><td>0.35 ms</td></tr>
+<tr><td><b>Popup</b> (<code>invoke_popup</code>)</td><td class="y">yes</td><td class="n">closes, click used up</td><td>stays open on a frame change; Ctrl+Z / Ctrl+S with the mouse over it do nothing (not saved)</td><td class="n">no</td><td>0.6 ms</td></tr>
+<tr><td><b>Pie menu</b></td><td class="n">no</td><td class="n">click used up</td><td>Ctrl+S not saved</td><td class="n">no</td><td>– (buttons only, no settings)</td></tr>
+<tr><td><b>Own sidebar tab "Set-up"</b> (next to Fresing)</td><td class="n">no – docked</td><td class="y">stays; the part is selected</td><td class="y">all normal</td><td class="n">no</td><td>0.3 ms</td></tr>
+<tr><td><b>Left toolbar</b> (region TOOLS)</td><td class="n">no</td><td>–</td><td>–</td><td class="n">no</td><td class="d">Blender refuses a tab there; without one it is 58 px wide: unusable</td></tr>
+<tr><td><b>Split 3D view</b> (a narrow area showing the Set-up tab)</td><td class="n">no – docked, its edge can be dragged</td><td class="y">stays</td><td class="y">all normal</td><td class="n">no</td><td>a second 3D view to draw</td></tr>
+<tr><td><b>Second app window</b> (prototype: "Set-up window")</td><td class="y">yes by its title bar – a normal Windows window <span class="d">(not visible under the virtual screen: your check below)</span></td><td class="y">stays; the click selects the part in the main window</td><td class="y">stays open on a frame change and on Ctrl+Z; Ctrl+S saves; saved with the file and <b>comes back on opening</b>, with its Set-up tab</td><td class="y">yes – an OS window <span class="d">(your check)</span></td><td>9.5 ms for the whole small window (377×559 px), of which the panel 0.3 ms; the main window 108 ms here</td></tr>
+</table></div>
+<p class="d">Popovers, dialogs and popups grab the keyboard while open – that is Blender's design, not something 0062 can change. The second window and the tab scroll like the side panel; scrolling inside a popover was not measured. Draw times on the test machine without a graphics card.</p>
+
+<section class="item"><label class="pick"><input type="radio" name="float" value="2" checked> <b>2</b> <span class="star">★</span></label>
+<div class="body"><h3>A second window "Set-up window" (button in each set-up sub-panel and in the Make/header list) <span class="tag">cost: M</span></h3>
+<p>Opens a small window of its own (prototype 377×559 px at scale 1.0) showing the steps one at a time with Back / Next; the 3D view behind it stays usable – click the tool, the workpiece, the base. Drag it anywhere, also onto the second monitor; it stays open until you close it, and comes back with the project.</p>
+<p class="why"><b>Why ★:</b> the only way that is both floating <i>and</i> lets you click parts in the view.</p>
+<p class="risk"><b>Could break:</b> nothing existing (new files); Blender gives the window the size of the area it is copied from, so the app first splits a small area off and closes it again (measured: the main layout comes back exactly).</p>
+<p><b>Set up a CNC mill</b> – steps 1 to 5 (the app's own buttons of 4 Motion › CNC machine; test gantry, nothing set up yet; step 3 with the block clicked):</p>
+<div class="strip"><img src="img/f_cnc_1.png" alt="step 1"><img src="img/f_cnc_2.png" alt="step 2"><img src="img/f_cnc_3.png" alt="step 3"><img src="img/f_cnc_4.png" alt="step 4"><img src="img/f_cnc_5.png" alt="step 5"></div>
+<p><b>Set up a mechanism</b> – steps 1 to 4 (test linkage, scissor lift; step 3 with the arms and platform selected):</p>
+<div class="strip"><img src="img/f_mech_1.png" alt="step 1"><img src="img/f_mech_2.png" alt="step 2"><img src="img/f_mech_3.png" alt="step 3"><img src="img/f_mech_4.png" alt="step 4"></div>
+<p>Where it sits (here over the right edge of the 3D view – on your PC you drag it where you like):</p>
+<div class="pics"><img src="img/f_window_whole.png" alt="whole app with the set-up window"></div></div></section>
+
+<section class="item"><label class="pick"><input type="radio" name="float" value="1"> <b>1</b></label>
+<div class="body"><h3>A floating popover over the 3D view <span class="tag">cost: S</span></h3>
+<p>Looks the same and can be dragged, but <b>closes at the first click in the view</b> (and that click selects nothing), and Ctrl+S does not save while it is open. You would open it again after every click.</p>
+<div class="pics"><img src="img/f_popover_whole.png" alt="popover over the 3D view"></div></div></section>
+
+<section class="item"><label class="pick"><input type="radio" name="float" value="3"> <b>3</b></label>
+<div class="body"><h3>Only a "Set-up" tab in the side panel (no window) <span class="tag">cost: S</span></h3>
+<p>The same step panel, docked: the tab "Set-up" next to "Fresing". No dragging, no second monitor; switching tabs hides the Fresing sections meanwhile. (With 2 the window shows this same tab, so 0062 builds this anyway.)</p></div></section>
+
+<section class="item"><label class="pick"><input type="radio" name="float" value="4"> <b>4</b></label>
+<div class="body"><h3>Split the 3D view: a narrow strip with the Set-up tab <span class="tag">cost: S</span></h3>
+<p>Docked in the main window, its width can be dragged; costs a second 3D view drawn beside the first.</p></div></section>
+
+<div class="card"><b>Your check on your PC (the second window, 4 steps)</b> – Blender's own "Duplicate Area into New Window" makes the same kind of window as the prototype:
+<ol><li>Open Fresing Render and any project (for example Help › Make test tour project, then open it).</li>
+<li>In the 3D view's menu: <b>View › Area › Duplicate Area into New Window</b>. A second window opens with a copy of the 3D view.</li>
+<li>Drag it by its title bar onto your second monitor; make it small. In it press <b>N</b> and click the <b>Fresing</b> tab. Now click a part in the <b>main</b> window: the small window should stay open (does it stay in front of the main window, or go behind it?).</li>
+<li>Press <b>Ctrl+S</b>, close Fresing Render, open the project again: the small window should come back – on the second monitor?</li></ol>
+Send back: <i>stays in front yes/no · comes back on the second monitor yes/no</i>.</div>
+
+<h2>3 · Less scrolling in the side panel</h2>
+<p><b>Measured heights</b> (test crane just imported, window 1920×1200; the side panel shows 1,009 px at scale 1.0 and 962 px at 1.5). "As it starts" = sub-panels closed as in the app; "all open" = every sub-panel and fold open.</p>
+<div class="scroll"><table>
+<tr><th>Section</th><th>As it starts, scale 1.0</th><th>scale 1.5</th><th>All open, scale 1.0</th><th>scale 1.5</th></tr>
+<tr><td>1 Import</td><td>380</td><td>544</td><td>461</td><td>660</td></tr>
+<tr><td>2 Structure</td><td>568</td><td>812</td><td>913</td><td>1,309</td></tr>
+<tr><td>3 Looks</td><td>1,076</td><td>1,541</td><td>3,432</td><td>4,910</td></tr>
+<tr><td>4 Motion</td><td>914</td><td>1,310</td><td>7,121</td><td>10,181</td></tr>
+<tr><td>5 Scene &amp; Render</td><td>1,487</td><td>2,125</td><td>4,172</td><td>5,970</td></tr>
+<tr><td>6 Animation</td><td>28 (folded)</td><td>40 (folded)</td><td>1,372</td><td>1,964</td></tr>
+<tr><td>7 Render queue</td><td>28 (folded)</td><td>40 (folded)</td><td>346</td><td>496</td></tr>
+<tr><td><b>Whole side panel</b></td><td><b>4,479 px = 4.4 screens</b></td><td><b>6,406 px = 6.7 screens</b></td><td><b>17,811 px = 17.7 screens</b></td><td><b>25,478 px = 26.5 screens</b></td></tr>
+</table></div>
+<p class="d">Pixels of the side panel; the sections add up to the whole within 10 px. A project with joints, animations and a queue is taller.</p>
+
+<section class="item"><label class="pick"><input type="checkbox" name="scroll" value="1" checked> <b>1</b> <span class="star">★</span></label>
+<div class="body"><h3>One section open at a time – Blender already does it: <b>Ctrl+click</b> a section's title <span class="tag">cost: S (a hint + the guide)</span></h3>
+<p><b>Measured:</b> Ctrl+click on "1 Import" folded all seven sections (a list of seven titles with their states); Ctrl+click on "4 Motion" then opened only Motion. 0062 only has to tell people (a grey hint line under the Fresing tab, the guide, the tour). Making it happen on a plain click is not possible: Blender gives an add-on no setting for a panel's open / closed state (checked: a panel has no such property).</p>
+<p class="why"><b>Why ★:</b> free today; the folded list is also the clearest overview of the project.</p>
+<div class="pics"><img src="img/s_ctrl_all_folded.png" alt="all folded after Ctrl+click"><img src="img/s_ctrl_one_open.png" alt="only 4 Motion open"></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" name="scroll" value="2" checked> <b>2</b> <span class="star">★</span></label>
+<div class="body"><h3>Section tabs at the top: All · 1 · 2 · … · 7 <span class="tag">cost: M</span></h3>
+<p>Only the chosen section is drawn; "All" is today's panel. Longest single section as it starts: 5 Scene &amp; Render, 1,487 px instead of 4,479 (scale 1.0). Left: tab 5 chosen; right: today (before).</p>
+<p class="why"><b>Why ★:</b> the biggest cut in scrolling, keeps the numbers 1–7 (no renumbering), and works with the workspaces of 0062 (a workspace hides tabs it does not need).</p>
+<p class="risk"><b>Could break:</b> the row moves everything ~50 px down (scale 1.5) (tests that click fixed spots, every guide picture); measured: each section needs a poll written in its class (Blender ignores a poll added later; 1 Import has none today).</p>
+<div class="pics"><img src="img/s_tabs5.png" alt="tab 5 chosen"><img src="img/s_before.png" alt="today"></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" name="scroll" value="3"> <b>3</b></label>
+<div class="body"><h3>Sub-panels as popovers (a list of buttons instead of open sub-panels) <span class="tag">cost: M–L</span></h3>
+<p>Measured: any sub-panel can open as a popover (the Make popovers above are the app's own panels). But a popover closes at the first click in the view, so it only suits sub-panels that need no picking (render settings, turntable, watermark, brand kit); set-ups with clicks (joints, CNC, cables) must stay in the panel or go to the set-up window.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" name="scroll" value="4" checked> <b>4</b> <span class="star">★</span></label>
+<div class="body"><h3>Rarely used settings in "More" folds; how-to boxes folded once learnt <span class="tag">cost: S–M per panel</span></h3>
+<p>As 0197 items 2 and 12: the numbered how-to boxes take about half of many sub-panels (CNC machine: 5 lines before the first button). Folded, "all open" 4 Motion (7,121 px at 1.0) shrinks most.</p>
+<p class="why"><b>Why ★:</b> helps in every layout, also inside the set-up window.</p></div></section>
+
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+</main><script>
+function v(n){return [].slice.call(document.querySelectorAll('input[name='+n+']:checked')).map(function(e){return e.value})}
+function upd(){var f=v('float');document.getElementById('line').textContent='0200 pick: render '+(v('render').join('+')||'none')+' · float '+(f[0]||'?')+' · scroll '+(v('scroll').join('+')||'none');}
+document.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=function(){var t=document.getElementById('line').textContent,b=this;
+function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove()}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb)}else fb()}catch(e){fb()}
+b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};
+</script></body></html>

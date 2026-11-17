@@ -159,16 +159,77 @@ def bed(scene, create: bool = False):
 
 
 def moves_by_time(scene, item) -> bool:
-    """The seabed moves with the clock (Weather & time's vessel speed), not with the payout."""
-    w = getattr(scene.fresing, "weather", None)
-    return item.sea_speed == "WEATHER" and w is not None and bool(w.enabled) and float(w.vessel_speed) > 0.0
+    """The seabed moves with the clock (the vessel sails), not with the payout: "Vessel speed" is the vessel's own and
+    the vessel sails at some moment – 5 Scene & Render > Vessel at work Ahead at Weather & time's vessel speed, or a
+    Vessel at work step of a built animation (task 0192, bug hunt 6 row 8: Weather & time on or off)."""
+    if item.sea_speed != "WEATHER":
+        return False
+    keyed = ahead_keys(scene)
+    if keyed is not None:
+        return bool(np.abs(keyed).max(initial=0.0) > 0.0)
+    return _speed_ms(scene) > 0.0
 
 
 def _speed_ms(scene) -> float:
-    w = getattr(scene.fresing, "weather", None)
-    if w is None or not w.enabled:
+    """m/s ahead the panel sets now: 5 Scene & Render > Vessel at work (Ahead: Weather & time's vessel speed; Still,
+    sideways, turning: 0), whether or not Weather & time is on (task 0192)."""
+    from . import vessel_work
+    try:
+        return max(float(vessel_work.speed_now(scene)), 0.0) * KNOT
+    except Exception:                           # (an older scene without the panel)
         return 0.0
-    return float(w.vessel_speed) * 0.514444
+
+
+KNOT = 0.514444                         # m/s
+KEYED_AT = "fr_bed_keyed_at"            # on the scene: the panel's speed and mode when the bed was keyed (0192)
+SAILED = "fr_bed_sailed"                # on the bed: its keys hold the metres sailed since the first frame (task 0192)
+
+
+def ahead_keys(scene):
+    """(frames,) knots ahead at every frame of a built animation whose Vessel at work steps keyed the speed (the
+    channel ``fr_vw_ahead``, task 0154), else None."""
+    if not getattr(scene.fresing, "anim_baked", ""):
+        return None
+    from ..core import vessel_work as vw_core
+    from . import vessel_work
+    path = '["' + vw_core.prop("ahead") + '"]'
+    try:
+        fc = next((c for c in vessel_work._scene_curves(scene) if c.data_path == path), None)
+    except Exception:
+        fc = None
+    if fc is None or fc.mute or not len(fc.keyframe_points):
+        return None
+    first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
+    return np.array([fc.evaluate(f) for f in range(first, end + 1)], dtype=float)
+
+
+def sailed(scene, knots) -> np.ndarray:
+    """(frames,) metres sailed from the first frame at ``knots`` per frame (linear between frames: as the channel's
+    keys)."""
+    v = np.asarray(knots, dtype=float) * KNOT
+    dt = float(scene.render.fps_base) / max(float(scene.render.fps), 1.0)
+    out = np.zeros(len(v))
+    if len(v) > 1:
+        out[1:] = np.cumsum(0.5 * (v[1:] + v[:-1]) * dt)
+    return out
+
+
+def speed_key(scene) -> str:
+    """The panel's vessel setting the seabed's speed comes from (Weather & time's speed, Vessel at work's mode)."""
+    from . import vessel_work
+    try:
+        st = vessel_work.setting(scene)
+        return json.dumps([st.mode, round(float(st.speed), 4), round(float(st.thrust), 4), st.side])
+    except Exception:
+        return ""
+
+
+def bed_key(scene) -> list:
+    """What the seabed's sailing depends on (vessel_motion.motion_key): the speed now, or the keyed speeds."""
+    keyed = ahead_keys(scene)
+    if keyed is not None:
+        return [round(float(x), 4) for x in keyed[np.r_[0, np.nonzero(np.diff(keyed))[0] + 1]]] + [len(keyed)]
+    return [round(_speed_ms(scene) / KNOT, 4)]
 
 
 def _drive(ob, index: int, expr: str, variables: list) -> None:
@@ -201,6 +262,17 @@ def _undrive(ob) -> None:
             ad.drivers.remove(fc)
 
 
+def _keys_off(ob, keep: bool) -> None:
+    """The bed's keys of the metres sailed go when they are not wanted (no step keys the speed, Clear keys)."""
+    if keep or not ob.get(SAILED):
+        return
+    del ob[SAILED]
+    from . import animation
+    ad = ob.animation_data
+    if ad is not None and ad.action is not None and ad.action.get(animation.TAG):
+        animation._drop_action(ob)
+
+
 def sync_bed(scene) -> None:
     """The empty "FR seabed motion" for the scene's sea cables: at the waterline, moved aft by the payout or by the
     vessel speed x time (the first cable with a sea end decides the lay direction and the speed); the seabed of the
@@ -213,6 +285,7 @@ def sync_bed(scene) -> None:
     if abs(ob.location.z - z) > 1e-7:
         ob.location.z = z
     if not sea:
+        _keys_off(ob, keep=False)
         _undrive(ob)
         ob.location.x = ob.location.y = 0.0
         return
@@ -220,7 +293,22 @@ def sync_bed(scene) -> None:
     u = np.array(it.sea_dir, dtype=float)
     u[2] = 0.0
     u = u / max(np.linalg.norm(u), 1e-12)
-    if moves_by_time(scene, it):
+    keyed = ahead_keys(scene) if it.sea_speed == "WEATHER" else None
+    _keys_off(ob, keep=keyed is not None)
+    if keyed is not None:                       # a Vessel at work step changes the speed (task 0192): keys of the
+        _undrive(ob)                            # metres sailed, one per frame while the speed changes
+        from . import animation
+        s = sailed(scene, keyed)
+        first = int(scene.frame_start)
+        dv = np.diff(keyed)
+        keep = [0] + [f for f in range(1, len(s) - 1) if dv[f - 1] != 0.0 or dv[f] != 0.0] + [len(s) - 1]
+        keep = sorted(set(k for k in keep if 0 <= k < len(s)))
+        cb = animation._channelbag(ob, "OBJECT")
+        for i in (0, 1):
+            animation._write(cb, "location", i, [(first + f, float(s[f] * u[i]), "LINEAR", "AUTO") for f in keep])
+        ob[SAILED] = True
+        scene[KEYED_AT] = speed_key(scene)      # (the panel the keys were built from: weather_changed compares)
+    elif moves_by_time(scene, it):
         v = _speed_ms(scene)
         for i in (0, 1):
             k = v * float(u[i])
@@ -813,8 +901,19 @@ def remove_sea_end(scene, item) -> None:
     paths.changed(scene, item)
 
 
+STALE = ("The vessel's speed changed after Build, and Vessel at work steps keyed the speed at Build: the seabed under "
+         "the cable would sail at the old one. The built animation was taken off: press Build again")
+
+
 def weather_changed(scene) -> None:
-    """Weather & time changed (its vessel speed, on or off): the seabed of a cable sailing at that speed follows."""
+    """Weather & time or Vessel at work changed (the vessel speed, on or off, the vessel's mode): the seabed of a cable
+    sailing at that speed follows. Task 0192 (the independent tester): with Vessel at work steps the speed was keyed
+    at Build and those keys are now old – the built animation comes off ("Build again")."""
+    sailing = any(it.b_kind == "SEA" and it.sea_speed == "WEATHER" and it.enabled for it in scene.fresing.cables)
+    if sailing and ahead_keys(scene) is not None and scene.get(KEYED_AT) != speed_key(scene):
+        from . import animation
+        animation.clear_keys(scene)
+        scene.fresing.last_message = STALE
     if any(it.b_kind == "SEA" and it.sea_speed == "WEATHER" for it in scene.fresing.cables):
         sync_bed(scene)
         _paths().refresh(scene)

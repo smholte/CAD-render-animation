@@ -1095,7 +1095,9 @@ round, the rollers it rests on (a pair of V rollers too) and the chutes it slide
 "Cable <name>" whose value is the metres of cable paid out, and lets every roller and sheave follow it. A roller or
 sheave that already has a joint of your own keeps it. **From CAD cable again** reads everything again, for when
 you changed the part in the CAD file (contacts you added by hand are kept; a start you made a free end is read
-from the CAD cable again).
+from the CAD cable again; a contact you took off comes back). A **model update** keeps what you did: a contact you
+took off stays off, contacts you added or flipped stay, and an update with the same file changes nothing at all in
+the cable's route, its drum or carousel – the next Build gives exactly the same animation.
 
 **Make it run**
 
@@ -1233,8 +1235,11 @@ direction is the horn's, without a kink. Under **4 Motion > Cables and paths**, 
    much lies on the seabed.
 4. **On the seabed**: how much cable already lies there behind the touch-down. **Water depth** 0 takes the sea's.
 5. **Vessel speed**: **With the lay** – the vessel moves as fast as the cable pays out, so the touch-down stays the
-   same distance behind it; or **Vessel speed of Weather & time** – the speed the wake shows: the touch-down then
-   comes nearer or moves further back when the speeds differ.
+   same distance behind it; or **Vessel speed of Weather & time** – the vessel's own speed, the one the wake shows:
+   5 Scene & Render > Vessel at work **Ahead** at the vessel speed of Weather & time (on or off), 0 when the vessel
+   lies still, pushes sideways or turns, and in a video what its **Vessel at work** steps set (Build follows them:
+   a step to Still stops the seabed; change the vessel's speed or setting after such a Build and the built animation
+   is taken off – press **Build animation** again). The touch-down then comes nearer or moves further back when the speeds differ.
 
 The touch-down is set in the pose at the animation's first frame (with nothing built: the pose shown), whatever
 frame is shown, so **Build** gives the same animation at any frame. **Touch-down here** sets it again (after you
@@ -1336,7 +1341,10 @@ When you change the vessel motion, the sea state, the bow, the vessel speed (Wea
 **Build animation**, the hoses and the cables into the sea are worked out again for the new motion by themselves, from
 the animation's first frame as Build does – whatever frame is shown, the result is what a Build gives. Once the slider
 rests it starts; 4 Motion > Cables and paths and the status bar show how far it is (on the small demo about a minute).
-**Cancel** (or Esc) stops it and takes the built animation off: press **Build animation** again. Swivel and Let go of a
+A camera step that rides on a part, flies a path or keeps a part in the middle is worked out again with them (the
+part moves with the new sea), also in a project without hoses or sea cables. You can change another setting while it
+runs: once it is done it runs again for the newest setting. **Cancel** (or Esc) stops it and takes the built animation off: press
+**Build animation** again. Swivel and Let go of a
 sheave stay through a model update, **From CAD cable** again and **Add contact**, and a renamed joint keeps its place in
 the cable's settings – also a drum's or carousel's joint, a layer follower's joint, a track's speed or wheel joint;
 a renamed cable keeps its drum or carousel.

@@ -230,5 +230,9 @@ file after every section. Whether it runs on the RTX 3090 is not tested (no card
 - The owner runs `measure_demo.py` once on his PC (steps above) so the drawing side (GPU) gets numbers; proposals A5 and D1–D4
   are sized by triangle counts until then.
 - The sea-state re-bake (178 s headless here, two passes through the frames) is 0192's.
-- GitHub runs: 1 full run, green (run 44179290745, 23.4 min – several jobs SLOW while other tasks' runs shared GitHub);
-  then a docs run after merging `main` (it had moved by documents only).
+- GitHub runs: 3 full runs because `main` brought new code twice while this task waited (0.2.148, 0.2.149): run
+  44179290745 green (23 min); run 44185217799 after merging 0.2.148: the Windows job failed twice on the web page checks
+  of the PC check (`web3d.under` "the page does not show the seabed …: {}", then `web3d.small` "the page gave no places of
+  its parts (loading)") – this task changes no app code; the job's third try was green. Then the run after merging 0.2.149.
+  **Lead: the Windows web-page PC-check lines look flaky** (0187's report saw `web3d.small` fail twice too): a Quality
+  lane follow-up (a longer wait for the page, or a retry inside the line).
