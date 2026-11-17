@@ -344,15 +344,60 @@ def _update_live(scene, s, root) -> None:
     _show_in_view(scene, s)
 
 
+def scene_reach(scene) -> float:
+    """How far the scene reaches from the origin (m): the surroundings' ``fr_far``, the farthest
+    object (the wind park too) and the cameras' largest clip end (task 0193)."""
+    far = far_clip(scene)
+    for ob in scene.objects:
+        if ob.type == "CAMERA":
+            far = max(far, float(ob.data.clip_end))
+        elif ob.type in ("MESH", "EMPTY", "CURVE") and not ob.hide_viewport:
+            p = ob.matrix_world.translation
+            far = max(far, (float(p.x) ** 2 + float(p.y) ** 2 + float(p.z) ** 2) ** 0.5)
+    return far
+
+
+def view_clip_start(far: float) -> float:
+    """The view's near clip for a scene of this reach: Blender's 0.01 m for ordinary scenes, 0.05 m
+    from 10 km (end / start stays <= 200,000, no flicker between faces); never cuts a close look."""
+    return 0.01 if far < 5000.0 else min(0.05 * far / 10000.0, 0.5)
+
+
+def fix_view_clip(scene=None, far: float | None = None) -> None:
+    """Every 3D view (not camera views) sees as far as the scene reaches. Never lowers a larger value."""
+    scene = scene or bpy.context.scene
+    if scene is None:
+        return
+    far = scene_reach(scene) if far is None else far
+    if far <= 0:
+        return
+    far = far * 1.1 + 10.0
+    start = view_clip_start(far)
+    for screen in bpy.data.screens:
+        for area in screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            for sp in area.spaces:
+                if sp.type != "VIEW_3D":
+                    continue
+                if sp.clip_end < far:
+                    sp.clip_end = far
+                if sp.clip_start < start:
+                    sp.clip_start = start
+
+
 def fix_clip(scene, far: float | None = None) -> None:
-    """Cameras must see as far as the surroundings reach (the sea goes to the horizon)."""
+    """Cameras must see as far as the surroundings reach (the sea goes to the horizon);
+    the 3D views too (task 0193)."""
     far = far_clip(scene) if far is None else far
     if far <= 0:
+        fix_view_clip(scene)
         return
     cams = [ob for ob in scene.objects if ob.type == "CAMERA"]
     for ob in cams:
         if ob.data.clip_end < far:
             ob.data.clip_end = far
+    fix_view_clip(scene)
 
 
 def _show_in_view(scene, s) -> None:
