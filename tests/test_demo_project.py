@@ -68,9 +68,10 @@ def test_every_joint_of_the_sheet(made):
              + tuple(n for _k, n in demo.TIP_ITEMS)]
     park = made["sheet"]["machine_files"]["demo_park.step"]           # task 0166: the wind park's 19 joints
     assert len(park) == 19 and all(j["name"] in by for j in park)
-    # task 0174: the wire speeds of handling winch 2 and the crane's hoist
-    travels = ["HANDLING WINCH 2: Wire travel", demo.CRANE_TRAVEL]
-    assert len(by) == len(sheet) + 2 + 2 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
+    # task 0174: the wire speeds of handling winch 2, the crane's hoist and (task 0173) the two tipping winches' drums
+    travels = ["HANDLING WINCH 2: Wire travel", demo.CRANE_TRAVEL] + [demo.TIP_TRAVEL.format(KEY=k.upper())
+                                                                      for k, _n in demo.TIP_ITEMS]
+    assert len(by) == len(sheet) + 2 + 4 + 5 + len(park) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
     assert all(t in by for t in travels)
     cable_turned = spooled = 0
     for row in sheet:
@@ -93,7 +94,8 @@ def test_every_joint_of_the_sheet(made):
         drive = row["drive"]
         if j.couple_table:                                          # follows its spool's layer by table (task 0080)
             assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}", f"spool:{demo.AR_SPOOL}",
-                                      "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}"), row["name"]
+                                      "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}",
+                                      *[f"spool:{demo.TIP_SPOOL.format(key=k)}" for k, _n in demo.TIP_ITEMS]), row["name"]
             spooled += 1
         elif j.follows in wires:                                    # turned by a tipping wire (task 0082)
             assert "TIPPING" in row["name"] or "Swivel sheave" in row["name"], row["name"]
@@ -123,8 +125,8 @@ def test_every_joint_of_the_sheet(made):
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
     assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
     #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
-    assert spooled == 9       # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081); A&R drum (0082);
-    #                           task 0174: handling winch 2's drum + level wind, the crane's hoist drum
+    assert spooled == 11      # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081); A&R drum (0082);
+    #                           task 0174: handling winch 2's drum + level wind, the crane's hoist drum; 0173: both tipping drums
 
 
 def test_a_coupling_turns_at_its_ratio(made):
@@ -219,7 +221,8 @@ def test_scenes_cameras_brand_and_the_animation(made):
     assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
             ("FADE_IN", "")} <= kinds
     assert any(f"x {demo.LAPSE}" in b.name for b in a.blocks) and a.fin_captions   # the time-lapse in a caption
-    assert len(s.callouts) >= 3 and all(c.step == demo.XRAY_STEP for c in s.callouts)
+    assert len(s.callouts) >= 4 and all(c.step == demo.XRAY_STEP for c in s.callouts[:-1])
+    assert s.callouts[-1].step == demo.SEA_CAPTION and s.callouts[-1].text == demo.LAY_DATA    # task 0173: shot 8
     assert s.background == "SEA"
 
 
@@ -238,6 +241,17 @@ def _keys(sc):
     return out
 
 
+def _drum_wire_shapes(sc) -> dict:
+    """The tipping winches' drum wires as Build drew them: name -> (frames, points, 3)."""
+    from fresing_render.blender import paths
+    out = {}
+    for key, _n in demo.TIP_ITEMS:
+        it = paths.find(sc, demo.TIP_DRUM_WIRE.format(key=key))
+        got = paths._arrays(sc, it)
+        out[it.name] = np.array(got[0], dtype=float)
+    return out
+
+
 def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
     from fresing_render.blender import animation, paths_sea
     sc = _scene()
@@ -245,6 +259,8 @@ def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
     out = animation.bake(sc, a)
     first = _keys(sc)
     marks = {it.name: float(it.sea_mark) for it in paths_sea.sea_cables(sc)}
+    drum_wires = _drum_wire_shapes(sc)          # task 0173: the tipping drums' wires (shapes, no keys of their own)
+    assert len(drum_wires) == 2 and all(len(v) > 1 for v in drum_wires.values())
     assert len(first) > 15                  # the moved joints, the camera, the fades (followers are drivers)
     path = str(tmp_path / "again.blend")
     bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
@@ -255,6 +271,8 @@ def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
     again = _keys(sc)
     assert {it.name: float(it.sea_mark) for it in paths_sea.sea_cables(sc)} == pytest.approx(marks, abs=1e-6)
     assert again_out["warnings"] == out["warnings"]
+    for k, v in _drum_wire_shapes(sc).items():
+        assert v.shape == drum_wires[k].shape and float(np.abs(v - drum_wires[k]).max()) < 1e-5, k
     assert set(again) == set(first)
     for k, v in first.items():
         assert v.shape == again[k].shape and np.allclose(v, again[k], atol=1e-5), k

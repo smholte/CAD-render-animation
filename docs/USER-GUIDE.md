@@ -3025,6 +3025,15 @@ A label is a few words in a box with a thin line to a spot on a part: "Gripper",
 
 Labels do not look behind parts: a spot that is hidden behind another part still gets its line.
 
+**Several lines and live numbers.** Type **\n** in **Words** where a new line should start: the box grows with the
+lines, which are lined up on the left ("Lay data\nTop tension …"). A label on a **cable that hangs into the sea**
+(4 Motion > Cables and paths > Into the sea) can show that cable's numbers, worked out again for every frame of a
+video: type **{top}** (top tension, kN), **{bottom}** (tension at the seabed, kN), **{layback}** (m), **{angle}** (how
+steeply it leaves the horn, degrees), **{depth}** (water depth, m), **{speed}** (how fast its speed joint pays it out,
+m/min), **{laid}** (m on the seabed) or **{hanging}** (m in the water). For example
+`Top tension {top} kN\nLayback {layback} m` shows "Top tension 18.9 kN" and "Layback 32.0 m". On any other part
+these words stay as typed; a number the cable does not have yet shows "–".
+
 <a id="image-size"></a>
 ### Image size & render
 

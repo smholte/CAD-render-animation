@@ -1668,12 +1668,38 @@ def build_sea(b: Build):
     s.sea_cut_auto = True
     s.sea_cutaway = True
     _update()
+    add_lay_label(sc, paths.find(sc, made["cable"]))       # task 0173: the cable's live numbers in a label
     cam = _camera(b, "ISO", "Tour view", lens=30.0)
     cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
     shot = _shot(b, "Tour: into the sea")
     a = s.animations[made["animation"]]
     a.start_shot = shot.name
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+
+
+LAY_LABEL = "Lay data\\nTop tension {top} kN\\nLayback {layback} m\\nSpeed {speed} m/min"
+
+
+def add_lay_label(scene, item):
+    """Task 0173: a label of several lines on the cable into the sea, pointing at its touch-down, showing its live
+    numbers (the test tour's set and the PC check's line share it)."""
+    from . import callouts, paths_sea
+    got = paths_sea.tdp_world(scene, item)
+    _check(got is not None, "the cable into the sea has no touch-down")
+    c = callouts.add(scene, item.part, got[1], LAY_LABEL)
+    scene.fresing.callouts_on = True
+    return c
+
+
+def _check_lay_label(scene, it, n) -> None:
+    """The lay data label shows the cable's numbers at the frame shown (task 0173)."""
+    from . import callouts
+    from ..core import callouts as C
+    labels = [c for c in scene.fresing.callouts if c.part == it.part and C.fields_in(c.text)]
+    _check(len(labels) == 1, f"{len(labels)} labels with the cable's numbers (1 expected)")
+    rows = callouts.label_text(scene, labels[0]).split("\n")
+    _check(len(rows) == 4 and rows[1] == f"Top tension {n['top']:.1f} kN" and rows[2] == f"Layback {n['layback']:.1f} m",
+           f"the lay data label reads {rows}, the cable {n['top']:.1f} kN, {n['layback']:.1f} m")
 
 
 def _check_sea_cable(scene):
@@ -1693,6 +1719,7 @@ def _check_sea_cable(scene):
         _update()
         n = paths_sea.numbers(scene, it)
         lays.append(n["layback"])
+        _check_lay_label(scene, it, n)
         line = np.array(paths.shape_now(scene, it), dtype=float)
         bed = np.array(paths_sea.bed(scene).matrix_world)
         ends.append(np.linalg.inv(bed)[:3, :3] @ line[-1] + np.linalg.inv(bed)[:3, 3])
@@ -3475,7 +3502,8 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "The cable runs over the rollers and the horn at the stern and hangs in a curve down to the seabed 15 m below, "
      "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "
      "still where it lies on the seabed, the seabed moves aft under the vessel, the touch-down stays 20 m behind the "
-     "horn and the orange CPS set goes over the horn and down the curve on the cable.",
+     "horn and the orange CPS set goes over the horn and down the curve on the cable. A label of four lines points "
+     "at the touch-down: Lay data, the top tension, the layback and the speed (60 m/min while it pays out).",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
      check=_check_sea_cable, auto="clip")
 stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",

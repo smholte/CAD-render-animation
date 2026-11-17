@@ -1127,9 +1127,12 @@ def _tipping_winch(d: Demo, key: str, tip_item: str, deck) -> None:
     sp = spool.find(sc, name)
     lo, hi = spool.fleet(sc, sp)
     TIP_FLEET[key] = math.degrees(max(lo, hi))
-    if max(lo, hi) > float(sp.fleet_limit):
-        raise RuntimeError(f"tipping winch {key}: fleet angle {TIP_FLEET[key]:.1f}°, more than "
-                           f"{math.degrees(sp.fleet_limit):.1f}°")
+    # the narrow drum (task 0173, demo_model/layout.TIPPING_DRUM_LENGTH) keeps it under 2° – the usual limit for a
+    # drum without a level wind is 1.5–2°: its warning is set at 2°
+    sp.fleet_limit = math.radians(TIP_FLEET_MAX)
+    sp = spool.find(sc, name)
+    if TIP_FLEET[key] > TIP_FLEET_MAX:
+        raise RuntimeError(f"tipping winch {key}: fleet angle {TIP_FLEET[key]:.1f}°, more than {TIP_FLEET_MAX:.1f}°")
     spool.status(sc, sp)
     sp = spool.find(sc, name)
     if sp.problem:
@@ -1140,6 +1143,7 @@ def _tipping_winch(d: Demo, key: str, tip_item: str, deck) -> None:
 
 
 TIP_FLEET = {}                        # tipping winch key -> its fleet angle (deg), filled by the stage
+TIP_FLEET_MAX = 2.0                   # deg: the tipping drums' fleet angle warning (task 0173)
 
 
 CRANE_SPOOL = "Crane hoist"

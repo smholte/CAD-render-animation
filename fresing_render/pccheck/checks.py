@@ -768,7 +768,7 @@ def motion_spool(ctx):
       what="A cable over rollers and a stern horn hangs into 15 m of water in a catenary to the seabed and lies on it; "
            "a Run motor step pays it out at 60 m/min: the touch-down stays 20 m behind the horn, the seabed and the "
            "cable's end on it move aft, the CPS set goes over the horn and down the catenary; seen through the "
-           "cut-away behind the stern")
+           "cut-away behind the stern; a label shows its top tension, layback and speed (task 0173)")
 def motion_sea_cable(ctx):
     from ..blender import animation, paths, paths_sea, render, tour
     scene = ctx.fresh(SEA_CABLE)
@@ -783,6 +783,7 @@ def motion_sea_cable(ctx):
     n = paths_sea.numbers(scene, item)
     _check(abs(n.get("layback", 0.0) - 20.0) < 0.01, f"the layback is {n.get('layback', 0.0):.2f} m (20 m set)")
     s.sea_cutaway = True
+    tour.add_lay_label(scene, item)                 # task 0173: the cable's live numbers in a label
     from ..blender import cameras
     scene.camera = cameras.add_camera(scene, "ISO", 30.0, "Sea view")
     scene.camera.matrix_world = paths_sea.view_matrix(scene, item)

@@ -33,6 +33,7 @@ from .geom import Asm, Part, Rot, T
 from .params import ParkParams, Params
 
 ROOT = "DEMO CABLE LAY"
+TIPPING_DRUM_LENGTH = 240.0             # mm between the tipping winches' flanges (task 0173: fleet angle ≤ ~1.7°)
 FILES = {
     "assembly": "demo_cable_lay.step",
     "vessel": "demo_vessel.step",
@@ -606,7 +607,11 @@ def quadrant_system(p, S: Scene) -> Asm:
           "pulley_carrier": [ch] + hd.info["frame_part_path"], "travel": travel, "tilt_end": rt.TILT_END,
           "rope_d": p.quadrant_rope_d}
     # tipping winches (port, starboard) and their swivel sheaves on the stern: the wire comes up the post's axis
-    tw = m.winch(p, kit, "TIPPING WINCH", p.tipping_rope_d, 400.0, 800.0, layers=4, wound=0.5, fairlead=False)
+    # task 0173: a narrow drum (240 mm between the flanges, was 800) so the lead to the foot sheave, ~3.4 m, has a
+    # fleet angle of at most ~1.7° (it was 6.5°; no room on the stern for a level wind); full width wound, 4 layers
+    # (~70 m on it: the tipping pays out ~34 m)
+    tw = m.winch(p, kit, "TIPPING WINCH", p.tipping_rope_d, 400.0, TIPPING_DRUM_LENGTH, layers=4, wound=1.0,
+                 fairlead=False)
     trp = max(8 * p.tipping_rope_d, 288.0)
     hs = pos["swivel_sheave"][2] - p.deck_z
     rope_z = tw.info["drum_centre"][2] + tw.info["rope_centre_r"]
