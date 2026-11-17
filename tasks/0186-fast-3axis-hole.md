@@ -1,6 +1,6 @@
 # 0186 – Fix: Fast 3-axis leaves a square hole through the workpiece (bug hunt 6, row 2)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0186-fast-3axis-hole`
+**Who:** worker · **Status:** running · **Branch:** `task/0186-fast-3axis-hole`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183) · **Model:** Opus · effort Medium · **Place:** Claude Code on the
 web, environment "CAD-render-animation"
 **Area:** Machining lane (`core/machining.py` `_MapSide._below` / `_piece`, its tests)
