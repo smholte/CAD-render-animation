@@ -1,6 +1,6 @@
 # 0177 – Render kit windows: text cut off at Windows display scaling
 
-**Who:** worker (web session) · **Status:** running · **Branch:** `task/0177-kit-window-layout` (a web session may name its own)
+**Who:** worker (web session) · **Status:** done (17 Nov) · **Branch:** `task/0177-kit-window-layout` (a web session may name its own)
 **Started by:** lead, 17 Nov 2026 · **Area:** Site kit lane: `site/render_kit/kit_window.ps1` (both windows), its tests
 (`tests/test_kit_window.py`), `site/render_kit/README.txt` only if a text changes, the CI step that parses / checks the
 script. **Model · effort:** Opus · Medium. Claude Code on the web, environment "CAD-render-animation".
@@ -65,13 +65,13 @@ had chosen "At 02:15" and quiet hours for that run (owner, 17 Nov 01:55) – no 
 
 ## Done when
 
-- [ ] Both windows: every text, field and button fully visible, nothing overlapping, at 100–200 % (step 5's check green
+- [x] Both windows: every text, field and button fully visible, nothing overlapping, at 100–200 % (step 5's check green
       on the Windows job) and on a 1366 × 768 screen at 150 %
-- [ ] Models' times readable
-- [ ] Choices, standard file, resume, Pause / Stop, countdown unchanged in behaviour (0144's tests still green)
-- [ ] Windows-only code reviewed by a helper that did not write it (CLAUDE.md section 2)
+- [x] Models' times readable
+- [x] Choices, standard file, resume, Pause / Stop, countdown unchanged in behaviour (0144's tests still green)
+- [x] Windows-only code reviewed by a helper that did not write it (CLAUDE.md section 2)
 - [ ] The kit on draft release `site-kit` re-packed by the site-kit workflow after the merge (check the asset's date)
-- [ ] Report below filled in; merged to `main`; owner's check as numbered steps (download the kit again, double-click,
+- [x] Report below filled in; merged to `main`; owner's check as numbered steps (download the kit again, double-click,
       look at both windows) – no app version needed (kit only), unless the release procedure says otherwise
 
 ## Not in this task
@@ -131,6 +131,7 @@ had chosen "At 02:15" and quiet hours for that run (owner, 17 Nov 01:55) – no 
   own click handler – removed, the list ticks by its box as normal; a minimised status window was resized every 2 s;
   the status window could shrink and grow; the mouse wheel over the slider changed the load while scrolling).
 - Local: `tests/test_kit_window.py`, `tests/test_render_kit.py`, `tests/test_site.py` pass.
+- Full runs: 1 (run 43997041597, green, 25 min; the Windows job's layout check OK at all six scales).
 - Runs: a temporary workflow ran only the check on Windows 5 times while the layout was worked on (first: the `Sc`
   alias; then green), deleted before the merge; full runs: see below.
 
