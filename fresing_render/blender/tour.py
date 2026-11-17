@@ -3859,7 +3859,7 @@ def _check_panel_back(scene):
     _check(hasattr(bpy.ops.fresing, "show_panel"), "the operator 'Show the Fresing panel' is missing")
     _check(ui_header._draw_header in bpy.types.VIEW3D_HT_header.draw._draw_funcs,
            "the Fresing button is not in the 3D view's header")
-    return 1.0
+    return "the Fresing button and its operator are there"
 
 
 stop("panel_back", OUT, HUB_SET, "Fresing panel always back",
