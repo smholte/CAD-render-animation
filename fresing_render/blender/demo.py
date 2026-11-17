@@ -1588,15 +1588,22 @@ LAY_DATA = ("Lay data\nTop tension {top} kN\nBottom tension {bottom} kN\nLayback
 
 
 def lay_data_label(d: Demo, step: str):
-    """Task 0173 (study 0152 #1): the lay supervisor's numbers in shot 8 – a label on the power cable pointing at its
-    touch-down, its fields filled from the cable at every frame (``callouts.live_values``), shown during ``step``."""
+    """Task 0173 (study 0152 #1): the lay supervisor's numbers in shot 8 – a label on the power cable pointing at the
+    middle of its hanging stretch (the touch-down lies at the picture's bottom edge in shot 8), its fields filled
+    from the cable at every frame (``callouts.live_values``), shown during ``step``."""
+    import numpy as np
+    from mathutils import Vector
+
     from . import callouts, paths, paths_sea
     sc = d.scene
     it = paths.find(sc, CABLE_ITEM)
     got = paths_sea.tdp_world(sc, it)
     if got is None:
         raise RuntimeError("the power cable has no touch-down to point the lay data at")
-    c = callouts.add(sc, it.part, got[1], LAY_DATA, step=step)
+    mid = (np.asarray(got[0], float) + np.asarray(got[1], float)) / 2.0
+    line = np.asarray(paths.shape_now(sc, it), float)
+    at = line[int(np.argmin(np.linalg.norm(line - mid, axis=1)))]
+    c = callouts.add(sc, it.part, Vector(at), LAY_DATA, step=step)
     d.s.callouts_on = True
     d.notes.append("lay data: " + callouts.label_text(sc, c).replace("\n", "; "))
     return c

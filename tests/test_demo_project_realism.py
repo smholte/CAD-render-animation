@@ -135,10 +135,12 @@ def test_the_rov_is_still_beside_the_touch_down_and_shown_only_while_laying(buil
         # beside the touch-down: level with it along the lay, 6–10 m to its side, looking at it
         M = places[-1]
         off = M[:3, 3] - np.array(tdp)
-        assert abs(off[0]) < 3.0 and 6.0 < abs(off[1]) < 10.0, (f, off)
+        # (the touch-down moves ±1 m with the heave and drifts up to ~3 m aft over shots 1–8b: the layback of a lay
+        # whose lengths are fixed; the ROV keeps its station)
+        assert abs(off[0]) < 4.0 and 6.0 < abs(off[1]) < 10.0, (f, off)
         fwd = M[:3, :3] @ np.array([1.0, 0.0, 0.0])
         to = -off[:2] / np.linalg.norm(off[:2])
-        assert float(fwd[:2] @ to) > 0.98, f
+        assert float(fwd[:2] @ to) > math.cos(math.radians(25.0)), f     # it keeps the touch-down in view
         assert not demo_rov.rov_parts(sc)[0].hide_render, f
     spread = max(float(np.abs(p - places[0]).max()) for p in places)
     assert spread < 1e-4, spread                                      # Still: no heave, roll or pitch

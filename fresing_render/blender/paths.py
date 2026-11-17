@@ -3364,11 +3364,38 @@ def follows_one_of(scene, item, leaders: set) -> bool:
     return False
 
 
+def _moved_by_one_of(scene, item, leaders: set) -> bool:
+    """Is one of the things that shape the cable (its part, its contacts' carriers, its ends) moved by one of the
+    joints ``leaders``, or by a joint that follows one of them (the independent tester of task 0173: a guide sheave on
+    an arm that follows the winch)?"""
+    names = _joint_names(scene)
+    movers = set()
+    for ob in [item.part] + [o for sl in _inputs_of(item)[1] for o in sl.objects()]:
+        if ob is not None:
+            movers |= {names[m] for m in flex._movers(ob) if m in names}
+            if ob.name in names:
+                movers.add(names[ob.name])
+    for name in movers:
+        j = joints.find(scene, name)
+        if j is None:
+            continue
+        if j.name in leaders:
+            return True
+        seen = set()
+        while j is not None and j.follows and j.name not in seen:
+            seen.add(j.name)
+            if j.follows in leaders:
+                return True
+            j = joints.find(scene, j.follows)
+    return False
+
+
 def _after_tight(scene, its, tight, can, written: set, first: int, frames: int):
     """Task 0173 (0174's open point): after the kept-tight cables wrote their payouts, the places of the cables whose
-    speed follows one of them, read again – ({name: (F, 4, 4)}, the cables now animated) or () when there are none."""
+    speed follows one of them, or whose carriers one of them (or a follower of one) moves, read again –
+    ({name: (F, 4, 4)}, the cables now animated) or () when there are none."""
     later = [n for n in its if n not in tight and n in can and written and
-             follows_one_of(scene, _cable(scene, n), written)]
+             (follows_one_of(scene, _cable(scene, n), written) or _moved_by_one_of(scene, _cable(scene, n), written))]
     if not later:
         return ()
     obs = {}
@@ -3402,12 +3429,12 @@ def _bake(scene) -> list[str]:
     notes += paths_swivel.after_read(scene, mats, first, frames if (can and animated) else 1)
     # task 0173: the cables kept tight first – they write their winch's payouts as keys; a cable whose speed follows
     # such a winch (a drum's lead wire, spooled) is read again once those keys are there (it saw no payout before)
-    tight = [n for n in its if _cable(scene, n).keep_tight]
+    tight = [n for n in its if _cable(scene, n).keep_tight and _tight_joint(scene, _cable(scene, n))[0] is not None]
     written: set = set()
     again = None
     for n in tight + [n for n in its if n not in tight]:
         it = _cable(scene, n)
-        if again is None and not it.keep_tight:
+        if again is None and n not in tight:
             again = _after_tight(scene, its, tight, can, written, first, frames)
             if again:
                 mats = {**mats, **again[0]}

@@ -73,7 +73,7 @@ _TINY = 1e-9
 
 
 def wet_weight(diameter: float) -> float:
-    """A power cable's weight in water (kg/m) for its diameter (m): 51 kg/m at 200 mm, as the square of Ø."""
+    """A power cable's weight in water (kg/m) for its diameter (m): 38 kg/m at 200 mm, as the square of Ø."""
     return WET_200 * (float(diameter) / 0.2) ** 2
 
 
