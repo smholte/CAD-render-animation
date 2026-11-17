@@ -6,12 +6,15 @@ name: Tests
 #       full   everything below
 #       docs   only documentation/version lines changed since a green commit: build + tooltip check + guide
 #       reuse  a push to main whose git tree already ran green (fast-forward): no tests, straight to the release
+#       lane   (task 0171) a branch push whose version is not raised yet: only the jobs its changed files need
+#              (tools/ci_groups.py lane_plan); proves nothing - the full run comes with the version raise
 #   - Linux: the test suite in parallel groups (tools/ci_groups.py), one of them also the packaged self-test
 #   - Linux: the real app on a virtual screen in parallel groups (GROUPS in tools/ci_real_app.py): simulated
 #     clicks, the accented-paths test, the PC check (Full) and the in-app update
-#   - Windows: the installer zip is built; an old build is installed and updates itself in the app from a
-#     local copy of the update listing; Install.bat runs unattended over it, then the self-test (started
-#     like its Start-menu shortcut), the PC check (Full, from its Start-menu shortcut) and Uninstall.bat
+#   - Windows: the installer zip is built; then two jobs at once (task 0171). Part A: an old build is installed and
+#     updates itself in the app from a local copy of the update listing; Install.bat runs unattended over it, then
+#     the self-test (started like its Start-menu shortcut), the PC check (Full, from its Start-menu shortcut) and
+#     Uninstall.bat. Part B: Install.bat, then the PC check Heavy (scaled down) from its Start-menu shortcut
 # On main, when the version in blender_manifest.toml has no release yet and every test passed, it publishes
 # the release on GitHub (tag v<version>, installer, extension, index.json, changelog.json), checks on
 # Windows that an installed old version finds it and updates itself from it, and only then makes it the
@@ -58,6 +61,8 @@ jobs:
       pytest: ${{ steps.pre.outputs.pytest }}
       realapp: ${{ steps.pre.outputs.realapp }}
       demo: ${{ steps.pre.outputs.demo }}
+      windows: ${{ steps.pre.outputs.windows }}
+      build: ${{ steps.pre.outputs.build }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -89,7 +94,7 @@ jobs:
   suite:
     name: Linux - test suite ${{ matrix.group.name }}${{ matrix.group.selftest && ' + packaged self-test' || '' }}
     needs: precheck
-    if: ${{ needs.precheck.outputs.mode == 'full' }}
+    if: ${{ (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') && needs.precheck.outputs.pytest != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -168,7 +173,7 @@ jobs:
   demo-make:
     name: Linux - make the demo project
     needs: precheck
-    if: ${{ needs.precheck.outputs.mode == 'full' }}
+    if: ${{ (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') && needs.precheck.outputs.demo != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -214,7 +219,7 @@ jobs:
   demo:
     name: Linux - test suite ${{ matrix.group.name }}
     needs: [precheck, demo-make]
-    if: ${{ !cancelled() && needs.precheck.outputs.mode == 'full' && needs.demo-make.result == 'success' }}
+    if: ${{ !cancelled() && needs.demo-make.result == 'success' && needs.precheck.outputs.demo != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -281,7 +286,7 @@ jobs:
   real-app:
     name: Linux - real app ${{ matrix.group.name }}
     needs: precheck
-    if: ${{ needs.precheck.outputs.mode == 'full' }}
+    if: ${{ (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') && needs.precheck.outputs.realapp != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -372,7 +377,9 @@ jobs:
   build:
     name: Build the Windows installer zip
     needs: precheck
-    if: ${{ needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'docs' }}
+    if: >-
+      ${{ needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'docs'
+      || (needs.precheck.outputs.mode == 'lane' && needs.precheck.outputs.build == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -428,12 +435,20 @@ jobs:
         run: |
           awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Build: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
 
+  # Task 0171: two parts at once (the one job took 15-23 min: PC check Heavy 9-11, Full 6-8, self-test 2-2.5, the rest
+  # ~1.5); each installs what it needs. Parts: tools/ci_groups.py WINDOWS_PARTS; a lane run may run part A only.
   windows:
-    name: Windows - install + self-test
+    name: "Windows - install ${{ matrix.part.name }}: ${{ matrix.part.what }}"
     needs: [precheck, build]
-    if: ${{ needs.precheck.outputs.mode == 'full' }}
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' && needs.precheck.outputs.windows != '[]'
+      && (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') }}
     runs-on: windows-2025
-    timeout-minutes: 90          # with the PC check (Full) since task 0032
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ${{ fromJSON(needs.precheck.outputs.windows) }}
     defaults:
       run:
         shell: pwsh
@@ -494,41 +509,45 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLower()
           if ($hash -ne $env:BLENDER_SHA256) { Remove-Item $zip; throw "checksum mismatch: $hash" }
 
-      - name: Old version updates itself in the app; Install.bat (unattended, twice) over it; self-test
+      - name: "Part ${{ matrix.part.name }}: ${{ matrix.part.what }}"
         env:
           BLENDER_VERSION: ${{ steps.pin.outputs.version }}
+          PART: ${{ matrix.part.part }}
         run: |
           $release = Get-ChildItem (Join-Path $env:RUNNER_TEMP "release") -Filter "FresingRender-*-windows.zip" | Select-Object -First 1
-          $old = Get-ChildItem (Join-Path $env:RUNNER_TEMP "release-old") -Filter "FresingRender-*-windows.zip" | Select-Object -First 1
           $blender = Join-Path $env:RUNNER_TEMP "blender-zip\blender-$($env:BLENDER_VERSION)-windows-x64.zip"
-          ./tools/ci_windows_install.ps1 -ReleaseZip $release.FullName -BlenderZip $blender `
-            -OldReleaseZip $old.FullName -UpdateRepo (Join-Path $env:RUNNER_TEMP "update-listing") `
-            -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results `
-            -PcCheckOnly (python tools/ci_pccheck_lines.py windows)
+          $more = @{}
+          if ($env:PART -eq "a") {
+            $old = Get-ChildItem (Join-Path $env:RUNNER_TEMP "release-old") -Filter "FresingRender-*-windows.zip" | Select-Object -First 1
+            $more = @{ OldReleaseZip = $old.FullName; UpdateRepo = (Join-Path $env:RUNNER_TEMP "update-listing")
+                       PcCheckOnly = (python tools/ci_pccheck_lines.py windows) }
+          }
+          ./tools/ci_windows_install.ps1 -Part $env:PART -ReleaseZip $release.FullName -BlenderZip $blender `
+            -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results @more
 
       - name: Self-test verdict
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.part.part == 'a' }}
         run: python tools/ci_check_selftest.py "windows-results/Fresing Render self-test.txt" --title "Windows self-test" --strict
 
       - name: PC check verdict (the Windows lines of Full, started from its Start-menu shortcut)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.part.part == 'a' }}
         run: |
           # the other Full lines are app-only (same code as on Linux) and run there, tools/ci_pccheck_lines.py (task 0063)
           $n = python tools/ci_pccheck_lines.py count windows
           python tools/ci_check_pccheck.py "windows-results/pccheck_last_run.txt" --title "Windows PC check" --min-lines $n
 
       - name: PC check verdict (Heavy, scaled down, from its Start-menu shortcut)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.part.part == 'b' }}
         run: python tools/ci_check_pccheck.py "windows-results/pccheck_heavy_last_run.txt" --title "Windows PC check (Heavy, scaled down)" --min-lines 10
 
       - name: Uninstall (Uninstall.bat)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.part.part == 'a' }}
         run: ./tools/ci_windows_install.ps1 -Uninstall -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results
 
       - uses: actions/upload-artifact@v7
         if: always()                 # also after a timeout: the logs show where it stuck
         with:
-          name: windows-install
+          name: windows-install-${{ matrix.part.part }}
           path: windows-results/
           retention-days: 14
 
@@ -537,11 +556,11 @@ jobs:
         run: |
           if (-not $env:JOB_T0) { return }
           $m = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$env:JOB_T0) / 60
-          $line = "⏱️ Windows install + self-test: {0:N1} min" -f $m
+          $line = "⏱️ Windows install part ${{ matrix.part.name }}: {0:N1} min" -f $m
           $line; $line >> $env:GITHUB_STEP_SUMMARY
 
   verdict:
-    name: Tests - verdict
+    name: "Tests - verdict${{ needs.precheck.outputs.mode == 'lane' && ' (lane run - not a release check)' || '' }}"
     needs: [precheck, suite, demo-make, demo, real-app, build, windows]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
@@ -554,21 +573,28 @@ jobs:
           PRE: ${{ needs.precheck.result }}
           SUITE: ${{ needs.suite.result }}
           DEMO: ${{ needs.demo.result }}
+          DMAKE: ${{ needs.demo-make.result }}
           REAL: ${{ needs.real-app.result }}
           BUILD: ${{ needs.build.result }}
           WIN: ${{ needs.windows.result }}
         run: |
-          echo "mode=$MODE precheck=$PRE suite=$SUITE demo=$DEMO real-app=$REAL build=$BUILD windows=$WIN"
+          echo "mode=$MODE precheck=$PRE suite=$SUITE demo-make=$DMAKE demo=$DEMO real-app=$REAL build=$BUILD windows=$WIN"
           ok=false
+          # lane: every job the precheck planned is green; a job it did not plan is skipped (a failed job never is)
+          lane_ok() { for r in "$SUITE" "$DMAKE" "$DEMO" "$REAL" "$BUILD" "$WIN"; do
+                        [ "$r" = success ] || [ "$r" = skipped ] || return 1; done
+                      [ "$DMAKE" != success ] || [ "$DEMO" = success ]; }
           case "$MODE" in
             full)  [ "$PRE$SUITE$DEMO$REAL$BUILD$WIN" = "successsuccesssuccesssuccesssuccesssuccess" ] && ok=true ;;
             docs)  [ "$PRE$BUILD" = "successsuccess" ] && ok=true ;;
             reuse) [ "$PRE" = "success" ] && ok=true ;;
+            lane)  [ "$PRE" = "success" ] && lane_ok && ok=true ;;
           esac
           case "$MODE" in
             reuse) what="no tests: this tree already ran green in run $ART (https://github.com/$GITHUB_REPOSITORY/actions/runs/$ART)" ;;
             docs)  what="documentation-only change: build, tooltip check, guide and their tests" ;;
             full)  what="all tests" ;;
+            lane)  what="lane run - only the tests of the changed files (precheck's list); not a release check" ;;
             *)     what="the precheck failed: see its job (nothing else ran)" ;;
           esac
           if $ok; then echo "### ✅ Tests passed – mode ${MODE}: $what" >> "$GITHUB_STEP_SUMMARY"

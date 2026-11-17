@@ -604,3 +604,138 @@ def test_mode_version_line_only_is_docs_other_lines_full(repo):
     assert _decide(repo, runs, "V", "B1", ref="refs/heads/task")[0] == "docs"
     repo.commit("W", {"fresing_render/__init__.py": '__version__ = "0.2.11"\nX = 2\n'})
     assert _decide(repo, runs, "W", "V", ref="refs/heads/task")[0] == "full"
+
+
+# ------------------------------------------------- task 0171: Windows in two parts, lane runs while a task is built
+
+def _groups():
+    import ci_groups
+    return ci_groups
+
+
+def _plan_files(plan, key="pytest"):
+    return {f for g in plan[key] for f in g["files"].split()}
+
+
+def test_lane_plan_web3d_picks_the_web_tests_not_milling():
+    G = _groups()
+    plan = G.lane_plan(["fresing_render/blender/web3d.py"])
+    assert not plan["full"], plan["why"]
+    files = _plan_files(plan)
+    assert "tests/test_web3d.py" in files and "tests/test_machining.py" not in files and "tests/test_air.py" not in files
+    assert not plan["realapp"] and not plan["windows"] and not plan["build"]     # no milling, no installer
+    assert len(plan["pytest"]) < G.PYTEST_GROUPS
+    plan = G.lane_plan(["fresing_render/blender/ops_web3d.py"])                # ops_x: the tests of x too
+    assert "tests/test_web3d.py" in _plan_files(plan)
+
+
+def test_lane_plan_machining_picks_the_milling_real_app_group():
+    plan = _groups().lane_plan(["fresing_render/blender/machining.py"])
+    assert not plan["full"] and "tests/test_machining.py" in _plan_files(plan)
+    assert [g["name"] for g in plan["realapp"]] == ["machines"]
+    assert "tests/test_web3d.py" not in _plan_files(plan)
+
+
+@pytest.mark.parametrize("path", ["fresing_render/blender/props.py", "fresing_render/blender/ui.py",
+                                  "fresing_render/blender/tour.py", "fresing_render/pccheck/checks.py",
+                                  "tools/ci_precheck.py", ".github/workflows/tests.yml", "installer/Install.bat",
+                                  "tools/build_release.py", "fresing_render/importer/step_reader.py"])
+def test_lane_plan_shared_files_give_full(path):
+    plan = _groups().lane_plan(["fresing_render/blender/web3d.py", path])
+    assert plan["full"] and path in plan["why"][0]
+
+
+def test_lane_plan_a_file_no_test_names_gives_full():
+    name = "zz" + "_never_named"                       # built here, or this file would name it
+    plan = _groups().lane_plan([f"fresing_render/blender/{name}.py"])
+    assert plan["full"] and "named by no test" in plan["why"][0]
+
+
+def test_lane_plan_windows_code_builds_and_runs_part_a():
+    G = _groups()
+    plan = G.lane_plan(["fresing_render/core/updates.py"])
+    assert not plan["full"] and plan["build"] and [p["part"] for p in plan["windows"]] == ["a"]
+    assert [p["part"] for p in G.matrix_windows()] == ["a", "b"]
+    plan = G.lane_plan(["fresing_render/selftest.py"])
+    assert any(g["selftest"] for g in plan["pytest"])                          # the packaged self-test too
+
+
+def test_lane_plan_documents_and_test_files():
+    G = _groups()
+    plan = G.lane_plan(["docs/USER-GUIDE.md", "TASKS.md", "tasks/0171-ci-shorter-runs.md"])
+    assert not plan["full"] and "tests/test_user_guide.py" in _plan_files(plan)
+    plan = G.lane_plan(["tests/test_web3d.py"])
+    assert _plan_files(plan) == {"tests/test_web3d.py"}
+    plan = G.lane_plan(["tests/test_demo_clash_b.py"])                         # a demo file: in a demo group
+    assert not plan["pytest"] and _plan_files(plan, "demo") == {"tests/test_demo_clash_b.py"}
+    assert G.lane_plan(["TASKS.md"])["full"]                                    # nothing to run: not a lane run
+
+
+def test_lane_plan_every_group_is_valid():
+    """The lane plan's real-app groups are GROUPS' own; its pytest groups hold each picked file once."""
+    import ci_real_app
+    G = _groups()
+    plan = G.lane_plan(["fresing_render/core/clash.py"])
+    for g in plan["realapp"]:
+        assert ci_real_app.GROUPS[g["name"]] == g["tests"].split(",")
+        assert not set(g["tests"].split(",")) & G.LANE_SKIP_REALAPP
+    files = [f for k in ("pytest", "demo") for g in plan[k] for f in g["files"].split()]
+    assert len(files) == len(set(files)) and set(files) <= set(G.test_files())
+    assert all(g["minutes"] < 16 for g in plan["pytest"])
+
+
+def test_a_lane_run_proves_nothing():
+    P = _pre()
+    lane = NEW_JOBS[:-1] + [_job("Tests - verdict (lane run - not a release check)")]
+    ok, why = P.run_is_proven(_run(1), lane)
+    assert not ok and "lane run" in why
+
+
+def _lane_repo(r):
+    """main M0 (+ a web3d module and its test); the task branch changes the module, version not raised."""
+    r.commit("M1", {"fresing_render/web3d.py": "w = 1\n", "tests/test_web3d.py": "from fresing_render import web3d\n",
+                    "tests/test_other.py": "x = 1\n"})
+    r.git("checkout", "-q", "-b", "task")
+    r.commit("L1", {"fresing_render/web3d.py": "w = 2\n"})
+
+
+def test_mode_lane_while_the_version_is_not_raised(repo):
+    _lane_repo(repo)
+    runs = _Runs({repo.sha["M1"]: "green"})
+    P = _pre()
+    mode, _, why, plan = P.decide_plan("push", "refs/heads/task", repo.sha["L1"], repo.sha["M1"], "1", runs,
+                                       sleep=runs.sleep, message="Work on web3d")
+    assert mode == "lane" and "not raised" in why, why
+    assert _plan_files(plan) == {"tests/test_web3d.py"} and not plan["windows"]
+
+
+def test_mode_full_on_a_version_raise_full_run_word_main(repo):
+    _lane_repo(repo)
+    runs = _Runs({repo.sha["M1"]: "green"})
+    P = _pre()
+
+    def mode(sha, before, ref="refs/heads/task", message="x"):
+        return P.decide_plan("push", ref, repo.sha[sha], repo.sha[before], "1", runs, sleep=runs.sleep,
+                             message=message)
+
+    assert mode("L1", "M1", message="Work [full run]")[0] == "full"
+    assert mode("L1", "M1", message="Try [release rehearsal]")[0] == "full"
+    repo.commit("V", {"fresing_render/__init__.py": '__version__ = "0.2.11"\nX = 1\n',
+                      "fresing_render/blender_manifest.toml": 'version = "0.2.11"\n', "CHANGELOG.md": "c\n0.2.11\n"})
+    m, _, why, _ = mode("V", "L1")
+    assert m == "full" and "version raised" in why, why
+    repo.git("checkout", "-q", "main")
+    repo.git("merge", "-q", "--ff-only", "task")
+    assert mode("V", "M1", ref="refs/heads/main")[0] == "full"
+    assert P.decide_plan("pull_request", "refs/pull/1/merge", repo.sha["L1"], "", "1", runs,
+                         sleep=runs.sleep, message="x")[0] == "full"
+
+
+def test_workflow_runs_windows_in_parts_and_judges_lane_runs():
+    text = open(os.path.join(ROOT, ".github", "workflows", "tests.yml"), encoding="utf-8").read()
+    assert "fromJSON(needs.precheck.outputs.windows)" in text and "-Part $env:PART" in text
+    assert "lane run - not a release check" in text and "lane)  [ \"$PRE\" = \"success\" ] && lane_ok" in text
+    ps = open(os.path.join(ROOT, "tools", "ci_windows_install.ps1"), encoding="utf-8-sig").read()
+    assert '[ValidateSet("all", "a", "b")] [string]$Part = "all"' in ps
+    for part in ("a", "b"):                                   # every verdict step of the job belongs to a part
+        assert f"matrix.part.part == '{part}'" in text
