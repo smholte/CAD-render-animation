@@ -3352,6 +3352,37 @@ def _rel_from(item, slots, mats: dict) -> np.ndarray:
     return rel
 
 
+def follows_one_of(scene, item, leaders: set) -> bool:
+    """Does the cable's speed joint follow (directly or down a chain of followers) one of the joints ``leaders``?"""
+    j = joints.find(scene, item.joint) if item.joint else None
+    seen = set()
+    while j is not None and j.follows and j.name not in seen:
+        seen.add(j.name)
+        if j.follows in leaders:
+            return True
+        j = joints.find(scene, j.follows)
+    return False
+
+
+def _after_tight(scene, its, tight, can, written: set, first: int, frames: int):
+    """Task 0173 (0174's open point): after the kept-tight cables wrote their payouts, the places of the cables whose
+    speed follows one of them, read again – ({name: (F, 4, 4)}, the cables now animated) or () when there are none."""
+    later = [n for n in its if n not in tight and n in can and written and
+             follows_one_of(scene, _cable(scene, n), written)]
+    if not later:
+        return ()
+    obs = {}
+    for n in later:
+        it = _cable(scene, n)
+        for ob in [it.part] + [o for sl in _inputs_of(it)[1] for o in sl.objects()]:
+            obs[ob.name] = ob
+    flex.drop_read()                            # (what was read before the keys were written)
+    before = flex._STATE["steps"]
+    got = flex.read_places(scene, list(obs.values()), first, frames, keep_shown=False)
+    _STATE["steps"] += flex._STATE["steps"] - before
+    return got, {n for n in later if _animated(_cable(scene, n))}
+
+
 def _bake(scene) -> list[str]:
     from . import paths_rollers, paths_swivel
     from . import paths_sea as _sea
@@ -3369,8 +3400,18 @@ def _bake(scene) -> list[str]:
         _STATE["steps"] += flex._STATE["steps"] - before          # (0 when the hoses' pass had read them)
     # the swivels keyed to their wires; the places of what they carry turned along (no second pass)
     notes += paths_swivel.after_read(scene, mats, first, frames if (can and animated) else 1)
-    for n in its:
+    # task 0173: the cables kept tight first – they write their winch's payouts as keys; a cable whose speed follows
+    # such a winch (a drum's lead wire, spooled) is read again once those keys are there (it saw no payout before)
+    tight = [n for n in its if _cable(scene, n).keep_tight]
+    written: set = set()
+    again = None
+    for n in tight + [n for n in its if n not in tight]:
         it = _cable(scene, n)
+        if again is None and not it.keep_tight:
+            again = _after_tight(scene, its, tight, can, written, first, frames)
+            if again:
+                mats = {**mats, **again[0]}
+                animated = list(set(animated) | again[1])
         _wheels_, slots, _w, _a, _b = _inputs_of(it)
         if n in can:
             rel = _rel_from(it, slots, mats)
@@ -3382,6 +3423,8 @@ def _bake(scene) -> list[str]:
             rel, values = _tighten(scene, it, rel, slots, first, notes)
             if values is not None:
                 _write_tight(scene, it, values, first)
+                if len(values) > 1:
+                    written.add(it.joint)
                 if len(values) > 1 and any(sl.live and not sl.role for sl in slots):
                     # a layer follower moves a carrier with the payout (a level wind's fairlead sheave): read the
                     # places again with the keys written and work the payout out again, until it holds to TIGHT_TOL

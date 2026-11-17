@@ -36,6 +36,53 @@ def window_for(anim, callout) -> tuple[float, float] | None:
     return None
 
 
+def label_text(scene, callout) -> str:
+    """The words drawn for a label at the frame shown: its live fields filled in (task 0173), its lines broken."""
+    text = callout.text.strip()
+    if C.fields_in(text):
+        text = C.fill(text, live_values(scene, callout.part))
+    return "\n".join(C.lines(text))
+
+
+def live_values(scene, part) -> dict:
+    """The numbers a label on ``part`` can show (task 0173): when the part is a cable that hangs into the sea, its
+    numbers at the frame shown (``paths_sea.numbers``: layback, angle, tensions, water depth …) and "speed", how fast
+    its speed joint pays it out (m/min, from its keys). {} for any other part."""
+    if part is None:
+        return {}
+    try:
+        from . import paths, paths_sea
+        item = next((it for it in scene.fresing.cables if it.part == part), None)
+        if item is None or item.b_kind != "SEA":
+            return {}
+        out = dict(paths_sea.numbers(scene, item))
+        out["speed"] = payout_speed(scene, item.joint)
+        return out
+    except Exception:                       # a label never breaks a render
+        return {}
+
+
+def payout_speed(scene, joint_name: str) -> float | None:
+    """m/min (or deg/min) the joint moves at the frame shown, from the keys of the joint at the top of its chain
+    (none: 0 – it stands still)."""
+    from . import joints, paths
+    j = joints.find(scene, joint_name) if joint_name else None
+    if j is None:
+        return None
+    top, f = (j, None) if not j.follows else joints.chain_map(scene, j)
+    if top is None or top.motion is None:
+        return None
+    fc = next((c for c in paths._fcurves(top.motion) if c.data_path == joints.COUPLING_PATH), None)
+    if fc is None:
+        return 0.0
+    t = scene.frame_current + scene.frame_subframe
+    a, b = fc.evaluate(t - 0.5), fc.evaluate(t + 0.5)
+    if f is not None:
+        a, b = float(f(a)), float(f(b))
+    fps = scene.render.fps / scene.render.fps_base
+    return abs(float(b) - float(a)) * fps * 60.0
+
+
 def usable(callout) -> bool:
     return bool(callout.enabled and callout.part is not None and callout.text.strip())
 
@@ -175,8 +222,20 @@ def model_outline(scene, size, mat=None, boxes: PartBoxes | None = None) -> tupl
 # ---------------------------------------------------------------------------
 
 
+LINE_SPACE = 1.25                     # a label of several lines: the step from line to line, in font heights
+
+
 def measure(text: str, px: int, font_path: str = "") -> tuple[float, float]:
-    """Width and height in pixels of ``text`` in the label font (Blender's own or the brand kit's)."""
+    """Width and height in pixels of ``text`` in the label font (Blender's own or the brand kit's). Several lines
+    (task 0173): the widest line, and the lines' height with ``LINE_SPACE``."""
+    rows = C.lines(text)
+    if len(rows) > 1:
+        sizes = [_measure_one(r or " ", px, font_path) for r in rows]
+        return max(w for w, _h in sizes), float(px) * (1.0 + LINE_SPACE * (len(rows) - 1))
+    return _measure_one(text, px, font_path)
+
+
+def _measure_one(text: str, px: int, font_path: str = "") -> tuple[float, float]:
     try:
         import blf
         fid = 0
@@ -214,7 +273,7 @@ def draws_at(scene, size, seconds: float | None = None, anim=None, font_path: st
         a = anchor_pixel(scene, c, size, mat)
         if a is None or not (0 <= a[0] <= size[0] and 0 <= a[1] <= size[1]):
             continue                                    # the point is out of the picture
-        todo.append((c.text.strip(), a, alpha))
+        todo.append((label_text(scene, c), a, alpha))
     if not todo:
         return []
     sizes = []

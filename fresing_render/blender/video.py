@@ -266,6 +266,18 @@ def _text(strips, name: str, text: str, frames: tuple[int, int], channel: int, s
     return st
 
 
+def _lines(st, px: int) -> None:
+    """A text strip of several lines drawn as ``callouts.measure`` measured it: lines left-aligned in the block,
+    one line every ``callouts.LINE_SPACE`` font heights."""
+    from . import callouts
+    st.alignment_x = "LEFT"
+    try:
+        st.use_absolute_line_spacing = True
+        st.abs_space_line = callouts.LINE_SPACE * px
+    except (AttributeError, TypeError):
+        st.space_line = callouts.LINE_SPACE
+
+
 def _image(strips, name: str, path: str, frames: tuple[int, int], channel: int, box, canvas):
     """A picture of its own size scaled into ``box`` (x, y from the bottom-left, w, h) of the canvas."""
     first, last = frames
@@ -354,6 +366,10 @@ def _add_labels(strips, fin: Finishing, pl: brand.Plan, size, font, work_dir: st
         for j, d in enumerate(draws):
             st = _text(strips, f"label {n}.{j}", d.text, frames, CH_LABEL_TEXT + j % 80, px, text_rgb,
                        (d.box.cx / width, d.box.cy / height), font=font)
+            if "\n" in d.text:                    # several lines (task 0173): left-aligned, the box's line step
+                _lines(st, px)
+                st.anchor_x = "LEFT"
+                st.location = ((d.box.x + 0.45 * px) / width, d.box.cy / height)
             st.use_box = True
             st.box_color = (*box_rgb, 0.88)
             st.box_margin = 0.45 * px / width

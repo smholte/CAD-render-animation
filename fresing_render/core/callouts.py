@@ -26,6 +26,45 @@ CORNER_PICTURE_SIZE = 0.28            # a picture in a corner: this part of the 
 
 
 # ---------------------------------------------------------------------------
+# live numbers in a label (task 0173): a label on a cable that hangs into the sea may hold {fields}
+# ---------------------------------------------------------------------------
+
+# field -> (the key in the cable's numbers, how it is written)
+FIELDS = {"top": ("top", "{:.1f}"), "bottom": ("bottom", "{:.1f}"), "layback": ("layback", "{:.1f}"),
+          "angle": ("angle", "{:.0f}"), "depth": ("depth", "{:.0f}"), "speed": ("speed", "{:.1f}"),
+          "laid": ("laid", "{:.0f}"), "hanging": ("hanging", "{:.1f}"), "weight": ("weight", "{:.0f}")}
+_FIELD = __import__("re").compile(r"\{([a-z]+)\}")
+MISSING = "–"                          # a field the cable has no number for (yet)
+
+
+def fields_in(text: str) -> list[str]:
+    """The known fields a label's words hold, in order."""
+    return [m for m in _FIELD.findall(text or "") if m in FIELDS]
+
+
+def fill(text: str, values: dict) -> str:
+    """The label's words with every known ``{field}`` replaced by its number (``values``: the cable's numbers, as
+    ``paths_sea.numbers`` gives them, + "speed" in m/min); a field with no number reads "–", an unknown one stays as
+    typed."""
+    def one(m):
+        name = m.group(1)
+        if name not in FIELDS:
+            return m.group(0)
+        key, fmt = FIELDS[name]
+        v = values.get(key) if values else None
+        if v is None or not isinstance(v, (int, float)) or not math.isfinite(float(v)):
+            return MISSING
+        out = fmt.format(float(v))
+        return "0" + out[2:] if out.startswith("-0") and float(out) == 0.0 else out
+    return _FIELD.sub(one, text or "")
+
+
+def lines(text: str) -> list[str]:
+    """A label's lines (a label may have several: the line breaks it was typed with, or "\\n" typed in the field)."""
+    return (text or "").replace("\\n", "\n").split("\n")
+
+
+# ---------------------------------------------------------------------------
 # when is a label shown
 # ---------------------------------------------------------------------------
 

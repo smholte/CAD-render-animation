@@ -1062,7 +1062,9 @@ class FRPictureCard(bpy.types.PropertyGroup):
 class FRCallout(bpy.types.PropertyGroup):
     """A label with a line to a point on a part (task 0025)."""
     text: StringProperty(name="Text", default="Label",
-                         description="The words in the label, e.g. Gripper or Max. 25 t")
+                         description="The words in the label, e.g. Gripper or Max. 25 t. Type \\n for a new line. On a "
+                                     "cable that hangs into the sea, {top}, {bottom}, {layback}, {angle}, {depth}, "
+                                     "{speed}, {laid} and {hanging} show its numbers at every frame")
     enabled: BoolProperty(name="On", default=True, description="Switches this label on or off in the renders")
     part: PointerProperty(type=bpy.types.Object, name="Part",
                           description="The part the line points at. The point moves with the part")

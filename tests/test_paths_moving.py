@@ -278,6 +278,56 @@ def test_a_spool_drum_turns_with_the_keep_tight_payout(folder):
     assert abs(joints.get_value(drum)) > 0.2                 # 0.3 m off a drum of r ≈ 0.19 m: about a quarter turn
 
 
+def test_a_cable_following_a_kept_tight_winch_moves_at_the_first_build(folder):
+    """Task 0173 (0174's open point): a cable whose speed follows a kept-tight wire's (here the carousel's power cable
+    following the drum wire one to one) is drawn from the payouts the Build writes – at the FIRST Build, not only
+    after a re-bake: the same shapes as a re-bake, and a shape that moves along the animation."""
+    sc = load(folder, SPOOL)
+    spool.set_up_test_model(sc)
+    sc.fresing.animations.remove(sc.fresing.animations.find(spool.TEST_ANIMATION))
+    weight = named(sc, "WEIGHT")
+    m = build.model_root_of(weight).matrix_world
+    from mathutils import Vector
+    joints.create(sc, "SLIDE", [weight], m @ Vector((0.9, 0.0, 0.2)), (m.to_3x3() @ Vector((0, 0, -1))).normalized(),
+                  name="Weight down")
+    update()
+    w = paths.find(sc, "Wire")
+    assert not paths.set_keep_tight(sc, w, True)
+    pc = paths.find(sc, "Power cable")
+    joints.set_follows(sc, joints.find(sc, pc.joint), paths.find(sc, "Wire").joint, ratio=1.0)
+    assert paths.follows_one_of(sc, paths.find(sc, "Power cable"), {paths.find(sc, "Wire").joint})
+    a = sc.fresing.animations.add()
+    a.name, a.tail, a.fps = "Lower the weight", 0.0, "25"
+    b = a.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", "Weight down", 0.0, 2.0, "LINEAR"
+    b.use_from = True
+    b.to_dist = 0.3
+    r = animation.bake(sc, a)
+    assert not [t for t in r["warnings"] if "cable" in t.lower() or "Wire" in t], r["warnings"]
+    pc = paths.find(sc, "Power cable")
+    assert pc.moving
+
+    def shapes():
+        out = {}
+        for f in (sc.frame_start, 26, sc.frame_end):
+            sc.frame_set(f)
+            out[f] = paths.shape_now(sc, paths.find(sc, "Power cable")).copy()
+        return out
+    first = shapes()
+    assert len(first[sc.frame_start]) and len(first[sc.frame_end])
+    # it moves: 0.3 m come off the carousel (the drawn line's first point is on the coil)
+    pay = paths.tight_payout(sc, paths.find(sc, "Wire"))
+    assert pay == pytest.approx(0.3, abs=0.01)
+    lens = {f: float(np.linalg.norm(np.diff(v, axis=0), axis=1).sum()) for f, v in first.items()}
+    assert abs(lens[sc.frame_end] - lens[sc.frame_start]) > 0.05 or \
+        float(np.abs(first[sc.frame_end][0] - first[sc.frame_start][0]).max()) > 0.01
+    # … the same as a re-bake gives (which reads the places with the keys there already)
+    paths._motion_bake(sc)
+    again = shapes()
+    for f in first:
+        assert first[f].shape == again[f].shape and float(np.abs(first[f] - again[f]).max()) < 1e-4, f
+
+
 # ---------------------------------------------------------------------------
 # A2: the hang-off moves to the last wheel the cable still bends round
 # ---------------------------------------------------------------------------
