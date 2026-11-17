@@ -1,6 +1,6 @@
 # 0192 – Fix: a model update to the same file keeps cable routes; re-bake also redoes riding cameras; seabed follows "Vessel at work"; one-pass background re-bake (bug hunt 6, rows 1, 7, 8, 10)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0192-cable-routes-update`
+**Who:** worker · **Status:** running · **Branch:** `task/0192-cable-routes-update`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183; after 0187) · **Model:** Opus · effort Medium · **Place:**
 Claude Code on the web, environment "CAD-render-animation"
 **Area:** Flex parts lane – cables (`blender/paths.py` `_merge` / `read_cad` / `_ends`, `blender/rebake.py`,
@@ -30,6 +30,17 @@ cameras included; a sea cable's seabed moves with the vessel's real speed; the b
   Build (`flex._motion_bake` drops its kept read in `finally`); the window's job blocks 20.4 s in the final cable solve.
 - 0187 (0.2.146, done) changed the re-bake around save / undo (`flex.pause_read_for_save`, `motion_changed` after undo):
   build on it. Its open point: a file saved mid-job is right, but the re-bake is not in it.
+
+- **Added 17 Nov 21:25 (owner, 0.2.146, demo project, Solid view) – reaches the worker only if the owner pastes it:**
+  the re-bake failed with "The cables could not be worked out again (StructRNA of type Object has been removed):
+  Cables and hoses not worked out again for the new sea: the built animation was taken off. Press Build again". A
+  Python reference to an object that was deleted meanwhile. Lead's candidates (not checked): (a) the sea rebuilt
+  again (a second sea / weather / vessel-at-work change) while the job still holds the old sea's or seabed's objects;
+  (b) a save / autosave during the job – `handlers._before_save` runs `spool.web_sweep()` (0187) **before**
+  `flex.pause_read_for_save()`, so an object the read pass hid can look like a left-over drum solid; (c) Ctrl+Z during
+  the job (undo replaces every datablock). Reproduce, fix the cause (keep names, look objects up again; a job that sees
+  its objects gone starts over instead of failing), test that failed before. If the owner said what he did, start
+  there.
 
 ## Rules for this task
 
