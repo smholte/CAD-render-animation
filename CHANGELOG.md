@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.148 – 17 Nov 2026 – The 3D view sees the whole scene (task 0193)
+
+- **No more grey cut-off in the 3D view.** In the normal 3D view the far turbines, the substation and the
+  sea's far waves were cut away; only camera views saw them. Now the 3D view sees as far as the scene reaches,
+  also in projects made before (it is set when the project opens). A larger value you set yourself is kept.
+
 ## 0.2.147 – 17 Nov 2026 – Web 3D export of the demo 8x faster, and small page fixes (task 0189)
 
 - **Web 3D model with marine looks is much faster.** The small demo project took 29 minutes to export, now 3.5 minutes

@@ -181,6 +181,13 @@ def _on_load(_dummy=None):
                 props_scale.upgrade(sc)
     except Exception as exc:
         print(f"Fresing Render: props kept their old look: {exc}")
+    try:                                     # task 0193: the 3D views see the whole scene (old projects too)
+        from . import surroundings
+        for sc in bpy.data.scenes:
+            if hasattr(sc, "fresing") and (sc.fresing.model_count or surroundings.far_clip(sc) > 0):
+                surroundings.fix_view_clip(sc)
+    except Exception as exc:
+        print(f"Fresing Render: 3D view clip not set: {exc}")
     try:                                     # say so when a delayed queue start was lost with the old project
         from . import queue
         note = queue.take_note()

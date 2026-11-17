@@ -2324,6 +2324,8 @@ stays pressed.
 <a id="surroundings"></a>
 ### Background & surroundings
 
+The 3D view sees as far as the scene reaches (the sea, the wind park), so nothing far away is cut off.
+
 **Background** says where the machine stands. The list has four groups:
 
 - **Studio**: **Solid colour**, **None (transparent)** (a PNG for slides) or **Sky** (daylight with
