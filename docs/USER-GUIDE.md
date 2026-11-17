@@ -1603,12 +1603,16 @@ out as a height map instead: the lowest point the tool reached above every spot 
 - **How exact** (Detail **Normal**, a grid of 0.2 mm; all of it halves at **Fine**; a block larger than about
   0.3 × 0.4 m gets a coarser grid, the line says which):
   - surfaces and walls are within 0.03 mm of the exact cut; walls stand upright where the tool went;
-  - the fine ridges between two finishing passes are left out when they are lower than 0.012 mm: the face is
-    smooth there and shows the tool marks;
+  - the fine ridges between two finishing passes are left out when they are lower than about 0.012 mm (with
+    a Ø6 bit 0.015 mm, with a Ø10 0.026 mm: the exact cut's own many-sided bit is that much off the round one):
+    the face is smooth there and shows the tool marks;
   - the steep, rounded strip under a rim or at the foot of a wall (a ball cutting deeper than two thirds of
-    its radius, the fillet a corner-radius mill leaves) can be 0.2 mm off, and in a close-up such a wall can
-    look a little streaky where the exact cut shows even level lines;
-  - a sharp outside corner of a wall, and a rib or slot thinner than 0.4 mm, can be up to 0.3 mm off.
+    its radius, the fillet a corner-radius mill leaves, where the ramps of a flat bit start) is up to about
+    0.1 mm off, mostly less;
+  - a sharp outside corner of a wall can be up to 0.2 mm off; a rib of material left between two cuts is kept,
+    also when it is thinner than the grid;
+  - with **Finish at the CAD part**, where a finishing pass ran right on the finished part, the surface shows
+    0.0125 mm over the part (the fine ridges' height); where the bit went deeper, the part's own faces show.
 
   For a close-up of such a spot pick Detail **Fine** or untick **Fast 3-axis**: every move is then cut exactly.
 
@@ -2945,6 +2949,9 @@ line. You work for your own company and for others, so there is one kit per comp
 one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
 shared library it is in your Documents folder, under Fresing Render).
 
+The kit **Fresing** comes with the app (Fresing's logo and colours). It is always in the list of kits and cannot
+be changed or deleted: load it, give it another name and **Save kit** to make a copy of your own.
+
 1. Type a name in **Kit** (the company).
 2. **Logo**: pick the logo picture. It must be a **PNG or JPG** (a PNG with a see-through background looks
    best). A logo in another format, such as SVG, cannot be used: export it as PNG first.
@@ -2962,10 +2969,14 @@ shared library it is in your Documents folder, under Fresing Render).
 
 <img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
 
-Words across the picture, for a draft you send before the final render.
+Words or a logo across the picture, for a draft you send before the final render.
 
-1. **Words**: **DRAFT**, **CONFIDENTIAL** or **Own text**. **Size** is how tall the letters are,
-   **See-through** how strong they are (1 = solid).
+1. **Watermark**: the words **DRAFT**, **CONFIDENTIAL** or **Own text**, or a logo: **Fresing logo** or
+   **Brand kit logo** (the logo of the kit above). **Size** is how tall the letters are (for a logo: how big it
+   is), **See-through** how strong it is (1 = solid).
+   A logo has two more choices. **Place**: **Centre** (one logo in the middle), **Tiled** (a pattern of logos
+   across the whole picture, turned like the words) or a small one in a **corner**. **Logo colour**: **Colour**
+   (as it is), **White** (for dark pictures) or **Dark** (for light pictures).
 2. Switch **Watermark on the next renders** on. Every image or video you render, or add to 7 Render queue,
    while it is on gets the watermark; the job remembers it (its name says "with watermark").
 3. Switch it off again, add the same render to the queue once more, and the final comes out clean. The

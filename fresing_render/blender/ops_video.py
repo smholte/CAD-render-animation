@@ -22,6 +22,10 @@ class FRESING_OT_brand_save(bpy.types.Operator):
 
     def execute(self, context):
         s = context.scene.fresing
+        if brand.is_shipped(s.brand_name):
+            self.report({"ERROR"}, f"'{brand.SHIPPED_NAME}' is the kit that comes with the app and cannot be "
+                                   "replaced: type another name for your copy")
+            return {"CANCELLED"}
         folder, _shared, problem = video.kit_folder()
         if problem:
             self.report({"ERROR"}, problem)
@@ -49,7 +53,7 @@ class FRESING_OT_brand_load(bpy.types.Operator):
 
     def execute(self, context):
         folder, _shared, problem = video.kit_folder()
-        kit = brand.load_kit(folder, self.name)
+        kit = brand.shipped_kit() if brand.is_shipped(self.name) else brand.load_kit(folder, self.name)
         if kit is None:
             self.report({"ERROR"}, problem or f"Brand kit '{self.name}' cannot be read")
             return {"CANCELLED"}
@@ -68,7 +72,7 @@ class FRESING_OT_brand_delete(bpy.types.Operator):
     def poll(cls, context):
         folder, _shared, problem = video.kit_folder()
         name = context.scene.fresing.brand_name.strip()
-        return bool(name) and not problem and brand.load_kit(folder, name) is not None
+        return bool(name) and not brand.is_shipped(name) and not problem and brand.load_kit(folder, name) is not None
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
@@ -76,7 +80,7 @@ class FRESING_OT_brand_delete(bpy.types.Operator):
     def execute(self, context):
         folder, _shared, problem = video.kit_folder()
         name = context.scene.fresing.brand_name.strip()
-        if problem or not brand.delete_kit(folder, name):
+        if brand.is_shipped(name) or problem or not brand.delete_kit(folder, name):
             self.report({"ERROR"}, problem or "Nothing to delete")
             return {"CANCELLED"}
         self.report({"INFO"}, f"Brand kit '{name}' deleted from the library")
@@ -85,16 +89,16 @@ class FRESING_OT_brand_delete(bpy.types.Operator):
 
 class FRESING_MT_brand_kits(bpy.types.Menu):
     bl_label = "Load a kit"
-    bl_description = "The brand kits in the shared library. Pick one to fill in the logo, colours, font and contact line"
+    bl_description = "The Fresing kit that comes with the app and the brand kits in the shared library. Pick one to fill in the logo, colours, font and contact line"
 
     def draw(self, context):
         layout = self.layout
         folder, _shared, problem = video.kit_folder()
-        kits = brand.list_kits(folder)
+        kits = brand.all_kits(folder)
         if problem:
             layout.label(text=problem, icon="ERROR")
-        elif not kits:
-            layout.label(text="No saved kits yet: fill in a kit and press Save kit", icon="INFO")
+        elif len(kits) == 1:
+            layout.label(text="No kits of your own yet: fill in a kit and press Save kit", icon="INFO")
         for kit in kits:
             layout.operator("fresing.brand_load", text=kit.name, icon="BOOKMARKS").name = kit.name
 

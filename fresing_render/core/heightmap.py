@@ -55,6 +55,8 @@ import math
 
 import numpy as np
 
+from . import heightmesh as _hmesh
+
 MM = 0.001
 
 TILE = 32                         # cells along a tile's side (a power of two: the triangle hierarchy)
@@ -72,6 +74,8 @@ NODES = {"FINE": 8.0e6, "NORMAL": 3.0e6, "FAST": 1.2e6}
 CELL_MIN = 0.02 * MM
 CELLS_PER_RADIUS = 4.0            # the smallest bit's radius is at least this many cells
 RIDGE = 2.5                       # ridges between passes lower than this x the tolerance are left out of the mesh
+ROUNDED = 8.0                     # a node stays off a wall when a chord to it would miss a rounded strip by more
+#                                   than this x the tolerance (0.04 mm at Normal; task 0167)
 RIDGE_CELLS = 3                   # ... when they are narrower than about twice this many cells
 REACH = RIDGE_CELLS               # a tile's mesh reads this many nodes past its border
 PROBES = (0.125, 0.375, 0.625, 0.875)     # where on an edge the lowest move is looked for
@@ -219,90 +223,11 @@ def sweep_height(shape: Shape, ax, ay, bx, by, z0, z1, px, py, depth: bool = Fal
     return (H, Rf - np.sqrt(x * x + w2)) if depth else H
 
 
-# ---------------------------------------------------------------------------
-# the hierarchy of right triangles of one tile
-# ---------------------------------------------------------------------------
-
-_RTIN: dict = {}
-
-
-def _rtin(n: int) -> dict:
-    """The right-triangle hierarchy of a tile of ``n`` x ``n`` cells (``n`` a power of two), worked out once.
-
-    ``levels[l]`` = (a, b, c, m): node numbers (row * (n + 1) + column) of every triangle of level ``l`` - the
-    ends of its long side, its right-angled corner, the middle of the long side (None at the last level). The
-    children of triangle ``t`` are ``2 t`` and ``2 t + 1`` of the next level. ``groups[l]`` = (order, starts,
-    nodes): the triangles of a level sorted by their middle node, to take the largest value per node."""
-    hit = _RTIN.get(n)
-    if hit is not None:
-        return hit
-    p = int(round(math.log2(n)))
-    if 2 ** p != n:
-        raise ValueError("a tile has a power of two cells along its side")
-    a = np.array([[0, 0], [n, n]])
-    b = np.array([[n, n], [0, 0]])
-    c = np.array([[n, 0], [0, n]])
-    idx = lambda q: (q[:, 1] * (n + 1) + q[:, 0]).astype(np.int64)      # noqa: E731
-    levels, groups = [], []
-    for level in range(2 * p + 1):
-        last = level == 2 * p
-        m = (a + b) // 2
-        levels.append((idx(a), idx(b), idx(c), None if last else idx(m)))
-        if not last:
-            mi = idx(m)
-            order = np.argsort(mi, kind="stable")
-            nodes, starts = np.unique(mi[order], return_index=True)
-            groups.append((order, starts, nodes))
-            na, nb, nc = (np.empty((2 * len(a), 2), np.int64) for _k in range(3))
-            na[0::2], na[1::2] = c, b
-            nb[0::2], nb[1::2] = a, c
-            nc[0::2], nc[1::2] = m, m
-            a, b, c = na, nb, nc
-    t = np.arange(n + 1)
-    # the border once round, counter-clockwise seen from above (x to the right, y up)
-    ring = np.concatenate([t[:-1], t[:-1] * (n + 1) + n, n * (n + 1) + t[:0:-1], t[:0:-1] * (n + 1)])
-    hit = _RTIN[n] = dict(levels=levels, groups=groups, ring=ring, p=p,
-                          sides=(t, t * (n + 1) + n, n * (n + 1) + t, t * (n + 1)))    # bottom, right, top, left
-    return hit
-
-
-def _needed(tab: dict, P: np.ndarray, cls: np.ndarray, tol: float, forced: np.ndarray | None = None) -> np.ndarray:
-    """Which nodes of a tile the thinned-out mesh keeps: True where leaving the node out would move the surface
-    by more than ``tol`` (its distance from the middle of the long side it halves), would join two mark classes,
-    or where a node below it in the hierarchy is kept. ``forced``: nodes kept whatever their own error."""
-    levels, groups = tab["levels"], tab["groups"]
-    need = np.zeros(len(P), bool) if forced is None else forced.copy()
-    for level in range(len(groups) - 1, -1, -1):
-        a, b, _c, m = levels[level]
-        d = P[m] - 0.5 * (P[a] + P[b])
-        val = (np.einsum("ij,ij->i", d, d) > tol * tol) | (cls[a] != cls[m]) | (cls[b] != cls[m])
-        if level + 1 < len(groups):
-            below = need[levels[level + 1][3]]
-            val |= below[0::2] | below[1::2]
-        order, starts, nodes = groups[level]
-        need[nodes] |= np.logical_or.reduceat(val[order], starts)
-    return need
-
-
-def _triangles(tab: dict, need: np.ndarray) -> np.ndarray:
-    """The triangles (node numbers, counter-clockwise seen from above) of the hierarchy cut off where ``need``
-    says a long side's middle is not kept."""
-    levels = tab["levels"]
-    act = np.arange(2)
-    out = []
-    for level, (a, b, c, m) in enumerate(levels):
-        if m is None:
-            split = np.zeros(len(act), bool)
-        else:
-            split = need[m[act]]
-        done = act[~split]
-        if len(done):
-            out.append(np.stack([a[done], c[done], b[done]], axis=1))
-        act = act[split]
-        if not len(act):
-            break
-        act = np.stack([2 * act, 2 * act + 1], axis=1).reshape(-1)
-    return np.concatenate(out) if out else np.zeros((0, 3), np.int64)
+# (the hierarchy of right triangles and the strips that thin a tile: core/heightmesh.py)
+_rtin = _hmesh.rtin
+_needed = _hmesh.rtin_needed
+_triangles = _hmesh.rtin_triangles
+_PLAIN: dict = {}                 # n -> the thinning of a tile nobody cut (two triangles)
 
 
 # ---------------------------------------------------------------------------
@@ -324,16 +249,21 @@ class HeightMap:
     """The lowest point every move reached, on a grid (see the top of this file).
 
     ``x0``, ``y0``: the first node; ``cell``; ``tiles_x`` x ``tiles_y`` tiles of ``tile`` cells; ``top``: the
-    stock's highest point; ``bottom``: where the solids of ``mesh`` end (below the stock); ``tol``: how far the
-    thinned-out mesh may leave the nodes."""
+    stock's highest point; ``bottom``: where the solids of ``mesh`` end (below the stock); ``tol``: the detail
+    level's tolerance (where two surfaces meet, the fine ridges left out: ``RIDGE`` x ``tol``); ``thin``: how far
+    the thinned-out mesh may leave the nodes (at least ``tol``)."""
 
     def __init__(self, x0: float, y0: float, cell: float, tiles_x: int, tiles_y: int, top: float, bottom: float,
-                 tol: float, tile: int = TILE):
+                 tol: float, tile: int = TILE, thin: float | None = None):
         self.x0, self.y0, self.cell, self.tile = float(x0), float(y0), float(cell), int(tile)
         self.tx, self.ty = int(tiles_x), int(tiles_y)
         self.nx, self.ny = self.tx * self.tile + 1, self.ty * self.tile + 1
         self.top, self.bottom, self.tol = float(top), float(bottom), float(tol)
-        self.ridge = RIDGE * self.tol
+        self.thin = self.tol if thin is None else max(float(thin), self.tol)    # how far the thinning may go
+        self.ridge = RIDGE * self.thin
+        self.lift = RIDGE * self.tol                    # how far over the finished part a node on it goes ...
+        self.deep = 2.0 * self.lift                     # ... from this far under it (deeper: the part shows)
+        self.part = None                                # the finished part seen from above (``set_part``)
         self.uncut = self.top + PAD
         self.xs = self.x0 + np.arange(self.nx) * self.cell
         self.ys = self.y0 + np.arange(self.ny) * self.cell
@@ -349,6 +279,8 @@ class HeightMap:
         self.snapshots: dict = {}
         self.every = SNAPSHOT_MIN
         self.dirty = np.zeros((self.ty, self.tx), bool)  # tiles whose nodes changed since their mesh was made
+        self.last = np.full((self.ty, self.tx), -1, np.int64)   # the last move that can change each tile
+        self._done = np.ones((self.ty, self.tx), bool)  # tiles no move to come can change: thinned with strips
         self._own: dict = {}                            # (J, I) -> what a tile knows without its neighbours
         self._mesh: dict = {}                           # (J, I) -> [signature, serial, verts, tris, move]
         self._serial = 0
@@ -379,6 +311,13 @@ class HeightMap:
         self._patches(np.arange(n))
         per = 20.0 * self.nx * self.ny                  # bytes of one kept state
         self.every = max(SNAPSHOT_MIN, int(math.ceil(n / max(1.0, SNAPSHOT_BYTES / per))))
+        # the last move that can change each tile (task 0167: until then it is thinned the quick way)
+        self.last = np.full((self.ty, self.tx), -1, np.int64)
+        t, r = self.tile, REACH
+        for q, (i0, i1, j0, j1) in enumerate(self.patch[:n].tolist()):
+            if i1 > i0 and j1 > j0:
+                self.last[max(0, (i0 - 1 - r) // t):min(self.ty, (i1 - 1 + r) // t + 1),
+                          max(0, (j0 - 1 - r) // t):min(self.tx, (j1 - 1 + r) // t + 1)] = q
         self.reset()
 
     def _patches(self, q) -> None:
@@ -506,6 +445,11 @@ class HeightMap:
             if len(diff):
                 (r0, c0), (r1, c1) = diff.min(axis=0), diff.max(axis=0) + 1
                 self._overlay.append((i0 + r0, i0 + r1, j0 + c0, j0 + c1, tuple(a[r0:r1, c0:c1] for a in keep)))
+        done = self.last < self.k
+        changed = done != self._done
+        if changed.any():                               # (a tile that is finished, or no longer, is thinned anew)
+            self.dirty |= changed
+            self._done = done
         self.stats["seconds_stamp"] += time.perf_counter() - t0
 
     # -- heights of given moves at given points --------------------------------
@@ -600,6 +544,7 @@ class HeightMap:
                 mate[ni, nj, 1] = -9 if wall is None else wall[3][u]
 
         wtol = max(tol, 1e-6)
+        places = []                                     # (task 0167) every place found on an edge, see the end
         for ei, ej, fi, fj, length in families:
             first, second = ow[ei, ej], ow[fi, fj]
             # -- two moves: a wall, a rim, a crease -------------------------------------------------------
@@ -639,9 +584,18 @@ class HeightMap:
                     px, py = x0 + s * dx, y0 + s * dy
                     z = self.height_of(pa, px, py)
                     z = np.where(np.isfinite(z), z, np.minimum(za[sel], zb[sel]))
-                    put(A[0], A[1], px, py, z, s * length, s <= 0.5)
-                    put(B[0], B[1], px, py, z, (1.0 - s) * length, s > 0.5)
-                sel = np.flatnonzero((fa ^ fb) | (crease & ~same))
+                    # (task 0167: where the two passes would cross above the block's top, a strip of the top is
+                    # left between them - two rims, below; else they cross at the ridge)
+                    low_ = z < self.top
+                    put(A[0], A[1], px, py, z, s * length, low_ & (s <= 0.5))
+                    put(B[0], B[1], px, py, z, (1.0 - s) * length, low_ & (s > 0.5))
+                    rimmed = np.zeros(len(k), bool)
+                    rimmed[np.flatnonzero(ridge)[~low_]] = True
+                else:
+                    rimmed = np.zeros(len(k), bool)
+                # (neither surface reaching the other node: something lies between them - the top, a rib)
+                only_nn = (~fa & ~fb) & ~((fa ^ fb) | (crease & ~same) | rimmed)
+                sel = np.flatnonzero((fa ^ fb) | (crease & ~same) | rimmed | (~fa & ~fb))
                 if len(sel):
                     # A wall, a rim, the edge of another tool's cut. The surface between the two nodes is the lowest
                     # of ALL the moves that reach it - not only the two that own the nodes: the pass next door often
@@ -666,7 +620,7 @@ class HeightMap:
                     # The candidates: A's and B's moves, and whichever move is the lowest at one of a few places
                     # on the edge - of all the moves whose footprint reaches the edge, also those that own no
                     # node (a step of a roughed wall is often narrower than a cell).
-                    C = [pa, pb]
+                    C = [pa, pb, np.full(n, -1, np.int64)]          # (-1: the block's top nobody cut)
                     if len(moves):
                         r0, r1 = np.minimum(gi[Ai], gi[Bi]), np.maximum(gi[Ai], gi[Bi])
                         c0, c1 = np.minimum(gj[Aj], gj[Bj]), np.maximum(gj[Aj], gj[Bj])
@@ -711,16 +665,55 @@ class HeightMap:
                     hA = np.where(one & ~wall, low, zA)
                     hB = np.where(one & ~wall, low, zB)
                     there = (ua < 1.0 - 1e-3) | (ub > 1e-3)      # (else: nothing changes between the two)
+                    # (task 0167: both lowest over a stretch - two passes on one floor, equally deep: nothing meets
+                    # there; taken for a crease halfway, it pulled a node off its place with a wall on a grid line)
+                    there &= ~(ub < ua - 0.02)
+                    # (an edge whose surfaces both end before the other node is a rib only when something
+                    # higher than both nodes lies between them - else two passes on one floor)
+                    nn = only_nn[sel]
+                    if nn.any():
+                        hmid = heights(C, np.full((n, 1), 0.5)).min(axis=2)[:, 0]
+                        there &= ~nn | (hmid > np.maximum(za[sel], zb[sel]) + tol)
                     # a crease takes one node: the higher one (at a rim: the node on the uncut top, which has
                     # nothing to lose; the node in the cut keeps its place on the steep face), unless the crease
                     # is right next to the lower one
                     a_goes = np.where(za[sel] >= zb[sel], mid <= 0.8, mid < 0.2)
                     # (a wall is the flank of the lower of the two moves)
                     whose = (np.where(one & wall, np.where(zA <= zB, pa, pb), -1), np.minimum(zA, zB))
-                    put(Ai, Aj, x0 + uA * dx, y0 + uA * dy, hA, uA * length, there & (~one | wall | a_goes),
-                        whose + (Bi, Bj))
-                    put(Bi, Bj, x0 + uB * dx, y0 + uB * dy, hB, (1.0 - uB) * length,
-                        there & (~one | wall | ~a_goes), whose + (Ai, Aj))
+                    # task 0167: a node stays where it is when its own surface is rounded between it and the
+                    # place it would go to (a corner radius' fillet, the flank of a ball, under a wall or a rim) -
+                    # also seen from the node before it on the same line: moved, it would cut the rounded strip
+                    # off. The place then is a vertex of its own on the edge (``_lost``). (A vertex halfway as well
+                    # came closer still, but drew a saw-tooth in the shading.)
+                    wantA = there & (~one | wall | a_goes)
+                    wantB = there & (~one | wall | ~a_goes)
+                    pxA, pyA, pxB, pyB = x0 + uA * dx, y0 + uA * dy, x0 + uB * dx, y0 + uB * dy
+                    rndA = self._rounded(pa, Ai, Aj, Bi, Bj, pxA, pyA, hA, hw, ow, gx, gy, ROUNDED * self.tol)
+                    rndB = self._rounded(pb, Bi, Bj, Ai, Aj, pxB, pyB, hB, hw, ow, gx, gy, ROUNDED * self.tol)
+                    rndA &= wantA
+                    rndB &= wantB
+                    # (task 0167: along a cell's diagonal a node does not go onto the other node itself - a wall
+                    # exactly on a line of the grid: that node's neighbour along the line puts the wall there,
+                    # and two nodes moved onto one place gave the wall's faces twice, some turned over)
+                    if length > 1.2 * c:
+                        wantA_ = wantA & (uA < 1.0 - 1e-3)
+                        wantB_ = wantB & (uB > 1e-3)
+                    else:
+                        wantA_, wantB_ = wantA, wantB
+                    put(Ai, Aj, pxA, pyA, hA, uA * length, wantA_ & ~rndA, whose + (Bi, Bj))
+                    put(Bi, Bj, pxB, pyB, hB, (1.0 - uB) * length, wantB_ & ~rndB, whose + (Ai, Aj))
+                    # the places wanted on this edge: each node's, and halfway to a place a node left alone
+                    # (a place a node did not take is kept only when the node stayed because its surface is
+                    # rounded, at a rim on the uncut top, or on an edge where neither surface reaches the other
+                    # node - a rib of top between them; not elsewhere: at the corners of walls and at creases
+                    # between two cuts more vertices folded the walls)
+                    rib = (~fa & ~fb)[sel] | rimmed[sel] | (one & ~wall & ((pa < 0) | (pb < 0)))
+                    no = np.zeros(len(pa), bool)
+                    places.append((Ai, Aj, Bi, Bj, pxA, pyA, hA, np.where(wantA & (rndA | rib), pa, -9), uA,
+                                   rndA, rib & ~rndA))
+                    places.append((Ai, Aj, Bi, Bj, pxB, pyB, hB, np.where(wantB & (rndB | rib), pb, -9), uB,
+                                   rndB, rib & ~rndB))
+
             # -- one move with a kink in its own surface (the bottom line of a V-groove) -----------------
             if not kinked.any():
                 continue
@@ -752,7 +745,165 @@ class HeightMap:
         # (a wall whose other node is one of this tile's own is in the tile's surface; else it is the tile's side)
         last = self.tile + 1
         inner = (mate[:, :, 0] >= 1) & (mate[:, :, 0] <= last) & (mate[:, :, 1] >= 1) & (mate[:, :, 1] <= last)
-        return X, Y, Z, flank, np.where(inner, np.inf, foot)
+        extra = self._lost(places, X, Y, Z, gx, gy)
+        return X, Y, Z, flank, np.where(inner, np.inf, foot), extra
+
+    def _rounded(self, q, Ai, Aj, Bi, Bj, px, py, pz, hw, ow, gx, gy, tol) -> np.ndarray:
+        """Whether node A's own surface (move ``q``) is rounded between A and the place (px, py, pz) it would go
+        to on the edge A - B, or between the node before A on that line and the place (more than ``tol`` off the
+        straight line halfway). Not on the finished part (the map lies over it there and the part's faces decide,
+        ``_lift``), nor where the place is the node's own."""
+        xa, ya = gx[Ai, Aj], gy[Ai, Aj]
+        hown = self.height_of(q, 0.5 * (xa + px), 0.5 * (ya + py))
+        cut = q >= 0
+        out = cut & np.isfinite(hown) & (np.abs(hown - 0.5 * (hw[Ai, Aj] + pz)) > tol)
+        Pi, Pj = 2 * Ai - Bi, 2 * Aj - Bj
+        inw = (Pi >= 0) & (Pi < hw.shape[0]) & (Pj >= 0) & (Pj < hw.shape[1])
+        Pi, Pj = np.clip(Pi, 0, hw.shape[0] - 1), np.clip(Pj, 0, hw.shape[1] - 1)
+        h2 = self.height_of(q, 0.5 * (gx[Pi, Pj] + px), 0.5 * (gy[Pi, Pj] + py))
+        out |= cut & inw & (ow[Pi, Pj] == q) & np.isfinite(h2) & (np.abs(h2 - 0.5 * (hw[Pi, Pj] + pz)) > tol)
+        out &= (np.abs(px - xa) + np.abs(py - ya)) > 1e-3 * self.cell
+        if self.part is not None:
+            pv = self._part_at(xa, ya)
+            out &= ~(np.isfinite(pv) & (hw[Ai, Aj] < pv + 3.0 * self.lift))
+        return out
+
+    @staticmethod
+    def _lost(places, X, Y, Z, gx, gy) -> tuple:
+        """The places found on edges that no node took (task 0167): the second rim of a strip of top narrower
+        than two cells (each node went to one rim), the foot of a wall above a rounded strip (its node stayed).
+        Each becomes a vertex of its own on its edge: (a, b, xyz, move, u, on_line) - the edge's two nodes
+        (window row, column pairs), the place, the move whose surface it lies on, how far along from ``a``
+        (0 .. 1), and whether both nodes still lie on the edge with the place between them."""
+        if not places:
+            return None
+        cols = [np.concatenate(c) for c in zip(*places)]
+        Ai, Aj, Bi, Bj, px, py, pz, q, u, foot, pin = cols
+        want = (q > -9) & np.isfinite(pz)
+        tiny = 1e-9
+        # the foot of a wall over a rounded strip next to a node of its edge that stands on the wall over it
+        # (moved there along another edge): right under that node, so the wall between them stands upright
+        cell = float(np.hypot(gx[0, 1] - gx[0, 0], gy[1, 0] - gy[0, 0])) / math.sqrt(2.0)
+        for i, j in ((Ai, Aj), (Bi, Bj)):
+            d = np.hypot(X[i, j] - px, Y[i, j] - py)
+            under = want & foot & (d > tiny) & (d < 0.1 * cell) & (Z[i, j] > pz + 1e-6)
+            px = np.where(under, X[i, j], px)
+            py = np.where(under, Y[i, j], py)
+        for i, j in ((Ai, Aj), (Bi, Bj)):
+            at = (np.abs(X[i, j] - px) < tiny) & (np.abs(Y[i, j] - py) < tiny) & (np.abs(Z[i, j] - pz) < 1e-8)
+            want &= ~at
+        # ... only where both nodes still lie on the edge, the place between them (a node moved off the edge
+        # along another one would make the triangles round the vertex fold)
+        ex, ey = gx[Bi, Bj] - gx[Ai, Aj], gy[Bi, Bj] - gy[Ai, Aj]
+        L2 = ex * ex + ey * ey
+        ua = ((X[Ai, Aj] - gx[Ai, Aj]) * ex + (Y[Ai, Aj] - gy[Ai, Aj]) * ey) / L2
+        ub = ((X[Bi, Bj] - gx[Ai, Aj]) * ex + (Y[Bi, Bj] - gy[Ai, Aj]) * ey) / L2
+        off_a = np.abs((X[Ai, Aj] - gx[Ai, Aj]) * ey - (Y[Ai, Aj] - gy[Ai, Aj]) * ex) / np.sqrt(L2)
+        off_b = np.abs((X[Bi, Bj] - gx[Ai, Aj]) * ey - (Y[Bi, Bj] - gy[Ai, Aj]) * ex) / np.sqrt(L2)
+        on_line = (off_a < tiny) & (off_b < tiny) & (ua <= u + 1e-6) & (u <= ub + 1e-6)
+        if not want.any():
+            return None
+        k = np.flatnonzero(want)
+        a = np.stack([Ai[k], Aj[k]], axis=1)
+        b = np.stack([Bi[k], Bj[k]], axis=1)
+        xyz = np.stack([px[k], py[k], pz[k]], axis=1)
+        # the same place found twice (a node's edge seen from both families of a cell): once
+        key = np.round(np.concatenate([np.minimum(a, b), np.maximum(a, b)], axis=1).astype(float), 0)
+        key = np.concatenate([key, np.round(xyz / 1e-9)], axis=1)
+        _u, first = np.unique(key, axis=0, return_index=True)
+        first = np.sort(first)
+        return a[first], b[first], xyz[first], q[k][first], u[k][first], on_line[k][first], pin[k][first]
+
+    def set_part(self, top: np.ndarray) -> None:
+        """The finished part seen from above (task 0167): per node the height of its highest point there (``-inf``
+        where it is not), in the map's frame. See ``_lift``."""
+        self.part = np.asarray(top, float).reshape(self.ny, self.nx)
+        self.dirty[:] = True
+        self._own.clear()
+        self._mesh.clear()
+
+    def _extras(self, extra, t: int) -> tuple:
+        """The extra vertices ``_snap`` found (``_lost``) that belong to this tile (both ends of their edge in it):
+        (edges (k, 2) node numbers of the tile - a vertex on an edge that already has one lies on the piece from
+        the vertex before it, numbered ``(t + 1)² + j`` -, (xyz (k, 3), move (k,))) or (None, None)."""
+        if extra is None:
+            return None, None
+        a, b, xyz, q, u, on_line, pin = extra
+        a, b = a - 1, b - 1                             # (window -> tile)
+        ok = (a >= 0).all(axis=1) & (a <= t).all(axis=1) & (b >= 0).all(axis=1) & (b <= t).all(axis=1)
+        # (on the tile's border both tiles must decide alike: only where the nodes stayed on the edge)
+        border = (((a[:, 0] == 0) & (b[:, 0] == 0)) | ((a[:, 0] == t) & (b[:, 0] == t)) |
+                  ((a[:, 1] == 0) & (b[:, 1] == 0)) | ((a[:, 1] == t) & (b[:, 1] == t)))
+        ok &= on_line | ~border
+        if not ok.any():
+            return None, None
+        a, b, xyz, q, u = a[ok], b[ok], xyz[ok], q[ok], u[ok]
+        border, pin = border[ok], pin[ok]
+        n = t + 1
+        na, nb = a[:, 0] * n + a[:, 1], b[:, 0] * n + b[:, 1]
+        # one edge's vertices in order from its first node
+        lo, hi = np.minimum(na, nb), np.maximum(na, nb)
+        uu = np.where(na <= nb, u, 1.0 - u)
+        order = np.lexsort((uu, hi, lo))
+        lo, hi, xyz, q = lo[order], hi[order], xyz[order], q[order]
+        # (a rim on the block's top lies where the uncut nodes lie, a hair over the top)
+        on_top = xyz[:, 2] >= self.top - 1e-9
+        xyz = np.column_stack([xyz[:, :2], np.where(on_top, self.uncut, xyz[:, 2])])
+        q = np.where(on_top, -1, q)
+        if self.part is not None:
+            pv = self._part_at(xyz[:, 0], xyz[:, 1])
+            z, _l = self._lifted(xyz[:, 2], pv, np.isfinite(pv) & (q >= 0))
+            xyz = np.column_stack([xyz[:, :2], z])
+        start = lo.copy()
+        same = np.zeros(len(lo), bool)
+        same[1:] = (lo[1:] == lo[:-1]) & (hi[1:] == hi[:-1])
+        idx = n * n + np.arange(len(lo))
+        start[same] = idx[np.flatnonzero(same) - 1]
+        # (each one's place in the grid, for ``heightmesh.insert_points``)
+        ra, rb = np.stack(np.divmod(lo, n), axis=1), np.stack(np.divmod(hi, n), axis=1)
+        param = ra + uu[order][:, None] * (rb - ra)
+        return np.stack([start, hi], axis=1), (xyz, q.astype(np.int64), border[order], param, pin[order])
+
+    def _part_at(self, X, Y):
+        """The finished part's height under places (the four nodes round each: the highest)."""
+        c, part = self.cell, self.part
+        j = np.clip(np.floor((X - self.x0) / c).astype(np.int64), 0, self.nx - 2)
+        i = np.clip(np.floor((Y - self.y0) / c).astype(np.int64), 0, self.ny - 2)
+        return np.maximum(np.maximum(part[i, j], part[i, j + 1]), np.maximum(part[i + 1, j], part[i + 1, j + 1]))
+
+    def _lift(self, X, Y, Z, ow, foot) -> tuple:
+        """Cut nodes that lie on the finished part, close over it or less than ``deep`` under it, go ``lift`` over
+        it (task 0167; ``_lifted``). Where a finishing pass ran over the part, the map's surface and the
+        part's lie within micrometres of each other - the thinned map a little under the part on every rounded
+        face, a little over it at every crest between two passes - and joining two such surfaces ("Finish at the
+        CAD part") made a mass of slivers: 34,000 triangles more on the toolpath test model. Lifted, the map lies
+        over the part there and the part's faces stay inside; they show where the bit went clearly deeper. What
+        the bit left thinner than ``lift`` (no more than the fine ridges left out anyway) shows as ``lift``.
+        Returns (Z, foot, lifted)."""
+        c, part = self.cell, self.part
+        fj, fi = (X - self.x0) / c, (Y - self.y0) / c
+        j = np.clip(np.floor(fj).astype(np.int64), 0, self.nx - 2)
+        i = np.clip(np.floor(fi).astype(np.int64), 0, self.ny - 2)
+        # the part under the node: at a node of the grid its own value, at a node moved onto a wall or a rim the
+        # highest of the four round it (the part is never above the lifted surface)
+        pv = np.maximum(np.maximum(part[i, j], part[i, j + 1]), np.maximum(part[i + 1, j], part[i + 1, j + 1]))
+        on = (np.abs(fj - np.rint(fj)) < 1e-6) & (np.abs(fi - np.rint(fi)) < 1e-6)
+        ri = np.clip(np.rint(fi).astype(np.int64), 0, self.ny - 1)
+        rj = np.clip(np.rint(fj).astype(np.int64), 0, self.nx - 1)
+        pv = np.where(on, part[ri, rj], pv)
+        ok = np.isfinite(pv)
+        Z, lifted = self._lifted(Z, pv, ok & (ow >= 0))
+        foot, _l = self._lifted(foot, pv, ok & np.isfinite(foot))
+        return Z, foot, lifted
+
+    def _lifted(self, Z, pv, ok) -> tuple:
+        """``Z`` over the part ``pv``: the part's height + ``lift`` where the map is less than ``lift`` over it or
+        under it (but not ``deep`` under it). (Moving the map's own shape up by ``lift`` there instead kept 3 %
+        more triangles on the toolpath test model.)"""
+        up = self.lift
+        d = Z - pv
+        lifted = ok & (d < up) & (d > -self.deep)
+        return np.where(lifted, pv + up, Z), lifted
 
     def _moves_at(self, r0: int, r1: int, c0: int, c1: int) -> np.ndarray:
         """The moves stamped so far (and the half-done ones) whose footprint reaches rows r0 .. r1, columns
@@ -799,15 +950,44 @@ class HeightMap:
         if not self.active[J, I]:                       # nothing cut here or next to it
             hit = dict(serial=self._serial, need=None)
         else:
-            X, Y, Z, flank, foot = self._snap(hw, sw, gi, gj, self._moves_at(gi[0], gi[-1], gj[0], gj[-1]))
+            X, Y, Z, flank, foot, extra = self._snap(hw, sw, gi, gj, self._moves_at(gi[0], gi[-1], gj[0], gj[-1]))
+            sunk = None
+            if self.part is not None:
+                Z, foot, sunk = self._lift(X, Y, Z, ow, foot)
+            # (task 0167: nothing in the block's top plane itself - a face lying in it beside the block's own top
+            # face got slivers of the top named after a move: what is on the top lies where the uncut nodes lie)
+            Z = np.where(np.abs(Z - self.top) < 1e-9, self.uncut, Z)
             P = np.stack([X[1:-1, 1:-1], Y[1:-1, 1:-1], Z[1:-1, 1:-1]], axis=-1).reshape(-1, 3)
             o = own.reshape(-1)
             cls = np.where(o >= 0, self.cls[np.maximum(o, 0)], -1)
+            edges, ex = self._extras(extra, t)
             Q = P.copy()                                # the nodes as they are judged: without the fine ridges
-            Q[:, 2] -= self._ridges(J, I).reshape(-1)
-            need = _needed(self.tab, Q, cls, self.tol)
-            hit = dict(serial=self._serial, need=need, P=P, Q=Q, owner=o.copy(), cls=cls,
-                       flank=flank[1:-1, 1:-1].reshape(-1).copy(), foot=foot[1:-1, 1:-1].reshape(-1).copy())
+            ridges = self._ridges(J, I).reshape(-1)
+            if sunk is not None:                        # (lifted over the part: its shape, no ridges)
+                ridges = np.where(sunk[1:-1, 1:-1].reshape(-1), 0.0, ridges)
+            Q[:, 2] -= ridges
+            n = t + 1
+            # (the ends of a rib's edge are kept, so the rib's second rim goes into that very edge; the other extra
+            # vertices go into whatever triangle holds them - keeping all their edges cost 10,000 more triangles
+            # on the toolpath test model)
+            pins = _hmesh.pins_of(edges[ex[4]], n) if edges is not None and ex[4].any() else None
+            strips = _hmesh.own(P.reshape(n, n, 3), Q.reshape(n, n, 3), cls.reshape(n, n), self.thin,
+                                strips=bool(self._done[J, I]) and edges is None, pins=pins)
+            need = strips["need"]
+            flank, foot = flank[1:-1, 1:-1].reshape(-1).copy(), foot[1:-1, 1:-1].reshape(-1).copy()
+            if edges is not None:                       # (the extra vertices after the nodes)
+                strips["edges"] = edges
+                exyz, eq, eborder, eparam, epin = ex
+                strips["edges_border"] = eborder
+                strips["eparam"] = eparam
+                strips["einsert"] = exyz[:, 2] < self.top - 1e-7      # (into a triangle only under the top)
+                o = np.concatenate([o, eq])
+                cls = np.concatenate([cls, np.where(eq >= 0, self.cls[np.maximum(eq, 0)], -1)])
+                P = np.concatenate([P, exyz])
+                flank = np.concatenate([flank, np.full(len(eq), -1, flank.dtype)])
+                foot = np.concatenate([foot, np.full(len(eq), np.inf)])
+            hit = dict(serial=self._serial, need=need, strips=strips, P=P, Q=Q, owner=o.copy(), cls=cls,
+                       flank=flank, foot=foot)
         self._own[key] = hit
         return hit
 
@@ -853,22 +1033,34 @@ class HeightMap:
             owner = np.full(n * n, -1, np.int64)
             cls = flank = owner
             wall_foot = np.full(n * n, np.inf)
-            need = _needed(tab, P, cls, self.tol, forced) if forced is not None else np.zeros(n * n, bool)
+            strips = _PLAIN.get(n)
+            if strips is None:                          # (two triangles, the same in every such tile)
+                strips = _PLAIN[n] = _hmesh.own(P.reshape(n, n, 3), P.reshape(n, n, 3), np.reshape(cls, (n, n)), 1.0)
         else:
             P, owner, cls, flank, wall_foot = me["P"], me["owner"], me["cls"], me["flank"], me["foot"]
-            need = me["need"] if forced is None else _needed(tab, me["Q"], cls, self.tol, forced)
-        tri = _triangles(tab, need)
+            strips = me["strips"]
+        tri, need = _hmesh.triangles(strips, forced, P)
         z = P[:, 2][tri]
         low = tri[np.arange(len(tri)), np.argmin(z, axis=1)]
         o = owner[low]
+        # (a level triangle - a floor - can be long: it takes the move that owns the node under its middle)
+        level = (z.max(axis=1) - z.min(axis=1)) < 1e-7
+        if level.any():
+            cen = P[tri[level]].mean(axis=1)
+            ci = np.clip(np.rint((cen[:, 1] - self.ys[J * self.tile]) / self.cell), 0, n - 1).astype(np.int64)
+            cj = np.clip(np.rint((cen[:, 0] - self.xs[I * self.tile]) / self.cell), 0, n - 1).astype(np.int64)
+            oc = owner[ci * n + cj]
+            o[level] = np.where(oc >= 0, oc, o[level])
         move = np.where(o >= 0, self.tag[np.maximum(o, 0)], -1)
-        used = np.zeros(n * n, bool)
+        used = np.zeros(len(P), bool)
         used[tri.reshape(-1)] = True
         new = np.cumsum(used) - 1
         top = P[used]
         nt = len(top)
         ring = tab["ring"]
         ring = ring[used[ring]]                         # the border once round, the kept nodes only
+        if strips.get("eparam") is not None and len(P) > n * n:    # (extra vertices on the border: in the ring)
+            ring = self._ring_extras(ring, strips["eparam"], used, n)
         nb = len(ring)
         nxt = np.roll(np.arange(nb), -1)
         # Where a wall runs along the border, the border's nodes are on the wall and the tile's side there IS the
@@ -887,11 +1079,16 @@ class HeightMap:
         x0, y0, x1, y1 = self.box(J, I)
         verts = np.concatenate([top, mid, base, [[0.5 * (x0 + x1), 0.5 * (y0 + y1), self.bottom]]])
         fm, fb = nt + np.arange(nb), nt + nb + np.arange(nb)
+        # (where no wall stands the foot is the node itself: the piece between them has no area and is left out)
+        fm = np.where(is_top, fm, ring)
         upper = np.concatenate([np.stack([ring, fm, fm[nxt]], axis=1), np.stack([ring, fm[nxt], ring[nxt]], axis=1)])
+        uside = np.concatenate([side, side])
+        whole = (upper[:, 0] != upper[:, 1]) & (upper[:, 1] != upper[:, 2]) & (upper[:, 0] != upper[:, 2])
+        upper, uside = upper[whole], uside[whole]
         lower = np.concatenate([np.stack([fm, fb, fb[nxt]], axis=1), np.stack([fm, fb[nxt], fm[nxt]], axis=1)])
         floor = np.stack([np.full(nb, nt + 2 * nb), fb[nxt], fb], axis=1)
         tris = np.concatenate([new[tri], upper, lower, floor]).astype(np.int32)
-        move = np.concatenate([move, side, side, np.full(2 * nb + len(floor), -2, np.int64)])
+        move = np.concatenate([move, uside, np.full(2 * nb + len(floor), -2, np.int64)])
         self._serial += 1
         out = [sig, self._serial, verts, tris, move, len(tri)]
         self._mesh[(J, I)] = out
@@ -899,11 +1096,82 @@ class HeightMap:
         self.stats["seconds_mesh"] += time.perf_counter() - t0
         return tuple(out[1:5])
 
+    @staticmethod
+    def _ring_extras(ring: np.ndarray, eparam: np.ndarray, used: np.ndarray, n: int) -> np.ndarray:
+        """The ring of border nodes with the extra vertices on the border put in, by their place along it."""
+        nn, m = n * n, n - 1
+
+        def along(r, c):
+            """The place along the border, counter-clockwise from the corner (0, 0); nan off the border."""
+            out = np.full(np.shape(r), np.nan)
+            e = 1e-9
+            out = np.where(np.abs(c - 0) < e, 3 * m + (m - r), out)
+            out = np.where(np.abs(r - m) < e, 2 * m + (m - c), out)
+            out = np.where(np.abs(c - m) < e, m + r, out)
+            out = np.where(np.abs(r - 0) < e, c, out)
+            return np.where(out >= 4 * m - 1e-9, out - 4 * m, out)
+        rr, cc = np.divmod(ring, n)
+        pos = along(rr.astype(float), cc.astype(float))
+        ex = np.flatnonzero(used[nn:nn + len(eparam)])
+        if not len(ex):
+            return ring
+        ep = along(eparam[ex, 0], eparam[ex, 1])
+        on = np.isfinite(ep)
+        if not on.any():
+            return ring
+        ids = np.concatenate([ring, nn + ex[on]])
+        key = np.concatenate([pos, ep[on]])
+        # (the ring starts at its first node: keep that start)
+        key = np.where(key < pos[0] - 1e-9, key + 4 * m, key)
+        return ids[np.argsort(key, kind="stable")]
+
     def surface(self, J: int, I: int) -> tuple:     # noqa: E741
         """Only the top of ``mesh``: (verts, tris, move)."""
         _s, v, t, m = self.mesh(J, I)
         keep = np.arange(len(t)) < self._mesh[(J, I)][5]
         return v, t[keep], m[keep]
+
+
+def top_of(verts: np.ndarray, tris: np.ndarray, xs: np.ndarray, ys: np.ndarray, budget: int = 4_000_000):
+    """The highest point of a triangle mesh above every node of a grid (``xs`` columns, ``ys`` rows; the mesh in
+    the same frame, z up): (len(ys), len(xs)), ``-inf`` where it is not. Faces that stand upright are skipped
+    (their neighbours give their edges)."""
+    out = np.full(len(ys) * len(xs), -np.inf)
+    p = np.asarray(verts, float)[np.asarray(tris, np.int64)]
+    a, b, c = p[:, 0], p[:, 1], p[:, 2]
+    den = (b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (c[:, 0] - a[:, 0]) * (b[:, 1] - a[:, 1])
+    ok = np.abs(den) > 1e-16
+    p, a, b, c, den = p[ok], a[ok], b[ok], c[ok], den[ok]
+    if not len(p):
+        return out.reshape(len(ys), len(xs))
+    x0, y0, cx, cy = xs[0], ys[0], xs[1] - xs[0], ys[1] - ys[0]
+    j0 = np.clip(np.ceil((p[:, :, 0].min(axis=1) - x0) / cx - 1e-9), 0, len(xs)).astype(np.int64)
+    j1 = np.clip(np.floor((p[:, :, 0].max(axis=1) - x0) / cx + 1e-9) + 1, 0, len(xs)).astype(np.int64)
+    i0 = np.clip(np.ceil((p[:, :, 1].min(axis=1) - y0) / cy - 1e-9), 0, len(ys)).astype(np.int64)
+    i1 = np.clip(np.floor((p[:, :, 1].max(axis=1) - y0) / cy + 1e-9) + 1, 0, len(ys)).astype(np.int64)
+    nj, ni = np.maximum(j1 - j0, 0), np.maximum(i1 - i0, 0)
+    cnt = nj * ni
+    order = np.argsort(cnt)
+    start = 0
+    while start < len(order):                           # (in batches of at most ``budget`` node-triangle pairs)
+        cum = np.cumsum(cnt[order[start:]])
+        stop = start + max(1, int(np.searchsorted(cum, budget, side="right")))
+        sel = order[start:stop]
+        start = stop
+        k = cnt[sel]
+        if not k.sum():
+            continue
+        t = np.repeat(sel, k)
+        r = np.arange(int(k.sum())) - np.repeat(np.cumsum(k) - k, k)
+        jj = j0[t] + r % nj[t]
+        ii = i0[t] + r // nj[t]
+        x, y = xs[jj], ys[ii]
+        l1 = ((x - a[t, 0]) * (c[t, 1] - a[t, 1]) - (c[t, 0] - a[t, 0]) * (y - a[t, 1])) / den[t]
+        l2 = ((b[t, 0] - a[t, 0]) * (y - a[t, 1]) - (x - a[t, 0]) * (b[t, 1] - a[t, 1])) / den[t]
+        inside = (l1 >= -1e-9) & (l2 >= -1e-9) & (l1 + l2 <= 1.0 + 1e-9)
+        z = a[t, 2] + l1 * (b[t, 2] - a[t, 2]) + l2 * (c[t, 2] - a[t, 2])
+        np.maximum.at(out, (ii * len(xs) + jj)[inside], z[inside])
+    return out.reshape(len(ys), len(xs))
 
 
 # ---------------------------------------------------------------------------

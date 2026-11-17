@@ -42,6 +42,29 @@ def _logo_path(s) -> str:
     return p if p and os.path.isfile(p) and p.lower().endswith(brand.LOGO_TYPES) else ""
 
 
+def brand_dir() -> str:
+    """The folder of the logo pictures that ship with the extension."""
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "brand")
+
+
+def watermark_logo(s) -> str:
+    """Full path of the picture a logo watermark uses ('' = words, or the logo cannot be found)."""
+    if s.wm_kind == "FRESING_LOGO":
+        p = os.path.join(brand_dir(), brand.SHIPPED_LOGO)
+        return p if os.path.isfile(p) else ""
+    if s.wm_kind == "KIT_LOGO":
+        return _logo_path(s)
+    return ""
+
+
+def _wm_fields(s, on: bool) -> dict:
+    """The watermark part of a Finishing: words or a logo (never both)."""
+    if not on:
+        return {}
+    return {"watermark": watermark_words(s), "watermark_size": s.wm_size, "watermark_opacity": s.wm_opacity,
+            "wm_logo_file": watermark_logo(s), "wm_place": s.wm_place, "wm_tint": s.wm_tint}
+
+
 def _kit_fields(s) -> dict:
     return {"color1": brand.linear_to_hex(s.brand_color1), "color2": brand.linear_to_hex(s.brand_color2),
             "font": bpy.path.abspath(s.brand_font) if s.brand_font else "", "end_text": s.brand_contact}
@@ -77,8 +100,7 @@ def finishing_for_animation(scene, anim, watermark: bool = False) -> Finishing:
         logo_corner=anim.fin_logo, logo_file=logo, logo_size=anim.fin_logo_size,
         title_on=anim.fin_title_on, title=anim.fin_title, subtitle=anim.fin_subtitle,
         title_seconds=anim.fin_title_seconds, end_on=anim.fin_end_on, end_seconds=anim.fin_end_seconds,
-        captions_on=anim.fin_captions or bool(change_captions(anim, scene)), watermark=watermark_words(s) if watermark else "",
-        watermark_size=s.wm_size, watermark_opacity=s.wm_opacity, **_kit_fields(s))
+        captions_on=anim.fin_captions or bool(change_captions(anim, scene)), **_wm_fields(s, watermark), **_kit_fields(s))
 
 
 def finishing_for_still(scene, watermark: bool = False) -> Finishing:
@@ -90,8 +112,7 @@ def finishing_for_still(scene, watermark: bool = False) -> Finishing:
     draws = callouts.draws_at(scene, size, None, None, kit["font"]) if s.callouts_on else []
     return Finishing(label_track={1: draws} if draws else {}, label_px=C.font_px(size[1], s.callout_size),
                      logo_corner=s.still_logo, logo_file=_logo_path(s), logo_size=s.still_logo_size,
-                     watermark=watermark_words(s) if watermark else "", watermark_size=s.wm_size,
-                     watermark_opacity=s.wm_opacity, **_kit_fields(s))
+                     **_wm_fields(s, watermark), **_kit_fields(s))
 
 
 def steps_of(anim) -> list[tuple[str, float, float]]:
@@ -481,7 +502,80 @@ def build_sequence(enc, files: list[str], size: tuple[int, int], fps: int, fin: 
             st.transform.rotation = WATERMARK_ANGLE
         except (AttributeError, TypeError):
             pass
+    if fin.wm_logo_file and not fin.watermark:
+        _logo_watermark(strips, fin, (1, pl.total), size, fin.label_dir or tempfile.mkdtemp(prefix="fr_wm_"))
     return pl
+
+
+def _load_rgba(path: str, max_w: int = 0):
+    """(H, W, 4) float32 pixels of a picture, top row first, straight colours; scaled to ``max_w`` wide when
+    it is wider (a logo of 2400 px needs no more than the picture it goes on)."""
+    import numpy as np
+    img = bpy.data.images.load(path, check_existing=False)
+    try:
+        img.colorspace_settings.name = "Non-Color"
+        try:
+            img.alpha_mode = "STRAIGHT"
+        except (AttributeError, TypeError):
+            pass
+        w, h = int(img.size[0]), int(img.size[1])
+        if max_w and w > max_w:
+            img.scale(max_w, max(1, round(h * max_w / w)))
+            w, h = int(img.size[0]), int(img.size[1])
+        a = np.empty(w * h * 4, np.float32)
+        img.pixels.foreach_get(a)
+    finally:
+        bpy.data.images.remove(img)
+    return a.reshape(h, w, 4)[::-1].copy()
+
+
+def _logo_watermark(strips, fin: Finishing, frames: tuple[int, int], size, work: str) -> None:
+    """The logo as a watermark (task 0176): one picture strip, on top of everything. Centre and corners use the
+    logo (tinted when asked); tiled makes one picture of tiles that covers the picture when turned by 25 degrees."""
+    import numpy as np
+    width, height = size
+    lw, lh = _image_size(fin.wm_logo_file)
+    place = fin.wm_place if fin.wm_place in brand.WM_PLACES else "CENTRE"
+    os.makedirs(work, exist_ok=True)
+    if place == "TILED":
+        w, h, cw, ch = brand.tile_cell(width, lw, lh, fin.watermark_size)
+        logo = brand.tint_rgba(_load_rgba(fin.wm_logo_file, max_w=2 * w), fin.wm_tint)
+        # scale the logo to its cell size with Blender (a plain strip scale would blur a 2x-bigger picture)
+        small = _scaled(logo, w, h)
+        cwid, chei = brand.tile_canvas_size(width, height)
+        tiles = brand.tile_pixels(np.clip(small * 255.0 + 0.5, 0, 255).astype(np.uint8), cw, ch, cwid, chei)
+        path = os.path.join(work, "watermark_tiles.png")
+        brand.write_png(path, tiles)
+        box = ((width - cwid) // 2, (height - chei) // 2, cwid, chei)
+    else:
+        path = fin.wm_logo_file
+        if fin.wm_tint != "COLOUR":
+            px = brand.tint_rgba(_load_rgba(path), fin.wm_tint)
+            path = os.path.join(work, "watermark_logo.png")
+            brand.write_png(path, np.clip(px * 255.0 + 0.5, 0, 255).astype(np.uint8))
+        box = brand.wm_logo_box(place, width, height, lw, lh, fin.watermark_size)
+    st, _ = _image(strips, "watermark logo", path, frames, CH_WATERMARK, box, size)
+    st.blend_alpha = max(0.0, min(1.0, fin.watermark_opacity))
+    if place == "TILED":
+        try:
+            st.transform.rotation = WATERMARK_ANGLE
+        except (AttributeError, TypeError):
+            pass
+
+
+def _scaled(px, w: int, h: int):
+    """Pixels (H, W, 4) resized to ``w`` x ``h`` by Blender (the same resampling as its image scale)."""
+    import numpy as np
+    img = bpy.data.images.new("fr_wm_scale", px.shape[1], px.shape[0], alpha=True, float_buffer=True)
+    try:
+        img.colorspace_settings.name = "Non-Color"
+        img.pixels.foreach_set(np.ascontiguousarray(px[::-1], dtype=np.float32).ravel())
+        img.scale(w, h)
+        a = np.empty(w * h * 4, np.float32)
+        img.pixels.foreach_get(a)
+    finally:
+        bpy.data.images.remove(img)
+    return a.reshape(h, w, 4)[::-1].copy()
 
 
 # ---------------------------------------------------------------------------
@@ -491,7 +585,7 @@ def build_sequence(enc, files: list[str], size: tuple[int, int], fps: int, fin: 
 
 def finish_picture(path: str, fin: Finishing, file_type: str = "PNG") -> None:
     """Put the logo and the watermark on a finished picture file (in place)."""
-    if not (fin.logo_on or fin.watermark or fin.label_track):
+    if not (fin.logo_on or fin.watermark or fin.wm_logo_file or fin.label_track):
         return
     img = bpy.data.images.load(path, check_existing=False)
     try:
@@ -511,6 +605,7 @@ def finish_picture(path: str, fin: Finishing, file_type: str = "PNG") -> None:
         only = Finishing(logo_corner=fin.logo_corner, logo_file=fin.logo_file, logo_size=fin.logo_size,
                          color1=fin.color1, color2=fin.color2, font=fin.font, watermark=fin.watermark,
                          watermark_size=fin.watermark_size, watermark_opacity=fin.watermark_opacity,
+                         wm_logo_file=fin.wm_logo_file, wm_place=fin.wm_place, wm_tint=fin.wm_tint,
                          label_track=fin.label_track, label_px=fin.label_px, label_dir=work)
         build_sequence(enc, [path], size, 1, only)
         enc.frame_start = enc.frame_end = 1
@@ -605,7 +700,7 @@ def kit_from_settings(s) -> brand.BrandKit:
 
 def load_into_settings(s, folder: str, kit: brand.BrandKit) -> None:
     s.brand_name = kit.name
-    s.brand_logo = brand.logo_path(folder, kit)
+    s.brand_logo = brand.logo_path(brand_dir() if brand.is_shipped(kit.name) else folder, kit)
     s.brand_color1 = brand.rgb_linear(kit.color1)
     s.brand_color2 = brand.rgb_linear(kit.color2, brand.DEFAULT_COLOR_2)
     s.brand_font = kit.font

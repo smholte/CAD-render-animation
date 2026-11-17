@@ -1663,7 +1663,7 @@ class FRMilling(bpy.types.PropertyGroup):
                     "as a finishing program from CAM, is worked out as a height map: seconds instead of minutes. "
                     "V-bits and drills, side cuts, tilted and rotary moves and short programs are cut exactly as "
                     "before. Switch off to cut every move exactly: with the map, sharp outside corners of walls "
-                    "and steep rounded flanks can be 0.1 to 0.3 mm off at Detail Normal (half at Fine)")
+                    "can be up to 0.2 mm off and steep rounded flanks up to 0.1 mm at Detail Normal (half at Fine)")
     enabled: BoolProperty(
         name="Cut material", default=True, update=_mill_enabled_changed,
         description="Material disappears where the bits cut. Off: the workpiece shows as it came from CAD "
@@ -3793,14 +3793,34 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                                     "while this is on. Each queued job remembers it, so you can send a draft and "
                                     "render the final without watermark")
     wm_kind: EnumProperty(name="Watermark", default="DRAFT",
-                          description="The words across the picture: DRAFT, CONFIDENTIAL or your own text",
+                          description="What goes across the picture: the words DRAFT or CONFIDENTIAL, your own text, "
+                                      "the Fresing logo or the logo of your brand kit",
                           items=[("DRAFT", "DRAFT", "The word DRAFT"),
                                  ("CONFIDENTIAL", "CONFIDENTIAL", "The word CONFIDENTIAL"),
-                                 ("CUSTOM", "Own text", "Your own words")])
+                                 ("CUSTOM", "Own text", "Your own words"),
+                                 ("FRESING_LOGO", "Fresing logo", "The Fresing logo as a picture"),
+                                 ("KIT_LOGO", "Brand kit logo", "The logo of the brand kit you use, as a picture")])
     wm_text: StringProperty(name="Own text", default="PREVIEW",
                             description="Your own watermark words (used when Watermark is set to Own text)")
     wm_size: FloatProperty(name="Size", default=0.12, min=0.03, max=0.4, precision=2, step=1,
-                           description="How tall the watermark letters are, as a part of the picture height")
+                           description="How big the watermark is: the letter height as a part of the picture "
+                                       "height, or for a logo its size (the default 0.12 gives a logo about a third "
+                                       "of the picture wide in the centre)")
+    wm_place: EnumProperty(name="Place", default="CENTRE",
+                           description="Where a logo watermark goes: in the centre, tiled across the whole picture "
+                                       "or small in a corner. Words always go across the picture",
+                           items=[("CENTRE", "Centre", "One logo in the middle of the picture"),
+                                  ("TILED", "Tiled", "Many logos in a pattern across the whole picture, turned like the words"),
+                                  ("TL", "Top left", "Small, in the top left corner"),
+                                  ("TR", "Top right", "Small, in the top right corner"),
+                                  ("BL", "Bottom left", "Small, in the bottom left corner"),
+                                  ("BR", "Bottom right", "Small, in the bottom right corner")])
+    wm_tint: EnumProperty(name="Logo colour", default="COLOUR",
+                          description="The colour of a logo watermark: its own colours, all white (for dark pictures) "
+                                      "or all dark (for light pictures)",
+                          items=[("COLOUR", "Colour", "The logo as it is"),
+                                 ("WHITE", "White", "The whole logo white"),
+                                 ("DARK", "Dark", "The whole logo dark grey")])
     wm_opacity: FloatProperty(name="See-through", default=0.25, min=0.05, max=1.0, precision=2, step=5,
                               description="How strong the watermark is: 1 = solid, 0.25 = see-through (the default)")
 

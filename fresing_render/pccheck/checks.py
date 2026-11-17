@@ -2942,7 +2942,21 @@ def video_finishing(ctx):
     centre = (slice(h // 4, 3 * h // 4), slice(w // 6, 5 * w // 6))
     _check(float(np.abs(b - a)[centre].max()) > 0.06, "the watermark is not on the picture")
     ctx.picture(out[True], "finishing", "Logo and watermark (processor, draft)")
-    return "logo and watermark on the picture"
+    # task 0176: the Fresing logo as the watermark, tiled across the picture and in the centre
+    s.wm_kind, s.wm_opacity, s.wm_tint, s.wm_size = "FRESING_LOGO", 1.0, "WHITE", 0.1
+    logos = {}
+    for place in ("TILED", "CENTRE"):
+        s.wm_place = place
+        job = {"id": f"pcl{place}", "kind": "STILL", "shot": "", "camera": "", "quality": "draft",
+               "out_dir": os.path.join(ctx.work, "finishing"), "label": "PC check", "watermark": True}
+        logos[place] = runner.read_pixels(queue.run_job(scene, job, lambda *a: None, lambda: False))
+    for place, pic in logos.items():
+        _check(float(np.abs(pic - a)[centre].max()) > 0.06, f"the Fresing logo ({place.lower()}) is not on the picture")
+    edge = (slice(0, h // 5), slice(0, w // 5))
+    _check(float(np.abs(logos["TILED"] - a)[edge].max()) > 0.06, "the tiled logo does not reach the corner")
+    _check(float(np.abs(logos["CENTRE"] - a)[edge].max()) < 0.02, "the centre logo is in the corner")
+    ctx.picture_pixels(logos["TILED"], "finishing_logo", "Fresing logo watermark, tiled (processor, draft)")
+    return "logo, watermark words and the Fresing logo watermark on the picture"
 
 
 def _mill_scene(ctx, scale: float = 1.0, x_mm: float = 50.0):

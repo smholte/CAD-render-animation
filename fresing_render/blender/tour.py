@@ -795,7 +795,15 @@ def _check_finishing(scene):
     from . import video
     _check(video.captions_of(a, scene), "no captions")
     _check(bool(video._logo_path(scene.fresing)), "the brand kit's logo file is missing")
-    return "title, end card, captions, logo"
+    s = scene.fresing
+    was = s.wm_kind
+    try:                                      # task 0176: the Fresing logo is there as a watermark choice
+        s.wm_kind = "FRESING_LOGO"
+        fin = video.finishing_for_still(scene, True)
+    finally:
+        s.wm_kind = was
+    _check(bool(fin.wm_logo_file) and not fin.watermark, "the Fresing logo watermark file is missing")
+    return "title, end card, captions, logo, Fresing logo watermark"
 
 
 def _labels_on(scene):
