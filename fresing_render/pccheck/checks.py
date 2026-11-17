@@ -3989,7 +3989,7 @@ def queue_time_test(ctx):
     return job.message
 
 
-@line("app.layout", "The Fresing panel always comes back (layout on open, Live preview kept, header button)", "0.2.149",
+@line("app.layout", "The Fresing panel always comes back (layout on open, Live preview kept, header button)", "0.2.150",
       what="Checks the header button, the operator that shows the Fresing panel and the stored Live preview choice")
 def app_layout(ctx):
     import bpy

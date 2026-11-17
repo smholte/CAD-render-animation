@@ -370,7 +370,7 @@ fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", but
 fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
    button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
 fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="VIEW3D_HT_header",
-   button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.149")
+   button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.150")
 
 
 # ---------------------------------------------------------------------------

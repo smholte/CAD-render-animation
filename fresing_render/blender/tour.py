@@ -3867,7 +3867,7 @@ stop("panel_back", OUT, HUB_SET, "Fresing panel always back",
      "the right end of the 3D view's header. Click it: the side panel is back on the Fresing tab and the button "
      "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab with Blender's "
      "toolbar folded. Live preview stays on or off as you left it when you go to another test tour project.",
-     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.149",
+     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150",
      shot="Tour view", check=_check_panel_back, auto=lambda ctx, scene, st: "")
 
 # ---------------------------------------------------------------------------

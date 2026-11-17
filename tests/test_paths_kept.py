@@ -187,7 +187,7 @@ def test_one_route_only_works_out_again_when_the_motion_changed(folder, monkeypa
     sc = moving_scene(folder)
     build_it(sc)
     calls = []
-    monkeypatch.setattr(paths, "_bake", lambda scene: calls.append(scene.name) or [])
+    monkeypatch.setattr(paths, "_bake_steps", lambda scene, notes: iter(calls.append(scene.name) or [1.0]))
     vessel_motion.follow(sc, force=False)       # the surroundings checked, nothing changed
     assert calls == []
     sc.fresing.weather["vessel_speed"] = 5.0    # (no callback)

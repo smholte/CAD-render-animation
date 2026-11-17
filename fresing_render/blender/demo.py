@@ -972,6 +972,7 @@ def make_wires(d: Demo):
     item = paths.find(sc, AR_ITEM)
     with flex._quiet(item.contacts[k]):
         item.contacts[k].wrap_cad = 0.0
+        item.contacts[k].wrap_user = True               # (kept by every reading: a model update, task 0192)
         item.contacts[k].turns = False                  # (it turns only while the wire runs over it: the lowering's steps)
     if joints.find(sc, PULLEY_TURN).follows:
         joints.set_follows(sc, joints.find(sc, PULLEY_TURN), "")

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.149 – 17 Nov 2026 – The app's window stays yours, the Fresing panel always comes back (task 0198)
+## 0.2.150 – 17 Nov 2026 – The app's window stays yours, the Fresing panel always comes back (task 0198)
 
 - **Every project opens in the app's layout.** Your own project, the test tour, the demo and an older
   version's project all show the side panel on the Fresing tab with Blender's toolbar folded. Your own view
@@ -14,6 +14,25 @@ installer of that version was built from.
   stays off, also after a restart. A project of your own opens as you saved it.
 - **A "Fresing" button at the right end of the 3D view's header** brings the side panel back when it is
   hidden or another tab is open. It shows only then. New test tour stop "Fresing panel always back".
+
+## 0.2.149 – 17 Nov 2026 – Cables: model update keeps routes, re-bake also redoes riding cameras, seabed follows Vessel at work
+
+- **Model update with the same file changes nothing in the cables.** A contact you took off a cable's list stays off
+  (also after an update to a changed file); "From CAD cable again" still brings it back. On the demo, an update of the
+  vessel with its own file followed by Build now gives exactly the saved animation – before, the A&R wire came out
+  74.9 m long instead of 2.8 m ("cannot go round HANDLER TOP PULLEY"), the tipping wires got back a bend the demo had
+  taken off and the lay data label showed 32.3 instead of 32.0 m.
+- **The re-bake after a sea change no longer fails with "StructRNA of type Object has been removed"** (seen on the
+  demo in 0.2.146). It happened when the sea, the weather or the vessel was changed again while the cables were still
+  being worked out again. Now the job finishes and then runs once more for the newest setting.
+- **A camera that rides on a part, flies a path or keeps a part in the middle** is worked out again with the cables
+  after a change of the sea or the vessel motion (before: it kept the old sea's heave, up to 1.5 m off on the demo).
+- **The seabed under a cable into the sea sails at the vessel's own speed:** 5 Scene & Render > Vessel at work
+  (Ahead at the vessel speed; 0 when the vessel lies still) and its steps in a video – with Weather & time on or off.
+  Before, it sailed at the Weather & time speed even when the vessel lay still, and not at all with Weather & time off.
+  A new speed after a Build with such steps takes the built animation off (press Build again).
+- In scripts and the render queue a sea change works the cables out in one pass (before: two or three); the window's
+  job redraws between the cables.
 
 ## 0.2.148 – 17 Nov 2026 – The 3D view sees the whole scene (task 0193)
 

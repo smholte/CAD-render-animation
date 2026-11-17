@@ -545,9 +545,25 @@ def follow(scene, force: bool = True) -> None:
     ``force`` False (the surroundings were made again, Weather & time changed): only when the motion really differs
     from the one they were built with (``motion_key``). Cables that do not reach the sea keep their shapes in their
     own coordinates and need nothing."""
-    from . import flex, paths
-    flex.motion_changed(scene, force=force)
-    paths.motion_changed(scene, force=force)
+    from . import flex, paths, rebake
+    with rebake.gathered():                     # (the background: one pass for all of them, task 0192)
+        flex.motion_changed(scene, force=force)
+        paths.motion_changed(scene, force=force)
+        cameras_changed(scene, force=force)
+
+
+def cameras_changed(scene, force: bool = True) -> None:
+    """Task 0192 (bug hunt 6 row 7): camera steps that ride on a part, fly a path or keep a part in the middle were
+    worked out for the old motion: their keys are taken again (with the hoses and cables when they are too)."""
+    from . import camera_path, rebake
+    if not scene.fresing.anim_baked or not rebake.moving_cameras(scene):
+        return
+    if not force and not moved_since(scene, camera_path.MOTION_KEY, seabed=False):
+        return
+    if bpy.app.background:
+        rebake.background(scene, "cameras", force)
+    else:
+        rebake.request(scene, "cameras", force)
 
 
 hoses_follow = follow                    # (its name before task 0137)
@@ -555,14 +571,19 @@ hoses_follow = follow                    # (its name before task 0137)
 
 def motion_key(scene, seabed: bool = True) -> str:
     """What decides how the deck and the seabed move (task 0137): the vessel rig's settings (sea state, heading,
-    strength, bow, wind, the still/level picks; '' with vessel motion off) and, with ``seabed``, Weather & time's
-    vessel speed (it moves only the seabed)."""
+    strength, bow, wind, the still/level picks; '' with vessel motion off) and, with ``seabed``, the speed the seabed
+    sails at (``paths_sea.bed_key``: Vessel at work's, or its keyed steps; it moves only the seabed)."""
     try:
         v = rig("vessel") if effective(scene) else None
     except Exception:
         v = None
-    w = getattr(scene.fresing, "weather", None)
-    speed = round(float(w.vessel_speed), 4) if seabed and w is not None and w.enabled else 0.0
+    speed = 0.0
+    if seabed:                           # the seabed sails at Vessel at work's speed or its keyed steps (task 0192)
+        from . import paths_sea
+        try:
+            speed = paths_sea.bed_key(scene)
+        except Exception:
+            speed = 0.0
     return json.dumps([str(v.get("fr_key", "")) if v is not None else "", speed])
 
 
