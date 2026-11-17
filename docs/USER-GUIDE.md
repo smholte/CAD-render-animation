@@ -2721,7 +2721,9 @@ the machine himself, or for your website.
    measure between planes, read a hole's diameter and measure centre to centre ([Measure](#web3d-tools)); about a
    tenth more file.
 4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
-   (meshopt), about **half the file**; the page opens it as before, also offline. Smaller models are not packed:
+   (meshopt), about **half the file**; the page opens it as before, also offline. Since 0.2.142 the motion is packed
+   too: each part keeps only the moments a straight blend cannot give (every frame stays within 0.1 mm and 0.05° of
+   the app), and the moving cables store how much they moved from one moment to the next. Smaller models are not packed:
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
    Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
 5. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
@@ -2733,6 +2735,11 @@ the machine himself, or for your website.
    **Cancel** or Esc stops it, and then nothing is saved.
 7. The line under the button shows the file size ("compressed" when it was packed), the number of triangles, the number of pictures and the time.
    **Open page** opens it in your web browser; **Show in folder** shows the files.
+
+**File size.** The page holds the model packed (the browser unpacks it as it opens), so the
+page is about as big as the `.glb`, not a third bigger. Pictures are saved as WebP where that is smaller and as
+faithful as JPG (every current browser reads WebP); a part that is in the project twice with the same shape is stored
+once. Pages exported before stay as they were; export again to get the smaller page. SIZE_NUMBERS
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
