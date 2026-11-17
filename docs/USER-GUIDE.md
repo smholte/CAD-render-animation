@@ -3695,7 +3695,9 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   **Winch keeps it tight** on: the A&R wire comes off its winch drum (the drum turns as it pays out), runs along the
   deck to the eye at the top of the D's curve and over the handler's top pulley once the handler tilts; the tipping
   wires come up the swivel posts, over their sheaves to the D's bottom corners (shown once they are connected).
-  The winches pay out exactly what the D's motion needs.
+  The winches pay out exactly what the D's motion needs. Every winch drum holds its wire rope in layers (4 Motion >
+  Drums and carousels): the two **tipping winches** have narrow drums (fleet angle 1.7°), and their drum wire pays out
+  what the tipping wire takes – its speed follows the tipping wire's one to one.
 - **The wind park:** nine turbines on monopiles in three rows – 1.2 km apart along a row, 1.5 km between the rows –
   and an offshore substation between the rows (a jacket on piles, three decks under cladding, a helideck, a crane,
   J-tubes up to its cable deck, a boat landing). The turbines are sized from the IEA 15 MW reference turbine's public
@@ -3710,6 +3712,13 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   **WTG 06**. The park is scenery: the model's size, the floor and vessel motion still measure the vessel.
   **Lights:** red aviation lights on every nacelle and yellow marine lights on the platforms and the substation's
   corners flash together; the substation's floodlights burn steadily.
+- **The ROV:** an invented work-class ROV (its own model, **DEMO ROV**, file demo_rov.step) hovers 2.5 m over the
+  seabed, 8 m to the side of the touch-down, its camera and two lights on it; its propellers turn. It is **Still**
+  for vessel motion (it flies on its own thrusters), and its tether is a hose (4 Motion > Hoses and drag chains) from
+  its bend restrictor to the transom, so it follows the vessel's heave. It is there while the cable is laid (shots
+  1–8b) and gone from shot 9 on.
+- **The cable** weighs 38 kg/m in water (Ø 200 mm, the heavy end of real power cables): at the 32 m layback it
+  leaves horn A at 68°, with about 7 kN at the seabed and 19 kN at the top.
 - **Second end:** the cable's last stretch with its CPS (pull head shackled at the D's bar end), round the D's
   gutter, aft over horn A into the sea – shown from shot 9, when the lay has reached the cable's end.
 - **CPS from the rack:** the set on the rack's top shelf next to the orange ramp rides on a hidden line, the cable
@@ -3728,7 +3737,10 @@ folder "model" with the STEP files the app drew. Making it again replaces the de
   squeezing, then X-ray with labels, a close-up of a winch's
   **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, then **into the sea** (shot 8):
 from above the stern quarter, through the cut-away, the cable hangs from horn A down to the seabed 30 m below
-(touch-down 32 m behind the horn) and pays out at 10 m/min while the seabed passes aft. The **park from above**
+(touch-down 32 m behind the horn) and pays out at 10 m/min (surface lay) while the seabed passes aft; the ROV watches
+the touch-down, and a **Lay data** box (a label on the cable with live numbers, see [Labels](#labels)) shows the top
+and bottom tension, the layback, the departure angle, the lay speed and the water depth as a lay supervisor sees
+them. The **park from above**
 (shot 8a, × 30 time-lapse): the vessel lays on through the rows, the substation beyond. Then a **CPS set from the
 rack** (shot 8b, × 15 time-lapse): it slides tail first down the orange ramp and the curved slide onto side B, runs
 round the D and down side A, stops before tensioner 2 and runs back until its pull head is at the D's bar end – its
@@ -3741,10 +3753,11 @@ gutter to its far end, the end that points the way the cable lies, and bends dow
 the cable and its CPS are let go and lie on the seabed (11); the D comes back up, onto the handler, the handler tilts back and the D travels back to its
 place, the tensioners close (12). Last, **the park at night** (shot 13): a Weather & time step to Night shift, turbine
 WTG 06 beside the vessel, the red and yellow lights flashing together across the park. The rotors and propellers
-turn all the time. The captions say where it runs faster than real. Click **Build & play**, or put it in the render
+turn all the time. The captions say where it runs faster than real (the handler's tilt in shots 9 and 12 too:
+× 30), and shot 5 names the tensioner (15–20 t class) and the cable (Ø 200 mm, MBR 3.5 m). Click **Build & play**, or put it in the render
 queue.
 
-The labels of the X-ray step also show in
+The labels of the X-ray step and the Lay data box also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
 

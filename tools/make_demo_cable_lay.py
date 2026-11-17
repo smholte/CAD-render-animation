@@ -23,6 +23,8 @@ Files (AP214, part names and colours, mm, waterline z = 0, transom at x = 0, x t
                                the quay tower with its arch, the cable from it onto side A's highway
   demo_park.step               the wind park round the vessel (task 0166, its own coordinates: park.py): nine
                                turbines, the offshore substation, the cable's first end from turbine A's J-tube
+  demo_rov.step                the work-class ROV at the touch-down with its tether to the transom (task 0173, its
+                               own coordinates: rov.py; its station in the vessel's coordinates in the route sheet)
   demo_cable_route.json        the cable's centrelines (the oval, the end at the core, the CPS slide, the quay
                                route), what they lie on, sheaves, tracks, ropes, quadrant, arch, CPS store, quay,
                                the park (its turbines, the substation, the first end's piece)
