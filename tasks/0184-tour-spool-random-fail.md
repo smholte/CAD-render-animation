@@ -1,6 +1,6 @@
 # 0184 – The test tour's `spool` stop fails at random on GitHub: find the cause and fix it
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0184-tour-spool-random`
+**Who:** worker · **Status:** running · **Branch:** `task/0184-tour-spool-random`
 **Started by:** lead chat, 17 Nov 2026 (open point of 0171, 0173 and 0179) · **Lane:** Flex (`core/paths.py`,
 `blender/paths.py`, `blender/spool.py` and their tests; `tour.py` only for this stop's set-up)
 **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"

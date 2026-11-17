@@ -11,6 +11,24 @@ order in `TASKS.md`); the lead re-reads this brief and the panels as they are th
 
 **Lead note 14 Nov 2026 – interactive learning (study 0123):** the owner wants this overhaul and the learning modes (Show me / Build it yourself on the test models, the guide inside the app) to work as one. Before this task starts the lead adds 0123's results here: the families come from the one function list (registry), and the shared panel helpers get the hook that lets a lesson highlight a button and open its folds. The modes themselves are built after this task.
 
+**Lead note 17 Nov 2026 – highlight looks (owner's pick from 0168):** `button C + D, section 5 + 4, part 3 + 1,
+colour Fresing Green`. The hook builds **both looks of each pair** behind one setting (Preferences, "Lesson highlight"),
+the first named as default; the owner settles each pair on his RTX 3090 and the lesson build tasks drop the other.
+Take the code from branch `claude/practical-heisenberg-jm99vr` (`fresing_render/blender/lesson.py`, on top of 0133's) –
+**only these six looks**, not the other 23.
+- **Button C** (spotlight: rest of the side panel dimmed, the button clear with a thin outline) – default. As clipped,
+  C also dims the Lesson panel and greys its *Do it for me*: build it with the **Lesson panel left clear** (look M's
+  two markers already do this) unless the owner says otherwise.
+- **Button D** (bar on the button's left edge, button tinted, breathing) – check the white label on the tint stays
+  readable at Windows display scaling 100–200 %.
+- **Section 5** (header label in the colour, fold arrow nods slowly) – default · **Section 4** (bar on the header's
+  left edge).
+- **Part 3** (rest faded, the part clear in its own colour) – default · **Part 1** (see-through glow).
+- **Colour** stays one setting (`lesson.set_colour`), default Fresing Green `#479B29`; the text card's accent follows
+  it. Breaths at 1.5 s as in 0168 (loops join at 3 s), never faster than 1 per second.
+- On one button of a joined pair (0133's fix); costs on the crane were 0.05–1.25 ms per redraw – measure part 3 and 1
+  once on the demo (1,250 parts).
+
 **Lead note 17 Nov 2026 – workspaces (owner's document "UI workspace presets & adaptive usage tracker"):** the
 built-in sets of point 1 become **workspaces** for target groups (the owner's word; the panel says "Workspace"), with
 one switcher at the top of the Fresing tab, remembered per project, and a user default for new projects. Each

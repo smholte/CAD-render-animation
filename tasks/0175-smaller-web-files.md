@@ -1,6 +1,6 @@
 # 0175 – Smaller web 3D files: animation keys packed and bounded, the model packed inside the page, WebP pictures
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0175-smaller-web-files`
+**Who:** worker · **Status:** running · **Branch:** `task/0175-smaller-web-files`
 **Started by:** lead chat, 17 Nov 2026 (study 0149, proposals 1–3) · **Lane:** Web 3D (`core/web3d.py`,
 `blender/web3d.py`, `core/meshopt.py`, `fresing_render/web/`, their tests)
 **Model:** Opus · effort Medium · **Place:** Claude Code on the web, environment "CAD-render-animation"
