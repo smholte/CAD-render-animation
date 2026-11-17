@@ -285,6 +285,11 @@ fresing_render/            the Blender extension (Python package)
                            angles, lofted skin, face without a likeness, hands, shoes, outfits; heights 1.65/1.75/1.85, put
                            on the floor after posing – and the detailed container, pallet, barrier, IBC, gas rack, tool
                            trolley; every prop in DETAILED and LIGHT; ``Loft`` shape in surroundings.py)
+                           lifting.py (lifting plans, task 0182: the checks C1–C9 of study 0180 – crane use at the
+                           chart's next longer radius, sling legs 2-leg / 3–4-leg rigid, WLLs, outriggers + mats, crawler
+                           tracks, forklift load centre, offshore DAF, upending – each a `Result` with inputs, formula,
+                           status ok / amber / red / not_checked; load charts: lookup, validation, units; `Limits`
+                           75 % / 90 % / 90 %; the plan's words, never "safe"; SI inside: kg, m, N, Pa)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
