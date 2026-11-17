@@ -1,6 +1,6 @@
 # 0190 – Lifting L2: the equipment library (own equipment as files, chart entry, sample mark)
 
-**Who:** worker · **Status:** running · **Branch:** `claude/upbeat-dijkstra-fs5i47` (the web session's branch)
+**Who:** worker · **Status:** done (no release) · **Branch:** `claude/upbeat-dijkstra-fs5i47` (the web session's branch)
 **Started by:** lead chat, 17 Nov 2026 (study 0180, task split L2) · **Model:** Opus · effort Medium · **Place:** Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** Lifting lane – new `fresing_render/core/lifting_library.py`, `tests/test_lifting_library.py` (+ an independent
@@ -64,14 +64,14 @@ samples can never lose their "SAMPLE" mark. Plain Python, no Blender – L4 puts
 
 ## Done when
 
-- [ ] `core/lifting_library.py` with format, folders, read / write / upgrade, CSV + table chart entry, sample mark,
+- [x] `core/lifting_library.py` with format, folders, read / write / upgrade, CSV + table chart entry, sample mark,
       item → `lifting.Chart` / WLL; its tests + the independent tester's tests pass.
-- [ ] A round trip: a made-up item written, read, copied, its chart changed → `sample` can be cleared; unchanged →
+- [x] A round trip: a made-up item written, read, copied, its chart changed → `sample` can be cleared; unchanged →
       refused with the words.
-- [ ] If 0191 is already on `main`: every built-in in `fresing_render/data/lifting/` reads without problems (a test);
+- [x] If 0191 is already on `main`: every built-in in `fresing_render/data/lifting/` reads without problems (a test);
       if not, 0191 adds that test when it merges.
-- [ ] Guide: a short "Own lifting equipment (file format)" section.
-- [ ] Report below filled in; TASKS.md row moved to Done.
+- [x] Guide: a short "Own lifting equipment (file format)" section.
+- [x] Report below filled in; TASKS.md row moved to Done.
 
 ## Not in this task
 
@@ -82,10 +82,47 @@ use (L9 – the format must already hold an `hs` configuration key, which `lifti
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 17 Nov 2026. Branch `claude/upbeat-dijkstra-fs5i47` (the web session's own
+branch, instead of `task/0190-lifting-library`). No version raise, no release (nothing visible in the app; 0182's way).
 
 **What changed:**
+- New `fresing_render/core/lifting_library.py` (stdlib + `core/lifting.py`; no change to `lifting.py`):
+  - format `fresing-lifting-equipment` 1.0 described at the top of the module; `new_item`, `validate`, `from_data`
+  - `read_item` (folder or .json, never raises: problems on the item), `list_items(user_folder, builtin_folder)` (user's
+    first, built-ins from `BUILTIN_DIR` = `fresing_render/data/lifting/`; broken items listed with their problem)
+  - `write_item` (atomic: temp file + `os.replace`; refused into the built-in folder, for a built-in, a newer major, an
+    item with problems, or `sample: false` with the sample's charts); `copy_item` (json + model + picture)
+  - versions: same major read (unknown fields kept, named in a note and on write), higher major → "Made with a newer
+    Fresing Render (format 2.0) – update the app", not checked; format 0 (no `format_version`, units as a list) upgraded
+    in memory, written as 1.0 on save
+  - chart entry: `chart_rows` (table rows `(config, radius, capacity)`) and `chart_csv` / `read_chart_csv` (`;` with
+    decimal comma, tab, or `,`; column header with units t/kg/lb, m/ft; configuration lines `boom 30.4 m;
+    counterweight 40 t; Hs 1.5`; `-`/empty = gap; cp1252 files) → `Entry` (SI charts, errors, warnings, row/line
+    numbers); `set_charts`. Refusals as study section 4, each with its row / CSV line; boom warning via
+    `lifting.validate_charts`
+  - sample mark: `chart_hash` (charts + WLL in SI, so a unit change alone keeps it), `is_sample`, `clear_sample`
+  - item → checks: `charts_of` (SI `lifting.Chart`, `sample=True` on samples), `wll_of(item, use)`, `hook_blocks_of`
+- Guide: new short section "Own lifting equipment (file format)" (anchor `lifting-equipment`, in `READING` of
+  `core/functions.py`; `tests/test_user_guide.py` chapter list).
+- Tests: `tests/test_lifting_library.py` (58, mine), `tests/test_lifting_library_independent.py` (106, independent
+  tester); `test_every_builtin_reads_without_problems` is there already – it checks 0191's built-ins once they land.
 
-**Tested and measured** (name the machine and the model):
+**Subagents:** one independent tester (general-purpose, same model), from the brief + study section 4 + the API list,
+without reading the code first. 106 tests, 3 failed, settled: (1) a configuration value given as text (`"boom":
+"twenty"`) was accepted – **fixed** (problem with the chart's number); (2) units as a bare `"t"` in a 1.0 file are read –
+**kept** (the study writes units as `"t"`, `"m"`; 0191 may too), test changed to a units value of `5`; (3) a copy named
+`../evil` becomes the folder `.._evil` inside the library – **kept**, test now checks it stays inside the library.
+
+**Tested and measured** (4-core web machine, no Blender): the two lifting library files + `test_lifting*.py`: 191 passed
+in 0.5 s; `test_user_guide.py` + `test_functions.py` pass. C1 from a file: 56.7 %; C2 leg against an 8.0 t WLL from a
+file: 87.3 %. GitHub: 2 full runs on the branch – the first failed only in the Windows icon check "Smart App Control on: copy taken out of use" (unrelated: no Windows code changed; green on the next run), the second (a8ec00b, run after merging main) green in 27 min. Then main fast-forwarded with this report.
 
 **Open points / follow-up tasks:**
+- 0191: its files should use `"units": {"mass": "t", "length": "m"}` and kinds from `KINDS` (`mobile_crane`,
+  `crawler_crane`, `knuckle_boom_crane`); a folder per class with `<class>.json` + `.step` (+ `.png`) is found as is.
+- `hs` in a chart's config is always metres (`lifting.chart_from_dict` does not convert it): an ft file must still give
+  Hs in m – said in the module and the guide.
+- CSV takes two columns per configuration; a wide table (boom lengths as columns) could come with the L4 editor.
+- A user can still hand-delete both `sample` and `derived_from` from a copy: the mark is then gone (files are plain
+  JSON). Built-ins can never lose it.
+- The forklift's capacity table (load centre × lift height) has no own field yet: L8 or the forklift maker decides.

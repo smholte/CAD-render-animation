@@ -3807,6 +3807,42 @@ The labels of the X-ray step and the Lay data box also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
 
+<a id="lifting-equipment"></a>
+## Own lifting equipment (file format)
+
+The Lifting plans workspace is being built. Its panels come in a later update; the files for your own cranes,
+forklifts, hoists and rigging gear can already be written by hand. **One item = one folder** in your library folder
+(the one set in the app's preferences), in a sub-folder **Lifting equipment**:
+
+- `My crane/My crane.json` – the data below,
+- the model (`.step`, `.glb`, `.obj` or `.fbx`) and, if you like, a picture (`.png` or `.jpg`) with the same name.
+
+To share an item, copy its folder. The cranes that come with the app are **samples**: invented values to show how
+the app works, marked "SAMPLE DATA – NOT FOR REAL LIFTS". A copy of a sample stays a sample until you have entered
+the chart of your real equipment.
+
+The `.json` file holds these fields (masses and lengths in the file's `units`):
+
+| Field | What |
+| --- | --- |
+| `format`, `format_version` | always `"fresing-lifting-equipment"` and `"1.0"` |
+| `kind`, `class`, `name` | what it is (`mobile_crane`, `crawler_crane`, `forklift`, `sling`, `shackle` …), its size class, its name |
+| `units` | `{"mass": "t", "length": "m"}` – masses t, kg or lb; lengths m, mm or ft |
+| `mass`, `cog` | mass and centre of gravity `[x, y, z]` per moving group (`{"carrier": 30.0, "upper": 8.0}`) |
+| `charts` | the load charts, one per configuration: `config` (`boom`, `jib`, `counterweight`, `outriggers`, `hs` – the wave height, always in m), `radius` and `capacity` lists (`null` = not allowed there), `wind_max` (m/s), `includes_hook_block` |
+| `hook_blocks` | `[{"name": "main", "mass": 0.85}]` |
+| `outriggers`, `tracks`, `axles` | the footprint for the ground-pressure checks |
+| `wll` | rigging gear: the working load limit, or one per way of use (`{"straight": 8.0, "choke": 6.4}`) |
+| `rig`, `limits` | the joints of the model; slew range and angles |
+| `sample`, `derived_from` | set by the app for samples and their copies |
+| `source` | where the values come from ("maker chart no. …, entered by …, date") |
+
+A chart can also be read from CSV: one line per row, `radius;capacity` (decimal comma allowed) or
+`radius,capacity`, a header line such as `radius (ft);capacity (lb)` for the units, and a line such as
+`boom 30.4 m; counterweight 40 t` before each configuration. The app refuses a chart whose radii do not rise, a
+capacity of 0 or less, a capacity that rises with the radius, or a wave-height column holding more than a calmer one;
+it names the line. The capacity is always taken at the next longer radius of the chart, never in between.
+
 <a id="tips"></a>
 ## Tips
 
