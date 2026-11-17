@@ -1,6 +1,6 @@
 # 0193 – Fix: the 3D view cuts the far scene away (turbines, sea, wind park) – only camera views see far
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0193-view-clip-far`
+**Who:** worker · **Status:** done (0.2.148) · **Branch:** `task/0193-view-clip-far`
 **Started by:** lead chat, 17 Nov 2026 (owner's screenshots of the demo, 0.2.145) · **Model:** Sonnet · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
 **Area:** Scene & Render lane – `blender/surroundings.py` `fix_clip` (+ a small helper, a new file if it grows),
@@ -60,10 +60,20 @@ Camera clip values (already right); the web page's camera (Web 3D lane); fog / h
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 17 Nov 2026
 
-**What changed:**
+**What changed:** `surroundings.fix_view_clip` sets every VIEW_3D space's `clip_end` to the scene's reach x 1.1 + 10 m
+(`scene_reach`: `fr_far`, the farthest visible object incl. the wind park, the cameras' largest clip end); never lowers a
+larger value. Clip start: 0.01 m below 5 km reach, else 0.05 m per 10 km of reach (max 0.5 m) – raised only. Called from
+`fix_clip`, the import's view framing, after every demo stage, and in `load_post` (old projects). Guide: one sentence.
+Version 0.2.148.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine): `tests/test_view_clip.py` (5 tests: old 1,000 m view reaches a far object at
+6 km, user's 90 km kept, small scene keeps 0.01 m start, big scene raises start and counts cameras, `fix_clip` sets views).
+GitHub full run green. NOT done: the before / after real-app view picture (`tasks/img/0193_*`) and a check on the made
+demo – only the owner's PC shows the far turbines drawn; please look at User Perspective in the demo after updating.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** the new test needs no `failed before` proof beyond the missing function; no picture.
+Runs: 3 on the branch + this. The Windows job failed twice for unrelated reasons (shortcut icon check once, `web3d.small`
+browser page "loading" twice, once in a rerun) and passed on rerun – a flaky `web3d.small` on Windows may need a task.
+Version clashed once (0189 took 0.2.147).
