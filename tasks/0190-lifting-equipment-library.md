@@ -1,6 +1,6 @@
 # 0190 – Lifting L2: the equipment library (own equipment as files, chart entry, sample mark)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0190-lifting-library`
+**Who:** worker · **Status:** running · **Branch:** `claude/upbeat-dijkstra-fs5i47` (the web session's branch)
 **Started by:** lead chat, 17 Nov 2026 (study 0180, task split L2) · **Model:** Opus · effort Medium · **Place:** Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** Lifting lane – new `fresing_render/core/lifting_library.py`, `tests/test_lifting_library.py` (+ an independent

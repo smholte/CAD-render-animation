@@ -85,8 +85,11 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
             if est:
                 n, f = est["NORMAL"], est["FINE"]
                 cur = est[w.marine_detail]
+                from ..core.words import plural
+                from . import lightbake
                 text = (f"{w.marine_detail.capitalize()}: about {cur['mm']:.0f} mm per pixel, file about "
-                        f"+{core.mb(cur['bytes'])}, bake about {cur['seconds']:.0f} s (estimate)")
+                        f"+{core.mb(cur['bytes'])}, {plural(cur.get('bakes', 0), 'part')} baked (copies share one), "
+                        f"bake {lightbake.duration(cur['seconds'])} (estimate)")
                 if w.marine_detail == "NORMAL" and f["mm"] < n["mm"] * 0.8:
                     text += (f". Fine: {f['mm']:.0f} mm per pixel, +{core.mb(f['bytes'] - n['bytes'])}, "
                              f"+{f['seconds'] - n['seconds']:.0f} s; heavier on phones")

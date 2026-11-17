@@ -56,6 +56,45 @@ def runtime(scene) -> dict:
     return _RUN.setdefault(scene.name, {})
 
 
+# task 0189 (0183 row 17): the panel's estimates walked every part at every draw (45–60 ms on the small demo). They
+# are kept until something changes: a counter that every depsgraph update, undo, redo and file load raises.
+_CHANGES = [0]
+
+
+@bpy.app.handlers.persistent
+def _changed(*_args) -> None:
+    _CHANGES[0] += 1
+
+
+_HANDLERS = ("depsgraph_update_post", "undo_post", "redo_post", "load_post")
+
+
+def register() -> None:
+    for name in _HANDLERS:
+        lst = getattr(bpy.app.handlers, name)
+        if _changed not in lst:
+            lst.append(_changed)
+
+
+def unregister() -> None:
+    for name in _HANDLERS:
+        lst = getattr(bpy.app.handlers, name)
+        while _changed in lst:
+            lst.remove(_changed)
+    _RUN.clear()
+
+
+def _kept(scene, name: str, key: tuple, make):
+    """``make()`` once per change of the scene (``_CHANGES``), the frame shown and ``key``; the result is kept in the
+    scene's runtime under ``name``. Results only: never a Blender object (undo replaces them)."""
+    rt = runtime(scene)
+    full = (_CHANGES[0], scene.frame_current) + tuple(key)
+    if rt.get(name + "_key") != full:
+        rt[name] = make()
+        rt[name + "_key"] = full
+    return rt[name]
+
+
 def settings(scene):
     return scene.fresing.web3d
 
@@ -369,6 +408,63 @@ def needs_own_bake(ob) -> bool:
     return any(sl.material is not None and marine_looks.nodes_of(sl.material) for sl in ob.material_slots)
 
 
+def _object_attrs(tree, seen=None) -> set:
+    """The names an Attribute node of type Object (or Instancer) reads in a node tree and its groups."""
+    seen = set() if seen is None else seen
+    out: set = set()
+    if tree is None or tree.name_full in seen:
+        return out
+    seen.add(tree.name_full)
+    for nd in tree.nodes:
+        if nd.type == "ATTRIBUTE" and nd.attribute_type in ("OBJECT", "INSTANCER"):
+            out.add(nd.attribute_name)
+        elif nd.type == "GROUP" and nd.node_tree is not None:
+            out |= _object_attrs(nd.node_tree, seen)
+    return out
+
+
+def own_share_key(ob, me, mw) -> tuple:
+    """Task 0189 (0183 row 9): parts whose marine looks bake the same share one bake. The looks read the world's
+    height (growth band), the world's up in the part's own axes (streaks) and the part's own coordinates (noise,
+    worn edge) – so copies with the same mesh, the same materials, the same object properties those materials read,
+    the same scale and the same third row of their world matrix (tilt, and height within ``SHARE_DZ``; a turn about the
+    vertical and a move across are free) bake the same pictures: the wind park's 9 turbines bake their clamps once,
+    not 9 times. Returns (key, height); ``own_groups`` matches the heights."""
+    m = [[float(mw[r][c]) for c in range(4)] for r in range(3)]
+    scale = tuple(round(math.sqrt(sum(m[r][c] ** 2 for r in range(3))), 4) + 0.0 for c in range(3))
+    tilt = tuple(round(m[2][c], 4) + 0.0 for c in range(3))       # + 0.0: no -0.0
+    mats = tuple(sl.material.name_full if sl.material is not None else "" for sl in ob.material_slots)
+    names: set = set()
+    for sl in ob.material_slots:
+        if sl.material is not None:
+            names |= _object_attrs(sl.material.node_tree)
+    props = []
+    for k in sorted(names):
+        v = ob.get(k)
+        if hasattr(v, "to_list"):
+            v = v.to_list()
+        props.append((k, repr(v)))
+    return (me.name_full if me is not None else ob.name, mats, scale, tilt, tuple(props)), m[2][3]
+
+
+SHARE_DZ = 0.005                 # m: copies this close in height share a bake (float32 places of parts km apart)
+
+
+def own_groups(keys: list) -> list[int]:
+    """Task 0189: for each (key, height) of ``own_share_key``, the index of the first part it shares its bake with
+    (itself when none): the same key and a height within ``SHARE_DZ`` of that first part."""
+    firsts: dict = {}
+    out = []
+    for i, (key, z) in enumerate(keys):
+        group = firsts.setdefault(key, [])
+        j = next((j for j in group if abs(keys[j][1] - z) <= SHARE_DZ), None)
+        if j is None:
+            group.append(i)
+            j = i
+        out.append(j)
+    return out
+
+
 def has_marine_looks() -> bool:
     """A material in use has a marine look (the panel's note, task 0161). Reads the materials, not the parts."""
     from . import marine_looks
@@ -407,6 +503,29 @@ def _bake_material(src_mat, socket_name: str, kind: str, image, flatten: bool = 
     return m
 
 
+def _bare(sc) -> None:
+    """Task 0189 (0183 row 9): a copy of a project scene keeps what points into the project – the compositor's node
+    tree (its Render Layers node reads the project's scene), the project's settings (``scene.fresing``: parts, cables,
+    cameras) and custom properties holding a data-block – and every bake built the depsgraph of all of it: 0.6 s per
+    bake on the small demo (3,271 objects), 0.07 s without. The working copy drops them."""
+    try:
+        if hasattr(sc, "compositing_node_group"):
+            sc.compositing_node_group = None
+        if getattr(sc, "node_tree", None) is not None and hasattr(sc, "use_nodes"):
+            sc.use_nodes = False
+    except (AttributeError, TypeError, RuntimeError):
+        pass
+    if hasattr(sc, "fresing"):
+        sc.property_unset("fresing")
+    for k in list(sc.keys()):
+        v = sc[k]
+        if isinstance(v, bpy.types.ID) or hasattr(v, "keys"):
+            del sc[k]
+    sc.camera = None
+    if sc.sequence_editor is not None:
+        sc.sequence_editor_clear()
+
+
 class Baker:
     """A scene of its own with one bake object; removed by ``close``."""
 
@@ -425,6 +544,7 @@ class Baker:
             for o in list(sc.collection.objects):
                 sc.collection.objects.unlink(o)
             sc.world = None
+            _bare(sc)
         else:                                   # nothing renders with Cycles yet: no preview can be running with it
             sc = bpy.data.scenes.new(BAKE_NAME)
             sc.render.engine = "CYCLES"
@@ -829,13 +949,21 @@ def _textured(mat: dict) -> bool:
                 or "clearcoatNormalTexture" in (mat.get("extensions", {}).get("KHR_materials_clearcoat") or {}))
 
 
-def part_labels(scene) -> dict:
+def part_labels(scene, animated: bool = False) -> dict:
     """{part object name: the text of its first label that is on} (task 0025's labels; task 0135's cards). A label's
-    live fields (task 0173: a sea cable's numbers) are filled in as at the frame exported, its lines kept."""
+    live fields (task 0173: a sea cable's numbers) are filled in as at the frame exported, its lines kept. With
+    ``animated`` (a page that plays the animation) the lines that hold a live field are left out: the card cannot
+    follow the numbers while the animation plays ("Lay speed 0.0 m/min" during the lay, task 0189 / 0183 row 13)."""
+    from ..core import callouts as C
     from . import callouts
     out: dict = {}
     for c in getattr(scene.fresing, "callouts", []):
         if c.enabled and c.part is not None and c.text.strip() and c.part.name not in out:
+            if animated and C.fields_in(c.text):
+                kept = [ln for ln in C.lines(c.text.strip()) if not C.fields_in(ln) and ln.strip()]
+                if kept:
+                    out[c.part.name] = "\n".join(kept)
+                continue                       # only live lines: the card shows the part's name
             out[c.part.name] = callouts.label_text(scene, c)
     return out
 
@@ -985,6 +1113,8 @@ class Job:
         self._drawn = None                     # task 0142: web3d_drawn.Drawn
         self._bed_track = None                 # task 0143: (times, seabed's world x, y) over the animation
         self._tubes_done = False
+        self._rested = False                   # task 0189: the parts are read at rest (vessel motion muted)
+        self._sea_kept = False                 # task 0189: a sea cable on a page with vessel motion (no switch)
 
     # -- names
     def _name(self, ob, k: int, what: str = "Part") -> str:
@@ -1010,6 +1140,7 @@ class Job:
                 if vessel_motion.effective(self.scene):
                     rest = vessel_motion.at_rest(self.scene)
                     rest.__enter__()
+                    self._rested = True
             for f in self._steps():
                 if self.light == "LIVE":
                     yield f
@@ -1055,6 +1186,7 @@ class Job:
         self._drawn = web3d_drawn.Drawn(scene, parts, animated=self.animation and _anim.has_keys(scene))
         parts = [ob for ob in parts if self._drawn.kind(ob) != web3d_drawn.HIDDEN]
         self._modes = {}
+        self._sea_cables()
         if self.surroundings is None:          # 0107 / 0134: the plain page, the project's light
             from . import surroundings
             self._floor = surroundings.floor_height(scene)
@@ -1112,7 +1244,9 @@ class Job:
                     keep.append(job)
             jobs = keep
         per_atlas = max(1, (core.ATLAS_MAX // self.size) ** 2)
-        n_bakes = math.ceil(len(jobs) / per_atlas) + len(decal_looks) + len(own_objs)
+        own_first = own_groups([own_share_key(ob, self._drawn.mesh(ob), self._drawn.place(ob)) for ob in own_objs])
+        n_own = len(set(own_first))           # task 0189: one bake per group of copies
+        n_bakes = math.ceil(len(jobs) / per_atlas) + len(decal_looks) + n_own
         done = 0
         for start in range(0, len(jobs), per_atlas):
             batch = jobs[start:start + per_atlas]
@@ -1155,11 +1289,18 @@ class Job:
             area = sum(lightbake._world_area(lightbake._read_mesh(self._drawn.mesh(ob)), self._drawn.place(ob))
                        for ob in own_objs)
             own_tpm = core.own_tpm(self.size, area, self.marine_detail)
+        # task 0189 (0183 row 9): copies that bake the same pictures share one bake (``own_share_key``)
+        n_shared = 0
         for i, ob in enumerate(own_objs):
-            self.text = f"Baking the marine looks of part {i + 1} of {len(own_objs)}"
+            if own_first[i] != i:              # the same pictures, UVs and looks as the part baked first
+                self._own[ob.name] = self._own[own_objs[own_first[i]].name]
+                n_shared += 1
+                continue
+            me_ob, mw_ob = self._drawn.mesh(ob), self._drawn.place(ob)
+            self.text = f"Baking the marine looks {i + 1 - n_shared} of {n_own}"
             yield 0.05 + 0.45 * done / max(n_bakes, 1)
             lks = [Look(sl.material) if sl.material is not None else None for sl in ob.material_slots] or [None]
-            got = self._baker.own(ob, self._drawn.mesh(ob), self._drawn.place(ob), lks, own_tpm, self.marine_detail)
+            got = self._baker.own(ob, me_ob, mw_ob, lks, own_tpm, self.marine_detail)
             own_mm.append(1000.0 / got["tpm"])
             keys = {}
             for ch, arr in got["channels"].items():
@@ -1183,11 +1324,11 @@ class Job:
                 own_looks[name] = c
                 own_labels[name] = f"{lk.mat.name} · {ob.get(build.PROP_NAME) or ob.name}"
                 names.append(name)
-            self._own[ob.name] = (got["uv"], names)
+            self._own[ob.name] = (got["uv"], names, ob.name)
             done += 1
         if own_objs:
-            self.result["own"] = {"parts": len(own_objs), "finest_mm": round(min(own_mm), 2),
-                                  "coarsest_mm": round(max(own_mm), 2),
+            self.result["own"] = {"parts": len(own_objs), "bakes": len(own_objs) - n_shared,
+                                  "finest_mm": round(min(own_mm), 2), "coarsest_mm": round(max(own_mm), 2),
                                   "seconds": round(time.perf_counter() - t_own, 2)}
         if self._baker is not None:
             self._baker.close()
@@ -1238,7 +1379,8 @@ class Job:
         self._nodes = []                       # (object, node index)
         triangles = 0
         everything = [(ob, False) for ob in parts] + [(ob, True) for ob in marks]
-        labels = part_labels(scene)
+        from . import animation as _an
+        labels = part_labels(scene, animated=bool(self.animation and _an.has_keys(scene)))
         for k, (ob, is_decal) in enumerate(everything):
             me = self._drawn.mesh(ob)
             own = self._own.get(ob.name) if not is_decal else None
@@ -1249,7 +1391,7 @@ class Job:
             else:
                 mats = tuple(mat_index.get(s.material.name, -1) if s.material is not None else -1
                              for s in ob.material_slots) or (-1,)
-            key = (me.name_full, mats, is_decal, ob.name if own is not None else "")
+            key = (me.name_full, mats, is_decal, own[2] if own is not None else "")   # 0189: shared bakes, one mesh
             if own is not None and key not in mesh_of:
                 mesh_of[key] = self._mesh(me, mats, False, True, len(mesh_of) + 1,
                                           light["first_uv"].get(me.name_full) if light else None, bake_uv=own[0])
@@ -1610,6 +1752,28 @@ class Job:
             return 1.0
         return float(np.linalg.norm(co.reshape(-1, 3), axis=1).max()) * sc if len(co) else 1.0
 
+    def _sea_cables(self) -> None:
+        """Task 0189 (0183 row 6): a cable into the sea is solved with the vessel moving, in the coordinates of its part
+        (which rides on the vessel); the export reads the parts at rest. With vessel motion on the page, the page puts
+        the motion back (and its switch is left out: without the motion the cable would leave the seabed). Without it,
+        each point is put between where the vessel at rest carries it (at and above the water) and where it lies in the
+        world (on the seabed), by its height in the water – it dipped 0.78 m into the seabed or floated 0.85 m above."""
+        if not self._rested:
+            return
+        from . import vessel_motion, web3d_env
+        modes = web3d_env.vessel_modes(self.scene)
+        names = [it.part.name for it in getattr(self.scene.fresing, "cables", [])
+                 if it.b_kind == "SEA" and it.part is not None and not modes.get(it.part.name)]
+        names = [n for n in names if self._drawn.items.get(n) is not None]
+        if not names:
+            return
+        if self.surroundings is not None and self.surroundings.get("vessel"):
+            self._sea_kept = True
+            return
+        fix = SeaRest(self.scene, vessel_motion.rig("pivot"))
+        for n in names:
+            self._drawn.fix(n, fix)
+
     def _tubes(self, times: np.ndarray) -> bool:
         """``extras.fr_tube`` on every drawn tube and spool rope (task 0142) from what was read at ``times``. True
         when one of them moves."""
@@ -1646,6 +1810,8 @@ class Job:
             animated = bool(self.result.get("animated"))
             ch = self.surroundings if self.surroundings is not None else web3d_env.plain_choice(self.scene)
             st, pictures = web3d_env.block(self.scene, ch, *self._bounds, self._floor)
+            if self._sea_kept and st.get("vessel"):      # task 0189: no "Vessel motion" switch (see _sea_cables)
+                st["vessel"]["keep"] = True
             if st.get("under") and self._bed_track is not None:
                 st["under"] = env.under_motion(st["under"], *self._bed_track)
             if self._lit is not None:
@@ -1687,7 +1853,8 @@ class Job:
             self.result["text"] += " · " + core.light_line(self.light, int(self._light_bytes), lit.seconds)
         if self.result.get("own"):                       # task 0161: the marine looks baked on the parts themselves
             o = self.result["own"]
-            self.result["text"] += " · " + core.own_line(o["parts"], o["finest_mm"], o["coarsest_mm"], self.marine_detail)
+            self.result["text"] += " · " + core.own_line(o["parts"], o["finest_mm"], o["coarsest_mm"],
+                                                           self.marine_detail, o.get("bakes"))
         if self.result.get("drawn_still"):              # task 0142: what the page could not move
             from ..core.words import plural
             self.result["text"] += (f" · {plural(len(self.result['drawn_still']), 'part')} whose modifier changes "
@@ -1698,6 +1865,32 @@ class Job:
         for _ in self.steps():
             pass
         return self.finish()
+
+
+class SeaRest:
+    """Task 0189 (0183 row 6): a sea cable's points for a page without vessel motion, read while the parts stand at rest
+    (``vessel_motion.at_rest``). The cable was solved with the vessel moving: in the world its points are the moving
+    part's (``V @ W @ p``, V the vessel rig's matrix at the frame, W the part's place at rest). At and above the water
+    a point rides with the vessel (at rest: ``W @ p``); on the seabed it lies where it lies; in between it is blended
+    by its height between the seabed and the water."""
+
+    def __init__(self, scene, rig):
+        from . import surroundings
+        self.rig = rig
+        self.bed = surroundings.seabed_z(scene)
+        self.water = surroundings.waterline(scene)
+
+    def __call__(self, ob, co: np.ndarray, dg) -> np.ndarray:
+        if self.rig is None or self.bed is None or self.water is None or not len(co):
+            return co
+        W = np.array(ob.evaluated_get(dg).matrix_world, np.float64)
+        V = np.array(self.rig.evaluated_get(dg).matrix_world, np.float64)
+        rest = co @ W[:3, :3].T + W[:3, 3]
+        world = rest @ V[:3, :3].T + V[:3, 3]
+        w = np.clip((world[:, 2] - self.bed) / max(self.water - self.bed, 1e-6), 0.0, 1.0)[:, None]
+        p = w * rest + (1.0 - w) * world
+        Wi = np.linalg.inv(W)
+        return p @ Wi[:3, :3].T + Wi[:3, 3]
 
 
 def view_names(scene, numbered: bool = False) -> list[str]:
@@ -1750,36 +1943,48 @@ def light_targets(scene) -> list:
 
 
 def light_estimate(scene) -> dict:
-    """The panel's estimate of the bake, kept while the shown parts and the settings stay the same."""
+    """The panel's estimate of the bake, kept while nothing changes (``_kept``) and the settings stay the same."""
     from . import lightbake
     w = settings(scene)
-    obs = light_targets(scene)
-    key = (w.light, w.light_quality, round(float(w.light_texels), 1), len(obs),
-           sum(len(ob.data.polygons) for ob in obs[:2000]), scene.cycles.device if hasattr(scene, "cycles") else "")
-    rt = runtime(scene)
-    if rt.get("estimate_key") != key:
-        rt["estimate_key"] = key
-        rt["estimate"] = lightbake.quick_estimate(obs, w.light, w.light_quality, w.light_texels or None,
-                                                  key[-1])
-    return rt["estimate"]
+    device = scene.cycles.device if hasattr(scene, "cycles") else ""
+    key = (w.light, w.light_quality, round(float(w.light_texels), 1), device)
+    if w.light == "LIVE":                     # nothing to bake: no need to look at the parts
+        return lightbake.quick_estimate([], w.light, w.light_quality, None, device)
+    return _kept(scene, "estimate", key, lambda: lightbake.quick_estimate(
+        light_targets(scene), w.light, w.light_quality, w.light_texels or None, device))
 
 
 def marine_estimate(scene) -> dict | None:
     """Task 0165: what the marine looks cost for each Marine detail, before the export (None: no part has one).
-    Kept while the parts and the texture size stay the same."""
+    Task 0189 (0183 row 9): copies that share a bake (``own_share_key``) count once – the time is mostly per bake,
+    not per pixel (the demo: 264 bakes of ~7 s, the panel said 34 s). Kept while nothing changes (``_kept``)."""
+    w = settings(scene)
+    return _kept(scene, "marine_est", (w.texture_size,), lambda: _marine_estimate(scene, int(w.texture_size)))
+
+
+def _marine_estimate(scene, texture_size: int) -> dict | None:
     from . import lightbake
     obs = [ob for ob in light_targets(scene) if needs_own_bake(ob)]
     if not obs:
         return None
-    w = settings(scene)
-    rt = runtime(scene)
-    key = (len(obs), sum(len(ob.data.polygons) for ob in obs), w.texture_size)
-    if rt.get("marine_key") != key:
-        area = sum(lightbake._world_area(lightbake._read_mesh(ob.data), ob.matrix_world) for ob in obs)
-        rt["marine_key"] = key
-        longest = max(max(ob.dimensions) for ob in obs)
-        rt["marine_est"] = {d: core.own_estimate(area, int(w.texture_size), d, longest) for d in core.MARINE_DETAILS}
-    return rt["marine_est"]
+    areas, keys, part_area = {}, [], []
+    area = 0.0
+    for ob in obs:
+        mw = ob.matrix_world
+        m3 = np.array([[mw[r][c] for c in range(3)] for r in range(3)], np.float64)
+        akey = (ob.data.name_full, tuple(np.round(m3.T @ m3, 6).ravel()))     # a turn keeps the area
+        a = areas.get(akey)
+        if a is None:
+            a = areas[akey] = lightbake._world_area(lightbake._read_mesh(ob.data), mw)
+        area += a
+        part_area.append(a)
+        keys.append(own_share_key(ob, ob.data, mw))
+    firsts = {j for i, j in enumerate(own_groups(keys)) if i == j}
+    unique_area = sum(part_area[j] for j in firsts)
+    longest = max(max(ob.dimensions) for ob in obs)
+    return {d: core.own_estimate(area, texture_size, d, longest, bakes=len(firsts), unique_area=unique_area)
+            for d in core.MARINE_DETAILS}
+
 
 
 def needs_light_question(scene) -> bool:

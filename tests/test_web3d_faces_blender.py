@@ -93,3 +93,22 @@ def test_cards_with_names_and_labels_and_no_face_data(crane, tmp_path):
     assert wf.read(without) == {} and out_off["face_bytes"] == 0
     assert 0 < len(with_faces) - len(without) < 0.2 * len(without)          # about a tenth more
     assert c is not None
+
+
+def test_live_label_fields_are_left_out_of_an_animated_page(crane):
+    """Task 0189 (0183 row 13): an animated page showed a label's live fields as at the exported frame ("Lay speed
+    0.0 m/min" while the lay plays). On an animated page the lines with a field are left out; a label of fields only
+    gives the part's name; a still page fills them in as before."""
+    parts = [p for p in build.iter_parts(crane) if p.type == "MESH" and p.visible_get()]
+    a = callouts.add(crane, parts[0], parts[0].matrix_world.translation, text="Main cable\nLay speed {speed} m/min")
+    b = callouts.add(crane, parts[1], parts[1].matrix_world.translation, text="{top} kN")
+    try:
+        still = web3d.part_labels(crane)
+        assert still[parts[0].name] == "Main cable\nLay speed – m/min" and still[parts[1].name] == "– kN"
+        moving = web3d.part_labels(crane, animated=True)
+        assert moving[parts[0].name] == "Main cable"
+        assert parts[1].name not in moving                    # the card shows the part's name
+    finally:
+        crane.fresing.callouts.remove(len(crane.fresing.callouts) - 1)
+        crane.fresing.callouts.remove(len(crane.fresing.callouts) - 1)
+    assert a is not None and b is not None

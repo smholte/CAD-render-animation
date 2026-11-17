@@ -983,6 +983,7 @@
     add('hint', hint);
     add('show controls', show);
     add('site', document.getElementById('fr-site'));
+    add('part tool panel', document.getElementById('fr-tpanel'));   // task 0189: the part tools' panel (fr_tools.js)
     var W = window.innerWidth, H = window.innerHeight, overlaps = [], outside = [];
     items.forEach(function (a, i) {
       var r = a.r;
