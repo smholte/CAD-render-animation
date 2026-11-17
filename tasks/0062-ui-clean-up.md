@@ -11,6 +11,33 @@ order in `TASKS.md`); the lead re-reads this brief and the panels as they are th
 
 **Lead note 14 Nov 2026 – interactive learning (study 0123):** the owner wants this overhaul and the learning modes (Show me / Build it yourself on the test models, the guide inside the app) to work as one. Before this task starts the lead adds 0123's results here: the families come from the one function list (registry), and the shared panel helpers get the hook that lets a lesson highlight a button and open its folds. The modes themselves are built after this task.
 
+**Lead note 17 Nov 2026 – workspaces (owner's document "UI workspace presets & adaptive usage tracker"):** the
+built-in sets of point 1 become **workspaces** for target groups (the owner's word; the panel says "Workspace"), with
+one switcher at the top of the Fresing tab, remembered per project, and a user default for new projects. Each
+function entry in `core/functions.py` gets a field naming the workspaces that show it, so a feature built later adds
+itself (the Lifting lane does this; 0062 does not wait for it). The family ticks stay under the switcher. Built-in
+workspaces (each hides what its users never need; every hide keeps the work, point 1):
+- **CNC & machining** – G-code player, toolpaths, axis set-up, tool library, workshop surroundings, clash check.
+  Hides: sea, vessel motion, studio rigs, exploded views.
+- **Offshore & cable laying** – sea and seabed, vessel motion, cables / winches / spools, cranes and A-frames, outdoor
+  marine skies. Hides: G-code, toolpaths, studio set-ups.
+- **Product design & R&D** – studio lights, materials and paint, exploded views (assembly sequence), cutaway,
+  turntable. Hides: G-code, cables and rigging, sea and workshop surroundings.
+- **Client view (sales)** – import, surroundings picker, saved views, turntable, Render. Hides everything else **and
+  locks the model** against accidental edits (parts cannot be moved, deleted or re-meshed; the worker proposes how
+  strict, the owner picks with point 5).
+- **Education & training** – the test tour (later the lessons of study 0123), the animation timeline, simplified
+  camera controls. Hides: render engine settings, shader editing, batch export.
+- **Full access** – every family plus Blender's own toolbar and editors.
+- **Lifting plans** – comes with the Lifting lane (study 0180); the owner merged his "Heavy lifting, cranes & rigging"
+  group into it.
+- **Robotics & factory automation** – left out until robotics functions exist (6-axis arm, grippers, conveyors,
+  safety zones are not in the app).
+Own workspaces are 0062's own sets: one `.json` file each in the library (folder "Workspaces"). Blender has its own
+"workspaces" (the tabs at the top): the worker checks the app hides them or the word does not confuse, and says so in
+the point-5 list. The usage tracker, favourites bar and declutter prompts of the same document are **0181**, after
+this task.
+
 ## Goal
 
 The Fresing side panel has grown to 7 sections and ~35 sub-panels. Many projects (an offshore crane, a cable-laying
