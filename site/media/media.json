@@ -183,11 +183,11 @@
    "model": "test_atc",
    "caption": "An invented test mill: the double-arm changer swaps tools from its 12-pot magazine, four changes in a loop",
    "seconds": 10.08,
-   "order": 1,
    "functions": [
     "web.export",
     "cnc.doublearm"
-   ]
+   ],
+   "order": 1
   },
   {
    "id": "thor",
