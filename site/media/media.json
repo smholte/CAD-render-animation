@@ -196,11 +196,11 @@
    "model": "thor",
    "caption": "The open-source Thor robot arm: six joints and its gripper at work, in a loop",
    "seconds": 10.0,
-   "order": 2,
    "functions": [
     "web.export",
     "joints.rotate"
-   ]
+   ],
+   "order": 2
   }
  ]
 }
