@@ -1,6 +1,6 @@
 # 0177 – Render kit windows: text cut off at Windows display scaling
 
-**Who:** worker · **Status:** open · **Branch:** `task/0177-kit-window-layout` (a web session may name its own)
+**Who:** worker (web session) · **Status:** running · **Branch:** `task/0177-kit-window-layout` (a web session may name its own)
 **Started by:** lead, 17 Nov 2026 · **Area:** Site kit lane: `site/render_kit/kit_window.ps1` (both windows), its tests
 (`tests/test_kit_window.py`), `site/render_kit/README.txt` only if a text changes, the CI step that parses / checks the
 script. **Model · effort:** Opus · Medium. Claude Code on the web, environment "CAD-render-animation".
