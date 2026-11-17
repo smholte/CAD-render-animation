@@ -169,7 +169,7 @@ task – both edit `demo.py`); anchor chains; cables or hoses swaying in wind.
   | Handling winch 1 | spooled already (0080): every layer wire (Lebus, level wind follows) |
   | Handling winch 2 | **new:** its fairlead wire on its Lebus drum, level wind follows (as winch 1; speed joint "HANDLING WINCH 2: Wire travel", stands still in the animation) |
   | A&R winch | spooled already (0082): every layer wire; its old fleet warning 13.6° unchanged |
-  | Tipping winch port / stb | **new:** the CAD lead (drum → foot sheave → up the post) is a spooled cable "Tipping drum wire port/stb" whose speed follows the kept-tight tipping wire 1:1; the drum turns by the spool's table instead of a ratio. Fleet angle 6.5° (2.6 m lead, no level wind): their warning is set to 7.5° and the demo notes say so |
+  | Tipping winch port / stb | **not changed** (still the CAD sleeve, the drum turning by ratio with the tipping wire). Tried: their CAD lead (drum → foot sheave → up the post) as a cable spooled on the drum, its speed following the kept-tight tipping wire 1:1. GitHub's re-bake test showed it baked as standing still: `paths._bake` reads every cable's places in one pass *before* it writes the kept-tight payouts, so a cable whose speed follows a kept-tight wire sees no payout at Build (a re-bake afterwards does). The fix is an ordering change in `paths._bake` (0172's file): follow-up. Also: their lead is 2.6 m, the fleet angle 6.5° |
   | Deck crane hoist | **new, invented** (`vessel.hoist`): a Ø 28 mm wire on a drum between the boom's chords at its foot, along under the boom to a head sheave hung under the boom head and down plumb to the hook block (moved to hang 1.2 m under the sheave); joints "Hoist drum turn", "Head sheave turn" ride on Luff |
   | Lifeboat davits (4), windlasses (2) | not changed: davits have no winch drum in the CAD; windlasses carry anchor chain, not wire |
   | Park: substation crane (pedestal only), turbine davits (DAVIT + HOOK BLOCK, no drum) | not changed: no winch in the CAD, seen from far; a follow-up if wanted |
@@ -191,7 +191,7 @@ Blender as a module, no graphics card; before = main at 0.2.133):
 | Make demo | 364.6 s | 381.0 s (+4.5 %; the new stage 10.5 s; measured while another test ran) |
 | Build animation | 88.9 s | 96.7 s |
 | Playback per frame, before Build | 31.4 ms | 33.6 ms |
-| Playback per frame, after Build (best of 3 × 120 frames) | 35.5 ms | 38.6 ms (+3.1: the full layers' drivers 1.3 ms, the four new winch wires ~3 ms) |
+| Playback per frame, after Build (best of 3 × 120 frames) | 35.5 ms | 38.6 ms (+3.1: the full layers' drivers 1.3 ms, four new winch wires ~3 ms – two of them, the tipping drums, were taken out again afterwards, so the shipped demo costs less) |
 | Live posing of Cable travel, per step | 132.3 ms | 134.0 ms |
 | Memory after opening / after Build | 1,197 / 1,604 MB | 1,319 / 1,748 MB |
 | Saved project | 224.1 MB | 226.2 MB (layer meshes are points only) |
@@ -220,16 +220,20 @@ twice) – both fixed by the worker, its tests kept. No parallel writers.
 3. In 4 Motion > Joints, choose "Cable travel" and drag its value down to about −2,600 m (all wound in: the carousel
    full to the rim) and up to about 43,500 m (all paid out): the layers come off one by one, every layer cable, no
    black ring, down to the bare core. Set it back to 0.
-4. Choose the camera "Handling winch": the Lebus drum full of wire. Look at the deck crane (its hoist wire from the drum
-   at the boom's foot to the hook block) and the two tipping winches at the stern.
+4. Choose the camera "Handling winch": the Lebus drum, every layer wire. Look at the deck crane: its new hoist wire from
+   the drum at the boom's foot, under the boom, over the head sheave down to the hook block.
 5. Play the animation: shot 3 (carousel) and shot 6 (handling winch) look as before, with cable under the top layer.
 
 **Open points / follow-up tasks:**
 - Drum layers cross the turns below at 0.866 d (0080's maths: constant radius per layer). A follow-up could let a
   layer ride up over each crossing (and nest a Lebus layer half a pitch over the one below) – it changes 0080's tables.
+- **The tipping winches' drums** (see the winch table): `paths._bake` should read the places of a cable whose speed
+  follows a kept-tight wire after that wire's payouts are written; then the stage `winch_wires` can spool them
+  (the code is in this branch's history, commit "every demo winch spooled": a lead cable + `set_follows` ratio ±1).
 - Web 3D: the full coil on the page (≈ 1 M points for the demo carousel) needs a lighter form (fewer sides on covered
   layers, or only the outer turns) – today the page keeps the solid.
 - While the payout is in the second half of a climb, a layer is drawn twice (same points, rings up to 0.11 mm apart):
   could flicker in a render for that moment (the tester's note).
-- The demo's tipping winches have a 6.5° fleet angle (no level wind, 2.6 m lead): a demo-model change if wanted.
+- The demo's tipping winches have a 6.5° fleet angle (no level wind, 2.6 m lead): a demo-model change if wanted, before
+  they are spooled.
 - 0172 runs beside this task in the Flex lane: whoever merges second updates the demo tests' expected numbers.

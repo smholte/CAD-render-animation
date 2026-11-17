@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.136 – 17 Nov 2026 – Drums and carousels full of real cable (task 0174)
+
+- **Every layer is cable now.** A drum or carousel (4 Motion > Drums and carousels) no longer shows a grey sleeve or
+  ring under its top layer: the whole coil is one cable, from where it is fixed at the core or the flange, layer on
+  layer up to where it leaves – on a drum with its climbs at the flanges and the Lebus crossovers on every layer. Its
+  look (wire rope, power cable, served cable) runs on from layer to layer.
+- **Wind it fully out and fully in.** Pay the cable all out and the layers come off one by one down to the bare drum
+  or core; haul it all in and they go on again until the drum or carousel is full – live and in a built animation.
+  It costs little: only the layer being paid out is worked out again at each frame.
+- **More winches of the demo have their wire on the drum:** handling winch 2 (as winch 1), and the deck crane got a
+  hoist drum at its boom's foot with its wire over a sheave at the boom head down to the hook block. Make the demo
+  project again to see them. (The two tipping winches at the stern follow in a later version.)
+- Projects made with an older version show the full layers as cable when opened.
+- The web 3D model keeps showing the full layers of a coil as one solid under the moving top layer (the whole coil as
+  cable would make the page far too big).
+
 ## 0.2.135 – 17 Nov 2026 – The Fresing logo as a watermark (task 0176)
 
 - **The Fresing logo as a watermark:** in 5 Scene & Render > Watermark you can now pick **Fresing logo** (or **Brand kit
