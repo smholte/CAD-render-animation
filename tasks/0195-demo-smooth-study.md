@@ -230,4 +230,5 @@ file after every section. Whether it runs on the RTX 3090 is not tested (no card
 - The owner runs `measure_demo.py` once on his PC (steps above) so the drawing side (GPU) gets numbers; proposals A5 and D1–D4
   are sized by triangle counts until then.
 - The sea-state re-bake (178 s headless here, two passes through the frames) is 0192's.
-- Runs: see below.
+- GitHub runs: 1 full run, green (run 44179290745, 23.4 min – several jobs SLOW while other tasks' runs shared GitHub);
+  then a docs run after merging `main` (it had moved by documents only).
