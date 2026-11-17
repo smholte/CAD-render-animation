@@ -18,7 +18,9 @@ Take the code from branch `claude/practical-heisenberg-jm99vr` (`fresing_render/
 **only these six looks**, not the other 23.
 - **Button C** (spotlight: rest of the side panel dimmed, the button clear with a thin outline) – default. As clipped,
   C also dims the Lesson panel and greys its *Do it for me*: build it with the **Lesson panel left clear** (look M's
-  two markers already do this) unless the owner says otherwise.
+  two markers already do this). **Owner's 0185 pick (17 Nov 21:52): C bright** – the Lesson panel keeps full
+  brightness (instruction, Back, Do it for me, Stop lesson), the rest of the side panel dimmed; see 0185's page,
+  `step4_C_bright` on branch `task/0185-look-c-wide`. No dark variant.
 - **Button D** (bar on the button's left edge, button tinted, breathing) – check the white label on the tint stays
   readable at Windows display scaling 100–200 %.
 - **Section 5** (header label in the colour, fold arrow nods slowly) – default · **Section 4** (bar on the header's
