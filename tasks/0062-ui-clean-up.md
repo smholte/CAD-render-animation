@@ -1,7 +1,7 @@
 # 0062 – A cleaner side panel: show only the functions a project needs, clearer separation, tidy start-up
 
-**Who:** worker · **Status:** later – owner's wish 10 Nov 2026: **after more of the big features are in** (owner's
-order in `TASKS.md`); the lead re-reads this brief and the panels as they are then, before it starts
+**Who:** worker · **Status:** open – can start (18 Nov 00:05, owner's overnight run); **first wait until 0198 is on
+`main`** (see the lead note of 18 Nov)
 · **Branch:** `task/0062-ui-clean-up`
 **Started by:** lead chat, 10 Nov 2026 (owner's wish)
 **Lane:** touches every panel file (`blender/ui*.py`), `app_template/fresing_render/__init__.py`, `blender/props.py`
@@ -9,6 +9,43 @@ order in `TASKS.md`); the lead re-reads this brief and the panels as they are th
 **Model:** Fable · effort High (owner agreed 17 Nov: it runs alone and touches every panel; fallback Opus · High) ·
 **Place:** Claude Code on the web, environment
 "CAD-render-animation"
+
+**Lead note 18 Nov 2026 00:05 – the owner's picks (final; build them without stopping):**
+- **0197** (`tasks/0197-*.md` report, page `tasks/0197_page/`): `0197 picks: 1, 2, 3, 4, 6, 7, 8, 9, 10, 14 · lock b ·
+  word: Workspace + hide tabs`. So: (1) separation rule + `gap()` helper, boxed sub-panel headers, grey hints;
+  (2) numbered how-to boxes in a fold "How it works" – open on a new project, closed once the function was used,
+  Preferences switch keeps them open; (3) 5 Scene & Render in work order (surroundings → light → camera → saved
+  scenes → image size & render → turntable → web 3D); (4) Brand kit & logo, Labels, Watermark move to 6 Animation
+  next to Finishing / Pictures / Music, the "(6 Animation > …)" cross-references built from one table; (6) one word
+  per action (Remove / Clear / Delete, Show in folder, Add / Use as, Back to …, Find, Set-up) – tooltips and guide
+  follow; (7) no labels cut with "…" at the default width; (8) one blue `primary()` button per section; (9) one line +
+  button (or hidden) when the sea / vessel / way cover / drum / track is not there; (10) a "What's next" card above
+  1 Import (× hides it, remembered per project, gone after the first render); (14) a state in every sub-panel header.
+  **Not picked:** 5 (no section split, no renumbering), 11, 12, 13. **Client view lock: (b)** – editing operators
+  refused, panels hidden, parts `hide_select` + locked, Delete / Edit Mode / Outliner / Blender's Import & Save-as off;
+  Full access undoes all of it; no password. **The word:** keep "Workspace" and **hide Blender's 11 workspace tabs** in
+  every workspace except Full access (they come back there).
+- **0200** (report `tasks/0200-less-scrolling-study.md`, prototype on branch `claude/busy-newton-24qrjk` –
+  `tasks/0200_proto/`, take from it, do not merge it): `0200 pick: render A+B · float 2 · scroll 1+2+4`. So: **A** a
+  "Make" panel above 1 Import (Picture, Product video, Turntable, 3D page, Animation, Queue; each opens the app's own
+  settings panel as a popover with its Make button; `bl_ui_units_x` before registration; `ui.wrap()` takes the
+  popover's width) and **B** the same list as a "Make" popover in the 3D view header; no section renumbered.
+  **float 2:** the "Set-up window" – a second OS window showing a "Set-up" sidebar tab with the steps one at a time
+  (CNC mill, mechanism; later cylinders, cables), Back / Next, opened from each set-up sub-panel and from the Make list;
+  the step number in scene properties (saved). **Owner checked on his PC (17 Nov 23:50): the window stays in front of
+  the main window, and comes back on the second monitor after Ctrl+S and reopening.** **scroll 1:** a grey hint +
+  guide + tour text for Ctrl+click on a section title; **2:** section tabs All · 1 … 7 (a `poll` in each section class,
+  1 Import gets one); **4:** rarely used settings in "More" folds, how-to boxes folded once learnt (= 0197 item 2).
+  Not picked: render C (a top-bar Make menu – 0199 may add it to its Fresing menu later), scroll 3.
+- Also fix 0200's find: "7 subassemblys" – `core/words.plural("subassembly")` must give "subassemblies" (+ test).
+- **Order changed (owner 18 Nov):** 0198 → **0062** → 0199 (0199 waits; it builds its menu on 0062's layout).
+  **0198 is not on `main` yet** at 00:05 (code pushed on `task/0198-layout-kept-on-open`, renumbering after 0192 took
+  0.2.149). Start by reading and the design (subagent split, below "Design"); **do not edit `app_template/`,
+  `ui_header.py`, `ops_tour.py` or `ops_demo.py` before 0198's "done" commit is on `main`** – check with
+  `git fetch origin main && git log origin/main --oneline -20 | grep 0198`, every ~20 min while designing; then merge
+  `main` into your branch. If 0198 is still not on `main` after 3 hours, build everything else and leave those files
+  to the end. Lifting L3 (0191) may merge meanwhile (new files + `functions.py` entries): take its family in the
+  workspace map. Running beside you: 0191, 0195 (study) – neither changes `ui*.py`.
 
 **Lead note 17 Nov 2026 – order and pre-study (owner agreed 22:00):** 0062 runs **before Lifting L4** (the Lifting
 panels are then built once in the new layout). Its one stop (point 5, and the Client view lock level) moves to the
