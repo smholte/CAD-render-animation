@@ -1,6 +1,6 @@
 # 0187 – Fix: saving or undoing around the cable re-bake; small cable/spool rows (bug hunt 6, rows 3, 4, 11, 14, 15)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0187-rebake-save-undo`
+**Who:** worker · **Status:** running · **Branch:** `task/0187-rebake-save-undo`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183) · **Model:** Sonnet · effort Medium · **Place:** Claude Code on the
 web, environment "CAD-render-animation"
 **Area:** Flex parts lane – cables (`blender/rebake.py`, `flex.py` `read_steps`, `paths.py` / `flex.py` undo handlers, `queue.busy_job`, `paths_sea.numbers`, `spool.py` `renamed` / `web_end`, their tests)

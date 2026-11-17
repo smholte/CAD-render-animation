@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.145 – 17 Nov 2026 – Fast 3-axis no longer leaves a hole through the block (task 0186)
+
+- **Milling with Fast 3-axis: no more square hole straight through the workpiece.** On some programs one small square
+  of the block (about 6 × 6 mm) vanished for a few frames, all the way through, although the program never cut there.
+  Where a wall met the edge of one of the fast method's squares, its two corner points were joined in the wrong order;
+  that square is now built the right way.
+- Should a square ever still come out broken, the app now draws it the simpler way, or as uncut block – never as a hole.
+
+## 0.2.144 – 17 Nov 2026 – Model update keeps the work on a moved group without a name (task 0188)
+
+- **Mesh model update (glTF, OBJ, FBX): a group without a name in the file keeps its work when it moves.** Before,
+  when the new revision moved such a group ("Node 4"), its parts came in as new, its Hide step lost its target, its
+  eye in 2 Structure was lost and a joint on one of its parts was deleted. Now its parts with names of their own are
+  found by name wherever they went, and the group follows them: all parts kept, the steps, the eye and the joint stay.
+- **The same when only that group is left in the file.** The app then makes that group the model itself; the work on
+  the old group now goes to it instead of being lost.
+- STEP model updates are unchanged.
+
 ## 0.2.143 – 17 Nov 2026 – Smaller web 3D files (task 0175)
 
 - **Web 3D model: the page is less than half as big.** The demo's page went from 98 MB to 42 MB, its `.glb` from 73 to

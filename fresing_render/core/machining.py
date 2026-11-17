@@ -1225,19 +1225,40 @@ class _MapSide:
         return c.min(axis=0), c.max(axis=0)
 
     def _below(self, J: int, I: int) -> tuple:     # noqa: E741
+        """Everything under the map's surface inside map tile (J, I): ``(serial, solid, lo, hi)``. A tile whose
+        mesh is not a closed solid (task 0186: it was dropped, and with it the whole column of the block) takes
+        its plain right triangles (``HeightMap.mesh(plain=True)``), else the tile's box - the block uncut there.
+        ``tl.stats.extra`` counts them: ``map_tiles_plain``, ``map_tiles_box``."""
         serial, v, t, mv = self.hm.mesh(J, I)
         hit = self.below.get((J, I))
         if hit is not None and hit[0] == serial:
             return hit
+        lo, hi = self._span(J, I)
+        solid = self._solid(v, t, mv)
+        if solid is None:
+            _s, v, t, mv = self.hm.mesh(J, I, plain=True)
+            solid = self._solid(v, t, mv)
+            way = "map_tiles_plain"
+            if solid is None:
+                solid, way = _box(lo, hi), "map_tiles_box"
+            extra = self.tl.stats.extra
+            extra[way] = extra.get(way, 0) + 1
+        hit = self.below[(J, I)] = (serial, solid, lo, hi)
+        return hit
+
+    def _solid(self, v, t, mv):
+        """A map tile's mesh as a Manifold, its faces named (0 sides and bottom, 1 the uncut top, 2 + move); None
+        when it is not a closed solid."""
         rid = _mf.Manifold.reserve_ids(1)
         mesh = _mf.Mesh(vert_properties=np.ascontiguousarray(v @ self.R, dtype=np.float32),
                         tri_verts=np.ascontiguousarray(t, dtype=np.uint32),
-                        face_id=(mv + 2).astype(np.uint32),         # 0 sides and bottom, 1 the uncut top, 2 + move
+                        face_id=(mv + 2).astype(np.uint32),
                         run_original_id=np.array([rid], np.uint32), run_index=np.array([0, 3 * len(t)], np.uint32))
+        solid = _mf.Manifold(mesh)
+        if solid.status() != _mf.Error.NoError or solid.is_empty():
+            return None
         self.tl.wp.map_ids.add(int(rid))
-        lo, hi = self._span(J, I)
-        hit = self.below[(J, I)] = (serial, _mf.Manifold(mesh), lo, hi)
-        return hit
+        return solid
 
     def _column(self, J: int, I: int):             # noqa: E741
         """The map tile's own outline as a solid from the map's bottom to above its top (its border follows a

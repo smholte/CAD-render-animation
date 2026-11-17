@@ -456,3 +456,70 @@ def test_side_cut_next_to_the_map():
     left = fast.at(float(n + 11))
     probe = mf.Manifold.cube((0.002, 0.0015, 0.001)).translate((0.02, 0.033, -0.0115))
     assert sum((t.solid ^ probe).volume() for t in left) < 1e-13
+
+
+# ---------------------------------------------------------------------------
+# task 0186: a map tile that is no closed solid never drops a column of the block
+# ---------------------------------------------------------------------------
+
+def test_ring_follows_the_top_where_two_border_vertices_stand_at_one_place():
+    """A wall on the tile's border: E (its top) and F (its foot) at one place of the side B-C. Sorted by place alone
+    the ring read A B E F C D; the top's border runs A B F E C D, and the side must follow it."""
+    P = np.array([[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1], [1, 0.5, 1.0], [1, 0.5, 0.2]], float)
+    A, B, C, D, E, F = range(6)
+    tri = np.array([[A, B, F], [A, F, E], [A, E, C], [A, C, D]])
+    assert H.HeightMap._ring_walk(np.array([A, B, E, F, C, D]), tri, P).tolist() == [A, B, F, E, C, D]
+    right = np.array([A, B, F, E, C, D])
+    assert H.HeightMap._ring_walk(right, tri, P).tolist() == right.tolist()
+    # no two at one place: the ring as it was (the same array)
+    ring = np.array([A, B, C, D])
+    tri2 = np.array([[A, B, C], [A, C, D]])
+    assert H.HeightMap._ring_walk(ring, tri2, P) is ring
+    # a top whose border is not one loop through the ring: left alone
+    odd = np.array([A, B, E, F, C, D])
+    assert H.HeightMap._ring_walk(odd, tri[:2], P) is odd
+
+
+def _broken(hm, which, plain_too=False):
+    """``hm.mesh`` with the first top triangle of tile ``which`` left out (no closed solid any more); with
+    ``plain_too`` its plain mesh too."""
+    real = hm.mesh
+
+    def mesh(J, I, plain=False):         # noqa: E741
+        s, v, t, mv = real(J, I, plain=plain)
+        if (J, I) == which and (plain_too or not plain):
+            t, mv = t[1:], mv[1:]
+        return s, v, t, mv
+    return mesh
+
+
+@pytest.mark.parametrize("plain_too", [False, True])
+def test_a_tile_that_is_no_closed_solid_keeps_its_column(any_density, monkeypatch, plain_too):
+    pts = zigzag_pocket()
+    T = float(len(pts))
+    good, stock = timeline(SHAPES["flat"], pts, fast=True)
+    fast, _s = timeline(SHAPES["flat"], pts, fast=True)
+    assert fast.map is not None
+    hm = fast.map.hm
+    good.at(T)
+    which = tuple(int(x) for x in np.argwhere(good.map.hm.cut_tiles())[0])
+    lo, hi = good.map._span(*which)
+    # (proof the made tile is broken: a solid from it is empty)
+    _s0, v, t, mv = hm.mesh(*which)
+    assert fast.map._solid(v, t[1:], mv[1:]) is None
+    monkeypatch.setattr(hm, "mesh", _broken(hm, which, plain_too))
+    tiles = fast.at(T)
+    for tile in tiles:
+        assert tile.solid.status() == mf.Error.NoError and not tile.solid.is_empty()
+    box = M._box(lo, hi)
+    inside_good = sum((t.solid ^ box).volume() for t in good.at(T))
+    inside_fast = sum((t.solid ^ box).volume() for t in tiles)
+    extra = fast.stats.extra
+    if plain_too:                                   # the tile's box: the block uncut there, never a hole
+        assert extra.get("map_tiles_box") == 1 and not extra.get("map_tiles_plain")
+        assert inside_fast == pytest.approx((stock ^ box).volume(), rel=1e-3)     # (pieces overlap a hair)
+        assert inside_fast > inside_good
+    else:                                           # its plain right triangles: the same cut, near enough
+        assert extra.get("map_tiles_plain") == 1 and not extra.get("map_tiles_box")
+        assert inside_fast == pytest.approx(inside_good, rel=2e-3)
+    assert not good.stats.extra.get("map_tiles_plain") and not good.stats.extra.get("map_tiles_box")

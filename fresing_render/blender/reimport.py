@@ -162,8 +162,12 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
         # the model's: "the same place" paired the wrong groups once one was added or removed (0147 row 3). Those
         # pair only through their parts (``_made_assemblies``).
         return [r for r in recs if id(r) not in used and not (r.get("made_self") and r["kind"] != "part")]
+    def by_leaf(r):
+        return (r["kind"], r["leaf"])
+    leaf_old = _leaf_counts(old)
+    leaf_new = _leaf_counts(new)
     for key, tol in ((made, move_tolerance), (lambda r: (r["kind"], r["key_b"]), None),
-                     (lambda r: (r["kind"], r["leaf"]), move_tolerance), (renamed, move_tolerance)):
+                     (by_leaf, move_tolerance), (renamed, move_tolerance)):
         go = by(key, free(old, used_old))
         gn = by(key, free(new, used_new))
         for k, olds in go.items():
@@ -174,6 +178,12 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
             if t is None and any(r.get("made") for r in olds + news):
                 t = move_tolerance               # a made name says nothing on its own: the place must agree
             if t is None and len(olds) == 1 and len(news) == 1:
+                take(olds[0], news[0])
+                continue
+            if key is by_leaf and len(olds) == 1 and len(news) == 1 and _own_name(olds[0], leaf_old) \
+                    and _own_name(news[0], leaf_new):
+                # a part with a name of its own, the only one so called, inside a group whose name the reader made:
+                # its name says who it is, wherever the group went (task 0188, 0183 row 5)
                 take(olds[0], news[0])
                 continue
             while True:                      # repeat: the k-d tree only offers the nearest few
@@ -198,14 +208,30 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
     return pairs
 
 
+def _leaf_counts(recs) -> dict:
+    out: dict = {}
+    for r in recs:
+        out[(r["kind"], r["leaf"])] = out.get((r["kind"], r["leaf"]), 0) + 1
+    return out
+
+
+def _own_name(r, counts) -> bool:
+    """A part named in the file ("B1"), the only record so called, inside a group whose name the reader made. Only
+    when the record says outright that its own name is the file's (a piece number "W 2" never pairs by name)."""
+    return (r["kind"] == "part" and bool(r.get("made")) and r.get("made_self") is False and bool(r["leaf"])
+            and counts.get((r["kind"], r["leaf"])) == 1)
+
+
 def _made_assemblies(old, new, pairs, take, used_old, used_new, tol) -> None:
     """An assembly with a name the mesh reader made ("Node 3") that no rule matched: it pairs with the new assembly
-    that holds the most of its matched parts, in the same place (task 0139). Level by level, from the parts up."""
+    that holds the most of its matched parts, in the same place (task 0139) – or moved by just as much as those parts
+    moved (task 0188: the revision moved the whole group). Level by level, from the parts up."""
     rec_of = {r["ob"].name: r for r in old + new if "ob" in r}
     if not rec_of:
         return
     while True:
         votes: dict = {}
+        shifts: dict = {}
         for o, n in pairs:
             po, pn = build.logical_parent(o["ob"]), build.logical_parent(n["ob"])
             ro, rn = (rec_of.get(po.name) if po else None), (rec_of.get(pn.name) if pn else None)
@@ -214,17 +240,49 @@ def _made_assemblies(old, new, pairs, take, used_old, used_new, tol) -> None:
             if not (ro.get("made") or rn.get("made")) or ro["kind"] != rn["kind"]:
                 continue
             votes[(id(ro), id(rn))] = votes.get((id(ro), id(rn)), 0) + 1
+            shifts.setdefault((id(ro), id(rn)), []).append(n["centre"] - o["centre"])
         ranked = sorted(votes.items(), key=lambda kv: -kv[1])
         by_id = {id(r): r for r in old + new}
         progress = False
         for (io, jn), _count in ranked:
             ro, rn = by_id[io], by_id[jn]
-            if id(ro) in used_old or id(rn) in used_new or (ro["pos"] - rn["pos"]).length > tol:
+            if id(ro) in used_old or id(rn) in used_new:
                 continue
+            moved = rn["pos"] - ro["pos"]
+            if moved.length > tol and not all((d - moved).length <= tol for d in shifts[(io, jn)]):
+                continue                          # not in the same place, and its parts did not move with it
             take(ro, rn)
             progress = True
         if not progress:
             return
+
+
+def _made_root(old_recs, new_root, pairs) -> list[tuple[dict, dict]]:
+    """0162's open point (task 0188): when a mesh revision leaves one group whose name the reader made ("Node 4"), the
+    reader makes that group the model's root, and the root pairs with the old root. Its work (the eye, steps aimed at
+    it) belongs to the old group that held most of the parts now directly under the new root: pair that group with
+    the new root as well. Only for a root whose name the reader made; STEP roots never are."""
+    if not new_root.get(build.PROP_MADE_NAME):
+        return []
+    paired = {id(o) for o, _n in pairs}
+    rec_of = {r["ob"].name: r for r in old_recs}
+    votes: dict = {}
+    under = 0
+    for o, n in pairs:
+        if build.logical_parent(n["ob"]) is not new_root:
+            continue
+        under += 1
+        po = build.logical_parent(o["ob"])
+        ro = rec_of.get(po.name) if po is not None else None
+        if ro is not None and ro.get("made_self") and ro["kind"] == "assembly" and id(ro) not in paired:
+            votes[id(ro)] = votes.get(id(ro), 0) + 1
+    if not votes:
+        return []
+    best, count = max(votes.items(), key=lambda kv: kv[1])
+    if 2 * count <= under:
+        return []                          # the new root's parts came from many groups: none of them is it
+    ro = next(r for r in old_recs if id(r) == best)
+    return [(ro, {"ob": new_root, "kind": "assembly"})]
 
 
 def _model_objects_of(root, tree) -> list:
@@ -484,6 +542,7 @@ def _carry_over(context, st) -> dict:
     # 3. match
     old_recs, new_recs = records(old_objs), records(new_objs)
     pairs = match(old_recs, new_recs)
+    pairs += _made_root(old_recs, new_root, pairs)
     renamed = [f"{o['ob'].get(build.PROP_NAME, '')} is now called {n['ob'].get(build.PROP_NAME, '')}: same shape "
                "and place, it kept its work" for o, n in pairs if o.get("renamed")]      # task 0117
     mapping = {old_root.get(build.PROP_UID): new_root.get(build.PROP_UID)}
