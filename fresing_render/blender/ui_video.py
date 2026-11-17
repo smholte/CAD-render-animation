@@ -13,7 +13,7 @@ from .ui import _has_model, _Panel, big_row, header_status, split_props, wrap
 
 class FRESING_PT_brand(_Panel, bpy.types.Panel):
     bl_label = "Brand kit & logo"
-    bl_parent_id = "FRESING_PT_scene"
+    bl_parent_id = "FRESING_PT_animation"
     bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
@@ -63,7 +63,7 @@ class FRESING_PT_brand(_Panel, bpy.types.Panel):
 
 class FRESING_PT_watermark(_Panel, bpy.types.Panel):
     bl_label = "Watermark"
-    bl_parent_id = "FRESING_PT_scene"
+    bl_parent_id = "FRESING_PT_animation"
     bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod

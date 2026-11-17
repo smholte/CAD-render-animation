@@ -8,7 +8,7 @@ import bpy
 from bpy.props import (BoolProperty, CollectionProperty, EnumProperty, FloatProperty, FloatVectorProperty,
                        IntProperty, PointerProperty, StringProperty)
 
-from ..core import materials_lib, presets
+from ..core import materials_lib, places, presets
 from ..core import rules as R
 from ..core import studio
 from ..core import surroundings as env
@@ -1379,7 +1379,8 @@ class FRAnimBlock(bpy.types.PropertyGroup):
         name="Preview", subtype="PERCENTAGE", default=0.0, min=0.0, max=100.0, precision=0,
         update=_seq_preview_changed,
         description="Drag to see the step in the view without building: 0 % = the start, 100 % = the end. Back to "
-                    "0 % (or Build) puts the parts back. A built animation is taken off when you start: build it again after")
+                    "0 % (or Build & play) puts the parts back. A built animation is taken off when you start: Build & play "
+                    "again after")
     seq_count: IntProperty(default=0)
     seq_fasteners: IntProperty(default=0)
     seq_left_out: IntProperty(default=0)
@@ -1501,7 +1502,7 @@ class FRAnimation(bpy.types.PropertyGroup):
     fin_logo: EnumProperty(
         name="Logo", default="NONE",
         description="Puts the brand kit's logo in one corner of the whole video. Needs a logo in the brand kit "
-                    "(5 Scene & Render > Brand kit)",
+                    f"({places.where('brand')})",
         items=[("NONE", "No logo", "No logo in the picture"), ("TL", "Top left", "Logo in the top left corner"),
                ("TR", "Top right", "Logo in the top right corner"),
                ("BL", "Bottom left", "Logo in the bottom left corner"),
@@ -4103,7 +4104,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         description="About how long the video is, cards included. The steps share the time between them")
     pv_sub: EnumProperty(
         name="Take apart", default="AUTO",
-        items=[("AUTO", "The biggest subassembly", "The subassembly with the most parts (at least 5) that is not "
+        items=[("AUTO", "Biggest (automatic)", "The subassembly with the most parts (at least 5) that is not "
                                                    "the whole model"),
                ("SELECTED", "The selected one", "The subassembly selected in the structure list (3 Structure)"),
                ("NONE", "None", "No take-apart in the video")],

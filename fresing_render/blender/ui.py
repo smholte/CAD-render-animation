@@ -22,6 +22,7 @@ Layout rules for every section (read top to bottom, no jumping back up):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import textwrap
@@ -54,7 +55,24 @@ def _has_model(context) -> bool:
 # ---------------------------------------------------------------------------
 
 
+_POPOVER = {"units": 0}      # > 0 while a panel's body is drawn in a popover of that width (Make, task 0062)
+
+
+@contextlib.contextmanager
+def popover_width(units: int):
+    """While a side-panel body is drawn in a popover: texts wrap at the popover's width (not the side panel's)
+    and the body's main button (``big()``) is blue – in a popover it is the one thing to press."""
+    old = _POPOVER["units"]
+    _POPOVER["units"] = units
+    try:
+        yield
+    finally:
+        _POPOVER["units"] = old
+
+
 def _chars_per_line(context, inset: int = 0) -> int:
+    if _POPOVER["units"]:
+        return max(18, int((_POPOVER["units"] * 20 - 34 - inset) / 6.6))
     region = getattr(context, "region", None)
     width = getattr(region, "width", 0) or 300
     try:
@@ -181,6 +199,7 @@ def header_status(layout, text: str, icon: str = "NONE", alert: bool = False, li
     if len(text) > limit:
         text = text[:limit - 1] + "…"
     row = layout.row(align=True)
+    row.alignment = "RIGHT"
     row.alert = alert
     row.label(text=text, icon=icon)
 
@@ -203,7 +222,7 @@ def primary(layout, idname: str, text: str, icon: str, scale: float = BIG):
 def big(layout, idname: str, text: str, icon: str = "NONE", scale: float = MEDIUM):
     """A sub-panel's main button: big, but grey – blue is kept for the section's one main button."""
     row = big_row(layout, scale)
-    return row.operator(idname, text=text, icon=icon)
+    return row.operator(idname, text=text, icon=icon, depress=bool(_POPOVER["units"]))
 
 
 def list_rows(n: int, lo: int = 3, hi: int = 8) -> int:
@@ -253,10 +272,13 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
             row.prop(s, "import_quality", text="Detail", expand=True)
             col.prop(s, "import_up_axis", text="Up axis")
             primary(layout, "fresing.import_step", "Import STEP…", "IMPORT")
-            layout.label(text="or drag a .step file onto the view", icon="INFO")
+            hint(layout, context, "or drag a .step file onto the view")
             layout.operator("fresing.import_mesh", text="Import mesh model…", icon="MESH_DATA")
 
-        for root in build.model_roots(context.scene):
+        roots = build.model_roots(context.scene)
+        if roots:
+            gap(layout)
+        for root in roots:
             box = layout.box()
             box.label(text=root.name, icon="OUTLINER_OB_GROUP_INSTANCE")
             try:
@@ -303,9 +325,10 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
         if s.last_message and not (job is not None and not job.done):
             wrap(layout, context, s.last_message, icon="CHECKMARK" if s.last_message.startswith("Imported")
                  else "INFO")
+        gap(layout)
         body = fold(layout, "fr_import_more", "More")
         if body:
-            wrap(body, context, "Imports are stored, so an unchanged file opens again in seconds.")
+            hint(body, context, "Imports are stored, so an unchanged file opens again in seconds.")
             body.operator("fresing.clear_cache", icon="TRASH")
 
 
@@ -393,6 +416,7 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.prop(s, "pick_mode", expand=True)
 
+        gap(layout)
         row = layout.row(align=True)
         row.prop(s, "tree_search", text="", icon="VIEWZOOM", placeholder="Find in the tree")
         row.operator("fresing.tree_open_all", text="", icon="DISCLOSURE_TRI_DOWN").open = True
@@ -421,11 +445,23 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
             box.alert = True
             box.label(text=f"Showing only: {s.isolated}", icon="HIDE_ON")
             box.operator("fresing.show_only_end", text="Show everything again", icon="HIDE_OFF")
+        gap(layout)
         row = layout.row(align=True)
         row.scale_y = MEDIUM
         row.operator("fresing.hide_selected", text="Hide", icon="HIDE_ON")
         row.operator("fresing.show_only_selected", text="Show only", icon="SELECT_SET")
         row.operator("fresing.show_all", text="Show all", icon="HIDE_OFF")
+
+
+_REMOVED = {"key": None, "n": 0}
+
+
+def _removed_count(scene) -> int:
+    """How many parts Clean-up took out (counted once per change of the scene's object list, not per redraw)."""
+    key = (scene.name, len(scene.objects))
+    if _REMOVED["key"] != key:
+        _REMOVED.update(key=key, n=sum(1 for ob in scene.objects if ob.get(build.PROP_EXCLUDED)))
+    return _REMOVED["n"]
 
 
 class FRESING_PT_cleanup(_Panel, bpy.types.Panel):
@@ -436,14 +472,22 @@ class FRESING_PT_cleanup(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="BRUSH_DATA")
 
+    def draw_header_preset(self, context):
+        n = _removed_count(context.scene)
+        if n:
+            header_status(self.layout, f"{n} removed")
+
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Remove parts that never show, for faster renders.")
-        steps(layout, context, ["Select the parts (or small ones below)", "Remove selected"])
+        hint(layout, context, "Remove parts that never show, for faster renders.")
+        steps(layout, context, ["Select the parts (or small ones below)", "Remove selected"],
+              key="fr_how_cleanup", used=_removed_count(context.scene) > 0)
+        gap(layout)
         col = split_props(layout)
         col.prop(s, "small_part_mm", text="Max size (mm)")
         layout.operator("fresing.select_small", text="Select the small parts", icon="RESTRICT_SELECT_OFF")
+        gap(layout)
         row = layout.row(align=True)
         row.scale_y = MEDIUM
         row.operator("fresing.exclude_selected", text="Remove selected", icon="TRASH")
@@ -465,10 +509,15 @@ class FRESING_PT_visibility(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="HIDE_OFF")
 
+    def draw_header_preset(self, context):
+        n = len(context.scene.fresing.visibility_sets)
+        if n:
+            header_status(self.layout, plural(n, "set"))
+
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Which parts are hidden, saved under a name. + saves what is hidden now.")
+        hint(layout, context, "Which parts are hidden, saved under a name. + saves what is hidden now.")
         row = layout.row()
         row.template_list("FRESING_UL_visibility", "", s, "visibility_sets", s, "visibility_index",
                           rows=list_rows(len(s.visibility_sets), 2, 6))
@@ -542,8 +591,7 @@ def draw_rule_set(layout, context) -> None:
         row = box.row(align=True)
         if kind == "builtin":
             row.operator("fresing.rule_set_save_as", text="Save as new rule set…", icon="DUPLICATE")
-            hint = wrap(box, context, "Standard itself cannot be changed.", inset=12)
-            hint.active = False
+            hint(box, context, "Standard itself cannot be changed.", inset=12)
         elif kind == "project":
             row.operator("fresing.rule_set_save_as", text="Save to library…", icon="FILE_TICK")
         else:
@@ -572,8 +620,8 @@ def draw_rule_set(layout, context) -> None:
         where = "Kept in the shared library" if shared else "Kept on this PC (no shared library set)"
         info = wrap(body, context, f"{where}: {path}", icon="FILE_FOLDER")
         info.active = False
-        body.operator("fresing.rule_set_folder", text="Show the folder", icon="FILE_FOLDER")
-    layout.separator()
+        body.operator("fresing.rule_set_folder", text="Show in folder", icon="FILE_FOLDER")
+    gap(layout)
 
 
 class FRESING_PT_looks(_Panel, bpy.types.Panel):
@@ -598,14 +646,14 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
         layout = self.layout
         s = context.scene.fresing
         draw_rule_set(layout, context)
-        row = big_row(layout, MEDIUM)
-        row.operator("fresing.apply_rules", text="Sort parts into groups", icon="SORTALPHA")
+        primary(layout, "fresing.apply_rules", "Sort parts into groups", "SORTALPHA", MEDIUM)
         if s.unmatched:
             wrap(layout, context, f"{plural(s.unmatched, 'part')} {verb(s.unmatched, 'matches', 'match')} no rule: "
                                   f"{verb(s.unmatched, 'it is', 'they are')} in 'Unsorted'. "
                                   "Find & sort parts (below) helps.", icon="ERROR", alert=True)
             layout.operator("fresing.show_only_group", text="Show only the unsorted parts",
                             icon="HIDE_OFF").group = ""
+        gap(layout)
         wrap(layout, context, "Material groups: pick one, then set its material", icon="MATERIAL")
         row = layout.row()
         row.template_list("FRESING_UL_groups", "", s, "groups", s, "groups_index",
@@ -636,11 +684,11 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
             row.operator("fresing.group_unassign", text="Back to the rules", icon="LOOP_BACK")
             if 0 <= s.tree_index < len(s.tree) and not s.tree[s.tree_index].is_part:
                 sub = s.tree[s.tree_index]
-                hint = wrap(box, context, f"Everything in {sub.label} to this group:", inset=12)
-                hint.active = False
+                hint(box, context, f"Everything in {sub.label} to this group:", inset=12)
                 box.operator("fresing.rule_from_subassembly", text="Make it a rule", icon="FILTER")
         ob = context.active_object
         if ob is not None and ob.get(build.PROP_KIND) == "part":
+            gap(layout)
             box = layout.box()
             box.label(text=ob.get(build.PROP_NAME, ob.name), icon="OBJECT_DATA")
             col = box.column(align=True)
@@ -685,22 +733,25 @@ class FRESING_PT_faces(_Panel, bpy.types.Panel):
             wrap(box, context, f"Click faces in the view: they get the look of '{paint_group(s)}'. "
                                "Shift+click: back to the look of the part. Enter or right-click: done.",
                  icon="BRUSH_DATA", alert=True)
-            primary(layout, "fresing.paint_faces_done", "Done", "CHECKMARK", MEDIUM)
+            big(layout, "fresing.paint_faces_done", "Done", "CHECKMARK")
         else:
             steps(layout, context, ["Pick the group whose look the faces get (or make one above)",
                                     "Press 'Paint faces' and click faces on the model",
-                                    "Faces painted in CAD come in painted: they are listed below"])
+                                    "Faces painted in CAD come in painted: they are listed below"],
+                  key="fr_how_faces", used=any(g.faces for g in s.groups))
+            gap(layout)
             col = split_props(layout)
             col.prop_search(s, "face_group", s, "groups", text="Paint with",
                             results_are_suggestions=False)
             if not s.face_group and paint_group(s):
-                hint = wrap(layout, context, f"Empty: paints with the group selected above, {paint_group(s)}")
-                hint.active = False
+                hint(layout, context, f"Empty: paints with the group selected above, {paint_group(s)}")
             layout.prop(s, "face_only_copy")
-            primary(layout, "fresing.paint_faces", "Paint faces…", "BRUSH_DATA", MEDIUM)
+            gap(layout)
+            big(layout, "fresing.paint_faces", "Paint faces…", "BRUSH_DATA")
         ob = context.active_object
         if ob is None or ob.get(build.PROP_KIND) != "part" or ob.type != "MESH" or ob.data is None:
             return
+        gap(layout)
         sets = faces.get_sets(ob.data)
         name = ob.get(build.PROP_NAME, ob.name)
         if not sets:
@@ -744,6 +795,13 @@ class FRESING_PT_find(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="VIEWZOOM")
 
+    def draw_header_preset(self, context):
+        s = context.scene.fresing
+        if s.find_text.strip():
+            header_status(self.layout, f"{len(s.found)} found")
+        elif s.unmatched:
+            header_status(self.layout, f"{s.unmatched} unsorted", alert=True)
+
     def draw(self, context):
         from . import finder
         layout = self.layout
@@ -756,9 +814,11 @@ class FRESING_PT_find(_Panel, bpy.types.Panel):
                 grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
                 for w, n in words:
                     grid.operator("fresing.find_word", text=f"{w}  {n}").word = w
+                gap(layout)
         steps(layout, context, ["Type a word of the part name (all words must fit; * = any text)",
                                 "Tick the parts you want",
-                                "Put them in a group. 'Make it a rule' sorts them in new revisions too"])
+                                "Put them in a group. 'Make it a rule' sorts them in new revisions too"],
+              key="fr_how_find", used=not s.unmatched)
         layout.prop(s, "find_text", text="", icon="VIEWZOOM", placeholder="e.g. seal, profile 40x40, M6*20")
         sub_row = finder.scope_row(s)
         if sub_row is not None and sub_row.depth > 0:
@@ -766,11 +826,11 @@ class FRESING_PT_find(_Panel, bpy.types.Panel):
         else:
             row = layout.row()
             row.active = False
-            row.prop(s, "find_in_selected", text="Only inside a subassembly (pick it in 2)")
+            row.prop(s, "find_in_selected", text="Only inside a subassembly")
         if not s.find_text.strip():
             return
         if not s.found:
-            layout.label(text="Nothing found", icon="INFO")
+            hint(layout, context, "Nothing found")
             return
         total = sum(it.count for it in s.found)
         ticked = sum(it.count for it in s.found if it.use)
@@ -783,8 +843,13 @@ class FRESING_PT_find(_Panel, bpy.types.Panel):
         col.operator("fresing.find_tick", text="", icon="CHECKBOX_DEHLT").tick = False
         layout.operator("fresing.find_select", text="Select the ticked parts in the view",
                         icon="RESTRICT_SELECT_OFF")
+        gap(layout)
         name = finder.group_name_for(s.find_text)
-        primary(layout, "fresing.find_new_group", f"Put ticked in new group '{name}'", "ADD", MEDIUM)
+        if len(name) > 14:                         # the button stays readable at the default width
+            big(layout, "fresing.find_new_group", "Put ticked in a new group", "ADD")
+            hint(layout, context, f"It is called '{name}'.")
+        else:
+            big(layout, "fresing.find_new_group", f"Put ticked in new group '{name}'", "ADD")
         layout.operator_menu_enum("fresing.find_assign", "group", text="Put ticked in a group…", icon="IMPORT")
         if 0 <= s.groups_index < len(s.groups):
             layout.operator("fresing.find_rule", text=f"Make it a rule → {s.groups[s.groups_index].name}",
@@ -803,11 +868,13 @@ class FRESING_PT_rules(_Panel, bpy.types.Panel):
         from . import rule_sets
         if rule_sets.is_changed(context.scene.fresing):
             header_status(self.layout, "changed", alert=True)
+        else:
+            header_status(self.layout, plural(len(context.scene.fresing.rules), "rule"))
 
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, f"The rules of rule set '{s.rule_set or 'Standard'}' in this project. Checked from "
+        hint(layout, context, f"The rules of rule set '{s.rule_set or 'Standard'}' in this project. Checked from "
                               "the top; the first rule that fits a part decides its group.")
         row = layout.row()
         row.template_list("FRESING_UL_rules", "", s, "rules", s, "rules_index", rows=list_rows(len(s.rules), 4, 8))
@@ -829,9 +896,10 @@ class FRESING_PT_rules(_Panel, bpy.types.Panel):
             col = split_props(box)
             col.prop(r, "target", text="Group")
             col.prop(r, "note", text="Note")
-        row = layout.row(align=True)
-        row.operator("fresing.rule_add", text="From clicked part", icon="EYEDROPPER").from_selection = True
-        row.operator("fresing.rules_reset", text="Defaults", icon="LOOP_BACK")
+        gap(layout)
+        col = layout.column(align=True)
+        col.operator("fresing.rule_add", text="Add from the clicked part", icon="EYEDROPPER").from_selection = True
+        col.operator("fresing.rules_reset", text="Back to the defaults", icon="LOOP_BACK")
 
 
 class FRESING_PT_schemes(_Panel, bpy.types.Panel):
@@ -841,6 +909,11 @@ class FRESING_PT_schemes(_Panel, bpy.types.Panel):
 
     def draw_header(self, context):
         self.layout.label(icon="COLOR")
+
+    def draw_header_preset(self, context):
+        n = len(context.scene.fresing.schemes)
+        if n:
+            header_status(self.layout, plural(n, "scheme"))
 
     def draw(self, context):
         layout = self.layout
@@ -852,9 +925,9 @@ class FRESING_PT_schemes(_Panel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("fresing.scheme_save", text="", icon="ADD")
         col.operator("fresing.scheme_remove", text="", icon="REMOVE")
-        layout.separator()
+        gap(layout, line=True)
         layout.label(text="Templates", icon="FILE_BLANK")
-        wrap(layout, context, "A template keeps the rule set, paint schemes and background for the next project.")
+        hint(layout, context, "A template keeps the rule set, paint schemes and background for the next project.")
         row = layout.row(align=True)
         row.operator("fresing.template_import", text="Load", icon="FILE_FOLDER")
         row.operator("fresing.template_export", text="Save", icon="FILE_TICK")
@@ -895,7 +968,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
         for look, (label, icon, _tip) in studio.LOOKS.items():
             grid.operator("fresing.light_look", text=label, icon=icon,
                           depress=studio.look_matches(look, s)).look = look
-        layout.separator()
+        gap(layout)
 
         # -- where the machine stands (choice first, then its settings)
         layout.label(text="Background & surroundings", icon="WORLD")
@@ -923,7 +996,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                 col.prop(s, "sea_depth", text="Water depth")
                 col.prop(s, "sea_clarity", text="Water clarity")
                 col.prop(s, "sea_cutaway", text="Cut-away behind the stern")
-                if s.sea_cutaway:
+                if s.sea_cutaway and _shows(context, "scene.sea_ground"):
                     col.prop(s, "sea_cut_ground", text="Show the ground in the cut-away")
             row = col.row(heading="Waves")
             row.prop(s, "sea_foam", text="Foam")
@@ -933,6 +1006,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
             row.prop(s, "env_detail", text="Detail", expand=True)
 
         # -- light
+        gap(layout)
         layout.label(text="Light", icon="LIGHT_SUN")
         col = split_props(layout)
         if bg in ("COLOR", "TRANSPARENT") or hall:
@@ -959,7 +1033,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
         col.prop(s, "light_strength", text="Brightness")
         col.prop(s, "exposure", text="Exposure")
         if timed:
-            wrap(layout, context, "The sun, the sky and the clouds follow Weather & time (below): "
+            wrap(layout, context, f"The sun, the sky and the clouds follow {where('weather')}: "
                  + weather_mod.header(context.scene) + ".", icon="INFO")
         else:
             wrap(layout, context, studio.light_words(light, s.sky_weather, s.light_rotation, s.light_strength,
@@ -967,6 +1041,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
 
         # -- floor (the surroundings and the photo's ground bring their own)
         own_floor = bg in env.BUILT or (bg == "HDRI" and s.photo_ground)
+        gap(layout)
         if not own_floor:
             col = split_props(layout)
             col.prop(s, "floor", text="Floor")
@@ -988,6 +1063,13 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                 wrap(layout, context, "The model you added sticks out of the surroundings. "
                      "Fit them to everything with the button below.", icon="ERROR")
                 layout.operator("fresing.env_place", icon="IMPORT")
+
+
+def _shows(context, fid: str) -> bool:
+    """Does the project's workspace show this function (core/functions.py id)? For a setting that belongs to
+    another kind of work than the rest of its panel."""
+    from . import workspaces
+    return workspaces.shows(context.scene, fid)
 
 
 def surroundings_misfit(scene) -> bool:
@@ -1017,7 +1099,7 @@ class FRESING_PT_camera(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         cam = context.scene.camera
-        header_status(self.layout, cam.name if cam is not None else "none", alert=cam is None)
+        header_status(self.layout, cam.name if cam is not None else "none", alert=cam is None, limit=22)
 
     def draw(self, context):
         layout = self.layout
@@ -1034,9 +1116,10 @@ class FRESING_PT_camera(_Panel, bpy.types.Panel):
             op = row.operator("fresing.camera_remove", text="", icon="X")
             op.name = cam.name
         if not cams:
-            col.label(text="No camera yet: add one below", icon="INFO")
+            hint(col, context, "No camera yet: add one below")
 
         # -- a new camera: what it frames first, then the view buttons
+        gap(layout)
         layout.label(text="Add a camera", icon="ADD")
         row = layout.row(align=True)                 # full width: the choices are never cut off
         row.prop(s, "view_frame", expand=True)
@@ -1054,8 +1137,8 @@ class FRESING_PT_camera(_Panel, bpy.types.Panel):
         if cam is None or cam.type != "CAMERA":
             return
         # -- the active camera
-        layout.separator()
-        layout.label(text=f"Active: {cam.name}", icon="VIEW_CAMERA")
+        gap(layout, line=True)
+        wrap(layout, context, f"Active: {cam.name}", icon="VIEW_CAMERA")
         layout.operator("fresing.camera_fit", text="Fit to the picture", icon="FULLSCREEN_ENTER")
         col = split_props(layout)
         if cam.data.type == "PERSP":
@@ -1063,6 +1146,7 @@ class FRESING_PT_camera(_Panel, bpy.types.Panel):
         if not cameras.can_blur(cam):
             wrap(layout, context, "No background blur in a view without perspective (Isometric).", icon="INFO")
             return
+        gap(layout)
         layout.label(text="Background blur")
         row = layout.row(align=True)
         row.prop(s, "camera_blur", expand=True)
@@ -1098,19 +1182,19 @@ class FRESING_PT_props(_Panel, bpy.types.Panel):
         from . import surroundings
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Things everyone knows the size of, next to the machine. Click to add one:")
+        hint(layout, context, "Things everyone knows the size of, next to the machine. Click to add one:")
         grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
         icons = {"PERSON": "USER", "CONTAINER": "PACKAGE", "PALLET": "MESH_GRID", "BARRIER": "CON_TRACKTO",
                  "IBC": "MESH_CUBE", "GAS_RACK": "MOD_ARRAY", "TOOL_TROLLEY": "TOOL_SETTINGS"}
         for kind, (label, _desc) in env.PROPS.items():
             grid.operator("fresing.prop_add", text=label, icon=icons.get(kind, "ADD")).kind = kind
         if surroundings.props(context.scene):
-            wrap(layout, context, "Move a prop: click it in the view and drag the arrows (or press G).",
-                 icon="INFO")
+            gap(layout)
+            hint(layout, context, "Move a prop: click it in the view and drag the arrows (or press G).")
             row = layout.row(align=True)
             row.prop(s, "props_visible", text="Show props", toggle=True,
                      icon="HIDE_OFF" if s.props_visible else "HIDE_ON")
-            row.operator("fresing.props_remove", text="Delete all", icon="TRASH")
+            row.operator("fresing.props_remove", text="Remove all", icon="TRASH")
             ob = context.active_object
             if ob is not None and ob.get(surroundings.PROP_TAG) == "PERSON" and hasattr(ob, "fresing_person"):
                 person = ob.fresing_person         # task 0155: the selected person's pose and clothes
@@ -1125,7 +1209,8 @@ class FRESING_PT_props(_Panel, bpy.types.Panel):
                 row.prop(person, "gloves", toggle=True)
                 row.prop(person, "look")
             else:
-                wrap(layout, context, "Click a person in the view to choose its pose, height and clothes.")
+                hint(layout, context, "Click a person in the view to choose its pose, height and clothes.")
+            gap(layout)
             body = fold(layout, "fresing_props_detail", f"Detail: {_DETAIL_LABEL.get(s.props_detail, '')}",
                         "MOD_DECIM")
             if body is not None:
@@ -1147,6 +1232,12 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
 
     def draw_header(self, context):
         self.layout.label(icon="IMAGE_DATA")
+
+    def draw_header_preset(self, context):
+        s = context.scene.fresing
+        size = presets.compute(s.out_format, s.out_resolution, s.out_orientation, int(s.out_dpi),
+                               s.out_bleed_mm if s.out_use_bleed else 0.0, s.out_custom_w, s.out_custom_h)
+        header_status(self.layout, f"{size.width} × {size.height}")
 
     def draw(self, context):
         layout = self.layout
@@ -1171,6 +1262,7 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
         col.prop(s, "quality", text="Quality")
         layout.label(text=f"{size.width} × {size.height} px  ({size.megapixels:.1f} MP)", icon="IMAGE_DATA")
 
+        gap(layout)
         row = layout.row(align=True)
         live = _viewport_rendered(context)
         row.operator("fresing.preview", text="Live preview: on" if live else "Live preview",
@@ -1183,15 +1275,16 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
             row.operator("fresing.open_file", text="Open", icon="IMAGE").path = s.last_render
             row.operator("fresing.show_in_folder", text="Show in folder", icon="FILE_FOLDER").path = s.last_render
 
+        gap(layout)
         body = fold(layout, "fr_output_more", "Files & graphics card")
         if body:
             col = split_props(body)
             col.prop(s, "out_file_type", text="File")
             col.prop(s, "out_folder", text="Folder")
             col.prop(s, "use_gpu", text="Graphics card")
-            wrap(body, context, "Empty folder: 'Renders' next to the saved project "
+            hint(body, context, "Empty folder: 'Renders' next to the saved project "
                                 "(Pictures\\Fresing Render before it is saved).")
-            body.operator("fresing.open_folder", text="Open render folder", icon="FILE_FOLDER")
+            body.operator("fresing.open_folder", text="Show in folder", icon="FILE_FOLDER")
 
 
 class FRESING_PT_turntable(_Panel, bpy.types.Panel):
@@ -1205,18 +1298,19 @@ class FRESING_PT_turntable(_Panel, bpy.types.Panel):
     def draw_header_preset(self, context):
         from . import turntable
         a = turntable.find_animation(context.scene)
-        if a is None:
-            return
-        job = next((j for j in reversed(context.scene.fresing.queue) if j.animation == a.name), None)
+        job = None if a is None else next((j for j in reversed(context.scene.fresing.queue)
+                                           if j.animation == a.name), None)
         if job is not None and job.status in ("WAITING", "RUNNING"):
             header_status(self.layout, "in the queue")
+        else:
+            header_status(self.layout, f"{context.scene.fresing.turntable_seconds:g} s")
 
     def draw(self, context):
         from . import turntable
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        wrap(layout, context, "A video of the camera going once round the machine, as it looks now. "
+        hint(layout, context, "A video of the camera going once round the machine, as it looks now. "
                               "The video loops: its end joins its start.")
         col = split_props(layout)
         col.prop(s, "turntable_seconds", text="Length (s)")
@@ -1233,7 +1327,8 @@ class FRESING_PT_turntable(_Panel, bpy.types.Panel):
             wrap(box, context, note + ".", icon="INFO", inset=12)
             if s.env_detail == "DETAILED":
                 box.operator("fresing.env_simple", icon="MOD_DECIM")
-        primary(layout, "fresing.turntable", "Make turntable video", "FILE_MOVIE")
+        gap(layout)
+        big(layout, "fresing.turntable", "Make turntable video", "FILE_MOVIE", BIG)
         if a is not None:
             job = next((j for j in reversed(s.queue) if j.animation == a.name), None)
             if job is not None:

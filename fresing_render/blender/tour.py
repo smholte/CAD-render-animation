@@ -37,6 +37,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
+from ..core import places
+
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(HERE, "data")
 
@@ -3675,11 +3677,11 @@ stop("turntable", OUT, HUB_SET, "Turntable video",
 stop("finishing", OUT, HUB_SET, "Finished video: cards, captions",
      "The animation 'Finished video' has a title card, an end card, a caption 'The boom goes up', the tour logo "
      "and a TEST TOUR watermark. They are put on in the rendered MP4 video: render it with the queue (Render queue stop).",
-     where="6 Animation > Video finishing; 5 Scene & Render > Brand kit", animation="Finished video",
+     where=f"{places.where('finishing')}; {places.where('brand')}", animation="Finished video",
      check=_check_finishing)
 stop("labels", OUT, HUB_SET, "Labels with lines",
      "Two labels, 'Boom' and 'Trolley', with lines to their parts. Labels are drawn in rendered pictures and "
-     "videos: press Render picture to see them.", where="5 Scene & Render > Labels", check=_check_labels,
+     "videos: press Render picture to see them.", where=places.where("labels"), check=_check_labels,
      setup=_labels_on)
 stop("queue", OUT, HUB_SET, "Render queue: picture + video",
      "7 Render queue holds a picture and a short video, both waiting. Start queue renders them in the background "
@@ -3840,6 +3842,74 @@ stop("house", OUT, "house", "House from House Planner",
      where="File > Import > House Planner scene; 5 Scene & Render > House from House Planner", since="0.2.92",
      check=_check_house)
 
+def _check_workspace(scene):
+    """Workspaces and the function families (task 0062): hide, show, lock and unlock – the project stays as it was."""
+    import bpy
+
+    from ..core import workspaces as W
+    from . import lock, panels, workspaces
+    s = scene.fresing
+    was = (workspaces.name_of(scene), s.ws_data, s.ws_ticks)
+    before = (len(scene.objects), len(s.joints), len(s.animations))
+    state = {ob.name: (ob.hide_select, tuple(ob.lock_location)) for ob in scene.objects}
+    try:
+        workspaces.switch(scene, "CNC & machining")
+        _check(workspaces.panel_hidden(scene, "FRESING_PT_cables") and not workspaces.panel_hidden(scene, "FRESING_PT_cnc"),
+               "the workspace CNC & machining does not hide Cables and paths and show the CNC machine")
+        workspaces.set_tick(scene, "milling", False)
+        _check(not bpy.types.FRESING_PT_milling.poll(bpy.context), "Milling is still drawn after its family was ticked off")
+        used = workspaces.in_use(scene)
+        _check("motion" in used and "animation" in used, "the crane's joints and animations are not seen as in use")
+        workspaces.switch(scene, "Client view")
+        _check(lock.ON[0] and all(ob.hide_select for ob in scene.objects), "the Client view did not lock the parts")
+        workspaces.switch(scene, "Full access")
+        _check(not lock.ON[0] and lock.marked() == 0
+               and state == {ob.name: (ob.hide_select, tuple(ob.lock_location)) for ob in scene.objects},
+               "Full access did not put the parts back as they were")
+    finally:
+        s.ws_name, s.ws_data, s.ws_ticks = was
+        workspaces.apply(scene)
+    _check((len(scene.objects), len(s.joints), len(s.animations)) == before, "hiding or locking changed the project")
+    _check(set(panels.SECTIONS) <= set(panels.PARENT), "the sections have no title rows of their own")
+    return f"{len(W.BUILTIN)} workspaces, {len(W.tickable())} families; hidden, locked and back"
+
+
+def _workspace_open(scene):
+    from . import panels
+    panels.set_open("FRESING_PT_workspace", True)
+
+
+def _check_make(scene):
+    """The Make list (task 0062): every output with its own settings panel, in the side panel and the view's header."""
+    import bpy
+
+    from . import ui_top
+    outs = ui_top._outputs(scene)
+    _check(len(outs) == len(ui_top.OUTPUTS) == 6, f"the Make list has {len(outs)} of 6 outputs")
+    for _key, text, _icon, panel, _fid, op, _optext in outs:
+        _check(hasattr(bpy.types, panel), f"Make > {text}: its settings panel is missing")
+        _check(not op or hasattr(bpy.ops.fresing, op.split(".")[1]), f"Make > {text}: its button is missing")
+    _check(ui_top._draw_view_header in bpy.types.VIEW3D_HT_header.draw._draw_funcs,
+           "Make is not in the 3D view's header")
+    return "6 outputs, each with its settings; also in the 3D view's header"
+
+
+stop("workspace", OUT, HUB_SET, "Functions in this project (workspaces)",
+     "The top row of the Fresing tab says 'All functions': the workspace. Its small arrow is open here: under "
+     "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
+     "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
+     "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
+     "Sections 1 to 7 start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
+     "All · 1 … 7 show one section at a time.",
+     where="The Workspace row at the top of the Fresing tab", since="0.2.151", shot="Tour view",
+     check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
+stop("make", OUT, HUB_SET, "Make: every output side by side",
+     "Above 1 Import is the Make list: Picture, Product video, Turntable, 3D page, Animation and Queue. Click "
+     "Picture: the settings of 5 Scene & Render > Image size & render open right there, with a blue Render image "
+     "button. The same list is under Make in the header of the 3D view, so it is there whatever the side panel shows.",
+     where="Make, above 1 Import; Make in the 3D view's header", since="0.2.151", shot="Tour view", check=_check_make,
+     auto=lambda ctx, scene, st: "")
+
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
      "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 432 joints "
@@ -3979,6 +4049,28 @@ def frame_for(scene, st: Stop) -> int:
     return int(round(scene.frame_start + (scene.frame_end - scene.frame_start) * max(0.0, min(1.0, st.at))))
 
 
+def panel_of(st: Stop) -> str:
+    """The side-panel panel a stop's function lives in (from the function list), or ''."""
+    from ..core import functions
+    for f in functions.FUNCTIONS.values():
+        if st.id in f.tour and f.panel.startswith("FRESING_PT_"):
+            return f.panel
+    return ""
+
+
+def open_panel_of(st: Stop) -> str:
+    """Open the stop's panel in the side panel and fold the other sections (the user need not look for it)."""
+    from . import panels
+    name = panel_of(st)
+    if name not in panels.PARENT:
+        return ""
+    sec = panels.section_of(name)
+    if sec:
+        panels.only(sec)
+    panels.open_to(name)
+    return name
+
+
 def apply(st: Stop, scene=None) -> list[str]:
     """Set the open tour project up for a stop: its saved scene, its animation built and at its frame, its parts
     selected. Returns warnings. Works in the background too (the automatic run)."""
@@ -4005,6 +4097,10 @@ def apply(st: Stop, scene=None) -> list[str]:
         scene.frame_set(scene.frame_start)
     if len(s.callouts):
         s.callouts_on = False             # labels only on their own stop (they show in every render)
+    try:                                  # task 0062: Go opens the stop's own panel and folds the other sections
+        open_panel_of(st)
+    except Exception as exc:  # noqa: BLE001 - the stop still opens
+        warnings.append(f"side panel: {exc}")
     if st.setup is not None:
         st.setup(scene)
     if machining.is_active(scene):

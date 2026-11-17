@@ -558,7 +558,7 @@ class FRESING_OT_joint_follow(bpy.types.Operator):
     bl_label = "How the joint moves"
     bl_options = {"REGISTER", "UNDO"}
 
-    mode: EnumProperty(items=[("FREE", "By itself", ""), ("FOLLOW", "Follows a joint", "")], default="FREE")
+    mode: EnumProperty(items=[("FREE", "Moves by itself", ""), ("FOLLOW", "Follows a joint", "")], default="FREE")
 
     @classmethod
     def poll(cls, context):
@@ -652,7 +652,7 @@ class FRESING_OT_pose_update(bpy.types.Operator):
 
 
 class FRESING_OT_pose_remove(bpy.types.Operator):
-    """Deletes the selected pose. The model does not move"""
+    """Removes the selected pose. The model does not move"""
 
     bl_idname = "fresing.pose_remove"
     bl_label = "Remove pose"
@@ -758,7 +758,7 @@ class FRESING_OT_vis_update(bpy.types.Operator):
 
 
 class FRESING_OT_vis_remove(bpy.types.Operator):
-    """Delete the selected visibility set. What is hidden now stays hidden"""
+    """Removes the selected visibility set. What is hidden now stays hidden"""
 
     bl_idname = "fresing.vis_remove"
     bl_label = "Remove visibility set"
@@ -848,7 +848,7 @@ class FRESING_OT_shot_update(bpy.types.Operator):
 
 
 class FRESING_OT_shot_remove(bpy.types.Operator):
-    """Deletes the selected saved scene. The model and the cameras do not change"""
+    """Removes the selected saved scene. The model and the cameras do not change"""
 
     bl_idname = "fresing.shot_remove"
     bl_label = "Remove scene"
@@ -897,7 +897,7 @@ class FRESING_OT_anim_add(bpy.types.Operator):
 
 
 class FRESING_OT_anim_remove(bpy.types.Operator):
-    """Deletes the selected animation and its steps. Joints, poses and scenes stay"""
+    """Removes the selected animation and its steps. Joints, poses and scenes stay"""
 
     bl_idname = "fresing.anim_remove"
     bl_label = "Remove animation"
@@ -1019,7 +1019,7 @@ class FRESING_OT_block_add(bpy.types.Operator):
 
 
 class FRESING_OT_block_remove(bpy.types.Operator):
-    """Deletes the selected step from this animation"""
+    """Removes the selected step from this animation"""
 
     bl_idname = "fresing.block_remove"
     bl_label = "Remove step"
@@ -1122,7 +1122,7 @@ class FRESING_OT_anim_build(bpy.types.Operator):
     """Turn the steps into keyframes so the animation plays in the viewport (Space) and renders"""
 
     bl_idname = "fresing.anim_build"
-    bl_label = "Build animation"
+    bl_label = "Build & play"
     bl_options = {"REGISTER", "UNDO"}
 
     play: BoolProperty(default=False, options={"SKIP_SAVE"})
@@ -1231,6 +1231,7 @@ class FRESING_OT_queue_add(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
+        context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
         scene = context.scene
         s = scene.fresing
         before = {j.job_id for j in s.queue}

@@ -264,7 +264,7 @@ class FRESING_OT_find_rule(bpy.types.Operator):
     def execute(self, context):
         s = context.scene.fresing
         if not finder.terms_of(s.find_text) or not (0 <= s.groups_index < len(s.groups)):
-            self.report({"WARNING"}, "Search for something and pick a group first")
+            self.report({"WARNING"}, "Find something first and pick a group")
             return {"CANCELLED"}
         group = s.groups[s.groups_index].name
         field, op, value = finder.rule_for_search(s.find_text)

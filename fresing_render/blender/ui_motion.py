@@ -12,8 +12,8 @@ import bpy
 
 from . import animation, build, cylinders, joints, linkages, paths, queue
 from ..core.words import plural
-from .ui import (BIG, MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, primary, split_props,
-                 steps, use_button, wrap)
+from .ui import (BIG, MEDIUM, _has_model, _Panel, big, big_row, fold, gap, header_status, hint, list_rows, missing,
+                 primary, split_props, steps, use_button, where, wrap)
 
 # =============================================================================
 # 4 Motion
@@ -101,24 +101,26 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         n = len(context.scene.fresing.joints)
-        header_status(self.layout, f"{n} joint{'s' if n != 1 else ''}" if n else "no joints")
+        header_status(self.layout, plural(n, "joint") if n else "no joints")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
         from .ops_motion import selected_movers
-        if animation.has_keys(scene):
+        if animation.has_keys(scene):                 # a state, not a fault: a box, no red
             box = layout.box()
-            box.alert = True
-            wrap(box, context, f"Animation '{s.anim_baked}' is built: the joints follow it.", icon="INFO", inset=12)
+            wrap(box, context, f"Animation '{s.anim_baked}' is built: the joints follow it.", icon="RENDER_ANIMATION",
+                 inset=12)
             box.operator("fresing.anim_clear", text="Stop it to move joints by hand", icon="CANCEL")
+            gap(layout)
 
         # -- adding a joint: what moves, then the button, then a click on the pivot
-        if not s.joints:
-            steps(layout, context, ["Click what should move (subassembly or part)",
-                                    "Add rotate joint or Add slide joint",
-                                    "Click its pivot hole or shaft in the view"])
+        steps(layout, context, ["Click what should move (subassembly or part)",
+                                "Add rotate joint or Add slide joint",
+                                "Click its pivot hole or shaft in the view"],
+              key="fr_how_motion", used=bool(s.joints))
+        gap(layout)
         movers = selected_movers(context)
         if movers:
             wrap(layout, context, f"Selected: {_names(movers)}", icon="RESTRICT_SELECT_OFF")
@@ -128,7 +130,7 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
             elif below is not None:
                 wrap(layout, context, f"Adds a joint on top of '{below.name}': the moves add up", icon="LINKED")
         else:
-            wrap(layout, context, "Nothing selected: click what should move", icon="RESTRICT_SELECT_ON", alert=True)
+            wrap(layout, context, "Nothing selected: click what should move", icon="RESTRICT_SELECT_ON")
         row = big_row(layout, MEDIUM)
         op = row.operator("fresing.joint_pick_axis", text="Add rotate joint", icon="CON_ROTLIKE")
         op.mode, op.kind = "NEW", "ROTATE"
@@ -137,14 +139,12 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
 
         if s.joints:
             _draw_joints(context, layout, s)
-        layout.separator()
-        row = layout.row(align=True)
-        row.scale_y = MEDIUM
-        row.operator("fresing.pose_reset", text="Everything back to CAD position", icon="LOOP_BACK")
+        gap(layout)
+        big(layout, "fresing.pose_reset", "Everything back to CAD position", "LOOP_BACK")
 
 
 def _draw_joints(context, layout, s):
-    layout.separator()
+    gap(layout)
     row = layout.row()
     row.template_list("FRESING_UL_joints", "", s, "joints", s, "joints_index", rows=list_rows(len(s.joints), 2, 8))
     side = row.column(align=True)
@@ -152,11 +152,14 @@ def _draw_joints(context, layout, s):
     layout.prop(s, "show_joints", text="Show joint arrows in the view")
 
     j = s.joints[s.joints_index] if 0 <= s.joints_index < len(s.joints) else None
+    if j is not None:
+        gap(layout)
     if j is not None and not joints.is_valid(j):
         box = layout.box()
         box.alert = True
-        box.label(text="This joint is broken (its arrow was deleted)", icon="ERROR")
-        box.operator("fresing.joint_remove", text="Remove it (parts go back to their place)")
+        wrap(box, context, "This joint is broken (its arrow was deleted). Remove it: its parts go back to their "
+                           "place", icon="ERROR", alert=True, inset=12)
+        box.operator("fresing.joint_remove", text="Remove joint")
     elif j is not None:
         scene = context.scene
         box = layout.box()
@@ -172,6 +175,8 @@ def _draw_joints(context, layout, s):
         if mech is not None:
             wrap(box, context, f"Drives mechanism '{mech.name}'", icon="LINKED", inset=12)
         lead = joints.leader(scene, j)
+        if below is not None or mech is not None:
+            gap(box, size=0.5)
         row = box.row(align=True)
         row.scale_y = BIG
         _value_row(row, j, "Angle" if j.kind == "ROTATE" else "Distance")
@@ -187,6 +192,7 @@ def _draw_joints(context, layout, s):
                 sub = row.row(align=True)
                 sub.enabled = t == "ZERO" or (j.use_limits and not joints.is_motor(j))
                 sub.operator("fresing.joint_value", text=label).target = t
+        gap(box, size=0.5)
         if not joints.is_motor(j):
             row = box.row(align=True)
             row.prop(j, "use_limits", text="Limits")
@@ -214,7 +220,8 @@ def _draw_joints(context, layout, s):
             row.operator("fresing.joint_members", text="Add", icon="ADD").action = "ADD"
             row.operator("fresing.joint_members", text="Remove", icon="REMOVE").action = "REMOVE"
             row.operator("fresing.joint_members", text="Select", icon="RESTRICT_SELECT_OFF").action = "SELECT"
-            body.label(text="(Add / Remove use the selected parts)")
+            hint(body, context, "Add and Remove use the selected parts")
+            gap(body, size=0.5)
             row = body.row(align=True)
             row.label(text="Axis")
             op = row.operator("fresing.joint_pick_axis", text="", icon="EYEDROPPER")
@@ -235,7 +242,7 @@ def _draw_joints(context, layout, s):
 def _draw_coupling(context, box, s, j, lead) -> None:
     """How the joint moves: by itself, or following another joint at a ratio (task 0012)."""
     scene = context.scene
-    box.separator(factor=0.5)
+    gap(box, size=0.5)
     row = box.row(align=True)
     row.operator("fresing.joint_follow", text="Moves by itself", depress=not j.follows).mode = "FREE"
     row.operator("fresing.joint_follow", text="Follows a joint", depress=bool(j.follows)).mode = "FOLLOW"
@@ -245,7 +252,7 @@ def _draw_coupling(context, box, s, j, lead) -> None:
         if lead is not None and j.couple_table:          # follows by a table (task 0080): no ratio to type
             owner = j.couple_table.split(":", 1)[-1]
             wrap(box, context, f"Follows '{lead.name}' by a table: its drum or carousel '{owner}' works it out "
-                               "(4 Motion > Drums and carousels)", icon="INFO", inset=12)
+                               f"({where('spools')})", icon="INFO", inset=12)
         elif lead is not None:
             # the unit is the label: "mm per turn" (of the joint picked right above)
             col.prop(j, "couple_ratio", text=joints.ratio_unit(lead.kind, j.kind))
@@ -253,11 +260,11 @@ def _draw_coupling(context, box, s, j, lead) -> None:
                 col.prop(j, "couple_offset_angle", text="Offset")
             else:
                 col.prop(j, "couple_offset_dist", text="Offset")
-            hint = _ratio_hint(lead, j)
-            if hint:
-                wrap(box, context, hint, icon="INFO", inset=12)
+            note = _ratio_hint(lead, j)
+            if note:
+                wrap(box, context, note, icon="INFO", inset=12)
         else:
-            wrap(box, context, f"'{j.follows}' is not there any more: pick another joint, or By itself",
+            wrap(box, context, f"'{j.follows}' is not there any more: pick another joint, or Moves by itself",
                  icon="ERROR", alert=True, inset=12)
     err = j.get("_follow_error", "")
     if err:
@@ -324,22 +331,25 @@ class FRESING_PT_cylinders(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        if not s.cylinders:
-            steps(layout, context, ["Click the barrel (in the view or 2 Structure), press Barrel",
-                                    "Click the rod, press Rod",
-                                    "Add cylinder, then click the barrel's pin and the rod's pin"])
+        steps(layout, context, [f"Click the barrel (in the view or {where('structure')}), press Barrel",
+                                "Click the rod, press Rod",
+                                "Add cylinder, then click the barrel's pin and the rod's pin"],
+              key="fr_how_cylinders", used=bool(s.cylinders))
+        gap(layout)
         for role, coll, text in (("BARREL", s.cyl_pick_barrel, "Barrel"), ("ROD", s.cyl_pick_rod, "Rod")):
             row = layout.row(align=True)
             sub = row.row(align=True)
             sub.ui_units_x = 3.6
             sub.operator("fresing.cylinder_pick_parts", text=text, icon="RESTRICT_SELECT_OFF").role = role
             picked = [r.obj for r in coll if r.obj is not None]
-            row.label(text=_names(picked) if picked else "not picked yet", icon="CHECKMARK" if picked else "BLANK1")
-        primary(layout, "fresing.cylinder_add", "Add cylinder (then click the 2 pins)", "CON_STRETCHTO", MEDIUM)
+            wrap(row, context, _names(picked) if picked else "not picked yet",
+                 icon="CHECKMARK" if picked else "BLANK1", inset=95)
+        gap(layout)
+        big(layout, "fresing.cylinder_add", "Add cylinder (then click the 2 pins)", "CON_STRETCHTO")
 
         if not s.cylinders:
             return
-        layout.separator()
+        gap(layout)
         row = layout.row()
         row.template_list("FRESING_UL_cylinders", "", s, "cylinders", s, "cylinders_index",
                           rows=list_rows(len(s.cylinders), 2, 6))
@@ -347,11 +357,13 @@ class FRESING_PT_cylinders(_Panel, bpy.types.Panel):
         c = s.cylinders[s.cylinders_index] if 0 <= s.cylinders_index < len(s.cylinders) else None
         if c is None:
             return
+        gap(layout)
         if not cylinders.is_valid(c):
             box = layout.box()
             box.alert = True
-            box.label(text="This cylinder is broken (a marker was deleted)", icon="ERROR")
-            box.operator("fresing.cylinder_remove", text="Remove it (parts go back to their place)")
+            wrap(box, context, "This cylinder is broken (a marker was deleted). Remove it: its parts go back to "
+                               "their place", icon="ERROR", alert=True, inset=12)
+            box.operator("fresing.cylinder_remove", text="Remove cylinder")
             return
         _draw_cylinder(context, layout, scene, c)
 
@@ -362,6 +374,7 @@ def _draw_cylinder(context, layout, scene, cyl) -> None:
     row = box.row(align=True)
     row.operator("fresing.cylinder_mode", text="Follows the arm", depress=cyl.mode == "FOLLOW").mode = "FOLLOW"
     row.operator("fresing.cylinder_mode", text="Drives the arm", depress=cyl.mode == "DRIVE").mode = "DRIVE"
+    gap(box, size=0.5)
     j, reason = cylinders.arm_joint(scene, cyl)
     stroke = cylinders.stroke_now(scene, cyl)
     if cyl.mode == "DRIVE" and j is not None:
@@ -381,6 +394,7 @@ def _draw_cylinder(context, layout, scene, cyl) -> None:
     if cylinders.outside_stroke(cyl, stroke):
         wrap(box, context, "The rod is out further than its stroke allows (or in further): check the arm's "
                            "limits, or the lengths below", icon="ERROR", alert=True, inset=12)
+    gap(box, size=0.5)
     col = split_props(box)
     col.prop(cyl, "closed_length", text="Closed length")
     col.prop(cyl, "full_stroke", text="Full stroke")
@@ -396,20 +410,21 @@ def _draw_cylinder(context, layout, scene, cyl) -> None:
         for action, text, objs in (("BARREL", "Barrel", cylinders.barrel_objs(cyl)),
                                    ("ROD", "Rod", cylinders.rod_objs(cyl)),
                                    ("STAGES", "Stages", cylinders.stage_objs(cyl))):
-            row = body.row(align=True)
+            row = body.row()
             sub = row.row(align=True)
-            sub.ui_units_x = 3.6
+            sub.ui_units_x = 5.4                      # room for "Barrel pin" below: the five buttons line up
             sub.operator("fresing.cylinder_parts", text=text, icon="RESTRICT_SELECT_OFF").action = action
-            row.label(text=_names(objs) if objs else "none")
+            wrap(row, context, _names(objs) if objs else "none", inset=135)
         if cyl.stages:
             body.operator("fresing.cylinder_parts", text="No stages", icon="X").action = "NO_STAGES"
         for action, text, ob in (("BARREL_PIN", "Barrel pin", cyl.frame.parent), ("ROD_PIN", "Rod pin", cyl.pin.parent)):
-            row = body.row(align=True)
+            row = body.row()
             sub = row.row(align=True)
-            sub.ui_units_x = 3.6
+            sub.ui_units_x = 5.4
             sub.operator("fresing.cylinder_parts", text=text, icon="RESTRICT_SELECT_OFF").action = action
-            row.label(text=f"in {ob.get(build.PROP_NAME, ob.name)}" if ob is not None else "-")
-        body.label(text="(these buttons use the selected parts)")
+            wrap(row, context, ob.get(build.PROP_NAME, ob.name) if ob is not None else "-", inset=135)
+        hint(body, context, "These buttons use the selected parts")
+        gap(body, size=0.5)
         row = body.row(align=True)
         row.operator("fresing.cylinder_pins", text="Pins again", icon="EYEDROPPER")
         row.operator("fresing.cylinder_parts", text="Select parts", icon="RESTRICT_SELECT_OFF").action = "SELECT"
@@ -421,7 +436,7 @@ def _draw_cylinder(context, layout, scene, cyl) -> None:
 
 MECH_STEPS = {
     "SCISSOR": ["Click the base (the frame it stands on), press Base",
-                "Select every arm and the platform (Ctrl+click in the view or in 2 Structure)",
+                f"Select every arm and the platform (Ctrl+click in the view or in {where('structure')})",
                 "Add mechanism: the pins and the rollers are found by themselves",
                 "Set the height (or the drive angle) below"],
     "FOURBAR": ["Click the base (the part the two arms turn on), press Base",
@@ -474,28 +489,30 @@ class FRESING_PT_mechanisms(_Panel, bpy.types.Panel):
         scene = context.scene
         s = scene.fresing
         layout.prop(s, "mech_kind", text="Type")
-        if not s.mechanisms:
-            steps(layout, context, MECH_STEPS.get(s.mech_kind, MECH_STEPS["OTHER"]))
+        steps(layout, context, MECH_STEPS.get(s.mech_kind, MECH_STEPS["OTHER"]),
+              key="fr_how_mechanisms", used=bool(s.mechanisms))
+        gap(layout)
         row = layout.row(align=True)
         sub = row.row(align=True)
         sub.ui_units_x = 3.6
         sub.operator("fresing.mechanism_pick_base", text="Base", icon="RESTRICT_SELECT_OFF")
         if s.mech_base is not None:
-            row.label(text=linkages.label(s.mech_base), icon="CHECKMARK")
+            wrap(row, context, linkages.label(s.mech_base), icon="CHECKMARK", inset=120)
             row.operator("fresing.mechanism_pick_base", text="", icon="X").clear = True
         else:
-            row.label(text="the rest of the subassembly", icon="BLANK1")
+            row.label(text="rest of the subassembly", icon="BLANK1")
         links = picked_links(context)
         if links:
             wrap(layout, context, f"Links: {plural(len(links), 'subassembly')} selected ({_names(links)})",
                  icon="RESTRICT_SELECT_OFF")
         else:
             wrap(layout, context, "No links selected: select the moving parts", icon="RESTRICT_SELECT_ON")
-        primary(layout, "fresing.mechanism_add", "Add mechanism", "LINKED", MEDIUM)
+        gap(layout)
+        big(layout, "fresing.mechanism_add", "Add mechanism", "LINKED")
 
         if not s.mechanisms:
             return
-        layout.separator()
+        gap(layout)
         row = layout.row()
         row.template_list("FRESING_UL_mechanisms", "", s, "mechanisms", s, "mechanisms_index",
                           rows=list_rows(len(s.mechanisms), 2, 6))
@@ -503,11 +520,13 @@ class FRESING_PT_mechanisms(_Panel, bpy.types.Panel):
         mech = s.mechanisms[s.mechanisms_index] if 0 <= s.mechanisms_index < len(s.mechanisms) else None
         if mech is None:
             return
+        gap(layout)
         if not linkages.is_valid(mech):
             box = layout.box()
             box.alert = True
-            wrap(box, context, f"This mechanism is broken: {linkages.broken_reason(scene, mech)}", icon="ERROR")
-            box.operator("fresing.mechanism_remove", text="Remove it (parts go back to their place)")
+            wrap(box, context, f"This mechanism is broken: {linkages.broken_reason(scene, mech)}. Remove it: its "
+                               "parts go back to their place", icon="ERROR", alert=True, inset=12)
+            box.operator("fresing.mechanism_remove", text="Remove mechanism")
             return
         _draw_mechanism(context, layout, scene, mech)
 
@@ -527,6 +546,7 @@ def _draw_mechanism(context, layout, scene, mech) -> None:
             row.operator("fresing.mechanism_height", text=text).target = t
         lo, hi = linkages.height_range(scene, mech)
         wrap(box, context, f"Height {_mm(lo)} … {_mm(hi)} (pin to pin, within the drive joint's limits)", inset=12)
+        gap(box, size=0.5)
     row = box.row(align=True)
     _value_row(row, j, "Drive angle" if j.kind == "ROTATE" else "Drive")
     row.operator("fresing.mechanism_drive_joint", text="", icon="CON_PIVOT")
@@ -549,6 +569,7 @@ def _draw_mechanism(context, layout, scene, mech) -> None:
                 wrap(body, context, f"Base: {linkages.label(mech.base) if mech.base else '-'}", icon="BLANK1")
                 continue
             wrap(body, context, f"{k}. {ln.name}" + ("  (drive)" if ln.empty is None else ""), icon="BLANK1")
+        gap(body, size=0.5)
         body.operator("fresing.mechanism_select", text="Select parts", icon="RESTRICT_SELECT_OFF")
 
 
@@ -566,10 +587,15 @@ class FRESING_PT_poses(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="ARMATURE_DATA")
 
+    def draw_header_preset(self, context):
+        n = len(context.scene.fresing.poses)          # the long title leaves room for the number alone
+        header_status(self.layout, str(n) if n else "none")
+
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "A pose keeps every joint position and moved part. + saves the model as it is now.")
+        hint(layout, context, "A pose keeps every joint position and moved part. + saves the model as it is now.")
+        gap(layout)
         row = layout.row()
         row.template_list("FRESING_UL_poses", "", s, "poses", s, "poses_index", rows=list_rows(len(s.poses), 2, 6))
         col = row.column(align=True)
@@ -577,20 +603,23 @@ class FRESING_PT_poses(_Panel, bpy.types.Panel):
         col.operator("fresing.pose_remove", text="", icon="REMOVE")
         col.operator("fresing.pose_update", text="", icon="FILE_REFRESH")
 
-        layout.separator()
+        from . import workspaces
+        if not workspaces.shows(context.scene, "poses.explode"):       # e.g. the workspace CNC & machining
+            return
+        gap(layout, line=True)
         layout.label(text="Exploded view", icon="FULLSCREEN_EXIT")
         box = layout.box()
         from .ops_motion import _target_subassembly
         target = _target_subassembly(context)
-        box.label(text=f"Explodes: {target.get(build.PROP_NAME, target.name) if target else '-'}",
-                  icon="OUTLINER_OB_GROUP_INSTANCE")
+        wrap(box, context, f"Explodes: {target.get(build.PROP_NAME, target.name) if target else '-'}",
+             icon="OUTLINER_OB_GROUP_INSTANCE", inset=12)
         col = split_props(box)
         col.prop(s, "explode_level", text="Pieces")
         col.prop(s, "explode_direction", text="Direction")
         col.prop(s, "explode_factor", text="Distance")
-        row = big_row(box, MEDIUM)
-        row.operator("fresing.explode", text="Explode", icon="FULLSCREEN_EXIT")
-        box.label(text="Keep it: + above saves it as a pose")
+        gap(box, size=0.5)
+        big(box, "fresing.explode", "Explode", "FULLSCREEN_EXIT")
+        hint(box, context, "Keep it: + above saves it as a pose", inset=12)
 
 
 # =============================================================================
@@ -621,11 +650,16 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
     def draw_header(self, context):
         self.layout.label(icon="SCENE_DATA")
 
+    def draw_header_preset(self, context):
+        n = sum(1 for sh in context.scene.fresing.shots if not sh.get("fr_queue_only"))
+        header_status(self.layout, plural(n, "scene") if n else "none")
+
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Colours, pose, visibility, camera and background under one name. "
+        hint(layout, context, "Colours, pose, visibility, camera and background under one name. "
                               "+ saves how it looks now.")
+        gap(layout)
         n = sum(1 for sh in s.shots if not sh.get("fr_queue_only"))
         row = layout.row()
         row.template_list("FRESING_UL_shots", "", s, "shots", s, "shots_index", rows=list_rows(n, 2, 6))
@@ -635,6 +669,7 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
         col.operator("fresing.shot_update", text="", icon="FILE_REFRESH")
         if 0 <= s.shots_index < len(s.shots) and not s.shots[s.shots_index].get("fr_queue_only"):
             shot = s.shots[s.shots_index]
+            gap(layout)
             box = layout.box()
 
             def what(v):
@@ -642,10 +677,11 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
 
             col = split_props(box)
             col.prop(shot, "camera", text="Camera")
-            info = box.column(align=True)
-            info.label(text=f"Colours: {what(shot.scheme)}")
-            info.label(text=f"Pose: {what(shot.pose)}")
-            info.label(text=f"Visibility: {what(shot.visibility)}")
+            info = box.column(align=True)                      # names can be long: wrapped, never cut off
+            wrap(info, context, f"Colours: {what(shot.scheme)}", inset=12)
+            wrap(info, context, f"Pose: {what(shot.pose)}", inset=12)
+            wrap(info, context, f"Visibility: {what(shot.visibility)}", inset=12)
+        gap(layout)
         row = big_row(layout, MEDIUM)
         op = row.operator("fresing.queue_add", text="Queue this", icon="ADD")
         op.kind = "SHOT"
@@ -657,9 +693,15 @@ class FRESING_PT_shots(_Panel, bpy.types.Panel):
 # 6 Animation
 # =============================================================================
 
-def _pick_row(layout, name: str, empty: str, op: str) -> None:
+def _pick_row(layout, context, name: str, empty: str, op: str) -> None:
+    """The part a step works on, with the button that takes the selected one. Nothing picked yet: the prompt on
+    its own lines (beside the button it was cut off), the button under it."""
+    if not name:
+        wrap(layout, context, empty, icon="ERROR", inset=12)
+        layout.operator(op, text="Use selected", icon="EYEDROPPER")
+        return
     row = layout.row(align=True)
-    row.label(text=name or empty, icon="OBJECT_DATA" if name else "ERROR")
+    row.label(text=name, icon="OBJECT_DATA")
     row.operator(op, text="Use selected", icon="EYEDROPPER")
 
 
@@ -676,7 +718,7 @@ def _draw_camera_step(context, box, b) -> None:
         split_props(box).prop(b, "camera", text="To camera")
     elif mode == "RIDE":
         box.label(text="Ride on:")
-        _pick_row(box, b.target_name, "Pick the part it rides on", "fresing.block_target")
+        _pick_row(box, context, b.target_name, "Pick the part it rides on", "fresing.block_target")
         col = split_props(box)
         col.prop(b, "ride_camera", text="Seat camera")
         col.prop(b, "ride_look", text="Look")
@@ -685,8 +727,7 @@ def _draw_camera_step(context, box, b) -> None:
     elif mode == "PATH":
         n = len(b.path_points)
         box.label(text=f"Path: {plural(n, 'point')}" + ("" if n else " – make it below"), icon="CURVE_PATH")
-        row = big_row(box, MEDIUM)
-        row.operator("fresing.path_from_cameras", text="Make path from saved cameras", icon="OUTLINER_OB_CAMERA")
+        big(box, "fresing.path_from_cameras", "Make path from saved cameras", "OUTLINER_OB_CAMERA")
         row = box.row(align=True)
         row.operator("fresing.path_add_view", text="Add this view", icon="ADD")
         row.operator("fresing.path_remove_point", text="", icon="REMOVE")
@@ -696,7 +737,7 @@ def _draw_camera_step(context, box, b) -> None:
         col.prop(b, "path_look", text="Look")
     if mode == "AIM" or (mode == "RIDE" and b.ride_look == "PART") or (mode == "PATH" and b.path_look == "PART"):
         box.label(text="Keep in the middle:")
-        _pick_row(box, b.aim_name, "Pick the part to keep in the middle", "fresing.aim_target")
+        _pick_row(box, context, b.aim_name, "Pick the part to keep in the middle", "fresing.aim_target")
 
 
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
@@ -733,8 +774,7 @@ def _draw_fade(context, box, b) -> None:
                 else "Hidden until the step starts, then fades in")
     else:
         text = f"A {b.fade_stop:.0f} % ghost stays"
-    hint = wrap(box, context, text + ". Shows in rendered view, pictures and videos", icon="INFO", inset=12)
-    hint.active = False
+    wrap(box, context, text + ". Shows in rendered view, pictures and videos", icon="INFO", inset=12)
 
 
 def _draw_weather(context, box, scene, a, b) -> None:
@@ -742,10 +782,10 @@ def _draw_weather(context, box, scene, a, b) -> None:
     from ..core import weather as wx_core
     from . import weather
     if not weather.enabled(scene):
-        wrap(box, context, "Weather & time is off (5 Scene & Render): Build switches it on.", icon="INFO", inset=12)
+        wrap(box, context, f"Weather & time is off ({where('weather')}): Build & play switches it on.", icon="INFO",
+             inset=12)
     st = weather.state_before(scene, a, b)
-    hint = wrap(box, context, "From " + wx_core.words(st, weather.place(scene)) + ". To:", inset=12)
-    hint.active = False
+    hint(box, context, "From " + wx_core.words(st, weather.place(scene)) + ". To:", inset=12)
     col = split_props(box)
     col.prop(b, "wx_preset", text="To")
     col.prop(b, "wx_hour", text=f"Time ({wx_core.clock(b.wx_hour)})")
@@ -765,8 +805,7 @@ def _draw_vessel(context, box, scene, a, b) -> None:
     from ..core import vessel_work as vw_core
     from . import vessel_work
     st = vessel_work.state_before(scene, a, b)
-    hint = wrap(box, context, "From " + vw_core.words(st).lower() + ". To:", inset=12)
-    hint.active = False
+    hint(box, context, "From " + vw_core.words(st).lower() + ". To:", inset=12)
     box.row(align=True).prop(b, "vw_mode", expand=True)
     col = split_props(box)
     if b.vw_mode == "AHEAD":
@@ -775,7 +814,7 @@ def _draw_vessel(context, box, scene, a, b) -> None:
         col.row(align=True).prop(b, "vw_side", text="Bow to" if b.vw_mode == "TURN" else "Push to", expand=True)
         col.prop(b, "vw_thrust", text="Thrust", slider=True)
     if not len(scene.fresing.vessel_work.thrusters):
-        wrap(box, context, "No thrusters yet (5 Scene & Render > Vessel at work): the water changes, no propeller "
+        wrap(box, context, f"No thrusters yet ({where('vessel_work')}): the water changes, no propeller "
                            "turns.", icon="INFO", inset=12)
 
 
@@ -807,21 +846,20 @@ def _draw_sequence(context, box, b) -> None:
                                "they follow the parts they hang on", icon="INFO", inset=12)
         if b.seq_hidden:
             wrap(box, context, f"{plural(b.seq_hidden, 'hidden part')} left out: "
-                               f"{'it stays' if b.seq_hidden == 1 else 'they stay'} hidden (2 Structure)",
+                               f"{'it stays' if b.seq_hidden == 1 else 'they stay'} hidden ({where('structure')})",
                  icon="INFO", inset=12)
         if b.seq_riders:
             wrap(box, context, f"{plural(b.seq_riders, 'part rides', 'parts ride')} on another part (a joint "
                                f"carries {'it' if b.seq_riders == 1 else 'them'}) and "
                                f"{'leaves' if b.seq_riders == 1 else 'leave'} before it", icon="INFO", inset=12)
+    gap(box, size=0.5)
     sub = box.row(align=True)
     sub.prop(b, "seq_preview", text="Preview", slider=True)
     if b.seq_preview > 0.0:
-        hint = wrap(box, context, "Preview only: back to 0 % (or Build) puts the parts back", icon="INFO", inset=12)
-        hint.active = False
+        wrap(box, context, "Preview only: back to 0 % (or Build & play) puts the parts back", icon="INFO", inset=12)
     elif context.scene.fresing.anim_baked:
-        hint = wrap(box, context, "Moving the preview takes the built animation off (Build again after)",
-                    icon="INFO", inset=12)
-        hint.active = False
+        wrap(box, context, "Moving the preview takes the built animation off (Build & play again after)",
+             icon="INFO", inset=12)
 
 
 def _draw_cad(context, box, b) -> None:
@@ -832,7 +870,7 @@ def _draw_cad(context, box, b) -> None:
         row.label(text=b.target_name or "Nothing picked", icon="OBJECT_DATA")
         row.operator("fresing.block_target", text="Use selected", icon="EYEDROPPER")
     wrap(box, context, "Every joint goes back to its CAD value (a motor to its nearest whole turn) and moved parts "
-                       "to their places, over the step's duration", icon="INFO", inset=12).active = False
+                       "to their places, over the step's duration", icon="INFO", inset=12)
     s = context.scene.fresing
     anim = s.animations[s.animations_index] if 0 <= s.animations_index < len(s.animations) else None
     apart = animation.apart_before(anim, b) if anim is not None else None
@@ -850,6 +888,11 @@ class FRESING_UL_anims(bpy.types.UIList):
         sub.label(text=f"{animation.length_seconds(item):.1f} s")
 
 
+def _secs(t: float) -> str:
+    """Seconds in a list row, as short as they go: "2", "2.5" (the step's name needs the room)."""
+    return f"{t:.1f}".rstrip("0").rstrip(".")
+
+
 class FRESING_UL_blocks(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
@@ -861,9 +904,9 @@ class FRESING_UL_blocks(bpy.types.UIList):
         sub = row.row()
         sub.alignment = "RIGHT"
         if not animation.is_instant(item):
-            sub.label(text=f"{item.start:.1f}–{item.start + item.duration:.1f} s")
+            sub.label(text=f"{_secs(item.start)}–{_secs(item.start + item.duration)} s")
         else:
-            sub.label(text=f"at {item.start:.1f} s")
+            sub.label(text=f"at {_secs(item.start)} s")
 
 
 def _draw_product_video(layout, context) -> None:
@@ -883,12 +926,12 @@ def _draw_product_video(layout, context) -> None:
         col.prop(s, "pv_end_on", text="End card")
         col.prop(s, "pv_captions", text="Captions")
         wrap(body, context, "Picture shape and the logo, colours and contact line come from the animation's own "
-                            "settings and 5 Scene & Render > Brand kit.", icon="INFO", inset=12)
-    primary(layout, "fresing.product_video", "Make a product video", "FILE_MOVIE")
+                            f"settings and {where('brand')}.", icon="INFO", inset=12)
+    big(layout, "fresing.product_video", "Make a product video", "FILE_MOVIE")
     a = product_video.find_animation(scene)
     if a is not None:
         wrap(layout, context, f"'{a.name}' is in the list below: about {animation.length_seconds(a):.0f} s without "
-                              "the cards. Change any step there, then Build & play or Add to queue.",
+                              "the cards. Change any step there, then Build & play or Render animation.",
              icon="INFO", inset=12)
 
 
@@ -906,19 +949,20 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         a = animation.active(context.scene)
-        if a is not None:
-            header_status(self.layout, f"{animation.length_seconds(a):.1f} s")
+        header_status(self.layout, f"{animation.length_seconds(a):.1f} s" if a is not None else "none")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        if not s.animations:
-            steps(layout, context, ["Make joints and poses in 4 Motion",
-                                    "+ below adds an animation",
-                                    "Add steps: joint moves, poses, camera, show/hide",
-                                    "Build & play, then Render animation"])
+        steps(layout, context, [f"Make joints and poses in {where('motion')}",
+                                "+ below adds an animation",
+                                "Add steps: joint moves, poses, camera, show/hide",
+                                "Build & play, then Render animation"],
+              key="fr_how_animation", used=any(len(x.blocks) for x in s.animations))
+        gap(layout)
         _draw_product_video(layout, context)
+        gap(layout)
         row = layout.row()
         row.template_list("FRESING_UL_anims", "", s, "animations", s, "animations_index",
                           rows=list_rows(len(s.animations), 1, 4))
@@ -934,7 +978,8 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
         col.prop(a, "tail", text="Hold at end (s)")
 
         # -- steps and the selected step
-        layout.label(text="Steps (overlapping steps play together)", icon="SEQ_STRIP_DUPLICATE")
+        gap(layout)
+        layout.label(text="Steps (overlaps play together)", icon="SEQ_STRIP_DUPLICATE")
         row = layout.row()
         row.template_list("FRESING_UL_blocks", "", a, "blocks", a, "blocks_index",
                           rows=list_rows(len(a.blocks), 3, 8))
@@ -948,8 +993,9 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
 
         if 0 <= a.blocks_index < len(a.blocks):
             b = a.blocks[a.blocks_index]
+            gap(layout)
             box = layout.box()
-            box.label(text=animation.block_label(b), icon=_KIND_ICON.get(b.kind, "DOT"))
+            wrap(box, context, animation.block_label(b), icon=_KIND_ICON.get(b.kind, "DOT"), inset=12)
             col = split_props(box)
             if b.kind == "MOTOR":
                 col.prop_search(b, "joint", s, "joints", text="Joint", icon="FORCE_VORTEX")
@@ -963,9 +1009,9 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                         turns = animation.motor_total(j, b) / joints.TURN
                         text = f"{turns:.2f} turns in this step"
                         if not joints.is_motor(j) and abs(turns) > 0.5:
-                            text += ". Tick 'Motor' on the joint in 4 Motion so it can turn without end"
+                            text += f". Tick 'Motor' on the joint in {where('motion')} so it can turn without end"
                     elif paths.is_cable_joint(scene, j):       # a cable's speed is given in m/min (task 0078)
-                        sub.prop(b, "speed_mmin", text="Cable speed (m/min)")
+                        sub.prop(b, "speed_mmin", text="Speed (m/min)")
                         text = f"{animation.motor_total(j, b):.2f} m of cable in this step"
                     else:
                         sub.prop(b, "speed_mms", text="Speed (mm/s)")
@@ -973,7 +1019,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                     wrap(box, context, text, icon="INFO", inset=12)
                     n = len(joints.all_followers(scene, j))
                     if n:
-                        wrap(box, context, f"{n} joint{'s' if n != 1 else ''} follow{'s' if n == 1 else ''} it",
+                        wrap(box, context, f"{plural(n, 'joint')} follow{'s' if n == 1 else ''} it",
                              icon="LINKED", inset=12)
             elif b.kind == "JOINT":
                 col.prop_search(b, "joint", s, "joints", text="Joint", icon="CON_PIVOT")
@@ -1011,7 +1057,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                         sub = col.row(align=True)
                         sub.scale_y = MEDIUM
                         sub.prop(b, "to_stroke", text="To")
-                        box.label(text=f"Stroke 0 … {_mm(c.full_stroke)}; moves '{j.name}'")
+                        wrap(box, context, f"Stroke 0 … {_mm(c.full_stroke)}; moves '{j.name}'", inset=12)
             elif b.kind == "MECHANISM":
                 col.prop_search(b, "mechanism", s, "mechanisms", text="Lift", icon="SORT_DESC")
                 m = s.mechanisms.get(b.mechanism)
@@ -1050,6 +1096,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                     _draw_fade(context, box, b)
                 elif b.kind == "SEQUENCE":
                     _draw_sequence(context, box, b)
+            gap(box, size=0.5)
             col = split_props(box)
             col.prop(b, "start", text="Start (s)")
             if b.kind == "GCODE":
@@ -1067,17 +1114,17 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                     col.prop(b, "cam_blend", text="Blend in (s)")
             col.prop(b, "name", text="Label")
 
-        # -- check it
-        layout.separator()
-        row = big_row(layout, MEDIUM)
-        row.operator("fresing.anim_build", text="Build & play", icon="PLAY").play = True
-        row.operator("fresing.anim_clear", text="", icon="CANCEL")
+        # -- check it: the section's one blue button, the X that stops the animation beside it
+        gap(layout)
+        row = layout.row(align=True)
+        primary(row, "fresing.anim_build", "Build & play", "PLAY").play = True
+        big(row, "fresing.anim_clear", "", "CANCEL", BIG)
         if s.anim_baked:
             layout.label(text="Built · Space plays it again", icon="CHECKMARK")
         layout.operator("fresing.anim_fit_camera", text="Fit camera to the whole motion", icon="FULLSCREEN_ENTER")
 
         # -- the video
-        layout.separator()
+        gap(layout)
         layout.label(text="Video", icon="FILE_MOVIE")
         box = layout.box()
         col = split_props(box)
@@ -1095,9 +1142,10 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
             elif test.status in ("WAITING", "RUNNING"):
                 wrap(box, context, "Time test: " + (test.message or "waiting in the queue"), icon="SORTTIME",
                      inset=12)
+        gap(box, size=0.5)
         op = box.operator("fresing.queue_add", text="Time test (2 frames)", icon="SORTTIME")
         op.kind, op.name, op.start = "TEST", a.name, True
-        op = primary(box, "fresing.queue_add", "Render animation", "RENDER_ANIMATION")
+        op = big(box, "fresing.queue_add", "Render animation", "RENDER_ANIMATION")
         op.kind, op.name, op.start = "ANIMATION", a.name, True
 
 
@@ -1107,13 +1155,16 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
 
 _STATUS_ICON = {"WAITING": "TIME", "RUNNING": "RENDER_ANIMATION", "DONE": "CHECKMARK", "FAILED": "ERROR",
                 "STOPPED": "CANCEL"}
+_JOB_ICON = {"STILL": "IMAGE_DATA", "ANIMATION": "RENDER_ANIMATION", "TEST": "SORTTIME"}
 
 
 class FRESING_UL_queue(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         row.alert = item.status == "FAILED"
-        row.label(text=item.label, icon=_STATUS_ICON.get(item.status, "DOT"))
+        # the icon says what kind of job it is, so the name has the row ("Animation: Luff and tra…" was cut off);
+        # the box under the list shows the whole label
+        row.label(text=item.label.split(": ", 1)[-1], icon=_JOB_ICON.get(item.kind, "DOT"))
         sub = row.row()
         sub.alignment = "RIGHT"
         if item.status == "RUNNING":
@@ -1135,7 +1186,7 @@ def _queue_status(scene) -> tuple[str, str, bool]:
         return f"{wait} waiting", "NONE", False
     if s.queue:
         return "all done", "NONE", False
-    return "", "NONE", False
+    return "empty", "NONE", False
 
 
 def _draw_every_scheme(layout, context, scene) -> None:
@@ -1147,8 +1198,8 @@ def _draw_every_scheme(layout, context, scene) -> None:
     if body is None:
         return
     if not s.schemes:
-        wrap(body, context, "Save paint schemes in 3 Looks > Paint schemes first. Then one click here queues the "
-                            "same video in each of them.", icon="INFO")
+        missing(body, context, f"No paint schemes yet ({where('schemes')})", op="fresing.scheme_save",
+                op_text="Save paint scheme", op_icon="ADD")
         return
     row = body.row(align=True)
     row.label(text="Render in:")
@@ -1158,6 +1209,7 @@ def _draw_every_scheme(layout, context, scene) -> None:
     for sch in s.schemes:
         flow.prop(sch, "queue_on", text=sch.name)
     a = animation.active(scene)
+    gap(body, size=0.5)
     row = big_row(body, MEDIUM)
     sub = row.row(align=True)
     sub.enabled = ticked > 0 and a is not None
@@ -1166,7 +1218,7 @@ def _draw_every_scheme(layout, context, scene) -> None:
     sub.enabled = ticked > 0 and scene.camera is not None
     sub.operator("fresing.queue_schemes", text="Current view", icon="IMAGE_DATA").kind = "STILL"
     if a is not None and ticked:
-        body.label(text=f"'{a.name}' × {plural(ticked, 'scheme')}", icon="INFO")
+        wrap(body, context, f"'{a.name}' × {plural(ticked, 'scheme')}", icon="INFO")
 
 
 class FRESING_PT_queue(_Panel, bpy.types.Panel):
@@ -1196,8 +1248,9 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         op.kind = "STILL"
         op = row.operator("fresing.queue_add", text="All scenes", icon="DOCUMENTS")
         op.kind = "ALL_SHOTS"
-        layout.label(text="Animations: Render animation in 6", icon="INFO")
+        wrap(layout, context, f"Animations: Render animation in {where('animation')}", icon="INFO")
         _draw_every_scheme(layout, context, scene)
+        gap(layout)
         row = layout.row()
         row.template_list("FRESING_UL_queue", "", s, "queue", s, "queue_index", rows=list_rows(len(s.queue), 3, 8))
         col = row.column(align=True)
@@ -1205,9 +1258,11 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         col.operator("fresing.queue_remove", text="", icon="BRUSH_DATA").finished = True
         if 0 <= s.queue_index < len(s.queue):
             job = s.queue[s.queue_index]
+            gap(layout)
             box = layout.box()
             box.alert = job.status == "FAILED"
-            box.label(text=job.label, icon=_STATUS_ICON.get(job.status, "DOT"))
+            wrap(box, context, job.label, icon=_STATUS_ICON.get(job.status, "DOT"), alert=job.status == "FAILED",
+                 inset=12)
             if job.status == "RUNNING":
                 box.progress(factor=job.progress / 100.0, text=f"{job.progress:.0f}%")
             if job.message:
@@ -1217,14 +1272,15 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
                 row.scale_y = MEDIUM
                 row.operator("fresing.queue_open", text="Open", icon="PLAY" if job.kind == "ANIMATION" else "IMAGE")
                 row.operator("fresing.show_in_folder", text="Show in folder", icon="FILE_FOLDER").path = job.output
-        layout.separator()
+        gap(layout)
         if running:
             row = big_row(layout, MEDIUM)
             row.operator("fresing.queue_stop", text="Stop after this frame", icon="PAUSE")
             sub = row.row(align=True)
             sub.alert = True
+            sub.ui_units_x = 4.8                 # "Stop now" needs this much; the longer text gets the rest
             sub.operator("fresing.queue_stop", text="Stop now", icon="CANCEL").now = True
-            layout.label(text="Keeps going if you close the app", icon="INFO")
+            wrap(layout, context, "Keeps going if you close the app", icon="INFO")
         elif queue.delay_pending():
             pass                                 # Start now in the box below does it (0068 row 5)
         elif any(j.status in ("WAITING", "STOPPED", "FAILED") for j in s.queue):
@@ -1235,15 +1291,16 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         if queue.delay_pending():
             box = layout.box()
             if queue.delay_waits_for_run(scene):
-                box.label(text=f"Due at {queue.delay_clock()}: starts when this render ends", icon="TIME")
+                wrap(box, context, f"Due at {queue.delay_clock()}: starts when this render ends", icon="TIME",
+                     inset=12)
             else:
-                box.label(text=queue.describe_delay(), icon="TIME")
+                wrap(box, context, queue.describe_delay(), icon="TIME", inset=12)
             row = box.row(align=True)
             row.scale_y = MEDIUM
             if not running:
                 row.operator("fresing.queue_start_now", text="Start now", icon="PLAY")
             row.operator("fresing.queue_start_cancel", text="Cancel", icon="CANCEL")
-            box.label(text="Keep the app open and the PC on until then", icon="INFO")
+            wrap(box, context, "Keep the app open and the PC on until then", icon="INFO", inset=12)
         elif not running and any(j.status in ("WAITING", "STOPPED", "FAILED") for j in s.queue):
             box = layout.box()
             row = box.row(align=True)
@@ -1259,6 +1316,7 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         if not queue.delay_pending() and queue._DELAY["note"]:
             wrap(layout, context, queue._DELAY["note"], icon="INFO")
         if s.queue_dir:
+            gap(layout)
             layout.operator("fresing.queue_log", text="Open log (time per frame, errors)", icon="TEXT")
 
 
