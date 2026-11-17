@@ -31,6 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SHIPPED_ICON = os.path.join(HERE, "brand", ICON_FILE)
 APP_ARGS = "--app-template fresing_render"
 START_MENU_FOLDER = "Fresing Render"
+SAFE_START = "Fresing Render - safe start.lnk"     # task 0177: the app on Blender's own launcher, never retargeted
 DESKTOP_NAMES = ("Fresing Render.lnk", "Fresing Render - PC check.lnk", "Fresing Render - PC check (heavy).lnk")
 PINNED = os.path.join("Microsoft", "Internet Explorer", "Quick Launch", "User Pinned", "TaskBar")
 STATE = {"windows": 0, "shortcuts": "", "error": ""}       # what the start-up hook did (tests, the console)
@@ -111,23 +112,36 @@ def is_pinned(path: str) -> bool:
     return os.path.normcase(os.path.normpath(PINNED)) in _norm(path)
 
 
-def plan(info: dict, folder: str, icon: str, pinned: bool = False) -> dict:
+def plan(info: dict, folder: str, icon: str, pinned: bool = False, app_target: str = "",
+         keep_target: bool = False) -> dict:
     """What one shortcut needs. ``info``: target, arguments, icon (path), icon_index, app_id as read.
     Returns {"icon": bool, "app_id": str or ""}: nothing for a shortcut whose target is outside the install folder
     (never touch someone else's shortcut). A pinned taskbar icon is changed only when it starts the app: a pin of
-    plain Blender from this folder keeps Blender's icon, since it starts Blender, not Fresing Render."""
+    plain Blender from this folder keeps Blender's icon, since it starts Blender, not Fresing Render.
+    ``app_target`` (task 0177): the program the app's shortcuts start ("Fresing Render.exe", or Blender's launcher when
+    the copy cannot be used); "target" in the answer is the new target, '' = keep it."""
+    nothing = {"icon": False, "app_id": "", "target": ""}
     if not is_inside(info.get("target", ""), folder) or (pinned and not is_app_shortcut(info.get("arguments", ""))):
-        return {"icon": False, "app_id": ""}
+        return nothing
     wrong_icon = _norm(info.get("icon", "")) != _norm(icon) or int(info.get("icon_index") or 0) != 0
-    want_id = APP_ID if is_app_shortcut(info.get("arguments", "")) and info.get("app_id", "") != APP_ID else ""
-    return {"icon": wrong_icon, "app_id": want_id}
+    app = is_app_shortcut(info.get("arguments", ""))
+    want_id = APP_ID if app and info.get("app_id", "") != APP_ID else ""
+    target = app_target if (app and app_target and is_inside(app_target, folder)
+                            and _norm(info.get("target", "")) != _norm(app_target)) else ""
+    if keep_target:
+        target = ""
+    return {"icon": wrong_icon, "app_id": want_id, "target": target}
 
 
 def relaunch_command(binary_path: str) -> str:
-    """How Windows starts the app again from a pin made on the running window."""
-    folder = os.path.dirname(os.path.abspath(binary_path))
-    gui = os.path.join(folder, "blender-launcher.exe")
-    exe = gui if os.path.isfile(gui) else binary_path
+    """How Windows starts the app again from a pin made on the running window: "Fresing Render.exe" when it can be
+    used (task 0177), else Blender's launcher."""
+    from . import winexe
+    exe = winexe.app_exe(binary_path) if sys.platform == "win32" else ""
+    if not exe:
+        folder = os.path.dirname(os.path.abspath(binary_path))
+        gui = os.path.join(folder, "blender-launcher.exe")
+        exe = gui if os.path.isfile(gui) else binary_path
     return f'"{exe}" {APP_ARGS}'
 
 
@@ -270,7 +284,7 @@ class _Win:
         self.method(store, 6, ct.POINTER(self.PROPERTYKEY), ct.POINTER(self.PROPVARIANT))(ct.byref(key), ct.byref(pv))
 
     # -- shortcuts ----------------------------------------------------------
-    def open_link(self, path: str, write: bool):
+    def open_link(self, path: str, write: bool, new: bool = False):
         ct = self.ct
         link = ct.c_void_p()
         hr = self.ole32.CoCreateInstance(ct.byref(self.CLSID_ShellLink), None, 0x1,       # CLSCTX_INPROC_SERVER
@@ -282,6 +296,8 @@ class _Win:
         except OSError:
             self.release(link)
             raise
+        if new:                                        # a new shortcut: nothing to load
+            return link, pf
         try:
             self.method(pf, 5, self.wt.LPCWSTR, self.wt.DWORD)(path, 0x2 if write else 0x0)   # Load, STGM_READWRITE
         except OSError:
@@ -372,16 +388,20 @@ def read_shortcut(path: str) -> dict:
             w.ole32.CoUninitialize()
 
 
-def fix_shortcut(path: str, folder: str, icon: str) -> str:
+def fix_shortcut(path: str, folder: str, icon: str, app_target: str = "") -> str:
     """Windows: give one shortcut the Fresing icon (and the app's ID when it starts the app) when it needs them.
     Returns what was changed ('' = nothing)."""
     w = _win()
     link, pf = w.open_link(path, write=True)
     try:
-        todo = plan(w.read_link(link), folder, icon, pinned=is_pinned(path))
-        if not (todo["icon"] or todo["app_id"]):
+        todo = plan(w.read_link(link), folder, icon, pinned=is_pinned(path), app_target=app_target,
+                    keep_target=os.path.basename(path).lower() == SAFE_START.lower())
+        if not (todo["icon"] or todo["app_id"] or todo["target"]):
             return ""
         done = []
+        if todo["target"]:
+            w.method(link, 20, w.wt.LPCWSTR)(todo["target"])                          # SetPath
+            done.append("starts " + os.path.basename(todo["target"]))
         if todo["icon"]:
             w.method(link, 17, w.wt.LPCWSTR, w.ct.c_int)(icon, 0)                     # SetIconLocation
             done.append("icon")
@@ -401,7 +421,7 @@ def fix_shortcut(path: str, folder: str, icon: str) -> str:
     return " + ".join(done)
 
 
-def refresh_shortcuts(folder: str, icon: str, paths: list[str]) -> list[str]:
+def refresh_shortcuts(folder: str, icon: str, paths: list[str], app_target: str = "") -> list[str]:
     """Windows: ``fix_shortcut`` on every path; one fault does not stop the others. Returns "<name>: <what>".
     Without an icon file nothing is written (an empty icon path would take the icon away)."""
     if not icon or not os.path.isfile(icon):
@@ -413,7 +433,7 @@ def refresh_shortcuts(folder: str, icon: str, paths: list[str]) -> list[str]:
     try:
         for path in paths:
             try:
-                what = fix_shortcut(path, folder, icon)
+                what = fix_shortcut(path, folder, icon, app_target)
                 if what:
                     out.append(f"{os.path.basename(path)}: {what}")
             except Exception as exc:  # noqa: BLE001 - a locked or broken shortcut: leave it
@@ -432,10 +452,60 @@ def known_folders() -> tuple[str, str, str]:
             runner._known_folder("3EB685DB-65F9-4CF6-A03A-E3EF65729F3D"))        # FOLDERID_RoamingAppData
 
 
+def make_shortcut(path: str, target: str, arguments: str, workdir: str, icon: str, description: str) -> None:
+    """Windows: a new shortcut (the safe start for PCs that updated with Update now)."""
+    w = _win()
+    undo = w.com_init()
+    try:
+        link, pf = w.open_link(path, write=True, new=True)
+        try:
+            w.method(link, 20, w.wt.LPCWSTR)(target)                     # SetPath
+            w.method(link, 11, w.wt.LPCWSTR)(arguments)                  # SetArguments
+            w.method(link, 9, w.wt.LPCWSTR)(workdir)                     # SetWorkingDirectory
+            w.method(link, 7, w.wt.LPCWSTR)(description)                 # SetDescription
+            w.method(link, 17, w.wt.LPCWSTR, w.ct.c_int)(icon, 0)        # SetIconLocation
+            w.method(pf, 6, w.wt.LPCWSTR, w.wt.BOOL)(path, True)         # Save
+        finally:
+            w.release(pf)
+            w.release(link)
+    finally:
+        if undo:
+            w.ole32.CoUninitialize()
+
+
+SAFE_TEXT = ("Starts Fresing Render with Blender's own program. Use it only if Fresing Render does not start from its "
+             "usual shortcut (for example when a virus scanner removed Fresing Render.exe)")
+
+
+def ensure_safe_start(binary_path: str, programs: str, icon: str) -> str:
+    """Windows: the Start-menu shortcut "Fresing Render - safe start" on blender-launcher.exe, when it is missing."""
+    from . import winexe
+    menu = os.path.join(programs, START_MENU_FOLDER) if programs else ""
+    blender = winexe.blender_exe_of(binary_path)
+    launcher = os.path.join(os.path.dirname(os.path.abspath(blender)), "blender-launcher.exe")
+    path = os.path.join(menu, SAFE_START)
+    if not menu or not os.path.isdir(menu) or os.path.isfile(path) or not os.path.isfile(launcher):
+        return ""
+    make_shortcut(path, launcher, APP_ARGS, os.path.dirname(launcher), icon, SAFE_TEXT)
+    return SAFE_START + ": made"
+
+
+def app_target_for(binary_path: str, icon: str) -> str:
+    """Windows (task 0177): make "Fresing Render.exe" when needed; the program the app's shortcuts should start – the
+    copy, or Blender's launcher when the copy cannot be used ('' when there is neither)."""
+    from . import winexe
+    blender = winexe.blender_exe_of(binary_path)
+    copy = winexe.ensure(blender, icon)
+    if copy:
+        return copy
+    launcher = os.path.join(os.path.dirname(os.path.abspath(blender)), "blender-launcher.exe")
+    return launcher if os.path.isfile(launcher) else ""
+
+
 def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", appdata: str = "",
                       icon: str = "") -> list[str]:
-    """Windows: the icon file into the install folder and every shortcut of this install refreshed (the installer
-    calls this after making them; the app at start for PCs installed before 0169)."""
+    """Windows: the icon file into the install folder, "Fresing Render.exe" made (task 0177), and every shortcut of
+    this install refreshed (the app at start for PCs installed before 0169 / 0177)."""
     folder = install_dir(binary_path)
     if not folder:
         return []
@@ -445,8 +515,17 @@ def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", a
     if not (desktop and programs):
         d, p, a = known_folders()
         desktop, programs, appdata = desktop or d, programs or p, appdata or a
+    target = app_target_for(binary_path, icon)
+    STATE["app_exe"] = target
+    safe = ""
+    try:
+        safe = ensure_safe_start(binary_path, programs, icon)
+    except Exception as exc:  # noqa: BLE001
+        log("could not make the safe-start shortcut:", exc)
     paths = shortcut_paths(desktop, programs, appdata)
-    done = refresh_shortcuts(folder, icon, paths)
+    done = refresh_shortcuts(folder, icon, paths, target)
+    if safe:
+        done.append(safe)
     if STATE.pop("icon_changed", False):
         redraw_icons(paths)
         done.append("icon file replaced: Explorer told to redraw")

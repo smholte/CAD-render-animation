@@ -4,7 +4,7 @@
 #>
 param([string]$InstallDir = (Join-Path $env:LOCALAPPDATA "FresingRender"))
 
-$running = Get-Process -Name blender, blender-launcher -ErrorAction SilentlyContinue |
+$running = Get-Process -Name blender, blender-launcher, "Fresing Render" -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -and $_.Path.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase) }
 if ($running) {
     Write-Host "Fresing Render is still open. Close it first, then run Uninstall again." -ForegroundColor Yellow

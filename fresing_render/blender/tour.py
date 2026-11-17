@@ -3452,7 +3452,7 @@ stop("swivel", MOTION, "swivel", "Sheave turns to follow its wire",
      "head: as the arm swings, the head turns about the tip so the wire from the fairlead always runs straight into "
      "the sheave's groove, never across its side; the hook block hangs still under the tip.",
      where="4 Motion > Cables and paths > What it touches: the sheave's Swivel", animation=SWIVEL_ANIM, play=True,
-     since="0.2.137", check=_check_swivel, auto="clip")
+     since="0.2.138", check=_check_swivel, auto="clip")
 stop("copies", MOTION, "copies", "Two copies of one STEP",
      "The test crane twice, side by side. The second one has its cover hidden; the first one keeps its cover.",
      where="1 Import (the same file twice); 2 Structure", check=_check_copies)

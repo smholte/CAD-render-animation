@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.137 – 17 Nov 2026 – The demo's quadrant on the seabed, sheaves that stand still, a swivel to try (task 0172)
+## 0.2.138 – 17 Nov 2026 – The demo's quadrant on the seabed, sheaves that stand still, a swivel to try (task 0172)
 
 - **Shot 11 of the demo:** as the D-quadrant tips flat and is set down on the seabed, the cable stays in its gutter to
   the far end – the end that points the way the cable lies – and bends down from there onto the seabed. Before, it
@@ -20,6 +20,18 @@ installer of that version was built from.
 - **New in the test tour and the PC check: "Sheave turns to follow its wire"** – a deck davit slews while its wire runs
   from a fairlead on the deck over a sheave on a swivel head; the head turns so the wire always runs straight into the
   groove.
+
+## 0.2.137 – 17 Nov 2026 – Task Manager says "Fresing Render" (task 0178)
+
+- **Task Manager now shows the app as "Fresing Render"**, with its Fr icon, not as "Blender" – also for renders the
+  render queue runs in the background. The app's shortcuts start **Fresing Render.exe**: Blender's own program under
+  the app's name and icon, made next to it by the installer (or by the app at its first start after **Update now**)
+  and checked once before it is used. No black console window opens with it.
+- **New in the Start menu: Fresing Render - safe start.** It starts the app with Blender's own program. Use it only if
+  Fresing Render does not start from its usual shortcut (for example when a virus scanner removed the copy).
+- While Windows 11's *Smart App Control* is on, the app keeps using Blender's own program (that setting blocks
+  programs without a signature), and Task Manager still says "Blender".
+
 
 ## 0.2.136 – 17 Nov 2026 – The app icon says "Fr" (task 0169)
 
