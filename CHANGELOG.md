@@ -5,6 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.146 – 17 Nov 2026 – Web 3D export of the demo 8x faster, and small page fixes (task 0189)
+
+- **Web 3D model with marine looks is much faster.** The small demo project took 29 minutes to export, now 3.5 minutes
+  (measured on the 4-core test machine: 1,754 s → 214 s), and its file went from 16 to 11 MB:
+  - copies of a part with a marine look that stand at the same height and tilt (the clamps, J-tubes and boat landings
+    of every turbine in the wind park) are baked once and share the pictures: 69 bakes instead of 264, the same look;
+  - every bake – also the tiles and the baked light – no longer drags the whole project along (a bake of a small part
+    took 2.4 s on the demo, now 0.25 s).
+- **The panel's estimate is honest:** it says how many parts are baked ("69 parts baked (copies share one)") and about
+  how long it takes – it counts the time per bake, not only the pixels (it said "about 34 s" for half an hour).
+- **The Web 3D panel draws at once** again on big projects: its estimates are kept until something changes (it took
+  30–45 ms at every redraw on the demo, now under 1 ms).
+- **Cable into the sea on a page without vessel motion:** the laid cable lies on the seabed again (it dipped up to
+  0.8 m into it or floated above it). With vessel motion on the page, the visitor can no longer switch the motion off
+  when a cable hangs from the vessel into the sea (the cable would leave the seabed).
+- **Phone held sideways:** the Measure and Cutaway panel no longer covers the saved views and the time line.
+- **A page with the animation:** a part's card leaves out a label's live numbers ("Lay speed 0.0 m/min" while the cable
+  was paid out); a still page shows them as before.
+- Landing page: adding a 3D model no longer removes the credits of models whose pictures come later.
+
 ## 0.2.145 – 17 Nov 2026 – Fast 3-axis no longer leaves a hole through the block (task 0186)
 
 - **Milling with Fast 3-axis: no more square hole straight through the workpiece.** On some programs one small square
