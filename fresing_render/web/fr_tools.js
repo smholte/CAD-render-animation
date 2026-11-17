@@ -38,11 +38,13 @@
 
   // ---------------------------------------------------------------- look
   var css = [
-    '#fr-parts { position: absolute; left: 12px; top: calc(var(--fr-top, 0px) + 50px); z-index: 3; display: flex;',
+    // task 0179: under the header (--fr-head, measured by fr_player.js), out of the safe area, 40 px touch targets
+    '#fr-parts { position: absolute; left: calc(12px + var(--sa-l, 0px)); top: var(--fr-head, 50px); z-index: 3; display: flex;',
     '  flex-direction: column; gap: 6px; }',
     '#fr-parts .fr-btn { padding: 0; width: 40px; height: 40px; }',
-    '#fr-tpanel { position: absolute; left: 62px; top: calc(var(--fr-top, 0px) + 50px); z-index: 4;',
-    '  width: min(300px, calc(100vw - 140px)); max-height: calc(100% - var(--fr-top, 0px) - 160px); overflow: auto;',
+    '#fr-tpanel { position: absolute; left: calc(62px + var(--sa-l, 0px)); top: var(--fr-head, 50px); z-index: 4;',
+    '  width: min(300px, calc(100vw - 140px)); max-height: calc(100% - var(--fr-head, 50px) - var(--fr-stack, 110px) - 8px);',
+    '  overflow: auto; box-sizing: border-box;',
     '  background: rgba(20,28,34,.9); color: #F4F6F8; border-radius: 8px; padding: 10px 12px;',
     '  font: 13px "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35); display: none; }',
     '#fr-tpanel h2 { font-size: 14px; margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; }',
@@ -69,12 +71,10 @@
     '#fr-card b { display: block; font-weight: 600; overflow-wrap: anywhere; }',
     '#fr-card span { color: #D5DBE0; font-size: 12px; }',
     'html.fr-clean #fr-parts, html.fr-clean #fr-tpanel { display: none !important; }',
-    '@media (max-width: 600px) { #fr-parts { top: calc(var(--fr-top, 0px) + 70px); left: 8px; }',
-    '  #fr-tpanel { left: 8px; right: 56px; width: auto; top: auto; bottom: 8px; max-height: 38%; z-index: 5;',
-    '    background: rgba(20,28,34,.96); } }',
-    '@media (max-height: 480px) { #fr-parts { top: calc(var(--fr-top, 0px) + 44px); gap: 4px; }',
-    '  #fr-parts .fr-btn { width: 34px; height: 34px; min-height: 34px; min-width: 34px; }',
-    '  #fr-tpanel { left: 54px; top: calc(var(--fr-top, 0px) + 44px); max-height: calc(100% - var(--fr-top, 0px) - 52px); } }'
+    '@media (max-width: 600px) {',
+    '  #fr-tpanel { left: calc(12px + var(--sa-l, 0px)); right: calc(62px + var(--sa-r, 0px)); width: auto; top: auto;',
+    '    bottom: 8px; max-height: 38%; z-index: 5; background: rgba(20,28,34,.96); } }',
+    '@media (max-height: 480px) { #fr-tpanel { max-height: calc(100% - var(--fr-head, 50px) - 8px); } }'
   ].join('\n');
   var style = document.createElement('style');
   style.textContent = css;

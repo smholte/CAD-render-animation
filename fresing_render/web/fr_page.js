@@ -1511,7 +1511,7 @@
     camera.updateProjectionMatrix();
     if (k >= 1) { fly = null; changed('view'); }
   }
-  controls.addEventListener('start', function () { fly = null; onView = false; limitPolar(); input(); });
+  controls.addEventListener('start', function () { fly = null; onView = false; moved = true; limitPolar(); input(); });
   controls.addEventListener('change', function () { wake(); });
 
   // the project's saved cameras (task 0134; Blender world, ``vfov``/``hfov`` of the render in degrees): the page
@@ -1533,13 +1533,22 @@
     flyTo({ pos: v.eye.clone(), target: v.target.clone(), fov: viewFov(v) });
     changed('view');
   };
-  page.resetView = function () { onView = false; flyTo(homeView()); };
+  page.resetView = function () { onView = false; moved = false; flyTo(homeView()); };
+  // task 0179: the start view framed again when the free area changed (the player's controls laid out, the phone
+  // turned) – only while the visitor has not moved the camera and no saved view is shown
+  var moved = false;
+  page.refit = function () {
+    if (!page.ready || moved || onView || fly) return false;
+    firstView();
+    wake();
+    return true;
+  };
   page.drawInfo = function () {           // tests: what one picture costs (draw calls, triangles, programs)
     var r = renderer.info;
     return { calls: r.render.calls, triangles: r.render.triangles, programs: (r.programs || []).length };
   };
   page.setCamera = function (pos, target) {   // tests, the PC check: a camera place (three's coordinates), as a drag
-    fly = null; onView = false;
+    fly = null; onView = false; moved = true;
     camera.position.fromArray(pos); controls.target.fromArray(target);
     limitPolar(); controls.update(); wake();
   };
@@ -1721,6 +1730,9 @@
   // ---------------------------------------------------------------- quality
   var noteEl = document.getElementById('quality'), noteTimer = null;
   function note(text, seconds) {
+    page.lastNote = text;
+    // task 0179: the player shows it as a short message above its controls (it covered "Made with" on a phone)
+    if (page.notify) { page.notify(text, seconds); if (noteEl) noteEl.textContent = text; return; }
     if (!noteEl) return;
     clearTimeout(noteTimer);
     noteEl.textContent = text;
@@ -1773,6 +1785,30 @@
     changed('quality');
   };
 
+  // task 0179: the part of the view the player's controls leave free (CSS px from each edge). The camera's frame (its
+  // fov and aspect) is that rectangle, its middle the view's middle; the rest of the screen shows more round it
+  // (three.js view offset). So the start view, Reset and every saved view sit in the free area, not behind buttons.
+  var free = { top: 0, bottom: 0, left: 0, right: 0 };
+  page.setFree = function (f) {
+    var n = { top: +f.top || 0, bottom: +f.bottom || 0, left: +f.left || 0, right: +f.right || 0 };
+    if (['top', 'bottom', 'left', 'right'].every(function (k) { return Math.abs(n[k] - free[k]) < 0.5; })) return false;
+    free = n;
+    resize();
+    return true;
+  };
+  page.freeArea = function () {
+    var w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
+    var f = freeOf(w, h);
+    return { left: f.l, top: f.t, width: f.w, height: f.h };
+  };
+  function freeOf(w, h) {
+    // never less than 40 % of the screen each way (a huge stack of controls must not shrink the model to a dot)
+    var t = Math.max(0, free.top), b = Math.max(0, free.bottom), l = Math.max(0, free.left), r = Math.max(0, free.right);
+    var sv = Math.min(1, 0.6 * h / Math.max(t + b, 1e-6)), sh = Math.min(1, 0.6 * w / Math.max(l + r, 1e-6));
+    t *= sv; b *= sv; l *= sh; r *= sh;
+    return { t: t, l: l, w: Math.max(1, w - l - r), h: Math.max(1, h - t - b) };
+  }
+
   function resize() {
     var w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
     var l = L();
@@ -1781,7 +1817,10 @@
     if (l.pixels) ratio = Math.max(0.5, Math.min(ratio, Math.sqrt(l.pixels / Math.max(w * h, 1))));
     if (Math.abs(renderer.getPixelRatio() - ratio) > 1e-3) renderer.setPixelRatio(ratio);
     renderer.setSize(w, h, false);
-    camera.aspect = w / Math.max(h, 1);
+    var f = freeOf(w, h);
+    camera.aspect = f.w / Math.max(f.h, 1);
+    if (f.t || f.l || f.w !== w || f.h !== h) camera.setViewOffset(f.w, f.h, -f.l, -f.t, w, h);
+    else camera.clearViewOffset();
     camera.updateProjectionMatrix();
     page.info.pixels = gl.drawingBufferWidth * gl.drawingBufferHeight;
     page.info.pixelRatio = ratio;

@@ -518,7 +518,7 @@ _PAGE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{title}</title>
 <style>
   :root {{ --ink: #F4F6F8; --muted: #D5DBE0; --bg: #8FA6B5; }}

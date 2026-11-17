@@ -416,7 +416,7 @@ def test_phone_layout_and_remembered_settings(tmp_path):
     assert help_[1] > tools[3] or help_[2] <= tools[0], (help_, tools)          # below the tool column
     assert "pinch" in out["out"][3] and "? for keys" not in out["out"][3] and "right-drag" not in out["out"][3]
     out = probe(path, [{"key": "m"}, {"eval": rect + "('#fr-menu')"},
-                       {"eval": "[...document.querySelectorAll('#fr-tools button')].map(b => { var r = b.getBoundingClientRect(); return [r.left, r.right]; })"},
+                       {"eval": "[...document.querySelectorAll('#fr-tools button')].filter(b => b.offsetParent).map(b => { var r = b.getBoundingClientRect(); return [r.left, r.right]; })"},
                        {"eval": "frPage.fileName(document.title)"}], size="844x390")
     menu, btns = out["out"][1], out["out"][2]
     assert len({round(b[0]) for b in btns}) == 1, btns                          # one column

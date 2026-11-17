@@ -3446,6 +3446,13 @@ class FRWeb3D(bpy.types.PropertyGroup):
         name="Hide part names", default=True,
         description="On: the parts are called Part 1, Part 2 … in the file, so a customer does not see your part "
                     "numbers. Off: the parts keep the names they have in the app")
+    view_names: EnumProperty(
+        name="View names", default="CAMERA",
+        description="What the page calls its saved views (one per camera of the project). Camera names: the camera "
+                    "names are shown on the page, so a visitor sees \"Shot 3: carousel and arch\". Numbered: View 1, "
+                    "View 2 … – choose it when the camera names should stay private",
+        items=[("CAMERA", "Camera names", "The page shows each saved view by its camera's name"),
+               ("NUMBERED", "Numbered", "The page shows View 1, View 2 …: the camera names stay private")])
     marine_detail: EnumProperty(
         name="Marine detail", default="NORMAL",
         description="How fine the marine looks (growth band, streaks, barnacles) are on the page. Normal: small page. "

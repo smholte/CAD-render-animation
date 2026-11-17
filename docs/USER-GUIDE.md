@@ -2712,6 +2712,11 @@ the machine himself, or for your website.
    file for phones and e-mail; **2048** is sharpest but makes the file bigger and the export slower.
 3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
    see your part numbers. Switch it off to keep the names you see in the app.
+   <a id="web3d-view-names"></a>**View names** (Camera names by default): what the page calls its saved views – one
+   per camera of the project. **Camera names** shows the cameras' own names ("Shot 3: carousel and arch");
+   **Numbered** shows View 1, View 2 … – choose it when the camera names should stay private. Hide part names no
+   longer changes the view names. The line under it shows the names the page will get (the first three and "…"),
+   so nothing goes out unseen. A page exported before keeps its names; export again to get the new ones.
    **Faces for measuring** (on by default): the parts' flat and round faces go into the file, so the page can
    measure between planes, read a hole's diameter and measure centre to centre ([Measure](#web3d-tools)); about a
    tenth more file.
@@ -2783,16 +2788,36 @@ title and these controls:
   **remembers** these choices for the next visit on that PC; **Reset** goes back to the page's own.
 - **Playback** (a page with an animation): **Space** plays and pauses, the time line can be dragged to any moment
   (also on a phone), speed **½×, 1×, 2×**, the arrow keys jump two seconds.
-- **Saved views**: one button per camera of the project (keys **1 … 9**); the view flies there. The buttons carry
-  the cameras' names – with **Hide part names** on they are View 1, View 2 … An **Isometric** camera (no
-  perspective in the app) shows the same frame on the page, with the page's own slight perspective.
+- **Saved views**: one per camera of the project, named as **View names** says (keys **1 … 9**); the view flies
+  there. On a PC, a tablet and a phone held sideways they are **one row of buttons** that never wraps: when they do
+  not fit, the row scrolls sideways (its edges fade) and **All views** at its end opens the list of all of them. On a
+  phone held upright they are **one control** above the play bar: **‹ name ›** – the arrows step to the previous or
+  next view, a tap on the name opens the list from the bottom (the current view marked; it closes on a pick, a tap
+  outside, Esc or the phone's Back). Long names end in "…" on the control and are whole in the list. Two or three
+  short names on a phone stay buttons. An **Isometric** camera (no perspective in the app) shows the same frame on
+  the page, with the page's own slight perspective.
 - **Fullscreen** (F), **Reset view** (R), **Screenshot** (S: a PNG of the view, without the buttons), **Copy link to
-  this view** (L: the address then opens the same view, moment and settings), **Keyboard help** (?).
+  this view** (L: the address then opens the same view, moment and settings), **Help and keys** (?: the page's
+  full title, every button with its icon and name, and the keys).
 - **Clean look** (H, the eye): every control and bar hidden – for showing or a screen recording; a faint button in
   the bottom right corner (or H again) brings them back.
 - A **loading bar** shows how many MB of the model have come in.
 - **Part tools** on the left: Part info, Measure, Cutaway, Fade the rest – see
   [below](#web3d-tools).
+
+<a id="web3d-phone"></a>
+<img src="img/web3d_phone.jpg" alt="The page on a phone held upright: the saved views as one control, and the list of all views" width="540">
+
+**On a phone** the page keeps the model free: the title is one line (the whole title is in
+the help), the two button columns sit under it, and one stack at the bottom holds – from the bottom up – the "Made
+with" line, the play bar (full width) and the views control. Nothing lies on top of anything, and nothing goes under
+a notch, the Android gesture bar or the iPhone home bar. The model starts framed in the space between the title and
+that stack, also after turning the phone. On the first visit a bubble says "Drag to turn · pinch to zoom · two fingers
+to move" until the first touch (or 6 s); later visits go without it. A phone has no tooltips: a **long press on a
+button** shows its name (it does not press it), and the help lists every button. Upright the right column has at most
+five buttons; the rarer ones (Screenshot, Copy link, Clean look) are under **More tools** (⋯), with their names. When
+Auto quality lowers the quality, a short message says so for a few seconds above the controls; the level is always in
+the settings (gear).
 
 **Light on the computer:** the page draws a picture only when something changes – the view moves, the animation,
 sea, vessel or rain plays, a setting changes – at most 60 a second, and nothing while its tab is hidden. A machine

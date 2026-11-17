@@ -21,6 +21,10 @@
 //   {"touch": [x, y, ms]}            a finger on a pixel for ms (a tap; 600 ms or more: a long press), with --mobile
 //   {"shot": "<file.png>"}           a screenshot of the page
 //   {"reload": true}                 load the page again (same address: the remembered choices stay)
+//   {"size": "WxH"}                  the window resized (a phone turned; task 0179), then 400 ms for the layout
+//   {"touchon": ["<css>", ms]}       a finger on the middle of the first element the selector matches, for ms (a
+//                                    long press from 450 ms on), with --mobile
+//   {"back": true}                   the browser's Back (Android's back gesture)
 // Prints {"ok", "errors", "out": [...], "state": {...frPage}}; ok is false when the page reported an error.
 // Software GL (SwiftShader): the page sees no graphics card; add soft=0 to the query to test the rest as if it had.
 const path = require('path');
@@ -90,11 +94,17 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
     } else if (s.press != null) {
       await page.mouse.move(s.press[0], s.press[1]); await page.mouse.down();
       await page.waitForTimeout(s.press[2] || 700); await page.mouse.up(); await page.waitForTimeout(80); out.push(null);
-    } else if (s.touch != null) {
+    } else if (s.touch != null || s.touchon != null) {
+      let at = s.touch;
+      if (s.touchon != null) {
+        const r = await page.evaluate(q => { const b = document.querySelector(q).getBoundingClientRect();
+                                              return [b.left + b.width / 2, b.top + b.height / 2]; }, s.touchon[0]);
+        at = [r[0], r[1], s.touchon[1]];
+      }
       const cdp = await context.newCDPSession(page);
       const tp = (type) => cdp.send('Input.dispatchTouchEvent', { type,
-        touchPoints: type === 'touchEnd' ? [] : [{ x: s.touch[0], y: s.touch[1] }] });
-      await tp('touchStart'); await page.waitForTimeout(s.touch[2] || 80); await tp('touchEnd');
+        touchPoints: type === 'touchEnd' ? [] : [{ x: at[0], y: at[1] }] });
+      await tp('touchStart'); await page.waitForTimeout(at[2] || 80); await tp('touchEnd');
       await page.waitForTimeout(80); out.push(null);
     } else if (s.move != null) {
       await page.mouse.move(s.move[0], s.move[1]); await page.waitForTimeout(150); out.push(null);
@@ -102,6 +112,10 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
       await page.screenshot({ path: s.shot, timeout: 300000 }); out.push(s.shot);
     }
     else if (s.reload) { await page.reload(); await ready(); out.push(null); }
+    else if (s.size != null) {
+      const [sw, sh] = s.size.split('x').map(Number);
+      await page.setViewportSize({ width: sw, height: sh }); await page.waitForTimeout(400); out.push(null);
+    } else if (s.back) { await page.goBack().catch(() => null); await page.waitForTimeout(150); out.push(null); }
     else out.push('unknown step');
   }
   const state = await page.evaluate(() => ({
