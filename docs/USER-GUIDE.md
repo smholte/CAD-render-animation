@@ -2721,7 +2721,7 @@ the machine himself, or for your website.
    measure between planes, read a hole's diameter and measure centre to centre ([Measure](#web3d-tools)); about a
    tenth more file.
 4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
-   (meshopt), about **half the file**; the page opens it as before, also offline. Since 0.2.142 the motion is packed
+   (meshopt), about **half the file**; the page opens it as before, also offline. Since 0.2.143 the motion is packed
    too: each part keeps only the moments a straight blend cannot give (every frame stays within 0.1 mm and 0.05° of
    the app), and the moving cables store how much they moved from one moment to the next. Smaller models are not packed:
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
@@ -2739,7 +2739,7 @@ the machine himself, or for your website.
 **File size.** The page holds the model packed (the browser unpacks it as it opens), so the
 page is about as big as the `.glb`, not a third bigger. Pictures are saved as WebP where that is smaller and as
 faithful as JPG (every current browser reads WebP); a part that is in the project twice with the same shape is stored
-once. Pages exported before stay as they were; export again to get the smaller page. SIZE_NUMBERS
+once. Pages exported before stay as they were; export again to get the smaller page. Measured on the demo project (cable-lay vessel, 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.

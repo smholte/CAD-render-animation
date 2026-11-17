@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.143 – 17 Nov 2026 – Smaller web 3D files (task 0175)
+
+- **Web 3D model: the page is less than half as big.** The demo's page went from 98 MB to 42 MB, its `.glb` from 73 to
+  50 MB, with the same picture and motion:
+  - the model is packed inside the page (the browser unpacks it as it opens – about half a second on the demo);
+  - moving parts keep only the moments a straight blend cannot give, checked at every frame (within 0.1 mm and
+    0.05°); turns are stored as 16-bit numbers, a part that never moves or never turns gets no keys for it, and a
+    part that is shown and hidden only where that changes;
+  - moving cables store how much they moved from one moment to the next (the cable into the sea: 17 MB → 7 MB);
+  - pictures are WebP where that is smaller and as faithful as JPG; the baked light's map positions are stored
+    coarser (a quarter of a light pixel at most); a shape that is in the project twice is stored once.
+- Pages exported before stay as they were: export again to get the smaller page.
 ## 0.2.142 – 17 Nov 2026 – A carousel is read the same on every computer (task 0184)
 
 - **Drums and carousels:** when a guide sheave touches the coil (no free cable between them), the way the cable is

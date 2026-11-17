@@ -2291,7 +2291,7 @@ def web3d_export(ctx):
     return f"{out['text']}; read back by Blender's glTF importer; {_player_check(out['html'], ctx)}"
 
 
-@line("web3d.small", "Web 3D model: smaller file – packed motion, WebP, model packed in the page", "0.2.142",
+@line("web3d.small", "Web 3D model: smaller file – packed motion, WebP, model packed in the page", "0.2.143",
       what="Task 0175: the test mill with a part that slides and turns, one that only turns and one shown and hidden, "
            "saved as a compressed web 3D model with its animation: the keys are packed with meshopt's filters, a "
            "path that never moves and the frames between shown / hidden are left out, every frame stays within "
