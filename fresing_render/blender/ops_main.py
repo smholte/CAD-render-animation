@@ -960,6 +960,7 @@ class FRESING_OT_render(bpy.types.Operator):
     _timer = None
 
     def execute(self, context):
+        context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
         scene = context.scene
         s = scene.fresing
         if scene.camera is None:

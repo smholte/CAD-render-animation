@@ -33,12 +33,39 @@ FAMILIES = {
     "milling": "Milling",
     "offshore": "Cables, drums & sea",
     "scene": "Scene & render",
-    "animation": "Animation & video",
+    "animation": "Animation",
+    "video": "Video finishing (brand kit, labels, pictures, music)",
     "queue": "Render queue",
     "web": "Web 3D model",
     "house": "Houses",
     "help": "Help, updates and checks",
 }
+
+# 0062's workspaces: a workspace shows a function when the function's ``workspaces`` names its key – or, when that
+# is empty, when its family's row here does. "all" (All functions) and "full" (Full access) show everything and are
+# never written down. A workspace a later lane adds (the Lifting lane: "lifting") puts its key on its own functions
+# and, where it wants whole families, here.
+WORKSPACE_KEYS = ("all", "cnc", "offshore", "product", "client", "education", "full")
+EVERYTHING = ("all", "full")
+_WORK = ("cnc", "offshore", "product", "education")
+FAMILY_WORKSPACES = {
+    "import": _WORK + ("client",),
+    "looks": _WORK,
+    "motion": _WORK,
+    "machines": _WORK,
+    "cnc": ("cnc", "education"),
+    "milling": ("cnc", "education"),
+    "offshore": ("offshore", "education"),
+    "scene": _WORK + ("client",),
+    "animation": _WORK,
+    "video": _WORK,
+    "queue": _WORK + ("client",),
+    "web": ("cnc", "offshore", "product"),
+    "house": (),
+    "help": _WORK + ("client",),
+}
+# Families the side panel always shows (no tick): without them there is nothing to work on.
+ALWAYS = ("import", "looks", "scene", "help")
 
 # Places outside the side panel (a function reached from a menu).
 MENUS = {
@@ -69,6 +96,13 @@ class Function:
     pccheck: tuple = ()      # PC-check (Full) line ids that test it
     lesson: str = ""         # "crane:2" = lesson crane, its step 2 (the lessons task fills these in)
     since: str = ""          # the version it came in
+    workspaces: tuple = ()   # the workspaces that show it; () = its family's row of FAMILY_WORKSPACES
+
+    def shown_in(self, key: str) -> bool:
+        """Does the built-in workspace ``key`` show this function?"""
+        if key in EVERYTHING:
+            return True
+        return key in (self.workspaces or FAMILY_WORKSPACES.get(self.family, ()))
 
 
 FUNCTIONS: dict[str, Function] = {}
@@ -97,11 +131,14 @@ fn(id="import.update", title="Model update to a new revision", family="import", 
 fn(id="import.two_copies", title="The same STEP twice", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
 fn(id="structure.tree", title="Structure: find, select, hide and lock parts", family="import",
-   panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0")
+   panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
+   workspaces=("cnc", "offshore", "product", "education"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
-   panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0")
+   panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
+   workspaces=("cnc", "offshore", "product", "education"))
 fn(id="structure.visibility", title="Visibility sets", family="import", panel="FRESING_PT_visibility",
-   button="fresing.vis_save", guide="visibility", pccheck=("states.poses",), since="0.2.12")
+   button="fresing.vis_save", guide="visibility", pccheck=("states.poses",), since="0.2.12",
+   workspaces=("cnc", "offshore", "product", "education"))
 
 # ----- 3 Looks -----
 fn(id="looks.materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
@@ -140,7 +177,8 @@ fn(id="joints.couplings", title="Couplings and motors", family="motion", panel="
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
-   guide="poses", tour=("explode",), pccheck=("states.poses",), since="0.2.18")
+   guide="poses", tour=("explode",), pccheck=("states.poses",), since="0.2.18",
+   workspaces=("offshore", "product", "education"))
 
 # ----- 4 Motion: machine parts -----
 fn(id="machines.cylinder", title="Cylinders", family="machines", panel="FRESING_PT_cylinders",
@@ -151,10 +189,10 @@ fn(id="machines.mechanism", title="Mechanisms: scissor lift, crank", family="mac
    pccheck=("joints.mechanism",), since="0.2.26")
 fn(id="machines.waycover", title="Way covers", family="machines", panel="FRESING_PT_waycover",
    button="fresing.waycover_make", guide="way-covers", tour=("waycover",), pccheck=("machining.waycover",),
-   since="0.2.28")
+   since="0.2.28", workspaces=("cnc", "education"))
 fn(id="machines.waycover_two", title="Two way covers on one axis", family="machines", panel="FRESING_PT_waycover",
    button="fresing.waycover_cover_add", guide="way-covers", tour=("waycover2",),
-   pccheck=("machining.waycover_two",), since="0.2.61")
+   pccheck=("machining.waycover_two",), since="0.2.61", workspaces=("cnc", "education"))
 fn(id="machines.hoses", title="Hoses and cables that follow the motion", family="machines", panel="FRESING_PT_flex",
    button="fresing.flex_add_hose", guide="hoses", tour=("hoses",), pccheck=("motion.flex",), since="0.2.78")
 fn(id="machines.chains", title="Drag chains", family="machines", panel="FRESING_PT_flex",
@@ -245,24 +283,30 @@ fn(id="scene.surroundings", title="Background & surroundings", family="scene", p
 fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", prop="lighting", guide="light",
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
-   guide="props", tour=("props",), pccheck=("scene.props",), since="0.2.17")
+   guide="props", tour=("props",), pccheck=("scene.props",), since="0.2.17",
+   workspaces=("cnc", "offshore", "product", "education"))
 fn(id="animation.people", title="People walk, carry and meet", family="animation", panel="FRESING_PT_people",
    button="fresing.person_add", guide="people", tour=("people",), pccheck=("people.walk",), since="0.2.128")
 fn(id="scene.props_detail", title="Props: detail by distance", family="scene", panel="FRESING_PT_props",
-   prop="props_detail", guide="props-detail", since="0.2.124")
+   prop="props_detail", guide="props-detail", since="0.2.124", workspaces=("cnc", "offshore", "product", "education"))
 fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
-   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115")
+   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115",
+   workspaces=("offshore", "education"))
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),
-   pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88")
+   pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88",
+   workspaces=("offshore", "education"))
 fn(id="scene.start_scene_save", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
-   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125")
+   button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125",
+   workspaces=("offshore", "education"))
 fn(id="scene.night", title="Night shift and work lights", family="scene", panel="FRESING_PT_weather",
-   button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88")
+   button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88",
+   workspaces=("offshore", "education"))
 fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_camera", button="fresing.camera_add",
    text="3/4 hero, high", guide="camera", tour=("blur",), pccheck=("scene.views",), since="0.2.12")
 fn(id="scene.blur", title="Background blur and sharp spot", family="scene", panel="FRESING_PT_camera",
-   button="fresing.focus_pick", guide="camera", tour=("blur",), pccheck=("scene.blur",), since="0.2.17")
+   button="fresing.focus_pick", guide="camera", tour=("blur",), pccheck=("scene.blur",), since="0.2.17",
+   workspaces=("cnc", "offshore", "product", "education"))
 fn(id="scene.turntable", title="Turntable video", family="scene", panel="FRESING_PT_turntable",
    button="fresing.turntable", guide="turntable", tour=("turntable",), pccheck=("scene.turntable",), since="0.2.17")
 fn(id="scene.still", title="Render a picture", family="scene", panel="FRESING_PT_output", button="fresing.render",
@@ -319,7 +363,8 @@ fn(id="animation.trails", title="Trail lines", family="animation", panel="FRESIN
    button="fresing.trail_add", guide="trails", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="animation.sequence", title="Assembly sequence", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="sequence", tour=("sequence", "sequenceframe"),
-   pccheck=("animation.sequence", "animation.sequence_frame"), since="0.2.79")
+   pccheck=("animation.sequence", "animation.sequence_frame"), since="0.2.79",
+   workspaces=("offshore", "product", "education"))
 fn(id="animation.back_to_cad", title="Back to CAD step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="back-to-cad", tour=("backtocad",), pccheck=("animation.back_to_cad",),
    since="0.2.102")
@@ -327,18 +372,18 @@ fn(id="animation.weather_step", title="Weather & time step", family="animation",
    prop="wx_preset", guide="weather", tour=("weather_step",), pccheck=("weather.step",), since="0.2.88")
 fn(id="animation.vessel_step", title="Vessel at work step", family="animation", panel="FRESING_PT_animation",
    prop="vw_mode", guide="vessel-work-step", tour=("vessel_work",), since="0.2.127")
-fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="animation",
+fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
-fn(id="animation.cards", title="Picture cards in a video", family="animation", panel="FRESING_PT_cards",
+fn(id="animation.cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
    button="fresing.card_add", guide="pictures-music", since="0.2.27")
-fn(id="animation.music", title="Music under a video", family="animation", panel="FRESING_PT_music",
+fn(id="animation.music", title="Music under a video", family="video", panel="FRESING_PT_music",
    prop="music_on", guide="pictures-music", pccheck=("video.labels",), since="0.2.27")
-fn(id="animation.labels", title="Labels with lines", family="animation", panel="FRESING_PT_labels",
+fn(id="animation.labels", title="Labels with lines", family="video", panel="FRESING_PT_labels",
    button="fresing.callout_add", guide="labels", tour=("labels",), pccheck=("video.labels",), since="0.2.27")
-fn(id="animation.brand", title="Brand kit & logo", family="animation", panel="FRESING_PT_brand",
+fn(id="animation.brand", title="Brand kit & logo", family="video", panel="FRESING_PT_brand",
    button="fresing.brand_save", guide="brand-kit", tour=("finishing",), pccheck=("video.finishing",),
    since="0.2.23")
-fn(id="animation.watermark", title="Watermark", family="animation", panel="FRESING_PT_watermark", prop="wm_on",
+fn(id="animation.watermark", title="Watermark", family="video", panel="FRESING_PT_watermark", prop="wm_on",
    guide="watermark", tour=("finishing",), pccheck=("video.finishing",), since="0.2.23")
 fn(id="animation.clash", title="Clash check", family="animation", panel="FRESING_PT_clash",
    button="fresing.clash_check", guide="clash", tour=("clash",), pccheck=("animation.clash",), since="0.2.53")

@@ -22,6 +22,7 @@ Layout rules for every section (read top to bottom, no jumping back up):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import textwrap
@@ -54,7 +55,24 @@ def _has_model(context) -> bool:
 # ---------------------------------------------------------------------------
 
 
+_POPOVER = {"units": 0}      # > 0 while a panel's body is drawn in a popover of that width (Make, task 0062)
+
+
+@contextlib.contextmanager
+def popover_width(units: int):
+    """While a side-panel body is drawn in a popover: texts wrap at the popover's width (not the side panel's)
+    and the body's main button (``big()``) is blue – in a popover it is the one thing to press."""
+    old = _POPOVER["units"]
+    _POPOVER["units"] = units
+    try:
+        yield
+    finally:
+        _POPOVER["units"] = old
+
+
 def _chars_per_line(context, inset: int = 0) -> int:
+    if _POPOVER["units"]:
+        return max(18, int((_POPOVER["units"] * 20 - 34 - inset) / 6.6))
     region = getattr(context, "region", None)
     width = getattr(region, "width", 0) or 300
     try:
@@ -181,6 +199,7 @@ def header_status(layout, text: str, icon: str = "NONE", alert: bool = False, li
     if len(text) > limit:
         text = text[:limit - 1] + "…"
     row = layout.row(align=True)
+    row.alignment = "RIGHT"
     row.alert = alert
     row.label(text=text, icon=icon)
 
@@ -203,7 +222,7 @@ def primary(layout, idname: str, text: str, icon: str, scale: float = BIG):
 def big(layout, idname: str, text: str, icon: str = "NONE", scale: float = MEDIUM):
     """A sub-panel's main button: big, but grey – blue is kept for the section's one main button."""
     row = big_row(layout, scale)
-    return row.operator(idname, text=text, icon=icon)
+    return row.operator(idname, text=text, icon=icon, depress=bool(_POPOVER["units"]))
 
 
 def list_rows(n: int, lo: int = 3, hi: int = 8) -> int:
