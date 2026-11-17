@@ -1,6 +1,6 @@
 # 0178 – "Fresing Render" in Task Manager (a branded copy of blender.exe)
 
-**Who:** worker · **Status:** running · **Branch:** `claude/eager-pasteur-w3w05t` (worktree `task/0177-exe-name`)
+**Who:** worker · **Status:** done (0.2.137) · **Branch:** `claude/eager-pasteur-w3w05t` (worktree `task/0177-exe-name`)
 **Started by:** owner, directly in the 0169 session (17 Nov 2026) · **Model:** Opus · effort Medium (Windows-only code)
 **Area:** new `fresing_render/winexe.py`; `fresing_render/appicon.py` (shortcut target), `blender/updates.py`
 (restart), `update_helper.py` (names it waits for), `pccheck/ops.py` (console runs), `installer/*.ps1`,
@@ -68,10 +68,32 @@ app runs – also for the render queue's background runs.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (the 0169 session), 17 Nov 2026. Released as **0.2.137**.
 
-**What changed:**
+**What changed:** as in Design. Plus, from the independent review (a helper agent that did not write the code): five
+places accepted only programs named "blender…" – the render queue, the queue's busy check, the project lock, the mesh
+import's converter, the self-test – and now use `winexe.is_blender_program`; a **safe-start** shortcut on Blender's
+launcher (Start menu, made by Install.bat and by the app when missing; never retargeted); a copy that vanished after
+it was made and checked (an antivirus) is not made again for that Blender – the app stays on `blender.exe`; the swap
+while the copy runs puts the old one back on failure; with no console (a windowed program) Python's output goes to
+`Fresing Render console.log` next to the program.
 
-**Tested and measured:**
+**Tested and measured:** Linux: `tests/test_winexe.py` (20: Blender's own version resource rebuilt byte for byte, the
+rebranded one, icon groups, signature/subsystem edits on made-up PE32/PE32+ files, stamp, safe start, restart, the
+console log) + `test_appicon.py`, `test_updates*.py`, `test_pccheck.py`. Blender 5.2.3's real `blender.exe` (from
+download.blender.org): console subsystem, signature 14,808 bytes at the very end, version resource id 1 / 1033, icon
+groups `APPICON` and `1`. GitHub's Windows job (run 43992825471, full, green at the first try): Install.bat makes the
+copy; the file's and the **running process's** FileDescription/Product are "Fresing Render"; it keeps running (not
+blocked); **Defender's scan (MpCmdRun) finds nothing**; no Mark of the Web; GUI subsystem; no signature left; it
+answers `--version` ("Blender 5.2.3 LTS"); the app shortcuts start it, the console ones stay on `blender.exe`, safe start
+on the launcher; an older install (launcher shortcut, no copy) is fixed by the app's refresh; Smart App Control on
+(simulated) takes the copy out and the shortcuts back to the launcher, off again brings it back; the restart after
+Update now starts it. Runs: 1 full (green), 1 docs (renumbering), then reuse on `main`.
 
-**Open points / follow-up tasks:**
+**Not proven here (only the owner's PC can):** Task Manager while the real app window runs; a later cloud/behaviour
+verdict of Defender or another virus scanner; the NVIDIA driver profile (keyed by program name – `blender.exe`'s
+profile no longer applies to `Fresing Render.exe`; probably no difference for CUDA/OptiX renders).
+
+**Open points:** code comments say "task 0177" (renumbered, see the header). No PC-check line (the PC check runs
+from `blender.exe`; a line would only read a file the Windows job already checks). Task Manager's name for the PC
+check / self-test stays "Blender" (they need a console).
