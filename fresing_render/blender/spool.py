@@ -146,11 +146,22 @@ def cable_renamed(scene, old: str, new: str) -> None:
             sp["cable"] = new
 
 
+def _unique_name(scene, base: str) -> str:
+    names = {x.name for x in scene.fresing.spools}
+    name, n = base, 2
+    while name in names:
+        name, n = f"{base} {n}", n + 1
+    return name
+
+
 def renamed(scene, sp) -> None:
     """``sp`` was renamed: its drawn objects (tagged with its name) and the joints that follow it by table
     ("spool:<name>") take the new name (task 0174; before, a rename left the old drawing standing – with every layer
     drawn, the whole coil twice). Written without the update callbacks."""
     new = sp.name
+    if new and any(x.name == new for x in scene.fresing.spools if x != sp):
+        sp.name = _unique_name(scene, new)       # (task 0187, bug hunt 6 row 15: two drums of one name found each
+        return                                   # other's layers; the callback runs again with the free name)
     old = sp.get("name_was", "") or (sp.owner.get(TAG, "") if sp.owner is not None else "")
     if old and old != new and not any(x.name == old for x in scene.fresing.spools if x != sp):
         for ob in bpy.data.objects:
@@ -1271,7 +1282,9 @@ def web_end(scene, made: list) -> None:
             if ob is not None and ob.get("fr_spool_role") == "solid":
                 _remove_object(ob)
         return None
-    if names and not bpy.app.background:
+    if names and bpy.app.background:           # (a script, no window to wait for: gone at once – task 0187, row 11)
+        later()
+    elif names:
         bpy.app.timers.register(later, first_interval=0.5)
 
 

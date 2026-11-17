@@ -350,7 +350,8 @@ def _sea_fold(layout, context, cb) -> None:
                 wrap(body, context, f"Hangs from '{n['hang_off']}': it left '{n['left']}'{when}", icon="INFO")
             box = body.box().column(align=True)
             lines = [f"Layback {n['layback']:.1f} m, leaves at {n['angle']:.0f}° down",
-                     f"Tension at the seabed {n['bottom']:.1f} kN, at the top {n['top']:.1f} kN",
+                     ("Tension at the seabed – kN, at the top – kN" if n["top"] is None or n["bottom"] is None else
+                      f"Tension at the seabed {n['bottom']:.1f} kN, at the top {n['top']:.1f} kN"),
                      f"Hanging {n['hanging']:.1f} m, on the seabed {n['laid']:.1f} m"]
             if cb.sea_weight <= 0.0:
                 lines.append(f"Weight in water {n['weight']:.0f} kg/m (from the Ø)")

@@ -216,6 +216,11 @@ def _after_undo(_dummy=None):
 @persistent
 def _after_save(_dummy=None):
     try:
+        from . import flex
+        flex.resume_read()
+    except Exception:
+        pass
+    try:
         from . import queue
         queue.project_saved()            # a delayed start follows the project's new name (0068 row 1)
     except Exception:
@@ -227,6 +232,11 @@ def _before_save(_dummy=None):
     try:
         from . import queue
         queue.warn_busy_save(bpy.context.scene)   # Ctrl+S during a House bake / web 3D export / clash check (0118)
+    except Exception:
+        pass
+    try:
+        from . import flex
+        flex.pause_read_for_save()               # the cable re-bake's hidden parts and frame (task 0187)
     except Exception:
         pass
 

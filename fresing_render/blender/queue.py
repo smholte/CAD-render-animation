@@ -625,6 +625,12 @@ def busy_job(scene) -> str:
     copy of the project (nor a saved file)."""
     if scene is None:
         return ""
+    try:
+        from . import rebake
+        if rebake.running(scene):
+            return "Cable re-bake"
+    except Exception:                                # noqa: BLE001
+        pass
     for mod, label in (("ops_house", "House bake"), ("web3d", "Web 3D export"), ("clash", "Clash check")):
         try:
             module = importlib.import_module(f"{__package__}.{mod}")

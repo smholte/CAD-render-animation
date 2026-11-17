@@ -864,6 +864,9 @@ def changed(scene, item, live: bool = False) -> None:
 # what the panel and the surroundings read
 # ---------------------------------------------------------------------------
 
+NO_HANG = 1e-3                  # m: a cable hanging less than this (height or length) has no tension to show
+
+
 def numbers(scene, item) -> dict:
     """The hanging cable's numbers at the frame shown (from the last solve): layback, angle (deg), tensions (kN),
     laid and hanging lengths, the problem kind. {} before the first solve."""
@@ -886,6 +889,8 @@ def numbers(scene, item) -> dict:
            "hanging": float(got["suspended"][k]), "kind": int(got["kind"][k]), "a": float(got["a"][k]),
            "height": float(got["h"][k]), "depth": depth(scene, item), "weight": weight(item)}
     out.update(_hang_names(scene, item, got, k))
+    if out["height"] < NO_HANG or out["hanging"] < NO_HANG:     # lying on the seabed: no tension to give (task 0187,
+        out["top"] = out["bottom"] = None                       # bug hunt 6 row 14: 16,802 kN from a height of 0)
     return out                                  # (it is drawn by the panel: it must not write anything)
 
 

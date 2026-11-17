@@ -285,3 +285,26 @@ def test_leave_direction_is_the_arc_end_whatever_comes_after():
     line = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 3.0]])
     assert np.allclose(spool.leave_direction(line, 0, 0), [0.0, 0.0, 1.0])     # no arc: the first piece with a length
 
+
+
+def test_web_export_solids_go_at_once_without_a_window(made):
+    """Task 0187 (bug hunt 6 row 11): a web export run as a script left the hidden 'FR spool solid' objects behind."""
+    sc = _sc()
+    solids = spool.web_begin(sc)
+    assert solids and all(bpy.data.objects.get(n) is not None for n in solids)
+    spool.web_end(sc, solids)
+    assert bpy.app.background
+    assert not [o for o in bpy.data.objects if o.get(spool.TAG) and o.get("fr_spool_role") == "solid"]
+
+
+def test_a_drum_cannot_take_another_drums_name(made):
+    """Task 0187 (bug hunt 6 row 15): renaming a drum to another's name gave two drums one name."""
+    sc = _sc()
+    sp = spool.find(sc, "Carousel")
+    sp.name = "Drum"
+    try:
+        assert sp.name != "Drum" and sp.name.startswith("Drum")
+        assert [x.name for x in sc.fresing.spools].count("Drum") == 1
+    finally:
+        sp.name = "Carousel"
+    assert spool.find(sc, "Carousel") is not None

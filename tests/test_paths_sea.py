@@ -403,3 +403,64 @@ def test_hang_off_and_touch_down_after_reopening(sea, tmp_path):
     # the box: from under the horn (3 m towards the vessel) aft past the touch-down
     o, u = np.array(box["origin"]), np.array(box["dir"])
     assert u[0] < -0.99 and box["length"] > 20.0 * 1.3
+
+
+def test_no_tension_once_the_cable_lies_on_the_seabed(sea):
+    """Task 0187 (bug hunt 6 row 14): a cable let go (height 0) showed a tension of 16,802 kN."""
+    from fresing_render.core import callouts
+    sc = sea
+    it = cable(sc)
+    paths_sea.numbers(sc, it)
+    got = paths_sea._STATE["sea"][paths._k(sc, it)]
+    for key in ("h", "suspended"):
+        got[key] = np.zeros_like(got[key])
+    for key in ("top", "bottom"):
+        got[key] = np.full_like(got[key], 16802.0)
+    n = paths_sea.numbers(sc, it)
+    assert n["top"] is None and n["bottom"] is None
+    assert callouts.fill("{top} {bottom}", n) == "– –"
+
+
+def _build_sea(sc):
+    a = sc.fresing.animations[paths_sea.TEST_ANIMATION]
+    animation.bake(sc, a)
+    assert paths._baked(sc)
+
+
+def test_undo_brings_back_a_rebake_for_the_motion(sea):
+    """Task 0187 (bug hunt 6 row 4): after undo the scene had the new motion and the cable shapes of the old one."""
+    from fresing_render.blender import vessel_motion
+    sc = sea
+    _build_sea(sc)
+    assert not vessel_motion.moved_since(sc, paths.MOTION_KEY)
+    sc[paths.MOTION_KEY] = "[\"stale\", 0.0]"          # what an undo step brings back: the key of the older Build
+    assert vessel_motion.moved_since(sc, paths.MOTION_KEY)
+    paths._on_undo()
+    assert not vessel_motion.moved_since(sc, paths.MOTION_KEY)
+    assert paths._baked(sc)
+
+
+def test_a_save_during_the_read_pass_writes_the_visible_project(sea):
+    """Task 0187 (bug hunt 6 row 3): a save while the re-bake reads the frames wrote most parts hidden, at another
+    frame; the job is also named by queue.busy_job."""
+    from fresing_render.blender import flex, queue, rebake
+    sc = sea
+    _build_sea(sc)
+    before = {o.name: o.hide_viewport for o in sc.objects}
+    frame = sc.frame_current
+    obs = [o for o in sc.objects if o.type == "MESH"][:2]
+    gen = flex.read_steps(sc, obs, int(sc.frame_start) + 1, 6, keep_shown=True)
+    next(gen)
+    next(gen)
+    rebake._STATE.update(running=True, scene=sc.name)
+    try:
+        assert queue.busy_job(sc) == "Cable re-bake"
+        hidden_in_job = [o.name for o in sc.objects if o.hide_viewport and not before[o.name]]
+        assert flex.pause_read_for_save()
+        assert {o.name: o.hide_viewport for o in sc.objects} == before and sc.frame_current == frame
+        flex.resume_read()
+        assert [o.name for o in sc.objects if o.hide_viewport and not before[o.name]] == hidden_in_job
+    finally:
+        rebake._STATE.update(running=False, scene="")
+        gen.close()
+    assert {o.name: o.hide_viewport for o in sc.objects} == before and sc.frame_current == frame
