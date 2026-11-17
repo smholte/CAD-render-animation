@@ -284,7 +284,7 @@ def test_playback(tmp_path):
 def test_saved_views_and_view_tools(tmp_path):
     path, _n = write(tmp_path / "anim.html", shadows=True)
     out = probe(path, [
-        {"eval": "[...document.querySelectorAll('#fr-views button')].map(b => b.textContent)"},
+        {"eval": "[...document.querySelectorAll('#fr-views .fr-vbtn')].map(b => b.textContent)"},
         {"key": "1"}, {"wait": 3000}, {"eval": "frPage.cameraState()"},
         {"key": " "}, {"eval": "frPage.setTime(2.5)"}, {"eval": "frPage.setItem('shadows', false)"},
         {"key": "l"}, {"eval": "frPage.lastLink"},
@@ -347,3 +347,233 @@ def test_selftest_for_the_pc_check(tmp_path):
     # under software drawing the page says so
     st = env.read_page(path, query="selftest=1")
     assert st["player"]["warned"] == "software" and st["selftest"]["warned"] == "software"
+
+
+# ---------------------------------------------------------------------------
+# task 0179: a phone – one views control, one bottom stack, nothing on top of anything, the model in the free area
+# ---------------------------------------------------------------------------
+
+LONG = ["Shot 1: the whole vessel", "Shot 2: cable from the carousel", "Shot 3: carousel and arch",
+        "Shot 4: tensioners squeezing", "Shot 5: chute and the stern", "Shot 6: handling winch drum, depth of field"]
+PHONES = ["360x780", "390x844", "412x915", "844x390"]          # the owner's phone first; the last one held sideways
+WIDE = ["768x1024", "1366x768", "1920x1080"]
+
+
+def views_of(n: int, names=None) -> list[dict]:
+    names = names or [LONG[k] if k < len(LONG) else f"Shot {k + 1}: camera {k + 1} over the deck" for k in range(n)]
+    return [{"name": names[k], "eye": [1.5 + 0.3 * k, -8.0, 1.0 + 0.2 * k], "target": [1.5, 0.0, 0.3], "vfov": 25.0,
+             "hfov": 40.0} for k in range(n)]
+
+
+CHECK = "frPage.layoutCheck()"
+SAFE = ("(function () { var s = document.documentElement.style; s.setProperty('--sa-t', '28px'); "
+        "s.setProperty('--sa-b', '24px'); s.setProperty('--sa-l', '0px'); s.setProperty('--sa-r', '0px'); "
+        "frPage.layout(); return frPage.layoutCheck(); })()")
+# the model's box and the camera's aim on the screen, against the free area
+FRAME = ("(function () { var t = frPage.three, c = t.camera, b = t.box, W = innerWidth, H = innerHeight;"
+         " function s(v) { v = v.clone().project(c); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H]; }"
+         " var pts = [], k; for (k = 0; k < 8; k++) pts.push(s(new t.T.Vector3(k & 1 ? b.max.x : b.min.x,"
+         " k & 2 ? b.max.y : b.min.y, k & 4 ? b.max.z : b.min.z)));"
+         " return { aim: s(t.controls.target), pts: pts, free: frPage.freeArea() }; })()")
+
+
+def _no_overlaps(check, what):
+    assert check["overlaps"] == [], (what, check["overlaps"])
+    assert check["outside"] == [], (what, check["outside"], check["safe"])
+    assert check["small"] == [], (what, check["small"])
+
+
+@browser_test
+def test_no_two_controls_overlap_at_any_size(tmp_path):
+    """Every tested screen (the owner's phone 360 x 780 first, sideways, tablet, laptop, big screen) with 0, 1, 3, 9 and
+    21 saved views, animated and still: no two visible controls overlap, all lie inside the screen minus the safe
+    areas (also with a notch and a gesture bar), buttons are at least 40 px; the hint and a message neither."""
+    for n in (0, 1, 3, 9, 21):
+        for animated in (True, False):
+            path, _n = write(tmp_path / f"v{n}{'a' if animated else 's'}.html", animated=animated, views=views_of(n))
+            for sizes, mobile in ((PHONES, True), (WIDE, False)):
+                steps = []
+                for size in sizes:
+                    steps += [{"size": size}, {"eval": CHECK},
+                              {"eval": "frPage.notify('Quality Phone: lowered to keep it smooth', 8), frPage.layoutCheck()"},
+                              {"eval": "frPage.notify(''), " + CHECK}]
+                steps += [{"eval": SAFE}]
+                out = probe(path, steps, size=sizes[0], mobile=mobile, query="soft=0")
+                assert out["ok"], out
+                for k, size in enumerate(sizes):
+                    for j in (1, 2, 3):
+                        c = out["out"][4 * k + j]
+                        what = (n, animated, size, j)
+                        _no_overlaps(c, what)
+                        assert c["size"] == [int(x) for x in size.split("x")], what
+                        if j == 2:
+                            assert "message" in c["items"], what           # shown, and on top of nothing
+                        assert ("play bar" in c["items"]) == animated, what
+                        assert c["mode"] == ("none" if n == 0 else c["mode"]), what
+                        if size == "360x780" and n > 3:
+                            assert c["mode"] == "pill" and c["tools"] <= 5, what
+                        if size in WIDE and n > 1:
+                            assert c["mode"] == "row", what
+                safe = out["out"][-1]
+                _no_overlaps(safe, (n, animated, "safe areas"))
+                assert safe["safe"]["t"] == 28 and safe["safe"]["b"] == 24
+
+
+@browser_test
+def test_saved_views_as_one_control_on_a_phone(tmp_path):
+    """The owner's screenshot: 21 views as six rows of buttons over the model. Upright: one pill ‹ name ›, the arrows
+    step, the name opens the list (current one marked; closes on a pick, a tap outside, Esc or Back); keys 1 … 9."""
+    path, _n = write(tmp_path / "v21.html", views=views_of(21))
+    pill = "[...document.querySelectorAll('#fr-views > button')].map(b => b.getAttribute('aria-label'))"
+    name = "document.querySelector('#fr-views .fr-vname .fr-txt').textContent"
+    out = probe(path, [
+        {"eval": "[frPage.viewMode, " + pill + "]"},
+        {"click": "#fr-views [aria-label='Next view']"}, {"eval": "[frPage.currentView(), " + name + "]"},
+        {"click": "#fr-views [aria-label='Previous view']"}, {"wait": 50},
+        {"eval": "[frPage.currentView(), " + name + "]"},
+        {"click": "#fr-views .fr-vname"},
+        {"eval": "[frPage.listOpen, document.querySelectorAll('#fr-vlist li').length, "
+                 "document.querySelector('#fr-vlist [aria-current]').dataset.view]"},
+        {"click": "#fr-vlist [data-view='4']"}, {"wait": 1200},
+        {"eval": "[frPage.listOpen, frPage.currentView(), " + name + ", frPage.cameraState().target]"},
+        {"click": "#fr-views .fr-vname"}, {"tap": [180, 100]}, {"eval": "frPage.listOpen"},
+        {"click": "#fr-views .fr-vname"}, {"back": True}, {"eval": "[frPage.listOpen, location.href.indexOf('v21.html') > 0]"},
+        {"click": "#fr-views .fr-vname"}, {"key": "Escape"}, {"eval": "frPage.listOpen"},
+        {"key": "7"}, {"eval": "[frPage.currentView(), " + name + "]"},
+        {"eval": "document.querySelector('#fr-views .fr-vname .fr-txt').scrollWidth > "
+                 "document.querySelector('#fr-views .fr-vname .fr-txt').clientWidth || "
+                 "document.querySelector('#fr-views .fr-vname').getBoundingClientRect().width < 360"},
+    ], size="360x780", mobile=True, query="soft=0")
+    assert out["ok"], out
+    o = out["out"]
+    assert o[0] == ["pill", ["Previous view", "Show all 21 saved views", "Next view"]]
+    assert o[2] == [0, LONG[0]]
+    assert o[5] == [20, "Shot 21: camera 21 over the deck"]                  # steps round
+    assert o[7] == [True, 21, "20"]
+    assert o[10][:3] == [False, 4, LONG[4]] and np.allclose(o[10][3], [1.5, 0.3, 0.0], atol=1e-3)
+    assert o[13] is False and o[16] == [False, True] and o[19] is False
+    assert o[21] == [6, "Shot 7: camera 7 over the deck"]
+
+
+@browser_test
+def test_saved_views_as_one_row_on_wide_screens(tmp_path):
+    """Wide screens and a phone sideways: one row that never wraps; when it does not fit it scrolls sideways and All
+    views opens the same list; a few short views on a phone stay buttons; one view is one button; none: nothing."""
+    row = ("(function () { var b = [...document.querySelectorAll('#fr-views .fr-vbtn')], s = document.querySelector('#fr-views .fr-vscroll');"
+           " var all = document.querySelector('#fr-views .fr-all');"
+           " return [frPage.viewMode, b.length, new Set(b.map(x => Math.round(x.getBoundingClientRect().top))).size,"
+           " s ? s.scrollWidth > s.clientWidth : null, !!all && getComputedStyle(all).display !== 'none']; })()")
+    path, _n = write(tmp_path / "v21.html", views=views_of(21))
+    out = probe(path, [{"eval": row}, {"click": "#fr-views .fr-all"}, {"eval": "frPage.listOpen"},
+                       {"click": "#fr-vlist [data-view='12']"}, {"eval": "frPage.currentView()"},
+                       {"eval": "(function () { var s = document.querySelector('#fr-views .fr-vscroll'), "
+                                "b = s.children[12].getBoundingClientRect(), r = s.getBoundingClientRect();"
+                                " return b.left >= r.left - 1 && b.right <= r.right + 1; })()"},
+                       {"size": "844x390"}, {"eval": row}], size="1366x768", query="soft=0")
+    assert out["ok"], out
+    o = out["out"]
+    assert o[0] == ["row", 21, 1, True, True]
+    assert o[2] is True and o[4] == 12 and o[5] is True                      # the picked one scrolled into sight
+    assert o[7] == ["row", 21, 1, True, True]
+    short = views_of(3, ["Front", "Top", "Side"])
+    for views, want in ((short, ["row", 3, 1, False, False]), (views_of(3), None), (views_of(1), ["row", 1, 1, False, False]),
+                        ([], ["none", 0, 0, None, False])):
+        path, _n = write(tmp_path / f"n{len(views)}.html", views=views)
+        out = probe(path, [{"eval": row}], size="360x780", mobile=True, query="soft=0")
+        if want is None:
+            assert out["out"][0][0] == "pill"                                # three long names do not fit
+        else:
+            assert out["out"][0] == want, (views, out["out"][0])
+
+
+@browser_test
+def test_the_model_starts_in_the_free_area(tmp_path):
+    """The start view is framed in the rectangle the header and the bottom stack leave free, and again after the phone
+    is turned; a saved view's aim is that rectangle's middle."""
+    path, _n = write(tmp_path / "v21.html", views=views_of(21))
+    out = probe(path, [{"eval": FRAME}, {"eval": CHECK}, {"size": "844x390"}, {"wait": 300}, {"eval": FRAME},
+                       {"key": "2"}, {"wait": 1300}, {"eval": FRAME}], size="360x780", mobile=True, query="soft=0")
+    assert out["ok"], out
+    o = out["out"]
+    for f in (o[0], o[4]):
+        fr = f["free"]
+        assert abs(f["aim"][0] - (fr["left"] + fr["width"] / 2)) < 1.5
+        assert abs(f["aim"][1] - (fr["top"] + fr["height"] / 2)) < 1.5
+        for x, y in f["pts"]:                                                # the whole model inside it
+            assert fr["left"] - 1 <= x <= fr["left"] + fr["width"] + 1, (x, fr)
+            assert fr["top"] - 1 <= y <= fr["top"] + fr["height"] + 1, (y, fr)
+    head = o[1]
+    assert o[0]["free"]["top"] > 20 and o[0]["free"]["top"] + o[0]["free"]["height"] < 780 - 80   # header, stack
+    assert abs(o[7]["aim"][1] - (o[7]["free"]["top"] + o[7]["free"]["height"] / 2)) < 1.5
+    assert head["overlaps"] == []
+
+
+@browser_test
+def test_phone_header_hint_tools_and_long_press(tmp_path):
+    """Upright: the title on one line (full in the help), the hint only on the first visit until the first touch,
+    at most 5 buttons a column (the rarer ones under More tools, which work from there), a long press on a button
+    names it and does not press it, the help lists every button; the quality note is a short message."""
+    title = "Demo cable-lay vessel 0.2.133 web 3D with a very long name"
+    path = str(tmp_path / "long.html")
+    st = env.settings(dict(env.default_choice(), sea=False, haze=False, rain=False), [-1, -1, 0], [4, 1, 0.6],
+                      sky={"kind": "SKY", "sun": env.sun_vector(40, 30)}, plain=True)
+    st["views"] = views_of(21)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(env.page_html(title, model(True), st, animated=True, note="Made with Fresing Render"))
+    h1 = ("(function () { var h = document.querySelector('header h1'), r = h.getBoundingClientRect();"
+          " return [r.height < 30, h.scrollWidth > h.clientWidth]; })()")
+    shown = "getComputedStyle(document.getElementById('fr-first')).display"
+    folded = "[...document.querySelectorAll('#fr-tools .fr-folded')].map(b => b.getAttribute('aria-label'))"
+    out = probe(path, [
+        {"eval": h1}, {"eval": shown}, {"eval": folded},
+        {"eval": "[...document.querySelectorAll('#fr-tools > .fr-btn')].filter(b => getComputedStyle(b).display !== 'none').length"},
+        {"touchon": ["#fr-tools [aria-label='Reset view']", 700]}, {"wait": 100},
+        {"eval": "[frPage.lastTip, getComputedStyle(document.getElementById('fr-tip')).display, frPage.input && 1]"},
+        {"wait": 600}, {"eval": shown},
+        {"click": "#fr-more-btn"},
+        {"eval": "[...document.querySelectorAll('#fr-more .fr-btn span')].map(s => s.textContent)"},
+        {"click": "#fr-more .fr-btn:last-child"}, {"eval": "frPage.clean"}, {"key": "h"},
+        {"key": "?"}, {"eval": "document.getElementById('fr-help').textContent"}, {"key": "Escape"},
+        {"eval": "frPage.notify('Quality Phone: lowered to keep it smooth', 8), "
+                 "[getComputedStyle(document.getElementById('fr-toast')).display, "
+                 "getComputedStyle(document.getElementById('quality')).display]"},
+        {"wait": 4300}, {"eval": "getComputedStyle(document.getElementById('fr-toast')).display"},
+        {"reload": True}, {"eval": shown},
+    ], size="360x780", mobile=True, query="soft=0&quality=PHONE&auto=0")
+    assert out["ok"], out
+    o = out["out"]
+    assert o[0] == [True, True]                                     # one line, cut with "…"
+    assert o[1] == "block"                                          # the first visit's hint
+    assert set(o[2]) <= {"Screenshot", "Copy link to this view", "Clean look: hide the controls"} and o[2]
+    assert o[3] <= 5
+    assert o[6][0] == "Reset view" and o[6][1] == "block"
+    assert o[8] == "none"                                           # gone after the first touch
+    assert o[10] == o[2]
+    assert o[12] is True                                            # Clean look from the More menu
+    helptext = o[15]
+    assert title in helptext and "Buttons" in helptext and "Measure" in helptext and "Screenshot" in helptext
+    assert o[17] == ["block", "none"] and o[19] == "none"           # ~4 s, never the old corner note
+    assert o[21] == "none"                                          # not shown on the next visit
+
+
+@browser_test
+def test_back_closes_what_is_open_and_never_leaves_the_page(tmp_path):
+    """Independent tester (task 0179): the phone's Back with the help open left the page. Back now closes the help,
+    the settings, More tools and the list of views – one at a time – and the page stays; the settings close with X."""
+    path, _n = write(tmp_path / "v21.html", views=views_of(21))
+    alive = "[!!window.frPage && frPage.ready, !!frPage.helpOpen, !!frPage.menuOpen, !!frPage.moreOpen, !!frPage.listOpen]"
+    out = probe(path, [{"click": "#fr-tools [aria-label='Help and keys']"}, {"eval": alive}, {"back": True}, {"eval": alive},
+                       {"click": "#fr-tools button"}, {"eval": alive}, {"back": True}, {"eval": alive},
+                       {"click": "#fr-more-btn"}, {"eval": alive}, {"back": True}, {"eval": alive},
+                       {"click": "#fr-views .fr-vname"}, {"wait": 50}, {"eval": alive},
+                       {"back": True}, {"eval": alive},
+                       {"click": "#fr-tools button"}, {"click": "#fr-menu .fr-x"}, {"eval": alive},
+                       {"wait": 300}, {"eval": "history.length"}],
+                size="360x780", mobile=True, query="soft=0")
+    assert out["ok"], out
+    o = out["out"]
+    assert o[1] == [True, True, False, False, False] and o[3] == [True, False, False, False, False]
+    assert o[5] == [True, False, True, False, False] and o[7] == [True, False, False, False, False]
+    assert o[9] == [True, False, False, True, False] and o[11] == [True, False, False, False, False]
+    assert o[14] == [True, False, False, False, True] and o[16] == [True, False, False, False, False]
+    assert o[19] == [True, False, False, False, False]

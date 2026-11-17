@@ -98,7 +98,7 @@ Split (one owner per file):
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (worker session), 17 Nov 2026, branch `ccr-1db7fd83-auleup`. Released as
-**0.2.140**.
+**0.2.141**.
 
 **What changed:**
 1. **Lay data box in shot 8** – labels got two new abilities (any project, 5 Scene & Render > Labels): several lines
@@ -145,7 +145,7 @@ Split (one owner per file):
 7. Guide: demo section (ROV, cable weight, lay data, tipping winches, captions), Labels section (lines and live
    fields). Test tour stop `sea_cable` and PC-check line `motion.sea_cable` now also add and check a lay-data label
    (shared `tour.add_lay_label`); no new stop or line (labels and the sea cable exist; the tipping drums are demo
-   content). Changelog 0.2.140.
+   content). Changelog 0.2.141.
 
 **Tested and measured** (4-core web machine, the demo made with `tests/demo_made.py` (small form), Blender as a
 module, `tools/measure_cables.py`; before = main at 0.2.139):
@@ -191,7 +191,7 @@ while the D is lowered). No night still: the ROV is hidden in shot 13.
 **GitHub runs:** see below.
 
 **The owner's check on the RTX 3090:**
-1. Install 0.2.140 (Update now), then **Help > Make demo project…** > **Make it**; open it when it is ready.
+1. Install 0.2.141 (Update now), then **Help > Make demo project…** > **Make it**; open it when it is ready.
 2. **6 Animation > What it can do today > Build & play**, or render it in the render queue.
 3. Shot 8 ("Into the sea", about 1 min in): the Lay data box beside the hanging cable (tensions about 7 and 19 kN,
    layback ~32–34 m, 67–68°, 10.0 m/min, 30 m); the yellow ROV 8 m beside the touch-down with two bright lights and

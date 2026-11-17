@@ -41,6 +41,11 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         row = col.row(align=True)
         row.prop(w, "texture_size", text="Texture size", expand=True)
         col.prop(w, "hide_names", text="Hide part names")
+        col.prop(w, "view_names", text="View names")
+        names = web3d.view_names(scene, numbered=w.view_names == "NUMBERED")
+        if names:                                 # task 0179: nothing goes out unseen
+            shown = ", ".join(names[:3]) + (", …" if len(names) > 3 else "")
+            wrap(col, context, f"Views on the page ({len(names)}): {shown}", icon="CAMERA_DATA")
         col.prop(w, "measure_faces", text="Faces for measuring")
         col.prop(w, "compress", text="Smaller file")
         sub = col.row()
@@ -90,7 +95,8 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
     PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
         ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),
         ("PLAY", "Motion: Space plays and pauses, a time line to drag, speed ½× 1× 2×"),
-        ("CAMERA_DATA", "Saved views: one button per camera of the project (names hidden with part names)"),
+        ("CAMERA_DATA", "Saved views: one per camera of the project, by its name or numbered (View names); "
+                        "a phone held upright shows one ‹ name › control and a list of all"),
         ("FULLSCREEN_ENTER", "Fullscreen (F), Reset view (R), Screenshot (S), Copy link to this view (L), keys (?)"),
         ("HIDE_ON", "Clean look (H): every control hidden, a faint button brings them back"),
         ("ERROR", "Says so when the browser draws without the graphics card, and how to fix it"),

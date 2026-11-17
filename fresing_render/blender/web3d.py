@@ -866,7 +866,7 @@ class Job:
                  animation: bool = False, page: bool = True, compress: bool | None = None,
                  surroundings: dict | None = None, light: str = "LIVE", light_quality: str = "NORMAL",
                  light_texels: float = 0.0, light_samples: int = 0, marine_detail: str = "NORMAL",
-                 faces: bool = True):
+                 faces: bool = True, view_names: str = "CAMERA"):
         from . import lightbake
         self.scene = scene
         self.marine_detail = marine_detail if marine_detail in core.MARINE_DETAILS else "NORMAL"
@@ -884,6 +884,8 @@ class Job:
             self.path += ".glb"
         self.size = int(size)
         self.hide_names = bool(hide_names)
+        # task 0179: the saved views' names no longer follow Hide part names (the demo showed "View 1 … View 21")
+        self.view_names = "NUMBERED" if view_names == "NUMBERED" else "CAMERA"
         self.faces = bool(faces)               # task 0135: flat and round faces for measuring in the page
         self._faces: dict = {}                 # written mesh -> (runs, rows) of core/web3d_faces.py
         self.animation = bool(animation)
@@ -1551,7 +1553,7 @@ class Job:
                                                "curve": 2.0, "sun": float(self._lit.sun_ratio)})
             if self.surroundings is None:
                 st["plain"] = True
-            st["views"] = views(self.scene, self.hide_names)
+            st["views"] = views(self.scene, numbered=self.view_names == "NUMBERED")
             text = env.page_html(title, data, st, pictures, note="Made with Fresing Render", animated=animated)
             if self.surroundings is not None:
                 # what the surroundings add: the same page in its plain form, without pictures
@@ -1597,11 +1599,21 @@ class Job:
         return self.finish()
 
 
-def views(scene, hide_names: bool = True) -> list[dict]:
-    """The project's saved cameras for the page (task 0134): {name, eye, target, vfov, hfov} in Blender's world
-    (metres, degrees of the render's frame). The names are the owner's own texts; with Hide part names on they are
-    "View 1", "View 2" … The target lies along the camera's view at its sharp distance (the model's middle)."""
+def view_names(scene, numbered: bool = False) -> list[str]:
+    """The saved views' names as the page will show them (task 0179): the cameras' own names in the page's order,
+    or "View 1", "View 2" … (the export's View names setting; Hide part names no longer touches them)."""
     from . import cameras
+    obs = sorted(cameras.fr_cameras(scene), key=lambda o: o.name)
+    return [f"View {k + 1}" if numbered else ob.name for k, ob in enumerate(obs)]
+
+
+def views(scene, numbered: bool = False) -> list[dict]:
+    """The project's saved cameras for the page (task 0134): {name, eye, target, vfov, hfov} in Blender's world
+    (metres, degrees of the render's frame). The names are the cameras' own names, or "View 1", "View 2" … with
+    ``numbered`` (task 0179: the View names setting). The target lies along the camera's view at its sharp distance
+    (the model's middle)."""
+    from . import cameras
+    names = view_names(scene, numbered)
     out = []
     r = scene.render
     aspect = (r.resolution_x * r.pixel_aspect_x) / max(1.0, r.resolution_y * r.pixel_aspect_y)
@@ -1625,8 +1637,7 @@ def views(scene, hide_names: bool = True) -> list[dict]:
             vfov, hfov = fov, 2 * math.atan(math.tan(fov / 2) * aspect)
         else:
             hfov, vfov = fov, 2 * math.atan(math.tan(fov / 2) / max(aspect, 1e-3))
-        name = f"View {k + 1}" if hide_names else ob.name
-        out.append({"name": name, "eye": [float(v) for v in eye], "target": [float(v) for v in target],
+        out.append({"name": names[k], "eye": [float(v) for v in eye], "target": [float(v) for v in target],
                     "vfov": round(math.degrees(vfov), 3), "hfov": round(math.degrees(hfov), 3)})
     return out
 

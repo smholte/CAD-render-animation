@@ -358,8 +358,8 @@ def test_compressed_export_and_the_panels_default(mill_export, tmp_path):
 
 
 def test_saved_cameras_go_on_the_page_as_views(tmp_path):
-    """Task 0134: the project's cameras are the page's saved views – the owner's names, or View 1, 2 … when part names
-    are hidden; the eye where the camera stands, the target along its view, the render's frame in degrees."""
+    """Task 0134: the project's cameras are the page's saved views – the owner's names, or View 1, 2 … with View names
+    Numbered (task 0179; before it Hide part names numbered them); the eye where the camera stands, the target along its view, the render's frame in degrees."""
     import math
 
     from fresing_render.blender import cameras
@@ -368,7 +368,7 @@ def test_saved_cameras_go_on_the_page_as_views(tmp_path):
     hero = cameras.add_camera(sc, "LOW", lens=50.0, name="Hero shot")
     cameras.add_camera(sc, "TOP", lens=35.0, name="Above")
     bpy.context.view_layer.update()
-    names = web3d.views(sc, hide_names=False)
+    names = web3d.views(sc)
     assert [v["name"] for v in names] == sorted(ob.name for ob in cameras.fr_cameras(sc))   # the import's own too
     assert {"Above", "Hero shot"} <= {v["name"] for v in names}
     v = next(x for x in names if x["name"] == "Hero shot")
@@ -380,10 +380,21 @@ def test_saved_cameras_go_on_the_page_as_views(tmp_path):
     aspect = r.resolution_x / r.resolution_y
     assert abs(v["hfov"] - math.degrees(2 * math.atan(18 / 50))) < 1e-3
     assert abs(math.tan(math.radians(v["vfov"]) / 2) * aspect - math.tan(math.radians(v["hfov"]) / 2)) < 1e-4
-    out = web3d.export(sc, str(tmp_path / "views.glb"), size=512)
-    st = env.page_settings(open(out["html"], encoding="utf-8").read())
     n = len(names)
+    # task 0179: View names = Camera names by default, also with Hide part names on (the default): the demo's pages
+    # said "View 1 … View 21"; Numbered keeps them private. Part names stay hidden either way.
+    out = web3d.export(sc, str(tmp_path / "views.glb"), size=512)
+    text = open(out["html"], encoding="utf-8").read()
+    st = env.page_settings(text)
+    assert [x["name"] for x in st["views"]] == [v["name"] for v in names] and out["views"] == n
+    assert "Hero shot" in text
+    assert web3d.view_names(sc) == [v["name"] for v in names]
+    out = web3d.export(sc, str(tmp_path / "numbered.glb"), size=512, view_names="NUMBERED")
+    text = open(out["html"], encoding="utf-8").read()
+    st = env.page_settings(text)
     assert [x["name"] for x in st["views"]] == [f"View {k + 1}" for k in range(n)] and out["views"] == n
+    assert "Hero shot" not in text and "Above" not in text
+    assert web3d.view_names(sc, numbered=True) == [f"View {k + 1}" for k in range(n)]
 
 
 def test_isometric_view_keeps_its_frame_on_the_page():
@@ -396,7 +407,7 @@ def test_isometric_view_keeps_its_frame_on_the_page():
     iso = cameras.add_camera(sc, "ISOMETRIC", name="Iso view")
     assert iso.data.type == "ORTHO"
     bpy.context.view_layer.update()
-    v = next(x for x in web3d.views(sc, hide_names=False) if x["name"] == "Iso view")
+    v = next(x for x in web3d.views(sc) if x["name"] == "Iso view")
     dist = float(np.linalg.norm(np.array(v["target"]) - np.array(v["eye"])))
     r = sc.render
     aspect = r.resolution_x / r.resolution_y
