@@ -69,7 +69,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
               "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 29, "tour": 71, "tour2": 2, "tourui": 15,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43}
+              "spool": 43, "undorebake": 4}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -92,7 +92,7 @@ GROUPS = {
     "scenes": ["surroundings", "vessel", "rulesets", "decals"],
     "motion": ["video", "studio", "update", "ui2", "faces"],
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
-                 "cables", "paths"],
+                 "cables", "paths", "undorebake"],
 }
 
 TESTS = {
@@ -123,6 +123,8 @@ TESTS = {
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
+    "undorebake": ("Real app: Undo after a cable re-bake works the cables out again for the motion the scene has "
+                   "(ui_test_undo_rebake.py)", "ui_test_undo_rebake.py", True),
     "spool": ("Real app: drums and carousels – Add drum / Add carousel with a click in the view, a joint follows the "
               "layer (search), undo and redo, off and on; Build, save and open (ui_test_spool.py)", "ui_test_spool.py",
               True),

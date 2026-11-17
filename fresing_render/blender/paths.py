@@ -4034,6 +4034,12 @@ def version_settle(scene) -> int:
 @persistent
 def _on_undo(_scene=None, _dummy=None):
     forget()
+    try:                                        # task 0187 (bug hunt 6 row 4): undo can bring back a motion (water level,
+        scene = bpy.context.scene               # sea state, speed) with the shapes worked out for another one
+        if scene is not None and hasattr(scene, "fresing"):
+            motion_changed(scene, force=False)
+    except Exception as exc:                    # never break an undo over this
+        print("Fresing Render: cables and hoses not worked out again after undo:", exc)
 
 
 def _handlers():

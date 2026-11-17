@@ -1581,6 +1581,28 @@ def read_places(scene, obs, first: int, frames: int, keep_shown: bool = True, al
             return stop.value
 
 
+def pause_read_for_save() -> bool:
+    """Ctrl+S / autosave while ``read_steps`` runs (task 0187, bug hunt 6 row 3): the project is saved with the
+    visibility and the frame it had before the read, not with most parts hidden. ``resume_read`` hides them again."""
+    pz = _STATE.get("pause")
+    if not pz:
+        return False
+    scene = bpy.data.scenes.get(pz[0])
+    if scene is None:
+        return False
+
+    pz[2]()
+    scene.frame_current, scene.frame_subframe = pz[1][0], pz[1][1]
+    _STATE["paused"] = True
+    return True
+
+
+def resume_read() -> None:
+    pz = _STATE.get("pause")
+    if _STATE.pop("paused", False) and pz:
+        pz[3]()
+
+
 def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, also=(), keep: bool = False):
     """``read_places`` as a generator (task 0160: the re-bake after a sea change runs as a long job with progress and
     Cancel): yields how far it is (0 … 1) after each frame, returns the places. Closed early (Cancel), it puts the
@@ -1611,6 +1633,21 @@ def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, als
     for o, _h in shy:
         if not o.hide_viewport:
             o.hide_viewport = True
+    def _back():                                 # visibility and keys as they were (also for a save in the job)
+        for fc in muted:
+            fc.mute = False
+        for o, h in shy:
+            if o.hide_viewport != h:
+                o.hide_viewport = h
+
+    def _again():
+        for fc in muted:
+            fc.mute = True
+        for o, _h in shy:
+            if not o.hide_viewport:
+                o.hide_viewport = True
+
+    _STATE["pause"] = (scene.name, keep_at, _back, _again)
     try:
         with clash._Guard():
             for k in range(frames):
@@ -1620,11 +1657,8 @@ def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, als
                     out[n][k] = _np(_world(ob))
                 yield (k + 1) / frames
     finally:
-        for fc in muted:
-            fc.mute = False
-        for o, h in shy:
-            if o.hide_viewport != h:
-                o.hide_viewport = h
+        _STATE["pause"] = None
+        _back()
         scene.frame_set(keep_at[0], subframe=keep_at[1])
     if keep:
         _STATE["read"] = ((scene.name, int(first), int(frames)), out)
@@ -2142,6 +2176,12 @@ def _on_load(_dummy=None):
 @persistent
 def _on_undo(_scene=None, _dummy=None):
     forget()
+    try:                                        # task 0187 (bug hunt 6 row 4): undo can bring back a motion (water level,
+        scene = bpy.context.scene               # sea state, speed) with the shapes worked out for another one
+        if scene is not None and hasattr(scene, "fresing"):
+            motion_changed(scene, force=False)
+    except Exception as exc:                    # never break an undo over this
+        print("Fresing Render: cables and hoses not worked out again after undo:", exc)
 
 
 def _handlers():
