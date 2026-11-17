@@ -1,6 +1,6 @@
 # 0191 – Lifting L3: ready-rigged generic cranes (mobile telescopic, crawler, knuckle-boom) with sample charts
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0191-lifting-cranes`
+**Who:** worker · **Status:** running · **Branch:** `claude/nice-dijkstra-2wdjla` (the web session's branch)
 **Started by:** lead chat, 17 Nov 2026 (study 0180, task split L3) · **Model:** Opus · effort High · **Place:** Claude Code on
 the web, environment "CAD-render-animation"
 **Area:** Lifting lane – new package `fresing_render/lifting_model/`, new `tools/make_lifting_cranes.py`, the built-in

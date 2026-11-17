@@ -207,6 +207,8 @@ def test_add_and_remove_a_web_model(tmp_path, monkeypatch):
         build_site.web_model(glb, "gizmo", "A gizmo")
     media = build_site.load_media()
     media["models"]["gizmo"] = {"title": "Gizmo", "credit": "Gizmo by Nobody, CC0 1.0", "licence": "CC0 1.0"}
+    # task 0189 (0179's note): a model whose pictures come later (the IEA turbines) keeps its entry
+    media["models"]["later"] = {"title": "Later", "credit": "Later by Nobody, CC0 1.0", "licence": "CC0 1.0"}
     build_site.save_media(media)
     with pytest.raises(SystemExit, match="CREDITS.md"):
         build_site.web_model(glb, "gizmo", "A gizmo")
@@ -218,6 +220,7 @@ def test_add_and_remove_a_web_model(tmp_path, monkeypatch):
     media = build_site.load_media()
     items = build_site.web_models(media)
     assert [w["id"] for w in items] == ["gizmo"] + before and shots == [glb]
+    assert "later" in media["models"] and {"iea15_offshore", "iea15_onshore"} <= set(media["models"])
     g = items[0]
     assert g["file"] == "gizmo.glb" and g["poster"] == "gizmo_poster.jpg" and g["seconds"] == 2.0
     assert (site / "media" / "gizmo.glb").exists() and (site / "media" / "gizmo_poster.jpg").exists()
@@ -240,7 +243,7 @@ def test_add_and_remove_a_web_model(tmp_path, monkeypatch):
     media = build_site.load_media()
     assert [w["id"] for w in build_site.web_models(media)] == before
     assert not (site / "media" / "gizmo.glb").exists() and not (site / "media" / "gizmo_poster.jpg").exists()
-    assert "gizmo" not in media["models"]
+    assert "gizmo" not in media["models"] and "later" in media["models"]
     with pytest.raises(SystemExit, match="no web model"):
         build_site.remove_web_model("gizmo")
 

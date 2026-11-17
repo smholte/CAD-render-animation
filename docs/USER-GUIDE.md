@@ -2758,6 +2758,12 @@ part with one of them is baked **on its own**, where it stands in the view: the 
 waterline as the app does. The line under the button says on how many parts and how fine ("… mm per pixel"); a very
 big part (a tower, a monopile) gets coarser pixels – the band and the streaks show, the finest streaks and barnacles
 may not ("too big for the fine streaks and barnacles"). These parts make the export slower and the file bigger.
+**Copies share one bake:** parts with the same shape and looks that stand at the same height and tilt (the clamps of
+every turbine of a wind park, turned and placed anywhere across) get the pictures of the first one – the same look, one
+bake. The panel says before the export how many parts are baked ("12 parts baked (copies share one)") and about how
+long it takes; most of that time is per part baked, not per pixel. Measured on the
+small demo project (4-core test machine): the export took 214 s instead of 1,754 s – 69 bakes for 264 parts, and a
+bake no longer drags the whole project along – and the file went from 16 to 11 MB.
 
 <a id="web3d-marine"></a>
 #### Marine detail: Normal or Fine
@@ -2855,6 +2861,8 @@ pointer lights up.
 - **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
   Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
   (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 40.0 mm**.
+  A label's live numbers ({speed}, {top} … of a cable into the sea) are filled in as at the frame shown on a still
+  page; on a page with the animation the lines that hold one are left out (the card cannot follow them while it plays).
 - **Measure** (D): click two faces. **Faces** (the default) measures what was clicked:
   - two **flat faces** – parallel (within 1°): the **distance between the planes**; not parallel: the **angle**
     between them and how far the two points lie apart;
@@ -2895,7 +2903,10 @@ them back.
   project without a sea gets one under the machine. With the **Vessel deck**, the deck goes on the page too.
 - **Vessel motion** (only when the project has it on, 5 Scene & Render > Vessel motion) – the machine and the deck
   heave, pitch and roll in step with the waves, with the app's numbers; parts marked **Still** or **Level** stay as
-  in the app. It works together with Include animation.
+  in the app. It works together with Include animation. With a **cable into the sea** on the page the visitor cannot
+  switch the motion off (the cable hangs from the moving vessel onto a still seabed: without the motion it would leave
+  the seabed). Exported without Vessel motion, the cable's points on the seabed lie where the app lays them and its
+  top stays on the vessel; in between it goes smoothly from one to the other.
 - **Sky** – the page's background and its light. **Sky from: The project** takes the project's sky and sun; with a
   360° photo or a studio look the page gets that picture as its light (and the photo as its background), so shiny
   metal mirrors what the app shows. **Time of day** draws a sky with the sun at **Sun height** and **Sun direction**;
@@ -3800,6 +3811,42 @@ queue.
 The labels of the X-ray step and the Lay data box also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
+
+<a id="lifting-equipment"></a>
+## Own lifting equipment (file format)
+
+The Lifting plans workspace is being built. Its panels come in a later update; the files for your own cranes,
+forklifts, hoists and rigging gear can already be written by hand. **One item = one folder** in your library folder
+(the one set in the app's preferences), in a sub-folder **Lifting equipment**:
+
+- `My crane/My crane.json` – the data below,
+- the model (`.step`, `.glb`, `.obj` or `.fbx`) and, if you like, a picture (`.png` or `.jpg`) with the same name.
+
+To share an item, copy its folder. The cranes that come with the app are **samples**: invented values to show how
+the app works, marked "SAMPLE DATA – NOT FOR REAL LIFTS". A copy of a sample stays a sample until you have entered
+the chart of your real equipment.
+
+The `.json` file holds these fields (masses and lengths in the file's `units`):
+
+| Field | What |
+| --- | --- |
+| `format`, `format_version` | always `"fresing-lifting-equipment"` and `"1.0"` |
+| `kind`, `class`, `name` | what it is (`mobile_crane`, `crawler_crane`, `forklift`, `sling`, `shackle` …), its size class, its name |
+| `units` | `{"mass": "t", "length": "m"}` – masses t, kg or lb; lengths m, mm or ft |
+| `mass`, `cog` | mass and centre of gravity `[x, y, z]` per moving group (`{"carrier": 30.0, "upper": 8.0}`) |
+| `charts` | the load charts, one per configuration: `config` (`boom`, `jib`, `counterweight`, `outriggers`, `hs` – the wave height, always in m), `radius` and `capacity` lists (`null` = not allowed there), `wind_max` (m/s), `includes_hook_block` |
+| `hook_blocks` | `[{"name": "main", "mass": 0.85}]` |
+| `outriggers`, `tracks`, `axles` | the footprint for the ground-pressure checks |
+| `wll` | rigging gear: the working load limit, or one per way of use (`{"straight": 8.0, "choke": 6.4}`) |
+| `rig`, `limits` | the joints of the model; slew range and angles |
+| `sample`, `derived_from` | set by the app for samples and their copies |
+| `source` | where the values come from ("maker chart no. …, entered by …, date") |
+
+A chart can also be read from CSV: one line per row, `radius;capacity` (decimal comma allowed) or
+`radius,capacity`, a header line such as `radius (ft);capacity (lb)` for the units, and a line such as
+`boom 30.4 m; counterweight 40 t` before each configuration. The app refuses a chart whose radii do not rise, a
+capacity of 0 or less, a capacity that rises with the radius, or a wave-height column holding more than a calmer one;
+it names the line. The capacity is always taken at the next longer radius of the chart, never in between.
 
 <a id="tips"></a>
 ## Tips
