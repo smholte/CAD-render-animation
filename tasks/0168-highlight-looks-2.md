@@ -163,3 +163,10 @@ Machine: web session, 4 cores, no graphics card, Blender 5.2.3 under xvfb (softw
 - Look 6 (X-ray) draws every other part's edges, the most expensive: fine on the crane, to check on a big model once chosen.
 - White and Amber with J's white hand / N's white text: readable here, recheck if chosen.
 - The branch carries `lesson.py` changes on top of 0133's; the build task keeps only the chosen looks.
+
+### Owner's pick (17 Nov 2026)
+
+`0168 pick: button C + D, section 5 + 4, part 3 + 1, colour Fresing Green` – two finalists per group (the page's
+"+" = two ticks to compare), first named = his first choice. Colour **Fresing Green `#479B29`**. Lead: both of each
+pair go into the 0062 highlight hook behind one setting, first named as default; the owner settles each pair on his
+RTX 3090 and the lesson build tasks drop the other. Details in the 0062 brief (lead note 17 Nov – highlight looks).
