@@ -67,7 +67,8 @@ The STEP reader; other 0183 rows.
   The first try of the name rule broke `test_match_a_made_name_needs_the_same_place` (a record without `made_self`
   paired by its piece name); the rule now needs `made_self` to be False outright.
 - No independent tester (saving usage; one module, narrow rule).
-- GitHub runs: see below.
+- GitHub: 1 full run on the branch, green (run 44140496184, 35 min; demo 1 slow at 26 min, all OK). main had moved only by
+  the task list: no second code run.
 
 **Open points / follow-up tasks:**
 - The reverse case is not handled: an old model with only one unnamed group (that group was the root) updated to a
