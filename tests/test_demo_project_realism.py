@@ -165,6 +165,7 @@ def test_shot_8_shows_horn_a_the_touch_down_and_the_rov(built):
         px, ok = callouts.project(callouts.camera_matrix(sc, size), size, np.array([T, tdp, rov]))
         assert ok.all() and (px[:, 0] > 20).all() and (px[:, 0] < size[0] - 20).all(), (t, px)
         assert (px[:, 1] > 20).all() and (px[:, 1] < size[1] - 20).all(), (t, px)
+        assert px[2, 1] > 0.22 * size[1], (t, px)                      # the ROV above the caption (lower ~20 %)
     sc.frame_set(sc.frame_start)
 
 
