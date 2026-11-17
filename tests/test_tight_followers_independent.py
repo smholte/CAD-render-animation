@@ -359,8 +359,9 @@ def rebake_same(sc, name, first):
 
 
 def test_follower_reference_and_pass_count(folder):
-    """The plain case (as the author's test) + how many passes through the frames it costs: one more than without
-    the follower, never more."""
+    """The plain case (as the author's test) + how many passes through the frames it costs: no more than without the
+    follower (the worker's change after this test was written: the places read are put right for the payouts
+    instead of a second pass – it was one more pass)."""
     sc, a = spool_model(folder, follow=False)
     bad, steps_free, _fs = build_spool(sc, a)
     assert not bad, bad
@@ -370,7 +371,7 @@ def test_follower_reference_and_pass_count(folder):
     bad, steps, _fs = build_spool(sc, a)
     assert not bad, bad
     first = assert_moves_with_payout(sc, "Power cable", DROP)
-    assert steps == steps_free + frames, (steps, steps_free, frames)
+    assert steps == steps_free, (steps, steps_free, frames)
     rebake_same(sc, "Power cable", first)
     # not following, it stood still (the shapes of one frame or a standing shape)
     assert pc_free[0].shape[0] == 1 or float(np.abs(pc_free[0][-1] - pc_free[0][0]).max()) < 1e-6
@@ -575,7 +576,7 @@ def test_two_kept_tight_wires_each_with_a_follower(folder):
     bad, steps, _fs = build_spool(sc, a)
     assert not [t for t in bad if "piles up" not in t], bad          # (the sea cable is paid out fast: it piles up)
     frames = sc.frame_end - sc.frame_start + 1
-    assert steps == 2 * frames, (steps, frames)                      # ONE extra pass for both followers
+    assert steps == frames, (steps, frames)                          # no extra pass (was one before the worker's change)
     sc.frame_set(sc.frame_end)
     lift = paths.tight_payout(sc, paths.find(sc, "Lift wire"))
     assert lift > 5.0

@@ -3320,10 +3320,20 @@ def _plan(scene) -> tuple:
     can = [n for n in its if _can_move(_cable(scene, n))]
     animated = [n for n in can if _animated(_cable(scene, n))]
     obs = {}
+    leaders = _tight_leaders(scene)
     for n in can:
         it = _cable(scene, n)
         for ob in [it.part] + [o for sl in _inputs_of(it)[1] for o in sl.objects()]:
             obs[ob.name] = ob
+        if leaders and not (it.keep_tight and it.joint in leaders):
+            # task 0173: the motion empties of the joints a kept-tight winch moves, so that Build can put this
+            # cable's places right for the payouts it writes (``_after_tight``) without a second pass
+            for name in _affected(scene, it, leaders):
+                j = joints.find(scene, name)
+                if j is not None and j.motion is not None:
+                    obs[j.motion.name] = j.motion
+    if leaders and any(n not in animated and _affected(scene, _cable(scene, n), leaders) for n in can):
+        animated = sorted(set(animated) | {n for n in can if _affected(scene, _cable(scene, n), leaders)})
     return notes, its, can, animated, list(obs.values())
 
 
@@ -3390,24 +3400,142 @@ def _moved_by_one_of(scene, item, leaders: set) -> bool:
     return False
 
 
-def _after_tight(scene, its, tight, can, written: set, first: int, frames: int):
+def _values_seen(scene, joint_name: str, first: int, frames: int) -> np.ndarray:
+    """(frames,): the joint's value at every frame as the pass through the frames saw it, before the winch's keys are
+    written: its keys (an earlier Build's) evaluated, or its value now."""
+    j = joints.find(scene, joint_name)
+    if j is None or j.motion is None:
+        return np.zeros(frames)
+    fc = next((c for c in _fcurves(j.motion) if c.data_path == joints.COUPLING_PATH), None)
+    if fc is None or fc.mute:
+        return np.full(frames, float(j.motion.get(joints.VALUE, 0.0)))
+    return np.array([fc.evaluate(first + f) for f in range(frames)], dtype=float)
+
+
+CHANGED_TOL = 1e-7                      # m / rad: a written value this near what the pass saw changes nothing
+
+
+def _tight_leaders(scene) -> set:
+    """The speed joints of the cables a winch keeps tight (that can be: their joint moves by itself)."""
+    out = set()
+    for it in scene.fresing.cables:
+        if it.enabled and it.keep_tight and it.joint:
+            j, _why = _tight_joint(scene, it)
+            if j is not None:
+                out.add(j.name)
+    return out
+
+
+def _affected(scene, item, leaders: set) -> list:
+    """The joints that move one of the things shaping the cable (their motion empty is one of them or above one)
+    and are one of ``leaders`` or follow one down a chain – outermost first."""
+    names = _joint_names(scene)
+    out, depth = {}, {}
+    for ob in [item.part] + [o for sl in _inputs_of(item)[1] for o in sl.objects()]:
+        p, k = ob, 0
+        chain = []
+        while p is not None:
+            if p.name in names:
+                chain.append(names[p.name])
+            p = p.parent
+        for k, name in enumerate(reversed(chain)):          # outermost first
+            depth[name] = min(depth.get(name, k), k)
+            out[name] = True
+    keep = []
+    for name in out:
+        j = joints.find(scene, name)
+        if j is None:
+            continue
+        if j.name in leaders or follows_one_of_joint(scene, j, leaders):
+            keep.append(name)
+    return sorted(keep, key=lambda n: depth[n])
+
+
+def follows_one_of_joint(scene, j, leaders: set) -> bool:
+    seen = set()
+    while j is not None and j.follows and j.name not in seen:
+        seen.add(j.name)
+        if j.follows in leaders:
+            return True
+        j = joints.find(scene, j.follows)
+    return False
+
+
+def _local(kind: str, value: np.ndarray) -> np.ndarray:
+    """(F, 4, 4): a joint's motion empty in its arrow's coordinates at these values (``joints._add_driver``: a turn
+    about, or a slide along, the arrow's z)."""
+    v = np.asarray(value, dtype=float)
+    out = np.tile(np.eye(4), (len(v), 1, 1))
+    if kind == "ROTATE":
+        c, s_ = np.cos(v), np.sin(v)
+        out[:, 0, 0], out[:, 0, 1], out[:, 1, 0], out[:, 1, 1] = c, -s_, s_, c
+    else:
+        out[:, 2, 3] = v
+    return out
+
+
+def _after_tight(scene, its, tight, can, written: dict, first: int, frames: int, mats: dict):
     """Task 0173 (0174's open point): after the kept-tight cables wrote their payouts, the places of the cables whose
-    speed follows one of them, or whose carriers one of them (or a follower of one) moves, read again –
-    ({name: (F, 4, 4)}, the cables now animated) or () when there are none."""
-    later = [n for n in its if n not in tight and n in can and written and
-             (follows_one_of(scene, _cable(scene, n), written) or _moved_by_one_of(scene, _cable(scene, n), written))]
+    speed follows one of them, or whose carriers one of them (or a follower of one) moves, made right for those
+    payouts – ({name: (F, 4, 4)}, the cables now animated) or () when there are none.
+
+    No second pass through the frames: each joint that depends on a written payout moves its motion empty by its
+    value only, so an object read at the value the pass saw (``_values_seen``) is put where the written value puts it:
+    W' = M @ L(seen)^-1 @ L(written) @ M^-1 @ W, M = its motion empty as read (outermost joint first; the motion
+    empties are read in the same pass, ``_plan``). When something needed was not read at every frame, the places
+    are read again (one more pass)."""
+    leaders = set(written)
+    later = [n for n in its if n not in tight and n in can and leaders and
+             (follows_one_of(scene, _cable(scene, n), leaders) or _moved_by_one_of(scene, _cable(scene, n), leaders))]
     if not later:
         return ()
-    obs = {}
+    obs, need = {}, {}
     for n in later:
         it = _cable(scene, n)
         for ob in [it.part] + [o for sl in _inputs_of(it)[1] for o in sl.objects()]:
             obs[ob.name] = ob
-    flex.drop_read()                            # (what was read before the keys were written)
-    before = flex._STATE["steps"]
-    got = flex.read_places(scene, list(obs.values()), first, frames, keep_shown=False)
-    _STATE["steps"] += flex._STATE["steps"] - before
-    return got, {n for n in later if _animated(_cable(scene, n))}
+        for name in _affected(scene, it, leaders):
+            need[name] = joints.find(scene, name)
+    motions = {j.motion.name: j for j in need.values() if j is not None and j.motion is not None}
+    whole = all(nm in mats and len(mats[nm]) == frames for nm in list(obs) + list(motions))
+    if not whole:
+        flex.drop_read()                        # (what was read before the keys were written)
+        before = flex._STATE["steps"]
+        got = flex.read_places(scene, list(obs.values()), first, frames, keep_shown=False)
+        _STATE["steps"] += flex._STATE["steps"] - before
+        _STATE["reread"] = (0, frames - 1)
+        return got, {n for n in later if _animated(_cable(scene, n))}
+    _STATE["reread"] = None
+    out = {nm: np.array(mats[nm], dtype=float, copy=True) for nm in list(obs) + list(motions)}
+    parents = {nm: {p.name for p in _ancestors(ob)} | {nm} for nm, ob in
+               {**obs, **{m: need[motions[m].name].motion for m in motions}}.items()}
+    for name in need:                           # (outermost first: _affected's order)
+        j = need[name]
+        if j is None or j.motion is None:
+            continue
+        top, fmap = (j, None) if j.name in leaders else joints.chain_map(scene, j)
+        if top is None or top.name not in written:
+            continue
+        values, saw = written[top.name]
+        k = min(len(values), len(saw), frames)
+        v_new = np.asarray(values[:k] if fmap is None else [float(fmap(x)) for x in values[:k]], dtype=float)
+        v_old = np.asarray(saw[:k] if fmap is None else [float(fmap(x)) for x in saw[:k]], dtype=float)
+        if float(np.abs(v_new - v_old).max(initial=0.0)) <= 0.0:
+            continue
+        C = np.linalg.inv(_local(j.kind, v_old)) @ _local(j.kind, v_new)
+        M = out[j.motion.name][:k].copy()
+        R = M @ C @ np.linalg.inv(M)
+        for nm in out:
+            if j.motion.name in parents.get(nm, ()):
+                out[nm][:k] = R @ out[nm][:k]
+    return {nm: out[nm] for nm in obs}, {n for n in later if _animated(_cable(scene, n))}
+
+
+def _ancestors(ob):
+    p = ob.parent
+    while p is not None:
+        yield p
+        p = p.parent
 
 
 def _bake(scene) -> list[str]:
@@ -3430,12 +3558,12 @@ def _bake(scene) -> list[str]:
     # task 0173: the cables kept tight first – they write their winch's payouts as keys; a cable whose speed follows
     # such a winch (a drum's lead wire, spooled) is read again once those keys are there (it saw no payout before)
     tight = [n for n in its if _cable(scene, n).keep_tight and _tight_joint(scene, _cable(scene, n))[0] is not None]
-    written: set = set()
+    written: dict = {}                          # joint name -> (the values written, those the pass above saw)
     again = None
     for n in tight + [n for n in its if n not in tight]:
         it = _cable(scene, n)
         if again is None and n not in tight:
-            again = _after_tight(scene, its, tight, can, written, first, frames)
+            again = _after_tight(scene, its, tight, can, written, first, frames, mats)
             if again:
                 mats = {**mats, **again[0]}
                 animated = list(set(animated) | again[1])
@@ -3449,9 +3577,10 @@ def _bake(scene) -> list[str]:
         if it.keep_tight:                       # the winch keeps it tight: a key per frame on its speed (task 0082)
             rel, values = _tighten(scene, it, rel, slots, first, notes)
             if values is not None:
+                saw = _values_seen(scene, it.joint, first, len(values)) if len(values) > 1 else None
                 _write_tight(scene, it, values, first)
-                if len(values) > 1:
-                    written.add(it.joint)
+                if saw is not None:
+                    written[it.joint] = (np.asarray(values, dtype=float), saw)
                 if len(values) > 1 and any(sl.live and not sl.role for sl in slots):
                     # a layer follower moves a carrier with the payout (a level wind's fairlead sheave): read the
                     # places again with the keys written and work the payout out again, until it holds to TIGHT_TOL
