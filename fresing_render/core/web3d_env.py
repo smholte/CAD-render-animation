@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import glob
+import gzip
 import html
 import json
 import math
@@ -593,8 +594,11 @@ def page_html(title: str, glb: bytes, st: dict, pictures: dict | None = None, no
     title_h = html.escape(title or "3D model", quote=True)
     st = dict(st)
     st["animated"] = bool(animated)
-    data = [f'<script type="application/octet-stream" id="fr-glb" data-bytes="{len(glb)}">'
-            + base64.b64encode(glb).decode("ascii") + "</script>"]
+    # task 0175: the model gzip-packed (the browser's own DecompressionStream unpacks it); data-bytes = what the
+    # page holds (the loading bar), data-glb = the model's own size
+    packed = gzip.compress(glb, 9, mtime=0)
+    data = [f'<script type="application/octet-stream" id="fr-glb" data-bytes="{len(packed)}" data-gzip="1" '
+            f'data-glb="{len(glb)}">' + base64.b64encode(packed).decode("ascii") + "</script>"]
     for pid, (mime, raw) in (pictures or {}).items():
         data.append(f'<script type="application/octet-stream" id="fr-pic-{html.escape(pid, quote=True)}" '
                     f'data-type="{html.escape(mime, quote=True)}" data-bytes="{len(raw)}">'
@@ -606,6 +610,15 @@ def page_html(title: str, glb: bytes, st: dict, pictures: dict | None = None, no
                         tubes=_inline(_read(TUBES_FILE)), page=_inline(_read(PAGE_FILE)),
                         player=_inline(_read(PLAYER_FILE)), measure=_inline(_read(MEASURE_FILE)),
                         tools=_inline(_read(TOOLS_FILE)))
+
+
+def page_glb(page: str) -> bytes:
+    """The model inside a page written by ``page_html``: gzip-packed (task 0175) or, in older pages, as it is."""
+    m = re.search(r'<script type="application/octet-stream" id="fr-glb"([^>]*)>([^<]*)</script>', page)
+    if not m:
+        raise ValueError("the page holds no 3D model")
+    raw = base64.b64decode(m.group(2).strip())
+    return gzip.decompress(raw) if 'data-gzip="1"' in m.group(1) else raw
 
 
 def page_settings(page: str) -> dict:
@@ -665,7 +678,8 @@ def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5",
     {warned, gpu, level, paused, views, items, …} and "selftest": with ``selftest=1`` in ``query`` what the player's
     own check found {ok, menu, space, help, link, warned} (task 0134); "tubes": with ``tubes=1`` the drawn cables'
     centre lines [{name, count, pay, points (Blender world, m)}] (task 0142); "tools": with ``selftest=1`` what the
-    part tools' own check found {ok, buttons, pick, card, measure, fade, cut, faces} (task 0135)."""
+    part tools' own check found {ok, buttons, pick, card, measure, fade, cut, faces} (task 0135); "places": with
+    ``places=1`` every animated node's place as three.js plays it {node: [x y z qx qy qz qw sx sy sz]} (task 0175)."""
     browser = browser or find_browser()
     if not browser:
         raise RuntimeError("no Edge, Chrome or Chromium found")
@@ -704,9 +718,10 @@ def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5",
     if m is None and "<html" not in dom:
         raise RuntimeError(f"the browser showed nothing (exit code {proc.returncode})")
     out = {"state": html.unescape(m.group(1)) if m else "loading", "light": None, "probe": None, "player": None,
-           "selftest": None, "tubes": None, "tools": None}
+           "selftest": None, "tubes": None, "tools": None, "places": None}
     for key, attr in (("light", "data-fr-light"), ("probe", "data-fr-probe"), ("player", "data-fr-player"),
-                      ("selftest", "data-fr-selftest"), ("tubes", "data-fr-tubes"), ("tools", "data-fr-tools")):
+                      ("selftest", "data-fr-selftest"), ("tubes", "data-fr-tubes"), ("tools", "data-fr-tools"),
+                      ("places", "data-fr-places")):
         m = re.search(attr + r'="([^"]*)"', dom)
         if m:
             try:

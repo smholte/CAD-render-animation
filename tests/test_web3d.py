@@ -75,10 +75,9 @@ def test_export_writes_a_valid_glb_and_one_file_page(mill_export):
     text = page.read_text(encoding="utf-8")
     # task 0134: the player (three.js) is inside the page, model-viewer is not used any more
     assert "FRTHREE" in text and "frPage" in text and "fr-menu" in text and "<model-viewer" not in text
-    import base64
-    import re
-    assert base64.b64decode(re.search(r'id="fr-glb" data-bytes="\d+">([^<]+)</script>', text).group(1)) == data
     from fresing_render.core import web3d_env as env
+    assert env.page_glb(text) == data                        # task 0175: gzip-packed in the page
+    assert 'data-gzip="1"' in text
     st = env.page_settings(text)
     assert st["plain"] is True and st["sea"] is None and isinstance(st["views"], list)
     w = mill_export["scene"].fresing.web3d
@@ -282,9 +281,13 @@ def test_animation_shows_and_hides_parts(tmp_path):
               if c["target"]["path"] == "scale"}
     assert len(scales) == 2 and all(s["interpolation"] == "STEP" for s in scales.values())
     seen = {}
+    fps = sc.render.fps / sc.render.fps_base
     for node, smp in scales.items():
         s = core.accessor_array(doc, binary, smp["output"])[:, 0]
-        seen[tuple(np.round(s).astype(int))] = doc["nodes"][node]
+        tm = core.accessor_array(doc, binary, smp["input"])[:, 0]
+        assert len(tm) == 3                              # task 0175: keys only where it changes (and the ends)
+        at = [s[np.searchsorted(tm, (f - 1) / fps + 1e-6, side="right") - 1] for f in range(1, 12)]   # STEP
+        seen[tuple(np.round(at).astype(int))] = doc["nodes"][node]
     assert set(seen) == {(0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)}
     assert seen[(0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1)]["scale"] == [0.0, 0.0, 0.0]   # hidden on the first frame
 

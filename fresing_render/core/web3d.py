@@ -10,6 +10,7 @@ UVs: in tiles of ``TILE_M`` (a 0.2 m square of the look), so a texture lands at 
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 import json
 import math
@@ -19,7 +20,7 @@ import zlib
 
 import numpy as np
 
-from . import meshopt
+from . import meshopt, web3d_keys
 
 TILE_M = 0.2                       # one texture tile covers this square of a part (metres)
 SIZES = (512, 1024, 2048)          # Texture size choices (pixels per tile side)
@@ -34,6 +35,8 @@ POS_STEP_PACKED = POS_STEP           # m: compressed files: points in steps of a
 UV_Q = 128                         # 16-bit UVs: steps of 1/128 tile (1.6 mm); the looks scale them back
 UV_TRANSFORM = {"KHR_texture_transform": {"scale": [1.0 / UV_Q, 1.0 / UV_Q]}}
 JPG_QUALITY = {"color": 86, "orm": 86, "normal": 92}
+WEBP_QUALITY = {"color": 86, "orm": 86, "normal": 92, "light": 92}   # task 0175 (0149: q86 looks, q92 light)
+WEBP = "EXT_texture_webp"
 MV_VERSION = "4.4.0"               # model-viewer, vendored in fresing_render/web/
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 MV_FILE = "model-viewer-umd.min.js"
@@ -329,10 +332,24 @@ def png(pixels: np.ndarray) -> bytes:
             + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
+def is_webp(data: bytes) -> bool:
+    return data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+
+
 def image_size(data: bytes) -> tuple[int, int]:
-    """(width, height) of a PNG or JPG file's bytes; (0, 0) if unknown."""
+    """(width, height) of a PNG, JPG or WebP file's bytes; (0, 0) if unknown."""
     if data[:8] == b"\x89PNG\r\n\x1a\n":
         return struct.unpack(">II", data[16:24])
+    if is_webp(data) and len(data) >= 30:
+        kind = data[12:16]
+        if kind == b"VP8 ":
+            w, h = struct.unpack("<HH", data[26:30])
+            return w & 0x3FFF, h & 0x3FFF
+        if kind == b"VP8L":
+            b = int.from_bytes(data[21:25], "little")
+            return (b & 0x3FFF) + 1, ((b >> 14) & 0x3FFF) + 1
+        if kind == b"VP8X":
+            return int.from_bytes(data[24:27], "little") + 1, int.from_bytes(data[27:30], "little") + 1
     if data[:2] == b"\xff\xd8":
         i = 2
         while i + 9 < len(data):
@@ -415,6 +432,8 @@ class Gltf:
         self.image_bytes = 0
         self.dequantize: list = []             # per mesh: (centre, step) of its 16-bit points, or None
         self.order: list = []                  # per mesh: the vertices passed in, in the order written (None = as passed)
+        self._seen_mesh: dict = {}             # task 0175: content -> mesh index (exact duplicates written once)
+        self.duplicates = 0
 
     # -- low level
     def _view(self, data: bytes, target: int | None = None, stride: int | None = None) -> int:
@@ -429,8 +448,9 @@ class Gltf:
         self.doc["bufferViews"].append(view)
         return len(self.doc["bufferViews"]) - 1
 
-    def _packed_view(self, data: np.ndarray, target: int, stride: int | None) -> int:
-        """A meshopt-compressed view of ``data`` (count, element bytes)."""
+    def _packed_view(self, data: np.ndarray, target: int, stride: int | None, filt: str = "") -> int:
+        """A meshopt-compressed view of ``data`` (count, element bytes); ``filt``: the meshopt filter the bytes were
+        written with (task 0175: "EXPONENTIAL", "QUATERNION")."""
         count, elem = data.shape
         if target == ELEMENT_ARRAY_BUFFER:
             enc, mode = meshopt.encode_triangles(data.view({2: np.uint16, 4: np.uint32}[elem]).ravel())
@@ -441,6 +461,8 @@ class Gltf:
             self._bin.append(0)
         ext = {"buffer": 0, "byteOffset": len(self._bin), "byteLength": len(enc), "byteStride": elem,
                "count": int(count), "mode": mode}
+        if filt:
+            ext["filter"] = filt
         self._bin.extend(enc)
         self._fallback = (self._fallback + 3) // 4 * 4
         view = {"buffer": 1, "byteOffset": self._fallback, "byteLength": count * elem, "extensions": {MESHOPT: ext}}
@@ -454,9 +476,12 @@ class Gltf:
         return len(self.doc["bufferViews"]) - 1
 
     def accessor(self, values: np.ndarray, kind: str, ctype: int = FLOAT, normalized: bool = False,
-                 target: int | None = None, minmax: bool = False, pack: bool = False) -> int:
+                 target: int | None = None, minmax: bool = False, pack: bool = False, filt: str = "",
+                 filtered: np.ndarray | None = None) -> int:
         """``pack``: meshopt-compressed in a compressed file also when it is no vertex data (animation, the moving
-        cables' centre lines, task 0142); its elements must be a multiple of 4 bytes."""
+        cables' centre lines, task 0142); its elements must be a multiple of 4 bytes. ``filt`` + ``filtered``
+        (task 0175): in a compressed file the bytes written are ``filtered`` (the same count, the meshopt filter
+        ``filt`` turns them back into ``values``); ``values`` are what a reader gets (min / max from them)."""
         a = np.ascontiguousarray(np.asarray(values).astype(_NP[ctype], copy=False))
         n_comp = _COMPONENTS[kind]
         count = len(a) if a.ndim > 1 or n_comp == 1 else len(a) // n_comp
@@ -468,7 +493,11 @@ class Gltf:
             pad = (4 - elem % 4) // _SIZES[ctype]
             data = np.concatenate([a2, np.zeros((count, pad), a2.dtype)], axis=1)
             stride = data.shape[1] * _SIZES[ctype]
-        if self.compress and count and (target in (ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER) or (pack and elem % 4 == 0)):
+        if self.compress and count and filt and filtered is not None:
+            f = np.ascontiguousarray(filtered)
+            raw = f.view(np.uint8).reshape(count, -1)
+            view = self._packed_view(raw, target, stride, filt)
+        elif self.compress and count and (target in (ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER) or (pack and elem % 4 == 0)):
             raw = np.ascontiguousarray(data).view(np.uint8).reshape(count, -1)
             view = self._packed_view(raw, target, stride)
         else:
@@ -497,13 +526,21 @@ class Gltf:
         return self._samplers[wrap]
 
     def texture(self, data: bytes, name: str = "", wrap: int = REPEAT) -> int:
-        mime = "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
+        """A picture (PNG, JPG or WebP bytes). A WebP picture is named only by ``EXT_texture_webp`` (task 0175; a
+        required extension: no second copy as a fallback, every current browser reads WebP)."""
+        webp = is_webp(data)
+        mime = "image/webp" if webp else "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
         img = {"bufferView": self._view(data), "mimeType": mime}
         if name:
             img["name"] = name
         self.doc["images"].append(img)
         self.image_bytes += len(data)
-        self.doc["textures"].append({"source": len(self.doc["images"]) - 1, "sampler": self.sampler(wrap)})
+        k = len(self.doc["images"]) - 1
+        if webp:
+            self.use(WEBP, required=True)
+            self.doc["textures"].append({"extensions": {WEBP: {"source": k}}, "sampler": self.sampler(wrap)})
+        else:
+            self.doc["textures"].append({"source": k, "sampler": self.sampler(wrap)})
         return len(self.doc["textures"]) - 1
 
     # -- scene
@@ -524,8 +561,24 @@ class Gltf:
         ``quantize``: points as 16-bit whole numbers in steps of at most ``max_step`` (half the bytes); the node that
         shows the mesh then needs ``dequantize(mesh)`` as its own place (``place_mesh`` does it). A part too big for
         that step keeps 32-bit points. ``tiled_uv``: UVs in tiles of a repeating look, stored as 16-bit numbers of
-        1/``UV_Q`` tile; its materials scale them back (``UV_TRANSFORM`` on their pictures)."""
+        1/``UV_Q`` tile; its materials scale them back (``UV_TRANSFORM`` on their pictures).
+
+        Task 0175: a mesh exactly like one written before (points, normals, UVs, triangles, materials – e.g. two
+        Blender meshes "SHACKLE" and "SHACKLE.001") is not written again: its index is returned."""
         pos = np.asarray(pos, np.float64)
+        h = hashlib.blake2b(digest_size=20)
+        for a in (pos, nrm_i8, uv if uv is not None else np.zeros(0)):
+            a = np.ascontiguousarray(a)
+            h.update(str(a.shape).encode() + str(a.dtype).encode())
+            h.update(a.tobytes())
+        for mat, idx in groups:
+            h.update(f"|{mat}|".encode())
+            h.update(np.ascontiguousarray(np.asarray(idx, np.int64)).tobytes())
+        h.update(f"{quantize}{max_step}{tiled_uv}".encode())
+        sig = h.digest()
+        if sig in self._seen_mesh:
+            self.duplicates += 1
+            return self._seen_mesh[sig]
         order = None
         if self.compress and len(pos):         # points in the order the triangles first use them: small steps
             pos, nrm_i8, uv, groups, order = first_use_order(pos, nrm_i8, uv, groups, with_order=True)
@@ -572,6 +625,7 @@ class Gltf:
         self.doc["meshes"].append({"name": name, "primitives": prims})
         self.dequantize.append(dq)
         self.order.append(order)
+        self._seen_mesh[sig] = len(self.doc["meshes"]) - 1
         return len(self.doc["meshes"]) - 1
 
     def vertex_attribute(self, mesh: int, values: np.ndarray, kind: str, ctype: int, normalized: bool = True) -> int:
@@ -620,18 +674,30 @@ class Gltf:
         return k
 
     def animation(self, name: str, times: np.ndarray, tracks: list[tuple[int, str, np.ndarray]]) -> int | None:
-        """``tracks``: (node, "translation" | "rotation" | "scale", values (f, 3|4)[, interpolation[, times]]):
+        """``tracks``: (node, "translation" | "rotation" | "scale", values (f, 3|4)[, interpolation[, times[, how]]]):
         LINEAR unless a fourth item says "STEP" (a part shown and hidden by its scale, task 0111); a fifth item is
-        the track's own times (its kept moments, task 0142), else ``times``. Equal time lists share one accessor."""
+        the track's own times (its kept moments, task 0142), else ``times``. Equal time lists share one accessor.
+        ``how`` (task 0175, ``web3d_keys.node_track``): "short" = ``values`` are normalised 16-bit rotations, "quat" =
+        QUATERNION-filter numbers, "exp" = EXPONENTIAL-filter numbers (the last two: a compressed file only). In a compressed file the times are on the EXPONENTIAL grid too."""
         if not tracks:
             return None
         inputs: dict = {}
+        end = float(np.max(np.asarray(times, np.float64))) if len(times) else 0.0
 
         def time_input(tm):
-            a = np.asarray(tm, np.float32)
+            tm = np.asarray(tm, np.float64)
+            if self.compress and len(tm):          # the same numbers as ``web3d_keys.file_times``
+                enc = web3d_keys.exp_encode(tm[:, None], web3d_keys.EXP_TIME, end)
+                a = web3d_keys.exp_decode(enc)[:, 0]
+            else:
+                enc, a = None, tm.astype(np.float32)
             key = (len(a), a.tobytes())
             if key not in inputs:
-                inputs[key] = self.accessor(a, "SCALAR", FLOAT, minmax=True, pack=True)
+                if enc is not None:
+                    inputs[key] = self.accessor(a, "SCALAR", FLOAT, minmax=True, pack=True, filt="EXPONENTIAL",
+                                                filtered=enc)
+                else:
+                    inputs[key] = self.accessor(a, "SCALAR", FLOAT, minmax=True, pack=True)
             return inputs[key]
 
         anim = {"name": name, "samplers": [], "channels": []}
@@ -639,8 +705,21 @@ class Gltf:
             node, path, values = track[:3]
             kind = "VEC4" if path == "rotation" else "VEC3"
             src = time_input(track[4] if len(track) > 4 and track[4] is not None else times)
+            how = track[5] if len(track) > 5 else ""
+            if how == "quat" and self.compress:
+                filt = np.asarray(values, np.int16)
+                out = self.accessor(web3d_keys.quat_decode(filt), kind, SHORT, normalized=True, pack=True,
+                                    filt="QUATERNION", filtered=filt)
+            elif how == "short":
+                out = self.accessor(np.asarray(values, np.int16), kind, SHORT, normalized=True)
+            elif how == "exp":
+                enc = np.asarray(values, np.uint32)
+                out = self.accessor(web3d_keys.exp_decode(enc), kind, FLOAT, pack=True, filt="EXPONENTIAL",
+                                    filtered=enc)
+            else:
+                out = self.accessor(np.asarray(values, np.float32), kind, FLOAT, pack=True)
             anim["samplers"].append({"input": src, "interpolation": track[3] if len(track) > 3 else "LINEAR",
-                                     "output": self.accessor(np.asarray(values, np.float32), kind, FLOAT, pack=True)})
+                                     "output": out})
             anim["channels"].append({"sampler": len(anim["samplers"]) - 1, "target": {"node": node, "path": path}})
         self.doc.setdefault("animations", []).append(anim)
         return len(self.doc["animations"]) - 1
@@ -704,6 +783,14 @@ def read_glb(data: bytes) -> tuple[dict, bytes]:
     return doc, b""
 
 
+def texture_image(doc: dict, tex: int) -> int:
+    """The image a texture shows: its ``source`` or its ``EXT_texture_webp`` source (task 0175)."""
+    t = doc["textures"][tex]
+    if "source" in t:
+        return t["source"]
+    return t["extensions"][WEBP]["source"]
+
+
 def view_bytes(doc: dict, binary: bytes, k: int) -> bytes:
     """The bytes of buffer view ``k``; a meshopt-compressed view is decoded (and kept in ``doc`` for the next)."""
     view = doc["bufferViews"][k]
@@ -714,10 +801,16 @@ def view_bytes(doc: dict, binary: bytes, k: int) -> bytes:
     cache = doc.setdefault("_decoded", {})
     if k not in cache:
         src = binary[ext.get("byteOffset", 0):ext.get("byteOffset", 0) + ext["byteLength"]]
-        if ext.get("filter", "NONE") != "NONE":
+        filt = ext.get("filter", "NONE")
+        if filt not in ("NONE", "EXPONENTIAL", "QUATERNION"):
             raise ValueError(f"meshopt filter {ext['filter']} is not read here")
         if ext["mode"] == "ATTRIBUTES":
-            out = meshopt.decode_vertex_buffer(src, ext["count"], ext["byteStride"]).tobytes()
+            out = meshopt.decode_vertex_buffer(src, ext["count"], ext["byteStride"])
+            if filt == "EXPONENTIAL":          # task 0175
+                out = web3d_keys.exp_decode(out.copy().view(np.uint32))
+            elif filt == "QUATERNION":
+                out = web3d_keys.quat_decode(out.copy().view(np.int16).reshape(-1, 4))
+            out = np.ascontiguousarray(out).tobytes()
         elif ext["mode"] in ("INDICES", "TRIANGLES"):
             fn = meshopt.decode_index_sequence if ext["mode"] == "INDICES" else meshopt.decode_index_buffer
             out = fn(src, ext["count"]).astype({2: np.uint16, 4: np.uint32}[ext["byteStride"]]).tobytes()

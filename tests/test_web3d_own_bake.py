@@ -47,9 +47,9 @@ def _plate(sc, name, z0=-2.0, z1=5.0, nx=4, nz=28, turn=30.0):
 
 def _picture(doc, binary, tex, tmp_path):
     """A texture of the file as (h, w, 3) floats, row 0 at the top (glTF's v = 0)."""
-    img = doc["images"][doc["textures"][tex]["source"]]
+    img = doc["images"][core.texture_image(doc, tex)]
     raw = core.view_bytes(doc, binary, img["bufferView"])
-    p = tmp_path / f"t{tex}.{'png' if raw[:4] == b'\x89PNG' else 'jpg'}"
+    p = tmp_path / f"t{tex}.{'png' if raw[:4] == b'\x89PNG' else 'webp' if core.is_webp(raw) else 'jpg'}"
     p.write_bytes(raw)
     im = bpy.data.images.load(str(p))
     im.colorspace_settings.name = "Non-Color"

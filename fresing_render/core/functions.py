@@ -277,7 +277,7 @@ fn(id="scene.save", title="Saved scenes", family="scene", panel="FRESING_PT_shot
 fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
-   guide="web3d", tour=("web3d",), pccheck=("web3d.export",), since="0.2.77")
+   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77")
 fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", panel="FRESING_PT_web3d",
    prop="env_mode", guide="web3d-surroundings", tour=("web3d_env",), pccheck=("web3d.surroundings",),
    since="0.2.86")

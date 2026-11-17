@@ -2291,6 +2291,101 @@ def web3d_export(ctx):
     return f"{out['text']}; read back by Blender's glTF importer; {_player_check(out['html'], ctx)}"
 
 
+@line("web3d.small", "Web 3D model: smaller file – packed motion, WebP, model packed in the page", "0.2.142",
+      what="Task 0175: the test mill with a part that slides and turns, one that only turns and one shown and hidden, "
+           "saved as a compressed web 3D model with its animation: the keys are packed with meshopt's filters, a "
+           "path that never moves and the frames between shown / hidden are left out, every frame stays within "
+           "0.1 mm and 0.05°, the look pictures are WebP when Blender writes them smaller and as faithful, and the "
+           "page holds the model gzip-packed; opened in Edge or Chrome without a window it unpacks the model and "
+           "plays the keys as the app worked them out")
+def web3d_small(ctx):
+    import numpy as np
+
+    from ..blender import build, web3d
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    from ..core import web3d_keys as keys
+    scene = ctx.fresh(MILL)
+    parts = sorted(build.iter_parts(scene), key=lambda o: o.name)
+    slide, turn, blink = parts[3], parts[5], parts[7]
+    for ob in (slide, turn):
+        ob.rotation_mode = "XYZ"
+        ob.keyframe_insert("location", frame=1)
+        ob.keyframe_insert("rotation_euler", frame=1)
+    slide.location.x += 0.25
+    slide.rotation_euler.z += 0.6
+    turn.rotation_euler.x += 6.0
+    for ob in (slide, turn):
+        ob.keyframe_insert("location", frame=41)
+        ob.keyframe_insert("rotation_euler", frame=41)
+    for frame, hidden in ((1, False), (20, True), (35, False)):
+        blink.hide_render = blink.hide_viewport = hidden
+        blink.keyframe_insert("hide_render", frame=frame)
+        blink.keyframe_insert("hide_viewport", frame=frame)
+    scene.frame_start, scene.frame_end = 1, 41
+    scene.frame_set(1)
+    scene.fresing.anim_baked = "PC check"
+    job = web3d.Job(scene, os.path.join(ctx.work, "web3d", "Small file.glb"), size=512, animation=True, compress=True)
+    out = job.run()
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    doc, binary = core.read_glb(data)
+    filters = {((v.get("extensions") or {}).get(core.MESHOPT) or {}).get("filter") for v in doc["bufferViews"]}
+    _check({"QUATERNION", "EXPONENTIAL"} <= filters, f"the keys were not packed with meshopt's filters ({filters})")
+    _check(out.get("still_tracks", 0) >= 1, "a path that never moves was written all the same")
+    anim = doc["animations"][0]
+    ch = {}
+    for c in anim["channels"]:
+        smp = anim["samplers"][c["sampler"]]
+        ch[(c["target"]["node"], c["target"]["path"])] = (
+            core.accessor_array(doc, binary, smp["input"])[:, 0].astype(np.float64),
+            core.accessor_array(doc, binary, smp["output"]).astype(np.float64))
+    node = {ob.name: n for ob, n in job._nodes}
+    fps = scene.render.fps / scene.render.fps_base
+    worst = [0.0, 0.0]
+    for f in range(1, 42):
+        scene.frame_set(f)
+        for ob in (slide, turn):
+            n = node[ob.name]
+            tt, qq, _s = core.decompose(np.array(ob.matrix_world)[None])
+            t = (f - 1) / fps
+            p = keys.played(*ch[(n, "translation")], [t], "translation")[0] if (n, "translation") in ch else \
+                np.array(doc["nodes"][n]["translation"])
+            ang, _far = keys.turn_error(keys.played(*ch[(n, "rotation")], [t], "rotation"), keys.unit(qq))
+            worst = [max(worst[0], float(np.linalg.norm(p - tt[0]))), max(worst[1], float(ang[0]))]
+    scene.frame_set(1)
+    _check(worst[0] <= keys.POS_TOL * 1.05 and worst[1] <= keys.ANGLE_TOL * 1.05,
+           f"a part is {worst[0] * 1000:.3f} mm / {np.degrees(worst[1]):.3f}° off its place at a frame")
+    webp = out.get("webp", 0)
+    pics = "WebP pictures: " + (f"{webp} of {len(doc.get('images', []))}" if webp else
+                                "none (the JPGs were smaller or more faithful)")
+    with open(out["html"], encoding="utf-8") as fh:
+        page = fh.read()
+    _check('data-gzip="1"' in page and env.page_glb(page) == data, "the page does not hold the packed model")
+    ctx.metric("file", len(data) / 1e6, "MB")
+    browser = env.find_browser()
+    if not browser:
+        return f"{out['text']}; {pics}; no Edge or Chrome on this PC: the page was not opened"
+    t = 0.9
+    try:
+        got = env.read_page(out["html"], browser, f"auto=0&frames=2&t={t}&places=1", seconds=90)
+    except RuntimeError as exc:
+        return f"{out['text']}; {pics}; {os.path.basename(browser)} gave no answer ({exc}); not counted"
+    if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
+        return f"{out['text']}; {pics}; no WebGL in the browser without a window; not counted"
+    _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
+    places = got.get("places") or {}
+    _check(places, f"the page gave no places of its parts ({got['state'][:60]})")
+    n = node[slide.name]
+    here = np.array(places[str(n)], np.float64)
+    want = keys.played(*ch[(n, "rotation")], [t], "rotation")[0]
+    _check(np.abs(here[3:7] - want).max() < 1e-4, "the page plays the packed turns differently from the app")
+    return f"{out['text']}; keys within 0.1 mm / 0.05°; {pics}; the page unpacked and played it in " \
+           f"{os.path.basename(browser)}"
+
+
 def _player_check(page_path: str, ctx) -> str:
     """Task 0134: the page's player in this PC's Edge or Chrome without a window (software drawing): the settings
     menu, the keys help and the link work, Space pauses and plays a page with motion, and the page says it draws

@@ -31,6 +31,7 @@ import mathutils
 import numpy as np
 
 from ..core import web3d as core
+from ..core import web3d_keys as keys_core
 from ..core import web3d_tubes as tubes_core
 from . import build, decals
 
@@ -729,11 +730,87 @@ def jpeg(pixels: np.ndarray, quality: int) -> bytes:
         bpy.data.images.remove(img)
 
 
+def webp(pixels: np.ndarray, quality: int) -> bytes:
+    """A WebP file of (h, w, 3) bytes as ``jpeg`` makes a JPG (task 0175); b"" when Blender cannot write one."""
+    if not USE_WEBP:
+        return b""
+    h, w = pixels.shape[:2]
+    img = bpy.data.images.new(BAKE_NAME, w, h, alpha=False)
+    path = ""
+    try:
+        img.colorspace_settings.name = "Non-Color"
+        rgba = np.ones((h, w, 4), np.float32)
+        rgba[..., :3] = pixels[..., :3].astype(np.float32) / 255.0
+        img.pixels.foreach_set(rgba.ravel())
+        img.file_format = "WEBP"
+        fd, path = tempfile.mkstemp(suffix=".webp")
+        os.close(fd)
+        img.save(filepath=path, quality=int(quality))
+        with open(path, "rb") as fh:
+            data = fh.read()
+        return data if core.is_webp(data) else b""
+    except (RuntimeError, TypeError, ValueError, OSError):
+        return b""
+    finally:
+        bpy.data.images.remove(img)
+        if path and os.path.exists(path):
+            os.remove(path)
+
+
+def read_back(data: bytes, shape) -> np.ndarray | None:
+    """A JPG / WebP file's pixels as Blender reads them, (h, w, 3) float 0 … 255 with row 0 at the bottom (None when
+    it cannot be read)."""
+    suffix = ".webp" if core.is_webp(data) else ".jpg"
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    img = None
+    try:
+        with open(path, "wb") as fh:
+            fh.write(data)
+        img = bpy.data.images.load(path)
+        img.colorspace_settings.name = "Non-Color"
+        w, h = img.size
+        if (h, w) != tuple(shape[:2]):
+            return None
+        px = np.empty(w * h * 4, np.float32)
+        img.pixels.foreach_get(px)
+        return px.reshape(h, w, 4)[..., :3] * 255.0
+    except (RuntimeError, OSError):
+        return None
+    finally:
+        if img is not None:
+            bpy.data.images.remove(img)
+        os.remove(path)
+
+
+USE_WEBP = True                # tests switch it off: the JPG every Blender can write
+WEBP_LOG: list = []            # (kind, jpg bytes, webp bytes, kept) of the last export's pictures
+
+
+def best(pixels: np.ndarray, kind: str, jpg_q: int) -> bytes:
+    """(h, w, 3) bytes -> WebP when it is smaller than the JPG and as faithful (task 0175: its mean difference to
+    the pixels at most 1.25 x the JPG's + 0.25, and its worst 0.1 % at most the JPG's + 2 of 255 – smooth light
+    keeps no steps the JPG would not have), else the JPG."""
+    jpg = jpeg(pixels, jpg_q)
+    wp = webp(pixels, core.WEBP_QUALITY[kind])
+    kept = "jpg"
+    if wp and len(wp) < len(jpg):
+        src = pixels[..., :3].astype(np.float32)
+        a, b = read_back(jpg, pixels.shape), read_back(wp, pixels.shape)
+        if a is not None and b is not None:
+            ea, eb = np.abs(a - src), np.abs(b - src)
+            if eb.mean() <= 1.25 * ea.mean() + 0.25 and np.percentile(eb, 99.9) <= np.percentile(ea, 99.9) + 2.0:
+                kept = "webp"
+    WEBP_LOG.append((kind, len(jpg), len(wp), kept))
+    return wp if kept == "webp" else jpg
+
+
 def encode(pixels: np.ndarray, kind: str) -> bytes:
-    """(h, w, 3 or 4) bytes, row 0 at the bottom -> JPG, or PNG when there is an alpha channel with holes."""
+    """(h, w, 3 or 4) bytes, row 0 at the bottom -> WebP or JPG (``best``), or PNG when there is an alpha channel
+    with holes."""
     if pixels.shape[2] == 4 and int(pixels[..., 3].min()) < 255:
         return core.png(np.flipud(pixels))
-    return jpeg(pixels[..., :3], core.JPG_QUALITY[kind])
+    return best(pixels[..., :3], kind, core.JPG_QUALITY[kind])
 
 
 # ---------------------------------------------------------------------------
@@ -895,6 +972,7 @@ class Job:
         self.compress = compress               # None: from core.COMPRESS_FROM triangles on (the panel's tick)
         self.text = "Starting"
         self.t0 = time.perf_counter()
+        WEBP_LOG.clear()
         self.gltf = core.Gltf()
         self.result: dict = {}
         self._baker = None
@@ -1365,7 +1443,7 @@ class Job:
         before = self.gltf.image_bytes
         atlas = []
         for a in res.atlases:
-            atlas.append(self.gltf.texture(jpeg(lm.encode(a / ref, scale), LIGHT_JPG), wrap=core.CLAMP))
+            atlas.append(self.gltf.texture(best(lm.encode(a / ref, scale), "light", LIGHT_JPG), wrap=core.CLAMP))
         first_uv = {}
         by_name = {it.name: it for it in res.items.values()}
         for ob in self.scene.objects:
@@ -1469,9 +1547,11 @@ class Job:
             return tubes
         tracks = []
         kept = 0
+        dropped = 0
         for j in moving:
             ob, node = self._nodes[j]
             t, q, s = core.decompose(mats[:, j])
+            own_scale_still = np.abs(s - s[:1]).max() <= 1e-5
             if blink[j]:                       # shown / hidden: scale 0 while hidden, switched (STEP)
                 s = s * shown[:, j, None]
             nd = self.gltf.doc["nodes"][node]
@@ -1484,15 +1564,20 @@ class Job:
             if blink[j]:
                 nd["scale"] = [float(v) for v in s[here]]
             scaled = not blink[j] and np.abs(s - s[:1]).max() > 1e-5
-            # task 0142: only the moments a straight blend cannot give (1 mm at the part's far end)
-            k = tubes_core.thin_node(t, q, s if scaled else None, reach=self._reach(ob), frames=times)
-            kept += len(k)
-            tracks.append((node, "translation", t[k], "LINEAR", times[k]))
-            tracks.append((node, "rotation", q[k], "LINEAR", times[k]))
-            if blink[j]:
-                tracks.append((node, "scale", s, "STEP"))
-            elif scaled:
-                tracks.append((node, "scale", s[k], "LINEAR", times[k]))
+            # task 0175: kept moments within 0.1 mm / 0.05° (1 mm at the far end) of every frame as the page plays
+            # them, 16-bit turns, a path that never changes left out (0142: 1 mm at the far end, all paths)
+            tr = keys_core.node_track(t, q, s if scaled else None, reach=self._reach(ob), frames=times,
+                                      packed=self.gltf.compress)
+            kept += len(tr.keys)
+            for path in ("translation", "rotation", "scale"):
+                if path in tr.paths:
+                    tracks.append((node, path, tr.paths[path][0], "LINEAR", times[tr.keys], tr.how(path)))
+                elif path != "scale":
+                    dropped += 1
+            if blink[j]:                       # task 0175: a key only where it is shown or hidden
+                sk = keys_core.changes(shown[:, j]) if own_scale_still else np.arange(len(frames))
+                tracks.append((node, "scale", s[sk], "STEP", times[sk]))
+        self.result["still_tracks"] = dropped
         self.result["motion_keys"] = (kept, len(moving) * len(frames))
         self.gltf.animation(scene.fresing.anim_baked or "Animation", times, tracks)
         return True
@@ -1571,6 +1656,7 @@ class Job:
             os.replace(page + ".part", page)
         seconds = time.perf_counter() - self.t0
         textures = len(self.gltf.doc["images"])
+        self.result["webp"] = sum(1 for *_x, kept in WEBP_LOG if kept == "webp")
         self.result.update(path=self.path, html=page if self.page else "", size=len(data), textures=textures,
                            texture_bytes=self.gltf.image_bytes, seconds=seconds,
                            text=core.result_line(len(data), self.result.get("triangles", 0), textures, seconds,

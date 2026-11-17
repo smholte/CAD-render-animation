@@ -9,6 +9,7 @@
 // Task 0134 (the player; fr_player.js draws its controls): ?at=<x>,<y>,<z> (the point the view turns about, three's
 // coordinates, m) ?time=<s> (the moment to start at) ?paused=1 ?speed=0.5|1|2 ?off=sea,haze,… (items switched off)
 // ?turn=1 (auto-turn) ?soft=0 (tests: never judge the browser as drawing without a graphics card) ?fov=<deg>.
+// Task 0175: ?places=1 (the animated nodes' places into data-fr-places), ?b64=slow (the old per-letter model read).
 // Task 0142: ?tubes=1 (the drawn cables' centre lines after each frame into data-fr-tubes, Blender world, for tests).
 //
 // Drawing (task 0134): at most 60 pictures a second (30 without a graphics card); a picture only when something
@@ -242,6 +243,7 @@
   var frozen = Q.has('t') && isFinite(parseFloat(Q.get('t'))) ? parseFloat(Q.get('t')) : null;
   var maxFrames = Q.has('frames') ? parseInt(Q.get('frames'), 10) || 0 : 0;
   var wantTubes = Q.get('tubes') === '1';      // tests: the drawn tubes' centre lines into data-fr-tubes (task 0142)
+  var wantPlaces = Q.get('places') === '1';    // tests: the animated nodes' places into data-fr-places (task 0175)
   function L() { return ST.levels[level]; }
 
   // ---------------------------------------------------------------- the sun
@@ -1376,6 +1378,28 @@
     document.documentElement.dataset.frTubes = JSON.stringify(out);
   }
 
+  // ?places=1 (task 0175): every animated node's place as three.js plays it – {node index: [x y z, qx qy qz qw,
+  // sx sy sz]} in the file's own coordinates – so the tests compare the packed keys with the app's frames
+  var placed = null;
+  function placeProbe() {
+    var gltf = page.gltf;
+    if (!gltf) return;
+    if (!placed) {
+      placed = [];
+      gltf.scene.traverse(function (o) {
+        var as = gltf.parser.associations.get(o);
+        if (as && as.nodes != null) placed.push([as.nodes, o]);
+      });
+    }
+    var out = {};
+    placed.forEach(function (p) {
+      var o = p[1];
+      out[p[0]] = [o.position.x, o.position.y, o.position.z, o.quaternion.x, o.quaternion.y, o.quaternion.z,
+                   o.quaternion.w, o.scale.x, o.scale.y, o.scale.z];
+    });
+    document.documentElement.dataset.frPlaces = JSON.stringify(out);
+  }
+
   // ?probe=: the colours of a few pixels of the frame just drawn (tests)
   function probe() {
     var w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, px = new Uint8Array(4);
@@ -1929,6 +1953,7 @@
       if (camera.position.y < lowest) camera.position.y = lowest;
     }
     if (mixer) mixer.setTime(ST.animated ? t : 0);
+    if (wantPlaces) placeProbe();
     if (tubes.length) {            // the moment the mixer shows: the animation repeats (t = its length is its start)
       var tt = ST.animated ? t : 0;
       if (page.duration > 0) tt = tt % page.duration;
@@ -2135,13 +2160,36 @@
   // ---------------------------------------------------------------- load the model
   var loader = new T.GLTFLoader();
   loader.setMeshoptDecoder(T.MeshoptDecoder);
+  // task 0175: the model's text read by the browser itself (a data: address; the old per-letter loop took 2 s on
+  // the demo) and, in a packed page, unpacked by its own gzip (DecompressionStream)
+  function slowBytes(text) {
+    var s = atob(text), a = new Uint8Array(s.length);
+    for (var k = 0; k < s.length; k++) a[k] = s.charCodeAt(k);
+    return a.buffer;
+  }
+  function modelBytes(el) {
+    var text = el.textContent.trim(), t0 = performance.now();
+    var got = (window.fetch && Q.get('b64') !== 'slow' ?
+      fetch('data:application/octet-stream;base64,' + text).then(function (r) { return r.arrayBuffer(); })
+        .catch(function () { return slowBytes(text); }) :
+      Promise.resolve().then(function () { return slowBytes(text); }));
+    if (el.getAttribute('data-gzip') !== '1') return got;
+    return got.then(function (buf) {
+      if (typeof DecompressionStream === 'undefined')
+        throw new Error('this browser cannot unpack the model (DecompressionStream): use a current Edge, Chrome, ' +
+                        'Firefox or Safari');
+      page.loadTimes = { read: performance.now() - t0 };
+      var t1 = performance.now();
+      return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+        .then(function (out) { page.loadTimes.unpack = performance.now() - t1; return out; });
+    });
+  }
   try {
-    var s = atob(document.getElementById('fr-glb').textContent.trim()), buf = new Uint8Array(s.length);
-    for (var k = 0; k < s.length; k++) buf[k] = s.charCodeAt(k);
     var bad = function (e) { fail('The 3D model in this page could not be read.', 'model: ' + (e && e.message || e)); };
+    var buf = null;
     var go = function () {
       try {
-        loader.parse(buf.buffer, '', function (gltf) {
+        loader.parse(buf, '', function (gltf) {
           try {
             prepare(gltf);
             setupTubes(gltf).then(function () { resize(); oneLess(); }, bad);   // task 0142
@@ -2149,7 +2197,10 @@
         }, bad);
       } catch (e) { bad(e); }
     };
-    if (T.MeshoptDecoder.ready) T.MeshoptDecoder.ready.then(go, bad); else go();
+    modelBytes(document.getElementById('fr-glb')).then(function (b) {
+      buf = b;
+      if (T.MeshoptDecoder.ready) T.MeshoptDecoder.ready.then(go, bad); else go();
+    }, bad);
   } catch (e) { fail('The 3D model in this page could not be read.', 'model: ' + e); }
   page.setLevel = function (name) { setLevel(name); };
 })();

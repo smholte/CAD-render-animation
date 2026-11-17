@@ -107,7 +107,9 @@ def test_page_has_the_player_and_its_loading_bar():
     for name in env.SCRIPTS:
         assert web3d_env_inline(name) in path_text, name
     assert path_text.index("fr_page") < path_text.index("fr_player") or "frPage" in path_text
-    assert 'id="fr-glb" data-bytes="10"' in path_text and 'data-bytes="5"' in path_text   # the bar's total
+    import gzip
+    packed = len(gzip.compress(b"glTF-bytes", 9, mtime=0))           # task 0175: the bar counts the packed model
+    assert f'id="fr-glb" data-bytes="{packed}"' in path_text and 'data-bytes="5"' in path_text   # the bar's total
     assert 'id="loadbar"' in path_text and "Loading the 3D model" in path_text
     st = env.page_settings(path_text)
     assert all("pixels" in st["levels"][k] for k in env.LEVELS)

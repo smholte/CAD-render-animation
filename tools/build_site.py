@@ -365,12 +365,11 @@ def glb_of(path: str) -> bytes:
     """The model file of a web model: the .glb itself, or the one inside an export's own page."""
     if not path.endswith(".html"):
         return open(path, "rb").read()
-    import base64
-    page = open(path, encoding="utf-8").read()
-    m = re.search(r'id="fr-glb"[^>]*>([^<]*)</script>', page)
-    if not m:
-        raise ValueError(f"{os.path.basename(path)} holds no 3D model")
-    return base64.b64decode(m.group(1).strip())
+    from fresing_render.core import web3d_env
+    try:
+        return web3d_env.page_glb(open(path, encoding="utf-8").read())     # task 0175: packed or as it is
+    except ValueError:
+        raise ValueError(f"{os.path.basename(path)} holds no 3D model") from None
 
 
 def credits_html(media: dict) -> str:
