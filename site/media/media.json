@@ -13,39 +13,31 @@
  },
  "pictures": [
   {
-   "file": "evo_cnc_low.jpg",
-   "caption": "An open-source CNC router in the CNC hall",
-   "model": "evo_cnc",
-   "functions": [
-    "scene.surroundings",
-    "looks.materials"
-   ]
-  },
-  {
-   "file": "evo_cnc_iso_left.jpg",
-   "caption": "The same router from the other side",
-   "model": "evo_cnc",
-   "functions": [
-    "scene.camera",
-    "scene.still"
-   ]
-  },
-  {
-   "file": "evo_cnc_turntable.mp4",
-   "poster": "evo_cnc_turntable_poster.jpg",
-   "caption": "Mekanika EVO CNC router: turntable",
-   "model": "evo_cnc",
-   "functions": [
-    "scene.turntable"
-   ]
-  },
-  {
-   "file": "farmbot_high.jpg",
-   "caption": "A gantry robot outdoors, in the sun",
-   "model": "farmbot",
+   "file": "thor_low.jpg",
+   "caption": "A 3D-printed 6-axis arm in the dark studio",
+   "model": "thor",
    "functions": [
     "scene.surroundings",
     "looks.light_look"
+   ]
+  },
+  {
+   "file": "thor_iso_left.jpg",
+   "caption": "Thor lifting and turning: its six joints made in Fresing Render",
+   "model": "thor",
+   "functions": [
+    "joints.rotate",
+    "scene.camera"
+   ]
+  },
+  {
+   "file": "thor_product.mp4",
+   "poster": "thor_product_poster.jpg",
+   "caption": "Thor robot arm: Fresing Render's one-click product video",
+   "model": "thor",
+   "functions": [
+    "animation.product_video",
+    "joints.rotate"
    ]
   },
   {
@@ -65,6 +57,71 @@
     "scene.camera",
     "looks.materials"
    ]
+  },
+  {
+   "file": "ceb_press_product.mp4",
+   "poster": "ceb_press_product_poster.jpg",
+   "caption": "The brick press at work: Fresing Render's one-click product video",
+   "model": "ceb_press",
+   "functions": [
+    "animation.product_video",
+    "machines.cylinder"
+   ]
+  },
+  {
+   "file": "iea15_offshore_work_boat.jpg",
+   "caption": "From a work boat: the transition piece with its platform, davit and boat landing",
+   "model": "iea15_offshore",
+   "functions": [
+    "scene.surroundings",
+    "scene.camera"
+   ]
+  },
+  {
+   "file": "iea15_offshore_whole_turbine.jpg",
+   "caption": "A 15 MW wind turbine on its monopile: 240 m rotor, hub 150 m above the sea",
+   "model": "iea15_offshore",
+   "functions": [
+    "scene.weather",
+    "scene.still"
+   ]
+  },
+  {
+   "file": "iea15_offshore_seabed.jpg",
+   "caption": "On the seabed: the monopile's foot in its rock scour protection",
+   "model": "iea15_offshore",
+   "functions": [
+    "scene.sea_ground",
+    "looks.marine"
+   ]
+  },
+  {
+   "file": "iea15_offshore_loop.mp4",
+   "poster": "iea15_offshore_loop_poster.jpg",
+   "caption": "The IEA 15 MW reference turbine at its rated 7.56 rpm (made in Fresing Render)",
+   "model": "iea15_offshore",
+   "functions": [
+    "animation.build",
+    "joints.rotate"
+   ]
+  },
+  {
+   "file": "iea15_onshore_from_the_field.jpg",
+   "caption": "The same 15 MW turbine on land: hub 136 m above the field",
+   "model": "iea15_onshore",
+   "functions": [
+    "scene.surroundings",
+    "scene.weather"
+   ]
+  },
+  {
+   "file": "iea15_onshore_at_the_door.jpg",
+   "caption": "At its foot: the tower door, the stair and the concrete foundation",
+   "model": "iea15_onshore",
+   "functions": [
+    "scene.camera",
+    "looks.marine"
+   ]
   }
  ],
  "models": {
@@ -74,23 +131,12 @@
    "link": "https://fresing.nl",
    "licence": ""
   },
-  "evo_cnc": {
-   "title": "Mekanika EVO CNC router",
-   "credit": "Mekanika EVO CNC by Mekanika SRL, CERN-OHL-S-2.0",
-   "link": "https://github.com/mekanika-dev/evo",
-   "licence": "CERN-OHL-S-2.0"
-  },
-  "farmbot": {
-   "title": "FarmBot Genesis",
-   "credit": "FarmBot Genesis by FarmBot Inc., CC0 1.0",
-   "link": "https://genesis.farm.bot/",
-   "licence": "CC0 1.0"
-  },
   "ceb_press": {
    "title": "CEB brick press with hydraulic cylinders",
    "credit": "CEB Press by Open Source Ecology, CC BY-SA 4.0 (pictures of it: CC BY-SA 4.0)",
    "link": "https://github.com/goscommons/CEB-Press",
-   "licence": "CC BY-SA 4.0"
+   "licence": "CC BY-SA 4.0",
+   "licence_link": "https://creativecommons.org/licenses/by-sa/4.0/"
   },
   "thor": {
    "title": "Thor robot arm",
