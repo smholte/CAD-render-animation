@@ -4,7 +4,20 @@ Layout rules for every section (read top to bottom, no jumping back up):
 * what you choose before an action sits above its button; the main button of a section is big;
 * each list shows names only, the details of the selected item are in the box right under it;
 * one-time and rarely used settings are in a closed "More" fold at the end;
-* the panel header shows an icon and the state of the section, also when it is folded.
+* the panel header shows an icon and the state of the section, also when it is folded – every sub-panel too
+  (``draw_header_preset`` + ``header_status``).
+* **Separation (task 0062):** a panel is a row of steps (how-to · choices · main button · list · details · more) with
+  a ``gap()`` between two steps; buttons of different steps never touch. The numbered how-to is ``steps(..., key=,
+  used=)``: a fold "How it works" that closes once the project has the thing. A hint is grey (``hint()``, or
+  ``wrap(icon="INFO")``); red (``alert=True``) only for a problem. ONE blue button per section (``primary()``): the
+  one thing the section is for; a sub-panel's main button is ``big()`` – big, grey. When the thing a sub-panel needs
+  is not there, its body is one ``missing()`` line with the button that gets it. Nothing is cut off with "…" at the
+  default width. A text that names a place in the side panel asks ``where()``.
+* The headers themselves (title row, fold arrow, open or folded) are drawn by ``panels.py`` for every panel class:
+  a panel file only says ``draw_header`` (its icon), ``draw_header_preset`` (its state) and ``draw`` (its body).
+* One word per action: Remove (out of the project) · Clear (a list, a cache, a result) · Delete (a file in the
+  library) · Show in folder · Add (a new thing) · Use as (the clicked part) · Back to … (says where to) · Find ·
+  Set-up (the noun), Set up (the verb).
 """
 
 from __future__ import annotations
@@ -52,18 +65,58 @@ def _chars_per_line(context, inset: int = 0) -> int:
 
 
 def wrap(layout, context, text: str, icon: str = "NONE", inset: int = 0, alert: bool = False):
-    """A message on as many lines as it needs (Blender cuts long labels off with '...')."""
+    """A message on as many lines as it needs (Blender cuts long labels off with '...'). A plain hint
+    (``icon="INFO"``, no alert) is drawn grey, so the real warnings stand out."""
     col = layout.column(align=True)
     col.alert = alert
+    if icon == "INFO" and not alert:
+        col.active = False
     lines = textwrap.wrap(text, _chars_per_line(context, inset + (22 if icon != "NONE" else 0))) or [""]
     for i, line in enumerate(lines):
         col.label(text=line, icon=icon if i == 0 else ("BLANK1" if icon != "NONE" else "NONE"))
     return col
 
 
-def steps(layout, context, lines: list[str]):
-    """Numbered how-to lines in a box (shown where the steps start)."""
-    box = layout.box()
+def hint(layout, context, text: str, inset: int = 0):
+    """A grey hint without an icon, on as many lines as it needs."""
+    col = wrap(layout, context, text, inset=inset)
+    col.active = False
+    return col
+
+
+def gap(layout, line: bool = False, size: float = 1.0) -> None:
+    """The space between two steps of a panel (the separation rule at the top of this file); ``line``: with a
+    thin line, between two parts that have nothing to do with each other."""
+    if line:
+        layout.separator(factor=0.5 * size)
+        layout.separator(type="LINE")
+        layout.separator(factor=0.5 * size)
+    else:
+        layout.separator(factor=size)
+
+
+def _keep_howto() -> bool:
+    try:
+        from . import prefs
+        p = prefs.get()
+        return bool(p is not None and p.keep_howto)
+    except Exception:  # noqa: BLE001 - drawing never fails over a preference
+        return False
+
+
+def steps(layout, context, lines: list[str], key: str = "", used: bool = False):
+    """The numbered how-to of a panel, in a fold "How it works" (task 0062, ``key`` = the fold's id, like
+    "fr_how_cutaway"): open while the project does not have the thing yet, closed once it does (``used``); the
+    user can open and close it, and Preferences > "Keep How it works open" keeps them all open. Without ``key``:
+    a plain box (inside a box, where a fold cannot be drawn). Returns the box, or None when folded."""
+    if key:
+        closed = bool(used) and not _keep_howto()
+        body = fold(layout, f"{key}_{'u' if closed else 'n'}", "How it works", icon="QUESTION", closed=closed)
+        if body is None:
+            return None
+        box = body.box()
+    else:
+        box = layout.box()
     col = box.column(align=True)
     for i, line in enumerate(lines, 1):
         for k, part in enumerate(textwrap.wrap(line, _chars_per_line(context, 40)) or [""]):
@@ -73,12 +126,40 @@ def steps(layout, context, lines: list[str]):
 
 _OPEN_FOLDS = bool(os.environ.get("FRESING_UI_OPEN_FOLDS"))     # screenshots of everything
 
+# What a lesson hooks in (blender/highlight.py, task 0062): "fold" = fn(idname) -> True when the fold must be open
+# now (the lesson points into it); "header" = fn(layout, panel class name) draws the marker in a panel's title row.
+HOOKS = {"fold": None, "header": None}
+
 
 def fold(layout, idname: str, title: str, icon: str = "NONE", closed: bool = True):
     """A foldable part of a panel; returns its body layout or None when folded."""
-    header, body = layout.panel(idname, default_closed=closed and not _OPEN_FOLDS)
+    forced = HOOKS["fold"]
+    if forced is not None and forced(idname):          # a lesson points into this fold: open, whatever it was
+        header, body = layout.panel_prop(context_wm(), "fresing_fold_open")
+    else:
+        header, body = layout.panel(idname, default_closed=closed and not _OPEN_FOLDS)
     header.label(text=title, icon=icon)
     return body
+
+
+def context_wm():
+    return bpy.context.window_manager
+
+
+def where(panel: str, fold: str = "") -> str:
+    """Where a panel sits, for hints and messages: "6 Animation > Labels" (core/places.py)."""
+    from ..core import places
+    return places.where(panel, fold)
+
+
+def missing(layout, context, text: str, op: str = "", op_text: str = "", icon: str = "INFO", op_icon: str = "NONE"):
+    """The whole body of a sub-panel whose thing is not there (no sea, no vessel, no axis joint): ONE line that
+    says what is missing and, with ``op``, the button that gets it. Returns that button's operator (or None)."""
+    col = layout.column(align=True)
+    wrap(col, context, text, icon=icon)
+    if not op:
+        return None
+    return col.operator(op, text=op_text, icon=op_icon) if op_text else col.operator(op, icon=op_icon)
 
 
 def big_row(layout, scale: float = BIG):
@@ -112,9 +193,17 @@ def use_button(row, idname: str, name: str) -> None:
 
 
 def primary(layout, idname: str, text: str, icon: str, scale: float = BIG):
-    """The main button of a section: big and highlighted, so it is found at a glance."""
+    """The ONE main button of a section: big and blue, so it is found at a glance (Import STEP…, Sort parts into
+    groups, Render image, Build & play, Start queue; the Make button of a Make popover). A sub-panel's main
+    button is ``big()``."""
     row = big_row(layout, scale)
     return row.operator(idname, text=text, icon=icon, depress=True)
+
+
+def big(layout, idname: str, text: str, icon: str = "NONE", scale: float = MEDIUM):
+    """A sub-panel's main button: big, but grey – blue is kept for the section's one main button."""
+    row = big_row(layout, scale)
+    return row.operator(idname, text=text, icon=icon)
 
 
 def list_rows(n: int, lo: int = 3, hi: int = 8) -> int:
