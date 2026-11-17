@@ -39,6 +39,7 @@ FAMILIES = {
     "web": "Web 3D model",
     "house": "Houses",
     "help": "Help, updates and checks",
+    "panel": "The side panel itself (workspaces, sections, Make)",
 }
 
 # 0062's workspaces: a workspace shows a function when the function's ``workspaces`` names its key – or, when that
@@ -63,9 +64,10 @@ FAMILY_WORKSPACES = {
     "web": ("cnc", "offshore", "product"),
     "house": (),
     "help": _WORK + ("client",),
+    "panel": _WORK + ("client",),
 }
 # Families the side panel always shows (no tick): without them there is nothing to work on.
-ALWAYS = ("import", "looks", "scene", "help")
+ALWAYS = ("import", "looks", "scene", "help", "panel")
 
 # Places outside the side panel (a function reached from a menu).
 MENUS = {
@@ -117,6 +119,22 @@ def fn(**kw) -> Function:
 
 
 DUPLICATES: list = []
+
+# ----- the side panel itself (task 0062) -----
+fn(id="panel.workspace", title="Workspaces: show only the functions a kind of work needs", family="panel",
+   panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="workspaces", since="0.2.151")
+fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
+   panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", since="0.2.151")
+fn(id="panel.own_workspaces", title="Your own workspaces, shared as files", family="panel",
+   panel="FRESING_PT_workspace", button="fresing.workspace_save", guide="own-workspaces", since="0.2.151")
+fn(id="panel.client_view", title="Client view: the project locked against changes", family="panel",
+   panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="client-view", since="0.2.151")
+fn(id="panel.sections", title="Sections start folded; section tabs; Ctrl+click", family="panel",
+   panel="FRESING_PT_tabs", prop="fresing_tab", guide="sections", since="0.2.151")
+fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_next", button="fresing.next_hide",
+   guide="whats-next", since="0.2.151")
+fn(id="panel.make", title="Make: every picture, video and 3D page side by side", family="panel",
+   panel="FRESING_PT_make", button="fresing.queue_add", text="Render animation", guide="make", since="0.2.151")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",
