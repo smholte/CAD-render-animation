@@ -235,6 +235,11 @@ def _before_save(_dummy=None):
     except Exception:
         pass
     try:
+        from . import spool
+        spool.web_sweep()                        # drum solids a scripted web export left (task 0187)
+    except Exception:
+        pass
+    try:
         from . import flex
         flex.pause_read_for_save()               # the cable re-bake's hidden parts and frame (task 0187)
     except Exception:

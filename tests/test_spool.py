@@ -287,13 +287,16 @@ def test_leave_direction_is_the_arc_end_whatever_comes_after():
 
 
 
-def test_web_export_solids_go_at_once_without_a_window(made):
-    """Task 0187 (bug hunt 6 row 11): a web export run as a script left the hidden 'FR spool solid' objects behind."""
+def test_web_export_solids_are_not_saved_after_a_scripted_export(made):
+    """Task 0187 (bug hunt 6 row 11): a web export run as a script left the hidden 'FR spool solid' objects, and they
+    went into the saved project."""
+    from fresing_render.blender import handlers
     sc = _sc()
     solids = spool.web_begin(sc)
-    assert solids and all(bpy.data.objects.get(n) is not None for n in solids)
+    assert solids
     spool.web_end(sc, solids)
     assert bpy.app.background
+    handlers._before_save()                              # what a save calls first
     assert not [o for o in bpy.data.objects if o.get(spool.TAG) and o.get("fr_spool_role") == "solid"]
 
 

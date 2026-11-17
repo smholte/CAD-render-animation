@@ -16,7 +16,7 @@ installer of that version was built from.
   an enormous tension (16,802 kN).
 - **Two drums can no longer share a name:** renaming a drum or carousel to a name that is taken gives it a free one
   ("Drum 2"), as cables do.
-- **A web 3D export run from a script** (PC check, site pictures) no longer leaves the hidden drum solids in the project.
+- **A web 3D export run from a script** (PC check, site pictures) no longer saves the hidden drum solids into the project.
 
 ## 0.2.143 – 17 Nov 2026 – Smaller web 3D files (task 0175)
 

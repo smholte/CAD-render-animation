@@ -1282,10 +1282,19 @@ def web_end(scene, made: list) -> None:
             if ob is not None and ob.get("fr_spool_role") == "solid":
                 _remove_object(ob)
         return None
-    if names and bpy.app.background:           # (a script, no window to wait for: gone at once – task 0187, row 11)
-        later()
-    elif names:
+    if names and not bpy.app.background:
         bpy.app.timers.register(later, first_interval=0.5)
+    # (a script has no timer to wait for, and the export's own lists still name the solids when it ends: they go at the
+    # next save – ``web_sweep``, task 0187 bug hunt 6 row 11 – or the next drawing)
+
+
+def web_sweep() -> int:
+    """Before a save: the hidden solids a web export left behind (``web_end`` hid them; without a window no timer
+    removes them) are removed, so they never reach the file. Returns how many."""
+    gone = [ob for ob in bpy.data.objects if ob.get(TAG) and ob.get("fr_spool_role") == "solid" and ob.hide_viewport]
+    for ob in gone:
+        _remove_object(ob)
+    return len(gone)
 
 
 def follow_look(scene, item) -> None:
