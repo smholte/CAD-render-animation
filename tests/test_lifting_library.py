@@ -202,6 +202,8 @@ def test_list_items_user_and_builtin_broken_never_stops(lib, builtin):
     ({"charts": [{"radius": [8, 10], "capacity": [20, 25]}]}, "rises with the radius"),
     ({"charts": [{"radius": [8, 8], "capacity": [20, 15]}]}, "radii must rise"),
     ({"format_version": "one"}, "Unknown format version"),
+    ({"charts": [{"config": {"boom": "twenty"}, "radius": [8], "capacity": [1]}]}, "'boom' in its configuration"),
+    ({"units": 5}, "'units' must look like"),
 ])
 def test_file_problems(change, words):
     d = crane()

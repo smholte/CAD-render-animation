@@ -239,6 +239,12 @@ def _read_charts(data: dict, mass: str, length: str, problems: list) -> list:
         if not isinstance(d.get("config", {}), dict):
             problems.append(f"Chart {i + 1}: 'config' must look like {{\"boom\": 30.4}}.")
             continue
+        bad = [k for k in ("boom", "jib", "outriggers", "counterweight", "hs")
+               if k in d.get("config", {}) and not _num(d["config"][k])]
+        if bad:
+            problems.append(f"Chart {i + 1}: '{bad[0]}' in its configuration must be a number "
+                            f"({d['config'][bad[0]]!r}).")
+            continue
         if d.get("wind_max") is not None and not _num(d.get("wind_max")):
             problems.append(f"Chart {i + 1}: 'wind_max' must be a number (m/s).")
             continue
