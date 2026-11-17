@@ -59,14 +59,14 @@ Rows 1, 7, 8, 10 (next Flex-lane task); web 3D files other than what row 11 need
 - Row 4: `flex._on_undo` / `paths._on_undo` call `motion_changed(force=False)` after an undo/redo: when the key of the
   motion the shapes were worked out for differs from the scene's motion, the re-bake is requested (window: the job;
   background: at once).
-- Row 11: `spool.web_end` removes the solids at once in a background Blender.
+- Row 11: `spool.web_end` leaves no solids in a saved file: `web_sweep` before every save (the export's own lists still name them when it ends).
 - Row 14: `paths_sea.numbers` gives `top` / `bottom` = None when the cable hangs less than 1 mm (height or length);
   the panel and the labels show "–".
 - Row 15: `spool.renamed` gives a drum or carousel a free name ("Drum 2") when the new one is taken.
 
 **Tested and measured** (4-core web machine, test_sea.step / test_spool.step): new tests that failed before the fix –
 `test_paths_sea.py` (no tension on the seabed, undo brings back a re-bake, save during the read pass + busy_job),
-`test_spool.py` (solids gone at once, no duplicate drum name); real app `ui_test_undo_rebake.py` (group `undorebake`,
+`test_spool.py` (no solids saved, no duplicate drum name); real app `ui_test_undo_rebake.py` (group `undorebake`,
 4 checks, in `machines`): real `bpy.ops.ed.undo()` after a re-bake – fails without the fix (key back at the old
 speed), passes with it. Note: a simulated Ctrl+Z key press (`event_simulate`) did nothing in the test, so it calls the
 undo operator. Not tried: the 3-minute re-bake on the demo with a real Ctrl+S in the job (the read pass is covered by
