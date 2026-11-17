@@ -93,7 +93,8 @@ Tests: `tests/test_web3d_keys.py` (15: the bound at every frame for 5 kinds of m
 file read back, page packing, WebP, duplicates), `tests/test_web3d_keys_blender.py` (4: the mill with a sliding,
 turning and blinking part – every frame, the page's places in headless Chromium, WebP and the JPG fallback); the lane's
 web3d, moving-cable, light-page, own-bake, player, site tests pass locally. PC-check line web3d.small OK (6 s).
-GitHub: see below.
+GitHub: 2 full runs – run 44122009282 red (`test_lightbake_break` read the light UVs without the new texture
+transform; the test fixed), run 44129883813 green; `main` fast-forwarded to it (reuse run).
 
 **Open points / follow-up tasks:**
 - The brief's 10–15 MB is not reached: the demo grew since 0149 (3.6 M triangles, was 1.9 M; 806 pictures with the
@@ -102,4 +103,5 @@ GitHub: see below.
 - Vertex-cache order (rank 3) not done: Blender's meshopt bridge (Windows) has no `optimizeVertexCache`. Octahedral
   normals not done (int8 normals are already 4 bytes; no gain measured).
 - The cable that travels far (`Part 1379`, float `q`, 1.95 MB) is not delta-coded.
-- No subagents were used. Runs: see the GitHub section.
+- No subagents were used (Medium effort; the Windows-relevant part is the filters, checked against Blender's library).
+- Leftover branch to delete on github.com: `task/0175-smaller-web-files`.
