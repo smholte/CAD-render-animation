@@ -85,7 +85,7 @@ OWN_MAX_PX = {"NORMAL": ATLAS_MAX, "FINE": 2 * ATLAS_MAX}
 OWN_FILLS = {"NORMAL": OWN_FILL, "FINE": 0.75}
 OWN_BYTES_PER_TEXEL = 0.12         # file bytes per texel, all channels (measured on a plain growth tower: 0.10; streaks cost more)
 OWN_SECONDS_PER_MTEXEL = 8.0       # bake seconds per million texels, all channels (measured: 146 s for 16.8 M, 4 cores)
-OWN_SECONDS_PER_BAKE = 2.0         # task 0189: and per part baked (a bake object, a bake per channel …); set below
+OWN_SECONDS_PER_BAKE = 2.0         # task 0189: and per part baked (measured: 142 s for 69 bakes, small demo)
 
 
 def own_tpm(texture_size: int, area_m2: float, detail: str = "NORMAL") -> float:

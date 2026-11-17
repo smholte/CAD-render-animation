@@ -2753,7 +2753,9 @@ may not ("too big for the fine streaks and barnacles"). These parts make the exp
 **Copies share one bake:** parts with the same shape and looks that stand at the same height and tilt (the clamps of
 every turbine of a wind park, turned and placed anywhere across) get the pictures of the first one – the same look, one
 bake. The panel says before the export how many parts are baked ("12 parts baked (copies share one)") and about how
-long it takes; most of that time is per part baked, not per pixel. MEASURED_0189
+long it takes; most of that time is per part baked, not per pixel. Measured on the
+small demo project (4-core test machine): the export took 214 s instead of 1,754 s – 69 bakes for 264 parts, and a
+bake no longer drags the whole project along – and the file went from 16 to 11 MB.
 
 <a id="web3d-marine"></a>
 #### Marine detail: Normal or Fine

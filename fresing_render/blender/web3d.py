@@ -165,7 +165,8 @@ def can_export(scene) -> str:
     """'' when an export can start, else why not (plain words)."""
     if runtime(scene).get("running"):
         return "An export is running"
-    if not _kept(scene, "any_shown", (), lambda: bool(objects(scene)[0])):
+    parts, _ = objects(scene)
+    if not parts:
         return "No part is shown: show the model (2 Structure) first"
     return ""
 
@@ -426,11 +427,12 @@ def own_share_key(ob, me, mw) -> tuple:
     """Task 0189 (0183 row 9): parts whose marine looks bake the same share one bake. The looks read the world's
     height (growth band), the world's up in the part's own axes (streaks) and the part's own coordinates (noise,
     worn edge) – so copies with the same mesh, the same materials, the same object properties those materials read,
-    the same scale and the same third row of their world matrix (height and tilt; a turn about the vertical and a
-    move across are free) bake the same pictures: the wind park's 9 turbines bake their clamps once, not 9 times."""
+    the same scale and the same third row of their world matrix (tilt, and height within ``SHARE_DZ``; a turn about the
+    vertical and a move across are free) bake the same pictures: the wind park's 9 turbines bake their clamps once,
+    not 9 times. Returns (key, height); ``own_groups`` matches the heights."""
     m = [[float(mw[r][c]) for c in range(4)] for r in range(3)]
-    scale = tuple(round(math.sqrt(sum(m[r][c] ** 2 for r in range(3))), 5) for c in range(3))
-    zrow = tuple(round(m[2][c], 5) for c in range(3)) + (round(m[2][3], 4),)
+    scale = tuple(round(math.sqrt(sum(m[r][c] ** 2 for r in range(3))), 4) + 0.0 for c in range(3))
+    tilt = tuple(round(m[2][c], 4) + 0.0 for c in range(3))       # + 0.0: no -0.0
     mats = tuple(sl.material.name_full if sl.material is not None else "" for sl in ob.material_slots)
     names: set = set()
     for sl in ob.material_slots:
@@ -442,7 +444,25 @@ def own_share_key(ob, me, mw) -> tuple:
         if hasattr(v, "to_list"):
             v = v.to_list()
         props.append((k, repr(v)))
-    return (me.name_full if me is not None else ob.name, mats, scale, zrow, tuple(props))
+    return (me.name_full if me is not None else ob.name, mats, scale, tilt, tuple(props)), m[2][3]
+
+
+SHARE_DZ = 0.005                 # m: copies this close in height share a bake (float32 places of parts km apart)
+
+
+def own_groups(keys: list) -> list[int]:
+    """Task 0189: for each (key, height) of ``own_share_key``, the index of the first part it shares its bake with
+    (itself when none): the same key and a height within ``SHARE_DZ`` of that first part."""
+    firsts: dict = {}
+    out = []
+    for i, (key, z) in enumerate(keys):
+        group = firsts.setdefault(key, [])
+        j = next((j for j in group if abs(keys[j][1] - z) <= SHARE_DZ), None)
+        if j is None:
+            group.append(i)
+            j = i
+        out.append(j)
+    return out
 
 
 def has_marine_looks() -> bool:
@@ -483,6 +503,29 @@ def _bake_material(src_mat, socket_name: str, kind: str, image, flatten: bool = 
     return m
 
 
+def _bare(sc) -> None:
+    """Task 0189 (0183 row 9): a copy of a project scene keeps what points into the project – the compositor's node
+    tree (its Render Layers node reads the project's scene), the project's settings (``scene.fresing``: parts, cables,
+    cameras) and custom properties holding a data-block – and every bake built the depsgraph of all of it: 0.6 s per
+    bake on the small demo (3,271 objects), 0.07 s without. The working copy drops them."""
+    try:
+        if hasattr(sc, "compositing_node_group"):
+            sc.compositing_node_group = None
+        if getattr(sc, "node_tree", None) is not None and hasattr(sc, "use_nodes"):
+            sc.use_nodes = False
+    except (AttributeError, TypeError, RuntimeError):
+        pass
+    if hasattr(sc, "fresing"):
+        sc.property_unset("fresing")
+    for k in list(sc.keys()):
+        v = sc[k]
+        if isinstance(v, bpy.types.ID) or hasattr(v, "keys"):
+            del sc[k]
+    sc.camera = None
+    if sc.sequence_editor is not None:
+        sc.sequence_editor_clear()
+
+
 class Baker:
     """A scene of its own with one bake object; removed by ``close``."""
 
@@ -501,6 +544,7 @@ class Baker:
             for o in list(sc.collection.objects):
                 sc.collection.objects.unlink(o)
             sc.world = None
+            _bare(sc)
         else:                                   # nothing renders with Cycles yet: no preview can be running with it
             sc = bpy.data.scenes.new(BAKE_NAME)
             sc.render.engine = "CYCLES"
@@ -1200,8 +1244,8 @@ class Job:
                     keep.append(job)
             jobs = keep
         per_atlas = max(1, (core.ATLAS_MAX // self.size) ** 2)
-        own_keys = {ob.name: own_share_key(ob, self._drawn.mesh(ob), self._drawn.place(ob)) for ob in own_objs}
-        n_own = len(set(own_keys.values()))   # task 0189: one bake per group of copies
+        own_first = own_groups([own_share_key(ob, self._drawn.mesh(ob), self._drawn.place(ob)) for ob in own_objs])
+        n_own = len(set(own_first))           # task 0189: one bake per group of copies
         n_bakes = math.ceil(len(jobs) / per_atlas) + len(decal_looks) + n_own
         done = 0
         for start in range(0, len(jobs), per_atlas):
@@ -1246,18 +1290,14 @@ class Job:
                        for ob in own_objs)
             own_tpm = core.own_tpm(self.size, area, self.marine_detail)
         # task 0189 (0183 row 9): copies that bake the same pictures share one bake (``own_share_key``)
-        shared: dict = {}                      # share key -> the first part's name
         n_shared = 0
-        for ob in own_objs:
-            skey = own_keys[ob.name]
-            first = shared.get(skey)
-            if first is not None:              # the same pictures, UVs and looks as the part baked first
-                self._own[ob.name] = self._own[first]
+        for i, ob in enumerate(own_objs):
+            if own_first[i] != i:              # the same pictures, UVs and looks as the part baked first
+                self._own[ob.name] = self._own[own_objs[own_first[i]].name]
                 n_shared += 1
                 continue
-            shared[skey] = ob.name
             me_ob, mw_ob = self._drawn.mesh(ob), self._drawn.place(ob)
-            self.text = f"Baking the marine looks {len(shared)} of {n_own}"
+            self.text = f"Baking the marine looks {i + 1 - n_shared} of {n_own}"
             yield 0.05 + 0.45 * done / max(n_bakes, 1)
             lks = [Look(sl.material) if sl.material is not None else None for sl in ob.material_slots] or [None]
             got = self._baker.own(ob, me_ob, mw_ob, lks, own_tpm, self.marine_detail)
@@ -1927,7 +1967,7 @@ def _marine_estimate(scene, texture_size: int) -> dict | None:
     obs = [ob for ob in light_targets(scene) if needs_own_bake(ob)]
     if not obs:
         return None
-    areas, firsts = {}, {}
+    areas, keys, part_area = {}, [], []
     area = 0.0
     for ob in obs:
         mw = ob.matrix_world
@@ -1937,8 +1977,10 @@ def _marine_estimate(scene, texture_size: int) -> dict | None:
         if a is None:
             a = areas[akey] = lightbake._world_area(lightbake._read_mesh(ob.data), mw)
         area += a
-        firsts.setdefault(own_share_key(ob, ob.data, mw), (ob, a))
-    unique_area = sum(a for _ob, a in firsts.values())
+        part_area.append(a)
+        keys.append(own_share_key(ob, ob.data, mw))
+    firsts = {j for i, j in enumerate(own_groups(keys)) if i == j}
+    unique_area = sum(part_area[j] for j in firsts)
     longest = max(max(ob.dimensions) for ob in obs)
     return {d: core.own_estimate(area, texture_size, d, longest, bakes=len(firsts), unique_area=unique_area)
             for d in core.MARINE_DETAILS}

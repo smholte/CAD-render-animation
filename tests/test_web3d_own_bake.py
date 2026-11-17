@@ -241,8 +241,8 @@ def test_copies_share_one_marine_bake(tmp_path):
 
 
 def test_panel_estimates_are_kept_until_something_changes(monkeypatch):
-    """Task 0189 (0183 row 17): every draw of the Web 3D panel walked every part three times (45–60 ms on the small
-    demo). The estimates are kept until the scene changes (a depsgraph update, undo, a file load); the marine estimate
+    """Task 0189 (0183 row 17): every draw of the Web 3D panel walked every part (45–60 ms on the small demo). The
+    estimates are kept until the scene changes (a depsgraph update, undo, a file load); the marine estimate
     counts the bakes copies share."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
@@ -261,12 +261,12 @@ def test_panel_estimates_are_kept_until_something_changes(monkeypatch):
     real = web3d.objects
     monkeypatch.setattr(web3d, "objects", lambda scene: calls.append(1) or real(scene))
 
-    def draw():
-        return web3d.can_export(sc), web3d.marine_estimate(sc), web3d.light_estimate(sc)
+    def draw():                                              # what the panel draws (the button's check stays exact)
+        return None, web3d.marine_estimate(sc), web3d.light_estimate(sc)
 
     a = draw()
     n = len(calls)
-    assert n > 0 and a[0] == "" and a[1]["NORMAL"]["bakes"] == 1     # four copies, one bake
+    assert n > 0 and a[1]["NORMAL"]["bakes"] == 1            # four copies, one bake
     for _ in range(5):
         assert draw() == a
     assert len(calls) == n                                   # nothing changed: no part walked again
@@ -277,3 +277,33 @@ def test_panel_estimates_are_kept_until_something_changes(monkeypatch):
     one = core.own_estimate(10.0, 1024, bakes=1, unique_area=10.0)
     many = core.own_estimate(10.0, 1024, bakes=40, unique_area=10.0)
     assert many["seconds"] - one["seconds"] == pytest.approx(39 * core.OWN_SECONDS_PER_BAKE)
+
+
+def test_the_bake_scene_does_not_pull_in_the_project():
+    """Task 0189 (0183 row 9): the bake scene is a copy of the project's scene. It kept the compositor's tree (whose
+    Render Layers node reads the project's scene) and the project's settings (labels pointing at parts …), so every bake
+    built the depsgraph of the whole project: 0.6 s per bake on the small demo, 0.07 s without."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    ob = _plate(sc, "project part", nz=2)
+    from fresing_render.blender import callouts
+    callouts.add(sc, ob, ob.matrix_world.translation, text="A label on the part")
+    tree = bpy.data.node_groups.new("comp", "CompositorNodeTree")
+    rl = tree.nodes.new("CompositorNodeRLayers")
+    rl.scene = sc
+    if hasattr(sc, "compositing_node_group"):
+        sc.compositing_node_group = tree
+    sc["fr_some_object"] = ob
+    bpy.context.view_layer.update()
+    b = web3d.Baker(sc)
+    try:
+        bake_vl = b.scene.view_layers[0]
+        with bpy.context.temp_override(scene=b.scene, view_layer=bake_vl):
+            dg = bpy.context.evaluated_depsgraph_get()
+            names = {i.original.name for i in dg.ids}
+        assert ob.name not in names and sc.name not in names, sorted(names)
+        assert sc.fresing.callouts and sc.get("fr_some_object") is ob          # the project keeps its own
+    finally:
+        b.close()
