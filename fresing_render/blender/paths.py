@@ -86,6 +86,7 @@ VERSION = 1                             # of the node trees: an older tree is ma
 SIDES = 20                              # of the tube's cross-section
 S_ATTR = "fr_s"                         # on the shapes mesh's points: the exact length along the cable (m)
 GROUPS = {"POWER": "Power cables", "ROPE": "Wire ropes", "SERVED": "Served cables"}
+REMOVED = "fr_removed"                  # on the cable item: JSON list of the read contacts the user took off (0192)
 WAS = "group_was"                       # on the cable item: the group its part was in by hand before its look put
 #                                         it into a cable group ('' = none)
 SHAPING = ("SHEAVE", "CHUTE", "BEND")   # the kinds the cable bends round
@@ -968,7 +969,15 @@ def _ends(scene, item, part, geo: dict, keep_user: bool) -> None:
         elif on and wheels:
             ob, kind, free = wheels[k]["carrier"], "WHEEL", False
         else:
-            ob, _dist = near.touching(point[None], radius + 0.002, but=but)
+            was = getattr(item, key + "_part") if keep_user else None
+            if was is not None and was.name in but and was != part and _alive(scene, was) and \
+                    getattr(item, key + "_kind") == "FIXED" and not getattr(item, key + "_free_end") and \
+                    was.name not in {d["part"].name for d in geo["rows"] if d["part"] is not None}:
+                # the part it rested on is still there, but is a cable itself by now (the demo's tipping wire on its
+                # winch's lead, made a cable later): a model update leaves the end on it (task 0192)
+                ob, _dist = near.touching(point[None], radius + 0.002, but=but - {was.name})
+            else:
+                ob, _dist = near.touching(point[None], radius + 0.002, but=but)
             kind, free = "FIXED", ob is None
             if ob is None:
                 ob = wheels[k]["carrier"] if wheels else flex._stay_part(part)
@@ -990,14 +999,14 @@ def _ends(scene, item, part, geo: dict, keep_user: bool) -> None:
 
 
 _CONTACT_FIELDS = ("name", "kind", "part", "part_uid", "carrier", "carrier_uid", "centre", "axis", "radius", "surface",
-                   "side", "wrap", "wrap_cad", "gap", "s", "full", "turns", "joint", "made_joint", "coupled", "ratio",
+                   "side", "wrap", "wrap_cad", "wrap_user", "gap", "s", "full", "turns", "joint", "made_joint", "coupled", "ratio",
                    "user", "note", "let_go_frame", "swivel")
 _END_FIELDS = tuple(k + f for k in ("a", "b") for f in ("_kind", "_part", "_uid", "_point", "_free_end",
                                                          "_let_go_frame"))
 _ITEM_FIELDS = ("part", "part_uid", "diameter", "cad_diameter", "pitch", "length", "moving", "problem",
                 "problem_frame", "contacts_index") + _END_FIELDS
 _CUSTOM = ("a_user", "b_user", "a_cad_free", "b_cad_free", "a_cad_point", "b_cad_point", "look_was", WAS,
-           "fr_let_go")
+           "fr_let_go", REMOVED)
 
 
 def _values(group, fields) -> dict:
@@ -1046,6 +1055,7 @@ def _write_contact(c, d: dict, memo: dict) -> None:
         c.radius, c.surface, c.side = d["radius"], d["surface"], int(d["side"])
         c.wrap, c.gap, c.s, c.full = d["wrap"], d["gap"], d["s"], bool(d["full"])
         c.wrap_cad = float(d.get("wrap_cad", -1.0))
+        c.wrap_user = bool(d.get("wrap_user", False))
         c.turns = bool(d.get("turns", True))
         c.joint = d.get("joint", "") or ""
         c.made_joint = bool(d.get("made", False))
@@ -1062,19 +1072,69 @@ def _row_of(c, memo: dict) -> dict:
     return {"kind": c.kind, "name": c.name, "part": c.part, "carrier": c.carrier,
             "centre": _at(m, np.array(c.centre, dtype=float)), "axis": _unit(m[:3, :3] @ np.array(c.axis, dtype=float)),
             "radius": float(c.radius), "surface": float(c.surface), "side": int(c.side), "s": float(c.s),
-            "wrap": float(c.wrap), "wrap_cad": float(c.wrap_cad), "gap": float(c.gap), "full": bool(c.full),
+            "wrap": float(c.wrap), "wrap_cad": float(c.wrap_cad), "wrap_user": bool(c.wrap_user), "gap": float(c.gap),
+            "full": bool(c.full),
             "turns": bool(c.turns),
             "joint": c.joint, "made": bool(c.made_joint), "coupled": bool(c.coupled), "user": bool(c.user),
             "note": c.note, "swivel": c.swivel, "let_go_frame": int(c.let_go_frame)}
 
 
-def _merge(scene, item, geo: dict) -> list:
+def removed_of(item) -> list:
+    """The read contacts the user took off the list (task 0192): [{"uid", "name", "kind", "carrier", "centre",
+    "radius"}], centre in the carrier's coordinates."""
+    try:
+        out = json.loads(item.get(REMOVED, "") or "[]")
+    except (TypeError, ValueError):
+        return []
+    return [r for r in out if isinstance(r, dict)] if isinstance(out, list) else []
+
+
+def _set_removed(item, rows: list) -> None:
+    if rows:
+        item[REMOVED] = json.dumps(rows)
+    elif REMOVED in item:
+        del item[REMOVED]
+
+
+def _remember_removed(scene, item, c) -> None:
+    """Contact ``c`` goes off the list: a model update reads the cable again and must not bring it back."""
+    rows = removed_of(item)
+    rows.append({"uid": c.part_uid if c.part is not None else "", "name": c.name, "kind": c.kind,
+                 "carrier": c.carrier_uid, "carrier_name": c.carrier.name if c.carrier is not None else "",
+                 "centre": [float(v) for v in c.centre], "radius": float(c.radius)})
+    _set_removed(item, rows)
+
+
+def _is_removed(scene, d: dict, gone: list, memo: dict) -> bool:
+    """Is the read row ``d`` one the user took off the list? A part's by its ID, a bend by its place."""
+    for r in gone:
+        if r.get("uid"):
+            if d["part"] is not None and _uid(d["part"]) == r["uid"]:
+                return True
+            continue
+        if d["part"] is not None or d["kind"] != r.get("kind", "BEND"):
+            continue
+        carrier = next((o for o in scene.objects if r.get("carrier") and o.get(build.PROP_UID) == r["carrier"]),
+                       None) or scene.objects.get(r.get("carrier_name", ""))
+        if carrier is None:
+            continue
+        centre = _at(_cad(carrier, memo), np.array(r["centre"], dtype=float))
+        if np.linalg.norm(centre - d["centre"]) < 0.5 * max(float(d["radius"]), float(r.get("radius", 0.0))):
+            return True
+    return False
+
+
+def _merge(scene, item, geo: dict, keep_removed: bool = False) -> list:
     """What the list had that a new reading of the same part must keep: a contact the user added or changed takes
     the place of the reading's contact on the same part (or goes in by its place along the cable); a contact
-    switched off stays off; the joint a contact has is found again. Returns the joints the app made that no
-    contact needs any more."""
+    switched off stays off; the joint a contact has is found again; with ``keep_removed`` (a model update, task
+    0192) a contact the user took off stays off. Returns the joints the app made that no contact needs any more."""
     memo = geo["memo"]
     rows = geo["rows"]
+    if keep_removed:
+        gone = removed_of(item)
+        if gone:
+            rows[:] = [d for d in rows if not _is_removed(scene, d, gone, memo)]
     used = set()
 
     def match(c, row):
@@ -1119,9 +1179,11 @@ def _merge(scene, item, geo: dict) -> list:
     return left
 
 
-def read_cad(scene, item, part) -> list[str]:
+def read_cad(scene, item, part, update: bool = False) -> list[str]:
     """"From CAD cable": read the cable ``part`` – its centreline, its diameter, what it touches, its ends –, give
     everything it touches its joint, and draw the cable on its path. Contacts the user added or changed stay.
+    ``update`` (a model update, task 0192): what the user took off the list stays off; else (the button "From CAD
+    cable again") removed contacts come back. A CAD-pose wrap set by hand (``wrap_user``) is kept either way.
     Returns notes for the report. Raises PathError (nothing is changed then)."""
     if index_of(scene, item) < 0:
         raise PathError("This cable is not in the list.")
@@ -1139,7 +1201,8 @@ def read_cad(scene, item, part) -> list[str]:
         snap = _snapshot(item)
         old_part = item.part if _alive(scene, item.part) else None
         same = old_part == part
-        left = _merge(scene, item, geo) if same else [c.joint for c in item.contacts if c.made_joint and c.joint]
+        left = _merge(scene, item, geo, keep_removed=update) if same else \
+            [c.joint for c in item.contacts if c.made_joint and c.joint]
         before = {j.name for j in scene.fresing.joints}
         try:
             memo = geo["memo"]
@@ -1170,8 +1233,12 @@ def read_cad(scene, item, part) -> list[str]:
             if not res["ok"].all():
                 raise PathError(f"The path of '{_part_name(part)}' cannot be drawn: {res['problems'][0]}")
             for i, c in enumerate(_wheels(item)):
+                if c.wrap_user:
+                    continue                    # (set by hand: the demo's top pulley, drawn not touching, task 0192)
                 with _quiet(c):
                     c.wrap_cad = float(res["wrap"][0, i])
+            if not (update and same):
+                _set_removed(item, [])          # (read again by hand: what was taken off is back)
         except Exception:
             item = _cable(scene, name)
             _remove_joints(scene, [j.name for j in scene.fresing.joints if j.name not in before])
@@ -1685,6 +1752,8 @@ def _set_cad_wraps(scene, item, memo: dict | None = None) -> bool:
     good = res is not None and bool(res["ok"].all())
     for i, c in enumerate(wheels):
         wrap = float(res["wrap"][0, i]) if good else -1.0
+        if c.wrap_user and c.wrap_cad >= 0.0:
+            continue                            # (set by hand: kept, task 0192)
         if abs(c.wrap_cad - wrap) > 1e-9:
             with _quiet(c):
                 c.wrap_cad = wrap
@@ -2992,6 +3061,7 @@ def add_contact(scene, item, ob, hit=None) -> int:
 
     def change():
         it = _cable(scene, iname)
+        _set_removed(it, [r for r in removed_of(it) if not (r.get("uid") and r["uid"] == _uid(ob))])
         _make_joints(scene, it, [row], memo)
         it = _cable(scene, iname)
         if "carrier" not in row:
@@ -3118,6 +3188,8 @@ def remove_contact(scene, item, index: int) -> None:
     def change():
         it = _cable(scene, iname)
         memo: dict = {}
+        if not it.contacts[index].user:         # (a contact read from the CAD: a model update leaves it off, task 0192)
+            _remember_removed(scene, it, it.contacts[index])
         with _quiet(it):
             it.contacts.remove(index)
             it.contacts_index = max(0, min(it.contacts_index, len(it.contacts) - 1))
@@ -3539,13 +3611,23 @@ def _ancestors(ob):
 
 
 def _bake(scene) -> list[str]:
+    notes: list[str] = []
+    for _p in _bake_steps(scene, notes):
+        pass
+    return notes
+
+
+def _bake_steps(scene, notes: list):
+    """The cables' Build as steps: yields the share done (0 … 1) after the pass through the frames and after each
+    cable (task 0192: the re-bake job redraws between them). ``notes`` gets the warnings."""
     from . import paths_rollers, paths_swivel
     from . import paths_sea as _sea
     _sea.sync_bed(scene)                        # the seabed's motion for the cables into the sea (task 0081)
     first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     frames = end - first + 1
     _STATE["drawn"] = {}
-    notes, its, can, animated, obs = _plan(scene)
+    plan_notes, its, can, animated, obs = _plan(scene)
+    notes += plan_notes
     mats = {}
     extra = paths_swivel.objects(scene)         # sheaves on swivels (task 0125): read in the same pass
     if can:
@@ -3560,7 +3642,9 @@ def _bake(scene) -> list[str]:
     tight = [n for n in its if _cable(scene, n).keep_tight and _tight_joint(scene, _cable(scene, n))[0] is not None]
     written: dict = {}                          # joint name -> (the values written, those the pass above saw)
     again = None
-    for n in tight + [n for n in its if n not in tight]:
+    order = tight + [n for n in its if n not in tight]
+    yield 0.0
+    for done, n in enumerate(order):
         it = _cable(scene, n)
         if again is None and n not in tight:
             again = _after_tight(scene, its, tight, can, written, first, frames, mats)
@@ -3592,8 +3676,8 @@ def _bake(scene) -> list[str]:
                         if new is None:
                             rel = read
                             break
-                        rel, done = got, float(np.abs(new - values).max(initial=0.0)) <= TIGHT_TOL
-                        if not done:
+                        rel, held = got, float(np.abs(new - values).max(initial=0.0)) <= TIGHT_TOL
+                        if not held:
                             values = new
                             _write_tight(scene, it, values, first)
                         else:
@@ -3611,9 +3695,10 @@ def _bake(scene) -> list[str]:
                 it.moving = moving
         _STATE["last"].pop(_k(scene, it), None)
         notes += _draw(scene, it, rel, first)
+        yield (done + 1) / (len(order) + 1)
     notes += paths_rollers.after_bake(scene, first, frames, _STATE.get("drawn", {}))   # (task 0125)
     _STATE["drawn"] = {}
-    return notes
+    yield 1.0
 
 
 def bake(scene, anim) -> list[str]:
@@ -3660,11 +3745,11 @@ def motion_changed(scene, force: bool = True) -> None:
     from . import vessel_motion
     if not force and not vessel_motion.moved_since(scene, MOTION_KEY):
         return
-    if bpy.app.background:
-        _motion_bake(scene)
+    from . import rebake
+    if bpy.app.background:                      # one pass with whatever else the change needs (task 0192)
+        rebake.background(scene, "paths", force)
         return
-    from . import rebake                        # in the window: a long job with progress and Cancel (task 0160)
-    rebake.request(scene, "paths", force)
+    rebake.request(scene, "paths", force)      # in the window: a long job with progress and Cancel (task 0160)
 
 
 def _motion_bake(scene, kept: bool = False) -> list[str]:
@@ -3672,16 +3757,26 @@ def _motion_bake(scene, kept: bool = False) -> list[str]:
     Build does (task 0160, bug hunt 0147 row 6: at the last frame shown the second end came out up to 8 m off).
     ``kept``: the places were read for this re-bake already (the re-bake job). The frame shown comes back once the
     cables are not busy any more, so it is drawn from the new shapes."""
+    notes: list[str] = []
+    for _p in motion_steps(scene, notes, kept):
+        pass
+    return notes
+
+
+def motion_steps(scene, notes: list, kept: bool = False):
+    """``_motion_bake`` as steps (yields the share done; task 0192, bug hunt 6 row 10: the re-bake job blocked 20 s
+    in the cables' solve). Closed half-way (Cancel), the frame shown comes back and nothing is left busy."""
     with flex.at_first_frame(scene):
         forget()
         _STATE["busy"] += 1
         try:
-            out = _bake(scene)
+            got: list[str] = []
+            for p in _bake_steps(scene, got):
+                yield p
+            notes += got
             _remember_motion(scene)
-            return out
         except Exception as exc:                # never break the UI over a cable
             print("Fresing Render: cables not worked out again:", exc)
-            return []
         finally:
             _STATE["busy"] -= 1
             flex.drop_read()
@@ -3693,6 +3788,8 @@ def after_clear(scene) -> None:
     paths_rollers.after_clear(scene)            # (task 0125: rollers left by the cable follow it again – also when
     if not len(scene.fresing.cables):           # every cable was removed meanwhile)
         return
+    from . import paths_sea as _sea
+    _sea.sync_bed(scene)                        # (task 0192: a step's keyed speed is gone: the panel's speed again)
     _STATE["busy"] += 1
     try:
         paths_swivel.after_clear(scene)         # (task 0125: swivels follow their wires live again)
@@ -3813,6 +3910,89 @@ def _clash_hook(scene):
 # model update
 # ---------------------------------------------------------------------------
 
+def _model_sig(objs) -> dict:
+    """{part ID: (its place in the CAD pose, its mesh's counts and sums)} – what a cable's reading depends on."""
+    memo: dict = {}
+    out = {}
+    for ob in objs:
+        uid = ob.get(build.PROP_UID)
+        if not uid or ob.get(build.PROP_KIND) != "part":
+            continue
+        sig = (tuple(np.round(_cad(ob, memo), 6).ravel()),)
+        if ob.type == "MESH" and ob.data is not None:
+            n = len(ob.data.vertices)
+            co = np.empty(n * 3, np.float32)
+            ob.data.vertices.foreach_get("co", co)
+            c = co.astype(float).reshape(-1, 3)
+            sig += (n, len(ob.data.polygons), tuple(np.round(c.sum(axis=0), 3)),
+                    tuple(np.round(np.abs(c).sum(axis=0), 3)))
+        out[uid] = sig
+    return out
+
+
+def before_model_update(scene, root) -> None:
+    """reimport, before the old model comes apart (task 0192): what its parts are like, and the joint empties the
+    cables hang on by name (a joint's empties are made again)."""
+    from . import logic
+    _STATE["model_sig"] = (root.get(build.PROP_UID), _model_sig(logic.descendants(root)))
+    _STATE.pop("same_model", None)
+    held = {}
+    for it in scene.fresing.cables:
+        held[it.name] = {"contacts": [c.carrier.name if (not c.carrier_uid and c.carrier is not None) else ""
+                                      for c in it.contacts],
+                         "ends": {k: getattr(it, k + "_part").name for k in ("a", "b")
+                                  if not getattr(it, k + "_uid") and getattr(it, k + "_part") is not None}}
+    _STATE["held"] = held
+
+
+def same_model(scene, by_uid) -> bool:
+    """Task 0192 (bug hunt 6 row 1): the update brought the same model back – every part in the same place with the
+    same shape, none new, none missing. Its cables and spools then keep what they have (reading them again gave
+    another route: what was set after reading – a follower, a contact, a wrap – came out in another order)."""
+    if "same_model" in _STATE:
+        return _STATE["same_model"]
+    same = False
+    old = _STATE.get("model_sig")
+    if old:
+        root_uid, sig = old
+        new_root = by_uid.get(root_uid) if root_uid else None
+        if new_root is not None:
+            from . import logic
+            new = _model_sig(logic.descendants(new_root))
+            same = len(new) == len(sig) and all(
+                (ob := by_uid.get(u)) is not None and new.get(ob.get(build.PROP_UID)) == v for u, v in sig.items())
+    _STATE["same_model"] = same
+    return same
+
+
+def _keep_after_update(scene, name) -> list[str]:
+    """The same model came back: the cable keeps its contacts, ends, wraps and spool as they were, only hung on the
+    new parts (``after_model_update`` did that by part ID; the joint empties by name here)."""
+    it = _cable(scene, name)
+    held = _STATE.get("held", {}).get(it.name, {})
+    names = held.get("contacts", [])
+    with _quiet(it):
+        for k, c in enumerate(it.contacts):
+            if k < len(names) and names[k] and not c.carrier_uid:
+                ob = scene.objects.get(names[k])
+                if ob is not None:
+                    with _quiet(c):
+                        c.carrier = ob
+        for key, oname in held.get("ends", {}).items():
+            ob = scene.objects.get(oname)
+            if ob is not None:
+                setattr(it, key + "_part", ob)
+    _couple(scene, _cable(scene, name))
+    it = _cable(scene, name)
+    it.part[PART] = True
+    _apply_look(scene, it)
+    _pay_driver(scene, it)
+    from . import spool as _spool
+    notes = _spool.after_same_update(scene, _cable(scene, name))
+    notes += _rebuild(scene, _cable(scene, name))
+    return notes
+
+
 def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
     """The model was replaced by a new revision: every cable goes to the matching new parts (by their part IDs),
     its joints are found again (they came back through the joints' own rebuild), and the cable is read again from
@@ -3884,7 +4064,10 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                 continue
             who = f"Cable '{label(it)}'"
             try:
-                read_cad(scene, it, it.part)
+                if same_model(scene, by_uid):
+                    _keep_after_update(scene, name)
+                else:
+                    read_cad(scene, it, it.part, update=True)
             except PathError as exc:
                 notes.append(f"{who}: {exc}")
                 try:
@@ -3901,6 +4084,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                 notes.append(f"{who} could not be carried over ({exc or type(exc).__name__}): use 'From CAD cable'")
     finally:
         _STATE["busy"] -= 1
+        for key in ("model_sig", "same_model", "held"):
+            _STATE.pop(key, None)
     from . import paths_riders as _riders
     notes += _riders.after_model_update(scene, by_uid, mapping)          # things on the cables (task 0081)
     return notes

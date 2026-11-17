@@ -1571,6 +1571,28 @@ def _detach(scene, sp) -> list[str]:
         _STATE["busy"] -= 1
 
 
+def after_same_update(scene, item) -> list[str]:
+    """The model update brought the same model back (task 0192): the spool the cable comes off takes its start again
+    and is drawn again on the new parts, nothing read again."""
+    sp = of_cable(scene, item)
+    if sp is None or not sp.enabled:
+        return []
+    j = _joint(scene, sp)
+    if j is None:
+        return []
+    from . import paths
+    with paths._quiet(item):
+        item.a_kind = "SPOOL"
+        item.a_part = j.motion
+        item.a_uid = ""
+        item.a_point = (0.0, 0.0, 0.0)
+        item.a_free_end = False
+    try:
+        return _setup(scene, sp)
+    except SpoolError as exc:
+        return [f"Drum or carousel '{label(sp)}': {exc}"]
+
+
 def after_read(scene, item) -> list[str]:
     """paths.read_cad read the cable again: a spool it comes off takes its start again (and its tables, which
     depend on the cable's first contact)."""
@@ -2025,7 +2047,9 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             _STATE["busy"] -= 1
         sp = s.spools[i]
         it = _cable(scene, sp)
-        if it is not None and it.a_kind == "SPOOL":    # read again as the plain CAD cable; after_read takes it again
+        same = paths.same_model(scene, by_uid)           # (the same model: the cable is not read again, task 0192)
+        if it is not None and it.a_kind == "SPOOL" and not same:   # read again as the plain CAD cable; after_read
+            #                                                          takes it again
             with paths._quiet(it):
                 it.a_kind = "FIXED"
                 it.a_part = None

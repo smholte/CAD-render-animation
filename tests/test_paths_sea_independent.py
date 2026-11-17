@@ -579,7 +579,9 @@ def test_weather_vessel_speed_change_moves_the_seabed_at_the_new_speed(sea):
     assert adv == pytest.approx(4.0 * 0.514444 * 50 / sc.render.fps, rel=1e-3)
 
 
-def test_weather_off_falls_back_to_the_lay(sea):
+def test_weather_off_still_sails_and_a_still_vessel_falls_back_to_the_lay(sea):
+    """Task 0192 (bug hunt 6 row 8) changed this rule: the vessel's speed is Vessel at work's, the one the wake shows,
+    with Weather & time on or off (before: Weather & time off fell back to the lay). A vessel lying still: the lay."""
     sc = sea
     s = sc.fresing
     s.weather.enabled = True
@@ -587,6 +589,12 @@ def test_weather_off_falls_back_to_the_lay(sea):
     it = cable(sc)
     it.sea_speed = "WEATHER"
     s.weather.enabled = False
+    update()
+    sc.frame_set(sc.frame_start + 50)
+    update()
+    adv = np.linalg.norm(bed_world(sc)[:2, 3])
+    assert adv == pytest.approx(2.0 * 0.514444 * 50 / sc.render.fps, rel=1e-3)
+    s.vessel_work.mode = "STILL"
     update()
     sc.frame_set(sc.frame_start + 50)
     update()

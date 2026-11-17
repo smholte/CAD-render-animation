@@ -636,6 +636,7 @@ class FRESING_OT_rebake(bpy.types.Operator):
 
     flex: bpy.props.BoolProperty(default=False, options={"SKIP_SAVE"})
     cables: bpy.props.BoolProperty(default=False, options={"SKIP_SAVE"})
+    cameras: bpy.props.BoolProperty(default=False, options={"SKIP_SAVE"})
 
     _timer = None
     _gen = None
@@ -643,7 +644,7 @@ class FRESING_OT_rebake(bpy.types.Operator):
     TICK = 0.15                                 # s of work between two redraws
 
     def _todo(self):
-        return {k: True for k, on in (("flex", self.flex), ("paths", self.cables)) if on}
+        return {k: True for k, on in (("flex", self.flex), ("paths", self.cables), ("cameras", self.cameras)) if on}
 
     def execute(self, context):
         from . import rebake

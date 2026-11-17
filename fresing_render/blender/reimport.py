@@ -411,7 +411,8 @@ def _take_apart(scene, root) -> tuple:
     """Everything that hangs on the parts of the model under ``root`` comes apart (parts back in the CAD
     tree); returns the specs (cylinders, mechanisms, joints) to build it again."""
     cylinders, gcode, linkages, machining, _waycover = _set_up_hooks()
-    from . import section
+    from . import paths, section
+    paths.before_model_update(scene, root)       # cables (task 0192): is it the same model that comes back?
     section.before_model_update(scene, root)     # cutaways (task 0086): their slide joints come off first
     machining.before_model_update(scene)         # milling (task 0027): the workpiece gets its CAD mesh back
     gcode.before_model_update(scene)             # CNC machine (task 0026): its marker and toolpath hang on parts
@@ -567,6 +568,8 @@ def _carry_over(context, st) -> dict:
             to_hide.append(ob_new)
         if ob_old.get(build.PROP_KIND) == "assembly" and not ob_old.get(build.PROP_LOCKED, True):
             logic.set_locked(ob_new, False, tree)
+        if ob_old.get(build.BOUNDS_CAD):         # the model's size counts its CAD shape (a cable into the sea, a
+            ob_new[build.BOUNDS_CAD] = True      # rider): lost, the sea and the cameras measured another model (0192)
         if "fr_tree_open" in ob_old:             # open/closed rows in 2 Structure
             ob_new["fr_tree_open"] = ob_old["fr_tree_open"]
         d = deltas.get(ob_old.get(build.PROP_UID))

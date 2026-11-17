@@ -139,6 +139,18 @@ def _group_renamed(self, context):
     self["_old_name"] = self.name
 
 
+def _one_rebake(fn):
+    """A setting of the sea, the vessel or the weather: in the background, the re-bakes of a built animation it causes
+    (hoses, cables, riding cameras) run as one pass at its end (task 0192, bug hunt 6 row 10)."""
+    def run(self, context):
+        from . import rebake
+        with rebake.gathered():
+            return fn(self, context)
+    run.__name__, run.__doc__ = fn.__name__, fn.__doc__
+    return run
+
+
+@_one_rebake
 def _sea_water_changed(self, context):
     """Water depth or water level changed: the surroundings, then a cable into the sea lies on the new seabed (0081)."""
     _world_changed(self, context)
@@ -147,6 +159,7 @@ def _sea_water_changed(self, context):
         paths_sea.water_changed(context.scene)
 
 
+@_one_rebake
 def _world_changed(self, context):
     if self.live_update:
         from . import world
@@ -156,6 +169,7 @@ def _world_changed(self, context):
             print("Fresing Render: background update failed:", exc)
 
 
+@_one_rebake
 def _sea_cutaway_changed(self, context):
     """The cut-away went on or off. Task 0148: when a part reaches below the seabed (the water level over the machine's
     lowest point is more than the water depth) the ground is cut too: its setting goes on by itself."""
@@ -2509,6 +2523,8 @@ class FRCableContact(bpy.types.PropertyGroup):
     wrap: FloatProperty(default=0.0)                       # rad, as drawn now (written by paths.py)
     wrap_cad: FloatProperty(default=-1.0)                  # rad, in the CAD pose (-1: not known): a lifted wheel and
     #                                                        a loop are measured against it
+    wrap_user: BoolProperty(default=False)                 # wrap_cad was set by hand (the demo's top pulley): every
+    #                                                        reading keeps it (task 0192)
     gap: FloatProperty(default=0.0)                        # m: how far the CAD cable was drawn off the surface
     s: FloatProperty(default=0.0)                          # m along the cable from its start: where the contact is
     full: BoolProperty(default=True)                       # the part is round all the way (it may turn)
@@ -2773,10 +2789,11 @@ class FRCable(bpy.types.PropertyGroup):
                     "under the vessel at this speed",
         items=[("LAY", "With the lay", "The vessel moves as fast as the cable is paid out: the touch-down stays in "
                                        "the same place behind the vessel"),
-               ("WEATHER", "Vessel speed of Weather & time", "The vessel speed set in 5 Scene & Render > Weather & "
-                                                              "time (the one the wake shows): the touch-down moves "
-                                                              "further back or nearer when it differs from the lay "
-                                                              "speed")])
+               ("WEATHER", "Vessel speed of Weather & time", "The vessel's own speed, the one the wake shows: 5 "
+                                                              "Scene & Render > Vessel at work (Ahead at the vessel "
+                                                              "speed of Weather & time, on or off; Still: 0) and its "
+                                                              "steps in 6 Animation. The touch-down moves further "
+                                                              "back or nearer when it differs from the lay speed")])
     sea_was: StringProperty(default="")                    # b_kind before the sea end (put back when it is removed)
     sea_mark: FloatProperty(default=0.0)                   # metres along the cable (from its start, nothing paid out)
     #                                                        of the cable's end lying on the seabed
@@ -3086,6 +3103,7 @@ class FRClash(bpy.types.PropertyGroup):
     moments: IntProperty()               # frames and moments between frames looked at
 
 
+@_one_rebake
 def _vessel_changed(self, context):
     """5 Scene & Render > Vessel motion (task 0085): the rig follows (cheap when nothing changed)."""
     if context is None or context.scene is None:
@@ -3097,6 +3115,7 @@ def _vessel_changed(self, context):
         print("Fresing Render: vessel motion update failed:", exc)
 
 
+@_one_rebake
 def _vessel_sea_changed(self, context):
     """On/off and the heading change the swell: the sea is built again (then the rig follows)."""
     if context is None or context.scene is None:
@@ -3108,6 +3127,7 @@ def _vessel_sea_changed(self, context):
         print("Fresing Render: vessel motion update failed:", exc)
 
 
+@_one_rebake
 def _vessel_work_changed(self, context):
     """5 Scene & Render > Vessel at work (task 0154): channels, steer joints and maybe the sea follow."""
     if context is None or context.scene is None:
@@ -3117,6 +3137,12 @@ def _vessel_work_changed(self, context):
         vessel_work.changed(context.scene)
     except Exception as exc:                 # never break the UI over a preview update
         print("Fresing Render: vessel at work update failed:", exc)
+    if len(context.scene.fresing.cables):       # a cable into the sea sails at this speed (task 0192)
+        from . import paths_sea
+        try:
+            paths_sea.weather_changed(context.scene)
+        except Exception as exc:
+            print("Fresing Render: seabed update failed:", exc)
 
 
 def _vessel_work_layout_changed(self, context):
@@ -3589,6 +3615,7 @@ class FRWeb3D(bpy.types.PropertyGroup):
 # 5 Scene & Render > Weather & time (task 0109)
 # ---------------------------------------------------------------------------
 
+@_one_rebake
 def _weather_changed(self, context):
     """A weather setting changed: the scene's weather channels, sky, lamps, looks and rain/snow follow."""
     if context is None or context.scene is None or self.get("_busy"):
@@ -3625,6 +3652,7 @@ def _weather_preset_changed(self, context):
         print("Fresing Render: weather preset failed:", exc)
 
 
+@_one_rebake
 def _weather_on_changed(self, context):
     if context is None or context.scene is None or self.get("_busy"):
         return
@@ -3729,7 +3757,8 @@ class FRWeather(bpy.types.PropertyGroup):
     vessel_speed: FloatProperty(
         name="Vessel speed", default=0.0, min=0.0, max=20.0, precision=1, update=_weather_changed,
         description="How fast the vessel sails (knots): a wake with its wave pattern behind the stern, a bow wave, "
-                    "the propellers turn (5 Scene & Render > Vessel at work: Ahead). 0 for a vessel that lays cable "
+                    "the propellers turn, the seabed under a cable into the sea set to this speed sails by (5 Scene & "
+                    "Render > Vessel at work: Ahead). 0 for a vessel that lays cable "
                     "(walking pace or slower) or lies still")
     bow: EnumProperty(
         name="Bow", default="AUTO", update=_weather_changed,

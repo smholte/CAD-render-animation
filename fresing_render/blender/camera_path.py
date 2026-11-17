@@ -30,6 +30,8 @@ from ..core import camera_path as P
 from . import build
 
 MODES = ("RIDE", "PATH", "AIM")
+CENTRE = "fr_cam_centre"                 # on the scene: the model's centre the Build's camera steps used (task 0192)
+MOTION_KEY = "fr_cam_motion_key"         # on the scene: the vessel motion the camera keys were worked out for (0192)
 PROP_PATH = "fr_camera_path"            # on the curve object that shows a step's path
 
 
@@ -76,6 +78,12 @@ class Context:
         from . import animation
         self.scene = scene
         self.centre = Vector(centre)
+        scene[CENTRE] = [float(v) for v in centre]      # (the re-bake after a sea change takes the keys again, 0192)
+        try:
+            from . import vessel_motion
+            vessel_motion.remember(scene, MOTION_KEY, seabed=False)
+        except Exception:
+            pass
         self.objects: dict[str, bpy.types.Object] = {}
         self.at_build: dict[str, Matrix] = {}
         self.middle: dict[str, Vector] = {}           # the part's middle, in its own coordinates
