@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.148 – 17 Nov 2026 – Cables: model update keeps routes, re-bake also redoes riding cameras, seabed follows Vessel at work
+## 0.2.149 – 17 Nov 2026 – Cables: model update keeps routes, re-bake also redoes riding cameras, seabed follows Vessel at work
 
 - **Model update with the same file changes nothing in the cables.** A contact you took off a cable's list stays off
   (also after an update to a changed file); "From CAD cable again" still brings it back. On the demo, an update of the
@@ -20,8 +20,15 @@ installer of that version was built from.
 - **The seabed under a cable into the sea sails at the vessel's own speed:** 5 Scene & Render > Vessel at work
   (Ahead at the vessel speed; 0 when the vessel lies still) and its steps in a video – with Weather & time on or off.
   Before, it sailed at the Weather & time speed even when the vessel lay still, and not at all with Weather & time off.
+  A new speed after a Build with such steps takes the built animation off (press Build again).
 - In scripts and the render queue a sea change works the cables out in one pass (before: two or three); the window's
   job redraws between the cables.
+
+## 0.2.148 – 17 Nov 2026 – The 3D view sees the whole scene (task 0193)
+
+- **No more grey cut-off in the 3D view.** In the normal 3D view the far turbines, the substation and the
+  sea's far waves were cut away; only camera views saw them. Now the 3D view sees as far as the scene reaches,
+  also in projects made before (it is set when the project opens). A larger value you set yourself is kept.
 
 ## 0.2.147 – 17 Nov 2026 – Web 3D export of the demo 8x faster, and small page fixes (task 0189)
 

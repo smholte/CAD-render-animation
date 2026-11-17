@@ -2251,6 +2251,11 @@ def build_project(folder: str, version: str = "", small: bool = False, progress=
             t0 = time.time()
             st.fn(d)
             out["seconds"][st.id] = round(time.time() - t0, 1)
+            try:
+                from . import surroundings
+                surroundings.fix_view_clip(bpy.context.scene)   # task 0193: far things (the park) in view
+            except Exception:  # noqa: BLE001
+                pass
         scene = bpy.context.scene
         scene[TAG] = version
         d.progress("Saving")

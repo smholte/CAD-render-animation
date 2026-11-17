@@ -74,7 +74,7 @@ gutter, drum layers crossing).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Opus, effort Medium), 17 Nov 2026. Version 0.2.148.
+**Chat / date:** Claude Code on the web (Opus, effort Medium), 17 Nov 2026. Version 0.2.149 (0193 took 0.2.148).
 
 **What changed:**
 - **Row 1** (`paths.py`, `spool.py`, `reimport.py`, `props.py`, `demo.py`): a read contact the user takes off is
