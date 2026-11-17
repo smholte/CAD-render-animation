@@ -1,6 +1,6 @@
 # 0173 – Demo realism from study 0152: lay data, lighter cable, an ROV at the touch-down, the tipping winches spooled
 
-**Who:** worker (web session) · **Status:** open · **Branch:** `task/0173-demo-realism` (a web session may name its own)
+**Who:** worker (web session) · **Status:** running · **Branch:** `ccr-1db7fd83-auleup`
 **Started by:** lead, 17 Nov 2026 · **Area:** Demo models lane (`fresing_render/demo_model/`, `blender/demo.py` stages and
 captions, `tools/make_demo_*.py`, `tests/test_demo_*.py`) + Flex lane for two small points (`core/catenary.py`'s
 `WET_200`; the order in `paths._bake` for a cable that follows a kept-tight wire). **Model · effort:** Opus · High.
