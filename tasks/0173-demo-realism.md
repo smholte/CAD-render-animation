@@ -53,6 +53,27 @@ captions – and the last two demo winches (the tipping winches) spool their wir
 7. Every visible change: guide (the demo section), the demo's notes, test-tour/PC-check lines only where a function
    changed (point 6 may need none – say so).
 
+## Design (worker, 17 Nov 2026)
+
+Split (one owner per file):
+- **Subagent "rov maker"** (worktree): new `fresing_render/demo_model/rov.py` – `build(p: Params) -> (Asm, info)`, an
+  invented work-class ROV in its own coordinates (mm): origin at the middle of the skids' underside, +x forward (where
+  camera and lights look), +y port, z up; about 3.0 x 1.8 x 1.9 m. Parts (each ONE solid with a colour, `geom.Part`):
+  `ROV FRAME` (box frame of beams, grey), `ROV BUOYANCY` (yellow foam block on top), `ROV SKID` (runners),
+  `ROV THRUSTER DUCT` x 7 (4 horizontal vectored at the corners, 3 vertical) each with a `ROV PROPELLER` in a turning
+  sub-assembly, `ROV LIGHT` x 2 + `ROV LIGHT LENS` x 2 (front, either side), `ROV CAMERA` + `ROV CAMERA LENS` (front,
+  middle), `ROV MANIPULATOR` x 2 (simple folded arms), `ROV TETHER TERMINATION` (top, aft). Joints: one rotate
+  joint per propeller "ROV: Thruster k turn" (drive by "operator"). `info`: `tether` (point + direction, mm),
+  `camera` (point + view direction), `lights` (points), `box` (min, max), `triangles_hint`. In `layout.py`:
+  `FILES["rov"] = "demo_rov.step"`, `"rov"` in `MACHINE_FILES`, built with the park (`with_park`), its info in the
+  route sheet as `"rov"`. Test `tests/test_demo_rov_model.py` (no Blender). Budget ≤ 40,000 triangles.
+- **Worker:** everything else. `core/catenary.WET_200` 51 → 38; `paths._bake` (kept-tight cables first, then the
+  cables whose speed follows a kept-tight joint get their places read again after the payouts are written);
+  `core/callouts.py` + `blender/callouts.py`: a label on a cable into the sea may hold live fields (`{top}`,
+  `{bottom}`, `{layback}`, `{angle}`, `{depth}`, `{speed}`, `{laid}`, `{hanging}`), several lines; `demo.py`: the lay
+  data label and captions, the ROV stage (import, Still, place beside the touch-down looking at it, lights, tether,
+  clash hook), the tipping winches spooled (0174's code) with a fairlead.
+
 ## Done when
 
 - [ ] Points 1–7; Make demo project runs; its clash check stays at 0 rows (ROV left out, its clearances tested)
