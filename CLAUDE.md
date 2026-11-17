@@ -234,6 +234,12 @@ fresing_render/            the Blender extension (Python package)
                            toolmarks.py (tool marks on cut faces, task 0061: the contract between the milled mesh and
                            the cut-face material – four per-face attributes ``fr_mk_o/d/a/p``, six kinds of marks – and
                            the formula in plain Python the tests compare a render with; strengths per material),
+                           heightmap.py (task 0146: long 3-axis programs as a height map - swept bit shapes, stamping
+                           with snapshots, a tile's nodes moved onto walls and rims (`_snap`), extra vertices where a node
+                           cannot stand (task 0167: a wall's foot over a rounded strip, a rib's second rim), the map lifted
+                           12.5 um over the finished part), heightmesh.py (task 0167: thinning one tile - right triangles,
+                           or long strips along x/y checked against the grid's own triangles; a node a neighbour keeps on
+                           the border is fanned in, so tiles meet vertex for vertex),
                            cut_normals.py (the milled mesh's corner normals in NumPy: flat faces flat, round walls smooth,
                            needle triangles take their neighbour's, a big flat face keeps its own next to small facets),
                            web3d.py (web 3D model, task 0099: the glTF 2.0 writer/reader + checks, box UVs in 0.2 m
@@ -1114,3 +1120,11 @@ the release → Delete); the next run on `main` publishes it again.
   (`core/catenary.hang_off_steady`), never from an earlier Build.
 - A `name` that other settings refer to needs an update callback that tells them (task 0160: a renamed cable left its
   drum without a cable). Blender gives no old value: keep it in a hidden property (`FRCable.name_was`).
+- Two surfaces that lie within micrometres of each other, joined by a boolean, make a mass of slivers: the height map
+  over "Finish at the CAD part" gave 34,000 extra triangles on the toolpath test model (task 0167). Keep one of them
+  clearly on one side (the map is lifted 12.5 µm over the part where it came down onto it, `HeightMap._lift`); a face
+  lying in the block's own top plane likewise got slivers of the top named after a move.
+- A mesh can be closer to the exact surface and look worse: vertices put halfway along a rounded strip, at different
+  distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
+  strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at
+  distances.

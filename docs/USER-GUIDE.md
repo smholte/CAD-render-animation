@@ -116,7 +116,7 @@ Fresing Render.
    **Run anyway**. Unpacking takes a few minutes without a progress bar: let it finish.
 3. Start **Fresing Render** from the Desktop: the shortcut, the Start menu, the window and the taskbar show the
    Fresing **Fr** (the white F with its green swoosh and an r), and the start-up screen carries the Fresing logo. Right-click the taskbar icon
-   > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.133 gets the new icon at the first
+   > **Pin to taskbar** to keep it there. (A PC that had the app before 0.2.135 gets the new icon at the first
    start after **Update now**; if a pinned taskbar icon still shows Blender's, unpin it and pin it again.)
 4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
@@ -1595,12 +1595,16 @@ out as a height map instead: the lowest point the tool reached above every spot 
 - **How exact** (Detail **Normal**, a grid of 0.2 mm; all of it halves at **Fine**; a block larger than about
   0.3 × 0.4 m gets a coarser grid, the line says which):
   - surfaces and walls are within 0.03 mm of the exact cut; walls stand upright where the tool went;
-  - the fine ridges between two finishing passes are left out when they are lower than 0.012 mm: the face is
-    smooth there and shows the tool marks;
+  - the fine ridges between two finishing passes are left out when they are lower than about 0.012 mm (with
+    a Ø6 bit 0.015 mm, with a Ø10 0.026 mm: the exact cut's own many-sided bit is that much off the round one):
+    the face is smooth there and shows the tool marks;
   - the steep, rounded strip under a rim or at the foot of a wall (a ball cutting deeper than two thirds of
-    its radius, the fillet a corner-radius mill leaves) can be 0.2 mm off, and in a close-up such a wall can
-    look a little streaky where the exact cut shows even level lines;
-  - a sharp outside corner of a wall, and a rib or slot thinner than 0.4 mm, can be up to 0.3 mm off.
+    its radius, the fillet a corner-radius mill leaves, where the ramps of a flat bit start) is up to about
+    0.1 mm off, mostly less;
+  - a sharp outside corner of a wall can be up to 0.2 mm off; a rib of material left between two cuts is kept,
+    also when it is thinner than the grid;
+  - with **Finish at the CAD part**, where a finishing pass ran right on the finished part, the surface shows
+    0.0125 mm over the part (the fine ridges' height); where the bit went deeper, the part's own faces show.
 
   For a close-up of such a spot pick Detail **Fine** or untick **Fast 3-axis**: every move is then cut exactly.
 

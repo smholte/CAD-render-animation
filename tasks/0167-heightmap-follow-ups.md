@@ -1,6 +1,6 @@
 # 0167 – Height-map cutter follow-ups: fewer faces on walls, true steep flanks, the five known faults
 
-**Who:** worker · **Status:** running · **Branch:** `task/0167-heightmap-follow-ups`
+**Who:** worker · **Status:** done 16 Nov (0.2.134) · **Branch:** `task/0167-heightmap-follow-ups`
 **Started by:** lead chat, 16 Nov 2026 (open points of 0146) · **Model:** Opus · effort High · **Place:** Claude Code on
 the web, environment "CAD-render-animation". Subagents allowed (CLAUDE.md section 2).
 **Area:** Machining lane: `core/heightmap.py`, the map side of `core/machining.py` (`_MapSide`, the tile join),
@@ -54,10 +54,10 @@ model 7.5 s / **145,146 faces against 96,588 exact**; ~35–40 ms per frame what
 
 ## Done when
 
-- [ ] Points 1–4 done (5 and 6 measured or stated), every KNOWN FAULT gone or explained, nothing loosened
-- [ ] Before/after table (time, faces, deviation per case, per-frame ms) and a small before/after close-up of a steep
+- [x] Points 1–4 done (5 and 6 measured or stated), every KNOWN FAULT gone or explained, nothing loosened
+- [x] Before/after table (time, faces, deviation per case, per-frame ms) and a small before/after close-up of a steep
       flank in `tasks/img/0167_*`
-- [ ] Tests added/updated; GitHub run green; merged; version; report filled in
+- [x] Tests added/updated; GitHub run green; merged; version; report filled in
 
 ## Not in this task
 
@@ -68,10 +68,103 @@ V-bit and drill programs (cut exactly on purpose: their grooves are narrower tha
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 16 Nov 2026 (branch `task/0167-heightmap-follow-ups`). Version **0.2.134**.
 
-**What changed:**
+**What changed**
 
-**Tested and measured** (name the machine and the model):
+- New `core/heightmesh.py`: a tile is thinned either with 0146's right triangles or with long **strips** along x or
+  y (rows of nodes kept where needed, nodes along each kept row where needed, the rows zipped together, the zip
+  checked against the grid's own finest triangles and refined where it is off; strips that would fold are kept
+  finer), whichever has fewer triangles. Strips are worked out only for tiles no later move changes, so scrubbing
+  stays on the quick right triangles. A node a neighbour keeps on the shared border is fanned into the side's
+  triangle instead of making the tile keep more nodes: **tiles meet vertex for vertex, also at corners** (point 4).
+- Thinning tolerance = 2/3 of how far the exact cut's many-sided bit lies inside the round one (Ø10 at Normal
+  0.010 mm, Ø6 0.006, never below the detail level's 0.005); fine ridges left out below 2.5 x that.
+- "Finish at the CAD part": where the map came down onto the finished part it lies 12.5 µm over it
+  (`HeightMap._lift`); the map and the part no longer lie on each other (that made 34,000 sliver triangles).
+- Extra vertices on edges (`_snap` → `_lost` → `_extras`, `heightmesh.split_edges` / `insert_points`): the foot of a
+  wall over a rounded strip (the node there stays on the rounded strip instead of being pulled onto the foot), and a
+  rim no node took (a rib of top thinner than a cell between two grooves; edges where neither surface reaches the
+  other node are now looked at). Tiles with such vertices stay in right triangles.
+- Faults: two passes on one floor are no crease (the wall on a grid line + tile border was 0.048 mm off); no map
+  vertex lies in the block's top plane; along a cell's diagonal a node no longer moves onto the other node itself.
+- Tests: `tests/test_heightmesh.py` (10, the worker's), `tests/test_heightmesh_independent.py` (29, the independent
+  tester's), the vertex-for-vertex check tightened from "within the thinning tolerance" to 1 nm; KNOWN FAULT marks:
+  two gone (rib, wall on a grid line 0.048 mm), three left smaller (below).
+- `tools/bench_milling_dense.py --only toolpath` (+ `tools/dump_toolpath_program.py`: the toolpath test model's
+  program as a file); guide section "Long programs: Fast 3-axis", the setting's tooltip, CLAUDE.md.
 
-**Open points / follow-up tasks:**
+**Tested and measured** (4-core web machine, core only, Detail Normal unless said; "before" = 0146's code run
+right before or after on the same machine – the machine's timings drift ±20 % between runs)
+
+| | 0146 | 0167 |
+| --- | --- | --- |
+| M1 triangles | 29,540 | **24,712** |
+| M1 whole cut | 2.9–3.0 s | 3.2–3.5 s |
+| M1 one frame forward (marks) | 36–38 ms | 42–48 ms |
+| Dome triangles | 21,006 | **17,232** |
+| Dome whole cut / one frame | 1.5 s / 42 ms | 2.0 s / 48–52 ms |
+| Toolpath test model (with the finished part) triangles | 181,636 | **116,670** (exact cut 95,716) |
+| Toolpath test model whole cut | 8.3 s | 9.6 s |
+| M1 at Detail Fine: triangles / whole cut | 70,848 / 10.0 s | 61,450 / 10.0 s |
+| M1 at Detail Fast: triangles / whole cut | 25,990 / 1.5 s | 10,918 / 1.8 s |
+
+Removed volumes unchanged within 0.01 % (M1 15,158.6 mm³, dome 12,978 mm³, toolpath model 133,241 mm³ fast against
+133,191 exact).
+
+Deviation fast ↔ exact (worst, both ways, mm; 0146's scenarios in `tests/test_heightmap_independent.py`):
+
+| case | 0146 | 0167 |
+| --- | --- | --- |
+| ramps of a flat bit (steep strip) | 0.138 | **0.055** |
+| ball grooves, 0.04 mm rib between rims | 0.289 | **0.076** |
+| corner-radius pocket (fillet) | 0.110 | **0.075** |
+| two bits crossing | 0.109 | 0.094 |
+| island corners (sharp outside corners) | 0.169 | 0.169 |
+| wall on a grid line + tile border | 0.048 | **0.008** |
+| surfaces (ball finish, pockets, steps, arcs, round block) | 0.007–0.026 | 0.007–0.025 (ball finish 0.024) |
+
+Point 2's aim (≤ 0.05 mm on steep strips) is reached on the ramps (0.055 ≈) but not on fillets and grooves' round
+ends (0.075): see open points. The close-up `tasks/img/0167_steep_flank.jpg` (the corner-radius pocket's rounded foot
+of the wall, Cycles): smooth, no streaks; a first version with vertices halfway along the strip drew a saw-tooth there
+and was dropped.
+
+Toolpath test model against the exact cut (all faces sampled both ways, 1.26 M points; measured on an earlier state
+of this branch with 110,792 triangles): points more than 0.05 mm apart 2.1 % (0146: 4.4 %), more than 0.2 mm 20
+(0146: 209).
+
+Locally: all heightmap tests (178), `test_machining*.py`, `test_toolmarks*.py`, `test_cut_normals.py`, tooltip check.
+GitHub: see below.
+
+**Subagents**
+
+- *Independent tester* (did not write the change; `tests/test_heightmesh_independent.py`, 29 tests): tiles closed and
+  vertex for vertex in 13 hard cases (fins, walls on borders and grid lines, 45° passes, four tiles' corner, grooves
+  whose rims touch), the same mesh however a time is reached, all 0146 deviation cases within their stated bounds.
+  Found: (1) with "Finish at the CAD part" up to 37 mm² of the part's faces had lost their move – a regression of my
+  join, **fixed** (faces named after the map is taken off, by the nearest cut node); (2) small ball Ø2 slots remove
+  0.65 % too little (0146: 1.6 %) – KNOWN FAULT, 0.6 % stated; (3) the 1 × 0.8 m block 0.61 % off on its 2.6 x coarser
+  grid – the bound scales with the cell as the Design says; (4) on a smooth groove the thinning is within thin + the
+  left-out ridge height, not thin alone (the Design states thin + ridge; my brief said less) – open point.
+  Container restarted twice for lack of memory (its tests beside mine); it re-ran alone.
+
+**GitHub runs:** 4 full runs, all green: 43966210343 (first push), 43971629369 (after the tester's findings, 26.8 min), 43975917476 (merge main + version, 24.6 min), then one more because `main` moved again before the fast-forward (task 0170's CI change). The container restarted three times for lack of memory (tests and benchmarks run side by side): measure one thing at a time.
+
+**Open points / follow-up tasks**
+
+1. **Faces on the toolpath test model: 116,670 against the exact cut's 95,716** (aim missed by 22 %; 0146 had
+   181,636). Where they go: ~15,000 for the tiles with extra vertices (kept in right triangles – strips there drew a
+   streak; those vertices fix flank errors of 0.16 mm median, up to 0.9 mm on the steep ball-finished faces of this
+   model) and ~9,000 because the finished part's pieces are rebuilt to carry their moves (naming them when the mesh is
+   read instead saved them but left the block's top round a pocket and some tile sides wrongly named). Without the
+   rounded-strip vertices: 93,800 triangles, flanks back to 0.11 mm. Owner's/lead's choice.
+2. **Steep rounded flanks at 0.075 mm** (fillets, round ends of grooves), not ≤ 0.05: needs either a finer grid next to
+   such strips or normals and vertices from the tool's own shape; vertices halfway along the strip came closer
+   (0.075 → 0.055 on the bull) but drew a saw-tooth in the shading.
+3. Three KNOWN FAULT marks left, all one fault: a wall crossing a tile's border lies partly in the side the two tiles
+   share and is there twice / without a move – unlabelled faces at through holes 1.8 mm² (0.05 stated), wall faces on
+   the grid-line pocket +1.9 % (1 %), plunged holes' wall area +3.1 % (2 %; was +6.5 %, the folded faces are gone).
+   Plus the tester's: ball Ø2 slots −0.65 % volume (0.6 %).
+4. Per frame about +5–10 ms (+15–25 %) on M1 and the dome (the extra-vertex search in `_snap`); point 5 (a fast path
+   without a boolean for tiles inside a plain block) not done.
+5. Telling a smooth surface's curvature from fine ridges (`_ridges`): today up to thin + ridge off on smooth grooves.
