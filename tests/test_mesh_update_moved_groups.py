@@ -93,3 +93,18 @@ def test_only_group_b_left_keeps_its_work(tmp_path, move):
     assert by.get(seq.target_uid) == grp, ("sequence step", by.get(seq.target_uid))
     assert logic.is_hidden(grp)
     assert [o.name for o in joints.members(sc.fresing.joints["Work joint"])] == [b1.name]
+
+
+def test_match_an_own_name_in_a_made_group_pairs_anywhere_once_unique():
+    """The name rule on its own: a part named in the file ("b1") inside a made-name group pairs by name 0.1 m away;
+    a second "b1" (not unique), a piece number (its own name made) and a part outside a made group do not."""
+    from mathutils import Vector
+
+    from fresing_render.blender import reimport
+    o = {"kind": "part", "key_a": None, "key_b": ("node 4", "b1"), "leaf": "b1", "pos": Vector((0, 0, 0)),
+         "made": True, "made_self": False}
+    n = dict(o, pos=Vector((0.1, 0, 0)), key_b=("node 9", "b1"))
+    assert len(reimport.match([o], [n])) == 1
+    assert reimport.match([o, dict(o, pos=Vector((5, 0, 0)))], [n, dict(n, pos=Vector((5.2, 0, 0)))]) == []
+    assert reimport.match([dict(o, made_self=True)], [dict(n, made_self=True)]) == []
+    assert reimport.match([dict(o, made=False)], [dict(n, made=False, key_b=("node 4", "x"))]) == []

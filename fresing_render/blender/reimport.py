@@ -216,8 +216,9 @@ def _leaf_counts(recs) -> dict:
 
 
 def _own_name(r, counts) -> bool:
-    """A part named in the file ("B1"), the only record so called, inside a group whose name the reader made."""
-    return (r["kind"] == "part" and bool(r.get("made")) and not r.get("made_self") and bool(r["leaf"])
+    """A part named in the file ("B1"), the only record so called, inside a group whose name the reader made. Only
+    when the record says outright that its own name is the file's (a piece number "W 2" never pairs by name)."""
+    return (r["kind"] == "part" and bool(r.get("made")) and r.get("made_self") is False and bool(r["leaf"])
             and counts.get((r["kind"], r["leaf"])) == 1)
 
 
