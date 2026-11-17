@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.144 – 17 Nov 2026 – Fast 3-axis no longer leaves a hole through the block (task 0186)
+
+- **Milling with Fast 3-axis: no more square hole straight through the workpiece.** On some programs one small square
+  of the block (about 6 × 6 mm) vanished for a few frames, all the way through, although the program never cut there.
+  Where a wall met the edge of one of the fast method's squares, its two corner points were joined in the wrong order;
+  that square is now built the right way.
+- Should a square ever still come out broken, the app now draws it the simpler way, or as uncut block – never as a hole.
+
 ## 0.2.143 – 17 Nov 2026 – Smaller web 3D files (task 0175)
 
 - **Web 3D model: the page is less than half as big.** The demo's page went from 98 MB to 42 MB, its `.glb` from 73 to

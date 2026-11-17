@@ -991,15 +991,21 @@ class HeightMap:
         self._own[key] = hit
         return hit
 
-    def mesh(self, J: int, I: int) -> tuple:        # noqa: E741
+    def mesh(self, J: int, I: int, plain: bool = False) -> tuple:        # noqa: E741
         """The tile as a closed solid: ``(serial, verts, tris, move)``. ``verts`` float64 (n, 3) in the map's
         frame, ``tris`` int32 (m, 3) with the normals pointing out, ``move`` int64 (m,): the ``tag`` of the move
         that made a triangle of the top surface, -1 for the top where nobody cut, -2 for the sides and the
         bottom (seams inside the material) - but a piece of the side that is a wall (a wall that runs along the
-        tile's border) carries the wall's move. ``serial`` changes whenever the mesh does."""
+        tile's border) carries the wall's move. ``serial`` changes whenever the mesh does.
+
+        ``plain`` (task 0186): the tile with the right triangles of task 0146 alone - no strips, no extra vertices
+        of task 0167 -, for a tile whose mesh came out not closed (``_MapSide._below``). Not kept; its serial is
+        the normal mesh's."""
         import time
         t0 = time.perf_counter()
         me = self._tile(J, I)
+        if plain:
+            serial = self.mesh(J, I)[0]
         tab, n = self.tab, self.tile + 1
         sides = tab["sides"]
         # nodes on the border are kept when the tile on the other side needs them
@@ -1023,7 +1029,7 @@ class HeightMap:
             forced[sides[mine]] |= want
         sig = tuple(sig)
         hit = self._mesh.get((J, I))
-        if hit is not None and hit[0] == sig:
+        if hit is not None and hit[0] == sig and not plain:
             return tuple(hit[1:5])
         if me["need"] is None:                          # flat and uncut: the plain top
             P = np.zeros((n * n, 3))
@@ -1036,6 +1042,12 @@ class HeightMap:
             strips = _PLAIN.get(n)
             if strips is None:                          # (two triangles, the same in every such tile)
                 strips = _PLAIN[n] = _hmesh.own(P.reshape(n, n, 3), P.reshape(n, n, 3), np.reshape(cls, (n, n)), 1.0)
+        elif plain:                                     # (the nodes only, right triangles only)
+            nn = n * n
+            P, owner, cls = me["P"][:nn], me["owner"][:nn], me["cls"][:nn]
+            flank, wall_foot = me["flank"][:nn], me["foot"][:nn]
+            strips = _hmesh.own(P.reshape(n, n, 3), me["Q"].reshape(n, n, 3), cls.reshape(n, n), self.thin,
+                                strips=False)
         else:
             P, owner, cls, flank, wall_foot = me["P"], me["owner"], me["cls"], me["flank"], me["foot"]
             strips = me["strips"]
@@ -1061,6 +1073,7 @@ class HeightMap:
         ring = ring[used[ring]]                         # the border once round, the kept nodes only
         if strips.get("eparam") is not None and len(P) > n * n:    # (extra vertices on the border: in the ring)
             ring = self._ring_extras(ring, strips["eparam"], used, n)
+            ring = self._ring_walk(ring, tri, P)
         nb = len(ring)
         nxt = np.roll(np.arange(nb), -1)
         # Where a wall runs along the border, the border's nodes are on the wall and the tile's side there IS the
@@ -1089,6 +1102,8 @@ class HeightMap:
         floor = np.stack([np.full(nb, nt + 2 * nb), fb[nxt], fb], axis=1)
         tris = np.concatenate([new[tri], upper, lower, floor]).astype(np.int32)
         move = np.concatenate([move, uside, np.full(2 * nb + len(floor), -2, np.int64)])
+        if plain:
+            return serial, verts, tris, move
         self._serial += 1
         out = [sig, self._serial, verts, tris, move, len(tri)]
         self._mesh[(J, I)] = out
@@ -1124,6 +1139,32 @@ class HeightMap:
         # (the ring starts at its first node: keep that start)
         key = np.where(key < pos[0] - 1e-9, key + 4 * m, key)
         return ids[np.argsort(key, kind="stable")]
+
+    @staticmethod
+    def _ring_walk(ring: np.ndarray, tri: np.ndarray, P: np.ndarray) -> np.ndarray:
+        """The ring in the order the top surface's own border runs, where two of its vertices stand at one place
+        of the border (task 0186: a wall on the border has an extra vertex at its top and one at its foot; sorted
+        by their place alone, their order was chance, the side was stitched the wrong way between them and the
+        tile was no closed solid - a hole through the block). Unchanged unless such a pair is there and the top's
+        border is one loop through exactly the ring's vertices."""
+        nb = len(ring)
+        xy = P[ring, :2]
+        if nb < 3 or not (np.abs(xy - np.roll(xy, -1, axis=0)).max(axis=1) < 1e-12).any():
+            return ring
+        a = tri.reshape(-1).astype(np.int64)
+        b = tri[:, [1, 2, 0]].reshape(-1).astype(np.int64)
+        big = np.int64(len(P) + 1)
+        edge = ~np.isin(a * big + b, b * big + a)       # (the top's border: edges with no twin; counter-clockwise
+        u, v = a[edge], b[edge]                         # seen from above, as the ring runs)
+        if len(u) != nb or len(np.unique(u)) != nb or not np.array_equal(np.sort(u), np.sort(ring.astype(np.int64))):
+            return ring
+        nxt = dict(zip(u.tolist(), v.tolist()))
+        walk = [int(ring[0])]
+        for _k in range(nb - 1):
+            walk.append(nxt[walk[-1]])
+        if nxt[walk[-1]] != walk[0] or len(set(walk)) != nb:
+            return ring
+        return np.array(walk, dtype=ring.dtype)
 
     def surface(self, J: int, I: int) -> tuple:     # noqa: E741
         """Only the top of ``mesh``: (verts, tris, move)."""
