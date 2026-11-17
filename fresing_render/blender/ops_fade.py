@@ -125,7 +125,7 @@ class FRESING_OT_trail_add(bpy.types.Operator):
 
 
 class FRESING_OT_trail_remove(bpy.types.Operator):
-    """Deletes the selected trail line"""
+    """Removes the selected trail line"""
     bl_idname = "fresing.trail_remove"
     bl_label = "Remove trail line"
     bl_options = {"REGISTER", "UNDO"}

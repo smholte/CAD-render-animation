@@ -367,7 +367,7 @@ class FRESING_OT_cable_select(_NeedsItem, bpy.types.Operator):
 
 class FRESING_OT_cable_motor_step(_NeedsItem, bpy.types.Operator):
     """Adds a step 'Run motor' on this cable's speed to the selected animation: 10 m/min for 5 seconds. Then set
-    the speed and the time in 6 Animation and press Build animation: the cable runs and everything it touches
+    the speed and the time in 6 Animation and press Build & play: the cable runs and everything it touches
     turns"""
 
     bl_idname = "fresing.cable_motor_step"
@@ -385,7 +385,7 @@ class FRESING_OT_cable_motor_step(_NeedsItem, bpy.types.Operator):
         item = _item(context)
         a, b = add_motor_step(scene, item)
         _say(context, self, f"Step 'Run motor' added to animation '{a.name}': '{paths.label(item)}' runs at "
-             f"{MOTOR_SPEED:.0f} m/min for {b.duration:.0f} s. Set it in 6 Animation, then press Build animation")
+             f"{MOTOR_SPEED:.0f} m/min for {b.duration:.0f} s. Set it in 6 Animation, then press Build & play")
         return {"FINISHED"}
 
 
@@ -572,7 +572,7 @@ def let_go_what(item, which: str) -> str:
 class FRESING_OT_cable_let_go(_NeedsOn, bpy.types.Operator):
     """From the frame shown on, this contact or end no longer moves with what carries it: it stays where it is at
     this frame, whatever its part does next (for a cable into the sea it stays on the seabed and passes aft with
-    it). Use it where the cable slides off a quadrant or chute, or its end is let go. Build animation reads it again"""
+    it). Use it where the cable slides off a quadrant or chute, or its end is let go. Build & play reads it again"""
 
     bl_idname = "fresing.cable_let_go"
     bl_label = "Let go here"
@@ -592,7 +592,7 @@ class FRESING_OT_cable_let_go(_NeedsOn, bpy.types.Operator):
                     "was let go at is forgotten")
         return (f"From the frame shown on, {what} no longer moves with what carries it: it stays where it is at "
                 "this frame (for a cable into the sea it stays on the seabed and passes aft with it). Use it where "
-                "the cable slides off a quadrant or chute, or its end is let go. Build animation reads it again")
+                "the cable slides off a quadrant or chute, or its end is let go. Build & play reads it again")
 
     def _which(self, context) -> str:
         if self.which.upper() in ("A", "B"):

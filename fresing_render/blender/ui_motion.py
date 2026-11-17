@@ -603,6 +603,9 @@ class FRESING_PT_poses(_Panel, bpy.types.Panel):
         col.operator("fresing.pose_remove", text="", icon="REMOVE")
         col.operator("fresing.pose_update", text="", icon="FILE_REFRESH")
 
+        from . import workspaces
+        if not workspaces.shows(context.scene, "poses.explode"):       # e.g. the workspace CNC & machining
+            return
         gap(layout, line=True)
         layout.label(text="Exploded view", icon="FULLSCREEN_EXIT")
         box = layout.box()
