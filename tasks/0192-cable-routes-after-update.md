@@ -1,6 +1,6 @@
 # 0192 – Fix: a model update to the same file keeps cable routes; re-bake also redoes riding cameras; seabed follows "Vessel at work"; one-pass background re-bake (bug hunt 6, rows 1, 7, 8, 10)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0192-cable-routes-update`
+**Who:** worker · **Status:** running · **Branch:** `task/0192-cable-routes-update`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183; after 0187) · **Model:** Opus · effort Medium · **Place:**
 Claude Code on the web, environment "CAD-render-animation"
 **Area:** Flex parts lane – cables (`blender/paths.py` `_merge` / `read_cad` / `_ends`, `blender/rebake.py`,
