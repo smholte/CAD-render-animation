@@ -333,7 +333,7 @@ fn(id="animation.brand", title="Brand kit & logo", family="animation", panel="FR
    button="fresing.brand_save", guide="brand-kit", tour=("finishing",), pccheck=("video.finishing",),
    since="0.2.23")
 fn(id="animation.watermark", title="Watermark", family="animation", panel="FRESING_PT_watermark", prop="wm_on",
-   guide="watermark", pccheck=("video.finishing",), since="0.2.23")
+   guide="watermark", tour=("finishing",), pccheck=("video.finishing",), since="0.2.23")
 fn(id="animation.clash", title="Clash check", family="animation", panel="FRESING_PT_clash",
    button="fresing.clash_check", guide="clash", tour=("clash",), pccheck=("animation.clash",), since="0.2.53")
 fn(id="animation.product_video", title="One-click product video", family="animation", panel="FRESING_PT_animation",
