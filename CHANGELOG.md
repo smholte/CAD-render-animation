@@ -5,6 +5,28 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.140 – 17 Nov 2026 – The web 3D page on a phone (task 0179)
+
+- **Saved views as one control.** On a phone held upright the page's saved views are one control above the play bar:
+  **‹ name ›** – the arrows step to the previous or next view, a tap on the name opens a list of all views from the
+  bottom (closes on a pick, a tap outside or the phone's Back). On a PC, a tablet and a phone held sideways they are
+  one row that never wraps: it scrolls sideways, and **All views** opens the same list. No more wall of buttons over
+  the model.
+- **Views by their camera's name.** New setting **View names** in 5 Scene & Render > Web 3D model: **Camera names**
+  (the default – "Shot 3: carousel and arch") or **Numbered** (View 1, View 2 … when the names should stay private).
+  Hide part names no longer turns the views into numbers. The panel shows the names the page will get. Export again
+  to give an older page the names.
+- **Nothing on top of anything.** One stack at the bottom (views, play bar, "Made with"), the button columns under the
+  title, all clear of a notch and the Android gesture bar or iPhone home bar. The note "Quality Phone: lowered to keep
+  it smooth" is a short message for a few seconds (the level stays in the settings).
+- **The model where you can see it.** The page frames the machine in the space the controls leave free, also after
+  turning the phone, and each saved view in the middle of that space.
+- **Easier on a phone:** the title on one line (the whole title in the help); "Drag to turn …" only on the first visit;
+  a long press on a button shows its name; the help lists every button with its icon; the rarer buttons (Screenshot,
+  Copy link, Clean look) under **More tools** (⋯); Back closes an open menu instead of leaving the page; the settings
+  have a close button.
+- The landing page's two 3D models were made again with the new page.
+
 ## 0.2.139 – 17 Nov 2026 – Drums and carousels full of real cable (task 0174)
 
 - **Every layer is cable now.** A drum or carousel (4 Motion > Drums and carousels) no longer shows a grey sleeve or
