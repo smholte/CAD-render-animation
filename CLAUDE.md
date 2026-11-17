@@ -280,7 +280,14 @@ fresing_render/            the Blender extension (Python package)
                            functions.py (the function list, task 0124: one entry per function the owner can see –
                            family/panel/fold for 0062, button or setting, guide anchor, tour stops, PC-check lines,
                            lesson step; `problems()` + `read_repo()` = the precheck's check that every stop, Full line and
-                           guide section is named and every entry is linked; media.json `functions` → the site's links)
+                           guide section is named and every entry is linked; media.json `functions` → the site's links;
+                           task 0062: `workspaces=` per function, else its family's row of `FAMILY_WORKSPACES`)
+                           workspaces.py (task 0062: the built-in workspaces worked out from the function list, what
+                           shows – families, ticks, hidden panels –, own workspaces as one .json each in the library
+                           folder "Workspaces", the text of the "hide what is in use?" question)
+                           places.py (task 0062: ONE table of where each side-panel panel sits – sections, sub-panels in
+                           the order they show, `where("labels")` = "6 Animation > Labels"; texts that name a place ask
+                           it; `tests/test_places.py` compares it with the registered panels)
                            props_detail.py (props for scale in detail, task 0155: the person – a skeleton posed by joint
                            angles, lofted skin, face without a likeness, hands, shoes, outfits; heights 1.65/1.75/1.85, put
                            on the floor after posing – and the detailed container, pallet, barrier, IBC, gas rack, tool
@@ -342,6 +349,23 @@ fresing_render/            the Blender extension (Python package)
                            (cnc["fr_air"]), "Show air" cone; settings in 4 Motion > CNC machine > Air blast
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
                            spot, turntable);  ui.py ui_motion.py  side panel (1-7)
+    panels.py              task 0062: every panel of the Fresing tab draws its own title row (registered `HIDE_HEADER`;
+                           `install()` runs over the classes before they are registered and puts a `draw` and a `poll`
+                           round each: a panel file only says `draw_header`, `draw_header_preset`, `draw`). The open set
+                           is the app's (`is_open`, `set_open`, `open_to`, `show_only` for tests and pictures): sections
+                           start folded at every start and load, Ctrl+click keeps one open, the section tabs All · 1…7.
+                           It also puts the lock's `poll` on every `fresing.*` operator
+    workspaces.py lock.py  task 0062: the project's workspace (`ws_name`, `ws_data`, `ws_ticks`), what a project uses
+                           (`in_use`), switching, own-workspace files; lock.py = the Client view's lock (operators
+                           refused except `ALLOWED`, objects unclickable + locked and put back, keys swallowed, Outliner
+                           replaced) and Blender's own workspace tabs hidden outside Full access
+    ui_top.py ops_workspace.py  the top of the Fresing tab: Workspace switcher + family ticks, What's next card,
+                           section tabs, Make (each output's own settings panel as a popover; also in the 3D view's
+                           header)
+    ui_setup.py ops_setup.py  task 0062: the Set-up window – a second window with a tab "Set-up": CNC mill and
+                           mechanism one step at a time (`SETUPS`), the step kept in the project
+    highlight.py           task 0062: what a lesson points with – a button, a folded section, a part (six looks behind
+                           Preferences > Lesson highlight); nothing runs unless something is pointed at
                            ui_machining.py: 4 Motion > Milling (ops_machining.py)
     gcode.py               CNC machine (task 0026): X/Y/Z joints + spindle, tool, work zero (marker), bake of the
                            Run G-code program step (keys on move ends + along arcs), tool copies at M6, the
@@ -699,9 +723,23 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - Do not change the cache format or saved-project data silently: bump `CACHE_VERSION` in
   `importer/step_reader.py` when the cache changes; old projects must keep opening.
 - UI follows the layout rules at the top of `blender/ui.py`: steps top to bottom, choices
-  above their button, the main button big and blue (`primary()`), details of the selected
-  list item under the list, no cut-off labels at the default side-panel width, rarely used
-  settings in folds, a state in every panel header. Check with `tools/ui_screens.py`.
+  above their button, details of the selected list item under the list, no cut-off labels at the
+  default side-panel width, rarely used settings in folds, a state in every panel header (sub-panels
+  too). Since task 0062 also: a `gap()` between the steps of a panel; the numbered how-to is
+  `steps(..., key="fr_how_<panel>", used=<the project has one>)` (a fold "How it works"); hints grey
+  (`hint()`), red only for a problem; **one blue button per section** (`primary()`: Import STEP…, Sort
+  parts into groups, Render image, Build & play, Start queue) – a sub-panel's main button is `big()`;
+  `missing()` when the thing a panel needs is not there; one word per action (Remove / Clear / Delete,
+  Show in folder, Add / Use as, Back to …, Find, Set-up). Check with `tools/ui_screens.py`
+  (`UISHOT_TAB=4` shows one section).
+- **A new panel** (task 0062): the class says `draw_header` (icon), `draw_header_preset` (state) and
+  `draw` (body) – never its own title row, `bl_options` only `DEFAULT_CLOSED` or nothing (`panels.py`
+  draws the title and keeps what is open). Add it to `core/places.py` (parent, title, at its place in
+  the order: sub-panels show in that order) and name it in a `core/functions.py` entry with the right
+  `family` – and `workspaces=` when it belongs to some kinds of work only. A text that names a place in
+  the side panel asks `places.where()` / `ui.where()`. An operator that must still work in the Client
+  view goes into `lock.ALLOWED`. Real-app tests and pictures open panels with `panels.open_to()` /
+  `panels.show_only()`, never by registering a class again.
 - **Tooltips:** every button and setting has one (operator docstring/`description`, property
   `description`): first what it does, then how to use it or what happens next, in plain words
   ("Puts the ticked parts in a new group named after your search. Then pick its material
@@ -1159,6 +1197,20 @@ the release → Delete); the next run on `main` publishes it again.
   noise and differs per CPU; take it from what has a length (the arc). Find such a case with a temporary workflow that
   runs the case on many runners at once and prints `lscpu` with the numbers (task 0184's branch history), not by
   repeating it locally – here no load, thread count or hash seed changed one bit.
+- Blender keeps a panel's open / closed state per panel name once drawn, and an add-on cannot set it (task 0062):
+  "sections start folded at every start", "a tab opens its section" and "a lesson opens the fold" are only possible
+  with the app's own title rows (`HIDE_HEADER` panels; sub-panels of such a panel work, three levels deep). A `poll`
+  put on a panel class after it was registered is ignored: put it on before (`panels.install`).
+- A side-panel panel shown with `layout.popover(panel=...)` is asked its `poll` like in the side panel: a panel that
+  hides when its section is folded would grey out its popover button. The Make list has small popover panels of its
+  own that draw the settings panel's body (`panels.body_of`), with `ui.popover_width()` so texts wrap at the
+  popover's width.
+- Replacing `TOPBAR_HT_upper_bar.draw_left` (or a menu's `draw`) changes Blender's own UI without deleting anything;
+  the top bar is no area of the screen, so it redraws only at the next window redraw. A key in an add-on keymap whose
+  operator's `poll` is False passes on to Blender's own key – a lock can swallow Delete / Tab only while it is on.
+  Simulated keys reach nothing while the splash screen is open: send Esc first.
+- A header row's state is right-aligned only when the label sits directly in a row with `alignment = "RIGHT"`
+  (`header_status` sets it on its own row): a default row nested in a right-aligned one is drawn left.
 - A mesh can be closer to the exact surface and look worse: vertices put halfway along a rounded strip, at different
   distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
   strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at
