@@ -131,7 +131,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 
 | # | Task | Version |
 | --- | --- | --- |
-| 0176 | The Fresing logo as a watermark (owner after 0169): Watermark gets Fresing logo / Brand kit logo – centre, tiled or corner, colour/white/dark – on stills, videos, queue, product video; a ready-made Fresing brand kit ships with the app | worker | Sonnet · Medium | done (0.2.135) | tasks/0176-logo-watermark.md |
+| 0176 | The Fresing logo as a watermark (owner after 0169): Watermark gets Fresing logo / Brand kit logo – centre, tiled or corner, colour/white/dark – on stills, videos, queue, product video; a ready-made Fresing brand kit ships with the app | 0.2.135 |
 | 0170 | Test runs 4a: a task's last push to `main` (merge main + report) gets a docs run when its code already ran green – the four full runs of 16 Nov replay as docs; pytest groups re-recorded (plan 16.0 → 13.8 min each). Open: `test_demo_clash.py` 13.7 min alone | – (CI only) |
 | 0169 | The Fresing logo (owner's logo pack) as the app icon: every shortcut, window + taskbar (AppUserModelID Fresing.Render), older installs refreshed by the app at start, splash with the logo in Fresing Green | 0.2.133 |
 | 0166 | Demo: a wind park round the cable-lay vessel – 9 turbines (IEA 15 MW sizes) + substation on the moving seabed, first end from turbine A's J-tube, second end beside B, shots 2b / 8a / 13 (night lights); park left out of the clash check, its clearances tested | 0.2.130 |
