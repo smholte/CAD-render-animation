@@ -1,0 +1,65 @@
+name: Diag 0184 (temporary)
+# Task 0184: the tour stop "spool" fails on some runners only. Runs the stop on many runners at once and prints each
+# runner's CPU and the cable solver's inputs around frame 233. Removed again by the same task.
+on:
+  push:
+    branches: ["task/0184-tour-spool-random"]
+    paths: [".github/workflows/diag-0184.yml"]
+jobs:
+  diag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        id: py
+        with:
+          python-version: "3.13"
+      - uses: actions/cache/restore@v6
+        id: cache-venv
+        with:
+          path: ~/venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
+      - if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
+      - name: CPU
+        run: lscpu | grep -E "Model name|Flags" | cut -c1-200; nproc
+      - name: Spool stop alone, then after the cables stop (as test_tour.py)
+        run: |
+          cat > /tmp/diag.py <<'PY'
+          import sys, os
+          sys.path.insert(0, os.getcwd())
+          import numpy as np, bpy, addon_utils, fresing_render
+          from fresing_render.blender import tour, animation, paths
+          mode = sys.argv[1]
+          bpy.ops.wm.read_factory_settings(use_empty=True)
+          addon_utils.enable("cycles", default_set=True)
+          fresing_render.register()
+          folder = "/tmp/diag_" + mode
+          sets = ("spool",) if mode == "alone" else ("cables", "spool")
+          print("build", tour.build_all(folder, "9.9.9", only=sets)["errors"])
+          orig = paths._solve_item
+          def spy(scene, item, rel, *a, **k):
+              res = orig(scene, item, rel, *a, **k)
+              if item.name == "Power cable" and rel.shape[0] > 100:
+                  np.set_printoptions(precision=6, suppress=True, linewidth=220)
+                  lif = np.flatnonzero(np.asarray(res["lifted"]).any(axis=1))
+                  print("LIFTED frames", lif[:10] + 1, "rel sum %.9f" % float(rel.sum()))
+                  for f in range(226, 240):
+                      print("F", f + 1, "wrap %.6f" % float(res["wrap"][f, 0]), "T", rel[f, :, :3, 3].ravel(),
+                            "R1", rel[f, 1, :3, :2].ravel())
+              return res
+          paths._solve_item = spy
+          for sid in (("spool",) if mode == "alone" else ("cables", "spool")):
+              st = tour.find(sid)
+              tour.open_set(folder, "9.9.9", st.set)
+              print("STOP", sid, tour.apply(st, bpy.context.scene))
+          PY
+          ~/venv/bin/python /tmp/diag.py alone 2>&1 | grep -E "^(build|LIFTED|F |STOP)|Error|Traceback" || true
+          ~/venv/bin/python /tmp/diag.py after 2>&1 | grep -E "^(build|LIFTED|STOP)|Error|Traceback" || true
