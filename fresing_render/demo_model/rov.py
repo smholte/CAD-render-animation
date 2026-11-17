@@ -42,6 +42,7 @@ CAMERA_DARK = (0.20, 0.22, 0.24)
 GLASS = (0.10, 0.14, 0.18)
 ARM_GREY = (0.40, 0.42, 0.44)
 RESTRICTOR_ORANGE = (0.95, 0.42, 0.05)
+TETHER_BLACK = (0.10, 0.10, 0.11)
 
 # ---- sizes (mm) ----------------------------------------------------------------------------------------------------
 FX, FY = 1350.0, 800.0                # the frame's beam centre lines: x = ±FX, y = ±FY
@@ -239,8 +240,11 @@ def _thruster_frames():
     return out
 
 
-def build(p: Params | None = None) -> tuple[Asm, dict]:
-    """(root Asm, info for the route sheet; ROV coordinates, mm)."""
+def build(p: Params | None = None, place=None, cable_y: float | None = None) -> tuple[Asm, dict]:
+    """(root Asm, info for the route sheet; ROV coordinates, mm). ``place`` (task 0173): the ROV's station in the
+    vessel's coordinates (``station``) – then it gets its tether to the transom ("ROV TETHER", a slack tube the app
+    makes a hose of) and ``info["place"]``, ``info["tether_top"]`` (vessel mm). ``cable_y``: the lay cable's line (y,
+    vessel mm): the tether's top is ``TETHER_TOP[1]`` outboard of it."""
     del p                                              # (the ROV does not depend on the cable)
     root = Asm(ROOT)
     root.add(Part("ROV FRAME", frame(), ALU))
@@ -281,6 +285,18 @@ def build(p: Params | None = None) -> tuple[Asm, dict]:
         root.add(Part("ROV MANIPULATOR", manipulator(s), ARM_GREY))
     term, tip, td = termination()
     root.add(Part("ROV TETHER TERMINATION", term, RESTRICTOR_ORANGE))
+    extra = {}
+    if place is not None:
+        P = np.asarray(place, float)
+        side = -1.0 if (cable_y or 0.0) < 0 else 1.0
+        top = np.array([TETHER_TOP[0], (cable_y or 0.0) + side * abs(TETHER_TOP[1]), TETHER_TOP[2]])
+        Pi = np.linalg.inv(P)
+        top_l = (Pi @ np.r_[top, 1.0])[:3]
+        d1_l = Pi[:3, :3] @ np.array([1.0, 0.0, 0.0])          # into the transom (+x of the vessel)
+        pts = tether_points(tip, td, top_l, d1_l)
+        root.add(Part("ROV TETHER", tether(pts), TETHER_BLACK))
+        extra = {"place": [[float(v) for v in row] for row in P], "tether_top": [float(v) for v in top],
+                 "tether_length": float(np.linalg.norm(np.diff(pts, axis=0), axis=1).sum())}
     lo, hi = _box(root)
     info = {
         "about": "task 0173: ROV coordinates (mm): origin = the middle of the skids' underside, +x forward (camera and "
@@ -297,8 +313,80 @@ def build(p: Params | None = None) -> tuple[Asm, dict]:
         "size": [float(v) for v in hi - lo],
         "glow": ["ROV LIGHT LENS"],
         "triangles_hint": 0,
+        **extra,
     }
     return root, info
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# where it works (task 0173): beside the lay cable's touch-down, its tether to the vessel's transom
+# ---------------------------------------------------------------------------------------------------------------
+
+LAYBACK = 32000.0                      # mm from where the cable leaves horn A to the touch-down (demo.SEA_LAYBACK)
+DEPTH = 30000.0                        # mm of water (demo.SEA_DEPTH); the waterline is the vessel's z = 0
+LEAVE_DEG = 68.0                       # the cable leaves horn A this far below horizontal (30 m, 32 m layback)
+SIDE = 8000.0                          # mm outboard of the cable's line, level with the touch-down
+ABOVE = 2500.0                         # mm: the skids over the seabed
+TETHER_TOP = (-2.0, -4000.0, -1000.0)  # mm: the tether's end on the transom (x), outboard of the cable (y), under water
+TETHER_SLACK = 1.06                    # the tether's length / the straight line between its ends (a hose: it hangs)
+TETHER_R = 20.0                        # mm (a Ø 40 mm tether)
+
+
+def station(horn_centre, horn_r: float) -> np.ndarray:
+    """The ROV's place in the vessel's coordinates (4 x 4, mm): level with the touch-down, ``SIDE`` outboard of the
+    cable's line (the cable runs on the side its y says), ``ABOVE`` the seabed, looking (+x) across at the touch-down.
+    ``horn_centre``: horn A's bend centre (vessel mm), ``horn_r``: its bend radius."""
+    hc = np.asarray(horn_centre, float)
+    x_leave = hc[0] - horn_r * math.sin(math.radians(LEAVE_DEG))
+    side = -1.0 if hc[1] < 0 else 1.0                       # outboard: away from the centre line
+    at = np.array([x_leave - LAYBACK, hc[1] + side * SIDE, -DEPTH + ABOVE])
+    return T(*at) @ g.Rot((0.0, 0.0, 1.0), 90.0 if side < 0 else -90.0)
+
+
+def tether_points(start, d0, end, d1, slack: float = TETHER_SLACK, n: int = 40) -> np.ndarray:
+    """(n, 3): a slack line from ``start`` (leaving along ``d0``) to ``end`` (arriving along ``d1``) – a cubic Bezier
+    whose middle sags until its length is ``slack`` x the straight distance."""
+    a, b = np.asarray(start, float), np.asarray(end, float)
+    d0, d1 = _unit(d0), _unit(d1)
+    chord = float(np.linalg.norm(b - a))
+    t = np.linspace(0.0, 1.0, n)[:, None]
+
+    def curve(sag):
+        p1 = a + d0 * chord * 0.3 + np.array([0.0, 0.0, -sag])
+        p2 = b - d1 * chord * 0.3 + np.array([0.0, 0.0, -sag])
+        return ((1 - t) ** 3) * a + 3 * ((1 - t) ** 2) * t * p1 + 3 * (1 - t) * t * t * p2 + t ** 3 * b
+    lo, hi = 0.0, chord
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        pts = curve(mid)
+        if float(np.linalg.norm(np.diff(pts, axis=0), axis=1).sum()) < slack * chord:
+            lo = mid
+        else:
+            hi = mid
+    return curve((lo + hi) / 2)
+
+
+def tether(points, r: float = TETHER_R):
+    """A round tube of radius ``r`` along the points (an interpolated B-spline, swept: one solid)."""
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire
+    from OCP.BRepOffsetAPI import BRepOffsetAPI_MakePipeShell
+    from OCP.GeomAPI import GeomAPI_PointsToBSpline
+    from OCP.gp import gp_Ax2, gp_Circ
+    from OCP.collections import Array1_gp_Pnt
+    pts = np.asarray(points, float)
+    arr = Array1_gp_Pnt(1, len(pts))
+    for i, q in enumerate(pts):
+        arr.SetValue(i + 1, g.P(q))
+    curve = GeomAPI_PointsToBSpline(arr, 3, 8).Curve()
+    edge = BRepBuilderAPI_MakeEdge(curve).Edge()
+    d0 = _unit(pts[1] - pts[0])
+    prof = BRepBuilderAPI_MakeWire(BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(g.P(pts[0]), g.D(d0)), float(r))).Edge()).Wire()
+    ps = BRepOffsetAPI_MakePipeShell(BRepBuilderAPI_MakeWire(edge).Wire())
+    ps.SetMode(False)                                     # corrected Frenet
+    ps.Add(prof)
+    ps.Build()
+    ps.MakeSolid()
+    return ps.Shape()
 
 
 def _box(root: Asm) -> tuple[np.ndarray, np.ndarray]:

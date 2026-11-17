@@ -222,3 +222,56 @@ def test_writes_its_own_file_and_triangles_under_budget(built, tmp_path):
     assert 5_000 < placed <= TRIANGLE_BUDGET, placed
     sheet = layout._park_sheet(info)                         # (as the route sheet holds it)
     assert json.loads(json.dumps(sheet))["tether"]["point"] == pytest.approx(info["tether"]["point"], abs=1e-3)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# where it works and its tether (task 0173)
+# ---------------------------------------------------------------------------------------------------------------
+
+HORN = np.array([2550.0, -4050.0, 4050.0 - 4050.0])     # (as layout: horn A's bend centre; only x and y matter here)
+R = 4050.0
+
+
+@pytest.fixture(scope="module")
+def placed():
+    P = rov.station(HORN, R)
+    root, info = rov.build(Params(), place=P, cable_y=HORN[1])
+    return root, info, P
+
+
+def test_the_station_is_beside_the_touch_down_and_looks_at_it(placed):
+    _root, info, P = placed
+    x_leave = HORN[0] - R * np.sin(np.radians(rov.LEAVE_DEG))
+    tdp = np.array([x_leave - rov.LAYBACK, HORN[1], -rov.DEPTH])
+    at = P[:3, 3]
+    assert at[0] == pytest.approx(tdp[0]) and at[2] == pytest.approx(-rov.DEPTH + rov.ABOVE)
+    assert abs(at[1] - HORN[1]) == pytest.approx(rov.SIDE) and abs(at[1]) > abs(HORN[1])     # outboard of the cable
+    fwd = P[:3, :3] @ np.array([1.0, 0.0, 0.0])
+    to_tdp = (tdp - at)[:2] / np.linalg.norm((tdp - at)[:2])
+    assert float(fwd[:2] @ to_tdp) > 0.999 and abs(fwd[2]) < 1e-9                             # level, facing it
+    cam = np.array(info["camera"]["point"])
+    cd = P[:3, :3] @ np.array(info["camera"]["direction"])
+    cw = P[:3, :3] @ cam + at
+    miss = np.linalg.norm(np.cross(tdp - cw, cd))                       # the camera's view line passes near it
+    assert miss < 2500.0, miss
+
+
+def test_the_tether_runs_slack_from_the_restrictor_to_the_transom(placed):
+    root, info, P = placed
+    parts = {n.name: (n, W) for n, W in _placed(root)}
+    assert "ROV TETHER" in parts
+    n, W = parts["ROV TETHER"]
+    assert g.solids(n.shape) == 1 and n.color is not None
+    pts = _world_points(n, W)
+    tip = np.array(info["tether"]["point"])
+    top_l = np.linalg.inv(P) @ np.r_[info["tether_top"], 1.0]
+    assert np.linalg.norm(pts - tip, axis=1).min() < rov.TETHER_R + 3.0       # it starts at the restrictor's end
+    assert np.linalg.norm(pts - top_l[:3], axis=1).min() < rov.TETHER_R + 3.0  # and ends at its point on the transom
+    top = np.array(info["tether_top"])
+    assert top[0] < 0.0 and top[2] < 0.0 and abs(top[1]) > abs(HORN[1])     # aft of the transom, under water, outboard
+    chord = np.linalg.norm((P @ np.r_[tip, 1.0])[:3] - top)
+    assert 1.02 * chord < info["tether_length"] < 1.15 * chord
+    # it stays outboard of the cable's line (the cable runs at y = HORN[1]) and over the seabed
+    wp = pts @ P[:3, :3].T + P[:3, 3]
+    assert (np.abs(wp[:, 1]) > abs(HORN[1]) + 3000.0).all()
+    assert wp[:, 2].min() > -rov.DEPTH + 1000.0                         # a metre and more over the seabed

@@ -316,7 +316,8 @@ def build(p: Params | None = None, with_lebus: bool = True, with_park: bool = Fa
     # ---- the ROV at the touch-down (task 0173; its own file and coordinates, rov.py)
     if with_rov:
         t = time.time()
-        S.files["rov"], S.info["rov"] = rv.build(p)
+        hc = np.array([pos["horn_x"], yA, p.line_z - R])        # horn A's bend centre (as the horns above)
+        S.files["rov"], S.info["rov"] = rv.build(p, place=rv.station(hc, R), cable_y=yA)
         S.timings["rov"] = time.time() - t
     S.files["assembly"] = root
     S.root = root

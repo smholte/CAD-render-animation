@@ -47,7 +47,7 @@ CABLE = "Cable travel"                # the slide joint (m of cable paid out) ev
 SEA_SHOT = "Open sea"
 QUAY_SHOT = "Loading at the quay"
 TAG = "fr_demo"                       # on the scene of the demo project: the version
-MODEL_KEYS = ("assembly", "quay_loading", "park")    # task 0166: the wind park round the vessel
+MODEL_KEYS = ("assembly", "quay_loading", "park", "rov")   # task 0166: the wind park round the vessel; 0173: the ROV
 QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
 SPEED = 10.0                          # m/min of cable while laying (0083)
 LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
@@ -355,7 +355,7 @@ def _run_maker(d: Demo) -> None:
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
     log = os.path.join(d.model_dir, "maker log.txt")
-    keys = MODEL_KEYS if d.quay else ("assembly", "park")
+    keys = MODEL_KEYS if d.quay else ("assembly", "park", "rov")
     os.makedirs(d.model_dir, exist_ok=True)
     with open(log, "w", encoding="utf-8", errors="replace") as fh:
         proc = subprocess.Popen([import_runner.python_executable(), script, d.model_dir, "--only", ",".join(keys),
@@ -2305,3 +2305,4 @@ def build_main(folder: str = "", small: bool = False) -> int:
 
 
 from . import demo_park  # noqa: E402,F401  (task 0166: registers the wind park's stages)
+from . import demo_rov  # noqa: E402,F401  (task 0173: registers the ROV's stages)
