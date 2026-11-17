@@ -52,15 +52,28 @@ def fresh_process(fn):
     return wrapper
 
 
-def _scene(tmp_path):
+@pytest.fixture(scope="module")
+def addon():
+    """The add-on registered for this file's Blender tests, and unregistered after them (the next file registers it
+    again)."""
     bpy = pytest.importorskip("bpy")
     import addon_utils
 
     import fresing_render
-    from fresing_render.blender import paths, paths_sea
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
     fresing_render.register()
+    yield
+    fresing_render.unregister()
+
+
+def _scene(tmp_path):
+    bpy = pytest.importorskip("bpy")
+    import addon_utils
+
+    from fresing_render.blender import paths, paths_sea
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
     paths.forget()
     sc = bpy.context.scene
     sc.fresing.out_folder = str(tmp_path)
@@ -69,7 +82,7 @@ def _scene(tmp_path):
     return sc
 
 
-def test_a_label_on_a_sea_cable_shows_its_numbers_at_every_frame(tmp_path):
+def test_a_label_on_a_sea_cable_shows_its_numbers_at_every_frame(addon, tmp_path):
     pytest.importorskip("bpy")
     from fresing_render.blender import animation, callouts, paths, paths_sea
     sc = _scene(tmp_path)
@@ -104,7 +117,7 @@ def test_a_label_on_a_sea_cable_shows_its_numbers_at_every_frame(tmp_path):
 
 
 @fresh_process
-def test_a_label_of_several_lines_is_drawn_in_its_box(tmp_path):
+def test_a_label_of_several_lines_is_drawn_in_its_box(addon, tmp_path):
     bpy = pytest.importorskip("bpy")
     from fresing_render.blender import callouts, paths, paths_sea, video
     from fresing_render.core import brand

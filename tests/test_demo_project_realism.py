@@ -152,6 +152,22 @@ def test_the_rov_is_still_beside_the_touch_down_and_shown_only_while_laying(buil
     sc.frame_set(sc.frame_start)
 
 
+def test_shot_8_shows_horn_a_the_touch_down_and_the_rov(built):
+    """The camera of shot 8 sees the cable from horn A to the touch-down and the ROV beside it, all through the shot."""
+    from fresing_render.blender import callouts
+    sc, a = built
+    b = next(b for b in a.blocks if b.name == demo.SEA_CAPTION)
+    size = (1920, 1080)
+    for t in (b.start + 0.3, b.start + b.duration / 2, b.start + b.duration - 0.3):
+        sc.frame_set(int(round(t * int(a.fps))) + 1)
+        T, tdp = paths_sea.tdp_world(sc, paths.find(sc, demo.CABLE_ITEM))
+        rov = np.array(_rov(sc).matrix_world.translation)
+        px, ok = callouts.project(callouts.camera_matrix(sc, size), size, np.array([T, tdp, rov]))
+        assert ok.all() and (px[:, 0] > 20).all() and (px[:, 0] < size[0] - 20).all(), (t, px)
+        assert (px[:, 1] > 20).all() and (px[:, 1] < size[1] - 20).all(), (t, px)
+    sc.frame_set(sc.frame_start)
+
+
 def test_the_rov_tether_is_a_hose_to_the_transom_and_out_of_the_clash_check(built):
     from fresing_render.blender import clash
     sc, a = built
