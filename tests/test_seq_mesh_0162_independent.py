@@ -154,8 +154,8 @@ def _check_work(sc, hide, seq, part_name, x=None):
     assert on == [f"{p.get(build.PROP_NAME)}@{_cx(p):.2f}"], ("joint", on)
 
 
-# (one group left – ("B",) – is an open point of task 0162: the reader then makes that group the model's root, which
-# is matched to the old root, not to the old group; GitHub counts an expected failure as a skipped test, so not here)
+# (one group left – ("B",) – the reader then makes that group the model's root: tests/test_mesh_update_moved_groups.py,
+# task 0188)
 @pytest.mark.parametrize("after", [("A", "B"), ("B", "C"), ("A", "B", "C", "D"), ("D", "A", "B", "C")],
                          ids=["C-removed", "A-removed", "D-added-last", "D-added-first"])
 def test_unnamed_group_b_keeps_its_work(tmp_path, after):
