@@ -4,12 +4,16 @@
     ~/venv/bin/python tools/bench_milling_dense.py --only m1 --quick --json out.json
     ~/venv/bin/python tools/bench_milling_dense.py --fast           # the height-map cutter (where available)
     ~/venv/bin/python tools/bench_milling_dense.py --volume         # also the removed volume (mm3)
+    ~/venv/bin/python tools/bench_milling_dense.py --only toolpath --toolpath-file tp.npz --fast   # task 0167
 
 Both programs: ball end mill diameter 6 mm, axis +Z, zigzag raster, metres, one sample per ``--per-frame`` points.
     m1    "wavy": block 100 x 60 x 20 mm, 201 passes 0.3 mm apart, 201 points per pass (40,401 points), the tip on a
           smooth wavy surface 1-4.5 mm below the top (study: 13,911 segments at Normal)
     dome  block 60 x 60 x 20 mm, a spherical cap (R 120 mm, apex 1 mm below the top; corners 8.7 mm deep), 0.5 mm step-over
           (study: 3,586 segments)
+    toolpath  the app's own toolpath test model (tests/data/test_toolpath.step: flat Ø10 roughing + ball Ø10 finishing,
+          7,244 moves), read from a file that ``tools/dump_toolpath_program.py`` writes with Blender as a module
+          (task 0167); only with ``--only toolpath``
 Measured: the timeline's build, the whole program, the growth over 5 stops (M1), scrubbing forward / backward, peak RSS.
 The generators ``m1_program()`` and ``dome_program()`` are importable (tests, Heavy check).
 """
@@ -81,18 +85,42 @@ def dome_program(per_frame: int = 8):
     return ((0.06, 0.06, 0.02), (0.0, 0.0, -0.02)), M.Tool("BALL", radius=0.003, length=0.04), t, o, d
 
 
+def toolpath_program(path: str):
+    """The toolpath test model's program from ``tools/dump_toolpath_program.py``'s file: ``(stock, tools, paths,
+    finished)`` - stock and finished part as Manifold solids, the bits as ``M.Tool``, the paths as ``M.Path``."""
+    import manifold3d as mf
+    z = np.load(path)
+
+    def solid(v, t):
+        return mf.Manifold(mf.Mesh(vert_properties=np.ascontiguousarray(z[v], np.float32),
+                                   tri_verts=np.ascontiguousarray(z[t], np.uint32)))
+    tools, paths, i = [], [], 0
+    while f"tool{i}" in z:
+        r, length, corner, angle = (float(x) for x in z[f"tool{i}"])
+        tools.append(M.Tool(str(z[f"kind{i}"]), radius=r, length=length, corner=corner, angle=angle))
+        paths.append(M.Path(z[f"path{i}_t"], z[f"path{i}_o"], z[f"path{i}_d"]))
+        i += 1
+    return solid("stock_v", "stock_t"), tools, paths, (solid("keep_v", "keep_t") if "keep_v" in z else None)
+
+
 def make_stock(stock):
     import manifold3d as mf
+    if not isinstance(stock, tuple):
+        return stock
     size, origin = stock
     return mf.Manifold.cube(size).translate(origin)
 
 
 def build(prog, detail, fast):
-    stock, tool, t, o, d = prog
-    st = make_stock(stock)
+    if len(prog) == 4:                                  # the toolpath test model: several bits and paths
+        st, tools, paths, fin = prog
+        cutters = [M.Cutter(t, detail) for t in tools]
+    else:
+        stock, tool, t, o, d = prog
+        st, fin, cutters, paths = make_stock(stock), None, [M.Cutter(tool, detail)], [M.Path(t, o, d)]
     kw = {"fast": True} if fast else {}
     t0 = time.perf_counter()
-    tl = M.Timeline(M.Workpiece(st, None, detail), [M.Cutter(tool, detail)], [M.Path(t, o, d)], detail, **kw)
+    tl = M.Timeline(M.Workpiece(st, fin, detail), cutters, paths, detail, **kw)
     return st, tl, time.perf_counter() - t0
 
 
@@ -105,7 +133,7 @@ def timed(tl, T, **kw):
 def run(name, prog, args):
     res = {"name": name}
     st, tl, dt = build(prog, args.detail, args.fast)
-    res.update(points=int(len(prog[2])), segments=len(tl.segs), cutting_segments=tl.stats.cutting_segments,
+    res.update(points=int(sum(len(p.t) for p in tl.paths)), segments=len(tl.segs), cutting_segments=tl.stats.cutting_segments,
                build_s=dt)
     print(f"\n== {name}: {res['points']} points, {res['segments']} segments ({res['cutting_segments']} cutting), "
           f"timeline built in {dt:.2f} s", flush=True)
@@ -159,7 +187,8 @@ def run(name, prog, args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--only", choices=("m1", "dome"))
+    ap.add_argument("--only", choices=("m1", "dome", "toolpath"))
+    ap.add_argument("--toolpath-file", help="the file of tools/dump_toolpath_program.py (for --only toolpath)")
     ap.add_argument("--detail", default="NORMAL", choices=("FINE", "NORMAL", "FAST"))
     ap.add_argument("--fast", action="store_true", help="the height-map cutter (Timeline(fast=True))")
     ap.add_argument("--quick", action="store_true", help="skip the growth measurement")
@@ -171,12 +200,12 @@ def main():
     if args.fast and "fast" not in inspect.signature(M.Timeline.__init__).parameters:
         print("fast is not available in this version")
         sys.exit(2)
-    progs = {"m1": m1_program, "dome": dome_program}
+    progs = {"m1": m1_program, "dome": dome_program, "toolpath": None}
     out = []
     for name, fn in progs.items():
-        if args.only and args.only != name:
+        if (args.only and args.only != name) or (fn is None and args.only != name):
             continue
-        prog = fn(args.per_frame)
+        prog = toolpath_program(args.toolpath_file) if fn is None else fn(args.per_frame)
         if args.segments_only:
             _, tl, dt = build(prog, args.detail, False)
             print(name, "segments", len(tl.segs), f"({dt:.2f} s)")

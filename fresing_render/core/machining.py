@@ -1089,6 +1089,11 @@ _MAP_FRAMES = {
 }
 
 
+KEEP_NOTHING = 1e-15              # m³ (0.000001 mm³): less of the finished part than this over the map is nothing
+THIN_OF_SIDES = 2.0 / 3.0         # the map's thinning: this x how far the exact cut's many-sided bit lies inside
+#                                   the round one (with that the two are at most 0.03 mm apart up to a Ø10 bit)
+
+
 class _MapSide:
     """The height-map part of a timeline: which moves it takes, the map, and how its tiles are joined with the
     solids the booleans made.
@@ -1151,10 +1156,14 @@ class _MapSide:
         span = hmap.TILE * cell
         # (the nodes a little off the round numbers CAM programs use: a wall that runs exactly through a row of
         # nodes has them inside and outside the cut by rounding, one this way, the next that way)
+        # (task 0167: the mesh is thinned to two thirds of how far the exact cut's many-sided bit lies inside
+        # the round one - Ø10 at Normal 0.010 mm, Ø6 0.006 -, never finer than the detail level's tolerance)
+        seg = detail(tl.detail_name)["seg"]
+        thin = THIN_OF_SIDES * smallest * (1.0 - math.cos(math.pi / seg))
         hm = hmap.HeightMap(lo[0] - 2.3713 * cell, lo[1] - 2.6181 * cell, cell,
                             int(math.ceil((hi[0] - lo[0] + 5 * cell) / span)),
                             int(math.ceil((hi[1] - lo[1] + 5 * cell) / span)),
-                            top=hi[2], bottom=lo[2] - 1 * MM, tol=tl.tol)
+                            top=hi[2], bottom=lo[2] - 1 * MM, tol=tl.tol, thin=thin)
         seg_q = np.full(n, -1, dtype=np.int64)
         seg_q[sel] = np.arange(int(sel.sum()))
         for s in tl.segs:
@@ -1163,6 +1172,11 @@ class _MapSide:
         marks = cls.mark_classes(tl, R)
         hm.set_moves([shapes[b] for b in used], np.searchsorted(used, mk.bit[sel]), mk.o0[sel] @ R[:2].T,
                      mk.o1[sel] @ R[:2].T, z0[sel], z1[sel], tag, marks[tag], slots=max(1, len(tl.paths)))
+        keep = tl.wp.first[0].keep
+        if keep is not None:                            # (task 0167: the map goes just under the finished part)
+            km = keep.to_mesh()
+            hm.set_part(hmap.top_of(np.asarray(km.vert_properties[:, :3], float) @ R.T, np.asarray(km.tri_verts),
+                                    hm.xs, hm.ys))
         return cls(tl, R, hm, seg_q)
 
     @staticmethod
@@ -1242,21 +1256,34 @@ class _MapSide:
         return solid
 
     def _keep_piece(self, keep, below, J: int, I: int):   # noqa: E741
-        """What of the finished part the map would have cut away inside a map tile (the part of it above the
-        map's surface): it stays. Its faces are named after the move that owns the map there - the move that was
-        stopped at the finished part, as a boolean cut that stops there names them. (Where nothing was cut the
-        block's own faces show: they come with the block.)"""
+        """What of the finished part the map would have cut away inside a map tile (the part over the map's
+        surface): it stays (``_piece``). Where the map went clearly under the part, the part's faces show; where it
+        came down onto the part it lies a little over it, ``HeightMap._lift``, so the two surfaces never lie on
+        each other and nothing is left here (None). Its faces are
+        named after the move that owns the map there - the move that was stopped at the finished part, as a
+        boolean cut that stops there names them. (Where nothing was cut the block's own faces show: they come
+        with the block.)"""
         part = (keep ^ self._column(J, I)) - below
-        if part.is_empty():
+        if part.is_empty() or part.volume() < KEEP_NOTHING:
             return None
         m = part.to_mesh()
         v = np.array(m.vert_properties[:, :3], dtype=np.float32)      # (copies: read back from a Manifold they
         tr = np.array(m.tri_verts, dtype=np.uint32)                   # are read-only)
         cen = v[tr].astype(np.float64).mean(axis=1) @ self.R.T        # into the map's frame
         hm = self.hm
-        i = np.clip(np.rint((cen[:, 1] - hm.y0) / hm.cell).astype(np.int64), 0, hm.ny - 1)
-        j = np.clip(np.rint((cen[:, 0] - hm.x0) / hm.cell).astype(np.int64), 0, hm.nx - 1)
-        q = hm.owner[i, j]
+        # (the nearest of the four nodes round a face's middle that a move cut: a wall of the part stands between
+        # cut and uncut nodes, and its middle is as near to the uncut ones - task 0167)
+        fy, fx = (cen[:, 1] - hm.y0) / hm.cell, (cen[:, 0] - hm.x0) / hm.cell
+        i0 = np.clip(np.floor(fy).astype(np.int64), 0, hm.ny - 2)
+        j0 = np.clip(np.floor(fx).astype(np.int64), 0, hm.nx - 2)
+        q = np.full(len(cen), -1, np.int64)
+        best = np.full(len(cen), np.inf)
+        for di in (0, 1):
+            for dj in (0, 1):
+                qq = hm.owner[i0 + di, j0 + dj]
+                d = (fy - i0 - di) ** 2 + (fx - j0 - dj) ** 2
+                take = (qq >= 0) & (d < best)
+                q, best = np.where(take, qq, q), np.where(take, d, best)
         fid = np.where(q >= 0, hm.tag[np.maximum(q, 0)] + 2, 1).astype(np.uint32)
         rid = _mf.Manifold.reserve_ids(1)
         self.tl.wp.map_ids.add(int(rid))
