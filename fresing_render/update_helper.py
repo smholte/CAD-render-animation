@@ -42,7 +42,8 @@ BACKUP_DIR = "backup"                         # next to the status file: the old
 # helper can take is the wait for the app plus every try of the installer
 # (the wait for other Blenders, every try of the installer, the backup and a margin)
 BUSY_MAX_SECONDS = 2 * WAIT_SECONDS + INSTALL_SECONDS * (len(RETRY_WAITS) + 1) + sum(RETRY_WAITS) + 600
-BLENDER_NAMES = ("blender.exe", "blender")    # the program files of the Blenders a helper waits for
+BLENDER_NAMES = ("blender.exe", "blender", "fresing render.exe")   # the programs a helper waits for (task 0177: the
+#                                                                    app's own copy of blender.exe, winexe.py)
 
 # Windows process flags
 CREATE_NEW_PROCESS_GROUP = 0x00000200

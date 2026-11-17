@@ -94,12 +94,12 @@ function Invoke-Blender([string[]]$BlenderArgs, [string]$What, [switch]$AllowFai
 }
 
 # ---- 0. Fresing Render must not be running ------------------------------------------
-$running = Get-Process -Name blender, blender-launcher -ErrorAction SilentlyContinue |
+$running = Get-Process -Name blender, blender-launcher, "Fresing Render" -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -and $_.Path.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
 if ($running) {
     throw ("Fresing Render is still open, or a render queue is still running in the background. " +
            "Close Fresing Render (save your work first); a running render queue can be stopped in the app " +
-           "(panel 7) or ended in Task Manager (blender.exe). Then run the installer again.")
+           "(panel 7) or ended in Task Manager (Fresing Render or blender.exe). Then run the installer again.")
 }
 
 # ---- 1. Blender -----------------------------------------------------------------
@@ -304,6 +304,8 @@ New-Item -ItemType Directory -Force -Path $StartMenu | Out-Null
 Step "Creating shortcuts"
 MakeShortcut (Join-Path $Desktop "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
 MakeShortcut (Join-Path $StartMenu "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
+# task 0177: the app's shortcuts are pointed at "Fresing Render.exe" below; this one always starts Blender's own launcher
+MakeShortcut (Join-Path $StartMenu "Fresing Render - safe start.lnk") $GuiExe "--app-template fresing_render" "Starts Fresing Render with Blender's own program. Use it only if Fresing Render does not start from its usual shortcut"
 MakeShortcut (Join-Path $StartMenu "Fresing Render - Self test.lnk") $BlenderExe "--background --python `"$Launcher`" -- `"$Desktop`"" "Check this PC and write a report on the Desktop"
 
 # PC check (task 0032): every main function with the test models; the launcher lives inside the installed
@@ -338,6 +340,9 @@ if (Test-Path -LiteralPath $Guide) {
 # The app's ID on the shortcuts that start the app (task 0169): the running app sets the same ID, so the taskbar
 # groups its window under the Fresing icon and a pinned Fresing Render stays Fresing. WScript.Shell cannot set it:
 # the extension's own code does (fresing_render/appicon.py), the same that refreshes older installs at start.
+# Task 0177: the same step makes "Fresing Render.exe" (blender.exe under the app's name and icon, winexe.py; checked
+# by starting it once) and points the app's shortcuts at it, so Task Manager says "Fresing Render". When the copy
+# cannot be used (Smart App Control on, or it did not start) they stay on blender-launcher.exe.
 $ShortcutScript = Join-Path $InstallDir "set_shortcuts.py"
 @"
 import importlib, sys, addon_utils
@@ -345,14 +350,18 @@ folder, desktop, programs, appdata = (sys.argv[sys.argv.index("--") + 1:] + ["",
 for mod in addon_utils.modules():
     if mod.__name__.endswith("fresing_render"):
         icon = importlib.import_module(mod.__name__ + ".appicon")
-        done = icon.refresh_shortcuts(folder, icon.ensure_icon(folder), icon.shortcut_paths(desktop, programs, appdata))
+        ico = icon.ensure_icon(folder)
+        import bpy
+        target = icon.app_target_for(bpy.app.binary_path, ico)
+        print("The app starts: " + (target or "(Blender's own programs)"))
+        done = icon.refresh_shortcuts(folder, ico, icon.shortcut_paths(desktop, programs, appdata), target)
         print("Shortcuts: " + ("; ".join(done) if done else "already right"))
         break
 else:
     sys.exit("Fresing Render is not installed in this Blender")
 "@ | Set-Content -LiteralPath $ShortcutScript -Encoding ASCII
 $ok = Invoke-Blender @("--background", "--python-exit-code", "1", "--python", $ShortcutScript, "--",
-                       $InstallDir, $Desktop, (Split-Path -Parent $StartMenu), $env:APPDATA) "Setting the app's ID on the shortcuts" -AllowFailure
+                       $InstallDir, $Desktop, (Split-Path -Parent $StartMenu), $env:APPDATA) "Setting the app's name, ID and program on the shortcuts" -AllowFailure
 if (-not $ok) { Write-Host "   (the shortcuts keep their icon; the app sets their ID at its next start)" -ForegroundColor Yellow }
 
 Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing Render $ver installed $(Get-Date -Format s)`r`nBlender $BlenderVersion`r`nUpdates from: $UpdateFrom"

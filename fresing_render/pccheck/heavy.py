@@ -950,7 +950,7 @@ def heavy_mesh(ctx):
     return f"{tris:,} triangles, {len(parts)} parts, faces in {st.get('seconds_faces', 0.0):.1f} s"
 
 
-@line("heavy.spool", "Big coil: a carousel of kilometres, every layer cable", "0.2.137", (H,), expected=120,
+@line("heavy.spool", "Big coil: a carousel of kilometres, every layer cable", "0.2.138", (H,), expected=120,
       what="The test carousel given a thin cable (Ø 10 mm: some 7 km in 38 layers, like the demo's full carousel; "
            "scaled down Ø 20 mm): every layer drawn as cable; the cable is paid out by hand, built, played, and the "
            "carousel emptied and filled again",

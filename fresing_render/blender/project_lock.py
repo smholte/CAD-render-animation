@@ -45,8 +45,8 @@ def _window_alive(pid: int) -> bool:
     from .. import update_helper
     if not update_helper.pid_alive(pid):
         return False
-    image = os.path.basename(update_helper.process_image(pid)).lower()
-    return image.startswith("blender")          # (a window of this user can always be read)
+    from .. import winexe
+    return winexe.is_blender_program(update_helper.process_image(pid))   # (a window of this user can always be read)
 
 
 def _is_me(info: dict) -> bool:

@@ -31,14 +31,25 @@ def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + (f" ({detail})" if detail else ""), flush=True)
 
 
+w = None
+
+
 def module():
     import addon_utils
     name = next(m.__name__ for m in addon_utils.modules() if m.__name__.endswith("fresing_render"))
     return importlib.import_module(name + ".appicon")
 
 
+def updates_restart(exe):
+    import addon_utils
+    name = next(m.__name__ for m in addon_utils.modules() if m.__name__.endswith("fresing_render"))
+    return importlib.import_module(name + ".blender.updates").build_restart(exe, "fresing_render", "", True)
+
+
 def main():
+    global w
     ai = module()
+    w = importlib.import_module(ai.__name__.rsplit(".", 1)[0] + ".winexe")
     exe = bpy.app.binary_path
     folder = ai.install_dir(exe)
     check("install folder found from blender.exe", folder, folder)
@@ -65,8 +76,48 @@ def main():
               and info["icon_index"] == 0, f'{info["icon"]},{info["icon_index"]}')
         if ai.is_app_shortcut(info["arguments"]):
             check(f"{name}: app ID", info["app_id"] == ai.APP_ID, info["app_id"])
+            if name.lower() == ai.SAFE_START.lower():
+                check(f"{name}: stays on blender-launcher.exe", info["target"].lower().endswith("blender-launcher.exe"),
+                      info["target"])
+            else:
+                check(f"{name}: starts Fresing Render.exe", w.is_copy(info["target"]), info["target"])
+        elif ai.is_inside(info["target"], folder) and info["target"].lower().endswith(".exe"):
+            check(f"{name}: console run stays on blender.exe", os.path.basename(info["target"]).lower() == "blender.exe",
+                  info["target"])
     again = ai.refresh_installed(exe)
     check("a second refresh writes nothing", not again, "; ".join(again))
+
+    # task 0177: the copy the refresh made
+    copy = w.copy_path(exe)
+    check("Fresing Render.exe made again by the app", os.path.isfile(copy) and w.usable(exe), copy)
+    check("safe-start shortcut there", os.path.isfile(os.path.join(programs, ai.START_MENU_FOLDER, ai.SAFE_START)))
+    s = w.strings(w.parse_version(w.read_resource(copy, w.RT_VERSION, 1)))
+    check("its version resource says Fresing Render", s.get("FileDescription") == "Fresing Render"
+          and s.get("ProductName") == "Fresing Render" and s.get("OriginalFilename") == "blender.exe", s)
+    with open(copy, "rb") as fh:
+        head = bytearray(fh.read(4096))
+    check("no console window (GUI subsystem)", w.subsystem(head) == 2, w.subsystem(head))
+    with open(copy, "rb") as fh:
+        whole = bytearray(fh.read())
+    check("no signature left in it", w.signature(whole) == (0, 0), w.signature(whole))
+    ok, said = w.answers(copy)
+    check("it starts and says Blender", ok, said)
+    check("restart after Update now starts it", updates_restart(exe)[0].lower() == copy.lower(), updates_restart(exe))
+    check("the PC check's console run stays on blender.exe", w.console_exe(copy).lower() == exe.lower())
+
+    # Smart App Control on (simulated): the copy is taken out of use, the shortcuts go back to Blender's launcher
+    os.environ["FRESING_SAC"] = "1"
+    try:
+        ai.refresh_installed(exe)
+        desk = os.path.join(desktop, "Fresing Render.lnk")
+        t = ai.read_shortcut(desk)["target"]
+        check("Smart App Control on: shortcut back on blender-launcher.exe", t.lower().endswith("blender-launcher.exe"), t)
+        check("Smart App Control on: copy taken out of use", not os.path.isfile(copy) and not w.usable(exe))
+    finally:
+        del os.environ["FRESING_SAC"]
+    ai.refresh_installed(exe)
+    t = ai.read_shortcut(os.path.join(desktop, "Fresing Render.lnk"))["target"]
+    check("Smart App Control off again: copy and shortcut back", w.is_copy(t) and w.usable(exe), t)
 
     check("start-up hook does not run in the background", ai.startup() is False)
     check("start-up hook only for the app on Windows",

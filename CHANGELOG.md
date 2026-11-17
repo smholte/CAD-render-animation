@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.137 – 17 Nov 2026 – Drums and carousels full of real cable (task 0174)
+## 0.2.138 – 17 Nov 2026 – Drums and carousels full of real cable (task 0174)
 
 - **Every layer is cable now.** A drum or carousel (4 Motion > Drums and carousels) no longer shows a grey sleeve or
   ring under its top layer: the whole coil is one cable, from where it is fixed at the core or the flange, layer on
@@ -20,6 +20,17 @@ installer of that version was built from.
 - Projects made with an older version show the full layers as cable when opened.
 - The web 3D model keeps showing the full layers of a coil as one solid under the moving top layer (the whole coil as
   cable would make the page far too big).
+
+## 0.2.137 – 17 Nov 2026 – Task Manager says "Fresing Render" (task 0178)
+
+- **Task Manager now shows the app as "Fresing Render"**, with its Fr icon, not as "Blender" – also for renders the
+  render queue runs in the background. The app's shortcuts start **Fresing Render.exe**: Blender's own program under
+  the app's name and icon, made next to it by the installer (or by the app at its first start after **Update now**)
+  and checked once before it is used. No black console window opens with it.
+- **New in the Start menu: Fresing Render - safe start.** It starts the app with Blender's own program. Use it only if
+  Fresing Render does not start from its usual shortcut (for example when a virus scanner removed the copy).
+- While Windows 11's *Smart App Control* is on, the app keeps using Blender's own program (that setting blocks
+  programs without a signature), and Task Manager still says "Blender".
 
 ## 0.2.136 – 17 Nov 2026 – The app icon says "Fr" (task 0169)
 
