@@ -80,7 +80,8 @@ rank, then use; for "the worst moment" of a lift path).
 **Words** (section 8): `PLANNING_AID` (the competent-person line, exact text of the study), `SAMPLE_MARK` ("SAMPLE –
 not for real lifts. …"), `NOT_CHECKED_BY_APP = "not checked by Fresing Render – competent person"`, `NOT_DONE` (list
 of the checks the app must not do, each a short text), `FORBIDDEN_WORDS = ("safe", "approved", "certified",
-"compliant", "OK to lift", "passed")` – no message, word or note of the module contains one (whole words, any case).
+"compliant", "OK to lift", "passed")` – no message, word or note of the module contains one (whole words, any case);
+  the one exception is PLANNING_AID itself, which says a competent person approves the plan.
 
 **Lift categories.** `CATEGORY_SYSTEMS = {"BS 7121": ("basic", "intermediate", "complex"), "ASME P30.1":
 ("standard", "critical")}`, `DEFAULT_CATEGORY_SYSTEM = "BS 7121"`. `suggest_category(system=DEFAULT…, cranes=1,
@@ -136,7 +137,8 @@ and never used by a check (owner: always the next longer radius).
   (kg). A leg more than 60° from vertical → red ("above 60°: not rated") on the assembly part and the check.
 - **C4** `wll_use(force, wll, item="sling", angle=None, mode_factor=1.0, side_angle=None, limits=…)`: force N, wll kg;
   limit = wll × mode_factor (kg, e.g. choke 0.8); use = force / (limit·G); `angle` (° to vertical) > 60 → red;
-  `side_angle` (° out of the shackle's bow plane) > 5 → a note (side load: maker's reduction), status unchanged.
+  `side_angle` (° out of the shackle's bow plane) > 5 → a note (side load: maker's reduction), status unchanged; `wll`
+  None → not_checked.
 - **C5** `outrigger_reactions(items, a, b, centre=(0, 0))` → `Reactions(P, x, y, corners, reactions, lifted)`: items
   = [(mass kg, x, y)] in the carrier's frame (m); outriggers at centre ± a, ± b; corners in the order (+a,+b), (+a,−b),
   (−a,+b), (−a,−b); reactions in N; rigid carrier, linear share R = P·g/4·(1 ± x̄/a ± ȳ/b); one R < 0 → that corner
@@ -161,8 +163,7 @@ and never used by a check (owner: always the next longer radius).
   and next higher lift height (≥ asked; any when None) – smallest such centre, then height; none → red. Without it the
   fork rule rated·centre/actual_centre (no rise for a shorter centre: min(rated, …)); the moment rule
   rated·(centre + x)/(actual + x) in details only ("for information"). value = load, limit = capacity.
-- **C8** `DAF_DNV_OS_H205_2014` = list of bands (upper SHL kg inclusive, or None for the last; onshore, inshore,
-  offshore): ≤ 100 t 1.10 / 1.15 / 1.30; ≤ 300 t 1.05 / 1.12 / 1.25; ≤ 1,000 t 1.05 / 1.10 / 1.20; ≤ 2,500 t
+- **C8** `DAF_DNV_OS_H205_2014` = rows `(upper SHL kg inclusive or None for the last, onshore, inshore, offshore)`: ≤ 100 t 1.10 / 1.15 / 1.30; ≤ 300 t 1.05 / 1.12 / 1.25; ≤ 1,000 t 1.05 / 1.10 / 1.20; ≤ 2,500 t
   1.03 / 1.08 / 1.15; above 1.03 / 1.05 / 1.10. `DAF_NOTE` = "Preset from DNV-OS-H205 (2014) – check against the
   current DNV-ST-N001". `static_hook_load(load, rigging=0, tool=0, contingency=1.0)` = load·contingency + rigging + tool
   (kg). `daf_for(shl, site, table=DAF_DNV_OS_H205_2014)`, site in ("onshore", "inshore", "offshore") else ValueError.

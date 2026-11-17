@@ -561,16 +561,14 @@ MAX_LEG_ANGLE = 60.0  # degrees to vertical: above it a sling leg is not rated
 SIDE_LOAD_ANGLE = 5.0  # degrees out of a shackle's bow plane: flagged
 
 
-def wll_use(force: float, wll: float, item: str = "sling", angle: float | None = None, mode_factor: float = 1.0,
+def wll_use(force: float, wll: float | None, item: str = "sling", angle: float | None = None, mode_factor: float = 1.0,
             side_angle: float | None = None, limits: Limits = DEFAULT_LIMITS) -> Result:
     """C4: use = force / (WLL × mode factor · g); a leg more than 60° from vertical is red; a shackle loaded more
-    than 5° out of its bow plane gets a note."""
-    if not _finite(wll) or wll <= 0:
-        raise ValueError("The WLL must be a number above 0.")
-    rating = wll * mode_factor
-    use = force / (rating * G)
+    than 5° out of its bow plane gets a note. No WLL entered -> not checked."""
     notes = []
     floor = OK
+    if wll is not None and (not _finite(wll) or wll <= 0):
+        raise ValueError("The WLL must be a number above 0.")
     if angle is not None and angle > MAX_LEG_ANGLE + EPS:
         floor = RED
         notes.append(f"The leg is {angle:.1f}° from vertical: above {MAX_LEG_ANGLE:g}° it is not rated.")
@@ -578,6 +576,12 @@ def wll_use(force: float, wll: float, item: str = "sling", angle: float | None =
         notes.append(f"Side load: {side_angle:.1f}° out of the bow plane – use the shackle maker's reduction "
                      f"({NOT_CHECKED_BY_APP}).")
     inputs = dict(force=force, wll=wll, item=item, angle=angle, mode_factor=mode_factor, side_angle=side_angle)
+    if wll is None:
+        return _result("C4", f"{item.capitalize()} WLL", "force / (WLL × mode factor)", inputs, value=force,
+                       amber_at=limits.rigging, floor=floor, notes=notes,
+                       what=f"{item.capitalize()}: {_ft(force)}, no WLL entered")
+    rating = wll * mode_factor
+    use = force / (rating * G)
     what = f"{item.capitalize()}: {_ft(force)} on a WLL of {_t(rating)}"
     if mode_factor != 1.0:
         what += f" ({_t(wll)} × mode factor {mode_factor:g})"
@@ -938,15 +942,16 @@ def forklift(load: float, rated: float, centre: float, actual_centre: float, axl
 # C8 – offshore DAF
 
 SITES = ("onshore", "inshore", "offshore")
-# DNV-OS-H205 (2014) Table 3-1 (public): (upper static hook load in kg, inclusive; None = above), DAF per site.
+# DNV-OS-H205 (2014) Table 3-1 (public), an editable preset: rows (upper static hook load in kg, inclusive; None =
+# above), DAF onshore, inshore, offshore.
 DAF_DNV_OS_H205_2014 = (
-    (100_000.0, (1.10, 1.15, 1.30)),
-    (300_000.0, (1.05, 1.12, 1.25)),
-    (1_000_000.0, (1.05, 1.10, 1.20)),
-    (2_500_000.0, (1.03, 1.08, 1.15)),
-    (None, (1.03, 1.05, 1.10)),
+    (100_000.0, 1.10, 1.15, 1.30),
+    (300_000.0, 1.05, 1.12, 1.25),
+    (1_000_000.0, 1.05, 1.10, 1.20),
+    (2_500_000.0, 1.03, 1.08, 1.15),
+    (None, 1.03, 1.05, 1.10),
 )
-DAF_NOTE = "Preset from DNV-OS-H205 (2014) – check against the current DNV-ST-N001."
+DAF_NOTE = "Preset from DNV-OS-H205 (2014) – check against the current DNV-ST-N001"
 
 
 def static_hook_load(load: float, rigging: float = 0.0, tool: float = 0.0, contingency: float = 1.0) -> float:
@@ -958,11 +963,14 @@ def daf_for(shl: float, site: str, table=DAF_DNV_OS_H205_2014) -> float:
     """The DAF of the band the static hook load falls in (band tops inclusive)."""
     if site not in SITES:
         raise ValueError(f"Unknown site {site!r}: use one of {', '.join(SITES)}.")
-    k = SITES.index(site)
-    for top, factors in table:
-        if top is None or shl <= top + EPS:
-            return factors[k]
-    return table[-1][1][k]
+    k = SITES.index(site) + 1
+    rows = list(table)
+    if not rows:
+        raise ValueError("The DAF table has no rows.")
+    for row in rows:
+        if row[0] is None or shl <= row[0] + EPS:
+            return row[k]
+    return rows[-1][k]
 
 
 def dynamic_load(shl: float, site: str, chart_capacity: float | None = None, hs_rated: bool = False,
