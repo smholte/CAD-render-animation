@@ -176,6 +176,131 @@ tidy start every time the app opens.
 
 New functions. Changes to what a button does (only where it sits and how it looks). Blender's other editors.
 
+## Design (worker, 18 Nov 2026 – the split and the interfaces; the subagents' brief)
+
+Tried in the real app first (Blender 5.2.3 under xvfb, web machine; probes in the session's scratchpad):
+a panel without Blender's header (`HIDE_HEADER`) can have sub-panels, three levels deep; a header row drawn by the app
+(an operator without frame: fold arrow + title, state on the right) looks like Blender's and sees Ctrl in `invoke`;
+Blender's 11 workspace tabs go away by replacing `TOPBAR_HT_upper_bar.draw_left` (nothing is deleted); a key in an
+add-on keymap whose operator's `poll` is False passes on to Blender's own key (Delete, Ctrl+Shift+S), so a lock can
+swallow keys only while it is on. Blender keeps a panel's open / closed state per panel name and gives an add-on no
+way to set it – so "always start folded", "tab 3 opens section 3" and "a lesson opens the fold" need the app's own
+headers.
+
+### Decisions (the owner is asleep; each is in the report)
+
+1. **Every Fresing side-panel panel draws its own header** (`blender/panels.py`, put on the classes when they are
+   registered – no panel file changes for it): sections get a boxed, taller title row, sub-panels a boxed row; fold
+   arrow + icon + title on the left, the state on the right; click = open / fold, **Ctrl+click = only this one stays
+   open**. The open set is the app's (`panels.is_open / set_open`), not Blender's: sections 1–7 start folded at every
+   start and every load; Preferences > "Keep sections as I left them" stores the set in the project at save.
+   Sub-panels keep their old default (those without `DEFAULT_CLOSED` start open).
+2. **Workspaces** = which functions show. Built in: **All functions** (default for new projects: everything, Blender's
+   tabs hidden), CNC & machining, Offshore & cable laying, Product design & R&D, Client view, Education & training,
+   **Full access** (everything + Blender's tabs, toolbar, menus). "All functions" is new (the owner's first list had
+   "Everything"): without it the calm default would be missing – Full access brings Blender's own UI back.
+   Lifting plans: the Lifting lane adds the key to its functions (`workspaces=`); Robotics: later.
+3. **Families** are the ticks under the switcher: `functions.FAMILIES` + a new family `video` (brand kit, labels,
+   watermark, finishing, pictures, music). Always on (no tick): import, looks, scene, help.
+4. A function shows when its family is ticked and the workspace does not hide it (`Function.workspaces`, default by
+   family from `workspaces.FAMILY_DEFAULT`). A panel shows when one of its functions shows; a panel no function names
+   always shows. A project stores the workspace's name, its definition (own workspaces: so it opens the same on a PC
+   without the file) and the user's ticks.
+5. **Old projects and templates:** a project without a stored workspace opens in the user's default workspace with
+   every family it uses ticked. A family the user hid with "Hide anyway" stays hidden at the next open (it is his
+   choice; the panel says "N in use hidden" with Show).
+6. **Client view lock (b):** every `fresing.*` operator except a short allow-list is refused (`poll`, with a reason),
+   all objects `hide_select` + locked (what was changed is remembered per object and put back), active object cleared,
+   Delete / X / Tab / Ctrl+Shift+S swallowed by an add-on keymap, the Outliner areas show the Info editor (put back),
+   File menu reduced (no Save As, Import, Export, Link, Append). Full access – or any workspace without the lock –
+   undoes all of it. No password.
+7. **Blender's tabs:** hidden by drawing the top bar without them; back in Full access. No workspace is deleted.
+8. **Section tabs** All · 1 … 7 under the workspace row (session state, starts at All); a tab shows only its section,
+   opened. The Ctrl+click hint is a grey line under the tabs until the user has done it once (stored in Preferences).
+9. **Make** (render A + B): a panel "Make" above 1 Import, folded like a section, six buttons that open the app's own
+   settings panels as popovers; the same list as a popover "Make" in the 3D view's header. Section numbers stay.
+10. **Set-up window** (float 2): `fresing.setup_window`, a tab "Set-up" in a second window; kinds CNC mill and
+    mechanism; step number in the scene (`setup_kind`, `setup_step`).
+11. **Moves (pick 3 + 4):** 5 Scene & Render in the order surroundings (Weather & time, Vessel motion, Vessel at work,
+    Props, House) → Camera → Saved scenes → Image size & render → Turntable video → Web 3D model; Brand kit & logo,
+    Labels, Watermark go to 6 Animation after Finishing. Text that names a place is built by `places.where()`.
+12. **One blue button per section** (pick 8): Import STEP…, Sort parts into groups, Render image, Build & play, Start
+    queue (2 Structure and 4 Motion have none: no single main step); the Make popovers and the Set-up window's Next
+    are blue too. Every other former `primary()` is `big()` (big, grey).
+13. **Words (pick 6):** *Remove* = takes a thing out of the project · *Clear* = empties a list, a cache or a result ·
+    *Delete* = only files in the library · *Show in folder* · *Add* = a new thing; *Use as* = picks the clicked part ·
+    *Back to …* always names where to (Back to CAD position, Back to the rules, Back to the defaults) · *Find* (not
+    Search) · *Set-up* (noun) / *Set up* (verb). Button texts, tooltips and the guide follow; operator ids do not change.
+
+### Shared code (the worker's; committed before any subagent starts)
+
+`fresing_render/blender/ui.py` helpers every panel file uses:
+
+| Helper | What it draws |
+| --- | --- |
+| `gap(layout, line=False)` | the space between two steps of a panel (separation rule); `line=True` adds a thin line |
+| `primary(layout, idname, text, icon, scale=BIG)` | the ONE blue main button of a section |
+| `big(layout, idname, text, icon, scale=MEDIUM)` | a sub-panel's main button: big, grey; returns the operator |
+| `hint(layout, context, text, inset=0)` | a grey hint without icon; `wrap(..., icon="INFO")` is grey too |
+| `steps(layout, context, lines, key="", used=False)` | the numbered how-to in a fold "How it works" (`key` = the fold's id, e.g. `"fr_how_cutaway"`): open while `used` is False, closed once it is True; Preferences "Keep How it works open" |
+| `missing(layout, context, text, op="", op_text="", icon="INFO")` | pick 9: ONE line (+ one button) when the thing a panel needs is not there; returns the operator or None |
+| `header_status(layout, text, icon, alert, limit)` | unchanged: the state on the right of a header |
+| `where(panel, fold="")` | "6 Animation > Labels" from `core/places.py` |
+
+`fresing_render/core/places.py`: `SECTION` / `PLACES` (panel class name → section number, title, parent) and
+`where()`; a test compares it with the registered panels. `core/workspaces.py`: the built-in workspaces, own-workspace
+files, what shows. `blender/workspaces.py`: the project's state, in use, lock, Blender's tabs. `blender/panels.py`:
+headers, open set, tabs, the `poll` put on every panel and operator. `blender/ui_top.py` + `ops_workspace.py`:
+Workspace switcher, What's next card, tabs, Make.
+
+### The panels pass (rules for every panel file; one owner per file)
+
+For each panel in your files, without changing what any button does:
+1. **Steps apart:** a `gap(layout)` between the groups of a panel (how-to · choices · main button · list · details ·
+   more). No two buttons of different steps touch.
+2. **How-to boxes:** every `steps(...)` call gets `key="fr_how_<panel>"` and `used=<the project has one>` (a cut, a
+   decal, a cylinder …).
+3. **One blue:** `primary(` → `big(` except the five named in decision 12.
+4. **A state in every sub-panel header:** `draw_header_preset` with `header_status(...)`: a count (`plural`), on / off,
+   or the chosen thing; at most 14 characters; an alert colour only for a problem.
+5. **Nothing cut off** at the default width (side panel 292 px at scale 1.0 – about 38 characters per line, a button
+   pair about 16 each): shorter text or two lines (`wrap`).
+6. **Words** of decision 13 in button texts and tooltips (`bl_label`, docstrings, `description=`); operator ids and
+   property names stay. A changed text that `core/functions.py` (`text=`), a test or `tools/` names: list it in your
+   report – the worker changes those.
+7. **Not there** (pick 9): when the thing a sub-panel needs is missing (no sea, no vessel, no axis joint …) the whole
+   body is one `missing(...)` line with the button that gets it, nothing else.
+8. Tooltips on anything new. No new functions. `tools/tooltip_report.py` stays clean for your files.
+
+### Subagents (at most 3 at a time; each in its own worktree; none pushes, merges, bumps the version or edits
+`TASKS.md`, `props.py`, `ui.py`, `__init__.py`, `handlers.py`, `tour.py`, `pccheck/`, the guide, `core/functions.py`)
+
+| # | Job | Files it owns |
+| --- | --- | --- |
+| S1 | Set-up window from 0200's prototype (`tasks/0200_proto/setup_window.py` on `claude/busy-newton-24qrjk`) | new `blender/ui_setup.py`, `blender/ops_setup.py`, `tools/ui_test_setup.py`, `tests/test_setup_window.py` |
+| S2 | Lesson highlight hook: the six looks (button C + D, section 5 + 4, part 3 + 1) from `lesson.py` on `claude/practical-heisenberg-jm99vr` | new `blender/highlight.py`, `tools/ui_test_highlight.py`, `tests/test_highlight.py` |
+| S3 | Panels pass: 4 Motion, 6 Animation, 7 Render queue, Saved scenes | `blender/ui_motion.py` |
+| S4 | Panels pass: the machine sub-panels of 4 Motion | `ui_gcode.py`, `ui_machining.py`, `ui_coolant.py`, `ui_waycover.py`, `ui_flex.py`, `ui_paths.py`, `ui_spool.py`, `ui_tracks.py` |
+| S5 | Panels pass: the other sub-panels | `ui_callouts.py`, `ui_clash.py`, `ui_decals.py`, `ui_fade.py`, `ui_house.py`, `ui_people.py`, `ui_section.py`, `ui_vessel_motion.py`, `ui_video.py`, `ui_weather.py`, `ui_web3d.py` |
+| S6 | Independent tests of workspaces, families, own-workspace files and the lock, written from this brief by an agent that wrote none of it; its findings go back to the worker | new `tests/test_workspaces_independent.py` |
+| S7 | Guide chapter + pictures, at the end | `docs/USER-GUIDE.md`, `docs/img/` (the worker merges) |
+
+The worker keeps: `ui.py` (helpers + its panels' pass), `panels.py`, `workspaces.py`, `ui_top.py`, `ops_workspace.py`,
+`core/`, `props.py`, `prefs.py`, `__init__.py`, `handlers.py`, `tour.py`, `pccheck/`, `core/functions.py`, the real-app
+tests and tools, version, CHANGELOG, `TASKS.md`; after 0198 is on `main`: `app_template/`, `ui_header.py`.
+
+**Interfaces the subagents build against**
+- S1: `scene.fresing.setup_kind` (enum `CNC` / `MECH`), `scene.fresing.setup_step` (int ≥ 0) exist in `props.py`.
+  `ui_setup.SETUPS = {kind: (title, [(step title, draw(layout, context)), …])}`, `ui_setup.draw_setup(layout, context)`,
+  panel `FRESING_PT_setup` (tab "Set-up"), operators `fresing.setup_window` (prop `kind`), `fresing.setup_go` (prop
+  `step`); `CLASSES` tuples in both files. The worker adds the "Set-up window" buttons to the panels and the Make list.
+- S2: `highlight.point(panel="FRESING_PT_x", button="fresing.op", text="", prop="", fold="", parts=())`,
+  `highlight.clear()`, `highlight.active()`, `highlight.set_look(kind, key)` (kind `button` C / D, `section` 5 / 4,
+  `part` 3 / 1), `highlight.set_colour("#479B29")`, `highlight.mark_header(layout, panel_name)` (the worker's header
+  code calls it), `highlight.fold_open(idname) -> bool` (`ui.fold` asks it), `highlight.register()/unregister()`.
+  Nothing runs while nothing is pointed at. Preferences (the worker adds them): `lesson_button` (C / D),
+  `lesson_section` (5 / 4), `lesson_part` (3 / 1), `lesson_colour`.
+
 ---
 
 ## Report (filled in by the chat that did the task)

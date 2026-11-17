@@ -450,6 +450,81 @@ def rules_switch(ctx):
     return f"{preview['moved']} parts moved and back"
 
 
+@line("panel.workspaces", "Workspaces: families hidden and shown, an own workspace, the Client view's lock", "0.2.151",
+      what="A workspace hides panels and keeps the work; an own workspace is one file in a folder with a space and "
+           "an accent; the Client view locks every part and Full access unlocks them exactly")
+def panel_workspaces(ctx):
+    import shutil
+    import tempfile
+
+    import bpy
+
+    from ..blender import lock, panels, workspaces
+    from ..core import workspaces as W
+    scene = ctx.fresh(MACHINE)
+    s = scene.fresing
+    folder = os.path.join(tempfile.mkdtemp(prefix="fr_pc_"), "Werkplek één", W.FOLDER)
+    old_env = os.environ.get(workspaces.ENV_FOLDER)
+    os.environ[workspaces.ENV_FOLDER] = folder
+    workspaces.forget_scan()
+    try:
+        # a workspace hides panels and keeps the work
+        before = (len(scene.objects), len(s.groups), s.cnc.x_joint)
+        s.cnc.x_joint = "X"
+        workspaces.switch(scene, "Offshore & cable laying")
+        _check(workspaces.panel_hidden(scene, "FRESING_PT_cnc") and not workspaces.panel_hidden(scene, "FRESING_PT_cables"),
+               "the workspace Offshore & cable laying does not hide the CNC machine and show Cables and paths")
+        _check(not bpy.types.FRESING_PT_cnc.poll(bpy.context), "a hidden panel is still drawn")
+        _check(workspaces.hidden_in_use(scene) == ["cnc"], "the project's CNC machine is not seen as in use")
+        _check("a CNC machine" in W.hide_warning("cnc", workspaces.in_use(scene)["cnc"]),
+               "the question before hiding does not name what is set up")
+        _check(workspaces.show_used(scene) == ["cnc"] and workspaces.family_on(scene, "cnc"),
+               "Show what the project uses did not bring the CNC machine back")
+        workspaces.set_tick(scene, "web", False)
+        hidden = len(workspaces._state(scene)[0])
+        # an own workspace is one file
+        path = workspaces.save_own(scene, "PC check – eigen")
+        _check(os.path.isfile(path) and os.listdir(folder) == [os.path.basename(path)],
+               f"the own workspace was not saved as one file in {folder}")
+        workspaces.switch(scene, W.DEFAULT)
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_web3d"), "All functions does not show everything")
+        workspaces.switch(scene, "PC check – eigen")
+        _check(workspaces.panel_hidden(scene, "FRESING_PT_web3d") and workspaces.family_on(scene, "cnc")
+               and len(workspaces._state(scene)[0]) == hidden, "the own workspace does not show what was saved")
+        workspaces.delete_own(scene, "PC check – eigen")
+        _check(os.listdir(folder) == [] and workspaces.panel_hidden(scene, "FRESING_PT_web3d"),
+               "deleting the own workspace's file did not leave the project its copy")
+        s.cnc.x_joint = before[2]
+        # the Client view's lock, and back
+        was = {ob.name: (ob.hide_select, tuple(ob.lock_location), tuple(ob.lock_rotation), tuple(ob.lock_scale))
+               for ob in scene.objects}
+        workspaces.switch(scene, "Client view")
+        _check(lock.ON[0] and all(ob.hide_select and all(ob.lock_location) for ob in scene.objects),
+               "the Client view did not lock every part")
+        _check(bpy.ops.fresing.group_add.poll() is False and bpy.ops.fresing.light_look.poll(),
+               "the Client view does not refuse editing buttons (or refuses the light looks too)")
+        workspaces.switch(scene, "Full access")
+        now = {ob.name: (ob.hide_select, tuple(ob.lock_location), tuple(ob.lock_rotation), tuple(ob.lock_scale))
+               for ob in scene.objects}
+        _check(not lock.ON[0] and lock.marked() == 0 and now == was,
+               "Full access did not put every part back as it was before the lock")
+        _check((len(scene.objects), len(s.groups)) == before[:2], "hiding or locking changed the project")
+        _check(not any(panels.is_open(sec) for sec in panels.SECTIONS) or bool(panels.OPEN),
+               "the side panel's sections have no open / folded state")
+        return f"{hidden} panels hidden and back, {len(was)} objects locked and unlocked"
+    finally:
+        try:
+            workspaces.switch(scene, W.DEFAULT)
+        except Exception:  # noqa: BLE001 - the other lines must find the app as it was
+            lock.apply(scene, False)
+        if old_env is None:
+            os.environ.pop(workspaces.ENV_FOLDER, None)
+        else:
+            os.environ[workspaces.ENV_FOLDER] = old_env
+        workspaces.forget_scan()
+        shutil.rmtree(os.path.dirname(os.path.dirname(folder)), ignore_errors=True)
+
+
 # ---------------------------------------------------------------------------
 # motion
 # ---------------------------------------------------------------------------

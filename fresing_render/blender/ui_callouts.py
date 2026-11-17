@@ -30,7 +30,7 @@ class FRESING_UL_cards(bpy.types.UIList):
 
 class FRESING_PT_labels(_Panel, bpy.types.Panel):
     bl_label = "Labels"
-    bl_parent_id = "FRESING_PT_scene"
+    bl_parent_id = "FRESING_PT_animation"
     bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod

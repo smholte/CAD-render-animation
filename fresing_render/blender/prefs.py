@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 
 import bpy
-from bpy.props import BoolProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, FloatVectorProperty, StringProperty
 
 ADDON_ID = __package__.rsplit(".", 1)[0]
 
@@ -31,6 +31,42 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                     "is one, the Fresing tab shows \"Update available\" with what's new and an Update now button. "
                     "Needs Blender's online access (System > Network)")
 
+    # ---- the side panel (task 0062) ----
+    default_workspace: StringProperty(
+        name="Workspace for new projects", default="All functions",
+        description="The workspace a new project starts in, and the one a project from before workspaces opens in "
+                    "(with everything it uses shown). Pick it in the Fresing tab: Workspace > Use for new projects")
+    keep_sections: BoolProperty(
+        name="Keep sections as I left them", default=False,
+        description="Off: sections 1 to 7 start folded every time the app starts or a project opens, so the side "
+                    "panel is calm and each title shows its state. On: a project opens with the sections and "
+                    "sub-panels that were open when it was saved")
+    keep_howto: BoolProperty(
+        name="Keep How it works open", default=False,
+        description="The numbered how-to of a function folds away by itself once the project has one (a cut, a "
+                    "cylinder, a cable). Tick this to keep every How it works open")
+    knows_ctrl_click: BoolProperty(
+        default=False, options={"HIDDEN"},
+        description="You have used Ctrl+click on a section title: the grey hint about it is no longer shown")
+    lesson_button: EnumProperty(
+        name="Button", default="C",
+        description="How a lesson shows the button to press. Try both and keep the one you find clearer",
+        items=[("C", "Spotlight", "The rest of the side panel is dimmed, the button stays clear with a thin outline"),
+               ("D", "Bar and tint", "A bar on the button's left edge and the button tinted, breathing slowly")])
+    lesson_section: EnumProperty(
+        name="Folded section", default="5",
+        description="How a lesson shows a folded section or sub-panel that must be opened",
+        items=[("5", "Title in colour", "The title in the colour and a fold arrow that nods slowly"),
+               ("4", "Bar", "A bar on the left edge of the title row")])
+    lesson_part: EnumProperty(
+        name="Part", default="3",
+        description="How a lesson shows the part to click in the 3D view",
+        items=[("3", "Rest faded", "Everything else is faded, the part stays clear in its own colour"),
+               ("1", "Glow", "The part is covered in a see-through glow that breathes slowly")])
+    lesson_colour: FloatVectorProperty(
+        name="Colour", subtype="COLOR", size=3, min=0.0, max=1.0, default=(0.278, 0.608, 0.161),
+        description="The colour of the lesson highlight (Fresing Green to start with)")
+
     hover_highlight: BoolProperty(
         name="Highlight what is under the mouse when picking", default=True,
         description="While you click on the model to pick something (an axis for a joint, a cylinder's pins, the sharp "
@@ -49,6 +85,22 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         layout.label(text="Library layout: <library>/HDRI/*.exr|*.hdr, <library>/Templates/*.json, "
                           "<library>/Rule sets/*.json, <library>/Logos/*.png and <library>/Stickers/*.png")
         layout.prop(self, "hover_highlight")
+        box = layout.box()
+        box.label(text="Side panel", icon="MENU_PANEL")
+        row = box.row(align=True)
+        row.label(text="Workspace for new projects")
+        row.operator_menu_enum("fresing.workspace_default", "name", text=self.default_workspace or "All functions",
+                               icon="WORKSPACE")
+        box.prop(self, "keep_sections")
+        box.prop(self, "keep_howto")
+        box = layout.box()
+        box.label(text="Lesson highlight", icon="LIGHT")
+        row = box.row(align=True)
+        row.prop(self, "lesson_button")
+        row.prop(self, "lesson_section")
+        row = box.row(align=True)
+        row.prop(self, "lesson_part")
+        row.prop(self, "lesson_colour")
         draw_updates(layout, self)
 
 

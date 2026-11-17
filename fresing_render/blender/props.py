@@ -8,7 +8,7 @@ import bpy
 from bpy.props import (BoolProperty, CollectionProperty, EnumProperty, FloatProperty, FloatVectorProperty,
                        IntProperty, PointerProperty, StringProperty)
 
-from ..core import materials_lib, presets
+from ..core import materials_lib, places, presets
 from ..core import rules as R
 from ..core import studio
 from ..core import surroundings as env
@@ -1501,7 +1501,7 @@ class FRAnimation(bpy.types.PropertyGroup):
     fin_logo: EnumProperty(
         name="Logo", default="NONE",
         description="Puts the brand kit's logo in one corner of the whole video. Needs a logo in the brand kit "
-                    "(5 Scene & Render > Brand kit)",
+                    f"({places.where('brand')})",
         items=[("NONE", "No logo", "No logo in the picture"), ("TL", "Top left", "Logo in the top left corner"),
                ("TR", "Top right", "Logo in the top right corner"),
                ("BL", "Bottom left", "Logo in the bottom left corner"),
@@ -4303,6 +4303,39 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- a house from House Planner (task 0114) ----
     house: PointerProperty(type=FRHouse, description="The house imported from House Planner and its last bake "
                                                      "(5 Scene & Render > House from House Planner)")
+
+    # ---- the side panel: workspace, what shows, the set-up window (task 0062) ----
+    ws_name: StringProperty(
+        name="Workspace", default="",
+        description="The workspace this project uses: which functions the side panel shows. Empty in a project "
+                    "from before workspaces: it opens in your default workspace with everything it uses shown")
+    ws_data: StringProperty(
+        default="", description="Your own workspace as this project uses it (kept in the project, so it opens the "
+                                "same on a PC that does not have the workspace's file)")
+    ws_ticks: StringProperty(
+        default="", description="The function families you switched on or off in this project, on top of its "
+                                "workspace")
+    panels_open: StringProperty(
+        default="", description="Which sections and sub-panels were open when the project was saved (used with "
+                                "Preferences > Keep sections as I left them)")
+    next_hidden: BoolProperty(
+        name="Hide What's next", default=False,
+        description="Hides the What's next card at the top of the Fresing tab in this project. It also goes away by "
+                    "itself after the first render")
+    rendered_once: BoolProperty(
+        default=False, description="A picture or video was made in this project: the What's next card is not "
+                                   "needed any more")
+    setup_kind: EnumProperty(
+        name="Set-up", default="CNC",
+        description="What the Set-up window sets up, one step at a time. The steps use the same buttons as the side "
+                    "panel: what you do here shows there too",
+        items=[("CNC", "Set up a CNC mill", "The axes X, Y and Z, the spindle, the tool and the workpiece, the work "
+                                            "zero, then the step that runs a G-code program"),
+               ("MECH", "Set up a mechanism", "The type, the base, the moving links, then Add mechanism")])
+    setup_step: IntProperty(
+        name="Step", default=0, min=0,
+        description="The step of the set-up the Set-up window shows. Saved with the project: the window opens where "
+                    "you left off")
 
     last_message: StringProperty(default="")
     # cached so panels and sliders don't scan thousands of objects on every redraw

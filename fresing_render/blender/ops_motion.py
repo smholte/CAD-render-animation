@@ -1231,6 +1231,7 @@ class FRESING_OT_queue_add(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
+        context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
         scene = context.scene
         s = scene.fresing
         before = {j.job_id for j in s.queue}
