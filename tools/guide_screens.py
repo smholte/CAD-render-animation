@@ -290,14 +290,25 @@ def show_only(spec):
             bpy.utils.unregister_class(cls)
     _N[0] += 1
     suffix = f"__shot{_N[0]}"
+    # task 0062: the app draws the title rows itself and keeps what is open (blender/panels.py). A copy asks for
+    # its original's state, so the picture's open / closed is set there; the panels above a pictured one count as
+    # open (a sub-panel shows only under an open parent).
+    panels = mod("blender.panels")
+    panels.OPEN.clear()
+    bpy.context.window_manager.fresing_tab = "ALL"
+    for name, closed, top, *draw in spec:
+        parent = panels.PARENT.get(name, "")
+        while parent:
+            panels.OPEN.add(parent)
+            parent = panels.PARENT.get(parent, "")
+    for name, closed, top, *draw in spec:
+        panels.set_open(name, not closed)
     for name, closed, top, *draw in spec:
         base = _ORIG[name]
         opts = set(getattr(base, "bl_options", set())) - {"DEFAULT_CLOSED"}
-        if closed:
-            opts.add("DEFAULT_CLOSED")
         attrs = {"bl_idname": name + suffix, "bl_options": opts}
-        if draw:                                       # only part of the panel
-            attrs["draw"] = draw[0]
+        if draw:                                       # only part of the panel (under the app's title row)
+            attrs["draw"] = panels._make_draw(base, draw[0])
         parent = getattr(base, "bl_parent_id", "")
         if top or not parent:
             attrs["bl_parent_id"] = ""
@@ -316,9 +327,17 @@ def restore_panels():
             pass
         _CLONES.remove(cls)
     todo = [cls for n, cls in _ORIG.items() if getattr(bpy.types, n, None) is None]
-    todo.sort(key=lambda c: bool(getattr(c, "bl_parent_id", "")))      # parents before their sub-panels
+    panels = mod("blender.panels")
+
+    def depth(c):                                      # parents before their sub-panels, the tab's own order kept
+        return panels.level_of(c.__name__)
+
+    order = {n: i for i, n in enumerate(panels.PARENT)}
+    todo.sort(key=lambda c: (depth(c) > 0, order.get(c.__name__, 999)))
+    todo.sort(key=lambda c: order.get(c.__name__, 999))
     for cls in todo:
         bpy.utils.register_class(cls)
+    panels.fold_sections()
 
 
 def shoot_sidebar(name):

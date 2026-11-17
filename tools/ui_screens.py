@@ -65,17 +65,17 @@ def ob(name, n=0):
 
 
 def open_all_panels():
-    """Panels that start closed are registered again without that flag (before they are first drawn)."""
-    names = [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]
-    for name in names:
-        cls = getattr(bpy.types, name)
-        if "DEFAULT_CLOSED" in getattr(cls, "bl_options", set()):
-            try:
-                bpy.utils.unregister_class(cls)
-                cls.bl_options = set(cls.bl_options) - {"DEFAULT_CLOSED"}
-                bpy.utils.register_class(cls)
-            except Exception:
-                log("reopen failed", name, traceback.format_exc())
+    """Every section and sub-panel open (the app keeps what is open itself: blender/panels.py, task 0062).
+    UISHOT_TAB=1…7 shows one section only (the whole side panel open is taller than any screen); UISHOT_WORKSPACE
+    picks the workspace."""
+    panels = mod("blender.panels")
+    panels.open_all()
+    tab = os.environ.get("UISHOT_TAB")
+    if tab:
+        bpy.context.window_manager.fresing_tab = tab
+    ws = os.environ.get("UISHOT_WORKSPACE")
+    if ws:
+        mod("blender.workspaces").switch(bpy.context.scene, ws)
 
 
 STEPS = []
