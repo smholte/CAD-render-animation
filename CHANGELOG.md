@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.135 – 17 Nov 2026 – The demo's quadrant on the seabed, sheaves that stand still, a swivel to try (task 0172)
+
+- **Shot 11 of the demo:** as the D-quadrant tips flat and is set down on the seabed, the cable stays in its gutter to
+  the far end – the end that points the way the cable lies – and bends down from there onto the seabed. Before, it
+  slid round to the middle of the gutter and back, kinked by up to 60° and jumped metres between two frames.
+- **A chute or quadrant lying flat** (any project): the cable leaves it at the end that points the way it lies on the
+  seabed; lowered close to the seabed, the bend after it turns only as far as fits and the cable lies on the seabed
+  from there – no kink at the gutter, never into the seabed.
+- **Sheaves the cable has left stand still**, as rollers already did: a sheave that turns with the cable's speed
+  turns only while the drawn cable touches it (lifted off, run past or out of reach: it stands still for those frames).
+- **Make demo project is about a minute faster:** the depth the D is set down to is right with one Build (it read the
+  vessel's heave at the wrong frame rate and needed a second Build to correct it).
+- **New in the test tour and the PC check: "Sheave turns to follow its wire"** – a deck davit slews while its wire runs
+  from a fairlead on the deck over a sheave on a swivel head; the head turns so the wire always runs straight into the
+  groove.
+
 ## 0.2.134 – 16 Nov 2026 – Fast 3-axis: fewer faces, truer flanks (task 0167)
 
 - **Long milling programs (Fast 3-axis) give lighter, cleaner surfaces.** Faces along the passes, walls and steps are
