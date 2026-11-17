@@ -251,6 +251,13 @@ def run_after():
               and hasattr(bpy.types, "FRESING_OT_user_guide"), funcs)
         check("Help > Check for updates under it", "_draw_help" in funcs and "_draw_help_menu" in funcs
               and funcs.index("_draw_help") == funcs.index("_draw_help_menu") + 1, funcs)
+        try:                              # task 0062: after Update now the app starts calm
+            panels = importlib.import_module(mod.__name__ + ".blender.panels")
+            lock = importlib.import_module(mod.__name__ + ".blender.lock")
+            check("after the update: sections 1-7 folded, Blender's workspace tabs hidden",
+                  not any(panels.is_open(s) for s in panels.SECTIONS) and lock.tabs_hidden(), sorted(panels.OPEN))
+        except ImportError:
+            check("after the update: sections 1-7 folded, Blender's workspace tabs hidden", False, "no panels module")
     tdir = upd.template_dir()
     src = os.path.join(upd.PKG_DIR, "app_template_files", "__init__.py")
     same = bool(tdir) and open(os.path.join(tdir, "__init__.py"), "rb").read() == open(src, "rb").read()
