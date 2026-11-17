@@ -1,6 +1,6 @@
 # 0192 – Fix: a model update to the same file keeps cable routes; re-bake also redoes riding cameras; seabed follows "Vessel at work"; one-pass background re-bake (bug hunt 6, rows 1, 7, 8, 10)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0192-cable-routes-update`
+**Who:** worker · **Status:** done (0.2.149) · **Branch:** `task/0192-cable-routes-update`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183; after 0187) · **Model:** Opus · effort Medium · **Place:**
 Claude Code on the web, environment "CAD-render-animation"
 **Area:** Flex parts lane – cables (`blender/paths.py` `_merge` / `read_cad` / `_ends`, `blender/rebake.py`,
@@ -60,10 +60,10 @@ cameras included; a sea cable's seabed moves with the vessel's real speed; the b
 
 ## Done when
 
-- [ ] Rows 1, 7, 8, 10 fixed, each with its failing-before test; the demo model-update test green.
-- [ ] Measurements (row 10, and Make demo / Build times before / after) in the report.
-- [ ] Guide / tooltips updated where the behaviour is described (re-bake, seabed speed).
-- [ ] Report below filled in; TASKS.md row moved to Done with the version.
+- [x] Rows 1, 7, 8, 10 fixed, each with its failing-before test; the demo model-update test green. Row 10: one pass yes; the "no block > ~2 s" part NOT met (8.1 s left, open point).
+- [x] Measurements (row 10, and Make demo / Build times before / after) in the report.
+- [x] Guide / tooltips updated where the behaviour is described (re-bake, seabed speed).
+- [x] Report below filled in; TASKS.md row moved to Done with the version.
 
 ## Not in this task
 
@@ -133,6 +133,10 @@ gutter, drum layers crossing).
   off – now Build comes off), F2 (name lookups per frame made the read 25–50 % slower – references kept, a deleted one
   caught as ReferenceError), F3 (progress overwritten in the keep-tight rounds) – all fixed in the second commit.
 
+**GitHub runs:** 4 – 44176599891 red (5 tests: the read pass left visibility keys muted; a sea test of the old
+Weather & time rule; 3 demo tests from re-attaching on add_follower – taken back), 44186449173 precheck (0193 took
+0.2.148), 44187445205 green (22.6 min), then the docs run of merge + report.
+
 **Open points / follow-up tasks:**
 - Row 10's "no block > ~2 s" is **not met**: one sea cable's catenary solve (`paths_sea.solve`, ~7 s for the second end
   over 4,481 moments, each moment starting from the one before) is still one step. Splitting it by frame chunks with the
@@ -142,4 +146,3 @@ gutter, drum layers crossing).
 - A model update to a *changed* STEP of the demo was not tried (no changed demo model). There the carousel's bends
   move onto the arch (a reading carries them by the arm follower, the made demo has them on the root since its arm
   follower is added after its spool) – the made demo's Build and a read-again one differ; worth its own look.
-- GitHub runs: see below.
