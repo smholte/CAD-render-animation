@@ -287,12 +287,63 @@ def test_window_and_bat_are_wired(kit):
         assert f in msp.KIT_FILES
 
 
+# Windows PowerShell 5.1's built-in aliases: an alias wins over a function of the same name ("Sc" was Set-Content and
+# the window never opened, task 0177)
+PS51_ALIASES = set("""
+% ? ac asnp cat cd cfs chdir clc clear clhy cli clp cls clv cnsn compare copy cp cpi cpp curl cvpa dbp del diff dir
+dnsn ebp echo epal epcsv epsn erase etsn exsn fc fhx fl foreach ft fw gal gbp gc gcb gci gcm gcs gdr ghy gi gin gjb gl
+gm gmo gp gps gpv group gsn gsnp gsv gtz gu gv gwmi h history icm iex ihy ii ipal ipcsv ipmo ipsn irm ise iwmi iwr kill
+lp ls man md measure mi mount move mp mv nal ndr ni nmo npssc nsn nv ogv oh popd ps pushd pwd r rbp rcjb rcsn rd rdr
+ren ri rjb rm rmdir rmo rni rnp rp rsn rsnp rujb rv rvpa rwmi sajb sal saps sasv sbp sc scb select set shcm si sl
+sleep sls sort sp spjb spps spsv start stz sujb sv swmi tee trcm type wget where wjb write
+""".split())
+
+
+def _ps(name):
+    return open(os.path.join(ROOT, name), "rb").read()
+
+
+def test_window_layout_from_the_dpi():
+    """Task 0177: no control is placed at fixed 96-DPI pixels (every number in a SetBounds / client size goes through
+    Px), no function is shadowed by a 5.1 alias, the files are ASCII + CRLF, and the Windows job runs the layout check at
+    100-200 % and on a 1366 x 768 screen at 150 %."""
+    import re
+    for name in ("site/render_kit/kit_window.ps1", "tools/ci_kit_window_layout.ps1"):
+        raw = _ps(name)
+        assert raw.isascii(), name
+        assert b"\n" not in raw.replace(b"\r\n", b""), name
+        text = raw.decode("ascii")
+        funcs = re.findall(r"(?im)^\s*function\s+([\w-]+)", text)
+        assert funcs and not [f for f in funcs if f.lower() in PS51_ALIASES], name
+    kw = _ps("site/render_kit/kit_window.ps1").decode("ascii")
+    assert "AutoScaleMode]::None" in kw and "SetProcessDPIAware" in kw and "DpiX / 96.0" in kw
+    for call in re.findall(r"SetBounds\(([^\n]*)\)", kw):
+        bare = re.sub(r"\(?Px \d+(\.\d+)?\)?|/ 2\b|\b2 \* (?=\$)", "", call)   # halves, both margins
+        assert not re.search(r"(?<![\w.$])[1-9]\d*(?![\w.])", bare), call
+    for size in re.findall(r"Drawing\.Size\(([^\n]*)\)", kw):
+        if "$MaxW" in size:                                        # the box a text is measured in, not a control
+            continue
+        assert not re.search(r"(?<![\w.$])[1-9]\d*(?![\w.])", re.sub(r"\(?Px \d+\)?|100000", "", size)), size
+    assert "ListView" in kw and "Time at full load" in kw          # the time per model in a column of its own
+    assert "AutoScroll = $true" in kw                              # a small screen: the middle scrolls
+    assert "$TestOnShown" in kw                                    # the check clicks through the start window
+    ci = _ps("tools/ci_windows_install.ps1").decode("utf-8")
+    assert "ci_kit_window_layout.ps1" in ci
+    runs = re.search(r"\$KitLayoutRuns = @\(([^)]*)\)", ci).group(1)
+    for want in ("1.0 ", "1.25 ", "1.5 1366x768", "1.75 ", "2.0 "):
+        assert want in runs, want
+    check = _ps("tools/ci_kit_window_layout.ps1").decode("ascii")
+    for want in ("-Mode layout", "Measure-UiText", "IntersectsWith", "DrawToBitmap", "LAYOUT PROBLEM", "ChangeDisplaySettings",
+                 "the check itself"):
+        assert want in check, want
+
+
 PWSH = shutil.which("pwsh")
 
 
 @pytest.mark.skipif(not PWSH, reason="pwsh is not installed here (GitHub's Linux runners have it)")
 def test_window_script_parses_and_its_time_matches_python(kr, tmp_path):
-    """The window's script parses (PowerShell 7 parser; the Windows job parses it with 5.1), and its own expected-time
+    """The window's script and its layout check parse (PowerShell 7 parser; the Windows job parses it with 5.1), and its own expected-time
     loop gives Python's numbers for a few choices."""
     script = os.path.join(KIT, "kit_window.ps1")
     cases = [(3600, 600, _at(12), {}), (3600, 600, _at(12), {"load": 70}),
@@ -306,9 +357,13 @@ def test_window_script_parses_and_its_time_matches_python(kr, tmp_path):
         calls.append(f"[math]::Round((Get-WallSeconds {gpu} {cpu} ([datetime]'{when}') {c['load']} "
                      f"${str(c['quiet_on']).lower()} '{c['quiet_start']}' '{c['quiet_end']}' {c['quiet_load']}), 1)")
     probe = tmp_path / "probe.ps1"
+    layout = os.path.join(ROOT, "tools", "ci_kit_window_layout.ps1")
     probe.write_text(
         "$errs = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile("
         f"'{script}', [ref]$null, [ref]$errs)\n"
+        "if ($errs.Count) { $errs | ForEach-Object { Write-Output (\"PARSE \" + $_.Message) }; exit 5 }\n"
+        "$errs = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile("
+        f"'{layout}', [ref]$null, [ref]$errs)\n"
         "if ($errs.Count) { $errs | ForEach-Object { Write-Output (\"PARSE \" + $_.Message) }; exit 5 }\n"
         f". '{script}' -Mode lib\n" + "\n".join(calls) + "\n", encoding="utf-8")
     res = subprocess.run([PWSH, "-NoProfile", "-NonInteractive", "-File", str(probe)], capture_output=True, text=True,

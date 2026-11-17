@@ -257,6 +257,7 @@ function Get-FrameHeight($Form) {                       # title bar + borders (a
 }
 
 function Set-ClientSize($Form, [int]$W, [int]$H) {
+    if ($Form.WindowState -ne [System.Windows.Forms.FormWindowState]::Normal) { return }   # minimised: leave it alone
     $Form.Tag = New-Object System.Drawing.Size($W, $H)      # what it should be (the check compares)
     if ($Form.ClientSize.Width -ne $W -or $Form.ClientSize.Height -ne $H) {
         $Form.ClientSize = New-Object System.Drawing.Size($W, $H)
@@ -671,13 +672,15 @@ function Show-StartWindow {
     $atTime.add_ValueChanged($handler)
     if ($resumeBox) { $resumeBox.add_CheckedChanged($handler) }
     $list.add_ItemChecked($handler)
-    $list.add_MouseClick({                              # a click on the name ticks it too, as on the check box
-        param($sender, $e)
-        $hit = $list.HitTest($e.Location)
-        if ($hit.Item -and $hit.Location -ne [System.Windows.Forms.ListViewHitTestLocations]::StateImage) {
-            $hit.Item.Checked = -not $hit.Item.Checked
+    if ($u.scrolls) {                                   # the wheel over the slider or the number box scrolls the window,
+        $wheel = {                                      # it must not change the load unnoticed
+            param($sender, $e)
+            $e.Handled = $true
+            $u.body.AutoScrollPosition = New-Object System.Drawing.Point(0, ([math]::Max(0, -$u.body.AutoScrollPosition.Y - $e.Delta)))
         }
-    })
+        $load.add_MouseWheel($wheel)
+        $qLoad.add_MouseWheel($wheel)
+    }
     $back.add_Click({ & $apply $factory; & $update })
     $start.add_Click({ $form.DialogResult = [System.Windows.Forms.DialogResult]::OK; $form.Close() })
     $cancel.add_Click({ $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel; $form.Close() })
@@ -746,7 +749,10 @@ function Set-StatusLayout($U) {                         # again after every new 
     $y = Set-Row @(@{ c = $U.line3; fill = $true }) $M $y $R
     $y += Px 18
     $y = Set-Row @(@{ c = $U.pause }, @{ c = $U.stop; gap = (Px 10) }, @{ c = $U.hint; fill = $true; minw = (Px 140); gap = (Px 10) }) $M $y $R
-    Set-ClientSize $U.form $W ($y + (Px 14))
+    $h = $y + (Px 14)
+    if ($U.tallest -gt $h) { $h = $U.tallest }          # never shrinks: Pause and Stop do not jump under the mouse
+    $U.tallest = $h
+    Set-ClientSize $U.form $W $h
 }
 
 function Show-StatusWindow {
