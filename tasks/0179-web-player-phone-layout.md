@@ -1,6 +1,6 @@
 # 0179 – Web player on a phone: saved views, layout, view names
 
-**Who:** worker (web session) · **Status:** running (owner started it 17 Nov ~08:00) · **Branch:** `task/0179-web-player-phone-layout` (a web session may name its own)
+**Who:** worker (web session) · **Status:** done (0.2.140, 17 Nov) · **Branch:** `task/0179-web-player-phone-layout` (a web session may name its own)
 **Started by:** lead, 17 Nov 2026 · **Area:** Web 3D lane: `fresing_render/web/fr_player.js` (most of it),
 `fresing_render/web/fr_page.js` (only: the quality note, the start-view framing, the view list), the page templates in
 `core/web3d.py` / `core/web3d_env.py` (viewport meta, header), `blender/web3d.py` (only the saved-views function and the
@@ -170,6 +170,9 @@ IBM Plex Sans, dark translucent panels).
   844 × 390 as a first-time visitor: 10 findings. Fixed: Back with the help open left the page (high), the settings
   had no close button, "Remembered on this PC" on a phone. Not reproduced: "Next view shows no name" (shows "Shot 1:
   … 1/21"; its picture was taken while a quality message showed). Left as they are, see open points.
+
+**GitHub runs:** 3 – run 44045080244 red on the spool tour stop (not this task, open point 4), its failed job run
+again: red the same way; after merging main (0171) run 44052893450 green; `main` fast-forwarded to it (6900500).
 
 **Open points / follow-up tasks:**
 1. Panning on a phone upright is ~1.3 × slower than the finger (three.js OrbitControls scales by the whole canvas
