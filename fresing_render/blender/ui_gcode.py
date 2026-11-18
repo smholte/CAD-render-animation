@@ -24,7 +24,8 @@ def no_machine(layout, context, what: str) -> None:
     when the app has it (task 0062)."""
     text = f"{what} a CNC machine: set it up above first"
     if hasattr(bpy.types, "FRESING_OT_setup_window"):
-        missing(layout, context, text, op="fresing.setup_window", op_text="Set-up window…", op_icon="WINDOW").kind = "CNC"
+        op = missing(layout, context, text, op="fresing.setup_window", op_text="Set-up window…", op_icon="WINDOW")
+        op.kind = "CNC"
     else:
         missing(layout, context, text)
 
@@ -723,7 +724,7 @@ def draw_step(context, box, scene, anim, b) -> None:
     if b.gcode_clean:
         split_props(box).prop(b, "gcode_clean_time", text="Time at end")
 
-    body = fold(box, "fr_gcode_more", "Lines, tool changes, spindle, toolpath", icon="PREFERENCES")
+    body = fold(box, "fr_gcode_more", "Lines, tool changes, toolpath", icon="PREFERENCES")   # (fits in the box)
     if body:
         col = split_props(body)
         col.prop(b, "gcode_from", text="From line")
