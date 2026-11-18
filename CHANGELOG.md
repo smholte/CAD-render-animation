@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.160 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
+## 0.2.161 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
 
 - **Set up your own crane.** 8 Lifting plan > Equipment > **Set up a crane…** opens the Set-up window on your kind
   of crane – **mobile telescopic**, **crawler**, **knuckle-boom** or **other** – and takes you through its steps:
@@ -24,6 +24,17 @@ installer of that version was built from.
 - **Hook to here works on any crane** now: it finds the joints by their roles and solves in 3-D, not by names.
 - Test tour: a new set "Set up a crane" (KB-20 rigged from its bare STEP). PC check: a new line `lifting.setup`.
 
+## 0.2.160 – 18 Nov 2026 – Learn as you go (task 0208)
+
+- **A panel you never use is offered for learning as well as for hiding.** The quiet question now says what the
+  function does and has **Show me in the guide**, **Show me in the test tour** (it sets up the tour's stop and points at
+  the button), **Add to my learning list**, **Hide it**, Not now and Don't ask again.
+- **My learning list** (Fresing menu): each function with Guide, Tour and Done. It is ticked by itself when you used the
+  function on 3 different days (a setting). Add to it with the question, with a right-click on any button
+  (**Add to my learning list**), or with **Add the new functions to my learning list** in What's new.
+- **Next to learn:** at most one quiet line per start on the What's next card – a function in the kind of work you
+  do that you have not tried yet – with Learn and Not interested. All of it can be switched off in My usage, stays on your
+  PC, and Clear my usage data asks whether to clear the list too.
 ## 0.2.159 – 18 Nov 2026 – Make a crane from numbers (task 0204)
 
 - **Make a crane…** in 8 Lifting plan > Equipment: pick the type (mobile telescopic, crawler, knuckle-boom), start

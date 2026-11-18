@@ -38,11 +38,11 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.158",
-   "fp": "7474245a8028aed6"
+   "changed": "0.2.160",
+   "fp": "d53732d51b6918f8"
   },
   "crane_setup": {
-   "added": "0.2.160",
+   "added": "0.2.161",
    "changed": "",
    "fp": "49f588b44590b30c"
   },
@@ -73,7 +73,7 @@
   },
   "gantry": {
    "added": "0.2.47",
-   "changed": "0.2.160",
+   "changed": "0.2.161",
    "fp": "fb305bc85b8403b0"
   },
   "hoses": {

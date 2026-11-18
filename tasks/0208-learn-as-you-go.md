@@ -1,6 +1,6 @@
 # 0208 – Learn as you go: an unused function gets "Learn it" as well as "Hide it", a personal learning list, one quiet "next to learn"
 
-**Who:** worker · **Status:** running (started 18 Nov; builds on 0181)
+**Who:** worker · **Status:** done (0.2.160, 18 Nov)
 · **Branch:** `task/0208-learn-as-you-go`
 **Started by:** lead chat, 18 Nov 2026 (owner, after seeing 0181's "Unused panels" box: "a user might not know about a
 function or know how to use it – not just offer to hide it, but also offer the user guide or this function in the test
@@ -77,12 +77,36 @@ tour's stops. Anything sent off the PC.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026 · released as **0.2.160** (0204 took 0.2.159 meanwhile).
 
-**What changed:**
+**What changed:** New `core/learning.py` (rules, no Blender, no network – tested) and `blender/learning.py` +
+`ops_learning.py`. The learning data lives in 0181's file under `learning` (an older file reads fine; use days are
+dates only, 30 kept). (1) The declutter question now says what the function does and offers Show me in the guide /
+in the test tour (greyed with the reason when the tour has no stop; says "make the tour first" when there is none) /
+Add to my learning list / Hide it / Not now / Don't ask again; the first three put it on the list. Two new ticks in My
+usage: *Offer to teach unused functions*, *Suggest what to learn next*, plus *Days of use = learned* (default 3).
+(2) Fresing menu > My learning list…: Guide, Tour, a greyed Show me (hook for the lessons: `fresing.learn_lesson`, its
+poll is False), Done, cross; ticked by itself after use on N days and said once; right-click on any button of a
+function > Add to my learning list; What's new > Add the new functions to my learning list; Clear my usage data asks
+about the list; the list goes in a profile only with the usage counts. (3) One "Next to learn" line a session on the
+What's next card (which now also shows when only that line exists), Learn / Not interested. Function entries
+`learn.question`, `learn.list`, `learn.next`; guide chapter (4 anchors, 2 pictures); tour stop `learn` (crane set
+changed); PC-check line `app.learning`.
 
-**Tested and measured:**
+**Tested and measured:** `tests/test_learning.py` (23, no Blender), `tests/test_learning_blender.py` (13), the real
+app `ui_test_usage.py` 31/31 on the web machine (three learn buttons on screen, a real click on Add to my learning list,
+What's new adds, the list window opens; screenshots looked at). Not tested by a real right-click: the menu's
+function lookup is tested with stand-ins (`button_function`), and Show me in the test tour with a stand-in for Go
+(a real tour project is not made in the quick run; the tour test of GitHub runs the stop's check).
 
-**Owner decides:**
+**Owner decides (proposals):** default N = 3 days; next-to-learn rule = a function in a family (kind of work) you
+already use, never used, shown by your workspace, not used by the open project, not hidden / turned down / listed – the
+first in the function list's order, families by use; the question's text ("Maybe you do not know it yet?" + the
+function's title as its one line); Learn on the card also opens the guide.
 
-**Open points / follow-up tasks:**
+**Runs:** 2 full runs. Run 1 red: the allow-list size test (my 8 learn buttons; cap raised, 3 of them listed as list-only edits). Then 0204 took 0.2.159: merged, renumbered, run 2 green (44326873734).
+
+**Open points / follow-up tasks:** the lessons task fills the greyed Show me / Build it yourself. The one-line "what it
+does" is the function's title (long for some); a short field could be added. "Show me in the guide" with no installed
+guide opens the guide's GitHub page in the browser (network only by the user's browser; `docs/COMPANY-USE.md` unchanged:
+the app itself sends nothing).
