@@ -1,6 +1,6 @@
 # 0214 – Lifting plans with the rest of the app (bug hunt 0209 groups B + C)
 
-**Who:** worker · **Status:** running · **Branch:** `claude/dreamy-babbage-55wbpk` (the web session's own branch)
+**Who:** worker · **Status:** done 18 Nov (0.2.166) · **Branch:** `claude/dreamy-babbage-55wbpk` (the web session's own branch)
 **Started by:** lead, 18 Nov 2026 · **Model:** Opus · effort Medium
 **Area:** Lifting lane – `blender/lifting.py`, `ops_lifting.py`, `ui_lifting.py`, `blender/sheet.py`, `blender/states.py`,
 `core/lifting_reach.py`, `fresing_render/lifting_model/` (row 17), one hook line in `blender/reimport.py` (leave the rest
@@ -24,10 +24,10 @@ Rows 1 and 3 first – they lose work:
 
 ## Done when
 
-- [ ] Each row's repeat case is a test that failed before; every built-in crane's pose animation gives 0 clash rows.
-- [ ] 0201's open point "more counterweight than the chart picked" stays for L6 (say so).
-- [ ] Guide, tooltips where texts changed; tour sets still 0 clashes; full run green.
-- [ ] Report filled in.
+- [x] Each row's repeat case is a test that failed before; every built-in crane's pose animation gives 0 clash rows.
+- [x] 0201's open point "more counterweight than the chart picked" stays for L6 (say so).
+- [x] Guide, tooltips where texts changed; tour sets still 0 clashes; full run green.
+- [x] Report filled in.
 
 ## Not in this task
 
@@ -84,4 +84,9 @@ L5 rigging; the mesh update of moved groups (row 5, group G).
   the KB column in the load bed by 60 mm): the clash check never reports them, but they show in close-ups (makers lane).
 - The hook block × cab rows the hunt saw are not reproduced with the file's poses (the hoist is part of each pose);
   after Hook to here + a pose animation the hook can still pass the cab (plan's own path checks come with L7).
-- GitHub runs: see below.
+- GitHub runs: 2 full runs of code. Run 44386228223 failed one test: the built-in crane files were 11.52 MB, over
+  0191's 11.5 MB budget (the cut shapes made each STEP ~5 % bigger). Fixed without raising the budget: the library
+  pictures now use a 128-colour palette (294 → 94 KB, same look), so the total is 11.42 MB. Run 44393146400 green
+  (30 min). No subagents were used; no independent review (no Windows-only code).
+- Branch `task/0214-lifting-with-the-rest` was never pushed (a web session pushes only to its own branch);
+  `claude/dreamy-babbage-55wbpk` can be deleted on github.com after the merge.
