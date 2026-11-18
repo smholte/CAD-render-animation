@@ -319,17 +319,18 @@ class _Marked:
 
 
 def open_panel():
-    """The panel sits far down the side panel, closed. For the clicks and the pictures: a copy of it, open, right
-    under 1 Import (panels are ordered by bl_order, then by when they were registered), which draws the magenta
-    strip where ``STATE["mark"]`` says: "top" (above everything: for the list), "add" (above Add drum / Add
-    carousel) or a button's operator."""
-    # task 0062: a panel shows only under open parents; and only this panel (with 4 Motion above it), so its copy
-    # is at the top of the side panel whatever else the tab holds (Workspace row, tabs, Make, 1 Import …)
-    mod("blender.panels").show_only(["FRESING_PT_spools"])
-    if hasattr(bpy.types, "FRESING_PT_spools_shot"):
+    """The panel sits far down the side panel, closed. For the clicks and the pictures the side panel shows only
+    this panel, opened, under 4 Motion (the app keeps what is open and what shows: ``panels.show_only``, task
+    0062), and its body draws the magenta strip where ``STATE["mark"]`` says: "top" (above everything: for the
+    list), "add" (above Add drum / Add carousel) or a button's operator."""
+    panels = mod("blender.panels")
+    panels.show_only(["FRESING_PT_spools"])
+    if STATE.get("panel_open"):
         return
+    STATE["panel_open"] = True
     ui_spool = mod("blender.ui_spool")
     base = ui_spool.FRESING_PT_spools
+    body = panels.body_of(base)
     if not hasattr(bpy.types.WindowManager, "fr_uitest_mark"):
         bpy.types.WindowManager.fr_uitest_mark = bpy.props.FloatVectorProperty(
             subtype="COLOR", size=3, default=(1.0, 0.0, 1.0), min=0.0, max=1.0)
@@ -337,11 +338,9 @@ def open_panel():
     def draw(self, context):
         if STATE["mark"] == "top":
             self.layout.prop(context.window_manager, "fr_uitest_mark", text="")
-        base.draw(types.SimpleNamespace(layout=_Marked(self.layout)), context)
+        body(types.SimpleNamespace(layout=_Marked(self.layout)), context)
 
-    bpy.utils.register_class(type("FRESING_PT_spools_shot", (base,), {
-        "bl_idname": "FRESING_PT_spools_shot", "bl_parent_id": "", "bl_options": set(), "bl_order": 0,
-        "draw": draw}))
+    base.draw = panels._make_draw(base, draw)             # the app's title row, then the marked body
     real = ui_spool._add_buttons
 
     def marked(layout, first):
