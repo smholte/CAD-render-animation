@@ -1,6 +1,6 @@
 # 0218 – Web 3D page: Slice instead of Cutaway – any face, several slices, edit and delete
 
-**Who:** worker · **Status:** open – can start (Web 3D lane) · **Branch:** `task/0218-web3d-slice`
+**Who:** worker · **Status:** running (Web 3D lane) · **Branch:** `task/0218-web3d-slice`
 **Started by:** lead, 18 Nov 2026 (owner's request of 18 Nov 22:13, through the ToolBox lead's lead-post message
 `1118-toolbox-to-fresing-render-viewer-and-slice.md`) · **Model:** Opus · effort Medium
 **Area:** Web 3D lane – `fresing_render/web/fr_tools.js` (the part tools), `fr_page.js` (only where the clipping planes
