@@ -323,7 +323,9 @@ def open_panel():
     under 1 Import (panels are ordered by bl_order, then by when they were registered), which draws the magenta
     strip where ``STATE["mark"]`` says: "top" (above everything: for the list), "add" (above Add drum / Add
     carousel) or a button's operator."""
-    mod("blender.panels").open_to("FRESING_PT_spools")      # task 0062: a panel shows only under open parents
+    # task 0062: a panel shows only under open parents; and only this panel (with 4 Motion above it), so its copy
+    # is at the top of the side panel whatever else the tab holds (Workspace row, tabs, Make, 1 Import …)
+    mod("blender.panels").show_only(["FRESING_PT_spools"])
     if hasattr(bpy.types, "FRESING_PT_spools_shot"):
         return
     ui_spool = mod("blender.ui_spool")

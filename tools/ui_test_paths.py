@@ -277,7 +277,9 @@ def open_panel():
     """The panel sits far down the side panel, closed. For the clicks and the pictures: a copy of it, open, right
     under 1 Import (panels are ordered by bl_order, then by when they were registered). And the magenta strip
     above the Add cable button, drawn only while ``STATE["mark"]`` is on."""
-    mod("blender.panels").open_to("FRESING_PT_cables")      # task 0062: a panel shows only under open parents
+    # task 0062: a panel shows only under open parents; and only this panel (with 4 Motion above it), so its copy
+    # is at the top of the side panel whatever else the tab holds (Workspace row, tabs, Make, 1 Import …)
+    mod("blender.panels").show_only(["FRESING_PT_cables"])
     if hasattr(bpy.types, "FRESING_PT_cables_shot"):
         return
     ui_paths = mod("blender.ui_paths")
