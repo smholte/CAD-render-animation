@@ -139,14 +139,20 @@ class Floor:
         p = np.asarray(pts, float).reshape(-1, 3)
         if not len(p):
             return
-        ij = np.floor(np.round((p[:, :2] - self.lo) / self.cell, SNAP) + 0.5).astype(int)
         h = p[:, 2] - self.z
-        ok = (ij[:, 0] >= 0) & (ij[:, 1] >= 0) & (ij[:, 0] < self.shape[0]) & (ij[:, 1] < self.shape[1])
-        band = ok & (h >= BAND[0]) & (h <= BAND[1])
-        self.occ[ij[band, 0], ij[band, 1]] = True
+        c = (p[:, :2] - self.lo) / self.cell + 0.5
+        # a point on a cell edge (within rounding noise) takes both cells: the same answer whichever side noise puts it
+        # on, and the one that keeps the person further from the machine (task 0194)
+        eps = 10.0 ** -SNAP
         k = np.floor(h / SLAB).astype(int)
-        sl = ok & (k >= 0) & (k < SLABS)
-        self.slab[k[sl], ij[sl, 0], ij[sl, 1]] = True
+        for dx in (-eps, eps):
+            for dy in (-eps, eps):
+                ij = np.floor(c + (dx, dy)).astype(int)
+                ok = (ij[:, 0] >= 0) & (ij[:, 1] >= 0) & (ij[:, 0] < self.shape[0]) & (ij[:, 1] < self.shape[1])
+                band = ok & (h >= BAND[0]) & (h <= BAND[1])
+                self.occ[ij[band, 0], ij[band, 1]] = True
+                sl = ok & (k >= 0) & (k < SLABS)
+                self.slab[k[sl], ij[sl, 0], ij[sl, 1]] = True
         self._free.clear()
 
     def add_points(self, pts) -> None:

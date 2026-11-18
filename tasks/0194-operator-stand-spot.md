@@ -44,13 +44,14 @@ Walk paths and gaits (0157), the glove and the cabinet door (0156).
 
 **What changed:** Cause: the floor map's grid started at its own corner (`lo`), which follows the first spindle position, so a
 hair of rounding noise moved the cell lines, and a cabinet front lying on a cell edge landed in the other cell (a 4 cm step).
-`core/tc_person.py` `Floor`: `lo` snapped to the world's cell lines, and cell numbers rounded to 4 decimals of a cell
-(`SNAP`) before the cell is chosen, so a point within 0.0001 cell of an edge counts as on it.
+`core/tc_person.py` `Floor`: `lo` snapped to the world's cell lines, and a point within 0.0001 cell of a cell edge takes both
+cells (`SNAP`, `_mark`), so noise cannot decide and the map errs towards the machine, i.e. the person stands further away.
+The first try (rounding the point into one cell) gave the closer spot (0, −0.56) for good and the hands clipped the cabinet
+in two real-app tests – so the closer spot DOES clash (hands inside "CABINET STAND" at frames 171–172, 460–463); (0, −0.60) is right.
 
-**Tested and measured:** new `test_stand_spot_does_not_move_with_rounding_noise` (obstacle edge on a cell edge ± 1e-9 / 3e-7 m,
-map corner shifted likewise): fails before the change, passes after. `test_tc_person.py` + `_independent.py`: 86 passed
-(Linux, 4 cores). Not done: the real-Blender case of the row (model update with the same file) and a clash check of the
-closer spot – the fix keeps the farther spot (0, −0.60) by construction but I did not run it in Blender; GitHub's
-tour and PC check cover the operator.
+**Tested and measured:** new `test_stand_spot_does_not_move_with_rounding_noise` (fails before, passes after). Real Blender
+model of `test_tc_person_blender*.py`: spot (0, −0.60) with the fix (was −0.56 only with a shifted map corner). The four
+tc_person test files: 108 passed (Linux, 4 cores). The row's exact case (update with the same file) was not run separately:
+its cause is the shifted map corner, which the world-fixed grid removes.
 
 **Open points / follow-up tasks:** none; no helper agents used. Runs: see the GitHub result.
