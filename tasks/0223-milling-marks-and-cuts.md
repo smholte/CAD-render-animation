@@ -22,6 +22,10 @@ plain grey, soft or wavy cut faces (the owner's first picture), or a toolpath li
   **bad** – a block with two shallow, soft-edged dents, plain grey, the green feed path drawn deeper than the cut,
   the blue dashed rapids, the bit inside the material at top right. Which stop it was is not known: go through all of
   them.
+- **The checks did not see it:** the owner's PC check in mode Tour on 0.2.168 (19 Nov 00:14, RTX 3090): 83 OK, 0
+  failed in 281 s – every machining stop (`gcode`, `accel`, `tools`, `hand`, `marks`, `atc`, `doublearm`, `rotary4`,
+  `rotary5`, `toolpath`, `chips`, `air`, `coolant`, `operator`, `cut_look`) passed while he saw missing marks and
+  uncut moves. The new checks must fail on exactly that.
 - Lead's first look (not proven): the tool-mark attributes `fr_mk_o/d/a/p` are written only by the Manifold route
   (`core/machining.py`, `blender/machining.py` ~line 1195, task 0061). The **height map** for long 3-axis programs –
   "Fast 3-axis" (0146, 0167, 0186) – does not mention them at all: a model on that route would get no marks. The soft
