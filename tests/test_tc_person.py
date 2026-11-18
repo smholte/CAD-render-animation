@@ -304,3 +304,16 @@ def test_the_glove_closes_round_the_holder():
     for face in f:                                                  # faces look out (smooth shading stays clean)
         p = v[list(face)]
         assert np.dot(np.cross(p[1] - p[0], p[2] - p[0]), p.mean(axis=0) - (0, 0, 0.05)) >= 0
+
+
+@pytest.mark.parametrize("noise", [0.0, 1e-9, -1e-9, 3e-8, -3e-8])
+def test_stand_spot_does_not_move_with_rounding_noise(noise):
+    """Task 0194: a cabinet front exactly on a cell edge, a centre and an edge that differ by rounding noise (a model
+    update with nothing changed) give ONE stand spot."""
+    def spot(n):
+        fl = T.Floor((-1.0 + n, -2.0 + n), (1.0 + n, 1.0 + n), cell=0.04)
+        fl.add_box((-0.5 + n, -0.5, 0.0), (0.5 + n, -0.30 + n, 1.0))   # front on a cell edge +- n
+        return T.stand_spot(fl, (0.0, -0.3), (0.0, -1.0))
+    a, b = spot(0.0), spot(noise)
+    assert a is not None and b is not None
+    assert np.allclose(a, b, atol=1e-3)

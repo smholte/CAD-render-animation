@@ -39,6 +39,7 @@ from . import person_rig as R
 from . import toolchange as TC
 
 BODY = 0.27                  # m: the person's half width / depth (shoulders, toes) – kept off the machine
+EDGE_TOL = 1e-6              # cells: a point this close to a cell edge takes the same cell whichever side rounding put it
 WORK_ROOM = 0.25             # m: round the stand spot (toes and belly in front, the arms close by when it turns)
 WALK_MARGIN = 0.06           # m: the way is planned this much further from things (corners are rounded)
 BAND = (0.08, 1.95)          # m above the floor: what is in the way of a walking person
@@ -123,6 +124,9 @@ class Floor:
         hi = np.asarray(hi[:2], float)
         span = float(max(hi - lo))
         self.cell = max(float(cell), span / max_cells)
+        # the grid sits on whole cells of the world: a centre that differs by rounding noise (a model update with
+        # nothing changed) must not move the cell edges under the things standing on them (task 0194)
+        lo = np.floor(lo / self.cell + EDGE_TOL) * self.cell
         self.lo = lo
         self.shape = (int(math.ceil((hi[0] - lo[0]) / self.cell)) + 1, int(math.ceil((hi[1] - lo[1]) / self.cell)) + 1)
         self.occ = np.zeros(self.shape, bool)
@@ -135,7 +139,7 @@ class Floor:
         p = np.asarray(pts, float).reshape(-1, 3)
         if not len(p):
             return
-        ij = np.floor((p[:, :2] - self.lo) / self.cell + 0.5).astype(int)
+        ij = np.floor((p[:, :2] - self.lo) / self.cell + 0.5 + EDGE_TOL).astype(int)
         h = p[:, 2] - self.z
         ok = (ij[:, 0] >= 0) & (ij[:, 1] >= 0) & (ij[:, 0] < self.shape[0]) & (ij[:, 1] < self.shape[1])
         band = ok & (h >= BAND[0]) & (h <= BAND[1])
@@ -181,7 +185,7 @@ class Floor:
 
     # -- reading -----------------------------------------------------------------------------------------------
     def ij(self, xy) -> tuple:
-        v = np.floor((np.asarray(xy[:2], float) - self.lo) / self.cell + 0.5).astype(int)
+        v = np.floor((np.asarray(xy[:2], float) - self.lo) / self.cell + 0.5 + EDGE_TOL).astype(int)
         return int(v[0]), int(v[1])
 
     def xy(self, i: int, j: int) -> np.ndarray:

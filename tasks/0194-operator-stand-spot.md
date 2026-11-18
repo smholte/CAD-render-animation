@@ -1,6 +1,6 @@
 # 0194 – Fix: the tool-change operator stands 4 cm closer after an unchanged model update (bug hunt 6, row 16)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0194-operator-stand-spot`
+**Who:** worker · **Status:** done (0.2.153) · **Branch:** `task/0194-operator-stand-spot`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183) · **Model:** Sonnet · effort Low · **Place:** Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** people – `core/tc_person.py` (`stand_spot`, the floor map), `blender/tc_person.py` (`_floor`, `bake`), their tests.
@@ -40,10 +40,10 @@ Walk paths and gaits (0157), the glove and the cabinet door (0156).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** web worker, 18 Nov 2026
 
-**What changed:**
+**What changed:** Cause: the floor map's origin was the holder centre minus a margin, so rounding noise from an update moved the cell edges under the cabinet front, and the rounding of a point on an edge flipped a cell (4 cm). `Floor` now puts its origin on whole cells of the world and rounds with a 1e-6 cell tolerance (`EDGE_TOL`).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** new `test_stand_spot_does_not_move_with_rounding_noise` (edge ± 1e-9 … 3e-8 m): 4 of 5 cases failed before, all pass; `tests/test_tc_person*.py` 90 passed on the 4-core web machine. Not run: the real-Blender row-16 scenario and a clash check of the closer spot (GitHub runs the real-app tests); the spot is now the same (0, −0.60) as before the update, so the closer one no longer occurs.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** none. Runs: see below.
