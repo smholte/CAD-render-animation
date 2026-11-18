@@ -319,3 +319,16 @@ def test_no_forbidden_words_in_the_panel_and_operators():
         strings = " ".join(s for s in __import__("re").findall(r'"([^"\n]*)"', src))
         for w in lifting.FORBIDDEN_WORDS:
             assert f" {w.lower()} " not in f" {strings.lower()} ", (mod.__name__, w)
+
+
+def test_remove_a_crane_with_several_cylinders():
+    """Found by the real-app test: removing a crawler crane (two pendants and more) failed – a list of cylinder items
+    held while the list shrank."""
+    BL = _mods()
+    sc = _new(CRANE)
+    before = _counts(sc)
+    c = BL.place(bpy.context, _item("CC-750"), (40.0, 0.0, 0.0), 0.0)
+    assert len([x for x in sc.fresing.cylinders if x.name.startswith("CC-750 · ")]) >= 4
+    assert len(sc.fresing.tracks) == 2
+    BL.remove(sc, c)
+    assert _counts(sc) == before

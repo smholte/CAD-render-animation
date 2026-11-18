@@ -14,8 +14,8 @@ from ..core.words import plural
 from . import lifting
 from .ui import _Panel, big, fold, gap, header_status, hint, primary, split_props, steps, wrap
 
-STATUS_ICON = {core.OK: "SEQUENCE_COLOR_04", core.AMBER: "SEQUENCE_COLOR_02", core.RED: "SEQUENCE_COLOR_01",
-               core.NOT_CHECKED: "SEQUENCE_COLOR_09"}
+STATUS_ICON = {core.OK: "STRIP_COLOR_04", core.AMBER: "STRIP_COLOR_02", core.RED: "STRIP_COLOR_01",
+               core.NOT_CHECKED: "STRIP_COLOR_09"}
 _PREVIEWS = {"coll": None}
 
 

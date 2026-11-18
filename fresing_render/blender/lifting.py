@@ -400,8 +400,8 @@ def remove(scene, crane) -> dict:
         if s.tracks[i].name.startswith(p):
             tracks.remove(scene, i)
             gone["tracks"] += 1
-    for c in [c for c in s.cylinders if c.name.startswith(p)]:
-        cylinders.remove(scene, cylinders.find(scene, c.name))
+    for n in [c.name for c in s.cylinders if c.name.startswith(p)]:      # names: removing one changes the list
+        cylinders.remove(scene, cylinders.find(scene, n))
         gone["cylinders"] += 1
     for i in reversed(range(len(s.poses))):
         if s.poses[i].name.startswith(p):
