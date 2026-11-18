@@ -6,7 +6,7 @@ import bpy
 
 from ..core import weather as core
 from . import build, weather
-from .ui import _has_model, _Panel, fold, header_status, split_props, steps, wrap
+from .ui import _has_model, _Panel, fold, gap, header_status, split_props, steps, wrap
 
 PLACE_WORDS = {
     "photo": "With a 360° photo the photo keeps its own sun and sky: the time of day and the clouds are not used. Rain, "
@@ -81,14 +81,17 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         scene = context.scene
         s = scene.fresing
         w = s.weather
+        steps(layout, context, ["Tick 'Weather & time'",
+                                "Pick a preset (Clear day, Grey North Sea, Storm, Snow at the quay, Night shift)",
+                                "Set the clock and the weather; Live preview shows it",
+                                "For a video: 6 Animation > a Weather & time step (day to dusk, rain starting)"],
+              key="fr_how_weather", used=bool(w.enabled))
+        gap(layout)
         layout.prop(w, "enabled", text="Weather & time")
         from .ops_scene import draw_start_scene             # Build puts the start scene's weather back (task 0160)
         draw_start_scene(layout, context, ["weather"])
         if not w.enabled:
-            steps(layout, context, ["Tick 'Weather & time'",
-                                    "Pick a preset (Clear day, Grey North Sea, Storm, Snow at the quay, Night shift)",
-                                    "Set the clock and the weather; Live preview shows it",
-                                    "For a video: 6 Animation > a Weather & time step (day to dusk, rain starting)"])
+            gap(layout)
             _work_lights(layout, context)
             return
         where = weather.place(scene)
@@ -100,6 +103,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
 
         # -- time of day
         if where == "sky":
+            gap(layout)
             el, _az = core.sun_of(st)
             layout.label(text=f"Time  {core.clock(w.hour)}  ({core.part_of_day(el, w.hour)}, sun {el:.0f}°)",
                          icon="TIME")
@@ -120,6 +124,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
                 body.label(text=text, icon="BLANK1")
 
             # -- sky
+            gap(layout)
             layout.label(text="Sky", icon="OUTLINER_DATA_VOLUME")
             col = split_props(layout)
             col.prop(w, "clouds", text="Clouds")
@@ -127,10 +132,12 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
             col.prop(w, "visibility", text="Visibility (m)")
             layout.label(text=core.visibility_words(w.visibility).capitalize(), icon="BLANK1")
         if where == "indoor":
+            gap(layout)
             _work_lights(layout, context)
             return
 
         # -- rain and snow
+        gap(layout)
         layout.label(text="Rain and snow", icon="MOD_FLUIDSIM")
         col = split_props(layout)
         col.prop(w, "rain", text="Rain")
@@ -142,6 +149,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         col.prop(w, "snow_cover", text="Snow layer")
 
         # -- wind
+        gap(layout)
         layout.label(text=f"Wind  Bft {w.wind:.0f} {core.bft_name(w.wind).lower()}, "
                           f"{core.bft_to_ms(w.wind):.0f} m/s", icon="FORCE_WIND")
         col = split_props(layout)
@@ -160,6 +168,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
             col.prop(w, "bow", text="Bow")
 
         # -- night
+        gap(layout)
         if where == "sky":
             body = fold(layout, "fr_weather_night", "Night lights", "LIGHT_SUN")
             if body:
@@ -170,6 +179,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
                     wrap(body, context, "Floodlights are set up on the Open sea, the Vessel deck and the Quayside.",
                          icon="INFO")
         _work_lights(layout, context)
+        gap(layout)
         wrap(layout, context, "A video can change the weather: 6 Animation > add a Weather & time step.",
              icon="RENDER_ANIMATION")
 

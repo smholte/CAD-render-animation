@@ -1,5 +1,5 @@
 """Side panel: 5 Scene & Render > House from House Planner (task 0114). Same layout rules as ui.py: the steps top to
-bottom, the main button big and blue, a state in the header."""
+bottom, the main button big, a state in the header."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import bpy
 
 from ..core import words
 from . import house_bake, house_import, lightbake, ops_house
-from .ui import _Panel, header_status, primary, split_props, wrap
+from .ui import BIG, _Panel, big, gap, header_status, split_props, wrap
 
 LIGHT_WORDS = {"LIVE": "Live only (nothing baked; snow, photos and videos only)",
                "SOFT": "Soft light baked, sun live", "ALL": "Everything baked"}
@@ -46,8 +46,8 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
         rt = ops_house.runtime(context.scene)
         if rt.get("running"):
             header_status(self.layout, "baking")
-        elif house_import.settings(context.scene).last_bake:
-            header_status(self.layout, "baked")
+        else:                                           # short: the long title leaves little room beside it
+            header_status(self.layout, "baked" if house_import.settings(context.scene).last_bake else "not baked")
 
     def draw(self, context):
         layout = self.layout
@@ -67,13 +67,15 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
         box.label(text=words.plural(len(house.surfaces), "surface"), icon="BLANK1")
 
         # -- what House Planner asks for (read-only: it is set in House Planner's export dialog)
+        gap(layout)
         layout.label(text="Light", icon="LIGHT_SUN")
         col = layout.column(align=True)
-        col.label(text=LIGHT_WORDS.get(rec.light, rec.light), icon="BLANK1")
+        wrap(col, context, LIGHT_WORDS.get(rec.light, rec.light), icon="BLANK1")
         col.label(text=f"Quality: {rec.preset.capitalize()}", icon="BLANK1")
         col.label(text=f"{rec.samples} samples, {rec.texels_per_m:g} texels/m", icon="BLANK1")
 
         # -- seasons and moments, each with Preview
+        gap(layout)
         layout.label(text="Moments to bake (eye: preview)", icon="TIME")
         for season in rec.seasons:
             sub = layout.box()
@@ -88,13 +90,14 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
                 row.operator("fresing.house_preview", text="", icon="HIDE_OFF").moment = m.id
         if rec.open_storeys:
             names = {s.id: s.name for s in house.storeys}
-            layout.label(text="Also open from above: " + ", ".join(names.get(s, s) for s in rec.open_storeys),
-                         icon="BLANK1")
+            wrap(layout, context, "Also open from above: " + ", ".join(names.get(s, s) for s in rec.open_storeys),
+                 icon="BLANK1")
         if rec.photos or rec.videos:
             layout.label(text=f"{words.plural(len(rec.photos), 'photo')}, {words.plural(len(rec.videos), 'video')}",
                          icon="IMAGE_DATA")
 
         # -- the bake
+        gap(layout)
         rt = ops_house.runtime(scene)
         if rt.get("running"):
             layout.progress(factor=float(rt.get("progress", 0.0)), type="BAR", text=rt.get("text", "Baking"))
@@ -104,12 +107,13 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
         if est is not None and est["seconds"] > 0:
             where = "on the graphics card (estimate)" if est["gpu"] else "on this PC's processor"
             wrap(layout, context, f"Takes {lightbake.duration(est['seconds'])} {where}", icon="SORTTIME")
-        primary(layout, "fresing.house_bake", "Bake and export…", "RENDER_STILL")
+        big(layout, "fresing.house_bake", "Bake and export…", "RENDER_STILL", BIG)
         wrap(layout, context, "Writes " + os.path.basename(house_bake.default_path(scene)) + " next to the project. "
              "Open it in House Planner.", icon="INFO")
         if h.last_bake:
-            layout.label(text=h.last_text or os.path.basename(h.last_bake), icon="CHECKMARK")
-            layout.operator("fresing.house_show", text="Show in Explorer", icon="FILE_FOLDER")
+            gap(layout)
+            wrap(layout, context, h.last_text or os.path.basename(h.last_bake), icon="CHECKMARK")
+            layout.operator("fresing.house_show", text="Show in folder", icon="FILE_FOLDER")
             lines = [x for x in h.last_problems.split("\n") if x.strip()]
             if lines:
                 col = layout.column(align=True)

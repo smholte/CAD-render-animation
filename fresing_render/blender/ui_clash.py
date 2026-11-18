@@ -6,7 +6,7 @@ import bpy
 
 from ..core import clash as core
 from . import clash
-from .ui import MEDIUM, _has_model, _Panel, fold, header_status, list_rows, primary, split_props, steps, wrap
+from .ui import BIG, MEDIUM, _has_model, _Panel, big, fold, gap, header_status, list_rows, split_props, steps, wrap
 
 
 class FRESING_UL_clashes(bpy.types.UIList):
@@ -37,10 +37,14 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
         if rt.get("running"):
             header_status(self.layout, f"{rt.get('progress', 0.0) * 100:.0f}%")
             return
-        st = clash.state(context.scene)
-        if not st["built"] and not st["checked"] and not st["stale"]:
-            return
-        header_status(self.layout, st["text"], alert=bool(st["clashes"]), limit=34)
+        st = clash.state(context.scene)                 # short: the title and the state share one row
+        if st["clashes"]:
+            header_status(self.layout, core.plural(st["clashes"], "clash"), alert=True)
+        elif st["checked"]:
+            header_status(self.layout, core.plural(st["near"], "near miss") if st["near"] else "no clashes",
+                          limit=16)
+        else:
+            header_status(self.layout, "not checked")
 
     def draw(self, context):
         layout = self.layout
@@ -48,10 +52,11 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
         c = clash.settings(scene)
         st = clash.state(scene)
         rt = clash.runtime(scene)
-        if not st["built"] and not c.checked:
-            steps(layout, context, ["Build the animation above (Build & play)",
-                                    "Check for clashes: parts that run into each other are listed",
-                                    "Click a row: the view goes there and shows both parts red"])
+        steps(layout, context, ["Build the animation above (Build & play)",
+                                "Check for clashes: parts that run into each other are listed",
+                                "Click a row: the view goes there and shows both parts red"],
+              key="fr_how_clash", used=bool(st["built"] or c.checked))
+        gap(layout)
 
         # -- what counts
         col = split_props(layout)
@@ -62,13 +67,14 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
             col.prop(c, "near_distance", text="Closer than")
 
         # -- the check
+        gap(layout)
         if rt.get("running"):
             row = layout.row(align=True)
             row.scale_y = MEDIUM
             row.label(text=f"Checking … {rt.get('progress', 0.0) * 100:.0f}%", icon="SORTTIME")
             row.operator("fresing.clash_cancel", text="Cancel", icon="CANCEL")
             return
-        primary(layout, "fresing.clash_check", "Check for clashes", "VIEWZOOM")
+        big(layout, "fresing.clash_check", "Check for clashes", "VIEWZOOM", BIG)
 
         # -- the result
         if st["stale"]:
@@ -76,6 +82,7 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
             return
         if not st["checked"]:
             return
+        gap(layout)
         what = f"'{c.anim}': "
         if st["clashes"]:
             what += f"{core.plural(st['clashes'], 'clash')}, click one to see it"
@@ -87,6 +94,7 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
              icon="ERROR" if st["clashes"] else "CHECKMARK", alert=bool(st["clashes"]))
         if not c.rows:
             return
+        gap(layout)
         layout.template_list("FRESING_UL_clashes", "", c, "rows", c, "rows_index",
                              rows=list_rows(len(c.rows), 3, 8))
         if len(c.rows) < st["clashes"] + st["near"]:
@@ -107,6 +115,7 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
             row = box.row(align=True)
             row.operator("fresing.clash_show", text="Show again", icon="ZOOM_SELECTED").index = c.rows_index
             row.operator("fresing.clash_red_off", text="No red", icon="HIDE_ON")
+        gap(layout)
         body = fold(layout, "fresing_clash_more", "More")
         if body is not None:
             body.operator("fresing.clash_clear", text="Clear the result", icon="TRASH")

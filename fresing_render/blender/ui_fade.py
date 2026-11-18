@@ -6,7 +6,7 @@ import bpy
 
 from ..core.words import plural
 from . import animation, build, fade, trails
-from .ui import _has_model, _Panel, header_status, list_rows, primary, split_props, steps, wrap
+from .ui import _has_model, _Panel, big, gap, header_status, hint, list_rows, split_props, steps, wrap
 
 
 class FRESING_PT_xray(_Panel, bpy.types.Panel):
@@ -19,32 +19,32 @@ class FRESING_PT_xray(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         n = fade.xray_count(context.scene)
-        if n:
-            header_status(self.layout, plural(n, "part"))
+        header_status(self.layout, plural(n, "part") if n else "off")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
         n = fade.xray_count(scene)
-        if not n:
-            steps(layout, context, ["Select a subassembly (or a part), or pick a group in the list above",
-                                    "X-ray it: it turns see-through with glowing edges",
-                                    "Shows in rendered view, pictures and videos"])
+        steps(layout, context, ["Select a subassembly (or a part), or pick a group in the list above",
+                                "X-ray it: it turns see-through with glowing edges",
+                                "Shows in rendered view, pictures and videos"],
+              key="fr_how_xray", used=n > 0)
+        gap(layout)
         col = split_props(layout)
         col.prop(s, "xray_color", text="Colour")
         col.prop(s, "xray_strength", text="Strength", slider=True)
-        primary(layout, "fresing.xray_selected", "X-ray the selected", "XRAY", 1.25)
-        row = layout.row(align=True)
-        row.operator("fresing.xray_group", text="X-ray this group", icon="MATERIAL")
-        row.operator("fresing.xray_clear", text="Back to normal", icon="LOOP_BACK")
-        if n:
-            row = layout.row(align=True)
-            row.label(text=f"{plural(n, 'part')} in X-ray", icon="INFO")
-            row.operator("fresing.xray_clear_all", text="All back", icon="X")
-        hint = wrap(layout, context, "To make a housing turn X-ray during a video, use a Fade out step with 'Fade to "
-                                     "X-ray' in 6 Animation", inset=12)
-        hint.active = False
+        gap(layout)
+        big(layout, "fresing.xray_selected", "X-ray the selected", "XRAY")
+        layout.operator("fresing.xray_group", text="X-ray this group", icon="MATERIAL")
+        gap(layout)
+        col = layout.column(align=True)                 # one per row: each says what goes back, and where to
+        col.operator("fresing.xray_clear", text="Selected back to own look", icon="LOOP_BACK")
+        if n:                                           # (how many: the header says it)
+            col.operator("fresing.xray_clear_all", text="All parts back to own look", icon="X")
+        gap(layout)
+        hint(layout, context, "To make a housing turn X-ray during a video, use a Fade out step with 'Fade to "
+                              "X-ray' in 6 Animation", inset=12)
 
 
 class FRESING_UL_trails(bpy.types.UIList):
@@ -71,17 +71,17 @@ class FRESING_PT_trails(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         n = len(context.scene.fresing.trails)
-        if n:
-            header_status(self.layout, plural(n, "line"))
+        header_status(self.layout, plural(n, "line") if n else "none")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        if not s.trails:
-            steps(layout, context, ["Select the part whose path you want to see (a hook, a tool, a carriage)",
-                                    "Add a trail line, pick its point and colour",
-                                    "Build the animation: the line draws the path"])
+        steps(layout, context, ["Select the part whose path you want to see (a hook, a tool, a carriage)",
+                                "Add a trail line (+), pick its point and colour",
+                                "Press Build & play above: the line draws the path"],
+              key="fr_how_trails", used=bool(s.trails))
+        gap(layout)
         row = layout.row()
         row.template_list("FRESING_UL_trails", "", s, "trails", s, "trails_index",
                           rows=list_rows(len(s.trails), 2, 6))
@@ -103,6 +103,7 @@ class FRESING_PT_trails(_Panel, bpy.types.Panel):
         note = trails.point_text(scene, t)
         if note:
             wrap(box, context, note, icon="INFO", inset=12)
+        gap(box)
         col = split_props(box)
         col.prop_search(t, "animation", s, "animations", text="Animation", icon="RENDER_ANIMATION")
         col.prop(t, "color", text="Colour")
@@ -110,14 +111,14 @@ class FRESING_PT_trails(_Panel, bpy.types.Panel):
         box.prop(t, "grow", text="Draw as it goes")
         box.prop(t, "in_render", text="In pictures and videos")
         box.prop(t, "name", text="Name")
+        gap(box)
         built = s.anim_baked
         if t.obj is None:
-            wrap(box, context, "Build the animation (above) to draw it", icon="INFO", inset=12)
+            wrap(box, context, "Press Build & play (above) to draw it", icon="INFO", inset=12)
         elif built and (not t.animation or t.animation == built):
             wrap(box, context, f"Drawn at the last Build ({plural(t.count, 'point')})", icon="CHECKMARK", inset=12)
         elif t.animation and animation.active(scene) is not None and t.animation != built:
-            hint = wrap(box, context, "Build its animation to update it", icon="INFO", inset=12)
-            hint.active = False
+            wrap(box, context, "Build & play its animation to update it", icon="INFO", inset=12)
 
 
 PANELS = (FRESING_PT_xray,)

@@ -6,7 +6,7 @@ import bpy
 
 from ..core.words import plural
 from . import build, decals
-from .ui import MEDIUM, _Panel, fold, header_status, primary, split_props, steps, wrap
+from .ui import MEDIUM, _Panel, big, fold, gap, header_status, hint, split_props, steps, wrap
 
 
 def _clicked_part(context):
@@ -31,6 +31,7 @@ def draw_details(layout, context, item, part) -> None:
     row = box.row(align=True)
     row.operator("fresing.decal_fit", text="Fit to face", icon="FULLSCREEN_ENTER").key = item.key
     row.operator("fresing.decal_upright", text="Upright", icon="EMPTY_SINGLE_ARROW").key = item.key
+    gap(box)
     col = split_props(box)
     col.prop(item, "width")
     col.prop(item, "height")
@@ -43,6 +44,7 @@ def draw_details(layout, context, item, part) -> None:
     col.separator()
     col.prop(item, "see_through")
     col.prop(item, "finish")
+    gap(box)
     if item.kind == "PICTURE":
         col = split_props(box)
         row = col.row(align=True)
@@ -53,8 +55,7 @@ def draw_details(layout, context, item, part) -> None:
         col = split_props(box)
         if item.kind == "TEXT":
             col.prop(item, "text")
-            hint = wrap(box, context, "Type | where a new line should start", inset=12)
-            hint.active = False
+            hint(box, context, "Type | where a new line should start", inset=12)
             col = split_props(box)
         else:
             col.prop(item, "sticker")
@@ -81,6 +82,7 @@ def draw_details(layout, context, item, part) -> None:
         sub = split.row(align=True)
         sub.active = item.use_edge
         sub.prop(item, "edge_color", text="")
+    gap(box)
     row = box.row(align=True)
     if decals.on_all_copies(item):
         row.operator("fresing.decal_scope", text="Put it on this copy only", icon="OBJECT_DATA").key = item.key
@@ -100,8 +102,8 @@ class FRESING_PT_decals(_Panel, bpy.types.Panel):
         d = context.scene.fresing_decal
         if d.placing:
             header_status(self.layout, "click a spot…", alert=True)
-        elif d.count:
-            header_status(self.layout, plural(d.count, "decal"))
+        else:
+            header_status(self.layout, plural(d.count, "decal") if d.count else "none")
 
     def draw(self, context):
         layout = self.layout
@@ -110,12 +112,13 @@ class FRESING_PT_decals(_Panel, bpy.types.Panel):
             box = layout.box()
             wrap(box, context, "Click the spot on the model where the decal's centre goes. Esc or right-click: "
                                "cancel.", icon="IMAGE_DATA", alert=True)
-            primary(layout, "fresing.decal_add_cancel", "Cancel", "X", MEDIUM)
+            big(layout, "fresing.decal_add_cancel", "Cancel", "X")
         else:
-            if not d.count:
-                steps(layout, context, ["Choose what goes on: a picture (logo), text or a ready-made sticker",
-                                        "Press 'Add decal…' and click the spot on the model",
-                                        "Move, turn and size it in the box that opens below"])
+            steps(layout, context, ["Choose what goes on: a picture (logo), text or a ready-made sticker",
+                                    "Press 'Add decal…' and click the spot on the model",
+                                    "Move, turn and size it in the box that opens below"],
+                  key="fr_how_decals", used=bool(d.count))
+            gap(layout)
             row = layout.row(align=True)
             row.prop(d, "kind", expand=True)
             col = split_props(layout)
@@ -124,21 +127,20 @@ class FRESING_PT_decals(_Panel, bpy.types.Panel):
                 row.prop(d, "picture")
                 row.operator_menu_enum("fresing.decal_library", "picture", text="", icon="ASSET_MANAGER")
                 if not d.picture:
-                    hint = wrap(layout, context, "A PNG with a see-through background looks best. The button on "
-                                                 "the right lists the logos in the library")
-                    hint.active = False
+                    hint(layout, context, "A PNG with a see-through background looks best. The button on the "
+                                          "right lists the logos in the library")
             elif d.kind == "TEXT":
                 col.prop(d, "text")
-                hint = wrap(layout, context, "Type | where a new line should start. Font and colours: after "
-                                             "placing it")
-                hint.active = False
+                hint(layout, context, "Type | where a new line should start. Font and colours: after placing it")
             else:
                 col.prop(d, "sticker")
             layout.prop(d, "only_copy")
-            primary(layout, "fresing.decal_add", "Add decal…", "IMAGE_DATA", MEDIUM)
+            gap(layout)
+            big(layout, "fresing.decal_add", "Add decal…", "IMAGE_DATA")
 
         part = _clicked_part(context)
         if part is not None:
+            gap(layout)
             items = decals.items_of(part)
             name = part.get(build.PROP_NAME, part.name)
             if not items:
@@ -161,6 +163,7 @@ class FRESING_PT_decals(_Panel, bpy.types.Panel):
                     row.operator("fresing.decal_remove", text="", icon="X", emboss=False).key = it.key
                 draw_details(layout, context, active, part)
 
+        gap(layout)
         if d.count:
             body = fold(layout, "fr_decals_all", f"All decals in this project ({d.count})", "OUTLINER")
             if body is not None:
@@ -179,12 +182,13 @@ class FRESING_PT_decals(_Panel, bpy.types.Panel):
                     col.label(text=f"… and {len(rows) - 60} more")
         body = fold(layout, "fr_decals_library", "Library of logos and stickers", "ASSET_MANAGER")
         if body is not None:
-            wrap(body, context, "Put your logos and stickers as PNG files in these folders: they show in the "
+            hint(body, context, "Put your logos and stickers as PNG files in these folders: they show in the "
                                 "list next to Picture. Set the shared library folder in the Preferences.")
-            row = body.row(align=True)
-            row.operator("fresing.decal_open_library", text="Open the logos folder", icon="FILE_FOLDER").which = "Logos"
-            row.operator("fresing.decal_open_library", text="Open the stickers folder",
-                         icon="FILE_FOLDER").which = "Stickers"
+            col = body.column(align=True)
+            for which in ("Logos", "Stickers"):                 # one folder per row: nothing cut off
+                row = col.split(factor=0.36, align=True)
+                row.label(text=which, icon="FILE_FOLDER")
+                row.operator("fresing.decal_open_library", text="Show in folder").which = which
 
 
 PANELS = (FRESING_PT_decals,)
