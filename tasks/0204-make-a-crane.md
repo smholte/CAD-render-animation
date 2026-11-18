@@ -135,7 +135,10 @@ makers (L8); offshore cranes (L9); the rope with several falls (L5).
 - Time to make one crane (STEP + JSON + picture, background program): AT-100 2.2 s, CC-750 3.1 s, KB-50 2.6 s; the
   tour's AT 2.9 s in the PC check. Real app: made in 3.3 s, the app's timer kept running (longest step 0.82 s); 22/22.
 - Built-in crane tests in the app (0191/0201 files) and the Lifting test files pass after the maker changes.
-- GitHub: see the run list below.
+- GitHub: 3 full runs on the branch – 1st red (real-app timer gap 1.08 s on the runner vs my 1.0 s limit; pytest jobs
+  17–20 min from the 60 in-app cranes → clash check on every 4th set on GitHub), 2nd green (44315328765, times
+  recorded), 3rd after merging main's 0205 green (44320439905, 25.9 min while other runs shared the runners); main
+  44325240431 reuse: released 0.2.159, an old install updated itself on Windows, offered to the apps.
 
 **Open points / follow-up tasks:**
 - The clash check misreads a rod's end deep in a long thin bore (a 31 m pendant bar) as inside the bar: the own-motion
