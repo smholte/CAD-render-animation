@@ -789,8 +789,9 @@ def _joint_rows(layout, context, js, role: str):
         row = box.row(align=True)
         row.operator("fresing.crane_flip", text="Flip", icon="ARROW_LEFTRIGHT").joint = j.name
         row.operator("fresing.crane_remove", text="Remove", icon="TRASH").joint = j.name
-        if SENSE.get(role):
-            ui.hint(box, context, SENSE[role] + ("" if sense_ok(context.scene, role, j) else " – NOT SO: press Flip"))
+        own = j.role if j.role in SENSE else role
+        if SENSE.get(own):
+            ui.hint(box, context, SENSE[own] + ("" if sense_ok(context.scene, own, j) else " – NOT SO: press Flip"))
 
 
 def _joint_done(role):

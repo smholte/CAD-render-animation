@@ -109,7 +109,17 @@ def new_project(step_path=None):
     mod("blender.setup_crane").forget()
     if step_path:
         res = op("fresing.import_step", filepath=step_path, quality="normal")
-        check(f"{os.path.basename(step_path)} imported", res == {"FINISHED"}, str(res))
+        S["import"] = (os.path.basename(step_path), res, time.time())
+
+
+def import_done():
+    """The real app imports in the background (the button returns at once): wait for the model."""
+    name, res, t0 = S["import"]
+    roots = mod("blender.build").model_roots(bpy.context.scene)
+    if not roots and time.time() - t0 < 300:
+        return False
+    check(f"{name} imported", len(roots) == 1, f"{res}, {time.time() - t0:.0f} s")
+    return True
     return bpy.context.scene
 
 
@@ -149,6 +159,14 @@ def s_import():
     cls = _cls()
     LL = mod("core.lifting_library")
     new_project(os.path.join(LL.BUILTIN_DIR, cls, cls + ".step"))
+    return 1.0
+
+
+@step
+def s_imported():
+    if not import_done():
+        return "again"
+    cls = _cls()
     ex = mod("blender.crane_example")
     kind = CRANES[S["i"]][1] or ex.KINDS[ex.builtin(cls)["kind"]]
     S["kind"] = kind
