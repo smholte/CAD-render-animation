@@ -349,6 +349,19 @@ def mobile_layout(c: Mobile) -> Layout:
         rear_k = -0.06 * c.L0 if k == 1 else 450.0 + (k - 2) * 25.0
         secs.append({"k": k, "w": c.boom_w - sh, "h": c.boom_h - sh, "a0": rear_k, "a1": front_k})
     p["sections"] = secs
+    # the hoist winch behind the boom's foot, low on the superstructure; moved back where the base section's rear end
+    # would swing into it while the boom luffs (task 0204: found by the clash check of a made crane's own motion)
+    frame_top = turn_top + 300.0
+    wr = 0.22 * c.boom_h + 120.0
+    l_cw = 0.45 * c.cw_x + 600.0
+    wx = (-c.cw_x + l_cw / 2 + xp) / 2
+    wz = frame_top + wr + 60.0
+    sweep = math.hypot(-secs[0]["a0"], c.boom_h / 2) + wr + 80.0
+    if math.hypot(wx - xp, wz - zp) < sweep and zp - wz < sweep:
+        wx = min(wx, xp - math.sqrt(sweep ** 2 - (zp - wz) ** 2))
+    if wx - wr < -c.cw_x + l_cw / 2 + 40.0:
+        raise ValueError(f"{c.name}: no room for the hoist winch between the counterweight and the boom's foot")
+    p["winch"] = (wx, wz, wr)
     for sct in secs[1:]:
         over = sct["a1"] - sct["a0"] - s
         if over < 0.15 * (sct["a1"] - sct["a0"]):

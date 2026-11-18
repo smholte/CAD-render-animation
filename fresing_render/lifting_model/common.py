@@ -139,7 +139,10 @@ def cylinder_parts(barrel_name: str, rod_name: str, barrel_pin, rod_pin, fit: di
     bore = rr + 0.04 * rr + 2.0
     eye_b = g.cyl(1.3 * rr, ew, b - np.array([0, ew / 2, 0]), (0, 1, 0))
     tube = g.cyl(rb, fit["barrel_len"] - 0.9 * rr, b + 0.9 * rr * d, d)
-    hole = g.cyl(bore, fit["barrel_len"], b + (1.3 * rr + 0.15 * rb) * d, d)
+    # the bore only as deep as the rod's end ever goes (task 0204): a bore along a whole 30 m pendant bar made the
+    # clash check's inside test read the rod's end, deep in that long thin hole, as inside the bar
+    h0 = max(1.3 * rr + 0.15 * rb, fit["dmin"] - fit["rod_len"] - 2.0 * rr)
+    hole = g.cyl(bore, fit["barrel_len"] + 1.3 * rr + 0.15 * rb - h0, b + h0 * d, d)
     barrel = g.cut(g.fuse(eye_b, tube), hole, pin_across(b, 0.45 * rr, ew))
     eye_r = g.cyl(1.25 * rr, ew, r - np.array([0, ew / 2, 0]), (0, 1, 0))
     rod_bar = g.cyl(rr, fit["rod_len"] - 0.9 * rr, r - fit["rod_len"] * d, d)

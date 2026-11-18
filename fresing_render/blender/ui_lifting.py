@@ -128,6 +128,8 @@ class FRESING_PT_lifting_equipment(_Panel, bpy.types.Panel):
         body = fold(layout, "fr_lifting_library", "Add a crane from the library", icon="ADD", closed=bool(L.cranes))
         if body is not None:
             _draw_library(body, context, L)
+        from . import ui_lifting_make
+        ui_lifting_make.draw_in_equipment(layout, context)     # task 0204: Make a crane…
 
 
 def _draw_crane(layout, context, scene, c):

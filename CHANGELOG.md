@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.159 – 18 Nov 2026 – Learn as you go (task 0208)
+## 0.2.160 – 18 Nov 2026 – Learn as you go (task 0208)
 
 - **A panel you never use is offered for learning as well as for hiding.** The quiet question now says what the
   function does and has **Show me in the guide**, **Show me in the test tour** (it sets up the tour's stop and points at
@@ -16,6 +16,19 @@ installer of that version was built from.
 - **Next to learn:** at most one quiet line per start on the What's next card – a function in the kind of work you
   do that you have not tried yet – with Learn and Not interested. All of it can be switched off in My usage, stays on your
   PC, and Clear my usage data asks whether to clear the list too.
+## 0.2.159 – 18 Nov 2026 – Make a crane from numbers (task 0204)
+
+- **Make a crane…** in 8 Lifting plan > Equipment: pick the type (mobile telescopic, crawler, knuckle-boom), start
+  from the nearest built-in class and change only the numbers you care about – boom sections and lengths, outrigger
+  spreads, counterweight steps, axles, track gauge and links, hoist and hook, masses. The dialog says **Fits** or, in
+  red, the rule your numbers break, in plain words. **Make** draws the crane in the background (2–3 s; you keep
+  working, **Cancel** writes nothing) and puts it into your library folder "Lifting equipment": fully rigged, with a
+  picture and a **SAMPLE** chart worked out from your numbers. Then **Place now…**.
+- **Enter your chart…** reads the chart of your real crane from a CSV table into a crane of your own library; the
+  SAMPLE mark comes off once the charts are your own.
+- The built-in cranes are a little better: the knuckle-boom cranes' control stand no longer swings into the truck cab,
+  the crawler cranes' boom foot, gantry and jib strut no longer run into the pendant bars or the upper frame while the
+  boom and jib move (found by checking the cranes' own motion for clashes).
 
 ## 0.2.158 – 18 Nov 2026 – Favourites bar, My usage, hide what you never use (task 0181)
 

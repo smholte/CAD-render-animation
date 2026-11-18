@@ -160,13 +160,13 @@ fn(id="usage.declutter", title="Offer to hide what you never use", family="panel
 # task 0208: learn as you go
 fn(id="learn.question", title="Learn what you never use: show it in the guide or the test tour, or list it for later",
    family="panel", panel="FRESING_PT_favourites", button="fresing.learn_show", guide="learn-as-you-go",
-   tour=("learn",), pccheck=("app.learning",), since="0.2.159")
+   tour=("learn",), pccheck=("app.learning",), since="0.2.160")
 fn(id="learn.list", title="My learning list: guide, test tour and done, ticked by itself after use on 3 days",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.learn_window", guide="learning-list", tour=("learn",),
-   pccheck=("app.learning",), since="0.2.159")
+   pccheck=("app.learning",), since="0.2.160")
 fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the What's next card", family="panel",
    panel="FRESING_PT_next", button="fresing.learn_next", guide="next-to-learn", tour=("learn",),
-   pccheck=("app.learning",), since="0.2.159")
+   pccheck=("app.learning",), since="0.2.160")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",
@@ -398,6 +398,13 @@ fn(id="lifting.cog", title="Centre of gravity marker (computed or set by hand)",
 fn(id="lifting.hook", title="Hook to here and the crane use at the hook", family="lifting",
    panel="FRESING_PT_lifting_hook", button="fresing.lifting_hook_here", guide="lifting-hook",
    tour=("lifting_hook",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
+
+fn(id="lifting.make", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
+   panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
+   pccheck=("lifting.make",), since="0.2.159", workspaces=_LIFT)
+fn(id="lifting.chart_entry", title="Enter the chart of your real crane (CSV) – the SAMPLE mark comes off",
+   family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_chart_csv", guide="lifting-make-chart",
+   since="0.2.159", workspaces=_LIFT)
 
 fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")
