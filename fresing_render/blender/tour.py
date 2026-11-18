@@ -3894,7 +3894,7 @@ def _check_make(scene):
     return "6 outputs, each with its settings; also in the 3D view's header"
 
 
-stop("workspace", OUT, HUB_SET, "Functions in this project (workspaces)",
+stop("workspace", OUT, HUB_SET, "Functions in this project",
      "The top row of the Fresing tab says 'All functions': the workspace. Its small arrow is open here: under "
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
@@ -3934,7 +3934,7 @@ def _setup_first_step(scene):
     scene["fr_setup_of"] = "CNC"
 
 
-stop("setup", MACH, "gantry", "Set-up window: one step at a time",
+stop("setup", MACH, "gantry", "Set-up window: step by step",
      "Press Set-up window… (in Make at the top of the Fresing tab, or in 4 Motion > CNC machine): a small window of "
      "its own opens with 'Set up a CNC mill', step 1 of 5 – the axes X, Y and Z, already picked on this machine (a "
      "green tick). Next goes through the spindle, the tool and the workpiece, the work zero and the G-code program; "
