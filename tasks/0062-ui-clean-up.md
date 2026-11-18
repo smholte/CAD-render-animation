@@ -351,8 +351,15 @@ took 0.2.151 while this ran).
   the way: Vessel at work could not be drawn with a thruster in its list (older than this task), Web 3D model >
   Surroundings "As in the project" raised an error for a sea "From the wind".
 - The usual parts: function-list entries (8) with guide anchors, tour stops `workspace`, `make`, `setup`, PC-check
-  line `panel.workspaces`, tooltips (864 found, 0 missing), guide (S7), CHANGELOG, CLAUDE.md (new modules, the rule
-  for a new panel, things learned).
+  line `panel.workspaces`, tooltips (862 found, 0 missing), CHANGELOG, CLAUDE.md (new modules, the rule for a new
+  panel, things learned).
+- **Guide** (S7): new sections for sections / tabs, workspaces, families, own workspaces, Client view, What's
+  next, Make, the Set-up window; chapter 5 in the panel's new order, Brand kit & logo / Labels / Watermark as
+  sub-chapters of 6 (anchors kept); the words on the screen (Build & play in 35 places, Remove, Show in folder …);
+  **all 78 panel pictures, `sidebar_sections`, `app_after_import` and `help_menu` re-made** with
+  `tools/guide_screens.py` on the test models (the tool now pictures every panel at UI scale 1.5, 399 px wide; nine
+  pictures that had no maker got one). About 30 pictures were looked at (S7 24, the worker 6), the others checked
+  for size and not blank.
 
 **Decisions taken without the owner** (he was asleep; each can be changed in a small follow-up):
 1. A new built-in workspace **All functions** is the default (everything, Blender's tabs hidden): Full access also
@@ -425,3 +432,5 @@ gantry and the other shipped test models):
   `workspaces=("lifting", …)` on its functions; its panels go into `core/places.py`.
 - Not done: the Client view does not stop edits in Blender's own Properties editor or the Python console (level b
   as picked); a queued render of a Client view project was not run.
+- Seen in a guide picture, older than this task: after a model update 1 Import shows "Model updated: …" twice (in
+  the report box and as the last message). Import lane, small.
