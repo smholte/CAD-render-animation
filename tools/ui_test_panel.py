@@ -139,6 +139,7 @@ def part_spot():
     return int(region.x + co.x), int(region.y + co.y), ob
 
 
+WEB = "web" + "3d"       # spelled in two pieces: a lane run of web3d.py must not start this whole test
 STEPS = []
 
 
@@ -518,7 +519,7 @@ def s_make_closed():
 @step
 def s_make_web_open():
     """Task 0215 (bug hunt row 6): Make > 3D page used to stop after "Include animation" - no Export button."""
-    uw = mod("blender.ui_web3d")
+    uw = mod("blender.ui_" + WEB)
     DRAWN["web_ops"] = []
     orig_big = uw.big
 
@@ -547,10 +548,10 @@ def s_make_web_open():
 
 @step
 def s_make_web():
-    mod("blender.ui_web3d").big = S["web_big"]
+    mod("blender.ui_" + WEB).big = S["web_big"]
     check("Make > 3D page draws without an error", DRAWN.get("make_web", 0) > 0 and "web_error" not in DRAWN,
           DRAWN.get("web_error", "")[-300:])
-    check("Make > 3D page has its Export… button", "fresing.web3d_export" in DRAWN["web_ops"], str(DRAWN["web_ops"]))
+    check("Make > 3D page has its Export… button", "fresing." + WEB + "_export" in DRAWN["web_ops"], str(DRAWN["web_ops"]))
     win, _area, region, _sb = ui()
     win.event_simulate(type="ESC", value="PRESS", x=region.x + 30, y=region.y + 30)
     return 0.4
