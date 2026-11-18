@@ -149,7 +149,8 @@ def step(fn):
 
 @step
 def s_esc():
-    bpy.context.preferences.system.use_region_overlap = False
+    S["overlap"] = bpy.context.preferences.system.use_region_overlap      # put back at the end: Blender saves
+    bpy.context.preferences.system.use_region_overlap = False             # changed preferences when it closes
     win, _area, region, _sb = ui()
     win.event_simulate(type="ESC", value="PRESS", x=region.x + 300, y=region.y + 300)
     return 0.4
@@ -520,6 +521,7 @@ def s_finish():
     log(f"RESULT {len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
     LOG.close()
     shutil.rmtree(S["tmp"], ignore_errors=True)
+    bpy.context.preferences.system.use_region_overlap = S.get("overlap", True)
     bpy.ops.wm.quit_blender()
     return None
 

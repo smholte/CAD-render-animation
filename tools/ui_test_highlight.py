@@ -393,8 +393,15 @@ def s_esc_release():
     return 0.5
 
 
+KEPT = {}
+
+
 @step
 def s_import():
+    # (both are put back at the end: Blender saves changed preferences when it closes, and the next real-app test
+    # in the same settings folder would start with them – its clicks in the view are worked out with the overlap on)
+    KEPT.update(overlap=bpy.context.preferences.system.use_region_overlap,
+                scale=bpy.context.preferences.view.ui_scale)
     bpy.context.preferences.system.use_region_overlap = False      # else the side panel is see-through
     bpy.context.preferences.view.ui_scale = 1.0
     with override():
@@ -858,6 +865,9 @@ def s_finish():
     failed = [r for r in RESULTS if not r[1]]
     log(f"RESULT {len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
     LOG.close()
+    if KEPT:
+        bpy.context.preferences.system.use_region_overlap = KEPT["overlap"]
+        bpy.context.preferences.view.ui_scale = KEPT["scale"]
     bpy.ops.wm.quit_blender()
     return None
 
