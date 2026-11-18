@@ -141,9 +141,27 @@ def item_at(path: str):
     return it
 
 
+def path_of(crane) -> str:
+    """The crane's equipment file. A built-in found again in this app's own folder when the project was made where
+    the app is installed elsewhere (another PC or user)."""
+    p = crane.item_path
+    if crane.builtin and not os.path.exists(p):
+        parts = os.path.normpath(p).replace("\\", "/").split("/")
+        for i in range(len(parts) - 1, 0, -1):
+            if parts[i] == "lifting" and parts[i - 1] == "data":
+                cand = os.path.join(LL.BUILTIN_DIR, *parts[i + 1:])
+                if os.path.exists(cand):
+                    return cand
+                break
+    return p
+
+
 def rig_of(crane) -> LR.Rig:
-    key = os.path.normpath(crane.item_path)
-    it = item_at(crane.item_path)
+    path = path_of(crane)
+    key = os.path.normpath(path)
+    it = item_at(path)
+    if not it.ok:
+        raise LR.ReachError(file_changed(crane) or it.problems[0])
     got = _RIG.get(key)
     if got is None:
         try:
@@ -157,11 +175,12 @@ def rig_of(crane) -> LR.Rig:
 
 
 def charts_of(crane) -> list:
-    key = os.path.normpath(crane.item_path)
+    path = path_of(crane)
+    key = os.path.normpath(path)
     got = _CHARTS.get(key)
     if got is None:
         try:
-            got = LL.charts_of(item_at(crane.item_path))
+            got = LL.charts_of(item_at(path))
         except LL.LibraryError:
             got = []
         _CHARTS[key] = got
@@ -170,7 +189,7 @@ def charts_of(crane) -> list:
 
 def hook_block_kg(crane) -> float:
     try:
-        blocks = LL.hook_blocks_of(item_at(crane.item_path))
+        blocks = LL.hook_blocks_of(item_at(path_of(crane)))
     except LL.LibraryError:
         return 0.0
     return float(blocks[0][1]) if blocks else 0.0
@@ -178,9 +197,10 @@ def hook_block_kg(crane) -> float:
 
 def file_changed(crane) -> str:
     """'' or the sentence that the crane's file changed since it was placed (charts) or is gone."""
-    if not os.path.exists(crane.item_path):
+    path = path_of(crane)
+    if not os.path.exists(path):
         return f"The equipment file of {crane.name} is gone ({crane.item_path}): its charts cannot be read."
-    it = item_at(crane.item_path)
+    it = item_at(path)
     if not it.ok:
         return f"The equipment file of {crane.name} has a problem: {it.problems[0]}"
     try:
@@ -255,6 +275,7 @@ def import_model(context, step: str, quality: str = "normal"):
 def finish_cache(context, cache_dir: str, first: bool):
     from .ops_import import finish_import
     scene = context.scene
+    before = {g.name for g in scene.fresing.groups}
     if first:
         root = finish_import(context, cache_dir, "Z")
     else:
@@ -265,6 +286,7 @@ def finish_cache(context, cache_dir: str, first: bool):
         logic.rebuild_tree(scene)
         logic.update_bounds(scene)
     root["fr_quality"] = "normal"
+    root["fr_lift_groups"] = sorted({g.name for g in scene.fresing.groups} - before)   # Remove takes them again
     return root
 
 
@@ -274,6 +296,7 @@ def rig_model(context, root, item, name: str = ""):
     scene = context.scene
     data = item.data
     name = unique_name(scene, name or item.name)
+    groups_before = {g.name for g in scene.fresing.groups}
     m = sheet.Model(scene, sheet_of(data), root=root, prefix=name + SEP)
     root["fr_lifting"] = name
     hb = m.by_name.get((data["rig"].get("hook") or {}).get("assembly", ""), [])
@@ -290,6 +313,8 @@ def rig_model(context, root, item, name: str = ""):
         _rope(scene, m, data)
     except Exception as exc:  # noqa: BLE001 - a rope that cannot follow must not stop the placing
         print("Fresing Render (lifting): the hoist rope stays as drawn:", exc)
+    made = {g.name for g in scene.fresing.groups} - groups_before        # the rope's look group ("Power cables" …)
+    root["fr_lift_groups"] = sorted(set(root.get("fr_lift_groups", [])) | made)
     L = plan(scene)
     c = L.cranes.add()
     c.name = name
@@ -424,6 +449,9 @@ def remove(scene, crane) -> dict:
         obs = [root] + list(logic.descendants(root))
         meshes = {o.data for o in obs if o.type == "MESH" and o.data is not None}
         colls = {c for o in obs for c in o.users_collection if c != scene.collection}
+        mats = {m for o in obs if o.type == "MESH" for m in o.data.materials if m is not None}
+        mats |= {sl.material for o in obs for sl in o.material_slots if sl.material is not None}
+        added = list(root.get("fr_lift_groups", []))
         for o in obs:
             try:
                 bpy.data.objects.remove(o, do_unlink=True)
@@ -434,6 +462,21 @@ def remove(scene, crane) -> dict:
             try:
                 if me.users == 0:
                     bpy.data.meshes.remove(me)
+            except ReferenceError:
+                pass
+        used = {str(o.get(build.PROP_GROUP, "")) for o in scene.objects}
+        for g in added:                            # the Looks groups only its parts had
+            i = scene.fresing.groups.find(g)
+            if i >= 0 and g not in used:
+                scene.fresing.groups.remove(i)
+                m = bpy.data.materials.get(g)
+                if m is not None:
+                    mats.add(m)
+        scene.fresing.groups_index = max(0, min(scene.fresing.groups_index, len(scene.fresing.groups) - 1))
+        for m in mats:
+            try:
+                if m.users == 0:
+                    bpy.data.materials.remove(m)
             except ReferenceError:
                 pass
         for coll in colls:                         # the model's own collection, when nothing else is in it
@@ -459,7 +502,7 @@ def remove(scene, crane) -> dict:
 
 def pose_names(crane) -> list:
     try:
-        return [p["name"] for p in item_at(crane.item_path).data["rig"].get("poses", [])]
+        return [p["name"] for p in item_at(path_of(crane)).data["rig"].get("poses", [])]
     except Exception:  # noqa: BLE001
         return []
 
@@ -526,7 +569,7 @@ def setup(scene, crane) -> dict:
     out = {"counterweight": lifting.kg(crane.counterweight)}
     if crane.spread_from_pose:
         try:
-            sp = LR.outrigger_spread(item_at(crane.item_path).data, values(scene, crane))
+            sp = LR.outrigger_spread(item_at(path_of(crane)).data, values(scene, crane))
         except Exception:  # noqa: BLE001
             sp = None
         if sp is not None:
@@ -569,7 +612,7 @@ def _key(scene, crane, load):
     if load is not None:
         ld = (load.name, load.mass_mode, round(load.mass_t, 6), round(load.contingency, 6),
               round(load.volume_mass, 3), load.source)
-    return (crane.name, vals, R, st, ld, _mtime(item_at(crane.item_path).path or crane.item_path))
+    return (crane.name, vals, R, st, ld, _mtime(item_at(path_of(crane)).path or path_of(crane)))
 
 
 def readout(scene, crane, load=None) -> LR.Readout | str:
@@ -596,6 +639,9 @@ def readout(scene, crane, load=None) -> LR.Readout | str:
 def forget() -> None:
     _READ.clear()
     _SOLID.clear()
+    _ITEM.clear()
+    _RIG.clear()
+    _CHARTS.clear()
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1006,7 +1052,7 @@ def _mm(a, b) -> str:
 def _hook_block_world(scene, crane):
     """Where the hook block's hook point is now, read from the block's own place (not from the kinematics)."""
     from . import sheet
-    data = item_at(crane.item_path).data
+    data = item_at(path_of(crane)).data
     hook = data["rig"]["hook"]
     m = sheet.Model(scene, sheet_of(data), root=crane.root, prefix=prefix(crane))
     hits = m.by_name.get(hook["assembly"], [])

@@ -37,6 +37,8 @@ ROLES = {
 }
 NEEDED = ("slew", "luff", "hoist")
 TOL = 1e-6           # degrees / mm: limits are met within this
+HOIST_TOL = 0.01     # mm: a hoist value this far past its limit counts as at the limit (the solve's own rounding)
+JIB_ANGLE_TOL = 0.5  # degrees: a luffing jib's charts hold with the main boom this close to their boom angle
 CHECK_MM = 1.0       # the 3-D kinematics must put the hook this close to the target, else the answer is refused
 
 
@@ -199,6 +201,15 @@ class Rig:
     def jib_length(self) -> float | None:
         return float(self.model_jib) if self.model_jib else None
 
+    def jib_angle_note(self, boom_angle: float) -> str:
+        """'' or why a luffing jib's charts do not hold: they are for the main boom at one angle."""
+        if self.jib_boom_angle is None or "second" not in self.role or self.kind != "crawler_crane":
+            return ""
+        if abs(boom_angle - float(self.jib_boom_angle)) <= JIB_ANGLE_TOL:
+            return ""
+        return (f"No chart: the jib charts are for the main boom at {float(self.jib_boom_angle):g}°; it stands at "
+                f"{boom_angle:.1f}°.")
+
     def limits(self, name: str):
         lim = self.by[name].get("limits")
         return (float(lim[0]), float(lim[1])) if lim else (-1e9, 1e9)
@@ -344,8 +355,9 @@ def chart_for(charts, boom: float | None, setup: dict | None = None, jib: float 
                 return None, (f"No chart for a {SETUP_WORDS[k]} of {_shown(k, v)} or less (the charts start at "
                               f"{_shown(k, have[0])}).")
             hit = lower[-1]
-            notes.append(f"the {SETUP_WORDS[k]} {_shown(k, v)} lies between the charts' values: the "
-                         f"{_shown(k, hit)} chart is the next safer one")
+            where = ("is more than the charts have" if hit == have[-1] else "lies between the charts' values")
+            notes.append(f"the {SETUP_WORDS[k]} {_shown(k, v)} {where}: the {_shown(k, hit)} chart is the next "
+                         "safer one")
         config[k] = hit
     has_jib = any(c.config.get("jib") is not None for c in charts)
     jib_cfg = {}
@@ -421,6 +433,8 @@ def _single(P, V, s, lim, X):
     gam = math.atan2(V[1], V[0])
     out = []
     c = (X - P[0]) / rho
+    if 1.0 < abs(c) <= 1.0 + 1e-9:                # the boom at the end of its range: rounding only
+        c = math.copysign(1.0, c)
     if -1.0 <= c <= 1.0:
         a = math.acos(c)
         for psi in (a - gam, -a - gam):
@@ -448,10 +462,10 @@ class _Search:
     def hoist_ok(self, hook0_z: float):
         hv = hook0_z - self.Z
         lo, hi = self.hoist_lim
-        if hv < lo - TOL:
+        if hv < lo - HOIST_TOL:
             self.fails.append(("high", lo - hv))
             return None
-        if hv > hi + TOL:
+        if hv > hi + HOIST_TOL:
             self.fails.append(("low", hv - hi))
             return None
         return min(max(hv, lo), hi)
@@ -536,13 +550,24 @@ class _Search:
         return []
 
 
-def _candidates_e(rig: Rig, charts) -> list:
-    """Telescope / extension values worth trying: a fine grid and every chart's boom length."""
+def _candidates_e(rig: Rig, charts, X: float | None = None) -> list:
+    """Telescope / extension values worth trying: a fine grid, every chart's boom length and – one turning joint –
+    the lengths that reach the radius with the boom at either end of its luff range (the ends of the lengths that
+    reach: a window can be narrower than the grid)."""
     if "tele" not in rig.role:
         return [0.0]
     lo, hi = rig.limits(rig.role["tele"])
     es = [float(x) for x in np.linspace(lo, hi, 61)]
     pl = rig.planar()
+    if X is not None and "second" not in rig.role:
+        Xs = X - pl.h[0]
+        for a1 in rig.limits(rig.role["luff"]):
+            rv = _r2(pl.V0 + 0.0 * pl.w, math.radians(pl.s1 * a1))
+            rw = _r2(pl.w, math.radians(pl.s1 * a1))
+            if abs(rw[0]) > 1e-12:
+                e = (Xs - pl.P1[0] - (pl.P2[0] - pl.P1[0]) - rv[0]) / rw[0]
+                if lo - 1e-9 <= e <= hi + 1e-9:
+                    es.append(min(max(e, lo), hi))
     L0, L1 = pl.boom_m(lo), pl.boom_m(hi)
     for c in charts or ():
         b = c.config.get("boom")
@@ -630,7 +655,7 @@ def hook_to(rig: Rig, target, current: dict | None = None, charts=(), setup: dic
     X, Z = pl.cx + R, float(Tb[2])
     search = _Search(rig, X, Z)
     sols = []
-    es = _candidates_e(rig, charts)
+    es = _candidates_e(rig, charts, X)
     if "second" in rig.role and "tele" not in rig.role:          # crawler with a luffing jib
         lim1 = rig.limits(rig.role["luff"])
         pref = (rig.jib_boom_angle - rig.th0) if rig.jib_boom_angle is not None else 0.5 * (lim1[0] + lim1[1])
@@ -668,12 +693,15 @@ def hook_to(rig: Rig, target, current: dict | None = None, charts=(), setup: dic
     for s in sols:
         boom = pl.boom_m(s["e"])
         chart, note = chart_for(charts, boom, setup, rig.jib_length()) if charts else (None, "")
+        why = rig.jib_angle_note(rig.th0 + s["a1"])
+        if why:
+            chart, note = None, why
         use, cap = None, None
         if chart is not None:
             r = lifting.crane_use(load_kg, R / 1000.0, chart, hook_block=hook_block_kg)
             use, cap = r.use, r.limit
-        # no chart / no capacity last; then the lowest use (with no load: the largest capacity); the shortest boom
-        key = (0 if cap else 1, use if use is not None else math.inf, -(cap or 0.0), round(boom, 6), s["hoist"])
+        # no chart / no capacity last; then the lowest use, then the shortest boom (the brief's order)
+        key = (0 if cap else 1, round(use, 12) if use is not None else math.inf, round(boom, 6), s["hoist"])
         if best_key is None or key < best_key:
             best, best_key = (s, boom, chart, note, use), key
     s, boom, chart, note, use = best
@@ -732,6 +760,9 @@ def readout(rig: Rig, values: dict, charts=(), setup: dict | None = None, load_k
     out.load = max(0.0, load_kg) * max(contingency, 0.0)
     out.rigging = rigging_kg
     chart, note = chart_for(charts, out.boom, setup, out.jib)
+    why = rig.jib_angle_note(out.boom_angle)
+    if why:
+        chart, note = None, why
     out.chart, out.chart_note = chart, note
     if chart is None:
         out.status, out.words = lifting.RED, lifting.STATUS_WORDS[lifting.RED]

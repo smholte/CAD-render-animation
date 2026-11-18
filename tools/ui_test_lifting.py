@@ -387,7 +387,7 @@ def s_hook_click():
     c = L().active_crane(sc)
     target = np.array(c.root.matrix_world.translation) + np.array((-5.0, 3.0, 0.0))
     view(tuple(target), 40.0)                 # the point in the middle of the view, clear of the side panel
-    S["hpx"] = pixel_of(target)
+    S["target"] = target                      # its pixel after the view has redrawn (the view's matrix is stale now)
     res = invoke("fresing.lifting_hook_here")
     check("Hook to here waits for a click", res == {"RUNNING_MODAL"}, str(res))
     return 0.7
@@ -395,12 +395,17 @@ def s_hook_click():
 
 @step
 def s_hook_clicked():
+    win = bpy.context.window_manager.windows[0]
+    S["hpx"] = pixel_of(S["target"])
+    log("modal before the click:", [o.bl_idname for o in getattr(win, "modal_operators", [])], S["hpx"])
     click(S["hpx"])
     return 1.0
 
 
 @step
 def s_hook_done():
+    win = bpy.context.window_manager.windows[0]
+    log("modal after the click:", [o.bl_idname for o in getattr(win, "modal_operators", [])])
     sc = bpy.context.scene
     c = L().active_crane(sc)
     want = ground_under(S["hpx"], z=float(c.root.matrix_world.translation.z))

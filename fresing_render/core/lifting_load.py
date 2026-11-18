@@ -66,10 +66,25 @@ def solid(points, triangles) -> Solid:
 
     vol, cen = signed(o)
     vol2, _ = signed(o + np.array([0.37, -0.61, 0.73]) * size)
-    closed = abs(vol) > 0 and abs(vol2 - vol) <= CLOSED_TOL * abs(vol)
+    closed = abs(vol) > 0 and abs(vol2 - vol) <= CLOSED_TOL * abs(vol) and _edges_closed(P, T, size)
     if abs(vol) < 1e-18:
         return Solid(0.0, o, False)
     return Solid(abs(vol), o + cen / vol, bool(closed))
+
+
+def _edges_closed(P, T, size: float) -> bool:
+    """Every edge (points joined where they lie within a millionth of the size) belongs to an even number of
+    triangles: no hole. Moving the origin alone misses holes that cancel (an open tube, a box without two opposite
+    sides)."""
+    q = np.round(P / (size * 1e-6)).astype(np.int64)
+    _u, ids = np.unique(q, axis=0, return_inverse=True)
+    ids = ids.reshape(-1)
+    t = ids[T]
+    e = np.concatenate([t[:, [0, 1]], t[:, [1, 2]], t[:, [2, 0]]])
+    e = e[e[:, 0] != e[:, 1]]
+    e.sort(axis=1)
+    _k, counts = np.unique(e, axis=0, return_counts=True)
+    return bool(len(counts)) and bool(np.all(counts % 2 == 0))
 
 
 def box_solid(lo, hi) -> Solid:

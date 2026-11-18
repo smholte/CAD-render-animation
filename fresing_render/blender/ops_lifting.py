@@ -108,6 +108,10 @@ class FRESING_OT_lifting_library(bpy.types.Operator):
     bl_idname = "fresing.lifting_library"
     bl_label = "Refresh the library"
 
+    @classmethod
+    def poll(cls, context):
+        return _ok(context)
+
     def execute(self, context):
         items = lifting.library(force=True)
         self.report({"INFO"}, f"{len(items)} items in the lifting library")
@@ -393,6 +397,10 @@ class FRESING_OT_lifting_select(bpy.types.Operator):
 
     index: IntProperty(options={"SKIP_SAVE"})
 
+    @classmethod
+    def poll(cls, context):
+        return _ok(context)
+
     def execute(self, context):
         lifting.plan(context.scene).crane_index = self.index
         return {"FINISHED"}
@@ -405,6 +413,10 @@ class FRESING_OT_lifting_load_select(bpy.types.Operator):
     bl_options = {"INTERNAL"}
 
     index: IntProperty(options={"SKIP_SAVE"})
+
+    @classmethod
+    def poll(cls, context):
+        return _ok(context)
 
     def execute(self, context):
         lifting.plan(context.scene).load_index = self.index
@@ -541,6 +553,7 @@ class FRESING_OT_lifting_load_refresh(bpy.types.Operator):
         return _ok(context) and lifting.active_load(context.scene) is not None
 
     def execute(self, context):
+        lifting._SOLID.clear()                     # the parts' meshes read again (a mesh edited in place)
         lifting.refresh_load(context.scene, lifting.active_load(context.scene))
         _redraw()
         return {"FINISHED"}
@@ -610,7 +623,12 @@ class FRESING_OT_lifting_cog_back(bpy.types.Operator):
 def _hook(op, context, point) -> set:
     scene = context.scene
     c = lifting.active_crane(scene)
-    a = lifting.hook_to(scene, c, point, lifting.active_load(scene))
+    try:
+        a = lifting.hook_to(scene, c, point, lifting.active_load(scene))
+    except lifting.LR.ReachError as exc:
+        lifting.plan(scene).message = str(exc)
+        op.report({"WARNING"}, str(exc))
+        return {"CANCELLED"}
     _redraw()
     if not a.ok:
         op.report({"WARNING"}, a.reason)

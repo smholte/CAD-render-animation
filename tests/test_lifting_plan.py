@@ -329,7 +329,7 @@ def test_no_forbidden_words_in_the_panel_and_operators():
         src = inspect.getsource(mod)
         strings = " ".join(s for s in __import__("re").findall(r'"([^"\n]*)"', src))
         for w in lifting.FORBIDDEN_WORDS:
-            assert f" {w.lower()} " not in f" {strings.lower()} ", (mod.__name__, w)
+            assert not __import__("re").search(rf"\b{w}\b", strings, __import__("re").I), (mod.__name__, w)
 
 
 def test_remove_a_crane_with_several_cylinders():
