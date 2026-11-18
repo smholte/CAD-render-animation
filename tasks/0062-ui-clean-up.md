@@ -322,9 +322,12 @@ with "… and continue task 0062 from its branch"): see "Progress" at the end of
   (Brand kit / Labels / Watermark → 6 Animation, 5 in work order), function-list entries, guide sections (text;
   pictures are placeholders), tour stops `workspace` + `make`, PC-check line `panel.workspaces`, tests
   (`tests/test_workspaces.py`, `tests/test_places.py`, `tools/ui_test_panel.py` 37 checks), screenshot tools adapted.
-- Running as subagents: S1 Set-up window, S2 lesson highlight, S4 panel pass over the machine sub-panels.
-- Still to do: merge S1 / S2 / S4; S5 (panel pass over the other sub-panels), S6 (independent tests), S7 (guide +
-  pictures); after 0198 is on `main`: merge `main`, the counts (`MIN_LINES_FULL`, `MIN_LINES_TOUR`,
-  `MIN_CHECKS`), `ui_test_panel` into `TESTS` / `GROUPS`, the Set-up window's tab after a load (`ui_header.py`),
-  sections folded checked for a tour project (`ui_test_layout.py`); function entry + tour stop for the Set-up
-  window; version, CHANGELOG, full run, merge, release, `TASKS.md`.
+- Merged since: `main` with 0198 (0.2.150); S1 the Set-up window (`ui_setup.py`, `ops_setup.py`, 46-check real-app
+  test) with its buttons, tour stop `setup`, function entry and guide section; S2 the lesson highlight
+  (`highlight.py`, 74-check real-app test); the panel pass over the video finishing panels (worker); counts raised;
+  `ui_test_panel`, `ui_test_setup`, `ui_test_highlight` in `tools/ci_real_app.py`; CHANGELOG text (0.2.151).
+- Running as subagents: S4 panel pass over the machine sub-panels, S5 panel pass over the other sub-panels, S6
+  independent tests (`tests/test_workspaces_independent.py`, findings as strict xfail tests).
+- Still to do: merge S4 / S5 / S6 and fix S6's findings; S7 guide chapters + every panel picture; version 0.2.151
+  in the two version files (the `since=` fields already say 0.2.151 – renumber all if another task takes it);
+  full run green; fast-forward `main`; release check; report; `TASKS.md` (0062 done, 0199 "open – can start").
