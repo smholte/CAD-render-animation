@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.158 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
+## 0.2.159 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
 
 - **Set up your own crane.** 8 Lifting plan > Equipment > **Set up a crane…** opens the Set-up window on your kind
   of crane – **mobile telescopic**, **crawler**, **knuckle-boom** or **other** – and takes you through its steps:
@@ -23,6 +23,25 @@ installer of that version was built from.
   into your library "Lifting equipment" – never into the built-ins – and it places in any project like a built-in.
 - **Hook to here works on any crane** now: it finds the joints by their roles and solves in 3-D, not by names.
 - Test tour: a new set "Set up a crane" (KB-20 rigged from its bare STEP). PC check: a new line `lifting.setup`.
+
+## 0.2.158 – 18 Nov 2026 – Favourites bar, My usage, hide what you never use (task 0181)
+
+- **The app learns what you use – on your PC only, nothing is ever sent.** One small file in your settings folder
+  counts how often you use each function and open each panel. **Fresing > My usage…** (also at the end of the Help
+  menu) shows it: your most used functions, **where your time goes** as bars per stage (Import & structure, Looks,
+  Motion & rigging, Scene & surroundings, Animation, Render & export; idle time over 2 minutes is left out) and the
+  **time saved – an estimate** with how it is worked out ("about 5 s per part by hand: pick the part and give it its
+  material"). **Track my usage** switches it off, **Clear my usage data** deletes it, **Show the file** shows it.
+- **Favourites bar** under the Workspace row: your most used buttons (6; 5–8 in My usage). It is sorted when the app
+  starts, never while you work. A click opens the function's section and points at its button. Pin a function in My
+  usage so it always stays; switch the bar off there too.
+- **Hide what you never use:** after 10 starts without using a panel, one quiet question at the top of the Fresing
+  tab – Hide / Not now / Don't ask again. At most one per start, never about something the open project uses.
+  Hiding is your own layer on top of the workspace; **Back to the workspace as it came** (in My usage, and in the
+  Workspace panel when you hid something) undoes it.
+- **Profiles:** **Export profile…** saves your workspace with the favourites bar and the hidden panels as one file in
+  the library folder Workspaces (your counts only when you tick it); **Import profile…** uses one from a colleague.
+- New test-tour stop "Favourites bar and My usage" and PC-check line `app.usage` (what a counted click costs).
 
 ## 0.2.157 – 18 Nov 2026 – A new sea state in about 2 seconds; the sea cut-away in the 3D view costs nothing (task 0202)
 

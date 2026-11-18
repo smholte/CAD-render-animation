@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.158"
+__version__ = "0.2.159"
 
 _modules = []
 
@@ -33,6 +33,7 @@ def _classes():
     from .blender import ops_people, ui_people    # task 0157: 6 Animation > People (before the Clash check)
     from .blender import ops_tc_person            # task 0156: the operator at a manual tool change
     from .blender import ops_lifting, ui_lifting  # task 0201: 8 Lifting plan
+    from .blender import ops_usage, ui_usage      # task 0181: the usage tracker, favourites bar, My usage
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -56,7 +57,8 @@ def _classes():
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
-            + ops_house.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES)
+            + ops_house.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES
+            + ops_usage.CLASSES + ui_usage.CLASSES)
 
 
 def _all_classes():
@@ -78,6 +80,10 @@ def _all_classes():
     known = set(places.SECTIONS) | set(places.PLACES)
     top = [c for c in tab if c.__name__ not in known and not getattr(c, "bl_parent_id", "")]
     ordered = top + list(ui_top.TOP)
+    fav = by_name.get("FRESING_PT_favourites")             # task 0181: the favourites bar under the workspace switcher
+    if fav is not None:
+        ordered.remove(fav)
+        ordered.insert(ordered.index(ui_top.TOP[0]) + 1, fav)
 
     def under(parent):
         for name in places.children(parent):
@@ -134,6 +140,8 @@ def register():
     from .blender import ui_topbar, welcome
     ui_topbar.register_handlers()            # task 0199: the Fresing menu in the top bar
     welcome.register_handlers()              # task 0199: the welcome and What's new at the start
+    from .blender import ops_usage
+    ops_usage.register()                     # task 0181: counting, the session, My usage in the Help menu
     project_lock.register()
     machining.register()
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
@@ -232,6 +240,8 @@ def unregister():
     from .blender import ui_topbar, welcome
     ui_topbar.unregister_handlers()
     welcome.unregister_handlers()
+    from .blender import ops_usage
+    ops_usage.unregister()
     from .blender import lock, panels, ui_top, workspaces
     ui_top.unregister_header()
     workspaces.unregister()

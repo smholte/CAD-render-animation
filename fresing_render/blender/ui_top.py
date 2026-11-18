@@ -86,6 +86,10 @@ class FRESING_PT_workspace(_Panel, bpy.types.Panel):
         col = layout.column(align=True)
         col.operator("fresing.workspace_all", icon="HIDE_OFF")
         col.operator("fresing.workspace_show_used", icon="CHECKMARK")
+        n = len({F.FUNCTIONS[h].panel for h in workspaces.PERSONAL["hide"] if h in F.FUNCTIONS})
+        if n:                                    # task 0181: panels the user hid himself (declutter question)
+            col.operator("fresing.usage_reset", icon="LOOP_BACK",
+                         text=f"Back as it came ({plural(n, 'panel')} hidden by you)")
         ui.gap(layout)
         col = layout.column(align=True)
         col.operator("fresing.workspace_save", text="Save as my own…", icon="ADD")

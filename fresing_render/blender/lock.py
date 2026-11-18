@@ -51,7 +51,7 @@ ALLOWED = {
     "fresing.rebake", "fresing.rebake_cancel",          # cables follow a sea change the Client view may make
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
-                    "fresing.make_")
+                    "fresing.make_", "fresing.usage_")     # task 0181: the usage tracker changes nothing in the model
 
 
 def scene_locked(context) -> bool:

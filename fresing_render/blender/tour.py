@@ -461,7 +461,7 @@ def _logo(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.157")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.158")
 def build_crane(b: Build):
     import bpy
 
@@ -2484,7 +2484,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.152")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.159")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -3391,7 +3391,7 @@ def build_lifting(b: Build):
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.158")
+          added="0.2.159")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
@@ -3674,7 +3674,7 @@ stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
      "four stabiliser corners are app joints with their roles (4 Motion > Joints), its two cylinders, poses, masses and "
      "chart are in; the crane stands in its pose 'Working'. The Set-up window is on its step Check: nothing wrong.",
-     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.158", check=_check_crane_setup)
+     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.159", check=_check_crane_setup)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
@@ -4130,6 +4130,42 @@ stop("start_here", OUT, HUB_SET, "Start here: the Fresing menu",
      "of only those. In this Test tour panel new stops say \"New\" and changed ones \"Changed\" after an update.",
      where="The Fresing menu in the top bar (after Help)", since="0.2.155", shot="Tour view",
      check=_check_start_here, auto=lambda ctx, scene, st: "")
+
+def _check_usage(scene):
+    """The usage tracker (task 0181): its panel, buttons and menu lines, and its rules on a made-up state (the
+    user's own usage file is never touched by the tour)."""
+    import bpy
+
+    from ..core import places
+    from ..core import usage as core
+    from . import ui_topbar
+    _check(hasattr(bpy.types, "FRESING_PT_favourites"), "the favourites bar's panel is missing")
+    for op in ("usage_go", "usage_pin", "usage_declutter", "usage_reset", "usage_clear", "usage_window",
+               "usage_export", "usage_import"):
+        _check(hasattr(bpy.ops.fresing, op), f"the button fresing.{op} is missing")
+    _check("fresing.usage_window" in ui_topbar.entries(), "My usage… is not in the Fresing menu")
+    s = core.fresh()
+    for op, n in (("fresing.turntable", 5), ("fresing.render", 3), ("fresing.decal_add", 2)):
+        for _ in range(n):
+            core.count_click(s, op, core.function_for(op))
+    core.start_session(s)
+    _check(s["bar"]["order"] == ["scene.turntable", "scene.still", "looks.decals"],
+           f"the bar of a made-up user is {s['bar']['order']}")
+    s["sessions"] = core.THRESHOLD_DEFAULT
+    panel = core.declutter_candidate(s, set(core.F.FUNCTIONS), set(), titles=set(places.PLACES))
+    _check(bool(panel), "no unused panel is offered after 10 starts")
+    return f"bar of 3 favourites; after 10 starts '{places.PLACES[panel][1]}' would be offered for hiding"
+
+
+stop("usage", OUT, HUB_SET, "Favourites bar and My usage",
+     "Fresing > My usage… (also at the end of Help) opens a window that says what the app counted on this PC – nothing "
+     "is sent anywhere: your most used functions with a pin each, where your time goes per stage (bars), and the "
+     "time saved, marked as an estimate with how it is worked out. Use a button a few times (for example Render image "
+     "twice): at the next start of the app it is on the favourites bar under the Workspace row; a click on it opens "
+     "its section and points at the button. After 10 starts a panel you never used gets one quiet question at the "
+     "top: Hide / Not now / Don't ask again.",
+     where="Fresing menu > My usage…; the favourites bar under the Workspace row", since="0.2.158",
+     shot="Tour view", check=_check_usage, auto=lambda ctx, scene, st: "")
 
 # ---------------------------------------------------------------------------
 # building the tour

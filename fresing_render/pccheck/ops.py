@@ -319,9 +319,11 @@ CLASSES = (FRESING_OT_pc_check, FRESING_OT_pc_check_cancel)
 
 
 def register():
+    from ..blender import usage
     for cls in CLASSES:
         if cls.__doc__ and "\n" in cls.__doc__:
             cls.__doc__ = " ".join(cls.__doc__.split())
+        usage.wrap(cls)                      # task 0181: its clicks count like every Fresing button's
         bpy.utils.register_class(cls)
     _add_help_entry()
     try:

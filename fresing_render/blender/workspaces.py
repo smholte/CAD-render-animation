@@ -8,6 +8,7 @@ user's own workspaces in the library folder "Workspaces". The lock and Blender's
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import os
 import time
@@ -25,6 +26,10 @@ SCAN_SECONDS = 15.0                          # a network folder is read at most 
 # ---------------------------------------------------------------------------
 # where the own workspaces are
 # ---------------------------------------------------------------------------
+
+# task 0181: the user's own hides (the declutter prompt's "Hide"), on top of every workspace but Full access; never one
+# the open project uses (usage.apply_personal works that out and puts the tuple here)
+PERSONAL: dict = {"hide": ()}
 
 _FOLDER: dict = {"key": None, "time": 0.0, "ok": True}
 _SCAN: dict = {"key": None, "time": 0.0, "found": {}, "gen": 0}
@@ -124,7 +129,7 @@ def ticks(scene) -> dict:
 
 
 @functools.lru_cache(maxsize=64)
-def _hidden(name: str, data: str, tick_text: str, gen: int) -> tuple:
+def _hidden(name: str, data: str, tick_text: str, gen: int, personal: tuple = ()) -> tuple:
     """(hidden panels, shown function ids, lock, blender_ui, title-only panels) for a project state. Cached: asked
     at every redraw."""
     ws = None
@@ -135,6 +140,8 @@ def _hidden(name: str, data: str, tick_text: str, gen: int) -> tuple:
             ws = None
     if ws is None:
         ws = W.find(name, _SCAN["found"]) or W.builtin("all")
+    if personal and ws.key != "full":
+        ws = dataclasses.replace(ws, hide=tuple(sorted(set(ws.hide) | set(personal))))   # never the library's copy
     t = W.parse_ticks(tick_text)
     return W.hidden_panels(ws, t), W.shown_functions(ws, t), ws.lock, ws.blender_ui, W.title_only_panels(ws, t)
 
@@ -143,7 +150,7 @@ def _state(scene) -> tuple:
     s = _settings(scene)
     if s is None:
         return frozenset(), None, False, False, frozenset()
-    return _hidden(s.ws_name or default_name(), s.ws_data, s.ws_ticks, _SCAN["gen"])
+    return _hidden(s.ws_name or default_name(), s.ws_data, s.ws_ticks, _SCAN["gen"], PERSONAL["hide"])
 
 
 def panel_hidden(scene, panel: str) -> bool:
