@@ -40,7 +40,7 @@ it shows today against what the app can do now, so the lead can brief the update
 
 ## Not in this task
 
-The machining sets (0223). Fixing anything. The Cutaway → Slice rename (0220) – note only what it leaves.
+The machining sets (0223). Fixing anything. The Cutaway → Slice rename (0220) – note only what it leaves. The `linkage` set's four-bar (0225).
 
 ---
 
