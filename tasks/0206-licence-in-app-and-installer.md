@@ -1,6 +1,6 @@
 # 0206 – The licence inside the app and the installer: About Fresing Render, licence files in every install
 
-**Who:** worker · **Status:** open – can start (0205 and 0181 done, 18 Nov) · **Branch:** `task/0206-licence-in-app`
+**Who:** worker · **Status:** done 18 Nov 2026 (0.2.162) · **Branch:** `task/0206-licence-in-app`
 **Started by:** lead chat, 18 Nov 2026 (owner: a company wants to use the app; follow-up of 0205)
 · **Lane:** Start & learn (`ui_topbar.py`, the Help menu) + Quality & delivery (`installer/`, `tools/build_release.py`)
 **Area:** new `fresing_render/blender/about.py` (+ its operator and test); additive: `ui_topbar.py` / the Help menu
@@ -116,7 +116,7 @@ tooltip check strict (863 ok), the real-app test `start` (55/55: About in both m
 opens; `MIN_CHECKS["start"]` 46 → 55), the PC-check line alone (OK), a local `build_release.py` build (both zips hold the
 files). **Not run here:** the Windows install, the update on Windows, text scaling 100–200 % (the dialog wraps at 72 characters
 in a 520-wide window like the welcome; look at it on your PC) – GitHub's Windows jobs run the checks above.
-GitHub runs: see below.
+**GitHub runs: 4.** (1) red: my Help-menu draw function had the same name `_draw_help` as the update notice's, and `test_updates_blender` counts it – renamed `_draw_about_help`; (2) green at 0.2.161, but `main` moved (task 0203 took 0.2.161); (3) merge + renumber to 0.2.162, green (26.7 min, run 44343169249), fast-forwarded to `main` (a956ccd). Before that, a version clash cost one more run (0.2.160 taken by 0208).
 
 **Open points / follow-ups for the lead:**
 1. **`THIRD-PARTY-NOTICES.md` still says the texts are missing** (header "Two things reach a PC without a licence text", the
