@@ -465,7 +465,8 @@ def draw_panel():
 def test_the_panel_draws_empty_and_with_a_cable(model):
     sc = model
     texts, head, rows, touched = draw_panel()                        # no cable yet: the steps and the buttons
-    assert texts[0].startswith("1.  Click the cable or wire rope") and head == ["–"] and rows == [] == touched
+    assert texts[0] == "How it works" and texts[1].startswith("1.  Click the cable or wire rope")     # task 0062: a fold
+    assert head == ["none"] and rows == [] == touched
     assert "Add cable" in texts and "Add all 1 found by name" in texts and "What it touches" not in " ".join(texts)
 
     pick([T.ob(sc, ROPE)])
@@ -520,7 +521,7 @@ def test_the_panel_draws_empty_and_with_a_cable(model):
     it.mbr = 0.25                                                    # sheave 2 bends it tighter: a warning
     texts, head, rows, touched = draw_panel()
     assert paths.status(sc, it)[1] == "WARN" and ui_paths.short_status(sc, it) == ("tight bend", True)
-    assert head == ["1 warning"] and rows == ["tight bend"] and ui_paths.counts(sc) == ("1 warning", True)
+    assert head == ["1 of 1"] and rows == ["tight bend"] and ui_paths.counts(sc) == ("1 warning", True)
     assert "Cable bends tighter than its smallest bend (MBR 250 mm) at 'SHEAVE 2': 180 mm" in " ".join(texts)
     it.mbr = 0.0
     it.enabled = False                                               # off: said so, and no warning
@@ -538,7 +539,7 @@ def test_the_panel_draws_empty_and_with_a_cable(model):
     bpy.data.objects.remove(cable(sc).part)                          # its part gone from the model
     paths.forget()
     texts, head, rows, touched = draw_panel()
-    assert rows == ["no path"] and head == ["1 warning"] and "Cable: its part is gone" in " ".join(texts)
+    assert rows == ["no path"] and head == ["1 of 1"] and "Cable: its part is gone" in " ".join(texts)
 
 
 def test_every_warning_has_its_word_in_the_list(added, monkeypatch):
@@ -559,7 +560,7 @@ def test_every_warning_has_its_word_in_the_list(added, monkeypatch):
         monkeypatch.setattr(paths, "status", lambda scene, item, got=(text, level): got)
         assert ui_paths.short_status(sc, it) == word, text
         texts, head, rows, _touched = draw_panel()
-        assert head == (["1 warning"] if level in ("WARN", "ERROR") else ["1 cable"]), text
+        assert head == (["1 of 1"] if level in ("WARN", "ERROR") else ["1 cable"]), text
         assert rows == ([word[0]] if word[0] else []), text
         joined = " ".join(texts)
         if level == "WARN":                                          # the whole sentence, under the list

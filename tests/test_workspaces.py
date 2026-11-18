@@ -509,3 +509,25 @@ def test_what_a_project_uses():
     assert uses["animation"] == ["an animation"]
     s.cnc.tools.add()
     assert "2 tools" in workspaces.in_use(sc)["cnc"]
+
+
+def test_vessel_at_work_draws_with_a_thruster_in_its_list():
+    """Found by task 0062's panel pass: the thruster list named a variable that did not exist, so the panel could
+    not be drawn once a thruster was listed (older than 0062)."""
+    from test_blender import FakeLayout
+    from fresing_render.blender import ui_vessel_motion
+    sc = _new(CRANE)
+    sc.fresing.background = "SEA"
+    vw = sc.fresing.vessel_work
+    vw.thrusters.add()
+    errors = []
+    fake = type("P", (), {"layout": FakeLayout(errors)})()
+    ui_vessel_motion.FRESING_PT_vessel_work.draw(fake, bpy.context)
+    assert errors == []
+
+
+def test_no_sea_is_one_line_with_the_button_that_gets_it():
+    workspaces, panels, lock = _mods()
+    sc = _new(CRANE)
+    assert sc.fresing.background != "SEA"
+    assert bpy.ops.fresing.env_open_sea() == {"FINISHED"} and sc.fresing.background == "SEA"

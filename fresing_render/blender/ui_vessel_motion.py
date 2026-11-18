@@ -10,7 +10,7 @@ from .ui import (_has_model, _Panel, fold, gap, header_status, hint, list_rows, 
                  wrap)
 
 # the whole body of both panels when the project has no sea (task 0062: one line, not a box of four)
-NO_SEA = f"No sea yet. {where('scene')}: pick Open sea or Vessel deck."      # two lines at the default width
+NO_SEA = "No sea yet: the vessel needs the Open sea or the Vessel deck."
 
 class FRESING_UL_vessel_still(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -46,7 +46,7 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
         s = scene.fresing
         v = s.vessel
         if s.background not in vessel_motion.KINDS:
-            missing(layout, context, NO_SEA)
+            missing(layout, context, NO_SEA, op="fresing.env_open_sea", op_text="Use the Open sea", op_icon="MOD_OCEAN")
             return
         steps(layout, context, ["Tick 'Move with the sea': the machine and the deck heave, pitch and roll",
                                 "Pick the sea state and where the waves come from",
@@ -150,7 +150,7 @@ class FRESING_PT_vessel_work(_Panel, bpy.types.Panel):
         s = scene.fresing
         vw = s.vessel_work
         if s.background not in vessel_motion.KINDS:
-            missing(layout, context, NO_SEA)
+            missing(layout, context, NO_SEA, op="fresing.env_open_sea", op_text="Use the Open sea", op_icon="MOD_OCEAN")
             return
         steps(layout, context, ["Find thrusters: the propellers among the joints",
                                 "Pick what the vessel does: Ahead, Sideways or Turning",

@@ -987,8 +987,7 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                 wrap(layout, context, "Pick a 360° photo with the library button next to 'Photo'.", icon="INFO")
                 layout.operator("wm.url_open", text="How to get free 360° photos", icon="URL").url = PHOTOS_URL
         if offshore:
-            row = col.row(align=True)
-            row.prop(s, "sea_state", text="Sea", expand=True)
+            col.prop(s, "sea_state", text="Sea")              # a drop-down: "From the wind" was cut off as a button
             from .ops_scene import draw_start_scene         # Build puts the start scene's sea back (task 0160)
             draw_start_scene(col, context, ["sea_state", "water_level"])
             if bg == "SEA":

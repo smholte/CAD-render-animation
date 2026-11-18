@@ -73,7 +73,7 @@ class FRESING_OT_xray_group(bpy.types.Operator):
 class FRESING_OT_xray_clear(bpy.types.Operator):
     """Takes the X-ray look off the selected subassembly (or part): it looks as before"""
     bl_idname = "fresing.xray_clear"
-    bl_label = "Back to normal"
+    bl_label = "Back to own look"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -87,7 +87,7 @@ class FRESING_OT_xray_clear(bpy.types.Operator):
 class FRESING_OT_xray_clear_all(bpy.types.Operator):
     """Takes the X-ray look off every part"""
     bl_idname = "fresing.xray_clear_all"
-    bl_label = "All back to normal"
+    bl_label = "All back to own look"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):

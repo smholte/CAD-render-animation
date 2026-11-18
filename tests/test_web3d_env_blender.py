@@ -222,3 +222,15 @@ def test_page_opens_in_a_browser(tmp_path):
     broken = tmp_path / "broken.html"
     broken.write_text(env.page_html("Broken", b"not a model", st), encoding="utf-8")
     assert env.open_headless(str(broken)).startswith("error"), "a broken model must show as an error"
+
+
+def test_a_sea_from_the_wind_gives_the_page_calm_or_rough():
+    """Found by task 0062's panel pass: Surroundings 'As in the project' raised a TypeError for such a sea."""
+    sc = at_sea("ROUGH")
+    s = sc.fresing
+    s.sea_state = "WIND"
+    assert web3d_env.page_sea_state(s) in ("CALM", "ROUGH")
+    s.web3d.env_mode = "NONE"
+    s.web3d.env_mode = "PROJECT"                              # the update fills the ticks: no error
+    assert web3d_env.choice(sc)["sea_state"] in ("CALM", "ROUGH")
+    assert bpy.ops.fresing.web3d_env_from_project() == {"FINISHED"}

@@ -83,4 +83,18 @@ class FRESING_OT_props_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_env_place, FRESING_OT_prop_add, FRESING_OT_props_remove)
+class FRESING_OT_env_open_sea(bpy.types.Operator):
+    """Puts the model on the open sea: the same as picking Open sea under Background & surroundings in
+    5 Scene & Render. Vessel motion and Vessel at work need a sea; pick another background there any time"""
+
+    bl_idname = "fresing.env_open_sea"
+    bl_label = "Use the Open sea"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        context.scene.fresing.background = "SEA"
+        self.report({"INFO"}, "Background & surroundings: Open sea")
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_env_place, FRESING_OT_prop_add, FRESING_OT_props_remove, FRESING_OT_env_open_sea)

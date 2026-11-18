@@ -53,12 +53,23 @@ def light_kind(s) -> str:
     return kind
 
 
+def page_sea_state(s) -> str:
+    """The page's sea knows Calm and Rough. A project whose sea is "From the wind" gives the one nearer to its
+    wind (found by the panel pass of task 0062: the choice raised an error and the ticks were not filled in)."""
+    if s.sea_state in ("CALM", "ROUGH"):
+        return s.sea_state
+    from ..core import sea as sea_core
+    from . import surroundings
+    bft = surroundings.sea_wind(s)[0]
+    return "ROUGH" if bft >= (sea_core.STATES["CALM"] + sea_core.STATES["ROUGH"]) / 2 else "CALM"
+
+
 def from_project(scene) -> dict:
     """The fold's ticks as the project has them now (Surroundings 'As in the project')."""
     s = scene.fresing
     kind = light_kind(s)
     out = env.default_choice()
-    out.update(sea=project_sea(scene), sea_state=s.sea_state, vessel=bool(_vm().effective(scene)),
+    out.update(sea=project_sea(scene), sea_state=page_sea_state(s), vessel=bool(_vm().effective(scene)),
                sky=True, sky_source="PROJECT", sun_height=float(s.sun_elevation),
                sun_direction=float(s.light_rotation) % 360.0,
                clouds="OVERCAST" if kind == "OVERCAST" else "NONE", shadows=True)

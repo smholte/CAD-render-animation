@@ -198,7 +198,7 @@ class FRESING_OT_house_show(bpy.types.Operator):
     Planner"""
 
     bl_idname = "fresing.house_show"
-    bl_label = "Show in Explorer"
+    bl_label = "Show in folder"
 
     @classmethod
     def poll(cls, context):

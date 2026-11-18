@@ -392,7 +392,7 @@ def _library_items(self, context):
         _LIB_ITEMS.append((path, label, path))
     if not _LIB_ITEMS:
         _LIB_ITEMS.append(("", "The library has no logos yet", "Put PNG files in the Logos or Stickers folder "
-                                                                "of the library (Open the logos folder, below)"))
+                                                                "of the library (Show in folder, in the Library fold below)"))
     return _LIB_ITEMS
 
 
@@ -419,10 +419,10 @@ class FRESING_OT_decal_library(bpy.types.Operator):
 
 
 class FRESING_OT_decal_open_library(bpy.types.Operator):
-    """Opens the library folder for logos in the file manager (made when it is not there yet)"""
+    """Shows the library folder for logos in Explorer (made when it is not there yet)"""
 
     bl_idname = "fresing.decal_open_library"
-    bl_label = "Open the logos folder"
+    bl_label = "Show in folder"
     bl_options = {"INTERNAL"}
 
     which: StringProperty(default="Logos", options={"SKIP_SAVE"})
@@ -430,9 +430,9 @@ class FRESING_OT_decal_open_library(bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         if properties.which == "Stickers":
-            return ("Opens the library folder for stickers in the file manager (made when it is not there yet). "
+            return ("Shows the library folder for stickers in Explorer (made when it is not there yet). "
                     "Put your own stickers in it as PNG files: they show in the list next to Picture")
-        return ("Opens the library folder for logos in the file manager (made when it is not there yet). Put your "
+        return ("Shows the library folder for logos in Explorer (made when it is not there yet). Put your "
                 "company logos in it as PNG files with a see-through background: they show in the list next to "
                 "Picture")
 

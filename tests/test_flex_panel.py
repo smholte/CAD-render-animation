@@ -491,14 +491,15 @@ def draw_panel():
 def test_the_panel_draws_empty_and_with_hoses_and_chains(hoses, folder):
     sc = hoses
     texts, head, rows = draw_panel()                                 # nothing added yet: the steps and the buttons
-    assert texts[0].startswith("1.  Click the hose or cable in the") and head == [] and rows == []
+    assert texts[0] == "How it works" and texts[1].startswith("1.  Click the hose or cable in the")   # task 0062: a fold
+    assert head == ["none"] and rows == []
     for button in ("Add hose", "Add cable", "Add drag chain", "Find hoses and chains", "Find and add all"):
         assert button in texts, button
 
     assert bpy.ops.fresing.flex_find(add=True) == {"FINISHED"}
     it = choose(sc, "HYDRAULIC HOSE ARM")
     texts, head, rows = draw_panel()
-    assert head == ["4 hoses"] and rows == []                        # a row spells out only a problem, or "off"
+    assert head == ["4"] and rows == []                        # a row spells out only a problem, or "off"
     assert [ui_flex.short_status(sc, x) for x in flex.items(sc)] == [(f"{x.length * 1000:.0f} mm", False)
                                                                      for x in flex.items(sc)]
     assert "Find and add all" not in texts and "Follows the motion" in texts
@@ -524,7 +525,7 @@ def test_the_panel_draws_empty_and_with_hoses_and_chains(hoses, folder):
     pick(sc, [band])
     assert bpy.ops.fresing.flex_add_chain() == {"FINISHED"}
     texts, head, rows = draw_panel()
-    assert head == ["5 items"] and rows == []                        # (the title is long: no room for more)
+    assert head == ["5"] and rows == []                        # (the title is long: no room for more)
     assert ui_flex.short_status(sc, flex.find(sc, "ENERGY CHAIN"))[0].endswith(" links")
     for label in ("Upper run", "Bend radius", "Links", "Link length", "Width", "Height", "Swap ends",
                   "Fit to the CAD pose"):
@@ -535,7 +536,7 @@ def test_the_panel_draws_empty_and_with_hoses_and_chains(hoses, folder):
     flex.set_up_test_chains(sc)
     choose(sc, "CHAIN Y.ASM")
     texts, head, rows = draw_panel()
-    assert head == ["3 chains"] and rows == []
+    assert head == ["3"] and rows == []
     assert [ui_flex.short_status(sc, x)[0] for x in flex.items(sc)] == ["18 links", "16 links", "13 links"]
     joined = " ".join(texts)                                         # (a long line is drawn on two)
     assert "Fixed end on: CHAIN BRACKET Y FIXED" in joined and "Moving end on: CHAIN BRACKET Y MOVING" in joined
