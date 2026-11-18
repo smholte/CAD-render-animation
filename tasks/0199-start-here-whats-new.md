@@ -1,6 +1,7 @@
 # 0199 – Start here: a "Fresing" menu in the top bar, a welcome that suggests the test tour, and What's new after an update (new and changed test models)
 
-**Who:** worker · **Status:** open – **after 0198** (uses its `fresing.show_panel`; both touch the app template) ·
+**Who:** worker · **Status:** open – can start (0198 and 0062 are on `main`, 0.2.150 / 0.2.152; read "Lead's notes
+after 0062" below first) ·
 **Branch:** `task/0199-start-here-whats-new`
 **Started by:** lead chat, 17 Nov 2026 22:30 (owner's wishes) · **Lane:** Start & learn (new)
 **Area:** new `blender/welcome.py` + `blender/ui_topbar.py`; `blender/tour.py` (additive: version fields on sets and
@@ -39,8 +40,8 @@ demo project", then Blender's own Manual, Support …). A new user does not look
    after.
 3. **What's new after an update:** the first start of a newer version than the last one run shows **one** popup:
    - title "What's new in 0.2.NNN" (when several versions were skipped: "since 0.2.MMM");
-   - **a short list of new functions** (at most ~8 lines, newest first, each with *Show in guide*), from a new
-     `added="0.2.NNN"` field on each function entry in `core/functions.py`; a line for a function marked
+   - **a short list of new functions** (at most ~8 lines, newest first, each with *Show in guide*), from the
+     `since="0.2.NNN"` field each function entry in `core/functions.py` already has; a line for a function marked
      `changed="0.2.NNN"` says "improved"; a link to the full release notes (`changelog.json`, already published with
      every release) for the rest;
    - **the test models:** "3 new test models, 2 changed" with their names, and **Open the tour of the new and changed
@@ -61,6 +62,30 @@ demo project", then Blender's own Manual, Support …). A new user does not look
 5. **The usual parts of a visible change:** tooltips; guide chapter "Start here" (the Fresing menu, welcome, What's
    new); function entries (`help.start_here`, `help.whats_new`); a test-tour stop; a PC-check line if Windows can
    break it (the popup at start).
+
+## Lead's notes after 0062 (18 Nov 2026 – these change the brief above)
+
+- **The top bar:** 0062 draws the top bar's left part itself in `blender/lock.py` (`TOPBAR_HT_upper_bar`, without
+  Blender's workspace tabs outside Full access; the Client view swaps the File menu). Add the Fresing menu so it shows
+  in all three states – Full access, every other workspace, the Client view – without replacing lock.py's drawing
+  (e.g. one line appended to `TOPBAR_MT_editor_menus`, which both drawings call). In the Client view keep the entries
+  that only open or show something (tour, What's new, guide, show panel, PC check); one that would change the open
+  project is refused by the lock with its reason – check it in the real-app test.
+- **The 3D view's header** is shared: 0062's Make (`ui_top._draw_view_header`) and 0198's Fresing button. Add nothing
+  there unless needed; if so, append after them.
+- **Version fields already exist:** every one of the 122 entries in `core/functions.py` and the tour stops carry
+  `since=` (task 0124) – that **is** the "added" version: use it, do not add a second field. New: `changed=` on entries
+  and stops, and `added=` / `changed=` on `@tour_set` (sets have none yet). The precheck then checks: a new entry or
+  stop without `since=` fails; a changed set fingerprint without a raised `changed=` fails (point 4).
+- **New panels / functions** follow CLAUDE.md section 6 "A new panel": `core/places.py`, a `core/functions.py` entry
+  with its family (and `workspaces=` if it belongs to some kinds of work only); operators that must work in the Client
+  view go into `lock.ALLOWED`.
+- **0062's "What's next" card** sits at the top of the Fresing tab: the welcome and What's new are popups at start –
+  do not put a second card there.
+- **The app's own projects** (tour, demo, PC check) call `workspaces.use_all(scene)`: the tour of the new and changed
+  models must too.
+- **Running beside you:** Lifting L4 (task 0201) adds a family, a workspace, function entries and a tour set. Whoever
+  merges second updates to `main` and meets the other's rules (your precheck: its entries and stops need `since=`).
 
 ## Done when
 

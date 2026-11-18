@@ -1,6 +1,6 @@
 # 0196 – Fix: the sea cut-away shows only in renders – make it visible in Solid view and Material Preview
 
-**Who:** worker · **Status:** open – starts **after 0193 is merged** (both change `blender/surroundings.py`) ·
+**Who:** worker · **Status:** open – can start (0193 merged, 0.2.148; 0062's pass over the panels is on `main`, 0.2.152) ·
 **Branch:** `task/0196-sea-cutaway-in-view`
 **Started by:** lead chat, 17 Nov 2026 (owner's screenshots of the demo, 0.2.146) · **Model:** Sonnet · effort Medium ·
 **Place:** Claude Code on the web, environment "CAD-render-animation"
