@@ -114,7 +114,7 @@ def _needed(scene, want: dict) -> dict:
         out["flex"] = True
     if "paths" in want and paths._baked(scene) and \
             any(it.enabled and it.b_kind == "SEA" for it in scene.fresing.cables) and \
-            (want["paths"] or vessel_motion.moved_since(scene, paths.MOTION_KEY)):
+            (want["paths"] or paths.sea_moved(scene)):
         out["paths"] = True
     return out
 

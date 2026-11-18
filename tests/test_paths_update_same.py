@@ -107,3 +107,61 @@ def test_a_wrap_set_by_hand_is_kept_through_an_update(rope, path):
     wraps = [round(float(x.wrap_cad), 6) for x in it.contacts if x.kind in paths.SHAPING]
     it = _update_same(sc, path)
     assert [round(float(x.wrap_cad), 6) for x in it.contacts if x.kind in paths.SHAPING] == wraps   # (before: 0.05 lost)
+
+
+def _spy_kept(monkeypatch):
+    got = []
+    real = paths.cable_kept
+    monkeypatch.setattr(paths, "cable_kept", lambda *a: got.append(real(*a)) or got[-1])
+    return got
+
+
+def test_a_cable_whose_own_part_changed_is_read_again(rope, monkeypatch):
+    """Task 0216 (bug hunt 7 row 8): a cable keeps its route through an update that changed other parts only; one
+    whose own parts changed is read again."""
+    sc = rope
+    it = paths.find(sc, CABLE)
+    own = it.part_uid
+    real = paths.before_model_update
+
+    def before(scene, r):                     # the cable's own CAD part was another shape before
+        real(scene, r)
+        paths._STATE["model_sig"][1][own] = ("another shape",)
+    monkeypatch.setattr(paths, "before_model_update", before)
+    got = _spy_kept(monkeypatch)
+    _update_same(sc)
+    assert got and not any(got)
+
+
+def test_a_revision_with_a_part_changed_beside_the_cable_reads_it_again(rope, monkeypatch):
+    """Revision B moves a guard next to the rope: within ``paths.ROOM`` of it, so the rope is read again."""
+    got = _spy_kept(monkeypatch)
+    _update_same(rope, MODEL_B)
+    assert got and not any(got)
+
+
+def test_kept_when_only_a_far_part_changed(rope, monkeypatch):
+    sc = rope
+    it = paths.find(sc, CABLE)
+    want = (float(it.length), [(c.name, round(float(c.wrap_cad), 6)) for c in it.contacts])
+    root = next(r for r in build.model_roots(sc))
+    far = None
+    for ob in build.iter_parts(sc):
+        uid = ob.get(build.PROP_UID)
+        if uid and uid != it.part_uid and uid not in paths._depends_on(sc, it):
+            far = uid
+            break
+    assert far is not None
+    real = paths.before_model_update
+
+    def before(scene, r):
+        real(scene, r)
+        paths._STATE["model_sig"][1][far] = ("another shape",)
+        held = paths._STATE["held"][CABLE]
+        held["points"] = held["points"] + np.array([0.0, 0.0, 1000.0])   # (the rope far from every part)
+    monkeypatch.setattr(paths, "before_model_update", before)
+    got = _spy_kept(monkeypatch)
+    it = _update_same(sc)
+    assert got and all(got) and root is not None
+    assert float(it.length) == pytest.approx(want[0], abs=1e-5)
+    assert [(c.name, round(float(c.wrap_cad), 6)) for c in it.contacts] == want[1]

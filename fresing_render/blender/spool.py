@@ -159,6 +159,10 @@ def renamed(scene, sp) -> None:
     ("spool:<name>") take the new name (task 0174; before, a rename left the old drawing standing – with every layer
     drawn, the whole coil twice). Written without the update callbacks."""
     new = sp.name
+    if not new.strip():                          # task 0216 (bug hunt 7 row 29): an empty name is refused – two spools
+        was = sp.get("name_was", "") or (sp.owner.get(TAG, "") if sp.owner is not None else "")    # named "" shared
+        sp.name = _unique_name(scene, was or "Spool")        # their tag; the callback runs again with the name back
+        return
     if new and any(x.name == new for x in scene.fresing.spools if x != sp):
         sp.name = _unique_name(scene, new)       # (task 0187, bug hunt 6 row 15: two drums of one name found each
         return                                   # other's layers; the callback runs again with the free name)
@@ -2047,7 +2051,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             _STATE["busy"] -= 1
         sp = s.spools[i]
         it = _cable(scene, sp)
-        same = paths.same_model(scene, by_uid)           # (the same model: the cable is not read again, task 0192)
+        same = paths.same_model(scene, by_uid) or (      # (the same model: the cable is not read again, task 0192;
+            it is not None and paths.cable_kept(scene, by_uid, it))     # nor one whose parts are the same, 0216)
         if it is not None and it.a_kind == "SPOOL" and not same:   # read again as the plain CAD cable; after_read
             #                                                          takes it again
             with paths._quiet(it):

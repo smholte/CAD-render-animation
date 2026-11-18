@@ -343,3 +343,58 @@ def test_foam_and_moving_waves_are_named_too(folder):
 def test_steady_hang_off_slices_three_moments():
     assert list(C._rows(np.array([1.0, 2.0, 3.0]), np.array([1]), 3)) == [2.0]
     assert list(C._rows(np.zeros((3, 3)), np.array([0, 2]), 3).shape) == [2, 3]
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# task 0216 (bug hunt 7 row 7): undo / a copy saved during the re-bake bring back new water with the old cable
+# ---------------------------------------------------------------------------------------------------------------------
+
+def _water_without_rebake(sc, monkeypatch, level):
+    """The water changed and the cable was not worked out again: what an undo step after the re-bake brings back
+    (the water of the change, the shapes and keys of the Build before it), or a copy saved while the job ran."""
+    with monkeypatch.context() as m:
+        m.setattr(paths, "motion_changed", lambda *a, **k: None)
+        sc.fresing.water_level = level
+
+
+def test_undo_after_a_water_change_works_the_cable_out_again(folder, monkeypatch):
+    """Water level 2 -> 3 m, re-bake, Undo: water 3.0 with the cable 1 m under the seabed and no re-bake (the key held
+    the vessel / seabed motion only)."""
+    sc, a = set_up(folder, start_scene=False, sea=True)
+    animation.bake(sc, a)
+    frames = [1, 150, sc.frame_end]
+    _water_without_rebake(sc, monkeypatch, 3.0)
+    assert np.abs(end_above_bed(sc, frames)).max() > 0.5          # the old cable under the new seabed
+    assert paths.sea_moved(sc)
+    paths._on_undo()
+    assert sc.fresing.anim_baked and not paths.sea_moved(sc)
+    got = end_above_bed(sc, frames)
+    assert np.abs(got).max() < 1e-3, got
+
+
+def test_a_cable_depth_of_its_own_is_in_the_water_key(folder):
+    sc, a = set_up(folder, start_scene=False, sea=True)
+    animation.bake(sc, a)
+    assert not paths.sea_moved(sc)
+    it = cable(sc)
+    with paths._quiet(it):
+        it.sea_depth = float(paths_sea.depth(sc, it)) + 2.0
+    assert paths.sea_moved(sc)
+
+
+def test_a_copy_saved_with_the_old_cable_is_worked_out_again_when_it_opens(folder, monkeypatch, tmp_path):
+    """Case 2 of row 7: a copy saved during the job opened with the new water and the old cable, never re-baked."""
+    sc, a = set_up(folder, start_scene=False, sea=True)
+    animation.bake(sc, a)
+    frames = [1, 150, sc.frame_end]
+    _water_without_rebake(sc, monkeypatch, 3.0)
+    want_line = paths_sea.waterline(sc)
+    path = str(tmp_path / "copy.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    assert sc.fresing.anim_baked and not paths.sea_moved(sc)
+    bpy.context.view_layer.update()
+    assert paths_sea.waterline(sc) == pytest.approx(want_line, abs=1e-5)      # (the surroundings stay where they were)
+    got = end_above_bed(sc, frames)
+    assert np.abs(got).max() < 1e-3, got

@@ -963,7 +963,9 @@ def changed(scene, item, live: bool = False) -> None:
 # what the panel and the surroundings read
 # ---------------------------------------------------------------------------
 
-NO_HANG = 1e-3                  # m: a cable hanging less than this (height or length) has no tension to show
+NO_HANG = 5e-3                  # m: a cable hanging less than this (height or length) has no tension to show; clearly
+                                # above catenary.BED_GAP (1 mm), the height a bend resting on the seabed keeps (task
+                                # 0216, bug hunt 7 row 27: 21.5, 22.6, 17.0 … kN at frames 273–280 of the moving model)
 
 
 def numbers(scene, item) -> dict:
