@@ -8,7 +8,7 @@ import bpy
 
 from ..core.words import plural
 from . import joints, tracks
-from .ui import _has_model, _Panel, header_status, list_rows, primary, big_row, MEDIUM, split_props, steps, wrap
+from .ui import BIG, _has_model, _Panel, big, gap, header_status, list_rows, split_props, steps, where, wrap
 
 ICON = "MOD_ARRAY"
 LEVEL_ICONS = {"OK": "CHECKMARK", "WARN": "ERROR", "ERROR": "ERROR", "OFF": "INFO"}
@@ -69,19 +69,22 @@ class FRESING_PT_tracks(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         text, alert = counts(context.scene)
-        header_status(self.layout, text, icon="ERROR" if alert else "NONE", alert=alert, limit=11)
+        header_status(self.layout, "none" if text == "–" else text, icon="ERROR" if alert else "NONE", alert=alert,
+                      limit=11)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        if not len(s.tracks):
-            steps(layout, context, ["Press 'Add track', then click the wheels round the loop and press Enter",
-                                    "Click one link of the chain, then a pad or plate if it has them, and press "
-                                    "Enter",
-                                    "The pads run with the cable through the track; else give its speed joint a "
-                                    "Run motor step in 6 Animation"])
-            primary(layout, "fresing.track_add", "Add track", "ADD")
+        steps(layout, context, ["Press 'Add track', then click the wheels round the loop and press Enter",
+                                "Click one link of the chain, then a pad or plate if it has them, and press "
+                                "Enter",
+                                "The pads run with the cable through the track; else give its speed joint a "
+                                f"Run motor step in {where('animation')}, then press Build & play"],
+              key="fr_how_tracks", used=bool(len(s.tracks)))
+        gap(layout)
+        if not len(s.tracks):                   # (bigger while the list is empty: the panel's one action; grey)
+            big(layout, "fresing.track_add", "Add track", "ADD", BIG)
             return
 
         row = layout.row()
@@ -90,13 +93,14 @@ class FRESING_PT_tracks(_Panel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("fresing.track_remove", text="", icon="REMOVE")
         col.operator("fresing.track_select", text="", icon="RESTRICT_SELECT_OFF")
-        big_row(layout, MEDIUM).operator("fresing.track_add", text="Add track", icon="ADD")
+        gap(layout)
+        big(layout, "fresing.track_add", "Add track", "ADD")
 
         it = tracks.active(scene)
         if it is None:
             return
-        layout.separator()
-        layout.label(text=tracks.label(it), icon=ICON)
+        gap(layout)
+        wrap(layout, context, tracks.label(it), icon=ICON)
         text, level = tracks.status(scene, it)
         if level == "OFF":
             wrap(layout, context, "Off: it shows as in the CAD file and stands still. Tick it in the list to "
@@ -110,13 +114,14 @@ class FRESING_PT_tracks(_Panel, bpy.types.Panel):
             col.label(text=f"{plural(it.parts - it.links, 'pad or plate', 'pads and plates')} ride on them")
         col.label(text=f"Loop {it.length:.3f} m, chain {it.chain_length:.3f} m")
         # -- its speed
+        gap(layout)
         col = split_props(layout)
         col.prop_search(it, "joint", s, "joints", text="Speed")
         layout.prop(it, "reverse", text="Runs the other way")
         if it.joint and joints.find(scene, it.joint) is not None:
             layout.operator("fresing.track_motor_step", text="Add a Run motor step", icon="ADD")
         # -- its wheels
-        layout.separator()
+        gap(layout)
         layout.label(text=f"Wheels ({len(it.wheels)})", icon="MESH_CYLINDER")
         layout.template_list("FRESING_UL_track_wheels", "", it, "wheels", it, "wheels_index",
                              rows=list_rows(len(it.wheels), 2, 6))

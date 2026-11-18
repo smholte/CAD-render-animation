@@ -7,7 +7,7 @@ import bpy
 from ..core import waycover as core
 from ..core.words import plural
 from . import waycover
-from .ui import MEDIUM, _has_model, _Panel, big_row, header_status, list_rows, primary, split_props, steps, wrap
+from .ui import _has_model, _Panel, big, gap, header_status, list_rows, missing, split_props, steps, wrap
 
 
 class FRESING_UL_waycovers(bpy.types.UIList):
@@ -50,22 +50,32 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
         scene = context.scene
         n, made = waycover.state_counts(scene)
         k = len(waycover.covers(scene))
-        if n:
+        if n or k:
             text = plural(n, "section") if k < 2 else plural(k, "cover")
             header_status(self.layout, text, icon="NONE" if made == n else "ERROR", alert=made < n)
+        else:
+            header_status(self.layout, "none")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        if not waycover.covers(scene) and not len(s.waycovers):
-            steps(layout, context, ["Add a way cover (one for each cover of the machine: a cover on each side of "
-                                    "the table is two)",
-                                    "Pick the slide joint it follows (the machine axis)",
-                                    "Click the parts of one cover section, then 'Add section' – "
-                                    "from the fixed end to the moving end",
-                                    "Check the total length of movement, then 'Make it'"])
-            primary(layout, "fresing.waycover_cover_add", "Add way cover", "ADD", MEDIUM)
+        none = not waycover.covers(scene) and not len(s.waycovers)
+        if none and not any(j.kind == "SLIDE" for j in s.joints):      # nothing a cover could follow
+            missing(layout, context, "A way cover follows a slide joint (the machine's axis) and this project has "
+                                     "none yet. Click the carriage (the part the axis moves), then:",
+                    op="fresing.waycover_axis_from_selection", op_text="Add the axis joint", op_icon="ADD")
+            return
+        steps(layout, context, ["Add a way cover (one for each cover of the machine: a cover on each side of "
+                                "the table is two)",
+                                "Pick the slide joint it follows (the machine axis)",
+                                "Click the parts of one cover section, then 'Add section' – "
+                                "from the fixed end to the moving end",
+                                "Check the total length of movement, then 'Make it'"],
+              key="fr_how_waycover", used=waycover.state_counts(scene)[0] > 0)
+        gap(layout)
+        if none:
+            big(layout, "fresing.waycover_cover_add", "Add way cover", "ADD")
             return
         c = waycover.settings(scene)
 
@@ -78,7 +88,7 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
             col = row.column(align=True)
             col.operator("fresing.waycover_cover_add", text="", icon="ADD")
             col.operator("fresing.waycover_remove_all", text="", icon="REMOVE")
-            layout.separator()
+            gap(layout)
 
         # -- 1 axis
         layout.label(text="1  Axis", icon="DRIVER")
@@ -91,7 +101,7 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
             layout.operator("fresing.waycover_axis_from_selection", icon="ADD")
 
         # -- 2 sections
-        layout.separator()
+        gap(layout)
         layout.label(text="2  Sections (fixed end first)", icon="MOD_ARRAY")
         if c.sections:
             row = layout.row()
@@ -106,10 +116,10 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
                 wrap(layout, context, f"{sec.name} – on the carriage: the axis '{c.axis}' moves it itself, so it "
                      "needs no joint of its own. It stays the last section", icon="PINNED")
             layout.operator("fresing.waycover_select", icon="RESTRICT_SELECT_OFF")
-        big_row(layout, MEDIUM).operator("fresing.waycover_add", text="Add section", icon="ADD")
+        big(layout, "fresing.waycover_add", "Add section", "ADD")
 
         # -- 3 travel
-        layout.separator()
+        gap(layout)
         layout.label(text="3  Travel", icon="ARROW_LEFTRIGHT")
         col = split_props(layout)
         col.prop(c, "total", text="Total movement")
@@ -125,16 +135,14 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
             wrap(layout, context, core.summary(len(c.sections), c.total * 1000.0, c.housing_counts), icon="INFO")
 
         # -- 4 make
-        layout.separator()
+        gap(layout)
         n, made = waycover.state_counts(scene, c)
         label = "Make it" if not made else ("Make it (new sections)" if made < n else "Make it again")
-        if c.sections and made < n:
-            primary(layout, "fresing.waycover_make", label, "CHECKMARK", MEDIUM)
-        else:
-            big_row(layout, MEDIUM).operator("fresing.waycover_make", text=label, icon="CHECKMARK")
+        big(layout, "fresing.waycover_make", label, "CHECKMARK")
         if n and made == n and not problem:
             wrap(layout, context, waycover.status(scene, c), icon="CHECKMARK")
         if not len(s.waycovers):
+            gap(layout)
             layout.operator("fresing.waycover_cover_add", text="Add another way cover", icon="ADD")
 
 

@@ -7,7 +7,8 @@ import bpy
 from ..core.words import plural
 from . import coolant, gcode
 from .ops_machining import clicked_part
-from .ui import _has_model, _Panel, fold, header_status, list_rows, split_props, steps, wrap
+from .ui import _has_model, _Panel, fold, gap, header_status, list_rows, split_props, steps, where, wrap
+from .ui_gcode import machine_started, no_machine
 
 
 class FRESING_UL_coolant_nozzles(bpy.types.UIList):
@@ -39,18 +40,23 @@ class FRESING_PT_cnc_coolant(_Panel, bpy.types.Panel):
             header_status(self.layout, "not ready", icon="ERROR", alert=True)
         else:
             header_status(self.layout, ("hoses" if s.source == "AUTO" else plural(len(s.nozzles), "nozzle"))
-                          + (", draft" if s.draft else ""))
+                          + (", draft" if s.draft else ""), limit=17)      # (a short title: "2 nozzles, draft" fits)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = coolant.settings(scene)
-        if not s.enabled:
-            steps(layout, context, ["Tick Coolant in this panel's title",
-                                    "Pick where it comes from: the app's hoses (Automatic) or your nozzle parts",
-                                    "In 6 Animation, each Run G-code program step says when it flows (from the "
-                                    "program's M8 / M7 / M9, always, or off); press Build & play"])
+        if not s.enabled and not machine_started(gcode.settings(scene)):
+            no_machine(layout, context, "Coolant belongs to")
             return
+        steps(layout, context, ["Tick Coolant in this panel's title",
+                                "Pick where it comes from: the app's hoses (Automatic) or your nozzle parts",
+                                f"In {where('animation')}, each Run G-code program step says when it flows (from "
+                                "the program's M8 / M7 / M9, always, or off); press Build & play"],
+              key="fr_how_coolant", used=s.enabled)
+        if not s.enabled:
+            return
+        gap(layout)
         why = coolant.problem(scene)
         if why:
             wrap(layout, context, why, icon="ERROR", alert=True)
@@ -69,7 +75,7 @@ class FRESING_PT_cnc_coolant(_Panel, bpy.types.Panel):
                  "Nothing clicked: click a nozzle part in the view",
                  icon="RESTRICT_SELECT_OFF" if ob is not None else "RESTRICT_SELECT_ON")
             row = layout.row(align=True)
-            row.operator("fresing.cnc_coolant_nozzle", text="Use clicked part", icon="ADD")
+            row.operator("fresing.cnc_coolant_nozzle", text="Use as nozzle", icon="ADD")
             row.operator("fresing.cnc_coolant_click", text="Click point", icon="EYEDROPPER")
             row = layout.row()
             row.template_list("FRESING_UL_coolant_nozzles", "", s, "nozzles", s, "nozzles_index",
@@ -78,6 +84,7 @@ class FRESING_PT_cnc_coolant(_Panel, bpy.types.Panel):
             col.operator("fresing.cnc_coolant_remove", text="", icon="REMOVE")
             if 0 <= s.nozzles_index < len(s.nozzles):
                 it = s.nozzles[s.nozzles_index]
+                gap(layout, size=0.5)
                 row = layout.row(align=True)
                 row.operator("fresing.cnc_coolant_aim", text="Aim at the tool", icon="PIVOT_CURSOR")
                 row.operator("fresing.cnc_coolant_aim", text="", icon="ARROW_LEFTRIGHT").flip = True
@@ -86,6 +93,7 @@ class FRESING_PT_cnc_coolant(_Panel, bpy.types.Panel):
                     fb.prop(it, "tip", text="Tip")
                     fb.prop(it, "dir", text="")
         # -- the look
+        gap(layout)
         col = split_props(layout)
         col.prop(s, "liquid", text="Liquid")
         col.prop(s, "flow", text="Flow", slider=True)
@@ -98,6 +106,7 @@ class FRESING_PT_cnc_coolant(_Panel, bpy.types.Panel):
                      inset=12)
         layout.prop(s, "draft", text="Draft (quick view: no splash, no drops)")
         # -- the codes
+        gap(layout)
         body = fold(layout, "fr_coolant_codes", f"Codes: M{s.flood_code} flood, M{s.mist_code} mist, "
                                                 f"M{s.off_code} off", icon="FILE_SCRIPT")
         if body:

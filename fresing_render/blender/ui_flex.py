@@ -6,7 +6,7 @@ import bpy
 
 from ..core.words import plural
 from . import flex, ops_flex
-from .ui import MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, split_props, steps, wrap
+from .ui import MEDIUM, _has_model, _Panel, big, big_row, fold, gap, header_status, list_rows, split_props, steps, wrap
 
 ICONS = {"HOSE": "CURVE_BEZCURVE", "CHAIN": "LINKED"}
 ALERT = ("WARN", "ERROR")
@@ -76,11 +76,13 @@ def _end_row(layout, context, item, end: str) -> None:
 
 
 def _add_buttons(layout, first: bool) -> None:
-    """Add hose · Add cable / Add drag chain / Find. ``first``: nothing added yet, so "Add hose" is the main button."""
+    """Add hose · Add cable / Add drag chain / Find. ``first``: nothing added yet, so "Find and add all" is offered
+    too. (All grey: the section's one blue button is Build & play.)"""
     row = big_row(layout, MEDIUM)
-    row.operator("fresing.flex_add_hose", text="Add hose", icon="ADD", depress=first).soft = False
+    row.operator("fresing.flex_add_hose", text="Add hose", icon="ADD").soft = False
     row.operator("fresing.flex_add_hose", text="Add cable", icon="ADD").soft = True
-    big_row(layout, MEDIUM).operator("fresing.flex_add_chain", text="Add drag chain", icon="ADD")
+    big(layout, "fresing.flex_add_chain", "Add drag chain", "ADD")
+    gap(layout, size=0.5)
     layout.operator("fresing.flex_find", text="Find hoses and chains", icon="VIEWZOOM").add = False
     if first:
         layout.operator("fresing.flex_find", text="Find and add all", icon="CHECKMARK").add = True
@@ -100,19 +102,20 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         text, alert = counts(context.scene)
-        if text:
-            header_status(self.layout, text, icon="ERROR" if alert else "NONE", alert=alert, limit=9)
+        header_status(self.layout, text or "none", icon="ERROR" if alert else "NONE", alert=alert, limit=9)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
+        steps(layout, context, ["Click the hose or cable in the 3D view (or press 'Find hoses and chains')",
+                                "Press 'Add hose' or 'Add cable'",
+                                "Move a joint: the hose follows, both ends stay on their parts",
+                                "A drag chain: click one of its links (the app takes the whole row), "
+                                "then 'Add drag chain'"],
+              key="fr_how_flex", used=bool(len(s.flex)))
+        gap(layout)
         if not len(s.flex):
-            steps(layout, context, ["Click the hose or cable in the 3D view (or press 'Find hoses and chains')",
-                                    "Press 'Add hose' or 'Add cable'",
-                                    "Move a joint: the hose follows, both ends stay on their parts",
-                                    "A drag chain: click one of its links (the app takes the whole row), "
-                                    "then 'Add drag chain'"])
             _add_buttons(layout, first=True)
             return
 
@@ -122,15 +125,16 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("fresing.flex_remove", text="", icon="REMOVE")
         col.operator("fresing.flex_select", text="", icon="RESTRICT_SELECT_OFF")
+        gap(layout)
         _add_buttons(layout, first=False)
 
         # -- the chosen one
         fx = flex.active(scene)
         if fx is None:
             return
-        layout.separator()
+        gap(layout)
         chain = fx.kind == "CHAIN"
-        layout.label(text=flex.label(fx), icon=ICONS[fx.kind])
+        wrap(layout, context, flex.label(fx), icon=ICONS[fx.kind])
         text, level = flex.status(scene, fx)
         if level in ALERT:
             what = "Drag chain" if chain else "Hose"
@@ -143,6 +147,7 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
         else:
             layout.label(text="Follows the motion", icon="CHECKMARK")
 
+        gap(layout, size=0.5)
         col = split_props(layout)
         if chain:
             col.prop(fx, "mode", text="Upper run")
@@ -159,6 +164,7 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
             if cad > 0.0 and abs(fx.length - cad) > DIFFERS * cad:
                 layout.label(text=f"In the CAD file: {cad * 1000.0:.1f} mm", icon="BLANK1")
 
+        gap(layout)
         _end_row(layout, context, fx, "A")
         _end_row(layout, context, fx, "B")
         if chain:
@@ -166,6 +172,7 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
         layout.operator("fresing.flex_fit", text="Fit to the CAD pose", icon="LOOP_BACK")
 
         # -- rarely changed
+        gap(layout)
         body = fold(layout, "fr_flex_more", "More", "PREFERENCES")
         if body:
             col = split_props(body)

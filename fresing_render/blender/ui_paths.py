@@ -11,7 +11,8 @@ import numpy as np
 from ..core.words import plural
 from . import joints, ops_paths, paths
 from .ops_flex import _name
-from .ui import MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, primary, split_props, steps, wrap
+from .ui import (BIG, MEDIUM, _has_model, _Panel, big, fold, gap, header_status, list_rows, split_props, steps,
+                 where, wrap)
 
 ICON = "CURVE_PATH"
 KIND_ICONS = {"SHEAVE": "MESH_TORUS", "ROLLER": "MESH_CYLINDER", "CHUTE": "SPHERECURVE", "BEND": "MOD_CURVE"}
@@ -229,11 +230,9 @@ class FRESING_UL_cable_contacts(bpy.types.UIList):
 # ---------------------------------------------------------------------------
 
 def _add_buttons(layout, scene, first: bool) -> None:
-    """Add cable (the main button while the list is empty) and, when parts are named like a cable, Add all."""
-    if first:
-        primary(layout, "fresing.cable_add", "Add cable", "ADD")
-    else:
-        big_row(layout, MEDIUM).operator("fresing.cable_add", text="Add cable", icon="ADD")
+    """Add cable (bigger while the list is empty: then it is the panel's one action) and, when parts are named
+    like a cable, Add all. Grey: the section's one blue button is Build & play."""
+    big(layout, "fresing.cable_add", "Add cable", "ADD", BIG if first else MEDIUM)
     n = found_count(scene)
     if n:
         layout.operator("fresing.cable_add_all", text=f"Add all {n} found by name", icon="VIEWZOOM")
@@ -330,7 +329,7 @@ def _sea_fold(layout, context, cb) -> None:
     if not sea:
         wrap(body, context, "The cable hangs from its last contact (horn, chute or sheave) down to the seabed and "
              "lies on the seabed behind it", icon="INFO")
-        big_row(body).operator("fresing.cable_sea_add", text="Into the sea", icon="MOD_OCEAN")
+        big(body, "fresing.cable_sea_add", "Into the sea", "MOD_OCEAN")
     else:
         col = split_props(body)
         col.prop(cb, "sea_mode", text="Touch-down")
@@ -361,11 +360,12 @@ def _sea_fold(layout, context, cb) -> None:
                 wrap(box, context, line, icon="MOD_OCEAN" if k == 0 else "BLANK1", inset=24)
             if n.get("kind", 0) in SEA_KINDS:
                 wrap(body, context, f"The cable {SEA_KINDS[n['kind']]}", icon="ERROR", alert=True)
+        gap(body, size=0.5)
         row = body.row(align=True)
         row.operator("fresing.cable_sea_reset", text="Touch-down here", icon="ANCHOR_BOTTOM")
         row.operator("fresing.cable_sea_remove", text="", icon="X")
     # things on the cable
-    body.separator()
+    gap(body, line=True)
     n = len(cb.riders)
     body.label(text=f"Things on the cable ({n})" if n else "Things on the cable", icon="LINKED")
     if n:
@@ -396,7 +396,8 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         text, alert = counts(context.scene)
-        header_status(self.layout, text, icon="ERROR" if alert else "NONE", alert=alert, limit=11)
+        header_status(self.layout, "none" if text == "–" else text, icon="ERROR" if alert else "NONE", alert=alert,
+                      limit=11)
 
     def draw(self, context):
         layout = self.layout
@@ -408,11 +409,15 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
             box.label(text=f"Working the cables out again for the new sea: {100.0 * rebake.progress():.0f} %",
                       icon="TIME")
             box.operator("fresing.rebake_cancel", text="Cancel", icon="CANCEL")
+            gap(layout)
+        steps(layout, context, ["Click the cable or wire rope in the 3D view",
+                                "Press 'Add cable': the app reads what it runs over and makes all of that "
+                                "turn with it",
+                                f"Give it a speed: in {where('animation')} add the step 'Run motor', speed in "
+                                "m/min, then press Build & play"],
+              key="fr_how_cables", used=bool(len(s.cables)))
+        gap(layout)
         if not len(s.cables):
-            steps(layout, context, ["Click the cable or wire rope in the 3D view",
-                                    "Press 'Add cable': the app reads what it runs over and makes all of that "
-                                    "turn with it",
-                                    "Give it a speed: in 6 Animation add the step 'Run motor', speed in m/min"])
             _speed_from(layout, scene)
             _add_buttons(layout, scene, first=True)
             return
@@ -423,6 +428,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("fresing.cable_remove", text="", icon="REMOVE")
         col.operator("fresing.cable_select", text="", icon="RESTRICT_SELECT_OFF")
+        gap(layout)
         _speed_from(layout, scene)
         _add_buttons(layout, scene, first=False)
 
@@ -430,8 +436,8 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         cb = paths.active(scene)
         if cb is None:
             return
-        layout.separator()
-        layout.label(text=paths.label(cb), icon=ICON)
+        gap(layout)
+        wrap(layout, context, paths.label(cb), icon=ICON)
         text, level = paths.status(scene, cb)
         if level == "OFF":
             wrap(layout, context, "Off: it shows as in the CAD file and nothing turns with it. Tick it in the list "
@@ -444,6 +450,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
 
         # -- its speed
         if cb.joint and joints.find(scene, cb.joint) is not None:
+            gap(layout)
             wrap(layout, context, f"Cable speed: joint '{cb.joint}'", icon="FORCE_VORTEX")
             layout.prop(cb, "keep_tight", text="Winch keeps it tight")
             skipped = paths.tight_skipped(scene, cb)
@@ -453,11 +460,12 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
                 wrap(layout, context, f"The winch pays out {paths.tight_payout(scene, cb):.2f} m now: as much as the "
                      "moving sheaves need", icon="BLANK1")
             else:
-                wrap(layout, context, "Animate it in 6 Animation with the step Run motor: speed in m/min",
+                wrap(layout, context, f"Animate it in {where('animation')} with the step Run motor: speed in m/min",
                      icon="BLANK1")
                 layout.operator("fresing.cable_motor_step", text="Add a Run motor step", icon="ADD")
 
         # -- its look
+        gap(layout)
         col = split_props(layout)
         col.prop(cb, "look", text="Look")
         if cb.look == "POWER":
@@ -487,7 +495,7 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         layout.operator("fresing.cable_read", text="From CAD cable again", icon="FILE_REFRESH")
 
         # -- what it touches
-        layout.separator()
+        gap(layout)
         n = len(cb.contacts)
         layout.label(text=f"What it touches ({n})" if n else "What it touches", icon="LINKED")
         # (the list has the whole width – its rows hold a name and four columns – so its buttons sit under it)
@@ -500,10 +508,12 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
         _item, index = ops_paths.chosen_contact(context)
         if index >= 0:
             _contact_details(layout, context, cb, index)
+        gap(layout)
         _end_row(layout, context, cb, "A")
         _end_row(layout, context, cb, "B")
 
         # -- into the sea, things on the cable (task 0081)
+        gap(layout)
         _sea_fold(layout, context, cb)
 
         # -- rarely changed

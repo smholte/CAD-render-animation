@@ -8,7 +8,8 @@ import bpy
 
 from ..core.words import plural
 from . import paths, spool
-from .ui import MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, split_props, steps, wrap
+from .ui import (MEDIUM, _has_model, _Panel, big_row, fold, gap, header_status, list_rows, missing, split_props,
+                 steps, where, wrap)
 
 ICON = "MESH_CYLINDER"
 MODE_ICONS = {"ACROSS": "ARROW_LEFTRIGHT", "ARM": "CON_ROTLIKE", "ALONG": "ORIENTATION_GIMBAL"}
@@ -40,14 +41,11 @@ class FRESING_UL_spools(bpy.types.UIList):
 
 
 def _add_buttons(layout, first: bool) -> None:
-    if first:
-        row = big_row(layout)
-        row.operator("fresing.spool_add", text="Add drum", icon="ADD", depress=True).kind = "DRUM"
-        row.operator("fresing.spool_add", text="Add carousel", icon="ADD", depress=True).kind = "CAROUSEL"
-    else:
-        row = big_row(layout, MEDIUM)
-        row.operator("fresing.spool_add", text="Add drum", icon="ADD").kind = "DRUM"
-        row.operator("fresing.spool_add", text="Add carousel", icon="ADD").kind = "CAROUSEL"
+    """Add drum · Add carousel: bigger while the list is empty (then they are the panel's one action). Grey: the
+    section's one blue button is Build & play."""
+    row = big_row(layout) if first else big_row(layout, MEDIUM)
+    row.operator("fresing.spool_add", text="Add drum", icon="ADD").kind = "DRUM"
+    row.operator("fresing.spool_add", text="Add carousel", icon="ADD").kind = "CAROUSEL"
 
 
 class FRESING_PT_spools(_Panel, bpy.types.Panel):
@@ -64,19 +62,29 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         text, alert = counts(context.scene)
-        header_status(self.layout, text, icon="ERROR" if alert else "NONE", alert=alert, limit=11)
+        header_status(self.layout, "none" if text == "–" else text, icon="ERROR" if alert else "NONE", alert=alert,
+                      limit=11)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
+        if not len(s.spools) and not len(s.cables):                 # nothing a drum could wind
+            text = (f"A drum or carousel winds a cable, and this project has none yet: add the cable in "
+                    f"{where('cables')} first")
+            if hasattr(bpy.types, "FRESING_OT_next_go"):
+                missing(layout, context, text, op="fresing.next_go", op_text="Open Cables and paths",
+                        op_icon="CURVE_PATH").panel = "FRESING_PT_cables"
+            else:
+                missing(layout, context, text)
+            return
+        steps(layout, context, [f"Add the cable or wire rope in {where('cables')} and choose it there",
+                                "Press 'Add drum' or 'Add carousel' and click the drum's barrel or the "
+                                "carousel's turntable",
+                                "It turns with the cable speed: the cable comes off layer by layer"],
+              key="fr_how_spools", used=bool(len(s.spools)))
+        gap(layout)
         if not len(s.spools):
-            steps(layout, context, ["Add the cable or wire rope in Cables and paths and choose it there",
-                                    "Press 'Add drum' or 'Add carousel' and click the drum's barrel or the "
-                                    "carousel's turntable",
-                                    "It turns with the cable speed: the cable comes off layer by layer"])
-            if not len(s.cables):
-                wrap(layout, context, "There is no cable yet: add it in Cables and paths first", icon="INFO")
             _add_buttons(layout, first=True)
             return
         row = layout.row()
@@ -84,18 +92,20 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("fresing.spool_remove", text="", icon="REMOVE")
         col.operator("fresing.spool_select", text="", icon="RESTRICT_SELECT_OFF")
+        gap(layout)
         _add_buttons(layout, first=False)
         sp = spool.active(scene)
         if sp is None:
             return
-        layout.separator()
-        layout.label(text=spool.label(sp), icon="MESH_CIRCLE" if sp.kind == "CAROUSEL" else ICON)
+        gap(layout)
+        wrap(layout, context, spool.label(sp), icon="MESH_CIRCLE" if sp.kind == "CAROUSEL" else ICON)
         text, icon = spool.status(scene, sp)
         wrap(layout, context, text, icon=icon, alert=icon == "ERROR")
         if not sp.enabled:
             return
         wrap(layout, context, f"Cable: '{sp.cable}'", icon="CURVE_PATH")
         wrap(layout, context, f"Turns with joint '{sp.joint}' (follows the cable by table)", icon="LINKED")
+        gap(layout)
         col = split_props(layout)
         col.prop(sp, "wound", text="On it at start (m)")
         if sp.kind == "DRUM":
@@ -112,7 +122,7 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
                     else "First layer from the other flange")
 
         # -- followers of the layer
-        layout.separator()
+        gap(layout)
         n = len(sp.followers)
         layout.label(text=f"Follow the layer ({n})" if n else "Follow the layer", icon="CON_FOLLOWPATH")
         for k, fl in enumerate(sp.followers):            # (two rows: the joint's name and its way of following)
@@ -125,6 +135,7 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
         layout.operator("fresing.spool_follower_add", text="This joint follows the layer", icon="ADD")
 
         # -- rarely changed
+        gap(layout)
         body = fold(layout, "fr_spools_more", "More", "PREFERENCES")
         if body:
             col = split_props(body)
