@@ -77,6 +77,7 @@ def save_pose(scene, name: str):
         pose = s.poses.add()
         pose.name = name
     capture_pose(scene, pose)
+    pose.joints_only = False                         # saved from the whole project: it holds the free moves too
     s.poses_index = list(s.poses).index(pose)
     return pose
 
@@ -100,7 +101,7 @@ def apply_pose_data(scene, pose, joints_only: bool = False) -> None:
             joints.set_value(j, values[j.name])
     from . import linkages
     linkages.refresh_all(scene)                     # mechanisms follow their drive joint (also with no 3D view)
-    if not joints_only:
+    if not joints_only and not pose.joints_only:    # a crane's own pose leaves hand-moved parts (task 0214)
         joints.apply_free_moves(scene, deltas, reset_others=True)
     from . import flex
     flex.refresh(scene)                             # hoses and drag chains follow (task 0058; also with no 3D view)

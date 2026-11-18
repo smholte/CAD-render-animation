@@ -215,7 +215,9 @@ def build(c: C.Crawler):
     lug_shapes = []
     for sy in (-1, 1):
         pin = tl + sy * pend_y * y
-        lug_shapes += K.lug_pair(pin, -n, ew + 20.0, 60.0, 1.5 * rr, float((tl - head) @ n) + 0.45 * W, 0.45 * rr + 1)
+        # the gap fits the pendant rod's bar, not only its eye (task 0214: the rod turned into the lugs, CC-1600)
+        lug_shapes += K.lug_pair(pin, -n, max(ew + 20.0, 2.0 * rr + 30.0), 60.0, 1.5 * rr,
+                                 float((tl - head) @ n) + 0.45 * W, 0.45 * rr + 1)
     tl_n = float((tl - pv) @ n)
     tie = K.solid_box(pv, u, n, Lb - 0.80 * W, Lb - 0.70 * W, 2 * (pend_y + ew / 2 + 80.0),
                       tl_n - 1.6 * rr - 0.4 * W, dn=(tl_n - 1.6 * rr + 0.4 * W) / 2)
@@ -267,8 +269,20 @@ def build(c: C.Crawler):
         Lj = c.jib_cad
         jcr = 0.045 * Wj
         K.lattice(jib, kit, "JIB", jp, ju, jn, Wj, 0.30 * Wj, Lj - 0.75 * Wj, jcr, 0.02 * Wj)
-        jfoot = g.cut(K.solid_box(jp, ju, jn, -1.5 * jpin_r, 0.35 * Wj, Wj + 2 * jcr, Wj + 2 * jcr),
-                      K.pin_across(jp, jpin_r + 2.0, Wj))
+        # task 0214 (0209 row 17): a side plate at each pair of chords, outside the boom head's plates and inside the
+        # jib foot lugs, a round hub on the pin outside the head plates, and a cross bar where the lattice starts.
+        # The full-width block went 100-450 mm into the boom head as the jib luffed.
+        jt = 90.0
+        y_out = Wj / 2 + 20.0                              # the plates' outer faces (the lugs start 10 mm further out)
+        y_in = 0.5 * hw + 40.0 + 30.0                      # 30 mm clear of the boom head's plates
+        jfoot_parts = []
+        for sy in (-1, 1):
+            jfoot_parts.append(K.solid_box(jp, ju, jn, -2.0 * jpin_r, 0.35 * Wj, jt, Wj + 2 * jcr,
+                                           dy=sy * (y_out - jt / 2)))
+            y0 = y_in if sy > 0 else -y_out + 1.0
+            jfoot_parts.append(g.cyl(2.0 * jpin_r, y_out - 1.0 - y_in, jp + np.array([0.0, y0, 0.0]), y))
+        jfoot_parts.append(K.solid_box(jp, ju, jn, 0.26 * Wj, 0.35 * Wj, 2 * y_out, 2 * jcr, dn=-Wj / 2))
+        jfoot = g.cut(K.one(*jfoot_parts), K.pin_across(jp, jpin_r + 2.0, Wj))
         K.put(jib, Part("JIB FOOT", jfoot, K.BOOM_YELLOW))
         jtip = np.array(p["jib_tip"])
         rsj = p["jib_sheave_r"]

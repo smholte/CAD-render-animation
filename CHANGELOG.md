@@ -5,6 +5,17 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.166 – 18 Nov 2026 – Lifting plans work with the rest of the app (task 0214)
+- **A model update keeps the lifting load:** its parts, mass and centre of gravity stay (a CoG you set by hand stays where you put it). Parts that are gone in the new revision are named in the update's report. Before, the load lost every part.
+- **Build animation keeps the crane where the plan put it** (Hook to here, a Pose button, Above the load) – before, a second Build put the crane back.
+- A placed crane's model is not offered for **Update to new revision** any more (Remove it and place it again). A crane whose model you deleted shows "its model is gone" and **Remove** takes its joints, poses and cables out too.
+- **On a moving deck** (vessel motion on): Place and Move put the crane where you click (it sat 0.34 m in the deck), and a **Box** load rides with the deck.
+- A crane's pose used from 4 Motion > Poses or in a Go to pose step no longer moves hand-moved sub-assemblies of other models back.
+- A renamed crane joint, or a crane made again with another hook block, is named: Hook to here stops and says what to do instead of putting the hook metres off.
+- Hook to here past the chart's longest radius warns "no crane use"; the hook height is said from the crane's base.
+- The CoG symbol shows only where the Lifting plan shows (not in the Client view or a camera's view).
+- **The built-in cranes** (SAMPLE) made again: outrigger and stabiliser beams no longer run through the chassis or a tyre, a knuckle crane's first extension and main cylinder and a crawler's jib foot no longer run into other parts – a crane's own pose animation has no clash rows.
+
 ## 0.2.165 – 18 Nov 2026 – Make > 3D page has its Export button again (task 0215)
 - **Make > 3D page** shows all its settings (Surroundings, Light, On the page) and the **Export…** button again; since 0.2.152 it stopped after "Include animation".
 - The Web 3D panel answers a click, a selection or a frame change faster (the marine-looks estimate no longer reads every part again).

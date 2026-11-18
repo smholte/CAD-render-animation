@@ -271,17 +271,39 @@ def _j(name, kind, parts, point, direction, limits=None, rides_on=None, follows=
     return d
 
 
-def _axle_xs(front: float, out_x, n: int, r: float) -> list:
+BOX_GAP = 12.0          # an outrigger beam's play in its box, mm (common.outrigger_set)
+
+
+def box_half(beam_w: float) -> float:
+    """Half the length (along x) of a pair's outrigger box (both beams side by side, a wall each end)."""
+    return beam_w + 2 * BOX_GAP + 0.08 * beam_w
+
+
+def box_clear(beam_w: float, pad_r: float) -> float:
+    """How far from an outrigger box's middle (along x) a tyre must end: the box and the jack pads on the beams stay
+    clear of the wheels (task 0214, bug hunt 0209 row 17: a beam ran 47 mm through a tyre)."""
+    return max(box_half(beam_w), 0.5 * beam_w + pad_r) + 80.0
+
+
+def mobile_pad_r(c) -> float:
+    return 300.0 if c.rated <= 100 else 400.0
+
+
+def knuckle_pad_r(c) -> float:
+    return 200.0 if c.moment <= 50 else 260.0
+
+
+def _axle_xs(front: float, out_x, n: int, r: float, clear: float = 420.0) -> list:
     """Axle positions: the front half from the front back, the rear half from just ahead of the rear outrigger box
-    forward, 2r + 270 apart; never closer than r + 350 to an outrigger box."""
+    forward, 2r + 270 apart; a tyre never nearer than ``clear`` to an outrigger box's middle."""
     step = 2 * r + 270.0
     nf = (n + 1) // 2
     xs = [front - 1.6 * r - 700.0 - k * step for k in range(nf)]
-    xs += [out_x[1] + r + 420.0 + k * step for k in range(n - nf)]
+    xs += [out_x[1] + r + clear + k * step for k in range(n - nf)]
     xs = sorted(xs)
     for x in xs:
         for k in out_x:
-            if abs(x - k) < r + 350.0:
+            if abs(x - k) < r + clear - 1e-6:
                 raise ValueError(f"axle at {x:.0f} too close to the outrigger box at {k:.0f}")
     for x0, x1 in zip(xs, xs[1:]):
         if x1 - x0 < 2 * r + 150.0:
@@ -330,7 +352,7 @@ def mobile_layout(c: Mobile) -> Layout:
     a = c.span_x / 2
     out_x = (a, -a)                                    # front / rear outrigger boxes
     rear = min(-c.cw_x - 900.0, -a - 750.0)
-    axles = _axle_xs(front, out_x, c.axles, c.wheel_r)
+    axles = _axle_xs(front, out_x, c.axles, c.wheel_r, box_clear(0.16 * c.width + 60.0, mobile_pad_r(c)))
     pad_in = c.width / 2 + 180.0                       # pad centre across, outriggers in
     out_ext = c.spread[0] / 2 - pad_in
     if out_ext <= 300:
@@ -575,15 +597,21 @@ def knuckle_layout(c: Knuckle) -> Layout:
     beam_z = deck - 330.0
     p.update(out_x=out_x, pad_in=pad_in, out_ext=out_ext, pad_z0=pad_z0, beam_z=beam_z, beam_w=0.08 * c.width + 60.0)
     cab_len = 2300.0
+    r = c.wheel_r
+    step = 2 * r + 300.0
+    # task 0214: tyres clear of the stabiliser boxes and their pads
+    clear = box_clear(p["beam_w"], knuckle_pad_r(c)) + r
     front = -cab_len - 450.0
-    axles = [front + 1250.0]
-    step = 2 * c.wheel_r + 300.0
-    if c.axles == 3:
-        axles = [front + 1250.0, rear - 1500.0 - step / 2, rear - 1500.0 + step / 2]
-    elif c.axles == 4:
-        axles = [front + 1250.0, front + 1250.0 + step, rear - 1500.0 - step / 2, rear - 1500.0 + step / 2]
-    else:
-        axles = [front + 1250.0, rear - 1500.0]
+    nf = 2 if c.axles == 4 else 1
+    last_front = front + 1250.0 + (nf - 1) * step
+    if last_front > out_x[0] - clear:
+        front -= last_front - (out_x[0] - clear)
+    axles = [front + 1250.0 + k * step for k in range(nf)]
+    nr = c.axles - nf
+    rc = min(rear - 1500.0, out_x[1] - clear - (nr - 1) * step / 2)
+    axles += [rc + (k - (nr - 1) / 2) * step for k in range(nr)]
+    if axles[nf] < out_x[0] + clear:
+        raise ValueError(f"{c.name}: the rear axles reach the front stabilisers (load bed too short)")
     p.update(front=front, cab_len=cab_len, axles=axles)
     _outrigger_joints(J, "STABILISER", "Stabilisers", "Stabiliser", "STABILISER LEG", "Legs", "Leg", out_x,
                       p["beam_w"], beam_z, pad_in, out_ext, pad_z0)

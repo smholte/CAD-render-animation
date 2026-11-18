@@ -305,7 +305,10 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                 op_id = "fresing.import_mesh"
             else:
                 op_id = "fresing.import_step"
-            if not _client_locked(context):            # the Client view never replaces a model
+            if root.get("fr_lifting"):                 # a crane of the lifting plan (task 0214): Remove + Place
+                hint(box, context, "A crane of the lifting plan: to change it, Remove it in 8 Lifting plan and "
+                                   "place it again.")
+            elif not _client_locked(context):          # the Client view never replaces a model
                 op = box.operator(op_id, text="Update to new revision…", icon="FILE_REFRESH")
                 op.update_root = root.name
         if s.report_title:
