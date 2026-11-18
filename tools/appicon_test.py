@@ -54,8 +54,8 @@ def main():
     folder = ai.install_dir(exe)
     check("install folder found from blender.exe", folder, folder)
     desktop, programs, appdata = ai.known_folders()
-    paths = ai.shortcut_paths(desktop, programs, appdata)
-    check("shortcuts found", len(paths) >= 5, f"{len(paths)}: " + ", ".join(os.path.basename(p) for p in paths))
+    paths = ai.shortcut_paths(desktop, programs, appdata, ai.tools_dir(folder))
+    check("shortcuts found", len(paths) >= 7, f"{len(paths)}: " + ", ".join(os.path.basename(p) for p in paths))
     before = {p: ai.read_shortcut(p) for p in paths}
     old = sorted({os.path.basename(p) for p, i in before.items()
                   if "blender.exe" in i["icon"].lower() and ai.is_inside(i["target"], folder)})
