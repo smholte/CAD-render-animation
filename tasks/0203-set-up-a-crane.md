@@ -1,6 +1,6 @@
 # 0203 – Lifting L4b: "Set up a crane" – rig your own crane STEP step by step in the Set-up window, save it to the library, Hook to here on any crane
 
-**Who:** worker · **Status:** open – **after 0201** (uses its Lifting plan section, placing and Hook to here) ·
+**Who:** worker · **Status:** running (18 Nov) – after 0201 (uses its Lifting plan section, placing and Hook to here) ·
 **Branch:** `task/0203-set-up-a-crane`
 **Started by:** lead chat, 18 Nov 2026 (owner: "easily import cranes and have a rigging menu for the different types,
 sub-menus like the set-up of mechanisms"; owner's order 18 Nov: straight after L4) · **Lane:** Lifting

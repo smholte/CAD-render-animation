@@ -8,7 +8,7 @@ title), so it cannot go out of step. No Blender here: ``props.py``, the tour and
 
 from __future__ import annotations
 
-# the seven sections, in order: class name -> title as written in texts ("4 Motion": one space)
+# the sections, in order (task 0201 added 8 Lifting plan): class name -> title as written in texts ("4 Motion": one space)
 SECTIONS = {
     "FRESING_PT_import": "1 Import",
     "FRESING_PT_structure": "2 Structure",
@@ -17,6 +17,7 @@ SECTIONS = {
     "FRESING_PT_scene": "5 Scene & Render",
     "FRESING_PT_animation": "6 Animation",
     "FRESING_PT_queue": "7 Render queue",
+    "FRESING_PT_lifting": "8 Lifting plan",          # task 0201
 }
 
 # sub-panel -> (parent panel, title), in the order they show under their parent
@@ -70,6 +71,10 @@ PLACES = {
     "FRESING_PT_brand": ("FRESING_PT_animation", "Brand kit & logo"),
     "FRESING_PT_labels": ("FRESING_PT_animation", "Labels"),
     "FRESING_PT_watermark": ("FRESING_PT_animation", "Watermark"),
+    # 8 Lifting plan (task 0201), in the order the work goes
+    "FRESING_PT_lifting_equipment": ("FRESING_PT_lifting", "Equipment"),
+    "FRESING_PT_lifting_load": ("FRESING_PT_lifting", "Load"),
+    "FRESING_PT_lifting_hook": ("FRESING_PT_lifting", "Hook & capacity"),
 }
 
 # panels of the Fresing tab that are no section and no sub-panel of one (above 1 Import, or their own tab / popover)

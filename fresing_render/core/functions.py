@@ -38,6 +38,7 @@ FAMILIES = {
     "queue": "Render queue",
     "web": "Web 3D model",
     "house": "Houses",
+    "lifting": "Lifting plans",
     "help": "Help, updates and checks",
     "panel": "The side panel itself (workspaces, sections, Make)",
 }
@@ -46,25 +47,26 @@ FAMILIES = {
 # is empty, when its family's row here does. "all" (All functions) and "full" (Full access) show everything and are
 # never written down. A workspace a later lane adds (the Lifting lane: "lifting") puts its key on its own functions
 # and, where it wants whole families, here.
-WORKSPACE_KEYS = ("all", "cnc", "offshore", "product", "client", "education", "full")
+WORKSPACE_KEYS = ("all", "cnc", "offshore", "product", "client", "education", "lifting", "full")
 EVERYTHING = ("all", "full")
 _WORK = ("cnc", "offshore", "product", "education")
 FAMILY_WORKSPACES = {
-    "import": _WORK + ("client",),
-    "looks": _WORK,
+    "import": _WORK + ("client", "lifting"),
+    "looks": _WORK + ("lifting",),
     "motion": _WORK,
     "machines": _WORK,
     "cnc": ("cnc", "education"),
     "milling": ("cnc", "education"),
     "offshore": ("offshore", "education"),
-    "scene": _WORK + ("client",),
-    "animation": _WORK,
+    "scene": _WORK + ("client", "lifting"),
+    "animation": _WORK + ("lifting",),
     "video": _WORK,
-    "queue": _WORK + ("client",),
+    "queue": _WORK + ("client", "lifting"),
     "web": ("cnc", "offshore", "product"),
     "house": (),
-    "help": _WORK + ("client",),
-    "panel": _WORK + ("client",),
+    "lifting": ("lifting",),                 # task 0201: only its own workspace (and All functions, Full access)
+    "help": _WORK + ("client", "lifting"),
+    "panel": _WORK + ("client", "lifting"),
 }
 # Families the side panel always shows (no tick): without them there is nothing to work on.
 ALWAYS = ("import", "looks", "scene", "help", "panel")
@@ -81,7 +83,7 @@ MENUS = {
 READING = {
     "layout", "start", "install", "navigate", "first-render", "scene", "tips", "inventor-export", "faster-renders",
     "troubleshooting", "self-test", "updates-not-arriving", "renders-folder", "panel-gone", "import-problems",
-    "render-problems", "lifting-equipment", "usage",
+    "render-problems", "lifting-equipment", "lifting", "usage",
 }
 
 
@@ -151,9 +153,9 @@ fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one 
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"))
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.156")
+   pccheck=("app.usage",), since="0.2.157")
 fn(id="usage.declutter", title="Offer to hide what you never use", family="panel", panel="FRESING_PT_favourites",
-   button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.156")
+   button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.157")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",
@@ -170,13 +172,13 @@ fn(id="import.two_copies", title="The same STEP twice", family="import", panel="
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
 fn(id="structure.tree", title="Structure: find, select, hide and lock parts", family="import",
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
-   workspaces=("cnc", "offshore", "product", "education"))
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
-   workspaces=("cnc", "offshore", "product", "education"))
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.visibility", title="Visibility sets", family="import", panel="FRESING_PT_visibility",
    button="fresing.vis_save", guide="visibility", pccheck=("states.poses",), since="0.2.12",
-   workspaces=("cnc", "offshore", "product", "education"))
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # ----- 3 Looks -----
 fn(id="looks.materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
@@ -329,11 +331,12 @@ fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", pr
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
    guide="props", tour=("props",), pccheck=("scene.props",), since="0.2.17",
-   workspaces=("cnc", "offshore", "product", "education"))
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="animation.people", title="People walk, carry and meet", family="animation", panel="FRESING_PT_people",
    button="fresing.person_add", guide="people", tour=("people",), pccheck=("people.walk",), since="0.2.128")
 fn(id="scene.props_detail", title="Props: detail by distance", family="scene", panel="FRESING_PT_props",
-   prop="props_detail", guide="props-detail", since="0.2.124", workspaces=("cnc", "offshore", "product", "education"))
+   prop="props_detail", guide="props-detail", since="0.2.124",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
    prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115",
    workspaces=("offshore", "education"))
@@ -351,7 +354,7 @@ fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_ca
    text="3/4 hero, high", guide="camera", tour=("blur",), pccheck=("scene.views",), since="0.2.12")
 fn(id="scene.blur", title="Background blur and sharp spot", family="scene", panel="FRESING_PT_camera",
    button="fresing.focus_pick", guide="camera", tour=("blur",), pccheck=("scene.blur",), since="0.2.17",
-   workspaces=("cnc", "offshore", "product", "education"))
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="scene.turntable", title="Turntable video", family="scene", panel="FRESING_PT_turntable",
    button="fresing.turntable", guide="turntable", tour=("turntable",), pccheck=("scene.turntable",), since="0.2.17",
    manual_estimate=("use", 900, "camera on a circle, keys, render settings and the video file"))
@@ -364,6 +367,27 @@ fn(id="scene.save", title="Saved scenes", family="scene", panel="FRESING_PT_shot
    guide="saved-scenes", tour=("still",), pccheck=("states.poses",), since="0.2.12")
 
 # ----- House, web 3D -----
+# ----- 8 Lifting plan (task 0201, Lifting lane L4) -----
+_LIFT = ("lifting",)
+fn(id="lifting.first_use", title="Lifting plan: the planning-aid line, I understand", family="lifting",
+   panel="FRESING_PT_lifting", button="fresing.lifting_understand", guide="lifting-first-use", since="0.2.156",
+   workspaces=_LIFT)
+fn(id="lifting.place", title="Place a crane from the lifting library", family="lifting",
+   panel="FRESING_PT_lifting_equipment", button="fresing.lifting_place", guide="lifting-place", tour=("lifting_place",),
+   pccheck=("lifting.place",), since="0.2.156", workspaces=_LIFT)
+fn(id="lifting.setup", title="Crane pose and chart set-up (counterweight, outrigger spread)", family="lifting",
+   panel="FRESING_PT_lifting_equipment", button="fresing.lifting_setup_value", guide="lifting-setup",
+   tour=("lifting_place",), pccheck=("lifting.place",), since="0.2.156", workspaces=_LIFT)
+fn(id="lifting.load", title="The load: parts or a box, its mass and contingency", family="lifting",
+   panel="FRESING_PT_lifting_load", button="fresing.lifting_load_selected", guide="lifting-load",
+   tour=("lifting_cog",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
+fn(id="lifting.cog", title="Centre of gravity marker (computed or set by hand)", family="lifting",
+   panel="FRESING_PT_lifting_load", button="fresing.lifting_cog_move", guide="lifting-cog", tour=("lifting_cog",),
+   pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
+fn(id="lifting.hook", title="Hook to here and the crane use at the hook", family="lifting",
+   panel="FRESING_PT_lifting_hook", button="fresing.lifting_hook_here", guide="lifting-hook",
+   tour=("lifting_hook",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
+
 fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
@@ -477,10 +501,10 @@ fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="V
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.156")
+   pccheck=("app.usage",), since="0.2.157")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
-   since="0.2.156")
+   since="0.2.157")
 
 # ---------------------------------------------------------------------------
 # keeping the lists in step (the precheck runs this; no Blender)

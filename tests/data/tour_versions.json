@@ -38,8 +38,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.155",
-   "fp": "b63f28d36b53fd24"
+   "changed": "0.2.157",
+   "fp": "c3cb6b02a6ba9c51"
   },
   "cutaway": {
    "added": "0.2.64",
@@ -80,6 +80,11 @@
    "added": "0.2.92",
    "changed": "0.2.152",
    "fp": "e700dd50e9dffb79"
+  },
+  "lifting": {
+   "added": "0.2.156",
+   "changed": "",
+   "fp": "15ecd534bb888714"
   },
   "linkage": {
    "added": "0.2.47",

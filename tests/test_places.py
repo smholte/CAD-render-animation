@@ -16,7 +16,7 @@ def test_where_names_the_whole_way():
 
 
 def test_sections_and_numbers():
-    assert list(places.SECTIONS.values())[0] == "1 Import" and len(places.SECTIONS) == 7
+    assert list(places.SECTIONS.values())[0] == "1 Import" and len(places.SECTIONS) == 8
     assert places.number_of("FRESING_PT_cnc_tools") == 4
     assert places.number_of("FRESING_PT_brand") == 6            # 0062 moved the video finishing group to 6
     assert places.number_of("FRESING_PT_workspace") == 0

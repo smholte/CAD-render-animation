@@ -52,7 +52,7 @@ STAGES = {
 STAGE_OF_FAMILY = {
     "import": "import", "looks": "looks",
     "motion": "rigging", "machines": "rigging", "cnc": "rigging", "milling": "rigging", "offshore": "rigging",
-    "scene": "scene", "house": "scene",
+    "scene": "scene", "house": "scene", "lifting": "rigging",
     "animation": "animation", "video": "animation",
     "queue": "render", "web": "render",
 }                                  # help and panel: no stage of their own (the time stays with the last one)

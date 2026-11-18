@@ -1,6 +1,6 @@
 # 0201 – Lifting L4: a Lifting plan section – place a crane from the library, the load with its CoG, "Hook to here", crane use at the hook
 
-**Who:** worker · **Status:** running · **Branch:** `claude/elegant-wozniak-oe3stg` (web session)
+**Who:** worker · **Status:** done (0.2.156) · **Branch:** `claude/elegant-wozniak-oe3stg` (web session)
 **Started by:** lead chat, 18 Nov 2026 (study 0180, task L4; owner's order 17 Nov: L4 after 0062) · **Lane:** Lifting
 **Area:** new `blender/lifting.py`, `blender/ops_lifting.py`, `blender/ui_lifting.py`, `core/lifting_reach.py`,
 `blender/sheet.py` (the sheet reader moved into the app), their tests, a new real-app test `tools/ui_test_lifting.py`;
@@ -94,20 +94,20 @@ the **crane use %** at that radius from the crane's chart, in the plan's words (
 
 ## Done when
 
-- [ ] Every crane class placed in a real-app test: joints where `classes.hook_point` says for the file's poses; two
+- [x] Every crane class placed in a real-app test: joints where `classes.hook_point` says for the file's poses; two
       cranes in one project; Remove leaves nothing behind.
-- [ ] `core/lifting_reach.py` tests: every class, ≥ 50 reachable targets each, hook within 5 mm of the target and
+- [x] `core/lifting_reach.py` tests: every class, ≥ 50 reachable targets each, hook within 5 mm of the target and
       inside the joint limits; unreachable targets refused with the right reason; the lowest-use preference.
-- [ ] Load: CoG of the test models within 1 % of a hand / OpenCascade volume calculation (named in the report); box
+- [x] Load: CoG of the test models within 1 % of a hand / OpenCascade volume calculation (named in the report); box
       load; by-hand marker; contingency and gross load sums in a test.
-- [ ] Crane use % in the panel = `lifting.crane_use` for the same inputs (test), with the next safer chart offered for
+- [x] Crane use % in the panel = `lifting.crane_use` for the same inputs (test), with the next safer chart offered for
       an in-between set-up.
-- [ ] First-use dialog, workspace, tab 8, Client view without the section (tests); old project opens as before.
-- [ ] The render kit and `tests/lifting_rig.py` use `blender/sheet.py` (no copy left); the kit's own tests pass.
-- [ ] An independent tester (subagent that did not write the code) breaks it from this brief; findings fixed.
-- [ ] Tooltips, guide chapter + pictures, function entries, tour set + stops, PC-check line(s); screenshots of the
+- [x] First-use dialog, workspace, tab 8, Client view without the section (tests); old project opens as before.
+- [x] The render kit and `tests/lifting_rig.py` use `blender/sheet.py` (no copy left); the kit's own tests pass.
+- [x] An independent tester (subagent that did not write the code) breaks it from this brief; findings fixed.
+- [x] Tooltips, guide chapter + pictures, function entries, tour set + stops, PC-check line(s); screenshots of the
       section looked at.
-- [ ] GitHub green incl. Windows; merged to `main`, next free version, released; report filled in; `TASKS.md`.
+- [x] GitHub green incl. Windows; merged to `main`, next free version, released; report filled in; `TASKS.md`.
 
 ## Not in this task
 
@@ -120,10 +120,81 @@ offered). Any change to `core/lifting.py`'s formulas (a gap found: say so in the
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, session branch `claude/elegant-wozniak-oe3stg`, 18 Nov 2026. Version 0.2.156.
 
 **What changed:**
+- **Section 8 Lifting plan** (`FRESING_PT_lifting` + Equipment, Load, Hook & capacity; `blender/ui_lifting.py`,
+  `ops_lifting.py`, `lifting.py`), family `lifting` and built-in workspace **Lifting plans** (`core/functions.py`
+  `WORKSPACE_KEYS`/`FAMILY_WORKSPACES`, `core/workspaces.py` `BUILTIN`; structure, props, blur also shown there), tab 8
+  from `core/places.py` by itself. Never in the Client view. Props additive in `props.py` (`FRLiftCrane`, `FRLiftLoad`,
+  `FRLiftDensity`, `FRLifting`, `scene.fresing.lifting`), preference `lifting_understood`.
+- **First use:** a dialog with the planning-aid line + SAMPLE line, **I understand**; every lifting operator's poll is
+  off until then. Not asked in the background, in tour projects or with `FRESING_LIFTING_UNDERSTOOD` (tests).
+- **Place…:** the item's STEP through the importer (Normal; modal with progress), rigged through `blender/sheet.py`
+  (joints, cylinders, poses; crawler tracks; the hoist rope as a cable ending on the hook block), then it follows the
+  mouse (any surface or the level plane), wheel = 15°, click puts it, Esc removes it. Names carry the crane's name
+  ("AT-40 · Slew", second copy "AT-40 2"); a crane's poses hold only its joints (`sheet.apply_own_pose`). Move…,
+  Remove (model, joints, cylinders, poses, tracks, cable, its collection, the Looks groups and materials only it had).
+  Built-ins are found again in the local app folder when a project comes from another PC. A changed / gone file is named.
+- **Set-up:** counterweight and outrigger spread (from the pose by default, `lifting_reach.outrigger_spread`), buttons
+  only for the files' values; in-between → next lower (safer) chart with the reason; a missing combination steps down.
+- **Load:** parts / sub-assemblies (one load per part, a crane is never a load) or a box at the 3D cursor; mass entered
+  with its source or volume × density per material group (`core/lifting_load.py`, closed-solid test by edges + moving
+  the origin; an open part falls back to its box and is named); contingency; gross sum (rigging 0 until L5). CoG marker
+  = an empty parented to the load's first part, drawn as the black/white CoG symbol on top (POST_PIXEL handler); Move
+  marks it "set by hand", Back to computed.
+- **Hook to here / Above the load:** `core/lifting_reach.py` – the boom in its plane as a closed-form model read from
+  the rig (P1, P2, V0, w, h), slew to the nearest turn inside the limits, luff (+ telescope), luffing jib at the jib
+  charts' boom angle (80°; any other boom angle gets no chart, said so), knuckle-boom 2-link IK with the lowest hoist
+  rope; candidates = a grid + every chart boom + the lengths at the luff limits + bisection to the shortest; ranked by
+  lowest crane use, then shortest boom. Checked against the 3-D kinematics (≤ 1 mm) before it is used. Out of reach:
+  by how much (further out / closer / higher / lower).
+- **Readout:** radius, hook height, boom + angle (jib / knuckle), chart and why, row (next longer), capacity, gross,
+  crane use % with the status word and a coloured dot; cached on a cheap key (joint values, crane place, set-up, load):
+  0.03 ms per draw cached, 0.3 ms when worked out.
+- **Sheet reader moved:** `site/render_kit/projects.py` → `fresing_render/blender/sheet.py` (+ `root`, `prefix`,
+  `set_values(m=)`, `apply_own_pose`); the kit's `projects.py` hands every call on to the app (needs 0.2.156);
+  `tests/lifting_rig.py` uses the app's copy. `workspaces.used_functions` counts a crane's own joints/poses/cylinders/
+  tracks/rope as the lifting plan's (no "show Motion?" question for them).
+- Tour set **lifting** (3 stops), PC-check lines `lifting.place`, `lifting.hook` (Full), real-app test
+  `tools/ui_test_lifting.py` (22 checks, group motion), guide chapter "8 Lifting plan" with 4 pictures, function
+  entries, the "Own lifting equipment" text updated.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Linux):
+- `tests/test_lifting_reach.py` (46): FK = `classes.hook_point` for all 12 classes; ≥ 55 random reachable targets per
+  class, hook within 5 mm (measured ≤ 0.001 mm) and inside the limits; out-of-reach reasons and amounts; slew wrap;
+  lowest use then shortest boom; next safer chart; readout = `crane_use`; solids, gross sums.
+- `tests/test_lifting_plan.py` (15, bpy): place AT-40 / KB-20 (hook block vs maker for every pose), two cranes,
+  Remove leaves nothing (objects, meshes, collections, joints, cylinders, poses, cables, tracks), CC-750 with 4+
+  cylinders; **CoG of test_machine.step against OpenCascade (BRepGProp volume properties of the whole STEP): volume and
+  CoG within 1 %**; box, by-hand marker, gross; first use; workspace / Client view; the empty section draws.
+- **Independent tester** (subagent, own worktree, from the brief only): 55 tests in `tests/test_lifting_*_independent.py`,
+  found 9 faults – hoist limit rounding refused the hook's own place on crawlers; a reachable point near the low edge
+  refused and the "lower" amount 2.3 m off (telescope only on a grid); open tube / open box counted as closed; Remove
+  left 20 Looks groups, their materials and empty collections; the 80° jib charts used at any boom angle; "between" for
+  a counterweight above all charts; a gone file gave a wrong message and a traceback from Hook to here; built-ins kept
+  by absolute path. All fixed; all 55 pass. Also taken: poll on the last three buttons, Work out again re-reads meshes,
+  ranking exactly "lowest use, then shortest boom".
+- Real app (`ci_real_app.py --only lifting`, real Blender 5.2.3 under xvfb): 22/22 – the dialog confirmed with Return,
+  the AT-40 follows the mouse (0.0 mm), wheel 15.000°, click puts it 0.01 mm from the ray's ground point, **all 12
+  classes in one project with every pose's hook block within 0.06 mm** of the maker, unique names, Remove, the boom as
+  load, Hook to here by a click (hook block on the clicked ground within 5 mm), Above the load, crane use = chart's,
+  save + open, everything removed → project as before.
+- Tour set built and Go + check of the 3 stops (bpy); PC-check lines 2/2 OK (place AT-40 0.5 s, hook to here 9 ms).
+- **Speed (bpy module, 4 cores):** AT-500 import 1.4 s, rig + place 0.4 s, Hook to here 18 ms (max 24); in the real
+  app with its rope: AT-500 2.4 s, CC-1600 8.9 s, KB-200 7.1 s per place (first read of the STEP).
+- Kit: `test_site_projects.py` and `test_lifting_cranes_mobile.py` pass with the moved reader (8.5 min).
+- **GitHub runs: 2 full runs.** Run 1 (44286647247, c7b143d) red: a tour stop title over 32 characters, the tour
+  set's title had a colon (an invalid file name for GitHub's artifacts and Windows), the independent bpy test file left
+  the add-on registered for the next file of its group (test_paths_moving), and an older workspace test listed the
+  built-ins without Lifting plans. Then main moved (0199 took 0.2.155): merged, renumbered to 0.2.156. Run 2
+  (44291686081, 30b0fc0) **green, full, Windows A and B included**, 24 min.
 
 **Open points / follow-up tasks:**
+- Lead / owner: a crane with more counterweight than the chart picked (in-between value → lower chart) is conservative
+  for capacity but not checked for backward stability – say so in L6's checks.
+- Hook to here for a user's own crane needs the built-in joint names (Slew, Luff, Telescope, Jib, Main boom, Knuckle,
+  Extension, Hoist); other names are refused in words. L2's chart editor could name them.
+- Outrigger chart from the pose reads the beams only; the jacks need not be down (L6: "set up" check).
+- `docs/img/sidebar_sections.png` still shows seven sections (the 8th shows only folded at the bottom); next guide pass.
+- The CoG symbol is drawn at a fixed screen size; a load in the far distance keeps a full-size symbol.

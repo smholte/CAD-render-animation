@@ -1,6 +1,6 @@
 """Helper of the crane tests (task 0191, not a test file): a built-in crane class imported with the app's importer and
-rigged from its equipment file – the joints, cylinders and poses through the render kit's sheet reader
-(``site/render_kit/projects.py``), the crawler tracks through the app's tracks (``blender/tracks.py``) – and what the
+rigged from its equipment file – the joints, cylinders and poses through the app's sheet reader
+(``fresing_render/blender/sheet.py``, task 0201; before it the render kit's copy), the crawler tracks through the app's tracks (``blender/tracks.py``) – and what the
 tests compare: where every moving sub-assembly is against the maker's own kinematics (``lifting_model/classes.py``).
 
 Blender as a Python module. ``rigged(name)`` makes a fresh scene each time.
@@ -50,7 +50,7 @@ class Rigged:
         import bpy
         from fresing_render.lifting_model import classes as C
         import make_site_pictures as kit
-        import projects
+        from fresing_render.blender import sheet as projects
         self.pkg = app()
         self.name = name
         self.data = data_of(name, folder)
@@ -63,11 +63,11 @@ class Rigged:
             out = tempfile.mkdtemp(prefix="fr_lifting_")
         self.scene = kit.fresh_import(self.pkg, step, quality, "Z", out)
         self.sheet = sheet_of(self.data)
-        m = projects.Model(self.pkg, self.scene, self.sheet)
+        m = projects.Model(self.scene, self.sheet)
         self.m = m
-        self.n_joints = projects.make_joints(self.pkg, self.scene, m)
-        self.axis_error = projects.axis_errors(self.pkg, self.scene, m)
-        self.n_cylinders = projects.make_cylinders(self.pkg, self.scene, m)
+        self.n_joints = projects.make_joints(self.scene, m)
+        self.axis_error = projects.axis_errors(self.scene, m)
+        self.n_cylinders = projects.make_cylinders(self.scene, m)
         self.set({})
         # every jointed sub-assembly's CAD world matrix (all joints 0)
         self.cad = {j["name"]: [np.array(m.one(p).matrix_world) for p in j["parts"]] for j in self.sheet["joints"]}
@@ -77,7 +77,7 @@ class Rigged:
         if tracks and self.data["rig"].get("tracks"):
             self.add_tracks()
             self.set({})
-        self.n_poses = projects.make_poses(self.pkg, self.scene, m)
+        self.n_poses = projects.make_poses(self.scene, m)
         self.set({})
         bpy.context.view_layer.update()
 
@@ -85,7 +85,7 @@ class Rigged:
     def set(self, values: dict) -> None:
         """Joint values as the sheet writes them (deg, mm); the rest 0. Updates twice (drivers, constraints)."""
         import bpy
-        self.projects.set_values(self.pkg, self.scene, values)
+        self.projects.set_values(self.scene, values)
         from fresing_render.blender import cylinders
         cylinders.refresh_all(self.scene) if hasattr(cylinders, "refresh_all") else None
         bpy.context.view_layer.update()
