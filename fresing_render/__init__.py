@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.159"
+__version__ = "0.2.160"
 
 _modules = []
 
@@ -33,6 +33,7 @@ def _classes():
     from .blender import ops_people, ui_people    # task 0157: 6 Animation > People (before the Clash check)
     from .blender import ops_tc_person            # task 0156: the operator at a manual tool change
     from .blender import ops_lifting, ui_lifting  # task 0201: 8 Lifting plan
+    from .blender import ops_lifting_make, ui_lifting_make  # task 0204: 8 Lifting plan > Equipment > Make a crane…
     from .blender import ops_usage, ui_usage      # task 0181: the usage tracker, favourites bar, My usage
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
@@ -58,6 +59,7 @@ def _classes():
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
             + ops_house.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES
+            + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES)
 
 
@@ -171,6 +173,8 @@ def register():
     lifting.register()                       # task 0201: the CoG symbol's draw handler, caches dropped on load
     from .blender import ops_setup_crane
     ops_setup_crane.register()               # task 0203: Set up a crane's name cache dropped on load
+    from .blender import ui_lifting_make
+    ui_lifting_make.register_props()         # task 0204: the Make a crane dialog's numbers (window manager)
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -213,6 +217,9 @@ def unregister():
     from .blender import ops_setup_crane
     ops_setup_crane.unregister()
     ui_lifting.unregister_previews()
+    from .blender import ops_lifting_make, ui_lifting_make
+    ops_lifting_make.cancel_all()
+    ui_lifting_make.unregister_props()
     from .blender import tracks
     tracks.unregister()
     from .blender import spool

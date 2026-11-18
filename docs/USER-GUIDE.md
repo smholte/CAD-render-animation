@@ -4113,6 +4113,49 @@ step**.
 **Save** writes the crane into your library folder "Lifting equipment" (Preferences > library folder): its file,
 a copy of the STEP and a small picture of the view. Never into the built-in samples. Place it from 8 Lifting plan >
 Equipment in any project, as a built-in.
+<a id="lifting-make"></a>
+### Make a crane from numbers
+
+<img class="panel" src="img/dialog_8_make_crane.png" alt="Make a crane: type, start from a class, the numbers in folds, the fits line, the name">
+
+No crane in the library is close enough to yours? Make one from numbers – in the app, offline, in seconds. It comes
+fully rigged (joints, cylinders, poses, the hoist rope, crawler tracks) with a SAMPLE chart worked out from your
+numbers, and lands in your library like any other item.
+
+1. In **8 Lifting plan > Equipment** click **Make a crane…** (under the library list).
+2. **Type**: mobile telescopic crane, crawler crane or knuckle-boom crane. **Start from**: the built-in class nearest
+   your crane – its numbers fill the dialog.
+3. Change only the numbers you care about, in the folds: **Crane** (rated capacity or lifting moment, the charts'
+   wind speed), **Boom** (sections, retracted and fully out lengths, section sizes, boom angles; a crawler's chart
+   boom lengths typed as a list like `24, 30, 36`, and an optional luffing jib), **Carrier** / **Tracks** /
+   **Truck** (axles, wheels, width; a crawler's track pitch, links, shoes and gauge), **Outriggers** /
+   **Stabilisers** (spreads full, middle, narrow; front to rear), **Counterweight** (the steps of the charts, how far
+   behind the slew axis), **Hoist & hook** (falls, line pull, hook block) and **Masses**. Lengths are in m (small
+   sizes in mm), masses in t. **Masses from the class rule** works the masses out again from the start class, scaled
+   by the sizes you changed – type your own if you know them.
+4. The line under the folds says **Fits** – or, in red, the first rule your numbers break, in plain words:
+   sections that do not fit inside each other or keep too little of themselves in the one below, a boom fully out
+   shorter than retracted, spreads that are not full > middle > narrow or not wider than the carrier, counterweight
+   steps that do not rise, an odd number of falls, tracks too short for the upper's tail, axles that do not fit
+   between the outrigger boxes, no luffing cylinder that fits the angle range, no configuration that stays stable.
+5. Give it a **Name** (a name already in your library is refused unless you tick **Replace**) and click **Make**.
+   The dialog closes; the crane is drawn in the background (a few seconds: about 2 s for a mobile crane, 3 s for a
+   crawler on a 4-core PC). Equipment shows the progress with **Cancel** – Cancel writes nothing. You can keep working.
+6. When it is ready, a small window offers **Place … now…** (the usual placing with the mouse) and **Enter the chart
+   of your real crane…**; the same two buttons stay under Equipment. The new crane is in the list under **Your own
+   equipment**, with a picture.
+
+The made crane's file keeps the class it started from and every number (`made_from`), so the plan's checks and the
+Hook-to-here solver know its exact kinematics. Its chart is worked out by the same invented rule as the built-in
+samples – the smaller of the boom's strength and 75 % of tipping over the weakest outrigger or track edge – so it is
+**SAMPLE DATA – NOT FOR REAL LIFTS**, like theirs.
+
+<a id="lifting-make-chart"></a>
+**Enter the chart of your real crane.** Click **Enter your chart…** (or the button in the small window) and pick a
+CSV table: a line per configuration (`boom 30.4 m`, `counterweight 40 t`, `outriggers 7.6 m`), then `radius,capacity`
+rows. The app reads it with the rules of the [equipment file](#lifting-equipment) and names a row it cannot read. Once
+the charts are your own (they differ from the sample's), the SAMPLE mark comes off; a built-in class always stays a
+sample.
 
 <a id="tour"></a>
 ## Test tour – see every function work

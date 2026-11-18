@@ -46,7 +46,8 @@ def sheet_of(data: dict) -> dict:
 class Rigged:
     """A class imported and rigged in the current scene."""
 
-    def __init__(self, name: str, folder: str = BUILTIN, quality: str = "draft", out: str = "", tracks: bool = True):
+    def __init__(self, name: str, folder: str = BUILTIN, quality: str = "draft", out: str = "", tracks: bool = True,
+                 cls=None):
         import bpy
         from fresing_render.lifting_model import classes as C
         import make_site_pictures as kit
@@ -54,7 +55,7 @@ class Rigged:
         self.pkg = app()
         self.name = name
         self.data = data_of(name, folder)
-        self.layout = C.layout(name)
+        self.layout = C.layout(cls if cls is not None else name)       # cls: a made crane's dataclass (task 0204)
         self.C = C
         self.projects = projects
         step = os.path.join(folder, name, f"{name}.step")
@@ -308,3 +309,60 @@ def ground_shoe_slip_mm(r: Rigged, travel: float = 1000.0) -> float:
             worst = max(worst, float(np.linalg.norm(evaluated_points(bpy.data.objects[n]).mean(axis=0) - cen[n])))
         r.set({})
     return worst / r.scale()
+
+
+def sweep_animation(r: Rigged, seconds: float = 0.5, fps: int = 24, start: str = "") -> dict:
+    """Task 0204: an animation that moves every driven joint alone from 0 to its maximum, back, to its minimum and
+    back (followers with it), from the pose ``start`` (the first pose with outriggers set up, else the CAD pose); the
+    clash check is run on it (``clash_rows``)."""
+    poses = [p["name"] for p in r.sheet["poses"]]
+    start = start or next((p for p in ("Set up", "Working") if p in poses), "")
+    vals = dict(next((p["values"] for p in r.sheet["poses"] if p["name"] == start), {}))
+    steps, t = [], 0.0
+    if start:
+        steps.append({"kind": "POSE", "pose": start, "start": 0.0, "seconds": 0.0})
+    skip = {"Outriggers", "Jacks", "Stabilisers", "Legs", "Travel"}      # set by the pose (pads on the ground)
+    for j in driven(r.sheet):
+        if j["name"] in skip:
+            continue
+        lo, hi = j["limits"]
+        here = float(vals.get(j["name"], 0.0))
+        for to in (hi, here, lo, here):
+            if abs(to - here) < 1e-9 and to != here:
+                continue
+            steps.append({"kind": "JOINT", "joint": j["name"], "to": float(to), "start": t, "seconds": seconds,
+                          "easing": "LINEAR"})
+            t += seconds
+    return {"name": "Sweep", "fps": fps, "steps": steps}
+
+
+def pose_tour(r: Rigged, seconds: float = 1.5, fps: int = 24) -> dict:
+    """Task 0204: the crane's own motion – from its first pose through every named pose of its file and back to the
+    first (each a POSE step, every joint moving at once, as the app's Go to pose)."""
+    names = [p["name"] for p in r.sheet["poses"]]
+    steps = [{"kind": "POSE", "pose": names[0], "start": 0.0, "seconds": 0.0}]
+    t = 0.0
+    for n in names[1:] + names[:1]:
+        steps.append({"kind": "POSE", "pose": n, "start": t, "seconds": seconds, "easing": "LINEAR"})
+        t += seconds
+    return {"name": "Own motion", "fps": fps, "steps": steps}
+
+
+def clash_rows(r: Rigged, spec: dict | None = None) -> list:
+    """An animation (default: ``pose_tour``) built and checked by the app's clash check, the hoist rope left out (in
+    the app it is a cable of 4 Motion > Cables and paths): the clash rows' texts ([] = clean)."""
+    import bpy
+    from fresing_render.blender import animation, clash, logic
+    from fresing_render.core import clash as core
+    logic.exclude(r.m.by_name.get("HOIST ROPE", []))
+    spec = spec or pose_tour(r)
+    a = r.projects.make_animation(r.scene, r.m, spec)
+    animation.bake(r.scene, a)
+    rows = clash.check(r.scene, store=False).rows
+    bpy.context.scene.frame_set(r.scene.frame_start)
+    # a cylinder's own barrel and rod (a pendant's bar and rod) slide in each other: the rod in a bore up to 30 m
+    # long, where the clash check's inside test is unsure; ``measure`` checks them instead (in line, in their range)
+    own = set()
+    for cy in r.sheet["cylinders"]:
+        own |= {frozenset((b, rd)) for b in cy["barrel"] for rd in cy["rod"]}
+    return [core.row_text(x) for x in rows if x.kind == "CLASH" and frozenset((x.a, x.b)) not in own]

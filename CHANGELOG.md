@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.159 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
+## 0.2.160 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
 
 - **Set up your own crane.** 8 Lifting plan > Equipment > **Set up a crane…** opens the Set-up window on your kind
   of crane – **mobile telescopic**, **crawler**, **knuckle-boom** or **other** – and takes you through its steps:
@@ -23,6 +23,20 @@ installer of that version was built from.
   into your library "Lifting equipment" – never into the built-ins – and it places in any project like a built-in.
 - **Hook to here works on any crane** now: it finds the joints by their roles and solves in 3-D, not by names.
 - Test tour: a new set "Set up a crane" (KB-20 rigged from its bare STEP). PC check: a new line `lifting.setup`.
+
+## 0.2.159 – 18 Nov 2026 – Make a crane from numbers (task 0204)
+
+- **Make a crane…** in 8 Lifting plan > Equipment: pick the type (mobile telescopic, crawler, knuckle-boom), start
+  from the nearest built-in class and change only the numbers you care about – boom sections and lengths, outrigger
+  spreads, counterweight steps, axles, track gauge and links, hoist and hook, masses. The dialog says **Fits** or, in
+  red, the rule your numbers break, in plain words. **Make** draws the crane in the background (2–3 s; you keep
+  working, **Cancel** writes nothing) and puts it into your library folder "Lifting equipment": fully rigged, with a
+  picture and a **SAMPLE** chart worked out from your numbers. Then **Place now…**.
+- **Enter your chart…** reads the chart of your real crane from a CSV table into a crane of your own library; the
+  SAMPLE mark comes off once the charts are your own.
+- The built-in cranes are a little better: the knuckle-boom cranes' control stand no longer swings into the truck cab,
+  the crawler cranes' boom foot, gantry and jib strut no longer run into the pendant bars or the upper frame while the
+  boom and jib move (found by checking the cranes' own motion for clashes).
 
 ## 0.2.158 – 18 Nov 2026 – Favourites bar, My usage, hide what you never use (task 0181)
 

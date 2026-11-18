@@ -380,7 +380,7 @@ fn(id="lifting.setup", title="Crane pose and chart set-up (counterweight, outrig
    tour=("lifting_place",), pccheck=("lifting.place",), since="0.2.156", workspaces=_LIFT)
 fn(id="lifting.crane_setup", title="Set up your own crane: joints, hook, masses, load chart, Save", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.crane_setup", guide="lifting-own-crane",
-   tour=("crane_setup",), pccheck=("lifting.setup",), since="0.2.159", workspaces=_LIFT)
+   tour=("crane_setup",), pccheck=("lifting.setup",), since="0.2.160", workspaces=_LIFT)
 fn(id="lifting.load", title="The load: parts or a box, its mass and contingency", family="lifting",
    panel="FRESING_PT_lifting_load", button="fresing.lifting_load_selected", guide="lifting-load",
    tour=("lifting_cog",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
@@ -390,6 +390,13 @@ fn(id="lifting.cog", title="Centre of gravity marker (computed or set by hand)",
 fn(id="lifting.hook", title="Hook to here and the crane use at the hook", family="lifting",
    panel="FRESING_PT_lifting_hook", button="fresing.lifting_hook_here", guide="lifting-hook",
    tour=("lifting_hook",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
+
+fn(id="lifting.make", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
+   panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
+   pccheck=("lifting.make",), since="0.2.159", workspaces=_LIFT)
+fn(id="lifting.chart_entry", title="Enter the chart of your real crane (CSV) – the SAMPLE mark comes off",
+   family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_chart_csv", guide="lifting-make-chart",
+   since="0.2.159", workspaces=_LIFT)
 
 fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")

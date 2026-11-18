@@ -67,10 +67,10 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 81, "tour2": 2, "tourui": 15, "layout": 38,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 82, "tour2": 2, "tourui": 15, "layout": 38,
               "panel": 37, "start": 46, "setup": 46, "highlight": 74, "usage": 24,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "setupcrane": 32}
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -92,7 +92,7 @@ GROUPS = {
     "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane"],   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
-    "motion": ["video", "studio", "update", "ui2", "faces", "lifting"],   # lifting: task 0201
+    "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake"],   # lifting: 0201; liftingmake: 0204
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
                  "cables", "paths", "undorebake"],
 }
@@ -131,6 +131,9 @@ TESTS = {
     "setupcrane": ("Real app: Set up a crane – the AT-40, CC-750 and KB-50 rigged from their bare STEP through the "
                    "Set-up window by names, every step drawn, Check, Save = the built-in rig, placed again Hook to here "
                    "as the built-in (ui_test_setup_crane.py)", "ui_test_setup_crane.py", True),
+    "liftingmake": ("Real app: 8 Lifting plan > Equipment > Make a crane… – the dialog, refused numbers, Make in the "
+                    "background, the crane in the library, Place now, Cancel leaves nothing (ui_test_lifting_make.py)",
+                    "ui_test_lifting_make.py", True),
     "undorebake": ("Real app: Undo after a cable re-bake works the cables out again for the motion the scene has "
                    "(ui_test_undo_rebake.py)", "ui_test_undo_rebake.py", True),
     "spool": ("Real app: drums and carousels – Add drum / Add carousel with a click in the view, a joint follows the "

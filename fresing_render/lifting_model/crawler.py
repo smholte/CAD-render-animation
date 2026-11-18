@@ -166,10 +166,19 @@ def build(c: C.Crawler):
     ew = 1.6 * rr
     pend_y = bp["barrel_pin"]["point"][1]
     shapes = []
+    # task 0204: round lug plates at the pins and the legs outside the pendant bars' reach (plates that ran down to the
+    # frame stood in the way of a bar turning about its pin)
+    tp = max(90.0, 0.75 * rr)
+    leg_w = 2.4 * rr + 60.0
+    gap = 2.0 * bp["fit"]["barrel_r"] + 20.0         # wider than the bar: it turns about its pin clear of the plates
+    leg_y = pend_y + gap / 2 + tp - 1.0 + leg_w / 2
     for sy in (-1, 1):
         pin = gpt + np.array([0.0, sy * pend_y, 0.0])
-        shapes += K.lug_pair(pin, (0, 0, -1), ew + 20.0, 90.0, 1.6 * rr, pin[2] - frame_top + 1.0, 0.45 * rr + 1.0)
-    span = pend_y + ew / 2 + 120.0
+        shapes += K.lug_pair(pin, (0, 0, -1), gap, tp, 1.6 * rr, 1.0, 0.45 * rr + 1.0)
+        for ly in (leg_y, 2 * pend_y - leg_y):          # a leg beside each plate of the pair
+            shapes.append(g.box(pin[0] - 1.6 * rr, sy * ly - leg_w / 2, frame_top - 1.0, 3.2 * rr, leg_w,
+                                pin[2] - frame_top + 1.0))
+    span = leg_y + leg_w / 2 + 40.0
     shapes.append(g.box(gpt[0] - 1.2 * rr, -span, frame_top + 0.25 * (gpt[2] - frame_top), 2.4 * rr, 2 * span,
                         2.4 * rr))
     shapes.append(g.box(gpt[0] - 1.2 * rr, -span, gpt[2] - 1.6 * rr - 3.4 * rr, 2.4 * rr, 2 * span, 2.4 * rr))
@@ -190,7 +199,10 @@ def build(c: C.Crawler):
     Lb = c.boom_cad
     chord_r = 0.045 * W
     K.lattice(boom, kit, "BOOM", pv, u, n, W, 0.25 * W, Lb - 0.75 * W, chord_r, 0.018 * W)
-    foot = g.cut(K.solid_box(pv, u, n, -1.5 * pin_r, 0.30 * W, W + 2 * chord_r, W + 2 * chord_r),
+    # task 0204: full size only where the chords start; round the pin a block as high as the foot lugs' eyes (the full
+    # block's rear corner dipped into the upper frame at flat boom angles)
+    foot = g.cut(g.fuse(K.solid_box(pv, u, n, 0.15 * W, 0.30 * W, W + 2 * chord_r, W + 2 * chord_r),
+                        K.solid_box(pv, u, n, -1.5 * pin_r, 0.15 * W + 1.0, W, 4.0 * pin_r)),
                  K.pin_across(pv, pin_r + 2.0, W))
     K.put(boom, Part("BOOM FOOT", foot, K.BOOM_YELLOW))
     head = np.array(p["boom_head"])
@@ -222,13 +234,20 @@ def build(c: C.Crawler):
         # jib strut (on the boom head): posts up to the jib pendants' upper pins, a cross tie at the top
         sshapes = []
         foot = head - 0.6 * W * u - 0.3 * W * n
+        # task 0204: round lug plates at the pins, the posts beside them – outside the pendant bars' reach (posts in
+        # the bars' plane were hit when the jib luffed)
+        jtp = max(50.0, 0.75 * jrr)
+        post_w = 2.0 * jrr + 60.0
+        jgap = 2.0 * jcy["fit"]["barrel_r"] + 20.0     # wider than the bar: it turns about its pin clear of the plates
+        post_y = jy + jgap / 2 + jtp - 1.0 + post_w / 2
         for sy in (-1, 1):
             pin = st + sy * jy * y
-            sshapes.append(K.solid_box(foot, unit(st - foot), np.cross(y, unit(st - foot)), 0.0,
-                                       float(np.linalg.norm(st - foot)) - 2.0 * jrr, jew + 140.0, 2.0 * jrr,
-                                       dy=sy * jy))      # (the pair is symmetric: either sign of y is right)
-            sshapes += K.lug_pair(pin, foot - st, jew + 20.0, 50.0, 1.5 * jrr, 3.0 * jrr, 0.45 * jrr + 1)
-        sshapes.append(K.solid_box(foot, u, n, -1.4 * jrr, 1.4 * jrr, 2 * (jy + jew / 2 + 80.0), 2.8 * jrr))
+            for py in (post_y, 2 * jy - post_y):            # a post beside each plate of the pair
+                sshapes.append(K.solid_box(foot, unit(st - foot), np.cross(y, unit(st - foot)), 0.0,
+                                           float(np.linalg.norm(st - foot)), post_w, 2.0 * jrr,
+                                           dy=sy * py))      # (the pair is symmetric: either sign of y is right)
+            sshapes += K.lug_pair(pin, foot - st, jgap, jtp, 1.5 * jrr, 1.0, 0.45 * jrr + 1)
+        sshapes.append(K.solid_box(foot, u, n, -1.4 * jrr, 1.4 * jrr, 2 * (post_y + post_w / 2 + 40.0), 2.8 * jrr))
         K.put(boom, Part("JIB STRUT", K.one(sshapes[-1], *sshapes[:-1]), K.BOOM_YELLOW))
         # jib foot lugs under the boom head
         jpin_r = 0.07 * Wj

@@ -42,9 +42,9 @@
    "fp": "7474245a8028aed6"
   },
   "crane_setup": {
-   "added": "0.2.159",
+   "added": "0.2.160",
    "changed": "",
-   "fp": "1b7ff2d0f3d98fce"
+   "fp": "49f588b44590b30c"
   },
   "cutaway": {
    "added": "0.2.64",
@@ -73,7 +73,7 @@
   },
   "gantry": {
    "added": "0.2.47",
-   "changed": "0.2.159",
+   "changed": "0.2.160",
    "fp": "fb305bc85b8403b0"
   },
   "hoses": {
@@ -88,8 +88,13 @@
   },
   "lifting": {
    "added": "0.2.156",
-   "changed": "",
-   "fp": "15ecd534bb888714"
+   "changed": "0.2.159",
+   "fp": "c6038ae7ee13a2c4"
+  },
+  "lifting_make": {
+   "added": "0.2.159",
+   "changed": "0.2.159",
+   "fp": "1dc92dd0e7dd6596"
   },
   "linkage": {
    "added": "0.2.47",

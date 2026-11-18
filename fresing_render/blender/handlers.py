@@ -277,6 +277,11 @@ def _at_exit():
         cancel_running_job()
     except Exception:
         pass
+    try:
+        from .ops_lifting_make import cancel_all
+        cancel_all()                     # task 0204: a crane being made is stopped, its temporary folder deleted
+    except Exception:
+        pass
 
 
 def register():

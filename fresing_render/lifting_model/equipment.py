@@ -22,10 +22,15 @@ NOTE = ("SAMPLE DATA – NOT FOR REAL LIFTS. An invented crane of this size clas
         "a lift.")
 
 
-def groups(name: str) -> dict:
+def _cls(name_or_cls):
+    """A class by name, or a made crane's own dataclass (task 0204: ``params.to_class``)."""
+    return C.CLASSES[name_or_cls] if isinstance(name_or_cls, str) else name_or_cls
+
+
+def groups(name) -> dict:
     """Mass group -> {"parts": sub-assemblies / parts, "exclude": what inside them is another group's, "moves_with":
     the joint that carries it}. The maker works out each group's centre of gravity from these."""
-    c = C.CLASSES[name]
+    c = _cls(name)
     if c.kind == "AT":
         beams = [f"OUTRIGGER BEAM {f}{s}.ASM" for f in "FR" for s in "LR"]
         return {
@@ -62,8 +67,8 @@ def groups(name: str) -> dict:
     }
 
 
-def masses(name: str) -> dict:
-    c = C.CLASSES[name]
+def masses(name) -> dict:
+    c = _cls(name)
     if c.kind == "AT":
         return {"carrier": c.mass_carrier, "superstructure": c.mass_upper, "counterweight": max(c.counterweights),
                 "boom": c.mass_boom, "hook_block": c.hook_mass}
@@ -81,14 +86,14 @@ def _r(v, n=3):
     return round(float(v) / 1000.0, n)
 
 
-def rig(name: str) -> dict:
+def rig(name, step: str | None = None) -> dict:
     """The rig: the sheet's joints, cylinders and poses (mm, degrees – the STEP's own units) and, for L4, the mass
     groups, the hook, the hoist rope (a cable of 4 Motion > Cables and paths) and the crawler tracks."""
-    c = C.CLASSES[name]
+    c = _cls(name)
     L = C.layout(c)
     cyl = [{k: v for k, v in cy.items() if k != "fit"} for cy in L.cylinders]
     r = {
-        "step": f"{name}.step", "units": "mm", "angles": "deg", "up_axis": "Z",
+        "step": step or f"{c.name}.step", "units": "mm", "angles": "deg", "up_axis": "Z",
         "frame": "ground z = 0, slew axis = z axis, boom along +x in the CAD pose (joint values 0)",
         "joints": L.joints, "cylinders": cyl, "poses": L.poses, "start_pose": L.poses[0]["name"],
         "groups": {g: {"parts": d["parts"], "moves_with": d["moves_with"]} for g, d in groups(name).items()},
@@ -105,8 +110,8 @@ def rig(name: str) -> dict:
     return r
 
 
-def limits(name: str) -> dict:
-    c = C.CLASSES[name]
+def limits(name) -> dict:
+    c = _cls(name)
     L = C.layout(c)
     p = L.pts
     out = {"slew": [-180.0, 180.0], "hoist": [0.0, _r(p["hmax"], 2)], "max_line_pull": c.line_pull}
@@ -126,9 +131,9 @@ def limits(name: str) -> dict:
     return out
 
 
-def footprint(name: str) -> dict:
+def footprint(name) -> dict:
     """``outriggers`` / ``tracks`` / ``axles`` for the ground checks C5 / C6 (m)."""
-    c = C.CLASSES[name]
+    c = _cls(name)
     L = C.layout(c)
     p = L.pts
     if c.kind == "CC":
@@ -153,8 +158,8 @@ def footprint(name: str) -> dict:
     return out
 
 
-def hook_blocks(name: str) -> list:
-    c = C.CLASSES[name]
+def hook_blocks(name) -> list:
+    c = _cls(name)
     if c.kind == "KB":
         return [{"name": "main", "mass": c.hook_mass, "falls": 1, "wll": round(c.max_cap, 2)}]
     wll = c.rated
@@ -162,21 +167,22 @@ def hook_blocks(name: str) -> list:
              "wll": wll}]
 
 
-def data(name: str, cogs: dict) -> dict:
-    """The whole equipment file of a class; ``cogs`` = group -> [x, y, z] m (from the maker's solids)."""
-    c = C.CLASSES[name]
+def data(name, cogs: dict, step: str | None = None, cls_word: str | None = None) -> dict:
+    """The whole equipment file of a class; ``cogs`` = group -> [x, y, z] m (from the maker's solids). A made crane
+    (task 0204) passes its dataclass, its STEP file name and its size-class word ('AT-120')."""
+    c = _cls(name)
     m = masses(name)
     missing = sorted(set(m) - set(cogs))
     if missing:
         raise ValueError(f"{name}: no centre of gravity for {', '.join(missing)}")
     d = {
         "format": FORMAT, "format_version": FORMAT_VERSION,
-        "kind": C.KINDS[c.kind], "class": name, "name": name,
+        "kind": C.KINDS[c.kind], "class": cls_word or c.name, "name": c.name,
         "units": {"mass": "t", "length": "m"},
         "mass": m,
         "cog": {g: [round(float(v), 3) for v in cogs[g]] for g in m},
-        "rig": rig(name),
-        "charts": K.charts_of(name),
+        "rig": rig(name, step),
+        "charts": K.charts_of(c),
         "hook_blocks": hook_blocks(name),
         "limits": limits(name),
         "sample": True,

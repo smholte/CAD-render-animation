@@ -321,7 +321,7 @@ def lifting_place(ctx):
     return msg
 
 
-@line("lifting.setup", "Lifting plan: set up an own crane from its STEP", "0.2.159",
+@line("lifting.setup", "Lifting plan: set up an own crane from its STEP", "0.2.160",
       what="The built-in KB-20's bare STEP rigged through Set up a crane's buttons by names (joints with roles, "
            "cylinders, hook, stabilisers, masses, chart, poses), Check, Save into a library; the saved file equals the "
            "built-in rig; placed again it hooks where the built-in crane hooks")
@@ -384,6 +384,41 @@ def lifting_hook(ctx):
     ctx.metric("hook to here", round(t_hook * 1000.0), "ms")
     ctx.metric("crane + load + hook", round(t_all, 1), "s")
     return f"{cog}; {msg}"
+
+
+@line("lifting.make", "Lifting plan: make a crane from numbers", "0.2.159",
+      what="Make a crane…: the AT-100's numbers with 5 boom sections and a 50 m boom made in the background into a "
+           "library folder (model, equipment file with a SAMPLE chart, picture), placed beside the test crane, every "
+           "pose where its own kinematics say, Hook to here above the test crane's boom; a refused set of numbers "
+           "names its rule")
+def lifting_make(ctx):
+    import bpy
+
+    from ..blender import lifting, ops_lifting_make
+    from ..core import lifting_library as LL
+    from ..lifting_model import params
+    scene = ctx.fresh(CRANE_A)
+    bad = dict(ops_lifting_make.tour_spec()["values"], Lmax=60000.0)
+    _check([p.rule for p in params.validate("AT", bad)] == ["sections_overlap"],
+           "5 sections at 60 m were not refused for their overlap")
+    lib = os.path.join(ctx.work, "Lifting equipment")
+    t0 = time.time()
+    job = ops_lifting_make.make_now(ops_lifting_make.tour_spec(), lib, replace=True)
+    t_make = time.time() - t0
+    it = LL.read_item(job.item_path)
+    _check(it.ok and it.sample and it.model and it.picture, "the made crane is not a complete SAMPLE item")
+    c = lifting.place(bpy.context, job.item_path, (9.0, 0.0, 0.0), math.pi)
+    lifting.apply_pose(scene, c, "Set up")
+    msg = lifting.check_rig(scene)
+    from ..blender import build, logic
+    roots = [r for r in build.model_roots(scene) if lifting.crane_of_root(scene, r) is None]
+    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
+    ld = lifting.new_load(scene, [part], "Test crane boom")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
+    a = lifting.hook_to(scene, c, lifting.above_load(scene, ld), ld)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    ctx.metric("make AT-100 5 sections", round(t_make, 1), "s")
+    return f"made in {t_make:.1f} s; {msg}; {lifting.check_example(scene)}"
 
 
 @line("decals.add", "Decals: text and stickers on the model", "0.2.21",

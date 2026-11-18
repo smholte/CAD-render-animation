@@ -2484,7 +2484,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.159")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.160")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -3362,7 +3362,8 @@ def _check_mesh(scene):
 # Lifting plan (task 0201): an AT-40 beside the test crane, the test crane's boom as the load
 # ---------------------------------------------------------------------------
 
-@tour_set("lifting", "Lifting plan – crane, load and hook", "test_crane_a.step", added="0.2.156")
+@tour_set("lifting", "Lifting plan – crane, load and hook", "test_crane_a.step", added="0.2.156",
+          changed="0.2.159")
 def build_lifting(b: Build):
     import bpy
     import numpy as np
@@ -3391,7 +3392,7 @@ def build_lifting(b: Build):
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.159")
+          added="0.2.160")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
@@ -3433,6 +3434,49 @@ def _check_crane_setup(scene):
     red = [p.text for p in cs.problems if p.severity == "red"]
     _check(not red, "Check: " + "; ".join(red[:2]))
     return f"{len(js)} joints with {len(roles)} roles, hook point set, Check: nothing wrong"
+@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_crane_a.step", added="0.2.159",
+          changed="0.2.159")
+def build_lifting_make(b: Build):
+    """Task 0204: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next to the
+    tour, placed beside the test crane, set up, Hook to here above the test crane's boom."""
+    import bpy
+    import numpy as np
+
+    from . import build, lifting, logic, ops_lifting_make
+    sc = b.scene
+    _look("PRODUCT")
+    lib = os.path.join(b.folder, "Lifting equipment")
+    os.makedirs(lib, exist_ok=True)
+    job = ops_lifting_make.make_now(ops_lifting_make.tour_spec(), lib, replace=True)
+    roots = build.model_roots(sc)
+    mn, mx = (np.asarray(v, float) for v in logic.update_bounds(sc))
+    c = lifting.place(bpy.context, job.item_path, (float(mx[0]) + 7.0, float(0.5 * (mn[1] + mx[1])), float(mn[2])),
+                      math.pi)
+    lifting.apply_pose(sc, c, "Set up")
+    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
+    ld = lifting.new_load(sc, [part], "Test crane boom")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
+    a = lifting.hook_to(sc, c, lifting.above_load(sc, ld), ld)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    _update()
+    _camera(b, "ISO", "Tour lifting make", lens=35.0, points=_lifting_points(sc))
+    _shot(b, "@lifting_make")
+
+
+def _check_lifting_make(scene):
+    from . import lifting, ops_lifting_make
+    L = lifting.plan(scene)
+    if not L.cranes:
+        raise ValueError("no crane in the lifting plan")
+    c = L.cranes[0]
+    if c.item_name != ops_lifting_make.TOUR_CRANE:
+        raise ValueError(f"the crane is {c.item_name}, not the one made from numbers")
+    tele = [j.name for j in lifting.own_joints(scene, c) if "Telescope" in j.name]
+    if len(tele) != 4:
+        raise ValueError(f"{len(tele)} telescope joints, not 4 (5 sections)")
+    if not lifting.item_at(lifting.path_of(c)).sample:
+        raise ValueError("the made crane is not marked SAMPLE")
+    return lifting.check_rig(scene) + "; " + lifting.check_example(scene)
 
 
 def _lifting_points(scene):
@@ -3674,7 +3718,13 @@ stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
      "four stabiliser corners are app joints with their roles (4 Motion > Joints), its two cylinders, poses, masses and "
      "chart are in; the crane stands in its pose 'Working'. The Set-up window is on its step Check: nothing wrong.",
-     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.159", check=_check_crane_setup)
+     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.160", check=_check_crane_setup)
+stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
+     "Beside the test crane stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… "
+     "from the AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its "
+     "outriggers and its hook hangs above the test crane's boom (Hook to here). Its boom has 5 sections (joints "
+     "Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
+     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", check=_check_lifting_make)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
