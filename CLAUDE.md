@@ -499,6 +499,10 @@ fresing_render/            the Blender extension (Python package)
                            rollers follow), the handler cylinders, sea + quay scenes, cameras and the animation "What it
                            can do today" as a list of named **stages** (``@stage``; tasks 0078–0082 add or replace one);
                            ops_demo.py (Make, Cancel = kill the build's program tree + delete the folder, Open)
+  lifting_model/           the built-in cranes of the Lifting lane (task 0191), no Blender: classes.py (12 invented classes
+                           AT-40…500 / CC-100…1600 / KB-20…200, their layout, joints and the hook's kinematics), charts.py
+                           (SAMPLE charts), equipment.py (the equipment file), common.py + mobile.py, crawler.py, knuckle.py
+                           (OpenCascade: the STEP), make.py; the files in data/lifting/<class>/ (tools/make_lifting_cranes.py)
   demo_model/              the model maker of the demo (tasks 0076, 0084; moved here from tools/ in task 0077), no Blender:
                            params.py one parameter set, route.py the route maths + positions, geom.py shapes + scene tree +
                            STEP writer, machines.py, deck.py (the deck machines), layout.py (files, sheets: demo_cable_route.json,

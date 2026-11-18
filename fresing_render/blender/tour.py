@@ -3696,7 +3696,7 @@ stop("setup", MACH, "gantry", "Set-up window: step by step",
      "green tick). Next goes through the spindle, the tool and the workpiece, the work zero and the G-code program; "
      "the buttons are the same as in the side panel. Drag the window anywhere, also onto a second screen, and click "
      "parts in the main window while it is open. The drop-down at its top switches to 'Set up a mechanism'.",
-     where="Make > Set-up window…; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.151",
+     where="Make > Set-up window…; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.152",
      animation="G-code", check=_check_setup, setup=_setup_first_step, auto=lambda ctx, scene, st: "")
 
 stop("still", OUT, HUB_SET, "Still picture",
@@ -3935,13 +3935,13 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
      "Sections 1 to 7 start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 7 show one section at a time.",
-     where="The Workspace row at the top of the Fresing tab", since="0.2.151", shot="Tour view",
+     where="The Workspace row at the top of the Fresing tab", since="0.2.152", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: every output side by side",
      "Above 1 Import is the Make list: Picture, Product video, Turntable, 3D page, Animation and Queue. Click "
      "Picture: the settings of 5 Scene & Render > Image size & render open right there, with a blue Render image "
      "button. The same list is under Make in the header of the 3D view, so it is there whatever the side panel shows.",
-     where="Make, above 1 Import; Make in the 3D view's header", since="0.2.151", shot="Tour view", check=_check_make,
+     where="Make, above 1 Import; Make in the 3D view's header", since="0.2.152", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",

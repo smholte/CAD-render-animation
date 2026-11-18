@@ -450,7 +450,7 @@ def rules_switch(ctx):
     return f"{preview['moved']} parts moved and back"
 
 
-@line("panel.workspaces", "Workspaces: families hidden and shown, an own workspace, the Client view's lock", "0.2.151",
+@line("panel.workspaces", "Workspaces: families hidden and shown, an own workspace, the Client view's lock", "0.2.152",
       what="A workspace hides panels and keeps the work; an own workspace is one file in a folder with a space and "
            "an accent; the Client view locks every part and Full access unlocks them exactly")
 def panel_workspaces(ctx):
