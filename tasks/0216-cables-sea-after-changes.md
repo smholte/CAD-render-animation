@@ -1,6 +1,6 @@
 # 0216 – Cables and the sea after changes (bug hunt 0209 group D)
 
-**Who:** worker · **Status:** waiting – starts when a code slot is free (after 0212–0215) · **Branch:**
+**Who:** worker · **Status:** open – can start · **Branch:**
 `task/0216-cables-sea-after-changes`
 **Started by:** lead, 18 Nov 2026 · **Model:** Opus · effort Medium
 **Area:** Flex / Sea lanes – `blender/paths.py`, `paths_sea.py`, `vessel_motion.py`, `rebake.py`, `flex.py`,
