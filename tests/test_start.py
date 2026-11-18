@@ -76,10 +76,10 @@ def test_new_functions_newest_first_at_most_eight_improved_marked():
     versions = [S.vtuple(f.since if k == "new" else f.changed) for f, k in rows]
     assert versions == sorted(versions, reverse=True)
     assert all(S.in_range(f.since, "0.2.140", "0.2.153") for f, k in rows if k == "new")
-    ids = {f.id: k for f, k in S.new_functions(F.FUNCTIONS, "0.2.152", "0.2.153", limit=100)}
+    ids = {f.id: k for f, k in S.new_functions(F.FUNCTIONS, "0.2.153", "0.2.154", limit=100)}
     assert ids.get("help.whats_new") == "new" and ids.get("help.tour") == "improved"
     assert "panel.workspace" not in ids                      # 0.2.152: before the range
-    assert S.new_functions(F.FUNCTIONS, "0.2.153", "0.2.153") == []
+    assert S.new_functions(F.FUNCTIONS, "0.2.154", "0.2.154") == []
 
 
 def test_marks():

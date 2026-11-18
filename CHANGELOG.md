@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.153 – 18 Nov 2026 – Start here: a Fresing menu, a welcome, What's new after an update (task 0199)
+## 0.2.154 – 18 Nov 2026 – Start here: a Fresing menu, a welcome, What's new after an update (task 0199)
 
 - **A "Fresing" menu at the top of the window**, after Help: Take the test tour, What's new in this version, Show the
   Fresing panel, the demo project, the user guide, the PC check, Check for updates and the Welcome screen – in every
@@ -20,6 +20,11 @@ installer of that version was built from.
 - **The test tour marks what is new:** after an update the Test tour panel says which test models are new or changed
   and marks new stops "– New" and changed ones "– Changed". A tour of only some models says so and offers **Make the
   whole tour**; making the tour can now be cancelled from the Fresing menu.
+## 0.2.153 – 18 Nov 2026 – The sea cut-away is open in the 3D view too (task 0196)
+
+- **The box behind the stern is open while you work**, not only in a render. In Solid view and Material Preview the
+  sea's surface no longer covers the cable, the seabed and the soil section inside the cut-away. Renders are made
+  exactly as before. The open box follows its numbers when you change them.
 
 ## 0.2.152 – 18 Nov 2026 – A calm side panel: workspaces, folded sections, Make, the Set-up window (task 0062)
 

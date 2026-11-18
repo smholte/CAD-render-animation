@@ -730,3 +730,63 @@ def test_render_soil_layers_follow_the_depth(scene, tmp_path):
         assert np.allclose(got, want * 0.9, rtol=0.2, atol=0.004), (depth, got, want)
         assert prev is None or tuple(want) != prev                  # a new layer each time
         prev = tuple(want)
+
+
+# ---------------------------------------------------------------------------
+# task 0196: the box is open in the 3D view too (a viewport-only modifier), renders unchanged
+# ---------------------------------------------------------------------------
+
+
+def _faces_in_box(ob, box, deps):
+    """How many faces of the evaluated mesh (viewport or render) have their middle inside the box (world)."""
+    ev = ob.evaluated_get(deps)
+    me = ev.to_mesh()
+    try:
+        n = len(me.polygons)
+        c = np.empty(n * 3)
+        me.polygons.foreach_get("center", c)
+        c = c.reshape(-1, 3)
+        w = np.array(ev.matrix_world)
+        xy = c @ w[:3, :3].T + w[:3, 3]
+        d = xy[:, :2] - np.array(box["origin"])
+        u = np.array(box["dir"])
+        along = d @ u
+        side = np.abs(d @ np.array([-u[1], u[0]]))
+        inside = (along > 0) & (along < box["length"]) & (side < box["width"] / 2)
+        return n, int(inside.sum())
+    finally:
+        ev.to_mesh_clear()
+
+
+def test_box_is_open_in_the_view_and_renders_are_unchanged(scene):
+    s = scene.fresing
+    s.sea_cutaway = True
+    s.sea_cut_auto = False
+    s.sea_cut_length, s.sea_cut_width, s.sea_cut_start, s.sea_cut_side = 50.0, 20.0, 5.0, 0.0
+    s.env_detail = "DETAILED"
+    _apply(scene)
+    sea_ob = _env("sea")[0]
+    mod = sea_ob.modifiers[surroundings.VIEW_CUT]
+    assert sea_ob.modifiers[-1].name == mod.name and mod.show_viewport and not mod.show_render
+    box = surroundings.sea_cut_box(scene)
+    view = bpy.context.evaluated_depsgraph_get()
+    assert view.mode == "VIEWPORT"
+    n_view, inside_view = _faces_in_box(sea_ob, box, view)
+    assert inside_view == 0
+    # the render's mesh (modifier off) still has the faces in the box
+    mod.show_viewport = False
+    bpy.context.view_layer.update()
+    n_off, inside_off = _faces_in_box(sea_ob, box, bpy.context.evaluated_depsgraph_get())
+    assert inside_off > 0 and n_off == n_view + inside_off
+    mod.show_viewport = True
+    # the box follows the panel's numbers
+    s.sea_cut_length = 80.0
+    _apply(scene)
+    sea_ob = _env("sea")[0]
+    box2 = surroundings.sea_cut_box(scene)
+    assert box2["length"] == 80.0
+    assert _faces_in_box(sea_ob, box2, bpy.context.evaluated_depsgraph_get())[1] == 0
+    # cut-away off: no modifier
+    s.sea_cutaway = False
+    _apply(scene)
+    assert surroundings.VIEW_CUT not in _env("sea")[0].modifiers

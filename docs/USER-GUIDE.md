@@ -1457,6 +1457,9 @@ to past the touch-down) or by its size and place when **Place it by the cable** 
 colour, and **Water clarity** (2 to 40 m) sets how far you see into the water past them – the hull below the
 waterline, the seabed further away, the cable beyond the box.
 
+The box is open in the 3D view too – in Solid view and in Material Preview – not only in a render: the sea's faces inside
+it are left out of the view (only there; a render is made as before). It follows the box when you change its numbers.
+
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 
 <a id="sea-ground"></a>
