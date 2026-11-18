@@ -3222,7 +3222,7 @@ title and these controls:
 - **Clean look** (H, the eye): every control and bar hidden – for showing or a screen recording; a faint button in
   the bottom right corner (or H again) brings them back.
 - A **loading bar** shows how many MB of the model have come in.
-- **Part tools** on the left: Part info, Measure, Cutaway, Fade the rest – see
+- **Part tools** on the left: Part info, Measure, Slice, Fade the rest – see
   [below](#web3d-tools).
 
 <a id="web3d-phone"></a>
@@ -3250,7 +3250,7 @@ fix is in the bar: type `chrome://restart` (Edge: `edge://restart`) in the addre
 System → "Use graphics acceleration when available" on, then restart. Meanwhile the page uses its lightest settings.
 
 <a id="web3d-tools"></a>
-#### On the page: part info, measure, cutaway, fade the rest
+#### On the page: part info, measure, slice, fade the rest
 
 Four buttons on the **left** of the page work on the parts. A click is a press and release without dragging, so
 turning the view never picks a part. On a phone or tablet a **tap** is a click, and a **long press** (half a second)
@@ -3274,10 +3274,23 @@ pointer lights up.
   the measurement's X, Y and Z parts as three arrows in the axis colours (X red, Y green, Z blue, as in Blender), each
   with its number. A third click starts a new measurement; empty space or Esc clears it. The clicked points stay on
   their parts: on a page with motion the number follows the animation.
-- **Cutaway** (C): one plane across **X**, **Y** or **Z**, moved by the slider; **Flip** keeps the other side. The cut
-  faces show the app's red cap colour. Only the machine is cut – the sea, the sky and the seabed stay – and the plane
-  moves with the vessel. Measuring and Part info work on what is left; a click on the red cut face measures on the
-  cut itself (a flat face).
+- **Slice** (C; it was Cutaway): cuts the model open. **Add slice**, then click a face of the model – a **flat face**
+  slices in its own plane, a **round face** (a shaft, a bore) through its axis, square to your view – or choose
+  **X**, **Y** or **Z** for a slice across the model's middle. The side away from you is kept and the near side cut
+  away, so you look into the cut; **Flip** keeps the other side. The cut faces show the app's red cap colour, also
+  where two slices meet.
+  - **Several slices** (up to 8) cut together: the page shows only what every slice keeps. They are numbered and
+    listed in the panel – **Slice 1 · on a flat face**, **Slice 2 · across X** … – each with **Edit**, **Hide** /
+    **Show** (off for now, kept in the list) and **Delete** (the ×); **Delete all** with two or more.
+  - **Edit** (a new slice starts in it): the slice shows as a blue plane with handles. Drag the **white arrow** to move
+    it along itself, a **yellow knob** to turn it (each knob about one of two axes in the slice), or type **Move** in
+    mm and the two **Turn** angles in degrees. The size slider changes only the drawn plane – a slice always cuts the
+    whole model. **Done** or Esc ends editing.
+  - The slices **stay on** while you measure, use Part info or Fade the rest, and when you switch saved views; C (or
+    the ×) only closes the list. Clicks go **through** the slices onto what is kept, never onto a cut-away part; a click
+    on a red cut face measures on the cut itself (a flat face).
+  - Only the machine is cut – the sea, the sky and the seabed stay – and the slices move with the vessel. The key is C
+    (S is the screenshot). On a phone the list scrolls in the panel at the bottom.
 - **Fade the rest** (T): click a part – it stays solid and everything else goes see-through, as the app's Fade.
   Click another part to switch, empty space or Esc to bring the rest back.
 

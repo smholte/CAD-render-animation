@@ -4029,9 +4029,10 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "camera. A still crane draws nothing while you do not touch it. A red bar at the top only when the browser "
      "draws without the graphics card. On the left the part tools: Part info (click a part: a card with its group, "
      "and Round face Ø … for a pin or a hole), Measure (click the boom pin: Ø 40.0 mm; two flat faces: the distance "
-     "between them), Cutaway (a slider cuts the crane, the cut faces red) and Fade the rest (click a part: the rest "
-     "goes see-through).",
-     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d, changed="0.2.131")
+     "between them), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
+     "faces red; add a second slice, Edit one and drag its arrow or a yellow knob, Delete it with the ×) and Fade the "
+     "rest (click a part: the rest goes see-through).",
+     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d, changed="0.2.NEXT")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
