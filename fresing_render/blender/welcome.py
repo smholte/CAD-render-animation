@@ -458,7 +458,8 @@ def guide_link_file(anchor: str) -> str:
     """A tiny page that jumps to a section of the user guide (a file path with #section loses the section on
     Windows when it is opened as a file)."""
     import json
-    target = "file:///" + guide_file().replace("\\", "/").lstrip("/") + "#" + anchor
+    import pathlib
+    target = pathlib.Path(guide_file()).as_uri() + "#" + anchor     # spaces and accents %-encoded (Windows paths)
     path = os.path.join(tempfile.gettempdir(), f"fresing_guide_{anchor}.html")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(f"<!doctype html><meta charset='utf-8'><script>location.replace({json.dumps(target)});</script>"
