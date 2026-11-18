@@ -54,10 +54,23 @@ The web page's cut-away (Web 3D lane), the clip distance of the view (0193), the
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026.
 
-**What changed:**
+**What changed:** new `blender/sea_view_cut.py`: a Geometry Nodes modifier "FR view cut" (`show_render` off, last in the
+stack) on the sea and, with the ground cut, the seabed; `surroundings._build_under_water` puts it on and it takes the
+box from the same numbers as the shader (so it follows the panel and the cable; it is rebuilt with the surroundings).
+Simple: thin slab + Mesh Boolean, exact edge. Detailed: the points inside the box are let down (depth + 4 m for the
+sea, 0.3 m for the seabed) under what lies beneath, so no mesh copy per frame; the edge follows the sea's own mesh
+(about 1 m) and a wall stands round the box. The web 3D export reads the base mesh: unchanged. Guide: cut-away section.
+Pictures: `tasks/img/0196_solid_before.png` / `_after.png` (Workbench render of the viewport-evaluated mesh with an
+invented vessel, not a real-app screenshot; the edge shows spikes where the sea's radial mesh is stretched).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, invented vessel, Detailed, moving waves, ground cut): view cut costs
+0–0.5 ms per frame (6.5 ms with vs 6.5–7.0 ms without; a first version that deleted faces cost +3.5 ms, the Boolean
+on the Detailed sea 400 ms per update – both dropped). `tests/test_sea_view_cut.py` (8 tests): nothing of sea/seabed
+in the box in the view, outside unchanged, follows the panel's numbers, off without the cut-away, cost, Cycles renders
+equal to the last digit with and without the modifier. 103 tests of the sea / surroundings files pass.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** Material Preview not looked at in the real app (no graphics card here; the cut is in
+the mesh, so it shows there as in Solid). Stones and hull foam are not cut in the view. The wall spikes could be
+smoothed with a finer sea mesh near the box. Real-app picture of the view still to take on the owner's PC.
