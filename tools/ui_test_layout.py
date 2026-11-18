@@ -71,6 +71,12 @@ def layout_ok(tag):
     check(tag + ": toolbar folded", not sp.show_region_toolbar)
     check(tag + ": Fresing tab", ui_region(area).active_panel_category == "Fresing",
           ui_region(area).active_panel_category)
+    # task 0062: every project opens calm – sections 1 to 7 folded, Blender's own workspace tabs hidden
+    panels = importlib.import_module(pkg() + ".blender.panels")
+    lock = importlib.import_module(pkg() + ".blender.lock")
+    check(tag + ": sections 1-7 folded, Blender's tabs hidden",
+          not any(panels.is_open(s) for s in panels.SECTIONS) and lock.tabs_hidden(), str(sorted(panels.OPEN)))
+    panels.open_all()                     # so the next project that opens has something to fold
 
 
 def save_as(name, mark=None):
