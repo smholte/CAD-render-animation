@@ -23,7 +23,7 @@ def test_operators_and_menus():
     from fresing_render.blender import about, lock, ui_topbar
     assert ui_topbar._has("fresing.about") and ui_topbar._has("fresing.about_open")
     assert "fresing.about" in ui_topbar.entries()
-    assert about._draw_help in bpy.types.TOPBAR_MT_help._dyn_ui_initialize()
+    assert about._draw_about_help in bpy.types.TOPBAR_MT_help._dyn_ui_initialize()
     assert {"fresing.about", "fresing.about_open"} <= lock.ALLOWED          # works in the Client view too
 
 

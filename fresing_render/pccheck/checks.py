@@ -4225,7 +4225,7 @@ def app_licences(ctx):
     for idname in ("fresing.about", "fresing.about_open"):
         _check(ui_topbar._has(idname), f"the operator {idname} is missing")
     _check("fresing.about" in ui_topbar.entries(), "About is not in the Fresing menu")
-    _check(about._draw_help in bpy.types.TOPBAR_MT_help._dyn_ui_initialize(), "About is not in the Help menu")
+    _check(about._draw_about_help in bpy.types.TOPBAR_MT_help._dyn_ui_initialize(), "About is not in the Help menu")
     copy = about.readable_copy(path, "Licence")
     _check(copy.endswith(".txt") and os.path.isfile(copy), "the licence copy for the text program was not made")
     binary = bpy.app.binary_path or ""

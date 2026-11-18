@@ -304,7 +304,7 @@ def s_menu_shot():
 def s_about_open():
     about, files = mod("blender.about"), mod("blender.files")
     names = [getattr(f, "__name__", "") for f in bpy.types.TOPBAR_MT_help._dyn_ui_initialize()]
-    check("About Fresing Render is in the Help menu too (task 0206)", "_draw_help" in names and about._draw_help in
+    check("About Fresing Render is in the Help menu too (task 0206)", "_draw_about_help" in names and about._draw_about_help in
           bpy.types.TOPBAR_MT_help._dyn_ui_initialize(), names)
     opened = []
     real = files.open_path

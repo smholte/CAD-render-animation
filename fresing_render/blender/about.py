@@ -140,7 +140,7 @@ class FRESING_OT_about(bpy.types.Operator):
                            icon="ERROR")
 
 
-def _draw_help(self, context):
+def _draw_about_help(self, context):
     self.layout.operator("fresing.about", text="About Fresing Render…", icon="INFO")
 
 
@@ -154,12 +154,12 @@ def register() -> None:
     except Exception as exc:  # noqa: BLE001
         print("Fresing Render: could not switch Blender's extension sync off:", exc)
     menu = bpy.types.TOPBAR_MT_help
-    menu.remove(_draw_help)
-    menu.append(_draw_help)
+    menu.remove(_draw_about_help)
+    menu.append(_draw_about_help)
 
 
 def unregister() -> None:
-    bpy.types.TOPBAR_MT_help.remove(_draw_help)
+    bpy.types.TOPBAR_MT_help.remove(_draw_about_help)
     coll = _PREVIEWS.pop("logo", None)
     if coll is not None:
         from bpy.utils import previews
