@@ -25,8 +25,8 @@ is loaded – Blender brings the window back with the project, the tab it was on
 "Fresing" everywhere would win.
 
 The 3D view of the copy is switched to what costs nothing and shows nothing: solid shading (a copy of a view in
-Rendered mode would start a second render), no overlays, no gizmos, no header, no toolbar, looking at an empty spot
-far from the model (with Region Overlap the view shows behind the panel). The tool header goes away only when it is
+Rendered mode would start a second render), no overlays, no gizmos, no header, no toolbar, no "adjust last operation" box, looking at
+an empty spot far from the model (with Region Overlap the view shows behind the panel). The tool header goes away only when it is
 switched off while the header is still on (its setting reads "off" as soon as the header is hidden, but it stays).
 """
 
@@ -151,7 +151,8 @@ def _dress(window) -> None:
             sp.show_region_tool_header = False
             sp.show_region_header = False
         for name, value in (("show_region_ui", True), ("show_region_toolbar", False),
-                            ("show_region_asset_shelf", False), ("show_gizmo", False), ("lock_camera", False)):
+                            ("show_region_asset_shelf", False), ("show_region_hud", False),
+                            ("show_gizmo", False), ("lock_camera", False)):
             if getattr(sp, name, value) != value:
                 setattr(sp, name, value)
         if sp.overlay.show_overlays:
@@ -366,7 +367,7 @@ class FRESING_OT_setup_window(bpy.types.Operator):
 
     bl_idname = "fresing.setup_window"
     bl_label = "Set-up window"
-    bl_options = {"REGISTER"}
+    bl_options = set()         # (not REGISTER: no "adjust last operation" box in the 3D view for a window button)
 
     kind: StringProperty(
         name="Set-up", default="", options={"SKIP_SAVE"},
@@ -526,7 +527,7 @@ class FRESING_OT_setup_close(bpy.types.Operator):
 
     bl_idname = "fresing.setup_close"
     bl_label = "Close the Set-up window"
-    bl_options = {"REGISTER"}
+    bl_options = set()         # (not REGISTER: no "adjust last operation" box in the 3D view for a window button)
 
     @classmethod
     def poll(cls, context):

@@ -441,7 +441,7 @@ class FRESING_PT_setup(bpy.types.Panel):
 
     def draw_header_preset(self, context):
         _kind, k, steps = current(context.scene)
-        ui.header_status(self.layout, f"step {k + 1} of {len(steps)}")
+        ui.header_status(self.layout, f"{k + 1} of {len(steps)}")
 
     def draw(self, context):
         draw_setup(self.layout, context)

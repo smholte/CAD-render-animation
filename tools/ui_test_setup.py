@@ -294,10 +294,10 @@ def s_tab():
           sb.width >= win.width - 8 and sb.height >= win.height - 8 and region.width - sb.width <= 8,
           f"{sb.width} x {sb.height} of {win.width} x {win.height}, 3D view {region.width} wide")
     high = {r.type: r.height for r in area.regions}
-    check("no header, tool header, toolbar, overlays or gizmos in it, solid shading",
-          not sp.show_region_header and high["HEADER"] <= 1 and high["TOOL_HEADER"] <= 1
-          and not sp.show_region_toolbar and not sp.overlay.show_overlays and not sp.show_gizmo
-          and sp.shading.type == "SOLID", str(high))
+    check("no header, tool header, toolbar, last-operation box, overlays or gizmos in it, solid shading",
+          not sp.show_region_header and high["HEADER"] <= 1 and high["TOOL_HEADER"] <= 1 and high["HUD"] <= 1
+          and not sp.show_region_toolbar and not sp.show_region_hud and not sp.overlay.show_overlays
+          and not sp.show_gizmo and sp.shading.type == "SOLID", str(high))
     check("the scene's set-up is the CNC mill, step 1", mod("blender.ui_setup").current(bpy.context.scene)[:2]
           == ("CNC", 0))
     return 1.0

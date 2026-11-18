@@ -210,7 +210,7 @@ def test_every_step_draws_on_an_empty_scene(tmp_path):
     cls.draw_header(fake, bpy.context)
     cls.draw_header_preset(fake, bpy.context)
     assert not fake.layout.seen["errors"]
-    assert "step 4 of 4" in fake.layout.seen["labels"]
+    assert "4 of 4" in fake.layout.seen["labels"]
     assert not cls.poll(bpy.context), "the tab shows only in a Set-up window"
 
 
