@@ -88,9 +88,9 @@ GROUPS = {
     "callouts": ["callouts"],
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min);
-    "tour-b": ["tour2", "highlight", "start", "setupcrane"],   # setupcrane: task 0203 (~3 min)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
+    "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
-    "scenes": ["surroundings", "vessel", "rulesets", "decals"],
+    "scenes": ["surroundings", "vessel", "rulesets", "decals", "setupcrane"],   # setupcrane: task 0203 (~4 min)
     "motion": ["video", "studio", "update", "ui2", "faces", "lifting"],   # lifting: task 0201
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
                  "cables", "paths", "undorebake"],

@@ -3800,7 +3800,8 @@ def _check_setup(scene):
     import bpy
 
     from . import ui_setup
-    _check(set(ui_setup.SETUPS) == {"CNC", "MECH"}, "the Set-up window does not have the CNC mill and the mechanism")
+    _check({"CNC", "MECH"} <= set(ui_setup.SETUPS),         # (task 0203 added the crane set-ups)
+           "the Set-up window does not have the CNC mill and the mechanism")
     n_cnc, n_mech = len(ui_setup.SETUPS["CNC"][1]), len(ui_setup.SETUPS["MECH"][1])
     _check(n_cnc == 5 and n_mech == 4, f"the set-ups have {n_cnc} and {n_mech} steps (5 and 4 expected)")
     kind, step, steps = ui_setup.current(scene)
