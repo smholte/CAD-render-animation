@@ -42,6 +42,7 @@ BODY = 0.27                  # m: the person's half width / depth (shoulders, to
 WORK_ROOM = 0.25             # m: round the stand spot (toes and belly in front, the arms close by when it turns)
 WALK_MARGIN = 0.06           # m: the way is planned this much further from things (corners are rounded)
 BAND = (0.08, 1.95)          # m above the floor: what is in the way of a walking person
+SNAP = 4                     # decimals of a cell: a point this close to a cell edge counts as on it (rounding noise)
 SLAB = 0.1                   # m: the floor map also keeps what stands in each 10 cm slice of height (head, chest)
 SLABS = 24                   # … up to 2.4 m
 HEAD_R, CHEST_R = 0.11, 0.15  # m: the head and the upper chest kept off things when the person leans in
@@ -123,6 +124,9 @@ class Floor:
         hi = np.asarray(hi[:2], float)
         span = float(max(hi - lo))
         self.cell = max(float(cell), span / max_cells)
+        # the grid sits on the world's own cell lines (not on wherever ``lo`` happens to be), so a map made round a
+        # point that moved by rounding noise (a model update with nothing changed) has the same cells (task 0194)
+        lo = np.floor(np.round(lo / self.cell, 4)) * self.cell
         self.lo = lo
         self.shape = (int(math.ceil((hi[0] - lo[0]) / self.cell)) + 1, int(math.ceil((hi[1] - lo[1]) / self.cell)) + 1)
         self.occ = np.zeros(self.shape, bool)
@@ -135,7 +139,7 @@ class Floor:
         p = np.asarray(pts, float).reshape(-1, 3)
         if not len(p):
             return
-        ij = np.floor((p[:, :2] - self.lo) / self.cell + 0.5).astype(int)
+        ij = np.floor(np.round((p[:, :2] - self.lo) / self.cell, SNAP) + 0.5).astype(int)
         h = p[:, 2] - self.z
         ok = (ij[:, 0] >= 0) & (ij[:, 1] >= 0) & (ij[:, 0] < self.shape[0]) & (ij[:, 1] < self.shape[1])
         band = ok & (h >= BAND[0]) & (h <= BAND[1])
@@ -181,7 +185,7 @@ class Floor:
 
     # -- reading -----------------------------------------------------------------------------------------------
     def ij(self, xy) -> tuple:
-        v = np.floor((np.asarray(xy[:2], float) - self.lo) / self.cell + 0.5).astype(int)
+        v = np.floor(np.round((np.asarray(xy[:2], float) - self.lo) / self.cell, SNAP) + 0.5).astype(int)
         return int(v[0]), int(v[1])
 
     def xy(self, i: int, j: int) -> np.ndarray:

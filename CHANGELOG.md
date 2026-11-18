@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.153 – 18 Nov 2026 – The tool-change operator keeps his place (task 0194)
+
+- **The person who changes the tool always stands on the same spot.** After a model update with nothing changed he
+  used to step 4 cm closer to the machine; the map of the floor he stands on now has fixed cell lines, so tiny
+  rounding differences cannot move him.
+
 ## 0.2.152 – 18 Nov 2026 – A calm side panel: workspaces, folded sections, Make, the Set-up window (task 0062)
 
 - **The side panel starts calm.** Every time the app starts or a project opens, sections 1 to 7 are folded; each

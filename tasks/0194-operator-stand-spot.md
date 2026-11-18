@@ -1,6 +1,6 @@
 # 0194 – Fix: the tool-change operator stands 4 cm closer after an unchanged model update (bug hunt 6, row 16)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0194-operator-stand-spot`
+**Who:** worker · **Status:** done (0.2.153) · **Branch:** `task/0194-operator-stand-spot`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183) · **Model:** Sonnet · effort Low · **Place:** Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** people – `core/tc_person.py` (`stand_spot`, the floor map), `blender/tc_person.py` (`_floor`, `bake`), their tests.
@@ -40,10 +40,17 @@ Walk paths and gaits (0157), the glove and the cabinet door (0156).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026
 
-**What changed:**
+**What changed:** Cause: the floor map's grid started at its own corner (`lo`), which follows the first spindle position, so a
+hair of rounding noise moved the cell lines, and a cabinet front lying on a cell edge landed in the other cell (a 4 cm step).
+`core/tc_person.py` `Floor`: `lo` snapped to the world's cell lines, and cell numbers rounded to 4 decimals of a cell
+(`SNAP`) before the cell is chosen, so a point within 0.0001 cell of an edge counts as on it.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** new `test_stand_spot_does_not_move_with_rounding_noise` (obstacle edge on a cell edge ± 1e-9 / 3e-7 m,
+map corner shifted likewise): fails before the change, passes after. `test_tc_person.py` + `_independent.py`: 86 passed
+(Linux, 4 cores). Not done: the real-Blender case of the row (model update with the same file) and a clash check of the
+closer spot – the fix keeps the farther spot (0, −0.60) by construction but I did not run it in Blender; GitHub's
+tour and PC check cover the operator.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** none; no helper agents used. Runs: see the GitHub result.
