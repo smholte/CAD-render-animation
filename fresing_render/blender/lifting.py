@@ -255,7 +255,7 @@ def unique_name(scene, base: str) -> str:
     return f"{base} {n}"
 
 
-def import_model(context, step: str, quality: str = "normal"):
+def import_model(context, step: str, quality: str = "normal", up: str = "Z"):
     """The STEP as a further model of the project (the importer's normal path), waiting for it: the model's root.
     The first model of a project also gets the camera, render settings and world of a new import."""
     from ..importer.runner import ImportJob
@@ -269,18 +269,19 @@ def import_model(context, step: str, quality: str = "normal"):
             time.sleep(0.1)
     if job.error:
         raise RuntimeError(f"The crane's model could not be read: {job.error}")
-    return finish_cache(context, job.cache_dir, first)
+    return finish_cache(context, job.cache_dir, first, up)
 
 
-def finish_cache(context, cache_dir: str, first: bool):
+def finish_cache(context, cache_dir: str, first: bool, up: str = "Z"):
     from .ops_import import finish_import
     scene = context.scene
     before = {g.name for g in scene.fresing.groups}
+    up = up if up in ("Y", "Z") else "Z"      # task 0203: an own crane drawn with Y up
     if first:
-        root = finish_import(context, cache_dir, "Z")
+        root = finish_import(context, cache_dir, up)
     else:
         root = build.build(cache_dir)
-        logic.set_up_axis(root, "Z")
+        logic.set_up_axis(root, up)
         logic.lock_all(scene)
         logic.apply_rules(scene)
         logic.rebuild_tree(scene)
@@ -390,7 +391,7 @@ def place(context, path: str, location=(0.0, 0.0, 0.0), heading: float = 0.0, na
         LR.Rig(item.data)
     except LR.ReachError as exc:
         raise RuntimeError(f"{item.name}: {exc}") from exc
-    root = import_model(context, item.model)
+    root = import_model(context, item.model, up=str((item.data.get("rig") or {}).get("up_axis", "Z")))
     c = rig_model(context, root, item, name)
     place_at(c, location, heading)
     return c

@@ -105,6 +105,53 @@ and Place, Hook to here and crane use % work on it exactly as on the built-in cr
 Drawing the rope with several falls and its winding (L5); slings and the load under the hook (L5); offshore pedestal and
 vessel cranes as kinds (L9); tower and gantry cranes (L8); "Make a crane…" from parameters (0204).
 
+## Design (worker, 18 Nov 2026 – the split for subagents)
+
+**Roles.** Twelve role keys, stored on each joint (`FRJoint.role` in the project, `"role"` in the rig's joint dict):
+`slew, luff, telescope, jib, knuckle, extension, hoist, swing, outrigger, jack, track, travel`. Files without `role`
+(the built-ins) get it from the joint's name (`lifting_reach.role_of`: Slew, Luff / Main boom, Telescope*, Jib,
+Knuckle, Extension*, Hoist, Hook swing*, Outrigger* / Stabiliser*, Jack* / Legs / Leg *, Travel). Each role has a
+sense: slew + = anticlockwise seen from above, luff / jib / knuckle + = up, telescope / extension / outrigger + = out,
+hoist + = rope out (hook down), jack + = down.
+
+**A – `core/lifting_reach.py` (subagent A, owns it + `core/lifting_setup.py` + their tests):**
+- `ROLE_KEYS`, `role_of(joint: dict) -> str | None`; `Kinematics(data)` = the joint chain only (`by`, `chain`,
+  `value_of`, `motion`, `point`; no role checks); `Rig(Kinematics)` as today (same attributes the app uses: `kind`,
+  `role` {'slew','luff','second','tele','hoist'} -> joint name, `by`, `joints`, `hook_cad`, `hook`, `radius_height`,
+  `boom_length`, `boom_angle`, `second_angle`, `jib_length`, `jib_angle_note`, `limits`, `driven`, `name`), now for
+  **any kind** (`other_crane` too) from the roles: one driven slew (ROTATE), luff (ROTATE), hoist (SLIDE) needed, else
+  `ReachError` in words. Up = the rig's `up_axis` (Z default; Y allowed); the slew axis must be parallel to up.
+- `hook_to(rig, target, current, charts, setup, load_kg, hook_block_kg) -> Answer` (signature and `Answer` unchanged)
+  **general**: the 3-D kinematics only (vectorised over many joint values at once): for reach values q the hook at hoist
+  hv is A(q) + hv D(q); hv from the height, radius from the slew axis; slew = target azimuth − the hook's azimuth.
+  Modes from the roles: luff [+ telescope/extension] (candidates of the class solver: grid, chart booms, ends that
+  reach at the luff limits, bisection to the shortest); luffing jib (crawler, or other with a jib and no telescope):
+  luff at the jib charts' boom angle, else nearest in 0.5° steps; two turning joints (knuckle) [+ extension]: the lowest
+  hoist rope, the elbow-down branch (knuckle point below the line pivot → head) first; a fly jib on a mobile crane stays
+  at its value. Other driven joints of the reach chain keep their values. Ranking as 0201: a chart capacity first, lowest
+  use, shortest boom. Out of reach: by how much, as 0201. Final 3-D check ≤ 1 mm and limits.
+- 0201's class solver moves to `tests/lifting_reach_class.py` (reference in the tests only).
+- `readout`, `chart_for`, `setup_values`, `outrigger_spread` unchanged.
+
+**A – `core/lifting_setup.py` (pure checks for the Check step):** `Problem(step, text, severity)`; `check(data,
+values=None)` = `missing_roles` (per kind: mobile slew/luff/telescope/hoist, crawler slew/luff/hoist, knuckle
+slew/luff/knuckle/hoist, other slew/luff/hoist), `sweep` (each driven joint with limits min → max, 9 steps, others at
+the start pose: followers inside their own limits, the hook plumb within 0.5° along the hoist), `pose_problems` (pose
+values inside the limits), `mass_problems` (every group with parts has a mass > 0 and a CoG; sum), `cog_problems`
+(total CoG at the start pose inside the footprint: `footprint(data)` from `outriggers` / `tracks` / `axles`, else the
+group "carrier"/"lower"/"truck"/"base" box the Blender side writes as `footprint`), `chart_problems` (L1/L2 validation;
+no chart = amber "Not checked – no chart"). Step keys of `Problem.step`: the role keys + `hook_block`, `masses`,
+`chart`, `poses`.
+
+**Worker – Blender side:** `blender/setup_crane.py` (the four kinds' step lists `STEPS_<kind>` + `CHECKS`, drawn in the
+Set-up window; `SETUPS` entries `CRANE_MOBILE`, `CRANE_CRAWLER`, `CRANE_KNUCKLE`, `CRANE_OTHER` added from
+`ui_setup.py`), `blender/ops_setup_crane.py` (operators: pick parts by name / selection, make a role's joint from a
+round-face axis or a direction, sections / corners coupled, cylinder, hook point, groups' masses, chart entry, Check,
+Save), `blender/lifting_rig_out.py` (scene → rig, by part names, mm in the STEP's frame at the CAD pose), props
+(`FRJoint.role`, `FRCraneSetup` in `scene.fresing.crane_setup`), one button in 8 Lifting plan > Equipment. Steps keep
+"nothing copied": the joint rows draw the joint's own settings (limits, Flip), poses use 4 Motion > Poses.
+Added step **Poses** (before Check) for every kind: the rig's poses and start pose come from 4 Motion > Poses.
+
 ---
 
 ## Report (filled in by the chat that did the task)

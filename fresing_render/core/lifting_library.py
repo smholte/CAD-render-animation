@@ -60,13 +60,14 @@ PICTURE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
 BUILTIN_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "lifting")
 
 KINDS = (
-    "mobile_crane", "crawler_crane", "knuckle_boom_crane", "offshore_crane", "vessel_crane", "overhead_crane",
+    "mobile_crane", "crawler_crane", "knuckle_boom_crane", "other_crane", "offshore_crane", "vessel_crane", "overhead_crane",
     "tower_crane", "forklift", "telehandler", "chain_hoist", "spreader_beam", "lifting_frame", "sling", "shackle",
     "hook_block", "lifting_tool",
 )
 FIELDS = (
     "format", "format_version", "kind", "class", "name", "units", "mass", "cog", "rig", "charts", "hook_blocks",
     "outriggers", "tracks", "axles", "wll", "limits", "sample", "derived_from", "source",
+    "footprint",                 # task 0203: an own crane without outriggers or tracks – its support area (m)
 )
 SAMPLE_STILL = ("These are still the sample's charts: the SAMPLE mark stays. Enter the chart of your real equipment "
                 "first.")
