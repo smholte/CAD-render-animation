@@ -240,7 +240,8 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
             return
         r = toolpath.result(scene)
         if r and toolpath.step(scene)[1] is not None:
-            header_status(self.layout, f"{r.get('moves', 0):,} moves")
+            n = int(r.get("moves", 0))                  # ("123,456 moves" was cut off beside the title)
+            header_status(self.layout, f"{n:,} moves" if n < 10000 else f"{round(n / 1000)} k moves")
         else:
             header_status(self.layout, "not made")
 
@@ -254,10 +255,14 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
         why = toolpath.problem(scene)
         r_row, f_row = toolpath.picked(scene)
         m = machining.settings(scene)
-        if (m.workpiece is None or m.finished is None) and not rt.get("running"):   # nothing to cut from, or to
-            op = "fresing.mill_set_workpiece" if m.workpiece is None else "fresing.mill_set_finished"
-            missing(layout, context, f"A toolpath cuts the raw block into the finished part. {why}", op=op,
-                    op_text="Use as workpiece" if m.workpiece is None else "Use as finished part")
+        if m.workpiece is None and not rt.get("running"):            # nothing to cut from
+            missing(layout, context, "No raw block yet: click it in the view, then", op="fresing.mill_set_workpiece",
+                    op_text="Use as workpiece", op_icon="MESH_CUBE")
+            return
+        if m.finished is None and not rt.get("running"):             # nothing to cut to
+            missing(layout, context, "No finished part yet (the CAD part the block becomes): click it in the view, "
+                                     "then", op="fresing.mill_set_finished", op_text="Use as finished part",
+                    op_icon="MOD_SOLIDIFY")
             return
         steps(layout, context, ["Above: the raw block as workpiece and the finished part (the CAD part it "
                                 "becomes) as finished part",
@@ -312,8 +317,8 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
                  icon="SORTTIME")
             big(layout, "fresing.toolpath_cancel", "Cancel", "CANCEL")
             return
-        if why:
-            wrap(layout, context, why, icon="ERROR", alert=bool(r_row or f_row))
+        if why:                                     # (no tool picked yet: the next step, not a fault)
+            wrap(layout, context, why, icon="ERROR" if r_row or f_row else "INFO", alert=bool(r_row or f_row))
         row = big_row(layout)                       # (grey: the section's one blue button is Build & play)
         row.enabled = not why
         row.operator("fresing.toolpath_make", text="Make toolpath", icon="PLAY")

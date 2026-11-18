@@ -101,8 +101,10 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
         self.layout.label(icon="CURVE_BEZCURVE")
 
     def draw_header_preset(self, context):
-        text, alert = counts(context.scene)
-        header_status(self.layout, text or "none", icon="ERROR" if alert else "NONE", alert=alert, limit=9)
+        text, alert = counts(context.scene)          # the long title leaves room for about 7 characters: the
+        if not alert and text:                       # number alone ("3 chains" was cut off); a problem "1 of 5",
+            text = text.split(" ")[0]                # red, without the icon
+        header_status(self.layout, text or "none", alert=alert, limit=9)
 
     def draw(self, context):
         layout = self.layout

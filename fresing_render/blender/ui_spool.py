@@ -62,16 +62,17 @@ class FRESING_PT_spools(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         text, alert = counts(context.scene)
-        header_status(self.layout, "none" if text == "–" else text, icon="ERROR" if alert else "NONE", alert=alert,
-                      limit=11)
+        if alert:                               # ("1 warning" with its icon was cut off beside the title:
+            n = len(context.scene.fresing.spools)     # how many need a look, red, as Hoses and drag chains says it)
+            text = f"{text.split(' ')[0]} of {n}"
+        header_status(self.layout, "none" if text == "–" else text, alert=alert, limit=11)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
         if not len(s.spools) and not len(s.cables):                 # nothing a drum could wind
-            text = (f"A drum or carousel winds a cable, and this project has none yet: add the cable in "
-                    f"{where('cables')} first")
+            text = f"A drum or carousel winds a cable: add one in {where('cables')} first"
             if hasattr(bpy.types, "FRESING_OT_next_go"):
                 missing(layout, context, text, op="fresing.next_go", op_text="Open Cables and paths",
                         op_icon="CURVE_PATH").panel = "FRESING_PT_cables"

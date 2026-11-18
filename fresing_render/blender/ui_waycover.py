@@ -62,8 +62,8 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
         s = scene.fresing
         none = not waycover.covers(scene) and not len(s.waycovers)
         if none and not any(j.kind == "SLIDE" for j in s.joints):      # nothing a cover could follow
-            missing(layout, context, "A way cover follows a slide joint (the machine's axis) and this project has "
-                                     "none yet. Click the carriage (the part the axis moves), then:",
+            missing(layout, context, "A way cover follows a slide joint, and there is none yet. Click the "
+                                     "carriage (the part that slides), then",
                     op="fresing.waycover_axis_from_selection", op_text="Add the axis joint", op_icon="ADD")
             return
         steps(layout, context, ["Add a way cover (one for each cover of the machine: a cover on each side of "
@@ -116,6 +116,7 @@ class FRESING_PT_waycover(_Panel, bpy.types.Panel):
                 wrap(layout, context, f"{sec.name} – on the carriage: the axis '{c.axis}' moves it itself, so it "
                      "needs no joint of its own. It stays the last section", icon="PINNED")
             layout.operator("fresing.waycover_select", icon="RESTRICT_SELECT_OFF")
+            gap(layout, size=0.5)
         big(layout, "fresing.waycover_add", "Add section", "ADD")
 
         # -- 3 travel

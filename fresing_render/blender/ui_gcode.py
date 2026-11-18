@@ -22,7 +22,7 @@ def machine_started(cnc) -> bool:
 def no_machine(layout, context, what: str) -> None:
     """The whole body of a CNC sub-panel while there is no CNC machine: one line, and the Set-up window's button
     when the app has it (task 0062)."""
-    text = f"{what} a CNC machine: set up its axes, tool and workpiece in {where('cnc')} first"
+    text = f"{what} a CNC machine: set it up above first"
     if hasattr(bpy.types, "FRESING_OT_setup_window"):
         missing(layout, context, text, op="fresing.setup_window", op_text="Set-up window…", op_icon="WINDOW").kind = "CNC"
     else:
@@ -123,7 +123,9 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
         col.prop(cnc, "zero_mode", text="Work zero")
         if cnc.zero_mode == "POINT":
             layout.operator("fresing.cnc_zero_click", text="Click the zero point", icon="EYEDROPPER")
-        if why:
+        if why and not machine_started(cnc):          # nothing picked yet: the next step, not a fault
+            wrap(layout, context, why, icon="INFO")
+        elif why:
             wrap(layout, context, why, icon="ERROR", alert=True)
         else:
             try:
@@ -334,12 +336,11 @@ class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
     def draw_header_preset(self, context):
         from . import toolchange
         cnc = gcode.settings(context.scene)
-        if cnc.changer in ("ATC", "ARM"):
-            what = "arm" if cnc.changer == "ARM" else "ATC"
+        if cnc.changer in ("ATC", "ARM"):           # (short: "ATC, 12 pockets" was cut off beside the title)
             if toolchange.problems(context.scene):
-                header_status(self.layout, f"{what}: check", icon="ERROR", alert=True)
+                header_status(self.layout, "check", icon="ERROR", alert=True)
             else:
-                header_status(self.layout, f"{what} {plural(len(cnc.pockets), 'pot' if what == 'arm' else 'pocket')}")
+                header_status(self.layout, plural(len(cnc.pockets), "pot" if cnc.changer == "ARM" else "pocket"))
         else:
             header_status(self.layout, "manual")
 

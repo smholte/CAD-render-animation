@@ -396,8 +396,10 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         text, alert = counts(context.scene)
-        header_status(self.layout, "none" if text == "–" else text, icon="ERROR" if alert else "NONE", alert=alert,
-                      limit=11)
+        if alert:                               # ("1 warning" with its icon was cut off beside the title:
+            n = len(context.scene.fresing.cables)     # how many need a look, red, as Hoses and drag chains says it)
+            text = f"{text.split(' ')[0]} of {n}"
+        header_status(self.layout, "none" if text == "–" else text, alert=alert, limit=11)
 
     def draw(self, context):
         layout = self.layout
