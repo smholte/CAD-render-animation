@@ -255,9 +255,15 @@ def s_save():
 
 
 @step
+def s_place_project():
+    new_project()                                  # (the window's scene is there only after this timer step)
+    return 1.0
+
+
+@step
 def s_place():
     cls = _cls()
-    sc = new_project()
+    sc = main_window().scene
     L = mod("blender.lifting")
     S["lib_n"] = S.get("lib_n", 0) + 1
     LR = mod("core.lifting_reach")
