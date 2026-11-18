@@ -44,6 +44,9 @@ ALLOWED = {
     "fresing.demo_make", "fresing.demo_open", "fresing.demo_cancel",
     "fresing.tour_make", "fresing.tour_open", "fresing.tour_go", "fresing.tour_pick", "fresing.tour_mark",
     "fresing.tour_note", "fresing.tour_copy", "fresing.tour_folder", "fresing.tour_run",
+    "fresing.tour_take", "fresing.tour_cancel",                  # task 0199: the Fresing menu – they only open or
+    "fresing.welcome", "fresing.welcome_answer", "fresing.whats_new", "fresing.whats_new_guide",   # show something
+    "fresing.release_notes",
     "fresing.client_locked",
     "fresing.rebake", "fresing.rebake_cancel",          # cables follow a sea change the Client view may make
 }

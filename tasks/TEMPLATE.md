@@ -17,6 +17,8 @@ What is known already: measurements, earlier attempts, links to code, decisions 
 - [ ] Tests added/updated; full suite passes
 - [ ] (UI) screenshots checked with tools/ui_screens.py
 - [ ] (Windows-only code) reviewed by a chat or helper that did not write it
+- [ ] (tour or functions changed) version fields: `since=` on new entries / stops, `changed=` raised on a changed tour
+      set (`python3 tools/tour_versions.py --record`; the precheck says what to write)
 - [ ] Report below filled in, pull request opened
 
 ## Not in this task

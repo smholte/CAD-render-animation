@@ -66,6 +66,8 @@ def _with(**kw):
     (dict(pccheck=("own.import",)), "no PC-check Full line 'own.import'"),
     (dict(id="Test.Thing"), "an id is area.name"),
     (dict(since="soon"), "since 'soon' is not a version"),
+    (dict(since=""), "no since= version"),                          # task 0199: a new entry without since= fails
+    (dict(changed="later"), "changed 'later' is not a version"),
 ])
 def test_a_broken_entry_is_caught(repo, kw, words):
     found = F.problems(_with(**kw), **repo)

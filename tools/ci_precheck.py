@@ -223,6 +223,20 @@ def check_functions() -> list[str]:
     return [f"function list: {p}" for p in functions.problems(**functions.read_repo(ROOT))]
 
 
+def check_tour_versions(version: str, *, raised: bool, main_ref: str = "origin/main") -> tuple[list[str], list[str]]:
+    """Task 0199: a test tour set that changed on this branch has its changed= (added= when new) raised to the
+    branch's version, every stop has since=, tests/data/tour_versions.json matches (tools/tour_versions.py)."""
+    import tour_versions
+    main_text = git("show", f"{main_ref}:{tour_versions.RECORD}")
+    main_record = tour_versions.read_record(main_text) if main_text.strip() else None
+    try:
+        with open(os.path.join(ROOT, tour_versions.RECORD), encoding="utf-8") as fh:
+            record = tour_versions.read_record(fh.read())
+    except OSError:
+        record = {}
+    return tour_versions.check(tour_versions.current(ROOT), record, main_record, version=version, raised=raised)
+
+
 def check_tasks(text: str) -> list[str]:
     """TASKS.md: every table has rows with as many cells as its header; no task number twice in a table."""
     problems = []
@@ -554,6 +568,10 @@ def main(argv=None) -> int:
     problems += check_counts()
     problems += check_groups()
     problems += check_functions()
+    version = init_version(read(INIT))
+    p, n = check_tour_versions(version, raised=on_main or version != (version_at(base) if base else main_v))
+    problems += p
+    notes += n
     problems += check_tasks(read("TASKS.md"))
 
     import ci_groups

@@ -525,7 +525,8 @@ def run_from_argv(argv: list | None = None) -> core.Run:
     extra = argv[argv.index("--") + 1:] if "--" in argv else []
     if extra and extra[0].strip().lower() == "tourbuild":       # Help > Make test tour project (task 0059)
         from ..blender import tour
-        code = tour.build_main(extra[1] if len(extra) > 1 else "")
+        only = next((x.split("=", 1)[1] for x in extra[2:] if x.startswith("only=")), "")   # task 0199
+        code = tour.build_main(extra[1] if len(extra) > 1 else "", tuple(k for k in only.split(",") if k))
         if code:
             raise SystemExit(code)
         return None

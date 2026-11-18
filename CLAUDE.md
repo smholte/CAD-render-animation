@@ -484,6 +484,10 @@ fresing_render/            the Blender extension (Python package)
                            active camera or the scene's ``props_detail``; a person's ``Object.fresing_person`` settings
                            rebuild its mesh in place; ``upgrade`` (load_post) gives older projects' props the new look;
                            ``line_up`` / ``check_line_up`` shared by the tour stop "props" and the PC check's scene.props
+    welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
+                           `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
+                           once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
+                           "Fresing" menu after Help (appended to TOPBAR_MT_editor_menus, which lock.py's drawing calls too)
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -768,6 +772,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   builds and checks every animation of every set by itself (only the clash model keeps its 6.0 mm). A new set that
   fails it has a fault in its test model or its set-up (a part left standing that the motion runs through, a shape
   in the way): fix that, do not loosen the test.
+  **Version fields** (task 0199, What's new after an update): every `stop(...)` has `since=` (and `changed=` when what
+  it shows changed), every `@tour_set(...)` `added=` and `changed=`. A set whose build, stops, own helpers or test model
+  changed needs `changed="<the branch's new version>"` and `python3 tools/tour_versions.py --record` (the precheck says
+  so); a function entry needs `since=` (and `changed=` when it got visibly better).
 - **Function list and guide anchor** (task 0124): a task that adds a function the owner can see adds its entry in
   `fresing_render/core/functions.py` (id, title, family, panel, fold, button or setting, guide anchor, tour stops,
   PC-check lines, since) and `<a id="…"></a>` above its guide section, in the same task. The precheck refuses a tour
