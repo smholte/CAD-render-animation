@@ -8,7 +8,25 @@ import bpy
 from ..core.words import plural
 from . import gcode
 from .ops_machining import clicked_part
-from .ui import MEDIUM, _has_model, _Panel, fold, header_status, list_rows, primary, split_props, steps, wrap
+from .ui import (BIG, _has_model, _Panel, big, fold, gap, header_status, list_rows, missing, split_props, steps,
+                 where, wrap)
+
+PICK_INSET = 125             # px a pick button of 5.4 units takes of its row: the name beside it wraps in the rest
+
+
+def machine_started(cnc) -> bool:
+    """Something of the CNC machine is picked (an axis, the tool, the workpiece): its sub-panels have a machine."""
+    return bool(cnc.x_joint or cnc.y_joint or cnc.z_joint or cnc.tool or cnc.workpiece)
+
+
+def no_machine(layout, context, what: str) -> None:
+    """The whole body of a CNC sub-panel while there is no CNC machine: one line, and the Set-up window's button
+    when the app has it (task 0062)."""
+    text = f"{what} a CNC machine: set up its axes, tool and workpiece in {where('cnc')} first"
+    if hasattr(bpy.types, "FRESING_OT_setup_window"):
+        missing(layout, context, text, op="fresing.setup_window", op_text="Set-up window…", op_icon="WINDOW").kind = "CNC"
+    else:
+        missing(layout, context, text)
 
 
 class FRESING_UL_cnc_tools(bpy.types.UIList):
@@ -39,9 +57,9 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         cnc = gcode.settings(context.scene)
-        if not (cnc.x_joint or cnc.y_joint or cnc.z_joint or cnc.tool or cnc.workpiece):
-            return
-        if gcode.problem(context.scene):
+        if not machine_started(cnc):
+            header_status(self.layout, "none")
+        elif gcode.problem(context.scene):
             header_status(self.layout, "not ready", icon="ERROR", alert=True)
         else:
             header_status(self.layout, "ready")
@@ -52,15 +70,19 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
         s = scene.fresing
         cnc = gcode.settings(scene)
         why = gcode.problem(scene)
-        if why:
-            steps(layout, context, ["Make slide joints for X, Y and Z (and a rotate joint with Motor ticked for "
-                                    "the spindle) above",
-                                    "Find the axes (or pick them below)",
-                                    "Click the tool in the spindle, press Tool; click the workpiece, press "
-                                    "Workpiece",
-                                    "Pick the work zero, as in your CAM set-up",
-                                    "In 6 Animation add the step 'Run G-code program' and pick the program file"])
-        primary(layout, "fresing.cnc_find_axes", "Find the axes", "VIEWZOOM", MEDIUM)
+        steps(layout, context, ["Make slide joints for X, Y and Z (and a rotate joint with Motor ticked for "
+                                f"the spindle) in {where('motion')}",
+                                "Find the axes (or pick them below)",
+                                "Click the tool in the spindle, press Tool; click the workpiece, press "
+                                "Workpiece",
+                                "Pick the work zero, as in your CAM set-up",
+                                f"In {where('animation')} add the step 'Run G-code program' and pick the program "
+                                "file, then press Build & play"],
+              key="fr_how_cnc", used=not why)
+        if hasattr(bpy.types, "FRESING_OT_setup_window"):       # the same steps one at a time, in a window of its own
+            layout.operator("fresing.setup_window", text="Set-up window…", icon="WINDOW").kind = "CNC"
+        gap(layout)
+        big(layout, "fresing.cnc_find_axes", "Find the axes", "VIEWZOOM")
 
         # -- axes
         box = layout.box()
@@ -76,25 +98,27 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
         box.prop_search(cnc, "spindle_joint", s, "joints", text="Spindle", icon="FORCE_VORTEX")
 
         # -- tool and workpiece
+        gap(layout)
         ob = clicked_part(context)
         if ob is not None:
             wrap(layout, context, f"Clicked: {gcode.label(ob)}", icon="RESTRICT_SELECT_OFF")
         else:
             wrap(layout, context, "Nothing clicked: click a part in the view", icon="RESTRICT_SELECT_ON")
-        row = layout.row(align=True)
+        row = layout.row()                      # (names can be long: wrapped beside their button, never cut off)
         sub = row.row(align=True)
         sub.ui_units_x = 5.4
         sub.operator("fresing.cnc_use_tool", text="Tool", icon="RESTRICT_SELECT_OFF")
-        row.label(text=gcode.label(cnc.tool) if cnc.tool else "not picked yet",
-                  icon="CHECKMARK" if cnc.tool else "BLANK1")
-        row = layout.row(align=True)
+        wrap(row, context, gcode.label(cnc.tool) if cnc.tool else "not picked yet",
+             icon="CHECKMARK" if cnc.tool else "BLANK1", inset=PICK_INSET)
+        row = layout.row()
         sub = row.row(align=True)
         sub.ui_units_x = 5.4
         sub.operator("fresing.cnc_use_workpiece", text="Workpiece", icon="RESTRICT_SELECT_OFF")
-        row.label(text=gcode.label(cnc.workpiece) if cnc.workpiece else "not picked yet",
-                  icon="CHECKMARK" if cnc.workpiece else "BLANK1")
+        wrap(row, context, gcode.label(cnc.workpiece) if cnc.workpiece else "not picked yet",
+             icon="CHECKMARK" if cnc.workpiece else "BLANK1", inset=PICK_INSET)
 
         # -- work zero
+        gap(layout)
         col = split_props(layout)
         col.prop(cnc, "zero_mode", text="Work zero")
         if cnc.zero_mode == "POINT":
@@ -111,6 +135,7 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
             except gcode.SetupError as exc:
                 wrap(layout, context, str(exc), icon="ERROR", alert=True)
 
+        gap(layout)
         body = fold(layout, "fr_cnc_machine", "Machine: speeds, zero, shift", icon="PREFERENCES")
         if body:
             wrap(body, context, "Rapid speeds (G0), mm per minute:", icon="FF", inset=12)
@@ -126,6 +151,7 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
                 col.prop(cnc, "accel_y", text="Y accel.")
                 col.prop(cnc, "accel_z", text="Z accel.")
             body.operator("fresing.cnc_read_ini", text="Read from LinuxCNC INI…", icon="FILEBROWSER")
+            gap(body, size=0.5)
             col = split_props(body)
             col.prop(cnc, "zero_shift", text="Shift zero")
             wrap(body, context, "Machine zero (G53, G28; A0 B0 C0): " + ("set to a position of the axes" if cnc.home_set
@@ -135,7 +161,6 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
             row.operator("fresing.cnc_home", text="CAD position").clear = True
 
         draw_air(layout, context, scene, cnc)
-
 
 
 class FRESING_PT_cnc_rotary(_Panel, bpy.types.Panel):
@@ -170,13 +195,17 @@ class FRESING_PT_cnc_rotary(_Panel, bpy.types.Panel):
         s = scene.fresing
         cnc = gcode.settings(scene)
         names = rotary.joint_names(cnc)
-        if not any(names):
-            steps(layout, context, ["Make a rotate joint for each rotary axis in 4 Motion (the rotary table; a "
-                                    "trunnion: its tilt and its table)",
-                                    "Pick it as A (turns about X), B (about Y) or C (about Z) below",
-                                    "Kinematics: Plain, unless your CAM post writes the program for the part as it "
-                                    "lies at A0 B0 C0 (then Tool follows the part)",
-                                    "Press Check: each axis turns through its range in the view"])
+        if not any(names) and not machine_started(cnc):
+            no_machine(layout, context, "Rotary axes belong to")
+            return
+        steps(layout, context, [f"Make a rotate joint for each rotary axis in {where('motion')} (the rotary table; "
+                                "a trunnion: its tilt and its table)",
+                                "Pick it as A (turns about X), B (about Y) or C (about Z) below",
+                                "Kinematics: Plain, unless your CAM post writes the program for the part as it "
+                                "lies at A0 B0 C0 (then Tool follows the part)",
+                                "Press Check: each axis turns through its range in the view"],
+              key="fr_how_cnc_rotary", used=any(names))
+        gap(layout)
         box = layout.box()
         for L in "abc":
             row = box.row(align=True)
@@ -190,23 +219,27 @@ class FRESING_PT_cnc_rotary(_Panel, bpy.types.Panel):
                     col.prop(cnc, f"rapid_{L}", text=f"{L.upper()} rapid °/min")
                     if cnc.use_accel:
                         col.prop(cnc, f"accel_{L}", text=f"{L.upper()} accel. °/s²")
+        gap(layout)
         split_props(layout).prop(cnc, "kinematics", text="Kinematics")
         if cnc.kinematics == "TCP":
             wrap(layout, context, "Tool follows the part only for axes that turn the workpiece; a turning head "
                                   "stays Plain", icon="INFO", inset=12)
         if any(names):
+            gap(layout)
             try:
                 m = gcode.Machine(scene)
                 for line in rotary.describe(m):
                     wrap(layout, context, line, icon="CHECKMARK", inset=12)
             except gcode.SetupError as exc:
                 wrap(layout, context, str(exc), icon="ERROR", alert=True)
-            primary(layout, "fresing.cnc_rotary_check", "Check", "PLAY")
+            gap(layout)
+            big(layout, "fresing.cnc_rotary_check", "Check", "PLAY", BIG)
             for ok, line in rotary.LAST_CHECK[:8]:
                 wrap(layout, context, line, icon="CHECKMARK" if ok else "ERROR", alert=not ok, inset=12)
             wrap(layout, context, "+A (+B, +C): the tool goes round the part right-handed about +X (+Y, +Z); a table "
                                   "turns the other way. Tick Reverse if your post counts the other way",
                  icon="INFO", inset=12)
+
 
 class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
     """4 Motion > CNC machine > Tools (task 0040): the project's tool list."""
@@ -225,8 +258,8 @@ class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
         from . import tools
         cnc = gcode.settings(context.scene)
         if not cnc.tools:
-            return
-        if tools.checks(context.scene):
+            header_status(self.layout, "none")
+        elif tools.checks(context.scene):
             header_status(self.layout, plural(len(cnc.tools), "tool"), icon="ERROR", alert=True)
         else:
             header_status(self.layout, plural(len(cnc.tools), "tool"))
@@ -236,14 +269,19 @@ class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         cnc = gcode.settings(scene)
-        if not cnc.tools:
-            steps(layout, context, ["Press 'Tools from the program' (with a Run G-code program step), read a tool "
-                                    "file, or add tools with +",
-                                    "Pick each tool's type and set its sizes: every tool cuts with its sizes",
-                                    "Optional: show a tool with a part of the model or its STEP model"])
+        if not cnc.tools and not machine_started(cnc):
+            no_machine(layout, context, "Tools belong to")
+            return
+        steps(layout, context, ["Press 'Tools from the program' (with a Run G-code program step), read a tool "
+                                "file, or add tools with +",
+                                "Pick each tool's type and set its sizes: every tool cuts with its sizes",
+                                "Optional: show a tool with a part of the model or its STEP model"],
+              key="fr_how_cnc_tools", used=bool(cnc.tools))
+        gap(layout)
         col = layout.column(align=True)
         col.operator("fresing.cnc_tools_from_program", text="Tools from the program", icon="FILE_SCRIPT")
         col.operator("fresing.cnc_tool_read", text="Read a tool file (Fusion, LinuxCNC)", icon="IMPORT")
+        gap(layout)
         row = layout.row()
         row.template_list("FRESING_UL_cnc_tools", "", cnc, "tools", cnc, "tools_index",
                           rows=list_rows(len(cnc.tools), 3, 8))
@@ -256,7 +294,9 @@ class FRESING_PT_cnc_tools(_Panel, bpy.types.Panel):
         for w in tools.checks(scene)[:3]:
             wrap(layout, context, w, icon="ERROR", inset=12)
         if 0 <= cnc.tools_index < len(cnc.tools):
+            gap(layout)
             draw_tool(layout, context, cnc.tools[cnc.tools_index])
+        gap(layout)
         layout.prop(cnc, "tool_lengths", text="Tool lengths move the spindle")
         layout.prop(cnc, "tool_table", text="Tool table")
 
@@ -299,7 +339,7 @@ class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
             if toolchange.problems(context.scene):
                 header_status(self.layout, f"{what}: check", icon="ERROR", alert=True)
             else:
-                header_status(self.layout, f"{what}, {plural(len(cnc.pockets), 'pot' if what == 'arm' else 'pocket')}")
+                header_status(self.layout, f"{what} {plural(len(cnc.pockets), 'pot' if what == 'arm' else 'pocket')}")
         else:
             header_status(self.layout, "manual")
 
@@ -307,12 +347,17 @@ class FRESING_PT_cnc_changes(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         cnc = gcode.settings(scene)
+        if cnc.changer == "MANUAL" and not cnc.pockets and not machine_started(cnc):
+            no_machine(layout, context, "Tool changes belong to")
+            return
         split_props(layout).prop(cnc, "changer", text="Changer")       # three kinds: a drop-down (labels fit)
+        gap(layout)
         if cnc.changer == "MANUAL":
             draw_change_position(layout, context, cnc)
             wrap(layout, context, "The pause, who changes the tool (a hand or a person) and a caption are set in the "
-                                  "step (6 Animation > Run G-code program > Lines, tool changes …)", icon="INFO",
-                 inset=12)
+                                  f"step ({where('animation')} > Run G-code program > Lines, tool changes …)",
+                 icon="INFO", inset=12)
+            gap(layout)
             draw_operator(layout, context, scene, cnc)
             return
         if cnc.changer == "ARM":
@@ -339,6 +384,7 @@ def draw_operator(layout, context, scene, cnc) -> None:
     row = body.row(align=True)
     row.prop(cnc, "op_button", text="Release button")
     row.prop(cnc, "op_helmet", text="Helmet")
+    gap(body, size=0.5)
     row = body.row(align=True)
     row.operator("fresing.operator_spots", text="Show the spots", icon="EMPTY_SINGLE_ARROW")
     if tc_person.spot(scene, "stand") is not None:
@@ -363,12 +409,13 @@ def draw_change_position(layout, context, cnc) -> None:
 def draw_atc(layout, context, scene, cnc) -> None:
     from . import toolchange
     s = scene.fresing
-    if not cnc.pockets:
-        steps(layout, context, ["Optional: make a rotate joint for the carousel in 4 Motion and pick it below",
-                                "Press 'Click pockets' and click where each tool's holder sits (a carousel: pocket 1 "
-                                "only, then 'Fill the carousel')",
-                                "In Tools, give each tool its pocket (or it stands in the pocket with its T number)",
-                                "Build the animation: the carousel turns, the spindle leaves and takes the tools"])
+    steps(layout, context, [f"Optional: make a rotate joint for the carousel in {where('motion')} and pick it below",
+                            "Press 'Click pockets' and click where each tool's holder sits (a carousel: pocket 1 "
+                            "only, then 'Fill the carousel')",
+                            "In Tools, give each tool its pocket (or it stands in the pocket with its T number)",
+                            "Press Build & play: the carousel turns, the spindle leaves and takes the tools"],
+          key="fr_how_cnc_atc", used=bool(cnc.pockets))
+    gap(layout)
     layout.prop_search(cnc, "carousel_joint", s, "joints", text="Carousel", icon="DRIVER_ROTATIONAL_DIFFERENCE")
     row = layout.row(align=True)
     row.operator("fresing.cnc_pocket_click", text="Click pockets", icon="EYEDROPPER")
@@ -384,6 +431,7 @@ def draw_atc(layout, context, scene, cnc) -> None:
         _HELD.update(toolchange.tool_pockets(scene, [t.number for t in cnc.tools]))
     except Exception:
         pass
+    gap(layout)
     row = layout.row()
     row.template_list("FRESING_UL_cnc_pockets", "", cnc, "pockets", cnc, "pockets_index",
                       rows=list_rows(len(cnc.pockets), 3, 8))
@@ -397,6 +445,7 @@ def draw_atc(layout, context, scene, cnc) -> None:
                  inset=12)
     for w in toolchange.problems(scene)[:3]:
         wrap(layout, context, w, icon="ERROR", alert=True, inset=12)
+    gap(layout)
     col = split_props(layout)
     if cnc.carousel_joint:
         col.prop(cnc, "station", text="Change station")
@@ -404,6 +453,7 @@ def draw_atc(layout, context, scene, cnc) -> None:
     col.prop(cnc, "atc_lift", text="Lift out")
     if cnc.pockets:
         wrap(layout, context, "Tools without a pocket (place 'Bench') are put in by hand", icon="INFO", inset=12)
+    gap(layout)
     body = fold(layout, "fr_cnc_change_pos", "Change position", icon="HOME")
     if body:
         draw_change_position(body, context, cnc)
@@ -435,13 +485,14 @@ def draw_arm(layout, context, scene, cnc) -> None:
     from . import doublearm, toolchange
     s = scene.fresing
     slide, turn = doublearm.arm_joints(scene)
-    if turn is None or not cnc.pockets:
-        steps(layout, context, ["Make a rotate joint for the magazine in 4 Motion and pick it as Magazine",
-                                "Select the arm's subassembly (or nothing: one part), press 'Click the arm's hub' "
-                                "and click its round hub",
-                                "Pots that tip: tick 'Pots tip down', press 'Click the hinge' and click the hinge of "
-                                "the pot under the arm's second claw. Else: 'Click pockets', 'Fill the carousel'",
-                                "Set the change position (the head must go there), then press Check"])
+    steps(layout, context, [f"Make a rotate joint for the magazine in {where('motion')} and pick it as Magazine",
+                            "Select the arm's subassembly (or nothing: one part), press 'Click the arm's hub' "
+                            "and click its round hub",
+                            "Pots that tip: tick 'Pots tip down', press 'Click the hinge' and click the hinge of "
+                            "the pot under the arm's second claw. Else: 'Click pockets', 'Fill the carousel'",
+                            "Set the change position (the head must go there), then press Check"],
+          key="fr_how_cnc_arm", used=turn is not None and bool(cnc.pockets))
+    gap(layout)
     # the arm
     col = layout.column(align=True)
     row = col.row(align=True)
@@ -458,6 +509,7 @@ def draw_arm(layout, context, scene, cnc) -> None:
         sp.prop(cnc, "arm_stroke", text="Pull-out stroke")
         layout.operator("fresing.cnc_arm_read", text="Read from the model", icon="FILE_REFRESH")
     # the magazine
+    gap(layout)
     layout.prop_search(cnc, "carousel_joint", s, "joints", text="Magazine", icon="DRIVER_ROTATIONAL_DIFFERENCE")
     row = layout.row(align=True)
     row.prop(cnc, "pot_tip", text="Pots tip down")
@@ -476,9 +528,11 @@ def draw_arm(layout, context, scene, cnc) -> None:
         row.operator("fresing.cnc_pocket_click", text="Click pockets", icon="EYEDROPPER")
         if cnc.carousel_joint:
             row.operator("fresing.cnc_fill_carousel", text="Fill the carousel", icon="MESH_CIRCLE")
+    gap(layout)
     _pocket_list(layout, context, scene, cnc)
     wrap(layout, context, "Random pockets: the old tool goes into the pot the new one came from. The list shows "
                           "where the tools are at frame 1", icon="INFO", inset=12)
+    gap(layout)
     col = split_props(layout)
     if cnc.carousel_joint:
         col.prop(cnc, "station", text="Change station")
@@ -487,6 +541,7 @@ def draw_arm(layout, context, scene, cnc) -> None:
     draw_change_position(layout, context, cnc)
     for w in toolchange.problems(scene)[:3]:
         wrap(layout, context, w, icon="ERROR", alert=True, inset=12)
+    gap(layout)
     body = fold(layout, "fr_cnc_arm_times", "Times (as on the machine)", icon="TIME")
     if body:
         col = split_props(body)
@@ -497,7 +552,8 @@ def draw_arm(layout, context, scene, cnc) -> None:
             col.prop(cnc, "pot_tip_time", text="Pot tips")
         if cnc.carousel_joint:
             col.prop(cnc, "pocket_time", text="Turn per pot")
-    primary(layout, "fresing.cnc_arm_check", "Check", "PLAY")
+    gap(layout)
+    big(layout, "fresing.cnc_arm_check", "Check", "PLAY", BIG)
     for ok, line in doublearm.LAST_CHECK[:6]:
         wrap(layout, context, line, icon="CHECKMARK" if ok else "ERROR", alert=not ok, inset=12)
 
@@ -542,9 +598,10 @@ def draw_tool(layout, context, tl) -> None:
     if tl.note:
         wrap(box, context, tl.note, icon="INFO", inset=12)
     # its shape
+    gap(box, size=0.5)
     wrap(box, context, "Shown: " + tools.shape_text(tl), icon="HIDE_OFF", inset=12)
     row = box.row(align=True)
-    row.operator("fresing.cnc_tool_part", text="Use clicked part", icon="RESTRICT_SELECT_OFF")
+    row.operator("fresing.cnc_tool_part", text="Use as this tool", icon="RESTRICT_SELECT_OFF")
     if tl.obj is not None or tl.step_mesh is not None:
         row.operator("fresing.cnc_tool_part", text="", icon="X").clear = True
     box.operator("fresing.cnc_tool_step", text="Import STEP of the tool", icon="IMPORT")
@@ -572,8 +629,8 @@ def draw_air(layout, context, scene, cnc) -> None:
     body = fold(layout, "fr_cnc_air", f"Air blast ({state})", icon="FORCE_WIND")
     if not body:
         return
-    wrap(body, context, "Air blows the chips off the part while it is on in the program (chips: 4 Motion > "
-                        "Milling > Chips)", icon="INFO", inset=12)
+    wrap(body, context, "Air blows the chips off the part while it is on in the program (chips: "
+                        f"{where('milling_chips')})", icon="INFO", inset=12)
     col = split_props(body)
     col.prop(cnc, "air_on_code", text="Air on code (M)")
     col.prop(cnc, "air_off_code", text="Air off code (M)")
@@ -582,7 +639,7 @@ def draw_air(layout, context, scene, cnc) -> None:
     if cnc.air_source == "NOZZLE":
         box = body.box()
         row = box.row(align=True)
-        row.operator("fresing.cnc_air_nozzle", text="Use clicked part", icon="RESTRICT_SELECT_OFF")
+        row.operator("fresing.cnc_air_nozzle", text="Use as nozzle", icon="RESTRICT_SELECT_OFF")
         row.operator("fresing.cnc_air_click", text="Click point", icon="EYEDROPPER")
         if cnc.air_nozzle is not None:
             row = box.row(align=True)
@@ -598,6 +655,7 @@ def draw_air(layout, context, scene, cnc) -> None:
             if fb:
                 fb.prop(cnc, "air_tip", text="Tip")
                 fb.prop(cnc, "air_dir", text="")
+    gap(body, size=0.5)
     col = split_props(body)
     col.prop(cnc, "air_strength", text="Strength")
     col.prop(cnc, "air_cone", text="Cone angle")
@@ -611,7 +669,7 @@ def draw_step(context, box, scene, anim, b) -> None:
     box.prop(b, "gcode_file", text="")
     why = gcode.problem(scene)
     if why:
-        wrap(box, context, f"CNC machine: {why} (4 Motion > CNC machine)", icon="ERROR", alert=True, inset=12)
+        wrap(box, context, f"CNC machine: {why} ({where('cnc')})", icon="ERROR", alert=True, inset=12)
     if not b.gcode_file:
         wrap(box, context, "Pick the program your CAM wrote for the machine (LinuxCNC: .ngc)", icon="INFO", inset=12)
         return
@@ -647,6 +705,7 @@ def draw_step(context, box, scene, anim, b) -> None:
     row.operator("fresing.gcode_report", text="Details", icon="TEXT")
     row.operator("fresing.gcode_reload", text="Read again", icon="FILE_REFRESH")
 
+    gap(box, size=0.5)
     box.row(align=True).prop(b, "gcode_speed", expand=True)
     col = split_props(box)
     if b.gcode_speed == "FASTER":

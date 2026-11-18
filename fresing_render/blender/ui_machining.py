@@ -6,9 +6,11 @@ import bpy
 
 from ..core import chips as chips_core
 from ..core import machining as core
+from ..core.words import plural
 from . import chips, machining
 from .ops_machining import MISSING_LIBRARY, clicked_part
-from .ui import MEDIUM, _has_model, _Panel, big_row, fold, header_status, list_rows, primary, split_props, steps, wrap
+from .ui import (_has_model, _Panel, big, big_row, fold, gap, header_status, hint, list_rows, missing, split_props,
+                 steps, where, wrap)
 
 
 class FRESING_UL_mill_bits(bpy.types.UIList):
@@ -47,13 +49,13 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
         m = machining.settings(context.scene)
         n = len(m.bits)
         if not n and m.workpiece is None:
-            return
-        if not m.enabled:
+            header_status(self.layout, "none")
+        elif not m.enabled:
             header_status(self.layout, "off")
         elif machining.runtime(context.scene).get("error"):
             header_status(self.layout, "problem", icon="ERROR", alert=True)
         else:
-            header_status(self.layout, f"{n} bit{'s' if n != 1 else ''}")
+            header_status(self.layout, plural(n, "bit"))
 
     def draw(self, context):
         layout = self.layout
@@ -62,34 +64,31 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
         if not core.available():
             wrap(layout, context, MISSING_LIBRARY, icon="ERROR", alert=True)
             return
-        if not m.bits and m.workpiece is None:
-            steps(layout, context, ["Click the milling bit in the view, then 'Use as bit'",
-                                    "Click the workpiece (the raw block), then 'Use as workpiece'",
-                                    "Build an animation in 6 Animation that moves the bit through it: "
-                                    "material disappears where the bit cuts"])
+        steps(layout, context, ["Click the milling bit in the view, then 'Use as bit'",
+                                "Click the workpiece (the raw block), then 'Use as workpiece'",
+                                f"In {where('animation')} make an animation that moves the bit through it and "
+                                "press Build & play: material disappears where the bit cuts"],
+              key="fr_how_milling", used=bool(m.bits) and m.workpiece is not None)
+        gap(layout)
         ob = clicked_part(context)
         if ob is not None:
             wrap(layout, context, f"Clicked: {machining.name_of(ob)}", icon="RESTRICT_SELECT_OFF")
         else:
-            wrap(layout, context, "Nothing clicked: click a part in the view", icon="RESTRICT_SELECT_ON",
-                 alert=not (m.bits and m.workpiece))
+            wrap(layout, context, "Nothing clicked: click a part in the view", icon="RESTRICT_SELECT_ON")
 
         # -- bits
-        layout.separator()
+        gap(layout)
         layout.label(text="Bits", icon="MOD_SCREW")
         if m.bits:
             row = layout.row()
             row.template_list("FRESING_UL_mill_bits", "", m, "bits", m, "bits_index",
                               rows=list_rows(len(m.bits), 1, 4))
             row.column(align=True).operator("fresing.mill_remove_bit", text="", icon="REMOVE")
-        if not m.bits:
-            primary(layout, "fresing.mill_add_bit", "Use as bit", "ADD", MEDIUM)
-        else:
-            big_row(layout, MEDIUM).operator("fresing.mill_add_bit", text="Use as bit", icon="ADD")
+        big(layout, "fresing.mill_add_bit", "Use as bit", "ADD")
         bit = m.bits[m.bits_index] if 0 <= m.bits_index < len(m.bits) else None
         if bit is not None and bit.obj is not None:
             box = layout.box()
-            box.label(text=machining.name_of(bit.obj), icon="MOD_SCREW")
+            wrap(box, context, machining.name_of(bit.obj), icon="MOD_SCREW", inset=12)
             if bit.detected:
                 wrap(box, context, f"Read from the part: {bit.detected}", inset=12)
             col = split_props(box)
@@ -104,31 +103,26 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
             box.operator("fresing.mill_flip_bit", text="Tip at the other end", icon="ARROW_LEFTRIGHT")
 
         # -- workpiece
-        layout.separator()
+        gap(layout)
         layout.label(text="Workpiece", icon="MESH_CUBE")
         if m.workpiece is not None:
             wrap(layout, context, machining.name_of(m.workpiece), icon="CHECKMARK", inset=0)
-        if m.workpiece is None and m.bits:
-            primary(layout, "fresing.mill_set_workpiece", "Use as workpiece", "MESH_CUBE", MEDIUM)
-        else:
-            big_row(layout, MEDIUM).operator("fresing.mill_set_workpiece", text="Use as workpiece",
-                                             icon="MESH_CUBE")
+        big(layout, "fresing.mill_set_workpiece", "Use as workpiece", "MESH_CUBE")
 
         # -- finished part (optional)
-        layout.separator()
+        gap(layout)
         layout.label(text="Finished part (optional)", icon="MOD_SOLIDIFY")
         if m.finished is not None:
-            row = layout.row(align=True)
-            row.label(text=machining.name_of(m.finished), icon="CHECKMARK")
+            row = layout.row()
+            wrap(row, context, machining.name_of(m.finished), icon="CHECKMARK", inset=40)
             row.operator("fresing.mill_clear_finished", text="", icon="X")
-            wrap(layout, context, "The bits never cut below it (it is hidden: only used as the limit)",
-                 inset=0)
+            hint(layout, context, "The bits never cut below it (it is hidden: only used as the limit)")
         else:
             layout.operator("fresing.mill_set_finished", text="Use as finished part", icon="MOD_SOLIDIFY")
 
         # -- how it runs
         if m.bits or m.workpiece is not None:
-            layout.separator()
+            gap(layout)
             col = split_props(layout)
             col.prop(m, "detail", text="Detail")
             col.prop(m, "fast_map", text="Fast 3-axis")
@@ -153,13 +147,15 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
             if m.enabled and machining.is_set_up(scene) and rt.get("status"):
                 wrap(layout, context, rt["status"], icon="INFO")
             elif m.enabled and m.bits and m.workpiece is not None and not scene.fresing.anim_baked:
-                wrap(layout, context, "Build an animation in 6 Animation: the bits cut while it plays",
+                wrap(layout, context, f"Press Build & play in {where('animation')}: the bits cut while it plays",
                      icon="INFO")
+            gap(layout)
             row = layout.row(align=True)
             row.operator("fresing.mill_reset", text="Reset workpiece", icon="FILE_REFRESH")
+            gap(layout)
             body = fold(layout, "fr_mill_more", "More")
             if body:
-                body.operator("fresing.mill_stop", text="Stop milling", icon="CANCEL")
+                body.operator("fresing.mill_stop", text="Remove the milling set-up", icon="CANCEL")
 
 
 class FRESING_PT_milling_chips(_Panel, bpy.types.Panel):
@@ -189,6 +185,7 @@ class FRESING_PT_milling_chips(_Panel, bpy.types.Panel):
                                   "workpiece, the table and the machine bed", icon="INFO")
             return
         col.prop(m, "chip_material", text="Material")
+        gap(layout)
         fam, _why = chips.family(scene)
         wrap(layout, context, chips.family_text(scene), icon="MATERIAL", inset=0)
         for item, ob in machining.bits(scene):
@@ -209,9 +206,11 @@ class FRESING_PT_milling_chips(_Panel, bpy.types.Panel):
             wrap(layout, context, f"Air blast {src}: " + air.core.spans_text(air.spans(scene), scene.render.fps),
                  icon="FORCE_WIND")
         else:
-            wrap(layout, context, "No air blast in this animation (4 Motion > CNC machine > Air blast, and the "
+            wrap(layout, context, f"No air blast in this animation ({where('cnc', 'Air blast')}, and the "
                                   "step's 'Blow the part clean')", icon="FORCE_WIND")
+        gap(layout)
         layout.operator("fresing.chips_clear", text="Clear chips", icon="TRASH")
+        gap(layout)
         body = fold(layout, "fr_chips_more", "More")
         if body:
             c = split_props(body)
@@ -242,6 +241,8 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
         r = toolpath.result(scene)
         if r and toolpath.step(scene)[1] is not None:
             header_status(self.layout, f"{r.get('moves', 0):,} moves")
+        else:
+            header_status(self.layout, "not made")
 
     def draw(self, context):
         from ..core import toolpath as tp_core
@@ -252,26 +253,32 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
         rt = toolpath.runtime(scene)
         why = toolpath.problem(scene)
         r_row, f_row = toolpath.picked(scene)
-        if why and not (r_row or f_row):
-            steps(layout, context, ["Above: the raw block as workpiece and the finished part (the CAD part it "
-                                    "becomes) as finished part",
-                                    "4 Motion > CNC machine: the axes, the tool in the spindle, the workpiece and "
-                                    "the work zero; and the tools in its tool list",
-                                    "Pick a roughing and a finishing tool below and press Make toolpath"])
         m = machining.settings(scene)
+        if (m.workpiece is None or m.finished is None) and not rt.get("running"):   # nothing to cut from, or to
+            op = "fresing.mill_set_workpiece" if m.workpiece is None else "fresing.mill_set_finished"
+            missing(layout, context, f"A toolpath cuts the raw block into the finished part. {why}", op=op,
+                    op_text="Use as workpiece" if m.workpiece is None else "Use as finished part")
+            return
+        steps(layout, context, ["Above: the raw block as workpiece and the finished part (the CAD part it "
+                                "becomes) as finished part",
+                                f"{where('cnc')}: the axes, the tool in the spindle, the workpiece and "
+                                "the work zero; and the tools in its tool list",
+                                "Pick a roughing and a finishing tool below and press Make toolpath"],
+              key="fr_how_toolpath", used=toolpath.step(scene)[1] is not None)
+        gap(layout)
         col = layout.column(align=True)
-        col.label(text=f"Stock: {machining.name_of(m.workpiece) if m.workpiece else '–'}", icon="MESH_CUBE")
-        col.label(text=f"Finished part: {machining.name_of(m.finished) if m.finished else '–'}",
-                  icon="MOD_SOLIDIFY")
+        wrap(col, context, f"Stock: {machining.name_of(m.workpiece) if m.workpiece else '–'}", icon="MESH_CUBE")
+        wrap(col, context, f"Finished part: {machining.name_of(m.finished) if m.finished else '–'}",
+             icon="MOD_SOLIDIFY")
 
-        layout.separator()
+        gap(layout)
         layout.label(text="Tools", icon="MOD_SCREW")
         col = split_props(layout)
         col.prop(tp, "rough_tool", text="Roughing")
         col.prop(tp, "finish_tool", text="Finishing")
         wrap(layout, context, f"Allowed: {tp_core.KIND_TEXT}", icon="INFO", inset=0)
 
-        layout.separator()
+        gap(layout)
         col = split_props(layout)
         if r_row is not None:
             col.prop(tp, "leave", text="Leave stock")
@@ -283,6 +290,7 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
         col.prop(tp, "detail", text="Detail")
         col.prop(tp, "coolant", text="Coolant")
 
+        gap(layout)
         body = fold(layout, "fr_toolpath_feeds", "Speeds and feeds")
         if body:
             c = split_props(body)
@@ -298,20 +306,21 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
                 c.prop(tp, "finish_rpm", text="Finishing rpm")
                 c.prop(tp, "finish_feed", text="Finishing feed")
 
-        layout.separator()
+        gap(layout)
         if rt.get("running"):
-            row = big_row(layout, MEDIUM)
-            row.label(text=f"{rt.get('text', 'Working')} … {rt.get('progress', 0.0) * 100:.0f}%", icon="SORTTIME")
-            row.operator("fresing.toolpath_cancel", text="Cancel", icon="CANCEL")
+            wrap(layout, context, f"{rt.get('text', 'Working')} … {rt.get('progress', 0.0) * 100:.0f}%",
+                 icon="SORTTIME")
+            big(layout, "fresing.toolpath_cancel", "Cancel", "CANCEL")
             return
         if why:
             wrap(layout, context, why, icon="ERROR", alert=bool(r_row or f_row))
-        row = big_row(layout)
+        row = big_row(layout)                       # (grey: the section's one blue button is Build & play)
         row.enabled = not why
-        row.operator("fresing.toolpath_make", text="Make toolpath", icon="PLAY", depress=not why)
+        row.operator("fresing.toolpath_make", text="Make toolpath", icon="PLAY")
         lines = toolpath.result_lines(scene)
         a, b = toolpath.step(scene)
         if lines and b is not None:
+            gap(layout)
             box = layout.box()
             for k, line in enumerate(lines):
                 wrap(box, context, line, icon="CHECKMARK" if k == 0 else "NONE", inset=12)
@@ -319,7 +328,7 @@ class FRESING_PT_milling_toolpath(_Panel, bpy.types.Panel):
             if res.get("undercut"):
                 wrap(box, context, res["undercut"], icon="ERROR", inset=12)
             wrap(box, context, f"Step '{b.name or 'Run G-code program'}' in the animation '{a.name}' (Fit into "
-                               f"{b.gcode_fit:g} s: change it in 6 Animation)", icon="SEQUENCE", inset=12)
+                               f"{b.gcode_fit:g} s: change it in {where('animation')})", icon="SEQUENCE", inset=12)
             box.operator("fresing.toolpath_go_step", text="Show its step", icon="SEQUENCE")
 
 
