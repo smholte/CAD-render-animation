@@ -24,9 +24,19 @@ CRANE = os.path.join(DATA, "test_crane_a.step")
 FORBIDDEN = re.compile(r"\b(" + "|".join(re.escape(w) for w in lifting.FORBIDDEN_WORDS) + r")\b", re.I)
 
 
-def _mods():
-    if not hasattr(bpy.types.Scene, "fresing"):
+@pytest.fixture(scope="module", autouse=True)
+def registered():
+    """Registered for this file only: the next file in the same pytest run registers by itself (found on GitHub)."""
+    mine = not hasattr(bpy.types.Scene, "fresing")
+    if mine:
         fresing_render.register()
+    yield
+    if mine:
+        bpy.ops.wm.read_homefile(use_empty=True)
+        fresing_render.unregister()
+
+
+def _mods():
     from fresing_render.blender import lifting as BL
     return BL
 

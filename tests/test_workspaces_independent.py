@@ -44,7 +44,7 @@ GANTRY = os.path.join(DATA, "test_gantry.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
 
 BUILT_IN = ("All functions", "CNC & machining", "Offshore & cable laying", "Product design & R&D", "Client view",
-            "Education & training", "Full access")
+            "Education & training", "Lifting plans", "Full access")      # Lifting plans: task 0201
 _BEFORE: dict = {}           # Blender as it was before the extension was registered (handlers, the patched draws)
 
 
@@ -436,6 +436,9 @@ def test_the_built_in_workspaces_show_and_hide_what_the_brief_says():
                         ["structure", "cleanup", "looks", "faces", "motion", "cnc", "cables", "animation", "labels",
                          "props", "web3d"]),
         "Education & training": (["motion", "cnc", "milling", "cables", "animation", "camera"], []),
+        "Lifting plans": (["lifting", "lifting_equipment", "lifting_load", "lifting_hook", "import", "structure",
+                           "looks", "scene", "animation", "queue"],
+                          ["cnc", "milling", "cables", "spools", "vessel_motion", "cylinders"]),    # task 0201
         "All functions": ([n[len("FRESING_PT_"):] for n in places.SECTIONS], []),
         "Full access": ([n[len("FRESING_PT_"):] for n in places.SECTIONS], []),
     }
