@@ -214,8 +214,8 @@ def test_readout_past_the_last_row_is_red_with_the_reason():
     rig, charts = LR.Rig(data_of(name)), charts_of(name)
     ro = LR.readout(rig, {"Luff": 0.0}, charts, {}, load_kg=1000.0)     # boom flat: 10.6 m, the chart ends at 9 m
     assert ro.status == lifting.RED and ro.capacity is None and "outside the chart" in ro.reason
-    ro = LR.readout(rig, {"Luff": 60.0}, [], {}, load_kg=1000.0)
-    assert ro.status == lifting.RED and "no load chart" in ro.reason
+    ro = LR.readout(rig, {"Luff": 60.0}, [], {}, load_kg=1000.0)     # task 0203: no chart = not checked (grey)
+    assert ro.status == lifting.NOT_CHECKED and "no load chart" in ro.reason and ro.words == LR.NO_CHART_WORDS
 
 
 def test_outrigger_spread_from_the_pose():
