@@ -4114,6 +4114,44 @@ stop("usage", OUT, HUB_SET, "Favourites bar and My usage",
      where="Fresing menu > My usage…; the favourites bar under the Workspace row", since="0.2.158",
      shot="Tour view", check=_check_usage, auto=lambda ctx, scene, st: "")
 
+def _check_learn(scene):
+    """Learn as you go (task 0208): its buttons, the menu line, and its rules on a made-up user (the user's own usage
+    file is never touched by the tour)."""
+    import bpy
+
+    from ..core import learning as L
+    from ..core import places
+    from ..core import usage as core
+    from . import ui_topbar
+    for op in ("learn_show", "learn_add", "learn_add_new", "learn_done", "learn_remove", "learn_next", "learn_window"):
+        _check(hasattr(bpy.ops.fresing, op), f"the button fresing.{op} is missing")
+    _check("fresing.learn_window" in ui_topbar.entries(), "My learning list… is not in the Fresing menu")
+    s = core.fresh()
+    for _ in range(3):
+        core.count_click(s, "fresing.turntable", core.function_for("fresing.turntable"), today="2026-11-01")
+    s["sessions"] = core.THRESHOLD_DEFAULT
+    panel = core.declutter_candidate(s, set(core.F.FUNCTIONS), set(), titles=set(places.PLACES))
+    fid = L.target_of_panel(panel)
+    _check(bool(fid), f"the question about '{panel}' has nothing to teach")
+    _check(L.add(s, fid), "a function does not go on the learning list")
+    got = []
+    for day in ("2026-11-02", "2026-11-03", "2026-11-04"):
+        got += core.count_click(s, "x", fid, today=day)
+    _check(got == [fid] and L.find(s, fid)["done"], "a function used on 3 days is not ticked by itself")
+    nxt = L.candidates(s, set(core.F.FUNCTIONS), set())
+    _check(bool(nxt), "no 'next to learn' for a user of the turntable")
+    return f"'{L.one_line(fid)}' taught, listed and ticked after 3 days; next to learn: '{L.one_line(nxt[0][0])}'"
+
+
+stop("learn", OUT, HUB_SET, "Learn as you go: teach, learning list, next to learn",
+     "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the test tour and Add to my "
+     "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
+     "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "
+     "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
+     "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
+     where="Fresing menu > My learning list…; the question at the top of the Fresing tab; the What's next card",
+     since="0.2.159", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+
 # ---------------------------------------------------------------------------
 # building the tour
 # ---------------------------------------------------------------------------

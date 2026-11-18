@@ -262,7 +262,7 @@ def s_after_sort():
     return 0.8
 
 
-point_and_wait("hide", "FRESING_PT_favourites", "fresing.usage_declutter", "Hide")
+point_and_wait("hide", "FRESING_PT_favourites", "fresing.usage_declutter", "Hide it")
 
 
 STEPS.append(lambda: hover_found())
@@ -321,6 +321,72 @@ def s_reset():
           not mod("blender.workspaces").panel_hidden(bpy.context.scene, panel), panel)
     check("... and no personal hides are left", usage().state()["hidden"] == [], usage().state()["hidden"])
     return 0.3
+
+
+@step
+def s_learn_ask():
+    """Task 0208: a second question, this time answered with the learning list."""
+    us = usage()
+    us.state()["learning"] = mod("core.learning").fresh()          # an earlier run's list stays in the file
+    S["panel2"] = "FRESING_PT_xray" if S["asked"] != "FRESING_PT_xray" else "FRESING_PT_decals"
+    us._S["prompt"] = S["panel2"]
+    S["fid2"] = mod("core.learning").target_of_panel(S["panel2"])
+    check("the second question has a function to teach", bool(S["fid2"]), S["panel2"])
+    with override(side=True):
+        bpy.ops.view2d.scroll_up(page=True)
+    redraw()
+    return 0.8
+
+
+point_and_wait("learn_guide", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the guide")
+point_and_wait("learn_tour", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the test tour")
+point_and_wait("learn_list", "FRESING_PT_favourites", "fresing.usage_declutter", "Add to my learning list")
+
+
+@step
+def s_shot_learn():
+    grab_side("06_learn_question.png")
+    return 0.1
+
+
+STEPS.append(lambda: hover_found())
+
+
+@step
+def s_click_learn():
+    return click_found()
+
+
+@step
+def s_after_learn():
+    us = usage()
+    L = mod("core.learning")
+    s = us.state()
+    check("Add to my learning list puts the function on the list", L.find(s, S["fid2"]) is not None, S["fid2"])
+    check("... the question is gone and nothing was hidden", us.prompt() == "" and s["hidden"] == [], s["hidden"])
+    before = len(s["learning"]["list"])
+    with override():
+        bpy.ops.fresing.learn_add_new(since="0.2.100")
+    check("What's new adds the new functions to the list", len(s["learning"]["list"]) > before,
+          len(s["learning"]["list"]))
+    with override():
+        bpy.ops.fresing.learn_window("INVOKE_DEFAULT")
+    return 1.0
+
+
+@step
+def s_learn_window_shot():
+    win = ui()[0]
+    subprocess.run(["import", "-window", "root", os.path.join(OUT, "07_learning_list.png")], check=False)
+    win.event_simulate(type="ESC", value="PRESS", x=win.width // 2, y=win.height // 2)
+    return 0.4
+
+
+@step
+def s_learn_window_close():
+    win = ui()[0]
+    win.event_simulate(type="ESC", value="RELEASE", x=win.width // 2, y=win.height // 2)
+    return 0.5
 
 
 @step

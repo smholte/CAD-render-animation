@@ -157,6 +157,17 @@ fn(id="usage.favourites", title="Favourites bar: your most used buttons on top",
 fn(id="usage.declutter", title="Offer to hide what you never use", family="panel", panel="FRESING_PT_favourites",
    button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158")
 
+# task 0208: learn as you go
+fn(id="learn.question", title="Learn what you never use: show it in the guide or the test tour, or list it for later",
+   family="panel", panel="FRESING_PT_favourites", button="fresing.learn_show", guide="learn-as-you-go",
+   tour=("learn",), pccheck=("app.learning",), since="0.2.159")
+fn(id="learn.list", title="My learning list: guide, test tour and done, ticked by itself after use on 3 days",
+   family="help", panel="TOPBAR_MT_fresing", button="fresing.learn_window", guide="learning-list", tour=("learn",),
+   pccheck=("app.learning",), since="0.2.159")
+fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the What's next card", family="panel",
+   panel="FRESING_PT_next", button="fresing.learn_next", guide="next-to-learn", tour=("learn",),
+   pccheck=("app.learning",), since="0.2.159")
+
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",

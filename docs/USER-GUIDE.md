@@ -306,7 +306,7 @@ same folder as your preferences; **My usage > Show the file** opens it). It hold
 function's button and opened each panel, how many times the app was started, the active time per stage, the
 estimated time saved, your pins and the panels you hid. It holds no part names, no file names and nothing of your
 models. It belongs to your Windows user and stays when the app is updated. **Track my usage** (in My usage) switches
-the counting off; **Clear my usage data** deletes what was counted (your pins and hidden panels stay). The test
+the counting off; **Clear my usage data** deletes what was counted (your pins, hidden panels and learning list stay unless you tick the list). The test
 runs, the PC check and the render queue never count.
 
 <a id="favourites"></a>
@@ -330,20 +330,60 @@ The bar shows only functions your workspace shows, and only once it has buttons:
 after a few starts.
 
 <a id="declutter"></a>
-### Hide what you never use
+### A panel you never use: learn it or hide it
 
 When you have not used a panel in **10 app starts** (a setting in My usage), a quiet question appears at the top of
-the Fresing tab: *"You haven't used Way covers recently. Hide it to clean up your workspace?"*
+the Fresing tab: *"You haven't used Way covers recently. Maybe you do not know it yet?"* – with what the function does
+in one line, and:
 
-- **Hide** – the panel goes out of your side panel, in every workspace except **Full access**.
+<img class="panel" src="img/learn_question.png" alt="The question about an unused panel: Show me in the guide, Show me in the test tour, Add to my learning list, Hide it, Not now, Don't ask again">
+
+- **Show me in the guide** – opens the user guide at that function's section.
+- **Show me in the test tour** – sets up the test tour's stop for it and points at its button (greyed, with the reason,
+  when the tour has no stop for it; if the tour is not made yet it says so).
+- **Add to my learning list** – you come back to it later ([the list](#learning-list)).
+- **Hide it** – the panel goes out of your side panel, in every workspace except **Full access**.
 - **Not now** – the panel stays; it is not asked about again.
-- **Don't ask again** – no more questions (switch them back on with **Offer to hide unused panels** in My usage).
+- **Don't ask again** – no more questions (switch them back on with **Offer to hide unused panels** and **Offer to
+  teach unused functions** in My usage). With teaching switched off the question only offers to hide, as before.
 
-At most one question per start, each panel once. **Never about a panel the open project uses**: a project with a
-way cover shows Way covers even when you hid it, and is never asked about it. Hiding changes nothing in the
-project or in renders, and it does not change the workspace itself – it is your own layer on top. To undo it:
-**Workspace > Back as it came** (it shows how many panels you hid) or **My usage > Back to the workspace as it
-came**: your hidden panels show again and your pins are dropped.
+The first three also put the function on your learning list. At most one question per start, each panel once.
+**Never about a panel the open project uses**: a project with a way cover shows Way covers even when you hid it, and
+is never asked about it. Hiding changes nothing in the project or in renders, and it does not change the workspace
+itself – it is your own layer on top. To undo it: **Workspace > Back as it came** (it shows how many panels you hid)
+or **My usage > Back to the workspace as it came**: your hidden panels show again and your pins are dropped.
+
+<a id="learn-as-you-go"></a>
+### Learn as you go
+
+A function you never use may be one you do not know yet – not one you do not want. So the app offers to **teach** it as
+readily as to hide it, and keeps a short list of what you want to learn. Everything stays on your PC, like your usage
+counts. There are three ways onto the list: the question above; a **right-click on any button** that belongs to a
+function (**Add to my learning list**); and **What's new** after an update (**Add the new functions to my learning
+list**). Switch the whole thing off with **Offer to teach unused functions** and **Suggest what to learn next** in My
+usage.
+
+<a id="learning-list"></a>
+### My learning list
+
+**Fresing > My learning list…** opens the list.
+
+<img class="panel" src="img/learning_list.png" alt="My learning list: each function with Guide, Tour, a greyed Show me, Done and a cross">
+ Each line has the function's name and **Guide** (its section in this
+guide), **Tour** (its stop in the test tour, with the button pointed at), **Done** (tick it yourself; click again to take
+the tick away) and a cross (take it off). A greyed **Show me** is where the lessons will come later. **A function is
+ticked by itself when you use it on 3 different days** (a setting in My usage: *Days of use = learned*); the list says so
+once: *"You've got the hang of …"*. **Clear my usage data** asks whether to clear the list too; the list only goes in an
+exported profile when you include your usage counts.
+
+<a id="next-to-learn"></a>
+### Next to learn
+
+Now and then – at most once per start – the **What's next** card has one quiet line: *"Next to learn: Way covers – you
+work with Machine motion, and have not tried this yet"*, with **Learn** (puts it on your list and opens its guide section)
+and **Not interested** (never suggested again). It picks, by plain rules and without looking at your models: a function
+that your workspace shows, in a kind of work you already use, that you never used, did not hide or turn down, and the open
+project does not use. Switch it off with **Suggest what to learn next** in My usage.
 
 <a id="my-usage"></a>
 ### My usage
@@ -364,7 +404,8 @@ came**: your hidden panels show again and your pins are dropped.
    worked out ("about 5 s per part by hand: pick the part and give it its material"). **This is not a measurement**:
    it is the number of uses counted here times a guess of the manual work – the guesses are in the app's function
    list and can be changed.
-5. **Unused panels** – the questions on/off and after how many starts; **Back to the workspace as it came**.
+5. **Unused panels** – the questions on/off (hide, teach, suggest what to learn next), after how many starts, days of use
+   that count as learned, **My learning list…** and **Back to the workspace as it came**.
 6. **Export profile… / Import profile… / Clear my usage data**.
 
 <a id="usage-profiles"></a>

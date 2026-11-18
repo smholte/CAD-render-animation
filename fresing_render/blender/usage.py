@@ -137,7 +137,9 @@ def record(idname: str, op=None, context=None) -> str:
         f = F.FUNCTIONS.get(fid)
         if f is not None and f.manual_estimate:
             saved = core.estimate_seconds(fid, _parts(context) if f.manual_estimate[0] == "part" else 0)
-    core.count_click(s, idname, fid, saved)
+    learned = core.count_click(s, idname, fid, saved, datetime.date.today().isoformat())
+    if learned:
+        _S["learned"] = True
     CLOCK.tick(s, stage=core.stage_of(fid) if fid else "")
     if fid and fid == _S["go"]:
         _end_go()
@@ -383,8 +385,8 @@ def reset(scene) -> None:
     apply_personal(scene)
 
 
-def clear() -> None:
-    _S["state"] = core.clear(state())
+def clear(with_list: bool = False) -> None:
+    _S["state"] = core.clear(state(), with_list)
     CLOCK.last, CLOCK.stage = None, ""
     changed()
     save()
