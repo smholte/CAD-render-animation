@@ -1515,20 +1515,46 @@ def run_check(scene, clash: bool = True) -> list:
     return problems
 
 
+def hook_parts(scene) -> set:
+    """Names of the hook block's parts and the rope: they hang where the hoist puts them."""
+    out = set()
+    h = first(scene, "hoist")
+    objs = list(joints.members(h)) if h is not None else []
+    cs = settings(scene)
+    for n in (cs.hook_part, cs.rope_part):
+        if n:
+            objs += objects_of(scene, n, many_ok=True)[0]
+    for ob in objs:
+        for o in [ob] + list(logic.descendants(ob)):
+            out.update((o.name, name_of(o)))          # the clash rows name parts by their CAD names
+    return out
+
+
 def clash_problems(scene, data) -> list:
-    """The clash check (6 Animation > Clash check) on the crane's own motion: every driven joint from its Min to its
-    Max and back, one after the other, built as a check animation that is taken away again."""
+    """The clash check (6 Animation > Clash check) on the crane's own motion, built as a check animation that is
+    taken away again: every saved pose of the crane in turn (everything counts), then every driven joint from its Min
+    to its Max and back with the others at 0 – there the hook block hangs wherever the rope happens to be (fully up),
+    so its rows are left out: where it hangs is the poses' business."""
     from ..core import lifting_setup as LS
     from . import animation, clash, states
     s = scene.fresing
-    drive = [j for j in crane_joints(scene) if not j.follows and j.role not in ("swing", "track")]
+    drive = [j for j in crane_joints(scene) if not j.follows and j.role not in ("swing", "track", "hoist")]
+    own = {j.name for j in crane_joints(scene)}
+    poses = [p.name for p in s.poses if any(pj.joint in own for pj in p.joints)]
     steps, t = [], 0.0
+    hanging = hook_parts(scene)
     states.save_pose(scene, "FR crane check start")
     try:
         a = s.animations.add()
         a.name = "FR crane check"
         a.fps = "25"
         a.tail = 0.0
+        for name in poses:
+            b = a.blocks.add()
+            b.kind, b.start, b.duration, b.easing = "POSE", t, 1.0, "LINEAR"
+            b.name = b.pose = name
+            steps.append((t, t + 1.0, "poses", True))
+            t += 1.0
         for j in drive:
             lo, hi = joints.limits(j)
             if not j.use_limits or hi - lo <= 0:
@@ -1542,31 +1568,36 @@ def clash_problems(scene, data) -> list:
                     b.to_angle = to
                 else:
                     b.to_dist = to
-                steps.append((t, t + 1.0, j.role))
+                steps.append((t, t + 1.0, j.role, False))
                 t += 1.0
         if not steps:
             return []
-        a.start_shot = ""
         s.animations_index = list(s.animations).index(a)
         animation.bake(scene, a)
         scene.frame_set(scene.frame_start)
         run = clash.check(scene)
-        out = []
+        out, seen = [], set()
         fps = 25.0
         for r in run.rows:
             if r.kind != "CLASH":
                 continue
             sec = (r.frame_from - scene.frame_start) / fps
-            role = next((rl for t0, t1, rl in steps if t0 <= sec <= t1), "")
-            out.append(LS.Problem(role or "check", f"{r.a} × {r.b} clash by {r.depth * 1000:.1f} mm while "
-                                                   f"{ROLE_WORDS.get(role, 'a joint').lower()} moves", "red"))
+            hit = next(((rl, is_pose) for t0, t1, rl, is_pose in steps if t0 <= sec <= t1), ("", False))
+            role, is_pose = hit
+            if not is_pose and (r.a in hanging or r.b in hanging):
+                continue
+            key = (r.a, r.b, role)
+            if key in seen:
+                continue
+            seen.add(key)
+            what = "in a pose" if is_pose else f"while {ROLE_WORDS.get(role, 'a joint').lower()} moves"
+            out.append(LS.Problem(role or "check", f"{r.a} × {r.b} clash by {r.depth * 1000:.1f} mm {what}", "red"))
         return out
     finally:
         animation.clear_keys(scene)
         i = s.animations.find("FR crane check")
         if i >= 0:
             s.animations.remove(i)
-        k = s.poses.find("FR crane check start")
-        if k >= 0:
+        if s.poses.find("FR crane check start") >= 0:
             states.apply_pose(scene, "FR crane check start")
             s.poses.remove(s.poses.find("FR crane check start"))

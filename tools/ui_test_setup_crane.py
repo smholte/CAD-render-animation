@@ -102,7 +102,7 @@ def step(fn):
 def new_project(step_path=None):
     with override():
         bpy.ops.wm.read_homefile(use_empty=True)
-    sc = bpy.context.scene
+    sc = main_window().scene          # (in a timer right after a load, bpy.context.scene can still be None)
     mod("blender.workspaces").use_all(sc)
     sc.fresing.out_folder = os.path.join(OUT, "work")
     mod("blender.lifting").forget()
