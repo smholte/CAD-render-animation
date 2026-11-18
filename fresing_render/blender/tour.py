@@ -3407,8 +3407,18 @@ def build_crane_setup(b: Build):
             from . import states
             states.apply_pose(sc, name)
     _update()
-    _camera(b, "ISO", "Tour crane set-up", lens=35.0, points=_lifting_points(sc))
+    _camera(b, "ISO", "Tour crane set-up", lens=35.0, points=_crane_points(sc))
     _shot(b, "@crane_setup")
+
+
+def _crane_points(scene):
+    """Every part's box corners (the camera frames the whole crane)."""
+    import numpy as np
+
+    from . import build
+    pts = [np.array(ob.matrix_world) @ np.r_[np.asarray(c, float), 1.0] for ob in build.iter_parts(scene)
+           for c in ob.bound_box]
+    return np.array([p[:3] for p in pts])
 
 
 def _check_crane_setup(scene):
