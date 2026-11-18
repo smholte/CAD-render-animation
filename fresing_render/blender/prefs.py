@@ -74,6 +74,11 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                     "face a click would use lights up in magenta with a short note, before you click. Switch it off "
                     "if it ever gets in the way; the clicks work the same")
 
+    lifting_understood: BoolProperty(
+        name="Lifting plans: planning aid understood", default=False,
+        description="You ticked 'I understand' the first time you opened 8 Lifting plan: the app checks a lifting plan "
+                    "against the data entered in it, not against the real equipment, ground or load")
+
     live_preview: BoolProperty(
         name="Live preview was on", default=False, options={"HIDDEN"},
         description="Remembers the last choice of the Live preview button (5 Scene & Render), so the test tour and "

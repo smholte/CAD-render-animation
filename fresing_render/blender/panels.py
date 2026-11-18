@@ -33,14 +33,14 @@ from bpy.props import EnumProperty, StringProperty
 from ..core import places
 
 CATEGORY = "Fresing"
-SECTIONS = list(places.SECTIONS)             # the seven section classes, in order
+SECTIONS = list(places.SECTIONS)             # the section classes, in order (8 since task 0201)
 _ALL_OPEN = bool(os.environ.get("FRESING_UI_OPEN_FOLDS"))
 
 PARENT: dict = {}            # panel class name -> its parent's ("" for a top panel), read from the classes
 TITLE: dict = {}             # panel class name -> bl_label
 DEFAULT_OPEN: set = set()    # what is open when nothing was changed: sub-panels without DEFAULT_CLOSED, top notices
 OPEN: set = set()            # what is open now
-_TAB = {"v": "ALL"}          # the section tab: "ALL" or "1" … "7" (a copy of the window manager's, read at every poll)
+_TAB = {"v": "ALL"}          # the section tab: "ALL" or "1" … "8" (a copy of the window manager's, read at every poll)
 _PLAIN = set()               # panels that keep their own (header-less) drawing: the workspace row, the tabs
 
 

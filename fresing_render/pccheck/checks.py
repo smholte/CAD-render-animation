@@ -296,6 +296,54 @@ def faces_painted(ctx):
     return "2 CAD faces, 1 by hand"
 
 
+@line("lifting.place", "Lifting plan: place a crane from the library", "0.2.156",
+      what="The built-in AT-40 sample crane placed beside the test crane (import, joints, cylinders, poses, the hoist "
+           "rope as a cable); every pose of its file puts the hook block where the crane's own kinematics say; a "
+           "second AT-40 gets its own names; Remove leaves nothing of it")
+def lifting_place(ctx):
+    import bpy
+
+    from ..blender import lifting
+    scene = ctx.fresh(CRANE_A)
+    n0 = len(bpy.data.objects), len(scene.fresing.joints)
+    t0 = time.time()
+    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE), (8.0, 0.0, 0.0), math.pi)
+    t_place = time.time() - t0
+    msg = lifting.check_rig(scene)
+    c2 = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE), (-8.0, 0.0, 0.0), 0.0)
+    _check(c2.name == lifting.EXAMPLE_CRANE + " 2", f"the second crane is called '{c2.name}'")
+    names = [j.name for j in scene.fresing.joints]
+    _check(len(names) == len(set(names)), "two joints share a name")
+    lifting.remove(scene, scene.fresing.lifting.cranes[1])
+    lifting.remove(scene, scene.fresing.lifting.cranes[0])
+    _check((len(bpy.data.objects), len(scene.fresing.joints)) == n0, "Remove left something of the cranes behind")
+    ctx.metric("place AT-40", round(t_place, 1), "s")
+    return msg
+
+
+@line("lifting.hook", "Lifting plan: load, CoG and Hook to here", "0.2.156",
+      what="The test crane's boom made the load (1.2 t), its CoG marker worked out from the parts' volumes; the "
+           "AT-40 puts its hook above it with Hook to here; the crane use shown is the chart's at that radius")
+def lifting_hook(ctx):
+    import bpy
+
+    from ..blender import lifting
+    scene = ctx.fresh(CRANE_A)
+    t0 = time.time()
+    c, ld, a = lifting.set_up_example(bpy.context)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    t_all = time.time() - t0
+    cog = lifting.check_cog(scene)
+    t1 = time.time()
+    a = lifting.hook_to(scene, c, lifting.above_load(scene, ld), ld)
+    t_hook = time.time() - t1
+    _check(a.ok, f"Hook to here again: {a.reason}")
+    msg = lifting.check_example(scene)
+    ctx.metric("hook to here", round(t_hook * 1000.0), "ms")
+    ctx.metric("crane + load + hook", round(t_all, 1), "s")
+    return f"{cog}; {msg}"
+
+
 @line("decals.add", "Decals: text and stickers on the model", "0.2.21",
       what="A warning sticker and a text on a flat face, a sticker round a barrel; rendered small")
 def decals_add(ctx):

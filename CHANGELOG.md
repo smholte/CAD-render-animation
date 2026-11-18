@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.156 – 18 Nov 2026 – A new sea state in about 2 seconds; the sea cut-away in the 3D view costs nothing (task 0202)
+## 0.2.157 – 18 Nov 2026 – A new sea state in about 2 seconds; the sea cut-away in the 3D view costs nothing (task 0202)
 
 - **Changing the sea state, the wind or the water clarity is quicker.** The sea's water look and its waves keep what
   they are made of and only take the new numbers: on the demo vessel a new sea state is ready in 2–2.5 s instead of
@@ -14,6 +14,28 @@ installer of that version was built from.
 - **The open box behind the stern in the 3D view no longer slows playing.** 0.2.153 cost about 6 ms a frame on a
   Detailed sea; now it costs nothing measurable. Its edge is a straight wall along the box (no jagged spikes), and the
   hull foam and, with the ground, the seabed and its stones are open there too. Renders are made exactly as before.
+## 0.2.156 – 18 Nov 2026 – Lifting plan: place a crane, the load and its CoG, Hook to here (task 0201)
+
+- **New section 8 Lifting plan** and a new workspace **Lifting plans** (lifting plan, import, structure, looks, scene,
+  animation, render queue – no CNC, milling, cables or sea). The first time you open it, one dialog shows the
+  planning-aid line; click **I understand** (asked once per user).
+- **Equipment – place a crane.** Pick one of the twelve built-in sample cranes (mobile AT-40 … AT-500, crawler
+  CC-100 … CC-1600, knuckle-boom KB-20 … KB-200) or your own from the library folder "Lifting equipment", click
+  **Place…**: the crane comes in rigged (joints, cylinders, poses, crawler tracks, the hoist rope on the hook block)
+  and follows the mouse – the mouse wheel turns it, a click puts it down. Two cranes in one project keep their own
+  names ("AT-40 · Slew", "AT-40 2 · Slew"). Poses move only that crane; **Move…** and **Remove**.
+- **Set-up the chart is picked for:** counterweight and outrigger spread, only the values the crane's charts have; a
+  value in between takes the next safer chart and says so.
+- **Load:** the selected parts (or a box) with their mass – entered with its source, or volume x density as an
+  estimate – and a contingency factor; the gross load is summed (rigging comes later). The **CoG marker** is worked
+  out from the parts' volumes, drawn on top of everything, and can be moved by hand (then marked) or put back.
+- **Hook to here:** click a point – the crane slews, luffs, telescopes (or luffs its jib, folds its knuckle) and pays
+  out the hoist so the hook hangs plumb on it, with the lowest crane use. **Above the load** puts it over the CoG.
+  Out of reach: it says by how much. **Hook & capacity** shows radius, hook height, boom, chart row, capacity, gross
+  load and the **crane use %** in the plan's words (Within / Near / Over entered limits). Built-in cranes carry SAMPLE
+  charts – marked everywhere.
+- Test tour: a new set "Lifting plan" (3 stops). PC check: two new lines, `lifting.place` and `lifting.hook`.
+- For the site kit: the sheet reader now lives in the app (`blender/sheet.py`); the render kit calls it.
 
 ## 0.2.155 – 18 Nov 2026 – Start here: a Fresing menu, a welcome, What's new after an update (task 0199)
 

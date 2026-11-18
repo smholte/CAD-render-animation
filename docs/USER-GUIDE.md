@@ -86,8 +86,9 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 
 <img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the seven sections, folded">
 
-The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work. Above them
-are the **Workspace** row, the **What's next** card, the section tabs and **Make**.
+The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work, and an eighth for
+lifting plans, **8 Lifting plan** ([below](#lifting)). Above them are the **Workspace** row, the **What's next**
+card, the section tabs and **Make**.
 
 Every section works the same way:
 
@@ -143,6 +144,7 @@ the Fresing tab picks what the side panel shows:
 | **Product design & R&D** | looks, exploded views, assembly sequence, cutaway, turntable, web 3D model | CNC, milling, cables, sea, weather |
 | **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
 | **Education & training** | every kind of motion, animation, camera | web 3D model |
+| **Lifting plans** | 8 Lifting plan, import, structure, looks, scene, animation, render queue | CNC, milling, cables, sea, joints by hand |
 | **Full access** | everything, plus Blender's own tabs, toolbar and menus | – |
 
 **Hiding never deletes or switches off anything.** What is set up stays in the project and keeps working
@@ -3838,6 +3840,112 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 - A video's sharp spot stays on its part, also when the part moves during the video or the start scene
   puts it elsewhere.
 
+<a id="lifting"></a>
+## 8 Lifting plan – a crane, the load and the hook
+
+<img class="panel" src="img/panel_8_lifting.png" alt="8 Lifting plan: the planning-aid line, the SAMPLE line and Hook to here">
+
+The first lifting plan in 3D: place a ready-rigged crane from the library on the ground of your project, make the
+parts you want to lift the **load** (or a box), see its weight and its **centre of gravity**, click **Hook to here**
+and the crane slews, luffs and telescopes so its hook hangs above the load – with the **crane use** at that radius
+from the crane's own chart. The section shows in the workspace **Lifting plans** (and in All functions and Full
+access), never in the Client view.
+
+**The words the app uses.** The app checks a plan only against the data entered in it: the line at the top of the
+section says so every time – *"Planning aid only. Fresing Render checks this plan against the data entered in it, not
+against the real equipment, ground or load. The plan must be checked and approved by a competent person (for example
+the appointed person or lift director) before any lift."* A crane use is *Within entered limits* (green, below 75 %),
+*Near entered limit* (orange, 75 – 100 %) or *Over entered limit* (red, above 100 % or no capacity there).
+
+<a id="lifting-first-use"></a>
+### First use: I understand
+
+The first time you open 8 Lifting plan, the section shows only the planning-aid line and **Start the Lifting
+plan…**. It opens a dialog with the line and the SAMPLE note; click **I understand**. Nothing of the section works
+before that. The app remembers it for you (a preference), so it asks once per user, not per project.
+
+<a id="lifting-place"></a>
+### Equipment: place a crane
+
+<img class="panel" src="img/panel_8_lifting_equipment.png" alt="Equipment: the placed AT-40, its poses, the counterweight and outrigger spread its chart is picked for">
+
+1. Open **Equipment**. Under **Add a crane from the library** the cranes that come with the app are listed by kind
+   (mobile, crawler, knuckle-boom) and size class, then your own items from the library folder **Lifting equipment**
+   (see [Own lifting equipment](#lifting-equipment)). An item with a problem in its file shows the problem in red and
+   cannot be placed.
+2. Click a crane: its picture shows. Click **Place AT-40…** (or **Place a crane…** at the top of the section).
+3. The crane's model is read (Normal detail; Esc cancels) and rigged: joints, cylinders, its poses, crawler tracks
+   that run, the hoist rope as a cable that ends on the hook block. Then it **follows the mouse** over the ground,
+   a deck or any surface: **turn the mouse wheel** to turn it (15° a step), **click** where its slew axis should stand.
+   **Esc** or a right-click takes it out again.
+
+Every joint, cylinder, pose and cable of a placed crane carries its name – "AT-40 · Slew", "AT-40 · Working" – so
+two cranes in one project (even two of one class: "AT-40" and "AT-40 2") never mix. The list of placed cranes is
+at the top of Equipment: click one to work with it. **Move…** places it again (the same mouse, wheel and click; Esc
+puts it back), **Remove** takes it out of the project with its joints, cylinders, poses and model.
+
+<a id="lifting-setup"></a>
+**Pose and set-up.** The **Pose** buttons are the poses of the crane's file (Travel, Set up, Working, Long reach …):
+a pose moves only this crane. Under **Set-up the chart is picked for** choose the **counterweight** the crane
+carries and the **outrigger spread** (by default read from the pose: how far the beams are out). The buttons show
+only the values the file's charts have. A value between two of them (6 t between the 4 t and 8 t charts) takes the
+**next safer chart** – less counterweight, a narrower spread – and Hook & capacity says so. A combination the file
+has no chart for steps the counterweight down, then the spread, and says that too. The boom length comes from the
+pose (the next longer boom's chart); a crawler's boom and jib are the model's.
+
+If the crane's equipment file changes after you placed it (its charts edited), the panel says so in red: the new
+charts are used, check the plan again.
+
+<a id="lifting-load"></a>
+### Load: what is lifted, its mass
+
+<img class="panel" src="img/panel_8_lifting_load.png" alt="Load: the test crane's boom as the load, its mass, the gross load and the CoG">
+
+1. Select the parts or sub-assemblies to lift (in the 3D view or the Structure list) and click **Use selected
+   parts**. A part can be in one load only; a placed crane cannot be a load. Or click **Box…** and type length,
+   width, height and mass: a box stands at the 3D cursor.
+2. **Mass:** *Entered* – type it in t and say where it comes from (**Weighed**, **Drawing**, **Estimate**); or
+   *Volume x density* – each part's solid volume times a density per material group (steel 7850 kg/m³, aluminium
+   2700 …, from its look; change it in the fold under the mass). That one is always marked **estimate**.
+3. **Contingency**: the load's mass is multiplied by it (1.0 for a weighed load, up to 1.3 for an estimate).
+
+The box under it sums the **gross load**: load x contingency, + rigging (0 t: slings come in a later version), + the
+hook block when the chart does not include it.
+
+<a id="lifting-cog"></a>
+**The centre of gravity.** The CoG is worked out from the parts' solid volumes and densities and drawn as the usual
+CoG symbol – a circle of black and white quarters with "CoG" – on top of everything (never in renders). It rides with
+the load. A part that is not a closed solid counts with its box and is named under the mass. **Move** lets you put
+the marker by hand (move the mouse, click to drop): it is then marked **set by hand** and Hook to here uses it.
+**Back to computed** puts it back. **Work out again** reads the parts again after they or their groups changed.
+
+<a id="lifting-hook"></a>
+### Hook & capacity: Hook to here, crane use
+
+<img class="panel" src="img/panel_8_lifting_hook.png" alt="Hook & capacity: radius, hook height, boom, the chart row, capacity, gross load and the crane use">
+
+- **Hook to here** (also the blue button of the section): click a point in the 3D view. The crane slews, luffs and
+  telescopes (a crawler with a luffing jib keeps its boom at the jib charts' angle and luffs the jib; a knuckle-boom
+  crane folds its booms and runs its extensions) and pays out the hoist so the hook hangs **plumb** on that point,
+  inside every joint's limits. Several ways reach it: the one with the **lowest crane use** on the chart that
+  applies, then the shortest boom. Out of reach: it says by how much ("1.20 m further out than the hook reaches",
+  "0.80 m higher than the hook reaches at this radius") and the crane stays as it was.
+- **Above the load**: the hook over the load's CoG, **Clearance** (2 m to start with) above the load's highest
+  point.
+
+The box shows, live as the crane moves (also when you pose it by hand): the **radius** (slew axis to hook,
+level), the **hook height**, the **boom** length and angle (and the jib or knuckle), the **chart** and why it was
+picked, the **chart row** used (always the next longer radius, never in between), the **capacity**, the **gross
+load** and the **crane use** in % with its word. No chart for this set-up, or a radius past the chart's last row: red,
+with the reason.
+
+**SAMPLE charts.** Every crane that comes with the app carries invented charts: the section and the readout show
+*"SAMPLE – not for real lifts. Invented values to show how the app works. Enter the chart of your real crane."*
+Before you plan a real lift, copy the class nearest your crane into your library and enter its real chart.
+
+Rigging (slings, shackles, the load hanging under the hook), the lift path with checks along it, ground pressure and
+the printed plan come in later versions.
+
 <a id="tour"></a>
 ## Test tour – see every function work
 
@@ -4016,8 +4124,8 @@ renders** under 6 Animation > Labels, and tick it again before you render the vi
 <a id="lifting-equipment"></a>
 ## Own lifting equipment (file format)
 
-The Lifting plans workspace is being built. Its panels come in a later update; the files for your own cranes,
-forklifts, hoists and rigging gear can already be written by hand. **One item = one folder** in your library folder
+The cranes of this library are placed in 8 Lifting plan ([above](#lifting)); the files for your own cranes,
+forklifts, hoists and rigging gear are written by hand. **One item = one folder** in your library folder
 (the one set in the app's preferences), in a sub-folder **Lifting equipment**:
 
 - `My crane/My crane.json` – the data below,
@@ -4050,7 +4158,7 @@ capacity of 0 or less, a capacity that rises with the radius, or a wave-height c
 it names the line. The capacity is always taken at the next longer radius of the chart, never in between.
 
 **The cranes that come with the app** (twelve invented size classes, each with its model, its joints and its sample
-charts; the panels that place them in a project come in a later update):
+charts; 8 Lifting plan > Equipment places them):
 
 - **Mobile telescopic cranes (all-terrain)** AT-40, AT-100, AT-250, AT-500 – the number is the t at the shortest
   radius. Charts per boom length, counterweight and outrigger spread.

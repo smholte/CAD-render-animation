@@ -55,6 +55,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
   people_panel   6 Animation > People (panel_6_people; as "panels", the example "two people meet" on the crane, Anna
       selected, task 0157).
+  lifting_panel   8 Lifting plan (task 0201): the section with Equipment, Load, Hook & capacity (panel_8_lifting*; as
+      "panels", the AT-40 beside the test crane, the boom as the load, the hook above it).
   people   the example built and rendered at the handshake (people_meet.jpg; Cycles on the processor, as "render").
   operator   the test mill in its cabinet: the operator takes the tool out of the spindle (toolchange_person.jpg) and
       lays it on the trolley (toolchange_person_trolley.jpg), task 0156; Cycles on the processor, as "render".
@@ -1728,6 +1730,32 @@ elif MODE == "people_panel":
         return 2.5
     step(_people_setup)
     step(lambda: (shoot_sidebar("panel_6_people"), 0.5)[1])
+
+elif MODE == "lifting_panel":
+    # task 0201: 8 Lifting plan on the test crane – the AT-40 placed beside it, the crane's boom as the load, the hook
+    # above it (lifting.set_up_example, as the tour and the PC check). Same command as "panels".
+    step(_start)
+    step(lambda: _import(CRANE))
+    step(_wait_import)
+
+    def _lifting_setup():
+        L = mod("blender.lifting")
+        L.set_understood(True)
+        with override():
+            L.set_up_example(bpy.context)
+        sc = bpy.context.scene
+        sc.fresing.lifting.message = ""
+        show_only([("FRESING_PT_lifting", False, True)])
+        wiggle()
+        return 2.5
+    step(_lifting_setup)
+    step(lambda: (shoot_sidebar("panel_8_lifting"), 0.5)[1])
+    step(lambda: (show_only([("FRESING_PT_lifting_equipment", False, True)]), wiggle(), 2.0)[2])
+    step(lambda: (shoot_sidebar("panel_8_lifting_equipment"), 0.5)[1])
+    step(lambda: (show_only([("FRESING_PT_lifting_load", False, True)]), wiggle(), 2.0)[2])
+    step(lambda: (shoot_sidebar("panel_8_lifting_load"), 0.5)[1])
+    step(lambda: (show_only([("FRESING_PT_lifting_hook", False, True)]), wiggle(), 2.0)[2])
+    step(lambda: (shoot_sidebar("panel_8_lifting_hook"), 0.5)[1])
 
 elif MODE == "house_panel":
     # task 0114: 5 Scene & Render > House from House Planner with the made-up sample house imported and one moment

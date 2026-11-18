@@ -67,10 +67,10 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 76, "tour2": 2, "tourui": 15, "layout": 38,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 79, "tour2": 2, "tourui": 15, "layout": 38,
               "panel": 37, "start": 46, "setup": 46, "highlight": 74,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4}
+              "spool": 43, "undorebake": 4, "lifting": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -91,7 +91,7 @@ GROUPS = {
     "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
     "scenes": ["surroundings", "vessel", "rulesets", "decals"],
-    "motion": ["video", "studio", "update", "ui2", "faces"],
+    "motion": ["video", "studio", "update", "ui2", "faces", "lifting"],   # lifting: task 0201
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
                  "cables", "paths", "undorebake"],
 }
@@ -124,6 +124,9 @@ TESTS = {
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
+    "lifting": ("Real app: 8 Lifting plan – first use, a crane placed by mouse, every crane class with its poses, "
+                "Remove, the load and its CoG, Hook to here by a click, save and open (ui_test_lifting.py)",
+                "ui_test_lifting.py", True),
     "undorebake": ("Real app: Undo after a cable re-bake works the cables out again for the motion the scene has "
                    "(ui_test_undo_rebake.py)", "ui_test_undo_rebake.py", True),
     "spool": ("Real app: drums and carousels – Add drum / Add carousel with a click in the view, a joint follows the "

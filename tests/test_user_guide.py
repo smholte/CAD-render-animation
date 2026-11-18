@@ -14,7 +14,7 @@ TOOLS = os.path.join(ROOT, "tools")
 DOCS = os.path.join(ROOT, "docs")
 sys.path.insert(0, TOOLS)
 
-CHAPTERS = ["layout", "start-here", "start", "import", "structure", "looks", "motion", "scene", "animation", "queue", "tour", "demo", "lifting-equipment", "tips",
+CHAPTERS = ["layout", "start-here", "start", "import", "structure", "looks", "motion", "scene", "animation", "queue", "lifting", "tour", "demo", "lifting-equipment", "tips",
             "troubleshooting"]
 
 
@@ -163,7 +163,7 @@ def test_tooltip_check_reads_every_section():
 # ---- anchors on every section (task 0124) --------------------------------------------------------------------
 
 OLD_ANCHORS = ["layout", "start", "updates", "import", "structure", "looks", "rule-sets", "faces", "decals", "find",
-               "cutaway", "rules", "schemes", "motion", "scene", "animation", "clash", "queue", "tour", "demo", "tips",
+               "cutaway", "rules", "schemes", "motion", "scene", "animation", "clash", "queue", "lifting", "tour", "demo", "tips",
                "troubleshooting", "pc-check"]          # the 23 anchors before task 0124: links to them keep working
 
 

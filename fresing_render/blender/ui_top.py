@@ -1,7 +1,7 @@
 """The top of the Fresing tab (task 0062): Workspace switcher with the function families, the What's next card,
 the section tabs, and Make – every way to make a picture, a video or a 3D page side by side.
 
-Order on the tab: update notice, test tour (their own files) · Workspace · What's next · tabs · Make · 1 … 7.
+Order on the tab: update notice, test tour (their own files) · Workspace · What's next · tabs · Make · 1 … 8.
 
 **Make** does not move anything: each button opens the app's own settings panel of that output (5 Scene & Render >
 Image size & render, Turntable video, Web 3D model; 6 Animation; 7 Render queue) as a popover with its own Make

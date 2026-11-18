@@ -81,6 +81,11 @@
    "changed": "0.2.152",
    "fp": "e700dd50e9dffb79"
   },
+  "lifting": {
+   "added": "0.2.156",
+   "changed": "",
+   "fp": "15ecd534bb888714"
+  },
   "linkage": {
    "added": "0.2.47",
    "changed": "0.2.54",
