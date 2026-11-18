@@ -746,7 +746,9 @@ def chart_for(charts, boom: float | None, setup: dict | None = None, jib: float 
         if hit is None:
             lower = [x for x in have if x < v]
             if not lower:
-                return None, (f"No chart for a {SETUP_WORDS[k]} of {_shown(k, v)} or less (the charts start at "
+                w = SETUP_WORDS[k]                           # "an outrigger spread" (0209 row 36)
+                return None, (f"No chart for {'an' if w[:1] in 'aeiou' else 'a'} {w} of {_shown(k, v)} or less (the "
+                              f"charts start at "
                               f"{_shown(k, have[0])}).")
             hit = lower[-1]
             where = ("is more than the charts have" if hit == have[-1] else "lies between the charts' values")
@@ -822,6 +824,7 @@ class Answer:
     use: float | None = None
     error_mm: float = 0.0                        # the 3-D kinematics' hook against the target
     candidates: int = 0
+    warning: str = ""                            # set by the app: moved, but no crane use (past the chart)
 
 
 def _single(P, V, s, lim, Xs):

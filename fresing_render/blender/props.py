@@ -694,6 +694,8 @@ class FRPose(bpy.types.PropertyGroup):
                          description="Name of the pose, used in saved scenes and animations. Double-click to rename")
     joints: CollectionProperty(type=FRPoseJoint)
     places: CollectionProperty(type=FRPlace)
+    joints_only: BoolProperty(default=False, description="A model's own pose (a crane of the lifting plan): it moves "
+                                                         "only its joints, every hand-moved sub-assembly stays")
 
 
 # ---- cylinders (task 0013) ----
@@ -3826,6 +3828,8 @@ class FRLiftCrane(bpy.types.PropertyGroup):
     chart_hash: StringProperty(description="The hash of the file's charts when the crane was placed: a changed file "
                                            "is noticed and named")
     item_name: StringProperty(description="The equipment's name in its file (AT-100 …)")
+    rig_hash: StringProperty(description="The hash of the file's rig and hook blocks when the crane was placed: a "
+                                         "crane made again (another hook block) is noticed")
     root: PointerProperty(type=bpy.types.Object, description="The crane's model in the project")
     counterweight: FloatProperty(
         name="Counterweight", default=0.0, min=0.0, soft_max=1000.0, unit="NONE",

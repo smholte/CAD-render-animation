@@ -14,6 +14,7 @@ import numpy as np
 
 from ..demo_model import geom as g
 from ..demo_model.geom import Asm, Part
+from . import classes as C
 
 # ---- colours (sRGB) – generic, no maker's livery -------------------------------------------------------------------
 BOOM_YELLOW = (0.93, 0.70, 0.08)
@@ -308,22 +309,45 @@ def hook_tree(parent: Asm, sheave_c, sheave_r: float, d0: float, block_h: float,
     return hb
 
 
+BOX_GAP = C.BOX_GAP
+box_half = C.box_half
+
+
+def box_shapes(xs, beam_w: float, beam_h: float, beam_z: float, width: float) -> tuple:
+    """(outer shapes, the beams' channels) of the outrigger boxes at ``xs`` (both beams of a pair side by side)."""
+    gap, wall = BOX_GAP, 0.08 * beam_w
+    half = width / 2
+    outers, holes = [], []
+    for x_box in xs:
+        L = 2 * box_half(beam_w)
+        H = beam_h + 2 * gap + 2 * wall
+        outers.append(g.box(x_box - L / 2, -half, beam_z - H / 2, L, width, H))
+        holes += [g.box(x_box + sx * (beam_w / 2 + gap / 2) - beam_w / 2 - gap, -half - 10, beam_z - beam_h / 2 - gap,
+                        beam_w + 2 * gap, width + 20, beam_h + 2 * gap) for sx in (-1, 1)]
+    return outers, holes
+
+
+def frame_with_boxes(frame, xs, beam_w: float, beam_h: float, beam_z: float, width: float):
+    """A chassis frame the outrigger beams run through: the frame and the boxes as one solid, the beams' channels cut
+    through both (task 0214, bug hunt 0209 row 17: the beams ran through a solid frame, up to 190 mm deep)."""
+    outers, holes = box_shapes(xs, beam_w, beam_h, beam_z, width)
+    return one(g.cut(g.fuse(frame, *outers), *holes))
+
+
 def outrigger_set(root: Asm, kit: Kit, prefix: str, xs, side_x: float, pad_in: float, ext: float, beam_z: float,
                   beam_w: float, beam_h: float, pad_z0: float, pad_r: float, carrier: Asm, width: float,
-                  color=CARRIER_GREY):
+                  color=CARRIER_GREY, boxes: bool = True):
     """Four two-stage outrigger beams + jacks (``prefix`` "OUTRIGGER" / "STABILISER"): the carrier gets a box per
-    pair (both beams side by side, the left one at +x), each beam's sub-assembly holds its second stage and the jack.
-    ``ext`` = the stroke of each stage (the joints' range). Names as ``classes`` writes the joints."""
+    pair (both beams side by side, the left one at +x) unless the chassis frame holds them (``boxes`` False,
+    ``frame_with_boxes``), each beam's sub-assembly holds its second stage and the jack. ``ext`` = the stroke of each
+    stage (the joints' range). Names as ``classes`` writes the joints."""
     leg = "JACK" if prefix == "OUTRIGGER" else "STABILISER LEG"
-    gap, wall = 12.0, 0.08 * beam_w
+    gap, wall = BOX_GAP, 0.08 * beam_w
     half = width / 2
-    for x_box in xs:
-        L = 2 * beam_w + 4 * gap + 2 * wall
-        H = beam_h + 2 * gap + 2 * wall
-        outer = g.box(x_box - L / 2, -half, beam_z - H / 2, L, width, H)
-        holes = [g.box(x_box + sx * (beam_w / 2 + gap / 2) - beam_w / 2 - gap, -half - 10, beam_z - beam_h / 2 - gap,
-                       beam_w + 2 * gap, width + 20, beam_h + 2 * gap) for sx in (-1, 1)]
-        put(carrier, Part(f"{prefix} BOX", g.cut(outer, *holes), color))
+    if boxes:
+        outers, holes = box_shapes(xs, beam_w, beam_h, beam_z, width)
+        for k, outer in enumerate(outers):
+            put(carrier, Part(f"{prefix} BOX", g.cut(outer, *holes[2 * k:2 * k + 2]), color))
     s1_len = width - 160.0
     for fr, x_box in zip("FR", xs):
         for side in "LR":
@@ -347,7 +371,8 @@ def outrigger_set(root: Asm, kit: Kit, prefix: str, xs, side_x: float, pad_in: f
             y_in2 = y_out1 - sy * (s1_len - 2 * wall - 60.0)
             y0, y1 = sorted((y_in2, y_out2))
             s2 = g.box(x - w2 / 2, y0, beam_z - h2 / 2, w2, y1 - y0, h2)
-            jr = 0.45 * pad_r                                  # jack housing radius
+            # jack housing radius: clear of stage 1's outer end when retracted (task 0214: 22 mm into it on AT-250/500)
+            jr = min(0.45 * pad_r, pad_in - (half + 30.0) - 20.0)
             housing = g.cyl(jr, beam_h + 350.0, (x, sy * pad_in, beam_z - beam_h / 2 - 150.0), (0, 0, 1))
             arm = g.box(x - w2 / 2, min(sy * pad_in, y_out2) - (5 if sy > 0 else 0), beam_z - h2 / 2,
                         w2, abs(sy * pad_in - y_out2) + 5, h2)

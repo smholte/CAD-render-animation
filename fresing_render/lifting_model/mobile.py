@@ -35,8 +35,15 @@ def build(c: C.Mobile):
     K.put(root, car)
     tw = 0.72 * c.wheel_r
     frame_half = W / 2 - tw - 70.0
-    chassis = g.box(rear + 150.0, -frame_half, deck - 520.0, front - rear - 900.0, 2 * frame_half, 380.0)
-    deck_plate = g.box(rear, -W / 2, deck - 140.0, front - rear - 2300.0, W, 140.0)
+    bw = p["beam_w"]
+    bh = 1.25 * bw
+    # the outrigger beams run through the frame (task 0214): frame + boxes one solid; the beams' channels cut into the
+    # deck's underside (a skin of 25 mm stays on top: the deck stays one solid)
+    chassis = K.frame_with_boxes(g.box(rear + 150.0, -frame_half, deck - 520.0, front - rear - 900.0, 2 * frame_half,
+                                       380.0), p["out_x"], bw, bh, p["beam_z"], W)
+    below = g.box(rear - 10.0, -W, deck - 1000.0, front - rear + 20.0, 2 * W, 1000.0 - 25.0)
+    deck_plate = g.cut(g.box(rear, -W / 2, deck - 140.0, front - rear - 2300.0, W, 140.0),
+                       *[g.common(h, below) for h in K.box_shapes(p["out_x"], bw, bh, p["beam_z"], W)[1]])
     K.put(car, Part("CHASSIS FRAME", chassis, K.CARRIER_GREY))
     K.put(car, Part("CARRIER DECK", deck_plate, K.CARRIER_GREY))
     cab_x0 = front - 2300.0
@@ -54,11 +61,9 @@ def build(c: C.Mobile):
     K.put(car, Part("SLEWING RING", ring, K.STEEL))
     K.wheels(car, kit, p["axles"], c.wheel_r, W / 2)
     # ---- outriggers -------------------------------------------------------------------------------------------
-    bw = p["beam_w"]
-    bh = 1.25 * bw
-    pad_r = 300.0 if c.rated <= 100 else 400.0
+    pad_r = C.mobile_pad_r(c)
     K.outrigger_set(root, kit, "OUTRIGGER", p["out_x"], bw, p["pad_in"], p["out_ext"] / C.STAGES, p["beam_z"], bw, bh,
-                    p["pad_z0"], pad_r, car, W)
+                    p["pad_z0"], pad_r, car, W, boxes=False)
     # ---- superstructure ---------------------------------------------------------------------------------------
     sup = Asm("SUPERSTRUCTURE.ASM")
     K.put(root, sup)

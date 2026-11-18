@@ -4015,9 +4015,20 @@ two cranes in one project (even two of one class: "AT-40" and "AT-40 2") never m
 at the top of Equipment: click one to work with it. **Move…** places it again (the same mouse, wheel and click; Esc
 puts it back), **Remove** takes it out of the project with its joints, cylinders, poses and model.
 
+- **On a moving deck** (vessel motion on, 5 Scene & Render): click the deck as you see it, at any frame – the crane
+  stands where you clicked and rides with the deck. A **Box…** load rides with the deck too.
+- **A crane is rigged from its equipment file**, so 1 Import offers no **Update to new revision…** for it ("A crane of
+  the lifting plan: to change it, Remove it in 8 Lifting plan and place it again"). Deleted its model by hand? The
+  crane stays in the list with "The model of AT-40 is gone": **Remove** takes its joints, poses and cables out too.
+- **Renamed one of its joints** in 4 Motion > Joints? Hook to here and the readout stop and name it ("its joint
+  'AT-40 · Luff' is gone or was renamed"): give it its name back, or Remove and place the crane again.
+- **Build animation** keeps the pose the plan gave the crane (Hook to here, a Pose button, Above the load), also when
+  the animation was built before.
+
 <a id="lifting-setup"></a>
 **Pose and set-up.** The **Pose** buttons are the poses of the crane's file (Travel, Set up, Working, Long reach …):
-a pose moves only this crane. Under **Set-up the chart is picked for** choose the **counterweight** the crane
+a pose moves only this crane – also when you use it from 4 Motion > Poses or in a Go to pose step: sub-assemblies
+you moved by hand elsewhere stay where they are. Under **Set-up the chart is picked for** choose the **counterweight** the crane
 carries and the **outrigger spread** (by default read from the pose: how far the beams are out). The buttons show
 only the values the file's charts have. A value between two of them (6 t between the 4 t and 8 t charts) takes the
 **next safer chart** – less counterweight, a narrower spread – and Hook & capacity says so. A combination the file
@@ -4025,7 +4036,9 @@ has no chart for steps the counterweight down, then the spread, and says that to
 pose (the next longer boom's chart); a crawler's boom and jib are the model's.
 
 If the crane's equipment file changes after you placed it (its charts edited), the panel says so in red: the new
-charts are used, check the plan again.
+charts are used, check the plan again. If the crane itself was made again (**Make a crane…** with **Replace**, another hook
+block or boom), the panel says "Remove the crane and place it again": until then Hook to here and the readout stop,
+because the crane in the project is still the old one.
 
 <a id="lifting-load"></a>
 ### Load: what is lifted, its mass
@@ -4045,8 +4058,10 @@ hook block when the chart does not include it.
 
 <a id="lifting-cog"></a>
 **The centre of gravity.** The CoG is worked out from the parts' solid volumes and densities and drawn as the usual
-CoG symbol – a circle of black and white quarters with "CoG" – on top of everything (never in renders). It rides with
-the load. A part that is not a closed solid counts with its box and is named under the mass. **Move** lets you put
+CoG symbol – a circle of black and white quarters with "CoG" – on top of everything (never in renders, not in a
+camera's view, and only in workspaces that show the Lifting plan: not in the Client view). It rides with the load,
+also through a **model update** of the load's model (1 Import): the load keeps its parts, mass and CoG – a CoG set by
+hand stays where you put it – and parts that are gone in the new revision are named in the update's report. A part that is not a closed solid counts with its box and is named under the mass. **Move** lets you put
 the marker by hand (move the mouse, click to drop): it is then marked **set by hand** and Hook to here uses it.
 **Back to computed** puts it back. **Work out again** reads the parts again after they or their groups changed.
 
@@ -4068,7 +4083,8 @@ The box shows, live as the crane moves (also when you pose it by hand): the **ra
 level), the **hook height**, the **boom** length and angle (and the jib or knuckle), the **chart** and why it was
 picked, the **chart row** used (always the next longer radius, never in between), the **capacity**, the **gross
 load** and the **crane use** in % with its word. No chart for this set-up, or a radius past the chart's last row: red,
-with the reason.
+with the reason. Hook to here past the chart's longest radius still moves the crane but warns: "no crane use: …". Its
+message gives the hook height from the crane's base ("hook 7.02 m below the crane's base").
 
 **SAMPLE charts.** Every crane that comes with the app carries invented charts: the section and the readout show
 *"SAMPLE – not for real lifts. Invented values to show how the app works. Enter the chart of your real crane."*

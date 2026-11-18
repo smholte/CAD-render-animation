@@ -34,7 +34,10 @@ def build(c: C.Knuckle):
     K.put(root, tr)
     tw = 0.72 * c.wheel_r
     fh = W / 2 - tw - 80.0
-    K.put(tr, Part("TRUCK CHASSIS", g.box(front + 300.0, -fh, deck - 330.0, rear - front - 300.0, 2 * fh, 330.0),
+    bw = p["beam_w"]
+    # the stabiliser beams run through the chassis (task 0214): chassis + boxes one solid
+    K.put(tr, Part("TRUCK CHASSIS", K.frame_with_boxes(g.box(front + 300.0, -fh, deck - 330.0, rear - front - 300.0,
+                                                             2 * fh, 330.0), p["out_x"], bw, 1.3 * bw, p["beam_z"], W),
                    K.CARRIER_GREY))
     cab_x1 = front + p["cab_len"]
     cab = g.fuse(g.box(front, -W / 2, deck - 500.0, p["cab_len"], W, 2300.0),
@@ -43,12 +46,12 @@ def build(c: C.Knuckle):
                    K.TRUCK_BLUE))
     K.put(tr, Part("TRUCK CAB WINDOW", g.box(front + 5, -W / 2 + 125, deck + 655, 20, W - 250, 990), K.GLASS))
     K.put(tr, Part("FRONT BUMPER", g.box(front - 120.0, -W / 2, 350.0, 140.0, W, 420.0), K.CARRIER_GREY))
-    bed_x0 = p["out_x"][0] + 600.0
+    base_r = 0.28 * W
+    bed_x0 = max(p["out_x"][0] + 600.0, base_r + 60.0)          # clear of the crane base's round top (task 0214)
     bed = g.cut(g.box(bed_x0, -W / 2, deck, rear - bed_x0, W, 500.0),
                 g.box(bed_x0 + 80, -W / 2 + 80, deck + 120, rear - bed_x0 - 160, W - 160, 500.0))
     K.put(tr, Part("LOAD BED", bed, K.CARRIER_GREY))
     K.wheels(tr, kit, p["axles"], c.wheel_r, W / 2)
-    base_r = 0.28 * W
     K.put(tr, Part("CRANE BASE", g.fuse(g.box(-0.55 * W / 2, -W / 2 + 60, deck - 1.0, 0.55 * W, W - 120, 300.0),
                                         g.cyl(base_r, 1.0, (0, 0, deck + 299.0), (0, 0, 1))), K.BOOM_YELLOW))
     # the control stand on the crane base (it does not slew: on the column it swung into the truck cab, task 0204),
@@ -57,9 +60,9 @@ def build(c: C.Knuckle):
     K.put(tr, Part("CONTROL STAND", g.box(cr0 + 80.0, W / 2 - 560.0, deck + 299.0, 340.0, 400.0, 1000.0),
                    K.CARRIER_GREY))
     # ---- stabilisers --------------------------------------------------------------------------------------------
-    bw = p["beam_w"]
     K.outrigger_set(root, kit, "STABILISER", p["out_x"], bw, p["pad_in"], p["out_ext"] / C.STAGES, p["beam_z"], bw,
-                    1.3 * bw, p["pad_z0"], 200.0 if c.moment <= 50 else 260.0, tr, W, color=K.BOOM_YELLOW)
+                    1.3 * bw, p["pad_z0"], C.knuckle_pad_r(c), tr, W, color=K.BOOM_YELLOW,
+                    boxes=False)
     # ---- column (slew) ------------------------------------------------------------------------------------------
     col = Asm("COLUMN.ASM")
     K.put(root, col)
@@ -79,7 +82,21 @@ def build(c: C.Knuckle):
         y0 = lug_y if sy > 0 else -lug_y - 50.0
         column = g.fuse(column, g.box(-1.6 * pin_r, y0, head_z - 1.0, 3.2 * pin_r, 50.0, p1[2] - head_z + 1.0),
                         g.cyl(1.6 * pin_r, 50.0, (p1[0], y0, p1[2]), (0, 1, 0)))
-    column = g.fuse(column, *K.lug_pair(b1, (-1, 0, 0), ew1 + 10.0, 35.0, 1.3 * mc["fit"]["rod_r"], b1[0] + 1.0,
+    # a notch where the main cylinder's barrel swings over the main boom's range (task 0214, 0209 row 17: the barrel
+    # went 89-120 mm into the round column, deeper as the boom luffed)
+    mj = next(j for j in L.joints if j["name"] == "Main boom")
+    q1c = np.array(mc["rod_pin"]["point"])
+    sweep_b = []
+    for t in np.linspace(mj["limits"][0], mj["limits"][1], 9):
+        q = (C.about(mj["point"], mj["direction"], t) @ np.r_[q1c, 1.0])[:3]
+        d = (q - b1) / np.linalg.norm(q - b1)
+        sweep_b.append(g.cyl(mc["fit"]["barrel_r"] + 25.0, mc["fit"]["barrel_len"],
+                             b1 + 0.9 * mc["fit"]["rod_r"] * d, d))
+    ew_b = 1.6 * mc["fit"]["rod_r"] + 20.0               # and round the barrel's eye (the pin is at the column's skin)
+    sweep_b.append(g.cyl(1.3 * mc["fit"]["rod_r"] + 25.0, ew_b, b1 - np.array([0.0, ew_b / 2, 0.0]), (0, 1, 0)))
+    column = K.one(g.cut(column, *sweep_b))
+    column = g.fuse(column, *K.lug_pair(b1, (-1, 0, 0), 2.0 * mc["fit"]["barrel_r"] + 30.0, 35.0,
+                                        1.3 * mc["fit"]["rod_r"], b1[0] + 1.0,
                                         0.45 * mc["fit"]["rod_r"] + 1.0))
     column = g.cut(column, K.pin_across(p1, pin_r + 1.0, lug_y + 100.0))
     K.put(col, Part("CRANE COLUMN", column, K.BOOM_YELLOW))
@@ -121,7 +138,11 @@ def build(c: C.Knuckle):
     wall = 0.05 * c.boom_w
     gap = 18.0
     tube = K.box_tube(p2, uo, no, 0.0, c.outer_len - 300.0, c.boom_w, c.boom_h, wall)
-    ofoot = g.cyl(sweep - 20.0, c.boom_w, p2 - np.array([0.0, c.boom_w / 2, 0.0]), (0, 1, 0))
+    # the round foot keeps the tube's inside free from just behind the retracted extensions (task 0214: extension 1
+    # ran 17-54 mm into a solid foot)
+    ofoot = g.cut(g.cyl(sweep - 20.0, c.boom_w, p2 - np.array([0.0, c.boom_w / 2, 0.0]), (0, 1, 0)),
+                  K.solid_box(p2, uo, no, 2.2 * pin_r + 40.0, sweep + 10.0, c.boom_w - 2 * wall,
+                              c.boom_h - 2 * wall))
     olugs = K.lug_pair(q2, p2 - q2, ew2 + 10.0, 40.0, 1.3 * kc["fit"]["rod_r"], float(np.linalg.norm(q2 - p2)),
                        0.45 * kc["fit"]["rod_r"] + 1)
     oshape = g.cut(K.one(tube, ofoot, *olugs), K.pin_across(p2, pin_r + 1.0, lug_y))

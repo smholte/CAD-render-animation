@@ -911,7 +911,7 @@ def bake(scene, anim) -> dict:
                     continue
                 if j.name in values and abs(values[j.name] - jstate[j.name]) > 1e-9:
                     joint_move(j, jstate[j.name], joints.clamp(j, values[j.name]), f0, f1, b.easing)
-            for name in set(ostate) | set(deltas):
+            for name in (() if pose.joints_only else set(ostate) | set(deltas)):   # a crane's pose: joints only
                 d_from, d_to = ostate.get(name, ident), deltas.get(name, ident)
                 if any(abs(d_from[r][c] - d_to[r][c]) > 1e-9 for r in range(4) for c in range(4)):
                     object_move(name, d_from, d_to, f0, f1, b.easing)

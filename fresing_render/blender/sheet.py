@@ -202,6 +202,7 @@ def make_poses(scene, m: Model) -> int:
                 if pose.joints[i].joint not in own:
                     pose.joints.remove(i)
             pose.places.clear()
+            pose.joints_only = True          # used from 4 Motion > Poses too, it leaves free moves (0209 row 12)
     start = m.sheet.get("start_pose")
     if start:
         if own is not None:

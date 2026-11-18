@@ -124,6 +124,10 @@ class FRESING_PT_lifting_equipment(_Panel, bpy.types.Panel):
             c = lifting.active_crane(scene)
             if c is not None:
                 _draw_crane(layout, context, scene, c)
+            elif lifting.picked_crane(scene) is not None:          # its model was deleted (0209 row 4)
+                wrap(layout, context, f"The model of {lifting.picked_crane(scene).name} is gone: Remove takes its "
+                     "joints, poses and cables out too.", icon="ERROR", alert=True)
+                layout.operator("fresing.lifting_remove", text="Remove", icon="TRASH")
             gap(layout, line=True)
         body = fold(layout, "fr_lifting_library", "Add a crane from the library", icon="ADD", closed=bool(L.cranes))
         if body is not None:
