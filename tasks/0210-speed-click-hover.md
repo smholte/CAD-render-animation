@@ -53,4 +53,23 @@ Blender's own selection cost; A3 (side panel draw) – 0195 asks for a new measu
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, 18 Nov 2026
+
+**Design.** *A6:* `logic.cached_tree(scene)` keeps the last `Tree`; key = (scene name, object count, a counter). The counter
+(`logic.drop_tree_cache`) is raised by the depsgraph handler at every Object update with transform / geometry / shading,
+by undo, redo, load_pre and load_post, and where `joints` writes the CAD-parent mark. A new or removed object changes the
+count. Only the selection handler's subassembly pick uses it; everything else still builds its own Tree. *A7:* when a
+picker starts, `hover._prewarm_start` reads the face tables (`_mesh`) of the visible parts' meshes, big ones first, in pieces
+of ~40 ms on a timer (it stops when the picker ends). Starting a picker costs 8 ms.
+
+**Measured** (made demo, scaled-down form, 2,176 parts / 3,269 objects, 4-core web machine, bpy module):
+- `logic.Tree` build 5.8 ms -> kept tree 0.1 ms. The whole click handler is dominated by other work (median 8-9 ms before and
+  after; study 0195's 13-19 ms for the tree was on the full demo with more objects). So the click gain here is the tree's share only.
+- First hover over a part: median 2-3 ms either way, but the worst first hit 268-310 ms (big parts); after the prewarm
+  the worst is 3.4 ms. Prewarm total 144 ms, spread over 4 timer pieces; picker start 8 ms.
+- Not measured: the full-size demo (only the scaled-down one was made here).
+
+**Tests:** `tests/test_tree_cache.py` (8: reused while unchanged; dropped by a new object, a re-parent, a move, undo, load; the
+CAD-parent write; first hover = later hover; prewarm fills the tables); 7 of them fail without the change. `test_hover.py` passes.
+Nothing the owner sees changes: no guide, tour or PC-check line. No helper agents.
+
