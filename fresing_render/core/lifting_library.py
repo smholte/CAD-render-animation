@@ -67,6 +67,7 @@ KINDS = (
 FIELDS = (
     "format", "format_version", "kind", "class", "name", "units", "mass", "cog", "rig", "charts", "hook_blocks",
     "outriggers", "tracks", "axles", "wll", "limits", "sample", "derived_from", "source",
+    "footprint",                 # task 0203: an own crane without outriggers or tracks – its support area (m)
 )
 SAMPLE_STILL = ("These are still the sample's charts: the SAMPLE mark stays. Enter the chart of your real equipment "
                 "first.")

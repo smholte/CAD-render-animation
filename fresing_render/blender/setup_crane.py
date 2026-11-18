@@ -662,16 +662,16 @@ def chart_entry(scene):
     from ..core import lifting_library as LL
     cs = settings(scene)
     rows, lines, n = [], [], 0
+    # a key one configuration names is named by all (a 0 t counterweight is a configuration of its own); the fields
+    # are 32-bit: round to 0.1 mm / 0.1 kg so a 10.8 m boom stays 10.8 m
+    named = {k for c in cs.charts for k in ("boom", "jib", "counterweight", "outriggers") if getattr(c, k) > 0}
     for c in cs.charts:
         cfg = {}
-        if c.boom > 0:
-            cfg["boom"] = c.boom
+        for k in ("boom", "counterweight", "outriggers"):
+            if k in named:
+                cfg[k] = round(float(getattr(c, k)), 4)
         if c.jib > 0:
-            cfg["jib"] = c.jib
-        if c.counterweight > 0:
-            cfg["counterweight"] = c.counterweight
-        if c.outriggers > 0:
-            cfg["outriggers"] = c.outriggers
+            cfg["jib"] = round(float(c.jib), 4)
         for r in c.rows:
             n += 1
             rows.append((cfg, r.radius, r.capacity))
@@ -1502,6 +1502,9 @@ def run_check(scene, clash: bool = True) -> list:
     if data is not None:
         problems += LS.check(data)
         problems += [LS.Problem(k, t, "red") for k, t in lifting_rig_out.scene_problems(scene)]
+        e = chart_entry(scene)                    # a refused table is not in the file at all: say so here
+        if e is not None and not e.ok:
+            problems += [LS.Problem("chart", "Load chart refused: " + m, "red") for m in e.errors[:5]]
         if clash and not any(p.severity == "red" for p in problems):
             problems += clash_problems(scene, data)
     cs.problems.clear()
@@ -1524,7 +1527,7 @@ def clash_problems(scene, data) -> list:
     try:
         a = s.animations.add()
         a.name = "FR crane check"
-        a.fps = "10"
+        a.fps = "25"
         a.tail = 0.0
         for j in drive:
             lo, hi = joints.limits(j)
@@ -1549,7 +1552,7 @@ def clash_problems(scene, data) -> list:
         scene.frame_set(scene.frame_start)
         run = clash.check(scene)
         out = []
-        fps = 10.0
+        fps = 25.0
         for r in run.rows:
             if r.kind != "CLASH":
                 continue

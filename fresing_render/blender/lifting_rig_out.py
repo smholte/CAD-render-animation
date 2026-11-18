@@ -163,7 +163,7 @@ def outriggers_out(scene, root, cs) -> dict | None:
     stages = max(1, round(len(beams) / max(1, len(jacks))))
     names = {"full": cs.spreads[0], "middle": cs.spreads[1], "narrow": cs.spreads[2]}
     spreads = {k: round(v / 2.0, 4) for k, v in names.items() if v > 0}
-    return {"centre": _r(centre), "a": round(float((P[:, 0].max() - P[:, 0].min()) / 2.0), 4),
+    return {"centre": _r(centre), "a": round(float(np.mean(np.abs(P[:, 0] - centre[0]))), 4),
             "spreads": spreads, "spread_meaning": "b = half the spread across (pad centre to the crane's middle line)",
             "stages": stages, "b_in": round(float(np.mean(np.abs(P[:, 1] - centre[1]))), 4),
             "joint_meaning": f"each of the {stages} beam stages moves the joint's value: b = b_in + {stages} x value",

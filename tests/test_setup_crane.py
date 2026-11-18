@@ -57,13 +57,10 @@ def _new(cls=None):
     return sc
 
 
-def _class_answer(data, target, current):
-    """0201's class solver on the built-in file (the reference); the app's own solver where it is gone."""
-    try:
-        import lifting_reach_class as RC
-        return RC.class_hook_to(data, target, current, LL.charts_of(LL.from_data(data)))
-    except ImportError:
-        return LR.hook_to(LR.Rig(data), target, current, LL.charts_of(LL.from_data(data)))
+def _class_answer(data, target, current, setup=None, hook_block_kg=0.0):
+    """0201's class solver on the built-in file (the reference, kept in the tests only)."""
+    import lifting_reach_class as RC
+    return RC.class_hook_to(data, target, current, LL.charts_of(LL.from_data(data)), setup, 0.0, hook_block_kg)
 
 
 _SAVED: dict = {}
@@ -104,40 +101,53 @@ def test_rigged_through_the_steps_is_the_builtin_rig(cls, lib_tmp):
 
 @pytest.mark.parametrize("cls", ["AT-40", "CC-750", "KB-50"])
 def test_round_trip_places_and_hooks_as_the_class(cls, lib_tmp):
-    """Save → Place in a new project: the same joints and poses; Hook to here = the class solver's answer."""
+    """Save → Place in a new project beside the built-in of the class: the same joints, poses, hook point, masses and
+    chart; Hook to here on the own crane = the built-in crane's answer = 0201's class solver's."""
     path, _made = _rig_and_save(cls, lib_tmp)
     joints, BL, _RO, _SC = _mods()
     sc = _new()
-    c = BL.place(bpy.context, path, location=(0.0, 0.0, 0.0), heading=0.0)
+    own = BL.place(bpy.context, path, location=(0.0, 0.0, 0.0), heading=0.0)
+    ref = BL.place(bpy.context, os.path.join(LIFT, cls), location=(0.0, 500.0, 0.0), heading=0.0)
     with open(path, encoding="utf-8") as fh:
         saved = json.load(fh)
-    own = {j.name for j in BL.own_joints(sc, c)}
-    assert own == {BL.prefix(c) + j["name"] for j in saved["rig"]["joints"]}
-    assert set(BL.pose_names(c)) == {p["name"] for p in saved["rig"]["poses"]}
-    rig = BL.rig_of(c)
+    assert {j.name for j in BL.own_joints(sc, own)} == {BL.prefix(own) + j["name"] for j in saved["rig"]["joints"]}
+    assert set(BL.pose_names(own)) == {p["name"] for p in saved["rig"]["poses"]}
+    rig = BL.rig_of(own)
     assert np.allclose(rig.hook_cad, saved["rig"]["hook"]["point"])
-    assert BL.charts_of(c) and len(BL.charts_of(c)) == len(D.builtin(cls)["charts"])
+    assert len(BL.charts_of(own)) == len(BL.charts_of(ref))
+    for p in BL.pose_names(ref):           # every pose: the same readout (chart, capacity, use)
+        BL.apply_pose(sc, own, p)
+        BL.apply_pose(sc, ref, p)
+        BL.forget()
+        a, b = BL.readout(sc, own), BL.readout(sc, ref)
+        assert (a.chart is None) == (b.chart is None), p                # the same chart (its name is only a label)
+        if a.chart is not None:
+            assert a.chart.config == pytest.approx(b.chart.config), p
+        assert (a.capacity, a.radius, a.height) == pytest.approx((b.capacity, b.radius, b.height)), p
+    BL.apply_pose(sc, own, BL.pose_names(ref)[-1])
+    BL.apply_pose(sc, ref, BL.pose_names(ref)[-1])
     data = D.builtin(cls)
+    ref_rig = LR.Rig(data)
     rng = np.random.default_rng(7)
-    cur = BL.values(sc, c)
     tried = 0
     for _k in range(40):
-        ref = LR.Rig(data)
-        vals = {}
-        for jj in ref.driven():
-            if jj.get("limits"):
-                lo, hi = jj["limits"]
-                vals[jj["name"]] = float(rng.uniform(lo, hi))
-        target = ref.hook(vals)
-        want = _class_answer(data, target, {})
+        vals = {jj["name"]: float(rng.uniform(*jj["limits"])) for jj in ref_rig.driven() if jj.get("limits")}
+        target = ref_rig.hook(vals)
+        want = BL.hook_to(sc, ref, BL.to_world(ref, target))
         if not want.ok:
             continue
-        got = BL.hook_to(sc, c, BL.to_world(c, target))
+        got = BL.hook_to(sc, own, BL.to_world(own, target))
         assert got.ok, got.reason
-        assert np.linalg.norm(rig.hook({**cur, **got.values}) - target) < 5.0
+        assert np.linalg.norm(rig.hook({**BL.values(sc, own), **got.values}) - target) < 5.0
         assert abs(got.boom - want.boom) < 0.002
+        assert (got.use is None) == (want.use is None)
         if want.use is not None:
             assert got.use == pytest.approx(want.use, rel=1e-6, abs=1e-9)
+        cl = _class_answer(data, target, BL.values(sc, ref), BL.setup(sc, ref), BL.hook_block_kg(ref))
+        if cl.ok:
+            assert abs(got.boom - cl.boom) < 0.002
+            if cl.use is not None:
+                assert got.use == pytest.approx(cl.use, rel=1e-6, abs=1e-9)
         tried += 1
     assert tried >= 10
 

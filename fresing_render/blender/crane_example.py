@@ -404,6 +404,9 @@ def compare(cls: str, saved: dict, made: dict) -> list:
         out.append(f"{len(b)} charts != {len(a)}")
     else:
         for ca, cb in zip(a, b):
+            if set(ca.config) != set(cb.config) or any(abs(float(ca.config[k]) - float(cb.config[k])) > 1e-6
+                                                       for k in ca.config if isinstance(ca.config[k], (int, float))):
+                out.append(f"chart config {cb.config} != {ca.config}")
             if not np.allclose(ca.radius, cb.radius) or \
                     [x is None for x in ca.capacity] != [x is None for x in cb.capacity] or \
                     not np.allclose([x or 0 for x in ca.capacity], [x or 0 for x in cb.capacity]):
