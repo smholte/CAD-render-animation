@@ -1,6 +1,6 @@
 # 0212 – One shortcut only: "Fresing Render" on the Desktop and in the Start menu; the extras in the app and the app folder
 
-**Who:** worker · **Status:** done (0.2.164) · **Branch:** `task/0212-one-shortcut-only`
+**Who:** worker · **Status:** done (0.2.167) · **Branch:** `task/0212-one-shortcut-only`
 **Started by:** lead, 18 Nov 2026 (owner's request with screenshots) · **Model:** Opus · effort Medium (Windows-only
 code: independent review before merging, CLAUDE.md section 6)
 **Area:** Quality & delivery lane – `installer/Install-FresingRender.ps1`, `installer/Uninstall-FresingRender.ps1`,
@@ -61,7 +61,7 @@ The app icon itself (0169); code signing (0207, waiting for the owner's budget);
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 18 Nov 2026 – version 0.2.164.
+**Chat / date:** Claude Code on the web, 18 Nov 2026 – version 0.2.167.
 
 **What changed:**
 - **Installer:** makes only `Fresing Render.lnk` on the Desktop and directly in Programs (no Start-menu folder). The
@@ -76,7 +76,7 @@ The app icon itself (0169); code signing (0207, waiting for the owner's budget);
   The shortcut texts now live in `pccheck/core.py`.
 - **Menu:** Fresing > **Tools and checks** has **Run the self-test** (new operator; runs the extension's own
   `selftest.py` in its own console window), **PC check…** and **Open the app folder** (new operator, only in an
-  installed app). Both new operators are in `lock.ALLOWED`. Function entry `help.tools` (since 0.2.164), guide anchor
+  installed app). Both new operators are in `lock.ALLOWED`. Function entry `help.tools` (since 0.2.167), guide anchor
   `tools-and-checks`.
 - **PC check:** new Full line `app.tools` (`MIN_LINES_FULL` 104). It checks the menu, and on an installed Windows app
   also that no old shortcut of this install is left and that the Tools folder holds the shortcuts. A Desktop or Start
@@ -102,6 +102,10 @@ runs below). Subagent: one independent reviewer of the Windows code. It found no
 the installer now moves the old app shortcut, desktop.ini is ignored, the tidy runs without an icon file, and the PC
 check notes a removed shortcut. Left as it is: Uninstall removes by name without a target check (as before, and as
 the brief says).
+
+**Runs:** 5 full runs. 1: the Windows install failed on one line of the task's own test (`appicon_test.py` listed the
+shortcuts without the Tools folder; all one-shortcut checks were green). 2–4: green, but each time another task had
+released the version number first (0213, 0215, 0214): merged `main`, took the next version. 5: green (0.2.167).
 
 **Open points:**
 - The CI starts the updated app in the background, so it calls `refresh_installed` directly. The start-up thread
