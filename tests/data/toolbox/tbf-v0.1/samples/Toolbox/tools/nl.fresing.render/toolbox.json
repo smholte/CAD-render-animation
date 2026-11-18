@@ -1,0 +1,35 @@
+{
+  "format": "toolbox-tool",
+  "version": "0.1",
+  "id": "nl.fresing.render",
+  "name": "Fresing Render",
+  "app_version": "0.0.0-sample",
+  "description": "Photo-realistic renders and animations of STEP assemblies; bakes light for House Planner.",
+  "homepage": "https://smholte.github.io/CAD-render-animation/",
+  "kind": "native",
+  "start": {
+    "program": "C:/Users/sample/AppData/Local/FresingRender/Fresing Render.exe"
+  },
+  "actions": [
+    {
+      "id": "import-step",
+      "label": "Import STEP",
+      "accepts": [
+        "step"
+      ]
+    },
+    {
+      "id": "bake-house",
+      "label": "Bake house scene",
+      "accepts": [
+        "hpscene"
+      ],
+      "returns": [
+        "hpbake"
+      ]
+    }
+  ],
+  "handover": [
+    "inbox"
+  ]
+}

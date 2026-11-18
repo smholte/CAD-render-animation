@@ -20,6 +20,28 @@ foreach ($n in @("Fresing Render.lnk", "Fresing Render - PC check.lnk", "Fresing
 }
 Remove-Item -LiteralPath (Join-Path $Programs "Fresing Render.lnk") -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath (Join-Path $Programs "Fresing Render") -Recurse -Force -ErrorAction SilentlyContinue
+# task 0217: the app's own folder in the Toolbox folder (only that one; never through a link or junction)
+$ToolboxHome = if ($env:TOOLBOX_HOME) { $env:TOOLBOX_HOME } elseif ($env:USERPROFILE) { Join-Path $env:USERPROFILE "Toolbox" } else { "" }
+if ($ToolboxHome -and [IO.Path]::IsPathRooted($ToolboxHome)) {
+    $ToolboxMine = Join-Path (Join-Path $ToolboxHome "tools") "nl.fresing.render"
+    $linked = $false
+    foreach ($p in @($ToolboxHome, (Join-Path $ToolboxHome "tools"), $ToolboxMine)) {
+        $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
+        if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { $linked = $true }
+    }
+    if ((Test-Path -LiteralPath $ToolboxMine -PathType Container) -and -not $linked) {
+        try {
+            # links and junctions inside go first, one by one and deepest first, as links only (never followed)
+            Get-ChildItem -LiteralPath $ToolboxMine -Recurse -Force -Attributes ReparsePoint -ErrorAction SilentlyContinue |
+                Sort-Object { $_.FullName.Length } -Descending | ForEach-Object {
+                    if ($_.PSIsContainer) { [IO.Directory]::Delete($_.FullName) } else { [IO.File]::Delete($_.FullName) }
+                }
+            [IO.Directory]::Delete($ToolboxMine, $true)
+        } catch {
+            Write-Host "   (Fresing Render's part of the Toolbox folder could not be removed – in use or read-only: delete $ToolboxMine by hand)"
+        }
+    }
+}
 if (Test-Path -LiteralPath $InstallDir) {
     Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
 }

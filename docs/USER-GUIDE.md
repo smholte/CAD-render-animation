@@ -3003,6 +3003,37 @@ folder): two storeys, a stair, a window, a table under a ceiling lamp, a terrace
 - A house plan from a newer House Planner that Fresing Render cannot read is refused with a message saying which
   app to update; nothing in the project changes.
 
+<a id="house-toolbox"></a>
+#### A house from House Planner by itself
+
+Instead of saving a `.hpscene`, importing it and sending the `.hpbake` back by hand, House Planner and Fresing Render
+can hand the house to each other through the **Toolbox folder**: `C:\Users\<you>\Toolbox`. Fresing Render makes it
+when it is installed (and at every start when it is missing); nothing goes over the internet – it is a plain folder on
+your PC.
+
+1. In House Planner: send the house to Fresing Render. Fresing Render may be open or closed; a closed one picks the
+   house up when it starts.
+2. Within a few seconds the top of **5 Scene & Render > House from House Planner** shows **From House Planner:
+   <house> – <version>**, with **Bake now** and **Not now**. (The panel shows even when your project has no house.)
+3. Click **Bake now** when the PC can work for a while. Your project stays as it is: the house goes into **a scene of
+   its own** ("House – <house>"), which the window shows while it bakes, with the progress and **Cancel** in the
+   panel. House Planner shows the same progress.
+4. When it is done, the bake package goes back to House Planner by itself, the house's scene is removed, the window
+   shows your project again and the panel says **Sent back to House Planner**. House Planner shows the baked light.
+
+**Good to know**
+
+- **Not now** tells House Planner "You said not now in Fresing Render"; send the house again later.
+- While Fresing Render is busy with another long job (a house bake, a Web 3D export, a clash check, the render queue,
+  a STEP import) the house waits and the panel says so; press Bake now when it is done.
+- Cancel in House Planner stops the bake as Cancel here does; nothing is sent back.
+- If House Planner cannot take the result, the package is kept in `Documents\Fresing Render\House bakes` and House
+  Planner is told where.
+- Fresing Render checks each file before it opens it (its name, its size, and by its content that it really is a house
+  or a STEP file). Anything else is refused with a reason, which the sender shows; the panel shows one line about it.
+- Until House Planner can send houses, `tools/toolbox_send.py <file.hpscene>` (in the source repository) sends one the
+  same way. The test tour's stop "A house arrives by itself" uses a Toolbox folder of its own next to the tour.
+
 <a id="camera"></a>
 ### Camera
 

@@ -8,8 +8,8 @@ import os
 import bpy
 
 from ..core import words
-from . import house_bake, house_import, lightbake, ops_house
-from .ui import BIG, _Panel, big, gap, header_status, split_props, wrap
+from . import house_bake, house_import, lightbake, ops_house, toolbox_inbox
+from .ui import BIG, _Panel, big, gap, header_status, hint, primary, split_props, wrap
 
 LIGHT_WORDS = {"LIVE": "Live only (nothing baked; snow, photos and videos only)",
                "SOFT": "Soft light baked, sun live", "ALL": "Everything baked"}
@@ -37,14 +37,19 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return house_import.has_house(context.scene)
+        return house_import.has_house(context.scene) or toolbox_inbox.to_show()
 
     def draw_header(self, context):
         self.layout.label(icon="HOME")
 
     def draw_header_preset(self, context):
         rt = ops_house.runtime(context.scene)
-        if rt.get("running"):
+        n = len(toolbox_inbox.waiting())
+        if n and not rt.get("running"):
+            header_status(self.layout, f"{n} waiting")
+        elif toolbox_inbox.running() is not None and not rt.get("running"):
+            header_status(self.layout, "baking")
+        elif rt.get("running"):
             header_status(self.layout, "baking")
         elif house_import.settings(context.scene).last_bake:        # (nothing while not baked: the long title
             header_status(self.layout, "baked")                     # leaves room for six letters beside it)
@@ -52,6 +57,8 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        if draw_toolbox(layout, context) and not house_import.has_house(scene):
+            return
         h = house_import.settings(scene)
         try:
             house = house_import.house(scene)
@@ -122,6 +129,40 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
                     wrap(col, context, line, inset=1)
                 if len(lines) > 8:
                     col.label(text=f"… and {len(lines) - 8} more", icon="BLANK1")
+
+
+def draw_toolbox(layout, context) -> bool:
+    """Task 0217: what arrived from House Planner (one line + Bake now, Not now), the job running, the last result.
+    Nothing when nothing is there. True when something was drawn."""
+    drawn = False
+    for j in toolbox_inbox.waiting():
+        box = layout.box()
+        wrap(box, context, j.headline(), icon="IMPORT")
+        if j.note:
+            hint(box, context, j.note)
+        row = box.row(align=True)
+        row.scale_y = BIG
+        word = "Import now" if j.action == "import-step" else "Bake now"
+        primary(row, "fresing.toolbox_start", word, "RENDER_STILL", scale=1.0).job = j.id   # the panel's one blue
+        row.operator("fresing.toolbox_not_now", text="Not now").job = j.id
+        drawn = True
+    run = toolbox_inbox.running()
+    if run is not None:
+        box = layout.box()
+        verb = "Importing" if run.action == "import-step" else "Baking"
+        wrap(box, context, f"{verb} for {run.sender or 'the Toolbox'}: {run.title}", icon="SORTTIME")
+        if not ops_house.runtime(context.scene).get("running"):      # (the house scene shows its own bar)
+            box.progress(factor=float(toolbox_inbox.fraction()), type="BAR", text=run.text or verb)
+            if run.action == "bake-house":
+                box.operator("fresing.toolbox_cancel", text="Cancel", icon="CANCEL")
+        drawn = True
+    last = toolbox_inbox.last_result()
+    if last:
+        wrap(layout, context, last, icon="CHECKMARK" if "sent back" in last.lower() else "INFO")
+        drawn = True
+    if drawn and house_import.has_house(context.scene):
+        gap(layout)
+    return drawn
 
 
 CLASSES = (FRESING_PT_house,)

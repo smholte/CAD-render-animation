@@ -156,6 +156,11 @@ function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Ar
 }
 
 $env:LOCALAPPDATA = $LocalAppData
+# task 0217: the Toolbox folder lies in the user's home folder – a user folder with a space and an accent, as above
+$env:USERPROFILE = Join-Path $WorkDir "Users\Sébastien Test"
+$ToolboxHome = Join-Path $env:USERPROFILE "Toolbox"
+Remove-Item Env:TOOLBOX_HOME -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path $env:USERPROFILE | Out-Null
 $env:FRESING_NO_WELCOME = "1"          # task 0199: no welcome / What's new window in the tests
 New-Item -ItemType Directory -Force -Path $LocalAppData | Out-Null
 
@@ -225,6 +230,9 @@ if ($Uninstall) {
     $leftLinks = @(Get-ChildItem -LiteralPath $Desktop -Filter "Fresing Render*.lnk" -ErrorAction SilentlyContinue)
     if ($leftLinks) { Problem "Uninstall left on the Desktop: $($leftLinks.Name -join ', ')" }
     if ($r.Text -notmatch "Fresing Render removed") { Problem "Uninstall did not say 'Fresing Render removed'" }
+    # task 0217: only the app's own folder of the Toolbox folder goes
+    if (Test-Path -LiteralPath (Join-Path $ToolboxHome "tools\nl.fresing.render")) { Problem "Uninstall left tools\nl.fresing.render in the Toolbox folder" }
+    if (-not (Test-Path -LiteralPath (Join-Path $ToolboxHome "toolbox-folder.json"))) { Problem "Uninstall removed the Toolbox folder itself" }
     $Summary += "| Uninstall.bat | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
 } else {
     if (-not $OnlyUpdate) {
@@ -416,6 +424,17 @@ if ($Uninstall) {
             $syncCode = $LASTEXITCODE
             $ErrorActionPreference = $oldEap
             $checks["Blender's extension sync off at start (exit code $syncCode)"] = ($syncCode -eq 0)
+            # task 0217: the Toolbox folder and the app's manifest, and what only Windows shows (tools/ci_toolbox_windows.py)
+            $checks["Toolbox folder and manifest under %USERPROFILE%"] = (Test-Path -LiteralPath (Join-Path $ToolboxHome "toolbox-folder.json")) -and
+                (Test-Path -LiteralPath (Join-Path $ToolboxHome "tools\nl.fresing.render\toolbox.json"))
+            if ($round -eq "install") {
+                $tbScript = Join-Path $PSScriptRoot "ci_toolbox_windows.py"
+                $oldEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+                & $BlenderExe.FullName --background --python-exit-code 1 --python $tbScript -- $ToolboxHome 2>&1 | ForEach-Object { Write-Host "   $_" }
+                $tbCode = $LASTEXITCODE
+                $ErrorActionPreference = $oldEap
+                $checks["Toolbox inbox on Windows: short file, open status.json, junction (exit code $tbCode)"] = ($tbCode -eq 0)
+            }
         }
         foreach ($k in $checks.Keys) {
             if (-not $checks[$k]) { Problem "missing after install: $k" }

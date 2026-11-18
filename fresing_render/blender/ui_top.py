@@ -155,6 +155,18 @@ def _draw_learn(box, context) -> None:
     op.fid, op.choice = fid, "no"
 
 
+def _toolbox_here(context) -> bool:
+    """A job from the Toolbox waits or runs, and its own panel (5 Scene & Render > House from House Planner) is not
+    open where it can be seen – with no model open, section 5 does not show at all."""
+    try:
+        from . import toolbox_inbox
+        if not (toolbox_inbox.waiting() or toolbox_inbox.running() is not None):
+            return False
+        return not (shows_section(context, "FRESING_PT_scene") and panels.is_open("FRESING_PT_house"))
+    except Exception:  # noqa: BLE001 - the card never breaks the panel
+        return False
+
+
 class FRESING_PT_next(_Panel, bpy.types.Panel):
     bl_label = "What's next"
     bl_order = 0
@@ -165,9 +177,14 @@ class FRESING_PT_next(_Panel, bpy.types.Panel):
         s = context.scene.fresing
         if workspaces.locked(context.scene):
             return False
-        return _show_step(s) or bool(_learn_line(context))
+        return _show_step(s) or bool(_learn_line(context)) or _toolbox_here(context)
 
     def draw(self, context):
+        if _toolbox_here(context):           # task 0217: a house from House Planner, also with no model open
+            from . import ui_house
+            ui_house.draw_toolbox(self.layout, context)
+            if not (_show_step(context.scene.fresing) or _learn_line(context)):
+                return
         box = self.layout.box()
         row = box.row()
         row.label(text="What's next", icon="LIGHT")

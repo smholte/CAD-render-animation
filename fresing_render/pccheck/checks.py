@@ -2456,6 +2456,59 @@ def house_bake(ctx):
             f"{os.path.getsize(path) / 1024:.0f} KB")
 
 
+@line("house.toolbox", "A house from House Planner by itself (Toolbox folder)", "0.2.170",
+      what="A house sent the way House Planner sends it, into a Toolbox folder in the check's own folder (never your "
+           "real one): it waits, Bake now (one moment, 4 samples) imports it into a scene of its own and sends the "
+           "bake package back as a job in House Planner's inbox; the status is done, the house scene is gone and the "
+           "check's project is as it was")
+def house_toolbox(ctx):
+    from pathlib import Path
+
+    import bpy
+
+    from ..blender import toolbox_inbox as ti
+    from ..blender import workspaces
+    from ..core import house_scene as hs
+    from ..core import toolbox as tb
+    bpy.ops.wm.read_homefile(use_empty=True)
+    scene = bpy.context.scene
+    workspaces.use_all(scene)
+    root = Path(ctx.work) / "Toolbox"
+    old = os.environ.get("TOOLBOX_HOME")
+    os.environ["TOOLBOX_HOME"] = str(root)            # the check's own folder, never the real one
+    try:
+        _check(tb.home() == root, "TOOLBOX_HOME is not used")
+        ib = ti.use_folder(tb.home(), keep=Path(ctx.work) / "kept", timer=False, samples=4, photo_samples=4,
+                           quick=True)
+        _check(not ib.problem, ib.problem)
+        jid = tb.play_house_planner(root, Path(DATA) / "sample-house.hpscene", "Sample house – PC check")
+        objects = sorted(o.name for o in scene.objects)
+        ti.look()
+        st = tb.read_doc(root / "tools" / tb.ME / "inbox" / jid / "status.json", "status")
+        _check(st["state"] == "waiting", f"the job is {st['state']}, not waiting")
+        t0 = time.time()
+        with bpy.context.temp_override(scene=scene):
+            why = ti.start(bpy.context, jid)
+        _check(not why, f"Bake now: {why}")
+        st = tb.read_doc(root / "tools" / tb.ME / "inbox" / jid / "status.json", "status")
+        _check(st["state"] == "done" and st.get("reply"), f"the job ended {st['state']}: {st.get('text', '')}")
+        reply = root / "tools" / tb.HOUSE_PLANNER / "inbox" / st["reply"]
+        job = tb.read_doc(reply / "job.json", "job")
+        bake = reply / job["files"][0]["name"]
+        bad = hs.structure_problems(str(bake), hs.read_scene(os.path.join(DATA, "sample-house.hpscene")))
+        _check(not bad, "the bake package sent back is not right: " + "; ".join(bad[:3]))
+        _check(len(bpy.data.scenes) == 1, "the house's own scene was not removed")
+        _check(sorted(o.name for o in scene.objects) == objects, "the project changed")
+        ctx.metric("bake and send back", round(time.time() - t0, 1), "s")
+        return f"sent back: {bake.name}, {bake.stat().st_size / 1024:.0f} KB in {time.time() - t0:.0f} s"
+    finally:
+        ti._S["inbox"] = None
+        if old is None:
+            os.environ.pop("TOOLBOX_HOME", None)
+        else:
+            os.environ["TOOLBOX_HOME"] = old
+
+
 @line("web3d.export", "Web 3D model: export with baked looks", "0.2.77",
       what="The test mill saved as a web 3D model (.glb, Texture size 1024, compressed as a big model is) and its "
            "one-file page; the file is read back, checked against the glTF rules (part names hidden) and opened by "

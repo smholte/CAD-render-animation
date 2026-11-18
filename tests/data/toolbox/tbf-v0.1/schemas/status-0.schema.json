@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/smholte/toolbox-format/schemas/status-0.schema.json",
+  "title": "status.json \u2013 what the receiving tool is doing with a job (FORMAT.md section 7)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "job",
+    "updated",
+    "state"
+  ],
+  "properties": {
+    "format": {
+      "const": "toolbox-status"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "job": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{7,63}$"
+    },
+    "updated": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$"
+    },
+    "state": {
+      "enum": [
+        "waiting",
+        "working",
+        "done",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+    },
+    "reply": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{7,63}$"
+    }
+  }
+}

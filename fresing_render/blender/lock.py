@@ -58,6 +58,7 @@ ALLOWED = {
     "fresing.self_test", "fresing.open_app_folder",              # task 0212: a check in its own window, a folder
     "fresing.client_locked",
     "fresing.rebake", "fresing.rebake_cancel",          # cables follow a sea change the Client view may make
+    "fresing.toolbox_report", "fresing.toolbox_not_now",     # task 0217: a status-bar line; turning a job down
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_")     # task 0181: the usage tracker changes nothing in the model

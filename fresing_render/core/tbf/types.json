@@ -1,0 +1,30 @@
+{
+  "format": "toolbox-types",
+  "version": "0.1",
+  "types": [
+    { "id": "hpscene", "name": "House Planner scene", "extensions": [".hpscene"], "by_content": true,
+      "detect": { "zip_json": { "file": "scene.json", "field": "format", "equals": "house-scene" } } },
+    { "id": "hpbake", "name": "House Planner bake", "extensions": [".hpbake"], "by_content": true,
+      "detect": { "zip_json": { "file": "bake.json", "field": "format", "equals": "house-bake" } } },
+    { "id": "ifc", "name": "IFC building model", "extensions": [".ifc"], "by_content": true,
+      "detect": { "all": [ { "starts_with": "ISO-10303-21;" }, { "head_matches": "FILE_SCHEMA\\s*\\(\\s*\\(\\s*'IFC" } ] } },
+    { "id": "step", "name": "STEP model", "extensions": [".step", ".stp", ".p21"], "by_content": true,
+      "detect": { "all": [ { "starts_with": "ISO-10303-21;" }, { "not": { "head_matches": "FILE_SCHEMA\\s*\\(\\s*\\(\\s*'IFC" } } ] } },
+    { "id": "glb", "name": "glTF model (binary)", "extensions": [".glb"], "by_content": true,
+      "detect": { "starts_with_hex": "676c5446" } },
+    { "id": "pdf", "name": "PDF document", "extensions": [".pdf"], "by_content": true,
+      "detect": { "starts_with_hex": "255044462d" } },
+    { "id": "png", "name": "PNG picture", "extensions": [".png"], "by_content": true,
+      "detect": { "starts_with_hex": "89504e470d0a1a0a" } },
+    { "id": "jpeg", "name": "JPEG picture", "extensions": [".jpg", ".jpeg"], "by_content": true,
+      "detect": { "starts_with_hex": "ffd8ff" } },
+    { "id": "gltf", "name": "glTF model (text)", "extensions": [".gltf"] },
+    { "id": "stl", "name": "STL mesh", "extensions": [".stl"] },
+    { "id": "obj", "name": "OBJ mesh", "extensions": [".obj"] },
+    { "id": "dxf", "name": "DXF drawing", "extensions": [".dxf"] },
+    { "id": "csv", "name": "CSV table", "extensions": [".csv"] },
+    { "id": "json", "name": "JSON data", "extensions": [".json"] },
+    { "id": "zip", "name": "Zip archive", "extensions": [".zip"],
+      "detect": { "any": [ { "starts_with_hex": "504b0304" }, { "starts_with_hex": "504b0506" } ] } }
+  ]
+}

@@ -98,7 +98,8 @@ def base_folder(scene, source: str) -> str:
 
 def remove(scene) -> int:
     """Take the house out of the project (its objects, lights, collection). Returns how many objects went."""
-    obs = [ob for ob in bpy.data.objects if ob.get(TAG)]
+    obs = [ob for ob in scene.objects if ob.get(TAG)]       # task 0217: this scene's house only (another scene may
+    #                                                         hold a house of its own)
     datas = [ob.data for ob in obs if ob.data is not None]
     n = len(obs)
     if obs:
@@ -106,18 +107,19 @@ def remove(scene) -> int:
     orphans = [d for d in datas if d.users == 0]
     if orphans:
         bpy.data.batch_remove(orphans)
-    col = bpy.data.collections.get(COLLECTION)
-    if col is not None and not col.objects and not col.children:
-        bpy.data.collections.remove(col)
+    for col in [c for c in scene.collection.children_recursive if c.name.split(".")[0] == COLLECTION]:
+        if not col.objects and not col.children:
+            bpy.data.collections.remove(col)
     return n
 
 
-def import_scene(scene, path: str) -> dict:
+def import_scene(scene, path: str, folder: str | None = None) -> dict:
     """Import a House Planner scene; returns {"house": Scene, "objects": n, "notes": [...]}. Raises
-    ``house_scene.FormatError`` (a plain sentence) when the package must be refused."""
+    ``house_scene.FormatError`` (a plain sentence) when the package must be refused. ``folder`` (task 0217): where
+    the package is unpacked (default: next to the project); a house from the Toolbox inbox goes to a temp folder."""
     path = os.path.abspath(path)
     house_ = hs.read_scene(path)                     # refuses a bad package before anything changes
-    folder = os.path.join(base_folder(scene, path), safe_name(house_.title or os.path.splitext(
+    folder = folder or os.path.join(base_folder(scene, path), safe_name(house_.title or os.path.splitext(
         os.path.basename(path))[0]) + " house")
     os.makedirs(folder, exist_ok=True)
     copy = os.path.join(folder, "house" + EXT)

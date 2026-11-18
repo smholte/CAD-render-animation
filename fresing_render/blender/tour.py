@@ -4048,6 +4048,77 @@ stop("web3d_light", OUT, HUB_SET, "Web 3D model with baked light",
      "sun's sharp shadows still move with the view as before. The fold Light shows the choice, the bake quality and "
      "the estimate.", where="5 Scene & Render > Web 3D model > Light", since="0.2.89", shot="Tour view",
      check=_check_web3d_light)
+TOOLBOX_TITLE = "Sample house – test tour"
+
+
+def toolbox_folder() -> str:
+    """The test tour's own Toolbox folder (task 0217), next to the tour project – never the real one."""
+    import tempfile
+
+    import bpy
+    base = os.path.dirname(bpy.data.filepath) if bpy.data.filepath else tempfile.gettempdir()
+    return os.path.join(base, "Toolbox (test tour)")
+
+
+def _toolbox_setup(scene):
+    """A house sent the way House Planner will send it, into the tour's own Toolbox folder; the app watches that
+    folder until the job is over (then the real one again)."""
+    import shutil
+    from pathlib import Path
+
+    from ..core import toolbox as tb
+    from . import toolbox_inbox as ti
+    root = Path(toolbox_folder())
+    if (root / "toolbox-folder.json").is_file() and not tb.is_link(root):
+        shutil.rmtree(root, ignore_errors=True)
+    ti.use_folder(root, keep=root.parent / "Toolbox (test tour) kept", home_after=True, samples=4, photo_samples=4,
+                  quick=True)
+    tb.play_house_planner(root, Path(DATA) / "sample-house.hpscene", TOOLBOX_TITLE)
+    ti.look()
+
+
+def _check_toolbox(scene):
+    """The tour's job: waiting (Bake now in the panel); baked and sent back. In the automatic run (no window) the
+    check presses Bake now itself."""
+    import json
+    from pathlib import Path
+
+    import bpy
+
+    from ..core import house_scene as hs
+    from ..core import toolbox as tb
+    from . import toolbox_inbox as ti
+    root = Path(toolbox_folder())
+    inbox = root / "tools" / tb.ME / "inbox"
+    _check(inbox.is_dir(), "the tour's Toolbox folder is missing: press Go again")
+    jobs = []
+    for d in sorted(inbox.iterdir()):
+        try:
+            if json.loads((d / "job.json").read_text("utf-8")).get("title") == TOOLBOX_TITLE:
+                jobs.append(d)
+        except (OSError, ValueError):
+            continue
+    _check(jobs, "no house arrived in the tour's Toolbox folder: press Go again")
+    d = jobs[-1]
+    st = json.loads((d / "status.json").read_text("utf-8")) if (d / "status.json").is_file() else {}
+    if st.get("state") == "waiting" and bpy.app.background:
+        why = ti.start(bpy.context, d.name)
+        _check(not why, f"Bake now: {why}")
+        st = json.loads((d / "status.json").read_text("utf-8"))
+    _check(st.get("state") != "waiting", "the house waits: press Bake now in 5 Scene & Render > House from House "
+           "Planner, then check again when it says Sent back to House Planner")
+    _check(st.get("state") != "working", "it still bakes: check again when it says Sent back to House Planner")
+    _check(st.get("state") == "done", f"the job ended {st.get('state')}: {st.get('text', '')}")
+    reply = root / "tools" / tb.HOUSE_PLANNER / "inbox" / st.get("reply", "-")
+    _check(reply.is_dir(), "no reply job in House Planner's inbox")
+    job = json.loads((reply / "job.json").read_text("utf-8"))
+    bake = reply / job["files"][0]["name"]
+    bad = hs.structure_problems(str(bake), hs.read_scene(os.path.join(DATA, "sample-house.hpscene")))
+    _check(not bad, "the bake package sent back is not right: " + "; ".join(bad[:2]))
+    _check(not any(s.name.startswith("House –") for s in bpy.data.scenes), "the house's own scene is still there")
+    return f"sent back to House Planner: {bake.name}, {bake.stat().st_size / 1024:.0f} KB"
+
+
 stop("house", OUT, "house", "House from House Planner",
      "The made-up sample house from House Planner on a summer evening: a low sun from the north-west, long warm "
      "shadows across the plot, the terrace in front. 5 Scene & Render > House from House Planner lists the seasons "
@@ -4055,6 +4126,14 @@ stop("house", OUT, "house", "House from House Planner",
      "sample-house.hpbake next to the tour, for House Planner).",
      where="File > Import > House Planner scene; 5 Scene & Render > House from House Planner", since="0.2.92",
      check=_check_house, changed="0.2.152")
+stop("house_toolbox", OUT, "house", "A house arrives by itself",
+     "A house sent from House Planner waits at the top of 5 Scene & Render > House from House Planner: \"From House "
+     "Planner: Sample house – test tour\" with Bake now and Not now. Press Bake now: a scene \"House – Sample house – "
+     "test tour\" shows the house while it bakes (progress and Cancel in the panel), then the tour comes back and the "
+     "panel says Sent back to House Planner. (The tour uses a Toolbox folder of its own next to the tour project, "
+     "and bakes small: one moment, 4 samples.)",
+     where="5 Scene & Render > House from House Planner", since="0.2.170", shot="House from House Planner",
+     check=_check_toolbox, setup=_toolbox_setup, auto=lambda ctx, scene, st: "")
 
 def _check_workspace(scene):
     """Workspaces and the function families (task 0062): hide, show, lock and unlock – the project stays as it was."""

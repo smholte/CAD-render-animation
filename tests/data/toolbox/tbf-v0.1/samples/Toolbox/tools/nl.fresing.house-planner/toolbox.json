@@ -1,0 +1,35 @@
+{
+  "format": "toolbox-tool",
+  "version": "0.1",
+  "id": "nl.fresing.house-planner",
+  "name": "House Planner",
+  "app_version": "0.0.0-sample",
+  "description": "Plan a house in 2D and 3D.",
+  "homepage": "https://smholte.github.io/house-planner/",
+  "kind": "web",
+  "url": "https://smholte.github.io/house-planner/",
+  "actions": [
+    {
+      "id": "import-bake",
+      "label": "Import baked light",
+      "accepts": [
+        "hpbake"
+      ]
+    },
+    {
+      "id": "import-model",
+      "label": "Add a model",
+      "accepts": [
+        "glb",
+        "gltf",
+        "ifc"
+      ]
+    }
+  ],
+  "sends": [
+    "hpscene"
+  ],
+  "handover": [
+    "inbox"
+  ]
+}

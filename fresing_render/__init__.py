@@ -30,6 +30,7 @@ def _classes():
     from .blender import ops_web3d, ui_web3d     # task 0099: 5 Scene & Render > Web 3D model (after Turntable video)
     from .blender import ops_weather, ui_weather  # task 0109: 5 Scene & Render > Weather & time (after Vessel motion)
     from .blender import ops_house, ui_house      # task 0114: 5 Scene & Render > House from House Planner
+    from .blender import ops_toolbox              # task 0217: Bake now / Not now of a job from the Toolbox folder
     from .blender import ops_people, ui_people    # task 0157: 6 Animation > People (before the Clash check)
     from .blender import ops_tc_person            # task 0156: the operator at a manual tool change
     from .blender import ops_lifting, ui_lifting  # task 0201: 8 Lifting plan
@@ -60,7 +61,7 @@ def _classes():
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
-            + ops_house.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES
+            + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES)
 
@@ -194,6 +195,11 @@ def register():
         print("Fresing Render (icon):", exc)
     from .blender import ops_house
     ops_house.register_menu()                # task 0114: File > Import > House Planner scene (.hpscene)
+    from .blender import toolbox_inbox
+    try:
+        toolbox_inbox.register()             # task 0217: the Toolbox folder's manifest, the inbox's timer
+    except Exception as exc:  # noqa: BLE001 - never stop the app from starting
+        print("Fresing Render (Toolbox):", exc)
     from .blender import ops_import
     ops_import.register_menu()               # task 0117: File > Import > Mesh model (glTF, OBJ, FBX)
 
@@ -203,7 +209,8 @@ def unregister():
 
     from . import pccheck
     from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
-    from .blender import ops_house
+    from .blender import ops_house, toolbox_inbox
+    toolbox_inbox.unregister()
     ops_house.unregister_menu()
     from .blender import ops_import
     ops_import.unregister_menu()

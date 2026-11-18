@@ -411,6 +411,9 @@ fn(id="lifting.chart_entry", title="Enter the chart of your real crane (CSV) –
 
 fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")
+fn(id="house.toolbox", title="A house from House Planner by itself (Bake now, sent back)", family="house",
+   panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
+   pccheck=("house.toolbox",), since="0.2.170")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
    guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77",
    manual_estimate=("use", 7200, "bake the materials, export a glTF and build a viewer page"))

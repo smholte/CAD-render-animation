@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/smholte/toolbox-format/schemas/tool-0.schema.json",
+  "title": "toolbox.json \u2013 a tool's manifest (FORMAT.md section 4)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "id",
+    "name",
+    "kind",
+    "actions"
+  ],
+  "properties": {
+    "format": {
+      "const": "toolbox-tool"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)+$",
+      "maxLength": 80
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "app_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "homepage": {
+      "type": "string",
+      "pattern": "^https://",
+      "maxLength": 300
+    },
+    "kind": {
+      "enum": [
+        "native",
+        "web"
+      ]
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^https://",
+      "maxLength": 300
+    },
+    "icon": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "start": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "program"
+      ],
+      "properties": {
+        "program": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "args": {
+          "type": "array",
+          "maxItems": 40,
+          "items": {
+            "type": "string",
+            "maxLength": 400
+          }
+        }
+      }
+    },
+    "types": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object"
+      },
+      "description": "the tool's own file types; each is checked like a type of types.json (types-0.schema.json)"
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "accepts"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(ext:[a-z0-9]{0,16}|[a-z0-9][a-z0-9-]{0,31}|[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)+)$",
+              "maxLength": 80
+            },
+            "uniqueItems": true,
+            "maxItems": 100,
+            "minItems": 1
+          },
+          "returns": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(ext:[a-z0-9]{0,16}|[a-z0-9][a-z0-9-]{0,31}|[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)+)$",
+              "maxLength": 80
+            },
+            "uniqueItems": true,
+            "maxItems": 100
+          }
+        }
+      }
+    },
+    "sends": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(ext:[a-z0-9]{0,16}|[a-z0-9][a-z0-9-]{0,31}|[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)+)$",
+        "maxLength": 80
+      },
+      "uniqueItems": true,
+      "maxItems": 100
+    },
+    "handover": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "inbox"
+        ]
+      },
+      "uniqueItems": true
+    }
+  },
+  "description": "Checked beyond this schema by tbf/check.py: a web tool has no start, a native tool has no url; ids of actions and types are unique; every type named exists."
+}

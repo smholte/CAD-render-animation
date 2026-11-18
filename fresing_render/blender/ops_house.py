@@ -7,7 +7,7 @@ import os
 import time
 
 import bpy
-from bpy.props import StringProperty
+from bpy.props import BoolProperty, IntProperty, StringProperty
 from bpy_extras.io_utils import ImportHelper
 
 from ..core import house_scene as hs
@@ -17,6 +17,17 @@ from . import files, house_bake, house_import
 
 TICK = 0.1                     # s of work between two redraws of the panel
 _RUN: dict = {}
+# task 0217: called when a bake ends – f(scene, outcome, info, filepath); outcome "done" (info = HouseBake.result),
+# "cancelled" (info = None) or "failed" (info = the message). The Toolbox inbox sends the package back from here.
+ENDED: list = []
+
+
+def _ended(scene, outcome: str, info, filepath: str) -> None:
+    for f in list(ENDED):
+        try:
+            f(scene, outcome, info, filepath)
+        except Exception as exc:  # noqa: BLE001 - a listener never breaks the bake's own ending
+            print("Fresing Render: after the house bake:", exc)
 
 
 def runtime(scene) -> dict:
@@ -101,6 +112,30 @@ def _done(scene, out: dict) -> str:
     return msg
 
 
+def bake_options(scene, samples: int = 0, photo_samples: int = 0, quick: bool = False) -> dict:
+    """HouseBake's keywords (task 0217): 0 = the recipe's samples; ``quick`` = the first moment only, no photo or video
+    (tests, the PC check, the test tour)."""
+    kw = {"samples": samples or None, "photo_samples": photo_samples or None}
+    if quick:
+        from . import house_import
+        moments = house_import.house(scene).recipe.moments
+        kw.update(moments=[moments[0].id] if moments else [], photos=False, videos=False)
+    return kw
+
+
+def run_at_once(job) -> str:
+    """The bake without a window (scripts, background, the Toolbox inbox in Blender as a module): all of it now, the
+    end told to ``ENDED`` as the modal tells it. Raises with the message when it fails."""
+    try:
+        out = job.run()
+    except Exception as exc:  # noqa: BLE001
+        _ended(job.scene, "failed", f"The bake failed: {exc}", job.path)
+        raise RuntimeError(f"The bake failed: {exc}") from exc
+    msg = _done(job.scene, out)
+    _ended(job.scene, "done", out, job.path)
+    return msg
+
+
 class FRESING_OT_house_bake(bpy.types.Operator):
     """Bakes the light of every moment the house asks for (sun, sky, lamps, snow) with Cycles, renders its photos
     and videos, and saves it all as one bake package (.hpbake) next to the project. Open that file in House Planner.
@@ -111,6 +146,10 @@ class FRESING_OT_house_bake(bpy.types.Operator):
     bl_options = {"REGISTER"}
 
     filepath: StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE", "HIDDEN"})
+    # task 0217: the samples of the light and of the photos (0 = the recipe's); tests and the PC check bake small
+    samples: IntProperty(default=0, min=0, options={"SKIP_SAVE", "HIDDEN"})
+    photo_samples: IntProperty(default=0, min=0, options={"SKIP_SAVE", "HIDDEN"})
+    quick: BoolProperty(default=False, options={"SKIP_SAVE", "HIDDEN"})     # the first moment only, no photo / video
 
     _timer = None
     _gen = None
@@ -123,17 +162,19 @@ class FRESING_OT_house_bake(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         try:
-            self._job = house_bake.HouseBake(scene, self.filepath or None)
+            self._job = house_bake.HouseBake(scene, self.filepath or None, **bake_options(
+                scene, self.samples, self.photo_samples, self.quick))
         except Exception as exc:  # noqa: BLE001 - say what went wrong
             self.report({"ERROR"}, f"The bake could not start: {exc}")
+            _ended(scene, "failed", f"The bake could not start: {exc}", self.filepath)
             return {"CANCELLED"}
         if context.window is None:                      # scripts, background: at once
             try:
-                out = self._job.run()
+                msg = run_at_once(self._job)
             except Exception as exc:  # noqa: BLE001
-                self.report({"ERROR"}, f"The bake failed: {exc}")
+                self.report({"ERROR"}, str(exc))
                 return {"CANCELLED"}
-            self.report({"INFO"}, _done(scene, out))
+            self.report({"INFO"}, msg)
             return {"FINISHED"}
         self._gen = self._job.steps()
         rt = runtime(scene)
@@ -161,6 +202,7 @@ class FRESING_OT_house_bake(bpy.types.Operator):
             self._stop(context)
             context.scene.fresing.last_message = "The house bake was cancelled: no file was written"
             self.report({"INFO"}, "House bake cancelled")
+            _ended(self._job.scene, "cancelled", None, self._job.path)
             return {"CANCELLED"}
         if event.type != "TIMER":
             return {"PASS_THROUGH"}
@@ -172,11 +214,13 @@ class FRESING_OT_house_bake(bpy.types.Operator):
         except StopIteration:
             self._stop(context)
             self.report({"INFO"}, _done(context.scene, self._job.result))
+            _ended(self._job.scene, "done", self._job.result, self._job.path)
             return {"FINISHED"}
         except Exception as exc:  # noqa: BLE001 - never leave the panel "running"
             self._gen.close()
             self._stop(context)
             self.report({"ERROR"}, f"The house bake failed: {exc}")
+            _ended(self._job.scene, "failed", f"The house bake failed: {exc}", self._job.path)
             return {"CANCELLED"}
         _redraw(context)
         return {"RUNNING_MODAL"}

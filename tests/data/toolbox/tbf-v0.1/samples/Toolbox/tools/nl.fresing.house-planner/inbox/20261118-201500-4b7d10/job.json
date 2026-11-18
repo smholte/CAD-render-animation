@@ -1,0 +1,21 @@
+{
+  "format": "toolbox-job",
+  "version": "0.1",
+  "job": "20261118-201500-4b7d10",
+  "created": "2026-11-18T20:15:00+01:00",
+  "from": "nl.fresing.render",
+  "to": "nl.fresing.house-planner",
+  "action": "import-bake",
+  "reply_to": {
+    "tool": "nl.fresing.render",
+    "job": "20261118-195100-9f3c2a"
+  },
+  "title": "Sample house – version 3",
+  "files": [
+    {
+      "name": "sample-house.hpbake",
+      "type": "hpbake",
+      "size": 206
+    }
+  ]
+}

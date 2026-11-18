@@ -26,6 +26,7 @@ It is free software under **GPL-3.0-or-later** (see "The licence in plain words"
 | the in-app update's log | `…\portable\config\fresing_update\update.log` |
 | shortcuts | Desktop and Start menu: Fresing Render only; `%LOCALAPPDATA%\FresingRender\Tools` (self test, PC checks, safe start, user guide) |
 | `Fresing Render.exe` | next to `blender.exe`: Blender's own program under the app's name and icon (made by the app; not signed, see below) |
+| the **Toolbox folder** (task 0217) | `%USERPROFILE%\Toolbox\` (made when missing; `TOOLBOX_HOME` names another folder): `toolbox-folder.json` and the app's own `tools\nl.fresing.render\` – its description `toolbox.json`, `alive.json` while it runs, and `inbox\` where other tools on this PC (House Planner) leave files for it. `Uninstall.bat` removes only `tools\nl.fresing.render\` |
 
 What it writes while it works: the user's **projects** (`.blend`) where the user saves them; **renders** in a "Renders"
 folder next to the saved project (or `Pictures\Fresing Render`); a **cache** of read STEP files in the extension's user
@@ -59,6 +60,13 @@ The request carries only `FresingRender/<version> (update check)` as its `User-A
 - the **Web 3D model** pages the app writes: one file, with the viewer inside; it loads nothing from the internet
   (`fresing_render/web/README.txt`; the only `fetch` is of the page's own in-memory data, `web/fr_page.js` line 2192)
 - the PC check and the self-test (apart from the one update check of row 3)
+- the **Toolbox folder** (task 0217): tools on the same PC hand files to each other through a plain folder in the user's
+  home folder – no server, no network port, nothing leaves the PC (`core/toolbox.py` imports no network library;
+  `blender/toolbox_inbox.py` only looks at that folder every 2 seconds). The app reads only files of the two kinds it
+  takes (a STEP file, a House Planner house), checks name, size and kind by content before it opens one, never follows
+  a link, and imports or bakes only when the user presses **Import now** / **Bake now**. A house it bakes goes back as a
+  file into House Planner's folder there. Like the user's Documents, anything that can write in that folder can offer
+  the app a file.
 - no crash reports, no telemetry, no licence server, no account.
 
 **Blender itself.** The installer switches Blender's **online access on** (`Install-FresingRender.ps1`, the `set_prefs.py`

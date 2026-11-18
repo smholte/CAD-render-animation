@@ -417,6 +417,16 @@ for mod in addon_utils.modules():
         paths = icon.shortcut_paths(desktop, programs, appdata, icon.tools_dir(folder))
         done = icon.refresh_shortcuts(folder, ico, paths, target)
         print("Shortcuts: " + ("; ".join(done) if done else "already right"))
+        # task 0217: the Toolbox folder and the app's manifest (start = what the shortcuts start); the app writes it
+        # again at every start, so an update keeps it right
+        try:
+            tb = importlib.import_module(mod.__name__ + ".core.toolbox")
+            ver = importlib.import_module(mod.__name__).__version__
+            exe = importlib.import_module(mod.__name__ + ".winexe").app_exe(bpy.app.binary_path)
+            path = tb.install(tb.home(), str(ver), exe or target, ["--app-template", "fresing_render"])
+            print("Toolbox folder: " + str(path))
+        except Exception as exc:
+            print("Toolbox folder: not made (" + str(exc) + "); the app tries again at its start")
         break
 else:
     sys.exit("Fresing Render is not installed in this Blender")

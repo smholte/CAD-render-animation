@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/smholte/toolbox-format/schemas/types-0.schema.json",
+  "title": "types.json \u2013 the built-in file types (FORMAT.md section 5); the rules inside detect are checked by tbf/detect.py",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "types"
+  ],
+  "properties": {
+    "format": {
+      "const": "toolbox-types"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "types": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "extensions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "extensions": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^\\.[a-z0-9]{1,16}$"
+            }
+          },
+          "detect": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1
+          },
+          "by_content": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
