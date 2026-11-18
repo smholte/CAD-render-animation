@@ -2462,7 +2462,8 @@ def house_bake(ctx):
            "Blender's own glTF importer. The page's player (task 0134) is opened in Edge or Chrome without a window: "
            "its settings menu, keys help and link, Space pauses a page with motion, and it says it draws without the "
            "graphics card. Task 0135: the part tools on the mill's page – a click picks a part and shows its card, "
-           "two clicks measure, Fade the rest and the cutaway work, and the file carries the faces for measuring")
+           "two clicks measure, Fade the rest works, and the file carries the faces for measuring. Task 0218: "
+           "six slices cut every part together and are deleted again")
 def web3d_export(ctx):
     from ..blender import build, web3d
     from ..core import web3d as core
@@ -2640,7 +2641,7 @@ def _player_check(page_path: str, ctx) -> str:
     _check(bool(warned), "the page did not say it draws without the graphics card (a browser without a window "
                          "has none)")
     return (f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}); part tools: card, measure, "
-            f"fade, cutaway in {os.path.basename(browser)}")
+            f"fade, {tools.get('slices', 0)} slices in {os.path.basename(browser)}")
 
 
 @line("web3d.moving", "Web 3D model: cables, ropes and coils move with their looks", "0.2.114",

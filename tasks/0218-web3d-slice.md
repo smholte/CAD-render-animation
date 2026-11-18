@@ -1,6 +1,6 @@
 # 0218 – Web 3D page: Slice instead of Cutaway – any face, several slices, edit and delete
 
-**Who:** worker · **Status:** running (Web 3D lane) · **Branch:** `task/0218-web3d-slice`
+**Who:** worker · **Status:** done 18 Nov 2026 (0.2.169) · **Branch:** `task/0218-web3d-slice`
 **Started by:** lead, 18 Nov 2026 (owner's request of 18 Nov 22:13, through the ToolBox lead's lead-post message
 `1118-toolbox-to-fresing-render-viewer-and-slice.md`) · **Model:** Opus · effort Medium
 **Area:** Web 3D lane – `fresing_render/web/fr_tools.js` (the part tools), `fr_page.js` (only where the clipping planes
@@ -52,14 +52,14 @@ feel like a real viewer's tool.
 
 ## Done when
 
-- [ ] Slice by face (flat and round) and by X / Y / Z; up to 6 at once; edit (move, turn) and delete each; Flip
-- [ ] Measuring, part click and fade work through slices onto the kept geometry (tests)
-- [ ] `tests/test_web_tools.py` (node) covers the slice maths (plane from a pick, kept side, several planes); the page's
+- [x] Slice by face (flat and round) and by X / Y / Z; up to 6 at once; edit (move, turn) and delete each; Flip
+- [x] Measuring, part click and fade work through slices onto the kept geometry (tests)
+- [x] `tests/test_web_tools.py` (node) covers the slice maths (plane from a pick, kept side, several planes); the page's
       self-test / web checks still pass; a picture of two slices on the test crane's page looked at
-- [ ] Guide, README.txt, tooltips; function-list entry `changed=`, tour stop and PC-check line updated to Slice
+- [x] Guide, README.txt, tooltips; function-list entry `changed=`, tour stop and PC-check line updated to Slice
       (`changed=`), version fields as the precheck asks
-- [ ] Frame-time numbers with 0 / 1 / 6 slices in the report
-- [ ] Report filled in
+- [x] Frame-time numbers with 0 / 1 / 6 slices in the report
+- [x] Report filled in
 
 ## Not in this task
 
@@ -71,10 +71,51 @@ use the same words: "Slice", "Add slice", "Slice 1"); `house-planner-dev`.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026 (one session, no subagents – a one-file feature with its tests;
+independent tester skipped: no Windows-only code).
 
 **What changed:**
+- `fr_tools.js`: Cutaway → **Slice** (button, panel, keys help). Add slice, then a click on a face (flat: in its plane;
+  round / cone: through its axis, square to the view; a page without face data: the triangle's normal) or X / Y / Z
+  through the model's middle. Up to **8** slices, numbered, listed with Edit / Hide·Show / Delete (×), Delete all.
+  All slices are clipping planes on every material (the live `Plane` objects); the cap colour works per plane, so
+  where two cuts meet it stays right. Editing shows a blue plane with a white arrow (move) and two yellow knobs (turn
+  about the first in-plane axis and about the turned second); drags are capture-phase listeners, the view does not
+  turn; or type Move (mm) and two Turn angles (°); a size slider for the drawn plane only. Esc order: end a drag →
+  end editing → stop adding → (measure / card / fade / tool as before) → close the list (slices stay on).
+- **Kept side:** the side **away** from the camera stays (the near side is cut away), as in House Planner – the brief's
+  sentence "the side away from the camera is cut away" reads the other way round; keeping the near side would show
+  the outside of the near half with its cut face turned away, so I followed House Planner. Flip swaps it. Lead: say
+  if the owner wants it the other way (one line in `M.slice.fromPick` / `across`).
+- **Key** stays **C**: S is the player's screenshot.
+- Clicks of Part info, Measure and Fade go through every slice onto kept geometry; a hit on a part's inside is the
+  cut face where the ray **enters** what all planes keep (`M.slice.capAt`) and measures as a flat face of that slice.
+- Saved views keep only the camera (0179); the slices are page state and stay on through view switches and tools.
+  No new storage.
+- `fr_measure.js`: `FRMeasure.slice` – frame, fromPick, across, plane (two turns + move + flip), kept, capAt,
+  moveRange (pure maths, node-tested).
+- House Planner's slice (public repo, `src/view3d.js`) was read for behaviour and words only: it has no licence file,
+  so no code was copied.
+- Guide (web page chapter), `web/README.txt`, function `web.tools` (`changed=0.2.169`), tour stop `web3d` text
+  (`changed`, crane set `changed`, `tour_versions.json` recorded), PC-check line `web3d.export` text and result
+  (the page's self-test now adds 6 slices, checks every material carries all 6, deletes them).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, headless Chromium, SwiftShader):
+- `tests/test_web_tools.py` 20 passed: new `test_slice_maths` (node), `test_several_slices_clicks_go_through_and_handles`
+  (face slice + axis slice, shaft top cut away never picked, cap pick, measure through slices, knob turn, arrow move,
+  camera unchanged, hide, delete, Esc), `test_six_slices_and_the_panel` (C → adding, empty click waits, X button,
+  8 slices, 9th refused, list rows, Esc twice); the 0135 tests moved to the slice API.
+- Picture: two slices (across Y, across Z turned 20°) on the test crane's exported page – looked at; the cut half and
+  the handles show as intended.
+- **Frame time**, demo vessel `demo_cable_lay.step` exported as a page (2.12 M triangles, 10.9 MB; the vessel model,
+  not the full made demo project with animation), 1280 x 720, software GL, `renderer.render` + 1-pixel read, median of
+  4: **0 slices 8.0 s, 1 slice 6.8 s, 6 slices 7.2 s, 0 again 7.7 s** – no measurable cost from the planes on this
+  machine (a cut hides pixels, which saves about as much as the planes cost). On the owner's graphics card: expected
+  the same, not measured.
+
+**Runs:** 2 – run 44413437042 full: all green but Windows part A (the shortcut check "a second refresh writes nothing": the app's Fresing Render.exe not yet usable at the first refresh – runner timing, 0212's check, not this change); its failed jobs re-run green. The merge onto main (f8ee814) ran in docs mode and published 0.2.169 (update check + Offer green); its landing-page deploy failed on a GitHub artifact error and was re-run.
 
 **Open points / follow-up tasks:**
+- The panel (300 px, top left) can cover the slice's handles on a small window; the user turns the view. A later
+  polish could move the panel when the handles are under it.
+- The app's 3 Looks > Cutaway stays as it is (task 0220 renames it).

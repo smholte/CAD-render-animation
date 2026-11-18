@@ -5,12 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.169 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
+## 0.2.170 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
 
 The tool that cuts a machine open (3 Looks) is now called **Slice**, the same word as on the web 3D page: the panel,
 its buttons (**Add slice**, **Remove slice**), the list ("Slice 1", "Slice 2" …), the guide and the test tour say Slice.
 Your old projects open as before; their cuts show up under Slice with their old names. The sea cut-away and the hall
 cut-away keep their names.
+## 0.2.169 – 18 Nov 2026 – Slice on the web 3D page (task 0218)
+
+- The web 3D page's **Cutaway** is now **Slice** (key C, as before; S stays the screenshot). **Add slice**, then click a
+  face: a flat face slices in its own plane, a round face (shaft, bore) through its axis, square to your view. Or
+  choose X, Y or Z. The side away from you stays, so you look into the cut; **Flip** keeps the other side.
+- **Several slices at once** (up to 8), numbered and listed with **Edit**, **Hide / Show** and **Delete**. The red cut
+  faces stay right where two slices meet.
+- **Edit** shows the slice as a plane with handles: drag the white arrow to move it, a yellow knob to turn it about one
+  of two axes, or type mm and degrees.
+- The slices stay on while you measure, use Part info or Fade the rest – those click through the slices onto what is
+  kept, never onto a cut-away part.
+- Pages exported earlier keep their Cutaway; export again to get Slice.
 
 ## 0.2.168 – 18 Nov 2026 – Cables and the sea after changes (task 0216)
 - **Undo after a water change:** a cable into the sea is worked out again for the water it now has (after water level 2 → 3 m, re-bake, Undo it lay 1 m under the seabed). The water level, the water depth and a cable's own depth count, like the sea state and the speed already did. A project saved while that re-bake ran is worked out again when it opens.

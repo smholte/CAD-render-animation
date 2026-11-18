@@ -48,7 +48,7 @@ wants them in the app too. The web page itself (0218).
 
 **Chat / date:** Claude Code on the web, 18 Nov 2026
 
-**What changed:** 0.2.169. The section-view tool says Slice everywhere it is visible: panel title (3 Looks > Slice),
+**What changed:** 0.2.170 (0.2.169 was taken by task 0218: one extra run for the version clash). The section-view tool says Slice everywhere it is visible: panel title (3 Looks > Slice),
 buttons (Add slice, Remove slice, Slice this too, Do not slice this), new list names ("Slice 1" …; old projects keep
 their stored names), header ("2 slices · 1 on"), hints, reports, tooltips, function list title, tour set and stop
 texts, PC-check line title, guide section + picture. Guide: new anchor `slice` above the old `cutaway` (kept, in

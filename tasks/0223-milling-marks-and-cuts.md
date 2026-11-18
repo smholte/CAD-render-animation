@@ -1,6 +1,6 @@
 # 0223 – Milling: every cut gets the tool-mark look, every cutting move cuts
 
-**Who:** worker · **Status:** open – can start (Machining lane) · **Branch:** `task/0223-milling-marks-and-cuts`
+**Who:** worker · **Status:** running (Machining lane) · **Branch:** `task/0223-milling-marks-and-cuts`
 **Started by:** lead, 19 Nov 2026 (owner, 00:16, test tour on 0.2.168: "the milling models in the test tours, not all
 get the good tool marks texture in cutting material, and not all cutting operations cut even when it shows the
 g-code going through the material") · **Model:** Opus · effort High
@@ -26,11 +26,11 @@ plain grey, soft or wavy cut faces (the owner's first picture), or a toolpath li
   failed in 281 s – every machining stop (`gcode`, `accel`, `tools`, `hand`, `marks`, `atc`, `doublearm`, `rotary4`,
   `rotary5`, `toolpath`, `chips`, `air`, `coolant`, `operator`, `cut_look`) passed while he saw missing marks and
   uncut moves. The new checks must fail on exactly that.
-- Lead's first look (not proven): the tool-mark attributes `fr_mk_o/d/a/p` are written only by the Manifold route
-  (`core/machining.py`, `blender/machining.py` ~line 1195, task 0061). The **height map** for long 3-axis programs –
-  "Fast 3-axis" (0146, 0167, 0186) – does not mention them at all: a model on that route would get no marks. The soft
-  dents of the bad picture also look like a coarse height map or the quick normals of `refresh(quick=)` that were never
-  replaced by the exact ones (`make_fine`).
+- Lead's first look (not proven, corrected 00:30): 0146 (Fable) built the height map to **keep** the marks – each map
+  face carries the move that owns it, `mark_faces` writes 0061's attributes (tasks/0146 lines 34, 70, 86–94, 149). So
+  check whether that still holds after 0167 and 0186 changed the map, on every set that runs Fast 3-axis, before
+  suspecting the route itself. The soft dents of the bad picture may be a coarse map, the quick normals of
+  `refresh(quick=)` never replaced by the exact ones (`make_fine`), or a set whose material has no marks look.
 - Other suspects for "the path goes through but nothing is cut": the bit's cutting length / shank (a cut deeper than
   the flutes), a tool copy after M6 or a tool from the ATC / double arm that is not registered as the cutter, a rotary
   set (4th / 5th axis, TCP) whose workpiece moves while the cut is computed in the wrong frame, a frame range or tile

@@ -1,5 +1,5 @@
 """The web 3D player's part tools (task 0135), no Blender: part info, measure (points, planes, diameter, centre to
-centre, face to centre, X/Y/Z parts), cutaway, fade the rest – on a made-up model of known sizes, driven in headless
+centre, face to centre, X/Y/Z parts), slices (task 0218; was the cutaway), fade the rest – on a made-up model of known sizes, driven in headless
 Chromium by ``tools/web_player_probe.js``; the measuring maths (``fr_measure.js``) by node; the face data
 (``core/web3d_faces.py``) on its own.
 
@@ -337,11 +337,12 @@ def test_a_real_click_info_card_fade_and_cut(tmp_path):
     bx, by = out["out"][9]
     steps += [{"tap": [bx, by]}, {"eval": "frPage.partTools.state()"},                          # 10, 11
               {"tap": [5, 590]}, {"eval": "frPage.partTools.state()"},                          # 12, 13: empty space
-              {"eval": "frPage.partTools.setCut(true, 'X', 0.5)"}, {"eval": "frPage.partTools.state()"},   # 14, 15
+              {"eval": keep_x(0.5, below=True)}, {"eval": "frPage.partTools.state()"},          # 14, 15
               {"eval": f"frPage.partTools.pickAt.apply(null, {shaft})"},                        # 16: cut away
-              {"eval": "frPage.partTools.setCut(true, 'X', 0.5, true)"},
+              {"eval": "frPage.partTools.change(1, {flip: !frPage.partTools.state().slices[0].flip})"},
               {"eval": f"frPage.partTools.pickAt.apply(null, {shaft})"},                        # 18: Flip keeps it
-              {"key": "c"}, {"eval": "frPage.partTools.state()"}]                               # 19, 20
+              {"key": "c"}, {"eval": "frPage.partTools.state()"},                               # 19, 20: list closed
+              {"eval": "frPage.partTools.remove(1)"}, {"eval": "frPage.partTools.state()"}]     # 21, 22
     out = probe(path, steps)
     assert out["ok"], out
     o = out["out"]
@@ -349,10 +350,11 @@ def test_a_real_click_info_card_fade_and_cut(tmp_path):
     assert o[7] is not None and o[7]["text"] == "Shaft"
     assert o[11]["fade"] == "Block" and o[11]["faded"] == 2 and o[11]["tool"] == "fade"
     assert o[13]["fade"] is None and o[13]["faded"] == 0
-    assert o[15]["cut"]["on"] and o[15]["clipped"] >= 1
+    assert o[15]["cutting"] == 1 and o[15]["clipped"] >= 1 and o[15]["editing"] == 1
     assert o[16] is None or o[16]["card"] != "Shaft"           # x > 415 mm is cut away: the shaft is gone
     assert o[18] is not None and o[18]["card"] == "Shaft"
-    assert o[20]["cut"]["on"] is False and o[20]["clipped"] == 0
+    assert o[20]["sliceOpen"] is False and o[20]["cutting"] == 1      # closing the list leaves the slice on
+    assert o[22]["slices"] == [] and o[22]["clipped"] == 0
 
 
 @browser_test
@@ -398,7 +400,8 @@ def test_selftest_and_keys_help(tmp_path):
     st = env.read_page(path, query="selftest=1&soft=0")
     assert st["tools"] and st["tools"]["ok"], st["tools"]
     out = probe(path, [{"key": "?"}, {"eval": "document.getElementById('fr-help').textContent"}])
-    assert "measure" in out["out"][1] and "cutaway" in out["out"][1] and "fade the rest" in out["out"][1]
+    assert "measure" in out["out"][1] and "slice" in out["out"][1] and "fade the rest" in out["out"][1]
+    assert st["tools"]["slices"] == 6 and st["tools"]["slice"]
 
 
 @browser_test
@@ -491,6 +494,13 @@ def tube_model() -> bytes:
     return g.glb()
 
 
+def keep_x(frac, below):
+    """A slice across X at ``frac`` of the model's box keeping the side below (or above) it, whatever side the camera
+    looks from (a new slice keeps the side away from the camera)."""
+    return (f"(function () {{ var pt = frPage.partTools, s = pt.addAcross('X', {frac});"
+            f" if ((s.n[0] > 0) === {'true' if below else 'false'}) s = pt.change(s.num, {{flip: true}}); return s; }})()")
+
+
 def screen_eval(p, then="return [s.x, s.y];"):
     return f"(function () {{ var s = frPage.partTools.screenOf({json.dumps(p)}); {then} }})()"
 
@@ -510,11 +520,13 @@ def test_cables_drawn_by_the_page_stickers_cut_faces_and_fade(tmp_path):
              {"eval": "(function () { var t = null; frPage.three.top.traverse(function (o) { if (o.userData.frTube) t = o; });"
                       " return [t.material.transparent, !!t.material.onBeforeCompile && t.material.onBeforeCompile.toString().length > 50]; })()"},
              {"key": "Escape"},                                                       # 7
-             {"eval": "frPage.partTools.setCut(true, 'X', 0.5)"},                     # 8: cut, then fade, then move
+             {"eval": keep_x(0.5, below=True)},                                        # 8: cut, then fade, then move
              {"eval": screen_eval([0.05, 0.1, 0.1], "return frPage.partTools.click(s.x, s.y).fade;")},
-             {"eval": "frPage.partTools.setCut(true, 'X', 0.9)"}, {"eval": "frPage.partTools.state()"},   # 10, 11
+             {"eval": "(function () { var pt = frPage.partTools, s = pt.state().slices[0];"
+                      " return pt.change(s.num, {t: s.flip ? 0.24 : -0.24}); })()"},   # 10: x 0.2 -> 0.44
+             {"eval": "frPage.partTools.state()"},                                    # 11
              {"key": "Escape"}, {"key": "t"}, {"key": "d"},                           # 12-14
-             {"eval": "frPage.partTools.setCut(true, 'X', 0.4, true)"},              # 15: keep x > 0.14
+             {"eval": "frPage.partTools.remove(1), " + keep_x(0.4, below=False)},     # 15: keep x > 0.14
              {"eval": "frPage.setCamera([-0.6, 0.3, 0.3], [0.2, 0.05, -0.1])"}, {"wait": 300},
              {"eval": screen_eval([0.14, 0.1, 0.05], "return frPage.partTools.click(s.x, s.y).result;")},   # 18
              ]
@@ -543,3 +555,135 @@ def test_a_slow_mouse_click_measures_and_esc_closes_the_help_first(tmp_path):
     assert o[4]["picks"] == 1 and o[4]["card"] is None
     assert o[7] == [False, 1]
     assert o[8] == "Kabelforing Grosse - O 40 AEble"
+
+
+# ---------------------------------------------------------------------------
+# slices (task 0218)
+# ---------------------------------------------------------------------------
+
+def test_slice_maths():
+    """A slice from a click (flat face: in its plane; round face: through its axis, square to the view), the side
+    away from the camera kept, Flip, the two turns, several planes kept together, the cut face a ray sees."""
+    flat = "{kind: 'flat', p: [0.2, 0.1, 0.1], n: [0, 0, 1]}"
+    rd = "{kind: 'round', p: [0.62, 0.1, 0.07], o: [0.6, 0.1, 0], d: [0, 0, 1], r: 0.02}"
+    S = "M.slice"
+    o = run_measure(
+        f"(function () {{ var a = {S}.fromPick({flat}, [0.1, 0.2, -1]), a2 = {S}.fromPick({flat}, [0.1, 0.2, 1]),"
+        f" r = {S}.fromPick({rd}, [-1, -0.2, -0.5]), y = {S}.across('Y', [0, 0.05, 0], [0.3, 0.9, -0.1]),"
+        f" x = {S}.across('X', [0, 0, 0], [1, 0, 0]), pa = {S}.plane(a), pr = {S}.plane(r);"
+        f" var t = Object.assign({{}}, x, {{a: 90, b: 90, t: 0.1}}), yf = Object.assign({{}}, y, {{flip: true}});"
+        f" var P = [{{n: [-1, 0, 0], q: [0.4, 0, 0]}}, {{n: [0, 0, -1], q: [0, 0, 0.05]}}];"
+        f" return [pa, {S}.kept([pa], [0.2, 0.1, 0.1]), {S}.kept([pa], [0.3, 0.1, 0.12]), {S}.plane(a2), pr,"
+        f" {S}.plane(y), {S}.plane(yf), {S}.plane(t), {S}.kept(P, [0.3, 0.1, 0.04]), {S}.kept(P, [0.3, 0.1, 0.06]),"
+        f" {S}.capAt(P, [1, 0.1, 0.03], [-1, 0, 0], 2), {S}.capAt(P, [0.2, 0.1, 1], [0, 0, -1], 2),"
+        f" {S}.capAt(P, [1, 0.1, 0.1], [-1, 0, 0], 2), {S}.capAt(P, [1, 0.1, 0.03], [-1, 0, 0], 0.5),"
+        f" {S}.moveRange(Object.assign({{}}, x, {{o: [0.2, 0.1, 0.05]}}), [0, 0, 0], [0.4, 0.2, 0.1])]; }})()")
+    pa, top_kept, above_kept, pa2, pr, py, pyf, pt, k1, k2, c1, c2, c3, c4, rng = o
+    # looking down: the block below the clicked top face stays, the face itself too (the plane 0.02 mm above it)
+    assert np.allclose(pa["n"], [0, 0, -1]) and abs(pa["q"][2] - 0.10002) < 1e-9
+    assert top_kept is True and above_kept is False
+    assert np.allclose(pa2["n"], [0, 0, 1])                          # looking up: the other side stays
+    # a round face: through its axis (a point of the axis, the normal square to it), square to the view
+    assert abs(np.dot(pr["n"], [0, 0, 1])) < 1e-12 and np.allclose(pr["q"], [0.6, 0.1, 0.07])
+    assert np.allclose(pr["n"], np.array([-1, -0.2, 0]) / np.hypot(1, 0.2))
+    assert np.allclose(py["n"], [0, 1, 0]) and np.allclose(pyf["n"], [0, -1, 0]) and np.allclose(pyf["q"], [0, 0.05, 0])
+    # turned 90° about e1 (y), then 90° about the turned e2 (x): the normal ends along +y; moved 0.1 along it
+    assert np.allclose(pt["n"], [0, 1, 0], atol=1e-12) and np.allclose(pt["q"], [0, 0.1, 0], atol=1e-12)
+    assert np.allclose(np.cross(pt["e1"], pt["e2"]), pt["n"], atol=1e-12)
+    assert k1 is True and k2 is False                                # kept only below both planes
+    assert c1["i"] == 0 and np.allclose(c1["p"], [0.4, 0.1, 0.03])  # enters at the x plane's cut face
+    assert c2["i"] == 1 and np.allclose(c2["p"], [0.2, 0.1, 0.05])  # at the z plane's
+    assert c3 is None                                                # meets a plane where the other one cut it away
+    assert c4 is None                                                # the cut face is behind what the ray hit first
+    assert np.allclose(rng, [-0.2, 0.2])
+
+
+@browser_test
+def test_several_slices_clicks_go_through_and_handles(tmp_path):
+    """Add slice by a flat face and by a round face, both cutting; measuring clicks only what is kept (a cut face
+    reads as a flat face in its slice); the arrow and a knob drag the slice being edited and the view stays put;
+    Hide, Delete, Esc."""
+    path, _g = write(tmp_path / "slices.html")
+    wide = "1400x800"                                                 # the model clear of the panel on the left
+    out = probe(path, [{"eval": CAM}, {"wait": 300}, {"eval": at("block_top")}, {"eval": at("shaft_side")}], size=wide)
+    top, side = out["out"][2], out["out"][3]
+    pt = "frPage.partTools"
+    n = np.array([-0.68, 1.1]) / np.hypot(-0.68, 1.1)                 # the slice through the shaft keeps +n (roughly)
+    cap = [0.6 + 0.008 * n[0], 0.1 + 0.008 * n[1], 0.1]              # on the shaft, on slice 1's cut face
+    steps = [{"eval": CAM}, {"wait": 300}, {"key": "d"},
+             {"eval": f"{pt}.addAt({top[0]}, {top[1]})"},                                     # 3: on the block top
+             {"eval": f"{pt}.addAt({side[0]}, {side[1]})"},                                   # 4: through the shaft
+             {"eval": f"{pt}.state()"},                                                        # 5
+             {"eval": f"{pt}.pickAt.apply(null, {at('shaft_top')})"},                          # 6: the shaft's top is gone
+             {"eval": screen_eval(cap, f"return {pt}.pickAt(s.x, s.y);")},                    # 7: its cut face
+             ] + clicks("block_top", "block_side") + [                                         # 8, 9: measure
+             {"eval": f"{pt}.edit(1)"}, {"eval": f"{pt}.handles()"}, {"eval": "frPage.cameraState().pos"}]   # 10-12
+    out = probe(path, steps, size=wide)
+    assert out["ok"], out
+    o = out["out"]
+    assert all(x > 380 for x in (h for k in ("q", "t", "a") for h in [o[11][k][0]])), o[11]
+    s1, s2 = o[5]["slices"]
+    assert s1["how"] == "on a flat face" and np.allclose(s1["n"], [0, 0, -1], atol=1e-6), s1
+    assert abs(s1["q"][2] - 0.1) < 1e-4
+    assert s2["how"] == "through an axis" and abs(s2["n"][2]) < 1e-9 and np.allclose(s2["q"][:2], [0.6, 0.1], atol=1e-6)
+    assert np.dot(s2["n"][:2], n) > 0.99                              # square to the view, the far side kept
+    assert o[5]["cutting"] == 2 and o[5]["clipped"] >= 1 and o[5]["stale"] == 0 and o[5]["editing"] == 2
+    assert o[6] is None or o[6]["p"][2] < 0.1001, o[6]                # never a point of the cut-away part
+    assert o[7] and o[7]["card"] == "Shaft" and o[7]["kind"] == "flat" and abs(o[7]["p"][2] - 0.1) < 1e-4, o[7]
+    assert np.allclose(o[7]["n"], [0, 0, 1], atol=1e-6)               # the cut face faces out of what is kept
+    r = o[9]["result"]
+    assert r["type"] == "angle" and abs(r["angle"] - 90) < 1e-3, r
+    h, cam = o[11], o[12]
+    assert h and o[10] == o[10]
+    # a knob turns the slice about its first axis; then the arrow (dragged from the middle to its tip) moves it down
+    # along its normal; the view stays put
+    steps2 = steps + [{"drag": [h["a"][0], h["a"][1], h["a"][0] + 25, h["a"][1] + 40]},       # 13: turn
+                      {"eval": f"{pt}.state().slices[0]"}, {"eval": f"{pt}.handles()"}]        # 14, 15
+    out = probe(path, steps2, size=wide)
+    assert out["ok"], out
+    turned, h = out["out"][14], out["out"][15]
+    assert abs(turned["a"]) > 1 and abs(turned["b"]) < 1e-9 and turned["t"] == 0, turned
+    steps3 = steps2 + [{"drag": [h["q"][0], h["q"][1], h["t"][0], h["t"][1]]},                # 16
+                       {"eval": f"{pt}.state().slices[0]"}, {"eval": "frPage.cameraState().pos"},   # 17, 18
+                       {"eval": f"{pt}.hide(2, true)"}, {"eval": f"{pt}.state()"},             # 19, 20
+                       {"eval": f"{pt}.remove(2)"}, {"key": "Escape"}, {"eval": f"{pt}.state()"},   # 21-23
+                       {"click": "#fr-tpanel .fr-slrow [data-act=delete]"}, {"eval": f"{pt}.state()"}]   # 24, 25
+    out = probe(path, steps3, size=wide)
+    assert out["ok"], out
+    o = out["out"]
+    moved = o[17]
+    assert moved["t"] > 0.002 and moved["q"][2] < 0.1 - 0.002 and moved["a"] == turned["a"], moved
+    assert np.allclose(o[18], cam, atol=1e-6)                         # dragging a handle never turns the view
+    assert o[20]["cutting"] == 1 and o[20]["slices"][1]["hidden"] and not o[20]["slices"][1]["cuts"]
+    assert len(o[23]["slices"]) == 1 and o[23]["editing"] is None and o[23]["handles"] is False
+    assert o[25]["slices"] == [] and o[25]["clipped"] == 0
+
+
+@browser_test
+def test_six_slices_and_the_panel(tmp_path):
+    """Up to 8 slices; the list shows each with Edit, Hide and Delete; C opens the list and starts "Add slice"; a
+    click on empty space while adding waits; X adds one across X."""
+    path, _g = write(tmp_path / "six.html")
+    pt = "frPage.partTools"
+    steps = [{"eval": CAM}, {"wait": 300}, {"key": "c"}, {"eval": f"{pt}.state()"},           # 3: adding
+             {"tap": [5, 590]}, {"eval": f"{pt}.state().slices.length"},                       # 5: still waiting
+             {"click": "#fr-tpanel [data-axis=X]"}, {"eval": f"{pt}.state()"}]                 # 7
+    steps += [{"eval": f"{pt}.addAcross('{a}', {f})"} for a, f in (("Y", 0.2), ("Z", 0.3), ("X", 0.9), ("Y", 0.8),
+                                                                     ("Z", 0.7), ("X", 0.6), ("Y", 0.4),
+                                                                     ("Z", 0.5))]                 # 8-15
+    steps += [{"eval": f"{pt}.state()"},                                                       # 16
+              {"eval": "[...document.querySelectorAll('#fr-tpanel .fr-slrow')].map(r => r.textContent)"},   # 17
+              {"eval": "document.getElementById('fr-slice-add').disabled"},                   # 18
+              {"key": "Escape"}, {"key": "Escape"}, {"eval": f"{pt}.state()"}]                 # 19-21
+    out = probe(path, steps)
+    assert out["ok"], out
+    o = out["out"]
+    assert o[3]["sliceOpen"] and o[3]["adding"] and o[3]["slices"] == []
+    assert o[5] == 0
+    assert o[7]["slices"][0]["how"] == "across X" and o[7]["adding"] is False and o[7]["editing"] == 1
+    assert o[14] is not None and o[15] is None                       # the ninth is refused
+    assert len(o[16]["slices"]) == 8 and o[16]["cutting"] == 8 and o[16]["stale"] == 0
+    assert [s["num"] for s in o[16]["slices"]] == list(range(1, 9))
+    assert len(o[17]) == 8 and all("Edit" in t or "Done" in t for t in o[17]) and "Hide" in o[17][0]
+    assert o[18] is True
+    assert o[21]["sliceOpen"] is False and o[21]["cutting"] == 8      # Esc ends editing, then closes the list
