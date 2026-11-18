@@ -461,7 +461,7 @@ def _logo(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.158")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.159")
 def build_crane(b: Build):
     import bpy
 
@@ -4143,7 +4143,7 @@ def _check_learn(scene):
     return f"'{L.one_line(fid)}' taught, listed and ticked after 3 days; next to learn: '{L.one_line(nxt[0][0])}'"
 
 
-stop("learn", OUT, HUB_SET, "Learn as you go: teach, learning list, next to learn",
+stop("learn", OUT, HUB_SET, "Learn as you go",
      "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the test tour and Add to my "
      "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
      "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "

@@ -302,6 +302,8 @@ fresing_render/            the Blender extension (Python package)
                            time per stage with 2 min idle left out (``Clock``), the bar sorted at a start only + pins,
                            the declutter question's rules, time saved from ``manual_estimate`` (always "an estimate"),
                            profiles; no network import – tested)
+                           learning.py (task 0208: the learning list and the quiet "next to learn" – the part ``learning`` of the
+                           usage file: list, use days, turned-down ids, rules; no network import – tested)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -496,6 +498,11 @@ fresing_render/            the Blender extension (Python package)
                            uses), the favourites bar + declutter question (``FRESING_PT_favourites`` under Workspace),
                            My usage (Fresing menu, Help menu), profile export / import. Not counted: background runs,
                            FRESING_NO_USAGE, simulated events unless FRESING_USAGE_TEST
+    learning.py ops_learning.py  task 0208: learn as you go – the declutter question also teaches (guide, test tour, "Add to
+                           my learning list"), My learning list (Fresing menu), a right-click "Add to my learning list"
+                           on any button of a function (``UI_MT_button_context_menu``), What's new adds the new
+                           functions, one "Next to learn" line a session on the What's next card; the use days are
+                           counted in ``usage.record``
     welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
