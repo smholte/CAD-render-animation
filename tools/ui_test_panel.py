@@ -139,7 +139,7 @@ def part_spot():
     return int(region.x + co.x), int(region.y + co.y), ob
 
 
-WEB = "web" + "3d"       # spelled in two pieces: a lane run of web3d.py must not start this whole test
+WEB = "web" + "3d"       # in two pieces: a lane run of that module must not start this whole test
 STEPS = []
 
 
