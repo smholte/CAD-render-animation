@@ -91,6 +91,8 @@ class FRESING_OT_usage_declutter(bpy.types.Operator):
     choice: EnumProperty(items=[("hide", "Hide", "Hides this panel from your side panel. Fresing > My usage > Back to "
                                                  "the workspace as it came shows it again"),
                                 ("later", "Not now", "Keeps the panel; it is not asked about again"),
+                                ("learn", "Add to my learning list", "Puts the function on your learning list "
+                                                                      "(Fresing > My learning list); nothing is hidden"),
                                 ("never", "Don't ask again", "No more questions about unused panels")],
                          options={"SKIP_SAVE"})
 
@@ -99,6 +101,7 @@ class FRESING_OT_usage_declutter(bpy.types.Operator):
         return {"hide": "Hides this panel from your side panel (in every workspace but Full access; never while a "
                         "project uses it). Fresing > My usage > Back to the workspace as it came shows it again",
                 "later": "Keeps the panel where it is; it is not asked about again",
+                "learn": "Puts the function on your learning list (Fresing > My learning list…); nothing is hidden",
                 "never": "No more questions about unused panels. Switch them back on in Fresing > My usage"
                 }.get(properties.choice, cls.__doc__)
 
@@ -129,19 +132,25 @@ class FRESING_OT_usage_reset(bpy.types.Operator):
 
 class FRESING_OT_usage_clear(bpy.types.Operator):
     """Deletes what the app counted about your work on this PC: clicks, panel openings, time per stage and time saved.
-    Your switches, pins and hidden panels stay"""
+    Your switches, pins and hidden panels stay; the learning list stays unless you tick it"""
 
     bl_idname = "fresing.usage_clear"
     bl_label = "Clear my usage data"
     bl_options = {"INTERNAL"}
 
+    also_list: BoolProperty(name="Clear my learning list too", default=False, options={"SKIP_SAVE"},
+                            description="Also empties the list of functions you wanted to learn. Off: the list stays")
+
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event, title="Clear my usage data?",
-                                                     message="The counts and times on this PC are deleted.",
-                                                     confirm_text="Clear", icon="WARNING")
+        return context.window_manager.invoke_props_dialog(self, width=360, title="Clear my usage data?",
+                                                          confirm_text="Clear")
+
+    def draw(self, context):
+        self.layout.label(text="The counts and times on this PC are deleted.", icon="WARNING")
+        self.layout.prop(self, "also_list")
 
     def execute(self, context):
-        usage.clear()
+        usage.clear(self.also_list)
         self.report({"INFO"}, "Your usage data is cleared")
         return {"FINISHED"}
 
@@ -373,6 +382,12 @@ def draw_window(layout, context) -> None:
     sub = row.row()
     sub.enabled = s["declutter"]["on"]
     sub.prop(wm, "fresing_usage_threshold")
+    row = layout.row()
+    row.prop(wm, "fresing_learn_teach")
+    row.prop(wm, "fresing_learn_next")
+    row = layout.row()
+    row.prop(wm, "fresing_learn_days")
+    row.operator("fresing.learn_window", text="My learning list…", icon="BOOKMARKS")
     n = len({F.FUNCTIONS[h].panel for h in s["hidden"] if h in F.FUNCTIONS})
     col = layout.column(align=True)
     col.operator("fresing.usage_reset", icon="LOOP_BACK",
@@ -421,12 +436,43 @@ def _bar_changed():
 
 
 def _declutter_changed():
-    if not usage.state()["declutter"]["on"]:
+    from ..core import learning as L
+    if not usage.state()["declutter"]["on"] and not L.part(usage.state())["teach"]:
         usage._S["prompt"] = ""
     _bar_changed()
 
 
+def _lget(key):
+    def get(self):
+        from ..core import learning as L
+        return L.part(usage.state())[key]
+    return get
+
+
+def _lset(key, then=None):
+    def set_(self, value):
+        from ..core import learning as L
+        L.part(usage.state())[key] = value
+        usage.changed()
+        usage.save()
+        if then is not None:
+            then()
+    return set_
+
+
 SETTINGS = {
+    "fresing_learn_teach": BoolProperty(
+        name="Offer to teach unused functions", get=_lget("teach"), set=_lset("teach", then=_declutter_changed),
+        description="The quiet question about a panel you have not used also offers to show it in the guide or the "
+                    "test tour, or to put it on your learning list. Off: the question only offers to hide"),
+    "fresing_learn_next": BoolProperty(
+        name="Suggest what to learn next", get=_lget("next_on"), set=_lset("next_on", then=_bar_changed),
+        description="At most one quiet line a session on the What's next card: a function in the kind of work you do "
+                    "that you have not tried yet. Off: no suggestions"),
+    "fresing_learn_days": IntProperty(
+        name="Days of use = learned", min=1, max=365, get=_lget("need_days"), set=_lset("need_days"),
+        description="A function on your learning list is ticked by itself once you used it on this many different "
+                    "days"),
     "fresing_usage_track": BoolProperty(
         name="Track my usage", get=_getter("track"), set=_setter("track"),
         description="Counts which functions you use, on this PC only (one small file in your settings folder; nothing "
@@ -454,6 +500,9 @@ CLASSES = (FRESING_OT_usage_go, FRESING_OT_usage_pin, FRESING_OT_usage_declutter
            FRESING_OT_usage_clear, FRESING_OT_usage_folder, FRESING_OT_usage_export, FRESING_OT_usage_import,
            FRESING_OT_usage_window)
 
+from . import ops_learning  # noqa: E402,F401 - task 0208: its classes join CLASSES below
+CLASSES = CLASSES + ops_learning.CLASSES
+
 
 def _draw_usage_help(self, context):
     self.layout.separator()
@@ -466,9 +515,11 @@ def register() -> None:
     bpy.types.TOPBAR_MT_help.remove(_draw_usage_help)
     bpy.types.TOPBAR_MT_help.append(_draw_usage_help)
     usage.register()
+    ops_learning.register()
 
 
 def unregister() -> None:
+    ops_learning.unregister()
     usage.unregister()
     bpy.types.TOPBAR_MT_help.remove(_draw_usage_help)
     for name in SETTINGS:

@@ -123,6 +123,38 @@ def next_step(scene) -> tuple:
             "list below has every kind of output.", "FRESING_PT_scene", "Open 5 Scene & Render")
 
 
+def _show_step(s) -> bool:
+    return not s.next_hidden and not s.rendered_once
+
+
+def _learn_line(context) -> str:
+    """Task 0208: the quiet "Next to learn" of this session ('' = none)."""
+    try:
+        from . import learning
+        return learning.suggestion(context.scene)
+    except Exception:  # noqa: BLE001 - a card never breaks over it
+        return ""
+
+
+def _draw_learn(box, context) -> None:
+    from ..core import functions as F
+    from ..core import learning as L
+    from . import learning, usage
+    fid = _learn_line(context)
+    told = L.part(usage.state())["told"] if usage.counting() else []
+    if told:
+        wrap(box, context, L.say_learned(told[0]) + " (My learning list has it ticked)", icon="CHECKMARK")
+    if not fid or fid not in F.FUNCTIONS:
+        return
+    ui.gap(box)
+    wrap(box, context, f"Next to learn: {F.FUNCTIONS[fid].title} – {L.why(fid)}.", icon="BOOKMARKS")
+    row = box.row(align=True)
+    op = row.operator("fresing.learn_next", text="Learn")
+    op.fid, op.choice = fid, "learn"
+    op = row.operator("fresing.learn_next", text="Not interested")
+    op.fid, op.choice = fid, "no"
+
+
 class FRESING_PT_next(_Panel, bpy.types.Panel):
     bl_label = "What's next"
     bl_order = 0
@@ -131,17 +163,21 @@ class FRESING_PT_next(_Panel, bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         s = context.scene.fresing
-        return not s.next_hidden and not s.rendered_once and not workspaces.locked(context.scene)
+        if workspaces.locked(context.scene):
+            return False
+        return _show_step(s) or bool(_learn_line(context))
 
     def draw(self, context):
-        text, panel, button = next_step(context.scene)
         box = self.layout.box()
         row = box.row()
         row.label(text="What's next", icon="LIGHT")
-        row.operator("fresing.next_hide", text="", icon="X", emboss=False)
-        wrap(box, context, text, inset=14)
-        if panel and not panels.is_open(panel):
-            box.operator("fresing.next_go", text=button, icon="TRIA_DOWN").panel = panel
+        if _show_step(context.scene.fresing):
+            row.operator("fresing.next_hide", text="", icon="X", emboss=False)
+            text, panel, button = next_step(context.scene)
+            wrap(box, context, text, inset=14)
+            if panel and not panels.is_open(panel):
+                box.operator("fresing.next_go", text=button, icon="TRIA_DOWN").panel = panel
+        _draw_learn(box, context)
 
 
 # =============================================================================

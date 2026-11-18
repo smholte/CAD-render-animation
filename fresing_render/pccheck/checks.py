@@ -4202,7 +4202,7 @@ def app_start_here(ctx):
     return f"What's new since {older}: {n_f} functions"
 
 
-@line("app.licences", "Licence files in this install, About Fresing Render, Blender's extension sync off", "0.2.160",
+@line("app.licences", "Licence files in this install, About Fresing Render, Blender's extension sync off", "0.2.161",
       what="Checks that the licence (GPL), the third-party notices, the page for companies and the licence texts of the "
            "libraries are inside this install, the About window and its buttons are there (Fresing and Help menu), a "
            "copy of a licence opens as a text file, Blender's own licence folder is next to its program, and Blender's "
@@ -4298,6 +4298,70 @@ def app_usage(ctx):
         usage.forget()
         workspaces.PERSONAL["hide"] = ()
     return f"one counted click {ms:.3f} ms; after 10 starts '{places.PLACES[panel][1]}' would be offered for hiding"
+
+
+@line("app.learning", "Learn as you go: the question teaches, the learning list, next to learn", "0.2.160",
+      what="The question about an unused panel offers the guide, the test tour and the learning list beside Hide (and "
+           "only Hide when teaching is off); a function on the list is ticked by itself after use on 3 days and the "
+           "list says so once; the quiet 'next to learn' never offers what was hidden, turned down or is used by the "
+           "project; the usage file keeps the list (with an accent in its folder) and an older file without it reads")
+def app_learning(ctx):
+    import bpy
+
+    from ..blender import learning, ops_learning, usage, workspaces
+    from ..core import learning as L
+    from ..core import usage as core
+    for op in ("learn_show", "learn_add", "learn_add_new", "learn_done", "learn_remove", "learn_next", "learn_window"):
+        _check(hasattr(bpy.ops.fresing, op), f"the button fresing.{op} is missing")
+    folder = os.path.join(ctx.work, "Learning é")
+    path = os.path.join(folder, core.FILE_NAME)
+    old = {k: os.environ.get(k) for k in (usage.FILE_ENV, core.TEST_ENV)}
+    os.environ[usage.FILE_ENV], os.environ[core.TEST_ENV] = path, "1"
+    usage.forget()
+    try:
+        s = usage.state()
+        for _ in range(3):
+            usage.record("fresing.turntable")
+        s["sessions"] = core.THRESHOLD_DEFAULT
+        scene = ctx.fresh(CRANE_A)
+        usage._S["prompted"] = ""
+        usage.project_changed(scene)
+        panel = usage.prompt()
+        _check(bool(panel), "no unused panel is offered after 10 starts")
+        q = learning.question(panel)
+        _check(bool(q["fid"]) and bool(q["guide"]), f"the question about '{panel}' has nothing to show")
+        s["learning"]["teach"] = False
+        _check(not learning.question(panel)["fid"], "the question teaches although teaching is off")
+        s["learning"]["teach"] = True
+        usage.answer(scene, "learn")
+        _check(L.find(s, q["fid"]) is not None, "'Add to my learning list' did not put it on the list")
+        _check(usage.save(force=True) and os.path.isfile(path), "the usage file was not written")
+        usage.forget()
+        _check(L.find(usage.state(), q["fid"]) is not None, "the learning list is not kept in the usage file")
+        s = usage.state()
+        got = []
+        for day in ("2026-11-01", "2026-11-02", "2026-11-03"):
+            got += L.note_use(s, q["fid"], day)
+        _check(got == [q["fid"]] and L.take_told(s) == [q["fid"]] and not L.take_told(s),
+               "a function used on 3 days is not ticked by itself, or the list says so twice")
+        used = set(workspaces.used_functions(scene))
+        shown = set(workspaces._state(scene)[1] or ())
+        cands = [c[0] for c in L.candidates(s, shown, used)]
+        _check(not used & set(cands), "'next to learn' offers a function the project uses")
+        _check(ops_learning.learning.idname_of("FRESING_OT_sort_parts") == "fresing.sort_parts",
+               "a right-clicked button's operator is not found")
+        legacy = {k: v for k, v in core.fresh().items() if k != "learning"}
+        legacy[core.MARKER] = 1
+        _check(core.clean(legacy)["learning"] == L.fresh(), "an older usage file does not read")
+    finally:
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        usage.forget()
+        workspaces.PERSONAL["hide"] = ()
+    return f"'{L.one_line(q['fid'])}' offered, listed, ticked after 3 days; next to learn: {len(cands)} candidates"
 
 
 @line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",

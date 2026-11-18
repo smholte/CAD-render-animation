@@ -84,7 +84,7 @@ them; a wrong line goes in the report).
 `task/0206-licence-in-app`), 18 Nov 2026. No subagents. The "running" line in `TASKS.md` was not pushed at the start (the
 session began on the branch); it goes in with this report.
 
-**What changed (0.2.160):**
+**What changed (0.2.161):**
 - **About** (`blender/about.py`, `core/about.py`): `fresing.about` (dialog: logo, version, Blender version, © 2026 Fresing, the
   GPL line, 4 buttons) in the Fresing menu and the Help menu; `fresing.about_open` (Licence / Third-party licences / Using it
   in a company / Licence texts folder). Windows has no program for `LICENSE` or `.md`, so a **copy with the ending `.txt`** is

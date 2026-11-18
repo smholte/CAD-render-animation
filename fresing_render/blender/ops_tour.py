@@ -326,6 +326,8 @@ def _go_pending():
     try:
         with bpy.context.temp_override(**kw):
             bpy.ops.fresing.tour_go("EXEC_DEFAULT", True, stop=stop_id)       # with its own undo step
+        from . import learning
+        learning.after_go()                                      # task 0208: "Show me in the test tour" points
     except Exception as exc:  # noqa: BLE001 - never break loading over a tour stop
         print("Fresing Render test tour: Go failed:", exc)
     return None

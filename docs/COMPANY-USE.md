@@ -64,7 +64,7 @@ The request carries only `FresingRender/<version> (update check)` as its `User-A
 **Blender itself.** The installer switches Blender's **online access on** (`Install-FresingRender.ps1`, the `set_prefs.py`
 block), because the update check needs it. In Blender 5.2.3 its own extension repository (`extensions.blender.org`) is set
 to "sync on start-up" by default (`use_sync_on_startup`), which would let Blender itself contact that address at every
-start. **Since 0.2.160 the installer switches that sync off on every remote repository, and an install made before it
+start. **Since 0.2.161 the installer switches that sync off on every remote repository, and an install made before it
 does the same once, at the first start after the update** (`blender/ext_sync.py`; it is remembered in
 `fresing_ext_sync.json` next to the other settings, so a user who turns the sync back on keeps it on). So at start the app
 contacts nothing except its own update check. The Windows test of every release checks that no remote repository syncs at
