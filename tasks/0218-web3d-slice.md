@@ -113,7 +113,7 @@ independent tester skipped: no Windows-only code).
   machine (a cut hides pixels, which saves about as much as the planes cost). On the owner's graphics card: expected
   the same, not measured.
 
-**Runs:** see the merge (GitHub run numbers in the commit history).
+**Runs:** 2 – run 44413437042 full: all green but Windows part A (the shortcut check "a second refresh writes nothing": the app's Fresing Render.exe not yet usable at the first refresh – runner timing, 0212's check, not this change); its failed jobs re-run green. Then a docs run for merge main + report.
 
 **Open points / follow-up tasks:**
 - The panel (300 px, top left) can cover the slice's handles on a small window; the user turns the view. A later
