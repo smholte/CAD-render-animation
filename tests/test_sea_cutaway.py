@@ -737,8 +737,10 @@ def test_render_soil_layers_follow_the_depth(scene, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def _faces_in_box(ob, box, deps):
-    """How many faces of the evaluated mesh (viewport or render) have their middle inside the box (world)."""
+def _faces_in_box(ob, box, deps, above=None, margin=0.0):
+    """How many faces of the evaluated mesh (viewport or render) have their middle inside the box (world); ``above``:
+    only those whose middle lies above that world z (task 0202: the view lets the box's faces down, under the seabed;
+    the wall faces stand on the box's outline: ``margin`` m inside it)."""
     ev = ob.evaluated_get(deps)
     me = ev.to_mesh()
     try:
@@ -752,7 +754,9 @@ def _faces_in_box(ob, box, deps):
         u = np.array(box["dir"])
         along = d @ u
         side = np.abs(d @ np.array([-u[1], u[0]]))
-        inside = (along > 0) & (along < box["length"]) & (side < box["width"] / 2)
+        inside = (along > margin) & (along < box["length"] - margin) & (side < box["width"] / 2 - margin)
+        if above is not None:
+            inside &= xy[:, 2] > above
         return n, int(inside.sum())
     finally:
         ev.to_mesh_clear()
@@ -771,13 +775,14 @@ def test_box_is_open_in_the_view_and_renders_are_unchanged(scene):
     box = surroundings.sea_cut_box(scene)
     view = bpy.context.evaluated_depsgraph_get()
     assert view.mode == "VIEWPORT"
-    n_view, inside_view = _faces_in_box(sea_ob, box, view)
-    assert inside_view == 0
-    # the render's mesh (modifier off) still has the faces in the box
+    floor = surroundings.seabed_z(scene)
+    n_view, inside_view = _faces_in_box(sea_ob, box, view, above=floor, margin=0.5)
+    assert inside_view == 0                                # (task 0202: let down under the seabed, not deleted)
+    # the render's mesh (modifier off) still has the faces in the box, at the surface
     mod.show_viewport = False
     bpy.context.view_layer.update()
-    n_off, inside_off = _faces_in_box(sea_ob, box, bpy.context.evaluated_depsgraph_get())
-    assert inside_off > 0 and n_off == n_view + inside_off
+    n_off, inside_off = _faces_in_box(sea_ob, box, bpy.context.evaluated_depsgraph_get(), above=floor, margin=0.5)
+    assert inside_off > 0 and n_off == n_view
     mod.show_viewport = True
     # the box follows the panel's numbers
     s.sea_cut_length = 80.0
@@ -785,7 +790,7 @@ def test_box_is_open_in_the_view_and_renders_are_unchanged(scene):
     sea_ob = _env("sea")[0]
     box2 = surroundings.sea_cut_box(scene)
     assert box2["length"] == 80.0
-    assert _faces_in_box(sea_ob, box2, bpy.context.evaluated_depsgraph_get())[1] == 0
+    assert _faces_in_box(sea_ob, box2, bpy.context.evaluated_depsgraph_get(), above=floor, margin=0.5)[1] == 0
     # cut-away off: no modifier
     s.sea_cutaway = False
     _apply(scene)

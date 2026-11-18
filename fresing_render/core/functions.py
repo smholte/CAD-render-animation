@@ -153,9 +153,9 @@ fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one 
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"))
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.157")
+   pccheck=("app.usage",), since="0.2.158")
 fn(id="usage.declutter", title="Offer to hide what you never use", family="panel", panel="FRESING_PT_favourites",
-   button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.157")
+   button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",
@@ -501,10 +501,10 @@ fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="V
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.157")
+   pccheck=("app.usage",), since="0.2.158")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
-   since="0.2.157")
+   since="0.2.158")
 
 # ---------------------------------------------------------------------------
 # keeping the lists in step (the precheck runs this; no Blender)

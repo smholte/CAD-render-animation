@@ -35,6 +35,7 @@ from ..core import ral
 from ..core import sea as sea_core
 from ..core import surroundings as S
 from ..core import weather as weather_core
+from . import sea_view_cut as view_cut
 
 COLLECTION = "FR Surroundings"
 ROOT = "FR Surroundings"
@@ -283,18 +284,23 @@ def _model_box(scene) -> tuple[np.ndarray, np.ndarray]:
 
 def _build(scene, s, kind: str, key: str, models: str) -> None:
     clear(scene)
+    outline = None
     with _vessel().at_rest(scene):                  # task 0085: measured where it stands on a still sea
         mn, mx = _model_box(scene)
-    size = np.maximum(mx - mn, 0.05)
-    root = _root(scene)
-    root["fr_min"] = [float(v) for v in mn]
-    root["fr_max"] = [float(v) for v in mx]
-    root.location = (float(mn[0] + mx[0]) / 2, float(mn[1] + mx[1]) / 2, float(mn[2]) - s.floor_offset)
+        size = np.maximum(mx - mn, 0.05)
+        root = _root(scene)
+        root["fr_min"] = [float(v) for v in mn]
+        root["fr_max"] = [float(v) for v in mx]
+        root.location = (float(mn[0] + mx[0]) / 2, float(mn[1] + mx[1]) / 2, float(mn[2]) - s.floor_offset)
+        if kind != "PHOTO":
+            lay = S.build(kind, tuple(float(v) for v in size), s.env_detail, s.water_level)
+            if lay.water_level is not None and _wants_outline(s):
+                # (task 0202: in the same still moment as the model's box – each such moment updates the scene twice)
+                outline = _waterline(scene, s, kind, root, lay.water_level)
     col = _collection(scene)
     if kind == "PHOTO":
         far = _build_photo(scene, s, root, col, size)
     else:
-        lay = S.build(kind, tuple(float(v) for v in size), s.env_detail, s.water_level)
         centre = (0.0, 0.0, s.floor_offset + float(size[2]) / 2)
         radius = float(np.linalg.norm(size)) / 2
         for role, shapes in lay.parts.items():
@@ -306,7 +312,7 @@ def _build(scene, s, kind: str, key: str, models: str) -> None:
                     if role in ("high", "lights") and lay.roof_z:
                         ob["fr_roof"] = lay.roof_z
         if lay.water_level is not None:
-            _build_sea(s, col, root, lay.water_level, float(max(size[0], size[1])), kind)
+            _build_sea(s, col, root, lay.water_level, float(max(size[0], size[1])), kind, outline)
         far = lay.extent * 1.3
     root["fr_kind"] = kind
     # task 0125: the sea's build may have read the bow from the hull (the wind and the swell turn with it): the key of
@@ -439,6 +445,11 @@ class _Mesh:
         base = self.n
         self.verts.append(np.asarray(pts, float))
         self.n += len(pts)
+        if isinstance(faces, np.ndarray) and faces.ndim == 2:      # task 0202: many faces of one size at once
+            self.faces.append(faces.astype(np.int64) + base)
+            self.mats.extend([mat] * len(faces))
+            self.smooth.extend([smooth] * len(faces))
+            return
         for f in faces:
             self.faces.append(tuple(base + i for i in f))
             self.mats.append(mat)
@@ -541,11 +552,26 @@ class _Mesh:
         verts = np.concatenate(self.verts) if self.verts else np.zeros((0, 3))
         me.vertices.add(len(verts))
         me.vertices.foreach_set("co", verts.astype(np.float32).ravel())
-        sizes = np.array([len(f) for f in self.faces], dtype=np.int32)
-        loops = np.fromiter((i for f in self.faces for i in f), dtype=np.int32, count=int(sizes.sum()))
+        sizes, loops, run = [], [], []
+
+        def flush():
+            if run:
+                sizes.append(np.array([len(f) for f in run], dtype=np.int32))
+                loops.append(np.fromiter((i for f in run for i in f), dtype=np.int32, count=int(sizes[-1].sum())))
+                run.clear()
+        for f in self.faces:
+            if isinstance(f, np.ndarray):              # a block of faces of one size (``_add``)
+                flush()
+                sizes.append(np.full(len(f), f.shape[1], dtype=np.int32))
+                loops.append(f.astype(np.int32).ravel())
+            else:
+                run.append(f)
+        flush()
+        sizes = np.concatenate(sizes) if sizes else np.zeros(0, np.int32)
+        loops = np.concatenate(loops) if loops else np.zeros(0, np.int32)
         me.loops.add(len(loops))
         me.loops.foreach_set("vertex_index", loops)
-        me.polygons.add(len(self.faces))
+        me.polygons.add(len(sizes))
         starts = np.concatenate([[0], np.cumsum(sizes)[:-1]]).astype(np.int32)
         me.polygons.foreach_set("loop_start", starts)
         me.polygons.foreach_set("material_index", np.array(self.mats, dtype=np.int32))
@@ -597,11 +623,206 @@ def _srgb(*rgb):
     return tuple(ral.srgb_to_linear(c) for c in rgb)
 
 
+class _Mismatch(Exception):
+    """A tree built again does not have the nodes / links its last build had: it is made new."""
+
+
+def _same_value(old, v) -> bool:
+    """``v`` is what a socket / setting already holds (numbers compared as the float32 Blender stores)."""
+    try:
+        if isinstance(v, (int, float, tuple, list)) and not isinstance(v, bool):
+            a, b = np.asarray(old, np.float32), np.asarray(v, np.float32)
+            return a.shape == b.shape and bool(np.array_equal(a, b))
+        return old == v
+    except (TypeError, ValueError):
+        return False
+
+
+class _ReplaySocket:
+    """An input socket of a node of a tree built again: its value is written only when it differs (each write makes
+    Blender look the whole project over: ~0.5 ms in the demo)."""
+
+    __slots__ = ("_n",)
+
+    def __init__(self, sock):
+        object.__setattr__(self, "_n", sock)
+
+    def __getattr__(self, k):
+        return getattr(self._n, k)
+
+    def __setattr__(self, k, v):
+        if not _same_value(getattr(self._n, k), v):
+            setattr(self._n, k, v)
+
+
+class _ReplayInputs:
+    __slots__ = ("_c",)
+
+    def __init__(self, coll):
+        self._c = coll
+
+    def __getitem__(self, k):
+        return _ReplaySocket(self._c[k])
+
+    def __getattr__(self, k):
+        return getattr(self._c, k)
+
+    def __iter__(self):
+        return (_ReplaySocket(s) for s in self._c)
+
+    def __len__(self):
+        return len(self._c)
+
+
+class _ReplayNode:
+    """A node of a tree built again (``_Replay``): reads go to the node; a setting (or an input's value) is written
+    only when it differs; its place (``location``) is left where it is."""
+
+    __slots__ = ("_n",)
+
+    def __init__(self, node):
+        object.__setattr__(self, "_n", node)
+
+    def __getattr__(self, k):
+        if k == "inputs":
+            return _ReplayInputs(self._n.inputs)
+        return getattr(self._n, k)
+
+    def __setattr__(self, k, v):
+        if k == "location":
+            return
+        if not _same_value(getattr(self._n, k), v):
+            setattr(self._n, k, v)
+
+
+class _Replay:
+    """Stands in for a node tree while it is built (task 0202): the build code calls ``nt.nodes.new`` and
+    ``nt.links.new`` as on a real tree.
+
+    Record (``order`` None): the nodes are made as always, and the order they were made in is kept (``names``).
+    Replay (``order`` = the names of the last build, in that order): no node is made – the n-th ``nodes.new`` hands out
+    the n-th node of the last build (of the same kind, else ``_Mismatch``), and only the numbers the build writes
+    into it change. The links are compared at the end (``finish``): the same links, no more, no fewer – else
+    ``_Mismatch``, and the caller makes the tree new. Making ~700 shader nodes took ~4 s (the sea's water); writing
+    their numbers takes a few hundredths of that."""
+
+    def __init__(self, nt, order=None):
+        self.tree = nt
+        self.made = []
+        self.wanted = {}                     # input socket (pointer) -> (output socket, input socket): links asked for
+        self.order = None
+        if order is not None:
+            by_name = {n.name: n for n in nt.nodes}
+            try:
+                self.order = [by_name[name] for name in order]
+            except KeyError:
+                raise _Mismatch("a node of the last build is gone") from None
+            if len(self.order) != len(nt.nodes):
+                raise _Mismatch("the tree has other nodes too")
+        self.nodes = _ReplayNodes(self)
+        self.links = _ReplayLinks(self)
+
+    @property
+    def replaying(self) -> bool:
+        return self.order is not None
+
+    def __getattr__(self, k):
+        return getattr(self.tree, k)
+
+    def linked_from(self, sock):
+        """The output linked into ``sock`` as this build has it (in a replay the tree still has the last build's)."""
+        if self.order is not None:
+            got = self.wanted.get(sock.as_pointer())
+            return got[0] if got else None
+        return sock.links[0].from_socket if sock.links else None
+
+    def finish(self) -> None:
+        if self.order is None:
+            return
+        if len(self.made) != len(self.order):
+            raise _Mismatch("fewer nodes than the last build")
+        have = {}
+        for link in self.tree.links:
+            have[link.to_socket.as_pointer()] = link.from_socket.as_pointer()
+        want = {k: a.as_pointer() for k, (a, _b) in self.wanted.items()}
+        if have != want:
+            raise _Mismatch("other links than the last build")
+
+    @property
+    def names(self) -> list:
+        return [n.name for n in self.made]
+
+
+class _ReplayNodes:
+    def __init__(self, rp: _Replay):
+        self.rp = rp
+
+    def new(self, kind):
+        rp = self.rp
+        if rp.order is None:
+            n = rp.tree.nodes.new(kind)
+            rp.made.append(n)
+            return n
+        i = len(rp.made)
+        if i >= len(rp.order) or rp.order[i].bl_idname != kind:
+            raise _Mismatch(f"node {i} is not a {kind}")
+        rp.made.append(rp.order[i])
+        return _ReplayNode(rp.order[i])
+
+    def clear(self):
+        if self.rp.order is None:
+            self.rp.tree.nodes.clear()
+
+    def __getattr__(self, k):
+        return getattr(self.rp.tree.nodes, k)
+
+    def __iter__(self):
+        return iter(self.rp.tree.nodes)
+
+
+class _ReplayLinks:
+    def __init__(self, rp: _Replay):
+        self.rp = rp
+
+    def new(self, a, b):
+        a, b = getattr(a, "_n", a), getattr(b, "_n", b)
+        if self.rp.order is None:
+            return self.rp.tree.links.new(a, b)
+        self.rp.wanted[b.as_pointer()] = (a, b)          # (a later link into the same input replaces it, as in Blender)
+        return None
+
+    def __getattr__(self, k):
+        return getattr(self.rp.tree.links, k)
+
+
+ORDER_KEY = "fr_order"              # on a material / node group: its nodes' names in the order the build made them
+
+
+def _build_tree(owner, nt, build) -> bool:
+    """``build(tree)`` writes the nodes of ``nt`` (``owner``: the material or node group that keeps the order).
+    When ``nt`` still has the nodes of its last build, they are kept and only their numbers set (``_Replay``); when
+    the build asks for other nodes or links, the tree is made new. True when it was kept."""
+    order = owner.get(ORDER_KEY)
+    if order is not None and len(nt.nodes):
+        try:
+            rp = _Replay(nt, list(order))
+            build(rp)
+            rp.finish()
+            return True
+        except _Mismatch:
+            pass
+    nt.nodes.clear()
+    rp = _Replay(nt)
+    build(rp)
+    owner[ORDER_KEY] = rp.names
+    return False
+
+
 class _NT:
     """Small helper to write node trees."""
 
-    def __init__(self, mat):
-        self.nt = mat.node_tree
+    def __init__(self, mat, nt=None):
+        self.nt = nt if nt is not None else mat.node_tree
         self.nt.nodes.clear()
         self.x = -1200
 
@@ -792,8 +1013,8 @@ def _paint(t, color, rough=0.45, var=0.04, scale=3.0, normal=None):
     return _principled(t, col, _ramp(t, n, rough * 0.85, rough * 1.15), normal=normal)
 
 
-def _make(key: str, mat) -> None:
-    t = _NT(mat)
+def _make(key: str, mat, nt=None) -> None:
+    t = _NT(mat, nt)
     one_sided = False
     emission = False
     cutaway = True
@@ -1041,12 +1262,16 @@ def _sea_mesh(name: str, detailed: bool, near: float) -> bpy.types.Mesh:
     for r, zz in zip(R, z):
         verts.append(np.stack([r * np.cos(ang), r * np.sin(ang), np.full(n, zz)], axis=1))
     verts = np.concatenate(verts)
-    faces = [(0, 1 + i, 1 + (i + 1) % n) for i in range(n)]
-    for j in range(len(rings) - 1):
-        a, b = 1 + j * n, 1 + (j + 1) * n
-        faces += [(a + i, b + i, b + (i + 1) % n, a + (i + 1) % n) for i in range(n)]
+    i = np.arange(n)
+    fan = np.stack([np.zeros(n, int), 1 + i, 1 + (i + 1) % n], axis=1)
+    quads = np.concatenate([np.stack([1 + j * n + i, 1 + (j + 1) * n + i, 1 + (j + 1) * n + (i + 1) % n,
+                                      1 + j * n + (i + 1) % n], axis=1) for j in range(len(rings) - 1)])
     m = _Mesh()
-    m._add(verts, faces, 0, smooth=True)
+    m.verts.append(verts)                          # (the fan's triangles first, then the rings' quads, as before)
+    m.n = len(verts)
+    m.faces += [fan, quads]
+    m.mats += [0] * (len(fan) + len(quads))
+    m.smooth += [True] * (len(fan) + len(quads))
     return m.to_mesh(name)
 
 
@@ -1147,6 +1372,14 @@ class _NB:
         return self.math("COSINE", p)
 
 
+def _height_sig(rows, near: float) -> str:
+    """Which nodes ``_height_sum`` makes for these waves (task 0202: a kept node group is only given new numbers when
+    its nodes are the same kind): per wave whether it is drawn and whether it fades out early."""
+    flags = "".join("-" if 2 * math.pi / k < 1.0 else ("f" if 10 * math.pi / k < 1.6 * near else "w")
+                    for _a, _dx, _dy, k, _ph in rows)
+    return _rows_hash(flags)
+
+
 def _height_sum(b: _NB, x, y, t, rows, near: float):
     """Height of the sea at (x, y) and time t (sockets): every wave of 1 m or longer, each faded out where the
     rings get too coarse for it, the whole faded out between ``near`` and 1.6 x near (the material's normals carry
@@ -1181,18 +1414,29 @@ def _waves_group(state: str, moving: bool, near: float, swell=(), wind=None) -> 
     ng = bpy.data.node_groups.get(name)
     if ng is not None:
         return ng
-    ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
-    ng["fr_env"] = "waves"
-    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
-    b = _NB(ng)
-    gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
-    xyz = b.sep(b.new("GeometryNodeInputPosition").outputs[0])
-    h = _height_sum(b, xyz["X"], xyz["Y"], _scene_seconds(b, moving), rows, near)
-    setp = b.new("GeometryNodeSetPosition")
-    b.put(setp.inputs["Geometry"], gin.outputs[0])
-    b.put(setp.inputs["Offset"], b.comb(0.0, 0.0, h))
-    b.put(gout.inputs[0], setp.outputs[0])
+    # task 0202: a waves group no object uses any more (the sea was just made again) keeps its nodes, new numbers
+    sig = f"{'m' if moving else 's'} {_height_sig(rows, near)}"
+    ng = next((g for g in bpy.data.node_groups if g.get("fr_env") == "waves" and not g.users and g.library is None
+               and g.get(ORDER_KEY) is not None and g.get("fr_sig") == sig), None)
+    if ng is not None:
+        ng.name = name
+    else:
+        ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
+        ng["fr_env"] = "waves"
+        ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+        ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    ng["fr_sig"] = sig
+
+    def build(nt):
+        b = _NB(nt)
+        gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
+        xyz = b.sep(b.new("GeometryNodeInputPosition").outputs[0])
+        h = _height_sum(b, xyz["X"], xyz["Y"], _scene_seconds(b, moving), rows, near)
+        setp = b.new("GeometryNodeSetPosition")
+        b.put(setp.inputs["Geometry"], gin.outputs[0])
+        b.put(setp.inputs["Offset"], b.comb(0.0, 0.0, h))
+        b.put(gout.inputs[0], setp.outputs[0])
+    _build_tree(ng, ng, build)
     return ng
 
 
@@ -1267,14 +1511,11 @@ def _water_shader(t: _NT, mat):
     time = tv.outputs[0]
     P = b.comb(x, y, time)
     dist = b.new("ShaderNodeCameraData").outputs["View Distance"]
-    fades = {}
 
     def fade(lam):                    # a wave smaller than about a pixel: its slope fades out (no sparkle, no moiré)
-        band = round(math.log2(max(lam, 0.05)) * 2) / 2
-        if band not in fades:
-            lb = 2.0 ** band
-            fades[band] = b.ramp(dist, 150.0 * lb, 400.0 * lb, 1.0, 0.0)
-        return fades[band]
+        # (one ramp per wave, task 0202: the same nodes whatever the sea, so a new sea state only sets numbers)
+        lb = 2.0 ** (round(math.log2(max(lam, 0.05)) * 2) / 2)
+        return b.ramp(dist, 150.0 * lb, 400.0 * lb, 1.0, 0.0)
 
     field = sea_core.foam_field(own, bft, toward) if (foam_on and own) else None
     grad, height, F = None, None, None
@@ -1346,6 +1587,29 @@ def _water_shader(t: _NT, mat):
     return p
 
 
+def _water_sig(own, swell, bft: float, toward: float, foam: bool) -> str:
+    """The kind of nodes the water's shader has for these waves (``_water_shader``): counts of waves, swell rows and
+    white-cap terms (with a meander from about Beaufort 7)."""
+    field = sea_core.foam_field(own, bft, toward) if (foam and own) else None
+    terms = (len(field.terms), sum(1 for tm in field.terms if tm.m_amp)) if field is not None else (0, 0)
+    return f"{len(own)} {len(swell)} {terms[0]} {terms[1]}"
+
+
+def _spare_water(foam: bool, moving: bool, weather: bool, wake: bool, cut: bool, work: bool, sig: str):
+    """A water material no object uses any more (the sea it was made for was just made again) with the same kind of
+    nodes: kept and given the new numbers (task 0202), instead of making ~700 nodes again. None: none to spare."""
+    want = (foam, moving, weather, wake, cut, work, sig)
+    for mat in bpy.data.materials:
+        if (mat.get("fr_env") != "water" or mat.users or mat.get(ORDER_KEY) is None
+                or mat.get("fr_env_version") != MAT_VERSION or mat.library is not None):
+            continue
+        has = (bool(mat.get("fr_foam")), bool(mat.get("fr_moving")), bool(mat.get("fr_sea_weather")),
+               bool(mat.get("fr_wake")), bool(mat.get("fr_seacut")), bool(mat.get("fr_vw")), mat.get("fr_sig"))
+        if has == want:
+            return mat
+    return None
+
+
 def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swell=(), weather: bool = False,
                     wake: bool = False, cut: bool = False, work: dict | None = None) -> bpy.types.Material:
     bft, toward = wind if wind is not None else (sea_core.STATES.get(state, 3.0), sea_core.DEFAULT_TOWARD)
@@ -1359,7 +1623,12 @@ def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swel
     if mat is not None and mat.get("fr_env_version") == MAT_VERSION:
         return mat
     if mat is None:
-        mat = bpy.data.materials.new(name)
+        sig = _water_sig(own, swell, bft, toward, foam)
+        mat = _spare_water(foam, moving, weather, wake, cut, bool(work), sig)
+        if mat is not None:
+            mat.name = name
+        else:
+            mat = bpy.data.materials.new(name)
     mat["fr_sea_state"] = state
     mat["fr_foam"] = foam
     mat["fr_bft"] = float(bft)
@@ -1369,13 +1638,18 @@ def _water_material(scene, state: str, foam: bool, moving: bool, wind=None, swel
     mat["fr_vw"] = _work().layout_json(work) if work else ""
     mat["fr_waves"] = json.dumps([[round(float(v), 7) for v in r] for r in rows])
     mat["fr_n_own"] = len(own)
+    mat["fr_moving"] = bool(moving)
+    mat["fr_sig"] = _water_sig(own, swell, bft, toward, foam)
     try:
         mat.use_nodes = True
     except Exception:
         pass
-    _make("water", mat)
-    if cut:                                        # task 0081: see-through inside the cut-away box
-        _add_box_cut(mat, from_below=True)
+
+    def build(nt):
+        _make("water", mat, nt)
+        if cut:                                    # task 0081: see-through inside the cut-away box
+            _add_box_cut(mat, from_below=True, nt=nt)
+    mat["fr_replayed"] = _build_tree(mat, mat.node_tree, build)
     mat["fr_env_version"] = MAT_VERSION
     mat["fr_env"] = "water"
     node = mat.node_tree.nodes.get("fr_time")
@@ -1502,10 +1776,9 @@ def _hull_foam_mesh(name: str, outline: np.ndarray, width: float, bow_sign: floa
         verts.append(np.column_stack([ring + out * off[:, None], np.zeros(n)]))
         dvals.append(np.where(r < 0, r, r) * np.ones(n))
     verts = np.concatenate(verts)
-    faces = []
-    for j in range(len(rows) - 1):
-        a, b = j * n, (j + 1) * n
-        faces += [(a + i, a + (i + 1) % n, b + (i + 1) % n, b + i) for i in range(n)]
+    i = np.arange(n)
+    faces = np.concatenate([np.stack([j * n + i, j * n + (i + 1) % n, (j + 1) * n + (i + 1) % n, (j + 1) * n + i],
+                                     axis=1) for j in range(len(rows) - 1)])
     m = _Mesh()
     m._add(verts, faces, 0, smooth=True)
     me = m.to_mesh(name)
@@ -1579,14 +1852,19 @@ def _hull_foam_material(cut: bool = False) -> bpy.types.Material:
 def _hull_foam_group(name: str, sea_ob, rows, moving: bool, near: float) -> bpy.types.NodeTree:
     """Geometry nodes of the hull foam: each point of the strip goes onto the water (the sea's own waves), wherever
     vessel motion has carried the strip; z in the sea's frame = the waves' height + HULL_FOAM_LIFT."""
-    old = bpy.data.node_groups.get(name)
-    if old is not None:
-        bpy.data.node_groups.remove(old)
-    ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
-    ng["fr_env"] = "hull_foam"
-    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
-    b = _NB(ng)
+    ng = bpy.data.node_groups.get(name)
+    if ng is None or ng.get("fr_env") != "hull_foam" or ng.library is not None:
+        ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
+        ng["fr_env"] = "hull_foam"
+        ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+        ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    # task 0202: the group is kept (its nodes get the new numbers) instead of made again at every new sea
+    _build_tree(ng, ng, lambda nt: _hull_foam_nodes(nt, sea_ob, rows, moving, near))
+    return ng
+
+
+def _hull_foam_nodes(nt, sea_ob, rows, moving: bool, near: float) -> None:
+    b = _NB(nt)
     gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
     me = b.new("GeometryNodeSelfObject")
     own = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
@@ -1617,7 +1895,6 @@ def _hull_foam_group(name: str, sea_ob, rows, moving: bool, near: float) -> bpy.
     b.put(setp.inputs["Geometry"], gin.outputs[0])
     b.put(setp.inputs["Position"], p_own.outputs[0])
     b.put(gout.inputs[0], setp.outputs[0])
-    return ng
 
 
 def _build_hull_foam(scene, s, col, root, sea_ob, outline, bft: float, rows, near: float, detailed: bool,
@@ -1635,8 +1912,10 @@ def _build_hull_foam(scene, s, col, root, sea_ob, outline, bft: float, rows, nea
         setattr(ob, attr, False)
     _drive_time(mat, scene, bool(s.sea_moving))
     mod = ob.modifiers.new("On the water", "NODES")
-    mod.node_group = _hull_foam_group(f"{WAVES_GROUP} hull foam", sea_ob, rows if detailed else [], bool(s.sea_moving),
-                                      near)
+    rows = rows if detailed else []
+    # (one group per kind of nodes, task 0202: a new sea state finds the one it had and only sets its numbers)
+    mod.node_group = _hull_foam_group(f"{WAVES_GROUP} hull foam {_height_sig(rows, near)}", sea_ob, rows,
+                                      bool(s.sea_moving), near)
     return ob
 
 
@@ -1885,13 +2164,23 @@ def stern_side(s, outline) -> int:
     return 1
 
 
-def _build_sea(s, col, root, level: float, machine_size: float, kind: str) -> bpy.types.Object:
+def _wants_outline(s) -> bool:
+    """The sea needs the hull's waterline: hull foam, the bow spray, or the bow's direction."""
+    return bool(s.sea_foam) or _spray_wind(s) is not None or _need_bow(s)
+
+
+_UNSET = object()
+
+
+def _build_sea(s, col, root, level: float, machine_size: float, kind: str, outline=_UNSET) -> bpy.types.Object:
+    """``outline``: the hull's waterline when the caller measured it already (``_waterline``)."""
     scene = s.id_data
     detailed = s.env_detail == "DETAILED"
     near = max(40.0, 5.0 * machine_size)
     foam, moving, weather = bool(s.sea_foam), bool(s.sea_moving), _weather_on(s)
     speed = _speed(s)
-    outline = _waterline(scene, s, kind, root, level) if foam or _spray_wind(s) or _need_bow(s) else None
+    if outline is _UNSET:
+        outline = _waterline(scene, s, kind, root, level) if _wants_outline(s) else None
     if outline is not None:                        # task 0125: the bow read once, for the wind, the wake and the swell
         az = weather_core.bow_az(getattr(s.weather, "bow", "AUTO"), stern_side(s, outline))
         if root.get(BOW_KEY) != az:
@@ -2087,73 +2376,11 @@ def _cut_key(s) -> dict:
     return key
 
 
-VIEW_CUT = "FR view cut"                    # task 0196: the modifier (and node group) that opens the box in the 3D view
-
-
-def _view_cut_group() -> bpy.types.NodeTree:
-    """Geometry nodes: delete the faces whose middle lies inside the cut-away box (world coordinates; inputs Origin,
-    Direction, Size = length, half width). Used only in the 3D view (the modifier's ``show_render`` is off): Solid view
-    draws no materials, so the shader's see-through box (``_box_test``) is not seen there."""
-    ng = bpy.data.node_groups.get(VIEW_CUT)
-    if ng is not None:
-        return ng
-    ng = bpy.data.node_groups.new(VIEW_CUT, "GeometryNodeTree")
-    ng["fr_env"] = "view_cut"
-    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    for name in ("Origin", "Direction", "Size"):
-        ng.interface.new_socket(name, in_out="INPUT", socket_type="NodeSocketVector")
-    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
-    b = _NB(ng)
-    gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
-    me = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
-    b.put(me.inputs["Object"], b.new("GeometryNodeSelfObject").outputs[0])
-    tp = b.new("FunctionNodeTransformPoint")
-    b.put(tp.inputs["Vector"], b.new("GeometryNodeInputPosition").outputs[0])
-    b.put(tp.inputs["Transform"], me.outputs["Transform"])
-    o, u, size = gin.outputs["Origin"], gin.outputs["Direction"], b.sep(gin.outputs["Size"])
-    d = b.vec("SUBTRACT", tp.outputs[0], o)
-    along = b.vec("DOT_PRODUCT", d, u)
-    side = b.math("ABSOLUTE", b.vec("DOT_PRODUCT", d, b.vec("CROSS_PRODUCT", u, (0.0, 0.0, 1.0))))
-    inside = b.math("MULTIPLY", b.math("GREATER_THAN", along, 0.0), b.math("LESS_THAN", along, size["X"]))
-    inside = b.math("MULTIPLY", inside, b.math("LESS_THAN", side, size["Y"]))
-    dele = b.new("GeometryNodeDeleteGeometry", domain="FACE")
-    b.put(dele.inputs["Geometry"], gin.outputs["Geometry"])
-    b.put(dele.inputs["Selection"], inside)
-    b.put(gout.inputs[0], dele.outputs[0])
-    return ng
-
-
-def _set_view_cut(ob, box) -> None:
-    """The box open in the 3D view (Solid and Material Preview): a viewport-only modifier last in the stack (the waves
-    only lift the surface: the box test looks at x and y). ``box`` None takes it off. Renders are not touched (``show_render`` off)."""
-    mod = ob.modifiers.get(VIEW_CUT)
-    if box is None:
-        if mod is not None:
-            ob.modifiers.remove(mod)
-        return
-    if mod is None:
-        mod = ob.modifiers.new(VIEW_CUT, "NODES")
-        mod.node_group = _view_cut_group()
-        mod.show_render = False
-        mod.show_viewport = True
-    for name, value in (("Origin", (float(box["origin"][0]), float(box["origin"][1]), 0.0)),
-                        ("Direction", (float(box["dir"][0]), float(box["dir"][1]), 0.0)),
-                        ("Size", (float(box["length"]), float(box["width"]) / 2.0, 0.0))):
-        getattr(mod.properties.inputs, _view_socket(mod, name)).value = value
-    ob.update_tag()
-
-
-def _view_socket(mod, name: str) -> str:
-    for item in mod.node_group.interface.items_tree:
-        if item.item_type == "SOCKET" and item.in_out == "INPUT" and item.name == name:
-            return item.identifier
-    raise KeyError(name)
+VIEW_CUT = view_cut.MOD                    # task 0196 / 0202: the modifier that opens the box in the 3D view
 
 
 def _set_cut_attrs(ob, box) -> None:
     """The box test's numbers on an object whose material is cut (world coordinates)."""
-    if ob.type == "MESH":
-        _set_view_cut(ob, box)
     if box is None:
         for k in CUT_ATTRS:
             if k in ob:
@@ -2162,6 +2389,57 @@ def _set_cut_attrs(ob, box) -> None:
     ob["fr_seacut_o"] = (float(box["origin"][0]), float(box["origin"][1]), 0.0)
     ob["fr_seacut_u"] = (float(box["dir"][0]), float(box["dir"][1]), 0.0)
     ob["fr_seacut_s"] = (float(box["length"]), float(box["width"]) / 2.0, 0.0)
+
+
+def _view_cuts(col, box, depth: float, pit: float | None, detailed: bool) -> None:
+    """The box cut out of the meshes in the 3D view (``sea_view_cut``), on everything the render cuts: the sea and
+    its hull foam; with the ground cut the seabed and its stones. What lies inside goes down under the bottom of what
+    is seen there: the seabed (no ground cut) or the soil section's pit."""
+    below = float(pit) + 1.0 if pit is not None else 1.0
+    for ob in list(col.objects):
+        role = ob.get(TAG)
+        if ob.type != "MESH" or not all(k in ob for k in CUT_ATTRS):
+            continue
+        # band: about one face (the sea's rings ~0.025 x the distance from its middle; the hull foam's rows up to
+        # 0.3 x its reach, the reach up to 1.45 x its width; the seabed's patch 0.3 m and more; stones ~1 m)
+        # stored band: about one face (the sea's rings ~0.025 x the distance from its middle; the hull foam's rows up
+        # to 0.3 x its reach, the reach up to 1.45 x its width)
+        if role == "sea":
+            view_cut.set_cut(ob, box, drop=depth + below, way=view_cut.STORED if detailed else view_cut.EXACT,
+                             band=(1.0, 0.04))
+        elif role == "hull_foam":
+            view_cut.set_cut(ob, box, drop=depth + below, band=0.5 * float(ob.get("fr_foam_w", 4.0)) + 1.5)
+        elif role == "seabed":                     # (it slides aft with the lay: worked out where it is now)
+            view_cut.set_cut(ob, box, drop=below, way=view_cut.LIVE if detailed else view_cut.EXACT)
+        elif role == "stones":
+            view_cut.set_cut(ob, box, drop=below, way=view_cut.LIVE)
+
+
+def refresh_view_cuts(scene) -> int:
+    """Projects of 0.2.153 (task 0202): their view cut deleted faces at every frame; it is put on again the new way,
+    from the box the surroundings were built with. Returns how many objects changed."""
+    olds = view_cut.old_cut_objects()
+    root = root_object()
+    if not olds or root is None or root.get("fr_kind") != "SEA" or not root.get("fr_seacut_box"):
+        return 0
+    s = scene.fresing
+    try:
+        box = json.loads(root["fr_seacut_box"])
+    except ValueError:
+        return 0
+    col = bpy.data.collections.get(COLLECTION)
+    sea_ob = next((ob for ob in col.objects if ob.get(TAG) == "sea"), None) if col is not None else None
+    if sea_ob is None:
+        return 0
+    level = float(sea_ob.location.z)               # (the water's height in the root's frame, as it was built)
+    depth = float(s.sea_depth)
+    pit = ground_depth_now(root, level, depth) if ground_wanted(s) else None
+    _view_cuts(col, box, depth, pit, s.env_detail == "DETAILED")
+    for name in (view_cut.OLD_GROUP,):
+        old = bpy.data.node_groups.get(name)
+        if old is not None and not old.users:
+            bpy.data.node_groups.remove(old)
+    return len(olds)
 
 
 def _box_test(b: _NB):
@@ -2177,15 +2455,19 @@ def _box_test(b: _NB):
     return b.math("MULTIPLY", inside, b.math("LESS_THAN", side, size["Y"]))
 
 
-def _add_box_cut(mat, from_below: bool = False) -> None:
+def _add_box_cut(mat, from_below: bool = False, nt=None) -> None:
     """The material is see-through inside the cut-away box (the shader before it is kept as it is). ``from_below``:
     also for light from under the water (the sea's surface: the seabed in the box gets the sky's light, as through
-    real water, and its bounces skip the water's shader); the camera's own rays from below are never let through."""
-    nt = mat.node_tree
+    real water, and its bounces skip the water's shader); the camera's own rays from below are never let through.
+    ``nt``: the tree being built (a ``_Replay``, task 0202), else the material's own."""
+    nt = nt if nt is not None else mat.node_tree
     out = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL"), None)
-    if out is None or not out.inputs["Surface"].links:
+    if out is None:
         return
-    shader = out.inputs["Surface"].links[0].from_socket
+    sock = out.inputs["Surface"]
+    shader = nt.linked_from(sock) if isinstance(nt, _Replay) else (sock.links[0].from_socket if sock.links else None)
+    if shader is None:
+        return
     b = _NB(nt)
     clear = b.new("ShaderNodeBsdfTransparent")
     mix = b.new("ShaderNodeMixShader")
@@ -2360,7 +2642,7 @@ def _seabed_mesh(name: str, box, offset_xy, detailed: bool) -> bpy.types.Mesh:
         q = np.stack([idx[:-1, :-1], idx[1:, :-1], idx[1:, 1:], idx[:-1, 1:]], axis=-1).reshape(-1, 4)
         if (u[0] * v[1] - u[1] * v[0]) < 0:                 # faces up
             q = q[:, ::-1]
-        m._add(pts, q.tolist(), 0, smooth=True)
+        m._add(pts, q, 0, smooth=True)
     return m.to_mesh(name)
 
 
@@ -2596,6 +2878,7 @@ def _build_under_water(s, col, root, sea_ob, level: float, detailed: bool, near:
     for ob in col.objects:
         if ob.get(TAG) == "hull_foam":
             _set_cut_attrs(ob, box)
+    _view_cuts(col, box, depth, pit, detailed)
     ring = _new_object("FR Sea: cut-away water", _ring_mesh("FR Sea: cut-away water", box, offset, s.sea_clarity,
                                                             depth, detailed,
                                                             -sea_core.GROUND_TOP if ground else 2.0), "sea_cut", col, root)

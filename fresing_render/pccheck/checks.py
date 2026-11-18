@@ -4161,11 +4161,13 @@ def app_start_here(ctx):
     _check(os.path.isfile(page) and "#start-here" in open(page, encoding="utf-8").read(),
            "the page that opens the user guide at a section was not written")
     n_f, n_s = len(welcome.functions_new(older)), len(welcome.sets_new("0.2.0"))
+    if n_f == 0:            # (task 0202: a release that brings no new function – What's new can still list functions)
+        n_f = len(welcome.functions_new("0.2.0"))
     _check(n_f > 0 and n_s > 0, f"What's new lists {n_f} functions and {n_s} test models")
     return f"What's new since {older}: {n_f} functions"
 
 
-@line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.157",
+@line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.158",
       what="Counts clicks into a usage file of its own (never yours; with an accent in its folder), checks every "
            "Fresing button counts, the bar is sorted at a start only, a panel is offered for hiding after 10 starts "
            "and never while the project uses it, a broken file starts empty and keeps a copy, and what one counted "
