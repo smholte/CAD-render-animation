@@ -271,8 +271,9 @@ class FRESING_PT_lifting_load(_Panel, bpy.types.Panel):
         cog = lifting.cog_world(ld)
         by_hand = lifting.cog_by_hand(ld)
         if cog is not None:
-            layout.label(text=f"CoG  x {cog[0]:.3f}  y {cog[1]:.3f}  z {cog[2]:.3f} m  "
-                              + ("(set by hand)" if by_hand else "(computed)"), icon="PIVOT_MEDIAN")
+            col = layout.column(align=True)
+            col.label(text="CoG " + ("set by hand" if by_hand else "computed"), icon="PIVOT_MEDIAN")
+            col.label(text=f"x {cog[0]:.3f}  y {cog[1]:.3f}  z {cog[2]:.3f} m", icon="BLANK1")
         row = layout.row(align=True)
         row.operator("fresing.lifting_cog_move", text="Move", icon="ORIENTATION_GLOBAL")
         row.operator("fresing.lifting_cog_back", text="Back to computed", icon="LOOP_BACK")
@@ -291,8 +292,9 @@ def _draw_gross(layout, context, scene, ld):
     g = lifting.LD.gross(m, ld.contingency, hb, includes)
     box = layout.box()
     col = box.column(align=True)
-    col.label(text=f"Load {_t(m)} ({src}) x {ld.contingency:.2f} = {_t(g.factored)}")
-    col.label(text="Rigging 0 t (slings come in a later version)")
+    col.label(text=f"Load {_t(m)} x {ld.contingency:.2f} = {_t(g.factored)}")
+    col.label(text=f"   ({src})")
+    col.label(text="Rigging 0 t (slings come later)")
     if c is not None:
         col.label(text=f"Hook block {_t(g.hook_block)}" + (" (in the chart)" if includes else ""))
     col.label(text=f"Gross load {_t(g.total)}", icon="FORCE_FORCE")
@@ -338,7 +340,7 @@ class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
         row.operator("fresing.lifting_hook_above", text="Above the load", icon="TRIA_UP_BAR")
         if ld is not None:
             col = split_props(layout)
-            col.prop(ld, "clearance", text="Above the load's top")
+            col.prop(ld, "clearance", text="Clearance")
         ro = lifting.readout(scene, c, ld)
         gap(layout)
         if isinstance(ro, str):
@@ -359,8 +361,8 @@ class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
             wrap(layout, context, ro.chart_note, icon="INFO")
         if ro.capacity is not None:
             col = layout.column(align=True)
-            col.label(text=f"Chart row {ro.row:g} m (the next longer radius): capacity {_t(ro.capacity)}")
-            col.label(text=f"Gross load {_t(ro.gross)}")
+            col.label(text=f"Chart row {ro.row:g} m (next longer radius)")
+            col.label(text=f"Capacity {_t(ro.capacity)} · gross load {_t(ro.gross)}")
             row = layout.row()
             row.scale_y = 1.4
             row.alert = ro.status == core.RED

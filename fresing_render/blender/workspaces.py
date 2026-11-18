@@ -200,18 +200,32 @@ def used_functions(scene) -> dict:
         steps = [b for a in s.animations for b in a.blocks]
     except Exception:  # noqa: BLE001
         steps = []
+    # task 0201: what a placed crane brings (its joints, cylinders, poses, tracks, hoist rope) belongs to the lifting
+    # plan, not to the user's own motion: a Lifting plans project does not ask to show Motion for it
+    lift = getattr(s, "lifting", None)
+    own = tuple(c.name + " · " for c in lift.cranes) if lift is not None else ()
+
+    def mine(name):
+        return bool(own) and (name.startswith(own) or name.startswith(tuple("Cable " + p for p in own)))
+
+    if lift is not None and len(lift.cranes):
+        add("lifting.place", _count(len(lift.cranes), "crane"))
+    if lift is not None and len(lift.loads):
+        add("lifting.load", _count(len(lift.loads), "load"))
     # motion
-    n = sum(1 for j in s.joints if not getattr(j, "hidden", False))
+    n = sum(1 for j in s.joints if not getattr(j, "hidden", False) and not mine(j.name))
     if n:
         add("joints.rotate", _count(n, "joint"))
-    if len(s.poses):
-        add("poses.pose", _count(len(s.poses), "pose"))
+    n = sum(1 for p in s.poses if not mine(p.name))
+    if n:
+        add("poses.pose", _count(n, "pose"))
     # machine motion
     for coll, word, fid in ((s.cylinders, "cylinder", "machines.cylinder"),
                             (s.mechanisms, "mechanism", "machines.mechanism"),
                             (s.waycovers, "way cover", "machines.waycover"), (s.tracks, "track", "machines.tracks")):
-        if len(coll):
-            add(fid, _count(len(coll), word))
+        n = sum(1 for x in coll if not mine(getattr(x, "name", "")))
+        if n:
+            add(fid, _count(n, word))
     if len(s.flex):
         add("machines.hoses", _count(len(s.flex), "hose or drag chain", "hoses and drag chains"))
     # CNC machine
@@ -228,8 +242,9 @@ def used_functions(scene) -> dict:
     if len(mill.bits) or mill.workpiece is not None:
         add("milling.cut", "a milling set-up" + (f" with {plural(len(mill.bits), 'bit')}" if len(mill.bits) else ""))
     # cables, drums and the sea
-    if len(s.cables):
-        add("offshore.cables", _count(len(s.cables), "cable"))
+    n = sum(1 for x in s.cables if not mine(x.name))
+    if n:
+        add("offshore.cables", _count(n, "cable"))
     if len(s.spools):
         add("offshore.spool", _count(len(s.spools), "drum or carousel", "drums and carousels"))
     if getattr(s.vessel, "enabled", False):

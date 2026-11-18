@@ -423,6 +423,7 @@ def remove(scene, crane) -> dict:
     if root is not None:
         obs = [root] + list(logic.descendants(root))
         meshes = {o.data for o in obs if o.type == "MESH" and o.data is not None}
+        colls = {c for o in obs for c in o.users_collection if c != scene.collection}
         for o in obs:
             try:
                 bpy.data.objects.remove(o, do_unlink=True)
@@ -435,6 +436,16 @@ def remove(scene, crane) -> dict:
                     bpy.data.meshes.remove(me)
             except ReferenceError:
                 pass
+        for coll in colls:                         # the model's own collection, when nothing else is in it
+            try:
+                if not coll.objects and not coll.children:
+                    bpy.data.collections.remove(coll)
+            except ReferenceError:
+                pass
+    from . import flex
+    col = bpy.data.collections.get(flex.COLLECTION)     # made by the hoist rope / tracks; made again when needed
+    if col is not None and not col.all_objects and not col.children:
+        bpy.data.collections.remove(col)
     L = plan(scene)
     idx = next(i for i, c in enumerate(L.cranes) if c.name == name)
     L.cranes.remove(idx)
@@ -534,6 +545,7 @@ def hook_to(scene, crane, world_point, load=None) -> LR.Answer:
                    load_kg=m[0] * contingency, hook_block_kg=hook_block_kg(crane))
     if a.ok:
         set_values(scene, crane, a.values)
+        crane.pose = ""                            # no longer one of the file's poses
         msg = f"Hook to here: radius {a.radius:.2f} m, hook at {a.height:.2f} m, boom {a.boom:.2f} m"
         if a.use is not None:
             msg += f", crane use {a.use * 100:.0f} %"

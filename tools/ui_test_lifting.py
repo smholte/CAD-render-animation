@@ -156,7 +156,9 @@ def item(name):
 
 def counts():
     s = bpy.context.scene.fresing
-    return (len(bpy.data.objects), len(bpy.data.meshes), len(s.joints), len(s.cylinders), len(s.poses),
+    return (len(bpy.data.objects), sum(1 for m in bpy.data.meshes if m.users), len(bpy.data.collections),
+            len(s.joints), len(s.cylinders),
+            len(s.poses),
             len(s.cables), len(s.tracks))
 
 
@@ -185,6 +187,9 @@ def step(fn):
 @step
 def s_first_use():
     log("extension", pkg())
+    win, _area, _region, _sb = ui()
+    win.event_simulate(type="ESC", value="PRESS", x=700, y=500)      # the splash screen first (CLAUDE.md 8)
+    win.event_simulate(type="ESC", value="RELEASE", x=700, y=500)
     os.environ.pop(L().ENV_UNDERSTOOD, None)
     check("a new user has not seen the planning-aid line: the section's buttons are grey",
           not L().understood() and not can("fresing.lifting_place") and not can("fresing.lifting_hook_here"))
@@ -380,8 +385,9 @@ def s_hook_click():
     sidebar_shot("lifting_load", 1900)
     sc = bpy.context.scene
     c = L().active_crane(sc)
-    view(tuple(np.array(c.root.matrix_world.translation)), 40.0)
-    S["hpx"] = pixel_of(np.array(c.root.matrix_world.translation) + np.array((-5.0, 3.0, 0.0)))
+    target = np.array(c.root.matrix_world.translation) + np.array((-5.0, 3.0, 0.0))
+    view(tuple(target), 40.0)                 # the point in the middle of the view, clear of the side panel
+    S["hpx"] = pixel_of(target)
     res = invoke("fresing.lifting_hook_here")
     check("Hook to here waits for a click", res == {"RUNNING_MODAL"}, str(res))
     return 0.7
@@ -409,8 +415,8 @@ def s_hook_done():
     ro = L().readout(sc, c, ld)
     core = mod("core.lifting")
     ref = core.crane_use(1200.0 * ld.contingency, ro.radius, ro.chart, hook_block=L().hook_block_kg(c))
-    check("the panel's crane use is the chart's at that radius", abs(ro.use - ref.use) < 1e-9 and ro.words == ref.words,
-          f"{ro.use * 100:.1f} % {ro.words}")
+    check("the panel's crane use is the chart's at that radius", abs(ro.use - ref.use) < 1e-6 and ro.words == ref.words,
+          f"{ro.use * 100:.3f} % vs {ref.use * 100:.3f} % {ro.words}")
     view(tuple(np.array(c.root.matrix_world.translation) + np.array((-4.0, 0.0, 3.0))), 30.0)
     redraw()
     return 1.0

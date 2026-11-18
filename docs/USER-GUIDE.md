@@ -86,8 +86,9 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 
 <img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the seven sections, folded">
 
-The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work. Above them
-are the **Workspace** row, the **What's next** card, the section tabs and **Make**.
+The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work, and an eighth for
+lifting plans, **8 Lifting plan** ([below](#lifting)). Above them are the **Workspace** row, the **What's next**
+card, the section tabs and **Make**.
 
 Every section works the same way:
 
@@ -3790,7 +3791,7 @@ or close the app and let it run overnight: the PC stays awake while it renders.
 <a id="lifting"></a>
 ## 8 Lifting plan – a crane, the load and the hook
 
-<img class="panel" src="img/panel_8_lifting.png" alt="8 Lifting plan: the planning-aid line, the SAMPLE line, the placed AT-40, its poses and set-up">
+<img class="panel" src="img/panel_8_lifting.png" alt="8 Lifting plan: the planning-aid line, the SAMPLE line and Hook to here">
 
 The first lifting plan in 3D: place a ready-rigged crane from the library on the ground of your project, make the
 parts you want to lift the **load** (or a box), see its weight and its **centre of gravity**, click **Hook to here**
@@ -3813,6 +3814,8 @@ before that. The app remembers it for you (a preference), so it asks once per us
 
 <a id="lifting-place"></a>
 ### Equipment: place a crane
+
+<img class="panel" src="img/panel_8_lifting_equipment.png" alt="Equipment: the placed AT-40, its poses, the counterweight and outrigger spread its chart is picked for">
 
 1. Open **Equipment**. Under **Add a crane from the library** the cranes that come with the app are listed by kind
    (mobile, crawler, knuckle-boom) and size class, then your own items from the library folder **Lifting equipment**
@@ -3875,7 +3878,7 @@ the marker by hand (move the mouse, click to drop): it is then marked **set by h
   inside every joint's limits. Several ways reach it: the one with the **lowest crane use** on the chart that
   applies, then the shortest boom. Out of reach: it says by how much ("1.20 m further out than the hook reaches",
   "0.80 m higher than the hook reaches at this radius") and the crane stays as it was.
-- **Above the load**: the hook over the load's CoG, **Above the load's top** (2 m to start with) above its highest
+- **Above the load**: the hook over the load's CoG, **Clearance** (2 m to start with) above the load's highest
   point.
 
 The box shows, live as the crane moves (also when you pose it by hand): the **radius** (slew axis to hook,

@@ -23,9 +23,19 @@ CRANE = os.path.join(DATA, "test_crane_a.step")
 MACHINE = os.path.join(DATA, "test_machine.step")
 
 
-def _mods():
-    if not hasattr(bpy.types.Scene, "fresing"):
+@pytest.fixture(scope="module", autouse=True)
+def registered():
+    """Registered for this file only (the next file registers again by itself)."""
+    mine = not hasattr(bpy.types.Scene, "fresing")
+    if mine:
         fresing_render.register()
+    yield
+    if mine:
+        bpy.ops.wm.read_homefile(use_empty=True)
+        fresing_render.unregister()
+
+
+def _mods():
     from fresing_render.blender import lifting as BL
     return BL
 
@@ -49,7 +59,8 @@ def _item(name):
 
 def _counts(sc):
     s = sc.fresing
-    return {"objects": len(bpy.data.objects), "meshes": len(bpy.data.meshes), "joints": len(s.joints),
+    return {"objects": len(bpy.data.objects), "meshes": len(bpy.data.meshes),
+            "collections": len(bpy.data.collections), "joints": len(s.joints),
             "cylinders": len(s.cylinders), "poses": len(s.poses), "cables": len(s.cables), "tracks": len(s.tracks)}
 
 
@@ -332,3 +343,15 @@ def test_remove_a_crane_with_several_cylinders():
     assert len(sc.fresing.tracks) == 2
     BL.remove(sc, c)
     assert _counts(sc) == before
+
+
+def test_a_placed_crane_does_not_ask_to_show_motion():
+    """The crane's own joints, cylinders, poses and hoist rope belong to the lifting plan: a Lifting plans project
+    does not say it uses Motion or Cables for them."""
+    BL = _mods()
+    sc = _new(CRANE)
+    from fresing_render.blender import workspaces
+    BL.place(bpy.context, _item("AT-40"), (12.0, 0.0, 0.0), 0.0)
+    used = workspaces.used_functions(sc)
+    assert "lifting.place" in used
+    assert not {"joints.rotate", "poses.pose", "machines.cylinder", "offshore.cables"} & set(used), used
