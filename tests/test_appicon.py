@@ -163,19 +163,124 @@ def test_ensure_icon_copies_and_replaces(tmp_path):
 
 
 def test_shortcut_paths(tmp_path):
-    desk, prog, app = tmp_path / "Desk", tmp_path / "Prog", tmp_path / "App"
+    """Task 0212: the app's shortcut on the Desktop and directly in Programs, the Tools folder, the pinned icons."""
+    desk, prog, app, tools = tmp_path / "Desk", tmp_path / "Prog", tmp_path / "App", tmp_path / "Inst" / "Tools"
     (prog / "Fresing Render").mkdir(parents=True)
     pinned = app / ai.PINNED
-    pinned.mkdir(parents=True)
-    desk.mkdir()
-    for p in (desk / "Fresing Render.lnk", desk / "Other.lnk", prog / "Fresing Render" / "Fresing Render.lnk",
-              prog / "Fresing Render" / "notes.txt", pinned / "Fresing Render.lnk", pinned / "Word.lnk"):
+    for d in (pinned, desk, tools):
+        d.mkdir(parents=True)
+    for p in (desk / "Fresing Render.lnk", desk / "Other.lnk", prog / "Fresing Render.lnk", prog / "Word.lnk",
+              prog / "Fresing Render" / "Fresing Render - Self test.lnk", tools / "PC check (quick).lnk",
+              tools / "notes.txt", pinned / "Fresing Render.lnk", pinned / "Word.lnk"):
         p.write_text("x")
-    got = [os.path.relpath(p, tmp_path) for p in ai.shortcut_paths(str(desk), str(prog), str(app))]
+    got = [os.path.relpath(p, tmp_path) for p in ai.shortcut_paths(str(desk), str(prog), str(app), str(tools))]
     assert os.path.join("Desk", "Fresing Render.lnk") in got and os.path.join("Desk", "Other.lnk") not in got
-    assert os.path.join("Prog", "Fresing Render", "Fresing Render.lnk") in got
+    assert os.path.join("Prog", "Fresing Render.lnk") in got and os.path.join("Prog", "Word.lnk") not in got
+    assert not any(g.startswith(os.path.join("Prog", "Fresing Render") + os.sep) for g in got)   # the old folder
+    assert os.path.join("Inst", "Tools", "PC check (quick).lnk") in got
     assert not any(g.endswith(".txt") for g in got)
     assert os.path.join("App", ai.PINNED, "Word.lnk") in got          # listed; plan() leaves it by its target
+
+
+def test_one_shortcut_only_names():
+    """Task 0212: only "Fresing Render" on the Desktop; six extras in the Tools folder; old names are not new ones."""
+    assert ai.DESKTOP_NAMES == ("Fresing Render.lnk",) and ai.APP_LNK == "Fresing Render.lnk"
+    assert sorted(ai.TOOLS) == ["full", "guide", "heavy", "quick", "safe", "selftest"]
+    assert ai.TOOLS["safe"] == ai.SAFE_START
+    assert not set(ai.TOOLS.values()) & set(ai.OLD_DESKTOP + ai.OLD_START_MENU)
+    assert ai.OLD_SAFE_START in ai.OLD_START_MENU
+    assert ai.tools_dir(INST) == os.path.join(INST, "Tools") and ai.tools_dir("") == ""
+
+
+def test_old_shortcuts_found_by_name(tmp_path):
+    desk, prog = tmp_path / "Desk", tmp_path / "Prog"
+    menu = prog / "Fresing Render"
+    menu.mkdir(parents=True)
+    desk.mkdir()
+    for p in (desk / "Fresing Render.lnk", desk / "Fresing Render - PC check.lnk", desk / "Other.lnk",
+              menu / "Fresing Render.lnk", menu / "Fresing Render - User guide.lnk", menu / "Mine.lnk"):
+        p.write_text("x")
+    got = [os.path.relpath(p, tmp_path) for p in ai.old_shortcuts(str(desk), str(prog))]
+    assert got == [os.path.join("Desk", "Fresing Render - PC check.lnk"),
+                   os.path.join("Prog", "Fresing Render", "Fresing Render - User guide.lnk"),
+                   os.path.join("Prog", "Fresing Render", "Fresing Render.lnk")]      # the app's own last
+
+
+def test_tidy_plan_only_touches_our_shortcuts(tmp_path):
+    inst = str(tmp_path / "Ins tallé")
+    prog = tmp_path / "Prog"
+    prog.mkdir()
+    menu = os.path.join(str(prog), "Fresing Render")
+    ours = os.path.join(inst, "blender-5.2.3-windows-x64", "blender.exe")
+    found = {os.path.join("D", "Fresing Render - PC check.lnk"): ours,
+             os.path.join(menu, "Fresing Render - User guide.lnk"):
+                 os.path.join(inst, "blender", "portable", "guide", "user_guide.html"),
+             os.path.join(menu, "Fresing Render - Self test.lnk"): r"C:\Other\blender.exe",     # someone else's
+             os.path.join(menu, "Fresing Render - safe start.lnk"): "",                        # unreadable
+             os.path.join(menu, "Fresing Render.lnk"): ours}
+    plan = ai.tidy_plan(found, inst, str(prog))
+    assert ("remove", os.path.join("D", "Fresing Render - PC check.lnk"), "") in plan
+    assert ("remove", os.path.join(menu, "Fresing Render - User guide.lnk"), "") in plan
+    assert ("move", os.path.join(menu, "Fresing Render.lnk"), os.path.join(str(prog), "Fresing Render.lnk")) in plan
+    assert len(plan) == 3                                             # someone else's and the unreadable one stay
+    # the installer made the new one already: the old app shortcut goes
+    (prog / "Fresing Render.lnk").write_text("x")
+    assert ("remove", os.path.join(menu, "Fresing Render.lnk"), "") in ai.tidy_plan(found, inst, str(prog))
+    # a folder that only starts like the install folder is not inside it
+    assert ai.tidy_plan({"x.lnk": inst + "2\\blender.exe"}, inst, str(prog)) == []
+    assert ai.tidy_plan(found, "", str(prog)) == []
+
+
+def test_tools_specs(tmp_path):
+    """The Tools folder's six shortcuts: what they start, with which arguments; a missing file leaves its one out."""
+    pytest.importorskip("numpy")
+    inst = tmp_path / "FresingRender é"
+    bdir = inst / "blender-5.2.3-windows-x64"
+    ext = bdir / "portable" / "extensions" / "user_default" / "fresing_render"
+    (ext / "pccheck").mkdir(parents=True)
+    (ext / "guide").mkdir()
+    blender = bdir / "blender.exe"
+    desk = r"C:\Users\O'Brien\Desktop"
+    assert ai.tools_specs(str(inst), str(blender), desk, str(ext)) == {}
+    for f in (blender, bdir / "blender-launcher.exe", inst / "selftest_launcher.py", ext / "pccheck" / "launcher.py",
+              ext / "guide" / "user_guide.html"):
+        f.write_text("x")
+    specs = ai.tools_specs(str(inst), str(blender), desk, str(ext))
+    assert sorted(specs) == sorted(ai.TOOLS)
+    for kind, spec in specs.items():
+        assert spec["path"] == os.path.join(str(inst), "Tools", ai.TOOLS[kind]) and spec["description"]
+    assert specs["selftest"]["target"] == str(blender)
+    assert specs["selftest"]["arguments"] == f'--background --python "{inst / "selftest_launcher.py"}" -- "{desk}"'
+    for mode in ("quick", "full", "heavy"):
+        assert specs[mode]["target"] == str(blender)
+        assert specs[mode]["arguments"] == \
+            f'--background --python "{ext / "pccheck" / "launcher.py"}" -- "{desk}" {mode}'
+    assert specs["safe"]["target"] == str(bdir / "blender-launcher.exe") and specs["safe"]["arguments"] == ai.APP_ARGS
+    assert specs["guide"]["target"] == str(ext / "guide" / "user_guide.html") and specs["guide"]["arguments"] == ""
+    # the installer makes the same six with the same names
+    ps = open(os.path.join(ROOT, "installer", "Install-FresingRender.ps1"), encoding="utf-8").read()
+    for name in ai.TOOLS.values():
+        assert f'Join-Path $Tools "{name}"' in ps, name
+    assert '$Tools = Join-Path $InstallDir "Tools"' in ps
+
+
+def test_installer_and_uninstall_keep_only_the_app_shortcut():
+    """Task 0212: Desktop and Start menu get only "Fresing Render.lnk"; old names removed only when ours."""
+    ps = open(os.path.join(ROOT, "installer", "Install-FresingRender.ps1"), encoding="utf-8").read()
+    made = [line for line in ps.splitlines() if line.lstrip().startswith("MakeShortcut (Join-Path")]
+    for line in made:
+        place = line.split("(Join-Path ")[1].split(" ")[0]
+        name = line.split('"')[1]
+        assert place == "$Tools" or name == "Fresing Render.lnk", line
+    assert sum(" $Desktop " in f" {line} " for line in made) == 1
+    assert 'MakeShortcut (Join-Path $Programs "Fresing Render.lnk")' in ps
+    for name in ai.OLD_DESKTOP + ai.OLD_START_MENU + (ai.APP_LNK,):
+        assert f'"{name}"' in ps, name
+    assert 'StartsWith("$InstallDir\\", [StringComparison]::OrdinalIgnoreCase)' in ps
+    un = open(os.path.join(ROOT, "installer", "Uninstall-FresingRender.ps1"), encoding="utf-8").read()
+    for name in ai.OLD_DESKTOP + (ai.APP_LNK,):
+        assert f'"{name}"' in un, name
+    assert '(Join-Path $Programs "Fresing Render.lnk")' in un and '(Join-Path $Programs "Fresing Render")' in un
 
 
 def test_wanted_only_for_the_app_on_windows():
@@ -203,14 +308,6 @@ def test_installer_shortcuts_use_the_fresing_icon():
     assert '"$BlenderExe,0"' in ps.split("$IconLoc =")[1].split("\n")[0]     # only as the fallback
     assert ps.count("IconLocation") == 2
     assert "brand\\fresing-render.ico" in ps and "set_shortcuts.py" in ps and ".appicon" in ps
-
-
-def test_pc_check_shortcuts_use_the_icon_when_given():
-    pytest.importorskip("bpy")
-    from fresing_render.pccheck import ops
-    s = ops.shortcut_script("S", r"C:\B\blender.exe", r"C:\D", ["quick"], r"C:\F\fresing-render.ico")
-    assert r"$l.IconLocation = 'C:\F\fresing-render.ico,0'" in s
-    assert r"$l.IconLocation = 'C:\B\blender.exe,0'" in ops.shortcut_script("S", r"C:\B\blender.exe", r"C:\D", ["quick"])
 
 
 def test_the_icon_ships_inside_the_extension():

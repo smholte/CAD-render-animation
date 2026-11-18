@@ -527,6 +527,10 @@ fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar 
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158")
 
+fn(id="help.tools", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
+   family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
+   pccheck=("app.tools",), since="0.2.164")
+
 fn(id="help.about", title="About Fresing Render: version, licence, third-party licences, offline", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.about", guide="about-licences", pccheck=("app.licences",),
    since="0.2.162")

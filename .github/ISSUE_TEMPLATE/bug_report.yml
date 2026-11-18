@@ -31,7 +31,7 @@ body:
     id: pccheck
     attributes:
       label: PC check result
-      description: Start menu > Fresing Render > "PC check (quick)" or "(full)". Paste what it found in the box below if it found problems.
+      description: In the app, Fresing > Tools and checks > PC check… (Quick or Full). Paste what it found in the box below if it found problems.
       options:
         - Quick – all lines passed
         - Quick – some lines failed

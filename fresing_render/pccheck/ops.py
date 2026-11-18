@@ -1,11 +1,11 @@
-"""Help > Fresing Render PC check… in the app, and the Start-menu shortcuts on Windows.
+"""Help > Fresing Render PC check… in the app (and Fresing > Tools and checks, task 0212).
 
 The check runs in a second Blender in the background (``launcher.py``), like the self-test: the app
 stays free, and the report opens in the web browser when it is done.
 
-The installer makes the shortcuts "Fresing Render - PC check (quick)" and "(full)". A PC that got this
-version through Update now never ran the new installer, so the app makes them itself at start (Windows,
-only when the installer's Start-menu folder is there and a shortcut is missing).
+The installer makes the shortcuts "PC check (quick)" / "(full)" / "(heavy)" in the Tools folder of the install
+(task 0212; before it they were in the Start menu and on the Desktop). A PC that got this version through Update
+now gets them from the app at start: ``appicon.refresh_installed`` (``appicon.ensure_tools``).
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ import json
 import os
 import subprocess
 import sys
-import threading
 
 import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
@@ -23,17 +22,7 @@ from . import core
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAUNCHER = os.path.join(HERE, "launcher.py")
-START_MENU_FOLDER = "Fresing Render"
-SHORTCUTS = {"quick": "Fresing Render - PC check (quick).lnk", "full": "Fresing Render - PC check (full).lnk",
-             "heavy": "Fresing Render - PC check (heavy).lnk"}
-DESKTOP_HEAVY = "Fresing Render - PC check (heavy).lnk"
-DESKTOP_SHORTCUT = "Fresing Render - PC check.lnk"     # quick; a STEP file can be dropped on it (not on the Start menu)
-SHORTCUT_TEXT = {"quick": "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test "
-                          "your own model too",
-                 "full": "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it "
-                         "to test your own model too",
-                 "heavy": "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about "
-                          "10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"}
+SHORTCUT_TEXT = core.SHORTCUT_TEXT
 RUNNING_FILE = "running.json"
 
 
@@ -47,7 +36,7 @@ def launch_command(exe: str, desktop: str, mode: str, model: str = "") -> list[s
 
 def shortcut_arguments(desktop: str, mode: str) -> str:
     """The shortcut's arguments; Windows adds a dropped file at the end."""
-    return f'--background --python "{LAUNCHER}" -- "{desktop}" {mode}'
+    return core.shortcut_arguments(LAUNCHER, desktop, mode)
 
 
 def running_pid(hist: str) -> int:
@@ -137,7 +126,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         from .. import winexe
         exe = winexe.console_exe(bpy.app.binary_path)      # its own console window: blender.exe (task 0177)
         if not exe:
-            self.report({"ERROR"}, "Blender's program was not found: start the PC check from the Start menu")
+            self.report({"ERROR"}, "Blender's program was not found: start the PC check from the Tools folder of the app (Fresing > Tools and checks > Open the app folder)")
             return {"CANCELLED"}
         cmd = launch_command(exe, runner.desktop_dir(), self.mode, model)
         kwargs = {}
@@ -155,100 +144,6 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         self.report({"INFO"}, f"PC check started ({core.MODE_TITLES[self.mode]}): the report opens in your web "
                               f"browser in about {minutes} minutes")
         return {"FINISHED"}
-
-
-# ---------------------------------------------------------------------------
-# Start-menu shortcuts (Windows)
-# ---------------------------------------------------------------------------
-
-def _ps_quote(text: str) -> str:
-    """A single-quoted PowerShell string. PowerShell also ends such a string at the typographic quotes
-    ‘ ’ ‚ ‛ (a user name like O’Brien): each is doubled, like the plain one."""
-    import re
-    return "'" + re.sub("(['\u2018\u2019\u201a\u201b])", r"\1\1", text) + "'"
-
-
-def shortcut_script(folder: str, exe: str, desktop: str, missing: list[str], icon: str = "") -> str:
-    """PowerShell that makes the missing PC-check shortcuts: "quick" / "full" in the Start-menu folder,
-    "desktop" on the Desktop (quick). ``icon``: the Fresing icon file (task 0169), else Blender's."""
-    lines = ["$s = New-Object -ComObject WScript.Shell"]
-    for mode in missing:
-        path = os.path.join(desktop, DESKTOP_SHORTCUT) if mode == "desktop" else os.path.join(folder, SHORTCUTS.get(mode, ""))
-        mode = "quick" if mode == "desktop" else mode
-        path = os.path.join(desktop, DESKTOP_HEAVY) if mode == "desktop_heavy" else path
-        mode = "heavy" if mode == "desktop_heavy" else mode
-        lines += [f"$l = $s.CreateShortcut({_ps_quote(path)})",
-                  f"$l.TargetPath = {_ps_quote(exe)}",
-                  f"$l.Arguments = {_ps_quote(shortcut_arguments(desktop, mode))}",
-                  f"$l.WorkingDirectory = {_ps_quote(os.path.dirname(exe))}",
-                  f"$l.IconLocation = {_ps_quote((icon or exe) + ',0')}",
-                  f"$l.Description = {_ps_quote(SHORTCUT_TEXT[mode])}",
-                  "$l.Save()"]
-    return "\n".join(lines)
-
-
-def missing_shortcuts(folder: str, desktop: str = "") -> list[str]:
-    out = [m for m, name in SHORTCUTS.items() if not os.path.isfile(os.path.join(folder, name))]
-    # the Desktop one only where the installer put the app's own Desktop shortcut
-    if desktop and os.path.isfile(os.path.join(desktop, "Fresing Render.lnk")) \
-            and not os.path.isfile(os.path.join(desktop, DESKTOP_SHORTCUT)):
-        out.append("desktop")
-    if desktop and os.path.isfile(os.path.join(desktop, "Fresing Render.lnk")) \
-            and not os.path.isfile(os.path.join(desktop, DESKTOP_HEAVY)):
-        out.append("desktop_heavy")
-    return out
-
-
-def run_powershell(path: str, exe: str = "powershell.exe") -> subprocess.CompletedProcess:
-    """Run a .ps1 file hidden. Its output is in the console's code page, not always UTF-8: characters that do not
-    decode are replaced (an accented path in an error message ended the thread before, 0045 row 19d)."""
-    return subprocess.run([exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path],
-                          capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
-                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-
-
-def ensure_shortcuts() -> str:
-    """Windows: make the PC-check shortcuts when the installer's Start-menu folder has none (an update
-    through the app). Returns what was done (for the console)."""
-    if sys.platform != "win32" or bpy.app.background:
-        return ""
-    from . import runner
-    programs = runner._known_folder("A77F5D77-2E2B-44C3-A6A2-ABA601054A51")       # FOLDERID_Programs
-    folder = os.path.join(programs, START_MENU_FOLDER) if programs else ""
-    if not folder or not os.path.isdir(folder):
-        return ""                                        # not installed with Install.bat: leave the menu alone
-    desktop = runner.desktop_dir()
-    missing = missing_shortcuts(folder, desktop)
-    from .. import winexe
-    exe = winexe.console_exe(bpy.app.binary_path)          # the PC check shows its console: blender.exe (task 0177)
-    if not missing or not exe or not os.path.isfile(exe):
-        return ""
-    from .. import appicon
-    inst = appicon.install_dir(exe)
-    icon = appicon.ensure_icon(inst) if inst else ""
-    script = shortcut_script(folder, exe, desktop, missing, icon)
-
-    def work():
-        import tempfile
-        # a .ps1 file with a byte-order mark (Windows PowerShell 5.1 reads accents right only then); no
-        # encoded command line, which virus scanners sometimes stop
-        fd, path = tempfile.mkstemp(prefix="fresing_shortcuts_", suffix=".ps1")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8-sig", newline="\r\n") as fh:
-                fh.write(script + "\n")
-            r = run_powershell(path)
-            if r.returncode != 0:
-                print("Fresing Render: could not make the PC check shortcuts:", (r.stderr or r.stdout).strip()[:500])
-        except (OSError, subprocess.SubprocessError, ValueError) as exc:
-            print("Fresing Render: could not make the PC check shortcuts:", exc)
-        finally:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-
-    threading.Thread(target=work, daemon=True).start()
-    return "making " + ", ".join(SHORTCUTS.get(m, DESKTOP_SHORTCUT) for m in missing)
 
 
 # ---------------------------------------------------------------------------
@@ -326,12 +221,6 @@ def register():
         usage.wrap(cls)                      # task 0181: its clicks count like every Fresing button's
         bpy.utils.register_class(cls)
     _add_help_entry()
-    try:
-        done = ensure_shortcuts()
-        if done:
-            print("Fresing Render:", done)
-    except Exception as exc:  # noqa: BLE001 - never stop the app from starting
-        print("Fresing Render: could not check the PC check shortcuts:", exc)
 
 
 def unregister():

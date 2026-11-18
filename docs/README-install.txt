@@ -10,15 +10,18 @@ Install (once per PC, no admin rights needed)
    - downloads Blender 5.2.3 LTS (about 400 MB) and checks it
    - installs Fresing Render in  %LOCALAPPDATA%\FresingRender
      (separate from any other Blender on this PC)
-   - creates a "Fresing Render" shortcut on the Desktop
+   - creates one "Fresing Render" shortcut on the Desktop and in the Start menu
+   - puts the extras (Self test, PC check quick / full / heavy, Safe start, User guide)
+     as shortcuts in  %LOCALAPPDATA%\FresingRender\Tools
 3. Start "Fresing Render" from the Desktop.
-4. Optional but recommended: Start menu > Fresing Render > "Fresing Render - Self test".
-   It checks the graphics card, imports a small test model, renders it, and writes
-   "Fresing Render self-test.txt" on the Desktop.
+4. Optional but recommended: in the app, Fresing > Tools and checks > Run the self-test
+   (or "Self test" in the Tools folder). It checks the graphics card, imports a small
+   test model, renders it, and writes "Fresing Render self-test.txt" on the Desktop.
+   Fresing > Tools and checks > Open the app folder opens the Tools folder.
 
 User guide: "User guide.html" in this folder (opens in your web browser, works offline).
 After installing it is also in the app (Help > Fresing Render user guide) and in the
-Start menu (Fresing Render > "Fresing Render - User guide").
+Tools folder ("User guide").
 
 Tip: if a PC has no internet access, put blender-5.2.3-windows-x64.zip
 (from https://download.blender.org/release/Blender5.2/) next to Install.bat.

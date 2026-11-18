@@ -4244,6 +4244,38 @@ def app_start_here(ctx):
     return f"What's new since {older}: {n_f} functions"
 
 
+@line("app.tools", "One shortcut only: Fresing Render on the Desktop and in the Start menu, the extras in the Tools folder "
+      "and in Fresing > Tools and checks", "0.2.164",
+      what="Checks the menu Fresing > Tools and checks (Run the self-test, PC check, Open the app folder) and, in an "
+           "installed app on Windows, that the Desktop and the Start menu hold only the Fresing Render shortcut of this "
+           "install (no PC check or self-test shortcuts there any more, no Start-menu folder) and that the Tools folder "
+           "of the app holds the self-test, the three PC checks, the safe start and the user guide")
+def app_tools(ctx):
+    import bpy
+
+    from .. import appicon
+    from ..blender import apptools, ui_topbar
+    for idname in apptools.entries():
+        _check(ui_topbar._has(idname), f"the operator {idname} is missing")
+        _check(idname in ui_topbar.entries(), f"{idname} is not in the Fresing menu")
+    _check(hasattr(bpy.types, apptools.MENU), "the menu Fresing > Tools and checks is missing")
+    folder = appicon.install_dir(bpy.app.binary_path)
+    if not folder or os.name != "nt":
+        return "menu checked; not an app installed with Install.bat on Windows: shortcuts not checked"
+    desktop, programs, _ = appicon.known_folders()
+    for path in appicon.old_shortcuts(desktop, programs):
+        target = appicon.read_shortcut(path).get("target", "")
+        _check(not appicon.is_inside(target, folder),
+               f"an old shortcut of this install is still there: {path} (it should be in the Tools folder now)")
+    _check(os.path.isfile(os.path.join(desktop, appicon.APP_LNK)), "no Fresing Render shortcut on the Desktop")
+    _check(os.path.isfile(os.path.join(programs, appicon.APP_LNK)), "no Fresing Render shortcut in the Start menu")
+    tools = appicon.tools_dir(folder)
+    have = sorted(n for n in os.listdir(tools) if n.lower().endswith(".lnk")) if os.path.isdir(tools) else []
+    missing = sorted(set(appicon.TOOLS.values()) - set(have))
+    _check(not missing, f"missing in the Tools folder {tools}: {', '.join(missing)}")
+    return f"Desktop and Start menu: Fresing Render only; Tools folder: {len(have)} shortcuts"
+
+
 @line("app.licences", "Licence files in this install, About Fresing Render, Blender's extension sync off", "0.2.162",
       what="Checks that the licence (GPL), the third-party notices, the page for companies and the licence texts of the "
            "libraries are inside this install, the About window and its buttons are there (Fresing and Help menu), a "

@@ -1,6 +1,6 @@
 """Starts the PC check: ``blender --background --python launcher.py -- [Desktop] [quick|full] [model.step]``
 
-The Start-menu shortcuts "Fresing Render - PC check (quick)" / "(full)" point here (the file inside the
+The shortcuts "PC check (quick)" / "(full)" / "(heavy)" in the Tools folder of the app (task 0212) point here (the file inside the
 installed extension, so an update brings the new version along), and so does Help > Fresing Render PC
 check… in the app. A STEP file dropped on a shortcut is added at the end of the command line by Windows.
 """

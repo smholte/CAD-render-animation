@@ -34,7 +34,7 @@ LINUX2 = ("video.labels", "queue.time_test", "render.eevee", "queue.eevee", "wea
           "weather.fog")
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
-# the update check, the launch from the Start-menu shortcut and the report.
+# the update check, the launch from the Tools-folder shortcut and the report.
 LINUX2_NEEDS = ("import.crane",)       # lines those two need first (`requires=`): run again in job `pccheck2`
 WINDOWS_SKIPS = ("video.labels", "queue.time_test", "queue.video", "scene.turntable", "tour.make",
                  "looks.materials", "milling.coolant",

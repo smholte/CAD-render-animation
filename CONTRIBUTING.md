@@ -9,7 +9,7 @@ Fresing Render is made by Fresing. Thank you for looking at it.
 Before you report a bug:
 
 1. Find the **version**: in the app, the Fresing menu at the top shows it ("What's new in 0.2.xxx").
-2. Run the **PC check** (Start menu > Fresing Render > "PC check (quick)") and say what it found.
+2. Run the **PC check** (in the app: Fresing > Tools and checks > PC check…, Quick) and say what it found.
 3. Write the **steps** that lead to the problem, what happened and what you expected.
 
 ## Never put confidential things in an issue

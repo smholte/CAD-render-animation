@@ -13,9 +13,9 @@
     4. installs the app layout (application template) and sets a few preferences, among them
        Blender's online access: the app looks for updates on GitHub at start-up and installs
        them with one click (Update now); see docs/UPDATES.md
-    5. creates "Fresing Render" and "Fresing Render - Self test" shortcuts, Start-menu shortcuts
-       "Fresing Render - User guide" (the guide inside the installed extension) and
-       "Fresing Render - PC check (quick)" / "(full)" (every main function tested on this PC)
+    5. creates the "Fresing Render" shortcut on the Desktop and in the Start menu (the only ones, task 0212) and,
+       in the Tools folder of the install folder, "Self test", "PC check (quick)" / "(full)" / "(heavy)",
+       "Safe start" and "User guide"; an older install's extra shortcuts are removed
 
   Running it again repairs or upgrades an installation; projects and renders are not touched.
 
@@ -329,34 +329,53 @@ function MakeShortcut($path, $target, $arguments, $description) {
 # blender-launcher.exe starts Blender without a console window
 $GuiExe = Join-Path $BlenderDir "blender-launcher.exe"
 if (-not (Test-Path -LiteralPath $GuiExe)) { $GuiExe = $BlenderExe }
-$StartMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "Fresing Render"
-New-Item -ItemType Directory -Force -Path $StartMenu | Out-Null
+# Task 0212: only "Fresing Render" on the Desktop and in the Start menu (directly in Programs, one entry); the extras
+# (self-test, PC checks, safe start, user guide) in the Tools folder of the install folder and in the app's Fresing menu.
+$Programs = [Environment]::GetFolderPath("Programs")
+$OldMenu = Join-Path $Programs "Fresing Render"
+$Tools = Join-Path $InstallDir "Tools"
+New-Item -ItemType Directory -Force -Path $Tools | Out-Null
 
 Step "Creating shortcuts"
+# An install before 0212 had the extras on the Desktop and in a Start-menu folder "Fresing Render": remove them by
+# name, and only when their target lies inside the install folder (never someone else's shortcut).
+function Remove-OldLink([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    try { $t = $Shell.CreateShortcut($path).TargetPath } catch { $t = "" }
+    if ($t -and $t.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        Write-Host "   removed the old shortcut '$(Split-Path -Leaf $path)' (now in the Tools folder)"
+    }
+}
+foreach ($n in @("Fresing Render - PC check.lnk", "Fresing Render - PC check (heavy).lnk")) { Remove-OldLink (Join-Path $Desktop $n) }
+foreach ($n in @("Fresing Render.lnk", "Fresing Render - safe start.lnk", "Fresing Render - Self test.lnk",
+                 "Fresing Render - PC check (quick).lnk", "Fresing Render - PC check (full).lnk",
+                 "Fresing Render - PC check (heavy).lnk", "Fresing Render - User guide.lnk")) { Remove-OldLink (Join-Path $OldMenu $n) }
+if ((Test-Path -LiteralPath $OldMenu) -and -not (Get-ChildItem -LiteralPath $OldMenu -Force -ErrorAction SilentlyContinue)) {
+    Remove-Item -LiteralPath $OldMenu -Force -ErrorAction SilentlyContinue
+}
+
 MakeShortcut (Join-Path $Desktop "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
-MakeShortcut (Join-Path $StartMenu "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
+MakeShortcut (Join-Path $Programs "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
 # task 0177: the app's shortcuts are pointed at "Fresing Render.exe" below; this one always starts Blender's own launcher
-MakeShortcut (Join-Path $StartMenu "Fresing Render - safe start.lnk") $GuiExe "--app-template fresing_render" "Starts Fresing Render with Blender's own program. Use it only if Fresing Render does not start from its usual shortcut"
-MakeShortcut (Join-Path $StartMenu "Fresing Render - Self test.lnk") $BlenderExe "--background --python `"$Launcher`" -- `"$Desktop`"" "Check this PC and write a report on the Desktop"
+MakeShortcut (Join-Path $Tools "Safe start.lnk") $GuiExe "--app-template fresing_render" "Starts Fresing Render with Blender's own program. Use it only if Fresing Render does not start from its usual shortcut"
+MakeShortcut (Join-Path $Tools "Self test.lnk") $BlenderExe "--background --python `"$Launcher`" -- `"$Desktop`"" "Check this PC and write a report on the Desktop"
 
 # PC check (task 0032): every main function with the test models; the launcher lives inside the installed
 # extension, so an update brings the new check along. A STEP file dropped on a shortcut is tested too.
-# (An app updated with Update now makes these shortcuts itself when they are missing: pccheck/ops.py.)
+# (An app updated with Update now makes the Tools folder's shortcuts itself when they are missing: appicon.py.)
 $PcCheck = Join-Path (Split-Path -Parent $Manifest) "pccheck\launcher.py"
 if (Test-Path -LiteralPath $PcCheck) {
-    MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (quick).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
-    MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (full).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" full" "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it to test your own model too"
+    MakeShortcut (Join-Path $Tools "PC check (quick).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
+    MakeShortcut (Join-Path $Tools "PC check (full).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" full" "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it to test your own model too"
     # Heavy (task 0033): a big generated machine, 4K pictures and a 10 s video; 10-20 minutes. Started on purpose.
-    MakeShortcut (Join-Path $StartMenu "Fresing Render - PC check (heavy).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" heavy" "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about 10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"
-    MakeShortcut (Join-Path $Desktop "Fresing Render - PC check (heavy).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" heavy" "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about 10 to 20 minutes)"
-    # on the Desktop too: a STEP file can be dropped on a Desktop shortcut, not on the Start menu
-    MakeShortcut (Join-Path $Desktop "Fresing Render - PC check.lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" quick" "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test your own model too"
+    MakeShortcut (Join-Path $Tools "PC check (heavy).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" heavy" "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about 10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"
 }
 
 # The user guide lives inside the installed extension (Help > Fresing Render user guide opens the same
 # file), so it always matches the installed version. The shortcut opens it in the web browser.
 $Guide = Join-Path (Split-Path -Parent $Manifest) "guide\user_guide.html"
-$GuideLnk = Join-Path $StartMenu "Fresing Render - User guide.lnk"
+$GuideLnk = Join-Path $Tools "User guide.lnk"
 if (Test-Path -LiteralPath $Guide) {
     $lnk = $Shell.CreateShortcut($GuideLnk)
     $lnk.TargetPath = $Guide
@@ -385,14 +404,15 @@ for mod in addon_utils.modules():
         import bpy
         target = icon.app_target_for(bpy.app.binary_path, ico)
         print("The app starts: " + (target or "(Blender's own programs)"))
-        done = icon.refresh_shortcuts(folder, ico, icon.shortcut_paths(desktop, programs, appdata), target)
+        paths = icon.shortcut_paths(desktop, programs, appdata, icon.tools_dir(folder))
+        done = icon.refresh_shortcuts(folder, ico, paths, target)
         print("Shortcuts: " + ("; ".join(done) if done else "already right"))
         break
 else:
     sys.exit("Fresing Render is not installed in this Blender")
 "@ | Set-Content -LiteralPath $ShortcutScript -Encoding ASCII
 $ok = Invoke-Blender @("--background", "--python-exit-code", "1", "--python", $ShortcutScript, "--",
-                       $InstallDir, $Desktop, (Split-Path -Parent $StartMenu), $env:APPDATA) "Setting the app's name, ID and program on the shortcuts" -AllowFailure
+                       $InstallDir, $Desktop, $Programs, $env:APPDATA) "Setting the app's name, ID and program on the shortcuts" -AllowFailure
 if (-not $ok) { Write-Host "   (the shortcuts keep their icon; the app sets their ID at its next start)" -ForegroundColor Yellow }
 
 Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing Render $ver installed $(Get-Date -Format s)`r`nBlender $BlenderVersion`r`nUpdates from: $UpdateFrom"
@@ -400,5 +420,6 @@ Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing
 Write-Host ""
 Write-Host "Done. Start 'Fresing Render' from the Desktop." -ForegroundColor Green
 Write-Host "New versions: the app shows 'Update available' at start-up; one click on Update now installs them."
-Write-Host "Tip: run 'Fresing Render - Self test' from the Start menu once; it writes a report on the Desktop."
-Write-Host "After an update: 'Fresing Render - PC check (quick)' in the Start menu tests every main function on this PC."
+Write-Host "Tip: run the self-test once (in the app: Fresing > Tools and checks > Run the self-test); it writes a report on the Desktop."
+Write-Host "After an update: Fresing > Tools and checks > PC check tests every main function on this PC."
+Write-Host "Self-test, PC checks, safe start and user guide are also shortcuts in $Tools"

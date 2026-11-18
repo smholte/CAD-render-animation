@@ -54,7 +54,7 @@ class TOPBAR_MT_fresing(bpy.types.Menu):
         ops_demo.draw_help(layout)
         if _has("fresing.user_guide"):
             _op(layout, "fresing.user_guide", text="User guide", icon="HELP")
-        _op(layout, "fresing.pc_check", text="PC check…", icon="CHECKMARK")
+        layout.menu("TOPBAR_MT_fresing_tools", icon="TOOL_SETTINGS")    # task 0212: self-test, PC check, app folder
         _op(layout, "fresing.update_check", text="Check for updates", icon="FILE_REFRESH")
         _op(layout, "fresing.usage_window", text="My usage…", icon="TIME")
         _op(layout, "fresing.learn_window", text="My learning list…", icon="BOOKMARKS")
@@ -83,6 +83,6 @@ def unregister_handlers() -> None:
 def entries() -> list:
     """The menu's operator ids in order (tests, the PC check)."""
     return ["fresing.tour_take", "fresing.whats_new", "fresing.show_panel", "fresing.demo_make", "fresing.user_guide",
-            "fresing.pc_check", "fresing.update_check", "fresing.usage_window", "fresing.learn_window", "fresing.welcome",
+            "fresing.self_test", "fresing.pc_check", "fresing.open_app_folder", "fresing.update_check", "fresing.usage_window", "fresing.learn_window", "fresing.welcome",
             "fresing.about"]
 

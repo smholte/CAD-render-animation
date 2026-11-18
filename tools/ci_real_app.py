@@ -31,7 +31,7 @@ its own, fresh settings folder (BLENDER_USER_RESOURCES), then runs:
     clash  tools/ui_test_clash.py - clash check: Build, Check for clashes, click the row (frame, red, zoom), Cancel,
            the queue note, Build again clears the result, save and open again
     paths  tools/paths_test_blender.py - paths with spaces, accents, an apostrophe and an en dash
-    pccheck  the PC check (Full), started like its Start-menu shortcut: the launcher inside the installed
+    pccheck  the PC check (Full), started like its Tools-folder shortcut: the launcher inside the installed
            extension, in a background Blender; judged by tools/ci_check_pccheck.py (task 0032)
     update tools/ci_update_test.py --gui - in-app update: an old version with the 0.2.10 app template finds
            this version on a local GitHub-like server, Update now, closes, is updated and starts again
@@ -297,7 +297,7 @@ def main(argv=None) -> int:
         if key == "rulesets":                        # its own rule-set library; folds open so it can click in them
             env.update(FRESING_RULE_SETS_DIR=os.path.join(folder, "library", "Rule sets"), FRESING_UI_OPEN_FOLDS="1")
         script_path = os.path.join(ROOT, "tools", script)
-        if gui == "pccheck":                         # as the Start-menu shortcut starts it (screen: for EEVEE)
+        if gui == "pccheck":                         # as the Tools-folder shortcut starts it (screen: for EEVEE)
             launcher = os.path.join(user_res, "extensions", "user_default", "fresing_render", "pccheck", "launcher.py")
             env.update(FRESING_PCCHECK_DIR=os.path.join(folder, "history"), FRESING_PCCHECK_NO_OPEN="1")
             cmd = ["xvfb-run", "-a", "-s", SCREEN, blender, "--background", "--online-mode", "--python-exit-code", "1",

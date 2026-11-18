@@ -6,9 +6,9 @@ where it comes from, and the credit line it asks for. Written 18 Nov 2026 (task 
 licence was looked at at its source (the project's own licence file or the package's own metadata) unless a line says
 "not checked".
 
-Short: **the app's own code is GPL-3.0-or-later; every library below is under a licence that allows this use.** Two
-things reach a PC without a licence text next to them today (the licence file of Fresing Render itself, and the
-libraries inside the OpenCascade package); task 0206 adds them to the install.
+Short: **the app's own code is GPL-3.0-or-later; every library below is under a licence that allows this use.** The
+licence texts – Fresing Render's own and those of the libraries inside the OpenCascade package – ship with every install
+since 0.2.162 (task 0206): `licenses\` in the install folder and inside the extension.
 
 ## The Fresing name and logo (owner to check – a lawyer may word it)
 
@@ -26,8 +26,8 @@ models below) are Fresing's too: all rights reserved unless the owner says other
 
 Blender's `license\` folder (the GPL text, `license.md`, `licenses.json`, the licence texts of its libraries) and
 `copyright.txt` come with the Blender zip that the installer unpacks as it is (checked on the Linux build of the same
-version; the Windows zip has the same layout – **not yet looked at on Windows**: task 0206 confirms it and links the
-files from the app).
+version; the Windows zip has the same layout – checked on Windows by the Windows install test since task 0206, and
+linked from the app: Fresing > About Fresing Render).
 
 ## 2. Inside the extension zip (`fresing_render-<version>.zip`, and so inside the installer zip)
 
@@ -51,14 +51,15 @@ libpng (libpng-2.0), libjpeg (IJG / BSD-style), libtiff (libtiff), libwebp / lib
 (0BSD / public domain), libdeflate (MIT), zlib (Zlib), zstd (BSD-3-Clause or GPL-2.0, our choice: BSD), **FreeImage**
 (FreeImage Public License or GPL-2.0 / GPL-3.0 – used under the GPL-3.0 option, compatible with this app), **LibRaw**
 (LGPL-2.1 or CDDL-1.0). The Linux build of the same wheel (used only in the tests) lists the same family
-(`auditwheel` SBOM inside it). **Task 0206 to do:** ship these texts.
+(`auditwheel` SBOM inside it). Their licence texts ship since 0.2.162 (task 0206): `licenses/third-party/` inside the
+extension and the install folder (`SOURCES.txt` there says where each came from).
 
 ### 2.2 The web viewer (`fresing_render/web/`, written into every Web 3D page the app makes)
 
 | What | Version | Licence | Source | Where |
 | --- | --- | --- | --- | --- |
 | **three.js** with OrbitControls, GLTFLoader, Sky, HDRLoader (bundled as `three-viewer.min.js`) | r180 (npm three 0.180.0) | MIT, © 2010-2025 three.js authors | https://threejs.org – https://github.com/mrdoob/three.js | `fresing_render/web/three-viewer.min.js`; licence text `web/LICENSE-three.txt` |
-| **meshoptimizer** decoder (inside `three-viewer.min.js`) | as in three.js r180 | MIT, © 2016-2026 Arseny Kapoulkine | https://github.com/zeux/meshoptimizer | inside the bundle; **its own licence text is not shipped as a file yet** (the notice is here and in `web/README.txt`; task 0206 adds the file) |
+| **meshoptimizer** decoder (inside `three-viewer.min.js`) | as in three.js r180 | MIT, © 2016-2026 Arseny Kapoulkine | https://github.com/zeux/meshoptimizer | inside the bundle; its licence text ships as `licenses/third-party/meshoptimizer-MIT.txt` (since 0.2.162, task 0206) |
 | **model-viewer** (`model-viewer-umd.min.js`, used by the landing page's bare `.glb` view; not by the app's exports since task 0134) | 4.4.0 | Apache-2.0, © Google LLC; inside it **three.js** (MIT, © 2010-2026 three.js authors) and **lit** (BSD-3-Clause, © Google LLC), with their `@license` notes kept in the file | https://modelviewer.dev – https://github.com/google/model-viewer | `fresing_render/web/model-viewer-umd.min.js`; licence text `web/LICENSE-model-viewer.txt` |
 
 `fresing_render/web/fr_*.js` are Fresing's own. Nothing is loaded from the internet by these pages.
@@ -94,7 +95,7 @@ the app; `docs/SURROUNDINGS.md` only links to where free ones can be found.)
 | 2 | **Pictures, videos and 3D pages in `site/media/`** that are Fresing's own (milling video, test-mill pages) and the **logos** | they sit in a GPL-3.0 repository, but the GPL is meant for the software | decide: "all rights reserved" (what the brand note now says) or a licence such as CC BY 4.0 |
 | 3 | `smholte/house-scene-format` has **no licence file**, and a copy of its checker is in `tests/data/house/` | the code has no stated licence (all rights reserved by default) | give that repository a licence (for example MIT or GPL-3.0-or-later) in its own task |
 | 4 | **FarmBot Genesis**: `site/CREDITS.md` says "CC0 1.0 (to be confirmed on genesis.farm.bot)" – the site was not reachable from the build machine, and the licence was **not confirmed** here | a model used for pictures without a confirmed licence | confirm on genesis.farm.bot, or do not use it for the page (nothing of it is in the repository) |
-| 5 | Licence texts missing on the PC: Fresing Render's own GPL, the OpenCascade package's bundled libraries, meshoptimizer | MIT/LGPL/BSD ask that the notice goes with the copies | task 0206 (licence files in both release zips and every install) |
+| 5 | Licence texts on the PC: Fresing Render's own GPL, the OpenCascade package's bundled libraries, meshoptimizer | MIT/LGPL/BSD ask that the notice goes with the copies | **Done in 0206:** the licence files are in both release zips and every install (`licenses\`); nothing |
 | 6 | The installer **switches Blender's online access on** (`Install-FresingRender.ps1`, the `set_prefs.py` block) for the app's own update check. Blender's own extension repository `extensions.blender.org` is set to sync at start-up by default in Blender 5.2.3 | **Done in 0206:** the installer sets `use_sync_on_startup = False` on every remote repository, and an older install gets the same once at its first start after the update (`blender/ext_sync.py`); the Windows test checks it | nothing |
 | 7 | CC BY-SA 4.0 pictures of Thor and the CEB press sit in a GPL repository | CC BY-SA 4.0 stays on them; fine as long as the credit lines stay (they are on the page and in `site/CREDITS.md`) | nothing now; keep the credits when the page changes |
 | 8 | No contact address in `SECURITY.md` and `CONTRIBUTING.md` | none was given in the start line, so GitHub's private report form is the only private route | give an address if you want one |

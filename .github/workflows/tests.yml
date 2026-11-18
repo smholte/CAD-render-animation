@@ -13,8 +13,8 @@ name: Tests
 #     clicks, the accented-paths test, the PC check (Full) and the in-app update
 #   - Windows: the installer zip is built; then two jobs at once (task 0171). Part A: an old build is installed and
 #     updates itself in the app from a local copy of the update listing; Install.bat runs unattended over it, then
-#     the self-test (started like its Start-menu shortcut), the PC check (Full, from its Start-menu shortcut) and
-#     Uninstall.bat. Part B: Install.bat, then the PC check Heavy (scaled down) from its Start-menu shortcut
+#     the self-test (started like its Tools-folder shortcut), the PC check (Full, from its Tools-folder shortcut) and
+#     Uninstall.bat. Part B: Install.bat, then the PC check Heavy (scaled down) from its Tools-folder shortcut
 # On main, when the version in blender_manifest.toml has no release yet and every test passed, it publishes
 # the release on GitHub (tag v<version>, installer, extension, index.json, changelog.json), checks on
 # Windows that an installed old version finds it and updates itself from it, and only then makes it the
@@ -529,14 +529,14 @@ jobs:
         if: ${{ !cancelled() && matrix.part.part == 'a' }}
         run: python tools/ci_check_selftest.py "windows-results/Fresing Render self-test.txt" --title "Windows self-test" --strict
 
-      - name: PC check verdict (the Windows lines of Full, started from its Start-menu shortcut)
+      - name: PC check verdict (the Windows lines of Full, started from its Tools-folder shortcut)
         if: ${{ !cancelled() && matrix.part.part == 'a' }}
         run: |
           # the other Full lines are app-only (same code as on Linux) and run there, tools/ci_pccheck_lines.py (task 0063)
           $n = python tools/ci_pccheck_lines.py count windows
           python tools/ci_check_pccheck.py "windows-results/pccheck_last_run.txt" --title "Windows PC check" --min-lines $n
 
-      - name: PC check verdict (Heavy, scaled down, from its Start-menu shortcut)
+      - name: PC check verdict (Heavy, scaled down, from its Tools-folder shortcut)
         if: ${{ !cancelled() && matrix.part.part == 'b' }}
         run: python tools/ci_check_pccheck.py "windows-results/pccheck_heavy_last_run.txt" --title "Windows PC check (Heavy, scaled down)" --min-lines 10
 

@@ -1,6 +1,6 @@
 """Runs the PC check inside a background Blender and writes the report.
 
-Started by ``launcher.py`` (Start-menu shortcuts, Help > Fresing Render PC check…). The report is
+Started by ``launcher.py`` (Tools-folder shortcuts, Help > Fresing Render PC check…). The report is
 written after every line (a crash still leaves one), and opened in the web browser at the end.
 
 Where things go:
