@@ -296,7 +296,7 @@ def faces_painted(ctx):
     return "2 CAD faces, 1 by hand"
 
 
-@line("lifting.place", "Lifting plan: place a crane from the library", "0.2.153",
+@line("lifting.place", "Lifting plan: place a crane from the library", "0.2.155",
       what="The built-in AT-40 sample crane placed beside the test crane (import, joints, cylinders, poses, the hoist "
            "rope as a cable); every pose of its file puts the hook block where the crane's own kinematics say; a "
            "second AT-40 gets its own names; Remove leaves nothing of it")
@@ -321,7 +321,7 @@ def lifting_place(ctx):
     return msg
 
 
-@line("lifting.hook", "Lifting plan: load, CoG and Hook to here", "0.2.153",
+@line("lifting.hook", "Lifting plan: load, CoG and Hook to here", "0.2.155",
       what="The test crane's boom made the load (1.2 t), its CoG marker worked out from the parts' volumes; the "
            "AT-40 puts its hook above it with Hook to here; the crane use shown is the chart's at that radius")
 def lifting_hook(ctx):

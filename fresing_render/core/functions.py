@@ -351,23 +351,23 @@ fn(id="scene.save", title="Saved scenes", family="scene", panel="FRESING_PT_shot
 # ----- 8 Lifting plan (task 0201, Lifting lane L4) -----
 _LIFT = ("lifting",)
 fn(id="lifting.first_use", title="Lifting plan: the planning-aid line, I understand", family="lifting",
-   panel="FRESING_PT_lifting", button="fresing.lifting_understand", guide="lifting-first-use", since="0.2.153",
+   panel="FRESING_PT_lifting", button="fresing.lifting_understand", guide="lifting-first-use", since="0.2.155",
    workspaces=_LIFT)
 fn(id="lifting.place", title="Place a crane from the lifting library", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_place", guide="lifting-place", tour=("lifting_place",),
-   pccheck=("lifting.place",), since="0.2.153", workspaces=_LIFT)
+   pccheck=("lifting.place",), since="0.2.155", workspaces=_LIFT)
 fn(id="lifting.setup", title="Crane pose and chart set-up (counterweight, outrigger spread)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_setup_value", guide="lifting-setup",
-   tour=("lifting_place",), pccheck=("lifting.place",), since="0.2.153", workspaces=_LIFT)
+   tour=("lifting_place",), pccheck=("lifting.place",), since="0.2.155", workspaces=_LIFT)
 fn(id="lifting.load", title="The load: parts or a box, its mass and contingency", family="lifting",
    panel="FRESING_PT_lifting_load", button="fresing.lifting_load_selected", guide="lifting-load",
-   tour=("lifting_cog",), pccheck=("lifting.hook",), since="0.2.153", workspaces=_LIFT)
+   tour=("lifting_cog",), pccheck=("lifting.hook",), since="0.2.155", workspaces=_LIFT)
 fn(id="lifting.cog", title="Centre of gravity marker (computed or set by hand)", family="lifting",
    panel="FRESING_PT_lifting_load", button="fresing.lifting_cog_move", guide="lifting-cog", tour=("lifting_cog",),
-   pccheck=("lifting.hook",), since="0.2.153", workspaces=_LIFT)
+   pccheck=("lifting.hook",), since="0.2.155", workspaces=_LIFT)
 fn(id="lifting.hook", title="Hook to here and the crane use at the hook", family="lifting",
    panel="FRESING_PT_lifting_hook", button="fresing.lifting_hook_here", guide="lifting-hook",
-   tour=("lifting_hook",), pccheck=("lifting.hook",), since="0.2.153", workspaces=_LIFT)
+   tour=("lifting_hook",), pccheck=("lifting.hook",), since="0.2.155", workspaces=_LIFT)
 
 fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")
