@@ -1,6 +1,6 @@
 # 0201 – Lifting L4: a Lifting plan section – place a crane from the library, the load with its CoG, "Hook to here", crane use at the hook
 
-**Who:** worker · **Status:** running · **Branch:** `claude/elegant-wozniak-oe3stg` (web session)
+**Who:** worker · **Status:** done (0.2.156) · **Branch:** `claude/elegant-wozniak-oe3stg` (web session)
 **Started by:** lead chat, 18 Nov 2026 (study 0180, task L4; owner's order 17 Nov: L4 after 0062) · **Lane:** Lifting
 **Area:** new `blender/lifting.py`, `blender/ops_lifting.py`, `blender/ui_lifting.py`, `core/lifting_reach.py`,
 `blender/sheet.py` (the sheet reader moved into the app), their tests, a new real-app test `tools/ui_test_lifting.py`;
@@ -184,7 +184,11 @@ offered). Any change to `core/lifting.py`'s formulas (a gap found: say so in the
 - **Speed (bpy module, 4 cores):** AT-500 import 1.4 s, rig + place 0.4 s, Hook to here 18 ms (max 24); in the real
   app with its rope: AT-500 2.4 s, CC-1600 8.9 s, KB-200 7.1 s per place (first read of the STEP).
 - Kit: `test_site_projects.py` and `test_lifting_cranes_mobile.py` pass with the moved reader (8.5 min).
-- GitHub runs: see below.
+- **GitHub runs: 2 full runs.** Run 1 (44286647247, c7b143d) red: a tour stop title over 32 characters, the tour
+  set's title had a colon (an invalid file name for GitHub's artifacts and Windows), the independent bpy test file left
+  the add-on registered for the next file of its group (test_paths_moving), and an older workspace test listed the
+  built-ins without Lifting plans. Then main moved (0199 took 0.2.155): merged, renumbered to 0.2.156. Run 2
+  (44291686081, 30b0fc0) **green, full, Windows A and B included**, 24 min.
 
 **Open points / follow-up tasks:**
 - Lead / owner: a crane with more counterweight than the chart picked (in-between value → lower chart) is conservative
