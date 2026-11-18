@@ -110,6 +110,8 @@ def set_kind(scene, kind: str) -> None:
         s.setup_kind = kind
     if kind != was or scene.get(STEP_OF) != kind:
         go(scene, 0 if kind != was else ui_setup.current(scene)[1])
+    _KEPT[scene.name] = (s.setup_kind, s.setup_step, scene.get(STEP_OF, ui_setup.current(scene)[0]))
+    _watch_loads()
 
 
 def go(scene, step: int) -> int:
@@ -120,7 +122,37 @@ def go(scene, step: int) -> int:
         scene.fresing.setup_step = step
     if scene.get(STEP_OF) != kind:
         scene[STEP_OF] = kind
+    _KEPT[scene.name] = (scene.fresing.setup_kind, step, kind)
+    _watch_loads()
     return step
+
+
+# Task 0213: the kind and the step are saved with the project, but Ctrl+Z must not throw the window back (a memfile
+# undo of any other action restored the step of that moment). The last ones picked are kept here, outside undo's
+# reach, and put back after an undo or redo. A project that opens starts from what it saved.
+_KEPT: dict = {}                          # scene name -> (setup_kind, setup_step, the kind the step counts in)
+
+
+@persistent
+def _after_undo(_dummy=None):
+    for name, (kind, step, of) in list(_KEPT.items()):
+        scene = bpy.data.scenes.get(name)
+        if scene is None or getattr(scene, "fresing", None) is None:
+            continue
+        s = scene.fresing
+        if (s.setup_kind, s.setup_step, scene.get(STEP_OF)) == (kind, step, of):
+            continue
+        try:
+            if s.setup_kind != kind:
+                s.setup_kind = kind
+            if s.setup_step != step:
+                s.setup_step = step
+            if scene.get(STEP_OF) != of:
+                scene[STEP_OF] = of
+        except (TypeError, ValueError, AttributeError):     # a kind this version no longer has
+            _KEPT.pop(name, None)
+            continue
+        redraw_all()
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -131,11 +163,19 @@ def go(scene, step: int) -> int:
 def _on_load(_dummy=None):
     _STATE["gen"] += 1                      # a window that was being opened belongs to the project before
     _STATE["busy"] = False
+    _KEPT.clear()
+
+
+_UNDO_LISTS = ("undo_post", "redo_post")
 
 
 def _watch_loads() -> None:
     if _on_load not in bpy.app.handlers.load_pre:
         bpy.app.handlers.load_pre.append(_on_load)
+    for name in _UNDO_LISTS:
+        lst = getattr(bpy.app.handlers, name)
+        if _after_undo not in lst:
+            lst.append(_after_undo)
 
 
 def _dress(window) -> None:
@@ -388,7 +428,12 @@ class FRESING_OT_setup_window(bpy.types.Operator):
     def unregister(cls):
         while _on_load in bpy.app.handlers.load_pre:
             bpy.app.handlers.load_pre.remove(_on_load)
+        for name in _UNDO_LISTS:
+            lst = getattr(bpy.app.handlers, name)
+            while _after_undo in lst:
+                lst.remove(_after_undo)
         _STATE["busy"] = False
+        _KEPT.clear()
 
     def execute(self, context):
         scene = context.scene

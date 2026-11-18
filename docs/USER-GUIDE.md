@@ -197,10 +197,17 @@ For showing a finished project, or handing the PC to someone who should only loo
   hidden;
 - no part can be clicked, moved or deleted – also not with Blender's own keys (<kbd>G</kbd>,
   <kbd>X</kbd>, <kbd>Delete</kbd>, <kbd>Tab</kbd>);
-- Blender's list of objects (top right) is replaced, and File > Save As, Import and Export are off.
+- Blender's list of objects (top right) is replaced, and it stays away: picking it again in an area's
+  editor menu, <kbd>Shift</kbd>+<kbd>F9</kbd>, a new window, another of Blender's workspaces
+  (<kbd>Ctrl</kbd>+<kbd>Page Up</kbd>) or an area made full-size with <kbd>Ctrl</kbd>+<kbd>Space</kbd> all
+  show the Info area instead, within a tenth of a second;
+- <kbd>Ctrl</kbd>+<kbd>Z</kbd> never frees a part or the camera, also right after an import;
+- File > Save As, Import and Export are off.
 
-Importing, the surroundings, camera views, saved scenes, the turntable, **Render image** and the queue
-still work. **Workspace > Full access** (or any other workspace) undoes the lock completely. There is
+Importing, the surroundings, camera views (also **New camera view**), saved scenes (also **Save scene**),
+the turntable, **Render image** and the queue (also **Every paint scheme**) still work. A new camera is
+locked like the rest. What still gets through on purpose: the Properties editor's own settings and
+Blender's Python console. **Workspace > Full access** (or any other workspace) undoes the lock completely. There is
 no password: it stops accidents, not people.
 
 <a id="whats-next"></a>

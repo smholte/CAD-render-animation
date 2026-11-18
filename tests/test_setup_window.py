@@ -429,3 +429,22 @@ def test_the_green_tick_is_a_tick():
     fake = Fake()
     ui_setup.done_line(fake, bpy.context, "Tool and workpiece are picked " * 4)
     assert len(fake.seen["labels"]) >= 2
+
+
+def test_undo_keeps_the_step(tmp_path):
+    """Task 0213 (bug hunt 0209 row 23): Ctrl+Z of an unrelated action threw the Set-up window back (Mechanism step 3
+    -> CNC step 1): memfile undo restored the kind and step of that moment. They are put back after an undo."""
+    sc = new_scene(tmp_path)
+    s = sc.fresing
+    bpy.ops.fresing.setup_kind(kind="MECH")
+    bpy.ops.fresing.setup_go(step=2)
+    s.setup_kind, s.setup_step = "CNC", 0                       # what a memfile undo brings back
+    assert ops_setup._after_undo in bpy.app.handlers.undo_post
+    ops_setup._after_undo()
+    assert (s.setup_kind, s.setup_step) == ("MECH", 2) and ui_setup.current(sc)[:2] == ("MECH", 2)
+    # a project opened afterwards starts from what it saved
+    path = str(tmp_path / "setup.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    assert not ops_setup._KEPT
+
