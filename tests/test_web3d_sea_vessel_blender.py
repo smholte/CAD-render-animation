@@ -21,8 +21,20 @@ SEA_STEP = os.path.join(HERE, "data", "test_sea.step")
 KEYS = ("times", "lo", "step", "q", "n0", "s0", "pay_t", "pay", "trim_t", "trim", "trim_n0", "s", "slo", "sstep", "nq")
 
 
-@pytest.fixture(scope="module")
-def made():
+@pytest.fixture(scope="module", autouse=True)
+def _unregister_at_end():
+    yield
+    try:
+        fresing_render.unregister()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _make(sea_depth):
+    try:                                        # the other fixture's registration (module-scoped, still alive)
+        fresing_render.unregister()
+    except Exception:  # noqa: BLE001
+        pass
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
     fresing_render.register()
@@ -30,14 +42,24 @@ def made():
     scene = bpy.context.scene
     s = scene.fresing
     s.background, s.env_detail, s.sea_state, s.water_level = "SEA", "SIMPLE", "ROUGH", 2.0
-    s.sea_depth = 15.0
+    s.sea_depth = sea_depth
     s.vessel.enabled = True
     out = paths_sea.set_up_test_model(scene)
     info = animation.bake(scene, s.animations[out["animation"]])
     assert not info["warnings"], info["warnings"]
     assert vessel_motion.effective(scene)
-    yield scene, out
-    fresing_render.unregister()
+    return scene, out
+
+
+@pytest.fixture(scope="module")
+def made():
+    yield _make(15.0)
+
+
+@pytest.fixture(scope="module")
+def made_deep():
+    """Task 0215 (0209 row 30): a sea 30 m deep, the cable's own depth 15 m."""
+    yield _make(30.0)
 
 
 def _arrays(doc, binary, spec) -> dict:
@@ -143,4 +165,22 @@ def test_an_animated_page_without_vessel_motion(made, tmp_path):
         on_bed = app[:, 2] < bed + 0.3
         assert on_bed.sum() > 5
         # the page thins its moments (a few cm): on the seabed within that, not 0.8 m
+        assert np.linalg.norm(page[on_bed] - app[on_bed], axis=1).max() < 0.06, f
+
+
+def test_a_cable_with_its_own_depth_lies_on_its_own_bottom(made_deep, tmp_path):
+    """Task 0215 (0209 row 30): the page blended a cable's points between the seabed of the sea (30 m) and the water,
+    not the cable's own bottom (15 m): it lay 0.17–0.65 m off where the app lays it."""
+    scene, _out = made_deep
+    item = paths.find(scene, paths_sea.TEST_CABLE)
+    assert item.sea_depth == 15.0 and scene.fresing.sea_depth == 30.0
+    water = surroundings.waterline(scene)
+    bed = water + paths_sea.bottom_z(scene, item)
+    fps = scene.render.fps / scene.render.fps_base
+    at = _page_cable(scene, tmp_path / "deep.glb", vessel=False, animated=True, t=None)
+    for f in (scene.frame_start + 60, scene.frame_start + 150):
+        page = at((f - scene.frame_start) / fps)
+        app, _V = _app_cable(scene, f)
+        on_bed = app[:, 2] < bed + 0.3
+        assert on_bed.sum() > 5
         assert np.linalg.norm(page[on_bed] - app[on_bed], axis=1).max() < 0.06, f

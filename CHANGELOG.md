@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.165 – 18 Nov 2026 – One shortcut only (task 0212)
+## 0.2.166 – 18 Nov 2026 – One shortcut only (task 0212)
 
 - **Only "Fresing Render"** on the Desktop and in the Start menu (one entry, no folder). The self-test, the PC checks
   (quick, full, heavy), the safe start and the user guide moved into the app's **Tools** folder
@@ -17,6 +17,10 @@ installer of that version was built from.
   Desktop and the Start menu and makes them in the Tools folder. Only shortcuts that start this install are touched; a
   shortcut of your own stays. Install.bat does the same, and Uninstall removes the old and the new ones.
 - The PC check has a new line, "One shortcut only".
+## 0.2.165 – 18 Nov 2026 – Make > 3D page has its Export button again (task 0215)
+- **Make > 3D page** shows all its settings (Surroundings, Light, On the page) and the **Export…** button again; since 0.2.152 it stopped after "Include animation".
+- The Web 3D panel answers a click, a selection or a frame change faster (the marine-looks estimate no longer reads every part again).
+- A sea cable with its own depth, on a page without vessel motion, now lies on its own bottom as in the app (it was up to 0.65 m off).
 ## 0.2.164 – 18 Nov 2026 – The Client view stays locked (task 0213)
 - **Client view:** Blender's list of objects (the Outliner) can no longer be brought back while the project is locked – not from an area's editor menu, Shift+F9, a new window, another Blender workspace or Ctrl+Space. Before, the whole model could be selected and deleted there.
 - Ctrl+Z right after an import no longer frees the camera and the floor in the Client view.
