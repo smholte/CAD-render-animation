@@ -20,6 +20,8 @@ Units: SI inside (m, kg); the panel shows t and m. The plan's words only (study 
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import os
 import time
@@ -156,6 +158,51 @@ def path_of(crane) -> str:
     return p
 
 
+def rig_hash(item_or_data) -> str:
+    """Task 0214 (0209 row 15): a hash of what places and moves the crane – its file's ``rig`` (joints, poses, hook
+    point, model) and hook blocks. Made again with another hook block (Make again, Replace), the placed model is the
+    old one: Hook to here and the readout must not use the new file's numbers."""
+    data = item_or_data.data if hasattr(item_or_data, "data") else item_or_data
+    text = json.dumps({"rig": data.get("rig"), "hook_blocks": data.get("hook_blocks")}, sort_keys=True, default=str)
+    return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def rig_changed(crane) -> str:
+    """'' or the sentence that the crane's file now rigs another crane than the one placed (place it again)."""
+    if not crane.rig_hash:                     # placed before task 0214: not known
+        return ""
+    it = item_at(path_of(crane))
+    if not it.ok:
+        return ""
+    if rig_hash(it) != crane.rig_hash:
+        return (f"{os.path.basename(it.path or crane.item_path)} was made again since {crane.name} was placed: its "
+                "model or rig changed. Remove the crane and place it again.")
+    return ""
+
+
+def missing_joints(scene, crane) -> list:
+    """Task 0214 (0209 row 14): the crane's joints its file names that are not in the project under the crane's name
+    (renamed or deleted in 4 Motion > Joints)."""
+    try:
+        names = [j["name"] for j in item_at(path_of(crane)).data["rig"]["joints"]]
+    except Exception:  # noqa: BLE001
+        return []
+    p = prefix(crane)
+    have = {j.name for j in scene.fresing.joints}
+    return [n for n in names if p + n not in have]
+
+
+def check_joints(scene, crane) -> None:
+    """ReachError when a joint of the crane is gone or renamed, or its file rigs another crane now."""
+    gone = missing_joints(scene, crane)
+    if gone:
+        raise LR.ReachError(f"{crane.name}: its joint '{prefix(crane)}{gone[0]}' is gone or was renamed. Give it its "
+                            "name back in 4 Motion > Joints, or Remove the crane and place it again.")
+    why = rig_changed(crane)
+    if why:
+        raise LR.ReachError(why)
+
+
 def rig_of(crane) -> LR.Rig:
     path = path_of(crane)
     key = os.path.normpath(path)
@@ -210,7 +257,7 @@ def file_changed(crane) -> str:
     if crane.chart_hash and h != crane.chart_hash:
         return (f"The charts in {os.path.basename(it.path)} changed since {crane.name} was placed: the new charts are "
                 "used. Check the plan again.")
-    return ""
+    return rig_changed(crane)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -221,10 +268,15 @@ def plan(scene):
 
 
 def active_crane(scene):
+    c = picked_crane(scene)
+    return c if c is not None and c.root is not None else None
+
+
+def picked_crane(scene):
+    """The crane picked in the list, also when its model is gone (deleted): Remove takes the rest out (0209 row 4)."""
     L = plan(scene)
     if 0 <= L.crane_index < len(L.cranes):
-        c = L.cranes[L.crane_index]
-        return c if c.root is not None else None
+        return L.cranes[L.crane_index]
     return None
 
 
@@ -326,6 +378,7 @@ def rig_model(context, root, item, name: str = ""):
         c.chart_hash = LL.chart_hash(item)
     except LL.LibraryError:
         c.chart_hash = ""
+    c.rig_hash = rig_hash(item)
     c.root = root
     vals = LR.setup_values(charts_of(c))
     if vals.get("counterweight"):
@@ -362,11 +415,31 @@ def _rope(scene, m, data) -> None:
         paths.set_end(scene, it, end, hb)
 
 
+def _rest_matrix(root):
+    """The root's place without vessel motion (its own matrix: a model root has no parent)."""
+    return root.matrix_basis if root.parent is None else root.matrix_world
+
+
+def rest_point(scene, world):
+    """A point clicked on what is shown (world, m) where it is on a still sea (0209 row 11: with vessel motion on the
+    deck moves, and the crane rides on it by its own constraint)."""
+    from . import vessel_motion
+    if vessel_motion.effective(scene) and vessel_motion.rig("pivot") is not None:
+        return np.array(vessel_motion.to_rest(scene, Vector(tuple(world))))
+    return np.asarray(world, float)
+
+
 def place_at(crane, location, heading: float) -> None:
-    """Put the crane's model with its slew axis on ``location`` (world, m), turned by ``heading`` (radians)."""
+    """Put the crane's model with its slew axis on ``location`` (m, on a still sea: ``rest_point`` of a click), turned
+    by ``heading`` (radians). The root's own matrix is set: with vessel motion on, its constraint moves it with the
+    deck (setting the world matrix counted the vessel's move twice: 0.34 m into the deck, 0209 row 11)."""
     root = crane.root
-    s = float(np.linalg.norm(np.array(root.matrix_world)[:3, 0]))
-    root.matrix_world = Matrix.Translation(Vector(location)) @ Matrix.Rotation(heading, 4, "Z") @ Matrix.Scale(s, 4)
+    s = float(np.linalg.norm(np.array(_rest_matrix(root))[:3, 0]))
+    M = Matrix.Translation(Vector(location)) @ Matrix.Rotation(heading, 4, "Z") @ Matrix.Scale(s, 4)
+    if root.parent is None:
+        root.matrix_basis = M
+    else:
+        root.matrix_world = M
     _update()
     try:
         from . import paths
@@ -376,8 +449,13 @@ def place_at(crane, location, heading: float) -> None:
 
 
 def heading_of(crane) -> float:
-    M = np.array(crane.root.matrix_world)
+    M = np.array(_rest_matrix(crane.root))
     return float(math.atan2(M[1, 0], M[0, 0]))
+
+
+def location_of(crane) -> Vector:
+    """Where the crane's slew axis stands (m, on a still sea)."""
+    return Vector(_rest_matrix(crane.root).translation)
 
 
 def place(context, path: str, location=(0.0, 0.0, 0.0), heading: float = 0.0, name: str = ""):
@@ -434,8 +512,11 @@ def remove(scene, crane) -> dict:
             s.poses.remove(i)
             gone["poses"] += 1
     s.poses_index = max(0, min(s.poses_index, len(s.poses) - 1))
-    # the joints: their empties go with the model; riders first so nothing is moved back onto a joint that is gone
-    names = [j.name for j in s.joints if j.name.startswith(p)]
+    # the joints: their empties go with the model; riders first so nothing is moved back onto a joint that is gone.
+    # A joint renamed in 4 Motion > Joints is found by its empties inside the crane's model (0209 row 14).
+    inside = {o.name for o in [root] + list(root.children_recursive)} if root is not None else set()
+    names = [j.name for j in s.joints if j.name.startswith(p)
+             or (j.motion is not None and j.motion.name in inside) or (j.frame is not None and j.frame.name in inside)]
     for n in sorted(names, key=lambda n: -joints.depth(scene, joints.find(scene, n))):
         j = joints.find(scene, n)
         for ob in (j.motion, j.frame):
@@ -514,6 +595,7 @@ def apply_pose(scene, crane, name: str) -> bool:
     if ok:
         crane.pose = name
         _after_move(scene)
+        keep_for_build(scene, crane)
     return ok
 
 
@@ -536,6 +618,25 @@ def set_values(scene, crane, vals: dict) -> None:
             continue
         joints.set_value(j, math.radians(v) if j.kind == "ROTATE" else v / 1000.0, use_limits=False)
     _after_move(scene)
+    keep_for_build(scene, crane)
+
+
+def keep_for_build(scene, crane) -> None:
+    """Task 0214 (0209 row 3): after a Build the next Build first puts back the pose it saved; the crane's joints as
+    the plan just set them (Hook to here, a crane pose, Above the load) go into that saved pose, so Build keeps them."""
+    s = scene.fresing
+    if not s.anim_restore_saved:
+        return
+    p = prefix(crane)
+    have = {v.joint: v for v in s.anim_restore_pose.joints}
+    for j in s.joints:
+        if not j.name.startswith(p) or j.follows:
+            continue
+        v = have.get(j.name)
+        if v is None:
+            v = s.anim_restore_pose.joints.add()
+            v.joint = j.name
+        v.value = joints.get_value(j)
 
 
 def _after_move(scene) -> None:
@@ -582,6 +683,7 @@ def setup(scene, crane) -> dict:
 
 def hook_to(scene, crane, world_point, load=None) -> LR.Answer:
     """Put the hook (plumb) on a world point: the answer; the crane moves only when it is ok."""
+    check_joints(scene, crane)
     rig = rig_of(crane)
     m = load_mass(scene, load) if load is not None else (0.0, "")
     contingency = float(load.contingency) if load is not None else 1.0
@@ -590,10 +692,17 @@ def hook_to(scene, crane, world_point, load=None) -> LR.Answer:
     if a.ok:
         set_values(scene, crane, a.values)
         crane.pose = ""                            # no longer one of the file's poses
-        msg = f"Hook to here: radius {a.radius:.2f} m, hook at {a.height:.2f} m, boom {a.boom:.2f} m"
+        where = "above" if a.height >= 0 else "below"
+        msg = (f"Hook to here: radius {a.radius:.2f} m, hook {abs(a.height):.2f} m {where} the crane's base, boom "
+               f"{a.boom:.2f} m")
         if a.use is not None:
-            msg += f", crane use {a.use * 100:.0f} %"
-        plan(scene).message = msg + "."
+            msg += f", crane use {a.use * 100:.0f} %."
+        else:                                      # 0209 row 32: past the chart's longest radius (or no chart)
+            ro = readout(scene, crane, load)
+            why = ro if isinstance(ro, str) else (ro.reason or ro.words)
+            a.warning = f"no crane use: {why}" if why else "no crane use: no chart for this radius."
+            msg += f" – {a.warning}"
+        plan(scene).message = msg
     else:
         plan(scene).message = a.reason
     return a
@@ -626,6 +735,7 @@ def readout(scene, crane, load=None) -> LR.Readout | str:
     if got is not None and got[0] == key:
         return got[1]
     try:
+        check_joints(scene, crane)
         rig = rig_of(crane)
         m = load_mass(scene, load)[0] if load is not None else 0.0
         out = LR.readout(rig, values(scene, crane), charts_of(crane), setup(scene, crane), load_kg=m,
@@ -866,7 +976,9 @@ def _unique_load(scene, base: str) -> str:
 
 
 def new_box(scene, size, mass_t: float, location=None, name: str = ""):
-    """A box load (length x width x height, m) standing on ``location`` (the 3D cursor when None)."""
+    """A box load (length x width x height, m) standing on ``location`` (m, on a still sea; the 3D cursor when None –
+    taken back to a still sea when vessel motion is on, as a click on the moving deck). With vessel motion on it rides
+    on the deck like the models (``vessel_motion.followers``, 0209 row 16)."""
     lx, wy, hz = (max(float(v), 0.001) for v in size)
     me = bpy.data.meshes.new(BOX_PREFIX + (name or "Box"))
     x, y = lx / 2, wy / 2
@@ -880,7 +992,7 @@ def new_box(scene, size, mass_t: float, location=None, name: str = ""):
     ob = bpy.data.objects.new(BOX_PREFIX + ld.name, me)
     ob["fr_load_box"] = ld.name
     scene.collection.objects.link(ob)
-    loc = Vector(location) if location is not None else Vector(scene.cursor.location)
+    loc = Vector(location) if location is not None else Vector(tuple(rest_point(scene, scene.cursor.location)))
     ob.location = loc
     try:
         from . import materials
@@ -893,6 +1005,11 @@ def new_box(scene, size, mass_t: float, location=None, name: str = ""):
     ld["mass_t"] = float(mass_t)
     ld.mass_mode = "ENTERED"
     L.load_index = len(L.loads) - 1
+    try:
+        from . import vessel_motion
+        vessel_motion.sync(scene)
+    except Exception:  # noqa: BLE001
+        pass
     refresh_load(scene, ld)
     return ld
 
@@ -910,6 +1027,57 @@ def remove_load(scene, load) -> None:
     L.loads.remove(idx)
     L.load_index = max(0, min(L.load_index, len(L.loads) - 1))
     _READ.clear()
+
+
+def after_model_update(scene, by_uid, mapping) -> list[str]:
+    """Task 0214 (0209 row 1): a model update made new objects for the load's parts. Each part reference goes to its
+    part in the new revision (``by_uid``: old part ID -> new object; a roll-back hands the old objects back the same
+    way), the CoG marker rides on the new first part, a CoG set by hand stays at its place. Parts that are gone in the
+    new revision are named in the update's report."""
+    notes = []
+    for ld in plan(scene).loads:
+        if ld.kind != "PARTS":
+            continue
+        hand = cog_by_hand(ld)
+        hand_world = cog_world(ld) if hand else None
+        moved, gone = False, []
+        for i in reversed(range(len(ld.parts))):
+            ob = ld.parts[i].obj
+            if ob is None:
+                continue
+            uid = ob.get(build.PROP_UID)
+            new = by_uid.get(uid) if uid is not None else None
+            if new is not None:
+                if new != ob:
+                    ld.parts[i].obj = new
+                    moved = True
+            elif uid is not None and str(mapping.get(uid, "")).startswith("gone:"):
+                gone.append(str(ob.get(build.PROP_NAME, ob.name)))
+                ld.parts.remove(i)
+                moved = True
+        if not moved:
+            continue
+        refresh_load(scene, ld)
+        mk = ld.marker
+        if hand and hand_world is not None and mk is not None and ld.carrier is not None:
+            mk.location = Vector(tuple((np.linalg.inv(np.array(ld.carrier.matrix_world))
+                                        @ np.r_[hand_world, 1.0])[:3]))
+        if gone:
+            notes.append(f"Lifting load '{ld.name}': {len(gone)} of its parts are gone in the new revision ("
+                         + ", ".join(gone[:5]) + (" …" if len(gone) > 5 else "") + ")"
+                         + ("; it has no parts left" if not ld.parts else ""))
+    _READ.clear()
+    return notes
+
+
+def upgrade(scene) -> None:
+    """Older projects (before task 0214): a crane's poses move its joints only (0209 row 12)."""
+    s = scene.fresing
+    for c in plan(scene).cranes:
+        p = prefix(c)
+        for pose in s.poses:
+            if pose.name.startswith(p) and not pose.places and not pose.joints_only:
+                pose.joints_only = True
 
 
 def above_load(scene, load) -> np.ndarray | None:
@@ -1089,13 +1257,25 @@ def _hook_block_world(scene, crane):
 _DRAW = {"handle": None}
 
 
+def cog_shown(scene) -> bool:
+    """The CoG symbol is drawn only where the project's workspace shows the Lifting plan's load (0209 row 33: it was
+    drawn in every workspace, the Client view too)."""
+    try:
+        from . import workspaces
+        return bool(workspaces.shows(scene, "lifting.load"))
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def _draw_cog():
     ctx = bpy.context
     scene = getattr(ctx, "scene", None)
     if scene is None or not hasattr(scene, "fresing") or not scene.fresing.lifting.loads:
         return
     region, rv3d = ctx.region, ctx.region_data
-    if region is None or rv3d is None:
+    if region is None or rv3d is None or rv3d.view_perspective == "CAMERA":     # not in a camera's picture (row 33)
+        return
+    if not cog_shown(scene):
         return
     import blf
     import gpu
@@ -1104,7 +1284,7 @@ def _draw_cog():
     shader = gpu.shader.from_builtin("UNIFORM_COLOR")
     gpu.state.blend_set("ALPHA")
     for ld in scene.fresing.lifting.loads:
-        w = cog_world(ld)
+        w = cog_world(ld) if load_parts(ld) else None          # a load whose parts are gone has no CoG to show
         if w is None:
             continue
         p = location_3d_to_region_2d(region, rv3d, Vector(w))
@@ -1150,6 +1330,12 @@ def unregister():
 def _load_post(_dummy=None):
     forget()
     _LIB["items"] = None
+    for sc in bpy.data.scenes:
+        if hasattr(sc, "fresing"):
+            try:
+                upgrade(sc)
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def _update():

@@ -371,6 +371,8 @@ def update_model(context, old_root, cache_dir: str) -> dict:
 
     Raises ``UpdateFailed`` when it could not be done; the project is then as it was."""
     scene = context.scene
+    if old_root.get("fr_lifting"):               # task 0214 (0209 row 4): a crane is rigged from its equipment file
+        raise UpdateFailed("this is a crane of the lifting plan: Remove it in 8 Lifting plan and place it again")
     before = {"objects": _names(bpy.data.objects), "meshes": _names(bpy.data.meshes),
               "collections": _names(bpy.data.collections)}
     build.ensure_bases(scene)
@@ -448,6 +450,8 @@ def _put_together(scene, st, by_uid, mapping) -> list[str]:
     notes += tracks.after_model_update(scene, by_uid, mapping)               # tracks and belts (task 0079)
     from . import weather_sky
     notes += weather_sky.after_model_update(scene, mapping, by_uid)          # work lights (task 0109)
+    from . import lifting
+    notes += lifting.after_model_update(scene, by_uid, mapping)              # lifting loads (task 0214)
     return notes
 
 

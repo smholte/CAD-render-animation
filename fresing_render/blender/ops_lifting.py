@@ -167,7 +167,7 @@ class _Placer:
         if hit is None:
             return
         self._spot = hit
-        lifting.place_at(crane, hit[0], self._heading)
+        lifting.place_at(crane, lifting.rest_point(context.scene, hit[0]), self._heading)
         _status(context, f"{self._words} – on {hit[1]}")
 
     def _placing_event(self, context, event):
@@ -180,8 +180,7 @@ class _Placer:
             self._heading += self.STEP if event.type == "WHEELUPMOUSE" else -self.STEP
             crane = self._crane_item(context)
             if crane is not None:
-                loc = crane.root.matrix_world.translation
-                lifting.place_at(crane, loc, self._heading)
+                lifting.place_at(crane, lifting.location_of(crane), self._heading)
             return "run"
         if event.type == "MOUSEMOVE":
             self._follow(context, event)
@@ -348,7 +347,7 @@ class FRESING_OT_lifting_move(_Placer, bpy.types.Operator):
         c = lifting.active_crane(context.scene)
         if context.area is None or context.area.type != "VIEW_3D":
             return self.execute(context)
-        self._was = (Vector(c.root.matrix_world.translation), lifting.heading_of(c))
+        self._was = (lifting.location_of(c), lifting.heading_of(c))
         self._spot = None
         self._start_placing(context, c)
         context.window.cursor_modal_set("CROSSHAIR")
@@ -370,20 +369,21 @@ class FRESING_OT_lifting_move(_Placer, bpy.types.Operator):
 
 
 class FRESING_OT_lifting_remove(bpy.types.Operator):
-    """Takes the crane out of the project: its model, joints, cylinders, poses and its place in the plan"""
+    """Takes the crane out of the project: its model, joints, cylinders, poses and its place in the plan (also when
+    its model was deleted)"""
     bl_idname = "fresing.lifting_remove"
     bl_label = "Remove the crane"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
     def poll(cls, context):
-        return _ok(context) and lifting.active_crane(context.scene) is not None
+        return _ok(context) and lifting.picked_crane(context.scene) is not None
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        c = lifting.active_crane(context.scene)
+        c = lifting.picked_crane(context.scene)
         name = c.name
         lifting.remove(context.scene, c)
         lifting.plan(context.scene).message = f"Removed {name}."
@@ -635,7 +635,7 @@ def _hook(op, context, point) -> set:
     if not a.ok:
         op.report({"WARNING"}, a.reason)
         return {"CANCELLED"}
-    op.report({"INFO"}, lifting.plan(scene).message)
+    op.report({"WARNING"} if a.warning else {"INFO"}, lifting.plan(scene).message)
     return {"FINISHED"}
 
 

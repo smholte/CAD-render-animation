@@ -366,3 +366,66 @@ def clash_rows(r: Rigged, spec: dict | None = None) -> list:
     for cy in r.sheet["cylinders"]:
         own |= {frozenset((b, rd)) for b in cy["barrel"] for rd in cy["rod"]}
     return [core.row_text(x) for x in rows if x.kind == "CLASH" and frozenset((x.a, x.b)) not in own]
+
+
+def overlap_changes(r: Rigged, limit_mm: float = 2.0, between=(0.25, 0.5, 0.75)) -> list:
+    """Task 0214 (bug hunt 0209 row 17): every pair of the crane's parts that move against each other, measured in
+    every pose of its file and ``between`` consecutive poses (the joints in a straight line, as a Go to pose step
+    moves them): how deep they are in each other (the clash check's own measure, ``clash.narrow``). The clash check
+    reports an overlap that is deeper than at the animation's first moment, so a pair whose depth changes by more than
+    ``limit_mm`` gives clash rows in some pose animation. Pin joints (an eye round its pin) keep their depth; a
+    cylinder's own barrel and rod and the hoist rope (a cable in the app) are left out. Returns texts ([] = clean)."""
+    import bpy
+    from fresing_render.blender import build, clash
+    poses = [p["name"] for p in r.sheet["poses"]]
+    vals = {p["name"]: p["values"] for p in r.sheet["poses"]}
+    keys = sorted({k for v in vals.values() for k in v})
+    order, at = [], {}
+    for a, b in zip(poses, poses[1:] + poses[:1]):
+        order.append(a)
+        at[a] = {k: float(vals[a].get(k, 0.0)) for k in keys}
+        for f in between:
+            nm = f"{a} > {b} at {f:g}"
+            at[nm] = {k: (1 - f) * float(vals[a].get(k, 0.0)) + f * float(vals[b].get(k, 0.0)) for k in keys}
+            order.append(nm)
+    own = set()
+    for cy in r.sheet["cylinders"]:
+        own |= {frozenset((b, rd)) for b in cy["barrel"] for rd in cy["rod"]}
+    parts = [o for o in [r.m.root] + list(r.m.root.children_recursive) if o.type == "MESH"
+             and o.get(build.PROP_KIND) == "part" and "ROPE" not in str(o.get(build.PROP_NAME, "")).upper()]
+    meshes = {o.name: clash._mesh_from(o.data) for o in parts}
+    names = [o.name for o in parts]
+    label = {o.name: str(o.get(build.PROP_NAME, o.name)) for o in parts}
+    mats = {}
+    for nm in order:
+        r.set(at[nm])
+        bpy.context.view_layer.update()
+        mats[nm] = {o.name: np.array(o.matrix_world) for o in parts}
+    r.set({})
+    corners = {}
+    for n in names:
+        m = meshes[n]
+        corners[n] = np.array([[x, y, z, 1.0] for x in (m.lo[0], m.hi[0]) for y in (m.lo[1], m.hi[1])
+                               for z in (m.lo[2], m.hi[2])])
+    depth: dict = {}
+    for nm in order:
+        W = mats[nm]
+        box = {n: ((W[n] @ corners[n].T).T[:, :3].min(0), (W[n] @ corners[n].T).T[:, :3].max(0)) for n in names}
+        for i, a in enumerate(names):
+            for b in names[i + 1:]:
+                if frozenset((label[a], label[b])) in own:
+                    continue
+                if np.any(box[a][0] > box[b][1]) or np.any(box[b][0] > box[a][1]):
+                    continue
+                depth.setdefault((a, b), {})[nm] = clash.narrow(meshes[a], meshes[b],
+                                                               np.linalg.inv(W[a]) @ W[b])[0] * 1000.0
+    out = []
+    for (a, b), got in depth.items():
+        rel = [np.linalg.inv(mats[nm][a]) @ mats[nm][b] for nm in order]
+        if all(np.allclose(rel[0], x, atol=1e-5) for x in rel):
+            continue                                     # one rigid body: the CAD's own (not the motion's)
+        lo = min(got.get(nm, 0.0) for nm in order)
+        worst = max(got, key=got.get)
+        if got[worst] - lo > limit_mm:
+            out.append(f"{label[a]} x {label[b]}: {got[worst]:.1f} mm in '{worst}' (least {lo:.1f} mm)")
+    return out

@@ -1,7 +1,7 @@
 # 0217 – Toolbox inbox: a house from House Planner bakes and goes back by itself
 
-**Who:** worker · **Status:** waiting – after the toolbox format is tagged `v0.1` (with the lead's review below) and
-after 0212 (installer) is merged · **Branch:** `task/0217-toolbox-inbox`
+**Who:** worker · **Status:** waiting – after 0212 (installer) is merged. `toolbox-format` tag `v0.1` exists (18 Nov, commit aa75e85,
+MIT licence) and took every point of the lead's review below · **Branch:** `task/0217-toolbox-inbox`
 **Started by:** lead, 18 Nov 2026, from the toolbox planning chat's brief (step D of the toolbox plan)
 **Model:** Opus · effort Medium (Windows file handling: independent review before merging, CLAUDE.md section 6)
 **Area:** new Toolbox lane – new `fresing_render/core/toolbox.py`, `fresing_render/blender/toolbox_inbox.py`,
@@ -18,7 +18,11 @@ question 1), and waits – no Save, no Open, no Import dialog.
 
 ## Background
 
-- The format: `smholte/toolbox-format`, read `README.md`, then `FORMAT.md`. **Pin the tag** (`v0.1`, made after the
+- The format: `smholte/toolbox-format` **tag `v0.1`** (aa75e85, MIT), read `README.md`, `FORMAT.md`, `CHANGELOG.md`
+  (what the review changed). Its reference code for a native tool, `tbf/folder.py` (`claim`, `unfinished`,
+  `is_stalled` / `stalled`, `exclusively`), and `tbf/detect.py` may be copied into `core/toolbox.py` – keep the MIT
+  notice with them and add the repository to `THIRD-PARTY-NOTICES.md`. `tools/standin.py` and `trial/` show the other
+  side. **Pin the tag** (`v0.1`, made after the
   review below) the way the House lane pins `house-scene-format`: a byte copy of the tag's `FORMAT.md`, `types.json`,
   `schemas/`, `tbf/`, `check.py` and `samples/` in `tests/data/toolbox/tbf-v0.1/` and a test that it is exactly the
   tag (`tests/test_house_pinned.py` is the model). Work from the tag's text, not from the draft branch.

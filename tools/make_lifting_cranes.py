@@ -105,12 +105,13 @@ def picture(name: str, folder: str = M.BUILTIN_DIR, size=PICTURE_SIZE, samples: 
 
 
 def shrink(path: str) -> None:
-    """The picture with a 256-colour palette (ImageMagick, when there): about a third of the size."""
+    """The picture with a 128-colour palette (ImageMagick, when there): a fraction of the size (task 0214: 256
+    colours made some 2-4 times bigger and the cranes a little over their 11.5 MB)."""
     import shutil
     import subprocess
     tool = shutil.which("magick") or shutil.which("convert")
     if tool:
-        subprocess.run([tool, path, "-dither", "None", "-colors", "256", "PNG8:" + path], check=True)
+        subprocess.run([tool, path, "-dither", "None", "-colors", "128", "PNG8:" + path], check=True)
 
 
 def main(argv=None) -> int:

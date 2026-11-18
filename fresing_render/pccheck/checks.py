@@ -4245,7 +4245,7 @@ def app_start_here(ctx):
 
 
 @line("app.tools", "One shortcut only: Fresing Render on the Desktop and in the Start menu, the extras in the Tools folder "
-      "and in Fresing > Tools and checks", "0.2.166",
+      "and in Fresing > Tools and checks", "0.2.167",
       what="Checks the menu Fresing > Tools and checks (Run the self-test, PC check, Open the app folder) and, in an "
            "installed app on Windows, that the Desktop and the Start menu hold only the Fresing Render shortcut of this "
            "install (no PC check or self-test shortcuts there any more, no Start-menu folder) and that the Tools folder "

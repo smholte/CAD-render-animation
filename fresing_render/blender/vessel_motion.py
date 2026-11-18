@@ -367,6 +367,7 @@ def followers(scene) -> list:
     elif root is not None and root.get("fr_kind") == "SEA":       # task 0109: the foam where the hull meets the water
         out += [ob for ob in sur._objects(scene) if ob.get(sur.TAG) == "hull_foam"]
     out += sur.props(scene)
+    out += [ob for ob in scene.objects if ob.get("fr_load_box")]      # box loads of a lifting plan (task 0214)
     return out
 
 
