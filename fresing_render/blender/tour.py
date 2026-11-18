@@ -1246,7 +1246,7 @@ def _check_cylinder(scene):
 LIFT_ROD_PIN = (0.75 * math.cos(math.radians(15.0)), -0.08, 0.1 + 0.75 * math.sin(math.radians(15.0)))
 
 
-@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.54")
+@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.170")
 def build_linkage(b: Build):
     from mathutils import Vector
 
@@ -1259,6 +1259,10 @@ def build_linkage(b: Build):
     s2 = linkages.create(sc, "SLIDER", [[_ob(sc, n)] for n in ("CRANK.CRANK.ASM", "CRANK.ROD.ASM", "CRANK.PISTON.ASM")],
                          base=_ob(sc, "CRANK.BASE.ASM"), name="Slider-crank")
     j = linkages.input_joint(sc, s2)
+    crank = _ob(sc, "FOURBAR.CRANK.ASM")
+    s3 = linkages.create(sc, "FOURBAR", [[_ob(sc, "FOURBAR.COUPLER.ASM")], [_ob(sc, "FOURBAR.ROCKER.ASM")], [crank]],
+                         base=_ob(sc, "FOURBAR.BASE.ASM"), drive=crank, name="Four-bar")
+    j3 = linkages.input_joint(sc, s3)
     _update()
     _update()
     # the lifting cylinder follows the bottom inner arm (task 0067: left standing, the arm's pin tore through its eye)
@@ -1277,6 +1281,9 @@ def build_linkage(b: Build):
     blk = a.blocks.add()
     blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "JOINT", j.name, 0.0, 3.0, "LINEAR"
     blk.use_from, blk.to_angle = True, math.radians(360)
+    blk = a.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "JOINT", j3.name, 0.0, 3.0, "LINEAR"
+    blk.use_from, blk.to_angle = True, math.radians(360)
 
 
 def _check_linkage(scene):
@@ -1287,7 +1294,29 @@ def _check_linkage(scene):
     _update()
     p = part.matrix_world @ Vector(part.data["fr_axes"][0:3])
     _check(abs(p.z - 1.6) < 1e-3, f"the platform's pin is at {p.z * 1000:.1f} mm, not 1600 mm")
-    return "platform at 1.5 m"
+
+    def pin(name):
+        o = _ob(scene, name)
+        q = o.matrix_world @ Vector(o.data["fr_axes"][0:3])
+        return q.x, q.z
+
+    # the four-bar: a full crank turn ends where it began, and the rocker swings in between
+    c_end = pin("FOURBAR.ROCKER.PIN")
+    scene.frame_set(scene.frame_start)
+    _update()
+    _update()
+    c0 = pin("FOURBAR.ROCKER.PIN")
+    _check(math.hypot(c_end[0] - c0[0], c_end[1] - c0[1]) < 1e-3,
+           "the four-bar's rocker is not back where it began after one crank turn")
+    scene.frame_set(round((scene.frame_start + scene.frame_end) / 2))
+    _update()
+    _update()
+    cm, bm, dm = pin("FOURBAR.ROCKER.PIN"), pin("FOURBAR.CRANK.PIN"), pin("FOURBAR.COUPLER.PIN")
+    swing = math.hypot(cm[0] - c0[0], cm[1] - c0[1])
+    _check(swing > 0.01, f"the four-bar's rocker moved only {swing * 1000:.1f} mm")
+    _check(math.hypot(dm[0] - cm[0], dm[1] - cm[1]) < 1e-3, "the coupler's pin left the rocker's")
+    _check(abs(math.hypot(bm[0] - 2.0, bm[1] - 0.3) - 0.12) < 1e-3, "the crank's pin is not 120 mm from its centre")
+    return f"platform at 1.5 m, four-bar rocker swings {swing * 1000:.0f} mm"
 
 
 @tour_set("waycover", "Way cover", "test_waycover_b.step", added="0.2.47", changed="0.2.101")
@@ -3607,10 +3636,11 @@ stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
      "The rod comes out of the cylinder 150 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
      where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.101")
-stop("mechanism", MOTION, "linkage", "Mechanisms: scissor lift, crank",
-     "The scissor lift rises to 1.5 m with every arm following; next to it the crank turns once and the piston "
+stop("mechanism", MOTION, "linkage", "Mechanisms: scissor lift, four-bar, crank",
+     "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
+     "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
      "slides back and forth.", where="4 Motion > Mechanisms", animation="Lift and crank", play=True,
-     check=_check_linkage, auto="clip", since="0.2.47")
+     check=_check_linkage, auto="clip", since="0.2.47", changed="0.2.170")
 stop("waycover", MOTION, "waycover", "Way cover follows the axis",
      "The carriage slides 500 mm along X on its rails and back; the five folded-sheet cover sections telescope out "
      "and in with it, each by its own share, over the rails and the ball screw.", where="4 Motion > Way covers", animation="X axis out and back", play=True,

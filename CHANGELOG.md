@@ -5,6 +5,10 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.170 – 19 Nov 2026 – Test tour stop 22: the four-bar moves too (task 0225)
+
+In the test tour, stop 22 "Mechanisms" now moves all three mechanisms of the test model: the scissor lift rises, the four-bar's crank turns and swings its rocker, and the slider-crank turns once. Before, the middle one (the four-bar) was never made and stood still.
+
 ## 0.2.169 – 18 Nov 2026 – Slice on the web 3D page (task 0218)
 
 - The web 3D page's **Cutaway** is now **Slice** (key C, as before; S stays the screenshot). **Add slice**, then click a
