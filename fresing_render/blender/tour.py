@@ -3244,7 +3244,7 @@ def _check_night(scene):
 HOUSE_MOMENT = "summer-evening"
 
 
-@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.152")
+@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.170")
 def build_house(b: Build):
     """The made-up sample house: imported, one moment baked small (the package next to the tour), the evening
     shown in the view from the recipe's garden camera."""

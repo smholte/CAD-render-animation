@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.170 – 19 Nov 2026 – A house from House Planner by itself (task 0217)
+
+- A house sent from House Planner now **arrives by itself**: no Save, no Import, no sending the bake back by hand. The
+  two apps hand files to each other through a plain folder on your PC, `C:\Users\<you>\Toolbox` (made by the
+  installer and at the app's start; nothing goes over the internet).
+- When a house arrives, **5 Scene & Render > House from House Planner** (or the card at the top of the Fresing tab when
+  no model is open) shows "From House Planner: <house>" with **Bake now** and **Not now**. Bake now puts the house in
+  a scene of its own – your project does not change –, bakes it with its own settings (progress and Cancel in the
+  panel), sends the bake back to House Planner and removes that scene again. The panel then says **Sent back to House
+  Planner**.
+- While the app is busy (another bake, a web export, a clash check, the render queue, an import) the house waits and
+  House Planner is told so. Cancel in House Planner stops the bake. A file that is not what it says (wrong kind, wrong
+  size, a strange name) is refused with a reason and never opened.
+- Uninstall removes only the app's own part of the Toolbox folder.
+- Test tour: new stop "A house arrives by itself"; PC check: new line "A house from House Planner by itself".
+
 ## 0.2.169 – 18 Nov 2026 – Slice on the web 3D page (task 0218)
 
 - The web 3D page's **Cutaway** is now **Slice** (key C, as before; S stays the screenshot). **Add slice**, then click a
