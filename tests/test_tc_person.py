@@ -304,3 +304,18 @@ def test_the_glove_closes_round_the_holder():
     for face in f:                                                  # faces look out (smooth shading stays clean)
         p = v[list(face)]
         assert np.dot(np.cross(p[1] - p[0], p[2] - p[0]), p.mean(axis=0) - (0, 0, 0.05)) >= 0
+
+
+def test_stand_spot_does_not_move_with_rounding_noise():
+    """Task 0194: a cabinet front on a cell edge, and a map whose corner is a hair elsewhere, give one stand spot."""
+    spots = []
+    cell = 0.04
+    fy = -4.0 + 100.5 * cell                         # exactly on a cell edge of the world's grid (y = -0.0)
+    for eps in (-1e-9, 0.0, 1e-9, 3e-7):
+        fl = T.Floor((-3.0 + eps, -4.0 + eps), (3.0, 2.0), z=0.0, cell=cell)
+        fl.add_box((-0.45, fy + eps, 0.0), (0.45, fy + 0.8, 1.45))
+        s = T.stand_spot(fl, (0.0, fy + 0.1), (0.0, -1.0))
+        assert s is not None
+        spots.append(s)
+    for s in spots[1:]:
+        assert np.allclose(s, spots[0], atol=1e-6), spots

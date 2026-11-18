@@ -2087,8 +2087,73 @@ def _cut_key(s) -> dict:
     return key
 
 
+VIEW_CUT = "FR view cut"                    # task 0196: the modifier (and node group) that opens the box in the 3D view
+
+
+def _view_cut_group() -> bpy.types.NodeTree:
+    """Geometry nodes: delete the faces whose middle lies inside the cut-away box (world coordinates; inputs Origin,
+    Direction, Size = length, half width). Used only in the 3D view (the modifier's ``show_render`` is off): Solid view
+    draws no materials, so the shader's see-through box (``_box_test``) is not seen there."""
+    ng = bpy.data.node_groups.get(VIEW_CUT)
+    if ng is not None:
+        return ng
+    ng = bpy.data.node_groups.new(VIEW_CUT, "GeometryNodeTree")
+    ng["fr_env"] = "view_cut"
+    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+    for name in ("Origin", "Direction", "Size"):
+        ng.interface.new_socket(name, in_out="INPUT", socket_type="NodeSocketVector")
+    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    b = _NB(ng)
+    gin, gout = b.new("NodeGroupInput"), b.new("NodeGroupOutput")
+    me = b.new("GeometryNodeObjectInfo", transform_space="ORIGINAL")
+    b.put(me.inputs["Object"], b.new("GeometryNodeSelfObject").outputs[0])
+    tp = b.new("FunctionNodeTransformPoint")
+    b.put(tp.inputs["Vector"], b.new("GeometryNodeInputPosition").outputs[0])
+    b.put(tp.inputs["Transform"], me.outputs["Transform"])
+    o, u, size = gin.outputs["Origin"], gin.outputs["Direction"], b.sep(gin.outputs["Size"])
+    d = b.vec("SUBTRACT", tp.outputs[0], o)
+    along = b.vec("DOT_PRODUCT", d, u)
+    side = b.math("ABSOLUTE", b.vec("DOT_PRODUCT", d, b.vec("CROSS_PRODUCT", u, (0.0, 0.0, 1.0))))
+    inside = b.math("MULTIPLY", b.math("GREATER_THAN", along, 0.0), b.math("LESS_THAN", along, size["X"]))
+    inside = b.math("MULTIPLY", inside, b.math("LESS_THAN", side, size["Y"]))
+    dele = b.new("GeometryNodeDeleteGeometry", domain="FACE")
+    b.put(dele.inputs["Geometry"], gin.outputs["Geometry"])
+    b.put(dele.inputs["Selection"], inside)
+    b.put(gout.inputs[0], dele.outputs[0])
+    return ng
+
+
+def _set_view_cut(ob, box) -> None:
+    """The box open in the 3D view (Solid and Material Preview): a viewport-only modifier last in the stack (the waves
+    only lift the surface: the box test looks at x and y). ``box`` None takes it off. Renders are not touched (``show_render`` off)."""
+    mod = ob.modifiers.get(VIEW_CUT)
+    if box is None:
+        if mod is not None:
+            ob.modifiers.remove(mod)
+        return
+    if mod is None:
+        mod = ob.modifiers.new(VIEW_CUT, "NODES")
+        mod.node_group = _view_cut_group()
+        mod.show_render = False
+        mod.show_viewport = True
+    for name, value in (("Origin", (float(box["origin"][0]), float(box["origin"][1]), 0.0)),
+                        ("Direction", (float(box["dir"][0]), float(box["dir"][1]), 0.0)),
+                        ("Size", (float(box["length"]), float(box["width"]) / 2.0, 0.0))):
+        getattr(mod.properties.inputs, _view_socket(mod, name)).value = value
+    ob.update_tag()
+
+
+def _view_socket(mod, name: str) -> str:
+    for item in mod.node_group.interface.items_tree:
+        if item.item_type == "SOCKET" and item.in_out == "INPUT" and item.name == name:
+            return item.identifier
+    raise KeyError(name)
+
+
 def _set_cut_attrs(ob, box) -> None:
     """The box test's numbers on an object whose material is cut (world coordinates)."""
+    if ob.type == "MESH":
+        _set_view_cut(ob, box)
     if box is None:
         for k in CUT_ATTRS:
             if k in ob:
