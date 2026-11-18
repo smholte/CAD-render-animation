@@ -1,6 +1,6 @@
 # 0212 – One shortcut only: "Fresing Render" on the Desktop and in the Start menu; the extras in the app and the app folder
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0212-one-shortcut-only`
+**Who:** worker · **Status:** running · **Branch:** `task/0212-one-shortcut-only`
 **Started by:** lead, 18 Nov 2026 (owner's request with screenshots) · **Model:** Opus · effort Medium (Windows-only
 code: independent review before merging, CLAUDE.md section 6)
 **Area:** Quality & delivery lane – `installer/Install-FresingRender.ps1`, `installer/Uninstall-FresingRender.ps1`,
