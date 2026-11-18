@@ -4081,7 +4081,7 @@ def app_layout(ctx):
     return None
 
 
-@line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.154",
+@line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",
       what="Checks the Fresing menu in the top bar, the start file (welcome three times, What's new once after an "
            "update, nothing after the same version), the page that opens the user guide at a section, and that What's "
            "new lists functions and a tour of the new and changed test models")

@@ -461,7 +461,7 @@ def _logo(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.154")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.155")
 def build_crane(b: Build):
     import bpy
 
@@ -3999,7 +3999,7 @@ stop("start_here", OUT, HUB_SET, "Start here: the Fresing menu",
      "Show the Fresing panel, the demo project, the user guide, the PC check, Check for updates and the Welcome "
      "screen. What's new lists the new functions with Show in guide, and the new and changed test models with a tour "
      "of only those. In this Test tour panel new stops say \"New\" and changed ones \"Changed\" after an update.",
-     where="The Fresing menu in the top bar (after Help)", since="0.2.154", shot="Tour view",
+     where="The Fresing menu in the top bar (after Help)", since="0.2.155", shot="Tour view",
      check=_check_start_here, auto=lambda ctx, scene, st: "")
 
 # ---------------------------------------------------------------------------

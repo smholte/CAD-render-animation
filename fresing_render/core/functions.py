@@ -439,17 +439,17 @@ fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", bu
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
-   guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.154")
+   guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
 fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
    button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
 fn(id="help.start_here", title="Fresing menu: test tour, What's new, guide, checks in one place", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.tour_take", guide="start-here", tour=("start_here",),
-   pccheck=("app.start_here",), since="0.2.154")
+   pccheck=("app.start_here",), since="0.2.155")
 fn(id="help.welcome", title="Welcome for a new user: take the test tour", family="help", panel="TOPBAR_MT_fresing",
-   button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.154")
+   button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
 fn(id="help.whats_new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
-   tour=("start_here",), pccheck=("app.start_here",), since="0.2.154")
+   tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
 fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="VIEW3D_HT_header",
    button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.150")
 
