@@ -1,6 +1,6 @@
 # 0223 – Milling: every cut gets the tool-mark look, every cutting move cuts
 
-**Who:** worker · **Status:** open – can start (Machining lane) · **Branch:** `task/0223-milling-marks-and-cuts`
+**Who:** worker · **Status:** running (Machining lane) · **Branch:** `task/0223-milling-marks-and-cuts`
 **Started by:** lead, 19 Nov 2026 (owner, 00:16, test tour on 0.2.168: "the milling models in the test tours, not all
 get the good tool marks texture in cutting material, and not all cutting operations cut even when it shows the
 g-code going through the material") · **Model:** Opus · effort High
