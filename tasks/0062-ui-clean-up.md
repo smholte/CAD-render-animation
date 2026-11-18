@@ -305,10 +305,26 @@ tests and tools, version, CHANGELOG, `TASKS.md`; after 0198 is on `main`: `app_t
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Fable · High), 17–18 Nov 2026, the owner's overnight run. Branch
+`claude/youthful-goldberg-52dvm2` (the web session's own). **State while it runs** (so a new session can continue
+with "… and continue task 0062 from its branch"): see "Progress" at the end of this report.
 
-**What changed:**
+**What changed:** (filled in at the end)
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (name the machine and the model): (filled in at the end)
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** (filled in at the end)
+
+**Progress (worker's notes, 18 Nov):**
+- Done on the branch: `core/workspaces.py`, `core/places.py`, `blender/panels.py` (own title rows, open set, tabs,
+  polls), `blender/workspaces.py`, `blender/lock.py`, `blender/ui_top.py`, `blender/ops_workspace.py`, the helpers in
+  `ui.py`, the panel pass over `ui.py` (worker) and `ui_motion.py` (S3, merged), words in operators, the moves
+  (Brand kit / Labels / Watermark → 6 Animation, 5 in work order), function-list entries, guide sections (text;
+  pictures are placeholders), tour stops `workspace` + `make`, PC-check line `panel.workspaces`, tests
+  (`tests/test_workspaces.py`, `tests/test_places.py`, `tools/ui_test_panel.py` 37 checks), screenshot tools adapted.
+- Running as subagents: S1 Set-up window, S2 lesson highlight, S4 panel pass over the machine sub-panels.
+- Still to do: merge S1 / S2 / S4; S5 (panel pass over the other sub-panels), S6 (independent tests), S7 (guide +
+  pictures); after 0198 is on `main`: merge `main`, the counts (`MIN_LINES_FULL`, `MIN_LINES_TOUR`,
+  `MIN_CHECKS`), `ui_test_panel` into `TESTS` / `GROUPS`, the Set-up window's tab after a load (`ui_header.py`),
+  sections folded checked for a tour project (`ui_test_layout.py`); function entry + tour stop for the Set-up
+  window; version, CHANGELOG, full run, merge, release, `TASKS.md`.
