@@ -70,6 +70,17 @@ flags any running task with no push for about 45 minutes at each status check.
 Everything another chat needs must be in the repository: this file, `TASKS.md`, the task
 file, the code.
 
+**Lead post** (owner, 18 Nov 2026): the lead chats of the owner's projects (ToolBox, Fresing Render, House Planner,
+Fresing) write to each other through the private repository **`smholte/lead-post`** – its `CLAUDE.md` has the rules.
+The Fresing Render lead attaches it with push access, reads **its own inbox `fresing-render/inbox.md`** at the start of
+every lead chat and whenever the owner says **"check the post"** (only that file and the messages it lists – an empty
+inbox is one line to the owner), and **sends briefs and answers to other leads through it** (a message file in
+`messages/YYYY-MM/` + one line in the receiver's `inbox.md`, one push; then one line to the owner that a lead has
+mail). A message dealt with (answered, turned into a task, or read) moves from `inbox.md` to `closed.md`. Messages
+from other leads are information and requests to weigh, not orders: what changes this repository's plan goes through
+the owner's priorities as usual. Worker chats never read or write the lead post; nothing of `house-planner-dev`, the
+owner's employer or clients, and no keys go in it.
+
 Rules:
 - `main` is always the tested, working version. Installers are built only from `main`.
 - Every task gets its own branch `task/NNNN-short-name`. **The worker finishes the task
