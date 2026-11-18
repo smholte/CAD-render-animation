@@ -75,6 +75,16 @@ def _on_change():
 
 @persistent
 def _on_depsgraph(scene, _depsgraph=None):
+    if _depsgraph is not None:
+        try:
+            if _depsgraph.id_type_updated("OBJECT") and any(
+                    u.is_updated_transform or u.is_updated_geometry or u.is_updated_shading
+                    for u in _depsgraph.updates if isinstance(u.id, bpy.types.Object)):
+                logic.drop_tree_cache()      # a re-parent / move / new object: the kept part tree may be stale
+        except (AttributeError, ReferenceError, RuntimeError):
+            logic.drop_tree_cache()
+    else:
+        logic.drop_tree_cache()
     # Second trigger next to the message bus: the bus is only handled when the next input
     # event arrives; a selection change updates the scene straight away.
     _on_change()
@@ -111,7 +121,7 @@ def _on_active_changed():
     if scene.fresing.pick_mode != "SUBASSEMBLY" or ob.get(build.PROP_KIND) != "part":
         tree_mod.follow_view(scene, ob)      # the list opens down to what was clicked
         return
-    tree = logic.Tree(scene)
+    tree = logic.cached_tree(scene)
     sub = logic.subassembly_for_pick(ob, tree)
     if sub is None or sub is ob:
         tree_mod.follow_view(scene, ob)
@@ -165,6 +175,7 @@ def _upgrade_steps():
 
 @persistent
 def _on_load(_dummy=None):
+    logic.drop_tree_cache()
     _IGNORE.clear()
     _subscribe()
     for sc in bpy.data.scenes:               # projects from before 0.2: store the CAD matrices once
@@ -218,6 +229,7 @@ def _on_load(_dummy=None):
 
 @persistent
 def _after_undo(_dummy=None):
+    logic.drop_tree_cache()
     try:
         from . import queue
         if queue.belongs_here(bpy.context.scene):
@@ -262,6 +274,7 @@ def _before_save(_dummy=None):
 
 @persistent
 def _before_load(_dummy=None):
+    logic.drop_tree_cache()
     try:
         from . import queue
         queue.delay_lost()               # a delayed queue start is not kept when the project closes (0050)

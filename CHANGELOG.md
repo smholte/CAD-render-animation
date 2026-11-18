@@ -5,6 +5,9 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.160 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
+- Clicking a part in "Subassembly" pick mode no longer rebuilds the part tree each time, and the first mouse move in an axis picker (Add joint, Set axis, cylinders) is as quick as the later ones. Nothing looks different.
+
 ## 0.2.159 – 18 Nov 2026 – Make a crane from numbers (task 0204)
 
 - **Make a crane…** in 8 Lifting plan > Equipment: pick the type (mobile telescopic, crawler, knuckle-boom), start

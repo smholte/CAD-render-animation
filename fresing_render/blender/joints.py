@@ -1139,6 +1139,8 @@ def _attach(ob, motion, motion_world: Matrix) -> None:
         if ob.parent is None or ob.parent.get(build.PROP_KIND) in build.JOINT_KINDS:
             raise RuntimeError(f"{ob.name} has no CAD parent")
         ob[build.PROP_CAD_PARENT] = ob.parent
+        from . import logic
+        logic.drop_tree_cache()
     ob.parent = motion
     ob.matrix_parent_inverse = Matrix.Identity(4)
     ob.matrix_basis = motion_world.inverted() @ world

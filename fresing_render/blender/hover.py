@@ -288,6 +288,40 @@ def start(context, op, prompt: str, refuse=None, point: bool = False, note=None)
               point=point, note=note)
     _add_handlers()
     _status(context)
+    _prewarm_start(context.scene)
+
+
+def _prewarm_start(scene) -> None:
+    """Task 0210: read the face tables of the visible parts' meshes while the picker waits for the mouse, in pieces
+    of ~40 ms on a timer (the first hover over a big part cost 70-115 ms, later ones ~4 ms)."""
+    try:
+        meshes, seen = [], set()
+        for ob in scene.objects:
+            if ob.type == "MESH" and ob.get(build.PROP_KIND) == "part" and not ob.hide_viewport \
+                    and ob.visible_get() and ob.data is not None and ob.data.session_uid not in seen:
+                seen.add(ob.data.session_uid)
+                meshes.append((len(ob.data.polygons), ob.name))
+    except (AttributeError, ReferenceError, RuntimeError):
+        return
+    meshes.sort(reverse=True)                                # the big parts first: they cost most
+    names = [n for _c, n in meshes]
+    _S["warm"] = token = object()
+
+    def step():
+        if _S.get("warm") is not token or _S.get("op") is None:
+            return None
+        t0 = time.perf_counter()
+        while names and time.perf_counter() - t0 < 0.04:
+            ob = bpy.data.objects.get(names.pop(0))
+            try:
+                if ob is not None and ob.data is not None:
+                    _mesh(ob.data)
+            except (AttributeError, ReferenceError, RuntimeError):
+                pass
+        return 0.01 if names else None
+
+    _S["warm_step"] = step
+    bpy.app.timers.register(step, first_interval=0.01)
 
 
 def prompt(context, text: str) -> None:

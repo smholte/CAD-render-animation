@@ -228,6 +228,29 @@ class Tree:
         return out
 
 
+_TREE = {"key": None, "tree": None, "gen": 0}
+
+
+def drop_tree_cache() -> None:
+    """The structure may have changed (undo, load, a re-parent, a model update): the kept Tree is built again."""
+    _TREE["gen"] += 1
+    _TREE["key"] = None
+    _TREE["tree"] = None
+
+
+def cached_tree(scene=None) -> Tree:
+    """A Tree reused while the model is unchanged (a click's selection handler, task 0210). The key is the scene, its
+    object count and a counter that handlers.py raises at every object transform / geometry update and every
+    undo / redo / load; when unsure the Tree is built again."""
+    scene = scene or bpy.context.scene
+    key = (scene.name, len(scene.objects), _TREE["gen"])
+    if _TREE["key"] == key and _TREE["tree"] is not None:
+        return _TREE["tree"]
+    tree = Tree(scene)
+    _TREE["key"], _TREE["tree"] = key, tree
+    return tree
+
+
 def descendants(ob, tree: Tree | None = None):
     return (tree or Tree()).descendants(ob)
 
