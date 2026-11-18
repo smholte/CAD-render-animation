@@ -3391,7 +3391,7 @@ def build_lifting(b: Build):
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.157")
+          added="0.2.158")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
@@ -3674,7 +3674,7 @@ stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
      "four stabiliser corners are app joints with their roles (4 Motion > Joints), its two cylinders, poses, masses and "
      "chart are in; the crane stands in its pose 'Working'. The Set-up window is on its step Check: nothing wrong.",
-     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.157", check=_check_crane_setup)
+     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.158", check=_check_crane_setup)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "

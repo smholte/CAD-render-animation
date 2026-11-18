@@ -321,7 +321,7 @@ def lifting_place(ctx):
     return msg
 
 
-@line("lifting.setup", "Lifting plan: set up an own crane from its STEP", "0.2.157",
+@line("lifting.setup", "Lifting plan: set up an own crane from its STEP", "0.2.158",
       what="The built-in KB-20's bare STEP rigged through Set up a crane's buttons by names (joints with roles, "
            "cylinders, hook, stabilisers, masses, chart, poses), Check, Save into a library; the saved file equals the "
            "built-in rig; placed again it hooks where the built-in crane hooks")

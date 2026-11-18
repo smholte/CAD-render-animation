@@ -363,7 +363,7 @@ fn(id="lifting.setup", title="Crane pose and chart set-up (counterweight, outrig
    tour=("lifting_place",), pccheck=("lifting.place",), since="0.2.156", workspaces=_LIFT)
 fn(id="lifting.crane_setup", title="Set up your own crane: joints, hook, masses, load chart, Save", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.crane_setup", guide="lifting-own-crane",
-   tour=("crane_setup",), pccheck=("lifting.setup",), since="0.2.157", workspaces=_LIFT)
+   tour=("crane_setup",), pccheck=("lifting.setup",), since="0.2.158", workspaces=_LIFT)
 fn(id="lifting.load", title="The load: parts or a box, its mass and contingency", family="lifting",
    panel="FRESING_PT_lifting_load", button="fresing.lifting_load_selected", guide="lifting-load",
    tour=("lifting_cog",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)

@@ -41,6 +41,11 @@
    "changed": "0.2.157",
    "fp": "efce3972fd575f79"
   },
+  "crane_setup": {
+   "added": "0.2.158",
+   "changed": "",
+   "fp": "1b7ff2d0f3d98fce"
+  },
   "cutaway": {
    "added": "0.2.64",
    "changed": "0.2.101",
