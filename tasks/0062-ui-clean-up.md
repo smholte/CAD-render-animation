@@ -305,29 +305,123 @@ tests and tools, version, CHANGELOG, `TASKS.md`; after 0198 is on `main`: `app_t
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Fable · High), 17–18 Nov 2026, the owner's overnight run. Branch
-`claude/youthful-goldberg-52dvm2` (the web session's own). **State while it runs** (so a new session can continue
-with "… and continue task 0062 from its branch"): see "Progress" at the end of this report.
+**Chat / date:** Claude Code on the web (Fable · High), 17–18 Nov 2026, the owner's overnight run; no stop for the
+owner. Branch `claude/youthful-goldberg-52dvm2` (the web session's own). Version **0.2.152** (0198 took 0.2.150, 0191
+took 0.2.151 while this ran).
 
-**What changed:** (filled in at the end)
+**What changed** (the picks of 0197 and 0200, all built – see "left out" below):
+- **The app's own title rows** (`blender/panels.py`): Blender keeps a panel's open / folded state per panel name and
+  an add-on cannot set it (measured). So every panel of the Fresing tab is registered without Blender's header and
+  the app draws the title row itself – fold arrow, icon, title, state on the right; sections boxed and taller. The
+  open set is the app's: **sections 1–7 folded at every start and every load**, Ctrl+click keeps one open,
+  **tabs All · 1 … 7**, Preferences > "Keep sections as I left them". No panel file changed for it: `install()` puts
+  the title, a `poll` and the lock's `poll` on the classes before they are registered. Without a window (scripts,
+  tests, the queue's background app) nothing counts as folded.
+- **Workspaces** (`core/workspaces.py`, `blender/workspaces.py`, `ui_top.py`, `ops_workspace.py`): All functions
+  (new, the default), CNC & machining, Offshore & cable laying, Product design & R&D, Client view, Education &
+  training, Full access – worked out from `core/functions.py` (`workspaces=` per function, else its family's row;
+  new family `video`, new family `panel` for the side panel's own functions). Family ticks under the switcher; the
+  question before hiding a family in use (names what is set up; Hide anyway / Cancel); "in use but hidden" line
+  with Show; own workspaces as one `.json` each in the library folder "Workspaces" (Save as my own…, Rename…,
+  Delete…, Refresh, Show in folder, Use for new projects); the project stores name + definition + ticks; templates
+  carry them; old projects open in the default workspace with what they use shown.
+- **Client view lock, level b** (`blender/lock.py`): editing operators refused with a reason (allow-list of 40),
+  every object unclickable and locked and put back exactly, Delete / X / Tab / Ctrl+Shift+S swallowed, Outliner →
+  Info editor, File menu without Save As / Import / Export, a model update refused. Any workspace without the lock
+  undoes it. **Blender's 11 workspace tabs** are hidden outside Full access (the top bar is drawn without them;
+  nothing is deleted).
+- **Make** (render A + B): a panel above 1 Import and a popover in the 3D view's header – Picture, Product video,
+  Turntable, 3D page, Animation, Queue, each the app's own settings panel as a popover (`ui.popover_width`, its
+  main button blue). No section renumbered. **What's next** card. **Set-up window** (float 2, `ui_setup.py`,
+  `ops_setup.py`): a second window with the tab "Set-up", CNC mill 5 steps, mechanism 4 steps, Back / Next, the step
+  kept in the project, opened from Make, 4 Motion > CNC machine and > Mechanisms.
+- **The panels pass** over all 54 panels (picks 1, 2, 6, 7, 8, 9, 14): `gap()` between steps; how-to boxes as folds
+  "How it works" that close once the project has the thing (Preferences: Keep How it works open); grey hints; one
+  blue button per section (Import STEP…, Sort parts into groups, Render image, Build & play, Start queue), 30 others
+  now `big()`; a state in every sub-panel header; cut-off texts fixed; `missing()` lines (Vessel motion / Vessel at
+  work with **Use the Open sea**, way covers, drums, coolant / tools / rotary without a CNC machine, clash check
+  without a build …); one word per action in buttons, tooltips and messages (operator ids unchanged).
+- **Moves** (picks 3 + 4): 5 Scene & Render in work order; Brand kit & logo, Labels, Watermark under 6 Animation;
+  `core/places.py` is the one table, `where()` builds the "6 Animation > Labels" texts, a test compares it with the
+  registered panels.
+- **Lesson highlight hook** (`blender/highlight.py`, from 0168's code): `point()` / `clear()` for a button, a
+  folded section, a part; six looks – button C (with panels kept clear = "C bright") + D, section 5 + 4, part 3 +
+  1 – behind Preferences > Lesson highlight; one colour (Fresing Green); nothing runs unless something is pointed at.
+- Also: test tour **Go opens the stop's own panel**; `plural("subassembly")` = "subassemblies"; found and fixed on
+  the way: Vessel at work could not be drawn with a thruster in its list (older than this task), Web 3D model >
+  Surroundings "As in the project" raised an error for a sea "From the wind".
+- The usual parts: function-list entries (8) with guide anchors, tour stops `workspace`, `make`, `setup`, PC-check
+  line `panel.workspaces`, tooltips (864 found, 0 missing), guide (S7), CHANGELOG, CLAUDE.md (new modules, the rule
+  for a new panel, things learned).
 
-**Tested and measured** (name the machine and the model): (filled in at the end)
+**Decisions taken without the owner** (he was asleep; each can be changed in a small follow-up):
+1. A new built-in workspace **All functions** is the default (everything, Blender's tabs hidden): Full access also
+   brings Blender's own UI back, so it could not be the calm default.
+2. All functions and Full access cannot be an own workspace's name (an own "Full access" made from the Client view
+   would never unlock).
+3. A family the user hid with Hide anyway stays hidden at the next open (red line "In use but hidden" + Show).
+4. Education & training hides only the Web 3D model and the House panel: "render engine settings, shader editing,
+   batch export" have no panel of their own to hide; the queue stays (the turntable and videos run through it).
+5. The workspaces act on whole panels (and two settings: the exploded view, the sea cut-away's ground); the
+   surroundings picker still lists every surrounding in every workspace.
+6. The Client view lets a model in (Import) but refuses a model update; property fields in its shown panels
+   (background, light, image size) stay editable – they are its "surroundings picker".
+7. The step kind keeps its name "Back to CAD" (a name in a narrow list, not a button).
+8. Clash check without a built animation shows one line + Build & play; Check for clashes shows after the build.
+9. Section tab and open set are session state (not undo steps, not saved unless "Keep sections" is on).
 
-**Open points / follow-up tasks:** (filled in at the end)
+**Left out / not as picked:** nothing of the picks. Pick 7's "group list" case: a long group name is still cut in the
+list row (it is the user's own text in a narrow list); the box under the list shows it whole.
 
-**Progress (worker's notes, 18 Nov):**
-- Done on the branch: `core/workspaces.py`, `core/places.py`, `blender/panels.py` (own title rows, open set, tabs,
-  polls), `blender/workspaces.py`, `blender/lock.py`, `blender/ui_top.py`, `blender/ops_workspace.py`, the helpers in
-  `ui.py`, the panel pass over `ui.py` (worker) and `ui_motion.py` (S3, merged), words in operators, the moves
-  (Brand kit / Labels / Watermark → 6 Animation, 5 in work order), function-list entries, guide sections (text;
-  pictures are placeholders), tour stops `workspace` + `make`, PC-check line `panel.workspaces`, tests
-  (`tests/test_workspaces.py`, `tests/test_places.py`, `tools/ui_test_panel.py` 37 checks), screenshot tools adapted.
-- Merged since: `main` with 0198 (0.2.150); S1 the Set-up window (`ui_setup.py`, `ops_setup.py`, 46-check real-app
-  test) with its buttons, tour stop `setup`, function entry and guide section; S2 the lesson highlight
-  (`highlight.py`, 74-check real-app test); the panel pass over the video finishing panels (worker); counts raised;
-  `ui_test_panel`, `ui_test_setup`, `ui_test_highlight` in `tools/ci_real_app.py`; CHANGELOG text (0.2.151).
-- Running as subagents: S4 panel pass over the machine sub-panels, S5 panel pass over the other sub-panels, S6
-  independent tests (`tests/test_workspaces_independent.py`, findings as strict xfail tests).
-- Still to do: merge S4 / S5 / S6 and fix S6's findings; S7 guide chapters + every panel picture; version 0.2.151
-  in the two version files (the `since=` fields already say 0.2.151 – renumber all if another task takes it);
-  full run green; fast-forward `main`; release check; report; `TASKS.md` (0062 done, 0199 "open – can start").
+**Subagents** (CLAUDE.md section 2; the worker designed, merged, tested and released):
+- S1 Set-up window (new files; real-app test 46 checks) · S2 lesson highlight (new files; 74 checks; measured) ·
+  S3 panel pass `ui_motion.py` · S4 panel pass, 8 machine sub-panel files · S5 panel pass, 9 other files · S7 guide
+  + pictures (Sonnet) · **S6 independent tester**: 63 tests written from the brief, **17 findings** (a model update
+  got through the Client view; parts lost "Locked in place" after it; the default workspace leaked into tour /
+  PC-check / demo projects; an own "Full access" that never unlocks; functions in use hidden without a way back;
+  a section vanishing with sub-panels that should stay; a half-applied lock on a new project; templates without the
+  workspace; the lock left on after switching the extension off; empty tabs in the Client view; two scenes; the
+  What's next card after a turntable; three file-name faults; a misspelt workspace key; "keep everything folded").
+  All 17 fixed by the worker; the tests are in `tests/test_workspaces_independent.py`.
+- The worker did: design, `core/`, `panels.py`, `workspaces.py`, `lock.py`, `ui_top.py`, `ops_workspace.py`, the
+  pass over `ui.py`, `ui_video.py`, `ui_callouts.py`, all operator / property texts, tools, counts, merges. Redone
+  after merging: the cables / spool real-app tests' panel copies; S6's `_polls` helper (the "nothing folded without
+  a window" rule came after its tests).
+- The machine restarted once mid-run: the three running subagents were resumed with their context (nothing lost).
+
+**Tested and measured** (4-core web machine, Blender 5.2.3; real app under xvfb = software drawing; test crane,
+gantry and the other shipped test models):
+- pytest: `tests/test_workspaces.py` (28), `tests/test_workspaces_independent.py` (63), `tests/test_places.py` (4),
+  `tests/test_setup_window.py` (9), `tests/test_highlight.py` (25) + the changed panel tests; the full suite on GitHub.
+- Real app, new: `ui_test_panel.py` **37/37** (folded start, titles, Ctrl+click, tabs, workspaces, families, an own
+  workspace through two library folders, the lock with real clicks and Delete / X / Tab, save / open, an older
+  project, Keep sections, the Make popover), `ui_test_setup.py` **46/46**, `ui_test_highlight.py` **74/74**;
+  `ui_test_layout.py` 38/38 (+5: every kind of project opens folded with Blender's tabs hidden); the update test
+  30/30 (+1: calm start after Update now). The 22 older real-app tests pass (three got `panels.open_to` /
+  `show_only`).
+- The whole side panel with every section folded: one screen (was 4.4 screens at start, study 0200).
+- Lesson highlight (S2): side panel 1.1–1.6 ms per redraw; a part 0.5–1.3 ms (look 3), 0.4–1.0 ms (look 1) on the
+  crane; on the demo (2,176 mesh parts, scaled-down make) one machine of 264 parts 7.5–10.5 / 4.2–7.4 ms, the whole
+  vessel 76–77 / 65–79 ms – nearly all of it the software rasteriser; **not measured on a graphics card**.
+- Set-up window (S1): 297 × 582 px at UI scale 1.04, opens in 0.9–1.2 s, panel draw 0.5–1.1 ms, the main window's
+  areas identical before and after. **Windows: only the owner's check of the prototype** (stays in front, comes back
+  on the second monitor).
+- GitHub runs: see the end of this report.
+
+**Open points / follow-up tasks:**
+- **Owner, on his PC** (RTX 3090): (1) Preferences > Lesson highlight – nothing to see until the lessons task; the
+  part look 3 uses a small shader not yet tried on a real graphics card. (2) The Set-up window on Windows: drag it,
+  second monitor, in front of the main window (as he checked on the prototype). (3) The Client view: G / X / Delete
+  / Tab on a part do nothing; Full access brings everything back.
+- 14 older real-app tests still open their panel by registering the class again (they pass; their screenshots show
+  two title rows): convert to `panels.open_to()` in the next Quality task.
+- For 0181 (usage tracker): `panels.OPEN` / `fresing.panel_toggle` is where opening a panel can be counted;
+  `workspaces.used_functions(scene)` says what a project has.
+- For the lessons task: `highlight.point_function(fid, open_panels=True)`; a marked title row has a one-icon gap;
+  `operator_menu_enum` buttons are marked at the icon's place only; scrolling to the target is the lessons task's.
+- For 0199: `ui_top._draw_view_header` (Make in the 3D view's header) and 0198's Fresing button share that header;
+  a top-bar Make menu (render C) was not picked.
+- For Lifting L4: add the key `lifting` to `WORKSPACE_KEYS` + `BUILTIN` in `core/workspaces.py` and
+  `workspaces=("lifting", …)` on its functions; its panels go into `core/places.py`.
+- Not done: the Client view does not stop edits in Blender's own Properties editor or the Python console (level b
+  as picked); a queued render of a Client view project was not run.
