@@ -180,8 +180,18 @@ def addon(tmp_path_factory):
     addon_utils.enable("cycles", default_set=True)
     os.environ["FRESING_WORKSPACES_DIR"] = str(tmp_path_factory.mktemp("lib") / "Workspaces")
     fresing_render.register()
+    from fresing_render.blender import prefs
+    entry = None
+    if prefs.get() is None:                  # the preferences exist only for an enabled add-on: make its entry, so
+        entry = bpy.context.preferences.addons.new()       # the default workspace and "keep sections" are tested
+        entry.module = prefs.ADDON_ID                      # as the user sets them (the independent tester's way)
     yield
     fresing_render.unregister()
+    if entry is not None:
+        try:
+            bpy.context.preferences.addons.remove(entry)
+        except Exception:  # noqa: BLE001
+            pass
     os.environ.pop("FRESING_WORKSPACES_DIR", None)
 
 

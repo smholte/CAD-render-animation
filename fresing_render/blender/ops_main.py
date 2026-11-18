@@ -530,6 +530,8 @@ def _template_from_scene(scene) -> Template:
                                           "out_use_bleed", "out_bleed_mm", "out_file_type", "quality")}
     from . import decals
     t.decals = decals.to_template(scene)
+    if s.ws_name:                                # task 0062: which functions the side panel shows
+        t.workspace = {"name": s.ws_name, "data": s.ws_data, "ticks": s.ws_ticks}
     return t
 
 
@@ -596,6 +598,16 @@ def apply_template(scene, t: Template) -> None:
         placed, notes = decals.from_template(scene, t.decals)
         if notes:
             s.last_message = notes[0] + (f" (and {len(notes) - 1} more)" if len(notes) > 1 else "")
+    if t.workspace and t.workspace.get("name"):  # task 0062: the template's workspace and ticks – and whatever
+        from ..core import workspaces as W       # this project uses stays shown
+        from . import workspaces
+        name, data = str(t.workspace["name"]), str(t.workspace.get("data") or "")
+        if data or W.find(name, workspaces.library()) is not None:
+            s.ws_name, s.ws_data = name, data
+            s.ws_ticks = W.ticks_json(W.parse_ticks(str(t.workspace.get("ticks") or "")))
+            if not workspaces.current(scene).lock:
+                workspaces.show_used(scene)
+            workspaces.apply(scene)
 
 
 class FRESING_OT_template_export(bpy.types.Operator, ExportHelper):

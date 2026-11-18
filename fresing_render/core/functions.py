@@ -482,6 +482,10 @@ def problems(functions=None, *, anchors=None, stops=None, lines=None, panels=Non
             out.append(f"{f.id}: family '{f.family}' is not one of {', '.join(FAMILIES)}")
         if not f.title:
             out.append(f"{f.id}: give it a title (the owner's word for it)")
+        for key in f.workspaces:
+            if key not in WORKSPACE_KEYS:
+                out.append(f"{f.id}: workspace '{key}' is not one of {', '.join(WORKSPACE_KEYS)} (a misspelt key "
+                           "hides the function in that workspace)")
         if f.since and not VERSION.match(f.since):
             out.append(f"{f.id}: since '{f.since}' is not a version like 0.2.47")
         if not (f.button or f.prop):

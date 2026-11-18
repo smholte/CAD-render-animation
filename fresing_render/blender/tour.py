@@ -3983,7 +3983,9 @@ def _fresh(models: tuple, out_folder: str):
     import bpy
 
     from . import prefs as fr_prefs
+    from . import workspaces
     bpy.ops.wm.read_homefile(use_empty=True)
+    workspaces.use_all(bpy.context.scene)        # a tour project shows what it teaches, whatever the user's default
     p = fr_prefs.get()
     saved = p.default_template if p else ""
     if p:

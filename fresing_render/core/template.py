@@ -46,6 +46,7 @@ class Template:
     rule_set: dict | None = None          # the rule set it uses (name + copy); None in older templates
     rule_set_base: dict | None = None     # the library version that copy was based on
     decals: list = field(default_factory=list)   # decals on parts, by part name (task 0024)
+    workspace: dict | None = None         # task 0062: {"name", "data", "ticks"}; None in older templates
 
     def to_dict(self) -> dict:
         d = {
@@ -64,6 +65,8 @@ class Template:
                 d["rule_set_base"] = self.rule_set_base
         if self.decals:
             d["decals"] = self.decals
+        if self.workspace:
+            d["workspace"] = self.workspace
         return d
 
     @classmethod
@@ -84,6 +87,7 @@ class Template:
             rule_set=d.get("rule_set") if isinstance(d.get("rule_set"), dict) else None,
             rule_set_base=d.get("rule_set_base") if isinstance(d.get("rule_set_base"), dict) else None,
             decals=[x for x in d.get("decals", []) if isinstance(x, dict)] if isinstance(d.get("decals"), list) else [],
+            workspace=d.get("workspace") if isinstance(d.get("workspace"), dict) else None,
         )
 
     def save(self, path: str) -> None:

@@ -28,6 +28,7 @@ from bpy.app.handlers import persistent
 
 ON = [False]                 # the lock is on (asked by every fresing operator's poll: keep it a plain list)
 MARK = "fr_cv"               # per object: what the lock changed (bit 0: was clickable; bits 1-9: was not locked)
+NEW = 1 << 10                # … and bit 10: made while the lock was on (the app may set its own locks after us)
 SCREEN_MARK = "fr_cv_areas"  # per screen: the areas (by index) whose Outliner was replaced
 MESSAGE = "Client view: the project is locked against changes. Workspace > Full access unlocks it"
 
@@ -44,9 +45,23 @@ ALLOWED = {
     "fresing.tour_make", "fresing.tour_open", "fresing.tour_go", "fresing.tour_pick", "fresing.tour_mark",
     "fresing.tour_note", "fresing.tour_copy", "fresing.tour_folder", "fresing.tour_run",
     "fresing.client_locked",
+    "fresing.rebake", "fresing.rebake_cancel",          # cables follow a sea change the Client view may make
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_")
+
+
+def scene_locked(context) -> bool:
+    """With the lock on in this file: is the scene this button is pressed in the locked one? (A file may hold a
+    second scene in another workspace; the update handler moves the lock when the shown scene changes.)"""
+    scene = getattr(context, "scene", None)
+    if scene is None or getattr(scene, "fresing", None) is None:
+        return True
+    try:
+        from . import workspaces
+        return workspaces.locked(scene)
+    except Exception:  # noqa: BLE001
+        return True
 
 
 def allowed(idname: str) -> bool:
@@ -60,12 +75,13 @@ def allowed(idname: str) -> bool:
 
 _LOCKS = ("lock_location", "lock_rotation", "lock_scale")
 _COUNT = [0]
+_BUSY = [False]              # the lock is being put on or off: the update handler keeps out
 
 
-def _lock_object(ob) -> None:
+def _lock_object(ob, new: bool = False) -> None:
     if MARK in ob:
         return
-    bits = 0
+    bits = NEW if new else 0
     if not ob.hide_select:
         bits |= 1
         ob.hide_select = True
@@ -95,6 +111,30 @@ def _unlock_object(ob) -> None:
                 vec[i] = False
             k += 1
     del ob[MARK]
+    if bits & NEW:
+        _as_the_app_leaves_it(ob)
+
+
+def _as_the_app_leaves_it(ob) -> None:
+    """An object made while the lock was on was marked the moment it appeared – before the app had given it its
+    own locks (an import locks every part in place and makes removed parts unclickable a little later). So after
+    the unlock a model's part is put as the app itself would leave it."""
+    from . import build
+    kind = ob.get(build.PROP_KIND)
+    if kind not in ("assembly", "part"):
+        return
+    locked = bool(ob.get(build.PROP_LOCKED, True)) if kind == "assembly" else True
+    if kind == "part":                                   # a part follows the nearest assembly above it
+        parent = ob.parent
+        while parent is not None and parent.get(build.PROP_KIND) != "assembly":
+            parent = parent.parent
+        if parent is not None:
+            locked = bool(parent.get(build.PROP_LOCKED, True))
+    ob.lock_location = (locked,) * 3
+    ob.lock_rotation = (locked,) * 3
+    ob.lock_scale = (True,) * 3
+    if ob.get(build.PROP_EXCLUDED):
+        ob.hide_select = True
 
 
 def _lock_all() -> None:
@@ -105,9 +145,9 @@ def _lock_all() -> None:
         for vl in sc.view_layers:
             for ob in list(vl.objects):
                 try:
-                    if ob.select_get(view_layer=vl):
+                    if ob is not None and ob.select_get(view_layer=vl):
                         ob.select_set(False, view_layer=vl)
-                except RuntimeError:
+                except (RuntimeError, AttributeError):
                     pass
             try:
                 vl.objects.active = None
@@ -127,10 +167,21 @@ def marked() -> int:
 
 @persistent
 def _after_change(scene=None, _depsgraph=None):
-    """While the lock is on: an object made meanwhile (an import, a turntable camera) is locked too."""
+    """While the lock is on: an object made meanwhile (an import, a turntable camera) is locked too. And the lock
+    follows the scene that is shown: a file may hold a second scene in another workspace."""
+    try:
+        from . import workspaces
+        shown = bpy.context.scene
+        if shown is not None and getattr(shown, "fresing", None) is not None and not _BUSY[0]:
+            want = workspaces.locked(shown)
+            if want != ON[0]:
+                apply(shown, want)
+                blender_ui(workspaces.blender_ui(shown))
+    except Exception:  # noqa: BLE001 - never break an update over the lock
+        pass
     if ON[0] and len(bpy.data.objects) != _COUNT[0]:
         for ob in bpy.data.objects:
-            _lock_object(ob)
+            _lock_object(ob, new=True)
         _COUNT[0] = len(bpy.data.objects)
 
 
@@ -273,15 +324,19 @@ def apply(scene, on: bool) -> None:
     """Put the lock on or off for the open project. Safe to call again: only what is not locked yet is locked, and
     only what the lock changed is put back."""
     on = bool(on)
-    if on:
-        ON[0] = True
-        _lock_all()
-    else:
-        ON[0] = False
-        if marked():
-            _unlock_all()
-    _swap_outliners(on)
-    _file_menu(on)
+    _BUSY[0] = True
+    try:
+        if on:
+            ON[0] = True
+            _lock_all()
+        else:
+            ON[0] = False
+            if marked():
+                _unlock_all()
+        _swap_outliners(on)
+        _file_menu(on)
+    finally:
+        _BUSY[0] = False
     _topbar_redraw()
 
 
@@ -351,6 +406,12 @@ def unregister() -> None:
         bpy.app.handlers.depsgraph_update_post.remove(_after_change)
     _remove_keys()
     ON[0] = False
+    try:                                   # the extension is switched off in a locked project: the parts are free
+        if marked():                       # again (the project's workspace still says Client view: it locks again
+            _unlock_all()                  # when the extension is back on)
+        _swap_outliners(False)
+    except Exception:  # noqa: BLE001
+        pass
     for cls_name, attr in list(_ORIG):
         cls = getattr(bpy.types, cls_name, None)
         if cls is not None:

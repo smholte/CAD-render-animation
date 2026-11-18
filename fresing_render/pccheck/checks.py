@@ -2305,6 +2305,8 @@ def house_bake(ctx):
     from ..core import house_scene as hs
     bpy.ops.wm.read_homefile(use_empty=True)
     scene = bpy.context.scene
+    from ..blender import workspaces
+    workspaces.use_all(scene)                    # the check's own project: every function, never locked
     src = os.path.join(DATA, "sample-house.hpscene")
     folder = os.path.join(ctx.work, "house")
     os.makedirs(folder, exist_ok=True)

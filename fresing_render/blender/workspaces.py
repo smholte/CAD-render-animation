@@ -75,7 +75,7 @@ def forget_scan() -> None:
 def names() -> list:
     """Every workspace the switcher lists: (name, note, own) – the built-in ones first, then the user's own. A
     built-in whose name an own workspace took is left out (the own one wins)."""
-    own = library()
+    own = {n: v for n, v in library().items() if W.key_of(n) not in W.RESERVED}
     low = {n.casefold() for n in own}
     out = [(n, W.BUILTIN[k][1], False) for k, n in W.NAMES.items() if n.casefold() not in low]
     out += [(n, ws.note or "Your own workspace", True) for n, (_p, ws) in sorted(own.items(),
@@ -125,7 +125,8 @@ def ticks(scene) -> dict:
 
 @functools.lru_cache(maxsize=64)
 def _hidden(name: str, data: str, tick_text: str, gen: int) -> tuple:
-    """(hidden panels, shown function ids, lock, blender_ui) for a project state. Cached: asked at every redraw."""
+    """(hidden panels, shown function ids, lock, blender_ui, title-only panels) for a project state. Cached: asked
+    at every redraw."""
     ws = None
     if data:
         try:
@@ -135,18 +136,24 @@ def _hidden(name: str, data: str, tick_text: str, gen: int) -> tuple:
     if ws is None:
         ws = W.find(name, _SCAN["found"]) or W.builtin("all")
     t = W.parse_ticks(tick_text)
-    return W.hidden_panels(ws, t), W.shown_functions(ws, t), ws.lock, ws.blender_ui
+    return W.hidden_panels(ws, t), W.shown_functions(ws, t), ws.lock, ws.blender_ui, W.title_only_panels(ws, t)
 
 
 def _state(scene) -> tuple:
     s = _settings(scene)
     if s is None:
-        return frozenset(), None, False, False
+        return frozenset(), None, False, False, frozenset()
     return _hidden(s.ws_name or default_name(), s.ws_data, s.ws_ticks, _SCAN["gen"])
 
 
 def panel_hidden(scene, panel: str) -> bool:
     return panel in _state(scene)[0]
+
+
+def panel_title_only(scene, panel: str) -> bool:
+    """A panel whose own functions are hidden but that holds a sub-panel that shows: its title row is drawn (a
+    sub-panel needs its parent), its own body is not."""
+    return panel in _state(scene)[4]
 
 
 def shows(scene, fid: str) -> bool:
@@ -176,16 +183,18 @@ def _count(n: int, one: str, many: str | None = None) -> str:
     return plural(n, one, many) if n != 1 else (("an " if one[:1] in "aeiou" else "a ") + one)
 
 
-def in_use(scene) -> dict:
-    """{family: ["a CNC machine", "3 tools", "a G-code step"]} for the families this project has set up. Only what
-    is cheap to read: asked when a family is ticked off and when a project opens."""
+def used_functions(scene) -> dict:
+    """{function id: (family, "3 tools")} for what this project has set up. Only what is cheap to read: asked
+    when a family is ticked off, when a project opens and by the Workspace panel."""
     s = _settings(scene)
     out: dict = {}
     if s is None:
         return out
 
-    def add(family, text):
-        out.setdefault(family, []).append(text)
+    def add(fid, text):
+        f = F.FUNCTIONS.get(fid)
+        if f is not None and fid not in out:
+            out[fid] = (f.family, text)
 
     try:
         steps = [b for a in s.animations for b in a.blocks]
@@ -194,87 +203,124 @@ def in_use(scene) -> dict:
     # motion
     n = sum(1 for j in s.joints if not getattr(j, "hidden", False))
     if n:
-        add("motion", _count(n, "joint"))
+        add("joints.rotate", _count(n, "joint"))
     if len(s.poses):
-        add("motion", _count(len(s.poses), "pose"))
+        add("poses.pose", _count(len(s.poses), "pose"))
     # machine motion
-    for coll, word in ((s.cylinders, "cylinder"), (s.mechanisms, "mechanism"), (s.waycovers, "way cover"),
-                       (s.tracks, "track")):
+    for coll, word, fid in ((s.cylinders, "cylinder", "machines.cylinder"),
+                            (s.mechanisms, "mechanism", "machines.mechanism"),
+                            (s.waycovers, "way cover", "machines.waycover"), (s.tracks, "track", "machines.tracks")):
         if len(coll):
-            add("machines", _count(len(coll), word))
+            add(fid, _count(len(coll), word))
     if len(s.flex):
-        add("machines", _count(len(s.flex), "hose or drag chain", "hoses and drag chains"))
+        add("machines.hoses", _count(len(s.flex), "hose or drag chain", "hoses and drag chains"))
     # CNC machine
     cnc = s.cnc
     if cnc.x_joint or cnc.y_joint or cnc.z_joint or cnc.spindle_joint or cnc.tool is not None:
-        add("cnc", "a CNC machine")
+        add("cnc.machine", "a CNC machine")
     if len(cnc.tools):
-        add("cnc", _count(len(cnc.tools), "tool"))
+        add("cnc.tools", _count(len(cnc.tools), "tool"))
     n = sum(1 for b in steps if b.kind == "GCODE")
     if n:
-        add("cnc", _count(n, "G-code step"))
+        add("cnc.gcode", _count(n, "G-code step"))
     # milling
     mill = s.milling
     if len(mill.bits) or mill.workpiece is not None:
-        add("milling", "a milling set-up" + (f" with {plural(len(mill.bits), 'bit')}" if len(mill.bits) else ""))
+        add("milling.cut", "a milling set-up" + (f" with {plural(len(mill.bits), 'bit')}" if len(mill.bits) else ""))
     # cables, drums and the sea
-    for coll, word in ((s.cables, "cable"), (s.spools, "drum or carousel")):
-        if len(coll):
-            add("offshore", _count(len(coll), word, "drums and carousels" if word.startswith("drum") else None))
+    if len(s.cables):
+        add("offshore.cables", _count(len(s.cables), "cable"))
+    if len(s.spools):
+        add("offshore.spool", _count(len(s.spools), "drum or carousel", "drums and carousels"))
     if getattr(s.vessel, "enabled", False):
-        add("offshore", "vessel motion")
+        add("offshore.vessel_motion", "vessel motion")
     n = len(getattr(s.vessel_work, "thrusters", ()))
     if n:
-        add("offshore", _count(n, "thruster"))
+        add("offshore.vessel_work", _count(n, "thruster"))
     # animation
     if len(s.animations):
-        add("animation", _count(len(s.animations), "animation"))
+        add("animation.add", _count(len(s.animations), "animation"))
     if len(s.trails):
-        add("animation", _count(len(s.trails), "trail line"))
+        add("animation.trails", _count(len(s.trails), "trail line"))
     # video finishing
     if len(s.callouts):
-        add("video", _count(len(s.callouts), "label"))
+        add("animation.labels", _count(len(s.callouts), "label"))
     if s.brand_name or s.brand_logo:
-        add("video", "a brand kit")
+        add("animation.brand", "a brand kit")
     if s.wm_on:
-        add("video", "a watermark")
+        add("animation.watermark", "a watermark")
     n = sum(1 for a in s.animations if a.fin_title_on or a.fin_end_on or a.fin_captions)
     if n:
-        add("video", _count(n, "video with cards or captions", "videos with cards or captions"))
+        add("animation.finishing", _count(n, "video with cards or captions", "videos with cards or captions"))
     n = sum(len(a.cards) for a in s.animations)
     if n:
-        add("video", _count(n, "picture card"))
+        add("animation.cards", _count(n, "picture card"))
     if any(a.music_on for a in s.animations):
-        add("video", "music")
+        add("animation.music", "music")
     # render queue
     if len(s.queue):
-        add("queue", _count(len(s.queue), "queued render"))
+        add("queue.still", _count(len(s.queue), "queued render"))
+    # scene: what a workspace may hide of it
+    if getattr(s.weather, "enabled", False):
+        add("scene.weather", "Weather & time")
+    # looks: what the Client view hides is hidden on purpose; cuts and decals are named for the question only
+    if len(s.cuts):
+        add("looks.cutaway", _count(len(s.cuts), "cut"))
     # house
     try:
         from . import house_import
         if house_import.has_house(scene):
-            add("house", "a house from House Planner")
+            add("house.import", "a house from House Planner")
     except Exception:  # noqa: BLE001
         pass
     return out
 
 
+def in_use(scene) -> dict:
+    """{family: ["a CNC machine", "3 tools", "a G-code step"]} for the families this project has set up."""
+    out: dict = {}
+    for _fid, (family, text) in used_functions(scene).items():
+        out.setdefault(family, []).append(text)
+    return out
+
+
+def hidden_used(scene) -> dict:
+    """{function id: (family, text)} of what the project uses but does not show: its family is off, or its
+    workspace hides it inside a family that shows (Way covers in Offshore & cable laying)."""
+    shown = _state(scene)[1]
+    if shown is None:
+        return {}
+    return {fid: v for fid, v in used_functions(scene).items() if fid not in shown}
+
+
 def hidden_in_use(scene) -> list:
-    """The families this project uses but does not show (the user hid them, or the workspace does)."""
-    fam = W.effective_families(current(scene), ticks(scene))
-    return [f for f in in_use(scene) if not fam.get(f, True)]
+    """The families this project uses but does not (wholly) show – the user hid them, or the workspace does."""
+    out = []
+    for _fid, (family, _text) in hidden_used(scene).items():
+        if family not in out:
+            out.append(family)
+    return out
 
 
 def show_used(scene) -> list:
-    """Tick on every family the project uses and does not show; returns them."""
-    hidden = hidden_in_use(scene)
-    if hidden:
-        t = ticks(scene)
-        for f in hidden:
-            t[f] = True
-        _settings(scene).ws_ticks = W.ticks_json(t)
-        _redraw()
-    return hidden
+    """Show everything the project uses and does not show: its family ticked on, and a function its workspace
+    hides inside a shown family ticked on by itself. Returns the families."""
+    hidden = hidden_used(scene)
+    if not hidden:
+        return []
+    ws = current(scene)
+    t = ticks(scene)
+    families = []
+    for fid, (family, _text) in hidden.items():
+        if family not in families:
+            families.append(family)
+        if family not in F.ALWAYS and not W.effective_families(ws, t).get(family, True):
+            t[family] = True
+        if fid not in W.shown_functions(ws, t):
+            t[fid] = True
+    _settings(scene).ws_ticks = W.ticks_json(t)
+    _redraw()
+    return families
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +363,12 @@ def set_tick(scene, family: str, on: bool) -> None:
         t.pop(family, None)                 # back to what the workspace says: no tick to remember
     else:
         t[family] = bool(on)
+    if not on:                              # hidden means hidden: also what was shown one by one
+        for fid in [k for k in t if k in F.FUNCTIONS and F.FUNCTIONS[k].family == family]:
+            del t[fid]
     s.ws_ticks = W.ticks_json(t)
+    from . import panels
+    panels.tab_check(scene)
     _redraw()
 
 
@@ -328,9 +379,10 @@ def changed(scene) -> bool:
 
 def apply(scene) -> None:
     """Put the lock and Blender's own tabs / menus as the project's workspace says."""
-    from . import lock
+    from . import lock, panels
     lock.apply(scene, locked(scene))
     lock.blender_ui(blender_ui(scene))
+    panels.tab_check(scene)
 
 
 def ensure(scene) -> bool:
@@ -343,8 +395,19 @@ def ensure(scene) -> bool:
     s.ws_name = ws.name
     s.ws_data = ws.to_json() if ws.own else ""
     s.ws_ticks = ""
-    show_used(scene)
+    if not ws.lock:                          # a Client view hides on purpose
+        show_used(scene)
     return True
+
+
+def use_all(scene) -> None:
+    """A project the app makes itself (test tour, demo, PC check, self-test) shows every function and is never
+    locked, whatever workspace the user starts his own projects in."""
+    s = _settings(scene)
+    if s is None:
+        return
+    s.ws_name, s.ws_data, s.ws_ticks = W.DEFAULT, "", ""
+    apply(scene)
 
 
 def on_load(scene) -> None:
@@ -412,6 +475,8 @@ def delete_own(scene, name: str) -> None:
 
 
 def is_own(name: str) -> bool:
+    if W.key_of(name) in W.RESERVED:
+        return False
     return any(n.casefold() == (name or "").casefold() for n in library())
 
 
@@ -468,6 +533,12 @@ def register() -> None:
         if fn not in lst:
             lst.append(fn)
     forget_scan()
+    try:                                     # the extension is switched on with a project open: its workspace counts
+        scene = getattr(bpy.context, "scene", None)
+        if scene is not None and _settings(scene) is not None and _settings(scene).ws_name:
+            apply(scene)
+    except Exception:  # noqa: BLE001 - at start-up there is no scene yet: the load handler does it
+        pass
 
 
 def unregister() -> None:

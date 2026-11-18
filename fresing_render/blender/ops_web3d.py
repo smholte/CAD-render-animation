@@ -80,6 +80,7 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
             col.label(text="Soft light baked, sun live keeps the sun's shadows moving.")
 
     def execute(self, context):
+        context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
         if self.asking:                                  # the answer to the question: go on
             self.asking = False
             bpy.ops.fresing.web3d_export("INVOKE_DEFAULT", asked=True)

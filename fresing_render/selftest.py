@@ -268,6 +268,8 @@ def main(report_path: str | None = None) -> bool:
     def _import():
         bpy.ops.wm.read_homefile(use_empty=True)
         from .blender import prefs as fr_prefs
+        from .blender import workspaces
+        workspaces.use_all(bpy.context.scene)    # the self-test's own project: every function, never locked
         p = fr_prefs.get()
         saved_template = p.default_template if p else ""
         if p:

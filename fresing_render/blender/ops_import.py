@@ -80,6 +80,15 @@ def frame_views(context, scene) -> None:
         pass
 
 
+def _locked(op) -> bool:
+    """The Client view lets a model in but never replaces one: a model update is a change of the project."""
+    from . import lock
+    if not lock.ON[0]:
+        return False
+    op.report({"WARNING"}, lock.MESSAGE)
+    return True
+
+
 class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
     """Import a STEP assembly: pick the file, it is read in the background (the app stays usable).
     Choose the detail and up axis above first"""
@@ -113,6 +122,8 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
     _job: ImportJob | None = None
 
     def invoke(self, context, event):
+        if self.update_root and _locked(self):
+            return {"CANCELLED"}
         s = context.scene.fresing
         self.quality = s.import_quality
         self.up_axis = s.import_up_axis
@@ -134,6 +145,8 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         return self.filepath
 
     def execute(self, context):
+        if self.update_root and _locked(self):
+            return {"CANCELLED"}
         global _ACTIVE_JOB
         path = self._path()
         if not os.path.isfile(path):
@@ -320,6 +333,8 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
     _job: ImportJob | None = None
 
     def invoke(self, context, event):
+        if self.update_root and _locked(self):
+            return {"CANCELLED"}
         root = bpy.data.objects.get(self.update_root) if self.update_root else None
         if root is not None:
             from . import mesh_import
@@ -341,6 +356,8 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
     _cleanup = FRESING_OT_import_step._cleanup
 
     def execute(self, context):
+        if self.update_root and _locked(self):
+            return {"CANCELLED"}
         global _ACTIVE_JOB
         path = self._path()
         if not os.path.isfile(path):

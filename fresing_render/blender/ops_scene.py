@@ -155,6 +155,7 @@ class FRESING_OT_turntable(bpy.types.Operator):
         return context.scene.fresing.model_count > 0
 
     def execute(self, context):
+        context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
         from . import queue
         scene = context.scene
         s = scene.fresing

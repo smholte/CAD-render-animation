@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 
 from . import functions as F
 
+RESERVED = ("all", "full")   # "All functions" shows everything, "Full access" always unlocks: never an own one's name
 MARKER = "fresing_render_workspace"
 VERSION = 1
 FOLDER = "Workspaces"
@@ -157,8 +158,11 @@ def from_json(text: str, name: str = "", funcs=None) -> Workspace:
 
 
 def find(name: str, own: dict | None = None, funcs=None) -> Workspace | None:
-    """The workspace called ``name``: an own one from ``own`` ({name: (path, Workspace)}) wins over a built-in."""
+    """The workspace called ``name``: an own one from ``own`` ({name: (path, Workspace)}) wins over a built-in –
+    except All functions and Full access, which are always the app's own."""
     low = (name or "").casefold()
+    if key_of(name) in RESERVED:
+        return builtin(key_of(name), funcs)
     for n, hit in (own or {}).items():
         if n.casefold() == low:
             ws = hit[1] if isinstance(hit, tuple) else hit
@@ -168,9 +172,10 @@ def find(name: str, own: dict | None = None, funcs=None) -> Workspace | None:
 
 
 def shadows(name: str, own: dict | None = None) -> bool:
-    """True when an own workspace has a built-in's name (it wins; the panel says so)."""
+    """True when an own workspace has a built-in's name (it wins; the panel says so). Not for All functions and
+    Full access: those are always the app's own."""
     low = (name or "").casefold()
-    return bool(key_of(name)) and any(n.casefold() == low for n in (own or {}))
+    return bool(key_of(name)) and key_of(name) not in RESERVED and any(n.casefold() == low for n in (own or {}))
 
 
 # ---------------------------------------------------------------------------
@@ -185,11 +190,16 @@ def parse_ticks(text: str) -> dict:
         return {}
     if not isinstance(d, dict):
         return {}
-    return {str(k): bool(v) for k, v in d.items() if k in F.FAMILIES and k not in F.ALWAYS}
+    return {str(k): bool(v) for k, v in d.items() if _tick_key(k, v)}
+
+
+def _tick_key(k, v) -> bool:
+    """A tick is a family that has one (on or off), or a single function shown although the workspace hides it."""
+    return (k in F.FAMILIES and k not in F.ALWAYS) or (k in F.FUNCTIONS and bool(v))
 
 
 def ticks_json(ticks: dict) -> str:
-    ticks = {k: bool(v) for k, v in ticks.items() if k in F.FAMILIES and k not in F.ALWAYS}
+    ticks = {k: bool(v) for k, v in ticks.items() if _tick_key(k, v)}
     return json.dumps(ticks, separators=(",", ":"), sort_keys=True) if ticks else ""
 
 
@@ -209,21 +219,52 @@ def effective_families(ws: Workspace, ticks: dict | None = None) -> dict:
 def shown_functions(ws: Workspace, ticks: dict | None = None, funcs=None) -> frozenset:
     """The ids of the functions that show. A family the user ticked on himself shows all its functions."""
     fam = effective_families(ws, ticks)
-    forced = {f for f, v in (ticks or {}).items() if v and not ws.families.get(f, True)}
+    forced = {f for f, v in (ticks or {}).items() if v and f in F.FAMILIES and not ws.families.get(f, True)}
+    single = {f for f, v in (ticks or {}).items() if v and f not in F.FAMILIES}     # shown one by one (in use)
     hide = set(ws.hide)
     return frozenset(fn.id for fn in _functions(funcs)
-                     if fam.get(fn.family, True) and (fn.id not in hide or fn.family in forced))
+                     if fn.id in single
+                     or (fam.get(fn.family, True) and (fn.id not in hide or fn.family in forced)))
 
 
-def hidden_panels(ws: Workspace, ticks: dict | None = None, funcs=None) -> frozenset:
-    """The panels (class names) that do not show: every function that names them is hidden."""
+def _own_hidden(ws: Workspace, ticks: dict | None = None, funcs=None) -> set:
     shown = shown_functions(ws, ticks, funcs)
     by_panel: dict = {}
     for fn in _functions(funcs):
         if fn.panel in F.MENUS:
             continue
         by_panel.setdefault(fn.panel, []).append(fn.id in shown)
-    return frozenset(p for p, flags in by_panel.items() if not any(flags))
+    return {p for p, flags in by_panel.items() if not any(flags)}
+
+
+def _kept_for_children(own_hidden: set) -> set:
+    """The panels whose own functions are all hidden but that hold a sub-panel that shows: Blender draws a
+    sub-panel only under its parent, so such a panel keeps its title row (without its own body)."""
+    from . import places
+    keep = set()
+    for panel in list(places.PLACES):
+        if panel in own_hidden:
+            continue
+        parent, seen = places.PLACES[panel][0], set()
+        while parent and parent not in seen:
+            seen.add(parent)
+            if parent in own_hidden:
+                keep.add(parent)
+            parent = places.PLACES.get(parent, ("",))[0]
+    return keep
+
+
+def hidden_panels(ws: Workspace, ticks: dict | None = None, funcs=None) -> frozenset:
+    """The panels (class names) that do not show: every function that names them is hidden, and nothing under
+    them shows either."""
+    own = _own_hidden(ws, ticks, funcs)
+    return frozenset(own - _kept_for_children(own))
+
+
+def title_only_panels(ws: Workspace, ticks: dict | None = None, funcs=None) -> frozenset:
+    """The panels that show only their title row, for the sub-panels under them: their own functions are hidden
+    (4 Motion with the family Motion ticked off while the CNC machine under it shows)."""
+    return frozenset(_kept_for_children(_own_hidden(ws, ticks, funcs)))
 
 
 def panel_families(funcs=None) -> dict:
@@ -267,7 +308,8 @@ _RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f
 
 
 def clean_name(name: str) -> str:
-    return " ".join((name or "").split())[:MAX_NAME]
+    """One space between words, at most MAX_NAME characters, no space at either end (also after the cut)."""
+    return " ".join((name or "").split())[:MAX_NAME].strip()
 
 
 def name_problem(name: str, existing=()) -> str:
@@ -276,6 +318,9 @@ def name_problem(name: str, existing=()) -> str:
     name = clean_name(name)
     if not name:
         return "Give the workspace a name"
+    if key_of(name) in RESERVED:
+        return (f"'{NAMES[key_of(name)]}' is the app's own workspace (it must always show everything"
+                f"{' and unlock' if key_of(name) == 'full' else ''}): pick another name")
     if any(name.casefold() == e.casefold() for e in existing):
         return f"There is already a workspace of your own called '{name}': pick another name"
     if not any(ch.isalnum() for ch in name):
@@ -286,13 +331,13 @@ def name_problem(name: str, existing=()) -> str:
 def file_name(name: str) -> str:
     """A file name that works on Windows and network shares (the real name is inside the file)."""
     base = _BAD_CHARS.sub("_", clean_name(name)).rstrip(". ")
-    if base.upper() in _RESERVED:
+    if base.split(".")[0].strip().upper() in _RESERVED:        # "NUL.old" is still the device on Windows
         base = "_" + base
     return (base or "Workspace") + ".json"
 
 
 def load(path: str, funcs=None) -> Workspace:
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8-sig") as fh:               # Notepad's "UTF-8 with BOM" too
         ws = from_dict(json.load(fh), funcs=funcs)
     ws.path = path
     return ws
@@ -385,8 +430,15 @@ def delete_in(folder: str, name: str) -> None:
 def make_own(name: str, base: Workspace, ticks: dict | None = None, note: str = "") -> Workspace:
     """An own workspace from what shows now: the base workspace with the user's ticks worked in."""
     fam = effective_families(base, ticks)
-    forced = {f for f, v in (ticks or {}).items() if v and not base.families.get(f, True)}
-    hide = tuple(h for h in base.hide if F.FUNCTIONS.get(h) is None or F.FUNCTIONS[h].family not in forced)
+    forced = {f for f, v in (ticks or {}).items() if v and f in F.FAMILIES and not base.families.get(f, True)}
+    single = {f for f, v in (ticks or {}).items() if v and f not in F.FAMILIES}
+    hide = tuple(h for h in base.hide if h not in single
+                 and (F.FUNCTIONS.get(h) is None or F.FUNCTIONS[h].family not in forced))
+    for fid in single:                               # a single function of a hidden family: the family shows, the
+        f = F.FUNCTIONS.get(fid)                     # rest of it stays hidden
+        if f is not None and not fam.get(f.family, True):
+            fam[f.family] = True
+            hide += tuple(o.id for o in F.FUNCTIONS.values() if o.family == f.family and o.id not in single)
     return Workspace(name=clean_name(name), key="", note=note or f"Based on '{base.name}'", families=fam,
                      hide=tuple(sorted(hide)), lock=base.lock, blender_ui=base.blender_ui,
                      based_on=base.key or base.based_on)

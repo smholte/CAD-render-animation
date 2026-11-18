@@ -302,10 +302,12 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                      icon="COPY_ID" if credit else "ERROR", inset=12)
                 for note in mesh_import.notes(root)[:4]:
                     wrap(col, context, note, icon="INFO", inset=12)
-                op = box.operator("fresing.import_mesh", text="Update to new revision…", icon="FILE_REFRESH")
+                op_id = "fresing.import_mesh"
             else:
-                op = box.operator("fresing.import_step", text="Update to new revision…", icon="FILE_REFRESH")
-            op.update_root = root.name
+                op_id = "fresing.import_step"
+            if not _client_locked(context):            # the Client view never replaces a model
+                op = box.operator(op_id, text="Update to new revision…", icon="FILE_REFRESH")
+                op.update_root = root.name
         if s.report_title:
             box = layout.box()
             row = box.row()
@@ -1062,6 +1064,11 @@ class FRESING_PT_scene(_Panel, bpy.types.Panel):
                 wrap(layout, context, "The model you added sticks out of the surroundings. "
                      "Fit them to everything with the button below.", icon="ERROR")
                 layout.operator("fresing.env_place", icon="IMPORT")
+
+
+def _client_locked(context) -> bool:
+    from . import lock
+    return bool(lock.ON[0])
 
 
 def _shows(context, fid: str) -> bool:

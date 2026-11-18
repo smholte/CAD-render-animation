@@ -125,13 +125,29 @@ def show_only(names=(), opened: bool = True) -> None:
     redraw()
 
 
+NOTHING = "-"                # the saved open set of a project with everything folded ("" = nothing was saved)
+
+
 def saved_text() -> str:
-    return ",".join(sorted(OPEN))
+    return ",".join(sorted(OPEN)) or NOTHING
 
 
 def restore(text: str) -> None:
     OPEN.clear()
     OPEN.update(n for n in (text or "").split(",") if n in PARENT)
+
+
+def tab_check(scene) -> None:
+    """Back to All when the chosen tab's section no longer shows (the workspace hides it)."""
+    sec = tab_section()
+    if not sec or scene is None:
+        return
+    from . import workspaces
+    if workspaces.panel_hidden(scene, sec):
+        _TAB["v"] = "ALL"
+        wm = getattr(bpy.context, "window_manager", None)
+        if wm is not None and hasattr(wm, "fresing_tab") and wm.fresing_tab != "ALL":
+            wm.fresing_tab = "ALL"
 
 
 def redraw() -> None:
@@ -283,6 +299,11 @@ def _make_draw(cls, body):
         if getattr(self, "is_popover", True):          # no such attribute: a stand-in, not Blender's panel
             return body(self, context)                 # a test's stand-in, or a popover: the body only
         if draw_title(self, context, cls):
+            scene = getattr(context, "scene", None)
+            if scene is not None:
+                from . import workspaces
+                if workspaces.panel_title_only(scene, cls.__name__):
+                    return None            # shown for the sub-panels under it; its own functions are hidden
             return body(self, context)
         return None
     draw.__doc__ = body.__doc__
@@ -305,7 +326,7 @@ def _make_op_poll(cls, own):
     on = lock.ON
 
     def poll(c, context):
-        if on[0]:
+        if on[0] and lock.scene_locked(context):
             c.poll_message_set(lock.MESSAGE)
             return False
         return own(context) if own is not None else True
@@ -413,6 +434,11 @@ class FRESING_OT_panel_tab(bpy.types.Operator):
 
     def execute(self, context):
         t = self.tab if self.tab == "ALL" or (self.tab.isdigit() and 1 <= int(self.tab) <= len(SECTIONS)) else "ALL"
+        if t != "ALL":
+            from . import workspaces
+            if workspaces.panel_hidden(context.scene, SECTIONS[int(t) - 1]):
+                self.report({"INFO"}, "This project's workspace does not show that section")
+                t = "ALL"
         context.window_manager.fresing_tab = t
         return {"FINISHED"}
 

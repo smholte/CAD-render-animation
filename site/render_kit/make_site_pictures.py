@@ -411,6 +411,10 @@ def fresh_import(pkg, path: str, quality: str, up_axis: str, out_dir: str):
     import bpy
     prefs = importlib.import_module(pkg.__name__ + ".blender.prefs").get()
     bpy.ops.wm.read_homefile(use_empty=True)
+    try:                                         # app 0.2.151 and newer: every function, never locked
+        importlib.import_module(pkg.__name__ + ".blender.workspaces").use_all(bpy.context.scene)
+    except (ImportError, AttributeError):
+        pass
     saved = prefs.default_template if prefs else ""
     if prefs:
         prefs.default_template = ""          # the built-in sorting rules, not the owner's own template

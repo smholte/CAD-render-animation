@@ -261,6 +261,8 @@ class Context:
             shutil.rmtree(import_runner.ImportJob(step, quality, ops_import.cache_root()).cache_dir,
                           ignore_errors=True)
         bpy.ops.wm.read_homefile(use_empty=True)
+        from ..blender import workspaces
+        workspaces.use_all(bpy.context.scene)   # the check's own project: every function, never locked (task 0062)
         p = fr_prefs.get()
         saved = p.default_template if p else ""
         if p:

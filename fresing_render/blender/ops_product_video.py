@@ -29,6 +29,7 @@ class FRESING_OT_product_video(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
+        context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
         info = product_video.make(context.scene)
         msg = product_video.status(info)
         context.scene.fresing.last_message = msg

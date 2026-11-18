@@ -145,6 +145,21 @@ class FRESING_PT_next(_Panel, bpy.types.Panel):
 # =============================================================================
 
 
+def shows_section(context, sec: str) -> bool:
+    """Does this section show in this project now (its workspace shows it, and its own poll says yes)?"""
+    if workspaces.panel_hidden(context.scene, sec):
+        return False
+    cls = getattr(bpy.types, sec, None)
+    try:
+        return bool(panels.visible(sec, context, folds=False)) and (cls is None or _own_poll(cls, context))
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def _own_poll(cls, context) -> bool:
+    return context.scene.fresing.model_count > 0 or cls.__name__ == "FRESING_PT_import"
+
+
 class FRESING_PT_tabs(_Panel, bpy.types.Panel):
     bl_label = "Sections"
     bl_order = 0
@@ -156,8 +171,10 @@ class FRESING_PT_tabs(_Panel, bpy.types.Panel):
         row.scale_y = 1.2
         now = panels.tab()
         row.operator("fresing.panel_tab", text="All", depress=now == "ALL").tab = "ALL"
-        for i in range(1, len(places.SECTIONS) + 1):
-            row.operator("fresing.panel_tab", text=str(i), depress=now == str(i)).tab = str(i)
+        for i, sec in enumerate(places.SECTIONS, 1):
+            sub = row.row(align=True)
+            sub.enabled = shows_section(context, sec)          # greyed out: this project or workspace has no such
+            sub.operator("fresing.panel_tab", text=str(i), depress=now == str(i)).tab = str(i)   # section now
         from . import prefs
         p = prefs.get()
         if p is not None and not p.knows_ctrl_click:

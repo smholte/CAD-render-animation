@@ -2209,6 +2209,8 @@ def _fresh(folder: str, version: str):
     import bpy
     bpy.ops.wm.read_homefile(use_empty=True)
     scene = bpy.context.scene
+    from . import workspaces
+    workspaces.use_all(scene)                    # the demo shows everything, whatever the user's default workspace
     scene.fresing.out_folder = os.path.join(project_dir(folder, version), "Renders")
     return scene
 

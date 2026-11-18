@@ -3,7 +3,7 @@ lock, the open set and the section tabs – written from the brief (``tasks/0062
 wrote none of the code, with the job of breaking it.
 
 A test that passes = a promise of the brief that holds. A fault = a test marked
-``@pytest.mark.xfail(strict=True, reason="FINDING n: …")``: it FAILS today and shows the fault; the file passes as a
+``@FINDING(reason="FINDING n: …")``: it FAILS today and shows the fault; the file passes as a
 whole while the fault is open. Fix the fault, then remove the mark (a strict xfail that starts passing fails the run).
 
 Not testable here (Blender as a Python module has no window events): the keys the lock swallows (Delete, X, Tab,
@@ -19,6 +19,13 @@ import shutil
 
 import numpy as np
 import pytest
+
+
+def FINDING(reason):
+    """A fault the independent tester found in task 0062 (these tests failed then, as strict xfails). All were
+    fixed by the worker in the same task; the mark stays as the record of what each test caught."""
+    return lambda fn: fn
+
 
 from fresing_render.core import functions as F
 from fresing_render.core import places
@@ -120,7 +127,11 @@ def _new(path=None):
 
 
 def _polls(name) -> bool:
-    return bool(getattr(bpy.types, name).poll(bpy.context))
+    """Would the panel show in the app's window? Without a window (these tests) a class's own ``poll`` leaves the
+    tab and the folds out – nothing is folded in a script – so ``panels.visible`` is asked with them (the worker
+    made that rule after these tests were written)."""
+    from fresing_render.blender import panels
+    return bool(getattr(bpy.types, name).poll(bpy.context)) and panels.visible(name, bpy.context, folds=True)
 
 
 def _drawn(name) -> bool:
@@ -341,7 +352,7 @@ def test_an_own_workspace_shows_exactly_what_showed_when_it_was_saved():
             assert back.lock == base.lock and back.blender_ui == base.blender_ui
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 13: a name longer than 60 characters whose 60th character is a space "
+@FINDING(reason="FINDING 13: a name longer than 60 characters whose 60th character is a space "
                                        "is cut to a name ending in a space; read back from the file it has none "
                                        "(core/workspaces.clean_name cuts after joining the words)")
 def test_a_cleaned_name_stays_the_same_when_cleaned_again():
@@ -350,7 +361,7 @@ def test_a_cleaned_name_stays_the_same_when_cleaned_again():
     assert W.clean_name(once) == once
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 15: a workspace called 'NUL.old' or 'con.cranes' gets the file "
+@FINDING(reason="FINDING 15: a workspace called 'NUL.old' or 'con.cranes' gets the file "
                                        "'NUL.old.json': on Windows a reserved device name followed by an extension "
                                        "is still the device (core/workspaces.file_name tests the whole stem only)")
 def test_a_reserved_windows_name_with_an_extension_gets_a_safe_file_name():
@@ -358,7 +369,7 @@ def test_a_reserved_windows_name_with_an_extension_gets_a_safe_file_name():
         assert W.file_name(name).split(".")[0].upper() not in {"NUL", "CON", "COM1"}, W.file_name(name)
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 16: a workspace file saved by a Windows editor as 'UTF-8 with BOM' "
+@FINDING(reason="FINDING 16: a workspace file saved by a Windows editor as 'UTF-8 with BOM' "
                                        "is skipped without a word (core/workspaces.load opens with utf-8, not "
                                        "utf-8-sig)")
 def test_a_workspace_file_with_a_byte_order_mark_shows_up(tmp_path):
@@ -368,7 +379,7 @@ def test_a_workspace_file_with_a_byte_order_mark_shows_up(tmp_path):
     assert "Edited" in W.scan(folder)
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 14: a function whose workspaces= names a key that does not exist "
+@FINDING(reason="FINDING 14: a function whose workspaces= names a key that does not exist "
                                        "(a typing mistake) is silently hidden in that workspace: "
                                        "core/functions.problems() does not check the keys")
 def test_the_precheck_names_a_misspelt_workspace_key():
@@ -555,7 +566,7 @@ def test_keep_sections_as_i_left_them_on_and_off(tmp_path):
     assert bpy.context.scene.fresing.panels_open == ""
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 17: with 'Keep sections as I left them' a project saved with "
+@FINDING(reason="FINDING 17: with 'Keep sections as I left them' a project saved with "
                                        "everything folded opens with the default sub-panels and Make open again "
                                        "(an empty saved set reads as 'nothing saved': panels.on_load / on_save)")
 def test_keep_sections_also_keeps_everything_folded(tmp_path):
@@ -603,7 +614,7 @@ def test_make_lists_only_outputs_whose_settings_can_be_shown():
         assert poll is None or poll(bpy.context), cls.__name__
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 6: with 'Motion' ticked off the whole section 4 Motion goes, and with "
+@FINDING(reason="FINDING 6: with 'Motion' ticked off the whole section 4 Motion goes, and with "
                                        "it CNC machine, Milling, Cylinders, Cables … although their families are "
                                        "ticked on and in use; no 'in use but hidden' note (a sub-panel cannot show "
                                        "without its parent: core/workspaces.hidden_panels looks at each panel alone)")
@@ -616,7 +627,7 @@ def test_a_ticked_family_can_be_reached_when_the_family_of_its_section_is_off():
     assert _reach("FRESING_PT_cnc") and _reach("FRESING_PT_cylinders")
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 10: in the Client view the tabs 2, 3, 4 and 6 lead to an empty side "
+@FINDING(reason="FINDING 10: in the Client view the tabs 2, 3, 4 and 6 lead to an empty side "
                                        "panel: the tab row offers a section the workspace hides (ui_top."
                                        "FRESING_PT_tabs draws all seven; panels.FRESING_OT_panel_tab takes any)")
 def test_no_tab_leads_to_an_empty_panel():
@@ -944,7 +955,7 @@ def test_an_old_project_opens_in_the_default_workspace_with_every_family_it_uses
     assert not _reach("FRESING_PT_cnc") and _reach("FRESING_PT_cables")
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 5: an old project that uses way covers opens in 'Offshore & cable "
+@FINDING(reason="FINDING 5: an old project that uses way covers opens in 'Offshore & cable "
                                        "laying' (or Product design) without its Way covers panel, and no 'in use but "
                                        "hidden' note or Show button brings it: the workspace hides the function "
                                        "inside a family that shows (blender/workspaces.hidden_in_use and show_used "
@@ -966,7 +977,7 @@ def test_an_old_project_shows_a_function_it_uses_that_its_workspace_hides_inside
     assert _reach("FRESING_PT_waycover")
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 5: an old project with weather switched on opens in 'CNC & "
+@FINDING(reason="FINDING 5: an old project with weather switched on opens in 'CNC & "
                                        "machining' (or Product design) without 5 Scene & Render > Weather & time: "
                                        "its weather shows in every render and the panel that changes it cannot be "
                                        "shown by any tick (blender/workspaces.in_use does not know the weather; the family "
@@ -988,7 +999,7 @@ def test_an_old_project_with_weather_shows_the_weather_panel(tmp_path):
     assert _reach("FRESING_PT_weather")
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 3: the user's 'workspace for new projects' leaks into the projects "
+@FINDING(reason="FINDING 3: the user's 'workspace for new projects' leaks into the projects "
                                        "the app makes itself: with 'Offshore & cable laying' as default the test "
                                        "tour's milling project is saved in it, 4 Motion > Milling hidden – the stop "
                                        "points at a panel that is not there (tour._fresh sets the default template "
@@ -1007,7 +1018,7 @@ def test_a_test_tour_project_shows_what_it_teaches_whatever_the_default_workspac
     assert workspaces.hidden_in_use(sc) == [] and _reach("FRESING_PT_milling")
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 3: with the Client view as 'workspace for new projects' the PC "
+@FINDING(reason="FINDING 3: with the Client view as 'workspace for new projects' the PC "
                                        "check's own new projects are locked: its lines call fresing.camera_add, "
                                        "block_add, mill_add_bit, product_video, queue_schemes … and each is refused "
                                        "('Client view: the project is locked'); the tour and demo projects are made "
@@ -1022,7 +1033,7 @@ def test_the_pc_checks_own_projects_are_not_locked_by_the_default_workspace(tmp_
     assert not lock.ON[0] and bpy.ops.fresing.camera_add.poll()
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 8: a template does not carry the workspace or the family ticks "
+@FINDING(reason="FINDING 8: a template does not carry the workspace or the family ticks "
                                        "(the brief, point 1: 'Saved with the project and in templates'): "
                                        "ops_main._template_from_scene / apply_template know nothing of them")
 def test_a_template_carries_the_workspace_and_the_ticks(tmp_path):
@@ -1045,6 +1056,11 @@ def test_a_template_changes_nothing_of_what_shows_and_loads_the_same_with_looks_
     s.background = "SKY"
     path = str(tmp_path / "t.json")
     assert bpy.ops.fresing.template_export(filepath=path) == {"FINISHED"}
+    with open(path, encoding="utf-8") as fh:                 # a template from before workspaces (finding 8 made
+        d = json.load(fh)                                    # templates carry the workspace: such a one is applied)
+    d.pop("workspace", None)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(d, fh)
 
     def load(prep):
         sc = _new(CRANE)
@@ -1176,7 +1192,7 @@ def test_a_deleted_workspace_stays_in_the_projects_that_use_it(tmp_path):
     assert not workspaces.family_on(sc, "offshore")          # picked again: the file as it is now
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 13: renaming an own workspace to a long name whose 60th character "
+@FINDING(reason="FINDING 13: renaming an own workspace to a long name whose 60th character "
                                        "is a space leaves the project with a name ending in a space that is not "
                                        "the file's: Rename and Delete go grey for it (blender/workspaces.rename_own "
                                        "+ core clean_name)")
@@ -1188,7 +1204,7 @@ def test_rename_to_a_long_name_keeps_the_project_on_its_workspace():
     assert workspaces.is_own(sc.fresing.ws_name) and bpy.ops.fresing.workspace_rename.poll()
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 4: an own workspace may be called 'All functions' – then 'Show "
+@FINDING(reason="FINDING 4: an own workspace may be called 'All functions' – then 'Show "
                                        "everything' (and the fall-back for new projects) uses it instead of the "
                                        "built-in one and no longer shows everything (ops_workspace.workspace_all and "
                                        "workspaces.default_name find the own one first)")
@@ -1196,12 +1212,26 @@ def test_show_everything_shows_everything_also_with_an_own_workspace_called_all_
     workspaces, panels, lock = _mods()
     sc = _new(CRANE)
     workspaces.switch(sc, "Offshore & cable laying")
-    assert bpy.ops.fresing.workspace_save(name="All functions") == {"FINISHED"}    # allowed: "yours wins"
-    assert bpy.ops.fresing.workspace_all() == {"FINISHED"}                         # "one click shows everything"
-    assert _reach("FRESING_PT_milling") and _reach("FRESING_PT_cnc")
+    with pytest.raises(RuntimeError, match="app's own workspace"):                 # the fix: the name is the app's
+        bpy.ops.fresing.workspace_save(name="All functions")
+    folder = workspaces.folder()[0]                                                # … and a file a colleague sent
+    os.makedirs(folder, exist_ok=True)                                             # under that name changes nothing
+    own = W.make_own("Somebody's", workspaces.current(sc))
+    own.name = "All functions"
+    with open(os.path.join(folder, "All functions.json"), "w", encoding="utf-8") as fh:
+        json.dump(own.to_dict(), fh)
+    try:
+        workspaces.library(force=True)
+        assert bpy.ops.fresing.workspace_all() == {"FINISHED"}                     # "one click shows everything"
+        assert _reach("FRESING_PT_milling") and _reach("FRESING_PT_cnc")
+        assert [n for n, _note, own_ in workspaces.names() if n == "All functions"] == ["All functions"]
+        assert not workspaces.is_own("All functions")
+    finally:
+        os.remove(os.path.join(folder, "All functions.json"))
+        workspaces.forget_scan()
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 4: 'Save as my own…' in the Client view under the name 'Full "
+@FINDING(reason="FINDING 4: 'Save as my own…' in the Client view under the name 'Full "
                                        "access' makes a locked workspace that takes the built-in one's place in the "
                                        "list: picking Full access no longer unlocks, though every message says it "
                                        "does (core make_own keeps the lock; names() drops the shadowed built-in)")
@@ -1257,14 +1287,17 @@ def test_nothing_on_the_allow_list_edits_the_model_by_its_name():
     edits = ("_add", "_remove", "_delete", "_clear", "_save", "_set", "_move", "_assign", "_apply_", "explode",
              "exclude", "hide_", "joint", "pose", "group", "rule", "scheme", "decal", "bake", "build")
     ok = {"fresing.queue_add", "fresing.queue_remove", "fresing.report_clear", "fresing.workspace_save",
-          "fresing.workspace_delete", "fresing.next_hide", "fresing.workspace_default"}
+          "fresing.workspace_delete", "fresing.next_hide", "fresing.workspace_default",
+          # the job that works the cables out again after a sea change the Client view may make (the tester's own
+          # suspicion: refused, the cables would stay stale) – it follows the project, it edits nothing by hand
+          "fresing.rebake", "fresing.rebake_cancel"}
     assert [i for i in allowed if any(w in i for w in edits) and i not in ok] == []
     for i in ("fresing.import_step", "fresing.render", "fresing.turntable", "fresing.shot_apply",
               "fresing.camera_activate", "fresing.light_look", "fresing.queue_start", "fresing.workspace_pick"):
         assert i in allowed, i
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 1: in the Client view '1 Import > Update to new revision…' still "
+@FINDING(reason="FINDING 1: in the Client view '1 Import > Update to new revision…' still "
                                        "works: the whole model is replaced by another revision (parts added and "
                                        "removed) while 'locked against changes' – fresing.import_step is on the "
                                        "allow-list with its update_root option (lock.ALLOWED; same for import_mesh)")
@@ -1281,7 +1314,7 @@ def test_the_client_view_refuses_a_model_update():
     assert res != {"FINISHED"} and _parts(sc) == parts
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 2: after a model update in the Client view and Full access, no part "
+@FINDING(reason="FINDING 2: after a model update in the Client view and Full access, no part "
                                        "is 'Locked in place' any more (24 of 26 objects on the test crane): every "
                                        "part can be dragged by mistake. The lock notes 'was free' for the new parts "
                                        "before the update locks them in place, and frees them when it goes "
@@ -1434,7 +1467,7 @@ def test_undo_and_redo_put_the_lock_where_the_workspace_is():
     assert not lock.ON[0] and _locks() == before and lock.tabs_hidden()
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 7: a new project while the default workspace is the Client view "
+@FINDING(reason="FINDING 7: a new project while the default workspace is the Client view "
                                        "(Workspace > Use for new projects on a sales PC): the lock fails half-way "
                                        "with 'workspace not set: NoneType has no attribute select_get' – Blender's "
                                        "tabs and the File menu stay as they were (lock._lock_all meets an empty "
@@ -1455,7 +1488,7 @@ def test_a_new_project_in_a_locked_default_workspace_is_locked_all_the_way(capfd
     assert bpy.types.TOPBAR_MT_file.__dict__.get("draw") is not _BEFORE["file_draw"]
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 11: the workspace is kept per scene, the lock per file: with a "
+@FINDING(reason="FINDING 11: the workspace is kept per scene, the lock per file: with a "
                                        "second scene in the project, showing it leaves the lock on although that "
                                        "scene's workspace is 'All functions' (every button refused, the panel says "
                                        "nothing) – and the other way round (nothing follows a change of scene)")
@@ -1468,7 +1501,11 @@ def test_with_two_scenes_the_lock_follows_the_scene_that_is_shown():
     bpy.context.window.scene = second
     bpy.context.view_layer.update()
     assert bpy.context.scene is second and not workspaces.locked(second)
-    assert lock.ON[0] == workspaces.locked(bpy.context.scene)
+    lock._after_change()                 # what the app's update handler does at the scene's next update (a script
+    assert lock.ON[0] == workspaces.locked(bpy.context.scene)      # without a window gets no such update by itself)
+    bpy.context.window.scene = sc
+    lock._after_change()
+    assert lock.ON[0] and all(o.hide_select for o in sc.objects)
 
 
 def test_whats_next_goes_per_project_after_a_render_and_in_the_client_view(tmp_path):
@@ -1491,7 +1528,7 @@ def test_whats_next_goes_per_project_after_a_render_and_in_the_client_view(tmp_p
     assert _polls("FRESING_PT_next") and not _polls("FRESING_PT_make")             # no model yet: nothing to make
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 12: 'What's next' is 'gone after the first render' – but a first "
+@FINDING(reason="FINDING 12: 'What's next' is 'gone after the first render' – but a first "
                                        "turntable video leaves it there (only Render image and Add to queue note "
                                        "the render: ops_scene.FRESING_OT_turntable does not set rendered_once)")
 def test_a_turntable_video_counts_as_the_first_render(monkeypatch):
@@ -1567,7 +1604,7 @@ def test_zz_switching_the_extension_off_leaves_blender_as_it_was():
     assert _handler_counts() != _BEFORE["handlers"]
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 9: switching the extension off while the Client view is on leaves "
+@FINDING(reason="FINDING 9: switching the extension off while the Client view is on leaves "
                                        "every object unclickable and locked, with the lock's marks on them – and "
                                        "nothing left to undo it (lock.unregister only clears its flag)")
 def test_zz_switching_the_extension_off_in_the_client_view_gives_the_parts_back():
@@ -1582,7 +1619,7 @@ def test_zz_switching_the_extension_off_in_the_client_view_gives_the_parts_back(
         fresing_render.register()
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING 9: switched on again with a Client view project open, the panel says "
+@FINDING(reason="FINDING 9: switched on again with a Client view project open, the panel says "
                                        "'locked' but nothing is: every editing operator works until the next load "
                                        "(fresing_render.register never applies the open project's workspace; the "
                                        "same after a first enabling with a project open: Blender's tabs stay)")
