@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.157 – 18 Nov 2026 – A new sea state in about 2 seconds; the sea cut-away in the 3D view costs nothing (task 0202)
+
+- **Changing the sea state, the wind or the water clarity is quicker.** The sea's water look and its waves keep what
+  they are made of and only take the new numbers: on the demo vessel a new sea state is ready in 2–2.5 s instead of
+  about 7 s (the hoses and cables are worked out again afterwards, as before). Pictures are exactly as before. In a
+  project from an earlier version the first change still takes the old time once.
+- **The open box behind the stern in the 3D view no longer slows playing.** 0.2.153 cost about 6 ms a frame on a
+  Detailed sea; now it costs nothing measurable. Its edge is a straight wall along the box (no jagged spikes), and the
+  hull foam and, with the ground, the seabed and its stones are open there too. Renders are made exactly as before.
 ## 0.2.156 – 18 Nov 2026 – Lifting plan: place a crane, the load and its CoG, Hook to here (task 0201)
 
 - **New section 8 Lifting plan** and a new workspace **Lifting plans** (lifting plan, import, structure, looks, scene,

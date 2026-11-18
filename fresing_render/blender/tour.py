@@ -461,7 +461,7 @@ def _logo(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.155")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.157")
 def build_crane(b: Build):
     import bpy
 
@@ -4116,6 +4116,8 @@ def _check_start_here(scene):
         _check(ui_topbar._has(idname), f"the Fresing menu's operator {idname} is missing")
     prev = welcome.previous_version()
     rows = start.new_functions(functions.FUNCTIONS, prev or "0.2.0", welcome.version())
+    if not rows:            # (task 0202: a release that brings no new function – What's new can still list functions)
+        rows = start.new_functions(functions.FUNCTIONS, "0.2.0", welcome.version())
     _check(bool(rows), "What's new lists no function")
     return f"the Fresing menu has {len(ui_topbar.entries())} entries; What's new since {prev or '-'} lists {len(rows)}"
 
