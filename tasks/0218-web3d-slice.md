@@ -64,8 +64,8 @@ feel like a real viewer's tool.
 ## Not in this task
 
 Measuring changes (labels apart, edges – task **0219**, next in this lane); a page that opens on its own by a link or
-reads STEP in the browser (ToolBox plan, later); the app's own 3 Looks > Cutaway panel (owner decides whether it is
-renamed too); `house-planner-dev`.
+reads STEP in the browser (ToolBox plan, later); the app's own 3 Looks > Cutaway panel (renamed to Slice by **0220**, owner 18 Nov 23:06 –
+use the same words: "Slice", "Add slice", "Slice 1"); `house-planner-dev`.
 
 ---
 
