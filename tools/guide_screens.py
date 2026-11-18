@@ -603,6 +603,7 @@ if MODE == "panels":
         ("panel_3_xray", [("FRESING_PT_xray", False, True)]),             # the cover in X-ray (task 0073)
         ("panel_4_motion", [("FRESING_PT_motion", False, True)]),
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
+        ("panel_4_cylinders", [("FRESING_PT_cylinders", False, True)]),   # the luffing cylinder (build_state)
         ("panel_4_coupling", [("FRESING_PT_motion", False, True)]),     # a wheel follows the trolley
         ("panel_5_scene", [("FRESING_PT_scene", False, True)]),
         ("panel_5_surroundings", [("FRESING_PT_scene", False, True)]),
@@ -615,6 +616,7 @@ if MODE == "panels":
         ("panel_5_web3d", [("FRESING_PT_web3d", False, True)]),        # task 0099, after one export
         ("panel_5_shots", [("FRESING_PT_shots", False, True)]),
         ("panel_6_animation", [("FRESING_PT_animation", False, True)]),
+        ("panel_6_finishing", [("FRESING_PT_finishing", False, True)]),
         ("panel_6_motor", [("FRESING_PT_animation", False, True)]),     # a Run motor step
         ("panel_6_fade", [("FRESING_PT_animation", False, True)]),      # a Fade out step to X-ray (task 0073)
         ("panel_6_camera_ride", [("FRESING_PT_animation", False, True)]),   # a Ride along camera step (task 0087)
@@ -624,8 +626,14 @@ if MODE == "panels":
         ("panel_6_camera_path", [("FRESING_PT_animation", False, True)]),   # a Fly a path camera step (task 0087)
         ("panel_6_trails", [("FRESING_PT_trails", False, True)]),       # a trail line on the trolley, built
         ("panel_7_queue", [("FRESING_PT_queue", False, True)]),
+        # task 0062: the top of the tab (Workspace row opened with its family ticks, the tabs, the Make list)
+        ("panel_top_workspace", [("FRESING_PT_workspace", False, True)]),
+        ("panel_top_tabs", [("FRESING_PT_tabs", False, True)]),
+        ("panel_top_make", [("FRESING_PT_make", False, True)]),
         # the whole side panel with every section closed: the headers show the state of each
-        ("sidebar_sections", [(n, True, False) for n in ("FRESING_PT_import", "FRESING_PT_structure",
+        ("sidebar_sections", [(n, True, False) for n in ("FRESING_PT_workspace", "FRESING_PT_next",
+                                                         "FRESING_PT_tabs", "FRESING_PT_make",
+                                                         "FRESING_PT_import", "FRESING_PT_structure",
                                                          "FRESING_PT_looks", "FRESING_PT_motion",
                                                          "FRESING_PT_scene", "FRESING_PT_animation",
                                                          "FRESING_PT_queue")]),
@@ -793,6 +801,8 @@ if MODE == "panels":
                 sc.fresing.background = "QUAY"
                 sc.fresing.weather.enabled = True
                 mod("blender.weather").use_preset(sc, "GREY_NORTH_SEA")
+                sc.camera = sc.camera or next(iter(mod("blender.cameras").fr_cameras(sc)))
+                mod("blender.states").save_shot(sc, "Overview")      # the start scene has the weather: no note
             elif name == "panel_5_web3d":               # exported once: the result line and its buttons show
                 # task 0106: with Surroundings on the page open, as in the project (a sea) with haze and rain
                 mod("blender.ui")._OPEN_FOLDS = True
@@ -813,6 +823,8 @@ if MODE == "panels":
                 sur = mod("blender.surroundings")
                 sur.remove_props(sc)
             show_only(spec)
+            if name == "panel_top_tabs":                # the tab 4 pressed
+                bpy.context.window_manager.fresing_tab = "4"
             wiggle()
             return 2.5
 
@@ -1029,7 +1041,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
-    #   labels:   Labels, Pictures and Music folds (test crane)
+    #   labels:   Labels, Pictures, Music, Brand kit and Watermark (6 Animation; test crane)
     #   coolant:  CNC machine > Coolant (task 0042) and the G-code step with its coolant line (test_gantry.step)
     # Same command as "panels" (xvfb 1500x7000), with GUIDE_SHOTS=waycover / air / labels.
     MILL = os.path.join(DATA, "test_gantry.step")
@@ -1278,9 +1290,20 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             a.music_on, a.music_file = True, wav
             a.music_fade_in, a.music_fade_out = 1.0, 2.0
         step(lambda: (_label_setup(), 1.0)[1])
-        _grab("panel_5_labels", [("FRESING_PT_labels", False, True)])
+        def _brand_setup():
+            s = bpy.context.scene.fresing
+            s.brand_name = "Example Ltd"
+            s.brand_logo = os.path.join(SCRATCH, "logo.png")
+            s.brand_contact = "www.example.com"
+            s.still_logo = "BR"
+            s.wm_kind = "CUSTOM"
+            s.wm_text = "DRAFT"
+            s.wm_on = True
+        _grab("panel_6_labels", [("FRESING_PT_labels", False, True)])      # task 0062: in 6 Animation now
         _grab("panel_6_cards", [("FRESING_PT_cards", False, True)])
         _grab("panel_6_music", [("FRESING_PT_music", False, True)])
+        _grab("panel_6_brand", [("FRESING_PT_brand", False, True)], _brand_setup)
+        _grab("panel_6_watermark", [("FRESING_PT_watermark", False, True)])
 
 elif MODE in ("toolchange", "toolchange_view"):
     # task 0041: Tool changes (manual and ATC) on the test gantry; "toolchange" = the panels (xvfb 1500x7000),
@@ -1737,6 +1760,29 @@ elif MODE in ("toolpath", "toolpath_view"):
             return 2.5
         step(_show_tp)
         step(lambda: (shoot_sidebar("panel_4_toolpath"), 0.5)[1])
+
+        # the other mill panels on the same model (task 0062 re-made them): Milling, Chips, CNC machine, Tools and the
+        # Run G-code program step the toolpath made
+        def _mill_shot(name, spec):
+            def show():
+                if name == "panel_4_chips":
+                    machining.settings(bpy.context.scene).chips = "FEW"
+                show_only(spec)
+                wiggle()
+                return 2.5
+
+            def shoot():
+                shoot_sidebar(name)
+                return 0.5
+            show.__name__, shoot.__name__ = f"show_{name}", f"shoot_{name}"
+            step(show)
+            step(shoot)
+        machining = mod("blender.machining")
+        _mill_shot("panel_4_milling", [("FRESING_PT_milling", False, True)])
+        _mill_shot("panel_4_chips", [("FRESING_PT_milling_chips", False, True)])
+        _mill_shot("panel_4_cnc", [("FRESING_PT_cnc", False, True)])
+        _mill_shot("panel_4_tools", [("FRESING_PT_cnc_tools", False, True)])
+        _mill_shot("panel_6_gcode", [("FRESING_PT_animation", False, True)])
     else:
         def _tp_frame():
             sc = bpy.context.scene

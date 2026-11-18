@@ -2493,7 +2493,7 @@ machine's lowest point stands on the floor, deck or quay, centred; the machine i
 
 Their settings appear under the choice:
 
-- **Sea**: **Calm** (a gentle breeze, Beaufort 3), **Rough** (a strong breeze, Beaufort 6) or **From the wind**
+- **Sea** (a drop-down): **Calm** (a gentle breeze, Beaufort 3), **Rough** (a strong breeze, Beaufort 6) or **From the wind**
   (the wind of Weather & time, below: its strength and direction). The waves are many waves of different lengths
   and directions, as a real sea has them, so the sea never repeats – also seen from high above or towards the
   horizon. White caps form only where waves are steep, in patches that come and go and drift with the wind, about
@@ -2613,11 +2613,12 @@ looks the same every time it is rendered. Everything plays with "Auto Run Python
 
 The machine really works on a moving ship: the deck, the machine and the props heave (rise and fall), pitch (bow
 and stern up and down) and roll (side to side) gently with the sea, while the sea, the sky and the camera stay put –
-as a drone sees it. It works on the **Open sea** and the **Vessel deck** (for other surroundings the panel says so).
+as a drone sees it. It works on the **Open sea** and the **Vessel deck**. Without a sea the panel shows one
+line and the button **Use the Open sea**, which sets it up.
 
 1. Tick **Move with the sea**. Press Play (Space) on the time line to see it; a picture of one frame shows the
    vessel as it lies at that moment.
-2. **Sea**: **Calm** or **Rough** (the same setting as under Background & surroundings).
+2. **Sea** (a drop-down): **Calm** or **Rough** (the same setting as under Background & surroundings).
    - **Calm** (a working day of a cable-lay vessel): roll about ±1–1.5° once in 10–12 s, pitch ±0.3–0.6° in 6–8 s,
      heave ±0.2–0.4 m in 7–9 s, mixed so it never repeats.
    - **Rough** (near the working limit): about three times that, roll up to about ±4°.
@@ -2669,7 +2670,7 @@ about 6 ms per frame of playback on a 3,000-part machine.
 What the vessel does shows in the water: sailing ahead it leaves a white wake behind the stern and its waves fan out
 behind the bow, holding its place on its thrusters it throws white, boiling jets out beside the hull – and the
 propellers turn with it. It works on the **Open sea** and the **Vessel deck**, with **Foam** ticked (Background &
-surroundings).
+surroundings). Without a sea the panel shows one line and the button **Use the Open sea**.
 
 1. Open **Thrusters** and press **Find thrusters**: the app looks for joints whose names say propeller (screw,
    schroef, Schraube) and reads what kind each one is – an **Azimuth** (a propeller in a pod that steers round on
@@ -3494,9 +3495,10 @@ detail switch of props for scale (light far from the camera).
 A part that drives through another one ruins a video, and can hide a real design fault. The **Clash check**
 fold goes through the built animation and lists every two parts that run into each other.
 
-1. **Build & play** the animation first.
+1. **Build & play** the animation first. Until then the panel shows one line and a **Build & play**
+   button; **Check for clashes** appears after the Build.
 2. **Check for clashes**. It shows how far it is; **Cancel** (or <kbd>Esc</kbd>) stops it. The panel's header
-   then says **3 clashes**, **No clashes**, or **Not checked since the last Build**.
+   then says **3 clashes**, **no clashes**, or **not checked** (the animation was built again since).
 3. The list: the two parts (their names as in the tree), the frames from–to, and how deep they go into each
    other at the worst moment, deepest first. A marker on the time line shows where each clash starts.
 4. **Click a row**: the time line goes to the moment they are deepest in each other, both parts are selected,
@@ -3631,7 +3633,7 @@ plays everywhere.
 <a id="brand-kit"></a>
 ### Brand kit & logo
 
-<img class="panel" src="img/panel_5_brand.png" alt="Brand kit &amp; logo">
+<img class="panel" src="img/panel_6_brand.png" alt="Brand kit &amp; logo">
 
 A brand kit is a company's look for its videos and pictures: the logo, two colours, a font and a contact
 line. You work for your own company and for others, so there is one kit per company; every project uses
@@ -3659,7 +3661,7 @@ be changed or deleted: load it, give it another name and **Save kit** to make a 
 A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
 25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
 
-<img class="panel" src="img/panel_5_labels.png" alt="Labels fold: two labels, the second one picked">
+<img class="panel" src="img/panel_6_labels.png" alt="Labels fold: two labels, the second one picked">
 
 1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.
    The face under the mouse lights up with the part's name before you click.)
@@ -3687,7 +3689,7 @@ these words stay as typed; a number the cable does not have yet shows "–".
 <a id="watermark"></a>
 ### Watermark
 
-<img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
+<img class="panel" src="img/panel_6_watermark.png" alt="Watermark">
 
 Words or a logo across the picture, for a draft you send before the final render.
 
@@ -3812,7 +3814,8 @@ shows what this version can do.
    you have marked.
 2. Click a stop. Under the list you see what you should see and where the function is in the side panel.
 3. Click **Go**. The app opens the stop's project if needed, sets up its saved scene, builds and plays its
-   animation, selects the part and looks through the camera.
+   animation, selects the part and looks through the camera. It also opens the side-panel section that holds
+   the function, so you see its settings straight away.
 4. Look. Then click **OK** or **Problem** (click again to take the mark off). With a problem, click
    **Note…** and write in a few words what you saw.
 5. **Next** goes to the next stop.
