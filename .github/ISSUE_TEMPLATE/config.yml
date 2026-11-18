@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private report – company models or security
+    url: https://github.com/smholte/CAD-render-animation/security/advisories/new
+    about: For a security problem, or when the problem only shows with a confidential model. Only the owner can read it. Never put these in a public issue.

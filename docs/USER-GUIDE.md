@@ -73,6 +73,9 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 
 *All pictures in this guide show the small test crane that comes with the app's tests.*
 
+*Using the app in a company (what it sends over the network, holding one approved version, the licence in plain words):
+[Using Fresing Render in a company](https://github.com/smholte/CAD-render-animation/blob/main/docs/COMPANY-USE.md).*
+
 <a id="layout"></a>
 ## How the app is laid out
 

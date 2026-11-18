@@ -1,0 +1,33 @@
+name: Idea or feature request
+description: Something the app could do, or do better
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public.** Do not attach confidential models, part names or screenshots (yours or a client's).
+        Ideas are welcome; code contributions and pull requests are not taken for now (see CONTRIBUTING.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do?
+      description: The work you are trying to get done, in your own words – not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could the app help?
+      description: What you would click or see. Sketches are welcome if they hold nothing confidential.
+  - type: input
+    id: version
+    attributes:
+      label: Fresing Render version
+      description: In the app, the Fresing menu at the top shows it ("What's new in 0.2.xxx").
+  - type: checkboxes
+    id: confidential
+    attributes:
+      label: Nothing confidential
+      options:
+        - label: This request contains no confidential models, part names or screenshots.
+          required: true

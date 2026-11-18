@@ -48,8 +48,10 @@ WORKFLOW = "tests.yml"
 INIT = "fresing_render/__init__.py"
 MANIFEST = "fresing_render/blender_manifest.toml"
 VERSION_FILES = (INIT, MANIFEST)
-DOC_PREFIXES = ("docs/", "tasks/", "site/")       # site/: the landing page (task 0047)
-DOC_FILES = ("CHANGELOG.md", "CLAUDE.md", "README.md", "TASKS.md", "tools/build_site.py", "tests/test_site.py")
+DOC_PREFIXES = ("docs/", "tasks/", "site/",       # site/: the landing page (task 0047)
+                ".github/ISSUE_TEMPLATE/")        # the issue forms (task 0205)
+DOC_FILES = ("CHANGELOG.md", "CLAUDE.md", "README.md", "TASKS.md", "tools/build_site.py", "tests/test_site.py",
+             "LICENSE", "THIRD-PARTY-NOTICES.md", "SECURITY.md", "CONTRIBUTING.md")      # repository basics (task 0205)
 TASK_LIST_ONLY = ("TASKS.md", "tasks/")
 # Jobs that must all be green in a run before its tree counts as proven (new and old workflow names).
 BUILD_JOB = "Build the Windows installer zip"

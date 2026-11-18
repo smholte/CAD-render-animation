@@ -575,7 +575,11 @@ tools/                     build_release.py, release_tools.py (release job), mea
                            prototype/ = the app side worked out and tried in Blender (motion_plan.py, try_in_blender.py)
 tests/                     pytest suite (pure Python + Blender as a Python module)
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
+LICENSE, THIRD-PARTY-NOTICES.md, SECURITY.md, CONTRIBUTING.md, .github/ISSUE_TEMPLATE/   (task 0205: GPL-3.0-or-later; what
+                           others made and under which licence; private reports; no outside code for now; issue forms)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md (how updates work),
+                           COMPANY-USE.md (task 0205: for a company's IT/legal reader – what reaches the network, one approved
+                           version from a network folder, the licence in plain words; keep it true when the network use changes),
                            USER-GUIDE.md (+ img/: the user guide), TOOLTIPS-TODO.md (tooltips still to do),
                            SURROUNDINGS.md (surroundings, props, free 360° photos and how to add them)
 ```
@@ -649,7 +653,8 @@ animation's first frame so it is as strict as one whole check). The first job,
 
 - **full** – every job below.
 - **docs** – the push changes only `docs/`, `site/`, `tools/build_site.py`, `tests/test_site.py`, `CHANGELOG.md`,
-  `CLAUDE.md`, `README.md`, `TASKS.md`, `tasks/` and at most the version line of the two version files, compared with
+  `CLAUDE.md`, `README.md`, `LICENSE`, `THIRD-PARTY-NOTICES.md`, `SECURITY.md`, `CONTRIBUTING.md`,
+  `.github/ISSUE_TEMPLATE/`, `TASKS.md`, `tasks/` and at most the version line of the two version files, compared with
   a commit whose run is proven green (build + verdict green; a reuse run proves nothing by itself): only precheck,
   build, tooltip check, guide build and their tests (`test_user_guide.py`, `test_updates.py`, `test_ci_tools.py`,
   `test_site.py`). The commits looked at (task 0170): every commit the push brings, all parents (so a branch's green
@@ -795,6 +800,11 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   or line does not exist (its message says what to fix). A picture, video or 3D model on the site names its functions
   in `site/media/media.json` (`"functions": [...]`): the page links them to the guide. (The lesson rule follows with the
   lessons task, study 0123.)
+- **Licence and third parties** (task 0205): the app is GPL-3.0-or-later (`LICENSE`). A new library, font, picture, model
+  or sound from someone else goes into `THIRD-PARTY-NOTICES.md` in the same task, with its licence **checked at its
+  source** (not from memory); one whose licence does not allow a public repository or shipping is flagged to the owner,
+  not committed. A task that adds something that reaches the network updates `docs/COMPANY-USE.md` (its network table
+  names file and line).
 - **Counts** in labels and messages: `core/words.plural(n, "part")` gives "1 part" / "3 parts"
   (`verb()` for the verb that goes with it): never "1 parts".
 - **User guide:** a task that changes what the owner sees updates its chapter of
