@@ -3964,6 +3964,8 @@ exactly as on the built-in cranes.
    then **Make**. Or **Click the axis** on the model, as in 4 Motion. Under the made joint: its **limits** (from
    the maker's data sheet) and **Flip**. A step a crane does not have (a fly jib) is skipped with **Next**.
 
+<img class="panel" src="img/setup_crane_luff.png" alt="Set up a mobile crane, step 3 Luff: the joint made, its limits 0° to 82°, Flip, + raises the boom">
+
 **The steps per kind**
 
 - **Mobile telescopic crane:** Model → Slew (the superstructure; the slewing ring's round face, upright) → Luff (the
@@ -3984,16 +3986,22 @@ exactly as on the built-in cranes.
 - **Other crane:** the same building blocks in any order: pick the parts, pick the **role**, find the axes, Make.
   Slew, luff and hoist are needed.
 
+<img class="panel" src="img/setup_crane_other.png" alt="Set up another crane, step Joints: every joint with its role picked by hand">
+
 **Roles.** Every joint carries its role (you see it in 4 Motion > Joints): **Slew**, **Luff**, **Telescope**,
 **Jib**, **Knuckle**, **Extension**, **Hoist**, **Hook swing**, **Outrigger**, **Jack**, **Track**, **Travel**. Hook
 to here finds the crane's joints by them, whatever they are called. A role knows its way round: + turns the slew
 anticlockwise seen from above, raises the boom, the jib and the knuckle, slides sections, extensions and beams out,
 lets the hook and the jacks down. A joint made the other way round is turned at once.
 
+<img class="panel" src="img/setup_crane_masses.png" alt="Masses & CoG of a knuckle-boom crane: the truck group with its parts, 15 t entered, its CoG typed">
+
 **Masses & CoG.** One box per group (carrier, superstructure, counterweight, boom, jib, hook block; for a
 knuckle-boom crane truck, column, main boom, outer boom, hook block): its parts (filled in from the joints), its mass
 **Entered** (the data sheet) or **Volume x density** (an estimate), its centre of gravity **worked out** from the
 parts' solids or typed (**CoG by hand**). **Work out** puts a marker at the CoG.
+
+<img class="panel" src="img/setup_crane_chart.png" alt="Load chart: Paste CSV, Read CSV…, a configuration with boom 10.8 m and spread 6 m and its rows of radius and capacity">
 
 **Load chart.** One table per configuration – boom length, jib, counterweight (t), outrigger spread (m) – with
 **Radius, m** and **Capacity, t** per row; an empty capacity is a gap (not allowed there). **Paste CSV** reads a chart
