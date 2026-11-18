@@ -1582,7 +1582,7 @@ def clash_problems(scene, data) -> list:
             b.kind, b.start, b.duration, b.easing = "POSE", t, 1.0, "LINEAR"
             b.name = b.pose = name
             steps.append((t, t + 1.0, "poses", False))
-            steps.append((t + 1.0, t + 2.0, "poses", True))
+            steps.append((t + 1.0, t + 2.0, "poses:" + name, True))
             t += 2.0
         for j in drive:
             lo, hi = joints.limits(j)
@@ -1612,16 +1612,17 @@ def clash_problems(scene, data) -> list:
                 continue
             s0 = (r.frame_from - scene.frame_start) / fps
             s1 = (r.frame_to - scene.frame_start) / fps
-            held = [(t0, rl) for t0, t1, rl, is_pose in steps if is_pose and s0 <= t1 - 0.02 and s1 >= t0 + 0.02]
+            held = [rl.split(":", 1)[1] for t0, t1, rl, is_pose in steps
+                    if is_pose and s0 <= t1 - 0.02 and s1 >= t0 + 0.02]
             if held:                               # the crane stands in one of its poses: a clash is a fault
                 key = (r.a, r.b, "poses")
                 if key not in seen:
                     seen.add(key)
-                    out.append(LS.Problem("poses", f"{r.a} × {r.b} clash by {r.depth * 1000:.1f} mm in a pose",
-                                          "red"))
+                    out.append(LS.Problem("poses", f"{r.a} × {r.b} clash by {r.depth * 1000:.1f} mm in the pose "
+                                                   + ", ".join(f"'{h}'" for h in held), "red"))
                 continue
             role = next((rl for t0, t1, rl, _p in steps if t0 <= s0 <= t1), "")
-            if role == "poses" or r.a in hanging or r.b in hanging:
+            if role.startswith("poses") or r.a in hanging or r.b in hanging:
                 continue                           # on the way between poses; the hook block where the rope is
             key = (r.a, r.b, role)
             if key in seen:
