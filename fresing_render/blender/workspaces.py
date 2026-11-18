@@ -413,13 +413,25 @@ def ensure(scene) -> bool:
     s = _settings(scene)
     if s is None or s.ws_name:
         return False
-    ws = W.find(default_name(), library()) or W.builtin("all")
+    if app_made(scene):                      # task 0213: an older tour / demo project (made before use_all)
+        ws = W.builtin("all")
+    else:
+        ws = W.find(default_name(), library()) or W.builtin("all")
     s.ws_name = ws.name
     s.ws_data = ws.to_json() if ws.own else ""
     s.ws_ticks = ""
     if not ws.lock:                          # a Client view hides on purpose
         show_used(scene)
     return True
+
+
+TAGS_APP_MADE = ("fr_tour", "fr_demo")    # tour.TAG, demo.TAG: projects the app makes to show what it can do
+
+
+def app_made(scene) -> bool:
+    """A test-tour or demo project: it opens with every function and unlocked, whatever the user's default
+    workspace (task 0213, an older one has no workspace yet)."""
+    return any(scene.get(tag) for tag in TAGS_APP_MADE)
 
 
 def use_all(scene) -> None:
@@ -540,6 +552,8 @@ def _after_undo(_dummy=None):
     try:
         if locked(scene) != lock.ON[0] or bool(lock.marked()) != lock.ON[0]:
             lock.apply(scene, locked(scene))
+        elif lock.ON[0]:                     # task 0213: an undo step pushed before the lock marked the objects
+            lock.relock()                    # (an import) brings them back unmarked: mark them again
         if blender_ui(scene) == lock.tabs_hidden():
             lock.blender_ui(blender_ui(scene))
     except Exception as exc:  # noqa: BLE001

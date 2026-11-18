@@ -5,10 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.164 – 18 Nov 2026 – Make > 3D page has its Export button again (task 0215)
+## 0.2.165 – 18 Nov 2026 – Make > 3D page has its Export button again (task 0215)
 - **Make > 3D page** shows all its settings (Surroundings, Light, On the page) and the **Export…** button again; since 0.2.152 it stopped after "Include animation".
 - The Web 3D panel answers a click, a selection or a frame change faster (the marine-looks estimate no longer reads every part again).
 - A sea cable with its own depth, on a page without vessel motion, now lies on its own bottom as in the app (it was up to 0.65 m off).
+## 0.2.164 – 18 Nov 2026 – The Client view stays locked (task 0213)
+- **Client view:** Blender's list of objects (the Outliner) can no longer be brought back while the project is locked – not from an area's editor menu, Shift+F9, a new window, another Blender workspace or Ctrl+Space. Before, the whole model could be selected and deleted there.
+- Ctrl+Z right after an import no longer frees the camera and the floor in the Client view.
+- **New camera view**, **Save scene** and **Every paint scheme** now work in the Client view (they were shown greyed out).
+- Ctrl+Z of something else no longer throws the Set-up window back to another step.
+- A test-tour or demo project made by an older version opens with every function and unlocked, also when your default workspace is the Client view.
 ## 0.2.163 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
 - Clicking a part in "Subassembly" pick mode no longer rebuilds the part tree each time, and the first mouse move in an axis picker (Add joint, Set axis, cylinders) is as quick as the later ones. Nothing looks different.
 ## 0.2.162 – 18 Nov 2026 – About Fresing Render and the licence files (task 0206)
