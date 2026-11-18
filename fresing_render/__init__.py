@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.167"
+__version__ = "0.2.168"
 
 _modules = []
 
@@ -36,6 +36,7 @@ def _classes():
     from .blender import ops_lifting_make, ui_lifting_make  # task 0204: 8 Lifting plan > Equipment > Make a crane…
     from .blender import ops_usage, ui_usage      # task 0181: the usage tracker, favourites bar, My usage
     from .blender import about                    # task 0206: About Fresing Render, the licence files
+    from .blender import apptools                 # task 0212: Fresing > Tools and checks
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -61,7 +62,7 @@ def _classes():
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
             + ops_house.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
-            + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES)
+            + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES)
 
 
 def _all_classes():

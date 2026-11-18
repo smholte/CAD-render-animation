@@ -1,6 +1,6 @@
 # 0212 – One shortcut only: "Fresing Render" on the Desktop and in the Start menu; the extras in the app and the app folder
 
-**Who:** worker · **Status:** running · **Branch:** `task/0212-one-shortcut-only`
+**Who:** worker · **Status:** done (0.2.167) · **Branch:** `task/0212-one-shortcut-only`
 **Started by:** lead, 18 Nov 2026 (owner's request with screenshots) · **Model:** Opus · effort Medium (Windows-only
 code: independent review before merging, CLAUDE.md section 6)
 **Area:** Quality & delivery lane – `installer/Install-FresingRender.ps1`, `installer/Uninstall-FresingRender.ps1`,
@@ -61,10 +61,66 @@ The app icon itself (0169); code signing (0207, waiting for the owner's budget);
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026 – version 0.2.167.
 
 **What changed:**
+- **Installer:** makes only `Fresing Render.lnk` on the Desktop and directly in Programs (no Start-menu folder). The
+  six extras go into `%LOCALAPPDATA%\FresingRender\Tools` with the Fr icon: `Self test`, `PC check (quick)` / `(full)` /
+  `(heavy)`, `Safe start`, `User guide`. Shortcuts of an older install are removed by name, and only when their target
+  lies inside the install folder. The app's own old Start-menu shortcut is moved, so a Pin to Start stays. The old
+  folder is removed when it is empty (Explorer's `desktop.ini` aside). Uninstall removes the old and the new names.
+- **The app (`appicon.py`):** `refresh_installed`, which runs at every start on Windows (in a thread), now also tidies an
+  older install (`old_shortcuts`, `tidy_plan`, `tidy_old`) and makes missing Tools shortcuts (`tools_specs`,
+  `ensure_tools`). Neither step needs the icon file. `pccheck/ops.py` no longer makes PC-check shortcuts with
+  PowerShell: removed `ensure_shortcuts`, `shortcut_script`, `missing_shortcuts`, `run_powershell` and their tests.
+  The shortcut texts now live in `pccheck/core.py`.
+- **Menu:** Fresing > **Tools and checks** has **Run the self-test** (new operator; runs the extension's own
+  `selftest.py` in its own console window), **PC check…** and **Open the app folder** (new operator, only in an
+  installed app). Both new operators are in `lock.ALLOWED`. Function entry `help.tools` (since 0.2.167), guide anchor
+  `tools-and-checks`.
+- **PC check:** new Full line `app.tools` (`MIN_LINES_FULL` 104). It checks the menu, and on an installed Windows app
+  also that no old shortcut of this install is left and that the Tools folder holds the shortcuts. A Desktop or Start
+  menu shortcut the user removed shows as a note, not as FAILED.
+- **Words:** user guide (install, Start here, self-test, PC check, guide location), README-install, COMPANY-USE (+
+  copy), CONTRIBUTING, bug-report form, installer's last lines, docstrings, workflow step names.
+  `THIRD-PARTY-NOTICES.md` (+ copy): the licence texts ship since 0206 (four places corrected).
+- **Windows CI (`tools/ci_windows_install.ps1`):**
+  - `Make-OldLayout` sets up the shortcuts as an install before 0212 had them, (a) before the old build updates itself
+    in the app and (b) before the repair; the repair also gets a foreign shortcut with an old name pointing to
+    notepad.exe, which must stay.
+  - `Check-OneShortcut` checks the Desktop, the Start menu and the Tools folder after the update, after the install,
+    after the repair and after the app's refresh of an older install.
+  - The self-test and the PC checks now start from the Tools shortcuts (a missing one is a problem).
+  - Uninstall checks the new name.
+  - `appicon_test.py` checks that an old Desktop extra is removed and a foreign one left alone.
+  - `update_test_blender.py` (after the update) runs what the app runs at start and checks the move.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** On the 4-core web machine: `test_apptools.py` (new, 4), `test_appicon.py`, `test_winexe.py`,
+`test_start.py`, `test_about_blender.py`, `test_pccheck.py`, `test_functions.py`, `test_user_guide.py`,
+`test_updates.py` all pass; precheck and tooltip report clean. The Windows parts ran only on GitHub's Windows (see
+runs below). Subagent: one independent reviewer of the Windows code. It found no blocking bug. Fixed from its list:
+the installer now moves the old app shortcut, desktop.ini is ignored, the tidy runs without an icon file, and the PC
+check notes a removed shortcut. Left as it is: Uninstall removes by name without a target check (as before, and as
+the brief says).
 
-**Open points / follow-up tasks:**
+**Runs:** 5 full runs. 1: the Windows install failed on one line of the task's own test (`appicon_test.py` listed the
+shortcuts without the Tools folder; all one-shortcut checks were green). 2–4: green, but each time another task had
+released the version number first (0213, 0215, 0214): merged `main`, took the next version. 5: green (0.2.167).
+
+**Open points:**
+- The CI starts the updated app in the background, so it calls `refresh_installed` directly. The start-up thread
+  itself (`appicon.startup` → `_shortcuts`) is only exercised on a real PC.
+- Windows 11 "Pin to Start" made from the old folder entry: the move should keep it, but not checked.
+- No test tour stop (a menu and shortcuts only; nothing to show on a test model).
+
+**Owner's check on your PC (no reinstall):**
+1. Start Fresing Render as always. When it says **Update available**, click **Update now** and wait until it opens again.
+2. Look at the **Desktop**: only **Fresing Render** (the "PC check" and "PC check (heavy)" icons are gone).
+3. Click **Start**, then **All** (all apps): one **Fresing Render** entry, no folder "Fresing Render".
+4. In the app: top bar **Fresing** > **Tools and checks** > **Open the app folder**. Explorer opens the **Tools**
+   folder with six shortcuts, all with the green Fr icon: Self test, PC check (quick), PC check (full), PC check
+   (heavy), Safe start, User guide.
+5. Optional: Fresing > Tools and checks > **Run the self-test**. A black window runs for a few minutes;
+   "Fresing Render self-test.txt" appears on the Desktop.
+6. If a pinned Start entry of Fresing Render disappeared, pin it again: Start > All > Fresing Render > right-click >
+   Pin to Start.

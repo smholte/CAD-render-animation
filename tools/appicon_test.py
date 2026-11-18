@@ -54,14 +54,26 @@ def main():
     folder = ai.install_dir(exe)
     check("install folder found from blender.exe", folder, folder)
     desktop, programs, appdata = ai.known_folders()
-    paths = ai.shortcut_paths(desktop, programs, appdata)
-    check("shortcuts found", len(paths) >= 5, f"{len(paths)}: " + ", ".join(os.path.basename(p) for p in paths))
+    paths = ai.shortcut_paths(desktop, programs, appdata, ai.tools_dir(folder))
+    check("shortcuts found", len(paths) >= 7, f"{len(paths)}: " + ", ".join(os.path.basename(p) for p in paths))
     before = {p: ai.read_shortcut(p) for p in paths}
     old = sorted({os.path.basename(p) for p, i in before.items()
                   if "blender.exe" in i["icon"].lower() and ai.is_inside(i["target"], folder)})
     check("an older install's shortcuts are there to refresh", old, ", ".join(old))
 
+    # task 0212: an older install's extra Desktop shortcut (ours) and one with an old name that points elsewhere
+    old_pc = os.path.join(desktop, "Fresing Render - PC check.lnk")
+    foreign = os.path.join(desktop, "Fresing Render - PC check (heavy).lnk")
+    notepad = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "notepad.exe")
+    ai.make_shortcut(old_pc, w.console_exe(exe), "--background", os.path.dirname(exe), "", "old PC check")
+    ai.make_shortcut(foreign, notepad, "", "", "", "someone else's")
+
     done = ai.refresh_installed(exe)
+    check("refresh: an older install's extra Desktop shortcut removed", not os.path.isfile(old_pc), "; ".join(done))
+    check("refresh: a shortcut with an old name that points elsewhere left alone",
+          os.path.isfile(foreign) and ai.read_shortcut(foreign)["target"].lower() == notepad.lower())
+    check("refresh: the Tools folder holds the six extras",
+          sorted(os.listdir(ai.tools_dir(folder))) == sorted(ai.TOOLS.values()), os.listdir(ai.tools_dir(folder)))
     check("refresh: icon copied into the install folder", os.path.isfile(os.path.join(folder, ai.ICON_FILE)))
     check("refresh changed the older shortcuts", all(any(d.startswith(n + ":") for d in done) for n in old),
           "; ".join(done))
@@ -86,11 +98,12 @@ def main():
                   info["target"])
     again = ai.refresh_installed(exe)
     check("a second refresh writes nothing", not again, "; ".join(again))
+    os.remove(foreign)
 
     # task 0177: the copy the refresh made
     copy = w.copy_path(exe)
     check("Fresing Render.exe made again by the app", os.path.isfile(copy) and w.usable(exe), copy)
-    check("safe-start shortcut there", os.path.isfile(os.path.join(programs, ai.START_MENU_FOLDER, ai.SAFE_START)))
+    check("safe-start shortcut there (Tools folder)", os.path.isfile(os.path.join(ai.tools_dir(folder), ai.SAFE_START)))
     s = w.strings(w.parse_version(w.read_resource(copy, w.RT_VERSION, 1)))
     check("its version resource says Fresing Render", s.get("FileDescription") == "Fresing Render"
           and s.get("ProductName") == "Fresing Render" and s.get("OriginalFilename") == "blender.exe", s)

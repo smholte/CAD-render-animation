@@ -4,10 +4,17 @@
   installer, and the app at every start, copy it to ``<install folder>\\fresing-render.ico`` - a place that does not
   move when an update replaces the extension - and every shortcut points there.
 * **Shortcuts.** Install.bat makes them with that icon. A PC installed before 0169 got the new version through
-  Update now, so the app refreshes them itself at start (Windows, started as Fresing Render, in a thread): every
-  ``.lnk`` on the Desktop, in the Start-menu folder "Fresing Render" and among the pinned taskbar icons whose target
-  lies inside the install folder gets the icon; the ones that start the app (``--app-template fresing_render``) also
-  get the AppUserModelID ``APP_ID``. A shortcut that is already right is not written.
+  Update now, so the app refreshes them itself at start (Windows, started as Fresing Render, in a thread): the
+  "Fresing Render" shortcut on the Desktop and in the Start menu, every ``.lnk`` in the Tools folder and among the
+  pinned taskbar icons whose target lies inside the install folder gets the icon; the ones that start the app
+  (``--app-template fresing_render``) also get the AppUserModelID ``APP_ID``. A shortcut that is already right is not
+  written.
+* **One shortcut only (task 0212).** The Desktop and the Start menu hold only "Fresing Render.lnk" (directly in
+  Programs). The extras – self-test, PC check quick / full / heavy, safe start, user guide – live in the Tools folder
+  of the install folder (``TOOLS``) and in the app's Fresing menu. Older installs had them on the Desktop and in a
+  Start-menu folder "Fresing Render": ``tidy_plan`` removes those by name, only when their target lies inside the
+  install folder, moves the app's own Start-menu shortcut out of that folder, and the empty folder goes. Install.bat
+  does the same in PowerShell; the app at start for a PC that got the new version through Update now.
 * **Windows and taskbar.** The running program is Blender's, so its windows carry Blender's icon. At start the app
   sets the Fresing icon on its windows (``WM_SETICON``) and on their window class (windows Blender opens later -
   render window, preferences - are of the same class), and the AppUserModelID on the process and on each window
@@ -30,9 +37,20 @@ ICON_FILE = "fresing-render.ico"
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHIPPED_ICON = os.path.join(HERE, "brand", ICON_FILE)
 APP_ARGS = "--app-template fresing_render"
-START_MENU_FOLDER = "Fresing Render"
-SAFE_START = "Fresing Render - safe start.lnk"     # task 0177: the app on Blender's own launcher, never retargeted
-DESKTOP_NAMES = ("Fresing Render.lnk", "Fresing Render - PC check.lnk", "Fresing Render - PC check (heavy).lnk")
+APP_LNK = "Fresing Render.lnk"                     # the one shortcut on the Desktop and in the Start menu (0212)
+START_MENU_FOLDER = "Fresing Render"               # the Start-menu folder of installs before 0212 (cleaned up)
+TOOLS_FOLDER = "Tools"                             # <install folder>\Tools: the extras (task 0212)
+SAFE_START = "Safe start.lnk"                      # task 0177: the app on Blender's own launcher, never retargeted
+# the Tools folder's shortcuts, by kind (task 0212)
+TOOLS = {"selftest": "Self test.lnk", "quick": "PC check (quick).lnk", "full": "PC check (full).lnk",
+         "heavy": "PC check (heavy).lnk", "safe": SAFE_START, "guide": "User guide.lnk"}
+DESKTOP_NAMES = (APP_LNK,)
+# what installs before 0212 made (removed by name when their target lies inside the install folder)
+OLD_DESKTOP = ("Fresing Render - PC check.lnk", "Fresing Render - PC check (heavy).lnk")
+OLD_START_MENU = ("Fresing Render - safe start.lnk", "Fresing Render - Self test.lnk",
+                  "Fresing Render - PC check (quick).lnk", "Fresing Render - PC check (full).lnk",
+                  "Fresing Render - PC check (heavy).lnk", "Fresing Render - User guide.lnk")
+OLD_SAFE_START = "Fresing Render - safe start.lnk"
 PINNED = os.path.join("Microsoft", "Internet Explorer", "Quick Launch", "User Pinned", "TaskBar")
 STATE = {"windows": 0, "shortcuts": "", "error": ""}       # what the start-up hook did (tests, the console)
 
@@ -89,10 +107,18 @@ def ensure_icon(folder: str, shipped: str = SHIPPED_ICON) -> str:
         return dst if os.path.isfile(dst) else ""
 
 
-def shortcut_paths(desktop: str, programs: str, appdata: str = "") -> list[str]:
-    """Every shortcut the app may refresh: its Desktop shortcuts, its Start-menu folder, the pinned taskbar icons."""
+def tools_dir(folder: str) -> str:
+    """The Tools folder of an install folder ('' for none)."""
+    return os.path.join(folder, TOOLS_FOLDER) if folder else ""
+
+
+def shortcut_paths(desktop: str, programs: str, appdata: str = "", tools: str = "") -> list[str]:
+    """Every shortcut the app may refresh: the app's Desktop and Start-menu shortcut, the Tools folder (task 0212),
+    the pinned taskbar icons."""
     out = [os.path.join(desktop, n) for n in DESKTOP_NAMES] if desktop else []
-    folders = [os.path.join(programs, START_MENU_FOLDER)] if programs else []
+    if programs:
+        out.append(os.path.join(programs, APP_LNK))
+    folders = [tools] if tools else []
     if appdata:
         folders.append(os.path.join(appdata, PINNED))
     for folder in folders:
@@ -102,6 +128,61 @@ def shortcut_paths(desktop: str, programs: str, appdata: str = "") -> list[str]:
             continue
         out += [os.path.join(folder, n) for n in names if n.lower().endswith(".lnk")]
     return [p for p in out if os.path.isfile(p)]
+
+
+def old_shortcuts(desktop: str, programs: str) -> list[str]:
+    """The shortcuts an install before 0212 made on the Desktop and in its Start-menu folder (those that are there),
+    the app's own shortcut in that folder last."""
+    out = [os.path.join(desktop, n) for n in OLD_DESKTOP] if desktop else []
+    if programs:
+        menu = os.path.join(programs, START_MENU_FOLDER)
+        out += [os.path.join(menu, n) for n in OLD_START_MENU + (APP_LNK,)]
+    return [p for p in out if os.path.isfile(p)]
+
+
+def tidy_plan(found: dict, folder: str, programs: str) -> list[tuple[str, str, str]]:
+    """What to do with an older install's shortcuts (task 0212). ``found``: {path: target as read ('' = could not be
+    read)}. Returns (action, path, where): ("remove", path, "") or ("move", path, new path) for the app's own Start-menu
+    shortcut when ``Programs\\Fresing Render.lnk`` is missing (it keeps its pin, icon and ID). A shortcut whose target
+    lies outside the install folder - or cannot be read - is someone else's: left alone."""
+    out = []
+    new_app = os.path.join(programs, APP_LNK) if programs else ""
+    for path, target in found.items():
+        if not (target and folder and is_inside(target, folder)):
+            continue
+        if os.path.basename(path).lower() == APP_LNK.lower() and new_app and not os.path.isfile(new_app):
+            out.append(("move", path, new_app))
+        else:
+            out.append(("remove", path, ""))
+    return out
+
+
+def tools_specs(folder: str, blender: str, desktop: str, extension: str) -> dict:
+    """The Tools folder's shortcuts (task 0212), by kind: {kind: dict(path, target, arguments, workdir, description)}.
+    ``blender``: blender.exe of the install (the console runs: self-test, PC checks); ``extension``: the installed
+    extension's folder. A kind whose file is not there is left out (no self-test launcher, no guide)."""
+    from .pccheck import core as pc_core
+    tools = tools_dir(folder)
+    bdir = os.path.dirname(blender) if blender else ""
+    out = {}
+    launcher = os.path.join(folder, "selftest_launcher.py")
+    if blender and os.path.isfile(launcher):
+        out["selftest"] = dict(target=blender, arguments=f'--background --python "{launcher}" -- "{desktop}"',
+                               workdir=bdir, description="Check this PC and write a report on the Desktop")
+    pc = os.path.join(extension, "pccheck", "launcher.py") if extension else ""
+    if blender and pc and os.path.isfile(pc):
+        for mode in ("quick", "full", "heavy"):
+            out[mode] = dict(target=blender, arguments=pc_core.shortcut_arguments(pc, desktop, mode), workdir=bdir,
+                             description=pc_core.SHORTCUT_TEXT[mode])
+    gui = os.path.join(bdir, "blender-launcher.exe") if bdir else ""
+    if gui and os.path.isfile(gui):
+        out["safe"] = dict(target=gui, arguments=APP_ARGS, workdir=bdir, description=SAFE_TEXT)
+    guide = os.path.join(extension, "guide", "user_guide.html") if extension else ""
+    if guide and os.path.isfile(guide):
+        out["guide"] = dict(target=guide, arguments="", workdir="", description="How to use Fresing Render, step by step")
+    for kind, spec in out.items():
+        spec["path"] = os.path.join(tools, TOOLS[kind])
+    return out
 
 
 def is_app_shortcut(arguments: str) -> bool:
@@ -395,7 +476,7 @@ def fix_shortcut(path: str, folder: str, icon: str, app_target: str = "") -> str
     link, pf = w.open_link(path, write=True)
     try:
         todo = plan(w.read_link(link), folder, icon, pinned=is_pinned(path), app_target=app_target,
-                    keep_target=os.path.basename(path).lower() == SAFE_START.lower())
+                    keep_target=os.path.basename(path).lower() in (SAFE_START.lower(), OLD_SAFE_START.lower()))
         if not (todo["icon"] or todo["app_id"] or todo["target"]):
             return ""
         done = []
@@ -477,17 +558,61 @@ SAFE_TEXT = ("Starts Fresing Render with Blender's own program. Use it only if F
              "usual shortcut (for example when a virus scanner removed Fresing Render.exe)")
 
 
-def ensure_safe_start(binary_path: str, programs: str, icon: str) -> str:
-    """Windows: the Start-menu shortcut "Fresing Render - safe start" on blender-launcher.exe, when it is missing."""
-    from . import winexe
+def tidy_old(folder: str, desktop: str, programs: str) -> list[str]:
+    """Windows (task 0212): an older install's extra shortcuts on the Desktop and in the Start-menu folder "Fresing
+    Render" removed (only ours: target inside the install folder), the app's own Start-menu shortcut moved directly
+    into Programs, the folder removed when it is empty. Returns what was done."""
+    found = {}
+    for path in old_shortcuts(desktop, programs):
+        try:
+            found[path] = read_shortcut(path).get("target", "")
+        except Exception as exc:  # noqa: BLE001 - unreadable: someone else's or broken, leave it
+            log(f"could not read {os.path.basename(path)}:", exc)
+            found[path] = ""
+    done = []
+    for action, path, where in tidy_plan(found, folder, programs):
+        try:
+            if action == "move":
+                os.replace(path, where)
+                done.append(f"{os.path.basename(path)}: moved out of the Start-menu folder")
+            else:
+                os.remove(path)
+                done.append(f"{os.path.basename(path)}: removed (now in the Tools folder)")
+        except OSError as exc:
+            log(f"could not tidy {os.path.basename(path)}:", exc)
     menu = os.path.join(programs, START_MENU_FOLDER) if programs else ""
+    if menu and os.path.isdir(menu):
+        try:
+            left = [n for n in os.listdir(menu) if n.lower() != "desktop.ini"]     # Explorer's own file
+            if not left:
+                for n in os.listdir(menu):
+                    os.remove(os.path.join(menu, n))
+                os.rmdir(menu)
+                done.append("Start-menu folder Fresing Render: removed")
+        except OSError as exc:
+            log("could not remove the old Start-menu folder:", exc)
+    return done
+
+
+def ensure_tools(folder: str, binary_path: str, desktop: str, icon: str) -> list[str]:
+    """Windows (task 0212): the Tools folder made and its shortcuts made when missing (a PC that got this version
+    through Update now). One that is there is left as it is (``refresh_shortcuts`` fixes its icon)."""
+    from . import winexe
     blender = winexe.blender_exe_of(binary_path)
-    launcher = os.path.join(os.path.dirname(os.path.abspath(blender)), "blender-launcher.exe")
-    path = os.path.join(menu, SAFE_START)
-    if not menu or not os.path.isdir(menu) or os.path.isfile(path) or not os.path.isfile(launcher):
-        return ""
-    make_shortcut(path, launcher, APP_ARGS, os.path.dirname(launcher), icon, SAFE_TEXT)
-    return SAFE_START + ": made"
+    specs = tools_specs(folder, blender, desktop, HERE)
+    if not specs:
+        return []
+    os.makedirs(tools_dir(folder), exist_ok=True)
+    done = []
+    for kind, spec in specs.items():
+        if os.path.isfile(spec["path"]):
+            continue
+        try:
+            make_shortcut(spec["path"], spec["target"], spec["arguments"], spec["workdir"], icon, spec["description"])
+            done.append(f"{TOOLS[kind]}: made in the Tools folder")
+        except Exception as exc:  # noqa: BLE001
+            log(f"could not make {TOOLS[kind]}:", exc)
+    return done
 
 
 def app_target_for(binary_path: str, icon: str) -> str:
@@ -505,27 +630,29 @@ def app_target_for(binary_path: str, icon: str) -> str:
 def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", appdata: str = "",
                       icon: str = "") -> list[str]:
     """Windows: the icon file into the install folder, "Fresing Render.exe" made (task 0177), and every shortcut of
-    this install refreshed (the app at start for PCs installed before 0169 / 0177)."""
+    this install refreshed (the app at start for PCs installed before 0169 / 0177); an older install's extra shortcuts
+    tidied away and the Tools folder made (task 0212)."""
     folder = install_dir(binary_path)
     if not folder:
         return []
     icon = icon or ensure_icon(folder)
-    if not icon:
-        return []
     if not (desktop and programs):
         d, p, a = known_folders()
         desktop, programs, appdata = desktop or d, programs or p, appdata or a
+    done = []
+    # task 0212: tidy and the Tools folder need no icon file of their own (the shipped one serves for new shortcuts)
+    for name, step in (("tidy", lambda: tidy_old(folder, desktop, programs)),
+                       ("tools", lambda: ensure_tools(folder, binary_path, desktop, icon or SHIPPED_ICON))):
+        try:
+            done += step()
+        except Exception as exc:  # noqa: BLE001 - one step's fault does not stop the others
+            log(f"could not {name} the shortcuts:", exc)
+    if not icon:
+        return done
     target = app_target_for(binary_path, icon)
     STATE["app_exe"] = target
-    safe = ""
-    try:
-        safe = ensure_safe_start(binary_path, programs, icon)
-    except Exception as exc:  # noqa: BLE001
-        log("could not make the safe-start shortcut:", exc)
-    paths = shortcut_paths(desktop, programs, appdata)
-    done = refresh_shortcuts(folder, icon, paths, target)
-    if safe:
-        done.append(safe)
+    paths = shortcut_paths(desktop, programs, appdata, tools_dir(folder))
+    done = refresh_shortcuts(folder, icon, paths, target) + done
     if STATE.pop("icon_changed", False):
         redraw_icons(paths)
         done.append("icon file replaced: Explorer told to redraw")

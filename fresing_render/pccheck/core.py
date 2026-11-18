@@ -21,6 +21,18 @@ import numpy as np
 OK, FAILED, SKIPPED, RUNNING = "OK", "FAILED", "skipped", "running"
 MODES = ("quick", "full", "heavy", "tour")
 MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy", "tour": "Test tour"}
+# the PC-check shortcuts in the Tools folder of the install (task 0212; Install.bat and appicon.tools_specs)
+SHORTCUT_TEXT = {"quick": "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test "
+                          "your own model too",
+                 "full": "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it "
+                         "to test your own model too",
+                 "heavy": "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about "
+                          "10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"}
+
+
+def shortcut_arguments(launcher: str, desktop: str, mode: str) -> str:
+    """A PC-check shortcut's arguments (blender.exe runs them); Windows adds a dropped STEP file at the end."""
+    return f'--background --python "{launcher}" -- "{desktop}" {mode}'
 
 SLOWER = 1.25            # a step more than 25 % slower than before is flagged
 MIN_SLOWER_S = 1.0       # ...and at least this many seconds slower (short steps jitter)

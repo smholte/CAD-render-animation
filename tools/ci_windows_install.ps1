@@ -11,9 +11,9 @@
      (its "press a key" pause gets an empty input).
   4. Checks what the installer must leave behind: Blender, the extension with the right version,
      the app template, the shortcuts, installed.txt.
-  5. Starts the self-test exactly as the Start-menu shortcut "Fresing Render - Self test" does
+  5. Starts the self-test exactly as its shortcut "Self test" in the app's Tools folder does (task 0212)
      and copies its report to -OutDir. The report is judged afterwards by tools/ci_check_selftest.py.
-  6. Starts the PC check (Full) exactly as its Start-menu shortcut does and copies its report and its
+  6. Starts the PC check (Full) exactly as its Tools-folder shortcut does and copies its report and its
      text block (pccheck_last_run.txt) to -OutDir; judged afterwards by tools/ci_check_pccheck.py.
   With -Uninstall it instead runs Uninstall.bat and checks that everything is gone.
 
@@ -29,7 +29,9 @@
   U2. The old app (in the background) runs tools/update_test_blender.py: it must find -Expect, press
       Update now and close; update_helper.py installs the update and starts the app again with "-- after",
       which checks the new version, the message and the app template.
-  U3. Checks the files: installed version, app template = the new one, update log, the user-guide shortcut.
+  U3. Checks the files: installed version, app template = the new one, update log, the user-guide shortcut, and
+      (task 0212) that the old build's extra shortcuts - put back as an install before 0212 had them - were tidied
+      away by what the app runs at start: only "Fresing Render" on the Desktop and in the Start menu.
   Then steps 2-5 run over the updated install (-OnlyUpdate stops after U3: the release check).
 
   Run with FRESING_SELFTEST_NO_GPU=1 on machines without a graphics card.
@@ -74,6 +76,52 @@ function Note([string]$text) { Write-Host "==> $text" -ForegroundColor Cyan }
 function Problem([string]$text) {
     $script:Problems += $text
     Write-Host "::error title=Windows install::$text"
+}
+
+# Task 0212: only "Fresing Render" on the Desktop and in the Start menu (directly in Programs); the extras in the
+# Tools folder of the install folder.
+$ToolsDir = Join-Path $InstallDir "Tools"
+$ToolNames = @("Self test.lnk", "PC check (quick).lnk", "PC check (full).lnk", "PC check (heavy).lnk", "Safe start.lnk", "User guide.lnk")
+$OldMenu = Join-Path $Programs "Fresing Render"
+function Check-OneShortcut([string]$when) {
+    $desk = @(Get-ChildItem -LiteralPath $Desktop -Filter "Fresing Render*.lnk" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+    $menu = @(Get-ChildItem -LiteralPath $Programs -Filter "Fresing Render*" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+    $tools = @(Get-ChildItem -LiteralPath $ToolsDir -Filter "*.lnk" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name } | Sort-Object)
+    $bad = @()
+    if (($desk -join "|") -ne "Fresing Render.lnk") { $bad += "Desktop: $($desk -join ', ')" }
+    if (($menu -join "|") -ne "Fresing Render.lnk") { $bad += "Start menu: $($menu -join ', ')" }
+    if (($tools -join "|") -ne (($ToolNames | Sort-Object) -join "|")) { $bad += "Tools folder: $($tools -join ', ')" }
+    Write-Host "   ($when) Desktop: $($desk -join ', ') / Start menu: $($menu -join ', ') / Tools: $($tools -join ', ')"
+    if ($bad) { Problem "one shortcut only ($when): $($bad -join '; ')" }
+    $script:Summary += "| Only Fresing Render on the Desktop and in the Start menu, 6 in the Tools folder ($when) | $(if (-not $bad) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
+}
+# An install before 0212: the extras in a Start-menu folder "Fresing Render" (with the app's own shortcut) and two
+# PC-check shortcuts on the Desktop; made from the current ones (same targets), the Tools folder taken away.
+# -Foreign: also a shortcut with an old name that points elsewhere (it must be left alone).
+function Make-OldLayout([switch]$Foreign) {
+    $sh = New-Object -ComObject WScript.Shell
+    New-Item -ItemType Directory -Force -Path $OldMenu | Out-Null
+    $app = Join-Path $Programs "Fresing Render.lnk"
+    if (Test-Path -LiteralPath $app) { Move-Item -LiteralPath $app -Destination (Join-Path $OldMenu "Fresing Render.lnk") -Force }
+    $map = [ordered]@{ "Self test.lnk" = "Fresing Render - Self test.lnk"; "PC check (quick).lnk" = "Fresing Render - PC check (quick).lnk"
+                       "PC check (full).lnk" = "Fresing Render - PC check (full).lnk"; "PC check (heavy).lnk" = "Fresing Render - PC check (heavy).lnk"
+                       "Safe start.lnk" = "Fresing Render - safe start.lnk"; "User guide.lnk" = "Fresing Render - User guide.lnk" }
+    foreach ($k in $map.Keys) {
+        $src = Join-Path $ToolsDir $k
+        if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $OldMenu $map[$k]) -Force }
+    }
+    foreach ($pair in @(@("PC check (quick).lnk", "Fresing Render - PC check.lnk"), @("PC check (heavy).lnk", "Fresing Render - PC check (heavy).lnk"))) {
+        $src = Join-Path $ToolsDir $pair[0]
+        if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $Desktop $pair[1]) -Force }
+    }
+    if ($Foreign) {
+        Remove-Item -LiteralPath (Join-Path $Desktop "Fresing Render - PC check (heavy).lnk") -Force -ErrorAction SilentlyContinue
+        $l = $sh.CreateShortcut((Join-Path $Desktop "Fresing Render - PC check (heavy).lnk"))
+        $l.TargetPath = Join-Path $env:WINDIR "notepad.exe"; $l.Save()
+    }
+    Remove-Item -LiteralPath $ToolsDir -Recurse -Force -ErrorAction SilentlyContinue
+    $n = @(Get-ChildItem -LiteralPath $OldMenu -Filter "*.lnk").Count
+    Note "An older install's shortcuts put back: $n in the Start-menu folder, 2 on the Desktop$(if ($Foreign) { ' (one of them someone else''s)' })"
 }
 
 function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Arguments = "") {   # measured: 3-21 s
@@ -172,8 +220,8 @@ if ($Uninstall) {
     $r = Run-Bat $bat.FullName "uninstall" 5
     if (Test-Path -LiteralPath $InstallDir) { Problem "Uninstall left $InstallDir behind" }
     if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk")) { Problem "Uninstall left the Desktop shortcut" }
-    if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render - PC check.lnk")) { Problem "Uninstall left the PC check shortcut" }
-    if (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render")) { Problem "Uninstall left the Start-menu folder" }
+    if (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render.lnk")) { Problem "Uninstall left the Start-menu shortcut" }
+    if (Test-Path -LiteralPath $OldMenu) { Problem "Uninstall left the Start-menu folder" }
     $leftLinks = @(Get-ChildItem -LiteralPath $Desktop -Filter "Fresing Render*.lnk" -ErrorAction SilentlyContinue)
     if ($leftLinks) { Problem "Uninstall left on the Desktop: $($leftLinks.Name -join ', ')" }
     if ($r.Text -notmatch "Fresing Render removed") { Problem "Uninstall did not say 'Fresing Render removed'" }
@@ -222,6 +270,7 @@ if ($Uninstall) {
         $Summary += "| Install.bat (old version $OldVersion, fresh) | $(if ($ok) { '✅' } else { '❌' }) exit code $($r.Code) | $($r.Seconds) s |"
 
         $exe = Get-ChildItem -LiteralPath $InstallDir -Recurse -Filter "blender.exe" -Depth 1 -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($ok) { Make-OldLayout }       # task 0212: the old build as an install before 0212 left it
         if ($ok -and $exe) {
             $portable = Join-Path $exe.DirectoryName "portable"
             $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -281,7 +330,7 @@ if ($Uninstall) {
             $shipped = Join-Path $portable "extensions\user_default\fresing_render\app_template_files\__init__.py"
             $sameTemplate = (Test-Path -LiteralPath $tmpl) -and (Test-Path -LiteralPath $shipped) -and
                 ((Get-FileHash -LiteralPath $tmpl).Hash -eq (Get-FileHash -LiteralPath $shipped).Hash)
-            $guideLnk = Join-Path $Programs "Fresing Render\Fresing Render - User guide.lnk"
+            $guideLnk = Join-Path $ToolsDir "User guide.lnk"
             $guideOk = $false
             if (Test-Path -LiteralPath $guideLnk) {
                 $guideOk = Test-Path -LiteralPath ((New-Object -ComObject WScript.Shell).CreateShortcut($guideLnk).TargetPath)
@@ -298,6 +347,7 @@ if ($Uninstall) {
                 $Summary += "| $k | $(if ($files[$k]) { '✅' } else { '❌' }) | |"
             }
             $Summary += "| Update: old app start -> new app checked | | $secs s |"
+            Check-OneShortcut "after the old build updated itself in the app"
             foreach ($v in "UPDATE_TEST_EXPECT", "UPDATE_TEST_OLD", "UPDATE_TEST_URL", "UPDATE_TEST_PROJECT", "FRESING_UPDATE_RESTART") {
                 Remove-Item "Env:$v" -ErrorAction SilentlyContinue
             }
@@ -308,6 +358,8 @@ if ($Uninstall) {
     if (-not $OnlyUpdate) {
         # ---- 2. install twice: fresh, then repair over it ----------------------------------
         foreach ($round in $(if ($Part -eq "b") { @("install") } else { @("install", "repair") })) {
+            # task 0212: the repair runs over an older install's shortcuts, one of them someone else's
+            if ($round -eq "repair") { Make-OldLayout -Foreign }
             Note "Install.bat ($round)"
             $r = Run-Bat $bat.FullName $round
             $done = $r.Text -match "Done\. Start 'Fresing Render' from the Desktop\."
@@ -316,6 +368,14 @@ if ($Uninstall) {
             if ($r.Code -ne 0) { Problem "Install.bat ($round) ended with exit code $($r.Code)" }
             $Summary += "| Install.bat ($round) | $(if ($ok) { '✅' } else { '❌' }) exit code $($r.Code) | $($r.Seconds) s |"
             if (-not $ok) { break }
+            if ($round -eq "repair") {
+                $foreign = Join-Path $Desktop "Fresing Render - PC check (heavy).lnk"
+                $kept = (Test-Path -LiteralPath $foreign) -and ((New-Object -ComObject WScript.Shell).CreateShortcut($foreign).TargetPath -like "*notepad.exe")
+                if (-not $kept) { Problem "Install.bat (repair) removed a shortcut that points elsewhere (someone else's)" }
+                $Summary += "| Install.bat (repair): an old-named shortcut that points elsewhere is left alone | $(if ($kept) { '✅' } else { '❌' }) | |"
+                Remove-Item -LiteralPath $foreign -Force -ErrorAction SilentlyContinue
+            }
+            Check-OneShortcut "after Install.bat ($round)"
         }
 
         # ---- 3. what the installer must leave behind ------------------------------------
@@ -324,11 +384,11 @@ if ($Uninstall) {
             "Blender program"          = [bool]$BlenderExe
             "installed.txt"            = Test-Path -LiteralPath (Join-Path $InstallDir "installed.txt")
             "Desktop shortcut"         = Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk")
-            "Start-menu shortcut"      = Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render.lnk")
-            "Self-test shortcut"       = Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - Self test.lnk")
-            "PC check shortcuts"       = (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - PC check (quick).lnk")) -and
-                                         (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - PC check (full).lnk")) -and
-                                         (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render - PC check.lnk"))
+            "Start-menu shortcut"      = Test-Path -LiteralPath (Join-Path $Programs "Fresing Render.lnk")
+            "Self-test shortcut (Tools folder)" = Test-Path -LiteralPath (Join-Path $ToolsDir "Self test.lnk")
+            "PC check shortcuts (Tools folder)" = (Test-Path -LiteralPath (Join-Path $ToolsDir "PC check (quick).lnk")) -and
+                                         (Test-Path -LiteralPath (Join-Path $ToolsDir "PC check (full).lnk")) -and
+                                         (Test-Path -LiteralPath (Join-Path $ToolsDir "PC check (heavy).lnk"))
         }
         if ($BlenderExe) {
             $portable = Join-Path $BlenderExe.DirectoryName "portable"
@@ -375,7 +435,8 @@ if ($Uninstall) {
         }
         function Our-Links() {
             @(Get-ChildItem -LiteralPath $Desktop -Filter "Fresing Render*.lnk" -ErrorAction SilentlyContinue) +
-            @(Get-ChildItem -LiteralPath (Join-Path $Programs "Fresing Render") -Filter "*.lnk" -ErrorAction SilentlyContinue)
+            @(Get-ChildItem -LiteralPath $Programs -Filter "Fresing Render.lnk" -ErrorAction SilentlyContinue) +
+            @(Get-ChildItem -LiteralPath $ToolsDir -Filter "*.lnk" -ErrorAction SilentlyContinue)
         }
         function Check-Links([string]$when) {
             $links = Our-Links
@@ -386,11 +447,11 @@ if ($Uninstall) {
                 if (-not $iconOk) { $bad += "$($f.Name): icon '$($r.Icon)'" }
                 if ($r.Args -match '--app-template fresing_render' -and $r.Id -ne "Fresing.Render") { $bad += "$($f.Name): app ID '$($r.Id)'" }
                 # task 0177: the app's shortcuts start "Fresing Render.exe" (the console ones stay on blender.exe)
-                $wantExe = $(if ($f.Name -eq "Fresing Render - safe start.lnk") { Join-Path $BlenderExe.DirectoryName "blender-launcher.exe" } else { $AppExe })
+                $wantExe = $(if ($f.Name -eq "Safe start.lnk") { Join-Path $BlenderExe.DirectoryName "blender-launcher.exe" } else { $AppExe })
                 if ($r.Args -match '--app-template fresing_render' -and $AppExe -and $r.Target -ine $wantExe) { $bad += "$($f.Name): starts '$($r.Target)'" }
                 Write-Host "   $($f.Name): icon '$($r.Icon)', app ID '$($r.Id)', starts '$(Split-Path -Leaf $r.Target)'"
             }
-            $ok = ($links.Count -ge 6) -and (-not $bad) -and (Test-Path -LiteralPath $IconFile)
+            $ok = ($links.Count -ge 8) -and (-not $bad) -and (Test-Path -LiteralPath $IconFile)
             if (-not $ok) { Problem "icon ($when): $($links.Count) shortcuts, icon file $(Test-Path -LiteralPath $IconFile); $($bad -join '; ')" }
             $script:Summary += "| Fresing icon + app ID on every shortcut ($when, $($links.Count)) | $(if ($ok) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
         }
@@ -446,7 +507,7 @@ if ($Uninstall) {
         if ($BlenderExe) {
             Note "An older install's shortcuts: refreshed by the app's code (tools/appicon_test.py)"
             $launcher = Join-Path $BlenderExe.DirectoryName "blender-launcher.exe"
-            foreach ($old in @((Join-Path $Desktop "Fresing Render.lnk"), (Join-Path $Programs "Fresing Render\Fresing Render - Self test.lnk"))) {
+            foreach ($old in @((Join-Path $Desktop "Fresing Render.lnk"), (Join-Path $ToolsDir "Self test.lnk"))) {
                 $r = Read-Lnk $old
                 Remove-Item -LiteralPath $old -Force
                 $l = $sh.CreateShortcut($old)
@@ -458,7 +519,7 @@ if ($Uninstall) {
             foreach ($f in @("Fresing Render.exe", "fresing-render-exe.json")) {
                 Remove-Item -LiteralPath (Join-Path $BlenderExe.DirectoryName $f) -Force -ErrorAction SilentlyContinue
             }
-            Remove-Item -LiteralPath (Join-Path $Programs "Fresing Render\Fresing Render - safe start.lnk") -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath (Join-Path $ToolsDir "Safe start.lnk") -Force -ErrorAction SilentlyContinue
             $res = Join-Path $OutDir "appicon_test.json"
             $script = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "tools\appicon_test.py"
             $log = Join-Path $OutDir "appicon_test.log"
@@ -478,11 +539,13 @@ if ($Uninstall) {
             }
             $Summary += "| Icon: older install refreshed + window checks | | $([math]::Round(((Get-Date) - $t0).TotalSeconds)) s |"
             Check-Links "older install after the app's refresh"
+            Check-OneShortcut "after the app's refresh of an older install"
         }
         }
 
-        # ---- 4. the self-test, started exactly like its Start-menu shortcut -------------------
-        $lnkPath = Join-Path $Programs "Fresing Render\Fresing Render - Self test.lnk"
+        # ---- 4. the self-test, started exactly like its shortcut in the Tools folder (task 0212) ---------
+        $lnkPath = Join-Path $ToolsDir "Self test.lnk"
+        if ($Part -ne "b" -and -not (Test-Path -LiteralPath $lnkPath)) { Problem "no self-test shortcut in the Tools folder" }
         if ($Part -ne "b" -and (Test-Path -LiteralPath $lnkPath)) {
             $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($lnkPath)
             Note "Self-test: `"$($lnk.TargetPath)`" $($lnk.Arguments)"
@@ -507,14 +570,15 @@ if ($Uninstall) {
             }
             $renders = Join-Path $Desktop "Fresing Render self-test"
             if (Test-Path -LiteralPath $renders) { Copy-Item -LiteralPath $renders -Destination (Join-Path $OutDir "renders") -Recurse }
-            $Summary += "| Self-test (Start-menu shortcut) | finished, judged below | $secs s |"
+            $Summary += "| Self-test (Tools-folder shortcut) | finished, judged below | $secs s |"
         }
 
         # ---- 6. the PC check (Full), then Heavy scaled down (task 0033), each started exactly like its
-        #         Start-menu shortcut ---------------------------------------------------------------------
+        #         shortcut in the Tools folder (task 0212) ----------------------------------------------
         $pcModes = switch ($Part) { "a" { @("full") } "b" { @("heavy") } default { @("full", "heavy") } }
         foreach ($pcMode in $pcModes) {
-        $pcLnk = Join-Path $Programs "Fresing Render\Fresing Render - PC check ($pcMode).lnk"
+        $pcLnk = Join-Path $ToolsDir "PC check ($pcMode).lnk"
+        if ($BlenderExe -and -not (Test-Path -LiteralPath $pcLnk)) { Problem "no PC check ($pcMode) shortcut in the Tools folder" }
         $pcTag = if ($pcMode -eq "heavy") { "pccheck_heavy" } else { "pccheck" }
         $env:FRESING_PCCHECK_HEAVY_SMALL = if ($pcMode -eq "heavy") { "1" } else { "" }
         $env:FRESING_PCCHECK_ONLY = if ($pcMode -eq "full") { $PcCheckOnly } else { "" }
@@ -547,7 +611,7 @@ if ($Uninstall) {
             } else {
                 Problem "the PC check left no numbers in $hist"
             }
-            $Summary += "| PC check, $pcMode (Start-menu shortcut) | finished, judged below | $secs s |"
+            $Summary += "| PC check, $pcMode (Tools-folder shortcut) | finished, judged below | $secs s |"
         }
         }
         $env:FRESING_PCCHECK_HEAVY_SMALL = ""

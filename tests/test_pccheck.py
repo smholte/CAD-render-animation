@@ -365,35 +365,6 @@ def test_help_menu_entry_and_command_line(blender):
         f'--background --python "{ops.LAUNCHER}" -- "C:\\Users\\O\'Brien\\Desktop" quick'
 
 
-def test_shortcut_script_quotes_apostrophes():
-    pytest.importorskip("bpy")
-    from fresing_render.pccheck import ops
-    script = ops.shortcut_script(r"C:\Start\Fresing Render", r"C:\Users\O'Brien\blender.exe",
-                                 r"C:\Users\O'Brien\Desktop", ["quick", "full"])
-    assert "O''Brien" in script and "O'Brien" not in script.replace("O''Brien", "")
-    assert script.count("$l.Save()") == 2 and "PC check (full).lnk" in script
-    # PowerShell ends a quoted string at typographic quotes too (a user name like O’Brien)
-    assert ops._ps_quote("C:\\Users\\O\u2019Brien") == "'C:\\Users\\O\u2019\u2019Brien'"
-    desk = ops.shortcut_script("S", "b.exe", r"C:\D", ["desktop"])
-    assert ops.DESKTOP_SHORTCUT in desk and '" quick' in desk
-
-
-def test_shortcuts_only_where_missing(tmp_path):
-    pytest.importorskip("bpy")
-    from fresing_render.pccheck import ops
-    assert ops.missing_shortcuts(str(tmp_path)) == ["quick", "full", "heavy"]
-    (tmp_path / ops.SHORTCUTS["quick"]).write_text("x")
-    assert ops.missing_shortcuts(str(tmp_path)) == ["full", "heavy"]
-    (tmp_path / ops.SHORTCUTS["heavy"]).write_text("x")
-    desk = tmp_path / "desk"
-    desk.mkdir()
-    assert ops.missing_shortcuts(str(tmp_path), str(desk)) == ["full"]       # no app shortcut there: leave it
-    (desk / "Fresing Render.lnk").write_text("x")
-    assert ops.missing_shortcuts(str(tmp_path), str(desk)) == ["full", "desktop", "desktop_heavy"]
-    script = ops.shortcut_script("S", "b.exe", str(desk), ["desktop_heavy"])
-    assert ops.DESKTOP_HEAVY in script and '" heavy' in script
-
-
 def test_running_check_is_detected(tmp_path):
     pytest.importorskip("bpy")
     import json
@@ -591,19 +562,3 @@ def test_cancel_operator_needs_a_running_check(blender, tmp_path):
             pass
 
 
-def test_shortcut_script_output_that_is_not_utf8_is_read_anyway(tmp_path):
-    """0045 row 19d: PowerShell writes in the console's code page; an accented path in its output ended the thread
-    that makes the PC-check shortcuts with a UnicodeDecodeError."""
-    import sys
-    if sys.platform == "win32":
-        pytest.skip("the stand-in for powershell.exe is a script with a #! line")
-    pytest.importorskip("bpy")
-    from fresing_render.pccheck import ops
-    fake = tmp_path / "powershell"
-    fake.write_text(f"#!{sys.executable}\nimport sys\nsys.stdout.buffer.write(b'C:\\\\Users\\\\Ren\\xe9\\r\\n')\n"
-                    "sys.stderr.buffer.write(b'Fehler: \\x84\\x81\\r\\n')\nsys.exit(1)\n", encoding="utf-8")
-    fake.chmod(0o755)
-    script = tmp_path / "s.ps1"
-    script.write_text("", encoding="utf-8")
-    r = ops.run_powershell(str(script), exe=str(fake))
-    assert r.returncode == 1 and "Ren\ufffd" in r.stdout and "Fehler" in r.stderr

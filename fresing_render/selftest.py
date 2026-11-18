@@ -1,6 +1,6 @@
 """Self-test: checks the installation on this PC and writes a short report.
 
-Started from the "Fresing Render - Self test" shortcut, which runs Blender
+Started from the "Self test" shortcut in the Tools folder of the app (or Fresing > Tools and checks), which runs Blender
 in the background. The report is saved on the Desktop; send it to
 whoever maintains the app.
 """
@@ -443,3 +443,7 @@ def run_installed() -> None:
             st.main()
             return
     print("Fresing Render is not installed in this Blender")
+
+
+if __name__ == "__main__":       # task 0212: Fresing > Tools and checks > Run the self-test starts this file
+    run_installed()

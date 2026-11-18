@@ -263,6 +263,15 @@ def run_after():
     same = bool(tdir) and open(os.path.join(tdir, "__init__.py"), "rb").read() == open(src, "rb").read()
     check("installed app template = the one in the new extension", same, tdir)
     check("no update offered any more", upd.check_now().get("state") == "none", upd._check)
+    if sys.platform == "win32":
+        # task 0212: what the app runs at its start on Windows (appicon.startup, in a thread): the old build's extra
+        # shortcuts (put back by ci_windows_install.ps1 as an install before 0212 had them) are tidied away
+        ai = importlib.import_module(mod.__name__ + ".appicon")
+        done = ai.refresh_installed(bpy.app.binary_path)
+        log("shortcuts after the update:", "; ".join(done))
+        check("after the update: the app moved its Start-menu shortcut out of the old folder and made the Tools folder",
+              any("moved out of the Start-menu folder" in d for d in done)
+              and os.path.isdir(ai.tools_dir(ai.install_dir(bpy.app.binary_path))), done)
     project_checks()
 
 

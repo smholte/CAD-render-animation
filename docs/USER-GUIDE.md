@@ -228,8 +228,8 @@ output's own settings with its Make button – the same settings as in 5 Scene &
 7 Render queue, nothing is moved. The same list is in the header of the 3D view (**Make**, top of the
 view), so it is there whatever the side panel shows.
 
-This guide is in the app under **Help > Fresing Render user guide**, and in the Start menu under
-Fresing Render.
+This guide is in the app under **Help > Fresing Render user guide**, and as the shortcut **User guide** in the
+app's Tools folder (**Fresing > Tools and checks > Open the app folder**).
 
 <img class="small" src="img/help_menu.png" alt="Help menu with Fresing Render user guide at the top">
 
@@ -264,7 +264,9 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **What's new in 0.2.…** – what this version brings (see below). A dot after it means you have not opened it yet.
 - **Show the Fresing panel** – brings the side panel back on the Fresing tab ([If the Fresing panel is gone](#panel-gone)).
 - **Make demo project… / Open demo project** – the [demo project](#demo).
-- **User guide**, **PC check…**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
+- **User guide**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
+- **Tools and checks** – **Run the self-test**, **PC check…** and **Open the app folder** (the Tools folder with the
+  shortcuts that used to be in the Start menu; [One shortcut](#tools-and-checks)).
 - **My usage…** – what the app counted about your work, the favourites bar and its switches ([below](#my-usage)).
 - **Welcome screen…** – the welcome below, again.
 
@@ -444,14 +446,32 @@ the file**. An older version of the app opens a profile as a plain workspace.
    Task Manager shows the app as **Fresing Render** too: the shortcuts start `Fresing Render.exe`, Blender's own
    program under the app's name and icon, which the app makes next to `blender.exe` (at the first start after
    **Update now** on a PC that had an older version). If Fresing Render ever does not start from its shortcut – a
-   virus scanner can remove that copy – use Start menu > Fresing Render > **Fresing Render - safe start**: it starts
+   virus scanner can remove that copy – use **Safe start** in the app's Tools folder (below): it starts
    the app with Blender's own program, and Task Manager says "Blender" then. While Windows 11's *Smart App Control* is
    on, the app always works this way (that setting blocks programs without a signature).
-4. Once, recommended: Start menu > Fresing Render > **Fresing Render - Self test**. After a few minutes
+4. Once, recommended: in the app **Fresing > Tools and checks > Run the self-test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
    (see [Troubleshooting](#troubleshooting)).
-5. To test every function on your PC (after each update too): Start menu > Fresing Render >
-   **Fresing Render - PC check (quick)** ([The PC check](#pc-check)).
+5. To test every function on your PC (after each update too): **Fresing > Tools and checks > PC check…**
+   ([The PC check](#pc-check)).
+
+<a id="tools-and-checks"></a>
+#### One shortcut: everything else is in the app and in its Tools folder
+
+The Desktop and the Start menu hold one shortcut only: **Fresing Render**. Everything else is in the app, in the
+**Fresing** menu (top bar, after Help) > **Tools and checks**:
+
+- **Run the self-test** – checks the installation in its own window; the report lands on the Desktop.
+- **PC check…** – tests every function on this PC ([The PC check](#pc-check)).
+- **Open the app folder** – opens the **Tools** folder of the app in Explorer
+  (`%LOCALAPPDATA%\FresingRender\Tools`). It holds the same things as shortcuts, all with the Fresing **Fr** icon:
+  **Self test**, **PC check (quick)**, **PC check (full)**, **PC check (heavy)**, **Safe start** and **User guide**.
+  Drop a STEP file on a PC check shortcut there to test your own model too.
+
+A PC that had an older version gets this at its first start after **Update now**: the extra shortcuts on the Desktop
+and in the Start menu (the folder "Fresing Render" with the self-test, the PC checks, safe start and the user guide)
+are removed and made in the Tools folder. Only shortcuts that start this install are removed; a shortcut of your own
+is left alone. (Install.bat does the same.)
 
 README.txt in the installer folder has the details: company PCs, updates, removing the app.
 
@@ -4503,8 +4523,8 @@ on again in Blender's Preferences > Get Extensions; the app does not switch it o
 <a id="self-test"></a>
 ### The self-test
 
-Start menu > Fresing Render > **Fresing Render - Self test** runs for a few minutes without a window
-and writes "Fresing Render self-test.txt" on the Desktop. Each line checks one thing: the STEP reader,
+**Fresing > Tools and checks > Run the self-test** (or **Self test** in the app's Tools folder) runs for a few minutes in
+a window of its own and writes "Fresing Render self-test.txt" on the Desktop. Each line checks one thing: the STEP reader,
 importing on all cores, CAD material names, the app start, the graphics card, a test import, a render
 on the graphics card and one on the processor, joints and animation, the video encoder, the render
 queue, the time test and the update check. A line with `[FAIL]` says what went wrong: send the file
@@ -4520,15 +4540,15 @@ blur, turntable, milling, pictures on the graphics card and on the processor, EE
 render queue, the time test and the update check. It runs in the background; you can keep working.
 
 **Start it**
-1. Start menu > Fresing Render > **Fresing Render - PC check (quick)** (about 3 minutes: import, a
-   joint, a picture on the graphics card, a short EEVEE video), or **Fresing Render - PC check (full)**
-   (about 15 minutes: everything). Or in the app: **Help > Fresing Render PC check…**, pick **Quick** or
-   **Full**, then **OK**.
+1. In the app: **Fresing > Tools and checks > PC check…** (or **Help > Fresing Render PC check…**), pick **Quick**
+   (about 3 minutes: import, a joint, a picture on the graphics card, a short EEVEE video) or **Full** (about 15
+   minutes: everything), then **OK**. Or double-click **PC check (quick)** / **PC check (full)** in the app's Tools
+   folder (**Fresing > Tools and checks > Open the app folder**).
 2. A black window shows the steps as they run. Leave it open; it closes by itself.
 3. At the end "Fresing Render PC check.html" opens in your web browser (it is on the Desktop too).
 
-**Heavy: a real load test (10 to 20 minutes).** **Fresing Render - PC check (heavy)** (Start menu or
-Desktop; or **Help > Fresing Render PC check…** and pick **Heavy**) makes an invented machine of about
+**Heavy: a real load test (10 to 20 minutes).** **PC check (heavy)** in the app's Tools folder, or
+**Fresing > Tools and checks > PC check…** and pick **Heavy**, makes an invented machine of about
 3,000 parts (it is deleted afterwards), imports it on all cores, works with it (structure list, search,
 Show only, explode, save and open), renders Cycles pictures at HD and 4K, EEVEE per frame at HD and 4K,
 and a real 10 second animation (250 frames, EEVEE, 1920 × 1080) plus a 3 second Cycles clip through the
@@ -4546,8 +4566,8 @@ with your last Heavy run. In its text block you also find the peak memory.
 (shown only while a check runs), or press **Ctrl+C** in the black window. A picture that is being
 rendered is finished first. The report then opens with the steps that were done, marked "Cancelled".
 
-**With your own model (optional).** Drag a STEP file onto **Fresing Render - PC check** on the Desktop
-(the Start menu does not take files), or in **Help > Fresing Render PC check…** tick **Also test my own STEP file** and pick it (the
+**With your own model (optional).** Drag a STEP file onto **PC check (quick)** in the app's Tools folder,
+or in **Fresing > Tools and checks > PC check…** tick **Also test my own STEP file** and pick it (the
 model of the open project is filled in already). The check then also measures your model: import time,
 parts, unique parts, triangles, the share sorted by the rules, a picture on the graphics card and the
 time per frame for **Preview** and **Fast preview (EEVEE)** at HD.

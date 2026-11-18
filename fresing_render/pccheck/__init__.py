@@ -9,8 +9,8 @@ writes an HTML report on the Desktop and opens it at the end.
                  the text block for the lead chat, the HTML report
     checks.py    the lines themselves (one function per main function of the app)
     runner.py    runs the lines in a background Blender, takes the pictures, writes the report
-    launcher.py  the script the Start-menu shortcuts and Help > PC check start Blender with
-    ops.py       Help > Fresing Render PC check… in the app; makes the Start-menu shortcuts on Windows
+    launcher.py  the script the Tools-folder shortcuts and Help > PC check start Blender with
+    ops.py       Help > Fresing Render PC check… in the app (the Tools-folder shortcuts: appicon.py, task 0212)
 
 A task that adds something the owner can see adds its line to ``checks.py`` (CLAUDE.md section 6).
 """
