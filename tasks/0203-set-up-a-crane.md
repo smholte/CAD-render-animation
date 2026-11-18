@@ -1,6 +1,6 @@
 # 0203 – Lifting L4b: "Set up a crane" – rig your own crane STEP step by step in the Set-up window, save it to the library, Hook to here on any crane
 
-**Who:** worker · **Status:** running (18 Nov) – after 0201 (uses its Lifting plan section, placing and Hook to here) ·
+**Who:** worker · **Status:** done (0.2.161, 18 Nov) – after 0201 (uses its Lifting plan section, placing and Hook to here) ·
 **Branch:** `task/0203-set-up-a-crane`
 **Started by:** lead chat, 18 Nov 2026 (owner: "easily import cranes and have a rigging menu for the different types,
 sub-menus like the set-up of mechanisms"; owner's order 18 Nov: straight after L4) · **Lane:** Lifting
@@ -86,19 +86,19 @@ and Place, Hook to here and crane use % work on it exactly as on the built-in cr
 
 ## Done when
 
-- [ ] Real-app test: **AT-40, CC-750 (with its jib) and KB-50 rigged from their bare STEP through the Set-up window only**
+- [x] Real-app test: **AT-40, CC-750 (with its jib) and KB-50 rigged from their bare STEP through the Set-up window only**
       (clicks / names as a user would); the result compared with the built-in `rig` of the same class: same joints,
       roles, couplings, limits, hook point (within 1 mm / 0.1°), same poses; Save → Place in a new project → Hook to here
       gives the class solver's answer.
-- [ ] General solver tests: all 12 classes, ≥ 50 targets each, as 0201's; an "Other crane" rig (e.g. a knuckle crane
+- [x] General solver tests: all 12 classes, ≥ 50 targets each, as 0201's; an "Other crane" rig (e.g. a knuckle crane
       rigged with hand roles) solves too; unreachable targets refused with the reason.
-- [ ] Check step finds a planted fault of each kind (joint past its limit, hook not plumb, clash, mass missing, chart
+- [x] Check step finds a planted fault of each kind (joint past its limit, hook not plumb, clash, mass missing, chart
       refused) and leads to the step.
-- [ ] Masses & CoG, chart entry (table + CSV) and the round trip tested; the library never written into the built-ins.
-- [ ] An independent tester (subagent that did not write the code) breaks it from this brief; findings fixed.
-- [ ] Tooltips, guide chapter + pictures, function entries, tour stop, PC-check line; screenshots of every kind's
+- [x] Masses & CoG, chart entry (table + CSV) and the round trip tested; the library never written into the built-ins.
+- [x] An independent tester (subagent that did not write the code) breaks it from this brief; findings fixed.
+- [x] Tooltips, guide chapter + pictures, function entries, tour stop, PC-check line; screenshots of every kind's
       steps looked at (no cut-off text at 297 px, the Set-up window's width).
-- [ ] GitHub green incl. Windows; merged, next free version, released; report filled in; `TASKS.md`.
+- [x] GitHub green incl. Windows; merged, next free version, released; report filled in; `TASKS.md`.
 
 ## Not in this task
 
@@ -156,7 +156,7 @@ Added step **Poses** (before Check) for every kind: the rig's poses and start po
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, session branch `claude/wonderful-hawking-aea8kb`, 18 Nov 2026. Version 0.2.158.
+**Chat / date:** Claude Code on the web, session branch `claude/wonderful-hawking-aea8kb`, 18 Nov 2026. Version 0.2.160.
 
 **What changed:**
 - **Set up a crane** in the Set-up window (`blender/setup_crane.py` steps + drawing, `ops_setup_crane.py` buttons,
@@ -221,13 +221,16 @@ Added step **Poses** (before Check) for every kind: the rig's poses and start po
 - Tour set built + Go + check (5.5 s). PC-check line `lifting.setup` OK: set up KB-20 1.0 s, Hook to here 79 ms.
 
 **Open points / follow-up tasks:**
-- **Built-in models clash in their own poses** (found by Check's clash check): KB-50 "Long reach" – CONTROL STAND
-  0.86 m inside TRUCK CAB; CC-750 – JIB STRUT × JIB PENDANT BAR R (3.8 m), UPPER FRAME × BOOM FOOT (59 mm), the boom
-  pendants' bar × rod (17 mm). Over whole joint ranges more (slew with folded boom over the cab …). Lifting lane: fix
-  the makers (L3) and add a clash test of every pose.
+- **Built-in models clash in their own poses** (found by Check's clash check): before 0204's maker fixes KB-50 "Long
+  reach" (CONTROL STAND 0.86 m inside TRUCK CAB) and CC-750 (jib strut × jib pendant 3.8 m, upper frame × boom foot);
+  with 0204's models (0.2.159) only **CC-750 "Steep": BOOM PENDANT BAR L × ROD L 4.9 mm** is left. Over whole joint
+  ranges (grey lines) KB-50 24, CC-750 2. Lifting lane: a clash test of every built-in pose (the makers).
 - The hook point can't be found on the built-in STEPs (drawn hook ≠ file's point): the step guesses, the user types.
 - Drum (0080) for the hoist rope, and the falls drawn: L5. Fly-jib offsets are set by hand (not solved).
 - Undo after Make only tried through the operators' UNDO flag, not in a real-app undo test.
 - Subagents: A (Opus) solver + Check checks + their tests, then the tester's core findings; independent tester
   (Opus) 71 tests. Re-done after merging: the Y-up level plane on the Blender side, the panel's grey "no chart".
-- GitHub runs: see below.
+- **GitHub runs: 6 full runs.** 44310788943 red: the tour's Set-up window check expected only CNC + mechanism, and
+  the real-app test sat in a group lane runs skip (tour-b) – fixed. Then four green runs, three of them only because
+  `main` moved meanwhile (0181 took 0.2.158, 0204 0.2.159, 0208 0.2.160; a merge + renumber each): 44316164864,
+  44321632712, 44328497559, and the one merged: **44333535835 (80cbe66, 29 min, Windows A + B green)**.
