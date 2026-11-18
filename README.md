@@ -11,6 +11,8 @@ parts), built on Blender 5.2 LTS and its Cycles renderer. Owned by Fresing.
 - **TASKS.md** – open and finished tasks; one file per larger task in `tasks/`
 - **CHANGELOG.md** – what changed in each version
 - **docs/README-install.txt** – install and use (shipped with the installer)
+- **docs/COMPANY-USE.md** – using Fresing Render in a company (network, one approved version, licence in plain words)
+- **LICENSE**, **THIRD-PARTY-NOTICES.md**, **SECURITY.md**, **CONTRIBUTING.md**
 
 ## What it does
 
@@ -70,3 +72,15 @@ is then published as a GitHub release. The badge above shows the state of `main`
 `python3 tools/ci_status.py` shows a run from the command line. See CLAUDE.md section 5.
 
 See docs/DEVELOPMENT.md and docs/UPDATES.md.
+
+## Licence
+
+Fresing Render is free software: **GPL-3.0-or-later**, © 2026 Fresing – see `LICENSE`. It comes with **no
+warranty** (GPL sections 15 and 16): it is given as it is, without a promise that it fits a purpose.
+
+The **Fresing name and logos** are not part of the software licence: a fork or a changed copy given to others must use
+its own name and logo. (*Owner to check the wording.*)
+
+What others made and what licence it has: `THIRD-PARTY-NOTICES.md`. Using the app in a company: `docs/COMPANY-USE.md`.
+Reporting a security problem: `SECURITY.md`. Bug reports and ideas: `CONTRIBUTING.md` – code contributions are not
+taken for now.

@@ -1,6 +1,6 @@
 # 0181 – Usage tracker on the PC: favourites bar, declutter prompts, time saved, where the time goes
 
-**Who:** worker · **Status:** running (18 Nov) (0199 is done, 0.2.155; it was "after 0199" because both add to `core/functions.py`, the Help menu and the tour; 0199's precheck rules
+**Who:** worker · **Status:** done (0.2.158, 18 Nov) (0199 is done, 0.2.155; it was "after 0199" because both add to `core/functions.py`, the Help menu and the tour; 0199's precheck rules
 for `since=` / `changed=` apply to this task's entries). 0062 is done: see its report's pointers for 0181
 (`panels.OPEN` / `fresing.panel_toggle` = where opening a panel can be counted; `workspaces.used_functions(scene)` = what
 a project has) ·
@@ -98,10 +98,45 @@ button does.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026 · released as **0.2.158** (0201 and 0202 took 0.2.156 / 0.2.157
+meanwhile).
 
-**What changed:**
+**What changed:** see Design above. New files `core/usage.py`, `blender/usage.py`, `ops_usage.py`, `ui_usage.py`,
+`tests/test_usage.py` (30), `tests/test_usage_blender.py` (12), `tools/ui_test_usage.py` (real app, 24 checks, group
+scenes). Additive: `panels.install` wraps the operators and sets `fr_panel`; the panel-toggle counts an opening;
+`workspaces.PERSONAL` in `_hidden`; `Workspace.extra` (profile parts) in `core/workspaces.py`; `Function.manual_estimate`
+(+ a precheck rule); 4 function entries (`usage.favourites`, `usage.declutter`, `usage.my_usage`, `usage.profiles`);
+My usage in the Fresing menu and at the end of Help; "Back as it came" in the Workspace panel when the user hid
+something; the PC check's two operators are wrapped too; `lock.ALLOWED_PREFIXES` + `fresing.usage_`; tour stop
+`usage` (crane set changed); PC-check line `app.usage`; guide chapter "Your usage and the favourites bar" with two
+pictures; CLAUDE.md (layout + one lesson learned).
 
-**Tested and measured** (name the machine and the model):
+**Proposals the owner can change:**
+- The bar sits in the side panel under the Workspace row, not in the 3D view's header (Make is there already).
+- A favourite in the side panel *goes there* (its section tab, opened, its button pointed at for 6 s) rather than
+  pressing the button: most buttons need a selected row or settings above them. A menu favourite (PC check, updates)
+  runs.
+- Personal hides apply in every workspace except Full access (also in All functions, the default).
+- "Not now" = not asked about that panel again; "Don't ask again" = no more questions (switch back in My usage).
+- Settings-only functions (no button) are never on the bar; their use is seen through opening their panel.
+- **Time-saved guesses for the owner to adjust** (`manual_estimate` in `core/functions.py`): Material groups / Sort
+  parts into groups 5 s per part · Exploded view 20 s per part · Assembly sequence 30 s per part · Model update 30 min ·
+  Cylinder 10 min · Way cover 15 min · Hose 20 min · Cable 30 min · Turntable 15 min · Product video 60 min · Clash check
+  20 min · Web 3D model 2 h · Every paint scheme 10 min · Make a toolpath 60 min (per use). Per part = the mesh objects
+  in the project at the click.
+
+**Tested and measured:**
+- Cost per click, web machine (4 cores, Blender as a module): one button 0.013 ms without counting, 0.024 ms with;
+  `record()` alone 0.008–0.014 ms; the PC-check line measured 0.009 ms. No measurable cost.
+- Real app (xvfb, test crane): bar sorted at a start, a real click on a favourite opens tab 3 + Logos & stickers, a
+  real click on Sort parts into groups counts for Material groups with its panel known (`fr_panel` reaches the
+  operator) and ~10 min saved for 106 parts, Hide hides the asked panel, My usage opens, Back as it came: 24/24.
+- GitHub: 3 full runs. Run 1 red: a test counts the Help menu's `_draw_help` functions and mine had the same name
+  (renamed). Run 2 green; 0202 took 0.2.157 meanwhile → merge + 0.2.158, run 3 green (44306659788).
+- No independent tester agent (not Windows code; the wrap of every operator is covered by a test that checks every
+  `fresing.*` operator and by the full real-app suite, which clicks hundreds of them).
 
 **Open points / follow-up tasks:**
+- On the owner's PC: after a few starts the bar should appear; after 10 starts the first question.
+- Counting a *setting* change (not a button) is not done; a panel opening stands in for it.
+- 0208 (learn as you go) can start: it extends the declutter question (`usage.answer`, `ui_usage.py`).

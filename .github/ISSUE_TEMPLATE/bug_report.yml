@@ -1,0 +1,76 @@
+name: Bug report
+description: Something does not work, or gives a wrong result
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public.** Do not attach confidential models, part names or screenshots (yours or a client's).
+        Describe the problem in words, or reproduce it with a model of the app's own test set (Help > Make test tour project…).
+        For a security problem, or a problem that only shows with a confidential model, use the private report link in the issue chooser.
+  - type: input
+    id: version
+    attributes:
+      label: Fresing Render version
+      description: In the app, the Fresing menu at the top shows it ("What's new in 0.2.xxx"), also Edit > Preferences > Add-ons > Fresing Render. For example 0.2.158.
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: For example Windows 11 23H2 (Start > Settings > System > About).
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: Graphics card and driver
+      description: For example NVIDIA RTX 3090, driver 560.xx. Write "none" if the PC has none.
+  - type: dropdown
+    id: pccheck
+    attributes:
+      label: PC check result
+      description: Start menu > Fresing Render > "PC check (quick)" or "(full)". Paste what it found in the box below if it found problems.
+      options:
+        - Quick – all lines passed
+        - Quick – some lines failed
+        - Full – all lines passed
+        - Full – some lines failed
+        - I did not run it
+    validations:
+      required: true
+  - type: textarea
+    id: pccheck_text
+    attributes:
+      label: PC check problem lines (if any)
+      description: Only the lines that failed – check that they hold no confidential names.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: What you did, click by click, from opening the app.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: checkboxes
+    id: confidential
+    attributes:
+      label: Nothing confidential
+      options:
+        - label: This report contains no confidential models, part names or screenshots.
+          required: true

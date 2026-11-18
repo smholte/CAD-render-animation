@@ -1,6 +1,6 @@
 # 0205 – Repository basics: licence file, third-party notices, security policy, contributing, issue templates, "Using Fresing Render in a company"
 
-**Who:** worker · **Status:** running (started 18 Nov) · **Branch:** `task/0205-repository-basics`
+**Who:** worker · **Status:** done 18 Nov · **Branch:** `task/0205-repository-basics`
 **Started by:** lead chat, 18 Nov 2026 (owner after GitHub's Community Standards page; a company wants to use the app)
 · **Lane:** Repository & company use (new: root files `LICENSE`, `THIRD-PARTY-NOTICES.md`, `SECURITY.md`,
 `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/`, `docs/COMPANY-USE.md`; small: `README.md`, `tools/ci_precheck.py` doc
@@ -122,12 +122,57 @@ SPDX headers in source files (later; would touch every file). Discussions.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web (branch `claude/clever-heisenberg-wj9cqy`), 18 Nov 2026. No contact
+address was given in the start line: the security advisory page is the only private route (`SECURITY.md`,
+`CONTRIBUTING.md`, issue chooser) – see "Needs the owner".
 
-**What changed:**
+**What changed (no app code, no version raise):**
+- `LICENSE`: the full GNU GPL v3 text (35,149 bytes, sha256 `3972dc97…6986` – the FSF's `gpl-3.0.txt`; taken from Debian's
+  `/usr/share/common-licenses/GPL-3`, because gnu.org is blocked here. Blender's own copy
+  (`license/spdx/GPL-3.0-or-later.txt`) differs only in `http:` against `https:` links). README: "Licence" section (GPL-3.0-or-later,
+  © 2026 Fresing, no warranty, brand note, links).
+- `THIRD-PARTY-NOTICES.md`: Blender (downloaded by the installer), the three wheels and the libraries the OpenCascade wheel
+  carries, the web viewer (three.js r180, meshoptimizer, model-viewer 4.4.0 / lit), fonts, the credited third-party
+  models on the landing page, the pinned house-format copy, dev tools; brand note; the "Needs the owner" table. Licences
+  checked at their source (raw files of CadQuery/OCP, OCCT, manifold, three.js, meshoptimizer, model-viewer, IEA 15 MW,
+  Thor, CEB press, EVO's `REUSE.toml`, OpenArm; package metadata of the wheels, read from the Windows and Linux wheels
+  themselves; Blender's own `license/` folder).
+- `SECURITY.md`, `CONTRIBUTING.md` (no outside code for now), `.github/ISSUE_TEMPLATE/` (`bug_report.yml` with the required
+  "no confidential" tick, `feature_request.yml`, `config.yml`: blank issues off, private-report link).
+- `docs/COMPANY-USE.md` (linked from README and the guide's start): network table with file:line, files and folders, one
+  approved version via `-UpdateUrl`, proxy / SmartScreen / Smart App Control, the licence in plain words, Lifting plans.
+- `tools/ci_precheck.py`: `LICENSE`, `THIRD-PARTY-NOTICES.md`, `SECURITY.md`, `CONTRIBUTING.md` in `DOC_FILES`,
+  `.github/ISSUE_TEMPLATE/` in `DOC_PREFIXES`; test `test_repository_basics_are_documents` (the workflows stay full runs).
+- `CLAUDE.md`: layout, docs-mode list, a rule "licence and third parties".
 
-**Tested and measured:**
+**Network check (what the code does, read, not measured with a network monitor):** only the update check (`core/updates.py:271-278`,
+started by `blender/updates.py:172`, off with the preference `prefs.py:28`), the update download on **Update now**
+(`core/updates.py:311`), the same check once in the self-test (`selftest.py:238-258`) and the PC check (`checks.py:4261`),
+three browser links on click (`updates.py:652`, `welcome.py:501`, `ui.py:990`), and the installer's Blender download
+(`Install-FresingRender.ps1:52`). Nothing else uses `urllib`, `socket`, `http` or `webbrowser` in the app (`mesh_reader.py` uses
+`urllib.parse` for text only; the web pages' only `fetch` is of an in-memory blob). The usage tracker imports no network library.
+The User-Agent is `FresingRender/<version> (update check)` only.
 
-**Needs the owner:**
+**Tested and measured:** `pytest tests/test_ci_tools.py tests/test_user_guide.py tests/test_site.py tests/test_functions.py` green
+locally (74 + 52); `python3 tools/ci_precheck.py` ok; the YAML forms parsed and checked (ids, the required tick).
+Not measured: the issue forms on github.com and Community standards (after the merge, below); Blender's extension sync on Windows.
 
-**Open points / follow-up tasks:**
+**Needs the owner** (nothing deleted or moved; the same table is at the end of `THIRD-PARTY-NOTICES.md`):
+1. **Turn on** private vulnerability reporting (Settings › Code security) – the issue chooser and `SECURITY.md` point to it.
+   Give a contact address if you want one (none was given).
+2. **Brand note** wording (README, notices) – a lawyer may word it.
+3. Decide the licence of Fresing's **own pictures, videos and logos** (`site/media/`, `brand/`): the notice says "all rights reserved"
+   for now.
+4. `smholte/house-scene-format` has **no licence file**; a pinned copy of its checker is in `tests/data/house/`.
+5. **FarmBot Genesis**'s CC0 is "to be confirmed" in `site/CREDITS.md` and could not be confirmed here (the site is blocked);
+   nothing of it is in the repository.
+6. **The installer switches Blender's online access on and Blender's own extension repository syncs at start** (checked in
+   Blender 5.2.3 on Linux: `use_sync_on_startup = True`): Blender may contact `extensions.blender.org` at every start. Not
+   measured on Windows. A company will ask; decide whether the installer should switch that sync off (a follow-up task).
+7. **Licence texts missing on the PC:** Fresing Render's own GPL, the libraries inside the OpenCascade wheel (FreeImage,
+   LibRaw, OpenEXR, FreeType … – the wheel carries none), meshoptimizer's MIT text → task 0206. Whether Blender's `license/`
+   folder reaches the PC is expected from the Linux package layout, **not looked at on Windows** → 0206.
+
+**Open points / follow-up tasks:** Community standards, the "GPL-3.0 license" in the About box and the two forms on
+github.com can only be looked at after the merge (below). Code of conduct, PR template, Accessibility are left out on
+purpose (owner, 18 Nov). 0206 (licence in the app and installer) can start after 0181; points 6 and 7 go into its brief.

@@ -1,6 +1,6 @@
 # 0208 – Learn as you go: an unused function gets "Learn it" as well as "Hide it", a personal learning list, one quiet "next to learn"
 
-**Who:** worker · **Status:** waiting – **after 0181** (builds on its counts, its declutter question and its file)
+**Who:** worker · **Status:** running (started 18 Nov; builds on 0181)
 · **Branch:** `task/0208-learn-as-you-go`
 **Started by:** lead chat, 18 Nov 2026 (owner, after seeing 0181's "Unused panels" box: "a user might not know about a
 function or know how to use it – not just offer to hide it, but also offer the user guide or this function in the test
