@@ -153,6 +153,22 @@ def _vec3(v):
     return a if np.all(np.isfinite(a)) else None
 
 
+def _number(x) -> bool:
+    """A real, finite number (a hand-edited file can hold words or nothing where a number belongs)."""
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+
+
+def _positive(x):
+    return float(x) if _number(x) and x > 0 else None
+
+
+def _pair(x):
+    """[lo, hi] as two numbers, else None."""
+    if isinstance(x, (list, tuple)) and len(x) == 2 and _number(x[0]) and _number(x[1]):
+        return float(x[0]), float(x[1])
+    return None
+
+
 class Kinematics:
     """A crane's joint chain from its equipment file (``data``: the whole file as read, ``rig`` inside) – the joints
     only, no roles. ``by``: name -> the joint's dict; values are degrees (ROTATE) and mm (SLIDE), 0 in the CAD pose."""
@@ -445,6 +461,10 @@ class Rig(Kinematics):
             if self.by[tele]["kind"] != "SLIDE":
                 r = role_of(self.by[tele])
                 raise ReachError(f"The {ROLE_WORDS[r]} joint '{tele}' must slide (SLIDE).", r)
+            if not self.by[tele].get("limits"):
+                r = role_of(self.by[tele])
+                raise ReachError(f"The {ROLE_WORDS[r]} joint '{tele}' has no limits: Hook to here needs how far it "
+                                 "runs out.", r)
             self.role["tele"] = tele
         if not isinstance(hook, dict) or _vec3(hook.get("point")) is None:
             raise ReachError("The crane's file does not say where the hook is (rig > hook > point).", "hook_block")
@@ -452,14 +472,21 @@ class Rig(Kinematics):
         lim = data.get("limits") or {}
         self.limits_data = lim if isinstance(lim, dict) else {}
         lim = self.limits_data
-        self.model_boom = lim.get("model_boom")
-        self.model_jib = lim.get("model_jib")
-        self.jib_boom_angle = lim.get("jib_charts_boom_angle") if self.mode == "jib" else None
+        self.model_boom = _positive(lim.get("model_boom"))           # a hand-edited file: words count as none
+        self.model_jib = _positive(lim.get("model_jib"))
+        jba = lim.get("jib_charts_boom_angle")
+        self.jib_boom_angle = float(jba) if self.mode == "jib" and _number(jba) else None
         self._planes: dict = {}
+        self._hoist_hi = None
         pl = self.plane({})
+        # how far the hook can go down when the hoist has no limits: past the ground by as far as the boom reaches
+        reach = float(np.linalg.norm(pl.P2 - pl.P1) + np.linalg.norm(pl.V0))
+        if "tele" in self.role:
+            reach += float(np.linalg.norm(pl.w)) * max(abs(x) for x in self.limits(self.role["tele"]))
+        self._hoist_hi = max(float(self.hook_cad @ self.up), 0.0) + 2.0 * reach + 3000.0
         # the boom's angle above level in the CAD pose (the file's limits say it; else the geometry)
         luffj = self.by[luff]
-        ang = lim.get("boom_angle") or lim.get("main_boom_angle")
+        ang = _pair(lim.get("boom_angle")) or _pair(lim.get("main_boom_angle"))
         if ang and luffj.get("limits"):
             self.th0 = float(ang[0]) - float(luffj["limits"][0])
         else:
@@ -469,13 +496,24 @@ class Rig(Kinematics):
         self.second_cad = 0.0
         if "second" in self.role:
             sj = self.by[self.role["second"]]
-            rel = lim.get("jib_angle_to_boom") or lim.get("knuckle_angle")
+            rel = _pair(lim.get("jib_angle_to_boom")) or _pair(lim.get("knuckle_angle"))
             if rel and sj.get("limits"):
                 self.second_cad = float(rel[0]) - float(sj["limits"][0])
             else:
                 v1, v2 = pl.P2 - pl.P1, pl.V0
                 self.second_cad = math.degrees(math.atan2(v2[1], v2[0]) - math.atan2(v1[1], v1[0]))
                 self.second_cad = (self.second_cad + 180.0) % 360.0 - 180.0
+
+    def solve_range(self, name: str):
+        """The range Hook to here solves a joint in: its limits; without them a turning joint within one turn
+        (-180 … 180°) and the hoist from 0 (the hook never above its sheave) to past the ground."""
+        if self.by[name].get("limits"):
+            return self.limits(name)
+        if name == self.role.get("hoist"):
+            return 0.0, float(self._hoist_hi or 1e6)
+        if self.by[name]["kind"] == "ROTATE":
+            return -180.0, 180.0
+        return self.limits(name)
 
     # -- the plane --------------------------------------------------------------------------------------------------
     def _base_values(self, given: dict) -> dict:
@@ -756,11 +794,16 @@ def outrigger_spread(data: dict, values: dict) -> float | None:
     """The outrigger / stabiliser spread across (m) the pose gives, from the file's ``outriggers`` block
     (b = b_in + stages x value; spread = 2 b), or None."""
     o = data.get("outriggers") or {}
-    j = o.get("joint")
-    if not j or "b_in" not in o:
+    if not isinstance(o, dict):
         return None
-    v = float(values.get(j, 0.0)) / 1000.0
-    return 2.0 * (float(o["b_in"]) + float(o.get("stages", 1)) * v)
+    j = o.get("joint")
+    if not j or not _number(o.get("b_in")):
+        return None
+    stages = o.get("stages", 1)
+    stages = float(stages) if _number(stages) else 1.0
+    v = values.get(j, 0.0)
+    v = float(v) / 1000.0 if _number(v) else 0.0
+    return 2.0 * (float(o["b_in"]) + stages * v)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -820,9 +863,9 @@ class _Search:
 
     def __init__(self, rig: Rig, pl: Plane, X: float, Z: float):
         self.rig, self.pl, self.X, self.Z = rig, pl, X, Z
-        self.hoist_lim = rig.limits(rig.role["hoist"])
-        self.lim1 = rig.limits(rig.role["luff"])
-        self.lim2 = rig.limits(rig.role["second"]) if "second" in rig.role else (0.0, 0.0)
+        self.hoist_lim = rig.solve_range(rig.role["hoist"])
+        self.lim1 = rig.solve_range(rig.role["luff"])
+        self.lim2 = rig.solve_range(rig.role["second"]) if "second" in rig.role else (0.0, 0.0)
         self.Xs = X - pl.h[0]
         self.fails: list = []
 
@@ -957,7 +1000,7 @@ def _candidates_e(rig: Rig, pl: Plane, charts, X: float | None = None) -> list:
     es = [float(x) for x in np.linspace(lo, hi, GRID_E)]
     if X is not None and rig.mode == "luff":
         Xs = X - pl.h[0]
-        for a1 in rig.limits(rig.role["luff"]):
+        for a1 in rig.solve_range(rig.role["luff"]):
             r = math.radians(pl.s1 * a1)
             rv = _r2(pl.P2 - pl.P1 + pl.V0, r)
             rw = _r2(pl.w, r)
@@ -1003,8 +1046,8 @@ def _words_fail(fails, R: float, X: float, y: float) -> str:
 def _diagnose(rig: Rig, pl: Plane, R: float, X: float, Z: float) -> str:
     """Why a point is out of reach, from the hook's places over a grid of the boom's joints (two turning joints:
     no closed form for the whole reach)."""
-    lim1 = rig.limits(rig.role["luff"])
-    lim2 = rig.limits(rig.role["second"]) if "second" in rig.role else (0.0, 0.0)
+    lim1 = rig.solve_range(rig.role["luff"])
+    lim2 = rig.solve_range(rig.role["second"]) if "second" in rig.role else (0.0, 0.0)
     lime = rig.limits(rig.role["tele"]) if "tele" in rig.role else (0.0, 0.0)
     a1 = np.radians(pl.s1 * np.linspace(*lim1, 121))[:, None, None]
     a2 = np.radians(pl.s2 * np.linspace(*lim2, 121 if "second" in rig.role else 1))[None, :, None]
@@ -1024,7 +1067,7 @@ def _diagnose(rig: Rig, pl: Plane, R: float, X: float, Z: float) -> str:
         close = (math.hypot(r.min(), y) - R) if y else r.min() - X
         return f"Out of reach: about {close / 1000:.2f} m closer to the slew axis than the hook reaches."
     band = np.abs(r - X) < max(100.0, 0.01 * (r.max() - r.min()))
-    lo, hi = rig.limits(rig.role["hoist"])
+    lo, hi = rig.solve_range(rig.role["hoist"])
     if band.any():
         zmax, zmin = z[band].max() - lo * pl.dz, z[band].min() - hi * pl.dz
         if Z > zmax:
@@ -1064,7 +1107,7 @@ def _polish(rig: Rig, pl: Plane, vals: dict, names: tuple, R: float, Z: float) -
     """Newton on the 3-D kinematics: the two ``names`` moved so the hook's radius and height are R and Z (the plane's
     closed forms are exact for a plane rig; this takes out what a drawn axis' last decimals leave)."""
     vals = dict(vals)
-    lims = [rig.limits(n) for n in names]
+    lims = [rig.solve_range(n) for n in names]
     best, best_res = dict(vals), math.inf
     steps = np.array([1e-4 if rig.by[n]["kind"] == "ROTATE" else 1e-3 for n in names])
     for _ in range(6):
@@ -1130,7 +1173,7 @@ def hook_to(rig: Rig, target, current: dict | None = None, charts=(), setup: dic
     sols: list = []
     es = _candidates_e(rig, pl, charts, X)
     if rig.mode == "jib":                                        # a luffing jib: the boom at its charts' angle
-        lim1 = rig.limits(role["luff"])
+        lim1 = rig.solve_range(role["luff"])
         pref = (rig.jib_boom_angle - rig.th0) if rig.jib_boom_angle is not None else 0.5 * (lim1[0] + lim1[1])
         pref = min(max(pref, lim1[0]), lim1[1])
         order = sorted(np.arange(lim1[0], lim1[1] + 1e-9, 0.5).tolist() + [pref], key=lambda a: abs(a - pref))
@@ -1222,6 +1265,9 @@ def hook_to(rig: Rig, target, current: dict | None = None, charts=(), setup: dic
 # ---------------------------------------------------------------------------------------------------------------------
 # the live readout
 
+NO_CHART_WORDS = "Not checked – no chart"
+
+
 @dataclass
 class Readout:
     radius: float = 0.0          # m, slew axis -> hook, horizontal
@@ -1255,6 +1301,13 @@ def readout(rig: Rig, values: dict, charts=(), setup: dict | None = None, load_k
                   second_angle=rig.second_angle(values), jib=rig.jib_length())
     out.load = max(0.0, load_kg) * max(contingency, 0.0)
     out.rigging = rigging_kg
+    if not list(charts or ()):
+        # no chart at all: placed and moved, but nothing to judge against – grey, never "over" a limit nobody entered
+        out.status, out.words = lifting.NOT_CHECKED, NO_CHART_WORDS
+        out.reason = out.chart_note = "The crane's file has no load chart: crane use is not checked."
+        out.hook_block = hook_block_kg
+        out.gross = out.load + rigging_kg + hook_block_kg
+        return out
     chart, note = chart_for(charts, out.boom, setup, out.jib)
     why = rig.jib_angle_note(out.boom_angle)
     if why:
