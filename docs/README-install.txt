@@ -106,3 +106,9 @@ After "Render image": "Open" and "Show in folder" appear under the button.
 
 Projects on a shared folder: while you have a project open, others who open it see
 "In use by <name> on <computer>" in panel 1.
+
+LICENCE
+Fresing Render is free software under the GPL-3.0-or-later, with no warranty: the file LICENSE next to this one. The
+installer asks for no "I agree". THIRD-PARTY-NOTICES.md lists what others made that comes with it (Blender,
+OpenCascade ...), the folder licenses\third-party has their licence texts, COMPANY-USE.md is for an IT or legal reader.
+Everything is also inside the app: Fresing > About Fresing Render.

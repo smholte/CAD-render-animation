@@ -496,6 +496,12 @@ fresing_render/            the Blender extension (Python package)
                            uses), the favourites bar + declutter question (``FRESING_PT_favourites`` under Workspace),
                            My usage (Fresing menu, Help menu), profile export / import. Not counted: background runs,
                            FRESING_NO_USAGE, simulated events unless FRESING_USAGE_TEST
+    about.py ext_sync.py   task 0206: About Fresing Render (Fresing + Help menu; version, © Fresing, GPL, buttons Licence /
+                           Third-party licences / Using it in a company / Licence texts folder – a copy with the ending
+                           .txt is opened, Windows has no program for `LICENSE` or `.md`; works offline; core/about.py
+                           finds the files); ext_sync.py = Blender's own extension repositories do not sync at start (the
+                           installer sets it, an older install gets it ONCE at its first start – `fresing_ext_sync.json`
+                           remembers it, a user who turns it on again keeps it)
     welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
@@ -577,6 +583,10 @@ tests/                     pytest suite (pure Python + Blender as a Python modul
 .github/workflows/tests.yml  automatic tests on GitHub (section 5)
 LICENSE, THIRD-PARTY-NOTICES.md, SECURITY.md, CONTRIBUTING.md, .github/ISSUE_TEMPLATE/   (task 0205: GPL-3.0-or-later; what
                            others made and under which licence; private reports; no outside code for now; issue forms)
+fresing_render/licenses/   task 0206: LICENSE, THIRD-PARTY-NOTICES.md, COMPANY-USE.md (byte copies of the root / docs files –
+                           `tests/test_about.py` says when they differ: change both) and third-party/ (the licence texts of the
+                           libraries inside the OpenCascade wheel etc., SOURCES.txt says where each came from). Ship in the
+                           extension zip (so an update brings them) and at the top of the Windows zip (`build_release.py`)
 docs/                      README-install.txt (shipped to the owner), DEVELOPMENT.md, UPDATES.md (how updates work),
                            COMPANY-USE.md (task 0205: for a company's IT/legal reader – what reaches the network, one approved
                            version from a network folder, the licence in plain words; keep it true when the network use changes),

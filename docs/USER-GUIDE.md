@@ -4331,6 +4331,28 @@ a maker's. Before you plan a real lift, copy the class nearest your crane and en
 - A turntable of 10 s has 250 frames: check it with **Fast preview (EEVEE)** first, and run a
   **Time test** of the animation "Turntable" in 6 Animation before a Final video.
 
+<a id="about-licences"></a>
+## About Fresing Render and the licences
+
+**Fresing > About Fresing Render…** (also in the **Help** menu) shows the version, the Blender it runs on, who makes it
+(© 2026 Fresing) and the licence in one plain line: Fresing Render is free software under the **GPL-3.0-or-later**, with
+no warranty. It works **offline** – every file it opens is inside your install. Four buttons:
+
+1. **Licence** – the licence text of Fresing Render itself.
+2. **Third-party licences** – what others made that ships with the app (Blender, OpenCascade, the web viewer …) and
+   under which licence.
+3. **Using it in a company** – the page for an IT or legal reader: what the app does on the network, where it writes
+   files, how to hold one approved version, the licence in plain words.
+4. **Licence texts folder** – the full licence texts of the libraries inside the app, one file each.
+
+The same files are next to the installer (in the zip) and inside every install; an **Update now** brings the ones of the new
+version. Blender's own licence folder (`license`, in the Blender folder of the install) stays as it came. The installer
+prints one line about the licence at its start and asks for no "I agree": the GPL needs none.
+
+Blender's own extension repository (extensions.blender.org) is told **not to sync at start**, so at start the app contacts
+nothing except its own update check (switch that off in the preferences if you want). If you want Blender's sync, turn it
+on again in Blender's Preferences > Get Extensions; the app does not switch it off a second time.
+
 <a id="troubleshooting"></a>
 ## Troubleshooting
 

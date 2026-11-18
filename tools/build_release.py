@@ -7,7 +7,7 @@ Produces in dist/:
     fresing_render-<version>.zip                 the Blender extension (with OpenCascade and Manifold wheels,
                                                  the user guide, the app template and changelog.json inside)
     FresingRender-<version>-windows/             installer folder (Install.bat, app layout, extension,
-                                                 "User guide.html")
+                                                 "User guide.html", LICENSE, THIRD-PARTY-NOTICES.md, licenses/)
     FresingRender-<version>-windows.zip          the same folder zipped, to hand out
     update-repo/                                 update listing: index.json (Blender's standard listing),
                                                  changelog.json and the extension zip. GitHub publishes
@@ -122,6 +122,16 @@ def stage_extension(stage: str, *, template_src: str = TEMPLATE, version: str = 
     return stage
 
 
+def add_licence_files(source: str, target: str) -> None:
+    """The licence files at the top of the installer folder (task 0206): ``LICENSE``, ``THIRD-PARTY-NOTICES.md``,
+    ``COMPANY-USE.md`` and the folder ``licenses/third-party`` with the texts of the libraries. The same files ship
+    inside the extension (``fresing_render/licenses``), so an update brings them too; the installer copies these next
+    to the app and prints the licence line from the first of them."""
+    for name in ("LICENSE", "THIRD-PARTY-NOTICES.md", "COMPANY-USE.md"):
+        shutil.copy2(os.path.join(source, name), target)
+    shutil.copytree(os.path.join(source, "third-party"), os.path.join(target, "licenses", "third-party"))
+
+
 def write_update_repo(repo: str, ext_zip: str, ext_tool, base_url: str = "") -> None:
     """index.json (+ index.html) by Blender's own tool, changelog.json next to it.
 
@@ -191,6 +201,7 @@ def main() -> None:
                     ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copy2(os.path.join(ROOT, "docs", "README-install.txt"), os.path.join(rel, "README.txt"))
     shutil.copy2(guide, os.path.join(rel, "User guide.html"))           # to read before installing
+    add_licence_files(os.path.join(stage, "licenses"), rel)             # task 0206: GPL, notices, library texts
 
     rel_zip = rel + ".zip"
     if os.path.exists(rel_zip):

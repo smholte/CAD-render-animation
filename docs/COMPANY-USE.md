@@ -43,7 +43,7 @@ starts no service (searched in `Install-FresingRender.ps1`).
 | 2 | **Update download**: the extension zip of the new version, checked against the size and SHA-256 in `index.json` | only when the user clicks **Update now** | the address in `index.json` (a GitHub release file) | `core/updates.py` 311 (`download`); `blender/updates.py` 311 (`start_download`) |
 | 3 | **The same check, once**, inside the self-test and the PC-check line "Update check" | when the user runs them | as 1 | `selftest.py` 238–258; `pccheck/checks.py` 4261 |
 | 4 | **Links that open the web browser** | only when the user clicks one: "What's new" release page, "How to get free 360° photos" | `github.com/smholte/CAD-render-animation` pages | `blender/updates.py` 652; `blender/welcome.py` 501; `blender/ui.py` 38 and 990 |
-| 5 | **The installer downloads Blender** | at install time, unless `blender-5.2.3-windows-x64.zip` is put next to `Install.bat` | `https://download.blender.org/release/Blender5.2/` (an old PowerShell may use BITS) | `installer/Install-FresingRender.ps1` 52 (address), 121 and 126 (transfer) |
+| 5 | **The installer downloads Blender** | at install time, unless `blender-5.2.3-windows-x64.zip` is put next to `Install.bat` | `https://download.blender.org/release/Blender5.2/` (an old PowerShell may use BITS) | `installer/Install-FresingRender.ps1` 52 (address), 128 and 133 (transfer) |
 
 The request carries only `FresingRender/<version> (update check)` as its `User-Agent` (`core/updates.py`, `user_agent`) –
 **no model, file name, user name, project or machine name**. As with any web request, the server sees the PC's
@@ -61,13 +61,15 @@ The request carries only `FresingRender/<version> (update check)` as its `User-A
 - the PC check and the self-test (apart from the one update check of row 3)
 - no crash reports, no telemetry, no licence server, no account.
 
-**Blender itself.** The installer switches Blender's **online access on** (`Install-FresingRender.ps1` line 258), because
-the update check needs it. With it on, Blender's own extension manager may contact `extensions.blender.org` at start-up:
-in Blender 5.2.3 that repository is set to "sync on start-up" by default (checked in Blender 5.2.3 on Linux with
-`use_sync_on_startup`). This is Blender's behaviour, not Fresing Render's, and **it has not been measured on Windows**; a
-company that wants no such traffic can set Edit > Preferences > Get Extensions > the repository's "Check for Updates on
-Startup" off, or block `extensions.blender.org` – the app does not need it. (Whether the installer should switch it off
-is an open decision of the owner.)
+**Blender itself.** The installer switches Blender's **online access on** (`Install-FresingRender.ps1`, the `set_prefs.py`
+block), because the update check needs it. In Blender 5.2.3 its own extension repository (`extensions.blender.org`) is set
+to "sync on start-up" by default (`use_sync_on_startup`), which would let Blender itself contact that address at every
+start. **Since 0.2.160 the installer switches that sync off on every remote repository, and an install made before it
+does the same once, at the first start after the update** (`blender/ext_sync.py`; it is remembered in
+`fresing_ext_sync.json` next to the other settings, so a user who turns the sync back on keeps it on). So at start the app
+contacts nothing except its own update check. The Windows test of every release checks that no remote repository syncs at
+start after an install. A company that wants no Blender extension traffic at all can also block `extensions.blender.org`
+– the app does not need it.
 
 **Switching the update check off:** untick **Check for updates at start-up** (Edit > Preferences > Add-ons > Fresing
 Render), or switch Blender's online access off (Edit > Preferences > System > Network): then the app contacts no

@@ -55,6 +55,13 @@ $BlenderSha256  = "723f08a4401502561eb763cdeacf8745b31e5f3f154d287d3830d97cf75dc
 
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# The licence in one line, first (task 0206). Fresing Render is free software under the GPL, which asks for no "I agree".
+$LicenceFile = Join-Path $Here "LICENSE"
+$ShownVersion = ""
+$zipFirst = Get-ChildItem -LiteralPath $Here -Filter "fresing_render-*.zip" -ErrorAction SilentlyContinue | Select-Object -Last 1
+if ($zipFirst -and $zipFirst.Name -match '^fresing_render-(\d+(\.\d+)*)') { $ShownVersion = $Matches[1] }
+Write-Host "Fresing Render $ShownVersion - GPL-3.0-or-later, no warranty. Licence: $LicenceFile" -ForegroundColor Cyan
+
 # Older Windows 10 PowerShell may default to TLS 1.0; download.blender.org needs TLS 1.2+.
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 # Company proxies: use the Windows login.
@@ -231,6 +238,27 @@ if (Test-Path -LiteralPath $TemplateDst) { Retry { Remove-Item -LiteralPath $Tem
 New-Item -ItemType Directory -Force -Path $TemplateDst | Out-Null
 Get-ChildItem -LiteralPath $TemplateSrc | Copy-Item -Destination $TemplateDst -Recurse -Force
 
+# Licence files next to the app (task 0206): Fresing Render's own licence, the notices and the licence texts of the
+# libraries. They also ship inside the extension (the app's About window opens those); this copy is for whoever looks
+# in the install folder. Blender's own "license" folder comes with the Blender zip as it is: check it is there.
+$LicenceDst = Join-Path $InstallDir "licenses"
+if (Test-Path -LiteralPath (Join-Path $Here "LICENSE")) {
+    if (Test-Path -LiteralPath $LicenceDst) { Retry { Remove-Item -LiteralPath $LicenceDst -Recurse -Force } "Replacing the licence files" }
+    New-Item -ItemType Directory -Force -Path $LicenceDst | Out-Null
+    foreach ($f in "LICENSE", "THIRD-PARTY-NOTICES.md", "COMPANY-USE.md") {
+        if (Test-Path -LiteralPath (Join-Path $Here $f)) { Copy-Item -LiteralPath (Join-Path $Here $f) -Destination $LicenceDst -Force }
+    }
+    if (Test-Path -LiteralPath (Join-Path $Here "licenses\third-party")) {
+        Copy-Item -LiteralPath (Join-Path $Here "licenses\third-party") -Destination $LicenceDst -Recurse -Force
+    }
+    Write-Host "   Licence files: $LicenceDst"
+} else {
+    Write-Host "   (no licence files next to the installer - the extension carries its own copy)" -ForegroundColor Yellow
+}
+if (-not (Test-Path -LiteralPath (Join-Path $BlenderDir "license"))) {
+    Write-Host "   (Blender's own license folder is missing from $BlenderDir - Blender's licence texts are on https://www.blender.org/about/license/)" -ForegroundColor Yellow
+}
+
 # Update address for the app (core/updates.py reads <portable>\config\fresing_update.json).
 $ConfigDir = Join-Path $Portable "config"
 New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
@@ -256,6 +284,9 @@ p = bpy.context.preferences
 p.filepaths.use_relative_paths = True
 p.view.show_tooltips_python = False
 p.system.use_online_access = True          # the app looks for updates at start-up (Update now)
+for repo in p.extensions.repos:            # Blender's own extension repositories do not sync at start (task 0206)
+    if repo.use_remote_url:
+        repo.use_sync_on_startup = False
 import addon_utils
 names = [m.__name__ for m in addon_utils.modules() if m.__name__.endswith(".fresing_render")]
 for name in names:

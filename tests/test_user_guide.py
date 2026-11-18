@@ -15,7 +15,7 @@ DOCS = os.path.join(ROOT, "docs")
 sys.path.insert(0, TOOLS)
 
 CHAPTERS = ["layout", "start-here", "usage", "start", "import", "structure", "looks", "motion", "scene", "animation", "queue", "lifting", "tour", "demo", "lifting-equipment", "tips",
-            "troubleshooting"]
+            "about-licences", "troubleshooting"]
 
 
 def _markdown_or_fail():

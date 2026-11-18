@@ -301,6 +301,39 @@ def s_menu_shot():
 
 
 @step
+def s_about_open():
+    about, files = mod("blender.about"), mod("blender.files")
+    names = [getattr(f, "__name__", "") for f in bpy.types.TOPBAR_MT_help._dyn_ui_initialize()]
+    check("About Fresing Render is in the Help menu too (task 0206)", "_draw_help" in names and about._draw_help in
+          bpy.types.TOPBAR_MT_help._dyn_ui_initialize(), names)
+    opened = []
+    real = files.open_path
+    files.open_path = lambda path: opened.append(path)         # no text program in the test: only what would open
+    try:
+        for which, needle in (("LICENCE", "GNU GENERAL PUBLIC LICENSE"), ("NOTICES", "Third-party notices"),
+                              ("COMPANY", "company"), ("TEXTS", "third-party")):
+            opened.clear()
+            with override():
+                res = bpy.ops.fresing.about_open("EXEC_DEFAULT", which=which)
+            path = opened[0] if opened else ""
+            body = open(path, encoding="utf-8").read() if os.path.isfile(path) and which != "TEXTS" else path
+            check(f"About > {which.title()} opens a file of this install, offline",
+                  res == {"FINISHED"} and needle.lower() in body.lower(), f"{res} {path}")
+    finally:
+        files.open_path = real
+    with override():
+        bpy.ops.fresing.about("INVOKE_DEFAULT")
+    return 0.8
+
+
+@step
+def s_about_shot():
+    shot("06b_about", crop=None)
+    key("RET")                                   # Close
+    return 0.5
+
+
+@step
 def s_client_view():
     ws, lock, topbar = mod("blender.workspaces"), mod("blender.lock"), mod("blender.ui_topbar")
     scene = bpy.context.scene
