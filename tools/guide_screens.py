@@ -2,7 +2,7 @@
 
 Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
 
-  panels   one picture per side-panel section, the rest of the side panel hidden:
+  panels   one picture per side-panel section (also the top of the tab: panel_top_*), the rest hidden:
       BLENDER_USER_RESOURCES=<user> GUIDE_SHOTS=panels xvfb-run -a -s "-screen 0 1500x7000x24" \\
           blender -p 0 0 1500 7000 --app-template fresing_render --enable-event-simulate --python tools/guide_screens.py
   window   the whole app: at start, after an import, the Help menu, joint arrows in the view:
@@ -846,6 +846,7 @@ if MODE == "panels":
                 sc.fresing.background = "COLOR"
                 sur = mod("blender.surroundings")
                 sur.remove_props(sc)
+                mod("blender.states").save_shot(sc, "Overview")      # the start scene back to the studio too
             show_only(spec)
             if name == "panel_top_tabs":                # the tab 4 pressed
                 bpy.context.window_manager.fresing_tab = "4"
