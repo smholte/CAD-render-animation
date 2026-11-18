@@ -19,8 +19,9 @@ fr_tubes.js              our own: moving cables, ropes, hoses and spool ropes (t
 fr_page.js               our own: the page (sea, sky, clouds, haze, rain, spray, sun shadows, quality, Auto, drawing
                          only on a change, saved views, the "no graphics card" check).
 fr_player.js             our own (task 0134): the controls – settings menu, playback, views, view tools, keys.
-fr_measure.js            our own (task 0135): the measuring maths (planes, diameters, axes, X/Y/Z parts).
-fr_tools.js              our own (task 0135): the part tools – part info, measure, cutaway, fade the rest.
+fr_measure.js            our own (task 0135): the measuring maths (planes, diameters, axes, X/Y/Z parts); task 0218: the
+                         slices' maths (a plane from a clicked face, turns, what several planes keep, the cut face hit).
+fr_tools.js              our own (task 0135): the part tools – part info, measure, slice (task 0218; was cutaway), fade the rest.
 
 Fresing Render puts all of them into every page it writes (5 Scene & Render > Web 3D model > Export). Nothing is
 loaded from the internet.

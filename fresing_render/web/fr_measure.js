@@ -157,7 +157,90 @@ var FRMeasure = (function () {
     return { kind: 'point', p: p };
   }
 
+  // ---------------------------------------------------------------- slices (task 0218)
+  // A slice: {o: the point it turns about, n0, e1, e2: its first frame (n0 points into the KEPT side, e1 x e2 = n0),
+  //           a, b: turns in degrees about e1, then about the turned e2, t: moved along its normal (m), flip}
+  // plane(s) -> {n, q, e1, e2}: what is kept is every point x with (x - q) . n >= 0
+  var FACE_EPS = 2e-5;      // a slice in a clicked face lies 0.02 mm in front of it: the face itself stays whole
+
+  function rot(v, k, deg_) {                           // v turned about the unit axis k (Rodrigues)
+    var a = deg_ * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    return add(add(mul(v, c), mul(cross(k, v), s)), mul(k, dot(k, v) * (1 - c)));
+  }
+  function frame(n) {                                  // e1 level where it can be, e1 x e2 = n
+    n = unit(n);
+    var e1 = cross([0, 0, 1], n);
+    if (len(e1) < 1e-6) e1 = [1, 0, 0];
+    e1 = unit(e1);
+    return { n0: n, e1: e1, e2: cross(n, e1) };
+  }
+  function make(o, n, eps) {
+    var f = frame(n);
+    return { o: eps ? sub(o, mul(f.n0, eps)) : o.slice(), n0: f.n0, e1: f.e1, e2: f.e2, a: 0, b: 0, t: 0, flip: false };
+  }
+  // a slice from a click: view = the direction the camera looks (model coordinates). The side away from the camera
+  // stays (the near side is cut away, so the cut is seen); Flip keeps the other side.
+  //   flat face: in the face's plane;  round face / axis: through the axis, square to the view;  a point: across the
+  //   triangle's own normal ``tri`` (a page without face data)
+  function sliceFromPick(pick, view, tri) {
+    view = unit(view);
+    if (pick.kind === 'round' || pick.kind === 'axis') {
+      var d = unit(pick.d), w = sub(view, mul(d, dot(view, d)));
+      if (len(w) < 1e-6) w = frame(d).e1;              // looking along the axis: any plane through it
+      return make(onLine(pick.p, pick.o, d), w, 0);
+    }
+    var n = pick.kind === 'flat' ? pick.n : tri;
+    if (!n || len(n) < 1e-9) n = view;
+    n = unit(n);
+    if (dot(n, view) < 0) n = mul(n, -1);              // into the part, away from the camera
+    return make(pick.p, n, FACE_EPS);
+  }
+  // across X, Y or Z through ``at`` (a point), keeping the side away from the camera
+  function sliceAcross(axis, at, view) {
+    var i = { X: 0, Y: 1, Z: 2 }[axis], n = [0, 0, 0];
+    n[i] = (view && view[i] < 0) ? -1 : 1;
+    return make(at, n, 0);
+  }
+  function plane(s) {
+    var n = rot(s.n0, s.e1, s.a || 0), e2 = rot(s.e2, s.e1, s.a || 0);
+    var e1 = rot(s.e1, e2, s.b || 0);
+    n = unit(rot(n, e2, s.b || 0));
+    var q = add(s.o, mul(n, s.t || 0));
+    return { n: s.flip ? mul(n, -1) : n, q: q, e1: e1, e2: e2 };
+  }
+  // what every plane keeps (a point exactly on a plane is kept)
+  function kept(planes, p, eps) {
+    for (var i = 0; i < planes.length; i++) if (dot(sub(p, planes[i].q), planes[i].n) < -(eps || 1e-9)) return false;
+    return true;
+  }
+  // where a ray (from, dir) enters what all planes keep, before ``maxT``: the cut face it sees there.
+  // -> {i: the plane, t, p} or null
+  function capAt(planes, from, dir, maxT) {
+    var best = null;
+    for (var i = 0; i < planes.length; i++) {
+      var dn = dot(dir, planes[i].n);
+      if (dn <= 1e-12) continue;                        // leaves the kept side or runs along the plane
+      var t = dot(sub(planes[i].q, from), planes[i].n) / dn;
+      if (t > maxT + 1e-9) continue;
+      if (!best || t > best.t) best = { i: i, t: t };
+    }
+    if (!best) return null;
+    best.p = add(from, mul(dir, best.t));
+    return kept(planes, best.p, 1e-7) ? best : null;
+  }
+  // how far a slice can move (m): from the box's nearest corner to its farthest, along the turned normal
+  function moveRange(s, lo, hi) {
+    var p = plane(Object.assign({}, s, { t: 0, flip: false })), a = Infinity, b = -Infinity;
+    for (var k = 0; k < 8; k++) {
+      var c = [k & 1 ? hi[0] : lo[0], k & 2 ? hi[1] : lo[1], k & 4 ? hi[2] : lo[2]], d = dot(sub(c, p.q), p.n);
+      a = Math.min(a, d); b = Math.max(b, d);
+    }
+    return [a, b];
+  }
+  var slice = { fromPick: sliceFromPick, across: sliceAcross, plane: plane, kept: kept, capAt: capAt,
+                moveRange: moveRange, frame: frame, FACE_EPS: FACE_EPS };
+
   return { measure: measure, single: single, parts: parts, fromRow: fromRow, mm: mm, angleText: angleText,
-           PARALLEL_DEG: PARALLEL_DEG, lineAngle: lineAngle };
+           PARALLEL_DEG: PARALLEL_DEG, lineAngle: lineAngle, slice: slice };
 })();
 if (typeof module !== 'undefined') module.exports = FRMeasure;

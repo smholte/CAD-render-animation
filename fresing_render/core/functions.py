@@ -207,7 +207,7 @@ fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_P
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
-   guide="slice", tour=("cutaway",), pccheck=("looks.cutaway",), since="0.2.64", changed="0.2.169")
+   guide="slice", tour=("cutaway",), pccheck=("looks.cutaway",), since="0.2.64", changed="0.2.170")
 fn(id="looks.find", title="Find & sort parts", family="looks", panel="FRESING_PT_find", button="fresing.find_word",
    guide="find", since="0.2.8")
 fn(id="looks.rules", title="Sorting rules", family="looks", panel="FRESING_PT_rules", button="fresing.rule_add",
@@ -434,9 +434,9 @@ fn(id="web.view_names", title="Web 3D model: View names – camera names or numb
 fn(id="web.phone", title="Web 3D page on a phone: one views control, nothing overlapping, the model in the free area",
    family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export", guide="web3d-phone", tour=("web3d",),
    pccheck=("web3d.export",), since="0.2.140")
-fn(id="web.tools", title="Web 3D page: part info, measure, cutaway, fade the rest", family="web",
-   panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",), pccheck=("web3d.export",),
-   since="0.2.131")
+fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a face or X/Y/Z), fade the rest",
+   family="web", panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",),
+   pccheck=("web3d.export",), since="0.2.131", changed="0.2.169")
 
 # ----- 6 Animation -----
 fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_animation", button="fresing.anim_add",
