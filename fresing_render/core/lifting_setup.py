@@ -37,6 +37,7 @@ SWEEP_STEPS = 9
 PLUMB_DEG = 0.5          # the hoist this close to straight down
 LIMIT_TOL = 1e-3         # deg / mm past a limit that is only rounding
 SUPPORT_GROUPS = ("carrier", "lower", "truck", "base")
+REACH_ROLES = ("luff", "telescope", "jib", "knuckle", "extension", "hoist")   # Hook to here and the chart need limits
 
 
 @dataclass
@@ -126,12 +127,18 @@ def sweep(data, steps: int = SWEEP_STEPS) -> list[Problem]:
             followers.setdefault(lead, []).append((j["name"], r))
     for j in kin.driven():
         n = j["name"]
-        if not j.get("limits"):
-            continue
-        lo, hi = kin.limits(n)
+        if j.get("limits"):
+            lo, hi = kin.limits(n)
+        else:
+            role = LR.role_of(j)
+            if role in REACH_ROLES:
+                out.append(Problem(role, f"The {LR.ROLE_WORDS[role]} joint '{n}' has no limits: Hook to here and the "
+                                   "chart need them – set its Min and Max."))
+            # the hook's plumb is still checked over a sensible range: ±90° or the CAD place ± 3 m
+            lo, hi = (-90.0, 90.0) if j["kind"] == "ROTATE" else (-3000.0, 3000.0)
         vs = np.linspace(lo, hi, steps)
         for f, r in followers.get(n, []):
-            if not kin.by[f].get("limits"):
+            if not kin.by[f].get("limits") or not j.get("limits"):
                 continue
             flo, fhi = kin.limits(f)
             fv = r * vs
@@ -287,46 +294,72 @@ def _box(cx, cy, hx, hy) -> list:
     return [(cx - hx, cy - hy), (cx + hx, cy - hy), (cx + hx, cy + hy), (cx - hx, cy + hy)]
 
 
+def _num(x) -> bool:
+    return LR._number(x)
+
+
+def _xy(c):
+    """A level point [x, y] of two numbers, else None (missing: the origin)."""
+    if c is None:
+        return 0.0, 0.0
+    if isinstance(c, (list, tuple)) and len(c) == 2 and _num(c[0]) and _num(c[1]):
+        return float(c[0]), float(c[1])
+    return None
+
+
+def _support(data, values: dict | None = None):
+    """(polygon or None, the support blocks the file has but that cannot be read)."""
+    vals = start_values(data) if values is None else dict(values)
+    f = _rig_to_file(data)
+    bad = []
+    o = data.get("outriggers")
+    if o and not (isinstance(o, dict) and not any(k in o for k in ("a", "b_in"))):
+        c = _xy(o.get("centre")) if isinstance(o, dict) else None
+        st = o.get("stages", 1) if isinstance(o, dict) else None
+        st = 1 if st is None else st
+        if isinstance(o, dict) and _num(o.get("a")) and _num(o.get("b_in")) and c is not None and _num(st):
+            v = vals.get(o.get("joint"), 0.0) if o.get("joint") else 0.0
+            v = float(v) * f if _num(v) else 0.0
+            return _box(c[0], c[1], float(o["a"]), float(o["b_in"]) + float(st) * v), bad
+        bad.append("outriggers")
+    t = data.get("tracks")
+    if t and not (isinstance(t, dict) and not any(k in t for k in ("gauge", "length"))):
+        c = _xy(t.get("centre")) if isinstance(t, dict) else None
+        if isinstance(t, dict) and _num(t.get("gauge")) and _num(t.get("length")) and c is not None:
+            cx, cy = c
+            j = t.get("joint")
+            try:
+                kin = LR.Kinematics(data)
+            except LR.ReachError:
+                kin = None
+            if kin is not None and j in kin.by:
+                up = str(_rig(data).get("up_axis") or "Z").strip().upper()
+                p = np.array([cx, 0.0, cy]) if up == "Y" else np.array([cx, cy, 0.0])
+                cx, cy = _flat(data, kin.moved(j, p / f, vals) * f)
+            return _box(cx, cy, float(t["length"]) / 2, float(t["gauge"]) / 2), bad
+        bad.append("tracks")
+    fp = data.get("footprint")
+    if fp:
+        pts = [_xy(q) if q is not None else None for q in fp] if isinstance(fp, list) else []
+        if len(pts) >= 3 and all(q is not None for q in pts):
+            return pts, bad
+        bad.append("footprint")
+    a = data.get("axles")
+    if isinstance(a, dict) and "width" in a:
+        xs = a.get("x")
+        if isinstance(xs, list) and xs and all(_num(x) for x in xs) and _num(a.get("width")):
+            xs = [float(x) for x in xs]
+            return _box(0.5 * (min(xs) + max(xs)), 0.0, 0.5 * (max(xs) - min(xs)), float(a["width"]) / 2), bad
+        bad.append("axles")
+    return None, bad
+
+
 def footprint(data, values: dict | None = None) -> list | None:
     """The crane's support at joint values (the start pose when None), a counter-clockwise polygon of level points in
     the file's length unit: the outrigger pads (``outriggers``: a, b_in + stages x the joint), the tracks' centre lines
     (``tracks``: length x gauge, moved with their joint), the ``footprint`` the set-up writes, or the axles (``axles``
-    with a ``width``). None when the file has none."""
-    vals = start_values(data) if values is None else dict(values)
-    f = _rig_to_file(data)
-    o = data.get("outriggers")
-    if isinstance(o, dict) and all(isinstance(o.get(k), (int, float)) for k in ("a", "b_in")):
-        c = o.get("centre") if isinstance(o.get("centre"), (list, tuple)) and len(o["centre"]) == 2 else (0.0, 0.0)
-        v = float(vals.get(o.get("joint"), 0.0)) * f if o.get("joint") else 0.0
-        b = float(o["b_in"]) + float(o.get("stages", 1)) * v
-        return _box(float(c[0]), float(c[1]), float(o["a"]), b)
-    t = data.get("tracks")
-    if isinstance(t, dict) and all(isinstance(t.get(k), (int, float)) for k in ("gauge", "length")):
-        c = t.get("centre") if isinstance(t.get("centre"), (list, tuple)) and len(t["centre"]) == 2 else (0.0, 0.0)
-        cx, cy = float(c[0]), float(c[1])
-        j = t.get("joint")
-        try:
-            kin = LR.Kinematics(data)
-        except LR.ReachError:
-            kin = None
-        if kin is not None and j in kin.by:
-            up = str(_rig(data).get("up_axis") or "Z").strip().upper()
-            p = np.array([cx, 0.0, cy]) if up == "Y" else np.array([cx, cy, 0.0])
-            cx, cy = _flat(data, kin.moved(j, p / f, vals) * f)
-        return _box(cx, cy, float(t["length"]) / 2, float(t["gauge"]) / 2)
-    fp = data.get("footprint")
-    if isinstance(fp, list) and len(fp) >= 3:
-        try:
-            pts = [(float(p[0]), float(p[1])) for p in fp]
-        except (TypeError, ValueError, IndexError):
-            pts = []
-        if len(pts) >= 3:
-            return pts
-    a = data.get("axles")
-    if isinstance(a, dict) and isinstance(a.get("x"), list) and a["x"] and isinstance(a.get("width"), (int, float)):
-        xs = [float(x) for x in a["x"]]
-        return _box(0.5 * (min(xs) + max(xs)), 0.0, 0.5 * (max(xs) - min(xs)), float(a["width"]) / 2)
-    return None
+    with a ``width``). None when the file has none it can read."""
+    return _support(data, values)[0]
 
 
 def inside(point, polygon) -> bool:
@@ -366,21 +399,23 @@ def _outside_by(point, polygon) -> float:
 
 def cog_problems(data, values: dict | None = None) -> list[Problem]:
     """The crane's centre of gravity at rest (the start pose, or ``values``) inside its support."""
+    fp, bad = _support(data, values)
+    _mu, lu = _units(data)
+    out = [Problem("masses", f"The file's '{b}' cannot be read (its sizes must be numbers, in {lu}): the support "
+                   "area leaves it out.") for b in bad]
     m, c = total_cog(data, values)
     if c is None:
-        return []                                  # mass_problems says what is missing
-    fp = footprint(data, values)
-    _mu, lu = _units(data)
+        return out                                 # mass_problems says what is missing
     if fp is None:
-        return [Problem("masses", "Not checked – no support area: the file has no outriggers, tracks or footprint.",
-                        lifting.AMBER)]
+        return out + [Problem("masses", "Not checked – no support area: the file has no outriggers, tracks or "
+                              "footprint.", lifting.AMBER)]
     p = _flat(data, c)
     if not inside(p, fp):
         pose = _rig(data).get("start_pose") if values is None else None
         where = f" in the pose '{pose}'" if pose else ""
-        return [Problem("masses", f"The crane's centre of gravity{where} lies {_outside_by(p, fp):.2f} {lu} outside "
-                        "its support (outriggers / tracks): check the masses and centres of gravity.")]
-    return []
+        out.append(Problem("masses", f"The crane's centre of gravity{where} lies {_outside_by(p, fp):.2f} {lu} "
+                           "outside its support (outriggers / tracks): check the masses and centres of gravity."))
+    return out
 
 
 # ---------------------------------------------------------------------------------------------------------------------
