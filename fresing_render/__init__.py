@@ -33,6 +33,7 @@ def _classes():
     from .blender import ops_people, ui_people    # task 0157: 6 Animation > People (before the Clash check)
     from .blender import ops_tc_person            # task 0156: the operator at a manual tool change
     from .blender import ops_lifting, ui_lifting  # task 0201: 8 Lifting plan
+    from .blender import ops_lifting_make, ui_lifting_make  # task 0204: 8 Lifting plan > Equipment > Make a crane…
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -56,7 +57,8 @@ def _classes():
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
-            + ops_house.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES)
+            + ops_house.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES
+            + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES)
 
 
 def _all_classes():
@@ -161,6 +163,8 @@ def register():
     tc_person.register()                     # the operator at a tool change (task 0156): clash hook
     from .blender import lifting
     lifting.register()                       # task 0201: the CoG symbol's draw handler, caches dropped on load
+    from .blender import ui_lifting_make
+    ui_lifting_make.register_props()         # task 0204: the Make a crane dialog's numbers (window manager)
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -201,6 +205,9 @@ def unregister():
     from .blender import lifting, ui_lifting
     lifting.unregister()
     ui_lifting.unregister_previews()
+    from .blender import ops_lifting_make, ui_lifting_make
+    ops_lifting_make.cancel_all()
+    ui_lifting_make.unregister_props()
     from .blender import tracks
     tracks.unregister()
     from .blender import spool

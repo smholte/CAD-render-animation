@@ -51,6 +51,11 @@ def build(c: C.Knuckle):
     base_r = 0.28 * W
     K.put(tr, Part("CRANE BASE", g.fuse(g.box(-0.55 * W / 2, -W / 2 + 60, deck - 1.0, 0.55 * W, W - 120, 300.0),
                                         g.cyl(base_r, 1.0, (0, 0, deck + 299.0), (0, 0, 1))), K.BOOM_YELLOW))
+    # the control stand on the crane base (it does not slew: on the column it swung into the truck cab, task 0204),
+    # on the left – the side the boom does not swing to in the class's poses
+    cr0 = 0.32 * c.boom_w + 60.0
+    K.put(tr, Part("CONTROL STAND", g.box(cr0 + 80.0, W / 2 - 560.0, deck + 299.0, 340.0, 400.0, 1000.0),
+                   K.CARRIER_GREY))
     # ---- stabilisers --------------------------------------------------------------------------------------------
     bw = p["beam_w"]
     K.outrigger_set(root, kit, "STABILISER", p["out_x"], bw, p["pad_in"], p["out_ext"] / C.STAGES, p["beam_z"], bw,
@@ -79,8 +84,6 @@ def build(c: C.Knuckle):
     column = g.cut(column, K.pin_across(p1, pin_r + 1.0, lug_y + 100.0))
     K.put(col, Part("CRANE COLUMN", column, K.BOOM_YELLOW))
     K.put(col, Part("BOOM PIN", K.pin_across(p1, pin_r, lug_y + 80.0), K.STEEL))
-    K.put(col, Part("CONTROL STAND", g.box(-cr - 500.0, -W / 2 + 150, deck + 300.0, 400.0, 500.0, 1100.0),
-                    K.CARRIER_GREY))
     # ---- main boom ----------------------------------------------------------------------------------------------
     mb = Asm("MAIN BOOM.ASM")
     K.put(col, mb)

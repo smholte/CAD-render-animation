@@ -3390,6 +3390,51 @@ def build_lifting(b: Build):
     _shot(b, "@lifting_hook")
 
 
+@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_crane_a.step", added="0.2.157",
+          changed="0.2.157")
+def build_lifting_make(b: Build):
+    """Task 0204: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next to the
+    tour, placed beside the test crane, set up, Hook to here above the test crane's boom."""
+    import bpy
+    import numpy as np
+
+    from . import build, lifting, logic, ops_lifting_make
+    sc = b.scene
+    _look("PRODUCT")
+    lib = os.path.join(b.folder, "Lifting equipment")
+    os.makedirs(lib, exist_ok=True)
+    job = ops_lifting_make.make_now(ops_lifting_make.tour_spec(), lib, replace=True)
+    roots = build.model_roots(sc)
+    mn, mx = (np.asarray(v, float) for v in logic.update_bounds(sc))
+    c = lifting.place(bpy.context, job.item_path, (float(mx[0]) + 7.0, float(0.5 * (mn[1] + mx[1])), float(mn[2])),
+                      math.pi)
+    lifting.apply_pose(sc, c, "Set up")
+    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
+    ld = lifting.new_load(sc, [part], "Test crane boom")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
+    a = lifting.hook_to(sc, c, lifting.above_load(sc, ld), ld)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    _update()
+    _camera(b, "ISO", "Tour lifting make", lens=35.0, points=_lifting_points(sc))
+    _shot(b, "@lifting_make")
+
+
+def _check_lifting_make(scene):
+    from . import lifting, ops_lifting_make
+    L = lifting.plan(scene)
+    if not L.cranes:
+        raise ValueError("no crane in the lifting plan")
+    c = L.cranes[0]
+    if c.item_name != ops_lifting_make.TOUR_CRANE:
+        raise ValueError(f"the crane is {c.item_name}, not the one made from numbers")
+    tele = [j.name for j in lifting.own_joints(scene, c) if "Telescope" in j.name]
+    if len(tele) != 4:
+        raise ValueError(f"{len(tele)} telescope joints, not 4 (5 sections)")
+    if not lifting.item_at(lifting.path_of(c)).sample:
+        raise ValueError("the made crane is not marked SAMPLE")
+    return lifting.check_rig(scene) + "; " + lifting.check_example(scene)
+
+
 def _lifting_points(scene):
     import numpy as np
 
@@ -3623,6 +3668,13 @@ stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
      "radius), the gross load (1.2 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
      where="8 Lifting plan > Hook & capacity", since="0.2.156", check=_check_lifting_hook)
+
+stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane made from numbers",
+     "Beside the test crane stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… "
+     "from the AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its "
+     "outriggers and its hook hangs above the test crane's boom (Hook to here). Its boom has 5 sections (joints "
+     "Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
+     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.157", check=_check_lifting_make)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "

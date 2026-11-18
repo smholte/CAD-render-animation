@@ -68,6 +68,33 @@ with a SAMPLE chart is in his library and can be placed – offline, nothing to 
 Real (maker) charts – never generated, only entered by the user; your own STEP crane (0203); tower, gantry, forklift
 makers (L8); offshore cranes (L9); the rope with several falls (L5).
 
+## Design (worker, 18 Nov)
+
+- **Numbers** `fresing_render/lifting_model/params.py` (no Blender, no OpenCascade): `FIELDS[kind]` (label, unit as
+  shown – m / mm / t / ° –, fold, limits, integer or list), values in the dataclass's own units (mm, t, °);
+  `of_class`, `to_class` (the dataclass the makers take), `validate(kind, values)` → `Problem(rule, text)` (ranges,
+  the rules between numbers, the makers' layout errors in plain words, at least one stable SAMPLE chart),
+  `suggest_masses` (the start class's rule scaled), `random_values` (tests), `class_of_data` (a placed item's
+  dataclass, from `made_from`).
+- **Maker** `make.py --params <numbers.json> --progress <p.json>` → `<stem>.step`, `.json` (`equipment.data` of the
+  made dataclass + `derived_from` = its own chart hash + `made_from` = start class and every number), `.png` (new
+  `picture.py`: OpenCascade's mesher + a NumPy depth buffer, no Blender, < 1 s). `run.py` starts it as its own program.
+  `equipment.py` takes a dataclass as well as a class name.
+- **Job** `lifting_model/job.py` `MakeJob`: temp folder, the program with the app's Python, progress, Cancel (kills
+  the tree, deletes the temp folder), install = STEP + PNG first, then L2's `write_item` (atomic) into
+  `<library>/Lifting equipment/<name>/`; a name already there is refused unless Replace.
+- **Dialog**: a popup (`invoke_props_dialog`), not the Set-up window – one form with no steps, and the Set-up window
+  is 0203's place for rigging an own STEP crane. `blender/ui_lifting_make.py` (properties on the window manager, made
+  from `FIELDS`; the dialog body with a fold per group; the line in Equipment), `blender/ops_lifting_make.py`
+  (`fresing.lifting_make` dialog → modal timer job; `_cancel`, `_masses`, `fresing.lifting_chart_csv` = L2's CSV chart
+  entry for an own item, the SAMPLE mark off by L2's rule). `ui_lifting.py` gets one line; `lifting.check_rig` /
+  `check_example` use the made crane's own layout.
+- **Shape faults found by the own-motion clash check** (also in the built-ins, fixed in the makers, built-ins made
+  again): knuckle-boom control stand slewed into the truck cab (now on the crane base); crawler boom foot's corner in
+  the upper frame at flat angles; pendant bars against the gantry / jib strut lug plates and posts (plates now round,
+  wider than the bar, the legs and posts outside its reach); pendant bores only as deep as the rod goes.
+- No subagents.
+
 ---
 
 ## Report (filled in by the chat that did the task)

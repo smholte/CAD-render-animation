@@ -962,6 +962,17 @@ def set_up_example(context, crane: str = EXAMPLE_CRANE, load_part: str = EXAMPLE
     return c, ld, a
 
 
+def _layout(crane):
+    """The maker's layout of a placed crane: a built-in class, or a crane made from numbers (task 0204)."""
+    from ..lifting_model import classes as C
+    from ..lifting_model import params
+    try:
+        cls = params.class_of_data(item_at(path_of(crane)).data)
+    except (OSError, ValueError, LL.LibraryError):
+        cls = C.CLASSES.get(crane.item_name)
+    return C.layout(cls) if cls is not None else None
+
+
 def check_rig(scene) -> str:
     """The first crane: every pose of its file puts the hook block where the maker's kinematics say (ValueError)."""
     L = plan(scene)
@@ -969,9 +980,9 @@ def check_rig(scene) -> str:
         raise ValueError("no crane in the lifting plan")
     c = L.cranes[0]
     from ..lifting_model import classes as C
-    if c.item_name not in C.CLASSES:
-        raise ValueError(f"{c.item_name} is not a built-in class")
-    lay = C.layout(c.item_name)
+    lay = _layout(c)
+    if lay is None:
+        raise ValueError(f"{c.item_name} is neither a built-in class nor a crane made from numbers")
     was = values(scene, c)
     worst = 0.0
     try:
@@ -1022,7 +1033,9 @@ def check_example(scene) -> str:
     c, ld = L.cranes[0], L.loads[0]
     rig = rig_of(c)
     from ..lifting_model import classes as C
-    lay = C.layout(c.item_name)
+    lay = _layout(c)
+    if lay is None:
+        raise ValueError(f"{c.item_name} is neither a built-in class nor a crane made from numbers")
     vals = values(scene, c)
     want = to_world(c, C.hook_point(lay, vals))
     hook = _hook_block_world(scene, c)
