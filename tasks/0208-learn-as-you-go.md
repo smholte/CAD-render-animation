@@ -1,6 +1,6 @@
 # 0208 – Learn as you go: an unused function gets "Learn it" as well as "Hide it", a personal learning list, one quiet "next to learn"
 
-**Who:** worker · **Status:** running (started 18 Nov; builds on 0181)
+**Who:** worker · **Status:** done (0.2.160, 18 Nov)
 · **Branch:** `task/0208-learn-as-you-go`
 **Started by:** lead chat, 18 Nov 2026 (owner, after seeing 0181's "Unused panels" box: "a user might not know about a
 function or know how to use it – not just offer to hide it, but also offer the user guide or this function in the test
@@ -77,7 +77,7 @@ tour's stops. Anything sent off the PC.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 18 Nov 2026 · released as **0.2.159**.
+**Chat / date:** Claude Code on the web, 18 Nov 2026 · released as **0.2.160** (0204 took 0.2.159 meanwhile).
 
 **What changed:** New `core/learning.py` (rules, no Blender, no network – tested) and `blender/learning.py` +
 `ops_learning.py`. The learning data lives in 0181's file under `learning` (an older file reads fine; use days are
@@ -103,6 +103,8 @@ function lookup is tested with stand-ins (`button_function`), and Show me in the
 already use, never used, shown by your workspace, not used by the open project, not hidden / turned down / listed – the
 first in the function list's order, families by use; the question's text ("Maybe you do not know it yet?" + the
 function's title as its one line); Learn on the card also opens the guide.
+
+**Runs:** 2 full runs. Run 1 red: the allow-list size test (my 8 learn buttons; cap raised, 3 of them listed as list-only edits). Then 0204 took 0.2.159: merged, renumbered, run 2 green (44326873734).
 
 **Open points / follow-up tasks:** the lessons task fills the greyed Show me / Build it yourself. The one-line "what it
 does" is the function's title (long for some); a short field could be added. "Show me in the guide" with no installed
