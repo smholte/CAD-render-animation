@@ -6,7 +6,8 @@ import bpy
 
 from ..core import clash as core
 from . import clash
-from .ui import BIG, MEDIUM, _has_model, _Panel, big, fold, gap, header_status, list_rows, split_props, steps, wrap
+from .ui import (BIG, MEDIUM, _has_model, _Panel, big, fold, gap, header_status, list_rows, missing, split_props,
+                 steps, wrap)
 
 
 class FRESING_UL_clashes(bpy.types.UIList):
@@ -57,6 +58,11 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
                                 "Click a row: the view goes there and shows both parts red"],
               key="fr_how_clash", used=bool(st["built"] or c.checked))
         gap(layout)
+        if not st["built"] and not rt.get("running"):   # nothing to check yet: one line and the button that gets it
+            op = missing(layout, context, "No built animation to check yet.", op="fresing.anim_build",
+                         op_text="Build & play", op_icon="PLAY")
+            op.play = True
+            return
 
         # -- what counts
         col = split_props(layout)

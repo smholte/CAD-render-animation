@@ -46,8 +46,8 @@ class FRESING_PT_house(_Panel, bpy.types.Panel):
         rt = ops_house.runtime(context.scene)
         if rt.get("running"):
             header_status(self.layout, "baking")
-        else:                                           # short: the long title leaves little room beside it
-            header_status(self.layout, "baked" if house_import.settings(context.scene).last_bake else "not baked")
+        elif house_import.settings(context.scene).last_bake:        # (nothing while not baked: the long title
+            header_status(self.layout, "baked")                     # leaves room for six letters beside it)
 
     def draw(self, context):
         layout = self.layout

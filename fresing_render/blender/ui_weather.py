@@ -6,7 +6,7 @@ import bpy
 
 from ..core import weather as core
 from . import build, weather
-from .ui import _has_model, _Panel, fold, gap, header_status, split_props, steps, wrap
+from .ui import _has_model, _Panel, fold, gap, header_status, hint, split_props, steps, wrap
 
 PLACE_WORDS = {
     "photo": "With a 360° photo the photo keeps its own sun and sky: the time of day and the clouds are not used. Rain, "
@@ -105,8 +105,8 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         if where == "sky":
             gap(layout)
             el, _az = core.sun_of(st)
-            layout.label(text=f"Time  {core.clock(w.hour)}  ({core.part_of_day(el, w.hour)}, sun {el:.0f}°)",
-                         icon="TIME")
+            wrap(layout, context, f"Time  {core.clock(w.hour)}  ({core.part_of_day(el, w.hour)}, sun {el:.0f}°)",
+                 icon="TIME")
             col = split_props(layout)
             col.prop(w, "hour", text="Time")
             col.prop(w, "north", text="North")
@@ -121,7 +121,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
                 rs = core.sunrise_sunset(st.day if st.use_date else core.EQUINOX_DAY, st.latitude)
                 text = (f"Sunrise {core.clock(rs[0])}, sunset {core.clock(rs[1])} (sun time)" if rs else
                         "The sun does not rise or set on this day here")
-                body.label(text=text, icon="BLANK1")
+                wrap(body, context, text, icon="BLANK1")
 
             # -- sky
             gap(layout)
@@ -150,8 +150,8 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
 
         # -- wind
         gap(layout)
-        layout.label(text=f"Wind  Bft {w.wind:.0f} {core.bft_name(w.wind).lower()}, "
-                          f"{core.bft_to_ms(w.wind):.0f} m/s", icon="FORCE_WIND")
+        wrap(layout, context, f"Wind  Bft {w.wind:.0f} {core.bft_name(w.wind).lower()}, "
+                              f"{core.bft_to_ms(w.wind):.0f} m/s", icon="FORCE_WIND")
         col = split_props(layout)
         col.prop(w, "wind", text="Beaufort")
         col.prop(w, "wind_from", text="From")
@@ -164,7 +164,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
                  "surroundings so the waves and white caps follow this wind.", icon="INFO")
         if s.background in ("SEA", "DECK"):
             col = split_props(layout)
-            col.prop(w, "vessel_speed", text="Vessel speed (kn)")
+            col.prop(w, "vessel_speed", text="Vessel (kn)")         # "Vessel speed (kn)" was cut off
             col.prop(w, "bow", text="Bow")
 
         # -- night
@@ -180,8 +180,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
                          icon="INFO")
         _work_lights(layout, context)
         gap(layout)
-        wrap(layout, context, "A video can change the weather: 6 Animation > add a Weather & time step.",
-             icon="RENDER_ANIMATION")
+        hint(layout, context, "A video can change the weather: 6 Animation > add a Weather & time step.")
 
 
 PANELS = (FRESING_PT_weather,)

@@ -6,10 +6,11 @@ from __future__ import annotations
 import bpy
 
 from . import vessel_motion, vessel_work
-from .ui import _has_model, _Panel, fold, gap, header_status, list_rows, missing, split_props, steps, where, wrap
+from .ui import (_has_model, _Panel, fold, gap, header_status, hint, list_rows, missing, split_props, steps, where,
+                 wrap)
 
 # the whole body of both panels when the project has no sea (task 0062: one line, not a box of four)
-NO_SEA = f"No sea yet: set Background to Open sea or Vessel deck in {where('scene')}."
+NO_SEA = f"No sea yet. {where('scene')}: pick Open sea or Vessel deck."      # two lines at the default width
 
 class FRESING_UL_vessel_still(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -59,8 +60,7 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
         # -- the sea and how much it moves the vessel
         gap(layout)
         col = split_props(layout)
-        row = col.row(align=True)
-        row.prop(s, "sea_state", text="Sea", expand=True)
+        col.prop(s, "sea_state", text="Sea")                # a drop-down: side by side "From the wind" is cut off
         from .ops_scene import draw_start_scene             # Build puts the start scene's sea back (task 0160)
         draw_start_scene(col, context, ["sea_state"])
         col.prop(v, "heading", text="Waves from")
@@ -76,8 +76,8 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
                  icon="INFO")
 
         gap(layout)
-        wrap(layout, context, "Camera on board: in 6 Animation add a Camera step, Ride along, and pick any part of "
-             "the machine (Keep level: the horizon stays still).", icon="CAMERA_DATA")
+        hint(layout, context, "Camera on board: in 6 Animation add a Camera step, Ride along, and pick any part of "
+             "the machine (Keep level: the horizon stays still).")
 
         # -- the vessel
         gap(layout)
