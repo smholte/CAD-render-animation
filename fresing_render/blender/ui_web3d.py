@@ -8,7 +8,7 @@ import bpy
 
 from ..core import web3d as core
 from . import animation, ui, vessel_motion, web3d, web3d_env
-from .ui import MEDIUM, _has_model, _Panel, big_row, header_status, primary, split_props, wrap
+from .ui import BIG, MEDIUM, _has_model, _Panel, big, big_row, gap, header_status, hint, split_props, wrap
 
 
 class FRESING_PT_web3d(_Panel, bpy.types.Panel):
@@ -29,14 +29,17 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
             header_status(self.layout, "exporting")
         elif w.last_size and os.path.exists(w.last_path):
             header_status(self.layout, core.header(w.last_size))
+        else:
+            header_status(self.layout, "not exported")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         w = web3d.settings(scene)
         rt = web3d.runtime(scene)
-        wrap(layout, context, "One 3D file of the machine as it is shown now, with its looks, and a page that shows "
+        hint(layout, context, "One 3D file of the machine as it is shown now, with its looks, and a page that shows "
                               "it in any web browser: drag to turn, scroll to zoom.")
+        gap(layout)
         col = split_props(layout)
         row = col.row(align=True)
         row.prop(w, "texture_size", text="Texture size", expand=True)
@@ -51,17 +54,18 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         sub = col.row()
         sub.enabled = animation.has_keys(scene)
         sub.prop(w, "animation", text="Include animation")
+        gap(layout)
         self.draw_surroundings(context, layout, w)
         self.draw_light(context, layout, w)
         self.draw_player(context, layout)
 
-        layout.separator()
+        gap(layout)
         if rt.get("running"):
             row = big_row(layout, MEDIUM)
             row.label(text=f"{rt.get('text', 'Working')} … {rt.get('progress', 0.0) * 100:.0f}%", icon="SORTTIME")
             row.operator("fresing.web3d_cancel", text="Cancel", icon="CANCEL")
             return
-        primary(layout, "fresing.web3d_export", "Export…", "EXPORT")
+        big(layout, "fresing.web3d_export", "Export…", "EXPORT", BIG)
         if w.last_text and os.path.exists(w.last_path):
             box = layout.box()
             box.label(text=os.path.basename(w.last_path), icon="FILE_3D")
@@ -72,11 +76,13 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
                 op.path = w.last_html
             op = row.operator("fresing.show_in_folder", text="Show in folder", icon="FILE_FOLDER")
             op.path = w.last_path
+        gap(layout)
         wrap(layout, context, "Not in the web model: edge wear, the shine along brushed or turned metal, tool marks, "
                               "the cutaway of parts (the sea's cut-away is on the page), milling, chips and coolant (as at the frame shown)"
                               + (", the halls and the quay." if w.env_mode == "PROJECT" else
                                  ", the surroundings (see Surroundings on the page)."), icon="INFO")
         if web3d.has_marine_looks():              # task 0161: those parts are baked one by one
+            gap(layout)
             wrap(layout, context, "Marine looks (growth, streaks, worn blade edge) are baked part by part where the "
                                   "parts stand: slower, a bigger file; the line above says how fine.", icon="INFO")
             layout.label(text="Marine detail")

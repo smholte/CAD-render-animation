@@ -6,8 +6,11 @@ from __future__ import annotations
 import bpy
 
 from . import vessel_motion, vessel_work
-from .ui import _has_model, _Panel, fold, header_status, list_rows, split_props, steps, wrap
+from .ui import (_has_model, _Panel, fold, gap, header_status, hint, list_rows, missing, split_props, steps, where,
+                 wrap)
 
+# the whole body of both panels when the project has no sea (task 0062: one line, not a box of four)
+NO_SEA = f"No sea yet. {where('scene')}: pick Open sea or Vessel deck."      # two lines at the default width
 
 class FRESING_UL_vessel_still(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -31,7 +34,11 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
         self.layout.label(icon="FORCE_HARMONIC")
 
     def draw_header_preset(self, context):
-        header_status(self.layout, vessel_motion.header(context.scene), limit=20)
+        if context.scene.fresing.background not in vessel_motion.KINDS:
+            header_status(self.layout, "no sea")
+            return
+        text = vessel_motion.header(context.scene)      # "Calm · roll ±1.2°": the sea's long name made short
+        header_status(self.layout, text.replace("From the wind", "Wind"), limit=18)
 
     def draw(self, context):
         layout = self.layout
@@ -39,20 +46,21 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
         s = scene.fresing
         v = s.vessel
         if s.background not in vessel_motion.KINDS:
-            wrap(layout, context, "The vessel moves on the Open sea or the Vessel deck: pick one under Background & "
-                 "surroundings above.", icon="INFO")
+            missing(layout, context, NO_SEA)
             return
+        steps(layout, context, ["Tick 'Move with the sea': the machine and the deck heave, pitch and roll",
+                                "Pick the sea state and where the waves come from",
+                                "Play the time line: the sea and the camera stay put"],
+              key="fr_how_vessel_motion", used=bool(v.enabled))
+        gap(layout)
         layout.prop(v, "enabled", text="Move with the sea")
         if not v.enabled:
-            steps(layout, context, ["Tick 'Move with the sea': the machine and the deck heave, pitch and roll",
-                                    "Pick the sea state and where the waves come from",
-                                    "Play the time line: the sea and the camera stay put"])
             return
 
         # -- the sea and how much it moves the vessel
+        gap(layout)
         col = split_props(layout)
-        row = col.row(align=True)
-        row.prop(s, "sea_state", text="Sea", expand=True)
+        col.prop(s, "sea_state", text="Sea")                # a drop-down: side by side "From the wind" is cut off
         from .ops_scene import draw_start_scene             # Build puts the start scene's sea back (task 0160)
         draw_start_scene(col, context, ["sea_state"])
         col.prop(v, "heading", text="Waves from")
@@ -67,10 +75,12 @@ class FRESING_PT_vessel_motion(_Panel, bpy.types.Panel):
             wrap(layout, context, "The waves stand still ('Moving' is off above); the vessel moves all the same.",
                  icon="INFO")
 
-        wrap(layout, context, "Camera on board: in 6 Animation add a Camera step, Ride along, and pick any part of "
-             "the machine (Keep level: the horizon stays still).", icon="CAMERA_DATA")
+        gap(layout)
+        hint(layout, context, "Camera on board: in 6 Animation add a Camera step, Ride along, and pick any part of "
+             "the machine (Keep level: the horizon stays still).")
 
         # -- the vessel
+        gap(layout)
         body = fold(layout, "fr_vessel_size", "Vessel", "MOD_OCEAN")
         if body:
             col = split_props(body)
@@ -131,6 +141,8 @@ class FRESING_PT_vessel_work(_Panel, bpy.types.Panel):
     def draw_header_preset(self, context):
         if context.scene.fresing.background in vessel_motion.KINDS:
             header_status(self.layout, vessel_work.header(context.scene), limit=14)
+        else:
+            header_status(self.layout, "no sea")
 
     def draw(self, context):
         layout = self.layout
@@ -138,13 +150,13 @@ class FRESING_PT_vessel_work(_Panel, bpy.types.Panel):
         s = scene.fresing
         vw = s.vessel_work
         if s.background not in vessel_motion.KINDS:
-            wrap(layout, context, "The vessel works on the Open sea or the Vessel deck: pick one under Background & "
-                 "surroundings above.", icon="INFO")
+            missing(layout, context, NO_SEA)
             return
-        if not len(vw.thrusters):
-            steps(layout, context, ["Find thrusters: the propellers among the joints",
-                                    "Pick what the vessel does: Ahead, Sideways or Turning",
-                                    "A Vessel at work step in 6 Animation changes it during a video"])
+        steps(layout, context, ["Find thrusters: the propellers among the joints",
+                                "Pick what the vessel does: Ahead, Sideways or Turning",
+                                "A Vessel at work step in 6 Animation changes it during a video"],
+              key="fr_how_vessel_work", used=bool(len(vw.thrusters)))
+        gap(layout)
         # -- what the vessel does
         layout.row(align=True).prop(vw, "mode", expand=True)
         col = split_props(layout)
@@ -161,6 +173,7 @@ class FRESING_PT_vessel_work(_Panel, bpy.types.Panel):
                  icon="ERROR")
 
         # -- the thrusters
+        gap(layout)
         n = len(vw.thrusters)
         body = fold(layout, "fr_vessel_thrusters", f"Thrusters ({n})" if n else "Thrusters", "FORCE_VORTEX")
         if body:
@@ -169,7 +182,7 @@ class FRESING_PT_vessel_work(_Panel, bpy.types.Panel):
             row.operator("fresing.vessel_thruster_add", text="", icon="ADD")
             row.operator("fresing.vessel_thruster_remove", text="", icon="REMOVE")
             if n:
-                body.template_list("FRESING_UL_vessel_thrusters", "", v, "thrusters", vw, "thrusters_index",
+                body.template_list("FRESING_UL_vessel_thrusters", "", vw, "thrusters", vw, "thrusters_index",
                                    rows=list_rows(n, 2, 6))
                 if 0 <= vw.thrusters_index < n:
                     th = vw.thrusters[vw.thrusters_index]

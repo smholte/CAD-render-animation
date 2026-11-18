@@ -8,7 +8,7 @@ import bpy
 from ..core import people as core
 from ..core.words import plural
 from . import people
-from .ui import _Panel, header_status, list_rows, primary, split_props, steps, wrap
+from .ui import _Panel, big, gap, header_status, list_rows, split_props, steps, wrap
 
 _ICONS = {"WALK": "TRACKING", "STOP": "PAUSE", "TURN": "LOOP_BACK", "PICK_UP": "TRIA_UP", "PUT_DOWN": "TRIA_DOWN",
           "WAVE": "HAND", "GREET": "COMMUNITY", "TALK": "OUTLINER_DATA_SPEAKER", "POINT": "FORWARD",
@@ -58,23 +58,23 @@ class FRESING_PT_people(_Panel, bpy.types.Panel):
         self.layout.label(icon="COMMUNITY")
 
     def draw_header_preset(self, context):
-        text = people.words(context.scene)
-        if text:
-            header_status(self.layout, text, limit=22)
+        header_status(self.layout, people.words(context.scene) or "none", limit=22)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         everyone = people.people(scene)
-        if not everyone:
-            steps(layout, context, ["Add a person: click on the floor where it stands",
-                                    "Draw its path: click the points it walks through",
-                                    "Add its steps: walk, stop, carry, greet, talk …",
-                                    "Build the animation above"])
-        primary(layout, "fresing.person_add", "Add person", "ADD")
+        steps(layout, context, ["Add a person: click on the floor where it stands",
+                                "Draw its path: click the points it walks through",
+                                "Add its steps: walk, stop, carry, greet, talk …",
+                                "Press Build & play above"],
+              key="fr_how_people", used=bool(everyone))
+        gap(layout)
+        big(layout, "fresing.person_add", "Add person", "ADD")
         layout.operator("fresing.people_example", icon="COMMUNITY")
         if not everyone:
             return
+        gap(layout)
         active = context.view_layer.objects.active
         col = layout.column(align=True)
         for ob in everyone:
@@ -85,10 +85,13 @@ class FRESING_PT_people(_Panel, bpy.types.Panel):
             op.name = ob.name
         if not people.is_person(active):
             wrap(layout, context, "Click a person above (or in the view) for its path and steps.", icon="INFO")
+            gap(layout)
             self._items(layout, context)
             return
         self._person(layout, context, active)
+        gap(layout)
         self._items(layout, context)
+        gap(layout)
         self._preview(layout, context)
 
     def _person(self, layout, context, ob):
@@ -108,12 +111,13 @@ class FRESING_PT_people(_Panel, bpy.types.Panel):
         col.prop(person, "carry")
         col.prop(person, "start")
         # the path
+        gap(box)
         box.label(text="Path", icon="CURVE_PATH")
         pts = people.path_points(ob)
         if context.mode == "EDIT_CURVE":
-            primary(box, "fresing.person_path_edit", "Done editing", "CHECKMARK", 1.25)
+            big(box, "fresing.person_path_edit", "Done editing", "CHECKMARK")
         elif not pts:
-            primary(box, "fresing.person_path_draw", "Draw path", "GREASEPENCIL", 1.25)
+            big(box, "fresing.person_path_draw", "Draw path", "GREASEPENCIL")
         else:
             wrap(box, context, f"{plural(len(pts), 'point')} (numbers in the view; 0 = where the person starts)")
             row = box.row(align=True)
@@ -121,6 +125,7 @@ class FRESING_PT_people(_Panel, bpy.types.Panel):
             row.operator("fresing.person_path_edit", text="Edit points", icon="EDITMODE_HLT")
             row.operator("fresing.person_path_clear", text="", icon="TRASH")
         # the steps
+        gap(box)
         box.label(text="Steps (top to bottom)", icon="SEQUENCE")
         row = box.row()
         row.template_list("FRESING_UL_person_actions", "", person, "actions", person, "actions_index",
