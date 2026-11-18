@@ -153,6 +153,14 @@ seller's own page before buying.**
 
 **Owner decides:**
 
+**Owner's answer (18 Nov 2026): Fresing has been in the KvK for 6–12 months.** So Artifact Signing (proposal 1) is
+out for now: EU organisations need ≥ 3 years of history, and individuals only qualify in the USA/Canada. It can be
+looked at again in 2028/29. **Proposal 2 becomes the plan:** SSL.com with eSigner (≈ $310/yr), either OV in the name
+"Fresing" (KvK extract; OV has no minimum company age) or IV in the owner's own name (passport). OV is preferred, because
+the publisher then reads "Fresing" and not a private person. The build task's brief below uses the SSL.com way.
+Still open for the owner: budget OK, copy vs launcher, OV vs IV.
+
+
 - Is Fresing registered at the KvK, and **since when** (≥ 3 years → try 1; otherwise 2)? Eenmanszaak or B.V.?
 - Budget: ≈ $120 (1) or ≈ $310 (2) per year.
 - Signed copy (a, name kept, +113 MB per Blender version) or launcher (b, small, Task Manager says "Blender")?
