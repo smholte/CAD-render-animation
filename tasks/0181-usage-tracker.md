@@ -1,6 +1,9 @@
 # 0181 – Usage tracker on the PC: favourites bar, declutter prompts, time saved, where the time goes
 
-**Who:** worker · **Status:** later – **after 0062** (it needs 0062's workspaces, families and panel layout) ·
+**Who:** worker · **Status:** open – **after 0199** (both add to `core/functions.py`, the Help menu and the tour; 0199's precheck rules
+for `since=` / `changed=` apply to this task's entries). 0062 is done: see its report's pointers for 0181
+(`panels.OPEN` / `fresing.panel_toggle` = where opening a panel can be counted; `workspaces.used_functions(scene)` = what
+a project has) ·
 **Branch:** `task/0181-usage-tracker`
 **Started by:** lead chat, 17 Nov 2026 (owner's document "UI workspace presets & adaptive usage tracker", part 2) ·
 **Lane:** new **Usage lane**: new files `core/usage.py`, `blender/usage.py`, `blender/ops_usage.py`, `blender/ui_usage.py`
