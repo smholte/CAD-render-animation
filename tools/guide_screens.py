@@ -268,7 +268,9 @@ _N = [0]
 
 
 def _panel_names():
-    return sorted(n for n in dir(bpy.types) if n.startswith("FRESING_PT_") and "__shot" not in n)
+    # (the popover panels of Make stay registered: the Make list's buttons open them)
+    return sorted(n for n in dir(bpy.types) if n.startswith("FRESING_PT_") and "__shot" not in n
+                  and not n.startswith("FRESING_PT_make_"))
 
 
 def show_only(spec):
@@ -480,7 +482,29 @@ def w_shot_help():
     return 0.5
 
 
+def _howto_as_in_the_app():
+    """``ui._OPEN_FOLDS`` opens every fold for a picture, also "How it works" of a panel whose project already has the
+    thing (the app closes it then, task 0062): keep that fold as the app draws it."""
+    ui = mod("blender.ui")
+    if getattr(ui.fold, "_guide", False):
+        return
+    real = ui.fold
+
+    def fold(layout, idname, title, icon="NONE", closed=True):
+        if title != "How it works":
+            return real(layout, idname, title, icon, closed)
+        keep = ui._OPEN_FOLDS
+        ui._OPEN_FOLDS = False
+        try:
+            return real(layout, idname, title, icon, closed)
+        finally:
+            ui._OPEN_FOLDS = keep
+    fold._guide = True
+    ui.fold = fold
+
+
 def _start():
+    _howto_as_in_the_app()
     win, area, region, sb = areas()
     log("mode", MODE, "ui scale", bpy.context.preferences.view.ui_scale, "window", win.width, win.height,
         "sidebar", sb.width)
@@ -2247,6 +2271,6 @@ elif MODE in ("render", "looks", "decals", "cutaway"):
         log("ERROR", traceback.format_exc())
         sys.exit(1)
 else:
-    bpy.context.preferences.view.ui_scale = float(os.environ.get("GUIDE_SCALE", "1.5" if MODE in ("panels", "update") else "1.0"))
+    bpy.context.preferences.view.ui_scale = float(os.environ.get("GUIDE_SCALE", "1.0" if MODE in ("window", "hover") or MODE.endswith("_view") else "1.5"))
     bpy.context.preferences.system.use_region_overlap = False      # side panel on a plain background
     bpy.app.timers.register(driver, first_interval=4.0, persistent=True)

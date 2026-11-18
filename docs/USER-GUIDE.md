@@ -3254,7 +3254,7 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
 <a id="run-gcode"></a>
 **Run a CNC program**
 
-<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 21.1 s on the machine (20.8 s without acceleration), one tool change">
+<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: the program file, its lines, moves and time on the machine, the fit into a video, air blast, the fold Lines, tool changes, toolpath">
 
 <img class="panel" src="img/panel_6_gcode_air.png" alt="A Run G-code program step with Blow the part clean at the end ticked">
 
