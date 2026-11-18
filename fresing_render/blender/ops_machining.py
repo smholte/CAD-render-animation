@@ -203,7 +203,7 @@ class FRESING_OT_mill_stop(_MillOp, bpy.types.Operator):
     parts themselves stay where they are"""
 
     bl_idname = "fresing.mill_stop"
-    bl_label = "Stop milling"
+    bl_label = "Remove the milling set-up"
 
     @classmethod
     def poll(cls, context):

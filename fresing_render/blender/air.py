@@ -151,7 +151,7 @@ def nozzle_signature(scene) -> str:
 def problem(scene) -> str:
     c = settings(scene)
     if c.air_source == "NOZZLE" and c.air_nozzle is None:
-        return "Pick the nozzle: click its part, press Use clicked part (or Click the nozzle point)"
+        return "Pick the nozzle: click its part, press Use as nozzle (or Click the nozzle point)"
     return ""
 
 

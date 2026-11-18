@@ -198,7 +198,24 @@ def _new(path=None):
 
 
 def _polls(name):
-    return getattr(bpy.types, name).poll(bpy.context)
+    """Would the panel show in the app's window? (Without a window nothing is folded: a class's own ``poll`` then
+    only says whether the project and its workspace show it, so the tests ask ``visible`` with the folds.)"""
+    from fresing_render.blender import panels
+    cls = getattr(bpy.types, name)
+    return bool(cls.poll(bpy.context)) and panels.visible(name, bpy.context, folds=True)
+
+
+def test_without_a_window_nothing_is_folded():
+    workspaces, panels, lock = _mods()
+    sc = _new(CRANE)
+    assert not panels.is_open("FRESING_PT_looks")
+    assert bpy.types.FRESING_PT_cutaway.poll(bpy.context)            # a script or test: only the project decides
+    assert not panels.visible("FRESING_PT_cutaway", bpy.context, folds=True)
+    workspaces.switch(sc, "Client view")
+    try:
+        assert not bpy.types.FRESING_PT_cutaway.poll(bpy.context)    # the workspace hides it everywhere
+    finally:
+        workspaces.switch(sc, "All functions")
 
 
 def test_a_new_project_starts_in_the_default_workspace_with_sections_folded():

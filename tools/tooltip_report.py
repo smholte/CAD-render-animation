@@ -247,8 +247,11 @@ class _Scan(ast.NodeVisitor):
             icon = _const(_kw(call, "icon")) or ""
             return Item(panel, "button", label or f"[icon {icon}]", a[0].value, line,
                         props={"__menu__": _const(a[1]) if len(a) > 1 else None})
-        if name == "primary" and len(a) >= 4:
+        if name in ("primary", "big") and len(a) >= 3:        # ui.primary / ui.big(layout, idname, text, icon)
             return Item(panel, "button", _text(a[2]) or "", _const(a[1]) or "?", line)
+        if name == "missing" and _const(_kw(call, "op")):     # ui.missing(..., op=, op_text=): its one button
+            return Item(panel, "button", _text(_kw(call, "op_text")) or "(label from operator)",
+                        _const(_kw(call, "op")), line)
         if name == "use_button" and len(a) >= 2:
             return Item(panel, "button", "Use", _const(a[1]) or "?", line)
         if name in ("prop", "prop_search") and len(a) >= 2:

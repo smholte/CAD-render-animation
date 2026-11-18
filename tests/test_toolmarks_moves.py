@@ -765,7 +765,7 @@ def test_feed_and_speed_come_from_the_program(blender, tmp_path):
     p = tmp_path / "one.ngc"
     p.write_text(ONE_FEED)
     a, _b = _step(sc, str(p))
-    assert machining.marks_source(sc).startswith("Build the animation to use the program's feed. Until then: ")
+    assert machining.marks_source(sc).startswith("Press Build & play to use the program's feed. Until then: ")
     r = animation.bake(sc, a)
     assert not r["warnings"], r["warnings"]
     rows = gcode.feeds(sc)

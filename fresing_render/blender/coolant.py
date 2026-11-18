@@ -874,7 +874,7 @@ def problem(scene) -> str:
     if not s.enabled:
         return ""
     if s.source == "PARTS" and not any(n.obj is not None for n in s.nozzles):
-        return "Pick the nozzles: click a nozzle part, press Use clicked part (or Click the nozzle point)"
+        return "Pick the nozzles: click a nozzle part, press Use as nozzle (or Click the nozzle point)"
     from . import gcode
     why = gcode.problem(scene)
     return f"CNC machine: {why}" if why else ""
@@ -1151,7 +1151,7 @@ def after_model_update(scene, new) -> list:
                 if _WET.pop("had_wet", False) or len(spans(r)):
                     apply_wet(scene, r)
         except Exception as exc:
-            notes.append(f"Coolant: could not be put on the new head ({exc}); build the animation again")
+            notes.append(f"Coolant: could not be put on the new head ({exc}); press Build & play again")
     return notes
 
 

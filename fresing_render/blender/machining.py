@@ -1151,7 +1151,7 @@ def _marks_text(teeth: tuple, block_id: str, rows: list, step: bool) -> str:
     if not prog or not cutting:
         if prog and not rows and step:
             # (a program step not built yet, or built by a version before the tool marks: it kept no feeds)
-            return f"Build the animation to use the program's feed. Until then: {typical}"
+            return f"Press Build & play to use the program's feed. Until then: {typical}"
         return f"No program: {typical}"
     known = list(dict.fromkeys(fr for fr in cutting if fr[1] > 0))
     if not known:
@@ -1243,7 +1243,7 @@ def refresh(scene, frame: float | None = None, force: bool = False, quick: bool 
     wp = workpiece(scene)
     try:
         if not _ensure_own_mesh(scene, wp):
-            rt["status"] = rt["error"] = "The workpiece lost its CAD shape: press 'Stop milling' and pick it again"
+            rt["status"] = rt["error"] = "The workpiece lost its CAD shape: press 'Remove the milling set-up' and pick it again"
             return False
         T = float(scene.frame_current + scene.frame_subframe) if frame is None else float(frame)
         tl = _timeline(scene)

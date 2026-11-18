@@ -333,6 +333,14 @@ class FRESING_OT_next_go(bpy.types.Operator):
 
     panel: StringProperty(options={"SKIP_SAVE"})
 
+    @classmethod
+    def description(cls, context, properties):
+        from ..core import places
+        try:
+            return f"Opens {places.where(properties.panel)} in the side panel, with the sections above it"
+        except KeyError:
+            return "Opens the part of the side panel where the next step is"
+
     def execute(self, context):
         if self.panel not in panels.PARENT:
             return {"CANCELLED"}

@@ -180,23 +180,28 @@ def on_save(scene) -> None:
 # who shows
 # ---------------------------------------------------------------------------
 
-def visible(name: str, context) -> bool:
-    """Tab, parents and workspace: does this panel show now?"""
+def visible(name: str, context, folds: bool | None = None) -> bool:
+    """Does this panel show now? The project's workspace must show it; and in the app's window (``folds``) its
+    section's tab must be chosen (or All) and the panels above it open. Without a window (a script, a test, the
+    render queue's background app) nothing is folded: there the answer is only whether the project shows it."""
     if _ONLY and name not in _ONLY:
         return False
-    win = getattr(context, "window", None)
-    if win is not None and win.screen.get("fr_setup"):      # the Set-up window shows its own tab only
-        return False
-    sec = section_of(name)
-    if sec:
-        t = tab_section()
-        if t and t != sec:
+    if folds is None:
+        folds = not bpy.app.background
+    if folds:
+        win = getattr(context, "window", None)
+        if win is not None and win.screen.get("fr_setup"):      # the Set-up window shows its own tab only
             return False
-    p = PARENT.get(name, "")
-    while p:
-        if not is_open(p):
-            return False
-        p = PARENT.get(p, "")
+        sec = section_of(name)
+        if sec:
+            t = tab_section()
+            if t and t != sec:
+                return False
+        p = PARENT.get(name, "")
+        while p:
+            if not is_open(p):
+                return False
+            p = PARENT.get(p, "")
     scene = getattr(context, "scene", None)
     if scene is not None:
         from . import workspaces

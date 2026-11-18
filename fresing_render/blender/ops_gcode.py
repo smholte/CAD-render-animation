@@ -383,7 +383,7 @@ class FRESING_OT_cnc_tool_part(_CncOp, bpy.types.Operator):
     guess - check them, the tool cuts with the sizes"""
 
     bl_idname = "fresing.cnc_tool_part"
-    bl_label = "Use clicked part"
+    bl_label = "Use as this tool"
 
     clear: BoolProperty(default=False, options={"SKIP_SAVE"})
 
@@ -603,7 +603,7 @@ class FRESING_OT_cnc_air_nozzle(_CncOp, bpy.types.Operator):
     workpiece and blows along it. It moves with the part (on the head or the frame). Check the aim below"""
 
     bl_idname = "fresing.cnc_air_nozzle"
-    bl_label = "Use clicked part"
+    bl_label = "Use as nozzle"
 
     clear: BoolProperty(default=False, options={"SKIP_SAVE"})
 

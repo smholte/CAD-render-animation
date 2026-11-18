@@ -24,7 +24,7 @@ class FRESING_OT_cnc_coolant_nozzle(_CncOp, bpy.types.Operator):
     and squirts at the tool. Add each nozzle of the head this way; check the aim below"""
 
     bl_idname = "fresing.cnc_coolant_nozzle"
-    bl_label = "Use clicked part"
+    bl_label = "Use as nozzle"
 
     def execute(self, context):
         ob = clicked_part(context)

@@ -435,7 +435,7 @@ class FRESING_OT_person_item_add(bpy.types.Operator):
 
 class FRESING_OT_people_example(bpy.types.Operator):
     """Sets up an example beside the machine: Anna walks in with a toolbox, stops by Ben, puts the box down, they
-    shake hands and talk. Then Build the animation to see it"""
+    shake hands and talk. Then press Build & play to see it"""
 
     bl_idname = "fresing.people_example"
     bl_label = "Example: two people meet"
@@ -444,7 +444,7 @@ class FRESING_OT_people_example(bpy.types.Operator):
     def execute(self, context):
         anna, _ben, _box = people.set_up_example(context.scene)
         _select(context, anna)
-        self.report({"INFO"}, "Anna and Ben are beside the machine: Build the animation to see them meet")
+        self.report({"INFO"}, "Anna and Ben are beside the machine: press Build & play to see them meet")
         return {"FINISHED"}
 
 

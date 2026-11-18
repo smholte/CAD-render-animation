@@ -2318,7 +2318,7 @@ class FRCnc(bpy.types.PropertyGroup):
 
     # ---- the operator at a manual tool change (task 0156) ----
     op_height: EnumProperty(name="Height", default="1.75", items=_HEIGHT_ITEMS, update=_cnc_changed,
-                            description="How tall the operator who changes the tools is. Build the animation again "
+                            description="How tall the operator who changes the tools is. Press Build & play again "
                                         "to see it")
     op_outfit: EnumProperty(
         name="Clothes", default="WORKSHOP", update=_cnc_changed,
@@ -2545,8 +2545,8 @@ class FRCableContact(bpy.types.PropertyGroup):
     swivel: StringProperty(
         name="Swivel", default="", update=_cable_contact_changed,
         description="The rotate joint of the swivel this sheave sits on (a sheave head that turns about a post). The "
-                    "app turns it so the cable leaving the sheave stays in the sheave's plane, live and at Build "
-                    "animation. Empty: the sheave keeps the turn its joints give it")
+                    "app turns it so the cable leaving the sheave stays in the sheave's plane, live and at Build & "
+                    "play. Empty: the sheave keeps the turn its joints give it")
 
 
 def _sea_end_changed(self, context):

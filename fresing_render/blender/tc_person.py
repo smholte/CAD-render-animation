@@ -1012,7 +1012,7 @@ def check_test_model(scene) -> str:
     carries the tool. Raises with a plain reason."""
     ob = operator(scene)
     if ob is None or not _built(ob):
-        raise RuntimeError("there is no operator with keys (Build the animation)")
+        raise RuntimeError("there is no operator with keys (press Build & play)")
     if ob.hide_render and getattr(scene.fresing, "operator_visible", True):
         raise RuntimeError("the operator is hidden")
     j = scene.fresing.joints.get("Door")
