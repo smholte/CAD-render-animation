@@ -40,7 +40,7 @@ it shows today against what the app can do now, so the lead can brief the update
 
 ## Not in this task
 
-The machining sets (0223). Fixing anything. The Cutaway → Slice rename (0220) – note only what it leaves.
+The machining sets (0223). Fixing anything. The Cutaway → Slice rename (0220) – note only what it leaves. The `linkage` set's four-bar (0225).
 
 ---
 
@@ -120,7 +120,7 @@ runs `tools/tour_versions.py --record`; every package keeps `tests/test_tour_cla
 2. **D – Framing and links in the studio sets** (no lane of its own – tour + `core/functions.py` only; sets `crane`
    hub (finishing only), `looks`, `weather`, `linkage`, `sequence`, `people`, `props`, `update`, `tracks`, `cables`;
    Sonnet · Medium; S–M): mechanism / sequence / materials / night / weather_step cameras and frames; people on the
-   Quay with a real-size prop; picture card + music in Finished video; the five `tour=` links. Owner Q1 decides
+   Quay with a real-size prop; picture card + music in Finished video; the five `tour=` links (the `linkage` camera can go with task 0225, which opened on `linkage` meanwhile – then D leaves that set). Owner Q1 decides
    whether the studio sets also get a showroom look.
 3. **B – Offshore sets that look offshore** (Sea lane + the hull makers of the Test models lane; sets `crane` hub
    (`sea` stop only – do after D or in it), `marine`, `vessel`, `vessel_work`, `sea_cable`, `moving_cable`; Opus ·
