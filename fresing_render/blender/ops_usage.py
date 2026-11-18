@@ -455,7 +455,7 @@ CLASSES = (FRESING_OT_usage_go, FRESING_OT_usage_pin, FRESING_OT_usage_declutter
            FRESING_OT_usage_window)
 
 
-def _draw_help(self, context):
+def _draw_usage_help(self, context):
     self.layout.separator()
     self.layout.operator("fresing.usage_window", text="My usage…", icon="TIME")
 
@@ -463,14 +463,14 @@ def _draw_help(self, context):
 def register() -> None:
     for name, prop in SETTINGS.items():
         setattr(bpy.types.WindowManager, name, prop)
-    bpy.types.TOPBAR_MT_help.remove(_draw_help)
-    bpy.types.TOPBAR_MT_help.append(_draw_help)
+    bpy.types.TOPBAR_MT_help.remove(_draw_usage_help)
+    bpy.types.TOPBAR_MT_help.append(_draw_usage_help)
     usage.register()
 
 
 def unregister() -> None:
     usage.unregister()
-    bpy.types.TOPBAR_MT_help.remove(_draw_help)
+    bpy.types.TOPBAR_MT_help.remove(_draw_usage_help)
     for name in SETTINGS:
         if hasattr(bpy.types.WindowManager, name):
             delattr(bpy.types.WindowManager, name)
