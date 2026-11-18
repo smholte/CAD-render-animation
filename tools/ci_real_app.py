@@ -67,10 +67,10 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 82, "tour2": 2, "tourui": 15, "layout": 38,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 83, "tour2": 2, "tourui": 15, "layout": 38,
               "panel": 37, "start": 46, "setup": 46, "highlight": 74, "usage": 31,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22}
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -90,7 +90,8 @@ GROUPS = {
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
-    "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage"],   # usage: task 0181 (~1 min)
+    "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane"],   # usage: task 0181 (~1 min);
+    # setupcrane: task 0203 (~4 min)
     "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake"],   # lifting: 0201; liftingmake: 0204
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
                  "cables", "paths", "undorebake"],
@@ -127,6 +128,9 @@ TESTS = {
     "lifting": ("Real app: 8 Lifting plan – first use, a crane placed by mouse, every crane class with its poses, "
                 "Remove, the load and its CoG, Hook to here by a click, save and open (ui_test_lifting.py)",
                 "ui_test_lifting.py", True),
+    "setupcrane": ("Real app: Set up a crane – the AT-40, CC-750 and KB-50 rigged from their bare STEP through the "
+                   "Set-up window by names, every step drawn, Check, Save = the built-in rig, placed again Hook to here "
+                   "as the built-in (ui_test_setup_crane.py)", "ui_test_setup_crane.py", True),
     "liftingmake": ("Real app: 8 Lifting plan > Equipment > Make a crane… – the dialog, refused numbers, Make in the "
                     "background, the crane in the library, Place now, Cancel leaves nothing (ui_test_lifting_make.py)",
                     "ui_test_lifting_make.py", True),

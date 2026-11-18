@@ -193,6 +193,7 @@ def _draw_library(layout, context, L):
                 picked = it
     row = layout.row(align=True)
     row.operator("fresing.lifting_library", text="Refresh", icon="FILE_REFRESH")
+    row.operator_menu_enum("fresing.crane_setup", "kind", text="Set up a crane…", icon="PREFERENCES")  # task 0203
     if not lifting.user_folder():
         hint(layout, context, "Your own equipment: a folder 'Lifting equipment' in your library folder (Preferences).")
     if picked is not None:
@@ -326,7 +327,7 @@ class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
             header_status(self.layout, f"{ro.use * 100:.0f} %", icon=STATUS_ICON[ro.status],
                           alert=ro.status == core.RED)
         else:
-            header_status(self.layout, "no chart", alert=True)
+            header_status(self.layout, "no chart", alert=ro.status == core.RED)     # no chart at all: grey (0203)
 
     def draw(self, context):
         layout = self.layout
@@ -370,10 +371,11 @@ class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
             row.alert = ro.status == core.RED
             row.label(text=f"Crane use {ro.use * 100:.0f} % – {ro.words}", icon=STATUS_ICON[ro.status])
         else:
+            red = ro.status == core.RED                     # task 0203: no chart at all = "Not checked", grey
             row = layout.row()
-            row.alert = True
-            row.label(text=f"Gross load {_t(ro.gross)}: {ro.words}", icon=STATUS_ICON[core.RED])
-            wrap(layout, context, ro.reason, icon="ERROR", alert=True)
+            row.alert = red
+            row.label(text=f"Gross load {_t(ro.gross)}: {ro.words}", icon=STATUS_ICON.get(ro.status, "INFO"))
+            wrap(layout, context, ro.reason, icon="ERROR" if red else "INFO", alert=red)
         if ro.sample:
             _sample_line(layout, context)
         hint(layout, context, f"Limits: amber from {core.DEFAULT_LIMITS.crane * 100:.0f} % of the chart, red above "

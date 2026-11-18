@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.161"
+__version__ = "0.2.162"
 
 _modules = []
 
@@ -107,10 +107,10 @@ def _all_classes():
 def ops_setup_classes():
     """The Set-up window (ui_setup.py / ops_setup.py)."""
     try:
-        from .blender import ops_setup, ui_setup
+        from .blender import ops_setup, ops_setup_crane, ui_setup
     except ImportError:
         return ()
-    return tuple(ops_setup.CLASSES) + tuple(ui_setup.CLASSES)
+    return tuple(ops_setup.CLASSES) + tuple(ops_setup_crane.CLASSES) + tuple(ui_setup.CLASSES)
 
 
 def register():
@@ -171,6 +171,8 @@ def register():
     tc_person.register()                     # the operator at a tool change (task 0156): clash hook
     from .blender import lifting
     lifting.register()                       # task 0201: the CoG symbol's draw handler, caches dropped on load
+    from .blender import ops_setup_crane
+    ops_setup_crane.register()               # task 0203: Set up a crane's name cache dropped on load
     from .blender import ui_lifting_make
     ui_lifting_make.register_props()         # task 0204: the Make a crane dialog's numbers (window manager)
     updates.register()
@@ -212,6 +214,8 @@ def unregister():
     tc_person.unregister()
     from .blender import lifting, ui_lifting
     lifting.unregister()
+    from .blender import ops_setup_crane
+    ops_setup_crane.unregister()
     ui_lifting.unregister_previews()
     from .blender import ops_lifting_make, ui_lifting_make
     ops_lifting_make.cancel_all()

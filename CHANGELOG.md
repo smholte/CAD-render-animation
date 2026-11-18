@@ -5,8 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.161 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
+## 0.2.162 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
 - Clicking a part in "Subassembly" pick mode no longer rebuilds the part tree each time, and the first mouse move in an axis picker (Add joint, Set axis, cylinders) is as quick as the later ones. Nothing looks different.
+## 0.2.161 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
+
+- **Set up your own crane.** 8 Lifting plan > Equipment > **Set up a crane…** opens the Set-up window on your kind
+  of crane – **mobile telescopic**, **crawler**, **knuckle-boom** or **other** – and takes you through its steps:
+  slew, luff (with its cylinder), telescope sections or extensions, fly / luffing jib, hoist and hook block (the hook
+  hangs plumb), outriggers or stabilisers corner by corner, counterweight, tracks, masses & CoG, the load chart,
+  poses, Check, Save. Parts are typed by name or clicked; each joint's axis comes from a list of the parts' round
+  faces (or a click on the model, as in 4 Motion). Everything is made with the app's own joints, cylinders, tracks and
+  poses, so it shows in 4 Motion too.
+- **Roles:** every crane joint now carries its role (Slew, Luff, Telescope, Jib, Knuckle, Extension, Hoist, Hook swing,
+  Outrigger, Jack, Track, Travel) and knows its way round (+ raises the boom, slides out, lets the hook down).
+- **Masses & CoG** per group (entered or volume x density, CoG worked out or typed, with markers); the **load chart**
+  typed, pasted as CSV or read from a CSV file, refused rows named; **Check** runs every joint through its range and
+  every pose (hook plumb, followers within their limits, the clash check on the crane's own motion, masses, CoG over
+  the footprint, the chart) and leads to the step of each problem; **Save** writes the crane with a copy of its STEP
+  into your library "Lifting equipment" – never into the built-ins – and it places in any project like a built-in.
+- **Hook to here works on any crane** now: it finds the joints by their roles and solves in 3-D, not by names.
+- Test tour: a new set "Set up a crane" (KB-20 rigged from its bare STEP). PC check: a new line `lifting.setup`.
 
 ## 0.2.160 – 18 Nov 2026 – Learn as you go (task 0208)
 

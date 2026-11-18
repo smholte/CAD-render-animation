@@ -15,6 +15,8 @@ import pytest
 from fresing_render.core import lifting, lifting_library as LL, lifting_load as LD, lifting_reach as LR
 from fresing_render.lifting_model import classes as C
 
+import lifting_reach_class as K   # 0201's class solver, the tests' reference (task 0203)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILTIN = os.path.join(ROOT, "fresing_render", "data", "lifting")
 
@@ -135,9 +137,10 @@ def test_lowest_use_then_shortest_boom():
     a = LR.hook_to(rig, target, {}, charts, setup, load_kg=8000.0, hook_block_kg=1000.0)
     assert a.ok and a.use is not None
     lo, hi = rig.limits("Telescope")
-    pl = rig.planar()
+    ref = K.ClassRig(data_of(name))            # 0201's plane model enumerates the booms that reach (task 0203)
+    pl = ref.planar()
     for t in np.linspace(lo, hi, 300):
-        s = LR._Search(rig, pl.cx + 10000.0, 3000.0)
+        s = K._Search(ref, pl.cx + 10000.0, 3000.0)
         if s.at(float(t)):
             ch, _ = LR.chart_for(charts, pl.boom_m(float(t)), setup)
             u = lifting.crane_use(8000.0, 10.0, ch, hook_block=1000.0).use if ch is not None else None
@@ -211,8 +214,8 @@ def test_readout_past_the_last_row_is_red_with_the_reason():
     rig, charts = LR.Rig(data_of(name)), charts_of(name)
     ro = LR.readout(rig, {"Luff": 0.0}, charts, {}, load_kg=1000.0)     # boom flat: 10.6 m, the chart ends at 9 m
     assert ro.status == lifting.RED and ro.capacity is None and "outside the chart" in ro.reason
-    ro = LR.readout(rig, {"Luff": 60.0}, [], {}, load_kg=1000.0)
-    assert ro.status == lifting.RED and "no load chart" in ro.reason
+    ro = LR.readout(rig, {"Luff": 60.0}, [], {}, load_kg=1000.0)     # task 0203: no chart = not checked (grey)
+    assert ro.status == lifting.NOT_CHECKED and "no load chart" in ro.reason and ro.words == LR.NO_CHART_WORDS
 
 
 def test_outrigger_spread_from_the_pose():

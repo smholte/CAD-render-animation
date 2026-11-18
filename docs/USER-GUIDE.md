@@ -4077,6 +4077,83 @@ Before you plan a real lift, copy the class nearest your crane into your library
 Rigging (slings, shackles, the load hanging under the hook), the lift path with checks along it, ground pressure and
 the printed plan come in later versions.
 
+<a id="lifting-own-crane"></a>
+### Set up your own crane
+
+Your own crane's STEP becomes a lifting-plan crane in the **Set-up window**, one step at a time, with the app's own
+joints, cylinders, tracks and poses: what a step makes shows in 4 Motion too, and the other way round. At the end it
+is in your library with its masses, CoG and **your** load chart, and Place, Hook to here and the crane use work on it
+exactly as on the built-in cranes.
+
+1. Import the crane's STEP (File > Import STEP or 1 Model) with every joint at the place the maker's drawing calls 0:
+   boom as drawn, sections in, rope up.
+2. 8 Lifting plan > Equipment > **Set up a crane…** and pick its kind: **Mobile telescopic crane**, **Crawler
+   crane**, **Knuckle-boom crane** or **Other crane**. The Set-up window opens on step 1 (also from its own kind
+   list, next to CNC mill and mechanism).
+3. Each step: type a part or sub-assembly name in the search box (or click the parts in the main window and press
+   **Use clicked**), press **Find the axes** and pick one from the list – the round faces of the parts you picked
+   (a pin shared with the part it sits on is marked with a link) or a direction (along the part, straight down …) –
+   then **Make**. Or **Click the axis** on the model, as in 4 Motion. Under the made joint: its **limits** (from
+   the maker's data sheet) and **Flip**. A step a crane does not have (a fly jib) is skipped with **Next**.
+
+<img class="panel" src="img/setup_crane_luff.png" alt="Set up a mobile crane, step 3 Luff: the joint made, its limits 0° to 82°, Flip, + raises the boom">
+
+**The steps per kind**
+
+- **Mobile telescopic crane:** Model → Slew (the superstructure; the slewing ring's round face, upright) → Luff (the
+  boom base and its foot pin; then its cylinder: pick the barrel, then the rod, **Add the cylinder**) → Telescope
+  (the sections from the base outwards: one joint each, riding on the one before and sharing the stroke) → Fly jib
+  (optional) → Hoist (the head sheave; the number of falls; the rope drawn in the CAD, if any) → Hook block (the app
+  makes the hoist straight down from the sheave and the hook swing joints that keep the block plumb, and guesses the
+  hook's saddle; type the maker's hook point when you have it) → Outriggers (one corner at a time: its beam stages
+  from the inside out, then its jack; **Add corner**; the spreads full / middle / narrow) → Counterweight (its parts,
+  the steps in t) → Masses & CoG → Load chart → Poses → Check → Save.
+- **Crawler crane:** Model → Tracks (the travel joint on the whole crane; then each track: its wheels, one link,
+  its shoe, **Add track**) → Slew → Boom (its foot pin; the boom length and the boom's angle as drawn) → Luffing jib
+  (optional; the jib length and the main boom angle its charts hold for) → Hoist → Hook block → Counterweight →
+  Masses & CoG → Load chart → Poses → Check → Save.
+- **Knuckle-boom crane:** Model → Slew (the column) → Main boom + its cylinder → Knuckle + its cylinder →
+  Extensions (as the telescope) → Winch → Hook → Stabilisers (as the outriggers) → Masses & CoG → Load chart →
+  Poses → Check → Save.
+- **Other crane:** the same building blocks in any order: pick the parts, pick the **role**, find the axes, Make.
+  Slew, luff and hoist are needed.
+
+<img class="panel" src="img/setup_crane_other.png" alt="Set up another crane, step Joints: every joint with its role picked by hand">
+
+**Roles.** Every joint carries its role (you see it in 4 Motion > Joints): **Slew**, **Luff**, **Telescope**,
+**Jib**, **Knuckle**, **Extension**, **Hoist**, **Hook swing**, **Outrigger**, **Jack**, **Track**, **Travel**. Hook
+to here finds the crane's joints by them, whatever they are called. A role knows its way round: + turns the slew
+anticlockwise seen from above, raises the boom, the jib and the knuckle, slides sections, extensions and beams out,
+lets the hook and the jacks down. A joint made the other way round is turned at once.
+
+<img class="panel" src="img/setup_crane_masses.png" alt="Masses & CoG of a knuckle-boom crane: the truck group with its parts, 15 t entered, its CoG typed">
+
+**Masses & CoG.** One box per group (carrier, superstructure, counterweight, boom, jib, hook block; for a
+knuckle-boom crane truck, column, main boom, outer boom, hook block): its parts (filled in from the joints), its mass
+**Entered** (the data sheet) or **Volume x density** (an estimate), its centre of gravity **worked out** from the
+parts' solids or typed (**CoG by hand**). **Work out** puts a marker at the CoG.
+
+<img class="panel" src="img/setup_crane_chart.png" alt="Load chart: Paste CSV, Read CSV…, a configuration with boom 10.8 m and spread 6 m and its rows of radius and capacity">
+
+**Load chart.** One table per configuration – boom length, jib, counterweight (t), outrigger spread (m) – with
+**Radius, m** and **Capacity, t** per row; an empty capacity is a gap (not allowed there). **Paste CSV** reads a chart
+copied from a spreadsheet, **Read CSV…** a file: a line like `boom 30.4 m; counterweight 40 t` starts a configuration,
+then `radius;capacity` per line (a decimal comma is fine with `;`). A row that cannot be right is refused and named:
+radii that do not rise, a capacity that rises with the radius, a capacity of 0. Also the wind speed the chart allows,
+whether it includes the hook block, and where it comes from. Without a chart the crane can be placed and moved, but
+the crane use says **Not checked – no chart**.
+
+**Check** runs every joint from its Min to its Max and every pose: no follower goes past its own limits, the hook
+stays **plumb**, every group has a mass and a CoG and the crane's CoG at rest lies inside its footprint, the chart is
+not refused, and the clash check of 6 Animation runs on the crane's own motion. A clash with the crane standing in one
+of its **poses** is a problem (red). Parts that meet somewhere in a joint's **whole range** (the boom slewed over the
+cab while folded) are a grey line only – narrow the joint's limits, or go on when the crane's own controls stop it
+there; the hook block counts only in the poses (in a sweep it hangs wherever the rope is). Each line has **Go to
+step**.
+
+**Save** writes the crane into your library folder "Lifting equipment" (Preferences > library folder): its file,
+a copy of the STEP and a small picture of the view. Never into the built-in samples. Place it from 8 Lifting plan >
+Equipment in any project, as a built-in.
 <a id="lifting-make"></a>
 ### Make a crane from numbers
 
@@ -4322,7 +4399,8 @@ The `.json` file holds these fields (masses and lengths in the file's `units`):
 | `hook_blocks` | `[{"name": "main", "mass": 0.85}]` |
 | `outriggers`, `tracks`, `axles` | the footprint for the ground-pressure checks |
 | `wll` | rigging gear: the working load limit, or one per way of use (`{"straight": 8.0, "choke": 6.4}`) |
-| `rig`, `limits` | the joints of the model; slew range and angles |
+| `rig`, `limits` | the joints of the model (each with its `role`: `slew`, `luff`, `telescope`, `jib`, `knuckle`, `extension`, `hoist`, `swing`, `outrigger`, `jack`, `track`, `travel` – [Set up your own crane](#lifting-own-crane) writes it), the hook point and its falls; slew range and angles |
+| `footprint` | an own crane without outriggers or tracks: the corners of the area it stands on (m) |
 | `sample`, `derived_from` | set by the app for samples and their copies |
 | `source` | where the values come from ("maker chart no. …, entered by …, date") |
 

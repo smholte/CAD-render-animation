@@ -41,6 +41,11 @@
    "changed": "0.2.160",
    "fp": "d53732d51b6918f8"
   },
+  "crane_setup": {
+   "added": "0.2.161",
+   "changed": "",
+   "fp": "49f588b44590b30c"
+  },
   "cutaway": {
    "added": "0.2.64",
    "changed": "0.2.101",
@@ -68,8 +73,8 @@
   },
   "gantry": {
    "added": "0.2.47",
-   "changed": "0.2.152",
-   "fp": "a43f1b91fcc72498"
+   "changed": "0.2.161",
+   "fp": "fb305bc85b8403b0"
   },
   "hoses": {
    "added": "0.2.78",

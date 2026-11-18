@@ -321,6 +321,48 @@ def lifting_place(ctx):
     return msg
 
 
+@line("lifting.setup", "Lifting plan: set up an own crane from its STEP", "0.2.161",
+      what="The built-in KB-20's bare STEP rigged through Set up a crane's buttons by names (joints with roles, "
+           "cylinders, hook, stabilisers, masses, chart, poses), Check, Save into a library; the saved file equals the "
+           "built-in rig; placed again it hooks where the built-in crane hooks")
+def lifting_setup(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import crane_example, lifting, lifting_rig_out
+    from ..core import lifting_reach as LR
+    step = os.path.join(DATA, "lifting", "KB-20", "KB-20.step")
+    scene = ctx.fresh(step, quality="normal")
+    t0 = time.time()
+    made = crane_example.rig(scene, "KB-20", check=True, clash=False)
+    t_rig = time.time() - t0
+    from ..blender import setup_crane
+    red = [p.text for p in setup_crane.settings(scene).problems if p.severity == "red"]
+    _check(not red, "Check: " + "; ".join(red[:2]))
+    lib = os.path.join(ctx.work, "lifting_setup_library")      # the check's own folder, never the user's library
+    shutil.rmtree(lib, ignore_errors=True)
+    os.makedirs(lib, exist_ok=True)
+    path = lifting_rig_out.save(scene, lib)
+    import json
+    with open(path, encoding="utf-8") as fh:
+        saved = json.load(fh)
+    diffs = crane_example.compare("KB-20", saved, made)
+    _check(not diffs, "the saved crane differs from the built-in: " + "; ".join(diffs[:3]))
+    scene = ctx.fresh(CRANE_A)
+    c = lifting.place(bpy.context, path, (8.0, 0.0, 0.0), 0.0)
+    ref = LR.Rig(crane_example.builtin("KB-20"))
+    target = ref.hook({"Main boom": 30.0, "Knuckle": -20.0, "Extension": 500.0, "Hoist": 2000.0})
+    t1 = time.time()
+    a = lifting.hook_to(scene, c, lifting.to_world(c, target))
+    t_hook = time.time() - t1
+    _check(a.ok, f"Hook to here on the own crane: {a.reason}")
+    err = float(np.linalg.norm(lifting.rig_of(c).hook({**lifting.values(scene, c), **a.values}) - target))
+    _check(err < 5.0, f"the hook is {err:.1f} mm off")
+    ctx.metric("set up KB-20", round(t_rig, 1), "s")
+    ctx.metric("hook to here (own crane)", round(t_hook * 1000.0), "ms")
+    return f"{len(saved['rig']['joints'])} joints saved, the same as the built-in; hook {err:.1f} mm from the point"
+
+
 @line("lifting.hook", "Lifting plan: load, CoG and Hook to here", "0.2.156",
       what="The test crane's boom made the load (1.2 t), its CoG marker worked out from the parts' volumes; the "
            "AT-40 puts its hook above it with Hook to here; the crane use shown is the chart's at that radius")
