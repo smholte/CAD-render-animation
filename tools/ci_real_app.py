@@ -67,8 +67,8 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 76, "tour2": 2, "tourui": 15, "layout": 38,
-              "panel": 37, "start": 46, "setup": 46, "highlight": 74,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 77, "tour2": 2, "tourui": 15, "layout": 38,
+              "panel": 37, "start": 46, "setup": 46, "highlight": 74, "usage": 24,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
@@ -91,7 +91,7 @@ GROUPS = {
     "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
     "scenes": ["surroundings", "vessel", "rulesets", "decals"],
-    "motion": ["video", "studio", "update", "ui2", "faces"],
+    "motion": ["video", "studio", "update", "ui2", "faces", "usage"],   # usage: task 0181 (~1 min)
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
                  "cables", "paths", "undorebake"],
 }
@@ -162,6 +162,9 @@ TESTS = {
     "start": ("Real app: Start here – the welcome of a new user (three starts, Later, never, Take the test tour), What's "
               "new after an update (functions, the tour of only the new and changed models), the Fresing menu in "
               "every workspace (ui_test_start.py)", "ui_test_start.py", True),
+    "usage": ("Real app: the usage tracker – the favourites bar sorted at a start, a click on a favourite, a click counted "
+              "with its panel, the question about an unused panel and Hide, My usage, Back as it came "
+              "(ui_test_usage.py)", "ui_test_usage.py", True),
     "setup": ("Real app: the Set-up window – opens with its tab, Next / Back, a click in the main window, save and "
               "open, close (ui_test_setup.py)", "ui_test_setup.py", True),
 }
@@ -279,6 +282,8 @@ def main(argv=None) -> int:
         env = dict(base_env, UITEST_OUT=folder)
         if key == "start":                           # task 0199: the welcome shows although events are simulated
             env.update(FRESING_WELCOME_TEST="1")
+        if key == "usage":                           # task 0181: the usage tracker counts although events are simulated
+            env.update(FRESING_USAGE_TEST="1")
         if key == "rulesets":                        # its own rule-set library; folds open so it can click in them
             env.update(FRESING_RULE_SETS_DIR=os.path.join(folder, "library", "Rule sets"), FRESING_UI_OPEN_FOLDS="1")
         script_path = os.path.join(ROOT, "tools", script)

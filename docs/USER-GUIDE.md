@@ -253,6 +253,7 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **Show the Fresing panel** – brings the side panel back on the Fresing tab ([If the Fresing panel is gone](#panel-gone)).
 - **Make demo project… / Open demo project** – the [demo project](#demo).
 - **User guide**, **PC check…**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
+- **My usage…** – what the app counted about your work, the favourites bar and its switches ([below](#my-usage)).
 - **Welcome screen…** – the welcome below, again.
 
 <a id="welcome"></a>
@@ -287,6 +288,88 @@ opens it:
 3. **Cancel** = later: What's new stays in the **Fresing** menu (with a dot) until you open it.
 
 It never shows after going back to an older version or installing the same version again.
+
+<a id="usage"></a>
+## Your usage and the favourites bar
+
+The app counts which of its functions you use – **on your own PC only; nothing is ever sent anywhere** – and uses
+that to keep your side panel short: a favourites bar with your most used buttons, now and then a quiet offer to
+hide a panel you never use, and a small window **My usage** with where your time goes.
+
+**What is stored, and where.** One small text file, `fresing_usage.json`, in your Blender settings folder (the
+same folder as your preferences; **My usage > Show the file** opens it). It holds: how often you clicked each
+function's button and opened each panel, how many times the app was started, the active time per stage, the
+estimated time saved, your pins and the panels you hid. It holds no part names, no file names and nothing of your
+models. It belongs to your Windows user and stays when the app is updated. **Track my usage** (in My usage) switches
+the counting off; **Clear my usage data** deletes what was counted (your pins and hidden panels stay). The test
+runs, the PC check and the render queue never count.
+
+<a id="favourites"></a>
+### The favourites bar
+
+Under the **Workspace** row, at the top of the Fresing tab, the bar shows the functions you use most (6 buttons; 5
+to 8 in My usage). A function joins it once you have used it twice. **The bar is sorted when the app starts and
+never while you work**, so a button does not move under your mouse.
+
+- **Click a favourite**: its section opens (as with the section tabs; **All** shows every section again) down to
+  its panel, and its button is pointed at for a few seconds. A menu function (PC check, Check for updates) runs
+  straight away.
+- **Pin** a function so it always stays on the bar: **Fresing > My usage…**, the pin beside it in the list (the
+  small gear at the right of the bar opens the same window). A new pin shows at once at the end of the bar; pinned
+  buttons have a pin icon and always come first.
+- **Switch the bar off**: untick **Show the favourites bar** in My usage.
+
+The bar shows only functions your workspace shows, and only once it has buttons: in a new installation it appears
+after a few starts.
+
+<a id="declutter"></a>
+### Hide what you never use
+
+When you have not used a panel in **10 app starts** (a setting in My usage), a quiet question appears at the top of
+the Fresing tab: *"You haven't used Way covers recently. Hide it to clean up your workspace?"*
+
+- **Hide** – the panel goes out of your side panel, in every workspace except **Full access**.
+- **Not now** – the panel stays; it is not asked about again.
+- **Don't ask again** – no more questions (switch them back on with **Offer to hide unused panels** in My usage).
+
+At most one question per start, each panel once. **Never about a panel the open project uses**: a project with a
+way cover shows Way covers even when you hid it, and is never asked about it. Hiding changes nothing in the
+project or in renders, and it does not change the workspace itself – it is your own layer on top. To undo it:
+**Workspace > Back as it came** (it shows how many panels you hid) or **My usage > Back to the workspace as it
+came**: your hidden panels show again and your pins are dropped.
+
+<a id="my-usage"></a>
+### My usage
+
+**Fresing > My usage…** (also at the end of the **Help** menu) opens a window:
+
+1. **Track my usage**, **Show the file** – the switch, and the file in its folder.
+2. **Favourites bar** – on/off, how many buttons, and your most used functions with how often you used each and a
+   pin.
+3. **Where your time goes** – a bar per stage: Import & structure, Looks, Motion & rigging, Scene & surroundings,
+   Animation, Render & export. Time counts to the stage of the last function you used; when you do nothing for 2
+   minutes (no click, no change in the project) that time is left out. Watching an animation play counts.
+4. **Time saved – an estimate** – what the app's automatic functions (sorting parts into material groups, the
+   exploded view, model update, cylinders, hoses, cables, way covers, the assembly sequence, the turntable, the
+   product video, the clash check, the web 3D model, every paint scheme, the toolpath) saved you, each with how it is
+   worked out ("about 5 s per part by hand: pick the part and give it its material"). **This is not a measurement**:
+   it is the number of uses counted here times a guess of the manual work – the guesses are in the app's function
+   list and can be changed.
+5. **Unused panels** – the questions on/off and after how many starts; **Back to the workspace as it came**.
+6. **Export profile… / Import profile… / Clear my usage data**.
+
+<a id="usage-profiles"></a>
+### Profiles: your side panel as one file
+
+**Export profile…** saves the project's workspace together with your favourites bar (its pins, on/off, size) and
+the panels you hid, as one file in the library folder **Workspaces** – the same kind of file as
+[your own workspaces](#own-workspaces), with the bar added. Your usage counts go in only when you tick **Include my
+usage counts**. The project uses the profile from then on.
+
+**Import profile…** takes such a file (from a colleague, or one a team keeps in the shared library): it is copied
+into your Workspaces folder – replacing your own workspace of the same name –, the project switches to it and your
+favourites bar takes its pins. Counts in the file are added to yours only when you tick **Add the usage counts in
+the file**. An older version of the app opens a profile as a plain workspace.
 
 <a id="start"></a>
 ## Getting started: your first render in 10 minutes

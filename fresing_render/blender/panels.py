@@ -298,6 +298,10 @@ def _make_draw(cls, body):
     def draw(self, context):
         if getattr(self, "is_popover", True):          # no such attribute: a stand-in, not Blender's panel
             return body(self, context)                 # a test's stand-in, or a popover: the body only
+        try:
+            self.layout.context_string_set("fr_panel", cls.__name__)    # task 0181: a click knows its panel
+        except Exception:  # noqa: BLE001
+            pass
         if draw_title(self, context, cls):
             scene = getattr(context, "scene", None)
             if scene is not None:
@@ -371,6 +375,10 @@ def install(classes) -> None:
             continue
         cls._fr_installed = True
         cls.poll = _make_op_poll(cls, getattr(cls, "poll", None))
+    from . import usage
+    for cls in classes:                                # task 0181: every fresing.* button counts its clicks
+        if isinstance(cls, type) and issubclass(cls, bpy.types.Operator):
+            usage.wrap(cls)
     if not OPEN:
         OPEN.update(DEFAULT_OPEN)
 
@@ -408,6 +416,12 @@ class FRESING_OT_panel_toggle(bpy.types.Operator):
                 pass
         else:
             set_open(self.name, self.name not in OPEN)
+        if self.name in OPEN:
+            try:
+                from . import usage
+                usage.panel_opened(self.name)          # task 0181: opening a panel is a use of it
+            except Exception:  # noqa: BLE001
+                pass
         redraw()
         return {"FINISHED"}
 

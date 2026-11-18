@@ -4117,6 +4117,68 @@ def app_start_here(ctx):
     return f"What's new since {older}: {n_f} functions"
 
 
+@line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.156",
+      what="Counts clicks into a usage file of its own (never yours; with an accent in its folder), checks every "
+           "Fresing button counts, the bar is sorted at a start only, a panel is offered for hiding after 10 starts "
+           "and never while the project uses it, a broken file starts empty and keeps a copy, and what one counted "
+           "click costs")
+def app_usage(ctx):
+    import time
+
+    import bpy
+
+    from ..blender import usage, workspaces
+    from ..core import places
+    from ..core import usage as core
+    missing = [c.bl_idname for c in bpy.types.Operator.__subclasses__()
+               if getattr(c, "bl_idname", "").startswith("fresing.") and c.bl_idname not in core.NOT_COUNTED
+               and not any(getattr(getattr(c, a, None), "_fr_usage", False) for a in ("invoke", "execute"))]
+    _check(not missing, f"{len(missing)} Fresing buttons do not count their clicks: {', '.join(missing[:5])}")
+    folder = os.path.join(ctx.work, "Usage é")
+    path = os.path.join(folder, core.FILE_NAME)
+    old = {k: os.environ.get(k) for k in (usage.FILE_ENV, core.TEST_ENV)}
+    os.environ[usage.FILE_ENV], os.environ[core.TEST_ENV] = path, "1"
+    usage.forget()
+    try:
+        _check(usage.counting(), "the usage tracker does not count")
+        for _ in range(3):
+            usage.record("fresing.turntable")
+        usage.record("fresing.render")
+        n = 300
+        t0 = time.perf_counter()
+        for _ in range(n):
+            usage.record("fresing.render")
+        ms = (time.perf_counter() - t0) / n * 1000
+        ctx.metric("usage_click", ms, "ms")
+        _check(ms < 2.0, f"one counted click costs {ms:.2f} ms")
+        usage.start()
+        s = usage.state()
+        _check(s["bar"]["order"][:2] == ["scene.still", "scene.turntable"], f"the bar is {s['bar']['order']}")
+        _check(usage.save(force=True) and os.path.isfile(path), "the usage file was not written")
+        s["sessions"] = core.THRESHOLD_DEFAULT
+        scene = ctx.fresh(CRANE_A)
+        usage._S["prompted"] = ""
+        usage.project_changed(scene)
+        panel = usage.prompt()
+        _check(bool(panel), "no unused panel is offered after 10 starts")
+        used = set(workspaces.used_functions(scene))
+        _check(not used & set(core.panel_functions(panel)), "a panel the project uses is offered for hiding")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("{broken")
+        usage.forget()
+        _check(usage.state() == core.fresh() and os.path.isfile(path + ".broken"),
+               "a broken usage file does not start empty with a copy kept")
+    finally:
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        usage.forget()
+        workspaces.PERSONAL["hide"] = ()
+    return f"one counted click {ms:.3f} ms; after 10 starts '{places.PLACES[panel][1]}' would be offered for hiding"
+
+
 @line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",
       what="Makes the test tour (a small project per test model) and does Go and the number check of every stop, "
            "without pictures (the PC check's mode Test tour renders them)")
