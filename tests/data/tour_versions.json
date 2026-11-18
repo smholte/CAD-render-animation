@@ -1,0 +1,225 @@
+{
+ "comment": "Written by tools/tour_versions.py --record (task 0199): one fingerprint per test tour set. Do not edit by hand.",
+ "sets": {
+  "air": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "ff4902c98cb39662"
+  },
+  "atc": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "6052f51c4854073e"
+  },
+  "cables": {
+   "added": "0.2.80",
+   "changed": "",
+   "fp": "9aefd91c5eb0440a"
+  },
+  "chains": {
+   "added": "0.2.78",
+   "changed": "",
+   "fp": "4fbfb989a6bed00c"
+  },
+  "clash": {
+   "added": "0.2.53",
+   "changed": "",
+   "fp": "1c1eec345d5fc38d"
+  },
+  "coolant": {
+   "added": "0.2.48",
+   "changed": "0.2.101",
+   "fp": "5c52653f82f802f8"
+  },
+  "copies": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "4e9e900c8c59b5b1"
+  },
+  "crane": {
+   "added": "0.2.47",
+   "changed": "0.2.155",
+   "fp": "b63f28d36b53fd24"
+  },
+  "cutaway": {
+   "added": "0.2.64",
+   "changed": "0.2.101",
+   "fp": "f382d45120d842a3"
+  },
+  "cylinder": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "b5b5befc703f77c6"
+  },
+  "decals": {
+   "added": "0.2.47",
+   "changed": "",
+   "fp": "513e1b3c73889a73"
+  },
+  "doublearm": {
+   "added": "0.2.51",
+   "changed": "0.2.101",
+   "fp": "233fa6adecdcc81b"
+  },
+  "faces": {
+   "added": "0.2.47",
+   "changed": "",
+   "fp": "00c405423a66e0ea"
+  },
+  "gantry": {
+   "added": "0.2.47",
+   "changed": "0.2.152",
+   "fp": "a43f1b91fcc72498"
+  },
+  "hoses": {
+   "added": "0.2.78",
+   "changed": "",
+   "fp": "ca730aeaa9408555"
+  },
+  "house": {
+   "added": "0.2.92",
+   "changed": "0.2.152",
+   "fp": "e700dd50e9dffb79"
+  },
+  "linkage": {
+   "added": "0.2.47",
+   "changed": "0.2.54",
+   "fp": "416b8ff00e452182"
+  },
+  "looks": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "93363e64949fc20a"
+  },
+  "marine": {
+   "added": "0.2.94",
+   "changed": "0.2.101",
+   "fp": "5f2a7ecd4a5f3e1a"
+  },
+  "marks": {
+   "added": "0.2.73",
+   "changed": "0.2.101",
+   "fp": "a37429cd13f8013f"
+  },
+  "mesh": {
+   "added": "0.2.99",
+   "changed": "",
+   "fp": "0beafa7dbe189b76"
+  },
+  "mill": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "b55bed535372cbf3"
+  },
+  "moving_cable": {
+   "added": "0.2.95",
+   "changed": "0.2.103",
+   "fp": "371ee515d0ebaf35"
+  },
+  "operator": {
+   "added": "0.2.132",
+   "changed": "",
+   "fp": "3780ff7d30617f73"
+  },
+  "people": {
+   "added": "0.2.128",
+   "changed": "",
+   "fp": "1a372838990585a8"
+  },
+  "productvideo": {
+   "added": "0.2.81",
+   "changed": "0.2.102",
+   "fp": "432d45e83e865119"
+  },
+  "props": {
+   "added": "0.2.124",
+   "changed": "",
+   "fp": "5a1bc38fcc62a61a"
+  },
+  "rotary4": {
+   "added": "0.2.52",
+   "changed": "0.2.101",
+   "fp": "75138935973ca427"
+  },
+  "rotary5": {
+   "added": "0.2.52",
+   "changed": "0.2.101",
+   "fp": "d07b61a3b3d07413"
+  },
+  "sea_cable": {
+   "added": "0.2.91",
+   "changed": "0.2.141",
+   "fp": "77d2f77399008b3a"
+  },
+  "sequence": {
+   "added": "0.2.79",
+   "changed": "0.2.101",
+   "fp": "8c2e06335be55103"
+  },
+  "sequenceframe": {
+   "added": "0.2.102",
+   "changed": "",
+   "fp": "93bc501eb5f3ccb9"
+  },
+  "served": {
+   "added": "0.2.116",
+   "changed": "0.2.139",
+   "fp": "83c53fe12de9d610"
+  },
+  "spool": {
+   "added": "0.2.85",
+   "changed": "0.2.139",
+   "fp": "e1ffe53c7ff345db"
+  },
+  "swivel": {
+   "added": "0.2.138",
+   "changed": "",
+   "fp": "81b7b7325041bad8"
+  },
+  "toolpath": {
+   "added": "0.2.55",
+   "changed": "0.2.101",
+   "fp": "60d734a450b1a328"
+  },
+  "tools": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "26e0177949dab9a3"
+  },
+  "tracks": {
+   "added": "0.2.87",
+   "changed": "0.2.101",
+   "fp": "2ee47850b453e207"
+  },
+  "update": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "649ce3c0a528cb3d"
+  },
+  "vessel": {
+   "added": "0.2.65",
+   "changed": "0.2.101",
+   "fp": "686476954e51c43c"
+  },
+  "vessel_work": {
+   "added": "0.2.127",
+   "changed": "",
+   "fp": "33d5ba9a23963217"
+  },
+  "waycover": {
+   "added": "0.2.47",
+   "changed": "0.2.101",
+   "fp": "7387365b0882d36d"
+  },
+  "waycover2": {
+   "added": "0.2.61",
+   "changed": "0.2.101",
+   "fp": "9c838f12781141ee"
+  },
+  "weather": {
+   "added": "0.2.88",
+   "changed": "0.2.125",
+   "fp": "422a4be37abd19a6"
+  }
+ }
+}

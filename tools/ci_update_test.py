@@ -157,7 +157,7 @@ def main(argv=None) -> int:
     work = tempfile.mkdtemp(prefix="fr_update_")
     user_res = os.path.join(work, "blender user é")
     env = dict(os.environ, BLENDER_USER_RESOURCES=user_res, PYTHONUNBUFFERED="1", UITEST_OUT=out,
-               UPDATE_TEST_OLD=OLD)
+               UPDATE_TEST_OLD=OLD, FRESING_NO_WELCOME="1")     # task 0199: no welcome / What's new window
     env["NO_PROXY"] = env["no_proxy"] = ",".join(x for x in ("127.0.0.1", "localhost", env.get("NO_PROXY", "")) if x)
 
     # 1. two builds of this code

@@ -72,6 +72,7 @@ ALWAYS = ("import", "looks", "scene", "help", "panel")
 # Places outside the side panel (a function reached from a menu).
 MENUS = {
     "TOPBAR_MT_help": "Help menu",
+    "TOPBAR_MT_fresing": "Fresing menu (top bar)",
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
 }
@@ -98,7 +99,8 @@ class Function:
     tour: tuple = ()         # test-tour stop ids that show it
     pccheck: tuple = ()      # PC-check (Full) line ids that test it
     lesson: str = ""         # "crane:2" = lesson crane, its step 2 (the lessons task fills these in)
-    since: str = ""          # the version it came in
+    since: str = ""          # the version it came in (task 0199: What's new lists it; the precheck wants it)
+    changed: str = ""        # the version that last improved it in a way the owner sees ("improved" in What's new)
     workspaces: tuple = ()   # the workspaces that show it; () = its family's row of FAMILY_WORKSPACES
 
     def shown_in(self, key: str) -> bool:
@@ -437,9 +439,17 @@ fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", bu
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
-   guide="tour", pccheck=("tour.make",), since="0.2.47")
+   guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
 fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
    button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
+fn(id="help.start_here", title="Fresing menu: test tour, What's new, guide, checks in one place", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.tour_take", guide="start-here", tour=("start_here",),
+   pccheck=("app.start_here",), since="0.2.155")
+fn(id="help.welcome", title="Welcome for a new user: take the test tour", family="help", panel="TOPBAR_MT_fresing",
+   button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
+fn(id="help.whats_new", title="What's new after an update, with a tour of only the new and changed test models",
+   family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
+   tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
 fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="VIEW3D_HT_header",
    button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.150")
 
@@ -486,8 +496,13 @@ def problems(functions=None, *, anchors=None, stops=None, lines=None, panels=Non
             if key not in WORKSPACE_KEYS:
                 out.append(f"{f.id}: workspace '{key}' is not one of {', '.join(WORKSPACE_KEYS)} (a misspelt key "
                            "hides the function in that workspace)")
-        if f.since and not VERSION.match(f.since):
+        if not f.since:
+            out.append(f"{f.id}: no since= version: write since=\"<the version it comes in>\" in its entry in "
+                       "fresing_render/core/functions.py (What's new lists it after an update, task 0199)")
+        elif not VERSION.match(f.since):
             out.append(f"{f.id}: since '{f.since}' is not a version like 0.2.47")
+        if f.changed and not VERSION.match(f.changed):
+            out.append(f"{f.id}: changed '{f.changed}' is not a version like 0.2.47")
         if not (f.button or f.prop):
             out.append(f"{f.id}: no button or setting for a lesson to point at (button= or prop=)")
         if panels is not None and f.panel not in panels and f.panel not in MENUS:

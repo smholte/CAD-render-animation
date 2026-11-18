@@ -240,6 +240,54 @@ while you click parts in the main window.
 The step you are on is saved with the project: the window opens where you left off, and a project saved
 with the window open brings it back. Close the window like any other window.
 
+<a id="start-here"></a>
+## Start here – the Fresing menu
+
+At the top of the window, after **File, Edit, Render, Window, Help**, there is a menu **Fresing**. It holds the app's
+own things in one place, whatever workspace you are in (also in the Client view):
+
+- **Take the test tour** – opens the [test tour](#tour) of this version; when it is not made yet, it is made first
+  (in the background: the bottom line of the window shows how far it is, and **Cancel making the test tour** appears
+  in the menu while it runs).
+- **What's new in 0.2.…** – what this version brings (see below). A dot after it means you have not opened it yet.
+- **Show the Fresing panel** – brings the side panel back on the Fresing tab ([If the Fresing panel is gone](#panel-gone)).
+- **Make demo project… / Open demo project** – the [demo project](#demo).
+- **User guide**, **PC check…**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
+- **Welcome screen…** – the welcome below, again.
+
+<a id="welcome"></a>
+### The welcome (the first starts)
+
+The first time the app starts on a PC (in a new settings folder) the start-up screen shows a short welcome at its
+top: what the app is for, and the test tour, with how long making it takes ("about 3 minutes" – measured on the
+4-core test machine; once you have made the tour, the time it took on your PC). Three buttons:
+
+- **Take the test tour** – makes the tour in the background and offers to open it when it is ready.
+- **Later** – asks again at the next start, at most three starts.
+- **Don't show this again** – never again at the start. It stays in **Fresing > Welcome screen…**.
+
+When the app opens a project you double-clicked, the welcome shows as a small window once the project is open.
+On the very first start Blender asks for language and keyboard first: the welcome follows when you press
+**Continue**.
+
+<a id="whats-new-start"></a>
+### What's new after an update
+
+The first start of a newer version (after **Update now**, or a new installer) shows **What's new in 0.2.…** – or
+"What's new since 0.2.…" when you skipped versions – once, at the top of the start-up screen. **Show What's new…**
+opens it:
+
+1. **New functions** – the functions this version adds (at most eight lines, newest first; "improved" for one that
+   got better). **Show in guide** opens this guide at that function. **All release notes** opens the release page
+   with every change.
+2. **The test models** – "2 new test models, 1 changed", with their names. Pick **Only the new and changed test
+   models** (much quicker to make than the whole tour) or **The whole tour**, then **Make the tour**. When it is
+   ready, open it: the Test tour panel marks the new stops "– New" and the changed ones "– Changed", and says
+   which test models are new or changed since the version you had.
+3. **Cancel** = later: What's new stays in the **Fresing** menu (with a dot) until you open it.
+
+It never shows after going back to an older version or installing the same version again.
+
 <a id="start"></a>
 ## Getting started: your first render in 10 minutes
 
@@ -3803,8 +3851,9 @@ bolts and screws – and the crane has a luffing cylinder that follows its boom 
 <img class="panel" src="img/panel_tour.png" alt="The Test tour panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">
 
 **Make it (once per version)**
-1. **Help > Make test tour project…**, then **Make it**. It is made in the background in about 2 minutes (the
-   bottom line of the window shows "Making the test tour: project 3 of 14 …"); you can keep working.
+1. **Fresing > Take the test tour** (or **Help > Make test tour project…**, then **Make it**). It is made in the
+   background in a few minutes (the bottom line of the window shows "Making the test tour: project 3 of 44 …"); you
+   can keep working.
 2. When it is ready a small window says so: click **Open test tour project**. Later: **Help > Open test tour
    project**. Save your own project first: changes that are not saved are lost when another project opens.
 
@@ -3839,6 +3888,10 @@ with its picture, what you should see, and OK or FAILED. Start it, do something 
 Problem in the panel while you look at the report. Your own marks are not touched. On the 4-core test machine
 without a graphics card the whole run took about 3.5 minutes (measured); on your PC it uses the graphics card
 and bigger pictures.
+
+**After an update** [What's new](#whats-new-start) offers a tour of only the new and changed test models. Such a tour
+holds only those projects: the panel says so and **Make the whole tour** makes the rest. The stops that are new
+since the version you had say "– New" in the list, the changed ones "– Changed".
 
 **More**: **Show the tour folder**, **Make the tour again…**.
 
