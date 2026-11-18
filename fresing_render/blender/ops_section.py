@@ -1,4 +1,4 @@
-"""Operators of 3 Looks > Cutaway (task 0086)."""
+"""Operators of 3 Looks > Slice (task 0086)."""
 
 from __future__ import annotations
 
@@ -54,10 +54,10 @@ WHAT_ITEMS = [("SELECTED", "The selected", "The selected subassembly or part"),
 
 
 class FRESING_OT_cut_add(bpy.types.Operator):
-    """Adds a cut through the selected subassembly (or the group picked above, or the whole model): the side facing
+    """Adds a slice through the selected subassembly (or the group picked above, or the whole model): the side facing
     you is taken away and the cut faces show the cap colour. Then move its arrow, or set its place below"""
     bl_idname = "fresing.cut_add"
-    bl_label = "Add cut"
+    bl_label = "Add slice"
     bl_options = {"REGISTER", "UNDO"}
 
     what: EnumProperty(name="What it cuts", items=WHAT_ITEMS, default="SELECTED")
@@ -65,10 +65,10 @@ class FRESING_OT_cut_add(bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         if properties.what == "GROUP":
-            return ("Adds a cut through every part of the group picked in the list above: the side facing you is "
+            return ("Adds a slice through every part of the group picked in the list above: the side facing you is "
                     "taken away and the cut faces show the cap colour")
         if properties.what == "MODEL":
-            return ("Adds a cut through the whole model: the side facing you is taken away and the cut faces "
+            return ("Adds a slice through the whole model: the side facing you is taken away and the cut faces "
                     "show the cap colour")
         return " ".join(cls.__doc__.split())
 
@@ -94,9 +94,9 @@ class FRESING_OT_cut_add(bpy.types.Operator):
 
 
 class FRESING_OT_cut_remove(bpy.types.Operator):
-    """Removes the cut selected in the list (and its slide joint): its parts look whole again"""
+    """Removes the slice selected in the list (and its slide joint): its parts look whole again"""
     bl_idname = "fresing.cut_remove"
-    bl_label = "Remove cut"
+    bl_label = "Remove slice"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -113,9 +113,9 @@ class FRESING_OT_cut_remove(bpy.types.Operator):
 
 
 class FRESING_OT_cut_target_add(bpy.types.Operator):
-    """Adds the selected subassembly (or the group picked above) to what this cut cuts"""
+    """Adds the selected subassembly (or the group picked above) to what this slice cuts"""
     bl_idname = "fresing.cut_target_add"
-    bl_label = "Cut this too"
+    bl_label = "Slice this too"
     bl_options = {"REGISTER", "UNDO"}
 
     what: EnumProperty(name="What", items=WHAT_ITEMS[:2], default="SELECTED")
@@ -123,8 +123,8 @@ class FRESING_OT_cut_target_add(bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         if properties.what == "GROUP":
-            return "Adds every part of the group picked in the list above to what this cut cuts"
-        return "Adds the selected subassembly or part to what this cut cuts"
+            return "Adds every part of the group picked in the list above to what this slice cuts"
+        return "Adds the selected subassembly or part to what this slice cuts"
 
     @classmethod
     def poll(cls, context):
@@ -144,9 +144,9 @@ class FRESING_OT_cut_target_add(bpy.types.Operator):
 
 
 class FRESING_OT_cut_target_remove(bpy.types.Operator):
-    """Takes this one out of what the cut cuts: its parts look whole again"""
+    """Takes this one out of what the slice cuts: its parts look whole again"""
     bl_idname = "fresing.cut_target_remove"
-    bl_label = "Do not cut this"
+    bl_label = "Do not slice this"
     bl_options = {"REGISTER", "UNDO"}
 
     index: IntProperty(default=-1)
@@ -162,7 +162,7 @@ class FRESING_OT_cut_target_remove(bpy.types.Operator):
 
 
 class FRESING_OT_cut_select_handle(bpy.types.Operator):
-    """Selects the cut's arrow in the view, so you can move it (G) or turn it (R) with the mouse. The arrow points to
+    """Selects the slice's arrow in the view, so you can move it (G) or turn it (R) with the mouse. The arrow points to
     the side a plane takes away"""
     bl_idname = "fresing.cut_select_handle"
     bl_label = "Select the arrow"
@@ -194,7 +194,7 @@ class FRESING_OT_cut_select_handle(bpy.types.Operator):
 
 
 class FRESING_OT_cut_replace(bpy.types.Operator):
-    """Puts the cut back through the middle of what it cuts, taking away the side that faces you"""
+    """Puts the slice back through the middle of what it cuts, taking away the side that faces you"""
     bl_idname = "fresing.cut_replace"
     bl_label = "To the middle"
     bl_options = {"REGISTER", "UNDO"}

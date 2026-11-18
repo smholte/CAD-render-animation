@@ -46,10 +46,21 @@ wants them in the app too. The web page itself (0218).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026
 
-**What changed:**
+**What changed:** 0.2.169. The section-view tool says Slice everywhere it is visible: panel title (3 Looks > Slice),
+buttons (Add slice, Remove slice, Slice this too, Do not slice this), new list names ("Slice 1" …; old projects keep
+their stored names), header ("2 slices · 1 on"), hints, reports, tooltips, function list title, tour set and stop
+texts, PC-check line title, guide section + picture. Guide: new anchor `slice` above the old `cutaway` (kept, in
+`READING`, so old links land). New test `test_no_visible_cutaway_word_left`. `changed=` on the function entry, the
+tour stop and the tour sets.
 
-**Tested and measured** (name the machine and the model):
+**Ids that kept the old word:** `looks.cutaway` (function, PC-check line, tour stop and set), `FRESING_PT_cutaway`,
+`fresing.cut_*` operators, `scene.fresing.cuts`, `FRCut`, `fr_how_cutaway`, picture file names. Left alone: the sea
+and hall cut-aways; the web page's own "Cutaway" tool (task 0218).
 
-**Open points / follow-up tasks:**
+**Tested and measured** (web machine, 4 cores): test_section, test_places, test_functions, test_user_guide,
+test_workspaces, tooltip check (865 ok), precheck; GitHub run below. No separate old project was opened: stored names
+and ids are unchanged.
+
+**Open points / follow-up tasks:** none. Runs needed: see the merge note.

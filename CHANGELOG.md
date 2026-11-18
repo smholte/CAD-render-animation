@@ -5,6 +5,13 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.169 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
+
+The tool that cuts a machine open (3 Looks) is now called **Slice**, the same word as on the web 3D page: the panel,
+its buttons (**Add slice**, **Remove slice**), the list ("Slice 1", "Slice 2" …), the guide and the test tour say Slice.
+Your old projects open as before; their cuts show up under Slice with their old names. The sea cut-away and the hall
+cut-away keep their names.
+
 ## 0.2.168 – 18 Nov 2026 – Cables and the sea after changes (task 0216)
 - **Undo after a water change:** a cable into the sea is worked out again for the water it now has (after water level 2 → 3 m, re-bake, Undo it lay 1 m under the seabed). The water level, the water depth and a cable's own depth count, like the sea state and the speed already did. A project saved while that re-bake ran is worked out again when it opens.
 - **Model update:** a cable whose own parts (the cable, its rollers and sheaves, its drum) come back unchanged keeps its route, wraps and drum, also when other parts of the model changed; only cables within about 1 m of a change are read again (before, any change read every cable again: the demo's power cable came out 7 cm shorter and a winch warned of a 38.7° fleet angle).

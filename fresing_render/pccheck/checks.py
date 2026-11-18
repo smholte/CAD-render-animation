@@ -513,7 +513,7 @@ def looks_served_cable(ctx):
     return note
 
 
-@line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
+@line("looks.cutaway", "Slice: a cut through the pedestal", "0.2.64",
       what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
            "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
            "same frame without the cut")
@@ -533,7 +533,7 @@ def looks_cutaway(ctx):
     a.name, a.tail, a.fps = tour.CUT_ANIM, 0.0, "25"
     t0 = time.time()
     cut = tour.cutaway(scene, a)
-    ctx.metric("add cut", time.time() - t0, "s")
+    ctx.metric("add slice", time.time() - t0, "s")
     info = animation.bake(scene, a)
     _check(not info["warnings"], "; ".join(info["warnings"][:2]))
     note = tour._check_cutaway(scene)

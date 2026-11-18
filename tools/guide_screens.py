@@ -1943,7 +1943,7 @@ def render_looks():
 def render_crane(with_decals: bool = False, with_cut: bool = False):
     """A finished render of the test crane, the way a user makes one (background mode, processor);
     with decals on it for the picture of 3 Looks > Logos & stickers; with a hatched cut through the pedestal and the
-    boom for 3 Looks > Cutaway (task 0086)."""
+    boom for 3 Looks > Slice (task 0086)."""
     import addon_utils
     addon_utils.enable(pkg(), default_set=True)
     assert bpy.ops.fresing.import_step(filepath=CRANE, quality="normal") == {"FINISHED"}

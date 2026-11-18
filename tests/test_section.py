@@ -40,9 +40,9 @@ def test_core_places_and_words():
     c, size = core.box_default((0, 0, 0), (1, 1, 1), (1.0, 1.0, 0.0), margin=0.1)
     assert c[0] == pytest.approx(0.8) and size[0] == pytest.approx(0.6) and size[2] == pytest.approx(1.2)
     assert core.status(0, 0) == ""
-    assert core.status(2, 1) == "2 cuts · 1 on"
-    assert core.status(1, 0) == "1 cut · off"
-    assert all(len(core.status(n, k)) <= 14 for n in range(1, 10) for k in range(n + 1))   # fits the header
+    assert core.status(2, 1) == "2 slices · 1 on"
+    assert core.status(1, 0) == "1 slice · off"
+    assert all(len(core.status(n, k)) <= 15 for n in range(1, 10) for k in range(n + 1))   # fits the header
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ def test_add_cut_makes_shape_joint_and_wraps_only_its_parts(scene):
     frame = ob(scene, "FRAME")
     assert scene.fresing.floor_offset == pytest.approx(section.FLOOR_GAP)   # the floor below the cut faces
     j = section.joint_of(scene, cut)
-    assert j is not None and j.kind == "SLIDE" and j.name == cut.name == "Cut 1"
+    assert j is not None and j.kind == "SLIDE" and j.name == cut.name == "Slice 1"
     assert doublearm.app_joint(j)                                     # never taken as a CNC axis
     o, d = joints.axis_world(j)
     assert (o - Vector((0.5, 0.3, 0.025))).length < 1e-6 and (d - Vector((-1, 0, 0))).length < 1e-6
@@ -166,7 +166,7 @@ def test_add_cut_makes_shape_joint_and_wraps_only_its_parts(scene):
     assert section.is_wrapped(mat)
     # other materials are not touched
     assert not any(section.is_wrapped(m) for m in bpy.data.materials if m is not mat)
-    assert section.status(scene) == "1 cut · 1 on"
+    assert section.status(scene) == "1 slice · 1 on"
     assert scene.cycles.transparent_max_bounces >= section.TRANSPARENT_STEPS
 
 
@@ -234,14 +234,14 @@ def test_group_part_and_model_targets(scene):
     assert len(section.cut_parts(scene, cut)) == 4
     cut2 = section.add(scene, [("MODEL", build.model_roots(scene)[0], "")], "BOX")
     assert len(section.cut_parts(scene, cut2)) == len(list(build.iter_parts(scene)))
-    assert section.status(scene) == "2 cuts · 2 on"
+    assert section.status(scene) == "2 slices · 2 on"
     cut2.enabled = False
-    assert section.status(scene) == "2 cuts · 1 on"
+    assert section.status(scene) == "2 slices · 1 on"
     ng = bpy.data.node_groups[section.GROUP]
     assert ng.nodes[f"{cut2.key} on"].outputs[0].default_value == 0.0
     section.remove(scene, section.find(scene, cut.key))
     assert not any(section.ATTR + "c1" in o for o in scene.objects)
-    assert section.find(scene, "c1") is None and scene.fresing.joints.get("Cut 1") is None
+    assert section.find(scene, "c1") is None and scene.fresing.joints.get("Slice 1") is None
     assert len(scene.fresing.cuts) == 1
 
 
@@ -452,7 +452,7 @@ def test_model_update_keeps_the_cut(tmp_path):
     _update()
     cut = sc.fresing.cuts[0]
     j = section.joint_of(sc, cut)
-    assert j is not None and j.name == "Cut 1"
+    assert j is not None and j.name == "Slice 1"
     assert joints.get_value(j) == pytest.approx(0.04, abs=1e-7)
     assert (cut.shape.matrix_world.translation - where).length < 1e-6
     new_boom = ob(sc, "BOOM.ASM")
@@ -529,3 +529,19 @@ def test_new_cut_faces_a_camera_made_just_before(scene):
     _update()
     _o, d = joints.axis_world(section.joint_of(scene, cut))
     assert (d - Vector((1, 0, 0))).length < 1e-6                              # the +X half (towards it) goes
+
+
+def test_no_visible_cutaway_word_left(scene):
+    """Task 0220: the section-view tool says Slice everywhere the owner reads (panel, buttons, tooltips)."""
+    from fresing_render.blender import props, ui_section
+    from fresing_render.core import places
+    assert ui_section.FRESING_PT_cutaway.bl_label == "Slice"
+    assert places.where("FRESING_PT_cutaway") == "3 Looks > Slice"
+    texts = []
+    for op in ("cut_add", "cut_remove", "cut_target_add", "cut_target_remove", "cut_select_handle", "cut_replace"):
+        rna = getattr(bpy.ops.fresing, op).get_rna_type()
+        texts += [rna.name, rna.description]
+    for p in props.FRCut.bl_rna.properties:
+        texts += [p.name, p.description]
+    assert not [t for t in texts if "cutaway" in t.lower()]
+    assert bpy.ops.fresing.cut_add.get_rna_type().name == "Add slice"

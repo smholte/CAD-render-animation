@@ -53,7 +53,7 @@ LANE_OF_PANEL = {
     "Props for scale": "Scene & Render lane", "Vessel motion": "Sea lane", "Vessel at work": "Sea lane",
     "Update notice": "Quality lane",
     "Milling": "Machining lane", "Chips": "Machining lane", "Make a toolpath": "Machining lane", "CNC machine": "Motion lane",
-    "Logos & stickers": "Looks lane", "Cutaway": "Cutaway lane", "Hoses and drag chains": "Flex parts lane",
+    "Logos & stickers": "Looks lane", "Slice": "Cutaway lane", "Hoses and drag chains": "Flex parts lane",
     "Cables and paths": "Flex parts lane", "Drums and carousels": "Flex parts lane",
 }
 
@@ -67,7 +67,7 @@ OWNER_TYPES = {
     "cyl": "FRCylinder",                                      # 4 Motion > Cylinders
     "mech": "FRMechanism",                                    # 4 Motion > Mechanisms
     "cnc": "FRCnc", "tl": "FRCncTool",                        # 4 Motion > CNC machine (ui_gcode.py)
-    "cut": "FRCut",                                           # 3 Looks > Cutaway (ui_section.py)
+    "cut": "FRCut",                                           # 3 Looks > Slice (ui_section.py)
     "v": "FRVessel",                                          # 5 Scene & Render > Vessel motion (task 0085)
     "vw": "FRVesselWork", "th": "FRVesselThruster",           # 5 Scene & Render > Vessel at work (task 0154)
     "cb": "FRCable", "ct": "FRCableContact",                   # 4 Motion > Cables and paths (task 0078)

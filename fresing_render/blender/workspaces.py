@@ -287,7 +287,7 @@ def used_functions(scene) -> dict:
         add("scene.weather", "Weather & time")
     # looks: what the Client view hides is hidden on purpose; cuts and decals are named for the question only
     if len(s.cuts):
-        add("looks.cutaway", _count(len(s.cuts), "cut"))
+        add("looks.cutaway", _count(len(s.cuts), "slice"))
     # house
     try:
         from . import house_import

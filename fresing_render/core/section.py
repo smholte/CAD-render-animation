@@ -55,12 +55,12 @@ def box_default(bmin, bmax, view, margin: float = MARGIN) -> tuple[tuple, tuple]
 
 
 def status(total: int, on: int) -> str:
-    """The panel header: '2 cuts · 1 on' ('' with no cuts)."""
+    """The panel header: '2 slices · 1 on' ('' with no cuts)."""
     if total <= 0:
         return ""
     if on == 0:
-        return f"{plural(total, 'cut')} · off"
-    return f"{plural(total, 'cut')} · {on} on"
+        return f"{plural(total, 'slice')} · off"
+    return f"{plural(total, 'slice')} · {on} on"
 
 
 def target_label(kind: str, name: str) -> str:
