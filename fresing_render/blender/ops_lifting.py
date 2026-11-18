@@ -291,8 +291,10 @@ class FRESING_OT_lifting_place(_Placer, bpy.types.Operator):
                 self.report({"ERROR"}, f"The crane's model could not be read: {self._job.error}")
                 return {"CANCELLED"}
             try:
-                root = lifting.finish_cache(context, self._job.cache_dir, self._first)
-                c = lifting.rig_model(context, root, lifting.item_at(self._itempath), self.name)
+                item = lifting.item_at(self._itempath)
+                up = str((item.data.get("rig") or {}).get("up_axis", "Z"))
+                root = lifting.finish_cache(context, self._job.cache_dir, self._first, up)
+                c = lifting.rig_model(context, root, item, self.name)
             except Exception as exc:  # noqa: BLE001
                 self._end(context)
                 self.report({"ERROR"}, f"The crane could not be rigged: {exc}")

@@ -3390,6 +3390,41 @@ def build_lifting(b: Build):
     _shot(b, "@lifting_hook")
 
 
+@tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
+          added="0.2.157")
+def build_crane_setup(b: Build):
+    """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
+    a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
+    from . import crane_example, setup_crane
+    sc = b.scene
+    _look("PRODUCT")
+    crane_example.rig(sc, "KB-20", check=True, clash=False)
+    from . import ops_setup
+    k = setup_crane.step_index("CRANE_KNUCKLE", "check")
+    ops_setup.go(sc, k)
+    for name in ("Working",):
+        if name in sc.fresing.poses:
+            from . import states
+            states.apply_pose(sc, name)
+    _update()
+    _camera(b, "ISO", "Tour crane set-up", lens=35.0, points=_lifting_points(sc))
+    _shot(b, "@crane_setup")
+
+
+def _check_crane_setup(scene):
+    from . import setup_crane as SC
+    cs = SC.settings(scene)
+    js = SC.crane_joints(scene)
+    roles = sorted({j.role for j in js if j.role != "NONE"})
+    _check(len(js) >= 20, f"{len(js)} crane joints (want the KB-20's 21)")
+    _check({"slew", "luff", "knuckle", "extension", "hoist", "swing", "outrigger", "jack"} <= set(roles),
+           f"roles {roles}")
+    _check(cs.hook_set and cs.checked, "the hook point is not set or Check did not run")
+    red = [p.text for p in cs.problems if p.severity == "red"]
+    _check(not red, "Check: " + "; ".join(red[:2]))
+    return f"{len(js)} joints with {len(roles)} roles, hook point set, Check: nothing wrong"
+
+
 def _lifting_points(scene):
     import numpy as np
 
@@ -3623,6 +3658,13 @@ stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
      "radius), the gross load (1.2 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
      where="8 Lifting plan > Hook & capacity", since="0.2.156", check=_check_lifting_hook)
+
+stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
+     "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
+     "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
+     "four stabiliser corners are app joints with their roles (4 Motion > Joints), its two cylinders, poses, masses and "
+     "chart are in; the crane stands in its pose 'Working'. The Set-up window is on its step Check: nothing wrong.",
+     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.157", check=_check_crane_setup)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "

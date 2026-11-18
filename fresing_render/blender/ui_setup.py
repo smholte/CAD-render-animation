@@ -356,6 +356,13 @@ CHECKS = {
 
 KIND_ICONS = {"CNC": "FILE_SCRIPT", "MECH": "LINKED"}
 
+# task 0203: Set up a crane – four kinds, each its own step list (setup_crane.py)
+from . import setup_crane as _crane  # noqa: E402
+
+SETUPS.update(_crane.SETUPS)
+CHECKS.update(_crane.CHECKS)
+KIND_ICONS.update(_crane.KIND_ICONS)
+
 
 def current(scene) -> tuple:
     """(kind, step, steps) the Set-up window shows: the step is clamped to the kind's steps, and counts only for

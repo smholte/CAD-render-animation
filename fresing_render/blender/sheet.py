@@ -133,7 +133,9 @@ def make_joints(scene, m: Model) -> int:
             elif j.get("base"):
                 base = m.one(j["base"])
             jt = joints.create(scene, j["kind"], objs, m.point(j["point"]), m.direction(j["direction"]),
-                               name=m.jn(j["name"]), base=base)
+                               name=m.jn(j["name"]), base=base, allow_empty=not objs)
+            if j.get("role") and hasattr(jt, "role"):     # task 0203: an own crane's roles
+                jt.role = j["role"]
             if jt.name != m.jn(j["name"]):
                 raise RuntimeError(f"joint '{m.jn(j['name'])}' got the name '{jt.name}'")
             lim = j.get("limits")

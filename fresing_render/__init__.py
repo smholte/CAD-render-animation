@@ -99,10 +99,10 @@ def _all_classes():
 def ops_setup_classes():
     """The Set-up window (ui_setup.py / ops_setup.py)."""
     try:
-        from .blender import ops_setup, ui_setup
+        from .blender import ops_setup, ops_setup_crane, ui_setup
     except ImportError:
         return ()
-    return tuple(ops_setup.CLASSES) + tuple(ui_setup.CLASSES)
+    return tuple(ops_setup.CLASSES) + tuple(ops_setup_crane.CLASSES) + tuple(ui_setup.CLASSES)
 
 
 def register():
