@@ -1,6 +1,6 @@
 # 0213 – Client view and side-panel fixes (bug hunt 0209 group A)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0213-client-view-lock-fixes`
+**Who:** worker · **Status:** running · **Branch:** `claude/busy-edison-v4v77x`
 **Started by:** lead, 18 Nov 2026 · **Model:** Opus · effort Medium
 **Area:** Start & learn lane – `blender/lock.py`, `blender/workspaces.py`, `core/workspaces.py`, `blender/ops_setup.py`
 (+ their tests). Not `core/functions.py` entries of others, not the usage files (0209 group F, later).
