@@ -1,6 +1,6 @@
 # 0210 – Faster click and first hover on big models (study 0195's A6 + A7)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0210-speed-click-hover`
+**Who:** worker · **Status:** running · **Branch:** `task/0210-speed-click-hover`
 **Started by:** lead chat, 18 Nov 2026 (owner: "more tasks?"; study 0195's quick wins)
 · **Lane:** Pick & hover (`blender/hover.py`) + the selection handler (`blender/handlers.py` `_on_select`-part only,
 `blender/logic.py` / `blender/tree.py` read-only unless a cache needs a hook)
