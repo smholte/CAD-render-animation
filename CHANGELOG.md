@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.153 – 18 Nov 2026 – The sea cut-away is open in the 3D view too (task 0196)
+
+With the sea cut-away on, the box behind the stern is now open in Solid view and Material Preview as well, not only in
+a render: you see the cable going down, the seabed and the soil section while you work. The edge in the view follows
+the sea's own mesh (about a metre); renders are exactly as before.
+
 ## 0.2.152 – 18 Nov 2026 – A calm side panel: workspaces, folded sections, Make, the Set-up window (task 0062)
 
 - **The side panel starts calm.** Every time the app starts or a project opens, sections 1 to 7 are folded; each
