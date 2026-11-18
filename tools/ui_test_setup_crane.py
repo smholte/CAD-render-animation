@@ -297,7 +297,7 @@ def s_place():
             cls_n += 1
             if abs(got.boom - c.boom) > 0.002 or (c.use is not None and abs((got.use or 0) - c.use) > 1e-6):
                 bad.append(f"class {np.round(target)}: {got.boom} != {c.boom}")
-    check(f"{cls}: Hook to here on the own crane = the built-in crane's answer (and the class solver's)",
+    check(f"{cls}: Hook to here on the own crane = the built-in crane's answer",
           n >= 10 and not bad, f"{n} targets, {cls_n} against the class solver; " + "; ".join(bad[:3]))
     return 1.0
 

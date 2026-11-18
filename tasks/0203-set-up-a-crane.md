@@ -156,10 +156,78 @@ Added step **Poses** (before Check) for every kind: the rig's poses and start po
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, session branch `claude/wonderful-hawking-aea8kb`, 18 Nov 2026. Version 0.2.158.
 
 **What changed:**
+- **Set up a crane** in the Set-up window (`blender/setup_crane.py` steps + drawing, `ops_setup_crane.py` buttons,
+  `crane_example.py` = the steps done by names for the tour, the PC check and the tests): four kinds `CRANE_MOBILE`
+  (14 steps), `CRANE_CRAWLER` (13), `CRANE_KNUCKLE` (13), `CRANE_OTHER` (9), merged into `ui_setup.SETUPS` / `CHECKS`;
+  opened from 8 Lifting plan > Equipment > **Set up a crane…** (a menu of the four kinds) or the window's kind list.
+  Parts by name (search box) or Use clicked; the axis from a list of the picked parts' CAD round faces (`fr_axes`; a pin
+  shared with the base part first) or a direction, or a click (hover picker). Joints, cylinders, tracks, the rope and
+  poses are the app's own (4 Motion shows them). Telescope / extensions: one joint per section, riding on the one
+  before, following the first (ratio 1). Outrigger / stabiliser corners: beam stages then the jack, the first corner
+  drives. Hook block: one hook swing per turning boom joint at the head sheave (ratio −1; on the model's wrapper
+  sub-assemblies, else joints that move nothing), the hoist straight down, the hook point guessed on the plumb line (the
+  maker's value is typed: the built-in files' hook point is a design value ~0.1–0.3 m off the drawn saddle). Masses &
+  CoG per group (0201's solid code), markers. Chart typed / pasted / read (L2's `chart_rows` / `chart_csv`, refusals by
+  row). Poses step (added: the rig needs them). Check, Save.
+- **Roles** on joints (`FRJoint.role`, 12 roles + none); each role knows its sense, a joint made the wrong way round is
+  turned (`orient`), a flipped one is named by Check.
+- **`blender/lifting_rig_out.py`:** the scene's crane → the equipment file (rig by part names, STEP mm, CAD pose,
+  roles, couplings, limits, cylinders, poses, tracks, rope, hook + falls, groups, mass, CoG, limits block, outriggers /
+  tracks / footprint block in the model's level plane, also for Y-up models), Save through `write_item` + STEP copy +
+  picture (never the built-ins). `sheet.make_joints` takes joints with no parts and their roles; Place imports with the
+  file's `up_axis`.
+- **General Hook to here** (`core/lifting_reach.py`, subagent A): roles (`role_of`, names as fallback), `Kinematics`,
+  `Rig` for any kind; the boom's plane read from the 3-D joints, the class solver's closed forms vectorised in it,
+  Newton polish on the 3-D kinematics, every answer checked (≤ 1 mm, limits). 0201's class solver moved to
+  `tests/lifting_reach_class.py` (tests only). **The app uses the general solver for every crane.** No chart =
+  "Not checked – no chart" (grey).
+- **`core/lifting_setup.py`** (subagent A): the Check's checks – roles per kind, sweep (followers in limits, hook
+  plumb, joints without limits), poses, masses, CoG over the footprint, chart. Blender side adds: names that fit
+  several parts, joints past their limits now, a joint against its role, a refused typed chart, and the clash check on
+  the crane's own motion: a clash **in a saved pose** is red; parts meeting somewhere in a joint's whole range a grey
+  line (the built-in models are not clean over full ranges, see open points); the hook block counts only in poses.
+- Function entry `lifting.crane_setup`, guide section "Set up your own crane" (+ `role` / `footprint` in the file
+  table), tour set **crane_setup** (stop "Set up a crane: KB-20 rigged"), PC-check line `lifting.setup`, real-app test
+  `tools/ui_test_setup_crane.py` (32 checks, group tour-b), `ui_setup` step numbers in rows of 5 for 13–14 steps.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Linux):
+- `tests/test_setup_crane.py` (13, bpy): AT-40, CC-750 + jib, KB-50 rigged from their bare STEP by the buttons only
+  (~1–3 s each after the import) – the saved file equals the built-in rig (joints, roles, parts, rides on, couplings,
+  limits, axes ≤ 1 mm / 0.1°, hook point, poses, masses, CoG, charts incl. configs); Save → Place beside the built-in:
+  same joints and poses, every pose's readout the same (chart, capacity, radius/height ≤ 1 mm), Hook to here = the
+  built-in's = 0201's class solver's on ≥ 10 random targets each; never into the built-ins; each planted fault found
+  with its step (pose past a limit, hook not plumb, mass missing, chart refused, clash in a pose red + whole range
+  grey); chart typed / pasted with row refusals; volume x density + CoG marker; "Other crane" (KB-50 with roles);
+  every step of every kind draws.
+- Solver (subagent A, `tests/test_lifting_reach_general.py`, 42): all 12 classes, 55 targets each, general vs class:
+  same chart, use (1e-6), boom (0.1 mm), hook ≤ 0.01 mm; mobile/crawler joint values equal (≤ 2e-5°), knuckle up to
+  0.5° / 34 mm hoist where both are equally good (the shortest reaching extension). Rigs turned 37°, Y up, shifted, a
+  boom 300 mm off the slew axis, other-crane renames. Timings median/max: AT 10–11/23 ms, CC 0.8–1.8/4 ms, KB 33–36/67
+  ms (class: 14–18/37, 13/44, 56–71/144).
+- **Independent tester** (subagent, from the brief): 71 tests (`tests/test_setup_crane_independent.py`,
+  `test_lifting_setup_independent.py`), found 11 faults – no chart shown red; a hoist without limits pulled the hook
+  above its sheave; Check silent on reach joints without limits; Y-up cranes' footprint a line; the name cache kept
+  removed parts after a reload; the set-up lost its crane when a second model came in; a flipped luff led to the
+  wrong step; counterweight steps "0; 4,5; 9" misread; a jib-only chart got boom 0; odd hand-edited values raised
+  tracebacks; one tolerance of the author's test too tight. All fixed (core ones by subagent A); all 71 pass.
+- Area run: 223 passed (set-up, independent, setup checks, reach, lifting plan, Set-up window).
+- Real app (`ci_real_app.py --only setupcrane`, Blender 5.2.3 under xvfb): **32/32** – four set-ups (AT-40, CC-750,
+  KB-50, KB-50 as Other) through the window, all 49 step pictures looked at (no cut-off text at 297 px after the
+  number rows), Check (AT-40 with the clash check, 40 s), Save = built-in, placed again: Hook to here = the built-in's
+  on 28–30 targets each.
+- Tour set built + Go + check (5.5 s). PC-check line `lifting.setup` OK: set up KB-20 1.0 s, Hook to here 79 ms.
 
 **Open points / follow-up tasks:**
+- **Built-in models clash in their own poses** (found by Check's clash check): KB-50 "Long reach" – CONTROL STAND
+  0.86 m inside TRUCK CAB; CC-750 – JIB STRUT × JIB PENDANT BAR R (3.8 m), UPPER FRAME × BOOM FOOT (59 mm), the boom
+  pendants' bar × rod (17 mm). Over whole joint ranges more (slew with folded boom over the cab …). Lifting lane: fix
+  the makers (L3) and add a clash test of every pose.
+- The hook point can't be found on the built-in STEPs (drawn hook ≠ file's point): the step guesses, the user types.
+- Drum (0080) for the hoist rope, and the falls drawn: L5. Fly-jib offsets are set by hand (not solved).
+- Undo after Make only tried through the operators' UNDO flag, not in a real-app undo test.
+- Subagents: A (Opus) solver + Check checks + their tests, then the tester's core findings; independent tester
+  (Opus) 71 tests. Re-done after merging: the Y-up level plane on the Blender side, the panel's grey "no chart".
+- GitHub runs: see below.

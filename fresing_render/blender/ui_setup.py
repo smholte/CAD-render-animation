@@ -396,7 +396,7 @@ def draw_setup(layout, context) -> None:
     layout.operator_menu_enum("fresing.setup_kind", "kind", text=title, icon=KIND_ICONS.get(kind, "PREFERENCES"))
 
     value = tick()
-    per = n if n <= 9 else (n + 1) // 2           # task 0203: a crane has 13-14 steps: two rows, numbers readable
+    per = n if n <= 9 else 5                       # task 0203: a crane has 13-14 steps: rows of 5, "✓ 12" readable
     col = layout.column(align=True)
     row = None
     for i in range(n):
