@@ -583,7 +583,10 @@ def tidy_old(folder: str, desktop: str, programs: str) -> list[str]:
     menu = os.path.join(programs, START_MENU_FOLDER) if programs else ""
     if menu and os.path.isdir(menu):
         try:
-            if not os.listdir(menu):
+            left = [n for n in os.listdir(menu) if n.lower() != "desktop.ini"]     # Explorer's own file
+            if not left:
+                for n in os.listdir(menu):
+                    os.remove(os.path.join(menu, n))
                 os.rmdir(menu)
                 done.append("Start-menu folder Fresing Render: removed")
         except OSError as exc:
@@ -633,20 +636,21 @@ def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", a
     if not folder:
         return []
     icon = icon or ensure_icon(folder)
-    if not icon:
-        return []
     if not (desktop and programs):
         d, p, a = known_folders()
         desktop, programs, appdata = desktop or d, programs or p, appdata or a
-    target = app_target_for(binary_path, icon)
-    STATE["app_exe"] = target
     done = []
+    # task 0212: tidy and the Tools folder need no icon file of their own (the shipped one serves for new shortcuts)
     for name, step in (("tidy", lambda: tidy_old(folder, desktop, programs)),
-                       ("tools", lambda: ensure_tools(folder, binary_path, desktop, icon))):
+                       ("tools", lambda: ensure_tools(folder, binary_path, desktop, icon or SHIPPED_ICON))):
         try:
             done += step()
         except Exception as exc:  # noqa: BLE001 - one step's fault does not stop the others
             log(f"could not {name} the shortcuts:", exc)
+    if not icon:
+        return done
+    target = app_target_for(binary_path, icon)
+    STATE["app_exe"] = target
     paths = shortcut_paths(desktop, programs, appdata, tools_dir(folder))
     done = refresh_shortcuts(folder, icon, paths, target) + done
     if STATE.pop("icon_changed", False):

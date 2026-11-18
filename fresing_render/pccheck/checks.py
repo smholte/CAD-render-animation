@@ -4267,12 +4267,16 @@ def app_tools(ctx):
         target = appicon.read_shortcut(path).get("target", "")
         _check(not appicon.is_inside(target, folder),
                f"an old shortcut of this install is still there: {path} (it should be in the Tools folder now)")
-    _check(os.path.isfile(os.path.join(desktop, appicon.APP_LNK)), "no Fresing Render shortcut on the Desktop")
-    _check(os.path.isfile(os.path.join(programs, appicon.APP_LNK)), "no Fresing Render shortcut in the Start menu")
+    gone = [where for where, d in (("Desktop", desktop), ("Start menu", programs))
+            if not os.path.isfile(os.path.join(d, appicon.APP_LNK))]          # removed by the user: a note only
+    from .. import winexe
+    want = appicon.tools_specs(folder, winexe.blender_exe_of(bpy.app.binary_path), desktop, appicon.HERE)
     tools = appicon.tools_dir(folder)
     have = sorted(n for n in os.listdir(tools) if n.lower().endswith(".lnk")) if os.path.isdir(tools) else []
-    missing = sorted(set(appicon.TOOLS.values()) - set(have))
-    _check(not missing, f"missing in the Tools folder {tools}: {', '.join(missing)}")
+    missing = sorted({s["path"] for s in want.values()} - {os.path.join(tools, n) for n in have})
+    _check(not missing, f"missing in the Tools folder: {', '.join(os.path.basename(m) for m in missing)}")
+    if gone:
+        return f"no Fresing Render shortcut on the {' or in the '.join(gone)} (removed?); Tools folder: {len(have)} shortcuts"
     return f"Desktop and Start menu: Fresing Render only; Tools folder: {len(have)} shortcuts"
 
 

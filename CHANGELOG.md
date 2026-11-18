@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.164 – 18 Nov 2026 – One shortcut only (task 0212)
+
+- **Only "Fresing Render"** on the Desktop and in the Start menu (one entry, no folder). The self-test, the PC checks
+  (quick, full, heavy), the safe start and the user guide moved into the app's **Tools** folder
+  (`%LOCALAPPDATA%\FresingRender\Tools`), all with the Fresing **Fr** icon. A STEP file dropped on a PC check shortcut
+  there is still tested.
+- **Fresing > Tools and checks** in the app: **Run the self-test** (its report lands on the Desktop), **PC check…** and
+  **Open the app folder** (opens the Tools folder).
+- **Nothing to reinstall:** at the first start after **Update now** the app removes the old extra shortcuts from the
+  Desktop and the Start menu and makes them in the Tools folder. Only shortcuts that start this install are touched; a
+  shortcut of your own stays. Install.bat does the same, and Uninstall removes the old and the new ones.
+- The PC check has a new line, "One shortcut only".
 ## 0.2.163 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
 - Clicking a part in "Subassembly" pick mode no longer rebuilds the part tree each time, and the first mouse move in an axis picker (Add joint, Set axis, cylinders) is as quick as the later ones. Nothing looks different.
 ## 0.2.162 – 18 Nov 2026 – About Fresing Render and the licence files (task 0206)

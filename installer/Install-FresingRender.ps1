@@ -348,11 +348,21 @@ function Remove-OldLink([string]$path) {
     }
 }
 foreach ($n in @("Fresing Render - PC check.lnk", "Fresing Render - PC check (heavy).lnk")) { Remove-OldLink (Join-Path $Desktop $n) }
+# the app's own old Start-menu shortcut is moved, not made again: a "Pin to Start" made from it stays (as the app does)
+$OldApp = Join-Path $OldMenu "Fresing Render.lnk"
+$NewApp = Join-Path $Programs "Fresing Render.lnk"
+if ((Test-Path -LiteralPath $OldApp) -and -not (Test-Path -LiteralPath $NewApp)) {
+    try { $t = $Shell.CreateShortcut($OldApp).TargetPath } catch { $t = "" }
+    if ($t -and $t.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) {
+        Move-Item -LiteralPath $OldApp -Destination $NewApp -Force -ErrorAction SilentlyContinue
+    }
+}
 foreach ($n in @("Fresing Render.lnk", "Fresing Render - safe start.lnk", "Fresing Render - Self test.lnk",
                  "Fresing Render - PC check (quick).lnk", "Fresing Render - PC check (full).lnk",
                  "Fresing Render - PC check (heavy).lnk", "Fresing Render - User guide.lnk")) { Remove-OldLink (Join-Path $OldMenu $n) }
-if ((Test-Path -LiteralPath $OldMenu) -and -not (Get-ChildItem -LiteralPath $OldMenu -Force -ErrorAction SilentlyContinue)) {
-    Remove-Item -LiteralPath $OldMenu -Force -ErrorAction SilentlyContinue
+# empty apart from Explorer's own desktop.ini: the folder goes
+if ((Test-Path -LiteralPath $OldMenu) -and -not (Get-ChildItem -LiteralPath $OldMenu -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "desktop.ini" })) {
+    Remove-Item -LiteralPath $OldMenu -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 MakeShortcut (Join-Path $Desktop "Fresing Render.lnk") $GuiExe "--app-template fresing_render" "Render STEP models"
