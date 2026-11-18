@@ -1,6 +1,6 @@
 # 0181 – Usage tracker on the PC: favourites bar, declutter prompts, time saved, where the time goes
 
-**Who:** worker · **Status:** open – **after 0199** (both add to `core/functions.py`, the Help menu and the tour; 0199's precheck rules
+**Who:** worker · **Status:** open – can start (0199 is done, 0.2.155; it was "after 0199" because both add to `core/functions.py`, the Help menu and the tour; 0199's precheck rules
 for `since=` / `changed=` apply to this task's entries). 0062 is done: see its report's pointers for 0181
 (`panels.OPEN` / `fresing.panel_toggle` = where opening a panel can be counted; `workspaces.used_functions(scene)` = what
 a project has) ·
