@@ -5,6 +5,10 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.164 – 18 Nov 2026 – Make > 3D page has its Export button again (task 0215)
+- **Make > 3D page** shows all its settings (Surroundings, Light, On the page) and the **Export…** button again; since 0.2.152 it stopped after "Include animation".
+- The Web 3D panel answers a click, a selection or a frame change faster (the marine-looks estimate no longer reads every part again).
+- A sea cable with its own depth, on a page without vessel motion, now lies on its own bottom as in the app (it was up to 0.65 m off).
 ## 0.2.163 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
 - Clicking a part in "Subassembly" pick mode no longer rebuilds the part tree each time, and the first mouse move in an axis picker (Add joint, Set axis, cylinders) is as quick as the later ones. Nothing looks different.
 ## 0.2.162 – 18 Nov 2026 – About Fresing Render and the licence files (task 0206)

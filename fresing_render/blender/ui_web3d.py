@@ -55,9 +55,9 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         sub.enabled = animation.has_keys(scene)
         sub.prop(w, "animation", text="Include animation")
         gap(layout)
-        self.draw_surroundings(context, layout, w)
-        self.draw_light(context, layout, w)
-        self.draw_player(context, layout)
+        draw_surroundings(context, layout, w)
+        draw_light(context, layout, w)
+        draw_player(context, layout)
 
         gap(layout)
         if rt.get("running"):
@@ -101,97 +101,98 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
                              f"+{f['seconds'] - n['seconds']:.0f} s; heavier on phones")
                 wrap(layout, context, text, inset=12, icon="TIME")
 
-    PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
-        ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),
-        ("PLAY", "Motion: Space plays and pauses, a time line to drag, speed ½× 1× 2×"),
-        ("CAMERA_DATA", "Saved views: one per camera of the project, by its name or numbered (View names); "
-                        "a phone held upright shows one ‹ name › control and a list of all"),
-        ("FULLSCREEN_ENTER", "Fullscreen (F), Reset view (R), Screenshot (S), Copy link to this view (L), keys (?)"),
-        ("HIDE_ON", "Clean look (H): every control hidden, a faint button brings them back"),
-        ("ERROR", "Says so when the browser draws without the graphics card, and how to fix it"),
-    )
 
-    def draw_player(self, context, layout):
-        """The fold "On the page" (task 0134): what the exported page lets the visitor do."""
-        head, body = layout.panel("fr_web3d_player", default_closed=True)
-        head.label(text="On the page")
-        if body is None:
-            return
-        for icon, text in self.PLAYER:
-            wrap(body, context, text, icon=icon)
-        wrap(body, context, "The page draws only when something moves, at most 60 pictures a second, and remembers "
-                            "the visitor's choices.", inset=12)
+PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
+    ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),
+    ("PLAY", "Motion: Space plays and pauses, a time line to drag, speed ½× 1× 2×"),
+    ("CAMERA_DATA", "Saved views: one per camera of the project, by its name or numbered (View names); "
+                    "a phone held upright shows one ‹ name › control and a list of all"),
+    ("FULLSCREEN_ENTER", "Fullscreen (F), Reset view (R), Screenshot (S), Copy link to this view (L), keys (?)"),
+    ("HIDE_ON", "Clean look (H): every control hidden, a faint button brings them back"),
+    ("ERROR", "Says so when the browser draws without the graphics card, and how to fix it"),
+)
 
-    def draw_light(self, context, layout, w):
-        """The fold "Baked light" (task 0107): folded, its choice in the header."""
-        from . import lightbake
-        head, body = layout.panel("fr_web3d_light", default_closed=not ui._OPEN_FOLDS)
-        head.label(text="Light")
-        head.label(text={"LIVE": "live", "SOFT": "soft light baked", "ALL": "all baked"}[w.light])
-        if body is None:
-            return
-        body.prop(w, "light", text="")
-        if w.light == "LIVE":
-            wrap(body, context, "The page lights the parts itself: smallest file, fastest export.", inset=12)
-            return
-        body.label(text="Bake quality")
-        body.row(align=True).prop(w, "light_quality", expand=True)
-        col = split_props(body)
-        col.prop(w, "light_texels", text="Points per metre")
-        est = web3d.light_estimate(context.scene)
-        where = "graphics card" if est["gpu"] else "processor"
-        wrap(body, context, f"Bake {lightbake.duration(est['seconds'])} on this PC's {where} (estimate), file about "
-                            f"+{core.mb(est['bytes'])}; {est['texels_per_m']:.0f} points per metre.", inset=12,
-             icon="TIME")
-        if web3d.needs_light_question(context.scene):
-            wrap(body, context, "Everything baked: the shadows stay where they are while the parts or the vessel "
-                                "move. Soft light baked keeps the sun's shadows moving.", inset=12, icon="ERROR")
+def draw_player(context, layout):
+    """The fold "On the page" (task 0134): what the exported page lets the visitor do."""
+    head, body = layout.panel("fr_web3d_player", default_closed=True)
+    head.label(text="On the page")
+    if body is None:
+        return
+    for icon, text in PLAYER:
+        wrap(body, context, text, icon=icon)
+    wrap(body, context, "The page draws only when something moves, at most 60 pictures a second, and remembers "
+                        "the visitor's choices.", inset=12)
 
-    def draw_surroundings(self, context, layout, w):
-        """The fold "Surroundings on the page" (task 0106): folded, its state in the header."""
-        scene = context.scene
-        head, body = layout.panel("fr_web3d_env", default_closed=not ui._OPEN_FOLDS)
-        head.label(text="Surroundings on the page")
-        if body is None:
-            return
-        body.row().prop(w, "env_mode", expand=True)
-        if w.env_mode != "PROJECT":
-            wrap(body, context, "The machine alone on a light background, as before.", inset=12)
-            return
-        col = split_props(body)
-        col.prop(w, "env_sea", text="Sea")
-        sub = col.row(align=True)
-        sub.enabled = w.env_sea
-        sub.prop(w, "env_sea_state", expand=True)
-        sub = col.row()
-        sub.enabled = w.env_sea and vessel_motion.effective(scene)
-        sub.prop(w, "env_vessel", text="Vessel motion")
-        col.prop(w, "env_sky", text="Sky")
-        if w.env_sky:
-            col.prop(w, "env_sky_source", text="Sky from")
-            photo = web3d_env.light_kind(scene.fresing) not in ("SKY", "OVERCAST")
-            if w.env_sky_source == "TIME" or not photo:
-                sub = col.column(align=True)
-                sub.enabled = w.env_sky_source == "TIME"
-                sub.prop(w, "env_sun_height", text="Sun height")
-                sub.prop(w, "env_sun_direction", text="Sun direction")
-                col.prop(w, "env_clouds", text="Clouds")
-        row = col.row(align=True)
-        row.prop(w, "env_haze", text="Haze")
-        sub = row.row(align=True)
-        sub.enabled = w.env_haze
-        sub.prop(w, "env_haze_strength", text="")
-        row = col.row(align=True)
-        row.prop(w, "env_rain", text="Rain")
-        sub = row.row(align=True)
-        sub.enabled = w.env_rain
-        sub.prop(w, "env_rain_strength", text="")
-        col.prop(w, "env_shadows", text="Live sun shadows")
-        body.label(text="Page quality")
-        body.row(align=True).prop(w, "env_quality", expand=True)
-        col = split_props(body)
-        col.prop(w, "env_auto", text="Auto quality")
-        body.operator("fresing.web3d_env_from_project", text="Take from the project", icon="FILE_REFRESH")
+def draw_light(context, layout, w):
+    """The fold "Baked light" (task 0107): folded, its choice in the header."""
+    from . import lightbake
+    head, body = layout.panel("fr_web3d_light", default_closed=not ui._OPEN_FOLDS)
+    head.label(text="Light")
+    head.label(text={"LIVE": "live", "SOFT": "soft light baked", "ALL": "all baked"}[w.light])
+    if body is None:
+        return
+    body.prop(w, "light", text="")
+    if w.light == "LIVE":
+        wrap(body, context, "The page lights the parts itself: smallest file, fastest export.", inset=12)
+        return
+    body.label(text="Bake quality")
+    body.row(align=True).prop(w, "light_quality", expand=True)
+    col = split_props(body)
+    col.prop(w, "light_texels", text="Points per metre")
+    est = web3d.light_estimate(context.scene)
+    where = "graphics card" if est["gpu"] else "processor"
+    wrap(body, context, f"Bake {lightbake.duration(est['seconds'])} on this PC's {where} (estimate), file about "
+                        f"+{core.mb(est['bytes'])}; {est['texels_per_m']:.0f} points per metre.", inset=12,
+         icon="TIME")
+    if web3d.needs_light_question(context.scene):
+        wrap(body, context, "Everything baked: the shadows stay where they are while the parts or the vessel "
+                            "move. Soft light baked keeps the sun's shadows moving.", inset=12, icon="ERROR")
+
+def draw_surroundings(context, layout, w):
+    """The fold "Surroundings on the page" (task 0106): folded, its state in the header."""
+    scene = context.scene
+    head, body = layout.panel("fr_web3d_env", default_closed=not ui._OPEN_FOLDS)
+    head.label(text="Surroundings on the page")
+    if body is None:
+        return
+    body.row().prop(w, "env_mode", expand=True)
+    if w.env_mode != "PROJECT":
+        wrap(body, context, "The machine alone on a light background, as before.", inset=12)
+        return
+    col = split_props(body)
+    col.prop(w, "env_sea", text="Sea")
+    sub = col.row(align=True)
+    sub.enabled = w.env_sea
+    sub.prop(w, "env_sea_state", expand=True)
+    sub = col.row()
+    sub.enabled = w.env_sea and vessel_motion.effective(scene)
+    sub.prop(w, "env_vessel", text="Vessel motion")
+    col.prop(w, "env_sky", text="Sky")
+    if w.env_sky:
+        col.prop(w, "env_sky_source", text="Sky from")
+        photo = web3d_env.light_kind(scene.fresing) not in ("SKY", "OVERCAST")
+        if w.env_sky_source == "TIME" or not photo:
+            sub = col.column(align=True)
+            sub.enabled = w.env_sky_source == "TIME"
+            sub.prop(w, "env_sun_height", text="Sun height")
+            sub.prop(w, "env_sun_direction", text="Sun direction")
+            col.prop(w, "env_clouds", text="Clouds")
+    row = col.row(align=True)
+    row.prop(w, "env_haze", text="Haze")
+    sub = row.row(align=True)
+    sub.enabled = w.env_haze
+    sub.prop(w, "env_haze_strength", text="")
+    row = col.row(align=True)
+    row.prop(w, "env_rain", text="Rain")
+    sub = row.row(align=True)
+    sub.enabled = w.env_rain
+    sub.prop(w, "env_rain_strength", text="")
+    col.prop(w, "env_shadows", text="Live sun shadows")
+    body.label(text="Page quality")
+    body.row(align=True).prop(w, "env_quality", expand=True)
+    col = split_props(body)
+    col.prop(w, "env_auto", text="Auto quality")
+    body.operator("fresing.web3d_env_from_project", text="Take from the project", icon="FILE_REFRESH")
 
 
 PANELS = (FRESING_PT_web3d,)

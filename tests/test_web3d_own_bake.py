@@ -279,6 +279,35 @@ def test_panel_estimates_are_kept_until_something_changes(monkeypatch):
     assert many["seconds"] - one["seconds"] == pytest.approx(39 * core.OWN_SECONDS_PER_BAKE)
 
 
+def test_marine_estimate_reads_each_mesh_once(monkeypatch):
+    """Task 0215 (0209 row 21): after a click, a selection or a frame change the estimate was worked out again and read
+    every part's mesh (167–285 ms on the small demo). A mesh is read again only when its points change."""
+    from fresing_render.blender import lightbake
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("cycles", default_set=True)
+    web3d._AREAS.clear()
+    sc = bpy.context.scene
+    obs = [_plate(sc, f"p{k}", nz=6 + k) for k in range(3)]
+    for ob in obs:
+        materials.assign(ob, materials.ensure_material("G growth", "paint_marine_growth", "RAL 1023", 0.0))
+    bpy.context.view_layer.update()
+    reads = []
+    real = lightbake._read_mesh
+    monkeypatch.setattr(lightbake, "_read_mesh", lambda me: reads.append(me.name) or real(me))
+    first = web3d.marine_estimate(sc)
+    assert len(reads) == 3
+    for f in (2, 3, 4):                                      # frame changes and selections: nothing read again
+        sc.frame_set(f)
+        obs[0].select_set(f % 2 == 0)
+        bpy.context.view_layer.update()
+        assert web3d.marine_estimate(sc) == first
+    assert len(reads) == 3
+    obs[1].data.vertices[0].co.z -= 1.0                      # a changed mesh is read again, with its new area
+    bpy.context.view_layer.update()
+    second = web3d.marine_estimate(sc)
+    assert len(reads) == 4 and second != first
+
+
 def test_the_bake_scene_does_not_pull_in_the_project():
     """Task 0189 (0183 row 9): the bake scene is a copy of the project's scene. It kept the compositor's tree (whose
     Render Layers node reads the project's scene) and the project's settings (labels pointing at parts …), so every bake

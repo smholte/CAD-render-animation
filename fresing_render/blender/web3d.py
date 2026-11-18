@@ -1770,7 +1770,13 @@ class Job:
         if self.surroundings is not None and self.surroundings.get("vessel"):
             self._sea_kept = True
             return
-        fix = SeaRest(self.scene, vessel_motion.rig("pivot"))
+        from . import paths_sea, surroundings
+        water = surroundings.waterline(self.scene)
+        beds = {}
+        for it in getattr(self.scene.fresing, "cables", []):          # task 0215 (0209 row 30): each cable's own bottom
+            if it.b_kind == "SEA" and it.part is not None and water is not None:
+                beds[it.part.name] = water + paths_sea.bottom_z(self.scene, it)
+        fix = SeaRest(self.scene, vessel_motion.rig("pivot"), beds)
         for n in names:
             self._drawn.fix(n, fix)
 
@@ -1874,20 +1880,22 @@ class SeaRest:
     a point rides with the vessel (at rest: ``W @ p``); on the seabed it lies where it lies; in between it is blended
     by its height between the seabed and the water."""
 
-    def __init__(self, scene, rig):
+    def __init__(self, scene, rig, beds: dict | None = None):
         from . import surroundings
         self.rig = rig
+        self.beds = beds or {}          # task 0215 (0209 row 30): a cable's own bottom (``paths_sea.bottom_z``) by part
         self.bed = surroundings.seabed_z(scene)
         self.water = surroundings.waterline(scene)
 
     def __call__(self, ob, co: np.ndarray, dg) -> np.ndarray:
-        if self.rig is None or self.bed is None or self.water is None or not len(co):
+        bed = self.beds.get(ob.name, self.bed)
+        if self.rig is None or bed is None or self.water is None or not len(co):
             return co
         W = np.array(ob.evaluated_get(dg).matrix_world, np.float64)
         V = np.array(self.rig.evaluated_get(dg).matrix_world, np.float64)
         rest = co @ W[:3, :3].T + W[:3, 3]
         world = rest @ V[:3, :3].T + V[:3, 3]
-        w = np.clip((world[:, 2] - self.bed) / max(self.water - self.bed, 1e-6), 0.0, 1.0)[:, None]
+        w = np.clip((world[:, 2] - bed) / max(self.water - bed, 1e-6), 0.0, 1.0)[:, None]
         p = w * rest + (1.0 - w) * world
         Wi = np.linalg.inv(W)
         return p @ Wi[:3, :3].T + Wi[:3, 3]
@@ -1962,6 +1970,26 @@ def marine_estimate(scene) -> dict | None:
     return _kept(scene, "marine_est", (w.texture_size,), lambda: _marine_estimate(scene, int(w.texture_size)))
 
 
+_AREAS: dict = {}               # task 0215 (0209 row 21): a mesh's world area, kept across scene changes
+
+
+def _mesh_area(me, mw, akey) -> float:
+    """The area of ``me`` under ``mw``. Reading a mesh (``lightbake._read_mesh``: triangles, normals, UVs) cost 2–4 ms
+    a part, 167–285 ms on the small demo at every click, selection and frame change; the area only changes with the
+    mesh's points, so it is kept by the mesh, its counts, a sum of its points and the matrix's shape (``akey``)."""
+    from . import lightbake
+    co = np.empty(len(me.vertices) * 3, np.float32)
+    me.vertices.foreach_get("co", co)
+    sig = (akey, len(me.vertices), len(me.polygons), float(co.sum(dtype=np.float64)),
+           float(np.abs(co).sum(dtype=np.float64)))
+    a = _AREAS.get(sig)
+    if a is None:
+        if len(_AREAS) > 4000:
+            _AREAS.clear()
+        a = _AREAS[sig] = lightbake._world_area(lightbake._read_mesh(me), mw)
+    return a
+
+
 def _marine_estimate(scene, texture_size: int) -> dict | None:
     from . import lightbake
     obs = [ob for ob in light_targets(scene) if needs_own_bake(ob)]
@@ -1975,7 +2003,7 @@ def _marine_estimate(scene, texture_size: int) -> dict | None:
         akey = (ob.data.name_full, tuple(np.round(m3.T @ m3, 6).ravel()))     # a turn keeps the area
         a = areas.get(akey)
         if a is None:
-            a = areas[akey] = lightbake._world_area(lightbake._read_mesh(ob.data), mw)
+            a = areas[akey] = _mesh_area(ob.data, mw, akey)
         area += a
         part_area.append(a)
         keys.append(own_share_key(ob, ob.data, mw))
