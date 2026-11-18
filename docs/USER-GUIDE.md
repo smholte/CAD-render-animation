@@ -1408,6 +1408,10 @@ where the CAD file has them). A model update keeps it.
 to past the touch-down) or by its size and place when **Place it by the cable** is off. Its walls show the water's
 colour, and **Water clarity** (2 to 40 m) sets how far you see into the water past them – the hull below the
 waterline, the seabed further away, the cable beyond the box.
+The box is open in the 3D view too, in Solid view and in Material Preview, not only in a render: the sea and, with
+the ground cut, the seabed are cut out there along the same box, so you see the cable going down while you work. The
+edge in the view follows the sea's own mesh (about a metre in Detailed); a render keeps its exact edge and is the same as
+before.
 
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 

@@ -35,6 +35,7 @@ from ..core import ral
 from ..core import sea as sea_core
 from ..core import surroundings as S
 from ..core import weather as weather_core
+from . import sea_view_cut as view_cut
 
 COLLECTION = "FR Surroundings"
 ROOT = "FR Surroundings"
@@ -2517,9 +2518,11 @@ def _build_under_water(s, col, root, sea_ob, level: float, detailed: bool, near:
     if not cut:
         return
     _set_cut_attrs(sea_ob, box)
+    view_cut.set_cut(sea_ob, box, exact=not detailed, drop=depth + 4.0)                 # task 0196: the same box cut out of the mesh for Solid view
     pit = ground_depth_now(root, level, depth) if ground else None
     if ground:                                    # task 0148: the cut goes on into the ground
         _set_cut_attrs(bed, box)
+        view_cut.set_cut(bed, box, exact=not detailed, drop=0.3)
         if rich:
             _set_cut_attrs(st, box)
         sm = _soil_mesh("FR Sea: soil section", box, offset, depth, pit)
