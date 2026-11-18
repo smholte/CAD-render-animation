@@ -1,6 +1,6 @@
 # 0204 – Lifting L4c: "Make a crane…" – a parametric crane made in the app from the built-in makers, straight into the library
 
-**Who:** worker · **Status:** open – **after 0201** (uses its Lifting plan section and Place) ·
+**Who:** worker · **Status:** running (18 Nov) – **after 0201** (uses its Lifting plan section and Place) ·
 **Branch:** `task/0204-make-a-crane`
 **Started by:** lead chat, 18 Nov 2026 (owner: "pre-rigged models that are parametric", in the app, offline; owner's
 order 18 Nov: straight after L4) · **Lane:** Lifting
