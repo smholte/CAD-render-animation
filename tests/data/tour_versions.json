@@ -43,8 +43,8 @@
   },
   "crane_setup": {
    "added": "0.2.161",
-   "changed": "0.2.165",
-   "fp": "34fa271aa13eeee2"
+   "changed": "0.2.166",
+   "fp": "d090f2ff91460624"
   },
   "cutaway": {
    "added": "0.2.64",

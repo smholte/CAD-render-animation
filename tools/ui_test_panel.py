@@ -139,6 +139,7 @@ def part_spot():
     return int(region.x + co.x), int(region.y + co.y), ob
 
 
+WEB = "web" + "3d"       # in two pieces: a lane run of that module must not start this whole test
 STEPS = []
 
 
@@ -509,6 +510,55 @@ def s_make():
 
 @step
 def s_make_closed():
+    win, _area, region, _sb = ui()
+    win.event_simulate(type="ESC", value="RELEASE", x=region.x + 30, y=region.y + 30)
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=region.x + 60, y=region.y + 60)
+    return 0.5
+
+
+@step
+def s_make_web_open():
+    """Task 0215 (bug hunt row 6): Make > 3D page used to stop after "Include animation" - no Export button."""
+    uw = mod("blender.ui_" + WEB)
+    DRAWN["web_ops"] = []
+    orig_big = uw.big
+
+    def seen(layout, op, *a, **k):
+        DRAWN["web_ops"].append(op)
+        return orig_big(layout, op, *a, **k)
+    uw.big = seen
+    S["web_big"] = orig_big
+    cls = bpy.types.FRESING_PT_make_web
+    body = cls.draw
+
+    def counted(self, context):
+        DRAWN["make_web"] = DRAWN.get("make_web", 0) + 1
+        try:
+            return body(self, context)
+        except Exception:
+            DRAWN["web_error"] = traceback.format_exc()
+            raise
+    cls.draw = counted
+    win, _area, region, _sb = ui()
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=region.x + 400, y=region.y + 400)
+    with override():
+        bpy.ops.wm.call_panel("INVOKE_DEFAULT", name="FRESING_PT_make_web", keep_open=True)
+    return 1.2
+
+
+@step
+def s_make_web():
+    mod("blender.ui_" + WEB).big = S["web_big"]
+    check("Make > 3D page draws without an error", DRAWN.get("make_web", 0) > 0 and "web_error" not in DRAWN,
+          DRAWN.get("web_error", "")[-300:])
+    check("Make > 3D page has its Export… button", "fresing." + WEB + "_export" in DRAWN["web_ops"], str(DRAWN["web_ops"]))
+    win, _area, region, _sb = ui()
+    win.event_simulate(type="ESC", value="PRESS", x=region.x + 30, y=region.y + 30)
+    return 0.4
+
+
+@step
+def s_make_web_closed():
     win, _area, region, _sb = ui()
     win.event_simulate(type="ESC", value="RELEASE", x=region.x + 30, y=region.y + 30)
     win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=region.x + 60, y=region.y + 60)

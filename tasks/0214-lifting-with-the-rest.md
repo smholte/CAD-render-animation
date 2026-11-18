@@ -37,7 +37,7 @@ L5 rigging; the mesh update of moved groups (row 5, group G).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, branch `claude/dreamy-babbage-55wbpk`, 18 Nov 2026. Version 0.2.165.
+**Chat / date:** Claude Code on the web, branch `claude/dreamy-babbage-55wbpk`, 18 Nov 2026. Version 0.2.166.
 
 **What changed:**
 - Row 1: `lifting.after_model_update` (one hook in `reimport._put_together`): load parts re-pointed by part ID, the CoG
