@@ -1,6 +1,6 @@
 # 0205 – Repository basics: licence file, third-party notices, security policy, contributing, issue templates, "Using Fresing Render in a company"
 
-**Who:** worker · **Status:** running (started 18 Nov) · **Branch:** `task/0205-repository-basics`
+**Who:** worker · **Status:** done 18 Nov · **Branch:** `task/0205-repository-basics`
 **Started by:** lead chat, 18 Nov 2026 (owner after GitHub's Community Standards page; a company wants to use the app)
 · **Lane:** Repository & company use (new: root files `LICENSE`, `THIRD-PARTY-NOTICES.md`, `SECURITY.md`,
 `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/`, `docs/COMPANY-USE.md`; small: `README.md`, `tools/ci_precheck.py` doc
