@@ -296,6 +296,20 @@ def test_docs_only_changes():
     assert not P.docs_only([], lambda f: "")
 
 
+def test_repository_basics_are_documents():
+    """Task 0205: the licence, notices, security policy, contributing file and issue forms run as docs runs."""
+    P = _pre()
+    for f in ("LICENSE", "THIRD-PARTY-NOTICES.md", "SECURITY.md", "CONTRIBUTING.md", "docs/COMPANY-USE.md",
+              ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/config.yml"):
+        assert P.is_doc_path(f), f
+    assert P.docs_only(["LICENSE", ".github/ISSUE_TEMPLATE/feature_request.yml", "SECURITY.md"], lambda f: "")
+    # anything else under .github (the workflows) and code stay full runs
+    assert not P.is_doc_path(".github/workflows/tests.yml")
+    assert not P.is_doc_path(".github/CODEOWNERS")
+    assert not P.docs_only(["LICENSE", ".github/workflows/tests.yml"], lambda f: "")
+    assert not P.is_doc_path("fresing_render/LICENSE")
+
+
 def _run(i, tree="t1", conclusion="success"):
     return {"id": i, "status": "completed", "conclusion": conclusion, "created_at": f"2026-11-06T1{i}:00:00Z",
             "head_branch": "task/x", "head_sha": f"sha{i}", "head_commit": {"tree_id": tree}}
