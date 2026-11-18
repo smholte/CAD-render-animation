@@ -291,6 +291,7 @@ if ($Uninstall) {
                 "Update: app template = the one in the new extension" = $sameTemplate
                 "Update: log says installed and started again" = ($logText -match "OK: Updated to" -and $logText -match "started again:")
                 "Update: user guide shortcut still opens the guide" = $guideOk
+                "Update: licence files arrived inside the extension" = (Test-Path -LiteralPath (Join-Path $portable "extensions\user_default\fresing_render\licenses\LICENSE"))
             }
             foreach ($k in $files.Keys) {
                 if (-not $files[$k]) { Problem $k }
@@ -339,6 +340,22 @@ if ($Uninstall) {
             $checks["Extension $Expected installed (found '$ver')"] = ($ver -eq $Expected)
             $checks["App template"] = Test-Path -LiteralPath (Join-Path $portable "scripts\startup\bl_app_templates_user\fresing_render\__init__.py")
             $checks["Preferences saved"] = Test-Path -LiteralPath (Join-Path $portable "config\userpref.blend")
+            # task 0206: the licence files, Blender's own licence folder, Blender's extension sync off
+            $licDir = Join-Path $InstallDir "licenses"
+            $checks["Licence files next to the app"] = (Test-Path -LiteralPath (Join-Path $licDir "LICENSE")) -and
+                (Test-Path -LiteralPath (Join-Path $licDir "THIRD-PARTY-NOTICES.md")) -and
+                (Test-Path -LiteralPath (Join-Path $licDir "third-party\SOURCES.txt"))
+            $inExt = Join-Path $portable "extensions\user_default\fresing_render\licenses"
+            $checks["Licence files inside the extension"] = (Test-Path -LiteralPath (Join-Path $inExt "LICENSE")) -and
+                (Test-Path -LiteralPath (Join-Path $inExt "THIRD-PARTY-NOTICES.md")) -and
+                (Test-Path -LiteralPath (Join-Path $inExt "third-party\SOURCES.txt"))
+            $checks["Blender's own license folder"] = [bool](Get-ChildItem -LiteralPath (Join-Path $BlenderExe.DirectoryName "license") -ErrorAction SilentlyContinue | Select-Object -First 1)
+            $syncProbe = "import bpy, sys; on = [r.name for r in bpy.context.preferences.extensions.repos if r.use_remote_url and r.use_sync_on_startup]; print('SYNC-ON-START:', on); sys.exit(1 if on else 0)"
+            $oldEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+            & $BlenderExe.FullName --background --python-expr $syncProbe 2>&1 | ForEach-Object { Write-Host "   $_" }
+            $syncCode = $LASTEXITCODE
+            $ErrorActionPreference = $oldEap
+            $checks["Blender's extension sync off at start (exit code $syncCode)"] = ($syncCode -eq 0)
         }
         foreach ($k in $checks.Keys) {
             if (-not $checks[$k]) { Problem "missing after install: $k" }

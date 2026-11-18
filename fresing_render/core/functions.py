@@ -527,6 +527,10 @@ fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar 
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158")
 
+fn(id="help.about", title="About Fresing Render: version, licence, third-party licences, offline", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.about", guide="about-licences", pccheck=("app.licences",),
+   since="0.2.162")
+
 # ---------------------------------------------------------------------------
 # keeping the lists in step (the precheck runs this; no Blender)
 # ---------------------------------------------------------------------------

@@ -5,8 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.162 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
+## 0.2.163 – 18 Nov 2026 – Faster click and first hover on big models (task 0210)
 - Clicking a part in "Subassembly" pick mode no longer rebuilds the part tree each time, and the first mouse move in an axis picker (Add joint, Set axis, cylinders) is as quick as the later ones. Nothing looks different.
+## 0.2.162 – 18 Nov 2026 – About Fresing Render and the licence files (task 0206)
+
+- **Fresing > About Fresing Render…** (also in the **Help** menu): the version, the Blender it runs on, © 2026 Fresing and
+  the licence in one plain line (free software, GPL-3.0-or-later, no warranty). Buttons: **Licence**, **Third-party
+  licences**, **Using it in a company** and **Licence texts folder**. It works offline: every file is inside your install.
+- **The licence files are in every install**, also after an update: Fresing Render's own licence (GPL), the third-party
+  notices, the page for a company's IT or legal reader, and the licence texts of the libraries inside the app
+  (OpenCascade, FreeImage, LibRaw, OpenEXR, FreeType, libpng and more – 25 texts, each with where it comes from). The
+  installer zip carries them at its top, the installer copies them next to the app and prints one line about the licence
+  (no "I agree": the GPL asks for none). Blender's own licence folder stays as it came; the installer checks it is there.
+- **Blender's own extension repository no longer syncs at start.** The installer sets it off, and an older install does the
+  same once at its first start after this update, so at start the app contacts nothing except its own update check. If
+  you want Blender's sync, turn it on again in Blender's Preferences: the app does not switch it off a second time.
+- The PC check has a new line, "Licence files in this install, About Fresing Render, Blender's extension sync off".
+
+
 ## 0.2.161 – 18 Nov 2026 – Lifting plan: set up your own crane (task 0203)
 
 - **Set up your own crane.** 8 Lifting plan > Equipment > **Set up a crane…** opens the Set-up window on your kind

@@ -68,7 +68,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
               "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 83, "tour2": 2, "tourui": 15, "layout": 38,
-              "panel": 37, "start": 46, "setup": 46, "highlight": 74, "usage": 31,
+              "panel": 37, "start": 55, "setup": 46, "highlight": 74, "usage": 31,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue

@@ -1,0 +1,43 @@
+Licence texts of the libraries that ship with Fresing Render (task 0206)
+
+Fresing Render's own licence is the file LICENSE (GPL-3.0-or-later) one folder up. The files here are the licence texts of
+the libraries inside the OpenCascade package (cadquery-ocp-novtk, the "OCP" wheel) and of the other third-party parts.
+Each text is copied unchanged from the project's own repository on 18 Nov 2026 (address below). What each part is and
+which licence option the app uses: THIRD-PARTY-NOTICES.md, one folder up.
+
+File                                      Library (as named in the wheel)               Where the text comes from
+----------------------------------------  --------------------------------------------  -----------------------------------------------
+opencascade-LGPL-2.1.txt                  OpenCascade (TK*.dll)                         github.com/Open-Cascade-SAS/OCCT, tag V8_0_1, LICENSE_LGPL_21.txt
+opencascade-LGPL-exception-1.0.txt        OpenCascade (the "Open CASCADE exception")    same, OCCT_LGPL_EXCEPTION.txt
+cadquery-ocp-Apache-2.0.txt               OCP bindings (cadquery-ocp-novtk / -proxy)    github.com/CadQuery/OCP, LICENSE
+manifold3d-Apache-2.0.txt                 manifold3d                                    github.com/elalish/manifold, LICENSE
+openexr-BSD-3-Clause.txt                  OpenEXR, OpenEXRCore, IlmThread, Iex          github.com/AcademySoftwareFoundation/openexr, LICENSE.md
+imath-BSD-3-Clause.txt                    Imath                                         github.com/AcademySoftwareFoundation/Imath, LICENSE.md
+freetype-FTL.txt                          freetype (FreeType Licence option)            github.com/freetype/freetype, docs/FTL.TXT
+freetype-GPL-2.0.txt                      freetype (GPL-2.0 option)                     same, docs/GPLv2.TXT
+freeimage-FIPL-1.0.txt                    FreeImage (FreeImage Public License option)   github.com/WinMerge/freeimage, license-fi.txt
+                                          FreeImage's other options (GPL-2.0, GPL-3.0): the app uses it under GPL-3.0, see ../LICENSE
+libpng.txt                                libpng16                                      github.com/pnggroup/libpng, LICENSE
+libjpeg-turbo.md, libjpeg-IJG-README.txt  jpeg8 (libjpeg-turbo, IJG)                    github.com/libjpeg-turbo/libjpeg-turbo, LICENSE.md and README.ijg
+libtiff.md                                tiff                                          gitlab.com/libtiff/libtiff, tag v4.7.0, LICENSE.md
+libwebp-libsharpyuv-BSD-3-Clause.txt      libwebp, libwebpmux, libsharpyuv              github.com/webmproject/libwebp, COPYING
+lerc-Apache-2.0.txt                       Lerc                                          github.com/Esri/lerc, LICENSE
+openjpeg-BSD-2-Clause.txt                 openjp2                                       github.com/uclouvain/openjpeg, LICENSE
+openjph-BSD-2-Clause.txt                  openjph                                       github.com/aous72/OpenJPH, LICENSE
+lcms2-MIT.txt                             lcms2                                         github.com/mm2/Little-CMS, LICENSE
+xz-liblzma-COPYING.txt                    liblzma (0BSD)                                github.com/tukaani-project/xz, COPYING
+libdeflate-MIT.txt                        deflate                                       github.com/ebiggers/libdeflate, COPYING
+zlib.txt                                  zlib                                          github.com/madler/zlib, LICENSE
+zstd-BSD-GPL-2.0.txt                      zstd (BSD option)                             github.com/facebook/zstd, LICENSE
+libraw-COPYRIGHT.txt                      raw (LibRaw)                                  github.com/LibRaw/LibRaw, COPYRIGHT
+libraw-LGPL-2.1.txt                       LibRaw (LGPL-2.1 option)                      same, LICENSE.LGPL
+libraw-CDDL-1.0.txt                       LibRaw (CDDL-1.0 option)                      same, LICENSE.CDDL
+meshoptimizer-MIT.txt                     meshoptimizer decoder inside three-viewer     github.com/zeux/meshoptimizer, LICENSE.md
+
+Not here, and why:
+ - msvcp140 and vcomp140 (Microsoft Visual C++ runtime, inside the wheels): Microsoft's redistribution terms,
+   https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files - no text is copied here.
+ - three.js, model-viewer (lit): their texts are in fresing_render/web/LICENSE-three.txt and LICENSE-model-viewer.txt.
+ - Blender itself (GPL-3.0-or-later and its libraries): the "license" folder of the Blender the installer unpacks.
+ - Python's own packages and numpy (Blender's): Blender's "license" folder.
+ - Imath/OpenEXR in the Linux build of the wheel (tests only): the same projects, same texts.

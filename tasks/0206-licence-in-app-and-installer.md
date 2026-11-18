@@ -1,6 +1,6 @@
 # 0206 – The licence inside the app and the installer: About Fresing Render, licence files in every install
 
-**Who:** worker · **Status:** open – can start (0205 and 0181 done, 18 Nov) · **Branch:** `task/0206-licence-in-app`
+**Who:** worker · **Status:** done 18 Nov 2026 (0.2.162) · **Branch:** `task/0206-licence-in-app`
 **Started by:** lead chat, 18 Nov 2026 (owner: a company wants to use the app; follow-up of 0205)
 · **Lane:** Start & learn (`ui_topbar.py`, the Help menu) + Quality & delivery (`installer/`, `tools/build_release.py`)
 **Area:** new `fresing_render/blender/about.py` (+ its operator and test); additive: `ui_topbar.py` / the Help menu
@@ -80,10 +80,50 @@ them; a wrong line goes in the report).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web (branch `claude/gallant-noether-wyjqt9`, the session's branch instead of
+`task/0206-licence-in-app`), 18 Nov 2026. No subagents. The "running" line in `TASKS.md` was not pushed at the start (the
+session began on the branch); it goes in with this report.
 
-**What changed:**
+**What changed (0.2.162):**
+- **About** (`blender/about.py`, `core/about.py`): `fresing.about` (dialog: logo, version, Blender version, © 2026 Fresing, the
+  GPL line, 4 buttons) in the Fresing menu and the Help menu; `fresing.about_open` (Licence / Third-party licences / Using it
+  in a company / Licence texts folder). Windows has no program for `LICENSE` or `.md`, so a **copy with the ending `.txt`** is
+  opened (Notepad). The company page falls back to its GitHub address only when the file is missing. Both operators are in
+  `lock.ALLOWED` (work in the Client view). Function entry `help.about`, guide chapter "About Fresing Render and the
+  licences" (anchor `about-licences`, text only, no picture), PC-check line `app.licences` (`MIN_LINES_FULL` 101).
+- **Files in every install:** `fresing_render/licenses/` = `LICENSE`, `THIRD-PARTY-NOTICES.md`, `COMPANY-USE.md` (byte copies,
+  `tests/test_about.py` says when they differ) + `third-party/` with 25 texts + `SOURCES.txt`. They ship in the extension zip
+  (an update brings them) and `build_release.py` puts `LICENSE`, `THIRD-PARTY-NOTICES.md`, `COMPANY-USE.md` and
+  `licenses/third-party/` at the top of the Windows zip (checked on a local build). `README-install.txt` has a licence part.
+- **Texts found** (copied unchanged, 18 Nov 2026, sources in `SOURCES.txt`): OpenCascade LGPL-2.1 + exception (tag V8_0_1),
+  CadQuery OCP Apache-2.0, manifold3d Apache-2.0, OpenEXR, Imath, FreeType (FTL + GPL-2.0), FreeImage (FIPL; its GPL-3 option
+  is `LICENSE`), libpng, libjpeg-turbo + IJG, libtiff (gitlab, v4.7.0), libwebp (also sharpyuv), Lerc, OpenJPEG, OpenJPH,
+  Little CMS, xz (0BSD), libdeflate, zlib, zstd, LibRaw (COPYRIGHT, LGPL, CDDL), meshoptimizer. **Not found / not copied:** the
+  Microsoft Visual C++ runtime (`msvcp140`, `vcomp140`: Microsoft's terms, only linked in `SOURCES.txt`); libraries' texts
+  were taken from each project's current main branch except OCCT and libtiff (tagged) – the wheel names no exact versions.
+- **Installer:** the licence line first (`Fresing Render <version> - GPL-3.0-or-later, no warranty. Licence: <folder>\LICENSE`),
+  no question; licence files copied to `<install>\licenses`; a warning if Blender's `license` folder is missing;
+  `use_sync_on_startup = False` on every remote repository (`use_online_access` stays on).
+- **Sync off for older installs** (`blender/ext_sync.py`): once at the first start after the update, remembered in
+  `fresing_ext_sync.json`; a user who turns it on again keeps it. `COMPANY-USE.md` and row 6 of the notices say it (that fact
+  only; the installer line numbers in the network table moved by 7 and were updated).
+- Windows job (`tools/ci_windows_install.ps1`): checks the licence files next to the app and inside the extension, Blender's
+  `license` folder, that no remote repository syncs at start, and (update test) the licence file inside the updated extension.
 
-**Tested and measured:**
+**Tested and measured:** locally: `tests/test_about.py` (13), `tests/test_about_blender.py` (6, incl. the sync once-and-only-once),
+`test_ci_tools`, `test_functions`, `test_user_guide`, `test_usage`, `test_places`, `test_updates`, `test_site`, `test_start`,
+tooltip check strict (863 ok), the real-app test `start` (55/55: About in both menus, each button opens its file, the dialog
+opens; `MIN_CHECKS["start"]` 46 → 55), the PC-check line alone (OK), a local `build_release.py` build (both zips hold the
+files). **Not run here:** the Windows install, the update on Windows, text scaling 100–200 % (the dialog wraps at 72 characters
+in a 520-wide window like the welcome; look at it on your PC) – GitHub's Windows jobs run the checks above.
+**GitHub runs: 4.** (1) red: my Help-menu draw function had the same name `_draw_help` as the update notice's, and `test_updates_blender` counts it – renamed `_draw_about_help`; (2) green at 0.2.161, but `main` moved (task 0203 took 0.2.161); (3) merge + renumber to 0.2.162, green (26.7 min, run 44343169249), fast-forwarded to `main` (a956ccd). Before that, a version clash cost one more run (0.2.160 taken by 0208).
 
-**Open points / follow-up tasks:**
+**Open points / follow-ups for the lead:**
+1. **`THIRD-PARTY-NOTICES.md` still says the texts are missing** (header "Two things reach a PC without a licence text", the
+   "Task 0206 to do" line in 2.1, the meshoptimizer row, section 1's "not yet looked at on Windows", owner row 5). The brief said to
+   change only the sync fact, so they are untouched – a small follow-up edit (root file + the copy in `fresing_render/licenses/`).
+2. The Windows update test builds the "old" version from the same code, so "the licence file arrived with the update" is true
+   from the start there; it proves the file is in the updated extension, not that an old extension lacked it.
+3. No test-tour stop (the Fresing menu is covered by the "start_here" stop); no guide picture of the dialog.
+4. Library texts are the projects' current ones; if a company needs the exact version's text, the wheel's version of each
+   library is not stated by the wheel.

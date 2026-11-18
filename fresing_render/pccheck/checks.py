@@ -4244,6 +4244,42 @@ def app_start_here(ctx):
     return f"What's new since {older}: {n_f} functions"
 
 
+@line("app.licences", "Licence files in this install, About Fresing Render, Blender's extension sync off", "0.2.162",
+      what="Checks that the licence (GPL), the third-party notices, the page for companies and the licence texts of the "
+           "libraries are inside this install, the About window and its buttons are there (Fresing and Help menu), a "
+           "copy of a licence opens as a text file, Blender's own licence folder is next to its program, and Blender's "
+           "own extension repositories do not sync at start")
+def app_licences(ctx):
+    import bpy
+
+    from ..blender import about, ext_sync, ui_topbar
+    from ..core import about as core
+    pkg = about.package_dir()
+    gone = core.missing(pkg)
+    _check(not gone, f"licence files missing from this install: {', '.join(gone)}")
+    path = core.find(pkg, core.LICENCE)
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    _check("GNU GENERAL PUBLIC LICENSE" in text and "Version 3" in text, "LICENSE is not the GPL version 3")
+    texts = os.path.join(core.folder(pkg), core.THIRD_PARTY)
+    n_texts = len([f for f in os.listdir(texts) if f != "SOURCES.txt"]) if os.path.isdir(texts) else 0
+    _check(n_texts >= 20, f"only {n_texts} third-party licence texts in {texts}")
+    for idname in ("fresing.about", "fresing.about_open"):
+        _check(ui_topbar._has(idname), f"the operator {idname} is missing")
+    _check("fresing.about" in ui_topbar.entries(), "About is not in the Fresing menu")
+    _check(about._draw_about_help in bpy.types.TOPBAR_MT_help._dyn_ui_initialize(), "About is not in the Help menu")
+    copy = about.readable_copy(path, "Licence")
+    _check(copy.endswith(".txt") and os.path.isfile(copy), "the licence copy for the text program was not made")
+    binary = bpy.app.binary_path or ""
+    if os.path.basename(binary).lower().startswith("blender"):
+        _check(os.path.isdir(os.path.join(os.path.dirname(binary), "license")),
+               "Blender's own licence folder is not next to its program")
+    on = ext_sync.synced()
+    _check(not on or os.path.isfile(ext_sync.state_path()),
+           f"Blender's extension repository syncs at start: {', '.join(on)}")
+    return None
+
+
 @line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.158",
       what="Counts clicks into a usage file of its own (never yours; with an accent in its folder), checks every "
            "Fresing button counts, the bar is sorted at a start only, a panel is offered for hiding after 10 starts "
