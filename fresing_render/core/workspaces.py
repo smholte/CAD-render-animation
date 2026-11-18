@@ -57,6 +57,7 @@ BUILTIN = {
                             "Client view's lock", False, True),
 }
 NAMES = {key: v[0] for key, v in BUILTIN.items()}
+PROFILE_KEYS = ("favourites", "usage")     # task 0181: what a profile adds to an own-workspace file
 
 
 @dataclass
@@ -70,18 +71,24 @@ class Workspace:
     blender_ui: bool = False                        # Blender's own tabs, toolbar and menus
     based_on: str = ""                              # an own workspace: the built-in key it started from
     path: str = ""
+    extra: dict = field(default_factory=dict)       # task 0181, a profile: "favourites" (and "usage" when ticked)
 
     @property
     def own(self) -> bool:
         return not self.key
 
-    def to_dict(self) -> dict:
-        return {MARKER: VERSION, "name": self.name, "note": self.note, "based_on": self.based_on or self.key,
-                "families": {k: bool(v) for k, v in sorted(self.families.items())}, "hide": sorted(self.hide),
-                "lock": bool(self.lock), "blender_ui": bool(self.blender_ui)}
+    def to_dict(self, usage: bool = True) -> dict:
+        out = {MARKER: VERSION, "name": self.name, "note": self.note, "based_on": self.based_on or self.key,
+               "families": {k: bool(v) for k, v in sorted(self.families.items())}, "hide": sorted(self.hide),
+               "lock": bool(self.lock), "blender_ui": bool(self.blender_ui)}
+        for key in PROFILE_KEYS:                    # a profile's parts (task 0181); older versions ignore them
+            if key in self.extra and (usage or key != "usage"):
+                out[key] = self.extra[key]
+        return out
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict(), separators=(",", ":"), sort_keys=True)
+        """The definition a project keeps (never a profile's usage counts)."""
+        return json.dumps(self.to_dict(usage=False), separators=(",", ":"), sort_keys=True)
 
 
 def families(funcs=None) -> list:
@@ -152,8 +159,9 @@ def from_dict(d: dict, name: str = "", funcs=None) -> Workspace:
             fam[f] = base.families.get(f, True) if base else True
     known = {fn.id for fn in _functions(funcs)}
     hide = tuple(sorted(str(h) for h in (d.get("hide") or ()) if str(h) in known))
+    extra = {k: d[k] for k in PROFILE_KEYS if isinstance(d.get(k), dict)}
     return Workspace(name=name, key="", note=str(d.get("note") or ""), families=fam, hide=hide,
-                     lock=bool(d.get("lock")), blender_ui=bool(d.get("blender_ui")), based_on=based)
+                     lock=bool(d.get("lock")), blender_ui=bool(d.get("blender_ui")), based_on=based, extra=extra)
 
 
 def from_json(text: str, name: str = "", funcs=None) -> Workspace:

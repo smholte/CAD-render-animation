@@ -69,6 +69,31 @@ data", and the guide says what is stored and where.
 Sending anything off the PC (never). Team-wide usage statistics. The workspaces themselves (0062). Changing what a
 button does.
 
+## Design (worker, 18 Nov 2026)
+
+- **Counting:** `panels.install` wraps every `fresing.*` operator (`usage.wrap`: its `invoke`, else its `execute`); a
+  button inside a button counts once; a click counts for ONE function id – by the button's kind (`BY_PROP`:
+  `block_add`, `queue_add`), else the panel it was clicked in (`panels` puts `fr_panel` on each panel's layout with
+  `context_string_set`), else the first entry naming the button; `ALSO` adds buttons no entry names
+  (`apply_rules` → `looks.materials`). Opening a panel counts for the panel. Not counted: background runs,
+  `FRESING_NO_USAGE`, simulated events unless `FRESING_USAGE_TEST`.
+- **File:** `<config>/fresing_usage.json` (next to 0199's start file); broken → `.broken` copy, newer → `.newer` copy,
+  fresh state. Written every 30 s when changed, at a project save, at exit.
+- **Session** = one app start (`usage.start`, a timer 1 s after start): sessions + 1, the bar sorted (only then).
+- **Bar:** `FRESING_PT_favourites` under the Workspace row (proposal: not in the 3D view's header – Make sits there
+  already). Pins first, then the most used (≥ 2 uses), 6 by default (5–8). Side-panel favourite = go there (its
+  section tab, opened to its panel, the lesson highlight points at the button for 6 s); a menu favourite runs.
+- **Declutter:** panels of `places.PLACES` only (never a section, a menu, the import / help / panel families); after
+  `threshold` (10) sessions without a use of the panel, its functions or a panel under it; all its functions shown,
+  none used by the project; one per session, each panel once. Hide → `state["hidden"]`; `workspaces.PERSONAL["hide"]`
+  = hides minus what the project uses; applied in `_hidden` on top of every workspace except Full access.
+- **Stages:** families → Import & structure, Looks, Motion & rigging (motion, machines, cnc, milling, offshore,
+  lifting), Scene & surroundings (scene, house), Animation (animation, video), Render & export (queue, web); idle > 2 min
+  not counted.
+- **Time saved:** `Function.manual_estimate = ("use" | "part", seconds, "what by hand")`, checked by `problems()`.
+- **Profiles:** `Workspace.extra` = `favourites` (+ `usage` when ticked) in the own-workspace file; `to_json()` (what a
+  project keeps) never holds `usage`; an import's library copy drops it too.
+
 ---
 
 ## Report (filled in by the chat that did the task)

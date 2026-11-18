@@ -297,6 +297,11 @@ fresing_render/            the Blender extension (Python package)
                            tracks, forklift load centre, offshore DAF, upending – each a `Result` with inputs, formula,
                            status ok / amber / red / not_checked; load charts: lookup, validation, units; `Limits`
                            75 % / 90 % / 90 %; the plan's words, never "safe"; SI inside: kg, m, N, Pa)
+                           usage.py (task 0181: the usage tracker's rules – the file ``<config>/fresing_usage.json``,
+                           a click counts for ONE function (``BY_PROP`` kind, the panel it was in, ``ALSO``), active
+                           time per stage with 2 min idle left out (``Clock``), the bar sorted at a start only + pins,
+                           the declutter question's rules, time saved from ``manual_estimate`` (always "an estimate"),
+                           profiles; no network import – tested)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -484,6 +489,13 @@ fresing_render/            the Blender extension (Python package)
                            active camera or the scene's ``props_detail``; a person's ``Object.fresing_person`` settings
                            rebuild its mesh in place; ``upgrade`` (load_post) gives older projects' props the new look;
                            ``line_up`` / ``check_line_up`` shared by the tour stop "props" and the PC check's scene.props
+    usage.py ops_usage.py ui_usage.py  task 0181: counting (``panels.install`` wraps every ``fresing.*`` operator's
+                           invoke/execute via ``usage.wrap``; the panel a click came from is ``context.fr_panel``, set
+                           by ``panels`` with ``context_string_set``), the session at start, personal hides handed to
+                           ``workspaces.PERSONAL`` (on top of every workspace but Full access, never what the project
+                           uses), the favourites bar + declutter question (``FRESING_PT_favourites`` under Workspace),
+                           My usage (Fresing menu, Help menu), profile export / import. Not counted: background runs,
+                           FRESING_NO_USAGE, simulated events unless FRESING_USAGE_TEST
     welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
@@ -1243,3 +1255,7 @@ the release → Delete); the next run on `main` publishes it again.
   distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
   strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at
   distances.
+- Real-app tests under xvfb: the first click into the side panel after the app started is eaten (it only gives the
+  region focus); the click after it works (task 0181: the favourites bar's button was never pressed until the test
+  clicked the panel's empty top edge first). A direct operator call worked all along – compare with one when a
+  simulated click seems to do nothing.

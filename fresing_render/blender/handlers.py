@@ -188,6 +188,13 @@ def _on_load(_dummy=None):
                 surroundings.fix_view_clip(sc)
     except Exception as exc:
         print(f"Fresing Render: 3D view clip not set: {exc}")
+    try:                                     # task 0202: 0.2.153's sea cut in the view cost ~6 ms a frame
+        from . import surroundings
+        for sc in bpy.data.scenes:
+            if hasattr(sc, "fresing"):
+                surroundings.refresh_view_cuts(sc)
+    except Exception as exc:
+        print(f"Fresing Render: sea cut in the 3D view kept as it was: {exc}")
     try:                                     # say so when a delayed queue start was lost with the old project
         from . import queue
         note = queue.take_note()

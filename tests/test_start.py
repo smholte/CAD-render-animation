@@ -165,3 +165,27 @@ def test_the_stop_marks_in_the_panel():
     assert ui_tour.stop_mark(tour.find("finishing"), "0.2.150") == "Changed"
     assert ui_tour.stop_mark(tour.find("joint"), "0.2.150") == ""
     assert ui_tour.stop_mark(st, "") == ""
+
+
+def test_a_release_without_new_functions_passes_the_checks(monkeypatch, tmp_path):
+    """Task 0202 (0.2.157 brought no new function): the PC check's line and the tour's stop test that What's new can
+    list functions – after a release that adds none they look further back instead of failing."""
+    import types
+
+    from fresing_render.blender import tour, welcome
+    from fresing_render.core import start
+    from fresing_render.pccheck import checks
+    real_new, real_rows = welcome.functions_new, start.new_functions
+    def first_empty(real):                    # this release brings nothing new: the first ask finds no function
+        asked = []
+
+        def fake(*a, **k):
+            asked.append(a)
+            return [] if len(asked) == 1 else real(*a, **k)
+        return fake
+    monkeypatch.setattr(welcome, "functions_new", first_empty(real_new))
+    out = checks.app_start_here(types.SimpleNamespace(work=str(tmp_path)))
+    assert "functions" in out and not out.endswith(" 0 functions")
+    monkeypatch.setattr(welcome, "functions_new", real_new)
+    monkeypatch.setattr(start, "new_functions", first_empty(real_rows))
+    assert "lists 0" not in tour._check_start_here(bpy.context.scene)
