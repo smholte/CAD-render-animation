@@ -67,7 +67,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 29, "tour": 71, "tour2": 2, "tourui": 15,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 29, "tour": 72, "tour2": 2, "tourui": 15, "layout": 33,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
@@ -88,7 +88,7 @@ GROUPS = {
     "paths-heavy": ["pccheckheavy"],     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2"],                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
-    "ui": ["ui1", "spool"],             # spool: task 0080, about 1 minute
+    "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
     "scenes": ["surroundings", "vessel", "rulesets", "decals"],
     "motion": ["video", "studio", "update", "ui2", "faces"],
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
@@ -143,6 +143,8 @@ TESTS = {
              "(the rest in tour2, task 0108)", "", "pccheck"),
     "tour2": ("Test tour, the automatic run: the other half of the stops (tools/ci_pccheck_lines.py tour2)", "",
               "pccheck"),
+    "layout": ("Real app: the layout kept on open, Live preview kept, the header button (ui_test_layout.py)",
+               "ui_test_layout.py", True),
     "tourui": ("Real app: test tour – make, open, Go here and in another project, OK / Problem, Copy results "
                "(ui_test_tour.py)", "ui_test_tour.py", True),
     "clash": ("Real app: clash check – Build, Check for clashes, click the row (frame, red, zoom), Cancel, queue note, "

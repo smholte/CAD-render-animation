@@ -13,7 +13,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 from ..core import rules as R
 from ..core.template import GroupLook, Scheme, Template
 from ..core.words import plural, verb
-from . import build, cameras, logic, render, world
+from . import build, cameras, logic, render, ui_header, world
 
 # =============================================================================
 # Structure
@@ -917,15 +917,13 @@ class FRESING_OT_preview(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
-        render.apply_quality(scene, "draft", scene.fresing.use_gpu)
-        world.apply(scene, scene.fresing)
         area = next((a for a in context.screen.areas if a.type == "VIEW_3D"), None) if context.screen else None
         if area is None:
             return {"CANCELLED"}
-        shading = area.spaces.active.shading
-        shading.type = "SOLID" if shading.type == "RENDERED" else "RENDERED"
-        scene.cycles.preview_samples = 64
-        scene.cycles.use_preview_denoising = True
+        space = area.spaces.active
+        on = space.shading.type != "RENDERED"
+        ui_header.apply_preview(scene, space, on)
+        ui_header.remember_preview(on)
         return {"FINISHED"}
 
 

@@ -3989,6 +3989,21 @@ def queue_time_test(ctx):
     return job.message
 
 
+@line("app.layout", "The Fresing panel always comes back (layout on open, Live preview kept, header button)", "0.2.150",
+      what="Checks the header button, the operator that shows the Fresing panel and the stored Live preview choice")
+def app_layout(ctx):
+    import bpy
+
+    from ..blender import prefs, ui_header
+    _check(hasattr(bpy.ops.fresing, "show_panel"), "the operator 'Show the Fresing panel' is missing")
+    _check(ui_header._on_load in bpy.app.handlers.load_post, "the layout is not put right when a project opens")
+    _check(ui_header._draw_header in bpy.types.VIEW3D_HT_header.draw._draw_funcs,
+           "the Fresing button is not in the 3D view's header")
+    p = prefs.get()
+    _check(p is not None and hasattr(p, "live_preview"), "the Live preview choice is not stored")
+    return None
+
+
 @line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",
       what="Makes the test tour (a small project per test model) and does Go and the number check of every stop, "
            "without pictures (the PC check's mode Test tour renders them)")
