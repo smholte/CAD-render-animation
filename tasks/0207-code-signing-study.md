@@ -1,6 +1,6 @@
 # 0207 – Study (findings only): signing Fresing Render on Windows – so company PCs and Smart App Control let it run
 
-**Who:** worker · **Status:** open – can start (findings only: no code, no test run, does not count against the four
+**Who:** worker · **Status:** running (findings only: no code, no test run, does not count against the four
 code tasks) · **Branch:** `task/0207-code-signing-study` (report only, `[docs]`)
 **Started by:** lead chat, 18 Nov 2026 (owner: a company wants to use the app; its IT will meet the unsigned program)
 · **Lane:** none (study)
