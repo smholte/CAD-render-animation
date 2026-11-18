@@ -293,12 +293,12 @@ def s_place():
                 bad.append(f"class {np.round(target)}: {got.boom} != {c.boom}")
     check(f"{cls}: Hook to here on the own crane = the built-in crane's answer (and the class solver's)",
           n >= 10 and not bad, f"{n} targets, {cls_n} against the class solver; " + "; ".join(bad[:3]))
-    S["i"] += 1
     return 1.0
 
 
 @step
 def s_next():
+    S["i"] += 1                                     # (here, not in s_place: a failed step must not repeat a crane)
     if S["i"] < len(CRANES):
         _i[0] = STEPS.index(s_import) - 1          # the next crane: from its import again
     return 0.5
