@@ -265,9 +265,11 @@ def fold_open(idname: str) -> bool:
 
 
 def mark_header(layout, panel_name: str) -> None:
-    """For a header row the app draws itself (``ui.HOOKS["header"]``): put it where the panel's icon goes, right
-    after the fold arrow. Draws the header marker for the target panel and the panels it sits in, nothing else.
-    A panel marked this way is not marked a second time through its ``draw_header``."""
+    """For a title row that does not call the panel's ``draw_header``: call this where the panel's icon goes,
+    right after the fold arrow (section look 5 draws its nodding arrow one icon left of the marker). Draws the
+    header marker for the target panel and the panels it sits in, nothing else. A panel marked this way is not
+    marked a second time through its ``draw_header``. (``panels.py`` calls ``draw_header`` itself, at that very
+    place: nothing has to call this today.)"""
     _HOOKED.add(panel_name)
     t = _S["target"]
     if t is not None and panel_name in t["chain"] and _S["icons"] is not None:
@@ -443,6 +445,8 @@ def _swap(cls, attr: str) -> None:
             if name in _S["clear"]:
                 self.layout.label(text="", icon_value=_S["icons"]["top"].icon_id)
 
+    if hasattr(inner, "_fr_body"):                      # panels.body_of() still finds the panel's own body
+        wrapped._fr_body = inner._fr_body
     setattr(cls, attr, wrapped)
     _S["wrapped"].append((cls, attr, own))
 
@@ -1153,8 +1157,8 @@ def register():
     if not hasattr(bpy.types.WindowManager, "fresing_fold_open"):
         bpy.types.WindowManager.fresing_fold_open = bpy.props.BoolProperty(default=True)
         _S["own_prop"] = True
-    ui.HOOKS["fold"] = fold_open
-    ui.HOOKS["header"] = mark_header
+    ui.HOOKS["fold"] = fold_open                        # (the header marker goes through draw_header, not through
+                                                        # HOOKS["header"]: it must stand right after the fold arrow)
 
 
 def unregister():
@@ -1164,8 +1168,6 @@ def unregister():
         bpy.app.handlers.load_pre.remove(_before_load)
     if ui.HOOKS.get("fold") is fold_open:
         ui.HOOKS["fold"] = None
-    if ui.HOOKS.get("header") is mark_header:
-        ui.HOOKS["header"] = None
     if _S.pop("own_prop", False):
         del bpy.types.WindowManager.fresing_fold_open
     _free_icons()

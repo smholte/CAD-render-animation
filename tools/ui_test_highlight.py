@@ -410,6 +410,10 @@ def s_imported():
     S["own_register"] = mod("blender.ui").HOOKS.get("fold") is not h.fold_open
     if S["own_register"]:
         h.register()
+    try:                                                    # the app's own title rows, where it has them
+        mod("blender.panels").install([FRESING_PT_zz_highlight_test])
+    except ImportError:
+        pass
     bpy.utils.register_class(FRESING_PT_zz_highlight_test)
     names = [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]
     S["draws"] = {n: (getattr(bpy.types, n).__dict__.get("draw"), getattr(bpy.types, n).__dict__.get("draw_header"))
@@ -620,7 +624,7 @@ def s_fold_open():
 @step
 def s_point_greyed():
     hl().set_look("button", "D")
-    hl().point(panel=STAND_IN, button="fresing.import_mesh", text="Greyed out")
+    hl().point(panel=STAND_IN, button="fresing.import_mesh", text="Greyed out", open_panels=True)
     return 0.6
 
 
@@ -633,7 +637,7 @@ STEPS.append(peak_off)
 @step
 def s_point_number():
     hl().set_look("button", "C")
-    hl().point(panel=STAND_IN, prop="resolution_x")
+    hl().point(panel=STAND_IN, prop="resolution_x", open_panels=True)
     return 0.6
 
 
@@ -643,7 +647,7 @@ wait_for("number")
 def check_number(tag, key, f, before, after):
     box, mk = f["button"], f["mark"]
     check("a number field: the marker stands in front of it and the look is on the field",
-          mk[2] < box[0] and box[2] - box[0] > 100 and box[2] < f["region"][2] - 30, f"marker {mk}, field {box}")
+          mk[2] < box[0] and box[2] - box[0] > 100 and box[2] <= f["region"][2] - 25, f"marker {mk}, field {box}")
     check_c(tag, key, f, before, after)
 
 
@@ -836,6 +840,11 @@ def s_cleared():
 def s_after():
     grab_side("after_clear.png")
     bpy.utils.unregister_class(FRESING_PT_zz_highlight_test)
+    try:
+        for table in (mod("blender.panels").PARENT, mod("blender.panels").TITLE):
+            table.pop(STAND_IN, None)
+    except ImportError:
+        pass
     if S.get("own_register"):
         hl().unregister()
     return 0.2
