@@ -3726,10 +3726,35 @@ def bake(scene, anim) -> list[str]:
 MOTION_KEY = "fr_cable_motion_key"      # on the scene: the vessel / seabed motion the built sea cables are for (0137)
 
 
+WATER_KEY = "fr_cable_water_key"        # on the scene: the water the built sea cables are for (task 0216)
+
+
+def water_key(scene) -> str:
+    """What the built sea cables' seabed depends on besides the motion (task 0216, bug hunt 7 row 7): the water level,
+    the sea's depth and each sea cable's own depth. An undo after a water change brought back the new water with the
+    cable worked out for the old one (1 m under the seabed) and nothing noticed."""
+    from . import paths_sea
+    s = scene.fresing
+    own = sorted([str(it.name), round(float(paths_sea.depth(scene, it)), 6)]
+                 for it in s.cables if it.enabled and it.b_kind == "SEA")
+    return json.dumps([round(float(s.water_level), 6), round(float(s.sea_depth), 6), own])
+
+
+def sea_moved(scene) -> bool:
+    """The built sea cables were worked out for another vessel / seabed motion or another water (False when nothing
+    was remembered: a project built before task 0137 / 0216)."""
+    from . import vessel_motion
+    if vessel_motion.moved_since(scene, MOTION_KEY):
+        return True
+    was = scene.get(WATER_KEY)
+    return was is not None and str(was) != water_key(scene)
+
+
 def _remember_motion(scene) -> None:
     try:
         from . import vessel_motion
         vessel_motion.remember(scene, MOTION_KEY)
+        scene[WATER_KEY] = water_key(scene)
     except Exception:
         pass
 
@@ -3742,8 +3767,7 @@ def motion_changed(scene, force: bool = True) -> None:
     if _STATE["busy"] or not _baked(scene) or \
             not any(it.enabled and it.b_kind == "SEA" for it in scene.fresing.cables):
         return
-    from . import vessel_motion
-    if not force and not vessel_motion.moved_since(scene, MOTION_KEY):
+    if not force and not sea_moved(scene):
         return
     from . import rebake
     if bpy.app.background:                      # one pass with whatever else the change needs (task 0192)
@@ -3936,13 +3960,108 @@ def before_model_update(scene, root) -> None:
     from . import logic
     _STATE["model_sig"] = (root.get(build.PROP_UID), _model_sig(logic.descendants(root)))
     _STATE.pop("same_model", None)
+    _STATE.pop("kept", None)
+    _STATE.pop("changed", None)
     held = {}
+    memo: dict = {}
     for it in scene.fresing.cables:
         held[it.name] = {"contacts": [c.carrier.name if (not c.carrier_uid and c.carrier is not None) else ""
                                       for c in it.contacts],
                          "ends": {k: getattr(it, k + "_part").name for k in ("a", "b")
-                                  if not getattr(it, k + "_uid") and getattr(it, k + "_part") is not None}}
+                                  if not getattr(it, k + "_uid") and getattr(it, k + "_part") is not None},
+                         "uids": sorted(_depends_on(scene, it)),
+                         "points": _cad_points(it.part, memo, most=20000)}
     _STATE["held"] = held
+
+
+ROOM = 1.0      # m: a part new or changed in the update this close to a cable's CAD shape: the cable is read again
+
+
+def _depends_on(scene, it) -> set:
+    """Task 0216: the part IDs a cable's reading and set-up depend on – its CAD part, its ends, every contact's part
+    and carrier, the parts its contacts' joints move, the spool it comes off (drum and coil)."""
+    out = {it.part_uid, it.a_uid, it.b_uid}
+    obs = [it.part, it.a_part, it.b_part]
+    for c in it.contacts:
+        out |= {c.part_uid, c.carrier_uid}
+        obs += [c.part, c.carrier]
+        j = joints.find(scene, c.joint) if c.joint else None
+        if j is not None:
+            obs += [m.obj for m in j.members]
+    try:
+        from . import spool as _spool
+        sp = _spool.of_cable(scene, it)
+        if sp is not None:
+            out |= {sp.part_uid, sp.coil_uid}
+    except Exception:                           # noqa: BLE001
+        pass
+    out |= {ob.get(build.PROP_UID, "") for ob in obs if ob is not None}
+    out.discard("")
+    return out
+
+
+def _cad_points(ob, memo: dict, most: int = 0):
+    """A part's mesh points in the CAD pose (world; every ``n``-th for at most ``most``), or None."""
+    if ob is None or ob.type != "MESH" or ob.data is None or not len(ob.data.vertices):
+        return None
+    try:
+        M = _cad(ob, memo)
+    except Exception:                           # noqa: BLE001
+        return None
+    n = len(ob.data.vertices)
+    co = np.empty(n * 3, np.float32)
+    ob.data.vertices.foreach_get("co", co)
+    c = co.astype(float).reshape(-1, 3)
+    if most and n > most:
+        c = c[::-(-n // most)]
+    return c @ M[:3, :3].T + M[:3, 3]
+
+
+def _cad_box(ob, memo: dict):
+    """(min, max) of a part's mesh in the CAD pose (world), or None."""
+    w = _cad_points(ob, memo)
+    return None if w is None else (w.min(axis=0), w.max(axis=0))
+
+
+def _changed(scene, by_uid) -> dict | None:
+    """{"uids": part IDs new, changed or gone in the update, "boxes": the CAD boxes of the new and changed parts}
+    (None: no signature of the old model)."""
+    if "changed" in _STATE:
+        return _STATE["changed"]
+    got = None
+    old = _STATE.get("model_sig")
+    if old:
+        root_uid, sig = old
+        new_root = by_uid.get(root_uid) if root_uid else None
+        if new_root is not None:
+            from . import logic
+            objs = {ob.get(build.PROP_UID): ob for ob in logic.descendants(new_root) if ob.get(build.PROP_UID)}
+            new = _model_sig(objs.values())
+            uids = {u for u, v in new.items() if sig.get(u) != v} | (set(sig) - set(new))
+            memo: dict = {}
+            boxes = [b for u in uids if u in objs for b in [_cad_box(objs[u], memo)] if b is not None]
+            got = {"uids": uids, "boxes": boxes}
+    _STATE["changed"] = got
+    return got
+
+
+def cable_kept(scene, by_uid, item) -> bool:
+    """Task 0216 (bug hunt 7 row 8): the update changed the model, but nothing this cable depends on – its parts,
+    contacts, joints' parts and spool came back the same, and no new or changed part comes within ``ROOM`` of it. It
+    keeps its route, contacts, wraps and spool as after an update to the same model (read again, the demo's power cable
+    came out 263.216 -> 263.142 m, a fairlead's wrap 1.849 -> 2.344 rad, a fleet-angle warning of 38.7°)."""
+    kept = _STATE.setdefault("kept", {})
+    if item.name in kept:
+        return kept[item.name]
+    ok = False
+    held = _STATE.get("held", {}).get(item.name)
+    ch = _changed(scene, by_uid)
+    pts = held.get("points") if held is not None else None
+    if pts is not None and ch is not None:
+        near = any(bool(np.any(np.all((pts >= lo - ROOM) & (pts <= hi + ROOM), axis=1))) for lo, hi in ch["boxes"])
+        ok = not near and not (set(held.get("uids", ())) & ch["uids"])
+    kept[item.name] = ok
+    return ok
 
 
 def same_model(scene, by_uid) -> bool:
@@ -4064,7 +4183,7 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                 continue
             who = f"Cable '{label(it)}'"
             try:
-                if same_model(scene, by_uid):
+                if same_model(scene, by_uid) or cable_kept(scene, by_uid, it):
                     _keep_after_update(scene, name)
                 else:
                     read_cad(scene, it, it.part, update=True)
@@ -4084,7 +4203,7 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                 notes.append(f"{who} could not be carried over ({exc or type(exc).__name__}): use 'From CAD cable'")
     finally:
         _STATE["busy"] -= 1
-        for key in ("model_sig", "same_model", "held"):
+        for key in ("model_sig", "same_model", "held", "kept", "changed"):
             _STATE.pop(key, None)
     from . import paths_riders as _riders
     notes += _riders.after_model_update(scene, by_uid, mapping)          # things on the cables (task 0081)
@@ -4153,6 +4272,24 @@ def _on_load(_dummy=None):
             version_scene(sc)
         except Exception as exc:                # never stop a project from opening
             print("Fresing Render: cables not brought up to date:", exc)
+    # task 0216 (bug hunt 7 row 7): a copy saved while a re-bake ran holds the new water or sea with the shapes of the
+    # old one; it is worked out again when it opens (in the window once the app has settled)
+    if bpy.app.background:
+        _check_opened()
+    elif not bpy.app.timers.is_registered(_check_opened):
+        bpy.app.timers.register(_check_opened, first_interval=0.5)
+
+
+def _check_opened():
+    try:
+        scene = bpy.context.scene
+        if scene is not None and hasattr(scene, "fresing") and scene.fresing.anim_baked:
+            from . import vessel_motion
+            bpy.context.view_layer.update()     # (a file just read: the surroundings measure the model's places)
+            vessel_motion.follow(scene, force=False)
+    except Exception as exc:                    # never stop a project from opening
+        print("Fresing Render: cables and hoses not checked on opening:", exc)
+    return None
 
 
 SETTLE_STAMP = "fr_cable_settle"        # on the scene: opened (or a cable made) with 0.2.110 or newer (task 0137)
@@ -4253,6 +4390,8 @@ def unregister() -> None:
         clash.HOOKS.remove(_clash_hook)
     while _read_hook in flex.READ_HOOKS:
         flex.READ_HOOKS.remove(_read_hook)
+    if bpy.app.timers.is_registered(_check_opened):
+        bpy.app.timers.unregister(_check_opened)
     forget()
 
 

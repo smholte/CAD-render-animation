@@ -5,12 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.168 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
+## 0.2.169 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
 
 - **3 Looks > Slice.** The section view that opens up a machine (the red cut faces, hatch lines) has a new name, the
   same word the web 3D page uses: the panel, its buttons ("Add slice"), tips, the guide and the test tour say Slice.
   New slices are named "Slice 1", "Slice 2" …; slices in older projects keep their names and work as before.
   The sea's cut-away behind the stern and the hall's cut-away are other functions and keep their names.
+## 0.2.168 – 18 Nov 2026 – Cables and the sea after changes (task 0216)
+- **Undo after a water change:** a cable into the sea is worked out again for the water it now has (after water level 2 → 3 m, re-bake, Undo it lay 1 m under the seabed). The water level, the water depth and a cable's own depth count, like the sea state and the speed already did. A project saved while that re-bake ran is worked out again when it opens.
+- **Model update:** a cable whose own parts (the cable, its rollers and sheaves, its drum) come back unchanged keeps its route, wraps and drum, also when other parts of the model changed; only cables within about 1 m of a change are read again (before, any change read every cable again: the demo's power cable came out 7 cm shorter and a winch warned of a 38.7° fleet angle).
+- **A crane of a lifting plan beside the hull** no longer moves the sea: Fit surroundings, a sea change or a model update measure the vessel without the placed cranes (the waterline came out 6.5 m lower with a hook lowered beside the hull).
+- No tension shown for a cable bend resting on the seabed (labels jumped to 5–22 kN for a few frames).
+- A save while the cables are worked out again keeps the frame you were at (it reopened at frame 1).
+- A drum or carousel can no longer be renamed to an empty name (two of them shared their drawing).
+- The 3D view of the demo can look closer again: its near clip comes from what is drawn (0.16 m), not from the cameras' reach (0.29 m).
 
 ## 0.2.167 – 18 Nov 2026 – One shortcut only (task 0212)
 

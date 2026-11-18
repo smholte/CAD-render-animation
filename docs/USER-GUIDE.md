@@ -1442,7 +1442,9 @@ sheave that already has a joint of your own keeps it. **From CAD cable again** r
 you changed the part in the CAD file (contacts you added by hand are kept; a start you made a free end is read
 from the CAD cable again; a contact you took off comes back). A **model update** keeps what you did: a contact you
 took off stays off, contacts you added or flipped stay, and an update with the same file changes nothing at all in
-the cable's route, its drum or carousel – the next Build gives exactly the same animation.
+the cable's route, its drum or carousel – the next Build gives exactly the same animation. The same holds for every
+cable whose own parts (the cable, its rollers and sheaves, its drum) came back unchanged and with no changed part
+within about 1 m of it, also when other parts of the model changed; only the cables near a change are read again.
 
 **Make it run**
 

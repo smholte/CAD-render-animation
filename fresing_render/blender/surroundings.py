@@ -276,10 +276,20 @@ def _model_box(scene) -> tuple[np.ndarray, np.ndarray]:
     except Exception:
         pass
     parts = [ob for ob in build.iter_parts(scene) if not ob.get(build.PROP_EXCLUDED)]
+    # task 0216 (bug hunt 7 row 10): a crane of a lifting plan (its model root has ``fr_lifting``) is not the machine
+    # the sea and the deck are made round: one with its hook lowered beside the hull put the waterline 6.5 m lower and
+    # the vessel's beam for the motion at 39 m instead of 27 m. (Load boxes are no parts.) Only cranes: they count.
+    memo: dict = {}
+    own = [ob for ob in parts if not _is_crane(build.model_root_of(ob, memo))]
+    parts = own or parts
     if not parts:
         scene.fresing.bounds_valid = False
         return logic.cached_bounds(scene)
     return build.world_bounds(parts)
+
+
+def _is_crane(root) -> bool:
+    return root is not None and bool(root.get("fr_lifting"))
 
 
 def _build(scene, s, kind: str, key: str, models: str) -> None:
@@ -351,13 +361,12 @@ def _update_live(scene, s, root) -> None:
 
 
 def scene_reach(scene) -> float:
-    """How far the scene reaches from the origin (m): the surroundings' ``fr_far``, the farthest
-    object (the wind park too) and the cameras' largest clip end (task 0193)."""
+    """How far what is drawn reaches from the origin (m): the surroundings' ``fr_far`` and the farthest object (the
+    wind park too; task 0193). Not the cameras' clip ends (task 0216, bug hunt 7 row 31): the demo's cameras see 52 km
+    while the farthest thing drawn is at 28 km, and the views' near clip came out 0.29 m – a close look was cut."""
     far = far_clip(scene)
     for ob in scene.objects:
-        if ob.type == "CAMERA":
-            far = max(far, float(ob.data.clip_end))
-        elif ob.type in ("MESH", "EMPTY", "CURVE") and not ob.hide_viewport:
+        if ob.type in ("MESH", "EMPTY", "CURVE") and not ob.hide_viewport:
             p = ob.matrix_world.translation
             far = max(far, (float(p.x) ** 2 + float(p.y) ** 2 + float(p.z) ** 2) ** 0.5)
     return far
@@ -369,8 +378,15 @@ def view_clip_start(far: float) -> float:
     return 0.01 if far < 5000.0 else min(0.05 * far / 10000.0, 0.5)
 
 
+def _app_start(sp) -> bool:
+    """The view's near clip is one this app set for its far clip (``view_clip_start``), not the user's own."""
+    want = view_clip_start(float(sp.clip_end))
+    return want > 0.01 and abs(float(sp.clip_start) - want) < 1e-4 * max(1.0, want)
+
+
 def fix_view_clip(scene=None, far: float | None = None) -> None:
-    """Every 3D view (not camera views) sees as far as the scene reaches. Never lowers a larger value."""
+    """Every 3D view (not camera views) sees as far as the scene reaches. Never lowers a larger far clip; a near clip
+    is lowered only when the app set it for a farther reach (task 0216: 0.29 m on the demo, from its cameras)."""
     scene = scene or bpy.context.scene
     if scene is None:
         return
@@ -386,9 +402,10 @@ def fix_view_clip(scene=None, far: float | None = None) -> None:
             for sp in area.spaces:
                 if sp.type != "VIEW_3D":
                     continue
-                if sp.clip_end < far:
+                lower = sp.clip_start > start and _app_start(sp)
+                if sp.clip_end < far or lower:     # (an app-set pair is set again as a pair: no flicker)
                     sp.clip_end = far
-                if sp.clip_start < start:
+                if sp.clip_start < start or lower:
                     sp.clip_start = start
 
 

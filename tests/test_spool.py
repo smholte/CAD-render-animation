@@ -311,3 +311,16 @@ def test_a_drum_cannot_take_another_drums_name(made):
     finally:
         sp.name = "Carousel"
     assert spool.find(sc, "Carousel") is not None
+
+
+def test_an_empty_spool_name_is_refused(made):
+    """Task 0216 (bug hunt 7 row 29): carousel and drum both renamed to "" shared their tag; removing one left 2 of the
+    other's objects undrawn."""
+    sc = _sc()
+    mine = {n: sorted(o.name for o in bpy.data.objects if o.get(spool.TAG) == n) for n in ("Carousel", "Drum")}
+    for name in ("Carousel", "Drum"):
+        spool.find(sc, name).name = ""
+    assert sorted(x.name for x in sc.fresing.spools) == ["Carousel", "Drum"]
+    for n, obs in mine.items():
+        assert sorted(o.name for o in bpy.data.objects if o.get(spool.TAG) == n) == obs
+    assert not [o for o in bpy.data.objects if o.get(spool.TAG) == ""]
