@@ -3910,6 +3910,39 @@ stop("make", OUT, HUB_SET, "Make: every output side by side",
      where="Make, above 1 Import; Make in the 3D view's header", since="0.2.151", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
+def _check_setup(scene):
+    """The Set-up window's steps (task 0062): both set-ups are there and stand on this machine's state."""
+    import bpy
+
+    from . import ui_setup
+    _check(set(ui_setup.SETUPS) == {"CNC", "MECH"}, "the Set-up window does not have the CNC mill and the mechanism")
+    n_cnc, n_mech = len(ui_setup.SETUPS["CNC"][1]), len(ui_setup.SETUPS["MECH"][1])
+    _check(n_cnc == 5 and n_mech == 4, f"the set-ups have {n_cnc} and {n_mech} steps (5 and 4 expected)")
+    kind, step, steps = ui_setup.current(scene)
+    _check(kind == "CNC" and step == 0 and len(steps) == 5, f"the stop does not open the CNC mill's first step ({kind} {step})")
+    for name in ("setup_window", "setup_go"):
+        _check(hasattr(bpy.ops.fresing, name), f"the operator fresing.{name} is missing")
+    cnc = scene.fresing.cnc
+    _check(bool(cnc.x_joint and cnc.y_joint and cnc.z_joint), "the gantry's axes are not set up: step 1 has nothing to show")
+    return f"CNC mill {n_cnc} steps, mechanism {n_mech} steps"
+
+
+def _setup_first_step(scene):
+    s = scene.fresing
+    s.setup_kind = "CNC"
+    s.setup_step = 0
+    scene["fr_setup_of"] = "CNC"
+
+
+stop("setup", MACH, "gantry", "Set-up window: one step at a time",
+     "Press Set-up window… (in Make at the top of the Fresing tab, or in 4 Motion > CNC machine): a small window of "
+     "its own opens with 'Set up a CNC mill', step 1 of 5 – the axes X, Y and Z, already picked on this machine (a "
+     "green tick). Next goes through the spindle, the tool and the workpiece, the work zero and the G-code program; "
+     "the buttons are the same as in the side panel. Drag the window anywhere, also onto a second screen, and click "
+     "parts in the main window while it is open. The drop-down at its top switches to 'Set up a mechanism'.",
+     where="Make > Set-up window…; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.151",
+     animation="G-code", check=_check_setup, setup=_setup_first_step, auto=lambda ctx, scene, st: "")
+
 stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
      "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
      "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 432 joints "

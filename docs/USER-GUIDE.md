@@ -221,6 +221,25 @@ Fresing Render.
 
 <img class="small" src="img/help_menu.png" alt="Help menu with Fresing Render user guide at the top">
 
+<a id="setup-window"></a>
+### The Set-up window: one step at a time
+
+<img class="panel" src="img/setup_window.png" alt="The Set-up window on step 1 of Set up a CNC mill">
+
+Setting up a CNC mill or a mechanism takes a handful of steps in a long panel. The **Set-up window** shows
+them one at a time, in a small window of its own that you can drag anywhere – also onto a second screen –
+while you click parts in the main window.
+
+1. Press **Set-up window…** (in **Make**, in 4 Motion > CNC machine or in 4 Motion > Mechanisms).
+2. Pick what to set up at the top: **Set up a CNC mill** (axes X, Y, Z → spindle → tool and workpiece →
+   work zero → G-code program) or **Set up a mechanism** (type → base → moving links → add it).
+3. Do what the step says – its buttons are the same ones as in the side panel, so what you do here shows
+   there too – and press the blue **Next**. **Back** goes back; the numbers at the top jump to a step. A
+   green tick marks a step that is done.
+
+The step you are on is saved with the project: the window opens where you left off, and a project saved
+with the window open brings it back. Close the window like any other window.
+
 <a id="start"></a>
 ## Getting started: your first render in 10 minutes
 

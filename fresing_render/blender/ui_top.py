@@ -154,7 +154,10 @@ class FRESING_PT_tabs(_Panel, bpy.types.Panel):
         layout = self.layout
         row = layout.row(align=True)
         row.scale_y = 1.2
-        row.prop(context.window_manager, "fresing_tab", expand=True)
+        now = panels.tab()
+        row.operator("fresing.panel_tab", text="All", depress=now == "ALL").tab = "ALL"
+        for i in range(1, len(places.SECTIONS) + 1):
+            row.operator("fresing.panel_tab", text=str(i), depress=now == str(i)).tab = str(i)
         from . import prefs
         p = prefs.get()
         if p is not None and not p.knows_ctrl_click:
@@ -285,10 +288,10 @@ class FRESING_PT_make_anim(bpy.types.Panel):
             a = s.animations[min(s.animations_index, len(s.animations) - 1)]
             layout.label(text=f"Animation: {a.name}", icon="RENDER_ANIMATION")
             col = ui.split_props(layout)
-            for prop, text in (("out_resolution", "Size"), ("out_format", "Shape"), ("quality", "Quality"),
-                               ("video", "File")):
-                if hasattr(a, prop):
-                    col.prop(a, prop, text=text)
+            col.prop(a, "out_resolution", text="Size")
+            col.prop(a, "out_format", text="Shape")
+            col.prop(a, "quality", text="Quality")
+            col.prop(a, "video", text="File")
             ui.gap(layout)
             op = layout.operator("fresing.queue_add", text="Time test (2 frames)", icon="SORTTIME")
             op.kind, op.name, op.start = "TEST", a.name, True

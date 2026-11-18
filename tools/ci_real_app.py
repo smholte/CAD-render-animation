@@ -67,7 +67,8 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 29, "tour": 72, "tour2": 2, "tourui": 15, "layout": 33,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 29, "tour": 75, "tour2": 2, "tourui": 15, "layout": 38,
+              "panel": 37, "setup": 46,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
@@ -85,7 +86,7 @@ GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
     "pccheck-b": ["pccheck2"],          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
     "callouts": ["callouts"],
-    "paths-heavy": ["pccheckheavy"],     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
+    "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour"],                   # the automatic test tour alone (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2"],                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
@@ -153,6 +154,11 @@ TESTS = {
                "off (blender -Y) (ui_test_vessel.py)", "ui_test_vessel.py", True),
     "update": ("In-app update: old version + 0.2.10 template -> Update now -> new version (ci_update_test.py)",
                "ci_update_test.py", None),
+    "panel": ("Real app: the side panel – folded start, titles, Ctrl+click, tabs, workspaces, families, an own "
+              "workspace, the Client view's lock with clicks and keys, an older project, Make (ui_test_panel.py)",
+              "ui_test_panel.py", True),
+    "setup": ("Real app: the Set-up window – opens with its tab, Next / Back, a click in the main window, save and "
+              "open, close (ui_test_setup.py)", "ui_test_setup.py", True),
 }
 
 

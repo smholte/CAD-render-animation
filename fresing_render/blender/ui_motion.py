@@ -491,6 +491,8 @@ class FRESING_PT_mechanisms(_Panel, bpy.types.Panel):
         layout.prop(s, "mech_kind", text="Type")
         steps(layout, context, MECH_STEPS.get(s.mech_kind, MECH_STEPS["OTHER"]),
               key="fr_how_mechanisms", used=bool(s.mechanisms))
+        if hasattr(bpy.types, "FRESING_OT_setup_window"):      # the same steps one at a time, in a window of its own
+            layout.operator("fresing.setup_window", text="Set-up window…", icon="WINDOW").kind = "MECH"
         gap(layout)
         row = layout.row(align=True)
         sub = row.row(align=True)

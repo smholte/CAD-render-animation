@@ -135,12 +135,15 @@ fn(id="panel.client_view", title="Client view: the project locked against change
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="client-view", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.151")
 fn(id="panel.sections", title="Sections start folded; section tabs; Ctrl+click", family="panel",
-   panel="FRESING_PT_tabs", prop="fresing_tab", guide="sections", tour=("workspace",), since="0.2.151")
+   panel="FRESING_PT_tabs", button="fresing.panel_tab", guide="sections", tour=("workspace",), since="0.2.151")
 fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_next", button="fresing.next_hide",
    guide="whats-next", since="0.2.151")
 fn(id="panel.make", title="Make: every picture, video and 3D page side by side", family="panel",
    panel="FRESING_PT_make", button="fresing.queue_add", text="Render animation", guide="make", tour=("make",),
    since="0.2.151")
+fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
+   panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
+   since="0.2.151", workspaces=("cnc", "offshore", "product", "education"))
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",

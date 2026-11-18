@@ -293,7 +293,7 @@ def s_own():
     p.library_path = mine
     workspaces.forget_scan()
     with override():
-        bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name="CNC & machining")
+        bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name=mod("core.workspaces").NAMES["cnc"])
         bpy.ops.fresing.family_toggle("EXEC_DEFAULT", True, family="web")
         res = bpy.ops.fresing.workspace_save("EXEC_DEFAULT", True, name="Mill demos", note="demo days")
     files = os.listdir(os.path.join(mine, "Workspaces")) if os.path.isdir(os.path.join(mine, "Workspaces")) else []
