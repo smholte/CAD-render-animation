@@ -166,7 +166,7 @@ def test_add_cut_makes_shape_joint_and_wraps_only_its_parts(scene):
     assert section.is_wrapped(mat)
     # other materials are not touched
     assert not any(section.is_wrapped(m) for m in bpy.data.materials if m is not mat)
-    assert section.status(scene) == "1 cut · 1 on"
+    assert section.status(scene) == "1 slice · 1 on"
     assert scene.cycles.transparent_max_bounces >= section.TRANSPARENT_STEPS
 
 
@@ -234,7 +234,7 @@ def test_group_part_and_model_targets(scene):
     assert len(section.cut_parts(scene, cut)) == 4
     cut2 = section.add(scene, [("MODEL", build.model_roots(scene)[0], "")], "BOX")
     assert len(section.cut_parts(scene, cut2)) == len(list(build.iter_parts(scene)))
-    assert section.status(scene) == "2 cuts · 2 on"
+    assert section.status(scene) == "2 slices · 2 on"
     cut2.enabled = False
     assert section.status(scene) == "2 slices · 1 on"
     ng = bpy.data.node_groups[section.GROUP]
