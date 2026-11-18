@@ -326,6 +326,73 @@ def test_an_old_project_opens_with_everything_it_uses(tmp_path):
     assert not workspaces.family_on(bpy.context.scene, "cnc")
 
 
+@pytest.mark.parametrize("tag", ["fr_tour", "fr_demo"])
+def test_an_older_tour_or_demo_project_opens_unlocked_whatever_the_default(tmp_path, tag):
+    """Task 0213 (bug hunt 0209 row 35): a tour / demo project saved before workspaces opened in the user's default
+    workspace – with the default "Client view" it was locked (0 of 43 parts clickable)."""
+    workspaces, panels, lock = _mods()
+    from fresing_render.blender import prefs
+    sc = _new(CRANE)
+    sc[tag] = "crane"                                            # as the tour / demo marks its project
+    sc.fresing.ws_name = ""                                      # saved by a version before use_all
+    path = str(tmp_path / "old tour.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    p = prefs.get()
+    assert p is not None
+    old_default = p.default_workspace
+    try:
+        p.default_workspace = "Client view"
+        bpy.ops.wm.open_mainfile(filepath=path)
+        sc = bpy.context.scene
+        assert sc.fresing.ws_name == "All functions" and not lock.ON[0] and lock.marked() == 0
+        assert not any(o.hide_select for o in sc.objects if o.get("fr_kind") == "part")
+        # the user's own old project (no tour / demo mark) still takes the default: by design
+        del sc[tag]
+        sc.fresing.ws_name = ""
+        bpy.ops.wm.save_mainfile()
+        bpy.ops.wm.open_mainfile(filepath=path)
+        assert bpy.context.scene.fresing.ws_name == "Client view" and lock.ON[0]
+    finally:
+        p.default_workspace = old_default
+        workspaces.switch(bpy.context.scene, "All functions")
+
+
+def test_an_undo_to_before_the_lock_marked_new_objects_locks_them_again():
+    """Task 0213 (bug hunt 0209 row 9): an import pushes its undo step before the lock marks the new objects; an
+    undo to it brought the camera and the floor back free while the rest was marked."""
+    workspaces, panels, lock = _mods()
+    sc = _new(CRANE)
+    assert bpy.ops.fresing.workspace_pick(name="Client view") == {"FINISHED"}
+    assert lock.ON[0] and lock.marked() == len(bpy.data.objects)
+    freed = []
+    for ob in list(sc.objects)[:2]:                               # as the memfile undo brings them back
+        lock._unlock_object(ob)
+        ob.hide_select = False
+        ob.select_set(True)
+        freed.append(ob.name)
+    assert lock.marked() == len(bpy.data.objects) - 2
+    workspaces._after_undo()
+    try:
+        assert lock.marked() == len(bpy.data.objects)
+        assert all(sc.objects[n].hide_select and all(sc.objects[n].lock_location) for n in freed)
+        assert not bpy.context.selected_objects
+    finally:
+        workspaces.switch(sc, "All functions")
+    assert lock.marked() == 0
+
+
+def test_every_function_a_locked_workspace_shows_has_a_button_that_works_there():
+    """Task 0213 (bug hunt 0209 row 24): the Client view showed New camera view, Save scene and Every paint scheme
+    with greyed buttons. A function shown in a locked built-in workspace must have its button allowed."""
+    workspaces, panels, lock = _mods()
+    for ws in W.builtins():
+        if not ws.lock:
+            continue
+        refused = sorted(fid for fid in W.shown_functions(ws)
+                         if F.FUNCTIONS[fid].button and not lock.allowed(F.FUNCTIONS[fid].button))
+        assert not refused, (ws.name, refused)
+
+
 def test_own_workspace_save_use_rename_delete_and_a_second_folder(tmp_path):
     workspaces, panels, lock = _mods()
     sc = _new(CRANE)

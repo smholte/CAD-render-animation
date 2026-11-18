@@ -12,10 +12,16 @@ project's workspace has ``lock`` (the built-in Client view, or an own workspace 
 * Delete, X, Tab and Ctrl+Shift+S are swallowed by an add-on keymap (its operator's ``poll`` is the lock, so the keys
   pass on to Blender's own the moment the lock is off – measured in the real app);
 * the Outliner areas show the Info editor instead (remembered on the screen, put back), and the File menu loses
-  Save As, Save Copy, Link, Append, Import and Export.
+  Save As, Save Copy, Link, Append, Import and Export. Task 0213: an Outliner opened any other way while the lock is
+  on – the editor-type menu of an area, Shift+F9, a new window, another of Blender's workspaces (Ctrl+Page Up), an
+  area maximised with Ctrl+Space – is turned back into Info by a guard that looks every ``GUARD_EVERY`` s (and at
+  once when an area's editor type is picked from its menu). The Outliner is the one editor that selects parts the
+  lock made unclickable, so with it gone nothing can be selected and deleted;
+* an undo to a step from before the lock marked the objects (an import) marks them again (``relock``).
 
 Switching to a workspace without the lock (Full access, or any other) undoes all of it. What still gets through:
-Ctrl+Z of earlier work, File > Open, the Properties editor's own buttons, the Python console.
+Ctrl+Z of earlier work, File > Open, the Properties editor's own buttons, the Python console (level b of 0062 is
+the owner's pick: these stay).
 
 **Blender's own tabs** (Layout, Modeling, Sculpting …): hidden in every workspace except Full access by drawing the
 top bar's left part without them. No Blender workspace is deleted; Full access draws the tabs again.
@@ -37,6 +43,8 @@ ALLOWED = {
     "fresing.import_step", "fresing.import_mesh", "fresing.report_clear",
     "fresing.render", "fresing.preview", "fresing.turntable", "fresing.light_look", "fresing.pick_hdri",
     "fresing.camera_activate", "fresing.shot_apply",
+    "fresing.camera_add", "fresing.shot_save",          # task 0213: camera views and saved scenes are the Client
+    "fresing.queue_schemes", "fresing.queue_schemes_tick",   # view's own (the new camera is locked like the rest)
     "fresing.queue_add", "fresing.queue_log", "fresing.queue_open", "fresing.queue_remove", "fresing.queue_start",
     "fresing.queue_start_cancel", "fresing.queue_start_later", "fresing.queue_start_now", "fresing.queue_stop",
     "fresing.open_file", "fresing.open_folder", "fresing.show_in_folder", "fresing.user_guide",
@@ -164,6 +172,22 @@ def _unlock_all() -> None:
         _unlock_object(ob)
 
 
+def relock() -> int:
+    """While the lock is on: mark every object that has lost its mark (an undo to a step pushed before the lock
+    marked a new object, task 0213) and clear the selection. Returns how many were marked now."""
+    if not ON[0]:
+        return 0
+    n = 0
+    for ob in bpy.data.objects:
+        if MARK not in ob:
+            _lock_object(ob, new=True)
+            n += 1
+    if n:
+        _lock_all()                          # marks nothing more; clears the selection and the active object
+    _COUNT[0] = len(bpy.data.objects)
+    return n
+
+
 def marked() -> int:
     """How many objects carry the lock's mark (0 = the lock is off in this project)."""
     return sum(1 for ob in bpy.data.objects if MARK in ob)
@@ -184,32 +208,101 @@ def _after_change(scene=None, _depsgraph=None):
     except Exception:  # noqa: BLE001 - never break an update over the lock
         pass
     if ON[0] and len(bpy.data.objects) != _COUNT[0]:
-        for ob in bpy.data.objects:
-            _lock_object(ob, new=True)
-        _COUNT[0] = len(bpy.data.objects)
+        relock()                             # also clears the selection (a new camera came selected)
 
 
 # ---------------------------------------------------------------------------
 # the Outliner, the File menu, the keys
 # ---------------------------------------------------------------------------
 
-def _swap_outliners(on: bool) -> None:
+GUARD_EVERY = 0.1                       # s: how often the guard looks for an Outliner while the lock is on
+LOCKED_TYPES = ("OUTLINER",)             # editors that are never shown while the lock is on
+
+
+def _swap_outliners(on: bool) -> int:
+    """On: every Outliner area of every window becomes Info (its place is remembered on the screen). Off: those
+    areas are Outliners again. Returns how many areas were changed."""
     wm = bpy.context.window_manager
     if wm is None or bpy.app.background:
-        return
+        return 0
+    n = 0
     for win in wm.windows:
         screen = win.screen
+        if screen is None:
+            continue
         if on:
-            idx = [i for i, a in enumerate(screen.areas) if a.type == "OUTLINER"]
+            idx = [i for i, a in enumerate(screen.areas) if a.type in LOCKED_TYPES]
             if idx:
                 for i in idx:
                     screen.areas[i].ui_type = "INFO"
-                screen[SCREEN_MARK] = idx
+                screen[SCREEN_MARK] = sorted(set(list(screen.get(SCREEN_MARK, ())) + idx))
+                n += len(idx)
         elif SCREEN_MARK in screen:
             for i in screen[SCREEN_MARK]:
                 if i < len(screen.areas) and screen.areas[i].type == "INFO":
                     screen.areas[i].ui_type = "OUTLINER"
+                    n += 1
             del screen[SCREEN_MARK]
+    return n
+
+
+def _guard():
+    """The timer that keeps every Outliner out while the lock is on (task 0213). Stops when the lock goes off."""
+    if not ON[0]:
+        _GUARD[0] = False
+        return None
+    try:
+        if _swap_outliners(True):
+            _topbar_redraw()
+    except Exception:  # noqa: BLE001 - never stop the guard over one window
+        pass
+    return GUARD_EVERY
+
+
+_GUARD = [False]
+_OWNER = object()                        # the msgbus owner of the editor-type watch
+
+
+def _on_area_type():
+    """An area's editor type was picked from its menu: look at once rather than at the guard's next turn."""
+    if ON[0]:
+        try:
+            bpy.app.timers.register(_guard_once, first_interval=0.0)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _guard_once():
+    if ON[0]:
+        _swap_outliners(True)
+    return None
+
+
+def _start_guard() -> None:
+    if bpy.app.background:
+        return
+    if not _GUARD[0]:
+        _GUARD[0] = True
+        try:
+            bpy.app.timers.register(_guard, first_interval=GUARD_EVERY, persistent=True)
+        except Exception:  # noqa: BLE001
+            _GUARD[0] = False
+    try:
+        bpy.msgbus.clear_by_owner(_OWNER)
+        for prop in ("ui_type", "type"):
+            bpy.msgbus.subscribe_rna(key=(bpy.types.Area, prop), owner=_OWNER, args=(), notify=_on_area_type)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _stop_guard() -> None:
+    try:
+        bpy.msgbus.clear_by_owner(_OWNER)
+    except Exception:  # noqa: BLE001
+        pass
+    if _GUARD[0] and bpy.app.timers.is_registered(_guard):
+        bpy.app.timers.unregister(_guard)
+    _GUARD[0] = False
 
 
 def _file_menu_locked(self, context):
@@ -339,6 +432,10 @@ def apply(scene, on: bool) -> None:
                 _unlock_all()
         _swap_outliners(on)
         _file_menu(on)
+        if on:
+            _start_guard()
+        else:
+            _stop_guard()
     finally:
         _BUSY[0] = False
     _topbar_redraw()
@@ -410,6 +507,7 @@ def unregister() -> None:
         bpy.app.handlers.depsgraph_update_post.remove(_after_change)
     _remove_keys()
     ON[0] = False
+    _stop_guard()
     try:                                   # the extension is switched off in a locked project: the parts are free
         if marked():                       # again (the project's workspace still says Client view: it locks again
             _unlock_all()                  # when the extension is back on)

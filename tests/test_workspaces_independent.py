@@ -1286,7 +1286,7 @@ def test_nothing_on_the_allow_list_edits_the_model_by_its_name():
     saved views, turntable, render; plus help, updates, the panel itself)."""
     workspaces, panels, lock = _mods()
     allowed = sorted(i for i in _operators() if lock.allowed(i))
-    assert len(allowed) < 90          # task 0208: + the learning buttons (8); task 0181: + the usage tracker's 9 buttons (they change nothing in the model)
+    assert len(allowed) < 95          # task 0213: + camera, saved scene, paint schemes (4); task 0208: + the learning buttons (8); task 0181: + the usage tracker's 9 buttons (they change nothing in the model)
     edits = ("_add", "_remove", "_delete", "_clear", "_save", "_set", "_move", "_assign", "_apply_", "explode",
              "exclude", "hide_", "joint", "pose", "group", "rule", "scheme", "decal", "bake", "build")
     ok = {"fresing.queue_add", "fresing.queue_remove", "fresing.report_clear", "fresing.workspace_save",
@@ -1296,7 +1296,10 @@ def test_nothing_on_the_allow_list_edits_the_model_by_its_name():
           "fresing.learn_add", "fresing.learn_add_new", "fresing.learn_remove",
           # the job that works the cables out again after a sea change the Client view may make (the tester's own
           # suspicion: refused, the cables would stay stale) – it follows the project, it edits nothing by hand
-          "fresing.rebake", "fresing.rebake_cancel"}
+          "fresing.rebake", "fresing.rebake_cancel",
+          # task 0213 (bug hunt 0209 row 24): the Client view shows camera views, saved scenes and every paint scheme
+          # – a new camera is locked like the rest, a saved scene and the queue's jobs change no part
+          "fresing.camera_add", "fresing.shot_save", "fresing.queue_schemes", "fresing.queue_schemes_tick"}
     assert [i for i in allowed if any(w in i for w in edits) and i not in ok] == []
     for i in ("fresing.import_step", "fresing.render", "fresing.turntable", "fresing.shot_apply",
               "fresing.camera_activate", "fresing.light_look", "fresing.queue_start", "fresing.workspace_pick"):
