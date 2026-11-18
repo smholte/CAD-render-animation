@@ -436,9 +436,9 @@ fn(id="web.view_names", title="Web 3D model: View names – camera names or numb
 fn(id="web.phone", title="Web 3D page on a phone: one views control, nothing overlapping, the model in the free area",
    family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export", guide="web3d-phone", tour=("web3d",),
    pccheck=("web3d.export",), since="0.2.140")
-fn(id="web.tools", title="Web 3D page: part info, measure, cutaway, fade the rest", family="web",
-   panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",), pccheck=("web3d.export",),
-   since="0.2.131")
+fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a face or X/Y/Z), fade the rest",
+   family="web", panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",),
+   pccheck=("web3d.export",), since="0.2.131", changed="0.2.169")
 
 # ----- 6 Animation -----
 fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_animation", button="fresing.anim_add",
