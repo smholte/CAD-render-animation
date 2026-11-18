@@ -464,3 +464,39 @@ def test_a_save_during_the_read_pass_writes_the_visible_project(sea):
         rebake._STATE.update(running=False, scene="")
         gen.close()
     assert {o.name: o.hide_viewport for o in sc.objects} == before and sc.frame_current == frame
+
+
+
+def test_no_tension_for_a_bend_resting_on_the_seabed(sea):
+    """Task 0216 (bug hunt 7 row 27): a resting bend keeps catenary.BED_GAP (1 mm) of height; the labels showed
+    tensions of 5–22 kN from it at frames 273–280 (NO_HANG was the same 1 mm)."""
+    sc = sea
+    it = cable(sc)
+    paths_sea.numbers(sc, it)
+    got = paths_sea._STATE["sea"][paths._k(sc, it)]
+    got["h"] = np.full_like(got["h"], C.BED_GAP)
+    got["top"] = np.full_like(got["top"], 21.5)
+    assert paths_sea.NO_HANG > 2.0 * C.BED_GAP
+    n = paths_sea.numbers(sc, it)
+    assert n["top"] is None and n["bottom"] is None
+
+
+def test_a_save_during_the_rebake_keeps_the_frame_the_user_had(sea):
+    """Task 0216 (bug hunt 7 row 28): the re-bake reads from the first frame (flex.at_first_frame); a save meanwhile
+    wrote frame 1, not the frame the user had (150)."""
+    from fresing_render.blender import flex
+    sc = sea
+    _build_sea(sc)
+    sc.frame_set(150)
+    obs = [o for o in sc.objects if o.type == "MESH"][:2]
+    with flex.at_first_frame(sc):
+        gen = flex.read_steps(sc, obs, int(sc.frame_start), 4, keep_shown=True)
+        next(gen)
+        try:
+            assert flex.pause_read_for_save()
+            assert sc.frame_current == 150
+            flex.resume_read()
+        finally:
+            gen.close()
+        assert sc.frame_current == sc.frame_start
+    assert sc.frame_current == 150

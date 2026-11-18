@@ -1668,7 +1668,11 @@ def read_steps(scene, obs, first: int, frames: int, keep_shown: bool = True, als
             if o is not None and not o.hide_viewport:
                 o.hide_viewport = True
 
-    _STATE["pause"] = (scene.name, keep_at, _back, _again)
+    # a save meanwhile writes the frame the user had: the one before ``at_first_frame`` showed the first frame (task
+    # 0216, bug hunt 7 row 28: a copy saved during the re-bake reopened at frame 1, not at 150)
+    shown = _STATE.get("shown") or []
+    save_at = next((at for name, at in shown if name == scene.name), keep_at)
+    _STATE["pause"] = (scene.name, save_at, _back, _again)
     try:
         with clash._Guard():
             for k in range(frames):
@@ -1865,11 +1869,15 @@ def at_first_frame(scene):
     here, sub = int(scene.frame_current), float(scene.frame_subframe)
     first = int(scene.frame_start)
     moved = here != first or bool(sub)
+    shown = _STATE.setdefault("shown", [])
+    shown.append((scene.name, (here, sub)))      # (what a save meanwhile writes: read_steps)
     if moved:
         scene.frame_set(first)
     try:
         yield
     finally:
+        if shown and shown[-1][0] == scene.name:
+            shown.pop()
         if moved:
             scene.frame_set(here, subframe=sub)
 

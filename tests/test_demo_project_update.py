@@ -79,11 +79,8 @@ def _state(sc) -> dict:
     return out
 
 
-def test_an_update_to_the_same_file_then_build_is_the_saved_build(made):
-    sc = _scene()
-    a = sc.fresing.animations[demo.ANIM]
-    assert sc.fresing.anim_baked == a.name
-    want = _state(sc)
+def _update_and_build(sc):
+    """A model update of the demo's assembly with its own file, then Build: (the state, update s, Build s)."""
     root = next(r for r in build.model_roots(sc)
                 if os.path.basename(r.get(build.PROP_SOURCE, "")) == layout.FILES["assembly"])
     t0 = time.perf_counter()
@@ -94,9 +91,10 @@ def test_an_update_to_the_same_file_then_build_is_the_saved_build(made):
     t0 = time.perf_counter()
     animation.bake(sc, sc.fresing.animations[demo.ANIM])
     took_build = time.perf_counter() - t0
-    got = _state(sc)
-    print(f"\nmodel update {took_update:.1f} s, Build {took_build:.1f} s")
+    return sc, _state(sc), took_update, took_build
 
+
+def _differences(want, got) -> list[str]:
     bad = []
     for name, w in want["cables"].items():
         g = got["cables"].get(name)
@@ -133,5 +131,55 @@ def test_an_update_to_the_same_file_then_build_is_the_saved_build(made):
             tol = DEG if n == "angle" else MM if n in ("layback", "depth", "length", "free", "hang") else 1e-3 * abs(v)
             if n not in g or abs(g[n] - v) > max(tol, 1e-9):
                 bad.append(f"lay data {k} {n}: {v} -> {g.get(n)}")
+    return bad
+
+
+def test_an_update_to_the_same_file_then_build_is_the_saved_build(made):
+    sc = _scene()
+    a = sc.fresing.animations[demo.ANIM]
+    assert sc.fresing.anim_baked == a.name
+    want = _state(sc)
+    sc, got, took_update, took_build = _update_and_build(sc)
+    print(f"\nmodel update {took_update:.1f} s, Build {took_build:.1f} s")
+    bad = _differences(want, got)
     assert not bad, f"{len(bad)} differences:\n" + "\n".join(bad[:30])
     assert joints.find(sc, demo.CABLE) is not None
+
+
+def test_an_update_with_a_far_part_changed_keeps_every_cable(made, monkeypatch):
+    """Task 0216 (bug hunt 7 row 8): an update that is not bit for bit the same model read every cable again: power
+    cable 263.216 -> 263.142 m, the fairlead's wrap 1.849 -> 2.344 rad, "A&R winch fleet angle 38.7°", Layback 33.0 ->
+    31.6 m. One part far from every cable changed (its signature, as a new revision of it would): every cable keeps
+    its route and the Build is the saved Build."""
+    sc = _scene()
+    want = _state(sc)
+    root = next(r for r in build.model_roots(sc)
+                if os.path.basename(r.get(build.PROP_SOURCE, "")) == layout.FILES["assembly"])
+    from fresing_render.blender import logic
+    memo: dict = {}
+    pts = np.concatenate([p for it in sc.fresing.cables for p in [paths._cad_points(it.part, memo, 5000)]
+                          if p is not None])
+    far, best = None, 0.0
+    for ob in logic.descendants(root):
+        if ob.get(build.PROP_KIND) != "part" or not ob.get(build.PROP_UID):
+            continue
+        lo, hi = paths._cad_box(ob, memo) or (None, None)
+        if lo is None:
+            continue
+        gap = float(np.maximum(np.maximum(lo - pts, pts - hi), 0.0).max(axis=1).min())
+        if gap > best:
+            far, best = ob.get(build.PROP_UID), gap
+    assert far is not None and best > 3.0 * paths.ROOM
+    real = paths.before_model_update
+
+    def before(scene, r):                     # the old model's part was another shape
+        real(scene, r)
+        paths._STATE["model_sig"][1][far] = ("another shape",)
+    monkeypatch.setattr(paths, "before_model_update", before)
+    kept = []
+    real_kept = paths.cable_kept
+    monkeypatch.setattr(paths, "cable_kept", lambda *a: kept.append(real_kept(*a)) or kept[-1])
+    sc, got, _u, _b = _update_and_build(sc)
+    assert kept and all(kept)
+    bad = _differences(want, got)
+    assert not bad, f"{len(bad)} differences:\n" + "\n".join(bad[:30])
