@@ -45,6 +45,8 @@ updates its branch to `main`.
 
 ## Problems found, waiting for a task
 
+- **WAITING FOR OWNER – code signing budget (0207, 18 Nov):** the plan is an SSL.com OV certificate in Fresing's name + eSigner cloud signing, ≈ $310/yr (check the price on ssl.com before buying); signed copy chosen. **Lead: ask the owner at every status check** until he says yes or no; on yes, write the build task from 0207's brief and give him the buying steps.
+
 - **Owner's picks from study 0113 (13 Nov, 22:07):** (1) IEA 15 MW wind turbine → **0116**. (2) Mesh import → **0117** (done, 0.2.99). Candidates after it: Working Vessel 03, KS-4574 crane truck (CC BY 4.0, Sketchfab; the owner downloads them). (3) Branded scans (Hyundai, Hitachi, New Holland, JCB): **skip**.
 The lead turns each into a task (number, brief, model) and then deletes its entry here.
 
