@@ -1,4 +1,4 @@
-"""Side panel: 3 Looks > Cutaway (task 0086). Same layout rules as ui.py."""
+"""Side panel: 3 Looks > Slice (task 0086). Same layout rules as ui.py."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class FRESING_UL_cuts(bpy.types.UIList):
 
 
 class FRESING_PT_cutaway(_Panel, bpy.types.Panel):
-    bl_label = "Cutaway"
+    bl_label = "Slice"
     bl_parent_id = "FRESING_PT_looks"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -32,12 +32,12 @@ class FRESING_PT_cutaway(_Panel, bpy.types.Panel):
         scene = context.scene
         s = scene.fresing
         steps(layout, context, ["Select a subassembly (or pick a group above), choose Plane or Box",
-                                "Add the cut: the side facing you is taken away, the cut faces are red",
+                                "Add the slice: the side facing you is taken away, the cut faces are red",
                                 "Move its arrow, or set its place below; shows in rendered view and renders"],
               key="fr_how_cutaway", used=bool(s.cuts))
         gap(layout)
         layout.row().prop(s, "cut_new_shape", expand=True)
-        big(layout, "fresing.cut_add", "Add cut: the selected", "MOD_BOOLEAN").what = "SELECTED"
+        big(layout, "fresing.cut_add", "Add slice: the selected", "MOD_BOOLEAN").what = "SELECTED"
         row = layout.row(align=True)
         row.operator("fresing.cut_add", text="This group", icon="MATERIAL").what = "GROUP"
         row.operator("fresing.cut_add", text="Whole model", icon="SCENE_DATA").what = "MODEL"
@@ -92,7 +92,7 @@ class FRESING_PT_cutaway(_Panel, bpy.types.Panel):
             if cut.shape_kind == "PLANE":
                 col.prop(cut, "plane_size", text="Drawn size")
         gap(layout)
-        hint(layout, context, "Cuts show in rendered view (Z > Rendered), pictures and videos; the grey solid "
+        hint(layout, context, "Slices show in rendered view (Z > Rendered), pictures and videos; the grey solid "
                               "view shows the parts whole", inset=12)
 
 

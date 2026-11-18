@@ -513,7 +513,7 @@ def looks_served_cable(ctx):
     return note
 
 
-@line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
+@line("looks.cutaway", "Slice: a slice through the pedestal", "0.2.64",
       what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
            "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
            "same frame without the cut")

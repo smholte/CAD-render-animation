@@ -5,6 +5,13 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.168 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
+
+- **3 Looks > Slice.** The section view that opens up a machine (the red cut faces, hatch lines) has a new name, the
+  same word the web 3D page uses: the panel, its buttons ("Add slice"), tips, the guide and the test tour say Slice.
+  New slices are named "Slice 1", "Slice 2" …; slices in older projects keep their names and work as before.
+  The sea's cut-away behind the stern and the hall's cut-away are other functions and keep their names.
+
 ## 0.2.167 – 18 Nov 2026 – One shortcut only (task 0212)
 
 - **Only "Fresing Render"** on the Desktop and in the Start menu (one entry, no folder). The self-test, the PC checks

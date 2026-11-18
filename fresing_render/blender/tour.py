@@ -1091,7 +1091,7 @@ def _check_marine(scene):
     return f"{len(want)} marine looks, waterline {MARINE_WATER:.1f} m"
 
 
-@tour_set("cutaway", "Cutaway", "test_crane_a.step", added="0.2.64", changed="0.2.101")
+@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.168")
 def build_cutaway(b: Build):
     from mathutils import Vector
     sc = b.scene
@@ -3519,11 +3519,11 @@ stop("faces", LOOK, "faces", "Painted faces",
 stop("decals", LOOK, "decals", "Logos and stickers",
      "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
      "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
-stop("cutaway", LOOK, "cutaway", "Cutaway: the pedestal opens up",
-     "A cut slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
+stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
+     "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
-     "view: the grey solid view shows the parts whole.", where="3 Looks > Cutaway; 6 Animation (Move joint step "
-     "with the joint 'Cut 1')", since="0.2.64", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
+     "view: the grey solid view shows the parts whole.", where="3 Looks > Slice; 6 Animation (Move joint step "
+     "with the joint 'Slice 1')", since="0.2.64", changed="0.2.168", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
      auto="clip")
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
