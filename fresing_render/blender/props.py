@@ -3787,6 +3787,102 @@ class FRHouse(bpy.types.PropertyGroup):
     last_text: StringProperty(default="", description="The last bake's result in one line")
 
 
+# ---------------------------------------------------------------------------
+# Lifting plan (task 0201, Lifting lane L4): placed cranes and loads (8 Lifting plan)
+# ---------------------------------------------------------------------------
+
+def _lift_load_changed(self, context):
+    from . import lifting
+    lifting.load_changed(context.scene if context else None)
+
+
+def _lift_mass_changed(self, context):
+    from . import lifting
+    lifting.load_changed(context.scene if context else None, recompute=False)
+
+
+class FRLiftCrane(bpy.types.PropertyGroup):
+    """A crane placed from the lifting equipment library."""
+    item_path: StringProperty(description="The equipment file the crane was placed from")
+    builtin: BoolProperty(default=False, description="A built-in sample crane (SAMPLE DATA)")
+    chart_hash: StringProperty(description="The hash of the file's charts when the crane was placed: a changed file "
+                                           "is noticed and named")
+    item_name: StringProperty(description="The equipment's name in its file (AT-100 …)")
+    root: PointerProperty(type=bpy.types.Object, description="The crane's model in the project")
+    counterweight: FloatProperty(
+        name="Counterweight", default=0.0, min=0.0, soft_max=1000.0, unit="NONE",
+        description="The counterweight the crane carries, t. The chart is picked for it: a value between two of the "
+                    "file's charts takes the next lower one (the next safer chart) and says so")
+    spread_from_pose: BoolProperty(
+        name="Outrigger spread from the pose", default=True,
+        description="On: the outrigger (stabiliser) spread is read from how far the beams are out in the crane's "
+                    "pose. Off: type the spread the chart should be picked for")
+    outriggers: FloatProperty(
+        name="Outrigger spread", default=0.0, min=0.0, soft_max=20.0,
+        description="The outrigger (stabiliser) spread across, pad centre to pad centre, m. A value between two of "
+                    "the file's charts takes the next narrower one (the next safer chart) and says so")
+    pose: StringProperty(description="The crane's pose put last (its file's poses: Travel, Set up, Working …)")
+
+
+class FRLiftDensity(bpy.types.PropertyGroup):
+    """A material group's density in a load (a first guess from its look, editable)."""
+    density: FloatProperty(
+        name="Density", default=7850.0, min=1.0, soft_max=20000.0, update=_lift_load_changed,
+        description="kg per m³ of this group's parts (a first guess from its look: steel 7850, aluminium 2700 …). The "
+                    "load's mass from volume x density is an estimate")
+
+
+class FRLiftLoad(bpy.types.PropertyGroup):
+    """A load of a lifting plan: parts of the project, or a box."""
+    kind: EnumProperty(name="Load", default="PARTS",
+                       items=[("PARTS", "Parts", "Parts or sub-assemblies of the project"),
+                              ("BOX", "Box", "A box of a size you type")])
+    parts: CollectionProperty(type=FRObjectRef)
+    box: PointerProperty(type=bpy.types.Object, description="The load's box (a load made with Box…)")
+    mass_mode: EnumProperty(
+        name="Mass", default="ENTERED", update=_lift_mass_changed,
+        description="Where the load's mass comes from",
+        items=[("ENTERED", "Entered", "The mass you type, with where it comes from (weighed, drawing, estimate)"),
+               ("VOLUME", "Volume x density", "Each part's solid volume x its group's density: a first guess, "
+                                              "marked 'estimate'")])
+    mass_t: FloatProperty(name="Mass", default=0.0, min=0.0, soft_max=2000.0, precision=3, update=_lift_mass_changed,
+                          description="The load's mass in t (without rigging and hook block)")
+    source: EnumProperty(name="Source", default="ESTIMATE", update=_lift_mass_changed,
+                         description="Where the entered mass comes from: it shows with the mass",
+                         items=[("WEIGHED", "Weighed", "The load was weighed"),
+                                ("DRAWING", "Drawing", "From the drawing or the CAD model's mass"),
+                                ("ESTIMATE", "Estimate", "An estimate")])
+    contingency: FloatProperty(
+        name="Contingency", default=1.0, min=1.0, max=2.0, soft_max=1.3, precision=2, update=_lift_mass_changed,
+        description="Weight contingency factor: the load's mass is multiplied by it (1.0 for a weighed load, up to "
+                    "1.3 for an estimate)")
+    densities: CollectionProperty(type=FRLiftDensity)
+    volume: FloatProperty(default=0.0, description="The parts' solid volume, m³ (worked out)")
+    volume_mass: FloatProperty(default=0.0, description="Volume x density, kg (worked out)")
+    open_parts: StringProperty(default="", description="Parts that are not closed solids: their box was used")
+    carrier: PointerProperty(type=bpy.types.Object, description="The part the CoG marker rides on")
+    cog_local: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0),
+                                   description="The worked-out centre of gravity in the carrier's coordinates")
+    marker: PointerProperty(type=bpy.types.Object, description="The CoG marker (an empty that rides on the load)")
+    clearance: FloatProperty(name="Above the load", default=2.0, min=0.0, soft_max=20.0, unit="LENGTH",
+                             description="How far above the load's top Above the load puts the hook, m")
+
+
+class FRLifting(bpy.types.PropertyGroup):
+    """The project's lifting plan (8 Lifting plan)."""
+    cranes: CollectionProperty(type=FRLiftCrane)
+    crane_index: IntProperty(default=0)
+    loads: CollectionProperty(type=FRLiftLoad)
+    load_index: IntProperty(default=0)
+    pick: StringProperty(default="", description="The library item Place… places")
+    box_size: FloatVectorProperty(name="Box", size=3, default=(2.0, 1.0, 1.0), min=0.01, soft_max=50.0,
+                                  subtype="XYZ_LENGTH", unit="LENGTH",
+                                  description="Length x width x height of a box load, m")
+    box_mass: FloatProperty(name="Mass", default=1.0, min=0.0, soft_max=2000.0, precision=3,
+                            description="The box load's mass, t")
+    message: StringProperty(default="", description="The last result of Hook to here or a placing")
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -4304,6 +4400,9 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- a house from House Planner (task 0114) ----
     house: PointerProperty(type=FRHouse, description="The house imported from House Planner and its last bake "
                                                      "(5 Scene & Render > House from House Planner)")
+    # ---- the lifting plan (task 0201) ----
+    lifting: PointerProperty(type=FRLifting, description="The lifting plan: placed cranes and loads "
+                                                         "(8 Lifting plan)")
 
     # ---- the side panel: workspace, what shows, the set-up window (task 0062) ----
     ws_name: StringProperty(
@@ -4354,6 +4453,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRCutTarget, FRCut, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
            FRHouse, FRPersonAction, FRPersonSettings,
+           FRLiftCrane, FRLiftDensity, FRLiftLoad, FRLifting,
            FRSceneSettings)
 
 

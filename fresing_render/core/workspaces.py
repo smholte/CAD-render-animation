@@ -50,6 +50,9 @@ BUILTIN = {
                               "changes", True, False),
     "education": ("Education & training", "Learning the app on the test models: every kind of motion, the animation "
                                           "steps, camera. Hides the web 3D model", False, False),
+    "lifting": ("Lifting plans", "Lifting plans with ready-rigged cranes from the library: place, load and CoG, "
+                                 "hook to here, crane use. Also import, structure, looks, scene, animation and the "
+                                 "render queue. Hides CNC, milling, cables and the sea", False, False),
     "full": ("Full access", "Every function, plus Blender's own workspace tabs, toolbar and menus. Also undoes the "
                             "Client view's lock", False, True),
 }

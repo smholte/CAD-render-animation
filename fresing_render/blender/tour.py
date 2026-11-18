@@ -3354,6 +3354,65 @@ def _check_mesh(scene):
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
 
+
+# ---------------------------------------------------------------------------
+# Lifting plan (task 0201): an AT-40 beside the test crane, the test crane's boom as the load
+# ---------------------------------------------------------------------------
+
+@tour_set("lifting", "Lifting plan: crane, load and hook", "test_crane_a.step")
+def build_lifting(b: Build):
+    import bpy
+    import numpy as np
+
+    from . import build, lifting, logic
+    sc = b.scene
+    _look("PRODUCT")
+    roots = build.model_roots(sc)
+    mn, mx = (np.asarray(v, float) for v in logic.update_bounds(sc))
+    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE),
+                      (float(mx[0]) + 6.0, float(0.5 * (mn[1] + mx[1])), float(mn[2])), math.pi)
+    lifting.apply_pose(sc, c, "Set up")
+    _update()
+    pts = _lifting_points(sc)
+    _camera(b, "ISO", "Tour lifting", lens=35.0, points=pts)
+    _shot(b, "@lifting_place")
+    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
+    ld = lifting.new_load(sc, [part], "Test crane boom")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
+    _close_camera(b, lifting.cog_world(ld), 1.6, "Tour lifting CoG")
+    _shot(b, "@lifting_cog")
+    a = lifting.hook_to(sc, c, lifting.above_load(sc, ld), ld)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    _camera(b, "ISO", "Tour lifting hook", lens=35.0, points=_lifting_points(sc))
+    _shot(b, "@lifting_hook")
+
+
+def _lifting_points(scene):
+    import numpy as np
+
+    from . import build
+    pts = []
+    for ob in build.iter_parts(scene):
+        M = np.array(ob.matrix_world)
+        for c in ob.bound_box:
+            pts.append((M @ np.r_[np.asarray(c, float), 1.0])[:3])
+    return np.array(pts)
+
+
+def _check_lifting_place(scene):
+    from . import lifting
+    return lifting.check_rig(scene)
+
+
+def _check_lifting_cog(scene):
+    from . import lifting
+    return lifting.check_cog(scene)
+
+
+def _check_lifting_hook(scene):
+    from . import lifting
+    return lifting.check_example(scene)
+
 LOOK, MOTION, MACH, OUT = GROUPS
 
 stop("materials", LOOK, "looks", "Ready-made materials and Wear",
@@ -3546,6 +3605,21 @@ stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "joint 'Slew' turns the turret (cab, boom) 120° about the ring's centre, without wobble. 1 Import shows the "
      "file and its credit line.", where="File > Import > Mesh model (glTF, OBJ, FBX); 1 Import; 4 Motion > Add "
      "joint", since="0.2.99", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
+
+stop("lifting_place", MOTION, "lifting", "Lifting plan: a crane from the library",
+     "Beside the test crane stands the built-in AT-40 sample crane, placed from 8 Lifting plan > Equipment, its boom "
+     "turned towards the test crane and set up on its four outriggers (pose 'Set up': beams out, pads down on the "
+     "ground). Its joints carry its name ('AT-40 · Slew', 'AT-40 · Luff' …); the panel shows the planning-aid line "
+     "and the SAMPLE line.", where="8 Lifting plan > Equipment", since="0.2.153", check=_check_lifting_place)
+stop("lifting_cog", MOTION, "lifting", "Lifting plan: the load and its CoG",
+     "The test crane's yellow boom is the load (8 Lifting plan > Load: 1.2 t from the drawing). The CoG symbol – a "
+     "circle in black and white quarters, 'CoG' next to it – sits inside the boom, drawn on top of everything; the "
+     "panel says '(computed)'.", where="8 Lifting plan > Load", since="0.2.153", check=_check_lifting_cog)
+stop("lifting_hook", MOTION, "lifting", "Lifting plan: Hook to here, crane use",
+     "Above the load: the AT-40 slewed, luffed and telescoped so its hook block hangs plumb 2 m above the boom's "
+     "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
+     "radius), the gross load (1.2 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
+     where="8 Lifting plan > Hook & capacity", since="0.2.153", check=_check_lifting_hook)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
