@@ -64,7 +64,7 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         items=[("3", "Rest faded", "Everything else is faded, the part stays clear in its own colour"),
                ("1", "Glow", "The part is covered in a see-through glow that breathes slowly")])
     lesson_colour: FloatVectorProperty(
-        name="Colour", subtype="COLOR", size=3, min=0.0, max=1.0, default=(0.278, 0.608, 0.161),
+        name="Colour", subtype="COLOR_GAMMA", size=3, min=0.0, max=1.0, default=(0.278, 0.608, 0.161),
         description="The colour of the lesson highlight (Fresing Green to start with)")
 
     hover_highlight: BoolProperty(

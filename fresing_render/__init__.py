@@ -121,6 +121,8 @@ def register():
         bpy.utils.register_class(cls)
     handlers.register()
     from .blender import lock, ui_top, workspaces
+    from .blender import highlight
+    highlight.register()                     # task 0062: what a lesson points with (nothing runs until one points)
     lock.register()                          # task 0062: the Client view's lock (keys, new objects)
     workspaces.register()                    # the project's workspace after a load; the open sections at a save
     ui_top.register_header()                 # "Make" in the 3D view's header
@@ -218,6 +220,8 @@ def unregister():
     ui_top.unregister_header()
     workspaces.unregister()
     lock.unregister()
+    from .blender import highlight
+    highlight.unregister()
     for cls in reversed(_all_classes()):
         try:
             bpy.utils.unregister_class(cls)
