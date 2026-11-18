@@ -31,7 +31,7 @@ TOUR = os.path.join(ROOT, "fresing_render", "blender", "tour.py")
 # test; task 0108: the two EEVEE queue lines, 120 + 155 s on a runner, so that both halves take about 9 minutes; task
 # 0109: the weather renders).
 LINUX2 = ("video.labels", "queue.time_test", "render.eevee", "queue.eevee", "weather.time", "weather.rain", "weather.snow",
-          "weather.fog")
+          "weather.fog", "house.toolbox")      # task 0217: a small house bake (~40 s); pccheck ran past 15 min
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
 # the update check, the launch from the Tools-folder shortcut and the report.

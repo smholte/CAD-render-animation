@@ -156,11 +156,13 @@ function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Ar
 }
 
 $env:LOCALAPPDATA = $LocalAppData
-# task 0217: the Toolbox folder lies in the user's home folder – a user folder with a space and an accent, as above
-$env:USERPROFILE = Join-Path $WorkDir "Users\Sébastien Test"
+# task 0217: the installer writes the Toolbox folder into the user's home folder (the runner's own: changing USERPROFILE
+# for the whole test makes Windows answer "" for the Desktop folder and the installer stops); the inbox checks run with
+# a user folder with a space and an accent (ci_toolbox_windows.py)
 $ToolboxHome = Join-Path $env:USERPROFILE "Toolbox"
+$FakeProfile = Join-Path $WorkDir "Users\Sébastien Test"
 Remove-Item Env:TOOLBOX_HOME -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $env:USERPROFILE | Out-Null
+New-Item -ItemType Directory -Force -Path $FakeProfile | Out-Null
 $env:FRESING_NO_WELCOME = "1"          # task 0199: no welcome / What's new window in the tests
 New-Item -ItemType Directory -Force -Path $LocalAppData | Out-Null
 
@@ -430,8 +432,12 @@ if ($Uninstall) {
             if ($round -eq "install") {
                 $tbScript = Join-Path $PSScriptRoot "ci_toolbox_windows.py"
                 $oldEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-                & $BlenderExe.FullName --background --python-exit-code 1 --python $tbScript -- $ToolboxHome 2>&1 | ForEach-Object { Write-Host "   $_" }
-                $tbCode = $LASTEXITCODE
+                $realProfile = $env:USERPROFILE
+                $env:USERPROFILE = $FakeProfile          # only for this one Blender: Python's home folder
+                try {
+                    & $BlenderExe.FullName --background --python-exit-code 1 --python $tbScript -- (Join-Path $FakeProfile "Toolbox") 2>&1 | ForEach-Object { Write-Host "   $_" }
+                    $tbCode = $LASTEXITCODE
+                } finally { $env:USERPROFILE = $realProfile }
                 $ErrorActionPreference = $oldEap
                 $checks["Toolbox inbox on Windows: short file, open status.json, junction (exit code $tbCode)"] = ($tbCode -eq 0)
             }

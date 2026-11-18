@@ -1,6 +1,6 @@
 # 0217 – Toolbox inbox: a house from House Planner bakes and goes back by itself
 
-**Who:** worker · **Status:** waiting – after 0212 (installer) is merged. `toolbox-format` tag `v0.1` exists (18 Nov, commit aa75e85,
+**Who:** worker · **Status:** done (0.2.170, 19 Nov 2026). `toolbox-format` tag `v0.1` exists (18 Nov, commit aa75e85,
 MIT licence) and took every point of the lead's review below · **Branch:** `task/0217-toolbox-inbox`
 **Started by:** lead, 18 Nov 2026, from the toolbox planning chat's brief (step D of the toolbox plan)
 **Model:** Opus · effort Medium (Windows file handling: independent review before merging, CLAUDE.md section 6)
@@ -172,10 +172,70 @@ Never attach `house-planner-dev`.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18–19 Nov 2026. Released as **0.2.170**.
 
 **What changed:**
+- `core/toolbox.py` (no Blender): the folder (`TOOLBOX_HOME`, else `%USERPROFILE%\Toolbox`), the manifest, strict
+  reading of every JSON file field by field as the tag's schemas say (no jsonschema in Blender), checking a job (6.3),
+  bad jobs refused with `bad-job` / `unknown-action` / `wrong-type`, the clear sentence for version 0.2, claiming by
+  exclusive create, status writes Windows refuses kept and written at the next look, progress at most once a second,
+  the reply job (reply first, status second), the result kept in `Documents\Fresing Render\House bakes` when House
+  Planner cannot take it, jobs left by an earlier run, two copies (a copy adopts left jobs only while no other copy's
+  `alive.json` is fresh), cleaning up never through a link or junction, install / uninstall.
+- `core/tbf/`: the tag's `names.py`, `detect.py`, `types.json` byte for byte (one marked line), MIT notice.
+- `blender/toolbox_inbox.py` + `ops_toolbox.py`: the timer (2 s, 1 s while a job runs; only with a window), Bake now
+  = a scene of its own shown in the window, `house_import.import_scene` into a temp folder, the existing
+  `fresing.house_bake` modal (its progress + Cancel); at the end the reply, the owner's scene back, the house scene
+  removed, the world rebuilt from the owner's settings (the app's world and floor are shared by name between scenes:
+  the first run showed the house's sky leaking into the owner's scene – fixed and tested). Not now, Cancel,
+  `cancel.json`, busy text, Import now (`import-step`, file copied to `Documents\Fresing Render\From the Toolbox`).
+- Additive in shared files: `ops_house` (`ENDED` hook, hidden `samples` / `photo_samples` / `quick`, `run_at_once`),
+  `house_import.import_scene(folder=)` and `remove()` now only this scene's house, `ui_house` lines + poll,
+  `ui_top` What's next card shows the job when section 5 is not open (with no model open it does not show at all –
+  found from the real-app screenshot), `lock.ALLOWED` + 2, `__init__` register.
+- Installer writes the manifest (start = `winexe.app_exe`), the app writes it at every start; uninstaller removes only
+  `tools\nl.fresing.render` (links inside removed as links first, never followed).
+- `tools/toolbox_send.py` (plays House Planner), `tools/ci_toolbox_windows.py` + `ci_windows_install.ps1`
+  (USERPROFILE with a space and an accent, short file, status.json held open, delete refused, junctions, uninstall),
+  real-app test `ui_test_toolbox.py` (group tour, 19 checks; the real-app runs now use a `TOOLBOX_HOME` of their own),
+  tour stop `house_toolbox`, PC-check line `house.toolbox`, function `house.toolbox`, guide section `house-toolbox`,
+  COMPANY-USE, THIRD-PARTY-NOTICES, pin `tests/data/toolbox/tbf-v0.1/`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no GPU):
+- `test_toolbox.py` 32, `test_toolbox_independent.py` 96 (independent tester), `test_toolbox_pinned.py` 2,
+  `test_toolbox_blender.py` 8 (round trip with the real sample house at 4 samples: done, reply passes
+  `structure_problems`, house scene gone, owner's project – objects, world nodes, settings – identical; cancel.json while
+  baking; a broken house; busy; Not now), everything written passes the pinned `check.py` (see open point 1).
+- Real app (`ui_test_toolbox.py`, window path): 19/19 – job waiting 2.1 s after it was written, Bake now switches
+  the window, progress reaches the status, sent back, scene back, Cancel by cancel.json. Tour stop and PC-check line
+  pass in Blender as a module (bake + send back 34 s).
+- **Blender's silence during a bake:** the sample house, one moment, the longest single step was 2.1 s at 4 samples
+  and 3.7 s at the recipe's 16 samples (whole moment 26–30 s). A Python thread ran every 0.2 s throughout (Cycles lets
+  go of Python while it bakes), so a thread could keep `alive.json` fresh; not used – the format does not depend on
+  it (6.4).
+- Subagents: an independent tester (core; found 9 faults, all fixed: a second window failing the first window's job,
+  a name with a lone surrogate stopping the whole look, a refused exclusive create stopping the look, install/uninstall
+  through a `tools` link, a failed keep leaving a job working, case-duplicate reply files, alive.json bytes alike, a
+  lowercased app name, `size: 5.0`) and an independent Windows reviewer (fixed: Documents via the shell for OneDrive,
+  a busy file at Bake now no longer fails the job, OneDrive reparse points no longer count as links, uninstall with a
+  junction inside, empty USERPROFILE, installer's start program, CI junction inside a job, cleanup in `finally`).
+- GitHub runs: see below.
 
 **Open points / follow-up tasks:**
+1. **For the toolbox-format lead:** the v0.1 checker reports "the file X is missing" for a final job whose files were
+   deleted, although FORMAT.md 7.4 allows deleting them at once (the app does, review 3; the tests filter exactly that
+   message). Also from the Windows review: `tbf/names.py` misses `CONIN$`, `CONOUT$`, `CLOCK$` and the superscript
+   `COM¹–³`/`LPT¹–³` reserved names, and does not strip trailing spaces before comparing.
+2. The guide picture `panel_5_house.png` was not redone (the new lines only show while a job waits).
+3. Bake now is refused in the Client view (the house bake is not on its allow-list); Not now works there.
+4. Two windows: a window started while another is open leaves the other's jobs alone; when both are open and the
+   first closes, its waiting jobs are taken up by the other only after its `alive.json` is 35 s old.
+5. **Steps for the owner** (until House Planner sends houses itself):
+   1. Update Fresing Render (Update now) and start it once – it makes `C:\Users\<you>\Toolbox`.
+   2. In a Command Prompt in the repository folder: `python tools\toolbox_send.py "<a .hpscene file>"`
+      (or use the test tour's stop "A house arrives by itself": Go makes such a job for you).
+   3. In Fresing Render, within a few seconds: the card at the top of the Fresing tab (or 5 Scene & Render > House
+      from House Planner) shows "From House Planner: …" with **Bake now** and **Not now**.
+   4. Click **Bake now**: the window shows "House – …" with the progress bar; when done it shows your project again and
+      says **Sent back to House Planner**. The package is in `C:\Users\<you>\Toolbox\tools\nl.fresing.house-planner\inbox\`.
+   5. `python tools\toolbox_send.py --status` lists what happened to each job.

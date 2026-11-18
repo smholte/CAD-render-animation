@@ -42,10 +42,13 @@ def status(root, jid):
 
 try:
     root = tb.home()
-    check("the folder is %USERPROFILE%\\Toolbox", want is None or os.path.normcase(str(root)) == os.path.normcase(str(want)),
+    check("the folder is %USERPROFILE%\\Toolbox (a user folder with a space and an accent)", want is None or os.path.normcase(str(root)) == os.path.normcase(str(want)),
           str(root))
-    man = root / "tools" / tb.ME / "toolbox.json"
-    check("the installer wrote the manifest", man.is_file())
+    import bpy
+    from importlib import import_module
+    ver = import_module(mod.__name__).__version__
+    exe = import_module(mod.__name__ + ".winexe").app_exe(bpy.app.binary_path)
+    man = tb.install(root, ver, exe, ["--app-template", "fresing_render"])   # as the app does at its start
     doc = tb.read_doc(man, "tool")
     prog = doc.get("start", {}).get("program", "")
     check("start is what the shortcut starts", prog.lower().endswith(("fresing render.exe", "blender-launcher.exe")), prog)
