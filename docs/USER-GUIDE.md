@@ -4004,9 +4004,12 @@ whether it includes the hook block, and where it comes from. Without a chart the
 the crane use says **Not checked – no chart**.
 
 **Check** runs every joint from its Min to its Max and every pose: no follower goes past its own limits, the hook
-stays **plumb**, nothing **clashes** (the clash check of 6 Animation on the crane's own motion), every group has a
-mass and a CoG and the crane's CoG at rest lies inside its footprint, the chart is not refused. Each problem has
-**Go to step**.
+stays **plumb**, every group has a mass and a CoG and the crane's CoG at rest lies inside its footprint, the chart is
+not refused, and the clash check of 6 Animation runs on the crane's own motion. A clash with the crane standing in one
+of its **poses** is a problem (red). Parts that meet somewhere in a joint's **whole range** (the boom slewed over the
+cab while folded) are a grey line only – narrow the joint's limits, or go on when the crane's own controls stop it
+there; the hook block counts only in the poses (in a sweep it hangs wherever the rope is). Each line has **Go to
+step**.
 
 **Save** writes the crane into your library folder "Lifting equipment" (Preferences > library folder): its file,
 a copy of the STEP and a small picture of the view. Never into the built-in samples. Place it from 8 Lifting plan >

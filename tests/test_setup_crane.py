@@ -231,15 +231,20 @@ def test_check_finds_each_planted_fault():
 
 
 def test_check_finds_a_clash_and_its_step():
-    """The boom let down below level runs into the carrier: the clash check of the crane's own motion finds it."""
+    """A pose with the boom let down into the truck: a red clash in a pose (Go to step: Poses); the same boom's range
+    reaching down there: an amber line at the boom's step."""
     joints, _BL, _RO, SC = _mods()
     sc = _rigged("KB-20")
-    for j in SC.crane_joints(sc):
-        if j.role not in ("luff",) or j.follows:
-            continue
-        j.rot_min = math.radians(-60.0)
-    got = _problems(sc, clash=True)
-    assert any(k == "luff" and "clash" in t for k, t in got), got
+    luff = SC.first(sc, "luff")
+    luff.rot_min = math.radians(-60.0)
+    for pj in sc.fresing.poses["Working"].joints:
+        if pj.joint == luff.name:
+            pj.value = math.radians(-60.0)
+    assert bpy.ops.fresing.crane_check("EXEC_DEFAULT", True, clash=True) == {"FINISHED"}
+    rows = [(p.step, p.text, p.severity) for p in SC.settings(sc).problems]
+    assert any(k == "poses" and "clash" in t and sev == "red" for k, t, sev in rows), rows
+    assert any(k == "luff" and "Min and the Max" in t and sev == "amber" for k, t, sev in rows), rows
+    assert _goes_to(sc, "poses") == "poses"
 
 
 def test_chart_typed_and_pasted_with_refusals_by_row():

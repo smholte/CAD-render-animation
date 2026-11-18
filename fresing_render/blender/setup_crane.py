@@ -1549,12 +1549,13 @@ def clash_problems(scene, data) -> list:
         a.name = "FR crane check"
         a.fps = "25"
         a.tail = 0.0
-        for name in poses:
+        for name in poses:                       # 1 s to get there, then 1 s held: only the hold is "the pose"
             b = a.blocks.add()
             b.kind, b.start, b.duration, b.easing = "POSE", t, 1.0, "LINEAR"
             b.name = b.pose = name
-            steps.append((t, t + 1.0, "poses", True))
-            t += 1.0
+            steps.append((t, t + 1.0, "poses", False))
+            steps.append((t + 1.0, t + 2.0, "poses", True))
+            t += 2.0
         for j in drive:
             lo, hi = joints.limits(j)
             if not j.use_limits or hi - lo <= 0:
@@ -1581,17 +1582,27 @@ def clash_problems(scene, data) -> list:
         for r in run.rows:
             if r.kind != "CLASH":
                 continue
-            sec = (r.frame_from - scene.frame_start) / fps
-            hit = next(((rl, is_pose) for t0, t1, rl, is_pose in steps if t0 <= sec <= t1), ("", False))
-            role, is_pose = hit
-            if not is_pose and (r.a in hanging or r.b in hanging):
+            s0 = (r.frame_from - scene.frame_start) / fps
+            s1 = (r.frame_to - scene.frame_start) / fps
+            held = [(t0, rl) for t0, t1, rl, is_pose in steps if is_pose and s0 <= t1 - 0.02 and s1 >= t0 + 0.02]
+            if held:                               # the crane stands in one of its poses: a clash is a fault
+                key = (r.a, r.b, "poses")
+                if key not in seen:
+                    seen.add(key)
+                    out.append(LS.Problem("poses", f"{r.a} × {r.b} clash by {r.depth * 1000:.1f} mm in a pose",
+                                          "red"))
                 continue
+            role = next((rl for t0, t1, rl, _p in steps if t0 <= s0 <= t1), "")
+            if role == "poses" or r.a in hanging or r.b in hanging:
+                continue                           # on the way between poses; the hook block where the rope is
             key = (r.a, r.b, role)
             if key in seen:
                 continue
             seen.add(key)
-            what = "in a pose" if is_pose else f"while {ROLE_WORDS.get(role, 'a joint').lower()} moves"
-            out.append(LS.Problem(role or "check", f"{r.a} × {r.b} clash by {r.depth * 1000:.1f} mm {what}", "red"))
+            out.append(LS.Problem(role or "check", f"{r.a} × {r.b} meet by {r.depth * 1000:.1f} mm somewhere "
+                                                   f"between the Min and the Max of the "
+                                                   f"{ROLE_WORDS.get(role, 'joint').lower()}: narrow its limits, or "
+                                                   "go on when the crane's controls stop it there", "amber"))
         return out
     finally:
         animation.clear_keys(scene)
