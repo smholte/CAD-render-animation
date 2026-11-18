@@ -181,7 +181,8 @@ def draw_every_step(sc) -> dict:
 # ---------------------------------------------------------------------------------------------------------------
 
 def test_the_table_of_set_ups():
-    assert list(ui_setup.SETUPS) == ["CNC", "MECH"]
+    assert list(ui_setup.SETUPS) == ["CNC", "MECH", "CRANE_MOBILE", "CRANE_CRAWLER", "CRANE_KNUCKLE", "CRANE_OTHER"]
+    # (task 0203: Set up a crane, four kinds)
     kinds = bpy.types.Scene.bl_rna.properties["fresing"].fixed_type.properties["setup_kind"].enum_items
     assert [e.identifier for e in kinds] == list(ui_setup.SETUPS), "props.py and SETUPS list the same set-ups"
     for kind, (title, steps) in ui_setup.SETUPS.items():
@@ -198,9 +199,10 @@ def test_the_table_of_set_ups():
 def test_every_step_draws_on_an_empty_scene(tmp_path):
     sc = new_scene(tmp_path)
     drawn = draw_every_step(sc)
-    assert len(drawn) == 9
+    assert len(drawn) == 9 + 14 + 13 + 13 + 9          # CNC, mechanism, and the four crane kinds (task 0203)
     for (kind, k), seen in drawn.items():
         assert not ui_setup.is_done(bpy.context, kind, k), (kind, k)
+        assert not seen["errors"], (kind, k, seen["errors"])
     assert "not picked yet" in text_of(drawn[("CNC", 2)])
     assert buttons(drawn[("CNC", 4)], "fresing.block_add")[0][1] == {"kind": "GCODE"}
     # the panel itself: body, icon and state
@@ -210,7 +212,7 @@ def test_every_step_draws_on_an_empty_scene(tmp_path):
     cls.draw_header(fake, bpy.context)
     cls.draw_header_preset(fake, bpy.context)
     assert not fake.layout.seen["errors"]
-    assert "4 of 4" in fake.layout.seen["labels"]
+    assert "9 of 9" in fake.layout.seen["labels"]      # the last kind drawn: Other crane, 9 steps (task 0203)
     assert not cls.poll(bpy.context), "the tab shows only in a Set-up window"
 
 

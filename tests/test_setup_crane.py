@@ -123,7 +123,8 @@ def test_round_trip_places_and_hooks_as_the_class(cls, lib_tmp):
         assert (a.chart is None) == (b.chart is None), p                # the same chart (its name is only a label)
         if a.chart is not None:
             assert a.chart.config == pytest.approx(b.chart.config), p
-        assert (a.capacity, a.radius, a.height) == pytest.approx((b.capacity, b.radius, b.height)), p
+        assert a.capacity == b.capacity, p
+        assert (a.radius, a.height) == pytest.approx((b.radius, b.height), abs=1e-3), p     # 1 mm (the brief)
     BL.apply_pose(sc, own, BL.pose_names(ref)[-1])
     BL.apply_pose(sc, ref, BL.pose_names(ref)[-1])
     data = D.builtin(cls)
