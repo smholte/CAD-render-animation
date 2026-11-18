@@ -1,6 +1,6 @@
 # 0209 – Bug hunt round 7 (findings only): everything merged since 0.2.141 used together
 
-**Who:** worker · **Status:** open – can start · **Branch:** none (report on `main`, touching only `tasks/` and `TASKS.md`)
+**Who:** worker · **Status:** running (18 Nov) · **Branch:** none (report on `main`, touching only `tasks/` and `TASKS.md`)
 **Started by:** lead chat, 18 Nov 2026 (owner: "more tasks?") · **Model:** Opus · effort High · **Place:** Claude Code on
 the web, environment "CAD-render-animation". Findings only: no app code, no version, no test run of its own – it does
 not count towards the four code tasks.
