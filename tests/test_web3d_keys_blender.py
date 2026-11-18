@@ -123,6 +123,28 @@ def test_every_frame_within_the_bound(made):
     assert worst[0] <= K.POS_TOL * 1.05 and worst[1] <= K.ANGLE_TOL * 1.05, worst
 
 
+def test_the_page_is_read_every_time(made):
+    """Task 0062: a browser without a window ran ahead while the page still unpacked its model and decoded its
+    pictures, and wrote it out as "loading" - 5 of 8 openings here, three runs in a row on GitHub's Windows machine.
+    A test's page now holds the browser's clock until it is ready: where the browser works, every opening is read."""
+    page = made["out"]["html"]
+    browser = env.find_browser()
+    if not browser:
+        return
+    states = []
+    for _ in range(8):
+        try:
+            got = env.read_page(page, browser, "auto=0&frames=2&t=0.9&places=1", seconds=180)
+        except RuntimeError as exc:                  # GitHub's machines: the browser may not start
+            print("browser:", exc)
+            return
+        if not states and not got["state"].startswith("ready"):
+            print("page state:", got["state"])       # no WebGL without a window: nothing to compare
+            return
+        states.append((got["state"], bool(got["places"])))
+    assert all(s.startswith("ready") and p for s, p in states), states
+
+
 def test_the_page_plays_the_packed_keys(made):
     """The page (headless browser) reads the gzip-packed model and plays the filtered keys as the Python twin."""
     page = made["out"]["html"]

@@ -1215,6 +1215,22 @@ the release → Delete); the next run on `main` publishes it again.
   Simulated keys reach nothing while the splash screen is open: send Esc first.
 - A header row's state is right-aligned only when the label sits directly in a row with `alignment = "RIGHT"`
   (`header_status` sets it on its own row): a default row nested in a right-aligned one is drawn left.
+- Blender saves changed preferences when it closes. A real-app test that switches `use_region_overlap` off (or
+  changes the UI scale) and does not put it back changes the NEXT test in the same settings folder: its clicks in
+  the view, worked out with the overlap on, missed (task 0062: the cables test failed only when it ran after the
+  highlight test). Put preferences back in the last step.
+- The app's own projects (test tour, demo, PC check, self-test, site kit) start with `read_homefile` and so take the
+  user's preferences: the default template (set aside there since long) and, since 0062, the default workspace – a
+  user who starts in the Client view would get a locked PC check. They call `workspaces.use_all(scene)`.
+- An object made while the Client view's lock is on gets its lock mark at the next scene update – before the code
+  that made it has set its own `hide_select` / `lock_*` (an import locks its parts in place a little later). The
+  unlock puts such objects (`lock.NEW`) as the app itself leaves them, not as they were at that moment.
+- A browser without a window with `--virtual-time-budget` (`core/web3d_env.read_page`) jumps its clock ahead whenever
+  the page waits for work off the main thread (`createImageBitmap`, a Blob read) and then writes the page out as
+  "loading": the PC check's `web3d.small` failed 5 of 6 times on a web machine and three runs in a row on GitHub's
+  Windows (task 0062; 0187 and 0195 had re-run it). A `fetch` under way holds that clock: a test's page (`?frames=`,
+  `?selftest=`) fetches a 1-byte blob of its own, one after the other, until it is ready (`holdTestClock` in
+  `web/fr_page.js`; 7–8 reads). Mark the stages in a copy of the page (`data-…` on `<html>`) to see where it stops.
 - A mesh can be closer to the exact surface and look worse: vertices put halfway along a rounded strip, at different
   distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
   strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at

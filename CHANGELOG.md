@@ -41,6 +41,10 @@ installer of that version was built from.
   first render). The **test tour's Go** now opens the stop's own panel. "7 subassemblys" is "7 subassemblies".
 - For the lessons that come later: what a lesson points with (a button, a folded section, a part) is built in;
   Preferences > Lesson highlight picks between two looks of each.
+- **PC check:** the line "Web 3D model: smaller file" failed now and then with "the page gave no places of its
+  parts (loading)" – the browser without a window was read before the page had unpacked its model. The page now
+  holds the browser until it is ready; the 3D pages you open yourself are unchanged.
+
 ## 0.2.151 – 18 Nov 2026 – Lifting plans: twelve ready-rigged sample cranes (task 0191)
 
 Nothing new to click yet: the Lifting panels come in a later update. What comes in this update are the cranes they

@@ -2178,6 +2178,20 @@
     return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
       .then(function (out) { page.loadTimes.unpack = performance.now() - t1; return out; });
   }
+  // A test's browser without a window runs on its own clock ("virtual time") and jumps ahead whenever the page
+  // waits for work done off the main thread (the pictures' decoding, the unpacking): it then wrote the page out
+  // while it still said "loading" - 5 of 8 openings of a small packed model (task 0062). A read that is under way
+  // holds that clock, so a test's page (?frames=, ?selftest=) reads a few bytes of its own, one read after the
+  // other, until it is ready or has failed. Nobody's own browser does this.
+  (function holdTestClock() {
+    if (!(Q.has('frames') || Q.has('selftest')) || typeof fetch !== 'function') return;
+    var url, n = 0;
+    try { url = URL.createObjectURL(new Blob(['x'])); } catch (e) { return; }
+    (function again() {
+      if (++n > 5000 || page.ready || page.errors.length) { URL.revokeObjectURL(url); return; }
+      fetch(url).then(again, function () { URL.revokeObjectURL(url); });
+    })();
+  })();
   try {
     var bad = function (e) { fail('The 3D model in this page could not be read.', 'model: ' + (e && e.message || e)); };
     var buf = null;
