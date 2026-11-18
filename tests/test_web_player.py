@@ -586,12 +586,12 @@ def test_back_closes_what_is_open_and_never_leaves_the_page(tmp_path):
 def test_part_tool_panel_leaves_the_bottom_stack_free(tmp_path):
     """Task 0189 (0183 row 12): a phone sideways (844 x 390, 667 x 375) with the Measure tool open – its panel covered
     "Iso front-right", "Under cam" and the time line. The panel is in the layout check now and covers nothing, also
-    with the Cutaway open under Measure (a longer panel) and upright."""
+    with the Slice list open under Measure (task 0218; was Cutaway) (a longer panel) and upright."""
     names = ["Iso front-right", "Under cam", "Top", "Side", "Deck", "Stern"]
     path, _n = write(tmp_path / "tools.html", views=views_of(6, names))
     for size, mobile in (("844x390", True), ("667x375", True), ("390x844", True), ("1366x768", False)):
         out = probe(path, [{"click": "#fr-parts [aria-label^='Measure']"}, {"wait": 600}, {"eval": CHECK},
-                           {"click": "#fr-parts [aria-label^='Cutaway']"}, {"wait": 200}, {"eval": CHECK}],
+                           {"click": "#fr-parts [aria-label^='Slice']"}, {"wait": 200}, {"eval": CHECK}],
                     size=size, mobile=mobile, query="soft=0")
         assert out["ok"], out
         for c in (out["out"][2], out["out"][5]):

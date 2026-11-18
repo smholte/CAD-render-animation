@@ -435,7 +435,7 @@ fn(id="web.phone", title="Web 3D page on a phone: one views control, nothing ove
    pccheck=("web3d.export",), since="0.2.140")
 fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a face or X/Y/Z), fade the rest",
    family="web", panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",),
-   pccheck=("web3d.export",), since="0.2.131", changed="0.2.NEXT")
+   pccheck=("web3d.export",), since="0.2.131", changed="0.2.169")
 
 # ----- 6 Animation -----
 fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_animation", button="fresing.anim_add",
