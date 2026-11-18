@@ -87,7 +87,7 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 <img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the seven sections, folded">
 
 The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work. Above them
-are the **Workspace** row, the section tabs and **Make**.
+are the **Workspace** row, the **What's next** card, the section tabs and **Make**.
 
 Every section works the same way:
 
@@ -376,7 +376,7 @@ Sorting rules and materials treat both copies alike. Projects made before 0.2.44
 twice are sorted out when they are opened: the first copy keeps everything that was saved for it.
 
 **Placing a copy:** select the model's top row (its root) and move or turn it in the 3D view (<kbd>G</kbd>,
-<kbd>R</kbd>). The whole model stays where you put it: through Build animation, poses, saved scenes, the start
+<kbd>R</kbd>). The whole model stays where you put it: through Build & play, poses, saved scenes, the start
 scene, **Everything back to CAD position** and model updates. A part moved by hand *inside* a model is different:
 that goes back to its place at the next pose or Build, unless a pose or an animation step holds it.
 
@@ -469,7 +469,7 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
 - **Find in the tree**: type part of a name. The tree shows the matches with the subassemblies above
   them.
 - Click a row to select it in the view. The arrow at the end of a row adds it to the selection, so you
-  can select several. The eye hides or shows it (also in renders). After **Build animation** the eye, **Hide**,
+  can select several. The eye hides or shows it (also in renders). After **Build & play** the eye, **Hide**,
   **Show only**, **Show all** and a visibility set take the built animation off (a line in 1 Import says so): build it again, so
   the video shows the parts as you left them.
 - Click a part in the view: the tree opens down to it and marks its row.
@@ -564,7 +564,7 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
 - **At sea and outdoors**: **Marine paint, growth below the waterline** is marine paint in your colour with
   dark green-brown sea growth below the water (its top edge ragged, a little below the waterline) and a
   splash zone of about 2.5 m above it with a greenish tint and thin rust streaks. The waterline follows the
-  sea of 5 Scene & Render > Surroundings (without a sea: height 0). **Marine paint, run-down streaks**:
+  sea of 5 Scene & Render > Background & surroundings (without a sea: height 0). **Marine paint, run-down streaks**:
   light dirt and rust streaks running down upright faces (towers, walls), never on decks.
   **Marine paint, worn leading edge (blades)**: for a wind turbine blade. Along the blade's front edge, from
   about 60 % of its length to the tip, the paint is worn away in patches: dull grey glass-fibre shows, with
@@ -625,7 +625,7 @@ and cannot be changed; make a copy to change it.
 - **New projects**: the rule set every new project starts with (also in Edit > Preferences >
   Add-ons > Fresing Render, **Default rule set**).
 - Rule sets are files in the folder `Rule sets` in the shared library, so colleagues use the same ones.
-  **Show the folder** opens it. Without a shared library they are kept on this PC, in
+  **Show in folder** opens it. Without a shared library they are kept on this PC, in
   `Documents\Fresing Render\Rule sets`.
 
 **Good to know**
@@ -709,7 +709,8 @@ but not shown or rendered) and × removes it (<kbd>Ctrl</kbd>+<kbd>Z</kbd> bring
 **All decals in this project** lists every decal; a click on one clicks its part. **Library of logos
 and stickers**: put your logos as PNG files in the folder `Logos`, and stickers of your own in
 `Stickers`, of the [shared library](#schemes) – the same library as the rule sets and templates.
-They then show in the list next to Picture. Without a shared library these folders are in
+They then show in the list next to Picture. The panel has two rows, **Logos** and **Stickers**, each with
+**Show in folder**, which opens that folder. Without a shared library these folders are in
 Documents\Fresing Render.
 
 Good to know:
@@ -734,7 +735,7 @@ See inside or behind a part in a still picture: an X-ray part is see-through wit
 1. Pick the **Colour** (light blue by default) and the **Strength**.
 2. Select a subassembly or a part and click **X-ray the selected**; or pick a material group in the list
    above and click **X-ray this group** (the parts in it now).
-3. **Back to normal** takes the look off the selected parts, **All back** off every part. Changing the
+3. **Selected back to own look** takes the look off the selected parts, **All parts back to own look** off every part. Changing the
    colour or strength changes every X-ray part.
 
 It shows in the rendered view, in pictures and videos (Cycles and EEVEE), and is kept with the project. For a
@@ -816,10 +817,10 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
   CAD material…] [*test*: contains, is, starts with, matches pattern…] [*value*] → **Group**. A group
   name may hold {color}, {finish}, {kind}, {part_type} or {cad_material}: then you get one group per
   colour, finish, type or material. Rest the mouse on a choice in the lists to see what it means.
-- **+** adds a rule at the top of the list (so it wins) for the group selected in 3 Looks; **From
+- **+** adds a rule at the top of the list (so it wins) for the group selected in 3 Looks; **Add from the
   clicked part** adds one "Part name contains *the name of the part you clicked*". The arrows move the
   selected rule up or down, **−** removes it.
-- **Defaults** replaces all rules with those of Standard. Projects made before version 0.2.8 that
+- **Back to the defaults** replaces all rules with those of Standard. Projects made before version 0.2.8 that
   still had the old built-in rules get the new ones when they are opened; your own rules are kept.
 - After changing rules, click **Sort parts into groups** in 3 Looks.
 - The rules belong to the project's [rule set](#rule-sets): the header says **changed** when they
@@ -1185,12 +1186,12 @@ draws links along it, and in the fold **More** you set the **Width** and **Heigh
 
 **Good to know**
 
-- It works while you move joints and cylinders, in **Build animation**, in the render queue (also in the
+- It works while you move joints and cylinders, in **Build & play**, in the render queue (also in the
   background), in saved scenes, with G-code programs, in turntables. The same frame always looks the same,
   whichever frame came before.
-- After **Build animation**, changing a slider (stiffness, length …) is applied to the whole animation at once;
+- After **Build & play**, changing a slider (stiffness, length …) is applied to the whole animation at once;
   you do not build again.
-- A hose with some slack can lie in two ways, for example in a loop up or down. **Build animation** keeps one
+- A hose with some slack can lie in two ways, for example in a loop up or down. **Build & play** keeps one
   of them through the whole animation; a still of a single pose may show the other.
 - The tick in the list switches an item off: the stiff CAD part shows again, exactly as imported. **−** takes it
   off the list; nothing is deleted from the model. **Select** (the arrow button) shows which part it is.
@@ -1239,7 +1240,7 @@ the cable's route, its drum or carousel – the next Build gives exactly the sam
 1. In 6 Animation, add the step **Run motor** (or press **Add a Run motor step** in the cable panel).
 2. Pick the cable's joint, "Cable <name>". The speed is **Cable speed (m/min)**: laying a power cable is about 10
    m/min. A negative speed hauls the cable in.
-3. Press **Build animation** and play. The cable runs, and the drum, sheaves and rollers turn with it.
+3. Press **Build & play** and play. The cable runs, and the drum, sheaves and rollers turn with it.
 
 You can also use a **Move joint** step on the cable's joint: "pay out to 25 m". The value of the joint is the
 metres of cable paid out, so the same cable can be moved by hand in 4 Motion, like any slide joint.
@@ -1307,7 +1308,7 @@ beside it.
 **Sheaves that move**
 
 A sheave on a luffing A-frame, or on a tilting arm, moves against the cable's other parts. The cable follows it
-while you pose the machine, and **Build animation** works out the cable for every frame once; playing and
+while you pose the machine, and **Build & play** works out the cable for every frame once; playing and
 rendering then cost nothing extra.
 
 <img class="wide" src="img/view_cables_luffed.jpg" alt="The same machine with the A-frame luffed forward by 12 degrees: the rope still lies in the grooves of the sheaves">
@@ -1358,7 +1359,7 @@ direction is the horn's, without a kink. Under **4 Motion > Cables and paths**, 
 
 <img class="panel" src="img/panel_cable_sea.png" alt="The fold Into the sea: touch-down by layback, water depth, cable on the seabed, vessel speed, the numbers of the curve and the things on the cable">
 
-1. In 5 Scene & Render > Surroundings, pick **Open sea** and set the **Water depth** (and the **Water level**, so the
+1. In 5 Scene & Render > Background & surroundings, pick **Open sea** and set the **Water depth** (and the **Water level**, so the
    vessel floats where it should).
 2. Choose the cable and press **Into the sea**. Its last contact must be the horn, chute or sheave it hangs from
    (add it under "What it touches" when it is missing). The end of the cable that is under water in the CAD file
@@ -1374,7 +1375,7 @@ direction is the horn's, without a kink. Under **4 Motion > Cables and paths**, 
    5 Scene & Render > Vessel at work **Ahead** at the vessel speed of Weather & time (on or off), 0 when the vessel
    lies still, pushes sideways or turns, and in a video what its **Vessel at work** steps set (Build follows them:
    a step to Still stops the seabed; change the vessel's speed or setting after such a Build and the built animation
-   is taken off – press **Build animation** again). The touch-down then comes nearer or moves further back when the speeds differ.
+   is taken off – press **Build & play** again). The touch-down then comes nearer or moves further back when the speeds differ.
 
 The touch-down is set in the pose at the animation's first frame (with nothing built: the pose shown), whatever
 frame is shown, so **Build** gives the same animation at any frame. **Touch-down here** sets it again (after you
@@ -1383,7 +1384,7 @@ paid out cable by hand).
 **What moves.** The scene keeps the vessel where it is; the **seabed moves aft** under it, with the cable lying on
 it – its yellow stripes stand still there, while they run down the curve. With **Vessel motion** on, the horn rides
 the vessel and the curve follows it; the touch-down and the cable on the seabed stay on the seabed. Nothing of this
-costs time while the animation plays: Build animation works out every frame once.
+costs time while the animation plays: Build & play works out every frame once.
 
 **Warnings** (in red, with the first frame it happens):
 - **"bends over the end of 'HORN' – more bottom tension or a longer chute"**: the curve is steeper than the horn's
@@ -1402,7 +1403,7 @@ end that lies on the seabed, with nothing paid out) or **At a payout mark** (its
 cable has been paid out). **Turned round** turns it end for end; **−** takes it off the cable again (its parts are
 where the CAD file has them). A model update keeps it.
 
-**Seeing it under water.** The sea's surface hides the cable. Under 5 Scene & Render > Surroundings tick
+**Seeing it under water.** The sea's surface hides the cable. Under 5 Scene & Render > Background & surroundings tick
 **Cut-away behind the stern**: a box of water behind the stern is taken away, placed by the cable (from the stern
 to past the touch-down) or by its size and place when **Place it by the cable** is off. Its walls show the water's
 colour, and **Water clarity** (2 to 40 m) sets how far you see into the water past them – the hull below the
@@ -1411,7 +1412,7 @@ waterline, the seabed further away, the cable beyond the box.
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 
 <a id="sea-ground"></a>
-**The ground in the cut-away.** The cut can go on into the ground. Under 5 Scene & Render > Surroundings, with the
+**The ground in the cut-away.** The cut can go on into the ground. Under 5 Scene & Render > Background & surroundings, with the
 cut-away ticked, **Show the ground in the cut-away** opens the seabed inside the box and shows a soil section there:
 layers from sand to clay, their edges a little wavy, down to 5 m under the lowest part of the machine. A pile, a
 J-tube or any other part that reaches below the seabed is then seen down to its end – the water level over the
@@ -1431,7 +1432,7 @@ every frame when you build the animation. Three things help with that.
 when they come back. Tick **Winch keeps it tight** under the cable's speed: the app sets the cable speed itself so
 the free length (from where the wire leaves its drum, or its start, to its end – or to where it arrives on the horn
 it hangs from into the sea) stays as in the CAD file. The panel says how much the winch has paid out now; the drum,
-the sheaves and the stripes turn and run with it. Build animation writes that payout for every frame. Do not move
+the sheaves and the stripes turn and run with it. Build & play writes that payout for every frame. Do not move
 that cable's speed with a step in 6 Animation as well: the app then leaves it to the step and says so.
 
 **The cable hangs on from the next sheave.** A cable into the sea hangs from the last contact it still bends
@@ -1444,7 +1445,7 @@ left, the horn stays left for the rest of the animation.
 the contact under "What it touches" (or use the small button on the start or end line) and press **Let go here**.
 From that frame on that contact or end no longer moves with its part: it stays where it was – for a cable into the
 sea it stays on the seabed and passes aft with it, while the quadrant is lifted away. The line says from which frame
-("It stays where it was from frame 231 on"); the button beside it, **Hold again**, takes it back. Build animation
+("It stays where it was from frame 231 on"); the button beside it, **Hold again**, takes it back. Build & play
 reads the place at that frame again, so a changed motion is taken along.
 
 **A chute or quadrant lying flat.** A quadrant tipped flat over the seabed holds the cable in its gutter: the cable
@@ -1454,7 +1455,7 @@ the cable lies on the seabed from there – it never kinks at the gutter or curl
 
 **Rollers and sheaves the cable has left stand still.** A roller or sheave that turns with the cable's speed turns
 only while the drawn cable touches it: one the cable has lifted off, runs past or no longer reaches stands still for
-those frames (Build animation keys it frame by frame; its coupling is put aside until **Clear keys**).
+those frames (Build & play keys it frame by frame; its coupling is put aside until **Clear keys**).
 
 Try it in the test tour ("A cable on a moving part"): a trolley carries a block with a sheave over the stern, the
 lift wire stays tight and the cable end is let go near the seabed.
@@ -1473,13 +1474,13 @@ A project saved with version 0.2.109 or older opens with **Settles in** at 0 for
 it set, so it stays where it was let go, as it did then; set it again to let the cable sink.
 
 When you change the vessel motion, the sea state, the bow, the vessel speed (Weather & time) or the water level after
-**Build animation**, the hoses and the cables into the sea are worked out again for the new motion by themselves, from
+**Build & play**, the hoses and the cables into the sea are worked out again for the new motion by themselves, from
 the animation's first frame as Build does – whatever frame is shown, the result is what a Build gives. Once the slider
 rests it starts; 4 Motion > Cables and paths and the status bar show how far it is (on the small demo about a minute).
 A camera step that rides on a part, flies a path or keeps a part in the middle is worked out again with them (the
 part moves with the new sea), also in a project without hoses or sea cables. You can change another setting while it
 runs: once it is done it runs again for the newest setting. **Cancel** (or Esc) stops it and takes the built animation off: press
-**Build animation** again. Swivel and Let go of a
+**Build & play** again. Swivel and Let go of a
 sheave stay through a model update, **From CAD cable** again and **Add contact**, and a renamed joint keeps its place in
 the cable's settings – also a drum's or carousel's joint, a layer follower's joint, a track's speed or wheel joint;
 a renamed cable keeps its drum or carousel.
@@ -1585,7 +1586,7 @@ A problem shows in red under the list, as "check" in the list line and in the pa
   carousel. Type a bigger **On it at start (m)**, or pay out less.
 - **"Overfills: … m more than it holds"**: hauling in winds more onto it than fits between the flanges or in the
   carousel.
-- **Build animation** says it too when the drum runs empty or overfills somewhere in the animation, or when a
+- **Build & play** says it too when the drum runs empty or overfills somewhere in the animation, or when a
   fleet angle is too big.
 
 **Good to know**
@@ -1738,7 +1739,7 @@ Good to know
   changed as usual.
 - After a change to the animation the cut is read again by itself (in the render queue too, before
   it renders). **Reset workpiece** starts again from the uncut block if something does not look right.
-- **More > Stop milling** removes the set-up: the block is whole again.
+- **More > Remove the milling set-up** removes the set-up: the block is whole again.
 - A model update (1 Import) keeps the set-up when the bit and the block are still in the model.
 - Straight moves are cheap; curved moves (arcs) cost more. Measured on the 2-core test machine with a
   200 × 200 mm block: about 4 ms per frame for a zig-zag pocket with a flat Ø10 bit, 11 ms with a
@@ -1903,7 +1904,7 @@ program says when air is on) and chips (above).
 3. **Air from**:
    - **Through the spindle**: the air comes out at the tool's tip, blows down along the tool and moves with
      it. Where it hits the floor of the cut it fans out and blows the chips away round the tool.
-   - **External nozzle**: click the nozzle part in the view and press **Use clicked part** (its tip is read
+   - **External nozzle**: click the nozzle part in the view and press **Use as nozzle** (its tip is read
      from its shape: the end nearest the workpiece), or press **Click point** and click the spot where the
      air comes out. It blows towards the middle of the workpiece; **Aim at the workpiece** aims it again,
      the arrows button turns it round, and the fold **Nozzle tip and aim** lets you drag the direction. The
@@ -1951,7 +1952,7 @@ set up (above) and a **Run G-code program** step; milling and chips are not need
      them round the spindle, for example so they do not hide the tool from the camera. After each tool change
      they bend again to the new tool's length. **Show hoses** off: only the liquid shows (when your model has
      its own hoses in about the same place).
-   - **Parts of the model**: click a nozzle part in the view and press **Use clicked part** (the coolant comes
+   - **Parts of the model**: click a nozzle part in the view and press **Use as nozzle** (the coolant comes
      out of its end nearest the tool), or press **Click point** and click the spot where it comes out. Add every
      nozzle this way. For the nozzle selected in the list, **Aim at the tool** aims it again, the arrows button
      turns it round, and the fold **Nozzle tip and aim** lets you drag the direction. A nozzle moves with the
@@ -2016,7 +2017,7 @@ never into the part. Good for a video of a part that has not been programmed in 
    changes nothing.
 5. The program is written next to your project (`<project> toolpath.ngc`) and added as a **Run G-code program**
    step to the animation shown in 6 Animation (a new animation "Toolpath" when there is none). It plays in 30 s
-   (**Fit into**; change it in the step). Press **Build animation**: spindle, tool change, coolant, chips and the
+   (**Fit into**; change it in the step). Press **Build & play**: spindle, tool change, coolant, chips and the
    drawn toolpath work as for any program.
 
 The settings
@@ -2231,7 +2232,7 @@ warning above the row – nothing is refused.
   ToolsUnited and Hoffmann models come – the end the tool reaches out to from there; for a holder alone, the
   nose side (the flange sits next to the gauge line); otherwise the end on the file's origin, else the narrower
   end. **Tip at the other end** turns it round.
-- **Use clicked part**: a part of your model (for example a tool standing in the carousel). At the tool change
+- **Use as this tool**: a part of your model (for example a tool standing in the carousel). At the tool change
   it disappears from there and shows in the spindle. Its sizes are read from the part too.
 - **×** goes back to the shape drawn from the sizes.
 
@@ -2275,7 +2276,7 @@ program's point counts as that point's height. **Head goes**:
 
 **Use the axes now** takes the position the axes are at: move them there first (a pose, or the joints' sliders).
 
-In the program step (6 Animation > **Run G-code program** > **Lines, tool changes, spindle, toolpath**):
+In the program step (6 Animation > **Run G-code program** > **Lines, tool changes, toolpath**):
 
 <img class="panel" src="img/panel_6_gcode_toolchange.png" alt="The Run G-code program step with the fold open: Pause at M6 1 s, Changed by Hand, Caption ticked, a note that the hand needs 2.8 s">
 
@@ -2366,7 +2367,7 @@ program.
    number of pockets and press **Fill the carousel**: they are put evenly round its axis (**Number the other way**
    for clockwise).
 3. Which tool stands where: the row's **Pocket** in Tools (fold **Shank, holder sizes, place**); 0 means the pocket
-   with its T number. A tool of your CAD model standing in the carousel (picked with **Use clicked part**) is found
+   with its T number. A tool of your CAD model standing in the carousel (picked with **Use as this tool**) is found
    in the pocket it stands in. Place **Bench**: the tool has no pocket and is put in by hand (with the pause and the
    hand, as on a manual machine).
 4. **Change station**: the pocket that is at the spindle when the carousel is as in the CAD model (usually 1).
@@ -2443,7 +2444,9 @@ of the tools' lengths after a change; for the old look – every tool's tip wher
 ## 5 Scene & Render – background, light, camera and image
 
 Everything around the model – light, background, floor, cameras – and the picture itself: its size,
-its quality, and the render. Also the one-click **turntable video**.
+its quality, and the render. Also the one-click **turntable video**. The panels follow the order the work
+goes: surroundings first (Weather & time, the vessel, props, a house), then camera and saved scenes, then the
+outputs. The brand kit, labels and watermark for videos are in 6 Animation.
 
 <a id="light-look"></a>
 ### Light look
@@ -2490,7 +2493,7 @@ machine's lowest point stands on the floor, deck or quay, centred; the machine i
 
 Their settings appear under the choice:
 
-- **Sea**: **Calm** (a gentle breeze, Beaufort 3), **Rough** (a strong breeze, Beaufort 6) or **From the wind**
+- **Sea** (a drop-down): **Calm** (a gentle breeze, Beaufort 3), **Rough** (a strong breeze, Beaufort 6) or **From the wind**
   (the wind of Weather & time, below: its strength and direction). The waves are many waves of different lengths
   and directions, as a real sea has them, so the sea never repeats – also seen from high above or towards the
   horizon. White caps form only where waves are steep, in patches that come and go and drift with the wind, about
@@ -2536,40 +2539,72 @@ Their settings appear under the choice:
 Render time, measured on a slow 2-core test machine without a graphics card: the 360° photo and
 the offshore surroundings take about as long as the studio; the halls 1.4 to 2.8 times as long.
 
-<a id="props"></a>
-### Props for scale
+<a id="weather"></a>
+### Weather & time
 
-<img class="panel" src="img/panel_5_props.png" alt="Props for scale">
+<img class="panel" src="img/panel_5_weather.png" alt="Weather & time">
 
-Things everyone knows the size of, made in detail so they hold up in a close shot: **Person**, **20 ft
-container** (ribbed walls, door bars), **Euro pallet** (two layers of taped boxes), **Safety barrier**, **IBC tank**
-(1,000 litres in its cage), **Gas bottle rack** (four bottles, shoulders coloured by gas) and **Tool trolley**. No
-brand names or logos anywhere.
+Sets the time of day and the weather for a picture or a video in one place: sunrise to night, clouds, haze and fog,
+rain, snow and wind. Tick **Weather & time**; unticked, everything looks exactly as without it (only the sea itself
+is new in 0.2.88). The panel's header shows the time and what falls ("13:00 rain"); the line under Time says the
+part of the day and the sun's height.
 
-1. Click one: it stands next to the machine on the floor and is selected.
-2. Move it with the arrows in the view (or press G); R turns it, X deletes it.
-3. **Show props** hides or shows them all (a saved scene remembers it); **Delete all** removes them.
+**Preset**: **Clear day**, **Grey North Sea** (overcast, Beaufort 6, drizzle, haze, the machine wet), **Storm**
+(a gale, heavy rain, low clouds, white water and spray, 2.5 km visibility), **Snow at the quay** (snow falling, a
+snow layer), **Night shift** (dark sky with stars and the moon, floodlights, a damp sheen). A preset sets all the
+controls; change any of them afterwards (the preset then shows **Own settings**).
 
-<img class="shot" src="img/props_lineup.jpg" alt="Every prop and three people">
+**Time**: the clock (sun time: 12:00 is when the sun stands highest – no time zone or summer time needed). It sets
+the sun's height and direction and the sky's colour: sunrise, day, golden hour, dusk, night. **North** turns the
+sun's path (and the wind) around the machine: 90 means north is behind the machine, so the noon sun comes from the
+front. Without a date the sun rises at 6:00 and sets at 18:00; open **Date and place** and tick **Real sun path** for
+the sun of one day (**Day of the year**: 172 = 21 June) at a **Latitude** (the southern North Sea about 54) – the
+line under it gives sunrise and sunset. The first time you tick Weather & time it starts from your project's own
+sky (Sun or Overcast, Sun height, Turn sun), so nothing jumps.
 
-**A person** is a figure in work clothes, safety shoes and (if you like) a helmet and gloves – a face without
-anybody's likeness. Click the person in the view and choose under **Selected person**:
+**Sky**: **Clouds** (0 a clear blue sky, 1 overcast: soft light, no sun), **Low clouds** (a dark, low deck), and
+**Visibility**: 40 km is clear air, 10 km haze, 2 km mist, below 1 km fog that hides the far sea and the quay.
 
-- **Pose**: Standing, Walking, Pointing, Hands on a panel, Kneeling, Operator at a machine. The feet stay on the
-  floor (kneeling: the knee), and the person keeps its place and turn.
-- **Height**: 1.65, 1.75 or 1.85 m (top of the head, without a helmet).
-- **Clothes**: Workshop (navy overalls), Offshore (orange coverall with reflective bands), Office / visitor (shirt,
-  trousers and a yellow high-visibility vest).
-- **Helmet**, **Gloves**, and **Look** (0–3: another skin tone and hair, so two people side by side differ).
+**Rain and snow**: **Rain** (0.1 drizzle … 1 a downpour) falls slanting with the wind and splashes on the deck, the
+quay and the sea; **Drop size** in mm. **Wet**: the machine and the deck look wet – darker and glossier, drops and
+run-off streaks on sloped faces, puddles on flat ones. It works without rain too (after the rain); rain makes things
+at least as wet as it is heavy. **Snow**: falling flakes that drift with the wind. **Snow layer**: snow on every face
+that looks up under the open sky; parts under a roof, a cover or a boom stay clear (best seen in Cycles).
 
-<img class="shot" src="img/props_people.jpg" alt="The people's poses and clothes">
+**Wind**: strength in **Beaufort** (the line above says what it is called and how many m/s), **From** (where it comes
+from) and **Measured**: **Compass** (0 = from the north, 90 = from the east) or **From the bow** of the vessel
+(0 = ahead, 90 = from starboard). Rain and snow slant
+and drift with it; **Spray** blows off the wave tops and flies up at the bow from Beaufort 6; **Flag** puts a flag on a
+pole at the stern (or the back of the machine) that flies in the wind. For the waves to follow the wind, pick
+**From the wind** as the Sea under Background & surroundings. **Vessel (kn)** (knots, Open sea and Vessel deck): a
+wake of foam behind the stern; leave it at 0 for a vessel laying cable or lying still. **Bow**: which way the bow
+points. It is the one direction everything uses: the wake trails behind the stern, the bow throws up the spray, the
+wind **From the bow** blows from it and the swell of Vessel motion comes in at the heading you picked against it.
+**From the hull** reads it from the waterline (the bow is the narrower end; a hull as wide at both ends, like the
+Vessel deck's, has its bow at -x); set **+x** or **-x** when your model says otherwise.
 
-<a id="props-detail"></a>
-**Detail** (fold): each prop has a detailed and a light version in one object. **Auto (by distance)** shows the
-light one for props further than **Light beyond** (30 m) from the camera, so a quay full of props stays quick, and
-the detailed one close up. **Always detailed** or **Always light** overrides it for every prop.
+**Night lights** (the fold): **Floodlights** on masts round the deck or the quay, set up for you: **Auto** (on from
+dusk to dawn), **On**, **Off**, and their **Strength**. The picture opens up at dusk and night the way a camera (or
+your eye) does, on top of your own Exposure.
 
-Projects made before version 0.2.124 get the new props by themselves when you open them: same names, same places.
+**Work lights** (the fold, also with Weather & time off): click a lamp part on the machine, then **Spot** or
+**Flood**: light shines from it and moves with it. Each work light has its colour, **Power** and **Beam**; × takes
+it away. Work lights stay through a model update.
+
+**Where it works:** on the **Open sea**, the **Vessel deck**, the **Quayside** and **Sky** everything works. With a
+**360° photo** the photo keeps its own sun and sky; rain, snow, wind and the wet look work. Indoors (halls,
+studios, a plain background) nothing falls and the sky is not seen: only work lights.
+
+**In a video:** add a **Weather & time** step in 6 Animation. It starts from the weather before it (the panel's, or
+the step before) and changes to the values in the step over its duration: **To** (a preset, or your own),
+**Time** (later than the start; an earlier time runs on through midnight), **Clouds**, **Low clouds**, **Visibility**,
+**Rain**, **Wet**, **Snow**, **Snow layer**, **Wind** and **Wind from**. The waves themselves keep the wind of the
+start; white caps, spray, rain and snow follow the wind of each moment. Saved scenes keep their weather; the render
+queue renders it, also for every paint scheme. An animation that starts from a saved scene (its start scene) gets
+that scene's weather back at **Build & play** – also "no weather" when the scene was saved before you set it.
+Build then says so ("The start scene … has no weather, so Build switched the weather off"): set the weather and save
+that scene again to keep it. Rain, snow, spray and the flag depend only on the frame, so a frame
+looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
 
 <a id="vessel-motion"></a>
 ### Vessel motion
@@ -2578,11 +2613,12 @@ Projects made before version 0.2.124 get the new props by themselves when you op
 
 The machine really works on a moving ship: the deck, the machine and the props heave (rise and fall), pitch (bow
 and stern up and down) and roll (side to side) gently with the sea, while the sea, the sky and the camera stay put –
-as a drone sees it. It works on the **Open sea** and the **Vessel deck** (for other surroundings the panel says so).
+as a drone sees it. It works on the **Open sea** and the **Vessel deck**. Without a sea the panel shows one
+line and the button **Use the Open sea**, which sets it up.
 
 1. Tick **Move with the sea**. Press Play (Space) on the time line to see it; a picture of one frame shows the
    vessel as it lies at that moment.
-2. **Sea**: **Calm** or **Rough** (the same setting as under Background & surroundings).
+2. **Sea** (a drop-down): **Calm** or **Rough** (the same setting as under Background & surroundings).
    - **Calm** (a working day of a cable-lay vessel): roll about ±1–1.5° once in 10–12 s, pitch ±0.3–0.6° in 6–8 s,
      heave ±0.2–0.4 m in 7–9 s, mixed so it never repeats.
    - **Rough** (near the working limit): about three times that, roll up to about ±4°.
@@ -2634,7 +2670,7 @@ about 6 ms per frame of playback on a 3,000-part machine.
 What the vessel does shows in the water: sailing ahead it leaves a white wake behind the stern and its waves fan out
 behind the bow, holding its place on its thrusters it throws white, boiling jets out beside the hull – and the
 propellers turn with it. It works on the **Open sea** and the **Vessel deck**, with **Foam** ticked (Background &
-surroundings).
+surroundings). Without a sea the panel shows one line and the button **Use the Open sea**.
 
 1. Open **Thrusters** and press **Find thrusters**: the app looks for joints whose names say propeller (screw,
    schroef, Schraube) and reads what kind each one is – an **Azimuth** (a propeller in a pod that steers round on
@@ -2671,75 +2707,43 @@ It plays with "Auto Run Python Scripts" off, in EEVEE and Cycles and in the rend
 in the water's surface (light and shading, no real height): from low over the water the bow wave looks flat. No bubbles
 under water yet.
 
-<a id="weather"></a>
-### Weather & time
+<a id="props"></a>
+### Props for scale
 
-<img class="panel" src="img/panel_5_weather.png" alt="Weather & time">
+<img class="panel" src="img/panel_5_props.png" alt="Props for scale">
 
-Sets the time of day and the weather for a picture or a video in one place: sunrise to night, clouds, haze and fog,
-rain, snow and wind. Tick **Weather & time**; unticked, everything looks exactly as without it (only the sea itself
-is new in 0.2.88). The panel's header shows the time and what falls ("13:00 rain"); the line under Time says the
-part of the day and the sun's height.
+Things everyone knows the size of, made in detail so they hold up in a close shot: **Person**, **20 ft
+container** (ribbed walls, door bars), **Euro pallet** (two layers of taped boxes), **Safety barrier**, **IBC tank**
+(1,000 litres in its cage), **Gas bottle rack** (four bottles, shoulders coloured by gas) and **Tool trolley**. No
+brand names or logos anywhere.
 
-**Preset**: **Clear day**, **Grey North Sea** (overcast, Beaufort 6, drizzle, haze, the machine wet), **Storm**
-(a gale, heavy rain, low clouds, white water and spray, 2.5 km visibility), **Snow at the quay** (snow falling, a
-snow layer), **Night shift** (dark sky with stars and the moon, floodlights, a damp sheen). A preset sets all the
-controls; change any of them afterwards (the preset then shows **Own settings**).
+1. Click one: it stands next to the machine on the floor and is selected.
+2. Move it with the arrows in the view (or press G); R turns it, X deletes it.
+3. **Show props** hides or shows them all (a saved scene remembers it); **Remove all** takes them out of the project.
 
-**Time**: the clock (sun time: 12:00 is when the sun stands highest – no time zone or summer time needed). It sets
-the sun's height and direction and the sky's colour: sunrise, day, golden hour, dusk, night. **North** turns the
-sun's path (and the wind) around the machine: 90 means north is behind the machine, so the noon sun comes from the
-front. Without a date the sun rises at 6:00 and sets at 18:00; open **Date and place** and tick **Real sun path** for
-the sun of one day (**Day of the year**: 172 = 21 June) at a **Latitude** (the southern North Sea about 54) – the
-line under it gives sunrise and sunset. The first time you tick Weather & time it starts from your project's own
-sky (Sun or Overcast, Sun height, Turn sun), so nothing jumps.
+<img class="shot" src="img/props_lineup.jpg" alt="Every prop and three people">
 
-**Sky**: **Clouds** (0 a clear blue sky, 1 overcast: soft light, no sun), **Low clouds** (a dark, low deck), and
-**Visibility**: 40 km is clear air, 10 km haze, 2 km mist, below 1 km fog that hides the far sea and the quay.
+**A person** is a figure in work clothes, safety shoes and (if you like) a helmet and gloves – a face without
+anybody's likeness. Click the person in the view and choose under **Selected person**:
 
-**Rain and snow**: **Rain** (0.1 drizzle … 1 a downpour) falls slanting with the wind and splashes on the deck, the
-quay and the sea; **Drop size** in mm. **Wet**: the machine and the deck look wet – darker and glossier, drops and
-run-off streaks on sloped faces, puddles on flat ones. It works without rain too (after the rain); rain makes things
-at least as wet as it is heavy. **Snow**: falling flakes that drift with the wind. **Snow layer**: snow on every face
-that looks up under the open sky; parts under a roof, a cover or a boom stay clear (best seen in Cycles).
+- **Pose**: Standing, Walking, Pointing, Hands on a panel, Kneeling, Operator at a machine. The feet stay on the
+  floor (kneeling: the knee), and the person keeps its place and turn.
+- **Height**: 1.65, 1.75 or 1.85 m (top of the head, without a helmet).
+- **Clothes**: Workshop (navy overalls), Offshore (orange coverall with reflective bands), Office / visitor (shirt,
+  trousers and a yellow high-visibility vest).
+- **Helmet**, **Gloves**, and **Look** (0–3: another skin tone and hair, so two people side by side differ).
 
-**Wind**: strength in **Beaufort** (the line above says what it is called and how many m/s), **From** (where it comes
-from) and **Measured**: **Compass** (0 = from the north, 90 = from the east) or **From the bow** of the vessel
-(0 = ahead, 90 = from starboard). Rain and snow slant
-and drift with it; **Spray** blows off the wave tops and flies up at the bow from Beaufort 6; **Flag** puts a flag on a
-pole at the stern (or the back of the machine) that flies in the wind. For the waves to follow the wind, pick
-**From the wind** as the Sea under Background & surroundings. **Vessel speed** (knots, Open sea and Vessel deck): a
-wake of foam behind the stern; leave it at 0 for a vessel laying cable or lying still. **Bow**: which way the bow
-points. It is the one direction everything uses: the wake trails behind the stern, the bow throws up the spray, the
-wind **From the bow** blows from it and the swell of Vessel motion comes in at the heading you picked against it.
-**From the hull** reads it from the waterline (the bow is the narrower end; a hull as wide at both ends, like the
-Vessel deck's, has its bow at -x); set **+x** or **-x** when your model says otherwise.
+<img class="shot" src="img/props_people.jpg" alt="The people's poses and clothes">
 
-**Night lights** (the fold): **Floodlights** on masts round the deck or the quay, set up for you: **Auto** (on from
-dusk to dawn), **On**, **Off**, and their **Strength**. The picture opens up at dusk and night the way a camera (or
-your eye) does, on top of your own Exposure.
+<a id="props-detail"></a>
+**Detail** (fold): each prop has a detailed and a light version in one object. **Auto (by distance)** shows the
+light one for props further than **Light beyond** (30 m) from the camera, so a quay full of props stays quick, and
+the detailed one close up. **Always detailed** or **Always light** overrides it for every prop.
 
-**Work lights** (the fold, also with Weather & time off): click a lamp part on the machine, then **Spot** or
-**Flood**: light shines from it and moves with it. Each work light has its colour, **Power** and **Beam**; × takes
-it away. Work lights stay through a model update.
-
-**Where it works:** on the **Open sea**, the **Vessel deck**, the **Quayside** and **Sky** everything works. With a
-**360° photo** the photo keeps its own sun and sky; rain, snow, wind and the wet look work. Indoors (halls,
-studios, a plain background) nothing falls and the sky is not seen: only work lights.
-
-**In a video:** add a **Weather & time** step in 6 Animation. It starts from the weather before it (the panel's, or
-the step before) and changes to the values in the step over its duration: **To** (a preset, or your own),
-**Time** (later than the start; an earlier time runs on through midnight), **Clouds**, **Low clouds**, **Visibility**,
-**Rain**, **Wet**, **Snow**, **Snow layer**, **Wind** and **Wind from**. The waves themselves keep the wind of the
-start; white caps, spray, rain and snow follow the wind of each moment. Saved scenes keep their weather; the render
-queue renders it, also for every paint scheme. An animation that starts from a saved scene (its start scene) gets
-that scene's weather back at **Build animation** – also "no weather" when the scene was saved before you set it.
-Build then says so ("The start scene … has no weather, so Build switched the weather off"): set the weather and save
-that scene again to keep it. Rain, snow, spray and the flag depend only on the frame, so a frame
-looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
+Projects made before version 0.2.124 get the new props by themselves when you open them: same names, same places.
 
 <a id="house"></a>
-### Houses from House Planner
+### House from House Planner
 
 <img class="panel" src="img/panel_5_house.png" alt="House from House Planner">
 
@@ -2769,7 +2773,7 @@ folder): two storeys, a stair, a window, a table under a ceiling lamp, a terrace
    It bakes every moment, the storeys House Planner wants to see from above with the floors above them left out, a
    snow layer on the roof and the plot for each snowy season, and renders the photos and turntable videos in the
    list.
-7. When it is done, the panel shows how long it took and how big the file is. **Show in Explorer** shows
+7. When it is done, the panel shows how long it took and how big the file is. **Show in folder** shows
    `<house>.hpbake` next to your project: open it in House Planner (**Import bake**). Notes from the bake (a
    surface that could not be baked, for example) are listed under it; House Planner shows them too.
 
@@ -2816,6 +2820,51 @@ For the active camera:
   should be sharp (for example the gripper). A small ball marks it in the view; in pictures it moves
   with its part when joints move (a video keeps the sharp distance its start camera has). × makes the
   middle sharp again. The face under the mouse lights up while you choose.
+
+<a id="saved-scenes"></a>
+### Saved scenes
+
+<img class="panel" src="img/panel_5_shots.png" alt="Saved scenes">
+
+A **saved scene** keeps a whole set-up under one name: colours (paint scheme), pose, visibility,
+camera, background and image size.
+
+1. Set everything up the way it should look.
+2. Click **+**. In the small window, type a name, and choose for colours, pose and visibility: **As it
+   is now** (stored with the scene), **Leave as it is** (switching to the scene does not change it)
+   or one of your saved schemes, poses or sets.
+3. **Use** switches to the scene; ↻ overwrites it with what you see now.
+4. **Queue this** or **Queue all** put the scene(s) in 7 Render queue: a set of pictures overnight.
+
+<a id="start-scene"></a>
+**An animation's start scene** (6 Animation > Starts from) is put back at every **Build & play**: also its sea
+state, water level and Weather & time (vessel speed included). When you change one of these after saving that scene,
+the panel where you set it shows "Build puts back the start scene '…': Sea Rough → Calm" with the button **Save into
+start scene**: click it to keep your value. Without it, Build puts the scene's value back and names it in its
+warnings ("Build put back from the start scene 'Overview': Vessel speed 6 kn → 3 kn").
+
+<a id="image-size"></a>
+### Image size & render
+
+<img class="panel" src="img/panel_5_output.png" alt="Image size & render">
+
+1. **Format**: for screens (Presentation 16:9, Widescreen 21:9, Classic 4:3, Photo 3:2, Website square
+   1:1, Social story 9:16, Web banner 3:1), for print (Brochure A4, Flyer A5, Poster A3 and A2, US
+   Letter) or **Custom size**.
+2. **Size** for screen formats; **Resolution** (150 or 300 dpi) and **Bleed** for print; and
+   **Orientation**. The line under it shows the size in pixels.
+3. **Quality**: **Draft** (quick check, half size), **Preview**, **Final** (clean) or **Best** (very
+   clean, slow).
+4. **Live preview** shows real materials and light in the view; click again to switch it off. Use it
+   to judge light and colours before you render.
+5. **Render image**. A render window shows the picture building up; it is saved by itself. **Open**
+   and **Show in folder** appear under the button.
+
+**Files & graphics card** (the fold): **File** PNG (sharp; transparency possible) or JPEG (small
+files); **Folder** (empty: "Renders" next to the saved project, or Pictures\Fresing Render while the
+project is not saved yet); **Graphics card** (on: render on the graphics card; off: on the processor);
+**Show in folder**. A file is named after the project, the camera and the size, for example
+`crane_Low_hero_1920x1080.png`; an earlier render is never overwritten (a number is added).
 
 <a id="turntable"></a>
 ### Turntable video
@@ -2872,7 +2921,7 @@ the machine himself, or for your website.
    the app), and the moving cables store how much they moved from one moment to the next. Smaller models are not packed:
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
    Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
-5. **Include animation** (only after Build animation in 6 Animation): the parts move as in the animation and the
+5. **Include animation** (only after Build & play in 6 Animation): the parts move as in the animation and the
    page plays it in a loop. Tools a tool change carries (spindle, changer arm, pots) and parts a Show/Hide step brings
    in or takes out come and go as in the animation. Cables, wire ropes, hoses, the rope on drums and carousels, track
    links and drag-chain links move as in the app ([below](#web3d-moving)). It makes the export slower.
@@ -3085,7 +3134,7 @@ report.
 <a id="web3d-under"></a>
 #### Under the sea on the page
 
-On the **Open sea** the page also shows what lies under the water, as the app does (5 Scene & Render > Surroundings):
+On the **Open sea** the page also shows what lies under the water, as the app does (5 Scene & Render > Background & surroundings):
 
 - **The seabed** at the project's **Water depth**, with the app's sand, its patches and its ripples. With a cable into
   the sea the seabed drifts aft under the vessel while the cable pays out, as in the app.
@@ -3144,129 +3193,8 @@ weather. Other 3D programs that open the `.glb` show the
 soft light as shadowing in corners (glTF's occlusion map) on the larger parts; small parts with many copies carry
 their light per corner point, which only the page reads.
 
-The bake runs with Cycles on your graphics card when the app renders with one (5 Scene & Render > Render settings),
+The bake runs with Cycles on your graphics card when the app renders with one (5 Scene & Render > Image size & render),
 otherwise on the processor; **Cancel** stops it between two pieces of the bake. The project is never changed.
-
-<a id="brand-kit"></a>
-### Brand kit & logo
-
-<img class="panel" src="img/panel_5_brand.png" alt="Brand kit &amp; logo">
-
-A brand kit is a company's look for its videos and pictures: the logo, two colours, a font and a contact
-line. You work for your own company and for others, so there is one kit per company; every project uses
-one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
-shared library it is in your Documents folder, under Fresing Render).
-
-The kit **Fresing** comes with the app (Fresing's logo and colours). It is always in the list of kits and cannot
-be changed or deleted: load it, give it another name and **Save kit** to make a copy of your own.
-
-1. Type a name in **Kit** (the company).
-2. **Logo**: pick the logo picture. It must be a **PNG or JPG** (a PNG with a see-through background looks
-   best). A logo in another format, such as SVG, cannot be used: export it as PNG first.
-3. **Card colour** is the background of the title and end card, **Text colour** the colour of the words on
-   them. **Font** is optional (a .ttf or .otf file); empty uses the app's own font. **Contact** is the line
-   under the logo on the end card, for example the website and e-mail address.
-4. **Save kit** puts it in the library. The arrow next to **Kit** lists the saved kits: pick one to fill in
-   everything at once. This project keeps its own copy, so it still opens the same on a PC without the
-   library. **Delete** removes the saved kit from the library only.
-
-**Logo on images** puts the logo in a corner of every still image you render (**Corner**, **Size**).
-
-<a id="watermark"></a>
-### Watermark
-
-<img class="panel" src="img/panel_5_watermark.png" alt="Watermark">
-
-Words or a logo across the picture, for a draft you send before the final render.
-
-1. **Watermark**: the words **DRAFT**, **CONFIDENTIAL** or **Own text**, or a logo: **Fresing logo** or
-   **Brand kit logo** (the logo of the kit above). **Size** is how tall the letters are (for a logo: how big it
-   is), **See-through** how strong it is (1 = solid).
-   A logo has two more choices. **Place**: **Centre** (one logo in the middle), **Tiled** (a pattern of logos
-   across the whole picture, turned like the words) or a small one in a **corner**. **Logo colour**: **Colour**
-   (as it is), **White** (for dark pictures) or **Dark** (for light pictures).
-2. Switch **Watermark on the next renders** on. Every image or video you render, or add to 7 Render queue,
-   while it is on gets the watermark; the job remembers it (its name says "with watermark").
-3. Switch it off again, add the same render to the queue once more, and the final comes out clean. The
-   project does not change.
-
-It works for stills and for MP4 videos (not for PNG frames).
-
-<a id="labels"></a>
-### Labels
-
-A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
-25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
-
-<img class="panel" src="img/panel_5_labels.png" alt="Labels fold: two labels, the second one picked">
-
-1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.
-   The face under the mouse lights up with the part's name before you click.)
-2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.
-3. The box goes beside the machine by itself, near its spot, never on top of another label. You do not
-   place it.
-4. The spot belongs to the part you clicked: when that part moves in an animation, the line follows it in
-   every frame. When the part is hidden (a **Hide** step, or its subassembly is hidden), its label is hidden too.
-5. **Only during**: pick an animation step and the label shows only while that step happens, fading in
-   and out. Empty: all the time. In stills every label that is on shows.
-6. **Move the point** clicks a new spot; **Select part** shows which part the label points at.
-   **Text size** makes all words bigger or smaller; **Draw labels in renders** switches them all off.
-
-Labels do not look behind parts: a spot that is hidden behind another part still gets its line.
-
-**Several lines and live numbers.** Type **\n** in **Words** where a new line should start: the box grows with the
-lines, which are lined up on the left ("Lay data\nTop tension …"). A label on a **cable that hangs into the sea**
-(4 Motion > Cables and paths > Into the sea) can show that cable's numbers, worked out again for every frame of a
-video: type **{top}** (top tension, kN), **{bottom}** (tension at the seabed, kN), **{layback}** (m), **{angle}** (how
-steeply it leaves the horn, degrees), **{depth}** (water depth, m), **{speed}** (how fast its speed joint pays it out,
-m/min), **{laid}** (m on the seabed) or **{hanging}** (m in the water). For example
-`Top tension {top} kN\nLayback {layback} m` shows "Top tension 18.9 kN" and "Layback 32.0 m". On any other part
-these words stay as typed; a number the cable does not have yet shows "–".
-
-<a id="image-size"></a>
-### Image size & render
-
-<img class="panel" src="img/panel_5_output.png" alt="Image size & render">
-
-1. **Format**: for screens (Presentation 16:9, Widescreen 21:9, Classic 4:3, Photo 3:2, Website square
-   1:1, Social story 9:16, Web banner 3:1), for print (Brochure A4, Flyer A5, Poster A3 and A2, US
-   Letter) or **Custom size**.
-2. **Size** for screen formats; **Resolution** (150 or 300 dpi) and **Bleed** for print; and
-   **Orientation**. The line under it shows the size in pixels.
-3. **Quality**: **Draft** (quick check, half size), **Preview**, **Final** (clean) or **Best** (very
-   clean, slow).
-4. **Live preview** shows real materials and light in the view; click again to switch it off. Use it
-   to judge light and colours before you render.
-5. **Render image**. A render window shows the picture building up; it is saved by itself. **Open**
-   and **Show in folder** appear under the button.
-
-**Files & graphics card** (the fold): **File** PNG (sharp; transparency possible) or JPEG (small
-files); **Folder** (empty: "Renders" next to the saved project, or Pictures\Fresing Render while the
-project is not saved yet); **Graphics card** (on: render on the graphics card; off: on the processor);
-**Open render folder**. A file is named after the project, the camera and the size, for example
-`crane_Low_hero_1920x1080.png`; an earlier render is never overwritten (a number is added).
-
-<a id="saved-scenes"></a>
-### Saved scenes
-
-<img class="panel" src="img/panel_5_shots.png" alt="Saved scenes">
-
-A **saved scene** keeps a whole set-up under one name: colours (paint scheme), pose, visibility,
-camera, background and image size.
-
-1. Set everything up the way it should look.
-2. Click **+**. In the small window, type a name, and choose for colours, pose and visibility: **As it
-   is now** (stored with the scene), **Leave as it is** (switching to the scene does not change it)
-   or one of your saved schemes, poses or sets.
-3. **Use** switches to the scene; ↻ overwrites it with what you see now.
-4. **Queue this** or **Queue all** put the scene(s) in 7 Render queue: a set of pictures overnight.
-
-<a id="start-scene"></a>
-**An animation's start scene** (6 Animation > Starts from) is put back at every **Build animation**: also its sea
-state, water level and Weather & time (vessel speed included). When you change one of these after saving that scene,
-the panel where you set it shows "Build puts back the start scene '…': Sea Rough → Calm" with the button **Save into
-start scene**: click it to keep your value. Without it, Build puts the scene's value back and names it in its
-warnings ("Build put back from the start scene 'Overview': Vessel speed 6 kn → 3 kn").
 
 <a id="animation"></a>
 ## 6 Animation – make a video
@@ -3326,7 +3254,7 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
 <a id="run-gcode"></a>
 **Run a CNC program**
 
-<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: 21 lines, 15 moves, 21.1 s on the machine (20.8 s without acceleration), one tool change">
+<img class="panel" src="img/panel_6_gcode.png" alt="A Run G-code program step: the program file, its lines, moves and time on the machine, the fit into a video, air blast, the fold Lines, tool changes, toolpath">
 
 <img class="panel" src="img/panel_6_gcode_air.png" alt="A Run G-code program step with Blow the part clean at the end ticked">
 
@@ -3346,7 +3274,7 @@ An animation is a list of **steps** on a timeline. Steps that overlap in time pl
    **Show toolpath** the path is drawn on the block: cutting moves orange, turning green once cut, rapids
    dashed blue (**Toolpath in renders** shows it in pictures and videos as well).
 
-The fold **Lines, tool changes, spindle, toolpath** holds:
+The fold **Lines, tool changes, toolpath** holds:
 
 - **From line** / **To line**: play only part of the program; the machine starts where the program would
   be at that line.
@@ -3405,7 +3333,7 @@ Add a **Camera** step and pick one of the three buttons on its second row:
   still turns with the part seen from above. **Look**: **With the part** keeps its view on the part; **At a part**
   turns it so another part stays in the middle of the picture.
 - **Fly a path**: the camera flies along a smooth curve through points, at an even speed.
-  **Make path from saved cameras** puts a point at every saved camera (5 Scene & Render > Cameras), in the order
+  **Make path from saved cameras** puts a point at every saved camera (5 Scene & Render > Camera), in the order
   of that list. Or fly the view to a spot and click **Add this view**, then the next spot, and so on (the minus
   removes the last point, the bin all of them). The path shows as a thin line in the view – never in pictures or
   videos. **From where it is** (on) starts the path where the camera is, so it never jumps. **Look**:
@@ -3521,69 +3449,6 @@ the other steps).
 The step only writes keys on the joints, as a Move joint step does: it works with scripts switched off and in the
 render queue.
 
-<a id="trails"></a>
-**Trail lines: the path of a point**
-
-<img class="panel" src="img/panel_6_trails.png" alt="6 Animation > Trail lines with a line on the trolley">
-
-A line that draws where a point of the machine goes: the hook of a crane, the tip of a tool, a carriage.
-
-1. Select the part, open 6 Animation > **Trail lines** and click **+**. A milling bit or CNC tool draws from its
-   tip; other parts from their origin.
-2. **Point**: **Part's origin**, **Tool tip**, or **Clicked point** (then **Click the point…** and click the
-   spot on the part, e.g. the hook's eye; the face lights up first).
-3. **Animation**: the animation that draws it (empty: every animation). **Colour** and **Thickness**.
-4. **Draw as it goes**: the line grows behind the point as the video plays; off, the whole path shows from the
-   first frame. **In pictures and videos**: off, the line shows only in the view.
-5. **Build & play** draws the line (it is read again at every Build). A project can have several lines.
-
-The line glows in its colour without lighting the scene, so it costs almost no render time.
-
-<a id="finishing"></a>
-**Finishing: ready to post or send**
-
-<img class="panel" src="img/panel_6_finishing.png" alt="Finishing">
-
-The **Finishing** fold at the end of this panel turns the MP4 into a video you can post or send as it is.
-The look comes from the brand kit (5 Scene & Render > **Brand kit & logo**). It applies to MP4 videos, not
-to PNG frames.
-
-- **Shape** and **Framing**: for **1:1** and **9:16** videos, **Extend** keeps everything you see from side
-  to side in the 16:9 picture and shows more above and below; **Crop** keeps what you see from top to
-  bottom and cuts the sides. The cameras are not changed: only the copy that is rendered.
-- **Logo**: a corner (top left, top right, bottom left, bottom right) and a **Logo size**, over the whole
-  animation.
-- **Title card**: a card with a **Title** and **Subtitle** in the kit's colours in front of the video;
-  **Seconds** says how long it stays.
-- **End card**: a card with the logo and the contact line at the end; **Seconds** says how long.
-- **Captions from the step labels**: the **Label** of each step is shown at the bottom while that step
-  happens, with a short fade. Only steps that have a label typed in get a caption; a caption stays
-  at least a second and a half, and never runs into the next one.
-
-The last line shows how long the finished video is: the cards come on top of the animation's own
-length.
-
-<a id="pictures-music"></a>
-**Pictures and music**
-
-<img class="panel" src="img/panel_6_cards.png" alt="Pictures fold: one picture in the bottom left corner with a caption"> <img class="panel" src="img/panel_6_music.png" alt="Music fold: sound file, start, volume, fades">
-
-The **Pictures** fold shows a photo or a diagram for a few seconds over the video; the **Music** fold puts
-a music file under it. Both only go into MP4 videos.
-
-- **Add a picture**, pick the file (PNG, JPG, TIF, BMP or WebP). **Starts at** is counted from the start of
-  the animation (a title card is put in front of that), **Seconds** says how long it stays, with a short
-  fade in and out. **Shown**: **Full screen** (the picture fills the video, in the card colour) or **In a
-  corner** (a small picture; the animation goes on). **Caption** is an optional line of text.
-- To show a picture *between* two steps, leave a gap between them (start the second step a few seconds
-  later) and start the picture at the end of the first one, full screen.
-- **Music under the video**: pick a **Sound file** (WAV, MP3, OGG, FLAC or M4A). **Starts at** is where
-  in the video it begins, **Volume** how loud, **Fade in** / **Fade out** how long it takes to come up and
-  to go away. It is cut at the end of the video; a file shorter than the video just ends early.
-
-Use music you have the rights to: the app does not check. The video gets a normal sound track (AAC), so it
-plays everywhere.
-
 <a id="people"></a>
 **People: walk, carry and meet**
 
@@ -3630,9 +3495,10 @@ detail switch of props for scale (light far from the camera).
 A part that drives through another one ruins a video, and can hide a real design fault. The **Clash check**
 fold goes through the built animation and lists every two parts that run into each other.
 
-1. **Build & play** the animation first.
+1. **Build & play** the animation first. Until then the panel shows one line and a **Build & play**
+   button; **Check for clashes** appears after the Build.
 2. **Check for clashes**. It shows how far it is; **Cancel** (or <kbd>Esc</kbd>) stops it. The panel's header
-   then says **3 clashes**, **No clashes**, or **Not checked since the last Build**.
+   then says **3 clashes**, **no clashes**, or **not checked** (the animation was built again since).
 3. The list: the two parts (their names as in the tree), the frames from–to, and how deep they go into each
    other at the worst moment, deepest first. A marker on the time line shows where each clash starts.
 4. **Click a row**: the time line goes to the moment they are deepest in each other, both parts are selected,
@@ -3701,6 +3567,145 @@ Expected on a PC with a fast processor: about half as long (not measured yet).
    how long the whole video will take. The test frame is kept, so you can check the look.
 4. **Render animation** puts the video in 7 Render queue and starts the queue.
 
+<a id="trails"></a>
+**Trail lines: the path of a point**
+
+<img class="panel" src="img/panel_6_trails.png" alt="6 Animation > Trail lines with a line on the trolley">
+
+A line that draws where a point of the machine goes: the hook of a crane, the tip of a tool, a carriage.
+
+1. Select the part, open 6 Animation > **Trail lines** and click **+**. A milling bit or CNC tool draws from its
+   tip; other parts from their origin.
+2. **Point**: **Part's origin**, **Tool tip**, or **Clicked point** (then **Click the point…** and click the
+   spot on the part, e.g. the hook's eye; the face lights up first).
+3. **Animation**: the animation that draws it (empty: every animation). **Colour** and **Thickness**.
+4. **Draw as it goes**: the line grows behind the point as the video plays; off, the whole path shows from the
+   first frame. **In pictures and videos**: off, the line shows only in the view.
+5. **Build & play** draws the line (it is read again at every Build). A project can have several lines.
+
+The line glows in its colour without lighting the scene, so it costs almost no render time.
+
+<a id="finishing"></a>
+**Finishing: ready to post or send**
+
+<img class="panel" src="img/panel_6_finishing.png" alt="Finishing">
+
+The **Finishing** fold at the end of this panel turns the MP4 into a video you can post or send as it is.
+The look comes from the brand kit (6 Animation > **Brand kit & logo**). It applies to MP4 videos, not
+to PNG frames.
+
+- **Shape** and **Framing**: for **1:1** and **9:16** videos, **Extend** keeps everything you see from side
+  to side in the 16:9 picture and shows more above and below; **Crop** keeps what you see from top to
+  bottom and cuts the sides. The cameras are not changed: only the copy that is rendered.
+- **Logo**: a corner (top left, top right, bottom left, bottom right) and a **Logo size**, over the whole
+  animation.
+- **Title card**: a card with a **Title** and **Subtitle** in the kit's colours in front of the video;
+  **Seconds** says how long it stays.
+- **End card**: a card with the logo and the contact line at the end; **Seconds** says how long.
+- **Captions from the step labels**: the **Label** of each step is shown at the bottom while that step
+  happens, with a short fade. Only steps that have a label typed in get a caption; a caption stays
+  at least a second and a half, and never runs into the next one.
+
+The last line shows how long the finished video is: the cards come on top of the animation's own
+length.
+
+<a id="pictures-music"></a>
+**Pictures and music**
+
+<img class="panel" src="img/panel_6_cards.png" alt="Pictures fold: one picture in the bottom left corner with a caption"> <img class="panel" src="img/panel_6_music.png" alt="Music fold: sound file, start, volume, fades">
+
+The **Pictures** fold shows a photo or a diagram for a few seconds over the video; the **Music** fold puts
+a music file under it. Both only go into MP4 videos.
+
+- **Add a picture**, pick the file (PNG, JPG, TIF, BMP or WebP). **Starts at** is counted from the start of
+  the animation (a title card is put in front of that), **Seconds** says how long it stays, with a short
+  fade in and out. **Shown**: **Full screen** (the picture fills the video, in the card colour) or **In a
+  corner** (a small picture; the animation goes on). **Caption** is an optional line of text.
+- To show a picture *between* two steps, leave a gap between them (start the second step a few seconds
+  later) and start the picture at the end of the first one, full screen.
+- **Music under the video**: pick a **Sound file** (WAV, MP3, OGG, FLAC or M4A). **Starts at** is where
+  in the video it begins, **Volume** how loud, **Fade in** / **Fade out** how long it takes to come up and
+  to go away. It is cut at the end of the video; a file shorter than the video just ends early.
+
+Use music you have the rights to: the app does not check. The video gets a normal sound track (AAC), so it
+plays everywhere.
+
+<a id="brand-kit"></a>
+### Brand kit & logo
+
+<img class="panel" src="img/panel_6_brand.png" alt="Brand kit &amp; logo">
+
+A brand kit is a company's look for its videos and pictures: the logo, two colours, a font and a contact
+line. You work for your own company and for others, so there is one kit per company; every project uses
+one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
+shared library it is in your Documents folder, under Fresing Render).
+
+The kit **Fresing** comes with the app (Fresing's logo and colours). It is always in the list of kits and cannot
+be changed or deleted: load it, give it another name and **Save kit** to make a copy of your own.
+
+1. Type a name in **Kit** (the company).
+2. **Logo**: pick the logo picture. It must be a **PNG or JPG** (a PNG with a see-through background looks
+   best). A logo in another format, such as SVG, cannot be used: export it as PNG first.
+3. **Card colour** is the background of the title and end card, **Text colour** the colour of the words on
+   them. **Font** is optional (a .ttf or .otf file); empty uses the app's own font. **Contact** is the line
+   under the logo on the end card, for example the website and e-mail address.
+4. **Save kit** puts it in the library. The arrow next to **Kit** lists the saved kits: pick one to fill in
+   everything at once. This project keeps its own copy, so it still opens the same on a PC without the
+   library. **Delete** removes the saved kit from the library only.
+
+**Logo on images** puts the logo in a corner of every still image you render (**Corner**, **Size**).
+
+<a id="labels"></a>
+### Labels
+
+A label is a few words in a box with a thin line to a spot on a part: "Gripper", "Cylinder Ø63", "Max.
+25 t". It shows in stills and in MP4 videos, in the brand kit's colours and font.
+
+<img class="panel" src="img/panel_6_labels.png" alt="Labels fold: two labels, the second one picked">
+
+1. Press **Add a label**, then click the spot on the machine that the label should point at. (Esc cancels.
+   The face under the mouse lights up with the part's name before you click.)
+2. Type the words in **Words**. The label is in the list; the tick in front of it switches it on or off.
+3. The box goes beside the machine by itself, near its spot, never on top of another label. You do not
+   place it.
+4. The spot belongs to the part you clicked: when that part moves in an animation, the line follows it in
+   every frame. When the part is hidden (a **Hide** step, or its subassembly is hidden), its label is hidden too.
+5. **Only during**: pick an animation step and the label shows only while that step happens, fading in
+   and out. Empty: all the time. In stills every label that is on shows.
+6. **Move the point** clicks a new spot; **Select part** shows which part the label points at.
+   **Text size** makes all words bigger or smaller; **Draw labels in renders** switches them all off.
+
+Labels do not look behind parts: a spot that is hidden behind another part still gets its line.
+
+**Several lines and live numbers.** Type **\n** in **Words** where a new line should start: the box grows with the
+lines, which are lined up on the left ("Lay data\nTop tension …"). A label on a **cable that hangs into the sea**
+(4 Motion > Cables and paths > Into the sea) can show that cable's numbers, worked out again for every frame of a
+video: type **{top}** (top tension, kN), **{bottom}** (tension at the seabed, kN), **{layback}** (m), **{angle}** (how
+steeply it leaves the horn, degrees), **{depth}** (water depth, m), **{speed}** (how fast its speed joint pays it out,
+m/min), **{laid}** (m on the seabed) or **{hanging}** (m in the water). For example
+`Top tension {top} kN\nLayback {layback} m` shows "Top tension 18.9 kN" and "Layback 32.0 m". On any other part
+these words stay as typed; a number the cable does not have yet shows "–".
+
+<a id="watermark"></a>
+### Watermark
+
+<img class="panel" src="img/panel_6_watermark.png" alt="Watermark">
+
+Words or a logo across the picture, for a draft you send before the final render.
+
+1. **Watermark**: the words **DRAFT**, **CONFIDENTIAL** or **Own text**, or a logo: **Fresing logo** or
+   **Brand kit logo** (the logo of the kit above). **Size** is how tall the letters are (for a logo: how big it
+   is), **See-through** how strong it is (1 = solid).
+   A logo has two more choices. **Place**: **Centre** (one logo in the middle), **Tiled** (a pattern of logos
+   across the whole picture, turned like the words) or a small one in a **corner**. **Logo colour**: **Colour**
+   (as it is), **White** (for dark pictures) or **Dark** (for light pictures).
+2. Switch **Watermark on the next renders** on. Every image or video you render, or add to 7 Render queue,
+   while it is on gets the watermark; the job remembers it (its name says "with watermark").
+3. Switch it off again, add the same render to the queue once more, and the final comes out clean. The
+   project does not change.
+
+It works for stills and for MP4 videos (not for PNG frames).
+
 <a id="product-video"></a>
 ### Make a product video
 
@@ -3710,11 +3715,11 @@ One button makes a first complete film from what your project already has. Open 
 6 Animation, set the options and press the blue button.
 
 - **Length**: about 30, 60 or 90 seconds, title and end card included. The steps share the time.
-- **Take apart**: the biggest subassembly (at least 5 parts, not the whole model), the one selected in 2 Structure, or none.
+- **Take apart**: **Biggest (automatic)** takes the biggest subassembly (at least 5 parts, not the whole model); or the one selected in 2 Structure; or none.
 - **Motions to show**: how many joints (longest travel first; each goes to its far limit and back, with the camera
   watching the moving part) and then saved poses, followed by a **Back to CAD** step that brings the machine home
   before the take-apart. 0 shows none.
-- **Title card**, **End card** and **Captions** use the brand kit (5 Scene & Render). **Title** empty: the project's name.
+- **Title card**, **End card** and **Captions** use the brand kit (6 Animation > Brand kit & logo). **Title** empty: the project's name.
 
 The video is a new animation called **Product video**: a turn round the machine, the motions, the subassembly taken
 apart and put together again (an Assembly sequence) and two close-ups. The close-ups come from your first two saved
@@ -3809,7 +3814,8 @@ shows what this version can do.
    you have marked.
 2. Click a stop. Under the list you see what you should see and where the function is in the side panel.
 3. Click **Go**. The app opens the stop's project if needed, sets up its saved scene, builds and plays its
-   animation, selects the part and looks through the camera.
+   animation, selects the part and looks through the camera. It also opens the side-panel section that holds
+   the function, so you see its settings straight away.
 4. Look. Then click **OK** or **Problem** (click again to take the mark off). With a problem, click
    **Note…** and write in a few words what you saw.
 5. **Next** goes to the next stop.
@@ -3948,7 +3954,7 @@ queue.
 
 The labels of the X-ray step and the Lay data box also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
-renders** under 5 Scene & Render > Labels, and tick it again before you render the video.
+renders** under 6 Animation > Labels, and tick it again before you render the video.
 
 <a id="lifting-equipment"></a>
 ## Own lifting equipment (file format)
