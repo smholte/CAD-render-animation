@@ -531,16 +531,17 @@ def test_new_cut_faces_a_camera_made_just_before(scene):
     assert (d - Vector((1, 0, 0))).length < 1e-6                              # the +X half (towards it) goes
 
 
-def test_visible_texts_say_slice_not_cutaway():
+def test_visible_texts_say_slice_not_cutaway(scene):
     """Task 0220: the panel, its operators' labels and tooltips and the properties' texts say Slice (ids keep the old
     word: ``fresing.cut_*``, ``FRESING_PT_cutaway``, ``looks.cutaway``)."""
     texts = [bpy.types.FRESING_PT_cutaway.bl_label]
     for n in ("cut_add", "cut_remove", "cut_target_add", "cut_target_remove", "cut_select_handle", "cut_replace"):
         rna = getattr(bpy.ops.fresing, n).get_rna_type()
         texts += [rna.name, rna.description]
-    for cls in (bpy.types.FRCut, bpy.types.FRCutTarget):
+    from fresing_render.blender import props
+    for cls in (props.FRCut, props.FRCutTarget):
         texts += [p.name + " " + p.description for p in cls.bl_rna.properties]
-    texts.append(bpy.types.FRSceneSettings.bl_rna.properties["cut_new_shape"].description)
+    texts.append(props.FRSceneSettings.bl_rna.properties["cut_new_shape"].description)
     assert bpy.types.FRESING_PT_cutaway.bl_label == "Slice"
     assert bpy.ops.fresing.cut_add.get_rna_type().name == "Add slice"
     assert not [t for t in texts if "cutaway" in t.lower() or "cut-away" in t.lower()]
