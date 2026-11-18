@@ -184,6 +184,9 @@ def visible(name: str, context) -> bool:
     """Tab, parents and workspace: does this panel show now?"""
     if _ONLY and name not in _ONLY:
         return False
+    win = getattr(context, "window", None)
+    if win is not None and win.screen.get("fr_setup"):      # the Set-up window shows its own tab only
+        return False
     sec = section_of(name)
     if sec:
         t = tab_section()
@@ -383,6 +386,32 @@ class FRESING_OT_panel_toggle(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_panel_tab(bpy.types.Operator):
+    """Shows one section of the side panel at a time, opened – or all seven again"""
+
+    bl_idname = "fresing.panel_tab"
+    bl_label = "Section"
+    bl_options = {"INTERNAL"}
+
+    tab: StringProperty(default="ALL", options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        t = properties.tab
+        if t.isdigit() and 1 <= int(t) <= len(SECTIONS):
+            title = list(places.SECTIONS.values())[int(t) - 1]
+            return (f"Shows only {title}, opened: the other sections are out of the way until you click All "
+                    "again")
+        if t == "ALL":
+            return "Shows every section again, each folded or open as you left it"
+        return "Shows only this section of the side panel, opened: the others are out of the way until you click All"
+
+    def execute(self, context):
+        t = self.tab if self.tab == "ALL" or (self.tab.isdigit() and 1 <= int(self.tab) <= len(SECTIONS)) else "ALL"
+        context.window_manager.fresing_tab = t
+        return {"FINISHED"}
+
+
 def _tab_changed(self, context):
     _TAB["v"] = self.fresing_tab
     redraw()
@@ -396,7 +425,7 @@ def _tab_items():
     return items
 
 
-CLASSES = (FRESING_OT_panel_toggle,)
+CLASSES = (FRESING_OT_panel_toggle, FRESING_OT_panel_tab)
 
 
 def register() -> None:

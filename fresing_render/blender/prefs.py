@@ -64,7 +64,7 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         items=[("3", "Rest faded", "Everything else is faded, the part stays clear in its own colour"),
                ("1", "Glow", "The part is covered in a see-through glow that breathes slowly")])
     lesson_colour: FloatVectorProperty(
-        name="Colour", subtype="COLOR", size=3, min=0.0, max=1.0, default=(0.278, 0.608, 0.161),
+        name="Colour", subtype="COLOR_GAMMA", size=3, min=0.0, max=1.0, default=(0.278, 0.608, 0.161),
         description="The colour of the lesson highlight (Fresing Green to start with)")
 
     hover_highlight: BoolProperty(
@@ -73,6 +73,11 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                     "spot, a label's point, a decal, a trail point, the CNC zero, a nozzle, a tool-changer pocket), the "
                     "face a click would use lights up in magenta with a short note, before you click. Switch it off "
                     "if it ever gets in the way; the clicks work the same")
+
+    live_preview: BoolProperty(
+        name="Live preview was on", default=False, options={"HIDDEN"},
+        description="Remembers the last choice of the Live preview button (5 Scene & Render), so the test tour and "
+                    "the demo project open with it on or off as you left it")
 
     def draw(self, context):
         layout = self.layout

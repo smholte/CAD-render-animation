@@ -79,8 +79,8 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 <img class="wide" src="img/app_after_import.png" alt="The Fresing Render window after an import">
 
 - The big area in the middle is the **view**: your model in 3D.
-- On its right edge is the **side panel** with the **Fresing** tab. Hidden? Move the mouse over the
-  view and press <kbd>N</kbd>.
+- On its right edge is the **side panel** with the **Fresing** tab. Hidden? Click the **Fresing** button
+  in the view's header, or move the mouse over the view and press <kbd>N</kbd>.
 - The other areas (the lists top right, the timeline at the bottom) are Blender's own. You rarely need
   them.
 
@@ -220,6 +220,25 @@ This guide is in the app under **Help > Fresing Render user guide**, and in the 
 Fresing Render.
 
 <img class="small" src="img/help_menu.png" alt="Help menu with Fresing Render user guide at the top">
+
+<a id="setup-window"></a>
+### The Set-up window: one step at a time
+
+<img class="panel" src="img/setup_window.png" alt="The Set-up window on step 1 of Set up a CNC mill">
+
+Setting up a CNC mill or a mechanism takes a handful of steps in a long panel. The **Set-up window** shows
+them one at a time, in a small window of its own that you can drag anywhere – also onto a second screen –
+while you click parts in the main window.
+
+1. Press **Set-up window…** (in **Make**, in 4 Motion > CNC machine or in 4 Motion > Mechanisms).
+2. Pick what to set up at the top: **Set up a CNC mill** (axes X, Y, Z → spindle → tool and workpiece →
+   work zero → G-code program) or **Set up a mechanism** (type → base → moving links → add it).
+3. Do what the step says – its buttons are the same ones as in the side panel, so what you do here shows
+   there too – and press the blue **Next**. **Back** goes back; the numbers at the top jump to a step. A
+   green tick marks a step that is done.
+
+The step you are on is saved with the project: the window opens where you left off, and a project saved
+with the window open brings it back. Close the window like any other window.
 
 <a id="start"></a>
 ## Getting started: your first render in 10 minutes
@@ -4086,8 +4105,18 @@ your PC.
 <a id="panel-gone"></a>
 ### The side panel or the Fresing tab is gone
 
-- Move the mouse over the view and press <kbd>N</kbd>, then click the **Fresing** tab on the right
-  edge.
+- Click the small **Fresing** button at the right end of the 3D view's header (the bar above the view). It
+  shows only while the side panel is hidden or another tab is open, and brings back the side panel on the
+  **Fresing** tab.
+- Or move the mouse over the view and press <kbd>N</kbd> (also **View > Sidebar**), then click the
+  **Fresing** tab on the right edge.
+- In the 3D view's header, **View > Sidebar** also shows it again after you dragged the panel shut.
+- A different tab at the top of the window (Modeling, Sculpting …)? Click **Layout**. A view made full
+  screen with <kbd>Ctrl</kbd>+<kbd>Space</kbd>: press it again; the Fresing button works there too.
+- The app puts the Fresing tab right by itself every time a project opens (your own, the test tour,
+  the demo), and folds Blender's toolbar. Your own view of the model stays as you saved it.
+- **Live preview** stays on or off as you last chose it while you go through the test tour and the demo.
+  A project of your own opens as you saved it.
 - Still missing? Run Install.bat again (it repairs the installation; projects and renders are not
   touched).
 

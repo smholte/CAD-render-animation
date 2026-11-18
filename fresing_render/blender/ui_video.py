@@ -1,5 +1,5 @@
-"""Side panel: 5 Scene & Render > Brand kit & logo, Watermark; 6 Animation > Finishing (task 0018).
-Same layout rules as ui.py."""
+"""Side panel: 6 Animation > Finishing, Brand kit & logo, Watermark (task 0018; the last two moved here from
+5 Scene & Render in task 0062, so the video finishing group sits together). Same layout rules as ui.py."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import bpy
 from ..core import brand
 from ..core.words import plural
 from . import animation, video
-from .ui import _has_model, _Panel, big_row, header_status, split_props, wrap
+from .ui import _has_model, _Panel, big_row, gap, header_status, hint, split_props, where, wrap
 
 
 class FRESING_PT_brand(_Panel, bpy.types.Panel):
@@ -25,14 +25,14 @@ class FRESING_PT_brand(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         s = context.scene.fresing
-        if s.brand_name:
-            header_status(self.layout, s.brand_name)
+        header_status(self.layout, s.brand_name or ("logo" if s.brand_logo else "none"), limit=12)
 
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "One kit per company: logo, colours, font and contact line. The logo, title card, "
-                              "end card and captions of your videos use it (6 Animation > Finishing).")
+        hint(layout, context, "One kit per company: logo, colours, font and contact line. The logo, title card, "
+                              f"end card and captions of your videos use it ({where('finishing')}).")
+        gap(layout)
         row = layout.row(align=True)
         row.prop(s, "brand_name", text="Kit")
         row.menu("FRESING_MT_brand_kits", text="", icon="DOWNARROW_HLT")
@@ -45,14 +45,15 @@ class FRESING_PT_brand(_Panel, bpy.types.Panel):
         if s.brand_logo and not video._logo_path(s):
             wrap(layout, context, "The logo cannot be read: pick a PNG or JPG picture.", icon="ERROR", alert=True,
                  inset=12)
+        gap(layout)
         row = layout.row(align=True)
         row.operator("fresing.brand_save", icon="EXPORT")
         row.operator("fresing.brand_delete", text="Delete", icon="TRASH")
         folder, shared, problem = video.kit_folder()
         if problem:
             wrap(layout, context, problem + ".", icon="ERROR", alert=True, inset=12)
-        layout.separator()
-        wrap(layout, context, "Logo on still images:")
+        gap(layout, line=True)
+        layout.label(text="Logo on still images")
         col = split_props(layout)
         col.prop(s, "still_logo", text="Corner")
         if s.still_logo != "NONE":
@@ -74,17 +75,19 @@ class FRESING_PT_watermark(_Panel, bpy.types.Panel):
         self.layout.label(icon="MOD_MASK")
 
     def draw_header_preset(self, context):
-        if context.scene.fresing.wm_on:
-            header_status(self.layout, "on", alert=True)
+        on = context.scene.fresing.wm_on
+        header_status(self.layout, "on" if on else "off", alert=on)       # red: the next renders carry it
 
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Words or a logo across the picture, for drafts you send before the final render. Every "
+        hint(layout, context, "Words or a logo across the picture, for drafts you send before the final render. Every "
                               "queue job remembers whether it was added with the watermark on.")
+        gap(layout)
         row = big_row(layout, 1.4)
         row.prop(s, "wm_on", text="Watermark on the next renders", toggle=True,
                  icon="CHECKBOX_HLT" if s.wm_on else "CHECKBOX_DEHLT")
+        gap(layout)
         col = split_props(layout)
         col.prop(s, "wm_kind", text="Watermark")
         if s.wm_kind == "CUSTOM":
@@ -96,7 +99,7 @@ class FRESING_PT_watermark(_Panel, bpy.types.Panel):
         col.prop(s, "wm_size", text="Size")
         col.prop(s, "wm_opacity", text="See-through")
         if s.wm_on and logo and not video.watermark_logo(s):
-            wrap(layout, context, "The logo cannot be found: " + ("add a PNG or JPG logo in Brand kit & logo above."
+            wrap(layout, context, "The logo cannot be found: " + (f"add a PNG or JPG logo in {where('brand')}."
                  if s.wm_kind == "KIT_LOGO" else "the Fresing logo file is missing, repair the installation."),
                  icon="ERROR", alert=True, inset=12)
         elif s.wm_on and not logo and not video.watermark_words(s):
@@ -120,16 +123,16 @@ class FRESING_PT_finishing(_Panel, bpy.types.Panel):
         if a is None:
             return
         n = sum((a.fin_logo != "NONE", a.fin_title_on, a.fin_end_on, a.fin_captions))
-        if n:
-            header_status(self.layout, f"{n} on")
+        header_status(self.layout, f"{n} on" if n else "off")
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
         a = animation.active(scene)
-        wrap(layout, context, "Makes the MP4 ready to post or send. The look comes from the brand kit (5 Scene & "
-                              "Render). Not in PNG frames.")
+        hint(layout, context, "Makes the MP4 ready to post or send. The look comes from the brand kit (Brand kit & "
+                              "logo, below). Not in PNG frames.")
+        gap(layout)
         col = split_props(layout)
         col.prop(a, "out_format", text="Shape")
         if a.out_format != "presentation":
@@ -138,9 +141,9 @@ class FRESING_PT_finishing(_Panel, bpy.types.Panel):
         if a.fin_logo != "NONE":
             col.prop(a, "fin_logo_size", text="Logo size")
             if not video._logo_path(s):
-                wrap(layout, context, "No logo in the brand kit yet (5 Scene & Render > Brand kit & logo).",
+                wrap(layout, context, f"No logo in the brand kit yet ({where('brand')}).",
                      icon="INFO", inset=12)
-        layout.separator()
+        gap(layout)
         col = layout.column(align=True)
         col.prop(a, "fin_title_on", text="Title card", toggle=True, icon="TEXT")
         if a.fin_title_on:
@@ -162,6 +165,7 @@ class FRESING_PT_finishing(_Panel, bpy.types.Panel):
             n = len(video.steps_of(a))
             wrap(col, context, f"{plural(n, 'step')} with a label will get a caption. Type labels in 6 Animation "
                                "> the selected step.", icon="INFO", inset=12)
+        gap(layout)
         fps = animation.fps_of(a)
         body = animation.frame_of(a, animation.length_seconds(a))      # the animation's own frames
         fin = video.finishing_for_animation(scene, a)

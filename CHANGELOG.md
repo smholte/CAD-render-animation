@@ -5,6 +5,53 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.151 – 18 Nov 2026 – A calm side panel: workspaces, folded sections, Make, the Set-up window (task 0062)
+
+- **The side panel starts calm.** Every time the app starts or a project opens, sections 1 to 7 are folded; each
+  title row – and now every sub-panel's – shows its state on the right ("9 groups", "2 cuts", "1920 × 1080"). Click a
+  title to open it, **Ctrl+click** to keep only that one open, or use the new **tabs All · 1 … 7** to see one section
+  at a time. Prefer it as you left it? Preferences > Fresing Render > **Keep sections as I left them**.
+- **Workspaces: only the functions your work needs.** The new row at the top of the Fresing tab picks one: All
+  functions, CNC & machining, Offshore & cable laying, Product design & R&D, Client view, Education & training, Full
+  access. Open it (the small arrow) to tick single **families of functions** on or off for this project – CNC
+  machine, Milling, Cables, drums & sea, Video finishing … Hiding never deletes or switches off anything; hiding a
+  family the project uses asks first and names what is set up. A project from before opens with everything it uses.
+- **Your own workspaces:** Save as my own… writes one file into the library folder "Workspaces"; a colleague gets it by
+  copying that file. Use for new projects makes a workspace your start.
+- **Client view locks the project:** editing buttons are greyed out, no part can be clicked, moved or deleted (also
+  not with Blender's own keys), Blender's object list is replaced and Save As / Import / Export are off. Importing,
+  surroundings, camera views, saved scenes, turntable, Render image and the queue still work. Full access undoes it.
+- **Blender's own row of tabs** (Layout, Modeling, Sculpting …) is hidden, except in the workspace Full access.
+- **Make: every output in one place.** Above 1 Import, and under **Make** in the header of the 3D view: Picture,
+  Product video, Turntable, 3D page, Animation and Queue. Each opens that output's own settings with its Make button;
+  nothing was moved or renumbered.
+- **The Set-up window.** Set-up window… (in Make, in 4 Motion > CNC machine and in 4 Motion > Mechanisms) opens a small
+  window you can drag anywhere, also onto a second screen: a CNC mill or a mechanism one step at a time, with Back and
+  Next, while you click parts in the main window. The step is saved with the project.
+- **Clearer panels.** Steps stand apart; hints are grey and only problems are red; each section has **one blue
+  button** (Import STEP…, Sort parts into groups, Render image, Build & play, Start queue); the numbered how-to boxes
+  are folds **How it works** that close by themselves once the project has the thing (Preferences: Keep How it works
+  open); texts that were cut off with "…" fit; a sub-panel whose thing is missing (no sea, no cable) shows one line.
+- **One word per action:** Remove (out of the project), Clear (a list or a result), Delete (a file in the library),
+  Show in folder, Add / Use as, Back to …, Find, and **Build & play** everywhere.
+- **5 Scene & Render is in the order you work:** surroundings (Weather & time, Vessel motion, Vessel at work, Props) →
+  Camera → Saved scenes → Image size & render → Turntable video → Web 3D model. **Brand kit & logo, Labels and
+  Watermark moved to 6 Animation**, next to Finishing, Pictures and Music.
+- A **What's next** card in a new project says the next step and opens its section (× hides it; gone after the
+  first render). The **test tour's Go** now opens the stop's own panel. "7 subassemblys" is "7 subassemblies".
+- For the lessons that come later: what a lesson points with (a button, a folded section, a part) is built in;
+  Preferences > Lesson highlight picks between two looks of each.
+
+## 0.2.150 – 17 Nov 2026 – The app's window stays yours, the Fresing panel always comes back (task 0198)
+
+- **Every project opens in the app's layout.** Your own project, the test tour, the demo and an older
+  version's project all show the side panel on the Fresing tab with Blender's toolbar folded. Your own view
+  of the model (camera, shading, sizes) stays as you saved it.
+- **Live preview keeps your last choice** while you go through the test tour and the demo: on stays on, off
+  stays off, also after a restart. A project of your own opens as you saved it.
+- **A "Fresing" button at the right end of the 3D view's header** brings the side panel back when it is
+  hidden or another tab is open. It shows only then. New test tour stop "Fresing panel always back".
+
 ## 0.2.149 – 17 Nov 2026 – Cables: model update keeps routes, re-bake also redoes riding cameras, seabed follows Vessel at work
 
 - **Model update with the same file changes nothing in the cables.** A contact you took off a cable's list stays off

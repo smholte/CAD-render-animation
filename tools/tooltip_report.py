@@ -36,7 +36,8 @@ UI_FILES = ["fresing_render/blender/ui.py", "fresing_render/blender/ui_motion.py
             "fresing_render/blender/ui_gcode.py", "fresing_render/blender/ui_section.py",
             "fresing_render/blender/ui_vessel_motion.py", "fresing_render/blender/ui_flex.py",
             "fresing_render/blender/ui_paths.py", "fresing_render/blender/ui_spool.py",
-            "fresing_render/blender/ui_people.py", "fresing_render/blender/updates.py"]
+            "fresing_render/blender/ui_people.py", "fresing_render/blender/updates.py",
+            "fresing_render/blender/ui_top.py", "fresing_render/blender/ui_setup.py"]
 UNTITLED = {"FRESING_PT_update": "Update notice"}      # panels whose header is drawn by draw_header
 # drawing functions called from a panel in another file: {file: {function: panel}}
 OTHER_FILE_HELPERS = {"fresing_render/blender/ui_gcode.py": {"draw_step": "6 Animation"}}

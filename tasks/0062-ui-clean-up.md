@@ -305,10 +305,29 @@ tests and tools, version, CHANGELOG, `TASKS.md`; after 0198 is on `main`: `app_t
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Fable · High), 17–18 Nov 2026, the owner's overnight run. Branch
+`claude/youthful-goldberg-52dvm2` (the web session's own). **State while it runs** (so a new session can continue
+with "… and continue task 0062 from its branch"): see "Progress" at the end of this report.
 
-**What changed:**
+**What changed:** (filled in at the end)
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (name the machine and the model): (filled in at the end)
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** (filled in at the end)
+
+**Progress (worker's notes, 18 Nov):**
+- Done on the branch: `core/workspaces.py`, `core/places.py`, `blender/panels.py` (own title rows, open set, tabs,
+  polls), `blender/workspaces.py`, `blender/lock.py`, `blender/ui_top.py`, `blender/ops_workspace.py`, the helpers in
+  `ui.py`, the panel pass over `ui.py` (worker) and `ui_motion.py` (S3, merged), words in operators, the moves
+  (Brand kit / Labels / Watermark → 6 Animation, 5 in work order), function-list entries, guide sections (text;
+  pictures are placeholders), tour stops `workspace` + `make`, PC-check line `panel.workspaces`, tests
+  (`tests/test_workspaces.py`, `tests/test_places.py`, `tools/ui_test_panel.py` 37 checks), screenshot tools adapted.
+- Merged since: `main` with 0198 (0.2.150); S1 the Set-up window (`ui_setup.py`, `ops_setup.py`, 46-check real-app
+  test) with its buttons, tour stop `setup`, function entry and guide section; S2 the lesson highlight
+  (`highlight.py`, 74-check real-app test); the panel pass over the video finishing panels (worker); counts raised;
+  `ui_test_panel`, `ui_test_setup`, `ui_test_highlight` in `tools/ci_real_app.py`; CHANGELOG text (0.2.151).
+- Running as subagents: S4 panel pass over the machine sub-panels, S5 panel pass over the other sub-panels, S6
+  independent tests (`tests/test_workspaces_independent.py`, findings as strict xfail tests).
+- Still to do: merge S4 / S5 / S6 and fix S6's findings; S7 guide chapters + every panel picture; version 0.2.151
+  in the two version files (the `since=` fields already say 0.2.151 – renumber all if another task takes it);
+  full run green; fast-forward `main`; release check; report; `TASKS.md` (0062 done, 0199 "open – can start").

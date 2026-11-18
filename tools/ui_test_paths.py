@@ -274,15 +274,14 @@ def view(location, distance, rotation=None):
 
 
 def open_panel():
-    """The panel sits far down the side panel, closed. For the clicks and the pictures: a copy of it, open, right
-    under 1 Import (panels are ordered by bl_order, then by when they were registered). And the magenta strip
-    above the Add cable button, drawn only while ``STATE["mark"]`` is on."""
-    if hasattr(bpy.types, "FRESING_PT_cables_shot"):
+    """The panel sits far down the side panel, closed. For the clicks and the pictures the side panel shows only
+    this panel, opened, under 4 Motion (the app keeps what is open and what shows: ``panels.show_only``, task
+    0062). And the magenta strip above the Add cable button, drawn only while ``STATE["mark"]`` is on."""
+    mod("blender.panels").show_only(["FRESING_PT_cables"])
+    if STATE.get("panel_open"):
         return
+    STATE["panel_open"] = True
     ui_paths = mod("blender.ui_paths")
-    base = ui_paths.FRESING_PT_cables
-    bpy.utils.register_class(type("FRESING_PT_cables_shot", (base,), {
-        "bl_idname": "FRESING_PT_cables_shot", "bl_parent_id": "", "bl_options": set(), "bl_order": 0}))
     if not hasattr(bpy.types.WindowManager, "fr_uitest_mark"):
         bpy.types.WindowManager.fr_uitest_mark = bpy.props.FloatVectorProperty(
             subtype="COLOR", size=3, default=(1.0, 0.0, 1.0), min=0.0, max=1.0)
