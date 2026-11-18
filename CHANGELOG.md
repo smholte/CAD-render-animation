@@ -5,9 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.153 – 18 Nov 2026 – The person who changes the tool always stands in the same place (task 0194)
+## 0.2.154 – 18 Nov 2026 – The person who changes the tool always stands in the same place (task 0194)
 
 After a model update with nothing changed, the operator who changes the tool stood 4 cm closer to the machine. The floor map he plans on now sits on fixed cells, so the same model always gives the same stand spot.
+
+## 0.2.153 – 18 Nov 2026 – The sea cut-away is open in the 3D view too (task 0196)
+
+- **The box behind the stern is open while you work**, not only in a render. In Solid view and Material Preview the
+  sea's surface no longer covers the cable, the seabed and the soil section inside the cut-away. Renders are made
+  exactly as before. The open box follows its numbers when you change them.
 
 ## 0.2.152 – 18 Nov 2026 – A calm side panel: workspaces, folded sections, Make, the Set-up window (task 0062)
 

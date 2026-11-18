@@ -1,6 +1,6 @@
 # 0194 – Fix: the tool-change operator stands 4 cm closer after an unchanged model update (bug hunt 6, row 16)
 
-**Who:** worker · **Status:** done (0.2.153) · **Branch:** `task/0194-operator-stand-spot`
+**Who:** worker · **Status:** done (0.2.154) · **Branch:** `task/0194-operator-stand-spot`
 **Started by:** lead chat, 17 Nov 2026 (from bug hunt 6, task 0183) · **Model:** Sonnet · effort Low · **Place:** Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** people – `core/tc_person.py` (`stand_spot`, the floor map), `blender/tc_person.py` (`_floor`, `bake`), their tests.

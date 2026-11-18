@@ -54,10 +54,22 @@ The web page's cut-away (Web 3D lane), the clip distance of the view (0193), the
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 18 Nov 2026
 
-**What changed:**
+**What changed:** `surroundings.py`: a Geometry Nodes group "FR view cut" (`_view_cut_group`) deletes the faces whose
+middle lies inside the box (world x/y, length, half width); `_set_view_cut` puts it as the LAST modifier (after the waves)
+of every object whose material is cut (sea, hull foam, seabed + stones with the ground) with `show_render` off, and takes
+it off when the cut-away is off. It is set in `_set_cut_attrs`, so it follows every rebuild (panel numbers, cable box).
+Guide: one paragraph in the cut-away section; CHANGELOG 0.2.153.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, invented vessel, Detailed sea, 77,824 faces): new test
+`test_box_is_open_in_the_view_and_renders_are_unchanged` (no sea face inside the box in the viewport mesh; with the
+modifier off, as in a render, the same faces are there and the count adds up; the box follows the panel's length;
+the modifier goes with the cut-away). Cost: the sea's whole evaluation 16.0 ms with vs 18.4 ms without (noise; the delete
+adds well under 1 ms). `test_sea_cutaway.py`, `test_sea.py`, `test_surroundings.py`: 136 passed. Render unchanged
+because the modifier is off for renders; materials untouched (no Cycles before/after picture made).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** (1) The edge of the opening follows the sea's faces (about 1 m near the vessel in
+Detailed; in Simple the sea has few, wide faces, so the opening is coarse there). (2) Material Preview: could not be
+tried here (no GL); the modifier works in every view, so it is open there whatever the shader does. (3) No real-app
+Solid-view picture (no graphics context on the web machine): the owner's own look at his demo will tell.
