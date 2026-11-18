@@ -344,7 +344,7 @@ def lifting_hook(ctx):
     return f"{cog}; {msg}"
 
 
-@line("lifting.make", "Lifting plan: make a crane from numbers", "0.2.157",
+@line("lifting.make", "Lifting plan: make a crane from numbers", "0.2.159",
       what="Make a crane…: the AT-100's numbers with 5 boom sections and a 50 m boom made in the background into a "
            "library folder (model, equipment file with a SAMPLE chart, picture), placed beside the test crane, every "
            "pose where its own kinematics say, Hook to here above the test crane's boom; a refused set of numbers "

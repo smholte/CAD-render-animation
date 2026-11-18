@@ -3362,7 +3362,8 @@ def _check_mesh(scene):
 # Lifting plan (task 0201): an AT-40 beside the test crane, the test crane's boom as the load
 # ---------------------------------------------------------------------------
 
-@tour_set("lifting", "Lifting plan – crane, load and hook", "test_crane_a.step", added="0.2.156")
+@tour_set("lifting", "Lifting plan – crane, load and hook", "test_crane_a.step", added="0.2.156",
+          changed="0.2.159")
 def build_lifting(b: Build):
     import bpy
     import numpy as np
@@ -3390,8 +3391,8 @@ def build_lifting(b: Build):
     _shot(b, "@lifting_hook")
 
 
-@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_crane_a.step", added="0.2.157",
-          changed="0.2.157")
+@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_crane_a.step", added="0.2.159",
+          changed="0.2.159")
 def build_lifting_make(b: Build):
     """Task 0204: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next to the
     tour, placed beside the test crane, set up, Hook to here above the test crane's boom."""
@@ -3674,7 +3675,7 @@ stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
      "from the AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its "
      "outriggers and its hook hangs above the test crane's boom (Hook to here). Its boom has 5 sections (joints "
      "Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
-     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.157", check=_check_lifting_make)
+     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", check=_check_lifting_make)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "

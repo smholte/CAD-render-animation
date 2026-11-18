@@ -390,10 +390,10 @@ fn(id="lifting.hook", title="Hook to here and the crane use at the hook", family
 
 fn(id="lifting.make", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
-   pccheck=("lifting.make",), since="0.2.157", workspaces=_LIFT)
+   pccheck=("lifting.make",), since="0.2.159", workspaces=_LIFT)
 fn(id="lifting.chart_entry", title="Enter the chart of your real crane (CSV) – the SAMPLE mark comes off",
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_chart_csv", guide="lifting-make-chart",
-   since="0.2.157", workspaces=_LIFT)
+   since="0.2.159", workspaces=_LIFT)
 
 fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")

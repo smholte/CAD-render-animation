@@ -83,8 +83,13 @@
   },
   "lifting": {
    "added": "0.2.156",
-   "changed": "",
-   "fp": "15ecd534bb888714"
+   "changed": "0.2.159",
+   "fp": "c6038ae7ee13a2c4"
+  },
+  "lifting_make": {
+   "added": "0.2.159",
+   "changed": "0.2.159",
+   "fp": "1dc92dd0e7dd6596"
   },
   "linkage": {
    "added": "0.2.47",
