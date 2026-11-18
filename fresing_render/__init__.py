@@ -161,6 +161,8 @@ def register():
     tc_person.register()                     # the operator at a tool change (task 0156): clash hook
     from .blender import lifting
     lifting.register()                       # task 0201: the CoG symbol's draw handler, caches dropped on load
+    from .blender import ops_setup_crane
+    ops_setup_crane.register()               # task 0203: Set up a crane's name cache dropped on load
     updates.register()
     from . import pccheck
     pccheck.register()                       # after updates: its Help entry goes under the update check
@@ -200,6 +202,8 @@ def unregister():
     tc_person.unregister()
     from .blender import lifting, ui_lifting
     lifting.unregister()
+    from .blender import ops_setup_crane
+    ops_setup_crane.unregister()
     ui_lifting.unregister_previews()
     from .blender import tracks
     tracks.unregister()

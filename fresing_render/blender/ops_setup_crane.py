@@ -52,6 +52,7 @@ class FRESING_OT_crane_setup(bpy.types.Operator):
         from . import ops_setup
         ops_setup.set_kind(context.scene, self.kind)
         SC.forget()
+        SC.keep_root(context.scene)
         if bpy.app.background:
             return {"FINISHED"}
         return bpy.ops.fresing.setup_window(kind=self.kind)
@@ -710,3 +711,13 @@ CLASSES = (FRESING_OT_crane_setup, FRESING_OT_crane_pick, FRESING_OT_crane_axes,
            FRESING_OT_crane_group_work,
            FRESING_OT_crane_chart_add, FRESING_OT_crane_chart_csv, FRESING_OT_crane_check, FRESING_OT_crane_go,
            FRESING_OT_crane_save)
+
+
+def register():
+    if SC.forget not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(SC.forget)
+
+
+def unregister():
+    while SC.forget in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(SC.forget)

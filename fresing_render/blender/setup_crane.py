@@ -84,12 +84,22 @@ def changed(scene) -> None:
 # the model and its parts by name
 
 def model_root(scene):
-    """The crane's model: the one picked in the Model step, else the project's only model."""
+    """The crane's model: the one picked in the Model step (or kept when the first joint was made), else the
+    project's only model."""
     cs = settings(scene)
     if cs.root is not None and cs.root.name in bpy.data.objects:
         return cs.root
     roots = build.model_roots(scene)
     return roots[0] if len(roots) == 1 else None
+
+
+def keep_root(scene) -> None:
+    """Remember the crane's model, so a second model (the saved crane placed to try it) does not lose it."""
+    cs = settings(scene)
+    if cs.root is None:
+        root = model_root(scene)
+        if root is not None:
+            cs.root = root
 
 
 def name_of(ob) -> str:
@@ -106,7 +116,11 @@ def lookup(root) -> dict:
     key = (root.name, len(bpy.data.objects))
     hit = _LOOKUP.get("key")
     if hit == key:
-        return _LOOKUP["map"]
+        try:
+            if all(objs[0].name for objs in list(_LOOKUP["map"].values())[:3]):     # a removed object raises
+                return _LOOKUP["map"]
+        except ReferenceError:
+            pass
     by: dict = {}
     for ob in [root] + list(logic.descendants(root)):
         by.setdefault(name_of(ob), []).append(ob)
@@ -117,8 +131,16 @@ def lookup(root) -> dict:
     return by
 
 
-def forget() -> None:
+def forget(_dummy=None) -> None:
+    """Drop the name cache (a project opened, the set-up started): never hand out another project's parts."""
     _LOOKUP.clear()
+
+
+try:                                            # the cache never outlives a project (CLAUDE.md 8)
+    from bpy.app.handlers import persistent
+    forget = persistent(forget)
+except ImportError:  # pragma: no cover
+    pass
 
 
 def split_names(text: str) -> list:
@@ -287,6 +309,7 @@ def make_joint(scene, role: str, objs, origin, direction, name: str = "", base=N
                stroke: float = 0.0, ref=None):
     """A joint of the app for a crane role: made, given its role, turned the right way, its Max = ``stroke`` (m or
     radians) for a slide when given. Returns the joint item."""
+    keep_root(scene)
     kind = "ROTATE" if role in ROTATE_ROLES else "SLIDE"
     j = joints.create(scene, kind, list(objs), Vector(origin), Vector(direction), name=name or _role_name(scene, role),
                       base=base, ref=ref, allow_empty=allow_empty)
@@ -504,6 +527,11 @@ def make_hook(scene, block, sheave_point) -> dict:
     h = joints.create(scene, "SLIDE", [block], p, -UP, name=joints.unique_name(scene, "Hoist"), base=hoist_base)
     h = joints.find(scene, h.name)
     h.role = "hoist"
+    root = model_root(scene)                    # limits to start with: rope up (0) to the hook on the ground; the
+    if root is not None:                        # maker's rope length goes into Max
+        mn, _mx = build.world_bounds(parts_of([root]))
+        h.slide_min, h.slide_max = 0.0, max(0.1, float(p.z - mn[2]))
+        h.use_limits = True
     changed(scene)
     return {"swings": made, "hoist": h.name}
 
@@ -664,14 +692,14 @@ def chart_entry(scene):
     rows, lines, n = [], [], 0
     # a key one configuration names is named by all (a 0 t counterweight is a configuration of its own); the fields
     # are 32-bit: round to 0.1 mm / 0.1 kg so a 10.8 m boom stays 10.8 m
-    named = {k for c in cs.charts for k in ("boom", "jib", "counterweight", "outriggers") if getattr(c, k) > 0}
+    named = any(c.counterweight > 0 for c in cs.charts)
     for c in cs.charts:
         cfg = {}
-        for k in ("boom", "counterweight", "outriggers"):
-            if k in named:
+        for k in ("boom", "jib", "outriggers"):                 # 0 = not named (no boom / jib / spread of 0 m)
+            if getattr(c, k) > 0:
                 cfg[k] = round(float(getattr(c, k)), 4)
-        if c.jib > 0:
-            cfg["jib"] = round(float(c.jib), 4)
+        if c.counterweight > 0 or named:                        # but a 0 t counterweight is a configuration
+            cfg["counterweight"] = round(float(c.counterweight), 4)
         for r in c.rows:
             n += 1
             rows.append((cfg, r.radius, r.capacity))

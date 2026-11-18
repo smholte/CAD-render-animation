@@ -143,6 +143,11 @@ def _box(scene, root, objs) -> tuple:
     return c.min(axis=0), c.max(axis=0)
 
 
+def level(root) -> list:
+    """The model's two level axes (along, across): (x, y) for a model drawn with Z up, (x, z) with Y up."""
+    return [0, 2] if up_axis(root) == "Y" else [0, 1]
+
+
 def outriggers_out(scene, root, cs) -> dict | None:
     """The outrigger (stabiliser) block for the checks: jacks' places in the CAD pose (b_in, a, centre), the beam
     stages, the pads, the spreads typed in the step (full / middle / narrow, as half spreads b)."""
@@ -156,8 +161,8 @@ def outriggers_out(scene, root, cs) -> dict | None:
     pads = []
     for j in jacks:
         lo, hi = _box(scene, root, joints.members(j))
-        pts.append(((lo + hi) / 2.0)[:2])
-        pads.append((hi - lo)[:2])
+        pts.append(((lo + hi) / 2.0)[level(root)])
+        pads.append((hi - lo)[level(root)])
     P = np.array(pts)
     centre = (P.min(axis=0) + P.max(axis=0)) / 2.0
     stages = max(1, round(len(beams) / max(1, len(jacks))))
@@ -181,10 +186,11 @@ def tracks_block(scene, root) -> dict | None:
         boxes.append(_box(scene, root, wheels))
     lo = np.min([b[0] for b in boxes], axis=0)
     hi = np.max([b[1] for b in boxes], axis=0)
-    mids = sorted(((b[0] + b[1]) / 2.0)[1] for b in boxes)
-    width = float(np.mean([b[1][1] - b[0][1] for b in boxes]))
+    H = level(root)
+    mids = sorted(((b[0] + b[1]) / 2.0)[H[1]] for b in boxes)
+    width = float(np.mean([b[1][H[1]] - b[0][H[1]] for b in boxes]))
     return {"gauge": round(mids[-1] - mids[0], 4), "length": round(float(hi[0] - lo[0]), 4),
-            "width": round(width, 4), "centre": _r(((lo + hi) / 2.0)[:2]), "joint": travel.name}
+            "width": round(width, 4), "centre": _r(((lo + hi) / 2.0)[H]), "joint": travel.name}
 
 
 def build(scene) -> dict:
@@ -207,8 +213,9 @@ def build(scene) -> dict:
             base = next((g for g in cs.groups if g.key in ("carrier", "lower", "truck", "base") and g.parts), None)
             objs = SC.objects_of(scene, base.parts)[0] if base is not None else [root]
             lo, hi = _box(scene, root, objs or [root])
-            footprint = [[round(float(lo[0]), 4), round(float(lo[1]), 4)], [round(float(hi[0]), 4), round(float(lo[1]), 4)],
-                         [round(float(hi[0]), 4), round(float(hi[1]), 4)], [round(float(lo[0]), 4), round(float(hi[1]), 4)]]
+            a, b = level(root)
+            footprint = [[round(float(x[a]), 4), round(float(y[b]), 4)] for x, y in ((lo, lo), (hi, lo), (hi, hi),
+                                                                                       (lo, hi))]
     own = {j["name"] for j in js}
     hoist = SC.first(scene, "hoist")
     if hoist is None or not cs.hook_set:
@@ -267,12 +274,9 @@ def build(scene) -> dict:
         limits["model_jib"] = round(cs.model_jib, 4)
     if cs.jib_boom_angle > 0:
         limits["jib_charts_boom_angle"] = round(cs.jib_boom_angle, 4)
-    steps = []
-    for x in (cs.counterweight_steps or "").replace(";", ",").split(","):
-        try:
-            steps.append(float(x))
-        except ValueError:
-            pass
+    steps, bad = counterweight_steps(cs.counterweight_steps)
+    problems += [(f"Counterweight steps: cannot read '{b}' (type them like 0, 40, 80 or 0; 4,5; 9)",
+                  "counterweight") for b in bad]
     if steps:
         limits["counterweight_steps"] = steps
     if any(v > 0 for v in cs.spreads):
@@ -292,6 +296,31 @@ def build(scene) -> dict:
     return data
 
 
+def counterweight_steps(text: str) -> tuple[list, list]:
+    """([t], [cells not read]) from what a user types: '0, 40, 80', '0; 4,5; 9' (with ';' a comma is a decimal
+    comma), '0 t, 4 t, 8 t', '4500 kg'."""
+    from ..core import lifting
+    text = (text or "").strip()
+    if not text:
+        return [], []
+    dec_comma = ";" in text
+    cells = [c.strip() for c in (text.split(";") if dec_comma else text.split(","))]
+    out, bad = [], []
+    for c in cells:
+        if not c:
+            continue
+        try:
+            v, unit = LL._parse_number(c, dec_comma)
+        except ValueError:
+            bad.append(c)
+            continue
+        if v is None or unit in lifting.LENGTH_UNITS:
+            bad.append(c)
+            continue
+        out.append(round(v * lifting.MASS_UNITS[unit] / 1000.0, 6) if unit else v)
+    return out, bad
+
+
 def scene_problems(scene) -> list:
     """(step, text) problems only the project can show: names that fit several parts, joints whose value now lies
     past their limits."""
@@ -302,6 +331,12 @@ def scene_problems(scene) -> list:
         return [(exc.step, str(exc))]
     for text, step in data.get("_problems", []):
         out.append((step, text))
+    with joints.cad_pose(scene):
+        for j in SC.crane_joints(scene):
+            if j.role in SC.SENSE and j.role not in ("swing", "track", "travel") and not j.follows \
+                    and not SC.sense_ok(scene, j.role, j):
+                out.append((j.role, f"{j.name} moves the wrong way for a {SC.ROLE_WORDS[j.role].lower()} "
+                                    f"({SC.SENSE[j.role]}): press Flip"))
     for j in SC.crane_joints(scene):
         if j.follows or not j.use_limits:
             continue
