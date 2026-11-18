@@ -416,6 +416,8 @@ class FRESING_OT_whats_new(bpy.types.Operator):
         else:
             col.label(text="Fixes and improvements: see the release notes.")
         col.operator(FRESING_OT_release_notes.bl_idname, icon="URL")
+        if funcs:
+            col.operator("fresing.learn_add_new", icon="BOOKMARKS").since = since
         col.separator()
         sets = sets_new(since)
         if sets:

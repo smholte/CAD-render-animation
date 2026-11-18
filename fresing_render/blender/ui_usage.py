@@ -10,7 +10,7 @@ from __future__ import annotations
 import bpy
 
 from ..core import functions as F
-from . import ui, usage
+from . import learning, ui, usage
 from .ui import _Panel, wrap
 
 
@@ -52,15 +52,32 @@ class FRESING_PT_favourites(_Panel, bpy.types.Panel):
         if panel:
             if fids:
                 ui.gap(layout)
+            q = learning.question(panel)
             box = layout.box()
-            col = wrap(box, context, f"You haven't used {usage.panel_title(panel)} recently. Hide it to clean up "
-                                     "your workspace?", icon="HIDE_ON")
+            if q["fid"]:
+                col = wrap(box, context, f"You haven't used {usage.panel_title(panel)} recently. Maybe you do not know "
+                                         "it yet?", icon="LIGHT")
+            else:
+                col = wrap(box, context, f"You haven't used {usage.panel_title(panel)} recently. Hide it to clean up "
+                                         "your workspace?", icon="HIDE_ON")
             col.active = False
+            if q["fid"]:
+                wrap(box, context, q["line"], inset=14)
             col = box.column(align=True)
+            if q["fid"]:
+                row = col.row(align=True)
+                op = row.operator("fresing.learn_show", text="Show me in the guide")
+                op.fid, op.how = q["fid"], "GUIDE"
+                row.enabled = bool(q["guide"])
+                row = col.row(align=True)
+                op = row.operator("fresing.learn_show", text="Show me in the test tour")
+                op.fid, op.how = q["fid"], "TOUR"
+                row.enabled = bool(q["tour"])
+                col.operator("fresing.usage_declutter", text="Add to my learning list").choice = "learn"
             row = col.row(align=True)
-            row.operator("fresing.usage_declutter", text="Hide").choice = "hide"
+            if q["can_hide"]:
+                row.operator("fresing.usage_declutter", text="Hide it").choice = "hide"
             row.operator("fresing.usage_declutter", text="Not now").choice = "later"
             col.operator("fresing.usage_declutter", text="Don't ask again").choice = "never"
-
 
 CLASSES = (FRESING_PT_favourites,)

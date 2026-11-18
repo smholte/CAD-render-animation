@@ -29,6 +29,7 @@ import os
 import time
 
 from . import functions as F
+from . import learning as L
 
 FILE_NAME = "fresing_usage.json"
 MARKER = "fresing_render_usage"
@@ -71,7 +72,9 @@ ALSO = {"fresing.apply_rules": "looks.materials"}
 # and the test tour's would count themselves.
 NOT_COUNTED = {"fresing.panel_toggle", "fresing.panel_tab", "fresing.usage_go", "fresing.usage_pin",
                "fresing.usage_window", "fresing.usage_set", "fresing.usage_clear", "fresing.usage_reset",
-               "fresing.usage_declutter", "fresing.usage_export", "fresing.usage_import", "fresing.usage_folder"}
+               "fresing.usage_declutter", "fresing.usage_export", "fresing.usage_import", "fresing.usage_folder",
+               "fresing.learn_show", "fresing.learn_add", "fresing.learn_add_new", "fresing.learn_done",
+               "fresing.learn_remove", "fresing.learn_next", "fresing.learn_window", "fresing.learn_lesson"}
 # Families never offered for hiding (there would be nothing to work with) and never on the bar (the panel's own
 # switches, menu lines).
 NEVER_ASK_FAMILIES = ("import", "help", "panel")
@@ -87,7 +90,7 @@ def fresh() -> dict:
             "stages": {}, "saved": {},
             "bar": {"on": True, "size": BAR_DEFAULT, "pins": [], "order": []},
             "declutter": {"on": True, "threshold": THRESHOLD_DEFAULT, "asked": [], "session": 0},
-            "hidden": []}
+            "hidden": [], "learning": L.fresh()}
 
 
 def _int(v, default=0, lo=0, hi=10 ** 9) -> int:
@@ -138,6 +141,7 @@ def clean(data) -> dict:
                                 threshold=_int(d.get("threshold"), THRESHOLD_DEFAULT, 1, 1000),
                                 asked=_ids(d.get("asked")), session=_int(d.get("session")))
     out["hidden"] = _ids(data.get("hidden"))
+    out["learning"] = L.clean(data.get("learning"))          # task 0208: an older file has none
     return out
 
 
@@ -180,9 +184,11 @@ def save(path: str, state: dict) -> None:
     os.replace(tmp, path)
 
 
-def clear(state: dict) -> dict:
-    """"Clear my usage data": counts, times, sessions and the prompts' answers go; the switches, pins and hides stay."""
+def clear(state: dict, with_list: bool = False) -> dict:
+    """"Clear my usage data": counts, times, sessions and the prompts' answers go; the switches, pins and hides stay.
+    The learning list stays too unless ``with_list`` (task 0208: the question asks)."""
     out = fresh()
+    out["learning"] = L.clear(state, with_list)
     out["track"] = state.get("track", True)
     out["bar"].update(on=state["bar"]["on"], size=state["bar"]["size"], pins=list(state["bar"]["pins"]))
     out["declutter"].update(on=state["declutter"]["on"], threshold=state["declutter"]["threshold"])
@@ -234,13 +240,16 @@ def panel_stage(panel: str, funcs=None) -> str:
     return ""
 
 
-def count_click(state: dict, op: str, fid: str, saved_seconds: float = 0.0) -> None:
+def count_click(state: dict, op: str, fid: str, saved_seconds: float = 0.0, today: str = "") -> list:
+    """One click. Returns the learning-list items this use ticked by themselves (task 0208)."""
     state["buttons"][op] = state["buttons"].get(op, 0) + 1
     if fid:
         n, _last = state["functions"].get(fid, [0, 0])
         state["functions"][fid] = [n + 1, state["sessions"]]
         if saved_seconds > 0:
             state["saved"][fid] = state["saved"].get(fid, 0.0) + float(saved_seconds)
+        return L.note_use(state, fid, today)
+    return []
 
 
 def count_panel(state: dict, panel: str) -> None:
@@ -351,7 +360,7 @@ def declutter_candidate(state: dict, shown: set, used: set, hidden_panels: set =
     and it was not asked about before."""
     funcs = F.FUNCTIONS if funcs is None else funcs
     d = state["declutter"]
-    if not (state["track"] and d["on"]):
+    if not (state["track"] and (d["on"] or L.part(state)["teach"])):
         return ""
     n = d["threshold"]
     if state["sessions"] < n:
@@ -382,7 +391,8 @@ def declutter_candidate(state: dict, shown: set, used: set, hidden_panels: set =
 
 def answer_declutter(state: dict, panel: str, choice: str, funcs=None) -> None:
     """"hide": the panel's functions go into the personal hides; "later": not asked about this panel again;
-    "never": no more prompts (switch them back on in My usage)."""
+    "never": no more prompts (switch them back on in My usage); "learn" (task 0208): the panel's function goes on the
+    learning list, nothing is hidden."""
     d = state["declutter"]
     if panel and panel not in d["asked"]:
         d["asked"].append(panel)
@@ -393,6 +403,9 @@ def answer_declutter(state: dict, panel: str, choice: str, funcs=None) -> None:
                 state["hidden"].append(fid)
     elif choice == "never":
         d["on"] = False
+        L.part(state)["teach"] = False
+    elif choice == "learn":
+        L.add(state, L.target_of_panel(panel, funcs), funcs)
 
 
 def personal_hides(state: dict, used: set, funcs=None) -> tuple:
@@ -464,6 +477,7 @@ def profile_part(state: dict, with_counts: bool = False) -> dict:
                           "pins": list(state["bar"]["pins"])}}
     if with_counts:
         out["usage"] = {k: state[k] for k in ("sessions", "functions", "buttons", "panels", "stages", "saved")}
+        out["usage"]["learning"] = L.profile_part(state, True)
     return out
 
 
@@ -487,5 +501,13 @@ def take_profile(state: dict, data: dict, with_counts: bool = False, funcs=None)
         for key in ("buttons", "stages", "saved"):
             for k, v in other[key].items():
                 state[key][k] = state[key].get(k, 0) + v
+        if isinstance(u.get("learning"), dict):
+            mine = L.part(state)
+            other_l = L.clean(u["learning"])
+            for item in other_l["list"]:
+                if L.find(state, item["id"]) is None and item["id"] in funcs:
+                    mine["list"].append(item)
+            for k, v in other_l["days"].items():
+                mine["days"][k] = sorted(set(mine["days"].get(k, [])) | set(v))[-L.DAYS_KEPT:]
     state["bar"]["order"] = bar_order(state, funcs)
     return state
