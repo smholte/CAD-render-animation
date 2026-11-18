@@ -63,6 +63,7 @@ class FRESING_OT_tour_make(bpy.types.Operator):
     folder: StringProperty(name="Folder", subtype="DIR_PATH",
                            description="Where the test tour goes. Default: Documents\\Fresing Render\\Test tour")
     in_place: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})   # tests: build in this Blender
+    only: StringProperty(options={"HIDDEN", "SKIP_SAVE"})       # task 0199: set ids, "" = the whole tour
 
     _timer = None
 
@@ -75,6 +76,8 @@ class FRESING_OT_tour_make(bpy.types.Operator):
 
     def draw(self, context):
         col = self.layout.column()
+        if self._only():
+            col.label(text=f"A test tour of only the new and changed test models: {len(self._only())} projects.")
         col.label(text=f"A test tour for Fresing Render {_version()}: {len(tour.STOPS)} stops in "
                        f"{len(tour.SETS)} small projects.")
         col.label(text="It is made in the background (about 2 minutes); you can keep working.")
@@ -84,11 +87,17 @@ class FRESING_OT_tour_make(bpy.types.Operator):
         col.separator()
         col.prop(self, "folder")
 
+    def _only(self) -> tuple:
+        return tuple(k for k in self.only.split(",") if k in tour.SETS)
+
     def execute(self, context):
+        if building().get("running"):
+            self.report({"WARNING"}, "The test tour is being made: wait for it")
+            return {"CANCELLED"}
         folder = bpy.path.abspath(self.folder) if self.folder else tour.default_folder()
         os.makedirs(folder, exist_ok=True)
         if self.in_place or bpy.app.background:
-            out = tour.build_all(folder, _version())
+            out = tour.build_all(folder, _version(), only=self._only())
             if out["errors"]:
                 self.report({"ERROR"}, "Test tour: " + "; ".join(f"{k}: {v}" for k, v in out["errors"].items())[:300])
                 return {"CANCELLED"}
@@ -108,12 +117,13 @@ class FRESING_OT_tour_make(bpy.types.Operator):
             else {"start_new_session": True}
         try:
             fh = open(log, "w", encoding="utf-8", errors="replace")
-            proc = subprocess.Popen([exe, "--background", "--python", pc_ops.LAUNCHER, "--", "tourbuild", folder],
+            extra = [f"only={','.join(self._only())}"] if self._only() else []
+            proc = subprocess.Popen([exe, "--background", "--python", pc_ops.LAUNCHER, "--", "tourbuild", folder] + extra,
                                     cwd=os.path.dirname(exe), stdout=fh, stderr=subprocess.STDOUT, **kwargs)
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start making the test tour: {exc}")
             return {"CANCELLED"}
-        _BUILD.update(proc=proc, folder=folder, log=log, version=_version(), fh=fh)
+        _BUILD.update(proc=proc, folder=folder, log=log, version=_version(), fh=fh, only=self._only())
         self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
         context.window_manager.modal_handler_add(self)
         self.report({"INFO"}, "Making the test tour in the background (about 2 minutes)")
@@ -136,17 +146,21 @@ class FRESING_OT_tour_make(bpy.types.Operator):
             _BUILD["fh"].close()
         except (KeyError, OSError):
             pass
+        cancelled = _BUILD.get("cancelled")
         _BUILD.clear()
         data = tour.read_progress(folder)
-        hub = tour.hub_path(folder, version)
+        hub = tour.ready_path(folder, version)
         errors = data.get("errors") or {}
-        if data.get("finished") and os.path.isfile(hub):
+        if cancelled:
+            self.report({"WARNING"}, "Making the test tour was cancelled")
+            return {"FINISHED"}
+        if data.get("finished") and hub and os.path.isfile(hub):
             _ready_popup(context, hub)
             if errors:
                 self.report({"WARNING"}, "Test tour made, but these projects failed: "
                                          + "; ".join(f"{k}: {v}" for k, v in errors.items())[:250])
             else:
-                self.report({"INFO"}, f"Test tour ready ({data.get('seconds', 0):.0f} s): Help > Open test tour project")
+                self.report({"INFO"}, f"Test tour ready ({data.get('seconds', 0):.0f} s): Fresing > Take the test tour")
             return {"FINISHED"}
         del proc
         why = "; ".join(f"{k}: {v}" for k, v in errors.items()) or "it stopped half-way"
@@ -184,8 +198,8 @@ class FRESING_OT_tour_open(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-        path = self.filepath or tour.hub_path(tour.default_folder(), _version())
-        if not os.path.isfile(path):
+        path = self.filepath or tour.ready_path(tour.default_folder(), _version())
+        if not path or not os.path.isfile(path):
             self.report({"ERROR"}, "No test tour for this version: Help > Make test tour project… first")
             return {"CANCELLED"}
         bpy.ops.wm.open_mainfile(filepath=path)
@@ -440,11 +454,55 @@ def draw_help(layout) -> None:
         layout.label(text=text, icon="TIME")
     else:
         layout.operator(FRESING_OT_tour_make.bl_idname, icon="VIEW_CAMERA")
-    if os.path.isfile(tour.hub_path(tour.default_folder(), _version())):
+    if tour.ready_path(tour.default_folder(), _version()):
         layout.operator(FRESING_OT_tour_open.bl_idname, icon="FILE_BLEND")
 
 
-CLASSES = (FRESING_OT_tour_make, FRESING_OT_tour_open, FRESING_OT_tour_pick, FRESING_OT_tour_go,
+class FRESING_OT_tour_take(bpy.types.Operator):
+    """Take the test tour: opens the tour of this version when it is made, otherwise makes it first (in the
+    background, a few minutes; the line at the bottom shows how far it is) and offers to open it"""
+
+    bl_idname = "fresing.tour_take"
+    bl_label = "Take the test tour"
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+    def execute(self, context):
+        if building().get("running"):
+            self.report({"INFO"}, progress_text() or "The test tour is being made")
+            return {"CANCELLED"}
+        path = tour.ready_path(tour.default_folder(), _version())
+        if path and len(tour.made_sets(tour.default_folder(), _version())) == len(tour.SETS):
+            return bpy.ops.fresing.tour_open("INVOKE_DEFAULT", filepath=path)
+        return bpy.ops.fresing.tour_make("EXEC_DEFAULT")
+
+
+class FRESING_OT_tour_cancel(bpy.types.Operator):
+    """Stop making the test tour. The projects made so far stay; make it again to finish it"""
+
+    bl_idname = "fresing.tour_cancel"
+    bl_label = "Cancel making the test tour"
+
+    @classmethod
+    def poll(cls, context):
+        return bool(building().get("running"))
+
+    def execute(self, context):
+        proc = _BUILD.get("proc")
+        if proc is None or proc.poll() is not None:
+            return {"CANCELLED"}
+        _BUILD["cancelled"] = True
+        try:
+            proc.kill()
+        except OSError as exc:
+            self.report({"ERROR"}, f"Could not stop it: {exc}")
+            return {"CANCELLED"}
+        self.report({"INFO"}, "Stopping the test tour")
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_tour_take, FRESING_OT_tour_cancel, FRESING_OT_tour_make, FRESING_OT_tour_open, FRESING_OT_tour_pick, FRESING_OT_tour_go,
            FRESING_OT_tour_mark, FRESING_OT_tour_note, FRESING_OT_tour_copy, FRESING_OT_tour_run,
            FRESING_OT_tour_folder)
 

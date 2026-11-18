@@ -108,6 +108,7 @@ function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Ar
 }
 
 $env:LOCALAPPDATA = $LocalAppData
+$env:FRESING_NO_WELCOME = "1"          # task 0199: no welcome / What's new window in the tests
 New-Item -ItemType Directory -Force -Path $LocalAppData | Out-Null
 
 # Task 0144: the render kit's window script runs in Windows PowerShell 5.1 (the kit's .bat starts powershell.exe):

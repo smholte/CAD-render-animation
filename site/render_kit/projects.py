@@ -44,11 +44,11 @@ def load(model_or_path: str) -> dict:
 
 
 def _sheet(pkg):
-    """The app's sheet reader (0.2.155 and newer)."""
+    """The app's sheet reader (0.2.156 and newer)."""
     try:
         return importlib.import_module(f"{pkg.__name__}.blender.sheet")
     except ImportError as exc:
-        raise RuntimeError("This render kit needs Fresing Render 0.2.155 or newer: update the app "
+        raise RuntimeError("This render kit needs Fresing Render 0.2.156 or newer: update the app "
                            "(Help > Check for updates)") from exc
 
 

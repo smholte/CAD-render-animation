@@ -120,7 +120,7 @@ offered). Any change to `core/lifting.py`'s formulas (a gap found: say so in the
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, session branch `claude/elegant-wozniak-oe3stg`, 18 Nov 2026. Version 0.2.155.
+**Chat / date:** Claude Code on the web, session branch `claude/elegant-wozniak-oe3stg`, 18 Nov 2026. Version 0.2.156.
 
 **What changed:**
 - **Section 8 Lifting plan** (`FRESING_PT_lifting` + Equipment, Load, Hook & capacity; `blender/ui_lifting.py`,
@@ -153,7 +153,7 @@ offered). Any change to `core/lifting.py`'s formulas (a gap found: say so in the
   crane use % with the status word and a coloured dot; cached on a cheap key (joint values, crane place, set-up, load):
   0.03 ms per draw cached, 0.3 ms when worked out.
 - **Sheet reader moved:** `site/render_kit/projects.py` → `fresing_render/blender/sheet.py` (+ `root`, `prefix`,
-  `set_values(m=)`, `apply_own_pose`); the kit's `projects.py` hands every call on to the app (needs 0.2.155);
+  `set_values(m=)`, `apply_own_pose`); the kit's `projects.py` hands every call on to the app (needs 0.2.156);
   `tests/lifting_rig.py` uses the app's copy. `workspaces.used_functions` counts a crane's own joints/poses/cylinders/
   tracks/rope as the lifting plan's (no "show Motion?" question for them).
 - Tour set **lifting** (3 stops), PC-check lines `lifting.place`, `lifting.hook` (Full), real-app test

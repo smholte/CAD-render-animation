@@ -296,7 +296,7 @@ def faces_painted(ctx):
     return "2 CAD faces, 1 by hand"
 
 
-@line("lifting.place", "Lifting plan: place a crane from the library", "0.2.155",
+@line("lifting.place", "Lifting plan: place a crane from the library", "0.2.156",
       what="The built-in AT-40 sample crane placed beside the test crane (import, joints, cylinders, poses, the hoist "
            "rope as a cable); every pose of its file puts the hook block where the crane's own kinematics say; a "
            "second AT-40 gets its own names; Remove leaves nothing of it")
@@ -321,7 +321,7 @@ def lifting_place(ctx):
     return msg
 
 
-@line("lifting.hook", "Lifting plan: load, CoG and Hook to here", "0.2.155",
+@line("lifting.hook", "Lifting plan: load, CoG and Hook to here", "0.2.156",
       what="The test crane's boom made the load (1.2 t), its CoG marker worked out from the parts' volumes; the "
            "AT-40 puts its hook above it with Hook to here; the crane use shown is the chart's at that radius")
 def lifting_hook(ctx):
@@ -4127,6 +4127,42 @@ def app_layout(ctx):
     p = prefs.get()
     _check(p is not None and hasattr(p, "live_preview"), "the Live preview choice is not stored")
     return None
+
+
+@line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",
+      what="Checks the Fresing menu in the top bar, the start file (welcome three times, What's new once after an "
+           "update, nothing after the same version), the page that opens the user guide at a section, and that What's "
+           "new lists functions and a tour of the new and changed test models")
+def app_start_here(ctx):
+    import bpy
+
+    from ..blender import ui_topbar, welcome
+    from ..core import start
+    _check(ui_topbar._draw_in_editor_menus in bpy.types.TOPBAR_MT_editor_menus._dyn_ui_initialize(),
+           "the Fresing menu is not in the top bar")
+    for idname in ("fresing.tour_take", "fresing.whats_new", "fresing.welcome", "fresing.show_panel"):
+        _check(ui_topbar._has(idname), f"the Fresing menu's operator {idname} is missing")
+    path = os.path.join(ctx.work, "Start é", start.FILE_NAME)          # the settings folder's file, with an accent
+    state, now = start.load(path), welcome.version()
+    shown = []
+    for _ in range(4):                                                   # a new user: the welcome three starts
+        kind = start.decide(state, now)
+        shown.append(kind)
+        state = start.started(state, now, kind)
+        start.save(path, state)
+        state = start.load(path)
+    _check(shown == ["welcome"] * 3 + [""], f"the welcome showed {shown} (expected three times, then not)")
+    older = welcome.previous_version() or "0.2.0"
+    state = dict(start.load(path), last_run=older)
+    _check(start.decide(state, now) == "whats_new", "What's new does not show after an update")
+    state = start.started(state, now, "whats_new")
+    _check(start.decide(state, now) == "", "What's new shows twice for the same version")
+    page = welcome.guide_link_file("start-here")
+    _check(os.path.isfile(page) and "#start-here" in open(page, encoding="utf-8").read(),
+           "the page that opens the user guide at a section was not written")
+    n_f, n_s = len(welcome.functions_new(older)), len(welcome.sets_new("0.2.0"))
+    _check(n_f > 0 and n_s > 0, f"What's new lists {n_f} functions and {n_s} test models")
+    return f"What's new since {older}: {n_f} functions"
 
 
 @line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",

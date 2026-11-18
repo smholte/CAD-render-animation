@@ -14,7 +14,7 @@ TOOLS = os.path.join(ROOT, "tools")
 DOCS = os.path.join(ROOT, "docs")
 sys.path.insert(0, TOOLS)
 
-CHAPTERS = ["layout", "start", "import", "structure", "looks", "motion", "scene", "animation", "queue", "lifting", "tour", "demo", "lifting-equipment", "tips",
+CHAPTERS = ["layout", "start-here", "start", "import", "structure", "looks", "motion", "scene", "animation", "queue", "lifting", "tour", "demo", "lifting-equipment", "tips",
             "troubleshooting"]
 
 

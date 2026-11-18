@@ -111,7 +111,7 @@ def next_step(scene) -> tuple:
     s = scene.fresing
     if s.model_count == 0:
         return ("Start here: open 1 Import and press Import STEP… – or try the app on a test model first "
-                "(Help > Make test tour project).", "FRESING_PT_import", "Open 1 Import")
+                "(Fresing > Take the test tour).", "FRESING_PT_import", "Open 1 Import")
     if not len(s.groups) or s.unmatched:
         return ("Next: 3 Looks > Sort parts into groups gives every part its material. Hide what you do not "
                 "need in 2 Structure.", "FRESING_PT_looks", "Open 3 Looks")

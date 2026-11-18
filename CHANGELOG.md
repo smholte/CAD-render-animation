@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.155 – 18 Nov 2026 – Lifting plan: place a crane, the load and its CoG, Hook to here (task 0201)
+## 0.2.156 – 18 Nov 2026 – Lifting plan: place a crane, the load and its CoG, Hook to here (task 0201)
 
 - **New section 8 Lifting plan** and a new workspace **Lifting plans** (lifting plan, import, structure, looks, scene,
   animation, render queue – no CNC, milling, cables or sea). The first time you open it, one dialog shows the
@@ -28,6 +28,21 @@ installer of that version was built from.
 - Test tour: a new set "Lifting plan" (3 stops). PC check: two new lines, `lifting.place` and `lifting.hook`.
 - For the site kit: the sheet reader now lives in the app (`blender/sheet.py`); the render kit calls it.
 
+## 0.2.155 – 18 Nov 2026 – Start here: a Fresing menu, a welcome, What's new after an update (task 0199)
+
+- **A "Fresing" menu at the top of the window**, after Help: Take the test tour, What's new in this version, Show the
+  Fresing panel, the demo project, the user guide, the PC check, Check for updates and the Welcome screen – in every
+  workspace, also in the Client view. The Help menu keeps its lines.
+- **A welcome for a new user:** the first starts show, at the top of the start-up screen, what the app is for and the
+  test tour, with **Take the test tour**, **Later** (asks again at the next start, at most three starts) and **Don't
+  show this again**.
+- **What's new after an update:** the first start of a newer version shows the new and improved functions (each with
+  **Show in guide**) and the new and changed test models, with a tour of **only the new and changed test models** –
+  much quicker to make than the whole tour. **Cancel** keeps it in the Fresing menu until you open it. It never shows
+  after going back to an older version or installing the same version again.
+- **The test tour marks what is new:** after an update the Test tour panel says which test models are new or changed
+  and marks new stops "– New" and changed ones "– Changed". A tour of only some models says so and offers **Make the
+  whole tour**; making the tour can now be cancelled from the Fresing menu.
 ## 0.2.154 – 18 Nov 2026 – The tool-change operator keeps his place (task 0194)
 
 - **The person who changes the tool always stands on the same spot.** After a model update with nothing changed he
