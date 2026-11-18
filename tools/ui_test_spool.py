@@ -323,6 +323,7 @@ def open_panel():
     under 1 Import (panels are ordered by bl_order, then by when they were registered), which draws the magenta
     strip where ``STATE["mark"]`` says: "top" (above everything: for the list), "add" (above Add drum / Add
     carousel) or a button's operator."""
+    mod("blender.panels").open_to("FRESING_PT_spools")      # task 0062: a panel shows only under open parents
     if hasattr(bpy.types, "FRESING_PT_spools_shot"):
         return
     ui_spool = mod("blender.ui_spool")

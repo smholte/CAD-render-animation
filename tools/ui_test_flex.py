@@ -270,6 +270,7 @@ def s_wait():
     made = flex().set_up_test_hoses(sc)            # the joints "Luff" and "Slide" and the cylinder …
     while len(items()):
         flex().remove(sc, 0)                       # … and no hose yet: that is the user's work, below
+    mod("blender.panels").open_to("FRESING_PT_flex")        # task 0062: a panel shows only under open parents
     check("the hoses model: joints made, nothing in the list", made["joints"] == ["Luff", "Slide"]
           and len(items()) == 0 and mod("blender.ui_flex").FRESING_PT_flex.poll(bpy.context))
     check("click selects: Subassembly (as installed)", sc.fresing.pick_mode == "SUBASSEMBLY", sc.fresing.pick_mode)
