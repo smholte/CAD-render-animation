@@ -71,9 +71,9 @@ def test_a_checkout_without_the_package_folder_finds_the_root_files(tmp_path):
 
 
 def test_the_about_words_are_plain():
-    lines = about.lines("0.2.161", "5.2.3 LTS")
+    lines = about.lines("0.2.162", "5.2.3 LTS")
     text = " ".join(lines)
-    assert "0.2.161" in text and "5.2.3 LTS" in text and "GPL-3.0-or-later" in text and "no warranty" in text
+    assert "0.2.162" in text and "5.2.3 LTS" in text and "GPL-3.0-or-later" in text and "no warranty" in text
     assert "© 2026 Fresing" in text
 
 

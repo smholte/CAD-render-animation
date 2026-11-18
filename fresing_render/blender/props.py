@@ -659,6 +659,24 @@ class FRJoint(bpy.types.PropertyGroup):
         name="Motor (turns without end)", default=False, update=_joint_motor_changed,
         description="A motor has no limits and turns as far as you like; its angle is also shown in turns. "
                     "In 6 Animation, the step Run motor turns it at a set speed")
+    # task 0203: what the joint does on a crane (Set up a crane); '' = no role
+    role: EnumProperty(
+        name="Role", default="NONE",
+        description="What this joint does on a crane: Hook to here and the lifting plan find the crane's joints by "
+                    "it. Set by Set up a crane; pick it by hand for an own crane",
+        items=[("NONE", "No role", "Not a crane joint (or not used by the lifting plan)"),
+               ("slew", "Slew", "Turns the superstructure about the upright slew axis (+ = anticlockwise from above)"),
+               ("luff", "Luff", "Raises and lowers the (main) boom (+ = up)"),
+               ("telescope", "Telescope", "Slides a boom section out (+ = out)"),
+               ("jib", "Jib", "Turns a jib at the boom's head (+ = up)"),
+               ("knuckle", "Knuckle", "Turns the outer boom of a knuckle-boom crane (+ = up)"),
+               ("extension", "Extension", "Slides an extension of the outer boom out (+ = out)"),
+               ("hoist", "Hoist", "Lets the hook down: the rope paid out below the head sheave (+ = down)"),
+               ("swing", "Hook swing", "Keeps the hook block hanging plumb while the boom turns"),
+               ("outrigger", "Outrigger", "Slides an outrigger or stabiliser beam out (+ = out)"),
+               ("jack", "Jack", "Lowers an outrigger jack or stabiliser leg (+ = down)"),
+               ("track", "Track", "A crawler track's wheel"),
+               ("travel", "Travel", "Drives the whole crane along the ground")])
 
 
 class FRPoseJoint(bpy.types.PropertyGroup):
@@ -3883,6 +3901,163 @@ class FRLifting(bpy.types.PropertyGroup):
     message: StringProperty(default="", description="The last result of Hook to here or a placing")
 
 
+# ---- Set up a crane (task 0203) ----
+
+def _crane_setup_changed(self, context):
+    from . import setup_crane
+    setup_crane.changed(context.scene if context else None)
+
+
+class FRCraneAxis(bpy.types.PropertyGroup):
+    """An axis Set up a crane offers for the joint it makes (a round face of the picked parts, or a direction)."""
+    label: StringProperty()
+    origin: FloatVectorProperty(size=3, description="A point on the axis, world, m")
+    direction: FloatVectorProperty(size=3, description="The axis direction, world")
+    radius: FloatProperty(default=0.0, description="The round face's radius, m (0 = a direction)")
+    shared: BoolProperty(default=False, description="The pin is shared with the part it sits on")
+
+
+class FRCraneGroup(bpy.types.PropertyGroup):
+    """A mass group of the crane (carrier, superstructure, counterweight, boom, jib, hook block …)."""
+    key: StringProperty(description="The group's key in the equipment file (carrier, upper, boom …)")
+    parts: StringProperty(name="Parts", update=_crane_setup_changed,
+                          description="The group's parts or sub-assemblies, by name, separated by |")
+    mass_mode: EnumProperty(
+        name="Mass", default="ENTERED", update=_crane_setup_changed,
+        description="Where the group's mass comes from",
+        items=[("ENTERED", "Entered", "The mass you type (the maker's data sheet, weighed)"),
+               ("VOLUME", "Volume x density", "The parts' solid volume x the density: an estimate")])
+    mass_t: FloatProperty(name="Mass", default=0.0, min=0.0, soft_max=2000.0, precision=3,
+                          update=_crane_setup_changed,
+                          description="The group's mass in t (from the maker's data sheet)")
+    density: FloatProperty(name="Density", default=7850.0, min=1.0, soft_max=20000.0, update=_crane_setup_changed,
+                           description="kg per m³ for Volume x density (steel 7850). The mass is then an estimate")
+    volume_mass: FloatProperty(default=0.0, description="Volume x density, kg (worked out)")
+    cog: FloatVectorProperty(name="CoG", size=3, default=(0.0, 0.0, 0.0), precision=3,
+                             description="The group's centre of gravity in the crane's model, m (CAD pose)")
+    cog_by_hand: BoolProperty(name="CoG set by hand", default=False, update=_crane_setup_changed,
+                              description="On: the CoG is the one typed here. Off: worked out from the parts' "
+                                          "solid volumes")
+    worked: BoolProperty(default=False, description="Volume and CoG were worked out for the parts as they are")
+    marker: PointerProperty(type=bpy.types.Object, description="The group's CoG marker")
+
+
+class FRCraneRow(bpy.types.PropertyGroup):
+    """A row of a load chart: radius and capacity (empty capacity = a gap)."""
+    radius: StringProperty(name="Radius", description="The radius in m, from the slew axis to the hook")
+    capacity: StringProperty(name="Capacity", description="What the crane may lift there, t. Empty or '-': a gap "
+                                                          "(not allowed there)")
+
+
+class FRCraneChart(bpy.types.PropertyGroup):
+    """One configuration's load chart (boom length, jib, counterweight, outrigger spread)."""
+    boom: FloatProperty(name="Boom", default=0.0, min=0.0, soft_max=200.0, precision=2,
+                        description="Boom length of this chart, m (0 = any)")
+    jib: FloatProperty(name="Jib", default=0.0, min=0.0, soft_max=150.0, precision=2,
+                       description="Jib length of this chart, m (0 = no jib)")
+    counterweight: FloatProperty(name="Counterweight", default=0.0, min=0.0, soft_max=1000.0, precision=1,
+                                 description="Counterweight of this chart, t (0 = none named)")
+    outriggers: FloatProperty(name="Spread", default=0.0, min=0.0, soft_max=20.0, precision=2,
+                              description="Outrigger spread of this chart, m, pad centre to pad centre (0 = none "
+                                          "named)")
+    rows: CollectionProperty(type=FRCraneRow)
+
+
+class FRCraneProblem(bpy.types.PropertyGroup):
+    """A line of the Check step: what is wrong and which step fixes it."""
+    text: StringProperty()
+    step: StringProperty(description="The step key that fixes it")
+    severity: StringProperty(default="red")
+
+
+class FRCraneSetup(bpy.types.PropertyGroup):
+    """Set up a crane (task 0203): what the steps need that is not a joint, cylinder, pose or track of the app."""
+    name: StringProperty(name="Name", default="", update=_crane_setup_changed,
+                         description="The crane's name in your library (your own name for it, e.g. 'Our 60 t crane')")
+    cls: StringProperty(name="Class", default="",
+                        description="Its size class or type, as you call it (e.g. 'AT-60'). Shown in the library")
+    root: PointerProperty(type=bpy.types.Object, description="The crane's model in the project")
+    pick: StringProperty(name="Parts", default="",
+                         description="The parts or sub-assemblies of this step, by name, separated by |. Type a name "
+                                     "or click them in the main window and press Use clicked")
+    search: StringProperty(name="Find", default="", options={"TEXTEDIT_UPDATE"},
+                           description="Type a part or sub-assembly name (or part of it): the matches show below")
+    axes: CollectionProperty(type=FRCraneAxis)
+    axis_index: IntProperty(default=-1)
+    axes_for: StringProperty(default="", description="The picked parts the axes were found for")
+    stroke: FloatProperty(name="Stroke", default=0.0, min=0.0, soft_max=100.0, precision=3, unit="LENGTH",
+                          description="How far one section (or beam stage, leg) slides out, m: the joint's Max")
+    jack_stroke: FloatProperty(name="Jack stroke", default=0.0, min=0.0, soft_max=10.0, precision=3, unit="LENGTH",
+                               description="How far an outrigger jack (stabiliser leg) goes down, m: its Max")
+    hook_point: FloatVectorProperty(name="Hook point", size=3, default=(0.0, 0.0, 0.0), precision=4,
+                                    unit="LENGTH", subtype="XYZ",
+                                    description="The hook's saddle (where the sling goes) in the crane's model, m, "
+                                                "with the rope at 0")
+    hook_set: BoolProperty(default=False, description="The hook point is set")
+    hook_part: StringProperty(name="Hook block", default="",
+                              description="The hook block's sub-assembly (or part), by name")
+    falls: IntProperty(name="Falls", default=1, min=1, max=40,
+                       description="How many falls of rope the hook block hangs on (stored; drawing them comes "
+                                   "later)")
+    rope_part: StringProperty(name="Rope", default="",
+                              description="The hoist rope part drawn in the CAD (optional): it follows the hook")
+    boom_angle: FloatProperty(name="Boom angle in the model", default=0.0, soft_min=-10.0, soft_max=90.0,
+                              precision=2, subtype="ANGLE",
+                              description="The (main) boom's angle above level as the CAD model draws it, from the "
+                                          "maker's drawing. Measured from the model when you make the joint")
+    second_angle: FloatProperty(name="Jib angle to the boom", default=0.0, precision=2, subtype="ANGLE",
+                                description="The jib's (outer boom's) angle to the main boom as the CAD model draws "
+                                            "it. Measured from the model when you make the joint")
+    model_boom: FloatProperty(name="Boom length", default=0.0, min=0.0, soft_max=200.0, precision=2,
+                              description="Lattice boom: the boom length the model is drawn with, m (the charts' "
+                                          "boom). 0 for a telescopic boom: measured")
+    model_jib: FloatProperty(name="Jib length", default=0.0, min=0.0, soft_max=150.0, precision=2,
+                             description="Luffing jib: the jib length the model is drawn with, m")
+    jib_boom_angle: FloatProperty(name="Jib charts' boom angle", default=0.0, min=0.0, max=90.0, precision=1,
+                                  description="Luffing jib charts hold with the main boom at one angle, °. 0: not "
+                                              "named")
+    counterweight_steps: StringProperty(name="Steps", default="",
+                                        description="The counterweight steps the crane can carry, t, separated by "
+                                                    "commas (e.g. 0, 40, 80)")
+    spreads: FloatVectorProperty(name="Spreads", size=3, default=(0.0, 0.0, 0.0), min=0.0, soft_max=20.0,
+                                 precision=2,
+                                 description="Outrigger spreads full / middle / narrow, m pad centre to pad centre "
+                                             "(0 = not used)")
+    groups: CollectionProperty(type=FRCraneGroup)
+    group_index: IntProperty(default=0)
+    charts: CollectionProperty(type=FRCraneChart)
+    chart_index: IntProperty(default=0)
+    chart_wind: FloatProperty(name="Wind", default=9.8, min=0.0, soft_max=30.0, precision=1,
+                              description="The highest wind speed the chart allows, m/s (3-second gust at the boom "
+                                          "head as the maker's chart says)")
+    chart_hook: BoolProperty(name="Chart includes the hook block", default=False,
+                             description="Tick when the maker's chart already counts the hook block's mass")
+    chart_source: StringProperty(name="Source", default="",
+                                 description="Where the chart comes from: maker, chart number, date, who entered it")
+    hook_block_t: FloatProperty(name="Hook block", default=0.0, min=0.0, soft_max=50.0, precision=3,
+                                description="The hook block's mass, t (added to the load unless the chart includes "
+                                            "it)")
+    sheave: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0),
+                                description="The head sheave's centre, world, m (the hoist hangs from it)")
+    sheave_set: BoolProperty(default=False, description="The head sheave is picked")
+    start_pose: StringProperty(name="Start pose", default="",
+                               description="The pose the crane is in when it is placed from the library (e.g. "
+                                           "Travel)")
+    free_role: EnumProperty(
+        name="Role", default="luff",
+        description="What the next joint does on the crane (Other crane: you pick each joint's role)",
+        items=[(k, w, d) for k, w, d in (
+            ("slew", "Slew", "Turns the superstructure about the upright axis"),
+            ("luff", "Luff", "Raises the (main) boom"), ("telescope", "Telescope", "Slides a boom section out"),
+            ("jib", "Jib", "Turns a jib at the boom head"), ("knuckle", "Knuckle", "Turns an outer boom"),
+            ("extension", "Extension", "Slides an extension out"), ("outrigger", "Outrigger", "Slides a beam out"),
+            ("jack", "Jack", "Lowers a jack or leg"), ("travel", "Travel", "Drives the crane along the ground"))])
+    problems: CollectionProperty(type=FRCraneProblem)
+    checked: BoolProperty(default=False, description="Check ran since the last change")
+    saved_path: StringProperty(default="", description="Where Save put the crane's file")
+    message: StringProperty(default="")
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -4401,6 +4576,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     house: PointerProperty(type=FRHouse, description="The house imported from House Planner and its last bake "
                                                      "(5 Scene & Render > House from House Planner)")
     # ---- the lifting plan (task 0201) ----
+    crane_setup: PointerProperty(type=FRCraneSetup, description="Set up a crane: the steps' settings (task 0203)")
     lifting: PointerProperty(type=FRLifting, description="The lifting plan: placed cranes and loads "
                                                          "(8 Lifting plan)")
 
@@ -4431,7 +4607,15 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                     "panel: what you do here shows there too",
         items=[("CNC", "Set up a CNC mill", "The axes X, Y and Z, the spindle, the tool and the workpiece, the work "
                                             "zero, then the step that runs a G-code program"),
-               ("MECH", "Set up a mechanism", "The type, the base, the moving links, then Add mechanism")])
+               ("MECH", "Set up a mechanism", "The type, the base, the moving links, then Add mechanism"),
+               ("CRANE_MOBILE", "Set up a mobile crane", "A telescopic crane on wheels: slew, luff, telescope, "
+                                                         "hoist, hook block, outriggers, masses and its load chart"),
+               ("CRANE_CRAWLER", "Set up a crawler crane", "A lattice-boom crane on tracks: tracks, slew, boom, "
+                                                           "luffing jib, hoist, hook block, masses and its chart"),
+               ("CRANE_KNUCKLE", "Set up a knuckle-boom crane", "A truck-mounted knuckle-boom crane: slew, main "
+                                                                "boom, knuckle, extensions, stabilisers, its chart"),
+               ("CRANE_OTHER", "Set up another crane", "Any other crane: its joints in your order, each given its "
+                                                       "role by hand")])
     setup_step: IntProperty(
         name="Step", default=0, min=0,
         description="The step of the set-up the Set-up window shows. Saved with the project: the window opens where "
@@ -4454,6 +4638,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRTrackWheel, FRTrack,
            FRHouse, FRPersonAction, FRPersonSettings,
            FRLiftCrane, FRLiftDensity, FRLiftLoad, FRLifting,
+           FRCraneAxis, FRCraneGroup, FRCraneRow, FRCraneChart, FRCraneProblem, FRCraneSetup,
            FRSceneSettings)
 
 

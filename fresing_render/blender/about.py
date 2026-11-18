@@ -1,7 +1,7 @@
 """About Fresing Render (task 0206): version, who makes it, the licence, the third-party licences – offline.
 
 One operator draws the window (Fresing menu and Help menu), one opens a licence file. The files are inside the extension
-(``licenses/``, ``core/about.py``); an install made before 0.2.161 gets them with the update. The text files have no
+(``licenses/``, ``core/about.py``); an install made before 0.2.162 gets them with the update. The text files have no
 program Windows would open (``LICENSE`` has no ending, ``.md`` has none either), so a copy with the ending ``.txt`` is
 opened (Notepad).
 """

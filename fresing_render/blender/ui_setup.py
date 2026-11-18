@@ -356,6 +356,13 @@ CHECKS = {
 
 KIND_ICONS = {"CNC": "FILE_SCRIPT", "MECH": "LINKED"}
 
+# task 0203: Set up a crane – four kinds, each its own step list (setup_crane.py)
+from . import setup_crane as _crane  # noqa: E402
+
+SETUPS.update(_crane.SETUPS)
+CHECKS.update(_crane.CHECKS)
+KIND_ICONS.update(_crane.KIND_ICONS)
+
 
 def current(scene) -> tuple:
     """(kind, step, steps) the Set-up window shows: the step is clamped to the kind's steps, and counts only for
@@ -389,8 +396,12 @@ def draw_setup(layout, context) -> None:
     layout.operator_menu_enum("fresing.setup_kind", "kind", text=title, icon=KIND_ICONS.get(kind, "PREFERENCES"))
 
     value = tick()
-    row = layout.row(align=True)
+    per = n if n <= 9 else 5                       # task 0203: a crane has 13-14 steps: rows of 5, "✓ 12" readable
+    col = layout.column(align=True)
+    row = None
     for i in range(n):
+        if i % per == 0:
+            row = col.row(align=True)
         if i != k and is_done(context, kind, i):
             if value:
                 op = row.operator("fresing.setup_go", text=str(i + 1), icon_value=value)

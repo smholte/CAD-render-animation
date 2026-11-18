@@ -2484,7 +2484,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.152")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.161")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -3391,6 +3391,49 @@ def build_lifting(b: Build):
     _shot(b, "@lifting_hook")
 
 
+@tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
+          added="0.2.161")
+def build_crane_setup(b: Build):
+    """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
+    a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
+    from . import crane_example, setup_crane
+    sc = b.scene
+    _look("PRODUCT")
+    crane_example.rig(sc, "KB-20", check=True, clash=False)
+    from . import ops_setup
+    k = setup_crane.step_index("CRANE_KNUCKLE", "check")
+    ops_setup.go(sc, k)
+    for name in ("Working",):
+        if name in sc.fresing.poses:
+            from . import states
+            states.apply_pose(sc, name)
+    _update()
+    _camera(b, "ISO", "Tour crane set-up", lens=35.0, points=_crane_points(sc))
+    _shot(b, "@crane_setup")
+
+
+def _crane_points(scene):
+    """Every part's box corners (the camera frames the whole crane)."""
+    import numpy as np
+
+    from . import build
+    pts = [np.array(ob.matrix_world) @ np.r_[np.asarray(c, float), 1.0] for ob in build.iter_parts(scene)
+           for c in ob.bound_box]
+    return np.array([p[:3] for p in pts])
+
+
+def _check_crane_setup(scene):
+    from . import setup_crane as SC
+    cs = SC.settings(scene)
+    js = SC.crane_joints(scene)
+    roles = sorted({j.role for j in js if j.role != "NONE"})
+    _check(len(js) >= 20, f"{len(js)} crane joints (want the KB-20's 21)")
+    _check({"slew", "luff", "knuckle", "extension", "hoist", "swing", "outrigger", "jack"} <= set(roles),
+           f"roles {roles}")
+    _check(cs.hook_set and cs.checked, "the hook point is not set or Check did not run")
+    red = [p.text for p in cs.problems if p.severity == "red"]
+    _check(not red, "Check: " + "; ".join(red[:2]))
+    return f"{len(js)} joints with {len(roles)} roles, hook point set, Check: nothing wrong"
 @tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_crane_a.step", added="0.2.159",
           changed="0.2.159")
 def build_lifting_make(b: Build):
@@ -3670,6 +3713,12 @@ stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "radius), the gross load (1.2 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
      where="8 Lifting plan > Hook & capacity", since="0.2.156", check=_check_lifting_hook)
 
+stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
+     "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
+     "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
+     "four stabiliser corners are app joints with their roles (4 Motion > Joints), its two cylinders, poses, masses and "
+     "chart are in; the crane stands in its pose 'Working'. The Set-up window is on its step Check: nothing wrong.",
+     where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.161", check=_check_crane_setup)
 stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
      "Beside the test crane stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… "
      "from the AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its "
@@ -3801,7 +3850,8 @@ def _check_setup(scene):
     import bpy
 
     from . import ui_setup
-    _check(set(ui_setup.SETUPS) == {"CNC", "MECH"}, "the Set-up window does not have the CNC mill and the mechanism")
+    _check({"CNC", "MECH"} <= set(ui_setup.SETUPS),         # (task 0203 added the crane set-ups)
+           "the Set-up window does not have the CNC mill and the mechanism")
     n_cnc, n_mech = len(ui_setup.SETUPS["CNC"][1]), len(ui_setup.SETUPS["MECH"][1])
     _check(n_cnc == 5 and n_mech == 4, f"the set-ups have {n_cnc} and {n_mech} steps (5 and 4 expected)")
     kind, step, steps = ui_setup.current(scene)
