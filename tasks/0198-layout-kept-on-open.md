@@ -88,10 +88,12 @@ far clip (0193).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 17 Nov 2026
 
-**What changed:**
+**What changed:** new `blender/ui_header.py`: a load handler (only in the app, not in background) puts the side panel on the Fresing tab and folds the toolbar for every opened project; nothing else of the project's view is touched (0193's clip survives; the template's clip values run only at the factory start-up). Live preview: the choice is stored in the extension's preferences (`live_preview`) and applied after a test tour set or the demo opens; an own project opens as saved. The header button "Fresing" (right end of the 3D view's header) shows only when the panel is hidden or another tab is open; `fresing.show_panel` does the same and is ready for 0199's menu line. Also: guide section "The side panel or the Fresing tab is gone", function entry `help.show_panel`, tour stop `panel_back`, PC-check line `app.layout`, `tools/ui_test_layout.py` (33 checks, group ui).
 
-**Tested and measured** (name the machine and the model):
+"Gone" cases covered: N / View > Sidebar (panel hidden) and another tab open -> header button; a different workspace -> click Layout (the guide says so); maximised area (Ctrl+Space) -> the button is in that area's header. Not checked in Blender: a tab hidden through the region's right-click menu (Blender has no such menu entry for the Fresing category) and a panel dragged to zero width (Blender then hides it, same as N).
 
-**Open points / follow-up tasks:**
+**Tested and measured** (4-core web machine, Blender 5.2.3 under xvfb): real-app test 33/33 (tour set, demo marker, own project with the panel hidden and toolbar shown, older-version project, 20 km clip kept, Live preview on/off through tour sets and the demo, header button and operator); tour and PC-check tests pass locally. A real demo project and a project saved by a real 0.2.140 were simulated by marker / saved layout, not made for real. Header screenshot looked at. Restart persistence of the preference relies on Blender saving preferences at exit (not tested by a restart). Guide pictures not replaced (no panel layout changed).
+
+**Open points / follow-up tasks:** 0199 adds the top-bar menu line for `fresing.show_panel`. Windows: the load handler is plain bpy; the PC-check line only checks the pieces exist.

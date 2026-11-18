@@ -74,6 +74,11 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                     "face a click would use lights up in magenta with a short note, before you click. Switch it off "
                     "if it ever gets in the way; the clicks work the same")
 
+    live_preview: BoolProperty(
+        name="Live preview was on", default=False, options={"HIDDEN"},
+        description="Remembers the last choice of the Live preview button (5 Scene & Render), so the test tour and "
+                    "the demo project open with it on or off as you left it")
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "library_path")

@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.149"
+__version__ = "0.2.150"
 
 _modules = []
 
@@ -15,7 +15,7 @@ def _classes():
     from .blender import (ops_callouts, ops_clash, ops_coolant, ops_cylinders, ops_decals, ops_doublearm, ops_fade, ops_gcode,
                           ops_import, ops_linkages, ops_machining, ops_main, ops_motion, ops_panels, ops_waycover,
                           ops_demo, ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
-                          ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_machining, ui_motion, ui_tour, ui_video,
+                          ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_header, ui_machining, ui_motion, ui_tour, ui_video,
                           ui_section, ui_waycover, updates)
     from .blender import ops_section                # task 0086: 3 Looks > Cutaway
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
@@ -48,7 +48,7 @@ def _classes():
     looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
-    return (updates.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    return (updates.CLASSES + ui_header.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
@@ -126,6 +126,8 @@ def register():
     ui_top.register_header()                 # "Make" in the 3D view's header
     from .blender import ops_tour
     ops_tour.register_handlers()
+    from .blender import ui_header
+    ui_header.register_handlers()
     project_lock.register()
     machining.register()
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
@@ -210,6 +212,8 @@ def unregister():
     handlers.unregister()
     from .blender import ops_tour
     ops_tour.unregister_handlers()
+    from .blender import ui_header
+    ui_header.unregister_handlers()
     from .blender import lock, panels, ui_top, workspaces
     ui_top.unregister_header()
     workspaces.unregister()

@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.150 – 17 Nov 2026 – The app's window stays yours, the Fresing panel always comes back (task 0198)
+
+- **Every project opens in the app's layout.** Your own project, the test tour, the demo and an older
+  version's project all show the side panel on the Fresing tab with Blender's toolbar folded. Your own view
+  of the model (camera, shading, sizes) stays as you saved it.
+- **Live preview keeps your last choice** while you go through the test tour and the demo: on stays on, off
+  stays off, also after a restart. A project of your own opens as you saved it.
+- **A "Fresing" button at the right end of the 3D view's header** brings the side panel back when it is
+  hidden or another tab is open. It shows only then. New test tour stop "Fresing panel always back".
+
 ## 0.2.149 – 17 Nov 2026 – Cables: model update keeps routes, re-bake also redoes riding cameras, seabed follows Vessel at work
 
 - **Model update with the same file changes nothing in the cables.** A contact you took off a cable's list stays off
