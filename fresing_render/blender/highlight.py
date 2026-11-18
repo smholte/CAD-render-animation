@@ -8,13 +8,16 @@ a lesson **point**:
     highlight.clear()
 
 How it works. Blender's Python cannot ask where a button is. While something is pointed at, the target panel's
-``draw`` gets a stand-in for ``self.layout`` (``_L``) that passes every call through, except the target: its icon
-becomes a small *marker* icon of one exact colour. A draw handler of the side panel then reads the side panel's own
+``draw`` (whatever it is then: the title row and body of ``panels.py``) gets a stand-in for ``self.layout`` (``_L``)
+that passes every call through, except the target: a button's icon becomes a small *marker* icon of one exact
+colour, a setting gets the marker in front of it. A draw handler of the side panel then reads the side panel's own
 pixels, finds that colour, paints the marker over and draws the look round the button it sits on (``button_box``
-finds the button's own edges, so of two joined buttons only the target is marked). The headers of the target panel
-and of the panels it sits in carry a second marker: while the button is not on screen (its section is folded), the
-lowest header on screen gets the section look. A fold (``ui.fold``) that holds the target opens by itself
+finds the button's own edges, so of two joined buttons only the target is marked; a greyed-out button is found
+too). The title rows of the target panel and of the panels it sits in carry a second marker, put in by their
+``draw_header``, right after the fold arrow: while the button is not on screen (its section is folded), the lowest
+marked title row on screen gets the section look. A fold (``ui.fold``) that holds the target opens by itself
 (``fold_open``, asked by ``ui.HOOKS["fold"]``). Parts are drawn again in the 3D view by a second draw handler.
+Scrolling the side panel to the target is the lesson's job: ``found()`` says what is on screen and where.
 
 Six looks, two of each kind, the first the default (the owner's picks from studies 0168 and 0185; he settles each
 pair on his own PC):
@@ -65,7 +68,7 @@ TICK = 0.05                                 # seconds between two redraws while 
 
 _S: dict = {"target": None, "wrapped": [], "handles": [], "timer": False, "icons": None, "looks": {}, "pref": {},
             "colour": None, "pref_colour": None, "clear": (), "t": 0.0, "clock": None, "seen": {}, "note": "",
-            "parts": [], "marked": False, "fold_next": False, "outside": False, "anywhere": False, "again": False,
+            "parts": [], "part_obs": None, "marked": False, "fold_next": False, "outside": False, "anywhere": False, "again": False,
             "lit": None,
             "stats": {"side": [0, 0.0], "read": [0, 0.0], "parts": [0, 0.0]}}
 _HOOKED: set = set()                        # panels whose header marker is drawn through mark_header()
@@ -187,6 +190,7 @@ def point(panel: str = "", button: str = "", text: str = "", prop: str = "", fol
         c = getattr(bpy.types, getattr(c, "bl_parent_id", "") or "-", None)
     _S["target"] = {"panel": panel, "button": button, "text": text, "prop": prop, "fold": fold, "chain": chain}
     _S["parts"] = _part_names(parts)
+    _S["part_obs"] = None
     _S["seen"] = {}
     _S["anywhere"] = _S["again"] = False
     _S["t"] = _now()
@@ -229,6 +233,7 @@ def clear() -> None:
 def _clear(in_load: bool) -> None:
     _S["target"] = None
     _S["parts"] = []
+    _S["part_obs"] = None
     _S["seen"] = {}
     _unwrap()
     _remove_handlers(in_load)
@@ -889,8 +894,19 @@ def _part_names(parts) -> list:
 
 
 def _part_objects() -> list:
-    get = bpy.data.objects.get
-    return [o for o in map(get, _S["parts"]) if o is not None and o.type == "MESH" and o.visible_get()]
+    """The parts to draw now: those of the names that are shown and have faces. The objects are looked up by name
+    once, and again after undo or when one is gone (looked up at every redraw, the 264 parts of a machine on the
+    demo vessel cost 34 ms: Blender walks its list of objects for each name)."""
+    for again in (False, True):
+        obs = _S["part_obs"]
+        if obs is None or again:
+            get = bpy.data.objects.get
+            obs = _S["part_obs"] = [o for o in map(get, _S["parts"]) if o is not None and o.type == "MESH"]
+        try:
+            return [o for o in obs if o.visible_get() and len(o.data.polygons)]
+        except ReferenceError:                          # an object was deleted while it was pointed at
+            continue
+    return []
 
 
 _LIT_VERT = """
@@ -938,7 +954,8 @@ def _lit():
 
 
 def _geo(ob, lit: bool):
-    """Once per mesh: its triangles as a batch on the graphics card ("fill": corners; "lit": with normals)."""
+    """Once per mesh: its triangles as a batch on the graphics card ("fill": corners; "lit": with normals).
+    False for a mesh that cannot be drawn (one such part must not take the others with it)."""
     import gpu
     import numpy as np
     from gpu_extras.batch import batch_for_shader
@@ -952,13 +969,17 @@ def _geo(ob, lit: bool):
         tri = np.empty(len(me.loop_triangles) * 3, np.int32)
         me.loop_triangles.foreach_get("vertices", tri)
         pos = co.reshape(-1, 3)[tri]
-        if lit:
-            c = pos.reshape(-1, 3, 3)
-            n = np.cross(c[:, 1] - c[:, 0], c[:, 2] - c[:, 0])
-            n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
-            hit = batch_for_shader(_lit(), "TRIS", {"pos": pos, "nor": np.repeat(n, 3, axis=0).astype(np.float32)})
-        else:
-            hit = batch_for_shader(gpu.shader.from_builtin("UNIFORM_COLOR"), "TRIS", {"pos": pos})
+        try:
+            if lit:
+                c = pos.reshape(-1, 3, 3)
+                n = np.cross(c[:, 1] - c[:, 0], c[:, 2] - c[:, 0])
+                n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+                hit = batch_for_shader(_lit(), "TRIS", {"pos": pos, "nor": np.repeat(n, 3, axis=0).astype(np.float32)})
+            else:
+                hit = batch_for_shader(gpu.shader.from_builtin("UNIFORM_COLOR"), "TRIS", {"pos": pos})
+        except Exception as e:  # noqa: BLE001
+            hit = False
+            _S["note"] = f"part {ob.name!r} ({len(tri) // 3} triangles) cannot be drawn: {e}"
         _GEO[key] = hit
     return hit
 
@@ -975,6 +996,8 @@ def _fill(obs, rgba) -> None:
     sh = gpu.shader.from_builtin("UNIFORM_COLOR")
     for ob in obs:
         batch = _geo(ob, False)
+        if not batch:
+            continue
         gpu.matrix.push()
         gpu.matrix.multiply_matrix(ob.matrix_world)
         sh.uniform_float("color", rgba)
@@ -1019,6 +1042,8 @@ def _part_3(obs, col) -> None:
         sh.bind()
         for ob in obs:
             batch = _geo(ob, True)
+            if not batch:
+                continue
             mw = ob.matrix_world
             back = mw.to_3x3().normalized().transposed()        # world -> the part's own directions
             sh.uniform_float("mvp", vp @ mw)
@@ -1101,8 +1126,9 @@ def _drop_load_handler():
 
 @persistent
 def _after_undo(_dummy=None):
-    """Undo may have changed meshes: their triangles are read again."""
+    """Undo may have changed meshes and replaces the objects: both are read again."""
     _GEO.clear()
+    _S["part_obs"] = None
     redraw()
 
 

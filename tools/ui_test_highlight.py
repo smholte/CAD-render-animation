@@ -707,6 +707,9 @@ def s_part_before():
     parts = [o for o in bpy.context.scene.objects if o.type == "MESH" and o.get("fr_name")]
     part = max(parts, key=lambda o: max(o.dimensions))
     S["part"] = part.name
+    nothing = bpy.data.objects.new("highlight test: a part without faces", bpy.data.meshes.new("no faces"))
+    bpy.context.scene.collection.objects.link(nothing)      # found on the demo vessel: it must not stop the others
+    nothing.parent = part
     hl().set_look("part", "3")
     hl().point(parts=(part.name,))
     return 1.2
