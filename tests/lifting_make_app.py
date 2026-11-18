@@ -8,6 +8,9 @@ every pose – and the clash check of the crane's own motion (its poses one afte
 brief's 20 per kind (a set takes 15–40 s for a mobile or knuckle-boom crane, 60–180 s for a crawler, mostly the clash
 check: one file stays within a few minutes). The seeds are fixed: a failure names its set and its numbers.
 
+The clash check (most of the time) runs on every 4th set – 5 per kind – and on all of them with
+``FRESING_ALL_CLASH=1`` (task 0204 ran all 60 on the web machine: clean). Every set gets the kinematic checks.
+
 The own motion is checked at 0.6 s per pose (15 frames at 24 fps): with 0.25 s the clash check's in-between places of
 nested telescope sections (each a screw motion of its own) put them 4 mm into each other where they never are.
 """
@@ -15,6 +18,7 @@ nested telescope sections (each a screw motion of its own) put them 4 mm into ea
 from __future__ import annotations
 
 import json
+import os
 import random
 
 import lifting_rig as LR
@@ -48,7 +52,8 @@ def check_one(kind: str, i: int, values: dict, out) -> dict:
     res["measure"] = LR.measure(r, steps=4, randoms=2)
     hooks = LR.hook_errors(r)
     res["hook_mm"] = max(e for e, _r, _z in hooks.values())
-    res["clash"] = LR.clash_rows(r, LR.pose_tour(r, seconds=0.6))
+    every = 1 if os.environ.get("FRESING_ALL_CLASH") else 4
+    res["clash"] = LR.clash_rows(r, LR.pose_tour(r, seconds=0.6)) if i % every == 0 else []
     return res
 
 

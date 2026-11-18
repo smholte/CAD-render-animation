@@ -1,6 +1,6 @@
 # 0204 – Lifting L4c: "Make a crane…" – a parametric crane made in the app from the built-in makers, straight into the library
 
-**Who:** worker · **Status:** running (18 Nov) – **after 0201** (uses its Lifting plan section and Place) ·
+**Who:** worker · **Status:** done (18 Nov, 0.2.159) – **after 0201** (uses its Lifting plan section and Place) ·
 **Branch:** `task/0204-make-a-crane`
 **Started by:** lead chat, 18 Nov 2026 (owner: "pre-rigged models that are parametric", in the app, offline; owner's
 order 18 Nov: straight after L4) · **Lane:** Lifting
@@ -93,16 +93,58 @@ makers (L8); offshore cranes (L9); the rope with several falls (L5).
   again): knuckle-boom control stand slewed into the truck cab (now on the crane base); crawler boom foot's corner in
   the upper frame at flat angles; pendant bars against the gantry / jib strut lug plates and posts (plates now round,
   wider than the bar, the legs and posts outside its reach); pendant bores only as deep as the rod goes.
-- No subagents.
+- Subagents: one independent read-only review of the Windows-relevant job code (Sonnet); its points 1–4 fixed.
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, branch `task/0204-make-a-crane`, 18 Nov 2026.
 
 **What changed:**
+- 8 Lifting plan > Equipment > **Make a crane…**: a dialog (type, Start from a built-in class, the numbers in folds –
+  Crane, Boom, Carrier/Tracks/Truck, Outriggers/Stabilisers, Counterweight, Hoist & hook, Masses –, a live "Fits" /
+  the first broken rule in red, name + Replace). **Make** runs the maker as its own program (progress + Cancel in
+  Equipment, the app keeps working), puts STEP + equipment file (SAMPLE chart from `charts.py`'s rule, `derived_from` =
+  its chart hash, `made_from` = start class + every number) + picture into the library through L2, picks it, offers
+  **Place now…** and **Enter your chart…** (CSV through L2's `read_chart_csv` / `set_charts` / `clear_sample`).
+- New: `lifting_model/params.py` (28/27/27 numbers with limits, 27 rules), `job.py`, `run.py`, `picture.py` (NumPy
+  picture, no Blender); `blender/ops_lifting_make.py`, `ui_lifting_make.py`. `equipment.py` takes a dataclass;
+  `lifting.check_rig` / `check_example` read a made crane's own layout; `made_from` is a known field of L2.
+- Maker fixes found by the own-motion clash check (built-ins made again, pictures kept – the changes are hidden or
+  small): KB control stand onto the crane base (it slewed into the cab); CC boom foot slimmer at the pin (its corner
+  dipped into the upper frame at 30–35°); CC gantry and jib strut: round lug plates wider than the pendant bar, legs /
+  posts beside them; cylinder bores only as deep as the rod goes; AT hoist winch moved back where the base section's
+  rear end would swing into it (built-ins unchanged; new rule `winch_fit`).
+- Guide section "Make a crane from numbers" + dialog picture; function entries `lifting.make`, `lifting.chart_entry`;
+  tour set + stop `lifting_make` (AT-100 with 5 sections, 50 m, placed, Hook to here); PC-check line `lifting.make`;
+  real-app test `ui_test_lifting_make.py` (group motion, 22 checks).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (web machine, 4 cores):
+- All 12 classes through `params` + maker: identical equipment file (joints, poses, hook, masses, charts, limits;
+  CoG within 2 mm) and the same parts in the same places in the STEP (names + bounding boxes).
+- 60 random valid sets (20 per kind, fixed seeds, `tests/test_lifting_make_app_*`): made, imported, rigged, every
+  driven joint min → max + random poses against the kinematics (worst 0.02 mm / 0.015°), cylinders in line and range,
+  hook ≤ 0.02 mm, clash check of the crane's own motion (its poses one after another): **all clean** (all 60 on
+  the web machine; on GitHub the clash check runs on every 4th set, 5 per kind – all 60 doubled the run's pytest jobs
+  to 17–20 min; `FRESING_ALL_CLASH=1` runs them all). 180 more random
+  sets made by OpenCascade without a failure. Per crane (3 kinds in parallel): AT/KB 43–70 s, CC 43–160 s, mostly the
+  clash check.
+- One test per rule (28), Cancel leaves nothing (library + temp folder), refused numbers write nothing, same name
+  refused unless Replace, SAMPLE off only after a real chart.
+- Time to make one crane (STEP + JSON + picture, background program): AT-100 2.2 s, CC-750 3.1 s, KB-50 2.6 s; the
+  tour's AT 2.9 s in the PC check. Real app: made in 3.3 s, the app's timer kept running (longest step 0.82 s); 22/22.
+- Built-in crane tests in the app (0191/0201 files) and the Lifting test files pass after the maker changes.
+- GitHub: see the run list below.
 
 **Open points / follow-up tasks:**
+- The clash check misreads a rod's end deep in a long thin bore (a 31 m pendant bar) as inside the bar: the own-motion
+  test leaves a cylinder's own barrel × rod pair to `measure` (in line, in range). Clash lane: the inside test in long
+  cavities.
+- With coarse frames (0.25 s per pose) the clash check put nested telescope sections 4 mm into each other between
+  frames (each interpolated as its own screw motion); the test uses 0.6 s. Clash lane.
+- The KB control stand sits on the side the classes' poses do not slew to; slewing the low boom over it the other way
+  still meets it (a real loader crane has the same limit). The full sweep of every joint over its whole range (not only
+  the poses) still meets the cab / hook block on built-ins and made cranes alike.
+- The library's picture cache keys on the path: after **Replace** the panel may show the old picture until restart.
+- Chart entry is CSV only here; 0203's set-up window brings the typed table.

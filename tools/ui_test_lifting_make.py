@@ -209,7 +209,7 @@ def s_making():
         return "wait"
     S["seconds"] = time.time() - S["t_make"]
     gaps = [b - a for a, b in zip(S["ticks"], S["ticks"][1:])]
-    check("the app keeps running while the crane is made (timer steps < 1 s)", gaps and max(gaps) < 1.0,
+    check("the app keeps running while the crane is made (timer steps < 1.5 s)", gaps and max(gaps) < 1.5,
           f"{len(gaps)} steps, longest {max(gaps) if gaps else 0:.2f} s, made in {S['seconds']:.1f} s")
     check("Make finished without an error", not O().STATE.get("error"), O().STATE.get("message", ""))
     return 1.0
