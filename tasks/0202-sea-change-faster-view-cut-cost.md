@@ -1,6 +1,6 @@
 # 0202 – Sea: measure the 3D view's cut-away cleanly (switch to the cheaper way if it costs ≥ 1 ms), and a sea / weather change in ~1–2 s instead of ~6 s
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0202-sea-change-faster`
+**Who:** worker · **Status:** running · **Branch:** `claude/optimistic-clarke-j0pndr` (the web session's branch)
 **Started by:** lead chat, 18 Nov 2026 (study 0195 proposal A4 + the two 0196 sessions) · **Lane:** Sea
 **Area:** `blender/surroundings.py` – the sea's water material (`_water_material` and the node groups it makes), the view
 cut of 0196 (`_view_cut_group`, `_set_view_cut`); if point 1 says so, a new `blender/sea_view_cut.py` taken from branch
