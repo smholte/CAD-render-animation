@@ -1,6 +1,6 @@
 # 0201 – Lifting L4: a Lifting plan section – place a crane from the library, the load with its CoG, "Hook to here", crane use at the hook
 
-**Who:** worker · **Status:** open – can start (0062 is on `main`, 0.2.152) · **Branch:** `task/0201-lifting-place-cog`
+**Who:** worker · **Status:** running · **Branch:** `claude/elegant-wozniak-oe3stg` (web session)
 **Started by:** lead chat, 18 Nov 2026 (study 0180, task L4; owner's order 17 Nov: L4 after 0062) · **Lane:** Lifting
 **Area:** new `blender/lifting.py`, `blender/ops_lifting.py`, `blender/ui_lifting.py`, `core/lifting_reach.py`,
 `blender/sheet.py` (the sheet reader moved into the app), their tests, a new real-app test `tools/ui_test_lifting.py`;
