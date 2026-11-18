@@ -1,6 +1,6 @@
 # 0214 – Lifting plans with the rest of the app (bug hunt 0209 groups B + C)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0214-lifting-with-the-rest`
+**Who:** worker · **Status:** running · **Branch:** `task/0214-lifting-with-the-rest`
 **Started by:** lead, 18 Nov 2026 · **Model:** Opus · effort Medium
 **Area:** Lifting lane – `blender/lifting.py`, `ops_lifting.py`, `ui_lifting.py`, `blender/sheet.py`, `blender/states.py`,
 `core/lifting_reach.py`, `fresing_render/lifting_model/` (row 17), one hook line in `blender/reimport.py` (leave the rest
