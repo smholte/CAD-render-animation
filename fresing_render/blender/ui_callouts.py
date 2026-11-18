@@ -1,4 +1,5 @@
-"""Side panel: 5 Scene & Render > Labels; 6 Animation > Pictures, Music (task 0025). Same layout rules as ui.py."""
+"""Side panel: 6 Animation > Pictures, Music, Labels (task 0025; Labels moved here from 5 Scene & Render in task
+0062). Same layout rules as ui.py."""
 
 from __future__ import annotations
 
@@ -6,7 +7,7 @@ import bpy
 
 from ..core.words import plural
 from . import animation, callouts, video
-from .ui import _has_model, _Panel, big_row, header_status, list_rows, split_props, wrap
+from .ui import _has_model, _Panel, big, gap, header_status, hint, list_rows, split_props, wrap
 
 
 class FRESING_UL_callouts(bpy.types.UIList):
@@ -41,17 +42,19 @@ class FRESING_PT_labels(_Panel, bpy.types.Panel):
         self.layout.label(icon="FONT_DATA")
 
     def draw_header_preset(self, context):
-        n = sum(1 for c in context.scene.fresing.callouts if c.enabled)
-        if n:
-            header_status(self.layout, plural(n, "label"))
+        s = context.scene.fresing
+        n = sum(1 for c in s.callouts if c.enabled)
+        header_status(self.layout, (plural(n, "label") if s.callouts_on or not n else f"{n} off") if n else "none")
 
     def draw(self, context):
         layout = self.layout
         s = context.scene.fresing
-        wrap(layout, context, "Words with a thin line to a spot on a part, in stills and MP4 videos. The line "
+        hint(layout, context, "Words with a thin line to a spot on a part, in stills and MP4 videos. The line "
                               "stays on its part when the part moves. Look comes from the brand kit.")
-        big_row(layout, 1.4).operator("fresing.callout_add", icon="EYEDROPPER")
+        gap(layout)
+        big(layout, "fresing.callout_add", "Add a label", "EYEDROPPER")
         if s.callouts:
+            gap(layout)
             layout.template_list("FRESING_UL_callouts", "", s, "callouts", s, "callouts_index",
                                  rows=list_rows(len(s.callouts), 2, 6))
             if 0 <= s.callouts_index < len(s.callouts):
@@ -67,17 +70,16 @@ class FRESING_PT_labels(_Panel, bpy.types.Panel):
                     wrap(layout, context, "The part of this label is gone. Press Move the point and click another "
                                           "part, or remove the label.", icon="ERROR", alert=True, inset=12)
                 else:
-                    layout.label(text=f"Points at {c.part.name}", icon="PIVOT_CURSOR")
+                    wrap(layout, context, f"Points at {c.part.name}", icon="PIVOT_CURSOR")
                 row = layout.row(align=True)
-                row.operator("fresing.callout_move", icon="EYEDROPPER")
+                row.operator("fresing.callout_move", text="Move the point", icon="EYEDROPPER")
                 row.operator("fresing.callout_show_part", text="Select part", icon="RESTRICT_SELECT_OFF")
                 row.operator("fresing.callout_remove", text="", icon="TRASH")
         else:
-            wrap(layout, context, "No labels yet. Press Add a label, then click a spot on the machine.", icon="INFO",
-                 inset=12)
-        layout.separator()
+            hint(layout, context, "No labels yet. Press Add a label, then click a spot on the machine.")
+        gap(layout)
+        layout.prop(s, "callouts_on", text="Draw the labels in renders")      # full width: never cut off
         col = split_props(layout)
-        col.prop(s, "callouts_on", text="Draw labels in renders")
         col.prop(s, "callout_size", text="Text size")
 
 
@@ -96,17 +98,18 @@ class FRESING_PT_cards(_Panel, bpy.types.Panel):
     def draw_header_preset(self, context):
         a = animation.active(context.scene)
         n = sum(1 for c in a.cards if c.enabled) if a else 0
-        if n:
-            header_status(self.layout, plural(n, "picture"))
+        header_status(self.layout, plural(n, "picture") if n else "none")
 
     def draw(self, context):
         layout = self.layout
         a = animation.active(context.scene)
-        wrap(layout, context, "A photo or diagram shown for a few seconds over the video, full screen or in a "
+        hint(layout, context, "A photo or diagram shown for a few seconds over the video, full screen or in a "
                               "corner. To show one between two steps, leave a gap between them and start it there. "
                               "Only in MP4 videos.")
-        big_row(layout, 1.4).operator("fresing.card_add", icon="ADD")
+        gap(layout)
+        big(layout, "fresing.card_add", "Add a picture", "ADD")
         if a.cards:
+            gap(layout)
             layout.template_list("FRESING_UL_cards", "", a, "cards", a, "cards_index",
                                  rows=list_rows(len(a.cards), 2, 5))
             if 0 <= a.cards_index < len(a.cards):
@@ -139,14 +142,14 @@ class FRESING_PT_music(_Panel, bpy.types.Panel):
 
     def draw_header_preset(self, context):
         a = animation.active(context.scene)
-        if a is not None and a.music_on:
-            header_status(self.layout, "on")
+        header_status(self.layout, "on" if a is not None and a.music_on else "off")
 
     def draw(self, context):
         layout = self.layout
         a = animation.active(context.scene)
-        wrap(layout, context, "Music under the whole MP4 video, cut to its length. Use your own music, or music "
+        hint(layout, context, "Music under the whole MP4 video, cut to its length. Use your own music, or music "
                               "you have the rights to.")
+        gap(layout)
         layout.prop(a, "music_on", text="Music under the video", toggle=True, icon="SOUND")
         if a.music_on:
             col = split_props(layout)
