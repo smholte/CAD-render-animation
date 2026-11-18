@@ -165,7 +165,9 @@ branch, not `task/0191-…`). Version 0.2.150.
 - GitHub runs: the first full run was cancelled by my next push; the second failed in suite 6 – my in-app test
   files registered the add-on and never took it off, so the next module in the group could not register it
   (`test_lightbake`); they now register per module like every other test file. The third run was green (44187764221); 0193 and 0192
-  took 0.2.148 and 0.2.149 meanwhile, so the version became 0.2.150 with a fourth run.
+  took 0.2.148 and 0.2.149 meanwhile, so the version became 0.2.150 with a fourth run. That run failed only in the Windows PC check line `web3d.small`
+  ("the page gave no places of its parts (loading)") – the known flaky web-page line (0187, 0195 reports); a fifth run
+  after merging 0195.
 - Public pages: none opened in this session; magnitudes from the study 0180 table (its sources) and general knowledge.
   **No maker's chart, name, logo or model in the repository** (tested).
 
