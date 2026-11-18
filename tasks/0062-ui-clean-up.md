@@ -1,7 +1,7 @@
 # 0062 – A cleaner side panel: show only the functions a project needs, clearer separation, tidy start-up
 
-**Who:** worker · **Status:** running (18 Nov, owner's overnight run; 0198 on `main` first for the app template,
-see the lead note of 18 Nov)
+**Who:** worker · **Status:** done (18 Nov 2026, version 0.2.152, owner's overnight run; 0198 was on `main`
+first for the app template, see the lead note of 18 Nov)
 · **Branch:** `claude/youthful-goldberg-52dvm2` (the web session's own)
 **Started by:** lead chat, 10 Nov 2026 (owner's wish)
 **Lane:** touches every panel file (`blender/ui*.py`), `app_template/fresing_render/__init__.py`, `blender/props.py`
@@ -413,9 +413,31 @@ gantry and the other shipped test models):
 - Set-up window (S1): 297 × 582 px at UI scale 1.04, opens in 0.9–1.2 s, panel draw 0.5–1.1 ms, the main window's
   areas identical before and after. **Windows: only the owner's check of the prototype** (stays in front, comes back
   on the second monitor).
-- GitHub runs: see the end of this report.
+- **GitHub runs: 3 full runs counted, about 10 more cancelled.** The cancelled ones were lane and full runs
+  stopped by my own next push to the branch (pushes after each merged subagent, and the session's end-of-turn rule
+  that every commit is pushed) – more than the "push when ready" rule wants. Full run 1 (44209737995, c66d8ef): red
+  only on the version tests (the changelog heading and `since=` were ahead of the version files) – fixed by raising
+  the version. Full run 2 (44216698543, 0a65a01): everything green except **Windows - install A**, PC-check line
+  `web3d.small` "the page gave no places of its parts (loading)", three times in a row (the run + 2 re-runs of the
+  failed job). Not from this task: on `main`'s own code the line passed 1 of 6 times on the web machine, on this
+  branch 1 of 3. Cause found and fixed (below). Full run 3 (44224095398, 5680ebc): **green, 23.8 min**, Windows A
+  and B included. `main` fast-forwarded to 5680ebc: reuse run 44226987359, release published, an installed old
+  version updated itself from it, offered to the apps, landing page built (3.8 min). `main` contains 5680ebc.
+- **The unreliable PC-check line `web3d.small`** (web 3D lane, there since 0.2.143; 0187 and 0195 had met it): the
+  browser without a window runs on its own clock and jumped ahead while the page waited for work off the main
+  thread (the pictures' decoding) – the page was written out while it still said "loading" (marked stages in a
+  copy of the page: 14 of 24 openings stopped inside the model reader). A read under way holds that clock: a test's
+  page (`?frames=` / `?selftest=`) now reads a 1-byte blob of its own, one read after the other, until it is ready
+  (`holdTestClock` in `web/fr_page.js`, 7–8 reads; a page a person opens does nothing new). Measured on the web
+  machine: 40 of 40 openings read (before 10 of 20), the PC-check line 6 of 6 (before 1 of 6). New test
+  `test_the_page_is_read_every_time` (8 openings; fails without the change).
 
 **Open points / follow-up tasks:**
+- **Release:** https://github.com/smholte/CAD-render-animation/releases/tag/v0.2.152 . The progress note
+  `claude/render-app-progress.md` cannot be reached from a web session: the lead adds the entry. Leftover branch for
+  the owner to delete on github.com: `claude/youthful-goldberg-52dvm2`.
+- Web 3D lane: the other checks that read a page (`web3d.player` tries twice "for a busy PC", `web3d.cables` does
+  not count a page that gave no tubes) can now be made strict again – the cause was the same clock.
 - **Owner, on his PC** (RTX 3090): (1) Preferences > Lesson highlight – nothing to see until the lessons task; the
   part look 3 uses a small shader not yet tried on a real graphics card. (2) The Set-up window on Windows: drag it,
   second monitor, in front of the main window (as he checked on the prototype). (3) The Client view: G / X / Delete
