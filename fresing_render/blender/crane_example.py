@@ -278,7 +278,7 @@ def rig(scene, cls: str, kind_override: str = "", clash: bool = False, check: bo
     hb = (data.get("hook_blocks") or [{}])[0]
     cs.hook_block_t = float(hb.get("mass", 0.0))
     # masses and CoG, typed from the data sheet
-    SC.ensure_groups(scene)
+    press(bpy.ops.fresing.crane_groups)
     for key, g in rig_["groups"].items():
         it = next((x for x in cs.groups if x.key == key), None)
         if it is None:

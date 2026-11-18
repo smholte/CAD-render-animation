@@ -981,7 +981,6 @@ def _counterweight_done(context) -> str:
 def _counterweight(layout, context):
     scene = context.scene
     cs = settings(scene)
-    ensure_groups(scene)
     ui.wrap(layout, context, "Pick the counterweight's parts (they turn with the slew) and type the steps the "
                              "crane can carry.", icon="INFO")
     g = next((g for g in cs.groups if g.key == "counterweight"), None)
@@ -1033,13 +1032,15 @@ def _groups_done(context) -> str:
 def _groups(layout, context):
     scene = context.scene
     cs = settings(scene)
-    ensure_groups(scene)
     ui.wrap(layout, context, "Each group's mass (the maker's data sheet) or volume x density, and its centre of "
                              "gravity: worked out from the parts' solids, or typed. The markers show in the view.",
             icon="INFO")
     text = _groups_done(context)
     if text:
         _done(layout, context, text)
+    if not len(cs.groups):
+        ui.big(layout, "fresing.crane_groups", "Make the groups", "PACKAGE")
+        return
     for g in cs.groups:
         box = layout.box()
         box.label(text=group_title(scene, g.key), icon="PACKAGE")

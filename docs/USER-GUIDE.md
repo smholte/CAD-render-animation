@@ -4213,7 +4213,8 @@ The `.json` file holds these fields (masses and lengths in the file's `units`):
 | `hook_blocks` | `[{"name": "main", "mass": 0.85}]` |
 | `outriggers`, `tracks`, `axles` | the footprint for the ground-pressure checks |
 | `wll` | rigging gear: the working load limit, or one per way of use (`{"straight": 8.0, "choke": 6.4}`) |
-| `rig`, `limits` | the joints of the model; slew range and angles |
+| `rig`, `limits` | the joints of the model (each with its `role`: `slew`, `luff`, `telescope`, `jib`, `knuckle`, `extension`, `hoist`, `swing`, `outrigger`, `jack`, `track`, `travel` – [Set up your own crane](#lifting-own-crane) writes it), the hook point and its falls; slew range and angles |
+| `footprint` | an own crane without outriggers or tracks: the corners of the area it stands on (m) |
 | `sample`, `derived_from` | set by the app for samples and their copies |
 | `source` | where the values come from ("maker chart no. …, entered by …, date") |
 

@@ -97,9 +97,7 @@ class FRESING_OT_crane_pick(bpy.types.Operator):
             names = got
         else:
             names = SC.split_names(self.names)
-        have = SC.split_names(cs.pick) if self.add or self.use_clicked and False else []
-        if self.add:
-            have = SC.split_names(cs.pick)
+        have = SC.split_names(cs.pick) if self.add else []
         for n in names:
             if n not in have:
                 have.append(n)
@@ -501,6 +499,24 @@ class FRESING_OT_crane_group_parts(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_crane_groups(bpy.types.Operator):
+    """Makes the crane's mass groups (carrier, superstructure, counterweight, boom …), each filled with the parts its
+    joint moves: change them below when they are not right"""
+
+    bl_idname = "fresing.crane_groups"
+    bl_label = "Make the groups"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return _has_model(context)
+
+    def execute(self, context):
+        SC.ensure_groups(context.scene)
+        _redraw()
+        return {"FINISHED"}
+
+
 class FRESING_OT_crane_group_work(bpy.types.Operator):
     """Works out the group's volume x density and its centre of gravity from the parts' solids (in the CAD pose), and
     puts its marker there"""
@@ -690,6 +706,7 @@ class FRESING_OT_crane_save(bpy.types.Operator):
 CLASSES = (FRESING_OT_crane_setup, FRESING_OT_crane_pick, FRESING_OT_crane_axes, FRESING_OT_crane_axis_use,
            FRESING_OT_crane_make, FRESING_OT_crane_make_click, FRESING_OT_crane_flip, FRESING_OT_crane_remove,
            FRESING_OT_crane_cylinder, FRESING_OT_crane_sheave, FRESING_OT_crane_hook, FRESING_OT_crane_corner,
-           FRESING_OT_crane_track, FRESING_OT_crane_group_parts, FRESING_OT_crane_group_work,
+           FRESING_OT_crane_track, FRESING_OT_crane_group_parts, FRESING_OT_crane_groups,
+           FRESING_OT_crane_group_work,
            FRESING_OT_crane_chart_add, FRESING_OT_crane_chart_csv, FRESING_OT_crane_check, FRESING_OT_crane_go,
            FRESING_OT_crane_save)

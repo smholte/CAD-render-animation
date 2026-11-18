@@ -178,7 +178,8 @@ def s_rig():
     ex = mod("blender.crane_example")
     t0 = time.time()
     with override():
-        made = ex.rig(sc, cls, kind_override=S["kind"], check=True, clash=(cls == "AT-40"))
+        made = ex.rig(sc, cls, kind_override=S["kind"], check=not os.environ.get("UITEST_NO_CHECK"),
+                      clash=(cls == "AT-40"))
     S["made"] = made
     SC = mod("blender.setup_crane")
     red = [p.text for p in SC.settings(sc).problems if p.severity == "red"]
