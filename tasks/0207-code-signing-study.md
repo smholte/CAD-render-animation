@@ -158,7 +158,7 @@ out for now: EU organisations need ≥ 3 years of history, and individuals only 
 looked at again in 2028/29. **Proposal 2 becomes the plan:** SSL.com with eSigner (≈ $310/yr), either OV in the name
 "Fresing" (KvK extract; OV has no minimum company age) or IV in the owner's own name (passport). OV is preferred, because
 the publisher then reads "Fresing" and not a private person. The build task's brief below uses the SSL.com way.
-Still open for the owner: budget OK, copy vs launcher, OV vs IV.
+**Owner (18 Nov): the signed copy** ("Fresing Render" in Task Manager), not the launcher. **Budget (≈ $310/yr): decided later** – the owner looks at it again in a short while; nothing is bought, and the build task waits for that (OV vs IV is decided with it).
 
 
 - Is Fresing registered at the KvK, and **since when** (≥ 3 years → try 1; otherwise 2)? Eenmanszaak or B.V.?
