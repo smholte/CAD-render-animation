@@ -1,4 +1,4 @@
-# 0221 – Blender's right-hand column hidden; "Show Blender's editors" in the Fresing menu
+# 0221 – Blender's right-hand column hidden; "Show Blender's editors" in the Fresing menu; a solid side panel
 
 **Who:** worker · **Status:** open – can start (Start & learn lane) · **Branch:** `task/0221-blender-editors-hidden`
 **Started by:** lead, 19 Nov 2026 (owner, 00:05: "I want the app as simple as possible, with the needed functions …
@@ -15,7 +15,9 @@ line, `docs/USER-GUIDE.md` (+ picture via `tools/guide_screens.py`), tests.
 Fresing Render opens with the 3D view filling the window up to the right edge: Blender's **Outliner** (top right) and
 **Properties editor** (below it) are gone. Nothing in the app needs them – the Fresing tab has its own parts tree and
 every setting the app uses. One click in the top bar's **Fresing** menu, **Show Blender's editors**, brings both back
-(the same entry then says **Hide Blender's editors**). The choice is remembered, so a user who wants them keeps them.
+(the same entry then says **Hide Blender's editors**). The choice is remembered, so a user who wants them keeps them. And the side panel is **solid**, no longer
+see-through over the 3D view (owner 19 Nov 00:10: "the UI is now fully see-through, this makes it hard to separate the
+different parts of the UI").
 
 ## Background
 
@@ -28,6 +30,10 @@ every setting the app uses. One click in the top bar's **Fresing** menu, **Show 
   "Client view vs Properties editor" – the Properties editor's own settings still get through on purpose
   (`docs/USER-GUIDE.md` line ~209). With the column hidden and the menu entry refused in Client view, a client never
   meets it in the normal layout.
+- **See-through side panel:** Blender's preference *Region Overlap* (`preferences.system.use_region_overlap`, on by
+  default) draws the side panel over the 3D view, see-through. On a light background (the tour's white solid colour)
+  the Fresing panel's texts, boxes and the 3D view run together (owner's screenshots, 0.2.168). The app never set it;
+  the guide pictures are already made with it off (CLAUDE.md section 8, "Real-app screenshots").
 - The timeline at the bottom stays (Animation uses it). Not this task: the other Blender parts a new user may not
   need – that is study 0222.
 
@@ -50,7 +56,12 @@ every setting the app uses. One click in the top bar's **Fresing** menu, **Show 
    they are for users who know Blender, and that the choice is kept. Add it to `entries()`.
 5. **Client view:** the column is hidden while the lock is on and the entry is greyed (tooltip says why: "Not in the
    Client view – Full access brings it back"); switching the lock off puts back what the user had chosen.
-6. Guide (a short paragraph + the cleaner window picture where the guide shows the whole window), function-list entry
+6. **Solid side panel:** the app switches *Region Overlap* off – at the first start of this version and whenever
+   Blender's preferences are reset (`_set_preferences`); remember in the app's settings that it did, so a user who
+   turns it on again in Edit > Preferences > Interface keeps it. Check the side panel, the navigation gizmo, the 3D
+   view header and the Fresing panel's boxes at 1920 and 2560 px, light and dark backgrounds; the view still frames
+   the model in the visible part (View all / camera buttons).
+7. Guide (a short paragraph + the cleaner window picture where the guide shows the whole window), function-list entry
    (`since=`), PC-check line ("the 3D view reaches the right edge; Fresing > Show Blender's editors brings the
    Outliner and Properties back; again hides them"). A tour stop only if the precheck asks for one.
 
@@ -61,7 +72,9 @@ every setting the app uses. One click in the top bar's **Fresing** menu, **Show 
 - [ ] Show / Hide works both ways, repeatedly, at 1920 and 2560 px; the choice survives a restart (real-app test as
       0198 / 0213 use)
 - [ ] Client view: hidden, entry greyed; lock off → the user's choice back
-- [ ] Nothing in background runs touches screens (queue render, PC check, self-test still green)
+- [ ] Region Overlap off after the update on an existing install and on a fresh one; a user's own "on" kept after a
+      restart; the side panel solid on the tour's white background (screenshot in the report)
+- [ ] Nothing in background runs touches screens or preferences (queue render, PC check, self-test still green)
 - [ ] Screenshots checked with `tools/ui_screens.py`; guide, function list, PC-check line; precheck green
 - [ ] Report filled in, merged, released
 
