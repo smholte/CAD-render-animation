@@ -46,7 +46,7 @@ before `v0.1` is tagged; the rest is how Fresing Render will do it.
    - The house is imported *into the open project*. The owner may be in the middle of a cable-lay project; a house
      must not land in it unasked. So "Bake now" makes **a scene of its own** in the open project ("House – Sample
      house"), bakes there and removes that scene again once the reply is sent – the owner's project is unchanged (the
-     bake operator already promises "the project itself does not change"). *Owner question below.*
+     bake operator already promises "the project itself does not change"). *Owner chose this (answer A below).*
    - An operator started from a timer gets no undo step; CLAUDE.md section 8 records a crash on Ctrl+Z after a script
      call without one. A real click on "Bake now" starts the import and bake as a button does.
    - A bake takes the PC for minutes (Cycles, GPU). The owner should choose the moment.
@@ -88,10 +88,9 @@ before `v0.1` is tagged; the rest is how Fresing Render will do it.
    the repository a licence that allows that (MIT or Apache-2.0 for the code) **before** the tag – `house-scene-format`
    still has none (0205 flagged it).
 
-**Owner question (answer before the task starts, or the worker takes the recommendation):** when a house arrives and
-you press Bake now while another project is open – **(A, recommended)** the house goes into a scene of its own in that
-project and is removed again after the bake is sent back, or **(B)** Fresing Render asks you to save and opens a new,
-empty project for the house?
+**Owner's answer (18 Nov 2026, 20:19): A.** When a house arrives and the owner presses Bake now while another project
+is open, the house goes into **a scene of its own in that project** and that scene is removed again after the bake is
+sent back – the owner's project is unchanged. (Not chosen: B, save and open a new, empty project for the house.)
 
 ## The work
 
