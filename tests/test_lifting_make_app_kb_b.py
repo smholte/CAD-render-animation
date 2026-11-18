@@ -1,6 +1,7 @@
-"""Task 0204: ten random valid KB cranes made from numbers (set 10 … 19 of KB), each imported and rigged in
-the app (Blender as a Python module), every joint from its minimum to its maximum against the maker's kinematics, the
-hook at every pose, and the clash check of the crane's own motion: clean. See tests/lifting_make_app.py.
+"""Task 0204: five random valid KB cranes made from numbers (sets 5 … 9 of 20), each imported and
+rigged in the app (Blender as a Python module), every joint from its minimum to its maximum against the maker's
+kinematics, the hook at every pose, and the clash check of the crane's own motion: clean. See
+tests/lifting_make_app.py.
 """
 
 from __future__ import annotations

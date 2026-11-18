@@ -15,7 +15,20 @@ from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty, St
 from ..core import lifting as core
 from ..lifting_model import classes as C
 from ..lifting_model import params as P
-from .ui import gap, hint, wrap
+from .ui import gap
+
+DIALOG_CHARS = 72           # characters per line in the dialog (470 px wide): ``ui.wrap`` measures the side panel
+
+
+def lines(layout, text: str, icon: str = "NONE", alert: bool = False, grey: bool = False):
+    """Text wrapped at the dialog's width, the icon on the first line."""
+    import textwrap
+    col = layout.column(align=True)
+    col.alert = alert
+    col.active = not grey
+    for k, ln in enumerate(textwrap.wrap(text, DIALOG_CHARS) or [""]):
+        col.label(text=ln, icon=icon if k == 0 else "BLANK1" if icon != "NONE" else "NONE")
+    return col
 
 _CACHE: dict = {"key": None, "problems": []}
 _ITEMS: dict = {}            # kind -> enum items (kept: Blender needs the strings to live)
@@ -142,8 +155,8 @@ def settings(context=None):
 def draw_dialog(layout, context, m) -> None:
     layout.prop(m, "kind")
     layout.prop(m, "start")
-    hint(layout, context, "Change only the numbers you care about; the rest stay the class's. Lengths in m, masses "
-                          "in t.")
+    lines(layout, "Change only the numbers you care about; the rest stay the class's. Lengths in m, masses in t.",
+          grey=True)
     for fold_name in P.FOLDS[m.kind]:
         header, body = layout.panel(f"fr_crane_make_{m.kind}_{fold_name}", default_closed=fold_name != "Boom")
         header.label(text=fold_name)
@@ -159,10 +172,10 @@ def draw_dialog(layout, context, m) -> None:
     gap(layout)
     probs = problems_of(m)
     if probs:
-        wrap(layout, context, probs[0].text + (f"  (+{len(probs) - 1} more)" if len(probs) > 1 else ""),
-             icon="ERROR", alert=True)
+        lines(layout, probs[0].text + (f"  (+{len(probs) - 1} more)" if len(probs) > 1 else ""), icon="ERROR",
+              alert=True)
     else:
-        wrap(layout, context, "Fits: Make draws it, rigs it and works out its SAMPLE chart.", icon="CHECKMARK")
+        lines(layout, "Fits: Make draws it, rigs it and works out its SAMPLE chart.", icon="CHECKMARK")
     gap(layout)
     col = layout.column(align=True)
     col.prop(m, "name")
@@ -171,8 +184,8 @@ def draw_dialog(layout, context, m) -> None:
     from ..lifting_model import job as J
     why = J.name_problem(ops_lifting_make.make_library(), m.name, m.replace)
     if why:
-        wrap(layout, context, why, icon="ERROR", alert=True)
-    wrap(layout, context, core.SAMPLE_MARK, icon="ERROR", alert=True)
+        lines(layout, why, icon="ERROR", alert=True)
+    lines(layout, core.SAMPLE_MARK, icon="ERROR", alert=True)
 
 
 def draw_in_equipment(layout, context) -> None:
@@ -186,6 +199,7 @@ def draw_in_equipment(layout, context) -> None:
         row.operator("fresing.lifting_make_cancel", text="Cancel", icon="CANCEL")
         return
     layout.operator("fresing.lifting_make", text="Make a crane…", icon="MODIFIER")
+    from .ui import wrap
     last = O.STATE.get("message", "")
     if last:
         wrap(layout, context, last, icon="ERROR" if O.STATE.get("error") else "INFO", alert=bool(O.STATE.get("error")))

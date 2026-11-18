@@ -99,6 +99,7 @@ RULES = {
     "falls": ("AT-100", {"hook_falls": 7}),
     "sections_overlap": ("AT-40", {"Lmax": 60000.0}),
     "axles_fit": ("AT-40", {"axles": 9}),
+    "winch_fit": ("AT-100", {"cw_x": 2500.0}),
     "stable": ("AT-40", {"cw_1": 250.0, "cw_2": 280.0, "cw_3": 300.0, "cw_x": 9000.0, "mass_carrier": 5.0,
                          "mass_upper": 1.0}),      # tips backwards unloaded in every configuration
     "boom_list": ("CC-100", {"boom_lengths": (24.0, 18.0, 36.0)}),

@@ -99,8 +99,7 @@ def build(c: C.Mobile):
     # hoist winch behind the boom's foot
     secs = p["sections"]
     l_cw = 0.45 * c.cw_x + 600.0
-    wr = 0.22 * c.boom_h + 120.0
-    wx = (-c.cw_x + l_cw / 2 + xp) / 2                 # between the counterweight and the boom's foot, low
+    wx, _wz, wr = p["winch"]                           # between the counterweight and the boom's foot, low
     K.put(sup, Part("HOIST WINCH DRUM", g.cyl(wr, 2 * lug_y - 60, (wx, -lug_y + 30, frame_top + wr + 60.0),
                                              (0, 1, 0)), K.STEEL))
     for sy in (-1, 1):

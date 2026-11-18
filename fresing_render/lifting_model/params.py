@@ -469,6 +469,9 @@ _GEOMETRY = (
     ("outrigger stroke", "spreads_out", "The full spread is too narrow for the outrigger beams to move out."),
     ("too close to the outrigger", "axles_fit", "The axles do not fit between the outrigger boxes: fewer axles, "
                                                 "smaller wheels or the pads further apart (front to rear)."),
+    ("no room for the hoist winch", "winch_fit", "There is no room for the hoist winch between the counterweight and "
+                                                 "the boom's foot: the counterweight further back or a shorter base "
+                                                 "section."),
     ("overlap", "axles_fit", "The axles do not fit on the carrier: fewer axles or smaller wheels."),
     ("no cylinder fits", "cylinder_fit", "No luffing cylinder fits for this boom angle range: a smaller range or "
                                          "other boom sizes."),

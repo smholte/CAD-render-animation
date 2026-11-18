@@ -74,7 +74,12 @@ def _progress(path: str | None, stage: str, share: float) -> None:
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump({"stage": stage, "share": round(share, 3)}, fh)
-    os.replace(tmp, path)
+    for _k in range(3):                  # Windows: the app may be reading it this very moment (only cosmetic)
+        try:
+            os.replace(tmp, path)
+            return
+        except OSError:
+            time.sleep(0.02)
 
 
 def made_data(c, cogs: dict, spec: dict, stem: str) -> dict:

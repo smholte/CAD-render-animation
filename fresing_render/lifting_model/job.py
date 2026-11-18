@@ -63,6 +63,16 @@ def kill_tree(pid: int) -> None:
         pass
 
 
+LEFTOVER: list = []         # temporary folders a cancel could not delete yet (Windows: a file still open)
+
+
+def _sweep_leftovers() -> None:
+    for d in list(LEFTOVER):
+        shutil.rmtree(d, ignore_errors=True)
+        if not os.path.exists(d):
+            LEFTOVER.remove(d)
+
+
 class MakeJob:
     """One crane made in the background. ``poll()`` -> True when done (then ``error`` or ``item_path``)."""
 
@@ -96,6 +106,7 @@ class MakeJob:
         why = self.check()
         if why:
             raise MakeError(" ".join(why))
+        _sweep_leftovers()
         self.tmp = tempfile.mkdtemp(prefix="fr_make_crane_")
         spec = dict(self.spec, values={k: (list(v) if isinstance(v, tuple) else v)
                                        for k, v in self.spec["values"].items()})
@@ -111,9 +122,16 @@ class MakeJob:
         self._log = open(os.path.join(self.tmp, "log.txt"), "w", encoding="utf-8", errors="replace")
         kw = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)} if os.name == "nt" else \
             {"start_new_session": True}
-        self.proc = subprocess.Popen([self.python, RUNNER, out, "--params", os.path.join(self.tmp, "numbers.json"),
-                                      "--progress", os.path.join(self.tmp, "progress.json")],
-                                     stdout=self._log, stderr=subprocess.STDOUT, env=env, **kw)
+        try:
+            self.proc = subprocess.Popen([self.python, RUNNER, out, "--params",
+                                          os.path.join(self.tmp, "numbers.json"),
+                                          "--progress", os.path.join(self.tmp, "progress.json")],
+                                         stdout=self._log, stderr=subprocess.STDOUT, env=env, **kw)
+        except (OSError, ValueError) as exc:
+            self._log.close()
+            shutil.rmtree(self.tmp, ignore_errors=True)
+            self.done, self.error = True, f"The maker could not be started: {exc}"
+            raise MakeError(self.error) from exc
         self.started = time.time()
 
     # -- follow -----------------------------------------------------------------------------------------------
@@ -177,8 +195,12 @@ class MakeJob:
             src = os.path.join(out, stem + ext)
             if os.path.isfile(src):
                 tmp = os.path.join(target, f".tmp-{stem}{ext}")
-                shutil.copyfile(src, tmp)
-                os.replace(tmp, os.path.join(target, stem + ext))
+                try:
+                    shutil.copyfile(src, tmp)
+                    os.replace(tmp, os.path.join(target, stem + ext))
+                finally:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
         return LL.write_item(data, self.library).path
 
     # -- cancel -----------------------------------------------------------------------------------------------
@@ -199,5 +221,7 @@ class MakeJob:
             pass
         if self.tmp:
             shutil.rmtree(self.tmp, ignore_errors=True)
+            if os.path.exists(self.tmp):
+                LEFTOVER.append(self.tmp)
         self.error = self.error or "cancelled"
         self.done = True

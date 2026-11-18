@@ -3669,7 +3669,7 @@ stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "radius), the gross load (1.2 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
      where="8 Lifting plan > Hook & capacity", since="0.2.156", check=_check_lifting_hook)
 
-stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane made from numbers",
+stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
      "Beside the test crane stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… "
      "from the AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its "
      "outriggers and its hook hangs above the test crane's boom (Hook to here). Its boom has 5 sections (joints "
