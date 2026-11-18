@@ -110,7 +110,7 @@ sent back – the owner's project is unchanged. (Not chosen: B, save and open a 
    `alive.json` at least every 10 s when Blender is free, removed on exit (`atexit` + the app's quit path); only in a
    copy with a window. A bad job never raises out of the timer.
 4. **`bake-house`:** check the job (6.3) → status `waiting` + the prompt (below) → on **Bake now**: the scene of its own
-   (owner question), `house_import.import_scene`, then the existing bake (`HouseBake` driven as `fresing.house_bake`
+   (owner chose A), `house_import.import_scene`, then the existing bake (`HouseBake` driven as `fresing.house_bake`
    drives it, or that operator with a target path and a progress hook – add, do not copy) writing the `.hpbake` to a
    temp folder → reply job to the sender (`action` = the job's `return`, `reply_to`, `title` copied) → status `done`
    with `reply` (reply first, status second, 7.2) → the house scene removed. Progress into `status.json` (`fraction`,
