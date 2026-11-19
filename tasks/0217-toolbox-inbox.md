@@ -223,7 +223,7 @@ Never attach `house-planner-dev`.
   now only the Toolbox check's own Blender gets the accented profile), and the PC check's first half ran past its 15
   min on busy runners (house.toolbox moved to the second half). Run 2: the uninstaller did not parse in Windows
   PowerShell 5.1 (a "–" in a message; files now ASCII, with a test) and the Windows Toolbox checks had not run (wrong
-  condition). Runs 3 and 4 stopped in the precheck: other tasks had taken 0.2.170, then 0.2.172 (merged main twice). Run 5: the full run of 0.2.173.
+  condition). Runs 3 and 4 stopped in the precheck: other tasks had taken 0.2.170, then 0.2.172 (merged main twice). Run 5: all green but the PC check's first half, past its 15 min again (main's own took 12–14.3): the tour stop's check baked a house inside the line "Test tour: every stop's Go works" – in background runs it now only checks that the house waits (the bake is house.toolbox's). Run 6: the full run after that.
 
 **Open points / follow-up tasks:**
 1. **For the toolbox-format lead:** the v0.1 checker reports "the file X is missing" for a final job whose files were

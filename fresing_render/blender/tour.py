@@ -4128,8 +4128,8 @@ def _toolbox_setup(scene):
 
 
 def _check_toolbox(scene):
-    """The tour's job: waiting (Bake now in the panel); baked and sent back. In the automatic run (no window) the
-    check presses Bake now itself."""
+    """The tour's job: waiting (Bake now in the panel); after Bake now, baked and sent back. In the automatic runs (no
+    window) only the waiting is checked: the PC check's line house.toolbox bakes and sends back."""
     import json
     from pathlib import Path
 
@@ -4152,9 +4152,11 @@ def _check_toolbox(scene):
     d = jobs[-1]
     st = json.loads((d / "status.json").read_text("utf-8")) if (d / "status.json").is_file() else {}
     if st.get("state") == "waiting" and bpy.app.background:
-        why = ti.start(bpy.context, d.name)
-        _check(not why, f"Bake now: {why}")
-        st = json.loads((d / "status.json").read_text("utf-8"))
+        # the automatic runs (Test tour line, mode Tour) check that the house waits for Bake now; the bake itself is
+        # the PC check's line house.toolbox (~40 s: run here too it pushed the PC check past its time on GitHub)
+        _check(st.get("text", "").endswith("press Bake now"), f"the house does not wait for Bake now: {st}")
+        _check([j.id for j in ti.waiting()] == [d.name], "the app does not show the house with Bake now")
+        return "the house waits for Bake now (the PC check's line house.toolbox bakes it and sends it back)"
     _check(st.get("state") != "waiting", "the house waits: press Bake now in 5 Scene & Render > House from House "
            "Planner, then check again when it says Sent back to House Planner")
     _check(st.get("state") != "working", "it still bakes: check again when it says Sent back to House Planner")
