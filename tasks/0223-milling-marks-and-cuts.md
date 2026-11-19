@@ -1,6 +1,6 @@
 # 0223 – Milling: every cut gets the tool-mark look, every cutting move cuts
 
-**Who:** worker · **Status:** running (Machining lane) · **Branch:** `task/0223-milling-marks-and-cuts`
+**Who:** worker · **Status:** done (0.2.171) · **Branch:** `task/0223-milling-marks-and-cuts`
 **Started by:** lead, 19 Nov 2026 (owner, 00:16, test tour on 0.2.168: "the milling models in the test tours, not all
 get the good tool marks texture in cutting material, and not all cutting operations cut even when it shows the
 g-code going through the material") · **Model:** Opus · effort High
@@ -60,11 +60,11 @@ plain grey, soft or wavy cut faces (the owner's first picture), or a toolpath li
 
 ## Done when
 
-- [ ] The report's table: every machining set, route, marks yes / no, swept vs removed volume – before and after
-- [ ] Every machining tour set shows marks on all cut faces and removes what its cutting moves sweep (within a
+- [x] The report's table: every machining set, route, marks yes / no, swept vs removed volume – before and after
+- [x] Every machining tour set shows marks on all cut faces and removes what its cutting moves sweep (within a
       stated tolerance); the height-map route has marks too
-- [ ] A test per cause found that failed before; the tour checks catch a lost look or a missed cut
-- [ ] Guide's milling pictures replaced where they changed; PC-check line; precheck green; merged, released
+- [x] A test per cause found that failed before; the tour checks catch a lost look or a missed cut
+- [x] Guide's milling pictures replaced where they changed; PC-check line; precheck green; merged, released
 
 ## Not in this task
 
@@ -126,7 +126,7 @@ checks only asked whether the attributes and the node exist.
   (`machining.cnc_unused`). Function-list entry `milling.from_cnc`, guide anchor `milling-cnc`, `panel_4_air.png`
   remade (the only guide picture with that state).
 - Tour: gantry, double-arm and operator use it (`_mill_with_cnc`), their "what you should see" names the cuts,
-  `changed=0.2.NN` on the three sets and their stops.
+  `changed=0.2.171` on the three sets and their stops.
 - The check (`machining.audit` / `audit_problems`, `tour.check_milling`): cut faces seen from outside without marks
   (≤ 1 % allowed, `Timeline.cut_cover`), the cut faces' material draws marks (not the block's own look), every tool
   tip 0.3 mm up its axis, every 0.5 mm along every move through the block, lies outside the material at the end
@@ -152,7 +152,10 @@ checks only asked whether the attributes and the node exist.
 - Close-up Cycles renders of gantry, double-arm, tools, rotary5 before / after: plain grey dents → bright machined
   metal with sharp edges.
 - PC check lines milling.shows_program, milling.cut, milling.cut_look, milling.rotary: OK in 22 s.
-- RUNS_PLACEHOLDER
+- GitHub: 1 run on the branch (run 44426765710, full, green first time, 33.9 min with other tasks' runs queued);
+  `main` fast-forwarded to the tested commit 8029d97. Locally: test_tour.py (every stop's Go + check), the G-code,
+  double-arm, rotary, machining, tool-mark and height-map tests, the clash test of the three changed sets.
+- No subagents (the investigation needed one context; the "independent" part is the broken-copy tests).
 
 **Open points / follow-up tasks:**
 - G0 rapids and moves with the spindle off (M5) cut like feed moves: the cut follows where the tool went, so the
