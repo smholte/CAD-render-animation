@@ -429,7 +429,7 @@ if ($Uninstall) {
             # task 0217: the Toolbox folder and the app's manifest, and what only Windows shows (tools/ci_toolbox_windows.py)
             $checks["Toolbox folder and manifest under %USERPROFILE%"] = (Test-Path -LiteralPath (Join-Path $ToolboxHome "toolbox-folder.json")) -and
                 (Test-Path -LiteralPath (Join-Path $ToolboxHome "tools\nl.fresing.render\toolbox.json"))
-            if ($round -eq "install") {
+            if ($Part -ne "b") {                  # (part A only: these checks run once, after the install and repair)
                 $tbScript = Join-Path $PSScriptRoot "ci_toolbox_windows.py"
                 $oldEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
                 $realProfile = $env:USERPROFILE

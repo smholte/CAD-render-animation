@@ -38,7 +38,7 @@ if ($ToolboxHome -and [IO.Path]::IsPathRooted($ToolboxHome)) {
                 }
             [IO.Directory]::Delete($ToolboxMine, $true)
         } catch {
-            Write-Host "   (Fresing Render's part of the Toolbox folder could not be removed – in use or read-only: delete $ToolboxMine by hand)"
+            Write-Host "   (Fresing Render's part of the Toolbox folder could not be removed - in use or read-only: delete $ToolboxMine by hand)"
         }
     }
 }

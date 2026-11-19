@@ -443,3 +443,14 @@ def test_the_send_helper_plays_house_planner(root, tmp_path, monkeypatch, capsys
     assert toolbox_send.main(["--status"]) == 0
     assert "My house: waiting" in capsys.readouterr().out
     assert errors(root) == []
+
+
+def test_the_installer_files_are_plain_ascii():
+    """Windows PowerShell 5.1 reads a .ps1 without a byte-order mark as the PC's code page: a dash "–" in the
+    uninstaller became "â€“", whose last byte is a typographic quote PowerShell ends a string at – the whole
+    uninstaller failed to parse on GitHub's Windows (task 0217). The installer's files stay plain ASCII."""
+    for p in sorted((HERE.parent / "installer").iterdir()):
+        if p.suffix.lower() in (".ps1", ".bat"):
+            data = p.read_bytes()
+            bad = [i for i, b in enumerate(data) if b > 127]
+            assert not bad, f"{p.name}: a non-ASCII byte at {bad[0]}: {data[max(0, bad[0] - 40):bad[0] + 10]!r}"
