@@ -3636,7 +3636,7 @@ stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
      "The rod comes out of the cylinder 150 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
      where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.101")
-stop("mechanism", MOTION, "linkage", "Mechanisms: scissor lift, four-bar, crank",
+stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
      "slides back and forth.", where="4 Motion > Mechanisms", animation="Lift and crank", play=True,
