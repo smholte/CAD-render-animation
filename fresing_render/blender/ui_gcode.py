@@ -8,7 +8,7 @@ import bpy
 from ..core.words import plural
 from . import gcode
 from .ops_machining import clicked_part
-from .ui import (BIG, _has_model, _Panel, big, fold, gap, header_status, list_rows, missing, split_props, steps,
+from .ui import (BIG, _has_model, _Panel, big, fold, gap, header_status, hint, list_rows, missing, split_props, steps,
                  where, wrap)
 
 PICK_INSET = 125             # px a pick button of 5.4 units takes of its row: the name beside it wraps in the rest
@@ -117,6 +117,11 @@ class FRESING_PT_cnc(_Panel, bpy.types.Panel):
         sub.operator("fresing.cnc_use_workpiece", text="Workpiece", icon="RESTRICT_SELECT_OFF")
         wrap(row, context, gcode.label(cnc.workpiece) if cnc.workpiece else "not picked yet",
              icon="CHECKMARK" if cnc.workpiece else "BLANK1", inset=PICK_INSET)
+        from . import machining
+        if machining.cnc_unused(context.scene):     # task 0223: else the program runs through an uncut block
+            hint(layout, context, "Nothing is cut away yet: let the program cut the workpiece")
+            layout.operator("fresing.mill_from_cnc", text="Use the CNC tool and workpiece",
+                            icon="MOD_BOOLEAN")
 
         # -- work zero
         gap(layout)

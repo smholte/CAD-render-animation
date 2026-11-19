@@ -319,6 +319,9 @@ fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolan
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
    panel="FRESING_PT_milling", button="fresing.mill_add_bit", guide="milling", pccheck=("milling.cut",),
    since="0.2.19")
+fn(id="milling.from_cnc", title="Milling with the CNC machine's tool and workpiece", family="milling",
+   panel="FRESING_PT_milling", button="fresing.mill_from_cnc", guide="milling-cnc", tour=("gcode",),
+   pccheck=("milling.shows_program",), since="0.2.170")
 fn(id="milling.cut_look", title="Cut faces and raw stock", family="milling", panel="FRESING_PT_milling",
    prop="cut_look", guide="milling", tour=("cut_look",), pccheck=("milling.cut_look",), since="0.2.43")
 fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel="FRESING_PT_milling", prop="marks",

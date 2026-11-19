@@ -3763,6 +3763,41 @@ def milling_marks(ctx):
     return f"{note}; rebuilt in {with_marks:.0f} ms per frame ({without:.0f} ms without marks)"
 
 
+@line("milling.shows_program", "Milling: the block shows what the program does", "0.2.170",
+      what="The test gantry runs the test tour's G-code program (a 2 mm slot with an arc, a tool change, two drilled "
+           "holes) with Milling using the CNC machine's tool and workpiece. Every cut face must have tool marks and "
+           "every move through the block must take material away (the tool's tip, 0.3 mm up its axis, tested every "
+           "0.5 mm along the program); the block is painted, as imported, so its cuts must show bare machined metal. "
+           "Then Milling is taken off: the check must find the program running through a block nothing cuts, and Use "
+           "the CNC machine's tool and workpiece must put it right")
+def milling_shows_program(ctx):
+    from ..blender import animation, machining, tour
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(GANTRY)
+    tour.build_gantry(tour.Build(scene, ctx.work, "pccheck"))
+    a = scene.fresing.animations.get("G-code")
+    _check(a is not None, "the animation with the program is missing")
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    t0 = time.time()
+    note = tour.check_milling(scene)
+    ctx.metric("check", time.time() - t0, "s")
+    mat = machining.cut_material(scene, machining.workpiece(scene))
+    _check(mat is not None and mat.get("fr_material") == "aluminium_machined",
+           f"the painted block's cuts show '{mat.name if mat else 'its paint'}', not bare machined aluminium")
+    machining.stop(scene)                             # Milling off: the program still runs through the block
+    _check(machining.cnc_unused(scene), "the panels do not offer Use the CNC tool and workpiece")
+    a_ = machining.audit(scene)
+    _check(a_.get("through", 0) > 0, "the program runs through the block that nothing cuts, but the check does not "
+                                     "find it")
+    why = machining.use_cnc(scene)
+    _check(not why, why)
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    tour.check_milling(scene)
+    return note + f"; without Milling: {a_['through']} points of the program inside the uncut block found"
+
+
 @line("milling.toolpath", "Milling: the app makes the toolpath", "0.2.55",
       what="The toolpath test model: a block and the finished part (pocket, rounded boss, dome, a cap that hangs "
            "over, a hole). The app makes the roughing (flat Ø10) and finishing (ball Ø10) program at Draft, adds its "

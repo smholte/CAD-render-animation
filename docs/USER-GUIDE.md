@@ -1928,6 +1928,14 @@ animation (6 Animation): joints that move the head, the table or both.
    later the cut follows the timeline: drag the time slider back and forth, or play. The line with
    the frame number shows how big the milled shape is and how long one frame took.
 
+<a id="milling-cnc"></a>
+**A CNC machine with a G-code program** (4 Motion > CNC machine): when the machine has its tool in the spindle
+and its workpiece, but Milling has neither, the Milling panel offers **Use the CNC tool and workpiece**.
+One click: the tool becomes the bit (the program's other tools cut while they are in the spindle) and the CNC
+machine's workpiece the block; then **Build & play**. Without it the program's path runs through the block and
+nothing is cut away; the CNC machine panel says so under the workpiece and has the same button. A program that
+should only move the machine and never cut: set Milling up and untick **Cut material**.
+
 Good to know
 
 - **Shape**: **From its shape** reads the shape from the part. When the part is drawn simplified (or
@@ -1944,8 +1952,9 @@ Good to know
   **Automatic (fresh cut)** makes it from the block's material in 3 Looks: any aluminium (sawn plate,
   anodised, profile) cuts to bright *Aluminium, machined*; raw, ground or plated steel to *Steel,
   machined*; stainless to machined stainless; cast iron to bare grey machined iron; brass, bronze and copper
-  to the same metal, brighter; plastics to the same plastic, a little more matte. Paint and other looks stay
-  as the block. **Same as the block** shows the cut in the block's own look; **Pick a material…** takes
+  to the same metal, brighter; plastics to the same plastic, a little more matte. A painted block – every
+  imported part is painted until its group gets a material – cuts to *Aluminium, machined*: the metal under
+  the paint. Glass, wood, rubber and concrete stay as the block. **Same as the block** shows the cut in the block's own look; **Pick a material…** takes
   any ready-made material (one that takes a colour uses the block group's colour). The line under it says
   what the cut faces show. A face of the block that is only partly cut keeps the block's look. Renders in
   the queue show the same. Cut faces also show the marks of the tool: see **Tool marks** below.
@@ -2047,8 +2056,9 @@ Good to know
   view), while you scrub or play, in pictures, turntables and renders in the queue.
 - A save, a reopen and a model update keep them.
 - Look at them in rendered view: the grey solid view shows no materials.
-- A block that is still **painted** (as it is imported) keeps its paint on the cut faces, with faint marks.
-  For bright cut metal give its group a metal in 3 Looks; the line "Cut faces: …" says what the cuts show.
+- A block that is still **painted** (as it is imported) shows bare machined aluminium where it is cut: the
+  metal under the paint. For steel, brass or plastic give its group that material in 3 Looks; the line
+  "Cut faces: …" says what the cuts show.
 - While you scrub or play, the block is shaded the quick way, so scrubbing is as fast as before. A moment
   after the frame stands still – and in every render – it gets its exact shading, without dark patches.
 

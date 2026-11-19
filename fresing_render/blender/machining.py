@@ -1190,6 +1190,147 @@ def marks_source(scene) -> str:
 # showing a frame
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# does the milled block show what the program did? (task 0223)
+# ---------------------------------------------------------------------------
+
+BARE_SHARE = 0.01            # of the cut faces' area: more without tool marks is a lost look
+THROUGH_DEPTH = 0.3e-3       # m: a feed move deeper than this in the workpiece is a cut (the drawn path's height)
+
+
+def program_through(scene, anim=None) -> tuple:
+    """Task 0223: (points, how many tested) where the feed moves of the animation's G-code steps run inside the CNC
+    machine's workpiece, ``THROUGH_DEPTH`` up from the tip – whether Milling cuts it or not. Points in the
+    workpiece's own coordinates (m)."""
+    from . import animation, gcode
+    c = gcode.settings(scene)
+    wp = c.workpiece
+    anim = anim or animation.active(scene)
+    zero = c.zero_empty
+    if wp is None or wp.type != "MESH" or anim is None or zero is None:
+        return [], 0
+    try:
+        mach = gcode.Machine(scene)
+        co, ed, _fr, rp = gcode.path_geometry(scene, anim, mach, shown_only=False)
+    except (gcode.SetupError, FileNotFoundError):
+        return [], 0
+    if not len(ed):
+        return [], 0
+    co = co.astype(np.float64)
+    feed = ed[(rp[ed[:, 0]] < 0.5) & (rp[ed[:, 1]] < 0.5)]
+    a, b = co[feed[:, 0]], co[feed[:, 1]]
+    n = np.maximum(1, np.ceil(np.linalg.norm(b - a, axis=1) / core.LEFT_STEP).astype(np.int64))
+    if int(n.sum()) > core.LEFT_MOST:
+        n = np.maximum(1, (n * core.LEFT_MOST // int(n.sum())).astype(np.int64))
+    f = np.concatenate([np.arange(k) / k for k in n]) if len(n) else np.zeros(0)
+    pts = np.repeat(a, n, axis=0) + f[:, None] * np.repeat(b - a, n, axis=0)
+    pts = np.concatenate([pts, b[-1:]]) if len(b) else pts
+    pts[:, 2] += THROUGH_DEPTH                       # (the zero's z is the spindle's axis on a 3-axis mill)
+    m = np.array(wp.matrix_world.inverted() @ zero.matrix_world)
+    pts = pts @ m[:3, :3].T + m[:3, 3]
+    s = settings(scene)
+    me = s.stock_mesh if s.workpiece is wp and s.stock_mesh is not None else wp.data
+    v, t, _p = _mesh_tris(me)
+    if s.workpiece is wp and s.stock_mesh is not None:          # (the stock mesh is in the CAD pose's space)
+        cm = np.array(wp.matrix_world.inverted() @ _cad_world(wp))
+        v = v.astype(np.float64) @ cm[:3, :3].T + cm[:3, 3]
+    try:
+        solid = core.solid_from_mesh(v, t)
+    except core.SolidError:
+        return [], 0
+    return core.points_inside(solid, pts), len(pts)
+
+
+def use_cnc(scene) -> str:
+    """Task 0223: Milling cuts with the CNC machine's tool in the spindle (as a bit; the program's other tools cut
+    when they are in the spindle) and its workpiece. Returns "" or why not."""
+    from . import gcode
+    c = gcode.settings(scene)
+    if c.tool is None or c.workpiece is None:
+        return f"Pick the tool in the spindle and the workpiece in {_where('cnc')} first"
+    if c.tool is c.workpiece:
+        return "The tool and the workpiece are the same part"
+    if not any(ob is c.tool for _it, ob in bits(scene)):
+        add_bit(scene, c.tool)
+    if workpiece(scene) is not c.workpiece:
+        set_workpiece(scene, c.workpiece)
+    return ""
+
+
+def _where(key: str) -> str:
+    from ..core import places
+    return places.where(key)
+
+
+def cnc_unused(scene) -> bool:
+    """The CNC machine has a tool and a workpiece but Milling cuts with neither (``use_cnc`` would help)."""
+    from . import gcode
+    c = gcode.settings(scene)
+    if c.tool is None or c.workpiece is None or c.tool is c.workpiece:
+        return False
+    return workpiece(scene) is None and not bits(scene)
+
+
+def audit(scene) -> dict:
+    """Task 0223: does the milled block show what the program does? A dict:
+
+    ``set_up`` – Milling has a bit and a workpiece and cuts; without, ``through`` / ``points``: the feed moves of the
+    animation's G-code program that run inside the CNC machine's workpiece (nothing cuts them).
+    With: ``route`` ("booleans" / "height map"), ``cut_mm2`` / ``bare_mm2`` (cut faces seen from outside / without
+    tool marks, at the end), ``look`` (the cut faces' material draws the marks, or why not), ``left`` / ``points`` /
+    ``when`` (tool-tip points still inside the material at the end, of how many, their frames)."""
+    from . import toolmarks as marks_nodes
+    s = settings(scene)
+    out = {"set_up": bool(is_set_up(scene) and s.enabled and core.available())}
+    if not out["set_up"]:
+        left, n = program_through(scene)
+        out.update(through=len(left), points=n)
+        return out
+    update_if_needed(scene)
+    tl = _timeline(scene)
+    if tl is None:
+        out["error"] = status(scene) or "the motion is not read"
+        return out
+    end = max(tl.ends, default=float(scene.frame_end))
+    out["route"] = "height map" if tl.map is not None else "booleans"
+    out["marks"] = bool(s.marks)
+    cut, bare = tl.cut_cover(end)
+    out["cut_mm2"], out["bare_mm2"] = cut * 1e6, bare * 1e6
+    wp = workpiece(scene)
+    look = ""
+    if s.marks:
+        mat = cut_material(scene, wp)
+        if mat is None:
+            look = (f"the cut faces look like the block ('{block_look(scene, wp)[0] or 'its own paint'}' has no cut "
+                    "look): no tool marks")
+        elif marks_nodes.group_node(mat) is None:
+            look = f"the cut faces' material '{mat.name}' draws no tool marks"
+    out["look"] = look
+    left, n, when = tl.left_in_stock()
+    out.update(left=len(left), points=n, when=sorted(when)[:3])
+    return out
+
+
+def audit_problems(a: dict) -> list:
+    """What ``audit`` found wrong, in plain words (empty: the block shows what the program does)."""
+    if not a.get("set_up"):
+        if a.get("through"):
+            return [f"the program's feed moves run through the workpiece ({a['through']} of {a['points']} points "
+                    "inside it), but Milling is not set up: nothing is cut away"]
+        return []
+    if a.get("error"):
+        return [a["error"]]
+    out = []
+    if a.get("marks") and a["cut_mm2"] > 0 and a["bare_mm2"] > BARE_SHARE * a["cut_mm2"]:
+        out.append(f"{a['bare_mm2']:.0f} of {a['cut_mm2']:.0f} mm² of cut faces have no tool marks")
+    if a.get("look"):
+        out.append(a["look"])
+    if a.get("left"):
+        at = ", ".join(f"{w:.0f}" for w in a["when"])
+        out.append(f"the bit went through material that stays ({a['left']} of {a['points']} tip points, frames {at})")
+    return out
+
+
 def _write_mesh(me, v: np.ndarray, t: np.ndarray, mat: np.ndarray, marks=None, normals=None) -> None:
     """Triangles into ``me``. ``marks``: the four (triangles, 3) float32 arrays of ``core.mark_faces`` – written
     as the per-face attributes the cut-face material reads (``core/toolmarks.py``, task 0061). ``normals``:
