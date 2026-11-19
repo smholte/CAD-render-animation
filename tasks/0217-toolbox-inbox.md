@@ -219,7 +219,11 @@ Never attach `house-planner-dev`.
   lowercased app name, `size: 5.0`) and an independent Windows reviewer (fixed: Documents via the shell for OneDrive,
   a busy file at Bake now no longer fails the job, OneDrive reparse points no longer count as links, uninstall with a
   junction inside, empty USERPROFILE, installer's start program, CI junction inside a job, cleanup in `finally`).
-- GitHub runs: see below.
+- GitHub runs: 4. Run 1: the Windows install stopped (a changed USERPROFILE left Windows without a Desktop folder –
+  now only the Toolbox check's own Blender gets the accented profile), and the PC check's first half ran past its 15
+  min on busy runners (house.toolbox moved to the second half). Run 2: the uninstaller did not parse in Windows
+  PowerShell 5.1 (a "–" in a message; files now ASCII, with a test) and the Windows Toolbox checks had not run (wrong
+  condition). Run 3: green. Run 4: the merge with main (docs/reuse).
 
 **Open points / follow-up tasks:**
 1. **For the toolbox-format lead:** the v0.1 checker reports "the file X is missing" for a final job whose files were

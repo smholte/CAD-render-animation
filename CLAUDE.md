@@ -1304,3 +1304,10 @@ the release → Delete); the next run on `main` publishes it again.
   `stopImmediatePropagation` runs before OrbitControls' own listener on the same element, so the view does not turn and
   no click is counted; tests drag them at their screen points (`partTools.handles()`) in a window wide enough that the
   tool panel (top left) does not cover them.
+- Windows PowerShell 5.1 reads a `.ps1` without a byte-order mark in the PC's code page: one "–" in a message of the
+  uninstaller became "â€“", whose last byte is a typographic quote that ends a PowerShell string, and the whole script
+  failed to parse (task 0217). Installer files stay plain ASCII (`tests/test_toolbox.py`
+  `test_the_installer_files_are_plain_ascii`); `tools/ci_windows_install.ps1` runs in PowerShell 7 and may hold accents.
+- Setting `$env:USERPROFILE` to another folder makes Windows answer "" for the Desktop and other known folders
+  (`[Environment]::GetFolderPath`): the installer stopped at its shortcuts (task 0217; an independent review had judged
+  it safe). Change it only for one child process (`ci_windows_install.ps1` does for `ci_toolbox_windows.py`).
