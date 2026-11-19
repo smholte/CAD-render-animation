@@ -63,8 +63,8 @@
   },
   "doublearm": {
    "added": "0.2.51",
-   "changed": "0.2.101",
-   "fp": "233fa6adecdcc81b"
+   "changed": "0.2.171",
+   "fp": "a53e3f075a2a6ea8"
   },
   "faces": {
    "added": "0.2.47",
@@ -73,8 +73,8 @@
   },
   "gantry": {
    "added": "0.2.47",
-   "changed": "0.2.161",
-   "fp": "fb305bc85b8403b0"
+   "changed": "0.2.171",
+   "fp": "c382e91f2e5c6771"
   },
   "hoses": {
    "added": "0.2.78",
@@ -98,7 +98,7 @@
   },
   "linkage": {
    "added": "0.2.47",
-   "changed": "0.2.171",
+   "changed": "0.2.172",
    "fp": "bcc96c1dad34b844"
   },
   "looks": {
@@ -133,8 +133,8 @@
   },
   "operator": {
    "added": "0.2.132",
-   "changed": "",
-   "fp": "3780ff7d30617f73"
+   "changed": "0.2.171",
+   "fp": "6d40601a826857e3"
   },
   "people": {
    "added": "0.2.128",

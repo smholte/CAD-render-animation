@@ -76,6 +76,13 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
         else:
             wrap(layout, context, "Nothing clicked: click a part in the view", icon="RESTRICT_SELECT_ON")
 
+        # -- the CNC machine has a tool and a workpiece, Milling neither: one click (task 0223)
+        if machining.cnc_unused(scene):
+            gap(layout)
+            wrap(layout, context, f"The CNC machine ({where('cnc')}) has a tool and a workpiece: let its program "
+                                  "cut the workpiece", icon="INFO")
+            big(layout, "fresing.mill_from_cnc", "Use the CNC tool and workpiece", "MOD_BOOLEAN")
+
         # -- bits
         gap(layout)
         layout.label(text="Bits", icon="MOD_SCREW")

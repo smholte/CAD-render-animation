@@ -1868,15 +1868,15 @@ def _dashes(pts: list) -> list:
     return out
 
 
-def path_geometry(scene, anim, mach: Machine) -> tuple:
+def path_geometry(scene, anim, mach: Machine, shown_only: bool = True) -> tuple:
     """(points (n x 3, m, in the work zero's frame), edges (k x 2), frame per point, rapid per point) of
-    every G-code step of ``anim`` with Show toolpath on."""
+    every G-code step of ``anim`` with Show toolpath on (``shown_only=False``: of every G-code step, task 0223)."""
     from . import animation, rotary
     fps = animation.fps_of(anim)
     pts, edges, frames, rapid = [], [], [], []
     g54 = np.array(mach.g54)
     for b in anim.blocks:
-        if not (b.enabled and b.kind == "GCODE" and b.gcode_file and b.gcode_path):
+        if not (b.enabled and b.kind == "GCODE" and b.gcode_file and (b.gcode_path or not shown_only)):
             continue
         try:
             st, rot = step_start_of(b, mach)

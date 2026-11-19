@@ -138,6 +138,26 @@ class FRESING_OT_mill_set_workpiece(_MillOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_mill_from_cnc(_MillOp, bpy.types.Operator):
+    """Lets the CNC machine's program cut its workpiece: the tool in the spindle becomes the bit (the program's other
+    tools cut while they are in the spindle) and the CNC machine's workpiece the workpiece. Then press Build & play"""
+
+    bl_idname = "fresing.mill_from_cnc"
+    bl_label = "Use the CNC tool and workpiece"
+
+    def execute(self, context):
+        if not self.need_library():
+            return {"CANCELLED"}
+        why = machining.use_cnc(context.scene)
+        if why:
+            self.report({"WARNING"}, why)
+            return {"CANCELLED"}
+        machining.refresh(context.scene)
+        self.report({"INFO"}, f"Milling cuts '{machining.name_of(machining.workpiece(context.scene))}' with the "
+                              "CNC machine's tools: press Build & play")
+        return {"FINISHED"}
+
+
 class FRESING_OT_mill_set_finished(_MillOp, bpy.types.Operator):
     """Makes the part you clicked last the finished part: the CAD model of the part as it should come
     off the machine. The bits never cut below its surface, so the result is exactly the CAD part even
@@ -240,6 +260,6 @@ class FRESING_OT_chips_clear(_MillOp, bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_mill_add_bit, FRESING_OT_mill_remove_bit, FRESING_OT_mill_flip_bit,
+CLASSES = (FRESING_OT_mill_add_bit, FRESING_OT_mill_from_cnc, FRESING_OT_mill_remove_bit, FRESING_OT_mill_flip_bit,
            FRESING_OT_mill_set_workpiece, FRESING_OT_mill_set_finished, FRESING_OT_mill_clear_finished,
            FRESING_OT_mill_reset, FRESING_OT_mill_stop, FRESING_OT_chips_clear)

@@ -1713,7 +1713,8 @@ class FRMilling(bpy.types.PropertyGroup):
                     "gives freshly cut metal or plastic made from the block's material in 3 Looks",
         items=[("AUTO", "Automatic (fresh cut)", "Bright machined metal (or matte plastic) of the block's material "
                                                  "in 3 Looks: raw steel and cast iron cut bright, aluminium "
-                                                 "plate cut machined. Paint and other looks stay as the block", 0),
+                                                 "plate cut machined, a painted block shows machined aluminium "
+                                                 "under the paint. Glass, wood and rubber stay as the block", 0),
                ("SAME", "Same as the block", "Cut faces look like the rest of the block", 1),
                ("PICK", "Pick a material…", "Cut faces get the ready-made material picked below", 2)])
     cut_material: EnumProperty(
