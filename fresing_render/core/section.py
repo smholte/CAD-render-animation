@@ -1,4 +1,4 @@
-"""Cutaway / section view (task 0086): where a new cut goes, and the words the panel shows. No Blender here.
+"""Slice / section view (task 0086): where a new cut goes, and the words the panel shows. No Blender here.
 
 A cut is a plane (it takes away the side its arrow points to) or a box (it takes away what is inside it: a corner or
 a quarter of the model). A new cut goes through the middle of what it cuts and takes away the side that faces the
@@ -55,12 +55,12 @@ def box_default(bmin, bmax, view, margin: float = MARGIN) -> tuple[tuple, tuple]
 
 
 def status(total: int, on: int) -> str:
-    """The panel header: '2 cuts · 1 on' ('' with no cuts)."""
+    """The panel header: '2 slices · 1 on' ('' with no cuts)."""
     if total <= 0:
         return ""
     if on == 0:
-        return f"{plural(total, 'cut')} · off"
-    return f"{plural(total, 'cut')} · {on} on"
+        return f"{plural(total, 'slice')} · off"
+    return f"{plural(total, 'slice')} · {on} on"
 
 
 def target_label(kind: str, name: str) -> str:

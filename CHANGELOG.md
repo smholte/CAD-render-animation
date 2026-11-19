@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.170 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
+
+- **3 Looks > Slice.** The section view that opens up a machine (the red cut faces, hatch lines) has a new name, the
+  same word the web 3D page uses: the panel, its buttons ("Add slice"), tips, the guide and the test tour say Slice.
+  New slices are named "Slice 1", "Slice 2" …; slices in older projects keep their names and work as before.
+  The sea's cut-away behind the stern and the hall's cut-away are other functions and keep their names.
 ## 0.2.169 – 18 Nov 2026 – Slice on the web 3D page (task 0218)
 
 - The web 3D page's **Cutaway** is now **Slice** (key C, as before; S stays the screenshot). **Add slice**, then click a
