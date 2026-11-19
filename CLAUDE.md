@@ -764,6 +764,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **House Planner is private** (owner, 13 Nov 2026): Fresing Render workers **never attach or clone
   `smholte/house-planner-dev`** – it holds the owner's own house. The House lane works only from the public format
   repository `smholte/house-scene-format`, and its tests use only that repository's made-up sample packages.
+- **The cable-lay vessel's equipment becomes private** (owner, 19 Nov 2026): everything on the invented vessel
+  (carousel, tensioners, chute, cranes / A-frame, ROV, deck machines) will move to a private repository (task 0226
+  plans it). Until then: **no new pictures, renders, web pages, guide pictures, tour stops or report pictures of that
+  equipment**, and no new equipment parts on it. The bare ship, the environment and the other test models stay public.
 - **The Fresing 400 is not public yet** (owner, 12 Nov 2026): it is not ready to be shown in full. Its milling video
   on the landing page shows only a basic interior. Never put the Fresing 400 or any part of it on the site, in a web 3D
   model, a test model, a guide picture or a report, unless the owner releases it explicitly.
