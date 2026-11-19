@@ -2495,7 +2495,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.170")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.171")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -2611,7 +2611,7 @@ def _check_atc(scene):
     return "4 changes, every tool to its own pocket"
 
 
-@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.170")
+@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.171")
 def build_doublearm(b: Build):
     from mathutils import Vector
 
@@ -3145,7 +3145,7 @@ PEOPLE_ANIM = "Two people meet"
 OPERATOR_ANIM = "A person changes the tool"
 
 
-@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.170")
+@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.171")
 def build_operator(b: Build):
     """The test mill on its cabinet (tools/make_test_mill_cabinet.py): one manual change from T1 to T2 done by the
     operator, who walks up, opens the sliding door, swaps the tools over the trolley, closes the door and walks
@@ -3789,7 +3789,7 @@ stop("operator", MACH, "operator", "A person changes the tool",
      "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine. Each "
      "tool cuts a shallow strip into the block.",
      where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
-           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.170", animation=OPERATOR_ANIM,
+           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.171", animation=OPERATOR_ANIM,
      at=0.45, play=True,
      check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
@@ -3797,7 +3797,7 @@ stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "toolpath is drawn as a thin tube; the tool's tip follows it and cuts the block where the program goes into it: "
      "a 2 mm slot with an arc and two drilled holes, their faces with tool marks.",
      where="4 Motion > CNC machine; 6 Animation (Run G-code program); 4 Motion > Milling",
-     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.170")
+     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.171")
 stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      "The tool runs 2 mm zigzag steps above the block: first blended (G64) – it slows at each corner but keeps going –, "
      "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
@@ -3833,7 +3833,7 @@ stop("doublearm", MACH, "doublearm", "Double-arm tool change",
      "into the pot the new one came from; no tool ever jumps or hangs in the air. Each tool cuts the block where "
      "the program goes into it: two shallow strips and a short plunge.",
      where="4 Motion > CNC machine > Tool changes (Double-arm)", animation="Double-arm changer", play=True,
-     since="0.2.51", changed="0.2.170", check=_check_doublearm, auto="clip")
+     since="0.2.51", changed="0.2.171", check=_check_doublearm, auto="clip")
 stop("rotary4", MACH, "rotary4", "4th axis: the bar turns",
      "A rotary table turns a round bar while the tool cuts a slot wrapped once round it, then mills a flat on top, "
      "turns the bar half round and mills the same flat underneath. The orange toolpath lies on the bar and turns "

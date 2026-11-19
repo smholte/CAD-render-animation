@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.171 – 19 Nov 2026 – Every cut looks cut, every cutting move cuts (task 0223)
+
+- **A painted block now shows bare metal where it is cut.** Every imported part is painted until its group gets a
+  material in 3 Looks, so most blocks cut to grey paint with faint marks: plain grey, soft-looking dents. Their cut
+  faces are now *Aluminium, machined* – bright, with the tool marks and sharp edges. Give the block its own metal in
+  3 Looks for steel, brass or plastic; glass, wood and rubber keep their look as before.
+- **Use the CNC tool and workpiece** (4 Motion > Milling, and under the workpiece in 4 Motion > CNC machine): when the
+  CNC machine has its tool and workpiece but Milling has neither, the program's path ran through a block that stayed
+  whole. One click lets the program cut it – the other tools of the program cut while they are in the spindle.
+- **Test tour:** the CNC gantry, the double-arm tool changer and the operator now cut their blocks (a slot with an arc
+  and two holes; two strips and a plunge; two strips). Every machining stop now also checks the cut: tool marks on
+  every cut face, every move through the block took material away, no program running through a block nothing
+  cuts – the PC check's mode Tour fails on exactly what you saw.
+- **PC check:** new line *Milling: the block shows what the program does*.
+
 ## 0.2.170 – 18 Nov 2026 – Cutaway is now called Slice (task 0220)
 
 - **3 Looks > Slice.** The section view that opens up a machine (the red cut faces, hatch lines) has a new name, the

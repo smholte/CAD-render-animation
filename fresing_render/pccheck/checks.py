@@ -3763,7 +3763,7 @@ def milling_marks(ctx):
     return f"{note}; rebuilt in {with_marks:.0f} ms per frame ({without:.0f} ms without marks)"
 
 
-@line("milling.shows_program", "Milling: the block shows what the program does", "0.2.170",
+@line("milling.shows_program", "Milling: the block shows what the program does", "0.2.171",
       what="The test gantry runs the test tour's G-code program (a 2 mm slot with an arc, a tool change, two drilled "
            "holes) with Milling using the CNC machine's tool and workpiece. Every cut face must have tool marks and "
            "every move through the block must take material away (the tool's tip, 0.3 mm up its axis, tested every "
