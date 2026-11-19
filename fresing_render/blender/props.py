@@ -1713,7 +1713,8 @@ class FRMilling(bpy.types.PropertyGroup):
                     "gives freshly cut metal or plastic made from the block's material in 3 Looks",
         items=[("AUTO", "Automatic (fresh cut)", "Bright machined metal (or matte plastic) of the block's material "
                                                  "in 3 Looks: raw steel and cast iron cut bright, aluminium "
-                                                 "plate cut machined. Paint and other looks stay as the block", 0),
+                                                 "plate cut machined, a painted block shows machined aluminium "
+                                                 "under the paint. Glass, wood and rubber stay as the block", 0),
                ("SAME", "Same as the block", "Cut faces look like the rest of the block", 1),
                ("PICK", "Pick a material…", "Cut faces get the ready-made material picked below", 2)])
     cut_material: EnumProperty(
@@ -3378,7 +3379,7 @@ class FRToolpath(bpy.types.PropertyGroup):
     program_sig: StringProperty()        # fingerprint of the program as written: an edit by hand is noticed
 
 
-# ---- cutaway / section view (task 0086) ----
+# ---- slice / section view (task 0086) ----
 
 def _cut_changed(self, context):
     if context is None or context.scene is None or self.get("_busy"):
@@ -3429,13 +3430,13 @@ class FRCutTarget(bpy.types.PropertyGroup):
 
 
 class FRCut(bpy.types.PropertyGroup):
-    """A cutaway: a plane or box that takes part of the chosen parts away; the cut faces show a cap colour."""
+    """A slice: a plane or box that takes part of the chosen parts away; the cut faces show a cap colour."""
     name: StringProperty(name="Name", update=_cut_renamed,
-                         description="The cut's name. Its slide joint (to move it in a Move joint step) has the same "
+                         description="The slice's name. Its slide joint (to move it in a Move joint step) has the same "
                                      "name")
     key: StringProperty()
     enabled: BoolProperty(name="On", default=True, update=_cut_changed,
-                          description="Switches this cut on or off. Off: the parts look whole again (in the view, "
+                          description="Switches this slice on or off. Off: the parts look whole again (in the view, "
                                       "pictures and videos)")
     shape_kind: EnumProperty(name="Shape", default="PLANE", update=_cut_changed,
                              description="A plane takes away one side of the parts; a box takes away what is inside "
@@ -3462,11 +3463,11 @@ class FRCut(bpy.types.PropertyGroup):
                                           "everything)")
     place: FloatVectorProperty(name="Position", subtype="TRANSLATION", unit="LENGTH", size=3,
                                get=_cut_place_get, set=_cut_place_set,
-                               description="Where the cut's handle (the arrow) is, in the model's coordinates (mm). "
+                               description="Where the slice's handle (the arrow) is, in the model's coordinates (mm). "
                                            "You can also move the arrow in the view (G)")
     turn: FloatVectorProperty(name="Turn", subtype="EULER", unit="ROTATION", size=3,
                               get=_cut_turn_get, set=_cut_turn_set,
-                              description="How the cut is turned about the model's X, Y and Z axes (degrees). You "
+                              description="How the slice is turned about the model's X, Y and Z axes (degrees). You "
                                           "can also turn the arrow in the view (R)")
     targets: CollectionProperty(type=FRCutTarget)
     shape: PointerProperty(type=bpy.types.Object)
@@ -4495,11 +4496,11 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                                              "drawn edges and a coloured haze")
     trails: CollectionProperty(type=FRTrail)
     trails_index: IntProperty(default=0)
-    # ---- cutaway / section view (task 0086) ----
+    # ---- slice / section view (task 0086) ----
     cuts: CollectionProperty(type=FRCut)
     cuts_index: IntProperty(default=0)
     cut_new_shape: EnumProperty(name="Shape", default="PLANE",
-                                description="The shape of the next cut you add",
+                                description="The shape of the next slice you add",
                                 items=[("PLANE", "Plane", "Cuts the parts in two and takes away the half facing "
                                         "you", "MESH_PLANE", 0),
                                        ("BOX", "Box", "Takes away the quarter of the parts that faces you",

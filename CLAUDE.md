@@ -1297,9 +1297,6 @@ the release → Delete); the next run on `main` publishes it again.
   region focus); the click after it works (task 0181: the favourites bar's button was never pressed until the test
   clicked the panel's empty top edge first). A direct operator call worked all along – compare with one when a
   simulated click seems to do nothing.
-- A merge commit whose own change against its first parent is only `TASKS.md` / `tasks/` starts no run when pushed to
-  `main`, even when the merge brings a new version: no release follows (task 0218, as in 0173). Merge `main` into the
-  branch BEFORE writing the report, or push a documents change on top afterwards.
 - Web page handles dragged on the 3D view (task 0218's slices): a capture-phase `pointerdown` listener on the canvas with
   `stopImmediatePropagation` runs before OrbitControls' own listener on the same element, so the view does not turn and
   no click is counted; tests drag them at their screen points (`partTools.handles()`) in a window wide enough that the

@@ -347,6 +347,17 @@ def _pick(role: str, ob) -> None:
         _hide_finished(bpy_scene())
 
 
+def _mill_with_cnc(scene) -> None:
+    """Milling cuts with the CNC machine's tool and workpiece (task 0223: a program through a block that stayed whole
+    showed its path running through uncut material)."""
+    from . import machining
+    from ..core import machining as mcore
+    _check(mcore.available(), "the Manifold library did not load: run Install.bat again")
+    why = machining.use_cnc(scene)
+    _check(not why, why)
+    _hide_finished(scene)
+
+
 def _hide_finished(scene) -> None:
     """The test mill's FINISHED PART lies on the stock (a shape for "finish at the CAD part") and its BALL MILL D6 sits
     on the head beside the end mill, its tip as low: shown, the bit cut through the one and the other went into the
@@ -1091,7 +1102,7 @@ def _check_marine(scene):
     return f"{len(want)} marine looks, waterline {MARINE_WATER:.1f} m"
 
 
-@tour_set("cutaway", "Cutaway", "test_crane_a.step", added="0.2.64", changed="0.2.101")
+@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.170")
 def build_cutaway(b: Build):
     from mathutils import Vector
     sc = b.scene
@@ -2484,11 +2495,12 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.161")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.171")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
     tool = _gantry(b)
+    _mill_with_cnc(sc)                             # task 0223: the program's cuts take the block away
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: CNC gantry")
     a = _animation(b, "G-code", shot.name)
@@ -2599,7 +2611,7 @@ def _check_atc(scene):
     return "4 changes, every tool to its own pocket"
 
 
-@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.101")
+@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.171")
 def build_doublearm(b: Build):
     from mathutils import Vector
 
@@ -2610,6 +2622,7 @@ def build_doublearm(b: Build):
     doublearm.set_up_test_model(sc, blk)
     bad = [t for ok, t in doublearm.check(sc) if not ok]
     _check(not bad, "; ".join(bad[:2]))
+    _mill_with_cnc(sc)                             # task 0223: the program's cuts take the block away
     _close_camera(b, Vector((-0.17, 0.0, 0.26)), 0.42, "Tour double arm")
     a.start_shot = _shot(b, "Tour: double arm").name
 
@@ -3132,7 +3145,7 @@ PEOPLE_ANIM = "Two people meet"
 OPERATOR_ANIM = "A person changes the tool"
 
 
-@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132")
+@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.171")
 def build_operator(b: Build):
     """The test mill on its cabinet (tools/make_test_mill_cabinet.py): one manual change from T1 to T2 done by the
     operator, who walks up, opens the sliding door, swaps the tools over the trolley, closes the door and walks
@@ -3141,6 +3154,7 @@ def build_operator(b: Build):
     sc = b.scene
     _look("PRODUCT")
     a = tc_person.set_up_test_model(sc, b.file("Tour operator.ngc"))
+    _mill_with_cnc(sc)                             # task 0223: the program's two cuts take the block away
     a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
     cam = cameras.add_camera(sc, "ISO", 40.0, "Tour operator", points=tc_person.test_camera_points())
     sc.camera = cam
@@ -3244,7 +3258,7 @@ def _check_night(scene):
 HOUSE_MOMENT = "summer-evening"
 
 
-@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.170")
+@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.172")
 def build_house(b: Build):
     """The made-up sample house: imported, one moment baked small (the package next to the tour), the evening
     shown in the view from the recipe's garden camera."""
@@ -3519,11 +3533,11 @@ stop("faces", LOOK, "faces", "Painted faces",
 stop("decals", LOOK, "decals", "Logos and stickers",
      "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
      "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
-stop("cutaway", LOOK, "cutaway", "Cutaway: the pedestal opens up",
-     "A cut slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
+stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
+     "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
-     "view: the grey solid view shows the parts whole.", where="3 Looks > Cutaway; 6 Animation (Move joint step "
-     "with the joint 'Cut 1')", since="0.2.64", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
+     "view: the grey solid view shows the parts whole.", where="3 Looks > Slice; 6 Animation (Move joint step "
+     "with the joint 'Slice 1')", since="0.2.64", changed="0.2.170", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
      auto="clip")
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
@@ -3772,14 +3786,18 @@ stop("operator", MACH, "operator", "A person changes the tool",
      "On the test mill in its cabinet the operator walks up before the tool change, opens the sliding door with "
      "the handle, presses the release button with the left hand and takes the end mill out by its BT30 holder, lays "
      "it on the tool trolley, takes the ball mill, puts it in, closes the door and walks away after the program. "
-     "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine.",
+     "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine. Each "
+     "tool cuts a shallow strip into the block.",
      where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
-           "Tool changes > Person at the machine", since="0.2.132", animation=OPERATOR_ANIM, at=0.45, play=True,
+           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.171", animation=OPERATOR_ANIM,
+     at=0.45, play=True,
      check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "The gantry runs on its rails through a short program: lines, arcs, a tool change to T2 and drilling. The "
-     "toolpath is drawn as a thin tube; the tool's tip follows it.", where="4 Motion > CNC machine; 6 Animation (Run G-code program)",
-     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.101")
+     "toolpath is drawn as a thin tube; the tool's tip follows it and cuts the block where the program goes into it: "
+     "a 2 mm slot with an arc and two drilled holes, their faces with tool marks.",
+     where="4 Motion > CNC machine; 6 Animation (Run G-code program); 4 Motion > Milling",
+     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.171")
 stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      "The tool runs 2 mm zigzag steps above the block: first blended (G64) – it slows at each corner but keeps going –, "
      "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
@@ -3812,9 +3830,10 @@ stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
 stop("doublearm", MACH, "doublearm", "Double-arm tool change",
      "Three BT30 tools: at each Tn the magazine turns the next tool's pot to the arm and tips it down; at M6 the head "
      "goes up, the arm turns onto both tools, pulls them out, turns half round and pushes them in. The old tool goes "
-     "into the pot the new one came from; no tool ever jumps or hangs in the air.",
+     "into the pot the new one came from; no tool ever jumps or hangs in the air. Each tool cuts the block where "
+     "the program goes into it: two shallow strips and a short plunge.",
      where="4 Motion > CNC machine > Tool changes (Double-arm)", animation="Double-arm changer", play=True,
-     since="0.2.51", check=_check_doublearm, auto="clip")
+     since="0.2.51", changed="0.2.171", check=_check_doublearm, auto="clip")
 stop("rotary4", MACH, "rotary4", "4th axis: the bar turns",
      "A rotary table turns a round bar while the tool cuts a slot wrapped once round it, then mills a flat on top, "
      "turns the bar half round and mills the same flat underneath. The orange toolpath lies on the bar and turns "
@@ -4133,7 +4152,7 @@ stop("house_toolbox", OUT, "house", "A house arrives by itself",
      "test tour\" shows the house while it bakes (progress and Cancel in the panel), then the tour comes back and the "
      "panel says Sent back to House Planner. (The tour uses a Toolbox folder of its own next to the tour project, "
      "and bakes small: one moment, 4 samples.)",
-     where="5 Scene & Render > House from House Planner", since="0.2.170", shot="House from House Planner",
+     where="5 Scene & Render > House from House Planner", since="0.2.172", shot="House from House Planner",
      check=_check_toolbox, setup=_toolbox_setup, auto=lambda ctx, scene, st: "")
 
 def _check_workspace(scene):
@@ -4334,6 +4353,51 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
      where="Fresing menu > My learning list…; the question at the top of the Fresing tab; the What's next card",
      since="0.2.160", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+
+
+# ---------------------------------------------------------------------------
+# every machining stop: the block shows what the program does (task 0223)
+# ---------------------------------------------------------------------------
+
+#: the sets of a CNC mill or a milling bit: their stops also check the cut (marks on every cut face, every move
+#: through the block cut, no program running through a block that nothing cuts)
+MILLING_SETS = ("mill", "gantry", "atc", "doublearm", "rotary4", "rotary5", "toolpath", "tools", "marks", "air",
+                "coolant", "operator")
+
+
+def check_milling(scene) -> str:
+    """The milled block shows what the program does: every cut face has tool marks, the cut faces' material draws
+    them, every move through the block took material away, and no program runs through a block nothing cuts. Raises
+    with the reason; returns a short note."""
+    from . import machining
+    f, sub = scene.frame_current, scene.frame_subframe
+    try:
+        a = machining.audit(scene)
+    finally:
+        if (scene.frame_current, scene.frame_subframe) != (f, sub):
+            scene.frame_set(f, subframe=sub)
+    bad = machining.audit_problems(a)
+    _check(not bad, "; ".join(bad))
+    if not a["set_up"]:
+        return ""
+    return (f"cut {a['cut_mm2']:,.0f} mm², all with tool marks ({a['route']}); every move through the block cut "
+            f"({a['points']:,} tip points)")
+
+
+def _and_milling(check):
+    def both(scene):
+        note = check(scene)
+        more = check_milling(scene)
+        return "; ".join(x for x in (note, more) if x)
+    both.__name__ = getattr(check, "__name__", "check")
+    both.milling = True
+    return both
+
+
+for _st in STOPS:
+    if _st.set in MILLING_SETS and _st.check is not None and not getattr(_st.check, "milling", False):
+        _st.check = _and_milling(_st.check)
+del _st
 
 # ---------------------------------------------------------------------------
 # building the tour

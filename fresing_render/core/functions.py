@@ -84,6 +84,7 @@ READING = {
     "layout", "start", "install", "navigate", "first-render", "scene", "tips", "inventor-export", "faster-renders",
     "troubleshooting", "self-test", "updates-not-arriving", "renders-folder", "panel-gone", "import-problems",
     "render-problems", "lifting-equipment", "lifting", "usage",
+    "cutaway",            # task 0220: the old anchor of the Slice section (old links still land)
 }
 
 
@@ -205,8 +206,8 @@ fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_P
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
-fn(id="looks.cutaway", title="Cutaway", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
-   guide="cutaway", tour=("cutaway",), pccheck=("looks.cutaway",), since="0.2.64")
+fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
+   guide="slice", tour=("cutaway",), pccheck=("looks.cutaway",), since="0.2.64", changed="0.2.170")
 fn(id="looks.find", title="Find & sort parts", family="looks", panel="FRESING_PT_find", button="fresing.find_word",
    guide="find", since="0.2.8")
 fn(id="looks.rules", title="Sorting rules", family="looks", panel="FRESING_PT_rules", button="fresing.rule_add",
@@ -319,6 +320,9 @@ fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolan
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
    panel="FRESING_PT_milling", button="fresing.mill_add_bit", guide="milling", pccheck=("milling.cut",),
    since="0.2.19")
+fn(id="milling.from_cnc", title="Milling with the CNC machine's tool and workpiece", family="milling",
+   panel="FRESING_PT_milling", button="fresing.mill_from_cnc", guide="milling-cnc", tour=("gcode",),
+   pccheck=("milling.shows_program",), since="0.2.171")
 fn(id="milling.cut_look", title="Cut faces and raw stock", family="milling", panel="FRESING_PT_milling",
    prop="cut_look", guide="milling", tour=("cut_look",), pccheck=("milling.cut_look",), since="0.2.43")
 fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel="FRESING_PT_milling", prop="marks",
@@ -413,7 +417,7 @@ fn(id="house.import", title="House from House Planner", family="house", panel="F
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")
 fn(id="house.toolbox", title="A house from House Planner by itself (Bake now, sent back)", family="house",
    panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
-   pccheck=("house.toolbox",), since="0.2.170")
+   pccheck=("house.toolbox",), since="0.2.172")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
    guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77",
    manual_estimate=("use", 7200, "bake the materials, export a glTF and build a viewer page"))

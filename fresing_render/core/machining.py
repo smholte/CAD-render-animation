@@ -75,6 +75,12 @@ ANGLE_TOL = math.radians(0.05)            # the bit's axis may turn this much wi
 # the bit's axis may turn this much in one cut (a 4th-axis turn would otherwise be cut in 0.05° slices)
 TURN_ANGLE_TOL = math.radians(0.5)
 
+# does the milled block show what the program did? (task 0223: ``Timeline.left_in_stock``)
+LEFT_UP = 0.3 * MM               # a tool tip is tested this far up the tool's axis (inside the tool's own body)
+LEFT_STEP = 0.5 * MM             # ... every this much along a move
+LEFT_MOST = 6000                 # ... at most this many points (a long program is tested more sparsely)
+LEFT_PROBE = 0.1 * MM            # the side of the little cube put at each point
+
 
 def detail(name: str) -> dict:
     return DETAIL.get(name, DETAIL["NORMAL"])
@@ -1072,6 +1078,80 @@ class Timeline:
         self.stats.tiles = sum(1 for t in tiles if t.ntri)
         return out
 
+    # -- does it show what the program did? (task 0223) ------------------------
+
+    def cut_cover(self, T: float) -> tuple:
+        """(m² of cut faces seen from outside, m² of them without tool marks) at ``T``. The faces that only close a
+        tile or a piece of the height map inside the material are left out (nobody sees them, and they have no
+        maker). Every cut face should carry marks: a face with none shows plain, the look of a cut before 0061."""
+        from . import cut_normals
+        self.mesh_at(T, marks=True)
+        rows = self.wp.tile_meshes(self.at(T), self.mesh_cache, self.cut_ids)
+        cut = bare = 0.0
+        for r in rows:
+            v, t, src = r[1], r[2], r[3]
+            if r[5] is None:
+                r[5] = mark_faces(v, t, r[4], self.moves, self.cutters)
+            seen = (src < 0) & ~cut_normals.seam_faces(v, t, r[7], r[8])
+            if r[9] is not None:
+                seen &= ~r[9][0]
+            if not seen.any():
+                continue
+            a = _area(v, t)
+            kind = np.rint(np.asarray(r[5][3])[:, 0]).astype(np.int64)
+            cut += float(a[seen].sum())
+            bare += float(a[seen & (kind == _tm.NONE)].sum())
+        return cut, bare
+
+    def tip_points(self, T: float | None = None, up: float = LEFT_UP, step: float = LEFT_STEP,
+                   most: int = LEFT_MOST) -> tuple:
+        """(points (n, 3), time of each (n,)): every bit's tip on its moves through the stock done by ``T`` (default:
+        all), moved ``up`` the tool's axis into the tool's own body, about every ``step`` along a move (sparser
+        when there would be more than ``most``)."""
+        T = math.inf if T is None else float(T)
+        lo, hi = self.wp.lo, self.wp.hi
+        rows = []
+        for s in self.segs:               # (not ``s.cuts``: a move the timeline wrongly skips is found too)
+            if s.t1 > T + 1e-9:
+                continue
+            p = self.paths[s.bit]
+            reach = self.cutters[s.bit].reach
+            o = p.o[s.i0:s.i1 + 1]
+            if np.any(o.max(axis=0) + reach < lo) or np.any(o.min(axis=0) - reach > hi):
+                continue
+            rows.append((s, p))
+        lengths = [float(np.linalg.norm(p.o[s.i1] - p.o[s.i0])) for s, p in rows]
+        total = sum(max(1.0, ln / step) for ln in lengths)
+        if total > most:
+            step *= total / most
+        pts, ts = [], []
+        for (s, p), ln in zip(rows, lengths):
+            k = max(2, int(ln / step) + 1)
+            u = np.linspace(0.0, 1.0, k)[:, None]
+            a, b = p.o[s.i0], p.o[s.i1]
+            pts.append(a + (b - a) * u + p.d[s.i0] * up)
+            ts.append(s.t0 + (s.t1 - s.t0) * u[:, 0])
+        if not pts:
+            return np.zeros((0, 3)), np.zeros(0)
+        return np.concatenate(pts), np.concatenate(ts)
+
+    def left_in_stock(self, T: float | None = None, **kw) -> tuple:
+        """Where a bit went through material that is still there at ``T`` (default: the end): (the points – see
+        ``tip_points`` – that lie inside the material, the number of points tested, their times). The finished part
+        (Finish at the CAD part) does not count: the cut stops at it on purpose."""
+        pts, ts = self.tip_points(T, **kw)
+        end = max(self.ends, default=0.0) if T is None else float(T)
+        sol = solid_of(self.at(end))
+        keep = self.wp.first[0].keep
+        if keep is not None:
+            sol = sol - keep
+        left = points_inside(sol, pts)
+        when = []
+        for q in left:
+            k = int(np.argmin(np.linalg.norm(pts - q, axis=1))) if len(pts) else 0
+            when.append(float(ts[k]) if len(ts) else 0.0)
+        return left, len(pts), when
+
 
 # ---------------------------------------------------------------------------
 # dense 3-axis programs: the height map next to the booleans (task 0146)
@@ -1574,6 +1654,45 @@ def volume(tiles) -> float:
 
 
 # ---------------------------------------------------------------------------
+# does the milled block show what the program did? (task 0223)
+# ---------------------------------------------------------------------------
+
+
+
+def _area(v: np.ndarray, t: np.ndarray) -> np.ndarray:
+    v = np.asarray(v, dtype=np.float64)
+    e1, e2 = v[t[:, 1]] - v[t[:, 0]], v[t[:, 2]] - v[t[:, 0]]
+    return 0.5 * np.linalg.norm(np.cross(e1, e2), axis=1)
+
+
+def solid_of(tiles):
+    """The tiles as one solid (Manifold)."""
+    sols = [t.solid for t in tiles if t.ntri]
+    if not sols:
+        return _mf.Manifold()
+    return _mf.Manifold.batch_boolean(sols, _mf.OpType.Add) if len(sols) > 1 else sols[0]
+
+
+def points_inside(solid, pts: np.ndarray, size: float = LEFT_PROBE) -> list:
+    """The points of ``pts`` (n, 3) that lie inside ``solid`` (a little cube of side ``size`` round each one cuts it):
+    their positions, at most one per piece of material they lie in together."""
+    pts = np.asarray(pts, dtype=np.float64).reshape(-1, 3)
+    if len(pts) == 0 or solid is None or solid.is_empty():
+        return []
+    cube = _mf.Manifold.cube((size, size, size), True)
+    out = []
+    for k in range(0, len(pts), 2000):
+        comp = _mf.Manifold.compose([cube.translate(tuple(p)) for p in pts[k:k + 2000]])
+        hit = comp ^ solid
+        if hit.is_empty() or hit.volume() < 0.01 * size ** 3:
+            continue
+        for piece in hit.decompose():
+            b = np.array(piece.bounding_box(), dtype=float).reshape(2, 3)
+            out.append(0.5 * (b[0] + b[1]))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # the look of cut faces (task 0051)
 # ---------------------------------------------------------------------------
 
@@ -1586,15 +1705,21 @@ _CUT_STEEL = ("steel_raw", "steel_machined", "steel_ground", "steel_turned", "zi
               "zinc_flake", "galvanized", "black_oxide", "chrome", "chrome_rod")
 _CUT_BRIGHT = ("brass", "bronze", "copper", "zinc_diecast")
 _CUT_PLASTIC = ("pom_white", "pom_black", "plastic_gloss", "plastic_matte")
+# a painted block – also every imported part until its group gets a material in 3 Looks – shows bare metal where it is
+# cut (task 0223: grey paint cut to grey paint with faint marks looked uncut). Which metal is not known: aluminium,
+# the usual stock of a milled part; pick the block's metal in 3 Looks for another
+_CUT_PAINT = ("", "paint_gloss", "paint_satin", "paint_matte", "powder_coat", "paint_marine", "paint_marine_growth",
+              "paint_marine_streaks", "paint_blade_eroded")
 
 
 def cut_look(block_id: str) -> tuple | None:
     """What a face the cutter made looks like, from the block's material id (3 Looks).
 
     Returns ``(material id, tweaks, label)`` – the tweaks change that material's settings
-    (``materials_lib``) – or None when the cut looks like the block itself (paint, glass, anything else)."""
+    (``materials_lib``) – or None when the cut looks like the block itself (glass, wood, rubber, anything else).
+    Paint (and no material at all) cuts to machined aluminium: the metal under the paint (task 0223)."""
     from . import materials_lib as ml
-    if block_id in _CUT_ALU:
+    if block_id in _CUT_ALU or block_id in _CUT_PAINT:
         return "aluminium_machined", {}, "Aluminium, machined"
     if block_id in _CUT_STEEL:
         return "steel_machined", {}, "Steel, machined"

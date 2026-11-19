@@ -481,12 +481,20 @@ def test_cut_faces_get_their_own_look(scene):
     # 3 Looks: the block becomes aluminium plate -> the cut faces become machined aluminium at once
     _block_group(scene, "aluminium_sawn")
     assert wp.material_slots[n].material["fr_material"] == "aluminium_machined"
-    # paint: the cut looks like the block - the same paint, as a material of its own that draws the tool marks
-    # (task 0061); without the marks it is the block's own material
+    # paint (also an imported part before its group gets a material): the metal under it shows where it is cut -
+    # machined aluminium, with or without the tool marks (task 0223: grey paint cut to grey paint looked uncut)
     _block_group(scene, "paint_satin")
     cut_mat, own = wp.material_slots[n].material, wp.material_slots[0].material
-    assert cut_mat is not own and cut_mat["fr_material"] == own["fr_material"] == "paint_satin"
-    assert cut_mat["fr_color"] == own["fr_color"] and "(cut)" in machining.cut_look_text(scene)
+    assert cut_mat is not own and own["fr_material"] == "paint_satin" and cut_mat["fr_material"] == "aluminium_machined"
+    assert machining.cut_look_text(scene) == "Cut faces: Aluminium, machined"
+    scene.fresing.milling.marks = False
+    assert wp.material_slots[n].material["fr_material"] == "aluminium_machined"
+    scene.fresing.milling.marks = True
+    # glass and wood keep the block's look (the same wood, as a material of its own that draws the tool marks)
+    _block_group(scene, "wood")
+    cut_mat, own = wp.material_slots[n].material, wp.material_slots[0].material
+    assert cut_mat is not own and cut_mat["fr_material"] == own["fr_material"] == "wood"
+    assert "(cut)" in machining.cut_look_text(scene)
     scene.fresing.milling.marks = False
     assert wp.material_slots[n].material is wp.material_slots[0].material
     assert machining.cut_look_text(scene) == "Cut faces look like the block"

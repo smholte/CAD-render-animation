@@ -513,7 +513,7 @@ def looks_served_cable(ctx):
     return note
 
 
-@line("looks.cutaway", "Cutaway: a cut through the pedestal", "0.2.64",
+@line("looks.cutaway", "Slice: a slice through the pedestal", "0.2.64",
       what="A plane cut through the crane's pedestal and boom (hatched red cut faces, the pin inside), slid in by a "
            "Move joint step; the end frame is rendered small (processor, draft), and its time compared with the "
            "same frame without the cut")
@@ -2456,7 +2456,7 @@ def house_bake(ctx):
             f"{os.path.getsize(path) / 1024:.0f} KB")
 
 
-@line("house.toolbox", "A house from House Planner by itself (Toolbox folder)", "0.2.170",
+@line("house.toolbox", "A house from House Planner by itself (Toolbox folder)", "0.2.172",
       what="A house sent the way House Planner sends it, into a Toolbox folder in the check's own folder (never your "
            "real one): it waits, Bake now (one moment, 4 samples) imports it into a scene of its own and sends the "
            "bake package back as a job in House Planner's inbox; the status is done, the house scene is gone and the "
@@ -3814,6 +3814,41 @@ def milling_marks(ctx):
                                "(processor, draft)", model_check=False, width=480)
     ctx.metric("still with marks", info["seconds"], "s")
     return f"{note}; rebuilt in {with_marks:.0f} ms per frame ({without:.0f} ms without marks)"
+
+
+@line("milling.shows_program", "Milling: the block shows what the program does", "0.2.171",
+      what="The test gantry runs the test tour's G-code program (a 2 mm slot with an arc, a tool change, two drilled "
+           "holes) with Milling using the CNC machine's tool and workpiece. Every cut face must have tool marks and "
+           "every move through the block must take material away (the tool's tip, 0.3 mm up its axis, tested every "
+           "0.5 mm along the program); the block is painted, as imported, so its cuts must show bare machined metal. "
+           "Then Milling is taken off: the check must find the program running through a block nothing cuts, and Use "
+           "the CNC machine's tool and workpiece must put it right")
+def milling_shows_program(ctx):
+    from ..blender import animation, machining, tour
+    machining._RUNTIME.clear()
+    scene = ctx.fresh(GANTRY)
+    tour.build_gantry(tour.Build(scene, ctx.work, "pccheck"))
+    a = scene.fresing.animations.get("G-code")
+    _check(a is not None, "the animation with the program is missing")
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    t0 = time.time()
+    note = tour.check_milling(scene)
+    ctx.metric("check", time.time() - t0, "s")
+    mat = machining.cut_material(scene, machining.workpiece(scene))
+    _check(mat is not None and mat.get("fr_material") == "aluminium_machined",
+           f"the painted block's cuts show '{mat.name if mat else 'its paint'}', not bare machined aluminium")
+    machining.stop(scene)                             # Milling off: the program still runs through the block
+    _check(machining.cnc_unused(scene), "the panels do not offer Use the CNC tool and workpiece")
+    a_ = machining.audit(scene)
+    _check(a_.get("through", 0) > 0, "the program runs through the block that nothing cuts, but the check does not "
+                                     "find it")
+    why = machining.use_cnc(scene)
+    _check(not why, why)
+    r = animation.bake(scene, a)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    tour.check_milling(scene)
+    return note + f"; without Milling: {a_['through']} points of the program inside the uncut block found"
 
 
 @line("milling.toolpath", "Milling: the app makes the toolpath", "0.2.55",

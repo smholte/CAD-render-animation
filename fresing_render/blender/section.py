@@ -1,4 +1,4 @@
-"""Cutaway / section view (task 0086): a plane or box cut through chosen parts, the cut faces filled with a cap colour.
+"""Slice / section view (task 0086): a plane or box cut through chosen parts, the cut faces filled with a cap colour.
 
 How it renders (the shader way, no boolean on the meshes): every material of a cut part gets one node group
 ("FR section") between its shader and the output – inside the Fade group of task 0073 when there is one, so a part
@@ -93,7 +93,7 @@ def _new_key(scene) -> str:
     return f"c{n}"
 
 
-def _unique_name(scene, base: str = "Cut") -> str:
+def _unique_name(scene, base: str = "Slice") -> str:
     names = {c.name for c in scene.fresing.cuts} | {j.name for j in scene.fresing.joints}
     n = 1
     while f"{base} {n}" in names:
@@ -947,7 +947,7 @@ def after_model_update(scene, by_uid, mapping: dict) -> list[str]:
                 t.uid = new.get(build.PROP_UID, t.uid)
             elif t.uid and str(mapping.get(t.uid, "")).startswith("gone:"):
                 t.obj = None
-                notes.append(f"Cut '{cut.name}': '{t.name}' is not in the new model, so it is not cut any more")
+                notes.append(f"Slice '{cut.name}': '{t.name}' is not in the new model, so it is not sliced any more")
         root = by_uid.get(cut.root_uid) if cut.root_uid else None
         root = root or cut_root(scene, cut)
         vals = list(cut["parked"])

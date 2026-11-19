@@ -1,6 +1,6 @@
 # 0217 – Toolbox inbox: a house from House Planner bakes and goes back by itself
 
-**Who:** worker · **Status:** done (0.2.170, 19 Nov 2026). `toolbox-format` tag `v0.1` exists (18 Nov, commit aa75e85,
+**Who:** worker · **Status:** done (0.2.172, 19 Nov 2026). `toolbox-format` tag `v0.1` exists (18 Nov, commit aa75e85,
 MIT licence) and took every point of the lead's review below · **Branch:** `task/0217-toolbox-inbox`
 **Started by:** lead, 18 Nov 2026, from the toolbox planning chat's brief (step D of the toolbox plan)
 **Model:** Opus · effort Medium (Windows file handling: independent review before merging, CLAUDE.md section 6)
@@ -172,7 +172,7 @@ Never attach `house-planner-dev`.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 18–19 Nov 2026. Released as **0.2.170**.
+**Chat / date:** Claude Code on the web, 18–19 Nov 2026. Released as **0.2.172**.
 
 **What changed:**
 - `core/toolbox.py` (no Blender): the folder (`TOOLBOX_HOME`, else `%USERPROFILE%\Toolbox`), the manifest, strict

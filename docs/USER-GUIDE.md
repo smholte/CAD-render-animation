@@ -144,7 +144,7 @@ the Fresing tab picks what the side panel shows:
 | **All functions** | everything (new projects start here) | – |
 | **CNC & machining** | CNC machine, tools, tool changes, milling, way covers, clash check | sea, vessel, cables and drums, weather, exploded views |
 | **Offshore & cable laying** | sea and seabed, vessel motion, cables, drums and carousels, weather | CNC machine, milling, way covers |
-| **Product design & R&D** | looks, exploded views, assembly sequence, cutaway, turntable, web 3D model | CNC, milling, cables, sea, weather |
+| **Product design & R&D** | looks, exploded views, assembly sequence, slice, turntable, web 3D model | CNC, milling, cables, sea, weather |
 | **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
 | **Education & training** | every kind of motion, animation, camera | web 3D model |
 | **Lifting plans** | 8 Lifting plan, import, structure, looks, scene, animation, render queue | CNC, milling, cables, sea, joints by hand |
@@ -593,7 +593,7 @@ that goes back to its place at the next pose or Build, unless a pose or an anima
 
 1. Click **Update to new revision…** under the model's name and pick the new STEP file.
 2. Your work stays: materials, painted faces, logos and stickers, hidden parts, joints, cylinders,
-   mechanisms, way covers, cutaways, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
+   mechanisms, way covers, slices, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
    cylinders and mechanisms that link this model to another one in the project (a crane on a ship's
    deck) stay too, whichever of the two you update.
 3. A report lists the parts that are **New** (**Select new parts** selects them, so you can give them
@@ -950,46 +950,47 @@ It shows in the rendered view, in pictures and videos (Cycles and EEVEE), and is
 housing that turns X-ray *during* a video, use a **Fade out** step with **Fade to X-ray** (6 Animation).
 
 <a id="cutaway"></a>
-### Cutaway
+<a id="slice"></a>
+### Slice
 
-<img class="panel" src="img/panel_3_cutaway.png" alt="3 Looks > Cutaway with a plane cut through the pedestal and the boom">
+<img class="panel" src="img/panel_3_cutaway.png" alt="3 Looks > Slice with a plane slice through the pedestal and the boom">
 
-Show the inside of a machine: a cut takes away part of the parts you choose, and the faces where it cuts through
+Show the inside of a machine: a slice takes away part of the parts you choose, and the faces where it cuts through
 the material are filled with a **cap colour** (a strong red, as on a section drawing). The parts are not changed –
-switch the cut off and they are whole again.
+switch the slice off and they are whole again.
 
-<img class="wide" src="img/cutaway.jpg" alt="The test crane with its pedestal and boom cut open: red hatched cut faces, the pin inside">
+<img class="wide" src="img/cutaway.jpg" alt="The test crane with its pedestal and boom sliced open: red hatched cut faces, the pin inside">
 
 1. Choose **Plane** (cuts the parts in two) or **Box** (takes away a corner or a quarter).
-2. Select a subassembly (or a part) and click **Add cut: the selected**; or pick a material group in the list
-   above and click **This group**; or **Whole model**. The cut goes through the middle of what it cuts and takes
+2. Select a subassembly (or a part) and click **Add slice: the selected**; or pick a material group in the list
+   above and click **This group**; or **Whole model**. The slice goes through the middle of what it cuts and takes
    away the side that faces you in the view (or the camera), so you see the inside at once.
-3. Under the list of cuts: **Flip** (the other side goes; for a box: everything outside it), the **Cap colour**,
+3. Under the list of slices: **Flip** (the other side goes; for a box: everything outside it), the **Cap colour**,
    **Hatch lines** with their spacing, and for a box its size. **Cuts … parts** lists what it cuts: **Add
-   selected** / **Add group** adds more, the × takes one out (a gearbox housing cut, the gears inside whole).
+   selected** / **Add group** adds more, the × takes one out (a gearbox housing sliced, the gears inside whole).
 4. Move it: **Select the arrow**, then in the view press **G** to move it or **R** to turn it. The arrow points to
    the side a plane takes away. Or set it in **Place by numbers** (in the model's coordinates). **To the middle**
    puts it back.
 
-Several cuts per project are fine; the tick in the list switches one on or off, and the panel header shows how
-many are on. Cuts are kept with the project, in saved scenes (which are on), in the render queue and through a
+Several slices per project are fine; the tick in the list switches one on or off, and the panel header shows how
+many are on. Slices are kept with the project, in saved scenes (which are on), in the render queue and through a
 model update (**Update to new revision…**, 1 Import).
 
-**A cut that moves in a video.** Each cut has its own slide joint with the same name (**Cut 1** …): the
-**Slide** value moves the cut along its arrow (0 = where you put it). In 6 Animation, a **Move joint** step with
-that joint slides the cut in – "the housing opens up". Poses keep the slide too.
+**A slice that moves in a video.** Each slice has its own slide joint with the same name (**Slice 1** …): the
+**Slide** value moves the slice along its arrow (0 = where you put it). In 6 Animation, a **Move joint** step with
+that joint slides the slice in – "the housing opens up". Poses keep the slide too.
 
 Good to know:
 
-- Cuts show in the rendered view (**Z > Rendered**), in pictures and videos, Cycles and EEVEE. The grey solid view
+- Slices show in the rendered view (**Z > Rendered**), in pictures and videos, Cycles and EEVEE. The grey solid view
   shows the parts whole.
-- Light falls in through the cut as it would through a real cut; parts inside cast their shadows.
+- Light falls in through the slice as it would through a real cut; parts inside cast their shadows.
 - The cap colour is right for closed solids (every STEP solid is). A part made of open surfaces (a sheet drawn as a
   single surface) shows its inside face in the cap colour.
 - Glass and logos/stickers are cut, but get no cap.
-- Adding the first cut sets the **Floor gap** (5 Scene & Render) to 0.1 mm, if it was 0: a floor touching the
-  bottom of a cut part would otherwise show through its cut face.
-- A cut and a [fade](#animation) work together: a cut part that fades, fades with its cut faces.
+- Adding the first slice sets the **Floor gap** (5 Scene & Render) to 0.1 mm, if it was 0: a floor touching the
+  bottom of a sliced part would otherwise show through its cut face.
+- A slice and a [fade](#animation) work together: a sliced part that fades, fades with its cut faces.
 
 <a id="find"></a>
 ### Find & sort parts
@@ -1928,6 +1929,14 @@ animation (6 Animation): joints that move the head, the table or both.
    later the cut follows the timeline: drag the time slider back and forth, or play. The line with
    the frame number shows how big the milled shape is and how long one frame took.
 
+<a id="milling-cnc"></a>
+**A CNC machine with a G-code program** (4 Motion > CNC machine): when the machine has its tool in the spindle
+and its workpiece, but Milling has neither, the Milling panel offers **Use the CNC tool and workpiece**.
+One click: the tool becomes the bit (the program's other tools cut while they are in the spindle) and the CNC
+machine's workpiece the block; then **Build & play**. Without it the program's path runs through the block and
+nothing is cut away; the CNC machine panel says so under the workpiece and has the same button. A program that
+should only move the machine and never cut: set Milling up and untick **Cut material**.
+
 Good to know
 
 - **Shape**: **From its shape** reads the shape from the part. When the part is drawn simplified (or
@@ -1944,8 +1953,9 @@ Good to know
   **Automatic (fresh cut)** makes it from the block's material in 3 Looks: any aluminium (sawn plate,
   anodised, profile) cuts to bright *Aluminium, machined*; raw, ground or plated steel to *Steel,
   machined*; stainless to machined stainless; cast iron to bare grey machined iron; brass, bronze and copper
-  to the same metal, brighter; plastics to the same plastic, a little more matte. Paint and other looks stay
-  as the block. **Same as the block** shows the cut in the block's own look; **Pick a material…** takes
+  to the same metal, brighter; plastics to the same plastic, a little more matte. A painted block – every
+  imported part is painted until its group gets a material – cuts to *Aluminium, machined*: the metal under
+  the paint. Glass, wood, rubber and concrete stay as the block. **Same as the block** shows the cut in the block's own look; **Pick a material…** takes
   any ready-made material (one that takes a colour uses the block group's colour). The line under it says
   what the cut faces show. A face of the block that is only partly cut keeps the block's look. Renders in
   the queue show the same. Cut faces also show the marks of the tool: see **Tool marks** below.
@@ -2047,8 +2057,9 @@ Good to know
   view), while you scrub or play, in pictures, turntables and renders in the queue.
 - A save, a reopen and a model update keep them.
 - Look at them in rendered view: the grey solid view shows no materials.
-- A block that is still **painted** (as it is imported) keeps its paint on the cut faces, with faint marks.
-  For bright cut metal give its group a metal in 3 Looks; the line "Cut faces: …" says what the cuts show.
+- A block that is still **painted** (as it is imported) shows bare machined aluminium where it is cut: the
+  metal under the paint. For steel, brass or plastic give its group that material in 3 Looks; the line
+  "Cut faces: …" says what the cuts show.
 - While you scrub or play, the block is shaded the quick way, so scrubbing is as fast as before. A moment
   after the frame stands still – and in every render – it gets its exact shading, without dark patches.
 
