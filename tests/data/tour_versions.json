@@ -83,7 +83,7 @@
   },
   "house": {
    "added": "0.2.92",
-   "changed": "0.2.172",
+   "changed": "0.2.173",
    "fp": "cbaeb7533c2e40eb"
   },
   "lifting": {
@@ -98,8 +98,8 @@
   },
   "linkage": {
    "added": "0.2.47",
-   "changed": "0.2.54",
-   "fp": "416b8ff00e452182"
+   "changed": "0.2.172",
+   "fp": "bcc96c1dad34b844"
   },
   "looks": {
    "added": "0.2.47",

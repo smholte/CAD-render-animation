@@ -1,6 +1,6 @@
 # 0217 – Toolbox inbox: a house from House Planner bakes and goes back by itself
 
-**Who:** worker · **Status:** done (0.2.172, 19 Nov 2026). `toolbox-format` tag `v0.1` exists (18 Nov, commit aa75e85,
+**Who:** worker · **Status:** done (0.2.173, 19 Nov 2026). `toolbox-format` tag `v0.1` exists (18 Nov, commit aa75e85,
 MIT licence) and took every point of the lead's review below · **Branch:** `task/0217-toolbox-inbox`
 **Started by:** lead, 18 Nov 2026, from the toolbox planning chat's brief (step D of the toolbox plan)
 **Model:** Opus · effort Medium (Windows file handling: independent review before merging, CLAUDE.md section 6)
@@ -172,7 +172,7 @@ Never attach `house-planner-dev`.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 18–19 Nov 2026. Released as **0.2.172**.
+**Chat / date:** Claude Code on the web, 18–19 Nov 2026. Released as **0.2.173**.
 
 **What changed:**
 - `core/toolbox.py` (no Blender): the folder (`TOOLBOX_HOME`, else `%USERPROFILE%\Toolbox`), the manifest, strict
@@ -223,7 +223,7 @@ Never attach `house-planner-dev`.
   now only the Toolbox check's own Blender gets the accented profile), and the PC check's first half ran past its 15
   min on busy runners (house.toolbox moved to the second half). Run 2: the uninstaller did not parse in Windows
   PowerShell 5.1 (a "–" in a message; files now ASCII, with a test) and the Windows Toolbox checks had not run (wrong
-  condition). Run 3: green. Run 4: the merge with main (docs/reuse).
+  condition). Runs 3 and 4 stopped in the precheck: other tasks had taken 0.2.170, then 0.2.172 (merged main twice). Run 5: the full run of 0.2.173.
 
 **Open points / follow-up tasks:**
 1. **For the toolbox-format lead:** the v0.1 checker reports "the file X is missing" for a final job whose files were

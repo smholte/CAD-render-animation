@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.172 – 19 Nov 2026 – A house from House Planner by itself (task 0217)
+## 0.2.173 – 19 Nov 2026 – A house from House Planner by itself (task 0217)
 
 - A house sent from House Planner now **arrives by itself**: no Save, no Import, no sending the bake back by hand. The
   two apps hand files to each other through a plain folder on your PC, `C:\Users\<you>\Toolbox` (made by the
@@ -21,6 +21,9 @@ installer of that version was built from.
 - Uninstall removes only the app's own part of the Toolbox folder.
 - Test tour: new stop "A house arrives by itself"; PC check: new line "A house from House Planner by itself".
 
+## 0.2.172 – 19 Nov 2026 – Test tour stop 22: the four-bar moves too (task 0225)
+
+In the test tour, stop 22 "Mechanisms" now moves all three mechanisms of the test model: the scissor lift rises, the four-bar's crank turns and swings its rocker, and the slider-crank turns once. Before, the middle one (the four-bar) was never made and stood still.
 ## 0.2.171 – 19 Nov 2026 – Every cut looks cut, every cutting move cuts (task 0223)
 
 - **A painted block now shows bare metal where it is cut.** Every imported part is painted until its group gets a
@@ -42,6 +45,7 @@ installer of that version was built from.
   same word the web 3D page uses: the panel, its buttons ("Add slice"), tips, the guide and the test tour say Slice.
   New slices are named "Slice 1", "Slice 2" …; slices in older projects keep their names and work as before.
   The sea's cut-away behind the stern and the hall's cut-away are other functions and keep their names.
+
 ## 0.2.169 – 18 Nov 2026 – Slice on the web 3D page (task 0218)
 
 - The web 3D page's **Cutaway** is now **Slice** (key C, as before; S stays the screenshot). **Add slice**, then click a

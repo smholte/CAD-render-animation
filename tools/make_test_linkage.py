@@ -255,7 +255,8 @@ def build(path: str, revision: str = "A") -> None:
     fbase = assy("FOURBAR.BASE.ASM")
     place(fbase, part(BRepPrimAPI_MakeBox(gp_Pnt(FB_X - 100, -40, 0), FB_D + 200, 120.0, 60.0).Shape(),
                       "FOURBAR.BASE", grey))
-    place(fbase, part(_bored_block(FB_X - 30, FB_X + 30, -40, -10, 60, FB_Z + 30, [(FB_X, FB_Z)], 10.0),
+    # post A stands 12 mm behind the crank: the crank's own pin (y -20 … 20) sweeps past it (task 0225)
+    place(fbase, part(_bored_block(FB_X - 30, FB_X + 30, -52, -22, 60, FB_Z + 30, [(FB_X, FB_Z)], 10.0),
                       "FOURBAR.POST.A", grey))
     place(fbase, part(_bored_block(FB_X + FB_D - 30, FB_X + FB_D + 30, 50, 80, 60, FB_Z + 30,
                                    [(FB_X + FB_D, FB_Z)], 10.0), "FOURBAR.POST.D", grey))
@@ -279,7 +280,7 @@ def build(path: str, revision: str = "A") -> None:
     link("FOURBAR.COUPLER", pb, pc, 10, 30, yellow, tool)
     link("FOURBAR.ROCKER", pd, pc, 30, 50, yellow)
     # the crank's own pin at A is in the base post; the rocker's at D too
-    place(fbase, part(_cyl_y(FB_X, FB_Z, 10.0, -40, 10), "FOURBAR.PIN.A", chrome))
+    place(fbase, part(_cyl_y(FB_X, FB_Z, 10.0, -52, 10), "FOURBAR.PIN.A", chrome))
     place(fbase, part(_cyl_y(FB_X + FB_D, FB_Z, 10.0, 30, 80), "FOURBAR.PIN.D", chrome))
     place(root, fb)
 

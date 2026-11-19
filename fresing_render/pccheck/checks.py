@@ -2456,7 +2456,7 @@ def house_bake(ctx):
             f"{os.path.getsize(path) / 1024:.0f} KB")
 
 
-@line("house.toolbox", "A house from House Planner by itself (Toolbox folder)", "0.2.172",
+@line("house.toolbox", "A house from House Planner by itself (Toolbox folder)", "0.2.173",
       what="A house sent the way House Planner sends it, into a Toolbox folder in the check's own folder (never your "
            "real one): it waits, Bake now (one moment, 4 samples) imports it into a scene of its own and sends the "
            "bake package back as a job in House Planner's inbox; the status is done, the house scene is gone and the "
