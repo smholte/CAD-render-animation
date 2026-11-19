@@ -43,7 +43,7 @@ BUILTIN = {
                                "sea, cables and drums, weather, exploded views", False, False),
     "offshore": ("Offshore & cable laying", "Sea and seabed, vessel motion, cables, drums and carousels, cylinders, "
                                             "weather. Hides G-code, tools and milling", False, False),
-    "product": ("Product design & R&D", "Looks and paint, exploded views and assembly sequence, cutaway, turntable, "
+    "product": ("Product design & R&D", "Looks and paint, exploded views and assembly sequence, slice, turntable, "
                                         "web 3D model. Hides G-code, milling, cables and the sea", False, False),
     "client": ("Client view", "For showing a finished project: import, surroundings, camera views, saved scenes, "
                               "turntable, render. Everything else is hidden and the model is locked against "

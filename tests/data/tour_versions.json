@@ -48,8 +48,8 @@
   },
   "cutaway": {
    "added": "0.2.64",
-   "changed": "0.2.101",
-   "fp": "f382d45120d842a3"
+   "changed": "0.2.170",
+   "fp": "da77aa255e95ffb7"
   },
   "cylinder": {
    "added": "0.2.47",
@@ -98,7 +98,7 @@
   },
   "linkage": {
    "added": "0.2.47",
-   "changed": "0.2.170",
+   "changed": "0.2.171",
    "fp": "bcc96c1dad34b844"
   },
   "looks": {

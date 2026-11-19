@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.170"
+__version__ = "0.2.171"
 
 _modules = []
 
@@ -17,7 +17,7 @@ def _classes():
                           ops_demo, ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
                           ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_header, ui_topbar, welcome, ui_machining, ui_motion, ui_tour, ui_video,
                           ui_section, ui_waycover, updates)
-    from .blender import ops_section                # task 0086: 3 Looks > Cutaway
+    from .blender import ops_section                # task 0086: 3 Looks > Slice
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
     from .blender import ops_vessel_motion, ui_vessel_motion   # task 0085: 5 Scene & Render > Vessel motion
     from .blender import ops_vessel_work                # task 0154: 5 Scene & Render > Vessel at work
@@ -44,7 +44,7 @@ def _classes():
     at = looks.index(ui_decals.PANELS[-1]) + 1
     looks[at:at] = ui_fade.PANELS                # 3 Looks > X-ray look (task 0073)
     at = looks.index(ui_fade.PANELS[-1]) + 1
-    looks[at:at] = ui_section.PANELS             # 3 Looks > Cutaway (task 0086)
+    looks[at:at] = ui_section.PANELS             # 3 Looks > Slice (task 0086)
     at = looks.index(ui.FRESING_PT_props) + 1
     looks[at:at] = ui_vessel_motion.CLASSES      # 5 Scene & Render > Vessel motion (task 0085), after Props
     at = looks.index(ui_vessel_motion.CLASSES[-1]) + 1

@@ -1091,7 +1091,7 @@ def _check_marine(scene):
     return f"{len(want)} marine looks, waterline {MARINE_WATER:.1f} m"
 
 
-@tour_set("cutaway", "Cutaway", "test_crane_a.step", added="0.2.64", changed="0.2.101")
+@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.170")
 def build_cutaway(b: Build):
     from mathutils import Vector
     sc = b.scene
@@ -1246,7 +1246,7 @@ def _check_cylinder(scene):
 LIFT_ROD_PIN = (0.75 * math.cos(math.radians(15.0)), -0.08, 0.1 + 0.75 * math.sin(math.radians(15.0)))
 
 
-@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.170")
+@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.171")
 def build_linkage(b: Build):
     from mathutils import Vector
 
@@ -3548,11 +3548,11 @@ stop("faces", LOOK, "faces", "Painted faces",
 stop("decals", LOOK, "decals", "Logos and stickers",
      "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
      "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
-stop("cutaway", LOOK, "cutaway", "Cutaway: the pedestal opens up",
-     "A cut slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
+stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
+     "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
-     "view: the grey solid view shows the parts whole.", where="3 Looks > Cutaway; 6 Animation (Move joint step "
-     "with the joint 'Cut 1')", since="0.2.64", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
+     "view: the grey solid view shows the parts whole.", where="3 Looks > Slice; 6 Animation (Move joint step "
+     "with the joint 'Slice 1')", since="0.2.64", changed="0.2.170", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
      auto="clip")
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
@@ -3640,7 +3640,7 @@ stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
      "slides back and forth.", where="4 Motion > Mechanisms", animation="Lift and crank", play=True,
-     check=_check_linkage, auto="clip", since="0.2.47", changed="0.2.170")
+     check=_check_linkage, auto="clip", since="0.2.47", changed="0.2.171")
 stop("waycover", MOTION, "waycover", "Way cover follows the axis",
      "The carriage slides 500 mm along X on its rails and back; the five folded-sheet cover sections telescope out "
      "and in with it, each by its own share, over the rails and the ball screw.", where="4 Motion > Way covers", animation="X axis out and back", play=True,
