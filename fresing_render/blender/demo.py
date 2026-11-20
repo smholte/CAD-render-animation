@@ -31,6 +31,7 @@ stage small and name what it shows; ``d.progress()`` inside a long loop keeps th
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import os
@@ -71,8 +72,9 @@ def project_dir(folder: str, version: str) -> str:
     return os.path.join(folder, version)
 
 
-def project_path(folder: str, version: str) -> str:
-    return os.path.join(project_dir(folder, version), f"{TITLE} {version}.blend")
+def project_path(folder: str, version: str, title: str = "") -> str:
+    """The project file; ``title``: a demo kit's (its folder is ``kit_folder``), else the app's own demo."""
+    return os.path.join(project_dir(folder, version), f"{title or TITLE} {version}.blend")
 
 
 def model_dir(folder: str, version: str) -> str:
@@ -102,9 +104,9 @@ def cancel_path(folder: str, version: str) -> str:
     return os.path.join(project_dir(folder, version), "cancel")
 
 
-def exists(folder: str, version: str) -> bool:
+def exists(folder: str, version: str, title: str = "") -> bool:
     """A finished demo of this version is there (not one that is being made)."""
-    return os.path.isfile(project_path(folder, version)) and not os.path.isfile(progress_path(folder, version))
+    return os.path.isfile(project_path(folder, version, title)) and not os.path.isfile(progress_path(folder, version))
 
 
 def read_progress(folder: str, version: str) -> dict:
@@ -142,6 +144,35 @@ def is_demo(scene) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# demo kits (task 0228): a demo that comes from a zip the user added (core/demo_kits.py)
+# ---------------------------------------------------------------------------
+
+PUBLIC = True                         # the app's own demo is in the list (Help > Make demo project…)
+KIT_TAG = "fr_demo_kit"               # on the scene of a kit's demo project: the kit's id
+KITS = "Kits"                         # <demo folder>/Kits/<kit id>/<version>/: a kit's demo project
+
+
+def kits_dir() -> str:
+    """Where added kits are unpacked: Blender's config folder (``FRESING_DEMO_KITS`` for tests and the PC check)."""
+    from ..core import demo_kits
+    given = os.environ.get(demo_kits.ENV)
+    if given:
+        return given
+    import bpy
+    return os.path.join(bpy.utils.user_resource("CONFIG"), demo_kits.FOLDER)
+
+
+def kit_folder(folder: str, kit_id: str) -> str:
+    """The folder a kit's demo projects go in (``project_dir`` etc. take it as ``folder``), next to the app's own."""
+    return os.path.join(folder, KITS, kit_id)
+
+
+def app_package() -> str:
+    """The app's package name as Blender loaded it (``fresing_render`` or ``bl_ext.<repo>.fresing_render``)."""
+    return __name__.rsplit(".blender.", 1)[0]
+
+
+# ---------------------------------------------------------------------------
 # stages
 # ---------------------------------------------------------------------------
 
@@ -173,6 +204,8 @@ def stage(id: str, title: str, after: str = ""):
 class Demo:
     """What a stage gets: the scene, the files, the sheets, the animation and its time cursor ``t``."""
 
+    anim_name = ANIM                    # the animation ``animation`` makes (a demo kit's Demo may name its own)
+
     def __init__(self, scene, folder: str, version: str, small: bool = False, progress=None):
         self.scene = scene
         self.folder = folder
@@ -184,6 +217,7 @@ class Demo:
         self.timings: dict[str, float] = {}
         self.notes: list[str] = []
         self.set_down = None                     # (start, hoist, from) of the D's set-down step (tasks 0125, 0172)
+        self.kit = None                          # task 0228: the demo kit being built (core/demo_kits.KitInfo)
         self.t = 0.0
         self._sheets: dict = {}
 
@@ -256,10 +290,10 @@ class Demo:
     # ---- the animation ----
     @property
     def animation(self):
-        a = self.s.animations.get(ANIM)
+        a = self.s.animations.get(self.anim_name)
         if a is None:
             a = self.s.animations.add()
-            a.name, a.tail, a.fps = ANIM, 0.5, "25"
+            a.name, a.tail, a.fps = self.anim_name, 0.5, "25"
             a.quality, a.out_resolution, a.out_format, a.video = "preview", "hd", "presentation", "MP4"
         return a
 
@@ -2215,9 +2249,12 @@ def _fresh(folder: str, version: str):
     return scene
 
 
-def build_project(folder: str, version: str = "", small: bool = False, progress=None, only=()) -> dict:
+def build_project(folder: str, version: str = "", small: bool = False, progress=None, only=(), kit=None) -> dict:
     """Make the demo project of ``version`` in ``folder`` (an older one of that version is replaced). Returns
-    {"path", "seconds" per stage, "timings", "notes"}. Raises Cancelled / RuntimeError; then nothing is left."""
+    {"path", "seconds" per stage, "timings", "notes"}. Raises Cancelled / RuntimeError; then nothing is left.
+
+    ``kit`` (task 0228, a ``core/demo_kits.KitInfo`` of an added kit): the kit's demo instead of the app's own – only
+    the kit's maker and stages run (``_kit_build``); ``folder`` is then its ``kit_folder``."""
     import bpy
 
     from .. import __version__
@@ -2236,7 +2273,8 @@ def build_project(folder: str, version: str = "", small: bool = False, progress=
             progress(stage_title, text, done, total)
 
     _write_json(progress_path(folder, version), {"stage": "", "pid": os.getpid(), "version": version})
-    out = {"path": project_path(folder, version), "seconds": {}}
+    title = kit.title if kit is not None else ""
+    out = {"path": project_path(folder, version, title), "seconds": {}}
     d = None
     from . import prefs as fr_prefs
     p = fr_prefs.get()
@@ -2244,30 +2282,34 @@ def build_project(folder: str, version: str = "", small: bool = False, progress=
     if p:
         p.default_template = ""
     try:
-        scene = _fresh(folder, version)
-        d = Demo(scene, folder, version, small, report)
-        stages = [s for s in STAGES if not only or s.id in only]
-        for st in stages:
-            d.stage = st.title
-            d.progress(st.title)
-            t0 = time.time()
-            st.fn(d)
-            out["seconds"][st.id] = round(time.time() - t0, 1)
-            try:
-                from . import surroundings
-                surroundings.fix_view_clip(bpy.context.scene)   # task 0193: far things (the park) in view
-            except Exception:  # noqa: BLE001
-                pass
-        scene = bpy.context.scene
-        scene[TAG] = version
-        d.progress("Saving")
-        a = scene.fresing.animations.get(ANIM)
-        _write_json(summary_path(folder, version), {
-            "version": version, "joints": len(scene.fresing.joints), "cylinders": len(scene.fresing.cylinders),
-            "animation": ANIM, "frames": int(scene.frame_end - scene.frame_start + 1) if a else 0,
-            "seconds": round(max(b.start + b.duration for b in a.blocks), 1) if a and len(a.blocks) else 0.0,
-            "small": small})
-        bpy.ops.wm.save_as_mainfile(filepath=project_path(folder, version), check_existing=False)
+        with _kit_build(kit) as demo_class:
+            scene = _fresh(folder, version)
+            d = demo_class(scene, folder, version, small, report)
+            d.kit = kit
+            stages = [s for s in STAGES if not only or s.id in only]
+            for st in stages:
+                d.stage = st.title
+                d.progress(st.title)
+                t0 = time.time()
+                st.fn(d)
+                out["seconds"][st.id] = round(time.time() - t0, 1)
+                try:
+                    from . import surroundings
+                    surroundings.fix_view_clip(bpy.context.scene)   # task 0193: far things (the park) in view
+                except Exception:  # noqa: BLE001
+                    pass
+            scene = bpy.context.scene
+            scene[TAG] = version
+            if kit is not None:
+                scene[KIT_TAG] = kit.id
+            d.progress("Saving")
+            a = scene.fresing.animations.get(d.anim_name)
+            _write_json(summary_path(folder, version), {
+                "version": version, "joints": len(scene.fresing.joints), "cylinders": len(scene.fresing.cylinders),
+                "animation": d.anim_name, "kit": kit.id if kit is not None else "", "frames": int(scene.frame_end - scene.frame_start + 1) if a else 0,
+                "seconds": round(max(b.start + b.duration for b in a.blocks), 1) if a and len(a.blocks) else 0.0,
+                "small": small})
+            bpy.ops.wm.save_as_mainfile(filepath=project_path(folder, version, title), check_existing=False)
     except BaseException:
         try:
             import bpy as _b
@@ -2289,24 +2331,129 @@ def build_project(folder: str, version: str = "", small: bool = False, progress=
     return out
 
 
+# ---------------------------------------------------------------------------
+# a demo kit's build (task 0228): only the kit's maker and stages, the app's own set aside
+# ---------------------------------------------------------------------------
+
+def _run_kit_maker(d: Demo) -> None:
+    """The kit's ``maker`` as its own program (``core/demo_kit_run.py``, Blender's Python, the bundled OpenCascade)."""
+    from ..importer import runner as import_runner
+    kit = d.kit
+    script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "core", "demo_kit_run.py")
+    os.makedirs(d.model_dir, exist_ok=True)
+    prog = os.path.join(d.model_dir, "kit maker.json")
+    log = os.path.join(d.model_dir, "kit maker log.txt")
+    env = dict(os.environ)
+    for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
+        env.pop(var, None)
+    env["PYTHONPATH"] = os.pathsep.join(p for p in sys.path if p and os.path.isdir(p))
+    env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    cmd = [import_runner.python_executable(), script, kit.folder, kit.maker, d.model_dir, "--progress", prog]
+    if d.small:
+        cmd.append("--small")
+    with open(log, "w", encoding="utf-8", errors="replace") as fh:
+        proc = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env, cwd=kit.folder,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        d.helper_pid = proc.pid
+        try:
+            while proc.poll() is None:
+                try:
+                    with open(prog, encoding="utf-8") as pf:
+                        p = json.load(pf)
+                except (OSError, ValueError):
+                    p = {}
+                d.progress(str(p.get("text") or "Making the model's shapes"), int(p.get("done") or 0),
+                           int(p.get("total") or 0))
+                time.sleep(0.5)
+        except Cancelled:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            d.helper_pid = 0
+    if proc.returncode != 0:
+        with open(log, encoding="utf-8", errors="replace") as fh:
+            tail = fh.read().strip()[-400:]
+        raise RuntimeError(f"the kit's model could not be written: {tail}")
+    for f in (prog, log):
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+
+
+def _kit_model(d: Demo):
+    d.progress("Making the model's shapes")
+    t0 = time.time()
+    _run_kit_maker(d)
+    d.timings["write"] = time.time() - t0
+
+
+@contextlib.contextmanager
+def _kit_build(kit):
+    """While a kit is built: the app's own stages set aside, the kit's maker first (stage ``kit_model``), then the
+    stages its ``stage_module`` registers with ``@stage``; the Demo class the stages get (the kit's own, if it has
+    one). On the way out the app's stages are back and the kit's code forgotten. ``kit`` None: the app's own demo."""
+    if kit is None:
+        yield Demo
+        return
+    import importlib
+
+    from ..core import demo_kits
+    saved = STAGES[:]
+    STAGES[:] = [Stage("kit_model", "The model (written)", _kit_model)] if kit.maker else []
+    try:
+        with demo_kits.loaded(kit.folder, app_package()):
+            gone = demo_kits.missing_uses(kit, app_package())
+            if gone:
+                raise RuntimeError(f"the demo kit '{kit.title}' needs {', '.join(gone[:4])}, which this app version "
+                                   f"does not have: download the kit's newer version")
+            try:
+                mod = importlib.import_module(kit.stage_module)
+            except Exception as exc:  # noqa: BLE001 - said plainly
+                raise RuntimeError(f"the demo kit's stages could not be loaded ({type(exc).__name__}: {exc})") \
+                    from exc
+            have = {st.id for st in STAGES}
+            lost = [x for x in kit.stages if x not in have]
+            if lost:
+                raise RuntimeError(f"the demo kit's stage module did not register {', '.join(lost[:4])}")
+            cls = getattr(mod, "Demo", Demo)
+            yield cls if isinstance(cls, type) and issubclass(cls, Demo) else Demo
+    finally:
+        STAGES[:] = saved
+
+
 def result_path(folder: str) -> str:
     """The background build's last word (next to the version folders: it outlives a cancelled build)."""
     return os.path.join(folder, "Make demo result.json")
 
 
-def build_main(folder: str = "", small: bool = False) -> int:
-    """Entry point of the background Blender ``launcher.py -- demobuild [folder]``."""
+def build_main(folder: str = "", small: bool = False, kit: str = "") -> int:
+    """Entry point of the background Blender ``launcher.py -- demobuild [folder] [small] [--kit <id>]`` (task 0228:
+    ``--kit``: an added demo kit's demo; ``folder`` is then its ``kit_folder``)."""
     from .. import __version__
-    folder = folder or default_folder()
+    folder = folder or (kit_folder(default_folder(), kit) if kit else default_folder())
     os.makedirs(folder, exist_ok=True)
     t0 = time.time()
+    info = None
+    if kit:
+        from ..core import demo_kits
+        info = demo_kits.get(kits_dir(), kit)
+        why = (f"the demo kit '{kit}' is not added (Help > Make demo project… > Add a demo kit…)" if info is None
+               else demo_kits.version_message(info, __version__))
+        if why:
+            res = {"version": __version__, "finished": False, "error": why, "kit": kit}
+            _write_json(result_path(folder), res)
+            print(f"Demo project: {json.dumps(res)}", flush=True)
+            return 1
 
     def progress(stage_title, text, done, total):
         print(f"{stage_title}: {text}" if text and text != stage_title else stage_title, flush=True)
 
     res = {"version": __version__, "finished": False}
     try:
-        out = build_project(folder, __version__, small=small, progress=progress)
+        out = build_project(folder, __version__, small=small, progress=progress, kit=info)
         res.update(finished=True, path=out["path"], seconds=round(time.time() - t0, 1), stages=out["seconds"],
                    timings=out["timings"], notes=out["notes"])
         code = 0

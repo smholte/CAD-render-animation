@@ -83,6 +83,27 @@ the public demo keeps building as today.
 10. Reports in the private repository's own `REPORT.md`; the public report (below) gives numbers only, no pictures, no
     equipment names beyond those already public.
 
+## Design (worker, 20 Nov 2026)
+
+After the owner's addition (the kit holds the WHOLE project) a kit is a **complete demo of its own**, not stages on top
+of the app's demo:
+- **A kit build runs only the kit:** `demo.build_project(folder, version, kit=<KitInfo>)` sets the app's own stages
+  aside, registers a first stage `kit_model` (runs the kit's `maker` as its own program through `core/demo_kit_run.py`,
+  Blender's Python, progress JSON `{"text", "done", "total"}`), imports the kit's `stage_module` (its `@stage`
+  functions register on the app's list, in their own order), runs them, saves `<title> <version>.blend` in
+  `<demo folder>/Kits/<id>/<version>/`, and puts the app's stages back. A stage module may define `Demo` (a subclass of
+  the app's): the stages get it. Build framework names (`stage`, `Demo`, `Cancelled`, paths) stay public.
+- **Inside a kit the app is `fresing_app`** (a meta-path alias to the installed package, same module objects; also in
+  the maker program). `kit.json`: `id`, `title`, `kit_version`, `app_min`, `app_max` ("" = open), `stage_module`,
+  `maker`, `stages` (checked registered), `uses` (app names, checked present before the build).
+- **No app demo in the list** works (`demo.PUBLIC = False`, for after the cut; tested): the list holds only kits, or
+  says "No demo yet: add a demo kit".
+- **Private kit:** copies of `demo_model/` (all but `geom.py`, which hands over the app's own), `demo.py` (framework
+  removed, stages kept), `demo_park.py`, `demo_rov.py`; its maker writes the same files as the app's (`--small` = the
+  scaled-down set). Its tests: copies of every demo test, `kit_made.py` (made once from the kit zip, added as the app
+  adds it), `test_kit_builds.py` (same stages, joints, cylinders, saved scenes, steps, frames, objects as the app's own
+  demo of 0.2.175).
+
 ## Done when
 
 - [ ] Public: test kit added, built, removed in tests; real-app test of the list + Add; the public demo and all demo

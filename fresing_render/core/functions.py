@@ -516,6 +516,9 @@ fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", but
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
 fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
    button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
+fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
+   panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
+   workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app
 fn(id="help.start_here", title="Fresing menu: test tour, What's new, guide, checks in one place", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.tour_take", guide="start-here", tour=("start_here",),
    pccheck=("app.start_here",), since="0.2.155")
@@ -528,7 +531,7 @@ fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="V
    button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.150")
 fn(id="help.blender_editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
    "them back; a solid side panel", family="help", panel="TOPBAR_MT_fresing", button="fresing.blender_editors",
-   guide="blender-editors", pccheck=("app.editors",), since="0.2.178")
+   guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

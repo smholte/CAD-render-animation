@@ -4316,7 +4316,7 @@ def app_layout(ctx):
 
 
 @line("app.editors", "Blender's Outliner and Properties hidden, Fresing > Show Blender's editors brings them back, "
-      "a solid side panel", "0.2.178",
+      "a solid side panel", "0.2.179",
       what="Checks that the layout is put right when a project opens, the menu entry Fresing > Show / Hide Blender's "
            "editors and its own reason in the Client view, which areas count as "
            "Blender's column (only an Outliner or Properties editor right next to the 3D view), the width it comes "
@@ -4614,6 +4614,49 @@ def tour_make(ctx):
             bad.append(f"{st.number}. {st.title}: {exc}")
     _check(not bad, " | ".join(bad[:4]))
     return f"{len(out['files'])} projects in {time.time() - t0:.0f} s, {len(tour.STOPS)} stops"
+
+
+@line("demo.kit", "Demo kits: add a kit, make its demo, remove it", "0.2.178",
+      what="Adds the made-up test kit (a box on a deck plate) to a kits folder of the check's own, makes its demo the "
+           "way Help > Make demo project… does (the kit's model maker as a program of its own, its stage, Build), "
+           "checks that the box's slide joint moves the box and that the saved camera is there, then removes the kit")
+def demo_kit(ctx):
+    import bpy
+
+    from .. import __version__
+    from ..blender import demo, joints
+    from ..core import demo_kits
+    kits = os.path.join(ctx.work, "Demo kits é")                 # never the user's own kits folder
+    old = os.environ.get(demo_kits.ENV)
+    os.environ[demo_kits.ENV] = kits
+    try:
+        info = demo_kits.add(os.path.join(DATA, "demo_kit_test.zip"), demo.kits_dir(), __version__)
+        _check([k.id for k in demo_kits.list_kits(kits)] == ["test-kit"], "the added kit is not in the list")
+        folder = demo.kit_folder(os.path.join(ctx.work, "Demo é"), info.id)
+        t0 = time.time()
+        out = demo.build_project(folder, __version__, small=True, kit=info)
+        ctx.metric("make", time.time() - t0, "s")
+        _check(list(out["seconds"]) == ["kit_model", "box", "finish"], f"the kit's build ran {list(out['seconds'])}")
+        _check(demo.exists(folder, __version__, info.title), "the kit's demo project was not saved")
+        bpy.ops.wm.open_mainfile(filepath=out["path"])
+        sc = bpy.context.scene
+        jt = sc.fresing.joints.get("Box slide")
+        _check(jt is not None, "the kit's demo has no joint 'Box slide'")
+        box = next((o for o in sc.objects if o.get("fr_name") == "TEST BOX"), None)
+        _check(box is not None, "the kit's demo has no box")
+        x0 = box.matrix_world.translation.x
+        joints.set_value(jt, 1.5)
+        bpy.context.view_layer.update()
+        moved = box.matrix_world.translation.x - x0
+        _check(abs(moved - 1.5) < 1e-3, f"the joint moved the box {moved:.3f} m, not 1.5 m")
+        _check(any(s.name == "Box from the side" for s in sc.fresing.shots), "the kit's saved camera is missing")
+        _check(demo_kits.remove(kits, info.id) and not demo_kits.list_kits(kits), "the kit could not be removed")
+    finally:
+        if old is None:
+            os.environ.pop(demo_kits.ENV, None)
+        else:
+            os.environ[demo_kits.ENV] = old
+    return f"test kit made in {time.time() - t0:.0f} s, its joint moves the box"
 
 
 @line("updates.check", "Update check", "0.2.16", what="The update address answers (nothing is installed)")

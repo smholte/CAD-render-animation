@@ -544,6 +544,11 @@ fresing_render/            the Blender extension (Python package)
                            is a COPY of a Cycles scene (switching an engine froze the real app); ops_web3d.py (Export…,
                            progress, Cancel), ui_web3d.py (5 Scene & Render > Web 3D model); viewer: fresing_render/web/
                            (model-viewer 4.4.0, Apache-2.0); site: "Turn it yourself" -> model/index.html
+    demo.py                task 0228: **demo kits** – `build_project(kit=…)` sets the app's own stages aside and runs only
+                           the kit's maker (stage `kit_model`, `core/demo_kit_run.py`) and the stages its module registers;
+                           `core/demo_kits.py` checks / unpacks / lists kit zips (kit.json), the app is `fresing_app` inside
+                           a kit; Help > Make demo project…'s list + Add a demo kit… / Remove in ops_demo.py; `PUBLIC`
+                           (the app's own demo in the list); test kit tests/data/demo_kit_test (zip in fresing_render/data)
     demo.py                demo project "Cable-lay vessel" (task 0077): Help > Make demo project; a background Blender
                            runs the model maker, imports, makes 415 joints (a "Cable travel" slide joint the cable-turned
                            rollers follow), the handler cylinders, sea + quay scenes, cameras and the animation "What it

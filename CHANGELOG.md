@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.178 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
+## 0.2.179 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
 
 - **The 3D view reaches the right edge of the window.** Blender's Outliner (its list of objects, top right) and its
   Properties editor (below it) are hidden in every project – a new one, the test tour, the demo and your own, also one
@@ -19,6 +19,19 @@ installer of that version was built from.
   Interface if you prefer it, the app keeps that.)
 - PC check: a new line "Blender's Outliner and Properties hidden …".
 
+## 0.2.178 – 20 Nov 2026 – Demo kits: a demo project from a zip (task 0228)
+
+- **Help > Make demo project…** now shows a list: the app's own demo, then every **demo kit** you added. A demo kit
+  is a demo project someone made for the app – its own model and animation – in one .zip file.
+- **Add a demo kit…** under the list: pick the zip. The app checks it and keeps a copy; pick it in the list and
+  **Make it** – it is made in the background like the app's own demo and goes next to it
+  (Documents\Fresing Render\Demo\Kits). **Help > Open <kit name>** opens it. **Remove** takes a kit off the list
+  (a demo already made from it stays).
+- A kit says which app versions it was made for; after an update outside them the app tells you to download the kit's
+  newer version.
+- A demo kit is Python code that runs in the app: add only kits you made yourself. In the Client view Add and Remove
+  are switched off.
+- The PC check has a new line, "Demo kits", that adds a small made-up test kit, makes its demo and removes it again.
 ## 0.2.177 – 20 Nov 2026 – The tracks test model's tensioner tilts; checks on the public test models (task 0229)
 
 - The tensioner test model (test tour "Tensioner tracks and a belt") now stands on a hinge: a cylinder under its deck
