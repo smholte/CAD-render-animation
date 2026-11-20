@@ -38,7 +38,7 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.185",
+   "changed": "0.2.186",
    "fp": "0a685f7e7b4a4e87"
   },
   "crane_setup": {
@@ -128,7 +128,7 @@
   },
   "mill": {
    "added": "0.2.47",
-   "changed": "0.2.185",
+   "changed": "0.2.186",
    "fp": "93df25aae714a629"
   },
   "moving_cable": {

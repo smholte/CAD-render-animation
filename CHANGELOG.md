@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.185 – 20 Nov 2026 – Learn: Show me and Build it yourself on the sample projects (task 0230)
+## 0.2.186 – 20 Nov 2026 – Learn: Show me and Build it yourself on the sample projects (task 0230)
 
 - **Fresing > Learn…** lists the sample projects (the test tour's). **View** opens the finished one in the test tour.
   **Crane** and **Milling a slot** now also have a lesson: **Show me** opens a new project with the plain model and the
@@ -23,6 +23,10 @@ installer of that version was built from.
 - The test tour: the crane and the mill are now made of their lessons' steps (View, Show me and Build it yourself give
   the same project). The crane's "open sea" stop is gone (the vessel and sea-cable stops show the sea); its finished
   video has a picture card and music; a new stop "Learn". New PC check line `app.lessons`; user guide chapter "Learn".
+
+## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
+
+The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.
 
 ## 0.2.184 – 20 Nov 2026 – A quiet window (task 0241)
 

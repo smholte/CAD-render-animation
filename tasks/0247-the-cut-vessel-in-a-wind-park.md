@@ -1,6 +1,6 @@
 # 0247 – The cut: the vessel's equipment leaves the public repository; the public demo becomes "Vessel in a wind park"
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0247-the-cut` (public) + a branch in the private repository
+**Who:** worker · **Status:** running · **Branch:** `task/0247-the-cut` (public) + a branch in the private repository
 **Started by:** lead, 21 Nov 2026 00:10 (study 0226 package 2; owner's answers 20 Nov 16:22–17:02; owner asked 20 Nov
 23:01 whether the equipment is gone from the release – it is not: 0.2.184 still ships `demo_model/` and the full demo)
 · **Model:** Opus · effort High
