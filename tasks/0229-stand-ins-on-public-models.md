@@ -1,6 +1,6 @@
 # 0229 – Stand-in tests on public models for what only the demo vessel's equipment proves today
 
-**Who:** worker · **Status:** open · **Branch:** `task/0229-stand-ins-public-models`
+**Who:** worker · **Status:** running · **Branch:** `claude/loving-babbage-gn6leq` (the web session's branch)
 **Started by:** lead, 20 Nov 2026 (study 0226 package 3; owner's answers 20 Nov) · **Model:** Opus · effort Medium
 **Area:** tests (`test_spool*`, `test_tracks*`, `test_moving*`, `test_sea*`, `test_paths*`, `test_swivel*`,
 `test_joint_batch*`, `test_clash*`, `test_demo_project_realism.py` only to re-home its two public checks),
@@ -20,6 +20,12 @@ proves: a carousel's partly paid-out top layer on an even layer (CLAUDE.md secti
 closer than 0.02 (`joints.table_keys` leader × 1000 – **no public test**), tracks on a frame that lifts and tilts, a load
 lowered on a wire between open tracks with the clash check, the 38 kg/m catenary + Lay data checks, a wrap set by hand
 kept through a model update, 400+ joints in a batch, the clash check with many turning parts.
+
+## Owner's correction (20 Nov 17:02)
+
+The ship with its deck crane and the wind park **stay public** (the public demo "Vessel in a wind park" keeps vessel
+at work, vessel motion, the park and a re-bake). Only the equipment goes private – **the list below is the whole job**;
+an earlier note that added items 11–13 is withdrawn.
 
 ## What to do
 

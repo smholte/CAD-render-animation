@@ -23,8 +23,9 @@ under water).
   blue box seen from 70 m → a hull with a shape (`make_test_thrusters`), camera closer, link `offshore.thrusters`;
   `sea_cable` client-ready with a box hull → link `scene.sea_ground`; `moving_cable` box hull → the hull shape
   (`make_test_moving` / `make_test_sea` share it). The crane hub's `sea` stop is dropped by 0230 (not yours).
-- **Never the demo vessel** (CLAUDE.md section 6: its equipment is private; no pictures, parts or shapes of it), never
-  `demo_model/` code. The hull is the test models' own: an invented small workboat / barge hull (bow, flat bottom, a
+- **Never the cable-lay vessel's equipment** (private, CLAUDE.md section 6), and do not reuse the demo ship's hull for
+  the test models: they get their own small invented hulls (never `demo_model/` code except the generic shape library
+  `geom.py`). The hull is the test models' own: an invented small workboat / barge hull (bow, flat bottom, a
   bilge radius, a simple wheelhouse), made with `demo_model/geom.py`'s shape functions if useful (that library is public
   and shared) – no import of `vessel.py`.
 - 0229 runs at the same time and adds tests on `test_sea` / `test_moving` (cases inside tests, no maker change): keep the
@@ -51,7 +52,7 @@ under water).
 
 ## Not in this task
 
-The demo vessel and `demo_model/vessel.py`; the crane hub (0230); other sets; app code (a fault found → report).
+The cable-lay vessel's equipment and the demo ship's hull (`demo_model/` except `geom.py`); the crane hub (0230); other sets; app code (a fault found → report).
 
 ---
 

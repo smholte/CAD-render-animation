@@ -300,3 +300,9 @@ landing page's guide, the tour, the PC check or CI artifacts. Git history and th
    repository and by hand (`workflow_dispatch`), Linux only (no Windows job – Windows minutes count double), one job,
    aim ≤ ~10 min per run, `concurrency` cancels a superseded run, no artifacts kept beyond a few days. The public
    repository's tests stay as they are (public repositories' minutes are free).
+
+**Owner's addition (20 Nov 2026, 16:55 + correction 17:02, to the lead):** the **private** repository keeps the
+**entire cable-lay project** as a self-contained kit – its own copies of the ship, equipment, environment and
+animations (16:55). **Public stays as answered:** "the windpark and the ship with the crane stays" (17:02) – answers 1–3
+hold (ship with its deck crane, plain deck, the wind park, public demo "Vessel in a wind park"). Briefs 0228 and 0229
+and CLAUDE.md section 6 say so.

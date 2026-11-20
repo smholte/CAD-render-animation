@@ -765,16 +765,18 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   `smholte/house-planner-dev`** – it holds the owner's own house. The House lane works only from the public format
   repository `smholte/house-scene-format`, and its tests use only that repository's made-up sample packages.
 - **The cable-lay vessel's equipment is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → the cut →
-  pictures). The public repository keeps the **bare ship** (`demo_model/vessel.py`, **with its own deck crane** – owner
-  20 Nov; plain deck: the carousel well and the aft bulwark opening closed by the cut), the environment (sea, seabed,
-  wind park, turbines, substation, quay, the cable on the seabed) and the test models. Everything else on or hanging
-  from the ship (carousel, tensioners, chute, A-frame / quadrant, ROV, deck machines, the spread's layout and wires)
-  lives in the private repository **`smholte/fresing-render-vessel`** as a **demo kit**; the public app knows only
-  "demo kits", never this one. Until the cut is merged the equipment's code is still on `main`: **no new pictures,
-  renders, web pages, guide pictures, tour stops or report pictures of it, and no new equipment parts**. Never copy
-  anything from the private repository into this one – also not as a "test model". The full demo is the owner's private
-  demo for a company, not part of the learning environment. Old task texts and CHANGELOG lines that describe it stay;
-  no history rewrite (owner 20 Nov).
+  pictures). **Public stays:** the **ship with its own deck crane** (`demo_model/vessel.py`; plain deck after the cut –
+  carousel well and aft bulwark opening closed), the **wind park** (turbines, substation), the sea, seabed and quay, and
+  the public demo **"Vessel in a wind park"** (owner 20 Nov 17:02: "the windpark and the ship with the crane stays").
+  **Private:** everything else on or hanging from the ship (carousel, tensioners, chute, A-frame / quadrant, ROV, deck
+  machines, wires, the spread's layout) and the **complete cable-lay demo project** – the private repository
+  **`smholte/fresing-render-vessel`** keeps the whole project as a self-contained **demo kit** (its own copies of the
+  ship, environment, equipment and animations; owner 20 Nov 16:55). The public app knows only "demo kits", never this
+  one. Until the cut is merged the equipment's code is still on `main`: **no new pictures, renders, web pages, guide
+  pictures, tour stops or report pictures of the equipment, and no new equipment parts**. Never copy anything from the
+  private repository into this one – also not as a "test model". The full demo is the owner's private demo for a
+  company, not part of the learning environment. Old task texts and CHANGELOG lines that describe it stay; no history
+  rewrite (owner 20 Nov).
 - **Who may attach the private vessel repository:** the lead (to read its runs) and only tasks whose file header says
   **"Private vessel: yes"**; the lead's start sentence then names the repository. Such a task follows the private
   repository's own `CLAUDE.md`, reports in numbers only, and its public part (the kit hook) goes through this repository

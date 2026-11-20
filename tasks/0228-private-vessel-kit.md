@@ -1,6 +1,6 @@
 # 0228 – The vessel's equipment in a private repository as a "demo kit"; the public app learns to add a kit
 
-**Who:** worker · **Status:** open · **Branch:** `task/0228-private-vessel-kit` (public) + `main` of the private repository
+**Who:** worker · **Status:** running · **Branch:** `task/0228-private-vessel-kit` (public) + `main` of the private repository
 **Started by:** lead, 20 Nov 2026 (study 0226 package 1; owner's answers 20 Nov 16:22–16:35) · **Model:** Opus · effort High
 **Private vessel: yes** – this task attaches `smholte/fresing-render-vessel` (private, made empty by the owner on 20 Nov
 16:35) with push access; the start sentence names it.
@@ -33,6 +33,17 @@ never this one. Nothing is deleted from the public repository yet – that is th
   (the owner downloads it there when signed in). The public repository's tests stay as they are.
 - Running at the same time: 0229 (stand-in tests on public models – different files), the learning-set tasks (tour
   sets; none edits `demo.py`, `ops_demo.py`, the demo tests). Nothing else edits `demo.py` now.
+
+## Owner's addition (20 Nov 16:55, corrected 17:02) – the kit holds the WHOLE project; the ship and park stay public too
+
+The private repository keeps the **entire cable-lay project as a self-contained kit**: its own copies of the ship
+(`vessel.py`, `params.py`, `route.py`), the wind park (`park.py`, `turbine*.py`, `substation.py`), the equipment, all
+of `blender/demo.py`, `demo_park.py`, `demo_rov.py`, every demo test and tool, and the pictures. The kit builds the
+full demo **by itself** from its own maker, importing from the public package only generic libraries (today
+`demo_model/geom.py`); list what it imports in `kit.json` `uses`.
+**Public stays as decided (owner 17:02: "the windpark and the ship with the crane stays"):** the ship with its deck
+crane, the wind park, and later the public demo "Vessel in a wind park" (package 2). Nothing is deleted in this task;
+the public demo keeps building as today.
 
 ## What to do
 
