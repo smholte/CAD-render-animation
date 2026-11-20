@@ -101,6 +101,11 @@ def functions_new(since: str, limit: int = core.WHATS_NEW_LINES) -> list:
     return core.new_functions(functions.FUNCTIONS, since, version(), limit)
 
 
+def functions_better(since: str, limit: int = core.BETTER_LINES) -> list:
+    from ..core import functions
+    return core.better_functions(functions.FUNCTIONS, since, version(), limit)
+
+
 def sets_new(since: str) -> list:
     """[(TourSet, "new" | "changed")] of the tour, in the tour's order."""
     from . import tour
@@ -117,6 +122,7 @@ def summary(since: str) -> str:
     n_new = sum(1 for _s, k in sets if k == "new")
     from ..core.words import plural
     return (f"{plural(len(functions_new(since, 10 ** 6)), 'new function')}, "
+            f"{len(functions_better(since, 10 ** 6))} better, "
             f"{plural(n_new, 'new test model')}, {len(sets) - n_new} changed")
 
 
@@ -400,20 +406,34 @@ class FRESING_OT_whats_new(bpy.types.Operator):
         col = layout.column()
         funcs = functions_new(since)
         n_all = len(functions_new(since, 10 ** 6))
-        if funcs:
-            col.label(text="New functions" if all(k == "new" for _f, k in funcs) else "New and improved functions")
-            for f, kind in funcs:
-                text = textwrap.wrap(f.title + ("  (improved)" if kind == "improved" else ""), 62) or [""]
+        better = functions_better(since)
+        n_better = len(functions_better(since, 10 ** 6))
+        if funcs or better:
+            col.label(text=f"{n_all} new, {n_better} better")
+
+        def rows(items, icon):
+            for f, kind in items:
+                text = textwrap.wrap(f.title, 62) or [""]
                 row = col.split(factor=0.78, align=True)
-                row.label(text=text[0], icon="ADD" if kind == "new" else "MODIFIER")
+                row.label(text=text[0], icon=icon)
                 if f.guide:
                     op = row.operator(FRESING_OT_whats_new_guide.bl_idname, text="Show in guide", icon="HELP")
                     op.anchor = f.guide
                 for more in text[1:]:
                     col.label(text=more, icon="BLANK1")
+
+        if funcs:
+            col.label(text="New functions")
+            rows(funcs, "ADD")
             if n_all > len(funcs):
                 col.label(text=f"… and {n_all - len(funcs)} more in the release notes")
-        else:
+        if better:
+            col.separator()
+            col.label(text=f"Better since {since}")
+            rows(better, "MODIFIER")
+            if n_better > len(better):
+                col.label(text=f"… and {n_better - len(better)} more in the release notes")
+        if not funcs and not better:
             col.label(text="Fixes and improvements: see the release notes.")
         col.operator(FRESING_OT_release_notes.bl_idname, icon="URL")
         if funcs:

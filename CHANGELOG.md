@@ -5,6 +5,39 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.182 – 20 Nov 2026 – Learn: Show me and Build it yourself on the sample projects (task 0230)
+
+- **Fresing > Learn…** lists the sample projects (the test tour's). **View** opens the finished one in the test tour.
+  **Crane** and **Milling a slot** now also have a lesson: **Show me** opens a new project with the plain model and the
+  app does each step itself – the button to press stands out in the side panel, the part is shown in the 3D view, a
+  card beside it says what happens – then waits for **Next** (or tick **Play on**). **Build it yourself** lets you do
+  each step: the app points, and goes on by itself once the project shows the step done, however you did it.
+  **Do it for me** does a step for you; **Back** (or Ctrl+Z) takes it back. The other samples get their lessons later.
+- The crane lesson (11 steps): light look, a rotate joint, a joint on a joint, a camera, a saved scene, an animation
+  with a step, Build & play, an exploded view, a picture in the render queue. The mill lesson (13 steps): three slide
+  axes, the bit, the workpiece, raw steel, chips, a close-up, the cut, Build & play and a picture of the cut.
+- A project saved half-way remembers its lesson: open it and the **Lesson** panel offers to go on where you stopped.
+  Starting a lesson asks first when your open project has unsaved changes. In the Client view a lesson waits.
+- **My learning list**: **Show me** and **Build** open the lesson of a function at its own step; the question about a
+  panel you never use offers **Show me in a lesson**.
+- The test tour: the crane and the mill are now made of their lessons' steps (View, Show me and Build it yourself give
+  the same project). The crane's "open sea" stop is gone (the vessel and sea-cable stops show the sea); its finished
+  video has a picture card and music; a new stop "Learn". New PC check line `app.lessons`; user guide chapter "Learn".
+
+## 0.2.181 – 20 Nov 2026 – Usage and start fixes (task 0236)
+
+- **No question about what is new to you.** After an update the app no longer asks "You haven't used Equipment
+  recently. Hide it?" for a panel What's new has just listed; it waits 10 app starts.
+- **What's new leads with what you see first** (workspaces, the Client view, folded sections, the Fresing menu), says "N
+  new, M better" and has a second short list, **Better since …**, for functions that got visibly better.
+- **A profile's hidden panels can be undone.** Export profile keeps your hides apart from the workspace; an imported
+  profile's hides join yours, and **Back to the workspace as it came** shows them again.
+- A panel you hid shows again when the project starts using it (after Build, undo or a model update), not only at the
+  next start.
+- A damaged start file (wrong numbers or versions) is repaired instead of stopping What's new and the welcome.
+- The favourites bar shows whole labels at the normal side-panel width, and the question about an unused panel stands
+  apart from the buttons above it.
+
 ## 0.2.180 – 20 Nov 2026 – Draw hoses, cables and drag chains by clicking (task 0240)
 
 - **Draw hose / Draw cable** (4 Motion > Hoses and drag chains): for the hoses and cables your CAD model does not have.

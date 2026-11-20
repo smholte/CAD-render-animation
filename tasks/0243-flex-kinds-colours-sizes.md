@@ -1,6 +1,6 @@
 # 0243 – Hoses, cables and drag chains: standard kinds, colours and sizes to pick from; open / closed / half-open / steel chains
 
-**Who:** worker · **Status:** open – start after 0240 is merged (Flex parts lane) · **Branch:** `task/0243-flex-kinds-sizes`
+**Who:** worker · **Status:** running · **Branch:** `claude/funny-clarke-fxi82c`
 **Started by:** lead, 20 Nov 2026 (owner 17:36: "for hoses and cables i want to have standard colours and materials to
 choose from, and different sizes. also for drag chain different types, open closed. also different sizes"; his picks
 17:40 in the answer box below) · **Model:** Opus · effort Medium

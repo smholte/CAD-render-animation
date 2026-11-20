@@ -272,6 +272,35 @@ def test_a_bad_estimate_is_refused_by_the_precheck():
     assert not any("manual_estimate" in p for p in F.problems([F.FUNCTIONS["scene.turntable"]]))
 
 
+def test_functions_whats_new_offers_are_not_asked_about_at_once():
+    """Row 13 (task 0236): the first start after an update does not ask to hide a panel What's new advertises."""
+    s = _state(sessions=U.THRESHOLD_DEFAULT)
+    first = _ask(s)
+    assert first
+    U.note_new(s, U.panel_functions(first))                        # What's new listed its functions at this start
+    assert _ask(s) != first
+    s["sessions"] += U.THRESHOLD_DEFAULT - 1
+    assert _ask(s) != first                                        # still too early
+    s["sessions"] += 1
+    assert _ask(s) == first or _ask(s) in TITLES                   # after ``threshold`` sessions it may be asked
+    again = U.clean(json.loads(json.dumps(s)))
+    assert again["declutter"]["new"] == s["declutter"]["new"]      # kept in the file
+    assert U.clean({"declutter": {"new": {"a": "x", "b": 3}}})["declutter"]["new"] == {"a": 0, "b": 3}
+
+
+def test_a_profiles_hides_are_the_users_own_and_reset_undoes_them():
+    """Row 19: hides travel in the profile's own "hidden", the importer adds them to the user's, reset removes them."""
+    s = U.fresh()
+    s["hidden"] = ["looks.xray"]
+    part = U.profile_part(s)
+    assert part["hidden"] == {"ids": ["looks.xray"]}
+    other = U.fresh()
+    U.take_profile(other, dict(part, hidden={"ids": ["looks.xray", "nonsense.id", 5]}))
+    assert other["hidden"] == ["looks.xray"]
+    U.reset(other)
+    assert other["hidden"] == []
+
+
 # ---------------------------------------------------------------------------
 # profiles
 # ---------------------------------------------------------------------------
@@ -306,6 +335,7 @@ def test_an_older_app_reads_a_profile_as_a_plain_workspace(tmp_path):
     d = ws.to_dict()
     d.pop("favourites")
     d.pop("usage")
+    d.pop("hidden")
     assert W.from_dict(d).extra == {}
 
 

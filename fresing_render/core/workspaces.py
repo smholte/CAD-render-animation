@@ -57,7 +57,7 @@ BUILTIN = {
                             "Client view's lock", False, True),
 }
 NAMES = {key: v[0] for key, v in BUILTIN.items()}
-PROFILE_KEYS = ("favourites", "usage")     # task 0181: what a profile adds to an own-workspace file
+PROFILE_KEYS = ("favourites", "usage", "hidden")     # task 0181: what a profile adds to an own-workspace file
 
 
 @dataclass

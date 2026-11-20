@@ -21,6 +21,7 @@ import re
 FILE_NAME = "fresing_start.json"
 WELCOME_STARTS = 3                  # "Later" asks again at the next start, at most three starts
 WHATS_NEW_LINES = 8                 # the popup's list of new functions: at most this many lines
+BETTER_LINES = 5                    # ... and its second list, "Better since": at most this many lines
 NO_POPUP_ENV = "FRESING_NO_WELCOME"         # set by the tests, the kit, the PC check: nothing pops up
 TEST_ENV = "FRESING_WELCOME_TEST"           # the welcome's own real-app test: show it although events are simulated
 
@@ -35,6 +36,21 @@ def vtuple(v: str) -> tuple:
 def newer(a: str, b: str) -> bool:
     """Is version ``a`` newer than ``b``? A version is newer than nothing."""
     return bool(vtuple(a)) and vtuple(a) > vtuple(b)
+
+
+def _int(v, default: int = 0) -> int:
+    """A whole number from whatever a damaged file held (a string, null, 1e400 …): the default when it is none."""
+    if isinstance(v, bool) or not isinstance(v, (int, float, str)):
+        return default
+    try:
+        return max(0, min(10 ** 6, int(float(v))))
+    except (ValueError, OverflowError):
+        return default
+
+
+def _version(v) -> str:
+    """A version string like '0.2.153', else '' (a junk version means: no version)."""
+    return v.strip() if isinstance(v, str) and vtuple(v) else ""
 
 
 def fresh() -> dict:
@@ -52,11 +68,13 @@ def load(path: str) -> dict:
         return out
     if not isinstance(data, dict):
         return out
-    if isinstance(data.get("last_run"), str):
-        out["last_run"] = data["last_run"]
-    for key in ("welcome", "whats_new"):
-        if isinstance(data.get(key), dict):
-            out[key].update({k: v for k, v in data[key].items() if k in out[key]})
+    out["last_run"] = _version(data.get("last_run"))
+    w, wn = data.get("welcome"), data.get("whats_new")
+    if isinstance(w, dict):                  # task 0236: every field is cleaned, a damaged file never breaks a start
+        out["welcome"].update(later=_int(w.get("later")), never=w.get("never") is True, done=w.get("done") is True)
+    if isinstance(wn, dict):
+        out["whats_new"].update({"from": _version(wn.get("from")), "to": _version(wn.get("to")),
+                                 "opened": wn.get("opened") is not False})
     return out
 
 
@@ -74,7 +92,7 @@ def decide(state: dict, version: str) -> str:
     last = state.get("last_run", "")
     w = state.get("welcome", {})
     if not last:
-        if w.get("never") or w.get("done") or int(w.get("later", 0)) >= WELCOME_STARTS:
+        if w.get("never") or w.get("done") or _int(w.get("later")) >= WELCOME_STARTS:
             return ""
         return "welcome"
     if newer(version, last):
@@ -90,7 +108,7 @@ def started(state: dict, version: str, shows: str) -> dict:
     state = json.loads(json.dumps(state))
     if shows == "welcome":               # every start that shows it counts: at most WELCOME_STARTS starts
         w = state["welcome"]
-        w["later"] = int(w.get("later", 0)) + 1
+        w["later"] = _int(w.get("later")) + 1
         if w["later"] >= WELCOME_STARTS:
             state["last_run"] = version  # asked often enough: from now on updates bring What's new
         return state
@@ -151,20 +169,34 @@ def in_range(v: str, since: str, now: str) -> bool:
 
 
 def new_functions(functions, since: str, now: str, limit: int = WHATS_NEW_LINES) -> list:
-    """[(Function, "new" | "improved")] of the functions added or changed after ``since`` (up to ``now``), newest
-    first, at most ``limit``; a function added in the range is "new" even when it was changed later."""
-    rows = []
-    for f in (functions.values() if isinstance(functions, dict) else functions):
-        if in_range(f.since, since, now):
-            rows.append((vtuple(f.since), f, "new"))
-        elif in_range(getattr(f, "changed", ""), since, now):
-            rows.append((vtuple(f.changed), f, "improved"))
-    rows.sort(key=lambda r: r[0], reverse=True)
-    return [(f, kind) for _v, f, kind in rows[:limit]]
+    """[(Function, "new")] of the functions added after ``since`` (up to ``now``): the ones a user meets first
+    (``headline=True``) before the others, each group newest first, at most ``limit``. A junk or empty ``since`` gives
+    nothing (task 0236: never "all 137 functions")."""
+    if not vtuple(since):
+        return []
+    rows = [f for f in (functions.values() if isinstance(functions, dict) else functions)
+            if in_range(f.since, since, now)]
+    rows.sort(key=lambda f: (not getattr(f, "headline", False), tuple(-x for x in vtuple(f.since))))
+    return [(f, "new") for f in rows[:limit]]
+
+
+def better_functions(functions, since: str, now: str, limit: int = BETTER_LINES) -> list:
+    """[(Function, "improved")] of the functions that got visibly better after ``since`` (``changed=``) and are not
+    new in the range, newest first, at most ``limit`` (task 0236: What's new's second list, "Better since")."""
+    if not vtuple(since):
+        return []
+    rows = [f for f in (functions.values() if isinstance(functions, dict) else functions)
+            if in_range(getattr(f, "changed", ""), since, now) and not in_range(f.since, since, now)]
+    rows.sort(key=lambda f: tuple(-x for x in vtuple(f.changed)))
+    return [(f, "improved") for f in rows[:limit]]
 
 
 def count_new_functions(functions, since: str, now: str) -> int:
     return len(new_functions(functions, since, now, limit=10 ** 6))
+
+
+def count_better_functions(functions, since: str, now: str) -> int:
+    return len(better_functions(functions, since, now, limit=10 ** 6))
 
 
 def mark(added: str, changed: str, since: str, now: str) -> str:

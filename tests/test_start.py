@@ -2,6 +2,8 @@
 no Blender) – and the Fresing menu, the dialogs and the tour of only the new and changed models (Blender module)."""
 
 
+import json
+
 import pytest
 
 from fresing_render.core import functions as F
@@ -70,16 +72,66 @@ def test_title_says_since_when_versions_were_skipped():
     assert S.title("0.2.150", "0.2.153", ["0.2.153", "0.2.151", "0.2.150"]) == "What's new since 0.2.150"
 
 
-def test_new_functions_newest_first_at_most_eight_improved_marked():
+def test_new_functions_headline_first_then_newest_at_most_eight():
     rows = S.new_functions(F.FUNCTIONS, "0.2.140", "0.2.153")
-    assert 0 < len(rows) <= S.WHATS_NEW_LINES
-    versions = [S.vtuple(f.since if k == "new" else f.changed) for f, k in rows]
-    assert versions == sorted(versions, reverse=True)
-    assert all(S.in_range(f.since, "0.2.140", "0.2.153") for f, k in rows if k == "new")
-    ids = {f.id: k for f, k in S.new_functions(F.FUNCTIONS, "0.2.154", "0.2.155", limit=100)}
-    assert ids.get("help.whats_new") == "new" and ids.get("help.tour") == "improved"
-    assert "panel.workspace" not in ids                      # 0.2.152: before the range
+    assert 0 < len(rows) <= S.WHATS_NEW_LINES and all(k == "new" for _f, k in rows)
+    assert all(S.in_range(f.since, "0.2.140", "0.2.153") for f, _k in rows)
+    # the functions a user meets first lead (task 0236, row 26), each group newest first
+    flags = [f.headline for f, _k in rows]
+    assert flags == sorted(flags, reverse=True) and flags[0]
+    for want in (True, False):
+        v = [S.vtuple(f.since) for f, _k in rows if f.headline == want]
+        assert v == sorted(v, reverse=True)
+    ids = {f.id for f, _k in S.new_functions(F.FUNCTIONS, "0.2.154", "0.2.155", limit=100)}
+    assert "help.whats_new" in ids and "panel.workspace" not in ids       # 0.2.152: before the range
     assert S.new_functions(F.FUNCTIONS, "0.2.155", "0.2.155") == []
+
+
+def test_what_is_new_after_0_2_141_shows_the_headlines_and_a_better_since_list():
+    rows = S.new_functions(F.FUNCTIONS, "0.2.141", "0.2.175")
+    ids = [f.id for f, _k in rows]
+    assert len(rows) == S.WHATS_NEW_LINES
+    for must in ("panel.workspace", "panel.client_view", "panel.sections", "help.whats_new"):
+        assert must in ids, ids                            # the real list: what a user sees first is not cut off
+    assert S.count_new_functions(F.FUNCTIONS, "0.2.141", "0.2.175") > len(rows)
+    better = S.better_functions(F.FUNCTIONS, "0.2.141", "0.2.175")
+    assert 0 < len(better) <= S.BETTER_LINES and all(k == "improved" for _f, k in better)
+    assert "milling.fast_map" in [f.id for f, _k in S.better_functions(F.FUNCTIONS, "0.2.141", "0.2.175", 999)]
+    assert not {f.id for f, _k in better} & {f.id for f, _k in S.new_functions(F.FUNCTIONS, "0.2.141", "0.2.175", 999)}
+    v = [S.vtuple(f.changed) for f, _k in better]
+    assert v == sorted(v, reverse=True)
+
+
+def test_a_junk_version_lists_nothing():
+    for junk in ("", "0.2.x", "abc", None):
+        assert S.new_functions(F.FUNCTIONS, junk, "0.2.175") == []
+        assert S.better_functions(F.FUNCTIONS, junk, "0.2.175") == []
+
+
+@pytest.mark.parametrize("later", ["two", None, 1e400, [], {}, True, -5, "3"])
+def test_a_damaged_start_file_is_cleaned_not_a_traceback(tmp_path, later):
+    p = tmp_path / "s.json"
+    data = {"last_run": "0.2.150", "welcome": {"later": later, "never": "yes", "done": 1},
+            "whats_new": {"from": "0.2.x", "to": 5, "opened": "no"}}
+    p.write_text(json.dumps(data).replace("Infinity", "1e400") if later != 1e400 else
+                 '{"last_run": "0.2.150", "welcome": {"later": 1e400}, "whats_new": {"from": "0.2.x"}}',
+                 encoding="utf-8")
+    st = S.load(str(p))
+    assert isinstance(st["welcome"]["later"], int) and st["welcome"]["never"] is False
+    assert st["whats_new"]["from"] == "" and st["whats_new"]["to"] == ""
+    shows = S.decide(st, "0.2.175")                        # no traceback, whatever the file held
+    assert shows == "whats_new"
+    st = S.started(st, "0.2.175", shows)
+    assert st["last_run"] == "0.2.175"
+
+
+def test_a_junk_last_run_shows_no_whats_new_list(tmp_path):
+    p = tmp_path / "s.json"
+    p.write_text('{"last_run": "0.2.x", "welcome": {"done": true}}', encoding="utf-8")
+    st = S.load(str(p))
+    assert st["last_run"] == ""
+    assert S.decide(st, "0.2.175") == ""                    # welcome is done; nothing else to show
+    assert S.new_functions(F.FUNCTIONS, st["whats_new"]["from"], "0.2.175") == []
 
 
 def test_marks():
@@ -138,7 +190,7 @@ def test_whats_new_lists_and_the_tour_of_only_the_new_and_changed(tmp_path):
     from fresing_render.blender import tour, welcome
     sets = welcome.sets_new("0.2.141")
     ids = [ts.id for ts, _k in sets]
-    assert "gantry" in ids and "house" in ids and "mill" not in ids     # changed in 0.2.152; the mill in 0.2.101
+    assert "gantry" in ids and "house" in ids and "decals" not in ids   # changed in 0.2.152; the decals never
     assert welcome.summary("0.2.141").count("new test model") == 1
     page = welcome.guide_link_file("whats-new-start")
     assert "#whats-new-start" in open(page, encoding="utf-8").read()
