@@ -1,6 +1,6 @@
 # 0229 – Stand-in tests on public models for what only the demo vessel's equipment proves today
 
-**Who:** worker · **Status:** running · **Branch:** `claude/loving-babbage-gn6leq` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.177) · **Branch:** `claude/loving-babbage-gn6leq` (the web session's branch)
 **Started by:** lead, 20 Nov 2026 (study 0226 package 3; owner's answers 20 Nov) · **Model:** Opus · effort Medium
 **Area:** tests (`test_spool*`, `test_tracks*`, `test_moving*`, `test_sea*`, `test_paths*`, `test_swivel*`,
 `test_joint_batch*`, `test_clash*`, `test_demo_project_realism.py` only to re-home its two public checks),
@@ -113,7 +113,7 @@ shape helpers `demo_model/geom.py`, as before).
 
 **Tested and measured** (4-core web machine): the new files 21 tests in 91 s (lowering 56 s of it); `test_tracks*`
 70 tests; tour stop `tracks` Go + check; `test_tour_clash.py[tracks]` 0 rows (13 s). The maker writes the model in
-14 s (184 parts, 661 KB; tilted 10°: 5 mm clear, rod 213 mm in its barrel). GitHub: see the runs below.
+14 s (184 parts, 661 KB; tilted 10°: 5 mm clear, rod 213 mm in its barrel). GitHub: 3 full runs – 44772003370 green (as 0.2.176); 0231 took 0.2.176 meanwhile, so merge + renumber to 0.2.177: 44776685998, its Windows A job failed once in the app-icon code ("Smart App Control off again": a rename of `Fresing Render.exe` hit file-not-found – not this task's code; `main`'s run of the same tests was green) and was green on one re-run of that job; then a docs run for the merge of 0231's report.
 
 **Subagents:** A (spool, `test_spool_standins.py`), B (`test_moving_lowering.py`, `test_sea_realism.py`,
 `test_paths_wrap_moving.py`), C sonnet (`test_joint_batch_size.py`, `test_clash_rim.py`, then the rotors), D (items
@@ -121,4 +121,5 @@ shape helpers `demo_model/geom.py`, as before).
 
 **Open points / follow-up tasks:**
 - Static overlaps inside one rigid body are not reported by the clash check (above).
+- Flaky on Windows (for 0242 or a follow-up): `tools/appicon_test.py` "Smart App Control off again: copy and shortcut back" – WinError 2 renaming `Fresing Render.exe` to `Fresing Render.old.exe` (run 44776685998, first attempt).
 - The guide's tracks picture was not made again (the panel did not change; the model only gained the tilt parts).
