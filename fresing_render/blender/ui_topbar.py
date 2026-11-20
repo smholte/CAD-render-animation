@@ -53,6 +53,8 @@ class TOPBAR_MT_fresing(bpy.types.Menu):
         _op(layout, "fresing.show_panel", text="Show the Fresing panel", icon="PREFERENCES")
         from . import editors                  # task 0221: Blender's Outliner and Properties, hidden by default
         _op(layout, "fresing.blender_editors", text=editors.menu_text(), icon="PROPERTIES")
+        from . import quiet                    # task 0241: Full access in one click, and back
+        _op(layout, "fresing.blender_all", text=quiet.menu_text(context.scene), icon="BLENDER")
         layout.separator()
         ops_demo.draw_help(layout)
         if _has("fresing.user_guide"):
@@ -85,7 +87,8 @@ def unregister_handlers() -> None:
 
 def entries() -> list:
     """The menu's operator ids in order (tests, the PC check)."""
-    return ["fresing.tour_take", "fresing.learn_lessons", "fresing.whats_new", "fresing.show_panel", "fresing.blender_editors", "fresing.demo_make", "fresing.user_guide",
+    return ["fresing.tour_take", "fresing.learn_lessons", "fresing.whats_new", "fresing.show_panel", "fresing.blender_editors", "fresing.blender_all",
+            "fresing.demo_make", "fresing.user_guide",
             "fresing.self_test", "fresing.pc_check", "fresing.open_app_folder", "fresing.update_check", "fresing.usage_window", "fresing.learn_window", "fresing.welcome",
             "fresing.about"]
 

@@ -177,13 +177,13 @@ fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the 
 # ----- learning: lessons on the sample projects (task 0230) -----
 fn(id="learn.window", short="Learn", headline=True, title="Learn: sample projects to View, Show me or Build it yourself", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_lessons", guide="learn", tour=("lessons",),
-   pccheck=("app.lessons",), since="0.2.184")
+   pccheck=("app.lessons",), since="0.2.185")
 fn(id="learn.show_me", short="Show me", title="Show me: the app does each step of a lesson", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_start", text="Show me", guide="learn-show-me", tour=("lessons",), pccheck=("app.lessons",),
-   since="0.2.184")
+   since="0.2.185")
 fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that waits until you did each step", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_start", text="Build it yourself", guide="learn-build",
-   tour=("lessons",), pccheck=("app.lessons",), since="0.2.184")
+   tour=("lessons",), pccheck=("app.lessons",), since="0.2.185")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
@@ -575,6 +575,13 @@ fn(id="help.show_panel", short="Show the panel", title="Show the Fresing panel",
 fn(id="help.blender_editors", headline=True, short="Blender editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
    "them back; a solid side panel", family="help", panel="TOPBAR_MT_fresing", button="fresing.blender_editors",
    guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
+fn(id="help.quiet_window", headline=True, short="Quiet window", title="A quiet window: the 3D view header, top bar, "
+   "start-up screen and File > New without Blender's editing parts", family="help", panel="VIEW3D_HT_header",
+   button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",), since="0.2.184",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
+fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of Blender / Back to the Fresing window", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
+   since="0.2.184", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
