@@ -44,6 +44,11 @@ chat and gives the exact sentence to paste, with where, which model and which ef
 > Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0013. You have my permission
 > to push to main: merge after a green GitHub run without asking me, then check that main really contains your commit.
 
+**A start sentence only when the task can start now** (owner, 20 Nov 2026): the lead gives a task's sentence only
+when the owner can start it at that moment – its brief is on `main`, every task it waits for is merged, its lane is free
+and fewer than about four code tasks are running. A task that still waits gets one plain line ("0241: after 0221 and
+0236 are merged") and **no** sentence; the lead gives the sentence in the status check where it becomes startable.
+
 **The permission to push to `main` is in the start sentence** (owner, 16 Nov 2026): a web session may push only to its
 own branch unless the owner says otherwise in the chat, and a worker that stops to ask waits unseen (0164 waited over
 an hour). Every start sentence the lead gives carries that line. A worker that still has to stop for the owner says so
