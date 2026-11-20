@@ -1100,7 +1100,8 @@ def motion_swivel(ctx):
 
 @line("motion.tracks", "Tensioner tracks and a belt run with the cable", "0.2.87",
       what="The tensioner test model: the cable runs, the pads of both tracks run round their sprockets with it (the "
-           "pads holding the cable as fast as the cable), the top track lifts and squeezes, a belt of separate links "
+           "pads holding the cable as fast as the cable), the top track lifts and squeezes, the tensioner tilts 6° on "
+           "its hinge and back, a belt of separate links "
            "runs round three pulleys; every link's two hinges on its loop, one pitch apart")
 def motion_tracks(ctx):
     from ..blender import animation, cameras, render, tour, tracks
@@ -4315,7 +4316,7 @@ def app_layout(ctx):
 
 
 @line("app.editors", "Blender's Outliner and Properties hidden, Fresing > Show Blender's editors brings them back, "
-      "a solid side panel", "0.2.177",
+      "a solid side panel", "0.2.178",
       what="Checks that the layout is put right when a project opens, the menu entry Fresing > Show / Hide Blender's "
            "editors and its own reason in the Client view, which areas count as "
            "Blender's column (only an Outliner or Properties editor right next to the 3D view), the width it comes "

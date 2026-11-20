@@ -1965,7 +1965,7 @@ def _check_swivel(scene):
 TRACKS_ANIM = "Tracks"
 
 
-@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step", added="0.2.87", changed="0.2.101")
+@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step", added="0.2.87", changed="0.2.177")
 def build_tracks(b: Build):
     from . import tracks
     sc = b.scene
@@ -1993,12 +1993,14 @@ def _check_tracks(scene):
     _check(all(it is not None for it in its), "a track is missing")
     cab = joints.find(scene, paths.find(scene, tracks.TEST_CABLE).joint)
     lift = joints.find(scene, tracks.TEST_LIFT)
+    tilt = joints.find(scene, tracks.TEST_TILT)
     off = chord = 0.0
-    lifts = []
+    lifts, tilts = [], []
     for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 25)) | {scene.frame_end}):
         scene.frame_set(f)
         _update()
         lifts.append(joints.get_value(lift))
+        tilts.append(joints.get_value(tilt) if tilt is not None else 0.0)
         for it in its:
             for ob in [o for o in tracks.parts_of(scene, it) if o.get(tracks.ROLE) == "link"][::5]:
                 a, b = tracks.hinge_world(scene, it, ob)
@@ -2018,9 +2020,12 @@ def _check_tracks(scene):
     _check(off < 1e-4, f"a link's hinge is {off * 1000:.2f} mm off its loop")
     _check(chord < 5e-5, f"a link's hinges are {chord * 1000:.3f} mm from one pitch apart")
     _check(max(lifts) > 0.14 and abs(lifts[-1] + 0.002) < 1e-4, "the top track did not lift and squeeze")
+    _check(math.degrees(max(tilts)) > tracks.TEST_TILT_DEG - 0.1 and abs(tilts[-1]) < 1e-4,
+           f"the tensioner tilted {math.degrees(max(tilts)):.1f}° (and back)")
     return (f"{ran:.2f} m of cable, the pads with it to {abs(run - want) * 1000:.2f} mm, sprocket "
             f"{math.degrees(turn):.0f}°; hinges on their loops to {off * 1000:.3f} mm, one "
-            f"pitch apart to {chord * 1000:.3f} mm; top track lifted {max(lifts) * 1000:.0f} mm")
+            f"pitch apart to {chord * 1000:.3f} mm; top track lifted {max(lifts) * 1000:.0f} mm, the tensioner tilted "
+            f"{math.degrees(max(tilts)):.1f}°")
 
 
 def _check_spool(scene):
@@ -3826,10 +3831,11 @@ stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
      "keep running; the rods of its two lift cylinders slide up into the barrels on the portal) and comes back down "
-     "to squeeze the cable 2 mm. Behind, a belt of separate links runs round three pulleys of different size; all "
-     "wheels turn with the chain.",
+     "to squeeze the cable 2 mm. Meanwhile the whole tensioner tilts 6° on its hinge and back, pushed up by the tilt "
+     "cylinder under its deck: the tracks, their pads and the cable go with it and keep running. Behind, a belt of "
+     "separate links runs round three pulleys of different size; all wheels turn with the chain.",
      where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
-     auto="clip", changed="0.2.101")
+     auto="clip", changed="0.2.177")
 stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "The cable runs over the rollers and the horn at the stern and hangs in a curve down to the seabed 15 m below, "
      "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "

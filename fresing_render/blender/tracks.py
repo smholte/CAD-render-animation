@@ -1285,14 +1285,19 @@ TEST_ANIMATION = "Tracks"
 TEST_TRACKS = ("Bottom track", "Top track", "Belt")
 TEST_CABLE = "Cable"
 TEST_LIFT = "Top track lift"
+TEST_TILT = "Tensioner tilt"            # task 0229: the whole tensioner tilts on a hinge, a cylinder pushes it
+TEST_TILT_CYL = "Tilt cylinder"
+TEST_TILT_DEG = 6.0
 
 
 def set_up_test_model(scene) -> dict:
     """The set-up of the tracks test model (test_tracks.step, tools/make_test_tracks.py), already imported: the
-    joint "Top track lift" (+Z, the top carriage), the cable "Cable" read from the CAD (its joint is the tracks'
-    speed), the tracks "Bottom track" and "Top track" (two sprockets, two support rollers, the links, the pads) and
-    "Belt" (three pulleys, its links; its own speed joint); the animation "Tracks" (8 s: 2 m of cable, 1 m of belt,
-    the top track lifts 150 mm and comes back to squeeze the cable 2 mm). Not built. Returns the names."""
+    joint "Tensioner tilt" (task 0229: the whole tensioner on its hinge at +X, + lifts its -X end) driven by the
+    cylinder "Tilt cylinder" under the deck, the joint "Top track lift" (+Z, the top carriage, riding on the tilt), the
+    cable "Cable" read from the CAD (its joint is the tracks' speed), the tracks "Bottom track" and "Top track" (two
+    sprockets, two support rollers, the links, the pads) and "Belt" (three pulleys, its links; its own speed joint);
+    the animation "Tracks" (8 s: 2 m of cable, 1 m of belt, the top track lifts 150 mm and comes back to squeeze the
+    cable 2 mm, the tensioner tilts 6° and back meanwhile). Not built. Returns the names."""
     from mathutils import Vector
 
     from . import paths
@@ -1307,15 +1312,35 @@ def set_up_test_model(scene) -> dict:
     carriage = uid(base + "TOP CARRIAGE.ASM#1")
     root = uid("TEST.TRACKS#1")
     m = root.matrix_world
+    m3 = m.to_3x3()
+    tilting = [carriage] + [uid(base + n) for n in (
+        "BASE FRAME#1", "CABLE#1", "CABLE ROLLER#1", "CABLE ROLLER#2", "BOTTOM TRACK.ASM#1", "PORTAL FRAME#1",
+        "HYDRAULIC CYLINDER BARREL#1", "HYDRAULIC CYLINDER BARREL#2")] + [
+        uid(base + f"ISO 4017 M20 x 40 - 8.8 HDG#{k}") for k in range(1, 5)]
     with joints._batch(scene):
+        joints.create(scene, "ROTATE", tilting, m @ Vector((0.86, 0.0, -0.04)), (m3 @ Vector((0.0, 1.0, 0.0))).normalized(),
+                      ref=uid(base + "TILT PIN#1"), name=TEST_TILT)
         joints.create(scene, "SLIDE", [carriage], m @ Vector((0.0, 0.0, 1.2)),
-                      (m.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized(), name=TEST_LIFT)
+                      (m3 @ Vector((0.0, 0.0, 1.0))).normalized(), name=TEST_LIFT)
     lift = joints.find(scene, TEST_LIFT)
     lift.slide_min, lift.slide_max, lift.use_limits = -0.005, 0.3, True
     bpy.context.view_layer.update()
-    out = {"joints": [TEST_LIFT], "notes": []}
+    from . import cylinders
+    y = (m3 @ Vector((0.0, 1.0, 0.0))).normalized()
+    barrel, rod = uid(base + "TILT CYLINDER BARREL#1"), uid(base + "TILT CYLINDER ROD#1")
+    cyl, cyl_notes = cylinders.create(scene, [barrel], [rod], (m @ Vector((-0.1, 0.0, -0.3)), y, barrel),
+                                      (m @ Vector((-0.7, 0.0, -0.06)), y, rod), name=TEST_TILT_CYL)
+    if cyl is None:
+        raise TrackError(f"The tilt cylinder could not be made: {cyl_notes}")
+    bpy.context.view_layer.update()
+    tilt = joints.find(scene, TEST_TILT)
+    tilt.rot_min, tilt.rot_max, tilt.use_limits = 0.0, math.radians(10.0), True
+    bpy.context.view_layer.update()
+    out = {"joints": [TEST_TILT, TEST_LIFT], "notes": [], "cylinder": TEST_TILT_CYL}
     cab = paths.add_cable(scene, TEST_CABLE)
     out["notes"] += paths.read_cad(scene, cab, uid(base + "CABLE#1"))
+    for end in ("A", "B"):              # task 0229: its ends ride with the tensioner (they touch nothing in the CAD)
+        paths.set_end(scene, paths.find(scene, TEST_CABLE), end, uid(base + "BASE FRAME#1"))
     cable_joint = paths.find(scene, TEST_CABLE).joint
     out["joints"].append(cable_joint)
     for name, asm in (("Bottom track", "BOTTOM TRACK.ASM#1/"), ("Top track", "TOP CARRIAGE.ASM#1/TOP TRACK.ASM#1/")):
@@ -1330,11 +1355,15 @@ def set_up_test_model(scene) -> dict:
     a = scene.fresing.animations.add()
     a.name, a.tail, a.fps = TEST_ANIMATION, 0.0, "25"
     for jn, start, secs, to in ((cable_joint, 0.0, 8.0, 2.0), (belt.joint, 0.0, 8.0, 1.0), (TEST_LIFT, 1.0, 2.0, 0.15),
-                                (TEST_LIFT, 4.0, 2.0, -0.002)):
+                                (TEST_TILT, 3.0, 1.5, math.radians(TEST_TILT_DEG)), (TEST_LIFT, 4.0, 2.0, -0.002),
+                                (TEST_TILT, 6.0, 1.5, 0.0)):
         b = a.blocks.add()
         b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", jn, start, secs, "LINEAR"
-        b.use_from = jn != TEST_LIFT
-        b.to_dist = to
+        b.use_from = True                     # from where the joint is (task 0229: the lift jumped 150 mm at 4 s)
+        if jn == TEST_TILT:
+            b.to_angle = to
+        else:
+            b.to_dist = to
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
     out.update(tracks=list(TEST_TRACKS), cable=TEST_CABLE, animation=TEST_ANIMATION)
     return out

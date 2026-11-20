@@ -528,7 +528,7 @@ fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="V
    button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.150")
 fn(id="help.blender_editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
    "them back; a solid side panel", family="help", panel="TOPBAR_MT_fresing", button="fresing.blender_editors",
-   guide="blender-editors", pccheck=("app.editors",), since="0.2.177")
+   guide="blender-editors", pccheck=("app.editors",), since="0.2.178")
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

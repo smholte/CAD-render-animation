@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.177 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
+## 0.2.178 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
 
 - **The 3D view reaches the right edge of the window.** Blender's Outliner (its list of objects, top right) and its
   Properties editor (below it) are hidden in every project – a new one, the test tour, the demo and your own, also one
@@ -19,6 +19,15 @@ installer of that version was built from.
   Interface if you prefer it, the app keeps that.)
 - PC check: a new line "Blender's Outliner and Properties hidden …".
 
+## 0.2.177 – 20 Nov 2026 – The tracks test model's tensioner tilts; checks on the public test models (task 0229)
+
+- The tensioner test model (test tour "Tensioner tracks and a belt") now stands on a hinge: a cylinder under its deck
+  tilts the whole tensioner 6° and back while the cable runs. The tracks, their pads and the cable go with it.
+- Fixed in that tour stop: the top track jumped 150 mm down in one frame at 4 s instead of coming down slowly.
+- New checks on the public test models for what only the cable-lay demo proved so far: a carousel's partly
+  paid-out top layer, a Lebus drum's climbs, a load lowered past a part with the clash check, the 38 kg/m sea cable
+  and its Lay data label, a wrap set by hand on a turning sheave through a model update, 400 joints at once, and the
+  clash check with 200 turning rollers and big rotors. Nothing changes in the app for you apart from the tour stop.
 ## 0.2.176 – 20 Nov 2026 – Lifting test tour: a real yard, real-size loads, the load always in view (task 0231)
 The three Lifting stops of the test tour now look like a real lift: a quayside yard with an IBC on its pallet, a 6 t
 pump skid and a 20 ft container (invented, real sizes), and the AT-40 standing on four timber crane mats. The skid is
