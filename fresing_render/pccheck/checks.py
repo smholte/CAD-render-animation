@@ -955,7 +955,7 @@ def motion_drawn(ctx):
             "cable route: 6 contacts, 5 turning")
 
 
-@line("motion.flex_kinds", "Hose and cable kinds, chain types and standard sizes", "0.2.181",
+@line("motion.flex_kinds", "Hose and cable kinds, chain types and standard sizes", "0.2.182",
       what="Task 0243: on the hoses model six hoses are drawn and each gets a kind – hydraulic, steel-braided, "
            "pneumatic, protective sleeve, machine cable, power cable: a size pick sets its diameter and smallest bend, "
            "the tube is drawn that thick, each kind has its own look (one shared material per kind and colour), a "

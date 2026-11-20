@@ -1729,7 +1729,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.181")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.182")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -4207,17 +4207,17 @@ stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
      where="4 Motion > Hoses and drag chains > Replaces selected CAD part", shot="Tour: drawn hose, chain and cable",
      since="0.2.180", check=check_drawn_replace)
-stop("flex_kinds", MOTION, "flex_drawn", "Hose and cable kinds, colours and sizes",
+stop("flex_kinds", MOTION, "flex_drawn", "Hose and cable kinds and sizes",
      "Behind the arm on the base, six drawn arches in three rows, one per kind: a black hydraulic hose with a white printed line, "
      "a steel-braided hose (a woven steel look), a blue pneumatic tube, a black spiral sleeve over a hose, a grey "
      "machine cable and a black power cable. The drawn rope on the right is a galvanised 16 mm wire rope (duller than bright steel).",
      where="4 Motion > Hoses and drag chains > Kind · Colour · Size", shot="Tour: drawn hose, chain and cable",
-     since="0.2.181", check=check_flex_kinds)
+     since="0.2.182", check=check_flex_kinds)
 stop("chain_types", MOTION, "flex_drawn", "Drag chain types",
      "The drawn chain on the gantry is a closed chain now: lids top and bottom, a closed tube. Its Type can be "
      "open, closed, half-open (a lid on the outside of the bend) or steel; each rolls with X as before.",
      where="4 Motion > Hoses and drag chains > Type", animation=DRAWN_ANIM, play=True, at=0.5,
-     since="0.2.181", check=check_chain_types, auto="clip")
+     since="0.2.182", check=check_chain_types, auto="clip")
 stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "

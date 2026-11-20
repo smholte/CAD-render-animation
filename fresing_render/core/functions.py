@@ -271,10 +271,10 @@ fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simpl
    pccheck=("motion.drawn",), since="0.2.180")
 fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
    panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
-   pccheck=("motion.flex_kinds",), since="0.2.181")
+   pccheck=("motion.flex_kinds",), since="0.2.182")
 fn(id="flex.chain_types", title="Drag chain types: open, closed, half-open, steel", family="machines",
    panel="FRESING_PT_flex", prop="chain_kind", text="Type", guide="chain-types", tour=("chain_types",),
-   pccheck=("motion.flex_kinds",), since="0.2.181")
+   pccheck=("motion.flex_kinds",), since="0.2.182")
 fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRESING_PT_tracks",
    button="fresing.track_add", guide="tracks", tour=("tracks",), pccheck=("motion.tracks",), since="0.2.87")
 
@@ -288,7 +288,7 @@ fn(id="paths.draw_cable", short="Draw a cable", title="Draw a cable route by cli
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
 fn(id="paths.cable_kinds", title="Cable kinds: machine, power, offshore cable, wire rope; standard sizes",
    family="offshore", panel="FRESING_PT_cables", prop="cable_kind", text="Kind", guide="cable-kinds",
-   tour=("flex_kinds",), pccheck=("motion.flex_kinds",), since="0.2.181")
+   tour=("flex_kinds",), pccheck=("motion.flex_kinds",), since="0.2.182")
 fn(id="offshore.served_cable", title="Served cable look: yarn and marker spirals", family="offshore",
    panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),
    pccheck=("looks.served_cable",), since="0.2.116")
