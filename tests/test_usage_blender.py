@@ -171,6 +171,52 @@ def test_the_bar_draws_and_a_favourite_opens_its_place(usage):
     bpy.context.window_manager.fresing_tab = "ALL"
 
 
+def _polls_hidden(fid):
+    from fresing_render.blender import workspaces
+    return fid in workspaces.PERSONAL["hide"] or fid not in workspaces._state(bpy.context.scene)[1]
+
+
+def test_a_colleagues_profile_hides_can_be_undone(usage, tmp_path):
+    from fresing_render.blender import ops_usage, workspaces
+    sc = bpy.context.scene
+    p = tmp_path / "colleague.json"
+    ws = workspaces.W.make_own("Colleague", workspaces.W.builtin("all"))
+    ws.extra = {"hidden": {"ids": ["looks.xray"]}}
+    p.write_text(ws.to_json(), encoding="utf-8")
+    ops_usage.import_profile(sc, str(p))
+    assert usage.state()["hidden"] == ["looks.xray"] and "looks.xray" in workspaces.PERSONAL["hide"]
+    usage.reset(sc)
+    assert usage.state()["hidden"] == [] and workspaces.PERSONAL["hide"] == ()
+    workspaces.switch(sc, "All functions")
+
+
+def test_a_hidden_panel_shows_when_the_project_starts_using_it(usage, monkeypatch):
+    from fresing_render.blender import workspaces
+    sc = bpy.context.scene
+    usage.state()["hidden"] = list(U.panel_functions("FRESING_PT_xray"))
+    usage.apply_personal(sc)
+    assert "looks.xray" in workspaces.PERSONAL["hide"]
+    monkeypatch.setattr(workspaces, "used_functions", lambda scene: {"looks.xray": ("looks", "an X-ray part")})
+    usage.refresh_personal(sc, force=True)                            # the scene changed: no Hide, no reload needed
+    assert "looks.xray" not in workspaces.PERSONAL["hide"]
+    n = [0]
+    real = usage.apply_personal
+    monkeypatch.setattr(usage, "apply_personal", lambda scene: (n.__setitem__(0, n[0] + 1), real(scene))[1])
+    usage._on_change(sc, None)
+    usage._on_change(sc, None)
+    assert n[0] <= 1                                                  # throttled: not at every update
+    monkeypatch.undo()
+    usage.state()["hidden"] = []
+    usage.apply_personal(sc)
+
+
+def test_a_favourite_label_is_whole_at_the_side_panels_width(usage):
+    for fid in U.bar_candidates():
+        assert len(usage.label(fid)) <= 18, (fid, usage.label(fid))     # the half-width button's room
+    assert usage.label("import.update") == "Update revision"
+    assert usage.label("structure.tree") != "Hide"                       # not the declutter question's own word
+
+
 def test_profile_export_and_import(usage, tmp_path):
     from fresing_render.blender import ops_usage, workspaces
     sc = bpy.context.scene
@@ -181,8 +227,11 @@ def test_profile_export_and_import(usage, tmp_path):
     usage.apply_personal(sc)
     path = ops_usage.export_profile(sc, "Team profile", with_counts=False)
     data = json.load(open(path, encoding="utf-8"))
-    assert data["favourites"]["pins"] == ["scene.still"] and "usage" not in data and "looks.xray" in data["hide"]
+    assert data["favourites"]["pins"] == ["scene.still"] and "usage" not in data
+    assert "looks.xray" in data["hidden"]["ids"] and "looks.xray" not in data["hide"]      # task 0236: hides kept apart
     assert workspaces.name_of(sc) == "Team profile"
+    bpy.ops.fresing.usage_reset()                              # row 19: "Back to the workspace as it came" undoes them
+    assert not _polls_hidden("looks.xray") and s["hidden"] == [] and workspaces.PERSONAL["hide"] == ()
     outside = tmp_path / "from a colleague.json"
     d = dict(data, name="Colleague", favourites={"on": True, "size": 7, "pins": ["help.pc_check"]},
              usage={"functions": {"looks.decals": [9, 3]}, "sessions": 3})

@@ -108,6 +108,10 @@ class Function:
     # task 0181: what one use replaces by hand, for "time saved" (always shown as an estimate, with this basis):
     # ("use" | "part", seconds per use or per part, "what you would do by hand")
     manual_estimate: tuple = ()
+    # task 0236: a function a user meets first – What's new lists these before the newest ones
+    headline: bool = False
+    # task 0236: a short label (at most SHORT_MAX characters) for the favourites bar, where room is tight
+    short: str = ""
 
     def shown_in(self, key: str) -> bool:
         """Does the built-in workspace ``key`` show this function?"""
@@ -116,6 +120,7 @@ class Function:
         return key in (self.workspaces or FAMILY_WORKSPACES.get(self.family, ()))
 
 
+SHORT_MAX = 16
 FUNCTIONS: dict[str, Function] = {}
 
 
@@ -130,7 +135,7 @@ def fn(**kw) -> Function:
 DUPLICATES: list = []
 
 # ----- the side panel itself (task 0062) -----
-fn(id="panel.workspace", title="Workspaces: show only the functions a kind of work needs", family="panel",
+fn(id="panel.workspace", headline=True, title="Workspaces: show only the functions a kind of work needs", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="workspaces", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.174")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
@@ -139,10 +144,10 @@ fn(id="panel.families", title="Functions in this project: families on and off", 
 fn(id="panel.own_workspaces", title="Your own workspaces, shared as files", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_save", guide="own-workspaces", pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.174")
-fn(id="panel.client_view", title="Client view: the project locked against changes", family="panel",
+fn(id="panel.client_view", headline=True, title="Client view: the project locked against changes", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="client-view", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.174")
-fn(id="panel.sections", title="Sections start folded; section tabs; Ctrl+click", family="panel",
+fn(id="panel.sections", headline=True, title="Sections start folded; section tabs; Ctrl+click", family="panel",
    panel="FRESING_PT_tabs", button="fresing.panel_tab", guide="sections", tour=("workspace",), since="0.2.152")
 fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_next", button="fresing.next_hide",
    guide="whats-next", since="0.2.152")
@@ -154,9 +159,9 @@ fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one 
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"))
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158")
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.181")
 fn(id="usage.declutter", title="Offer to hide what you never use", family="panel", panel="FRESING_PT_favourites",
-   button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158")
+   button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158", changed="0.2.181")
 
 # task 0208: learn as you go
 fn(id="learn.question", title="Learn what you never use: show it in the guide or the test tour, or list it for later",
@@ -170,19 +175,19 @@ fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the 
    pccheck=("app.learning",), since="0.2.160")
 
 # ----- 1 Import, 2 Structure -----
-fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",
+fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
    pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), since="0.1.0")
-fn(id="import.mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
+fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
-fn(id="import.update", title="Model update to a new revision", family="import", panel="FRESING_PT_import",
+fn(id="import.update", short="Update revision", title="Model update to a new revision", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", text="Update to new revision…", guide="update-model", tour=("update",),
    pccheck=("model.update", "model.update_safe"), since="0.2.0",
    manual_estimate=("use", 1800, "import the new revision and set up joints, looks and the animation again"))
-fn(id="import.two_copies", title="The same STEP twice", family="import", panel="FRESING_PT_import",
+fn(id="import.two_copies", short="STEP twice", title="The same STEP twice", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
-fn(id="structure.tree", title="Structure: find, select, hide and lock parts", family="import",
+fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide and lock parts", family="import",
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
@@ -193,7 +198,7 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # ----- 3 Looks -----
-fn(id="looks.materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
+fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), since="0.2.8",
    manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
@@ -208,11 +213,11 @@ fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
    guide="slice", tour=("cutaway",), pccheck=("looks.cutaway",), since="0.2.64", changed="0.2.170")
-fn(id="looks.find", title="Find & sort parts", family="looks", panel="FRESING_PT_find", button="fresing.find_word",
+fn(id="looks.find", short="Find & sort", title="Find & sort parts", family="looks", panel="FRESING_PT_find", button="fresing.find_word",
    guide="find", since="0.2.8")
 fn(id="looks.rules", title="Sorting rules", family="looks", panel="FRESING_PT_rules", button="fresing.rule_add",
    guide="rules", since="0.2.8")
-fn(id="looks.schemes", title="Paint schemes & templates", family="looks", panel="FRESING_PT_schemes",
+fn(id="looks.schemes", short="Paint schemes", title="Paint schemes & templates", family="looks", panel="FRESING_PT_schemes",
    button="fresing.scheme_save", guide="schemes", since="0.2.13")
 
 # ----- 4 Motion: joints, poses -----
@@ -225,7 +230,7 @@ fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel
 fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_motion",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
-fn(id="joints.couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_motion",
+fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_motion",
    button="fresing.joint_follow", guide="couplings", pccheck=("couplings.motor",), since="0.2.18")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", pccheck=("states.poses",), since="0.2.12")
@@ -246,10 +251,10 @@ fn(id="machines.waycover", title="Way covers", family="machines", panel="FRESING
    button="fresing.waycover_make", guide="way-covers", tour=("waycover",), pccheck=("machining.waycover",),
    since="0.2.28", workspaces=("cnc", "education"),
    manual_estimate=("use", 900, "one slide per section with its share of the travel"))
-fn(id="machines.waycover_two", title="Two way covers on one axis", family="machines", panel="FRESING_PT_waycover",
+fn(id="machines.waycover_two", short="Two way covers", title="Two way covers on one axis", family="machines", panel="FRESING_PT_waycover",
    button="fresing.waycover_cover_add", guide="way-covers", tour=("waycover2",),
    pccheck=("machining.waycover_two",), since="0.2.61", workspaces=("cnc", "education"))
-fn(id="machines.hoses", title="Hoses and cables that follow the motion", family="machines", panel="FRESING_PT_flex",
+fn(id="machines.hoses", short="Hoses & cables", title="Hoses and cables that follow the motion", family="machines", panel="FRESING_PT_flex",
    button="fresing.flex_add_hose", guide="hoses", tour=("hoses",), pccheck=("motion.flex",), since="0.2.78",
    manual_estimate=("use", 1200, "reshape the hose as a curve at the key frames of the motion"))
 fn(id="machines.chains", title="Drag chains", family="machines", panel="FRESING_PT_flex",
@@ -271,17 +276,17 @@ fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRE
 fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_add", guide="cables", tour=("cables",), pccheck=("motion.paths",), since="0.2.80",
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
-fn(id="paths.draw_cable", title="Draw a cable route by clicking: drum, sheaves, end", family="offshore",
+fn(id="paths.draw_cable", short="Draw a cable", title="Draw a cable route by clicking: drum, sheaves, end", family="offshore",
    panel="FRESING_PT_cables", button="fresing.cable_draw", guide="draw-cable", tour=("drawn_cable",),
    pccheck=("motion.drawn",), since="0.2.180",
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
 fn(id="offshore.served_cable", title="Served cable look: yarn and marker spirals", family="offshore",
    panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),
    pccheck=("looks.served_cable",), since="0.2.116")
-fn(id="offshore.sea_cable", title="Cable into the sea", family="offshore", panel="FRESING_PT_cables",
+fn(id="offshore.sea_cable", short="Cable to sea", title="Cable into the sea", family="offshore", panel="FRESING_PT_cables",
    fold="fr_cables_sea", button="fresing.cable_sea_add", guide="into-the-sea", tour=("sea_cable",),
-   pccheck=("motion.sea_cable",), since="0.2.91")
-fn(id="offshore.moving_cable", title="A cable on a moving part", family="offshore", panel="FRESING_PT_cables",
+   pccheck=("motion.sea_cable",), since="0.2.91", changed="0.2.157")
+fn(id="offshore.moving_cable", short="Moving cable", title="A cable on a moving part", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_let_go", guide="moving-cable", tour=("moving_cable",), pccheck=("motion.moving_cable",),
    since="0.2.95")
 fn(id="offshore.settle", title="A let-go cable settles onto the seabed", family="offshore", panel="FRESING_PT_cables",
@@ -289,20 +294,20 @@ fn(id="offshore.settle", title="A let-go cable settles onto the seabed", family=
    since="0.2.103")
 fn(id="offshore.swivel", title="A sheave on a swivel turns to its wire", family="offshore", panel="FRESING_PT_cables",
    prop="swivel", guide="swivel", tour=("swivel",), pccheck=("motion.swivel",), since="0.2.103")
-fn(id="offshore.spool", title="Drums and carousels", family="offshore", panel="FRESING_PT_spools",
+fn(id="offshore.spool", short="Drums", title="Drums and carousels", family="offshore", panel="FRESING_PT_spools",
    button="fresing.spool_add", guide="drums", tour=("spool",), pccheck=("motion.spool",), since="0.2.85")
 fn(id="offshore.vessel_motion", title="Vessel motion at sea", family="offshore", panel="FRESING_PT_vessel_motion",
    prop="enabled", guide="vessel-motion", tour=("vessel",), pccheck=("scene.vessel_motion",), since="0.2.65")
 fn(id="offshore.vessel_work", title="Vessel at work: wake, waves, thruster jets", family="offshore",
    panel="FRESING_PT_vessel_work", prop="mode", guide="vessel-work", tour=("vessel_work",),
    pccheck=("scene.vessel_work",), since="0.2.127")
-fn(id="offshore.thrusters", title="The vessel's thrusters", family="offshore", panel="FRESING_PT_vessel_work",
+fn(id="offshore.thrusters", short="Thrusters", title="The vessel's thrusters", family="offshore", panel="FRESING_PT_vessel_work",
    fold="fr_vessel_thrusters", button="fresing.vessel_thrusters_find", guide="vessel-work", since="0.2.127")
 
 # ----- 4 Motion: CNC machine -----
-fn(id="cnc.machine", title="CNC machine set-up", family="cnc", panel="FRESING_PT_cnc", button="fresing.cnc_find_axes",
+fn(id="cnc.machine", short="CNC set-up", title="CNC machine set-up", family="cnc", panel="FRESING_PT_cnc", button="fresing.cnc_find_axes",
    guide="cnc", since="0.2.30")
-fn(id="cnc.gcode", title="Run a G-code program", family="cnc", panel="FRESING_PT_animation",
+fn(id="cnc.gcode", short="Run G-code", title="Run a G-code program", family="cnc", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-gcode", tour=("gcode",), pccheck=("motion.gcode",), since="0.2.30")
 fn(id="cnc.acceleration", title="Speed up and slow down (acceleration)", family="cnc", panel="FRESING_PT_cnc",
    fold="fr_cnc_machine", prop="use_accel", guide="cnc", tour=("accel",), pccheck=("gcode.acceleration",),
@@ -311,13 +316,13 @@ fn(id="cnc.tools", title="Tools", family="cnc", panel="FRESING_PT_cnc_tools", bu
    guide="tools", tour=("tools",), pccheck=("milling.tools",), since="0.2.36")
 fn(id="cnc.toolchange_hand", title="Tool change by hand", family="cnc", panel="FRESING_PT_cnc_changes",
    prop="change_mode", guide="tool-changes", tour=("hand",), pccheck=("motion.toolchange",), since="0.2.45")
-fn(id="cnc.toolchange_person", title="A person changes the tool", family="cnc", panel="FRESING_PT_cnc_changes",
+fn(id="cnc.toolchange_person", short="Tool by hand", title="A person changes the tool", family="cnc", panel="FRESING_PT_cnc_changes",
    fold="fr_cnc_operator", button="fresing.operator_spots", guide="tool-change-person", tour=("operator",),
    pccheck=("toolchange.person",), since="0.2.132")
-fn(id="cnc.atc", title="Tool changer with pockets", family="cnc", panel="FRESING_PT_cnc_changes",
+fn(id="cnc.atc", short="Tool pockets", title="Tool changer with pockets", family="cnc", panel="FRESING_PT_cnc_changes",
    button="fresing.cnc_pocket_click", guide="tool-changes", tour=("atc",), pccheck=("motion.toolchange",),
    since="0.2.45")
-fn(id="cnc.doublearm", title="Double-arm tool changer", family="cnc", panel="FRESING_PT_cnc_changes",
+fn(id="cnc.doublearm", short="Double arm", title="Double-arm tool changer", family="cnc", panel="FRESING_PT_cnc_changes",
    button="fresing.cnc_arm_hub", guide="tool-changes", tour=("doublearm",), pccheck=("motion.doublearm",),
    since="0.2.51")
 fn(id="cnc.rotary4", title="4th axis", family="cnc", panel="FRESING_PT_cnc_rotary", button="fresing.cnc_rotary_check",
@@ -334,7 +339,7 @@ fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolan
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
    panel="FRESING_PT_milling", button="fresing.mill_add_bit", guide="milling", pccheck=("milling.cut",),
    since="0.2.19")
-fn(id="milling.from_cnc", title="Milling with the CNC machine's tool and workpiece", family="milling",
+fn(id="milling.from_cnc", short="Mill with CNC", title="Milling with the CNC machine's tool and workpiece", family="milling",
    panel="FRESING_PT_milling", button="fresing.mill_from_cnc", guide="milling-cnc", tour=("gcode",),
    pccheck=("milling.shows_program",), since="0.2.171")
 fn(id="milling.cut_look", title="Cut faces and raw stock", family="milling", panel="FRESING_PT_milling",
@@ -343,7 +348,7 @@ fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel=
    guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73")
 fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", family="milling",
    panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
-   pccheck=("milling.fast_map",), since="0.2.117")
+   pccheck=("milling.fast_map",), since="0.2.117", changed="0.2.145")
 fn(id="milling.chips", title="Chips", family="milling", panel="FRESING_PT_milling_chips", prop="chips",
    guide="chips", tour=("chips",), pccheck=("milling.chips",), since="0.2.22")
 fn(id="milling.toolpath", title="Make a toolpath", family="milling", panel="FRESING_PT_milling_toolpath",
@@ -373,15 +378,15 @@ fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT
    guide="weather", tour=("weather",),
    pccheck=("weather.time", "weather.rain", "weather.snow", "weather.fog", "weather.sea"), since="0.2.88",
    workspaces=("offshore", "education"))
-fn(id="scene.start_scene_save", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
+fn(id="scene.start_scene_save", short="Save start scene", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
    button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125",
    workspaces=("offshore", "education"))
-fn(id="scene.night", title="Night shift and work lights", family="scene", panel="FRESING_PT_weather",
+fn(id="scene.night", short="Night shift", title="Night shift and work lights", family="scene", panel="FRESING_PT_weather",
    button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88",
    workspaces=("offshore", "education"))
 fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_camera", button="fresing.camera_add",
    text="3/4 hero, high", guide="camera", tour=("blur",), pccheck=("scene.views",), since="0.2.12")
-fn(id="scene.blur", title="Background blur and sharp spot", family="scene", panel="FRESING_PT_camera",
+fn(id="scene.blur", short="Background blur", title="Background blur and sharp spot", family="scene", panel="FRESING_PT_camera",
    button="fresing.focus_pick", guide="camera", tour=("blur",), pccheck=("scene.blur",), since="0.2.17",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="scene.turntable", title="Turntable video", family="scene", panel="FRESING_PT_turntable",
@@ -401,35 +406,35 @@ _LIFT = ("lifting",)
 fn(id="lifting.first_use", title="Lifting plan: the planning-aid line, I understand", family="lifting",
    panel="FRESING_PT_lifting", button="fresing.lifting_understand", guide="lifting-first-use", since="0.2.156",
    workspaces=_LIFT)
-fn(id="lifting.place", title="Place a crane from the lifting library", family="lifting",
+fn(id="lifting.place", short="Place a crane", title="Place a crane from the lifting library", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_place", guide="lifting-place", tour=("lifting_place",),
    pccheck=("lifting.place",), since="0.2.156", workspaces=_LIFT)
-fn(id="lifting.setup", title="Crane pose and chart set-up (counterweight, outrigger spread)", family="lifting",
+fn(id="lifting.setup", short="Crane pose", title="Crane pose and chart set-up (counterweight, outrigger spread)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_setup_value", guide="lifting-setup",
    tour=("lifting_place",), pccheck=("lifting.place",), since="0.2.156", workspaces=_LIFT)
-fn(id="lifting.crane_setup", title="Set up your own crane: joints, hook, masses, load chart, Save", family="lifting",
+fn(id="lifting.crane_setup", short="Own crane", title="Set up your own crane: joints, hook, masses, load chart, Save", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.crane_setup", guide="lifting-own-crane",
    tour=("crane_setup",), pccheck=("lifting.setup",), since="0.2.161", workspaces=_LIFT)
 fn(id="lifting.load", title="The load: parts or a box, its mass and contingency", family="lifting",
    panel="FRESING_PT_lifting_load", button="fresing.lifting_load_selected", guide="lifting-load",
    tour=("lifting_cog",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
-fn(id="lifting.cog", title="Centre of gravity marker (computed or set by hand)", family="lifting",
+fn(id="lifting.cog", short="CoG marker", title="Centre of gravity marker (computed or set by hand)", family="lifting",
    panel="FRESING_PT_lifting_load", button="fresing.lifting_cog_move", guide="lifting-cog", tour=("lifting_cog",),
    pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
-fn(id="lifting.hook", title="Hook to here and the crane use at the hook", family="lifting",
+fn(id="lifting.hook", short="Hook to here", title="Hook to here and the crane use at the hook", family="lifting",
    panel="FRESING_PT_lifting_hook", button="fresing.lifting_hook_here", guide="lifting-hook",
    tour=("lifting_hook",), pccheck=("lifting.hook",), since="0.2.156", workspaces=_LIFT)
 
-fn(id="lifting.make", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
+fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
    pccheck=("lifting.make",), since="0.2.159", workspaces=_LIFT)
-fn(id="lifting.chart_entry", title="Enter the chart of your real crane (CSV) – the SAMPLE mark comes off",
+fn(id="lifting.chart_entry", short="Crane chart", title="Enter the chart of your real crane (CSV) – the SAMPLE mark comes off",
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_chart_csv", guide="lifting-make-chart",
    since="0.2.159", workspaces=_LIFT)
 
-fn(id="house.import", title="House from House Planner", family="house", panel="FRESING_PT_house",
+fn(id="house.import", short="House import", title="House from House Planner", family="house", panel="FRESING_PT_house",
    button="fresing.house_import", guide="house", tour=("house",), pccheck=("house.bake",), since="0.2.92")
-fn(id="house.toolbox", title="A house from House Planner by itself (Bake now, sent back)", family="house",
+fn(id="house.toolbox", short="House alone", title="A house from House Planner by itself (Bake now, sent back)", family="house",
    panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
    pccheck=("house.toolbox",), since="0.2.173")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
@@ -443,7 +448,7 @@ fn(id="web.marine_detail", title="Web 3D model: Marine detail Normal / Fine", fa
 fn(id="web.light", title="Web 3D model with baked light", family="web", panel="FRESING_PT_web3d", prop="light",
    guide="web3d-light", tour=("web3d_light",), pccheck=("web3d.bake",), since="0.2.89")
 fn(id="web.moving", title="Web 3D model: cables, ropes, hoses and tracks move with their looks", family="web",
-   panel="FRESING_PT_web3d", prop="animation", guide="web3d-moving", pccheck=("web3d.moving",), since="0.2.114")
+   panel="FRESING_PT_web3d", prop="animation", guide="web3d-moving", pccheck=("web3d.moving",), since="0.2.114", changed="0.2.147")
 fn(id="web.under", title="Web 3D model under the sea: seabed, sea cut-away, camera under water", family="web",
    panel="FRESING_PT_web3d", prop="env_mode", guide="web3d-under", pccheck=("web3d.under",), since="0.2.129")
 fn(id="web.player", title="Web 3D page: settings, playback, saved views", family="web", panel="FRESING_PT_web3d",
@@ -451,7 +456,7 @@ fn(id="web.player", title="Web 3D page: settings, playback, saved views", family
 fn(id="web.view_names", title="Web 3D model: View names – camera names or numbered", family="web",
    panel="FRESING_PT_web3d", prop="view_names", guide="web3d-view-names", tour=("web3d",), pccheck=("web3d.export",),
    since="0.2.140")
-fn(id="web.phone", title="Web 3D page on a phone: one views control, nothing overlapping, the model in the free area",
+fn(id="web.phone", short="Web 3D, phone", title="Web 3D page on a phone: one views control, nothing overlapping, the model in the free area",
    family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export", guide="web3d-phone", tour=("web3d",),
    pccheck=("web3d.export",), since="0.2.140")
 fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a face or X/Y/Z), fade the rest",
@@ -467,14 +472,14 @@ fn(id="animation.build", title="Build & play", family="animation", panel="FRESIN
    button="fresing.anim_build", guide="animation", tour=("joint",), since="0.2.10")
 fn(id="animation.motor", title="Run motor step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-motor", pccheck=("couplings.motor",), since="0.2.18")
-fn(id="animation.camera_path", title="Camera rides along, flies a path, watches a part", family="animation",
+fn(id="animation.camera_path", short="Camera path", title="Camera rides along, flies a path, watches a part", family="animation",
    panel="FRESING_PT_animation", button="fresing.path_add_view", guide="camera-path", tour=("camera",),
    pccheck=("camera.path",), since="0.2.62")
-fn(id="animation.fade", title="Fade out and fade in", family="animation", panel="FRESING_PT_animation",
+fn(id="animation.fade", short="Fade", title="Fade out and fade in", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="fade", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="animation.trails", title="Trail lines", family="animation", panel="FRESING_PT_trails",
    button="fresing.trail_add", guide="trails", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
-fn(id="animation.sequence", title="Assembly sequence", family="animation", panel="FRESING_PT_animation",
+fn(id="animation.sequence", short="Assembly order", title="Assembly sequence", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="sequence", tour=("sequence", "sequenceframe"),
    pccheck=("animation.sequence", "animation.sequence_frame"), since="0.2.79",
    workspaces=("offshore", "product", "education"),
@@ -488,11 +493,11 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
    prop="vw_mode", guide="vessel-work-step", tour=("vessel_work",), since="0.2.127")
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
-fn(id="animation.cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
+fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
    button="fresing.card_add", guide="pictures-music", since="0.2.27")
 fn(id="animation.music", title="Music under a video", family="video", panel="FRESING_PT_music",
    prop="music_on", guide="pictures-music", pccheck=("video.labels",), since="0.2.27")
-fn(id="animation.labels", title="Labels with lines", family="video", panel="FRESING_PT_labels",
+fn(id="animation.labels", short="Labels", title="Labels with lines", family="video", panel="FRESING_PT_labels",
    button="fresing.callout_add", guide="labels", tour=("labels",), pccheck=("video.labels",), since="0.2.27")
 fn(id="animation.brand", title="Brand kit & logo", family="video", panel="FRESING_PT_brand",
    button="fresing.brand_save", guide="brand-kit", tour=("finishing",), pccheck=("video.finishing",),
@@ -502,7 +507,7 @@ fn(id="animation.watermark", title="Watermark", family="video", panel="FRESING_P
 fn(id="animation.clash", title="Clash check", family="animation", panel="FRESING_PT_clash",
    button="fresing.clash_check", guide="clash", tour=("clash",), pccheck=("animation.clash",), since="0.2.53",
    manual_estimate=("use", 1200, "play the animation slowly and look for parts that run into each other"))
-fn(id="animation.product_video", title="One-click product video", family="animation", panel="FRESING_PT_animation",
+fn(id="animation.product_video", short="Product video", title="One-click product video", family="animation", panel="FRESING_PT_animation",
    fold="fr_product_video", button="fresing.product_video", guide="product-video", tour=("productvideo",),
    pccheck=("animation.product_video",), since="0.2.81",
    manual_estimate=("use", 3600, "shots, cameras, titles and cuts in a video editor"))
@@ -515,9 +520,9 @@ fn(id="queue.video", title="Render queue: a video", family="queue", panel="FRESI
    since="0.2.0")
 fn(id="queue.time_test", title="Time test", family="queue", panel="FRESING_PT_queue", button="fresing.queue_add",
    text="Time test (2 frames)", guide="queue", pccheck=("queue.time_test",), since="0.2.4")
-fn(id="queue.start_later", title="Start the queue later", family="queue", panel="FRESING_PT_queue",
+fn(id="queue.start_later", short="Start later", title="Start the queue later", family="queue", panel="FRESING_PT_queue",
    button="fresing.queue_start_later", guide="queue", tour=("startlater",), since="0.2.49")
-fn(id="queue.schemes", title="Every paint scheme", family="queue", panel="FRESING_PT_queue", fold="fr_queue_schemes",
+fn(id="queue.schemes", short="Every scheme", title="Every paint scheme", family="queue", panel="FRESING_PT_queue", fold="fr_queue_schemes",
    button="fresing.queue_schemes", guide="queue", tour=("schemes",), pccheck=("queue.schemes",), since="0.2.60",
    manual_estimate=("use", 600, "switch to each paint scheme and queue its render"))
 
@@ -533,17 +538,17 @@ fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel=
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
    panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app
-fn(id="help.start_here", title="Fresing menu: test tour, What's new, guide, checks in one place", family="help",
+fn(id="help.start_here", headline=True, title="Fresing menu: test tour, What's new, guide, checks in one place", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.tour_take", guide="start-here", tour=("start_here",),
    pccheck=("app.start_here",), since="0.2.155")
-fn(id="help.welcome", title="Welcome for a new user: take the test tour", family="help", panel="TOPBAR_MT_fresing",
+fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the test tour", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
-fn(id="help.whats_new", title="What's new after an update, with a tour of only the new and changed test models",
+fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
    tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
-fn(id="help.show_panel", title="Show the Fresing panel", family="help", panel="VIEW3D_HT_header",
+fn(id="help.show_panel", short="Show the panel", title="Show the Fresing panel", family="help", panel="VIEW3D_HT_header",
    button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.150")
-fn(id="help.blender_editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
+fn(id="help.blender_editors", headline=True, short="Blender editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
    "them back; a solid side panel", family="help", panel="TOPBAR_MT_fresing", button="fresing.blender_editors",
    guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
 
@@ -552,13 +557,13 @@ fn(id="usage.my_usage", title="My usage: what you use, time per stage, time save
    pccheck=("app.usage",), since="0.2.158")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
-   since="0.2.158")
+   since="0.2.158", changed="0.2.181")
 
-fn(id="help.tools", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
+fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")
 
-fn(id="help.about", title="About Fresing Render: version, licence, third-party licences, offline", family="help",
+fn(id="help.about", short="About", title="About Fresing Render: version, licence, third-party licences, offline", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.about", guide="about-licences", pccheck=("app.licences",),
    since="0.2.162")
 
@@ -611,6 +616,10 @@ def problems(functions=None, *, anchors=None, stops=None, lines=None, panels=Non
             out.append(f"{f.id}: since '{f.since}' is not a version like 0.2.47")
         if f.changed and not VERSION.match(f.changed):
             out.append(f"{f.id}: changed '{f.changed}' is not a version like 0.2.47")
+        if len(f.short) > SHORT_MAX:
+            out.append(f"{f.id}: short '{f.short}' is longer than {SHORT_MAX} characters (the favourites bar cuts it)")
+        if f.headline and not f.since:
+            out.append(f"{f.id}: headline=True needs a since= version")
         est = f.manual_estimate
         if est and not (len(est) == 3 and est[0] in ("use", "part") and isinstance(est[1], (int, float))
                         and est[1] > 0 and isinstance(est[2], str) and est[2]):

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.181 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
+## 0.2.182 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
 
 - **PC check, web 3D model lines:** "Web 3D model: smaller file" and "Web 3D model under the sea" no longer fail now
   and then with "the page gave no places of its parts" or "the page does not show the seabed". The browser without a
@@ -13,6 +13,19 @@ installer of that version was built from.
   Should a page still not be ready, the check opens it once more with more time and says so in its line.
 - **Windows:** making `Fresing Render.exe` again right after it was removed (for example when Smart App Control is
   switched off again) no longer fails when Windows still holds the old file for a moment – the app waits up to 3 s.
+## 0.2.181 – 20 Nov 2026 – Usage and start fixes (task 0236)
+
+- **No question about what is new to you.** After an update the app no longer asks "You haven't used Equipment
+  recently. Hide it?" for a panel What's new has just listed; it waits 10 app starts.
+- **What's new leads with what you see first** (workspaces, the Client view, folded sections, the Fresing menu), says "N
+  new, M better" and has a second short list, **Better since …**, for functions that got visibly better.
+- **A profile's hidden panels can be undone.** Export profile keeps your hides apart from the workspace; an imported
+  profile's hides join yours, and **Back to the workspace as it came** shows them again.
+- A panel you hid shows again when the project starts using it (after Build, undo or a model update), not only at the
+  next start.
+- A damaged start file (wrong numbers or versions) is repaired instead of stopping What's new and the welcome.
+- The favourites bar shows whole labels at the normal side-panel width, and the question about an unused panel stands
+  apart from the buttons above it.
 
 ## 0.2.180 – 20 Nov 2026 – Draw hoses, cables and drag chains by clicking (task 0240)
 
