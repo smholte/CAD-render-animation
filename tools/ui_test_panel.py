@@ -335,6 +335,7 @@ def s_full_access():
     check("Full access shows Blender's workspace tabs again", not lock.tabs_hidden()
           and S["ink_shown"] > S["ink_hidden"] + 300, f"ink {S['ink_hidden']} -> {S['ink_shown']}")
     shot("3_full_access", (0, 0, 1800, 60))
+    mod("blender.editors").choose(True)      # task 0221: the user wants Blender's editors; the Client view hides them
     with override():
         bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name="Client view")
     redraw()
@@ -352,8 +353,8 @@ def s_client():
     check("Client view: an editing button is refused, looking and rendering still work",
           bpy.ops.fresing.group_add.poll() is False and bpy.ops.fresing.light_look.poll()
           and bpy.ops.fresing.render.poll())
-    check("Client view: the Outliner is replaced", not any(a.type == "OUTLINER" for a in win.screen.areas)
-          and any(a.type == "INFO" for a in win.screen.areas), str([a.type for a in win.screen.areas]))
+    check("Client view: no Outliner (Blender's column hidden, task 0221)",
+          not any(a.type in ("OUTLINER", "PROPERTIES") for a in win.screen.areas), str([a.type for a in win.screen.areas]))
     DRAWN.clear()
     panels.open_all()
     redraw()
@@ -567,6 +568,7 @@ def s_make_web_closed():
 
 @step
 def s_finish():
+    mod("blender.editors").choose(False)     # task 0221: the default again for the next test in this settings folder
     failed = [r for r in RESULTS if not r[1]]
     log(f"RESULT {len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
     LOG.close()

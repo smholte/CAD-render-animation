@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.176 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
+
+- **The 3D view reaches the right edge of the window.** Blender's Outliner (its list of objects, top right) and its
+  Properties editor (below it) are hidden in every project – a new one, the test tour, the demo and your own, also one
+  saved with them. Fresing Render does not need them: the Fresing tab has the parts and every setting the app uses.
+- **Fresing > Show Blender's editors** brings both back at the right of the 3D view, Outliner on top, at Blender's
+  usual width; the same entry then says **Hide Blender's editors**. Your choice is kept for every project and after a
+  restart.
+- **Client view:** they are always hidden there and the entry is greyed; Full access brings back what you chose.
+- **The side panel is solid**: the 3D view no longer shows through it, so its texts and boxes stay readable on a light
+  background. (Blender's preference Region Overlap is switched off once; turn it on again in Edit > Preferences >
+  Interface if you prefer it, the app keeps that.)
+- PC check: a new line "Blender's Outliner and Properties hidden …".
+
 ## 0.2.175 – 20 Nov 2026 – Web 3D page: measure to edges, numbers never on top of each other (task 0219)
 
 - **Measure to an edge** on the web 3D page: move the pointer close to an edge of a part – it lights up as an orange

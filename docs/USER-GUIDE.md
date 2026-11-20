@@ -197,7 +197,9 @@ For showing a finished project, or handing the PC to someone who should only loo
   hidden;
 - no part can be clicked, moved or deleted – also not with Blender's own keys (<kbd>G</kbd>,
   <kbd>X</kbd>, <kbd>Delete</kbd>, <kbd>Tab</kbd>);
-- Blender's list of objects (top right) is replaced, and it stays away: picking it again in an area's
+- Blender's Outliner and Properties editor at the right are hidden, also when you chose to see them
+  (**Fresing > Show Blender's editors** is greyed: "Not in the Client view – Full access brings it back"); any other
+  Outliner (Blender's list of objects) is replaced, and it stays away: picking it again in an area's
   editor menu, <kbd>Shift</kbd>+<kbd>F9</kbd>, a new window, another of Blender's workspaces
   (<kbd>Ctrl</kbd>+<kbd>Page Up</kbd>) or an area made full-size with <kbd>Ctrl</kbd>+<kbd>Space</kbd> all
   show the Info area instead, within a tenth of a second;
@@ -209,8 +211,8 @@ For showing a finished project, or handing the PC to someone who should only loo
 
 Importing, the surroundings, camera views (also **New camera view**), saved scenes (also **Save scene**),
 the turntable, **Render image** and the queue (also **Every paint scheme**) still work. A new camera is
-locked like the rest. What still gets through on purpose: the Properties editor's own settings and
-Blender's Python console. **Workspace > Full access** (or any other workspace) undoes the lock completely. There is
+locked like the rest. What still gets through on purpose: the settings of a Properties editor you opened yourself
+in another area, and Blender's Python console. **Workspace > Full access** (or any other workspace) undoes the lock completely. There is
 no password: it stops accidents, not people.
 
 <a id="whats-next"></a>
@@ -266,12 +268,32 @@ own things in one place, whatever workspace you are in (also in the Client view)
   in the menu while it runs).
 - **What's new in 0.2.…** – what this version brings (see below). A dot after it means you have not opened it yet.
 - **Show the Fresing panel** – brings the side panel back on the Fresing tab ([If the Fresing panel is gone](#panel-gone)).
+- **Show Blender's editors** / **Hide Blender's editors** – Blender's Outliner and Properties editor at the right
+  ([below](#blender-editors)).
 - **Make demo project… / Open demo project** – the [demo project](#demo).
 - **User guide**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
 - **Tools and checks** – **Run the self-test**, **PC check…** and **Open the app folder** (the Tools folder with the
   shortcuts that used to be in the Start menu; [One shortcut](#tools-and-checks)).
 - **My usage…** – what the app counted about your work, the favourites bar and its switches ([below](#my-usage)).
 - **Welcome screen…** – the welcome below, again.
+
+<a id="blender-editors"></a>
+### Blender's Outliner and Properties (hidden)
+
+The 3D view reaches the right edge of the window: Blender's **Outliner** (its list of objects, top right) and its
+**Properties editor** (below it) are hidden in every project – also in one saved with them. Fresing Render does not
+need them: the Fresing tab has the parts tree and every setting the app uses. They are for users who know Blender.
+
+- **Fresing > Show Blender's editors** brings both back at the right of the 3D view (Outliner on top, Properties
+  below, Blender's usual width). The same entry then says **Hide Blender's editors**.
+- Your choice is kept: every project you open, the test tour and the demo follow it, also after a restart (it is
+  stored in Blender's settings folder, not in the project).
+- In the **Client view** they are always hidden and the entry is greyed; **Full access** brings back what you chose.
+- Only the Outliner and Properties editor right next to the 3D view are hidden. A layout you split yourself stays.
+
+The side panel is **solid**: it no longer lets the 3D view shine through, so its texts and boxes stay readable on a
+light background. (The app switches Blender's preference **Region Overlap** off once. You can turn it on again in
+**Edit > Preferences > Interface > Editors > Region Overlap**; the app keeps your choice.)
 
 <a id="welcome"></a>
 ### The welcome (the first starts)

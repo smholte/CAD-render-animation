@@ -1,6 +1,9 @@
 """Real-app test, the app's layout kept on open (task 0198): every project the app opens shows the Fresing tab with the
 toolbar folded and keeps its own view; Live preview keeps the user's last choice through tour / demo projects and an own
 project opens as saved; the header button and fresing.show_panel bring a hidden side panel back; 0193's clip survives.
+Task 0221: every project opens without Blender's Outliner / Properties column (also one saved with it), Fresing > Show /
+Hide Blender's editors works both ways and is kept in the settings file, the Client view hides the column and greys the
+entry, Region Overlap is off (the side panel solid) and a user's own "on" is kept.
 
 Install the extension and the app template first (see ui_test_app.py), then run:
     xvfb-run -a -s "-screen 0 1800x1400x24" blender --app-template fresing_render --enable-event-simulate \\
@@ -76,6 +79,25 @@ def layout_ok(tag):
     check(tag + ": sections 1-7 folded, Blender's tabs hidden",
           not any(panels.is_open(s) for s in panels.SECTIONS) and lock.tabs_hidden(), str(sorted(panels.OPEN)))
     panels.open_all()                     # so the next project that opens has something to fold
+    column_ok(tag, False)
+
+
+def column_types(win=None):
+    win = win or bpy.context.window_manager.windows[0]
+    return sorted(a.type for a in win.screen.areas if a.type in ("OUTLINER", "PROPERTIES"))
+
+
+def column_ok(tag, shown):
+    """Task 0221: Blender's right-hand column hidden (the 3D view reaches the right edge) or shown."""
+    win, area, _sp = view()
+    if shown:
+        check(tag + ": Outliner and Properties shown", column_types(win) == ["OUTLINER", "PROPERTIES"],
+              str(column_types(win)))
+        check(tag + ": ... right of the 3D view", area.x + area.width < win.width - 200, f"{area.x + area.width}")
+    else:
+        check(tag + ": no Outliner or Properties column", not column_types(win), str(column_types(win)))
+        check(tag + ": the 3D view reaches the right edge", area.x + area.width >= win.width - 6,
+              f"{area.x + area.width} of {win.width}")
 
 
 def save_as(name, mark=None):
@@ -116,6 +138,9 @@ def s_start():
 @step
 def s_own_project():
     messy_view()
+    ed = mod("blender.editors")
+    win = bpy.context.window_manager.windows[0]
+    check("a project can be saved with Blender's column (shown for the save)", ed.show(win), str(column_types(win)))
     STATE["own"] = save_as("own project.blend")
     return 0.3
 
@@ -290,6 +315,87 @@ def s_other_tab():
     check("... and brings the Fresing tab back", h.panel_visible(area))
     shot("11_back")
     return 0.3
+
+
+@step
+def s_overlap():
+    ed = mod("blender.editors")
+    prefs = bpy.context.preferences.system
+    check("Region Overlap is off: the side panel is solid", prefs.use_region_overlap is False)
+    check("... and the settings file remembers that the app did it", ed.load()["overlap_off"])
+    prefs.use_region_overlap = True                 # the user turns it on again in Edit > Preferences
+    ed.on_load()
+    check("a user's own Region Overlap on is kept at the next load", prefs.use_region_overlap is True)
+    prefs.use_region_overlap = False                # put back for the next test in this settings folder
+    return 0.3
+
+
+@step
+def s_editors_show():
+    ed = mod("blender.editors")
+    check("the Fresing menu has Show Blender's editors", "fresing.blender_editors" in mod("blender.ui_topbar").entries()
+          and ed.menu_text() == "Show Blender's editors", ed.menu_text())
+    with override():
+        bpy.ops.fresing.blender_editors("EXEC_DEFAULT", True)
+    check("the choice 'shown' is in the settings file", ed.read(ed.state_path())["editors"] == "shown")
+    check("... and the entry now says Hide", ed.menu_text() == "Hide Blender's editors", ed.menu_text())
+    return 1.0
+
+
+@step
+def s_editors_shown():
+    column_ok("Show Blender's editors", True)
+    win = bpy.context.window_manager.windows[0]
+    out = next(a for a in win.screen.areas if a.type == "OUTLINER")
+    props = next(a for a in win.screen.areas if a.type == "PROPERTIES")
+    check("... Outliner on top, Properties below", out.y > props.y, f"{out.y} {props.y}")
+    shot("20_editors_shown")
+    with override():
+        bpy.ops.fresing.blender_editors("EXEC_DEFAULT", True)
+    return 1.0
+
+
+@step
+def s_editors_hidden():
+    column_ok("Hide Blender's editors", False)
+    with override():                                # repeatedly, faster than the window redraws: 5 clicks = shown
+        for _ in range(5):
+            bpy.ops.fresing.blender_editors("EXEC_DEFAULT", True)
+    return 1.5
+
+
+@step
+def s_editors_again():
+    column_ok("Show / Hide five times more", True)
+    return 0.3
+
+
+@step
+def s_client_view():
+    with override():
+        bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name="Client view")
+    return 1.0
+
+
+@step
+def s_client_hidden():
+    column_ok("Client view", False)
+    check("Client view: the entry is greyed", not bpy.ops.fresing.blender_editors.poll())
+    check("... and its tooltip says why", "Client view" in mod("blender.editors").FRESING_OT_blender_editors
+          .description(bpy.context, None))
+    check("... the user's choice is still 'shown'", mod("blender.editors").chosen_shown())
+    with override():
+        bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name="Full access")
+    return 1.0
+
+
+@step
+def s_client_off():
+    column_ok("Full access again: the user's choice back", True)
+    with override():
+        bpy.ops.fresing.blender_editors("EXEC_DEFAULT", True)      # back to hidden for the next test
+    shot("21_editors_hidden")
+    return 0.5
 
 
 @step
