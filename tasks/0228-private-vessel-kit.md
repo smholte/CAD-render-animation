@@ -34,6 +34,24 @@ never this one. Nothing is deleted from the public repository yet – that is th
 - Running at the same time: 0229 (stand-in tests on public models – different files), the learning-set tasks (tour
   sets; none edits `demo.py`, `ops_demo.py`, the demo tests). Nothing else edits `demo.py` now.
 
+## Owner's change (20 Nov 16:55) – the WHOLE cable-lay project is private
+
+The owner widened his decision after this brief was written: **the private repository keeps the entire cable-lay ship
+project – the ship itself, its equipment, its environment (wind park, quay, seabed cable), the animations and all.**
+Nothing of the cable-lay vessel stays public after the cut (package 2); there is no public "Vessel in a wind park".
+For this task that means:
+- The kit copies **all of it**: `demo_model/` (ship `vessel.py`, `params.py`, `route.py`, `machines.py`, `deck.py`,
+  `rov.py`, `layout.py`, `make.py`, the wind park `park.py` / `turbine*.py` / `substation.py`), `blender/demo.py`,
+  `demo_park.py`, `demo_rov.py`, every demo test and tool, the pictures (also those showing only the ship or the park
+  with the vessel). The kit should build the full demo **by itself** from its own maker, importing from the public
+  package only **generic** libraries that other public code also uses (today: `demo_model/geom.py`, the shape / STEP
+  library of every test model and `lifting_model/`; the turbine maker if `tools/site_projects/iea15_standin.py` still
+  needs it). List in the report every public name the kit still imports (`kit.json` `uses`) – package 2 keeps exactly
+  those public and deletes the rest.
+- Still nothing deleted from the public repository in this task; the public demo keeps building as today.
+- The public "demo" entry of Help > Make demo project… stays until package 2; after it the list shows only added kits
+  (and later 0211's Lifting site). Your hook must work with **no** public demo in the list (test it).
+
 ## What to do
 
 **Public repository (additive; every existing demo test stays green, the public demo builds as today):**
