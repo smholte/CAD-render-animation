@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.184 – 20 Nov 2026 – Toolbox: the newest format fixes (task 0245)
+
+- **Houses from House Planner:** Fresing Render follows the Toolbox format's bug-fix version 0.1.1. A job whose file
+  says a size no file can have, or names a file Windows cannot hold, is now refused at once with a clear reason
+  instead of after a minute as "not complete". A job file with a field written twice is now read the way House
+  Planner reads it (the last one counts) instead of being refused. Odd, hostile job files (deeply nested, huge
+  numbers, broken text) can no longer upset the inbox.
+- **Tested on Windows:** GitHub now checks that a folder link (junction) in the inbox is never followed or emptied,
+  and that a job finishes right while another program keeps reading its status file.
 ## 0.2.183 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
 
 - **PC check, web 3D model lines:** "Web 3D model: smaller file" and "Web 3D model under the sea" no longer fail now
