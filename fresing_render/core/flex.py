@@ -1368,17 +1368,64 @@ def natural_length(p0, t0, p1, t1, least_radius: float = 0.0, slack: float = SLA
     least is taken. Two ends on one point (a clip clicked twice): a loop of the least radius."""
     p0, p1 = np.asarray(p0, dtype=float), np.asarray(p1, dtype=float)
     d = float(np.linalg.norm(p1 - p0))
-    scale = max(d, 2.0 * float(least_radius), 1e-6)
+    least = float(least_radius)
+    scale = max(d, 2.0 * least, 1e-6)
     best = None
     for h in _HANDLES:
         line = smooth_line(p0, t0, p1, t1, h * scale, n)
         r = float(bend_radius(line))
         length = float(polyline_length(line))
-        if r >= least_radius:
+        if r >= least and r > 0.0:
             return length * (1.0 + slack), line
         if best is None or r > best[0]:
             best = (r, length, line)
+    # no single curve keeps the bend (ends in line, facing the same way or back at each other: one curve folds back on
+    # itself): two curves through a point beside the line, a loop of at least the least radius
+    found = _through_side(p0, t0, p1, t1, max(least, 0.05 * scale, 1e-4), n)
+    if found is not None and (found[0] >= least or found[0] > best[0]):
+        best = found
     return best[1] * (1.0 + slack), best[2]
+
+
+def _through_side(p0, t0, p1, t1, radius: float, n: int):
+    """(tightest bend, length, line) of the shortest two-piece smooth line p0 -> a point beside -> p1 whose bends keep
+    ``radius``, or the one that bends least; None when nothing is drawn."""
+    t0 = _unit_or(np.asarray(t0, dtype=float)[None], np.array([[1.0, 0.0, 0.0]]))[0]
+    t1 = _unit_or(np.asarray(t1, dtype=float)[None], t0[None])[0]
+    up = np.array((0.0, 0.0, 1.0))
+    sides = []
+    for ref in (up, np.cross(t0, up), np.array((1.0, 0.0, 0.0)), np.array((0.0, 1.0, 0.0))):
+        w = ref - t0 * float(ref @ t0)
+        if float(np.linalg.norm(w)) > 1e-6:
+            w = w / np.linalg.norm(w)
+            sides += [w, -w]
+    mid = 0.5 * (p0 + p1)
+    chord = p1 - p0
+    tms = [t0, -t0]
+    if float(np.linalg.norm(chord)) > 1e-9:
+        tms.insert(0, chord / np.linalg.norm(chord))
+    best = None
+    half = max(n // 2, 3)
+    for side in sides[:2]:                          # above first (a hose hangs its loop up, then to the side)
+        for k in (2.0, 3.0, 4.0, 6.0, 9.0, 13.0):
+            m = mid + side * radius * k
+            for tm in tms:
+                for h in (0.4, 0.6, 1.0, 1.5, 2.2):
+                    hh = h * radius * k
+                    a = smooth_line(p0, t0, m, tm, hh, half)
+                    b = smooth_line(m, tm, p1, t1, hh, half)
+                    line = np.concatenate([a, b[1:]])
+                    r = float(bend_radius(line))
+                    length = float(polyline_length(line))
+                    key = (r >= radius, -length if r >= radius else r)
+                    if best is None or key > best[0]:
+                        best = (key, r, length, line)
+        if best is not None and best[0][0]:
+            break
+    if best is None:
+        return None
+    line = resample(best[3], n)
+    return best[1], best[2], line
 
 
 def shares(lengths) -> np.ndarray:

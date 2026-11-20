@@ -1316,7 +1316,9 @@ def _route(start, wheels: list, end, on_drum: bool) -> tuple:
 
     def solve(sd):
         ws = [P.Wheel(w["centre"], w["axis"], w["radius"], int(x)) for w, x in zip(wheels, sd)]
-        return P.solve(start, ws, end, start_on_wheel=on_drum)
+        # held: every arc in its wheel's plane (a groove holds the cable), a straight that leaves it meets it with a
+        # kink of the fleet angle – as a CAD cable is drawn, so the route reads back the same (a helix would not)
+        return P.solve(start, ws, end, start_on_wheel=on_drum, held=True)
 
     tries = [sides]
     if on_drum:

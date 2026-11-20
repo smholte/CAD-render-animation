@@ -278,12 +278,14 @@ class FRESING_OT_cable_draw(_Picker, bpy.types.Operator):
             self._clicks.append((ob.name, index, loc, normal))          # the same part again: the other side
             self._status(context, f"'{_name(ob)}': the cable passes on its other side. " + self._next_prompt(context))
             return {"RUNNING_MODAL"}
-        if self._clicks and paths._axis_of(ob, loc) is None:            # no round face: the end
+        if self._clicks:                        # a flat face (as the hover shows it) is the end; a round one a wheel
             try:
-                drawn.spot(ob, index, loc, normal)
+                sp = drawn.spot(ob, index, loc, normal)
             except drawn.DrawError as exc:
                 self._status(context, str(exc))
                 return {"RUNNING_MODAL"}
+            if sp["round"] and paths._axis_of(ob, loc) is not None:
+                return super()._click(context, ob, index, loc, normal)
             self._clicks.append((ob.name, index, loc, normal))
             self._ended = True
             return self._finish(context)

@@ -904,16 +904,28 @@ def _chain_frame(scene, a_spot: dict, b_spot: dict, flip: bool = False) -> tuple
     a, b = np.asarray(a_spot["point"], dtype=float), np.asarray(b_spot["point"], dtype=float)
     j = _travel_joint(scene, b_spot["part"], a_spot["part"])
     u = None
+    d = b - a
     if j is not None and j.kind == "SLIDE":
         u = np.array(joints.axis_world(j)[1], dtype=float)
-    if u is None:                               # no slide: along the clicked faces, square to the gap
-        gap = b - a
-        n = np.asarray(a_spot["dir"], dtype=float)
-        u = gap - n * float(gap @ n)
-        if float(np.linalg.norm(u)) < 1e-6:
-            u = np.cross(n, (0.0, 0.0, 1.0)) if abs(n[2]) < 0.9 else np.cross(n, (1.0, 0.0, 0.0))
+    if u is None:                               # no slide joint (yet): from the clicked faces
+        na = np.asarray(a_spot["dir"], dtype=float)
+        nb = np.asarray(b_spot.get("dir", na), dtype=float)
+        if abs(float(na @ nb)) > 0.95:          # both on a side face: that is across the chain (w)
+            wn = na / (np.linalg.norm(na) or 1.0)
+            up = np.array((0.0, 0.0, 1.0))
+            if abs(float(wn[2])) < 0.7:         # standing chain: the runs lie one above the other
+                v = up - wn * float(up @ wn)
+            else:                               # a chain on its side: the runs lie side by side, across the gap
+                v = d - wn * float(d @ wn)
+            v = v / (np.linalg.norm(v) or 1.0)
+            u = np.cross(v, wn)
+        else:                                   # along the fixed bracket's face, square to the gap
+            u = d - na * float(d @ na)
+            if float(np.linalg.norm(u)) < 1e-6:
+                u = np.cross(na, (0.0, 0.0, 1.0)) if abs(na[2]) < 0.9 else np.cross(na, (1.0, 0.0, 0.0))
+        if float(np.linalg.norm(u)) < 1e-9:
+            u = np.array((1.0, 0.0, 0.0))
     u = u / np.linalg.norm(u)
-    d = b - a
     v = d - u * float(d @ u)
     na, nb = (np.asarray(sp.get("dir", (0.0, 0.0, 0.0)), dtype=float) for sp in (a_spot, b_spot))
     if abs(float(na @ nb)) > 0.95 and abs(float(na @ u)) < 0.1:
