@@ -46,7 +46,8 @@ updates its branch to `main`.
 
 ## Problems found, waiting for a task
 
-- **WAITING FOR OWNER – code signing budget (0207, 18 Nov):** the plan is an SSL.com OV certificate in Fresing's name + eSigner cloud signing, ≈ $310/yr (check the price on ssl.com before buying); signed copy chosen. **Lead: ask the owner at every status check** until he says yes or no; on yes, write the build task from 0207's brief and give him the buying steps.
+- **Code signing (0207): LATER (owner, 20 Nov)** – not until Fresing Render is close to being shown publicly; the lead stops asking. Plan on file: SSL.com OV certificate in Fresing's name + eSigner, ≈ $310/yr (check the price on ssl.com before buying); one certificate would cover Render and ToolBox. When the owner says go: write the build task from 0207's brief and give him the buying steps.
+- **Stand-alone STEP viewer with a render round trip (owner, 20 Nov):** besides the Web 3D export (baked light) and the House Planner round trip, he wants the ToolBox's stand-alone STEP viewer, with a render export / import like House Planner's (the viewer sends the model to Fresing Render, the result comes back). **Discuss with the owner first** (and the ToolBox lead); no task yet.
 
 - **Owner's picks from study 0113 (13 Nov, 22:07):** (1) IEA 15 MW wind turbine → **0116**. (2) Mesh import → **0117** (done, 0.2.99). Candidates after it: Working Vessel 03, KS-4574 crane truck (CC BY 4.0, Sketchfab; the owner downloads them). (3) Branded scans (Hyundai, Hitachi, New Holland, JCB): **skip**.
 The lead turns each into a task (number, brief, model) and then deletes its entry here.
