@@ -3405,43 +3405,113 @@ def _check_mesh(scene):
 # Lifting plan (task 0201): an AT-40 beside the test crane, the test crane's boom as the load
 # ---------------------------------------------------------------------------
 
-@tour_set("lifting", "Lifting plan – crane, load and hook", "test_crane_a.step", added="0.2.156",
-          changed="0.2.159")
-def build_lifting(b: Build):
+# the invented loads of test_loads.step (task 0231), each sized for its equipment: the pump skid is the lift of the
+# set, the IBC and the container stand in the yard (the container is the big crane's load, the IBC the forklift's)
+LIFT_CRANE = "AT-40"
+LIFT_LOAD, LIFT_LOAD_MASS = "PUMP SKID.ASM", 6.0          # t, invented ("estimate" as source)
+YARD_LOADS = (("IBC ON PALLET.ASM", 1.1), ("PUMP SKID.ASM", 6.0), ("20 FT CONTAINER.ASM", 18.0))
+MAT_H = 0.2                                               # m: a crane mat's thickness
+LIFT_VIEW = "ISO_LEFT"                                    # from the IBC's side: crane and container stay behind the skid
+
+
+def _yard(b: Build) -> None:
+    """The quayside ground of the Lifting sets (task 0231)."""
+    _look("PRODUCT")
+    b.s.env_detail = "SIMPLE"
+    b.s.background = "QUAY"
+    _update()
+
+
+def _crane_mats(b: Build, crane) -> int:
+    """A crane mat under each outrigger pad of the crane in the set-up pose: plain boxes named 'Tour crane mat N'
+    (the Lifting plan has no mats yet), put where the pads are worked out from the crane's own file."""
     import bpy
     import numpy as np
 
-    from . import build, lifting, logic
-    sc = b.scene
-    _look("PRODUCT")
-    roots = build.model_roots(sc)
-    mn, mx = (np.asarray(v, float) for v in logic.update_bounds(sc))
-    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE),
-                      (float(mx[0]) + 6.0, float(0.5 * (mn[1] + mx[1])), float(mn[2])), math.pi)
-    lifting.apply_pose(sc, c, "Set up")
+    from . import lifting, materials
+    data = lifting.item_at(lifting.path_of(crane)).data
+    og = data["outriggers"]
+    pose = next(p for p in data["rig"]["poses"] if p["name"] == "Set up")
+    half_b = float(og["b_in"]) + int(og["stages"]) * float(pose["values"].get("Outriggers", 0.0)) / 1000.0
+    pad = max(og.get("pad", [0.6, 0.6])) * 2.4
+    root = crane.root
+    M = np.array(root.matrix_world)
+    mat = materials.ensure_material("Crane mat", "paint_satin", "RAL 8001")
+    n = 0
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            c = M @ np.array([sx * float(og["a"]), sy * half_b, 0.0, 1.0])
+            x, y = pad / 2, pad / 2
+            vs = [(-x, -y, -MAT_H), (x, -y, -MAT_H), (x, y, -MAT_H), (-x, y, -MAT_H),
+                  (-x, -y, 0), (x, -y, 0), (x, y, 0), (-x, y, 0)]
+            fs = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+            n += 1
+            me = bpy.data.meshes.new(f"Tour crane mat {n}")
+            me.from_pydata(vs, [], fs)
+            me.update()
+            me.materials.append(mat)
+            ob = bpy.data.objects.new(f"Tour crane mat {n}", me)
+            ob.location = (float(c[0]), float(c[1]), MAT_H)
+            ob.rotation_euler = (0.0, 0.0, lifting.heading_of(crane))
+            b.scene.collection.objects.link(ob)
+    return n
+
+
+def _yard_crane(b: Build, path: str, at: tuple, heading: float = math.pi):
+    """A crane from the library on mats at ``at`` (x, y) on the yard, in its pose 'Set up'."""
+    import bpy
+
+    from . import lifting
+    c = lifting.place(bpy.context, path, (at[0], at[1], MAT_H), heading)
+    lifting.apply_pose(b.scene, c, "Set up")
     _update()
-    pts = _lifting_points(sc)
-    _camera(b, "ISO", "Tour lifting", lens=35.0, points=pts)
+    _crane_mats(b, c)
+    return c
+
+
+def _skid_load(b: Build):
+    """The pump skid as the Lifting plan's load: 6 t invented, CoG computed from its parts (the pump and the motor stand
+    off the middle, so the CoG is not in the middle of the frame)."""
+    from . import build, lifting, logic
+    part = next(o for o in logic.descendants(build.model_roots(b.scene)[0])
+                if o.get(build.PROP_NAME) == LIFT_LOAD)
+    ld = lifting.new_load(b.scene, [part], "Pump skid")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", LIFT_LOAD_MASS, "ESTIMATE"
+    return ld
+
+
+@tour_set("lifting", "Lifting plan – crane, load and hook", "test_loads.step", added="0.2.156",
+          changed="0.2.176")
+def build_lifting(b: Build):
+    """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
+    crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
+    crane's carrier is never between the camera and the CoG (every stop checks that)."""
+    import bpy
+
+    from . import lifting
+    sc = b.scene
+    _yard(b)
+    c = _yard_crane(b, os.path.join(DATA, "lifting", LIFT_CRANE), (1.0, 7.6))
+    _camera(b, LIFT_VIEW, "Tour lifting", lens=35.0, points=_lifting_points(sc))
     _shot(b, "@lifting_place")
-    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
-    ld = lifting.new_load(sc, [part], "Test crane boom")
-    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
-    _close_camera(b, lifting.cog_world(ld), 1.6, "Tour lifting CoG")
+    ld = _skid_load(b)
+    _close_camera(b, lifting.cog_world(ld), 5.5, "Tour lifting CoG", view=LIFT_VIEW)
     _shot(b, "@lifting_cog")
     a = lifting.hook_to(sc, c, lifting.above_load(sc, ld), ld)
     _check(a.ok, f"Hook to here: {a.reason}")
-    _camera(b, "ISO", "Tour lifting hook", lens=35.0, points=_lifting_points(sc))
+    _update()
+    _camera(b, LIFT_VIEW, "Tour lifting hook", lens=35.0, points=_lifting_points(sc, LIFT_LOAD))
     _shot(b, "@lifting_hook")
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.161", changed="0.2.166")
+          added="0.2.161", changed="0.2.176")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
     from . import crane_example, setup_crane
     sc = b.scene
-    _look("PRODUCT")
+    _yard(b)
     crane_example.rig(sc, "KB-20", check=True, clash=False)
     from . import ops_setup
     k = setup_crane.step_index("CRANE_KNUCKLE", "check")
@@ -3477,32 +3547,28 @@ def _check_crane_setup(scene):
     red = [p.text for p in cs.problems if p.severity == "red"]
     _check(not red, "Check: " + "; ".join(red[:2]))
     return f"{len(js)} joints with {len(roles)} roles, hook point set, Check: nothing wrong"
-@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_crane_a.step", added="0.2.159",
-          changed="0.2.159")
+@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_loads.step", added="0.2.159",
+          changed="0.2.176")
 def build_lifting_make(b: Build):
-    """Task 0204: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next to the
-    tour, placed beside the test crane, set up, Hook to here above the test crane's boom."""
+    """Task 0204 / 0231: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next
+    to the tour, placed on mats beside the yard's container and set up; its boom stands out, slewed over the yard (pose 'Working' + slew 90°) and
+    the panel shows its radius and chart. No Hook to here: that is the 'lifting' set's stop."""
     import bpy
-    import numpy as np
 
-    from . import build, lifting, logic, ops_lifting_make
+    from . import lifting, ops_lifting_make
     sc = b.scene
-    _look("PRODUCT")
+    _yard(b)
     lib = os.path.join(b.folder, "Lifting equipment")
     os.makedirs(lib, exist_ok=True)
     job = ops_lifting_make.make_now(ops_lifting_make.tour_spec(), lib, replace=True)
-    roots = build.model_roots(sc)
-    mn, mx = (np.asarray(v, float) for v in logic.update_bounds(sc))
-    c = lifting.place(bpy.context, job.item_path, (float(mx[0]) + 7.0, float(0.5 * (mn[1] + mx[1])), float(mn[2])),
-                      math.pi)
-    lifting.apply_pose(sc, c, "Set up")
-    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
-    ld = lifting.new_load(sc, [part], "Test crane boom")
-    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
-    a = lifting.hook_to(sc, c, lifting.above_load(sc, ld), ld)
-    _check(a.ok, f"Hook to here: {a.reason}")
+    c = _yard_crane(b, job.item_path, (9.0, 10.5))
+    lifting.apply_pose(sc, c, "Working")
+    v = lifting.values(sc, c)
+    v["Slew"] = 90.0                           # the boom over the yard, not over the water
+    lifting.set_values(sc, c, v)
+    c.pose = ""
     _update()
-    _camera(b, "ISO", "Tour lifting make", lens=35.0, points=_lifting_points(sc))
+    _camera(b, LIFT_VIEW, "Tour lifting make", lens=35.0, points=_lifting_points(sc, "20 FT CONTAINER.ASM"))
     _shot(b, "@lifting_make")
 
 
@@ -3519,34 +3585,103 @@ def _check_lifting_make(scene):
         raise ValueError(f"{len(tele)} telescope joints, not 4 (5 sections)")
     if not lifting.item_at(lifting.path_of(c)).sample:
         raise ValueError("the made crane is not marked SAMPLE")
-    return lifting.check_rig(scene) + "; " + lifting.check_example(scene)
+    v = lifting.values(scene, c)
+    if abs(v.get("Slew", 0.0) - 90.0) > 0.5 or v.get("Telescope", 0.0) <= 0.0:
+        raise ValueError(f"the boom is not slewed over the yard and out (slew {v.get('Slew')}, telescope "
+                         f"{v.get('Telescope')})")
+    ro = lifting.readout(scene, c)
+    if isinstance(ro, str):
+        raise ValueError(f"no reach readout: {ro}")
+    if ro.radius < 8.0:
+        raise ValueError(f"the boom reaches only {ro.radius:.1f} m (the pose 'Working' puts it out)")
+    return (lifting.check_rig(scene) + f"; boom out: radius {ro.radius:.1f} m, chart '{ro.chart.name}'")
 
 
-def _lifting_points(scene):
+def _lifting_points(scene, only: str = ""):
+    """Box corners of every part (the camera frames the whole yard); ``only``: the crane, the mats and that
+    sub-assembly's parts (a closer picture of the lift)."""
     import numpy as np
 
-    from . import build
+    from . import build, logic
+    keep = None
+    if only:
+        root = next(o for o in logic.descendants(build.model_roots(scene)[0]) if o.get(build.PROP_NAME) == only)
+        keep = {o.name for o in logic.descendants(root)}
+        keep |= {o.name for r in build.model_roots(scene)[1:] for o in logic.descendants(r)}
     pts = []
-    for ob in build.iter_parts(scene):
+    for ob in list(build.iter_parts(scene)) + [o for o in scene.objects if o.name.startswith("Tour crane mat")]:
+        if keep is not None and ob.name not in keep and not ob.name.startswith("Tour crane mat"):
+            continue
         M = np.array(ob.matrix_world)
         for c in ob.bound_box:
             pts.append((M @ np.r_[np.asarray(c, float), 1.0])[:3])
     return np.array(pts)
 
 
+def _cog_in_view(scene, with_hook: bool = False) -> str:
+    """Task 0231: what the camera must show at a Lifting stop – the load's CoG is in the picture and nothing but the
+    load itself is between the camera and the CoG (a ray from the camera to the CoG; study 0224 found the crane's own
+    carrier deck in the way at every Lifting stop, which no check had caught); with ``with_hook`` the hook block is in
+    the picture too. ValueError with the plain reason."""
+    import bpy
+    from bpy_extras.object_utils import world_to_camera_view
+    from mathutils import Vector
+
+    from . import lifting
+    L = lifting.plan(scene)
+    if not L.loads:
+        raise ValueError("no load in the lifting plan")
+    ld = L.loads[0]
+    cam = scene.camera
+    if cam is None:
+        raise ValueError("the stop has no camera")
+    cog = lifting.cog_world(ld)
+    if cog is None:
+        raise ValueError("the load has no CoG marker")
+    cog = Vector(tuple(cog))
+    mine = {o.name for o in lifting.load_parts(ld)}
+    eye = cam.matrix_world.translation.copy()
+    ray = cog - eye
+    dist = ray.length
+    dg = bpy.context.evaluated_depsgraph_get()
+    ok, loc, _n, _i, ob, _m = scene.ray_cast(dg, eye, ray.normalized(), distance=dist + 0.01)
+    if ok and ob is not None and ob.name not in mine and (loc - eye).length < dist - 0.02:
+        raise ValueError(f"'{ob.get(build_mod().PROP_NAME, ob.name)}' is between the camera and the CoG "
+                         f"({(loc - eye).length:.1f} of {dist:.1f} m from the camera)")
+    uv = world_to_camera_view(scene, cam, cog)
+    if not (0.02 < uv.x < 0.98 and 0.02 < uv.y < 0.98 and uv.z > 0):
+        raise ValueError(f"the CoG is not in the picture (at {uv.x:.2f}, {uv.y:.2f})")
+    out = f"the CoG is in view, nothing between it and the camera ({dist:.1f} m)"
+    if with_hook:
+        c = L.cranes[0] if L.cranes else None
+        hook = lifting._hook_block_world(scene, c) if c is not None else None
+        if hook is None:
+            raise ValueError("the crane has no hook block")
+        uh = world_to_camera_view(scene, cam, Vector(tuple(hook)))
+        if not (0.0 < uh.x < 1.0 and 0.0 < uh.y < 1.0 and uh.z > 0):
+            raise ValueError(f"the hook block is not in the picture (at {uh.x:.2f}, {uh.y:.2f})")
+        out += ", the hook block too"
+    return out
+
+
+def build_mod():
+    from . import build
+    return build
+
+
 def _check_lifting_place(scene):
     from . import lifting
-    return lifting.check_rig(scene)
+    return lifting.check_rig(scene) + "; " + _cog_in_view(scene)
 
 
 def _check_lifting_cog(scene):
     from . import lifting
-    return lifting.check_cog(scene)
+    return lifting.check_cog(scene) + "; " + _cog_in_view(scene)
 
 
 def _check_lifting_hook(scene):
     from . import lifting
-    return lifting.check_example(scene)
+    return lifting.check_example(scene) + "; " + _cog_in_view(scene, with_hook=True)
 
 LOOK, MOTION, MACH, OUT = GROUPS
 
@@ -3743,18 +3878,18 @@ stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "joint", since="0.2.99", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
 
 stop("lifting_place", MOTION, "lifting", "Lifting: a crane placed",
-     "Beside the test crane stands the built-in AT-40 sample crane, placed from 8 Lifting plan > Equipment, its boom "
-     "turned towards the test crane and set up on its four outriggers (pose 'Set up': beams out, pads down on the "
-     "ground). Its joints carry its name ('AT-40 · Slew', 'AT-40 · Luff' …); the panel shows the planning-aid line "
-     "and the SAMPLE line.", where="8 Lifting plan > Equipment", since="0.2.156", check=_check_lifting_place)
+     "On a quayside yard – an IBC on its pallet, a pump skid and a 20 ft container – stands the built-in AT-40 sample "
+     "crane, placed from 8 Lifting plan > Equipment and set up on its four outriggers, each on a timber crane mat "
+     "(pose 'Set up': beams out, pads down). Its joints carry its name ('AT-40 · Slew', 'AT-40 · Luff' …); the panel "
+     "shows the planning-aid line and the SAMPLE line.", where="8 Lifting plan > Equipment", since="0.2.156", check=_check_lifting_place)
 stop("lifting_cog", MOTION, "lifting", "Lifting: the load and its CoG",
-     "The test crane's yellow boom is the load (8 Lifting plan > Load: 1.2 t from the drawing). The CoG symbol – a "
-     "circle in black and white quarters, 'CoG' next to it – sits inside the boom, drawn on top of everything; the "
-     "panel says '(computed)'.", where="8 Lifting plan > Load", since="0.2.156", check=_check_lifting_cog)
+     "The pump skid is the load (8 Lifting plan > Load: 6 t, an invented estimate). The CoG symbol – a circle in "
+     "black and white quarters, 'CoG' next to it – sits inside the skid, off the middle of its frame because the pump "
+     "and the motor stand on one side, drawn on top of everything; the panel says '(computed)'.", where="8 Lifting plan > Load", since="0.2.156", check=_check_lifting_cog)
 stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
-     "Above the load: the AT-40 slewed, luffed and telescoped so its hook block hangs plumb 2 m above the boom's "
+     "Above the skid: the AT-40 slewed, luffed and telescoped so its hook block hangs plumb 2 m above the skid's "
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
-     "radius), the gross load (1.2 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
+     "radius), the gross load (6 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
      where="8 Lifting plan > Hook & capacity", since="0.2.156", check=_check_lifting_hook)
 
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
@@ -3764,10 +3899,10 @@ stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "chart are in; the crane stands in its pose 'Working'. The Set-up window is on its step Check: nothing wrong.",
      where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.161", check=_check_crane_setup)
 stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
-     "Beside the test crane stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… "
-     "from the AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its "
-     "outriggers and its hook hangs above the test crane's boom (Hook to here). Its boom has 5 sections (joints "
-     "Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
+     "On the yard stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… from the "
+     "AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its outriggers and "
+     "mats, its boom raised, slewed over the yard and telescoped out; the panel shows its radius and chart. Its boom "
+     "has 5 sections (joints Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
      where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", check=_check_lifting_make)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",

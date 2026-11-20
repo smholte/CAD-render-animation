@@ -4315,7 +4315,7 @@ def app_layout(ctx):
 
 
 @line("app.editors", "Blender's Outliner and Properties hidden, Fresing > Show Blender's editors brings them back, "
-      "a solid side panel", "0.2.176",
+      "a solid side panel", "0.2.177",
       what="Checks that the layout is put right when a project opens, the menu entry Fresing > Show / Hide Blender's "
            "editors and its own reason in the Client view, which areas count as "
            "Blender's column (only an Outliner or Properties editor right next to the 3D view), the width it comes "

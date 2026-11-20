@@ -44,6 +44,11 @@ chat and gives the exact sentence to paste, with where, which model and which ef
 > Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0013. You have my permission
 > to push to main: merge after a green GitHub run without asking me, then check that main really contains your commit.
 
+**A start sentence only when the task can start now** (owner, 20 Nov 2026): the lead gives a task's sentence only
+when the owner can start it at that moment – its brief is on `main`, every task it waits for is merged, its lane is free
+and fewer than about four code tasks are running. A task that still waits gets one plain line ("0241: after 0221 and
+0236 are merged") and **no** sentence; the lead gives the sentence in the status check where it becomes startable.
+
 **The permission to push to `main` is in the start sentence** (owner, 16 Nov 2026): a web session may push only to its
 own branch unless the owner says otherwise in the chat, and a worker that stops to ask waits unseen (0164 waited over
 an hour). Every start sentence the lead gives carries that line. A worker that still has to stop for the owner says so
@@ -769,10 +774,29 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **House Planner is private** (owner, 13 Nov 2026): Fresing Render workers **never attach or clone
   `smholte/house-planner-dev`** – it holds the owner's own house. The House lane works only from the public format
   repository `smholte/house-scene-format`, and its tests use only that repository's made-up sample packages.
-- **The cable-lay vessel's equipment becomes private** (owner, 19 Nov 2026): everything on the invented vessel
-  (carousel, tensioners, chute, cranes / A-frame, ROV, deck machines) will move to a private repository (task 0226
-  plans it). Until then: **no new pictures, renders, web pages, guide pictures, tour stops or report pictures of that
-  equipment**, and no new equipment parts on it. The bare ship, the environment and the other test models stay public.
+- **The cable-lay vessel's equipment is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → the cut →
+  pictures). **Public stays:** the **ship with its own deck crane** (`demo_model/vessel.py`; plain deck after the cut –
+  carousel well and aft bulwark opening closed), the **wind park** (turbines, substation), the sea, seabed and quay, and
+  the public demo **"Vessel in a wind park"** (owner 20 Nov 17:02: "the windpark and the ship with the crane stays").
+  **Private:** everything else on or hanging from the ship (carousel, tensioners, chute, A-frame / quadrant, ROV, deck
+  machines, wires, the spread's layout) and the **complete cable-lay demo project** – the private repository
+  **`smholte/fresing-render-vessel`** keeps the whole project as a self-contained **demo kit** (its own copies of the
+  ship, environment, equipment and animations; owner 20 Nov 16:55). The public app knows only "demo kits", never this
+  one. Until the cut is merged the equipment's code is still on `main`: **no new pictures, renders, web pages, guide
+  pictures, tour stops or report pictures of the equipment, and no new equipment parts**. Never copy anything from the
+  private repository into this one – also not as a "test model". The full demo is the owner's private demo for a
+  company, not part of the learning environment. Old task texts and CHANGELOG lines that describe it stay; no history
+  rewrite (owner 20 Nov).
+- **Who may attach the private vessel repository:** the lead (to read its runs) and only tasks whose file header says
+  **"Private vessel: yes"**; the lead's start sentence then names the repository. Such a task follows the private
+  repository's own `CLAUDE.md`, reports in numbers only, and its public part (the kit hook) goes through this repository
+  as usual. **The private repository's GitHub minutes are the owner's (Free plan, shared with his other private
+  projects):** no scheduled runs – push and by hand only, Linux only, one job of about 10 minutes, superseded runs
+  cancelled, artifacts kept a few days at most.
+- **A cable / spool / track / sea task without that line** tests on the public test models (`test_spool`, `test_tracks`,
+  `test_paths_a`, `test_sea`, `test_moving`, `test_swivel`, `test_thrusters`) and the public demo. If a change may break
+  the full demo (a renamed function the kit uses – `kit.json` `uses` –, a changed `@stage`, the kit hook), say so in the
+  report: the lead asks the owner to run the private workflow by hand.
 - **The Fresing 400 is not public yet** (owner, 12 Nov 2026): it is not ready to be shown in full. Its milling video
   on the landing page shows only a basic interior. Never put the Fresing 400 or any part of it on the site, in a web 3D
   model, a test model, a guide picture or a report, unless the owner releases it explicitly.

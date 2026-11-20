@@ -43,8 +43,8 @@
   },
   "crane_setup": {
    "added": "0.2.161",
-   "changed": "0.2.166",
-   "fp": "d090f2ff91460624"
+   "changed": "0.2.176",
+   "fp": "37f1fba45e4d251f"
   },
   "cutaway": {
    "added": "0.2.64",
@@ -88,13 +88,13 @@
   },
   "lifting": {
    "added": "0.2.156",
-   "changed": "0.2.159",
-   "fp": "c6038ae7ee13a2c4"
+   "changed": "0.2.176",
+   "fp": "74bf35de85bf9158"
   },
   "lifting_make": {
    "added": "0.2.159",
-   "changed": "0.2.159",
-   "fp": "1dc92dd0e7dd6596"
+   "changed": "0.2.176",
+   "fp": "1ba86295472a20a4"
   },
   "linkage": {
    "added": "0.2.47",

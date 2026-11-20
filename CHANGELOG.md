@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.176 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
+## 0.2.177 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
 
 - **The 3D view reaches the right edge of the window.** Blender's Outliner (its list of objects, top right) and its
   Properties editor (below it) are hidden in every project – a new one, the test tour, the demo and your own, also one
@@ -18,6 +18,14 @@ installer of that version was built from.
   background. (Blender's preference Region Overlap is switched off once; turn it on again in Edit > Preferences >
   Interface if you prefer it, the app keeps that.)
 - PC check: a new line "Blender's Outliner and Properties hidden …".
+
+## 0.2.176 – 20 Nov 2026 – Lifting test tour: a real yard, real-size loads, the load always in view (task 0231)
+The three Lifting stops of the test tour now look like a real lift: a quayside yard with an IBC on its pallet, a 6 t
+pump skid and a 20 ft container (invented, real sizes), and the AT-40 standing on four timber crane mats. The skid is
+the load; its CoG sits off the middle because the pump and motor are on one side. Every stop now checks that the load's
+CoG is in the picture and that nothing – not even the crane's own carrier – hides it from the camera. The "crane made
+from numbers" stop shows that crane by itself with its boom out; "Set up a crane" stands on the same ground. New test
+model: test_loads.
 
 ## 0.2.175 – 20 Nov 2026 – Web 3D page: measure to edges, numbers never on top of each other (task 0219)
 
