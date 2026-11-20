@@ -1,6 +1,6 @@
 # 0228 – The vessel's equipment in a private repository as a "demo kit"; the public app learns to add a kit
 
-**Who:** worker · **Status:** open · **Branch:** `task/0228-private-vessel-kit` (public) + `main` of the private repository
+**Who:** worker · **Status:** running · **Branch:** `task/0228-private-vessel-kit` (public) + `main` of the private repository
 **Started by:** lead, 20 Nov 2026 (study 0226 package 1; owner's answers 20 Nov 16:22–16:35) · **Model:** Opus · effort High
 **Private vessel: yes** – this task attaches `smholte/fresing-render-vessel` (private, made empty by the owner on 20 Nov
 16:35) with push access; the start sentence names it.
