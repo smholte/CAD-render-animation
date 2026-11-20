@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.182 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
+## 0.2.183 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
 
 - **PC check, web 3D model lines:** "Web 3D model: smaller file" and "Web 3D model under the sea" no longer fail now
   and then with "the page gave no places of its parts" or "the page does not show the seabed". The browser without a
@@ -13,6 +13,21 @@ installer of that version was built from.
   Should a page still not be ready, the check opens it once more with more time and says so in its line.
 - **Windows:** making `Fresing Render.exe` again right after it was removed (for example when Smart App Control is
   switched off again) no longer fails when Windows still holds the old file for a moment – the app waits up to 3 s.
+## 0.2.182 – 20 Nov 2026 – Hose, cable and drag chain kinds, colours and sizes (task 0243)
+
+- **Pick a kind, a colour and a size.** Every hose, cable and drag chain – drawn or read from CAD – has **Kind**,
+  **Colour** and **Size** under its list (4 Motion > Hoses and drag chains, and Cables and paths). Hoses: hydraulic,
+  steel-braided, pneumatic tube, protective sleeve. Cables: machine cable, power cable, offshore power cable, wire rope.
+- **Sizes set the numbers at once**: the diameter and the smallest bend (a chain: width, height, link length, bend
+  radius). Hydraulic hoses follow EN 853 2SN (DN 6 … DN 51), wire ropes 6 … 64 mm with a sheave at least 20 × the rope.
+  Type a number yourself and the size says **Custom**.
+- **New looks**: black rubber with a printed line, a woven steel braid, matte PU tubes in seven colours (one see-through),
+  a spiral sleeve with the hose showing in its gaps, galvanised wire rope. One look per kind and colour, shared.
+- **Drag chain types**: open, closed (lids top and bottom), half-open, steel – for the chains the app draws.
+- **Drawn ones start ready**: Draw hose gives a hydraulic hose, Draw cable a machine cable, Draw drag chain an open
+  chain, Draw cable route a wire rope – each in the standard size nearest what you clicked.
+- Your projects open as before: their hoses and cables keep their look ("As in the CAD file") and their numbers.
+
 ## 0.2.181 – 20 Nov 2026 – Usage and start fixes (task 0236)
 
 - **No question about what is new to you.** After an update the app no longer asks "You haven't used Equipment

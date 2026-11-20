@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0244 side panel look</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc)}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}.pics figure{margin:0;flex:0 1 auto;max-width:100%}
+.pics img{max-width:100%;height:auto;border:1px solid var(--line);display:block}figcaption{font-size:.85rem;color:var(--mut);max-width:300px}
+.wide img{max-width:100%}.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:.88rem}th,td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}.d{color:var(--mut);font-size:.85rem}label{display:block;margin:4px 0}.star{color:var(--acc)}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:240px;word-break:break-word}button{font:inherit;padding:8px 18px;background:var(--acc);color:#fff;border:0;border-radius:6px;cursor:pointer}
+</style></head><body><main>
+<h1>0244 – Steps and their functions look different (prototype, steps 4 and 5)</h1>
+<p>All pictures are the <b>real app</b> (Blender 5.2.3 on the 4-core web test machine without a graphics card, a virtual
+screen, UI scale 100 %), with the <b>test crane</b> – nothing of yours. Nothing here is in the app yet: this is the
+prototype on its own branch. Pick at the bottom, press <b>Copy</b> and paste the line to the lead.</p>
+
+<h2>1 · Step 4 open, its functions closed</h2>
+<p>Left today, middle your pick (lighter step bar with a green edge, functions darker and indented, green arrows),
+right the same <b>without the green line</b> (no overlay: the step bar in a box as today, green arrows, indents).</p>
+<div class="pics">
+<figure><img src="img/old_step4_1920_panel.jpg" alt="today"><figcaption>Today</figcaption></figure>
+<figure><img src="img/new_step4_1920_panel.jpg" alt="new"><figcaption>New look ★</figcaption></figure>
+<figure><img src="img/fallback_step4_1920_panel.jpg" alt="fallback"><figcaption>Without the green line</figcaption></figure></div>
+
+<h2>2 · Cylinders open, its Set-up fold open</h2>
+<p>The open function sits in a frame (1 px #575757) with a 3 px Fresing Green line on its left. The fold inside it
+(Set-up) has a green arrow, no frame, its body indented with a thin dashed line.</p>
+<div class="pics">
+<figure><img src="img/old_cyl_1920_panel.jpg" alt="today"><figcaption>Today (Set-up folded: Blender's own fold)</figcaption></figure>
+<figure><img src="img/new_cyl_1920_panel.jpg" alt="new"><figcaption>New look, light green arrows (#8cc46f) ★</figcaption></figure>
+<figure><img src="img/new_cyl_brand_1920_panel.jpg" alt="brand green"><figcaption>New look, Fresing Green arrows (#479B29)</figcaption></figure>
+<figure><img src="img/fallback_cyl_1920_panel.jpg" alt="fallback"><figcaption>Without the green line</figcaption></figure></div>
+
+<h2>3 · Step 5 Scene &amp; Render</h2>
+<div class="pics">
+<figure><img src="img/new_step5_closed_1920_panel.jpg" alt="closed"><figcaption>Steps 4 and 5 closed: two light bars with green edges</figcaption></figure>
+<figure><img src="img/new_step5_1920_panel.jpg" alt="open"><figcaption>Step 5 open, Camera open</figcaption></figure>
+<figure><img src="img/new_three_1920_panel.jpg" alt="three open"><figcaption>Three functions of step 4 open (when "one at a time" is off)</figcaption></figure></div>
+
+<h2>4 · The whole window, 2560 px and 200 %</h2>
+<div class="pics wide">
+<figure><img src="img/old_cyl_1920_window.jpg" alt="window today"><figcaption>Today, 1920 × 1080 (halved)</figcaption></figure>
+<figure><img src="img/new_cyl_1920_window.jpg" alt="window new"><figcaption>New look, 1920 × 1080 (halved)</figcaption></figure></div>
+<div class="pics">
+<figure><img src="img/new_cyl_2560_panel.jpg" alt="2560"><figcaption>New look, 2560 × 1440, 100 %</figcaption></figure>
+<figure><img src="img/old_cyl_2560s2_panel.jpg" alt="200 today"><figcaption>Today at 200 %</figcaption></figure>
+<figure><img src="img/new_cyl_2560s2_panel.jpg" alt="200 new"><figcaption>New look at 200 %: arrows and the green line stay sharp</figcaption></figure></div>
+
+<h2>5 · "Show all of Blender" (Full access) with the new greys</h2>
+<p>The only Blender colour setting the new look changes is <b>the outline of every box</b> (#3d3d3d → #575757), so
+it also shows on Blender's own panels in Outliner and Properties. Blender's panel colours (lighter / darker panel
+backgrounds) do <b>nothing</b> in the Fresing tab – the last picture paints them red, green and blue to prove it: only
+Blender's own Properties panels change.</p>
+<div class="pics wide">
+<figure><img src="img/blender_new_1920_window.jpg" alt="blender new"><figcaption>New look, all of Blender shown</figcaption></figure>
+<figure><img src="img/blender_old_1920_window.jpg" alt="blender old"><figcaption>Today, all of Blender shown</figcaption></figure>
+<figure><img src="img/blender_probe_1920_window.jpg" alt="probe"><figcaption>Test: Blender's panel colours set loud – the Fresing tab does not change</figcaption></figure></div>
+
+<h2>6 · Two other ways I tried (not recommended)</h2>
+<div class="pics">
+<figure><img src="img/fold_cyl_1920_panel.jpg" alt="fold"><figcaption>Functions drawn inside the step with the app's own fold rows: looks the same as ★, but every function's place, lessons and tests would have to learn a new address – no gain</figcaption></figure>
+<figure><img src="img/lpanel_cyl_1920_panel.jpg" alt="layout.panel"><figcaption>Blender's own folds (layout.panel): small white arrows that cannot be green, no frame, no one-at-a-time</figcaption></figure></div>
+
+<h2>7 · What the green line costs</h2>
+<p>Measured on the 4-core web machine with the real Blender 5.2.3 (software drawing, no graphics card), median of 2
+rounds of 30 redraws of the side panel. Blender cannot colour one row, so the lighter bar, the darker rows and the green
+lines are drawn over the side panel after Blender drew it: the app reads the panel's pixels to find where the rows
+are. Reading only a narrow strip on the left is the cheap way.</p>
+<div class="scroll"><table><tr><th>Look</th><th>Open functions</th><th>1920: side panel redraw</th><th>of it: the green line</th><th>2560: side panel redraw</th><th>of it: the green line</th></tr><tr><td>Today</td><td>0</td><td>1.1 ms</td><td>–</td><td>0.9 ms</td><td>–</td></tr><tr><td>Today</td><td>1</td><td>1.1 ms</td><td>–</td><td>1.1 ms</td><td>–</td></tr><tr><td>Today</td><td>3</td><td>1.1 ms</td><td>–</td><td>1.0 ms</td><td>–</td></tr><tr><td>New look without the green line (fallback)</td><td>0</td><td>0.9 ms</td><td>–</td><td>1.0 ms</td><td>–</td></tr><tr><td>New look without the green line (fallback)</td><td>1</td><td>1.0 ms</td><td>–</td><td>1.1 ms</td><td>–</td></tr><tr><td>New look without the green line (fallback)</td><td>3</td><td>0.8 ms</td><td>–</td><td>1.1 ms</td><td>–</td></tr><tr><td>New look, green line – reads a 80 px strip</td><td>0</td><td>1.7 ms</td><td>1.1 ms</td><td>2.0 ms</td><td>1.3 ms</td></tr><tr><td>New look, green line – reads a 80 px strip</td><td>1</td><td>1.8 ms</td><td>1.3 ms</td><td>2.0 ms</td><td>1.6 ms</td></tr><tr><td>New look, green line – reads a 80 px strip</td><td>3</td><td>1.9 ms</td><td>1.3 ms</td><td>2.2 ms</td><td>1.8 ms</td></tr><tr><td>New look, green line – reads the whole panel</td><td>0</td><td>3.1 ms</td><td>2.5 ms</td><td>3.7 ms</td><td>2.9 ms</td></tr><tr><td>New look, green line – reads the whole panel</td><td>1</td><td>3.0 ms</td><td>3.4 ms</td><td>3.7 ms</td><td>3.8 ms</td></tr><tr><td>New look, green line – reads the whole panel</td><td>3</td><td>3.1 ms</td><td>2.7 ms</td><td>4.7 ms</td><td>4.0 ms</td></tr></table></div>
+<p class="d">Scrolling and dragging a joint cost the same per redraw (the overlay does not depend on what changed).
+Your PC with its graphics card draws faster; the extra stays about 1 ms per redraw of the side panel, which only redraws
+when something in it changes.</p>
+
+<h2>8 · Your choices</h2>
+<div class="card">
+<b>Arrow green</b>
+<label><input type="radio" name="arrow" value="light" checked> Light green #8cc46f <span class="star">★</span> (easier to see on dark grey)</label>
+<label><input type="radio" name="arrow" value="brand"> Fresing Green #479B29</label>
+</div>
+<div class="card">
+<b>One function open at a time</b> (opening one closes the others of that step; Ctrl+click still works as today)
+<label><input type="radio" name="one" value="on" checked> On by default, a preference to turn it off <span class="star">★</span> (step 4 has 11 functions: the list stays short)</label>
+<label><input type="radio" name="one" value="off"> Off by default, a preference to turn it on</label>
+</div>
+<div class="card">
+<b>The green line</b>
+<label><input type="radio" name="line" value="overlay" checked> With the green line and the lighter / darker rows (overlay, ~1 ms per redraw) <span class="star">★</span></label>
+<label><input type="radio" name="line" value="fallback"> Without it: boxes, indents and green arrows only (no cost)</label>
+</div>
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+</main><script>
+function v(n){var e=document.querySelector('input[name='+n+']:checked');return e?e.value:'?'}
+function upd(){document.getElementById('line').textContent='0244 pick: arrows '+v('arrow')+' · one open at a time '+v('one')+' · green line '+v('line');}
+document.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=function(){var t=document.getElementById('line').textContent,b=this;
+function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove()}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb)}else fb()}catch(e){fb()}
+b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};
+</script></body></html>

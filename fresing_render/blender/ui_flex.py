@@ -66,6 +66,43 @@ class FRESING_UL_flex(bpy.types.UIList):
             sub.label(text="", icon="CHECKMARK")
 
 
+def draw_kind(layout, context, item) -> None:
+    """Kind · Colour · Size (task 0243, blender/kinds.py) of a hose, chain or cable, and what the size sets."""
+    from . import kinds
+    col = split_props(layout)
+    if kinds.is_cable(item):
+        cb = item
+        col.prop(cb, "cable_kind", text="Kind")
+        if kinds.kind_id(cb):
+            col.prop(cb, "colour", text="Colour")
+            col.prop(cb, "size", text="Size")
+    else:
+        fx = item
+        if fx.kind == "CHAIN":
+            if not kinds.can_size(fx):
+                wrap(layout, context, "Its CAD links keep their own shape and size", icon="INFO")
+                return
+            col.prop(fx, "chain_kind", text="Type")
+        else:
+            col.prop(fx, "hose_kind", text="Kind")
+        if kinds.kind_id(fx):
+            col.prop(fx, "colour", text="Colour")
+            col.prop(fx, "size", text="Size")
+    if kinds.kind_id(item):
+        wrap(layout, context, size_text(item), icon="BLANK1")
+
+
+def size_text(item) -> str:
+    """'Ø 22.6 mm, smallest bend 180 mm' / 'Width 64 mm, height 35 mm, link 35 mm, bend 75 mm' (custom too)."""
+    from . import kinds
+    if kinds.family(item) == "chain":
+        return (f"Width {_mm(item.width)}, height {_mm(item.height)}, link {_mm(item.pitch)}, "
+                f"bend {_mm(item.radius)}")
+    bend = item.mbr if kinds.is_cable(item) else item.min_radius
+    d = item.diameter * 1000.0
+    return f"Ø {d:.1f} mm, smallest bend {_mm(bend)}" if d < 100 else f"Ø {d:.0f} mm, smallest bend {_mm(bend)}"
+
+
 def _end_row(layout, context, item, end: str) -> None:
     """'End A on: <part>' with the small button that fixes the end to the selected part."""
     ob = item.a_part if end == "A" else item.b_part
@@ -159,8 +196,11 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
                                 "A hose in the CAD model: click it in the 3D view (or press 'Find hoses and "
                                 "chains'), then 'Add hose' or 'Add cable'",
                                 "Move a joint: the hose follows, both ends stay on their parts",
-                                "A drag chain: click one of its links (the app takes the whole row), "
-                                "then 'Add drag chain'"],
+                                "A drag chain: press 'Draw drag chain' and click its fixed bracket, then the "
+                                "bracket on the part that moves – or, if the CAD model has one, click one of its "
+                                "links (the app takes the whole row) and press 'Add drag chain'",
+                                "Pick its Kind (or Type), Colour and Size under the list: the look and the numbers "
+                                "follow"],
               key="fr_how_flex", used=bool(len(s.flex)))
         gap(layout)
         _replace_offer(layout, context)
@@ -196,6 +236,8 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
         else:
             layout.label(text="Follows the motion", icon="CHECKMARK")
 
+        gap(layout, size=0.5)
+        draw_kind(layout, context, fx)                 # task 0243: kind, colour, size
         gap(layout, size=0.5)
         col = split_props(layout)
         if chain:

@@ -2407,6 +2407,69 @@ def _flex_renamed(self, context):
         drawn.renamed(self, old)
 
 
+# ---- task 0243: standard kinds, colours and sizes (blender/kinds.py, core/flex_kinds.py) ----
+def _kind_picked(self, context):
+    """A kind was picked: its look, its first colour and the standard size nearest the item's numbers."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import kinds
+    kinds.kind_changed(context.scene, self)
+
+
+def _kinds_items(*args, **kw):
+    from ..core import flex_kinds
+    return flex_kinds.enum_items(*args, **kw)
+
+
+def _colour_items(self, context):
+    from . import kinds
+    return kinds.colour_items(self, context)
+
+
+def _colour_get(self):
+    from . import kinds
+    return kinds.colour_get(self)
+
+
+def _colour_set(self, value):
+    from . import kinds
+    kinds.colour_set(self, value)
+
+
+def _size_items(self, context):
+    from . import kinds
+    return kinds.size_items(self, context)
+
+
+def _size_get(self):
+    from . import kinds
+    return kinds.size_get(self)
+
+
+def _size_set(self, value):
+    from . import kinds
+    kinds.size_set(self, value)
+
+
+def _flex_edited(self, context):
+    """A size number of a hose or chain changed by hand: its size is Custom now, then as any setting."""
+    from . import kinds
+    kinds.edited(self)
+    _flex_changed(self, context)
+
+
+def _cable_edited(self, context):
+    """The diameter or smallest bend of a cable changed by hand: its size is Custom now, then as any setting."""
+    from . import kinds
+    kinds.edited(self)
+    _cable_changed(self, context)
+
+
+_COLOUR_TIP = "The colour of this kind. One look per kind and colour, shared by every item that has it (3 Looks shows it as a group)"
+_SIZE_TIP = ("A standard size of this kind: it sets the diameter and the smallest bend at once (a chain: width, "
+             "height, link length and bend radius). Custom = your own numbers; changing a number sets Custom")
+
+
 class FRFlexClip(bpy.types.PropertyGroup):
     """A clip a drawn hose runs through (task 0240): the part it is on and where, in that part's own coordinates."""
     part: PointerProperty(type=bpy.types.Object)
@@ -2449,6 +2512,24 @@ class FRFlex(bpy.types.PropertyGroup):
     # chain: its own frame in a_part's coordinates (4 x 4, row by row): origin = the fixed end's pin, x = along the
     # fixed run towards the bend, y = from the fixed run to the moving run, z = across the chain
     frame: FloatVectorProperty(size=16, default=(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
+    # ---- standard kind, colour and size (task 0243): "NONE" = the CAD part's look, the numbers as typed ----
+    hose_kind: EnumProperty(
+        name="Kind", default="NONE", update=_kind_picked,
+        description="What kind of hose or cable this is. It brings the look, its standard colours and sizes. "
+                    "'As in the CAD file' keeps the part's own look",
+        items=_kinds_items(("HYDRAULIC", "BRAIDED", "PNEUMATIC", "SLEEVE", "MACHINE", "POWER"),
+                           "As in the CAD file", "The part's own look and the numbers below"))
+    chain_kind: EnumProperty(
+        name="Type", default="NONE", update=_kind_picked,
+        description="What type of drag chain the app draws: open, closed, half-open or steel. It brings the "
+                    "links' shape, the standard colours and sizes",
+        items=_kinds_items(("OPEN", "CLOSED", "HALF", "STEEL"), "As drawn so far",
+                           "Open links in the part's own look, the numbers below"))
+    kind_colour: StringProperty(default="")
+    colour: EnumProperty(name="Colour", description=_COLOUR_TIP, items=_colour_items, get=_colour_get,
+                         set=_colour_set)
+    size_id: StringProperty(default="")
+    size: EnumProperty(name="Size", description=_SIZE_TIP, items=_size_items, get=_size_get, set=_size_set)
     # ---- hose / cable ----
     length: FloatProperty(
         name="Length", unit="LENGTH", default=0.5, min=0.001, soft_max=20.0, precision=4, update=_flex_changed,
@@ -2456,7 +2537,7 @@ class FRFlex(bpy.types.PropertyGroup):
                     "moves. 'Fit to the CAD pose' puts back the length drawn in the CAD file")
     cad_length: FloatProperty(default=0.0)
     diameter: FloatProperty(
-        name="Diameter", unit="LENGTH", default=0.02, min=0.0005, soft_max=0.5, precision=4, update=_flex_changed,
+        name="Diameter", unit="LENGTH", default=0.02, min=0.0005, soft_max=0.5, precision=4, update=_flex_edited,
         description="The outside diameter of the hose, in mm. It is read from the CAD part; change it to draw a "
                     "thicker or thinner hose")
     stiffness: FloatProperty(
@@ -2468,16 +2549,16 @@ class FRFlex(bpy.types.PropertyGroup):
         description="How much the hose hangs down under its own weight. 0 = no weight at all (it only bends), "
                     "1 = a heavy hose. A stiff hose sags less")
     min_radius: FloatProperty(
-        name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=2.0, precision=4, update=_flex_changed,
+        name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=2.0, precision=4, update=_flex_edited,
         description="The tightest bend the hose may make, as a radius in mm (from the hose maker's data sheet). "
                     "The hose keeps to it where it can; you get a warning when the motion forces a tighter bend. "
                     "0 = no limit")
     # ---- drag chain ----
     pitch: FloatProperty(
-        name="Link length", unit="LENGTH", default=0.04, min=0.001, soft_max=0.5, precision=4, update=_flex_changed,
+        name="Link length", unit="LENGTH", default=0.04, min=0.001, soft_max=0.5, precision=4, update=_flex_edited,
         description="The length of one chain link from pin to pin, in mm. It is read from the CAD links")
     radius: FloatProperty(
-        name="Bend radius", unit="LENGTH", default=0.08, min=0.001, soft_max=2.0, precision=4, update=_flex_changed,
+        name="Bend radius", unit="LENGTH", default=0.08, min=0.001, soft_max=2.0, precision=4, update=_flex_edited,
         description="The radius of the chain's bend, in mm, measured to the links' pins. It is read from the CAD "
                     "pose; the bend keeps exactly this radius while it rolls")
     count: IntProperty(
@@ -2491,10 +2572,10 @@ class FRFlex(bpy.types.PropertyGroup):
                ("GLIDE", "Lies on the lower run", "A long chain: after the bend the run comes down and slides on "
                                                   "the run below it")])
     width: FloatProperty(
-        name="Width", unit="LENGTH", default=0.06, min=0.001, soft_max=1.0, precision=4, update=_flex_changed,
+        name="Width", unit="LENGTH", default=0.06, min=0.001, soft_max=1.0, precision=4, update=_flex_edited,
         description="The width of the links the app draws, in mm (across the chain)")
     height: FloatProperty(
-        name="Height", unit="LENGTH", default=0.025, min=0.001, soft_max=0.5, precision=4, update=_flex_changed,
+        name="Height", unit="LENGTH", default=0.025, min=0.001, soft_max=0.5, precision=4, update=_flex_edited,
         description="The height of the links the app draws, in mm (the thickness of one run)")
     # ---- state (written by blender/flex.py) ----
     problem: StringProperty(default="")                    # '' or the warning shown in the panel
@@ -2665,10 +2746,22 @@ class FRCable(bpy.types.PropertyGroup):
     joint: StringProperty()                                # the slide joint whose value is the metres paid out
     made_joint: BoolProperty(default=False)                # the app made that joint (removed with the cable)
     diameter: FloatProperty(
-        name="Diameter", unit="LENGTH", default=0.05, min=0.001, soft_max=0.6, precision=4, update=_cable_changed,
+        name="Diameter", unit="LENGTH", default=0.05, min=0.001, soft_max=0.6, precision=4, update=_cable_edited,
         description="The outside diameter of the cable, in mm. It is read from the CAD cable; change it to draw a "
                     "thicker or thinner cable (it then lies higher or lower on its rollers)")
     cad_diameter: FloatProperty(default=0.0)
+    # ---- standard kind, colour and size (task 0243): "NONE" = the look below, the numbers as typed ----
+    cable_kind: EnumProperty(
+        name="Kind", default="NONE", update=_kind_picked,
+        description="What kind of cable this is. It brings the look, its standard colours and sizes. 'Own look' "
+                    "keeps the look picked below",
+        items=_kinds_items(("MACHINE", "POWER", "OFFSHORE", "ROPE"), "Own look",
+                           "The look picked below and the numbers as typed"))
+    kind_colour: StringProperty(default="")
+    colour: EnumProperty(name="Colour", description=_COLOUR_TIP, items=_colour_items, get=_colour_get,
+                         set=_colour_set)
+    size_id: StringProperty(default="")
+    size: EnumProperty(name="Size", description=_SIZE_TIP, items=_size_items, get=_size_get, set=_size_set)
     look: EnumProperty(
         name="Look", default="POWER", update=_look_changed,
         description="How the cable looks. The pattern runs along with the cable, so you see it move",
@@ -2745,7 +2838,7 @@ class FRCable(bpy.types.PropertyGroup):
         description="Served cable: how worn the bands' paint is. 0 = fresh with clean edges, 1 = ragged edges, "
                     "paint gone from the grooves and smudged black in places")
     mbr: FloatProperty(
-        name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=10.0, precision=4, update=_cable_changed,
+        name="Smallest bend", unit="LENGTH", default=0.0, min=0.0, soft_max=10.0, precision=4, update=_cable_edited,
         description="The tightest bend the cable may make (its minimum bend radius, MBR), in mm, measured to the "
                     "middle of the cable. You get a warning naming the sheave or bend that is tighter. 0 = no check")
     still: BoolProperty(
