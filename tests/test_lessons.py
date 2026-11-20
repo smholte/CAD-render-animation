@@ -245,3 +245,26 @@ def test_a_step_that_fails_says_why_and_stays(blender):
     assert not lesson.do_step(sc)
     assert lesson.state()["step"] == 2 and "BOOM.ASM" in lesson.state()["failed"]
     lesson.stop(forget=True)
+
+
+class _Layout:
+    """A stand-in layout that records what a menu draws (Blender as a module draws no menus)."""
+
+    def __init__(self, out):
+        self.out = out
+        self.operator_context = ""
+
+    def operator(self, idname, **kw):
+        self.out.append(idname)
+        return type("Op", (), {})()
+
+    def __getattr__(self, name):
+        return lambda *a, **k: None
+
+
+def test_the_fresing_menu_draws_with_learn_under_the_test_tour(blender):
+    from fresing_render.blender import ui_topbar
+    out = []
+    menu = type("M", (), {"layout": _Layout(out)})()
+    ui_topbar.TOPBAR_MT_fresing.draw(menu, blender.context)
+    assert out[:3] == ["fresing.tour_take", "fresing.learn_lessons", "fresing.whats_new"], out
