@@ -179,6 +179,15 @@ def _select(scene, st: Step) -> None:
         vl.objects.active = obs[0]
 
 
+def _context(scene) -> dict:
+    """What the buttons a step presses read from the context, given outright: inside an operator that opened a new
+    project (Make test tour in the app) Blender's context has no active object (Explode failed on GitHub)."""
+    vl = getattr(bpy.context, "view_layer", None) or scene.view_layers[0]
+    act = vl.objects.active
+    return {"scene": scene, "view_layer": vl, "active_object": act, "object": act,
+            "selected_objects": [o for o in vl.objects if o.select_get(view_layer=vl)]}
+
+
 def do(scene, st: Step) -> None:
     """One step's ``do``, with its parts selected first (what the button acts on)."""
     if st.do is None:
@@ -187,7 +196,8 @@ def do(scene, st: Step) -> None:
     from . import usage
     usage._DEPTH[0] += 1                        # the app's own clicks are not the user's use (My usage)
     try:
-        st.do(scene)
+        with bpy.context.temp_override(**_context(scene)):
+            st.do(scene)
     finally:
         usage._DEPTH[0] -= 1
     try:
