@@ -19,6 +19,15 @@ motion per frame). Prototype code only on the branch; nothing merged to the app.
 - **Machine:** the new larger VMC (0249, which gets a chip tray and a drain). The study can use today's test mill and
   a plain stand-in tray; the build task comes after 0249.
 
+- **Tested on 3, 4 and 5 axis + stand-alone fluid tests** (owner 23:48): every method is tried on (1) the 3-axis
+  test mill (pockets and slots filling, the table moving in X / Y), (2) the 4th-axis mill (liquid on the turning bar
+  and the rotary table – it runs off as the bar turns), (3) the 5-axis trunnion (the cradle tilts: pools spill and
+  run to the low side), and (4) **stand-alone fluid tests without a machine** – small invented test models of their
+  own, each proving one thing with a number: a closed pocket fills to a known volume and holds it; an open slot drains
+  out at its end; a plate tilted 0 → 30° spills at the right angle; a tray with a slope empties down its drain in a
+  measured time; a box moved and stopped hard sloshes and settles; nothing leaks through a wall. Propose these as tour
+  stops and automatic tests for the build task (a new learning / test set "Coolant liquid").
+
 ## Questions to answer
 
 1. **Method.** Compare at least:
@@ -48,6 +57,6 @@ motion per frame). Prototype code only on the branch; nothing merged to the app.
 ## Page and report
 
 `tasks/0251_page/index.html` (published by the lead): the methods side by side with pictures and the short videos
-(test models only – never the Fresing 400 or the demo's equipment), the numbers table, the lead-recommended method
+(test models only – never the Fresing 400 or the demo's equipment), one row per test (3 / 4 / 5 axis, each stand-alone test), the numbers table, the lead-recommended method
 first. The report: the recommendation, the build task(s) split by lane with sizes, what 0249 needs for the drain, open
 points, the branch (kept for the build task's prototype code or deleted).
