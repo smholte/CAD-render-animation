@@ -1,6 +1,6 @@
 # 0251 – Study + prototype (findings only): coolant that pools in the cuts, moves with the machine and runs to the drain
 
-**Who:** worker · **Status:** open – can start (findings only: a prototype on its own branch, `[skip ci]`, only the
+**Who:** worker · **Status:** running (findings only: a prototype on its own branch, `[skip ci]`, only the
 `tasks/` files go to `main`) · **Branch:** `task/0251-study-coolant-pools`
 **Started by:** lead, 20 Nov 2026 (owner 23:45: "I also want coolant fluid to simulate on the machine. So when milling
 collecting in the cut slots, moving around with the motions and going down in the drain." His picks 23:50 in the
