@@ -340,6 +340,11 @@ def _run(job):
         if not _alive(job):
             _STATE["busy"] = False
             return None
+        from . import editors
+        if not editors.settled():          # task 0221: an area was just closed or split – sizes are stale
+            job["waits"] = job.get("waits", 0) + 1
+            if job["waits"] < 100:
+                return 0.05
         if not _settled(job):
             job["tries"] += 1
             if job["tries"] < 40:
@@ -375,7 +380,34 @@ def window_size(area) -> tuple:
 
 def open_window(window, area) -> None:
     """Starts opening the Set-up window from a piece of ``area`` (a 3D view of ``window``); it is there about a
-    quarter of a second later (timers: see the top of this file)."""
+    quarter of a second later (timers: see the top of this file). Task 0221: while Blender's right-hand column is
+    being closed or opened (``editors.busy``, right after a project opened) the 3D view's size is about to change:
+    the split waits for it."""
+    from . import editors
+    if not editors.busy():
+        _open_window(window, area)
+        return
+    _STATE["busy"] = True
+    gen, tries = _STATE["gen"], [0]
+
+    def later():
+        tries[0] += 1
+        if editors.busy() and tries[0] < 100:
+            return 0.05
+        _STATE["busy"] = False
+        try:
+            if gen == _STATE["gen"] and any(w == window for w in bpy.context.window_manager.windows):
+                views = [a for a in window.screen.areas if a.type == "VIEW_3D"]     # found again: areas changed
+                if views:
+                    _open_window(window, max(views, key=lambda a: a.width * a.height))
+        except Exception as exc:  # noqa: BLE001
+            print("Fresing Render: the Set-up window did not open:", exc)
+        return None
+
+    bpy.app.timers.register(later, first_interval=0.05)
+
+
+def _open_window(window, area) -> None:
     scale = bpy.context.preferences.system.ui_scale or 1.0
     w, h = window_size(area)
     _watch_loads()

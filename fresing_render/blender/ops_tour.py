@@ -306,7 +306,15 @@ def _show_tab() -> None:
             area.tag_redraw()
 
 
+_WAITS = [0]
+
+
 def _go_pending():
+    from . import editors
+    if editors.busy() and _WAITS[0] < 100:      # task 0221: Blender's column is being closed – a 3D view's settings
+        _WAITS[0] += 1                           # set before the window drew again crash Blender 5.2.3
+        return 0.05
+    _WAITS[0] = 0
     try:
         if tour.is_tour(bpy.context.scene):
             _show_tab()

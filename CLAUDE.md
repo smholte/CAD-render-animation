@@ -525,6 +525,11 @@ fresing_render/            the Blender extension (Python package)
                            on any button of a function (``UI_MT_button_context_menu``), What's new adds the new
                            functions, one "Next to learn" line a session on the What's next card; the use days are
                            counted in ``usage.record``
+    editors.py             task 0221: Blender's right-hand column (Outliner + Properties next to the main 3D view) closed on
+                           every load the app tidies, Fresing > Show / Hide Blender's editors, the choice in
+                           `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
+                           asks `editors.request`), Region Overlap off once (the solid side panel); screens are changed
+                           only from a timer and nothing sets a 3D view's settings until it was drawn (`settled()`)
     welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
@@ -1338,6 +1343,13 @@ the release → Delete); the next run on `main` publishes it again.
   uninstaller became "â€“", whose last byte is a typographic quote that ends a PowerShell string, and the whole script
   failed to parse (task 0217). Installer files stay plain ASCII (`tests/test_toolbox.py`
   `test_the_installer_files_are_plain_ascii`); `tools/ci_windows_install.ps1` runs in PowerShell 7 and may hold accents.
+- Blender 5.2.3 crashes (segfault) when a 3D view's settings are SET (`show_region_toolbar`) after an area beside it
+  was closed with `screen.area_close` and before the window was drawn again – also when the window had been drawn
+  before, also after `wm.redraw_timer`; reading is safe. Closing areas inside a `load_post` handler crashed too (task
+  0221). Change screens from a timer, and set nothing on a 3D view until a draw handler has run (`editors.settled()`):
+  every timer that tidies the view after a load waits for `editors.busy()` (`ui_header._tab`, the test tour's
+  `ops_tour._go_pending` – it crashed `ui_test_tour.py` on GitHub –, the Set-up window's split, which otherwise measured
+  the view before the column was closed). Closing the column makes BOTH the 3D view and the timeline under it grow.
 - Setting `$env:USERPROFILE` to another folder makes Windows answer "" for the Desktop and other known folders
   (`[Environment]::GetFolderPath`): the installer stopped at its shortcuts (task 0217; an independent review had judged
   it safe). Change it only for one child process (`ci_windows_install.ps1` does for `ci_toolbox_windows.py`).

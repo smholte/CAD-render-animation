@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.179 – 20 Nov 2026 – Draw hoses, cables and drag chains by clicking (task 0240)
+## 0.2.180 – 20 Nov 2026 – Draw hoses, cables and drag chains by clicking (task 0240)
 
 - **Draw hose / Draw cable** (4 Motion > Hoses and drag chains): for the hoses and cables your CAD model does not have.
   Click the fitting at end A, any clips the hose runs through, the fitting at end B, then press Enter. The face under
@@ -25,6 +25,20 @@ installer of that version was built from.
 - While clicking: Backspace (or Ctrl+Z) takes the last click back, Esc stops. Drawn items stay through a model
   update, save and open, undo, Build and the render queue. New test tour stops (set "Hoses, a chain and a cable
   drawn by clicking") and a PC check line `motion.drawn`.
+
+## 0.2.179 – 20 Nov 2026 – A bigger, calmer window: Blender's Outliner and Properties hidden, a solid side panel (task 0221)
+
+- **The 3D view reaches the right edge of the window.** Blender's Outliner (its list of objects, top right) and its
+  Properties editor (below it) are hidden in every project – a new one, the test tour, the demo and your own, also one
+  saved with them. Fresing Render does not need them: the Fresing tab has the parts and every setting the app uses.
+- **Fresing > Show Blender's editors** brings both back at the right of the 3D view, Outliner on top, at Blender's
+  usual width; the same entry then says **Hide Blender's editors**. Your choice is kept for every project and after a
+  restart.
+- **Client view:** they are always hidden there and the entry is greyed; Full access brings back what you chose.
+- **The side panel is solid**: the 3D view no longer shows through it, so its texts and boxes stay readable on a light
+  background. (Blender's preference Region Overlap is switched off once; turn it on again in Edit > Preferences >
+  Interface if you prefer it, the app keeps that.)
+- PC check: a new line "Blender's Outliner and Properties hidden …".
 
 ## 0.2.178 – 20 Nov 2026 – Demo kits: a demo project from a zip (task 0228)
 

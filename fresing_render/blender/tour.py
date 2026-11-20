@@ -1704,7 +1704,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.179")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -4068,22 +4068,22 @@ stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
      "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
      "fittings, and keeps its length.", where="4 Motion > Hoses and drag chains > Draw hose", animation=DRAWN_ANIM,
-     play=True, since="0.2.179", check=check_drawn_hose, auto="clip")
+     play=True, since="0.2.180", check=check_drawn_hose, auto="clip")
 stop("drawn_chain", MOTION, "flex_drawn", "A drawn drag chain",
      "Left: the gantry's X chain was drawn with two clicks on its brackets; the app draws its links. X travels out "
      "and back: the chain rolls over its bend, link by link, and its moving end stays on its bracket.",
      where="4 Motion > Hoses and drag chains > Draw drag chain", animation=DRAWN_ANIM, play=True, at=0.5,
-     since="0.2.179", check=check_drawn_chain, auto="clip")
+     since="0.2.180", check=check_drawn_chain, auto="clip")
 stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
      where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
-     since="0.2.179", check=check_drawn_cable, auto="clip")
+     since="0.2.180", check=check_drawn_cable, auto="clip")
 stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 18 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
      where="4 Motion > Hoses and drag chains > Replaces selected CAD part", shot="Tour: drawn hose, chain and cable",
-     since="0.2.179", check=check_drawn_replace)
+     since="0.2.180", check=check_drawn_replace)
 stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "

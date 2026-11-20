@@ -893,7 +893,7 @@ def motion_flex(ctx):
     return f"{note}; 3 chains: moving ends to {worst_end * 1000:.3f} mm"
 
 
-@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.179",
+@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.180",
       what="Task 0240: on the hoses model a hose is drawn by four clicks (two fittings, two clips) in place of a CAD "
            "hose, which is hidden; posed at three luff angles its ends and clips stay on their parts and it keeps its "
            "length. On the gantry a drag chain is drawn between the X chain's two brackets: its links stay one pitch "
@@ -4375,6 +4375,42 @@ def app_layout(ctx):
     p = prefs.get()
     _check(p is not None and hasattr(p, "live_preview"), "the Live preview choice is not stored")
     return None
+
+
+@line("app.editors", "Blender's Outliner and Properties hidden, Fresing > Show Blender's editors brings them back, "
+      "a solid side panel", "0.2.179",
+      what="Checks that the layout is put right when a project opens, the menu entry Fresing > Show / Hide Blender's "
+           "editors and its own reason in the Client view, which areas count as "
+           "Blender's column (only an Outliner or Properties editor right next to the 3D view), the width it comes "
+           "back at, the choice file in the settings folder, and Region Overlap off once (a user's own on kept)")
+def app_editors(ctx):
+    import bpy
+
+    from ..blender import editors, lock, ui_header, ui_topbar
+    _check(ui_topbar._has("fresing.blender_editors"), "the operator 'Show Blender's editors' is missing")
+    _check("fresing.blender_editors" in ui_topbar.entries(), "Show Blender's editors is not in the Fresing menu")
+    _check(ui_header._on_load in bpy.app.handlers.load_post, "the layout is not put right when a project opens")
+    _check("fresing.blender_editors" in lock.ALLOWED, "the entry would be refused without its Client view reason")
+    factory = [("PROPERTIES", 1579, 24, 339, 837), ("OUTLINER", 1579, 864, 339, 189),
+               ("DOPESHEET_EDITOR", 2, 24, 1574, 74), ("VIEW_3D", 2, 101, 1574, 952)]
+    _check(sorted(editors.column_indices(factory, editors.main_index(factory))) == [0, 1],
+           "Blender's Outliner / Properties column is not recognised")
+    own = [("OUTLINER", 2, 101, 300, 952), ("VIEW_3D", 305, 101, 1270, 952), ("IMAGE_EDITOR", 1579, 24, 339, 1029)]
+    _check(editors.column_indices(own, editors.main_index(own)) == [], "a layout of the user's own would be changed")
+    f = editors.split_factor(1920, 1916)
+    _check(abs((1 - f) * 1916 - 339) < 2, f"the column would come back {int((1 - f) * 1916)} px wide, not 339")
+    path = os.path.join(ctx.work, "Layout é", editors.FILE_NAME)
+    _check(editors.read(path)["editors"] == "hidden", "a new user does not start with Blender's editors hidden")
+    editors.write(path, {"editors": "shown", "overlap_off": True})
+    _check(editors.read(path) == {"editors": "shown", "overlap_off": True}, "the choice is not kept in its file")
+    real = editors.load()
+    if not bpy.context.preferences.system.use_region_overlap:
+        overlap = "off (solid side panel)"
+    elif real["overlap_off"]:
+        overlap = "on (your own choice, kept)"
+    else:
+        overlap = "on – the app switches it off at its next start"
+    return f"your choice: Blender's editors {real['editors']}; Region Overlap {overlap}"
 
 
 @line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",
