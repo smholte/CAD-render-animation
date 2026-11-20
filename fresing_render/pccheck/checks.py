@@ -387,7 +387,7 @@ def lifting_hook(ctx):
     return f"{cog}; {msg}"
 
 
-@line("lifting.hang", "Lifting plan: rig the pump skid and hang it on the hook", "0.2.184",
+@line("lifting.hang", "Lifting plan: rig the pump skid and hang it on the hook", "0.2.185",
       what="The pump skid of test_loads.step (6 t) as the load, its four padeyes found by name, Above the load with "
            "the AT-40, Hang on the hook: its CoG under the hook, the legs' forces within 1 % of the hand formulas "
            "(C3 rule), the load follows the hook; Set down leaves it where it is")
@@ -418,7 +418,7 @@ def lifting_hang(ctx):
     return msg
 
 
-@line("lifting.reeve", "Lifting plan: the AT-100's rope reeved in 8 falls", "0.2.184",
+@line("lifting.reeve", "Lifting plan: the AT-100's rope reeved in 8 falls", "0.2.185",
       what="The AT-100 placed: its hoist rope runs from the drum over 4 head and 4 block sheaves in 8 falls; the hook "
            "1 m up winds 8 m of rope (the drawn rope's length and the drum's turn); the line pull (C10) is shown")
 def lifting_reeve(ctx):
@@ -4542,6 +4542,80 @@ def app_editors(ctx):
     else:
         overlap = "on – the app switches it off at its next start"
     return f"your choice: Blender's editors {real['editors']}; Region Overlap {overlap}"
+
+
+@line("app.quiet", "A quiet window: the 3D view header shows View, shading and Make, no Object / Add menus; the "
+      "splash shows Fresing's lines; Fresing > Show all of Blender brings Blender's menus back, Back to the Fresing "
+      "window hides them", "0.2.184",
+      what="Checks that the quiet drawings swap only Blender's own part of the 3D view header, the splash and File > "
+           "New (an add-on's appended items stay, also after switching back and forth), the splash's lines, and "
+           "Fresing > Show all of Blender / Back to the Fresing window on a project: Full access and back to the "
+           "workspace it came from, greyed in the Client view")
+def app_quiet(ctx):
+    import bpy
+
+    from ..blender import quiet, ui_topbar, workspaces
+    _check(ui_topbar._has("fresing.blender_all"), "the operator 'Show all of Blender' is missing")
+    e = ui_topbar.entries()
+    _check("fresing.blender_all" in e and e.index("fresing.blender_all")
+           == e.index("fresing.blender_editors") + 1, "Show all of Blender is not below Show Blender's editors")
+    for cls in (bpy.types.VIEW3D_HT_header, bpy.types.WM_MT_splash, bpy.types.TOPBAR_MT_file_new):
+        _check(quiet._own(cls, quiet.draw_funcs(cls)) >= 0 or quiet.blender_draw(cls) is not None,
+               f"Blender's own drawing of {cls.__name__} is not found: the quiet window cannot replace it")
+
+    class FR_MT_pccheck_quiet(bpy.types.Menu):
+        bl_label = "PC check"
+
+        def draw(self, context):
+            pass
+
+    def addon_item(self, context):
+        pass
+
+    def quiet_draw(self, context):
+        pass
+
+    bpy.utils.register_class(FR_MT_pccheck_quiet)
+    try:
+        FR_MT_pccheck_quiet.append(addon_item)
+        own = quiet.draw_funcs(FR_MT_pccheck_quiet)[0]
+        for _ in range(2):                              # patch / unpatch / patch
+            _check(quiet.swap(FR_MT_pccheck_quiet, quiet_draw), "Blender's own drawing could not be swapped")
+            _check(quiet.draw_funcs(FR_MT_pccheck_quiet) == [quiet_draw, addon_item],
+                   "an add-on's item was lost when the quiet drawing came in")
+            quiet.unswap(FR_MT_pccheck_quiet)
+            _check(quiet.draw_funcs(FR_MT_pccheck_quiet) == [own, addon_item], "Blender's own drawing did not come back")
+    finally:
+        quiet.unswap(FR_MT_pccheck_quiet)
+        bpy.utils.unregister_class(FR_MT_pccheck_quiet)
+    lines = quiet.splash_lines()
+    _check(lines[:3] == ["wm.read_homefile", "wm.open_mainfile", "wm.recover_last_session"],
+           f"the splash does not start with New project, Open, Recover ({lines})")
+    scene = bpy.context.scene
+    before = workspaces.name_of(scene)
+    try:
+        workspaces.switch(scene, "Product design & R&D")
+        _check(quiet.menu_text(scene) == quiet.SHOW_TEXT, f"the entry reads '{quiet.menu_text(scene)}'")
+        for _ in range(2):
+            bpy.ops.fresing.blender_all()
+            _check(workspaces.name_of(scene) == "Full access", "Show all of Blender did not switch to Full access")
+            _check(quiet.menu_text(scene) == quiet.BACK_TEXT, f"the entry reads '{quiet.menu_text(scene)}'")
+            bpy.ops.fresing.blender_all()
+            _check(workspaces.name_of(scene) == "Product design & R&D",
+                   f"Back to the Fresing window went to '{workspaces.name_of(scene)}'")
+        workspaces.switch(scene, "Client view")
+        _check(not bpy.ops.fresing.blender_all.poll(), "Show all of Blender is not greyed in the Client view")
+    finally:
+        workspaces.switch(scene, "Full access")
+        try:
+            workspaces.switch(scene, before if before != "Client view" else "All functions")
+        except KeyError:                               # an own workspace whose file is not here
+            workspaces.switch(scene, "All functions")
+    if bpy.app.background:
+        shown = "not drawn here (the check runs without a window)"
+    else:
+        shown = "quiet" if quiet.ON[0] else "Blender's own (Full access)"
+    return f"the window's drawing: {shown}"
 
 
 @line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",

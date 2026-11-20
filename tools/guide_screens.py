@@ -876,6 +876,7 @@ if MODE == "panels":
             step(_fn)
 
 elif MODE == "window":
+    _QUIET = {}
 
     step(_start)
 
@@ -896,8 +897,40 @@ elif MODE == "window":
 
     @step
     def w_shot_overview():
-        save_png(grab_screen(), "app_after_import")
+        im = grab_screen()
+        save_png(im, "app_after_import")
+        # task 0241: the quiet window's top – the top bar and the 3D view's header, the side panel's tab strip cut off
+        win, area, region, sb = areas()
+        head = next(r for r in area.regions if r.type == "HEADER")
+        top = win.height - (head.y + head.height)
+        _QUIET["before"] = im
+        save_png(im[:top + head.height, :area.x + area.width], "quiet_header")
         return 0.5
+
+    @step
+    def w_splash():
+        win, area, region, sb = areas()
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=area.x + area.width // 2, y=area.y + area.height // 2)
+        with override():
+            bpy.ops.wm.splash("INVOKE_DEFAULT")
+        return 2.0
+
+    @step
+    def w_shot_splash():
+        import numpy as np
+        im = grab_screen()
+        diff = np.abs(im.astype(int) - _QUIET["before"].astype(int)).max(axis=2) > 12
+        h = im.shape[0]
+        diff[:h // 10] = False                        # the header redrawn under the mouse
+        rows, cols = np.nonzero(diff.any(axis=1))[0], np.nonzero(diff.any(axis=0))[0]
+        if len(rows) and len(cols):
+            save_png(im[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1], "quiet_splash")
+        else:
+            log("no splash found on the screen")
+        win, area, region, sb = areas()
+        win.event_simulate(type="ESC", value="PRESS", x=area.x + 30, y=area.y + 30)
+        win.event_simulate(type="ESC", value="RELEASE", x=area.x + 30, y=area.y + 30)
+        return 1.0
 
     @step
     def w_joints():

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.184 – 20 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+## 0.2.185 – 20 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
 
 - **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
   lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
@@ -28,6 +28,21 @@ installer of that version was built from.
   efficiency of API RP 9B), against the winch's maximum.
 - Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
   lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+## 0.2.184 – 20 Nov 2026 – A quiet window (task 0241)
+
+- **Only what you need to look at your model.** The 3D view's header now has the **View** menu, the shading buttons
+  (Solid, Material, Live preview), overlays, X-ray and **Make**. Blender's **Object Mode**, **Select**, **Add** and
+  **Object** menus and its modelling settings are gone (465 px of the header freed), the tool row under the header is
+  off, and the top bar no longer shows **Scene** and **View Layer**.
+- **The start-up screen is the app's own:** New project, Open…, Recover Last Session, your recent projects, Take the
+  test tour, Demo project, User guide – no Blender templates or web links.
+- **File > New** (and **Ctrl+N**) gives only **New project**, which starts like the app does: millimetres, Cycles and
+  the app's layout. (Blender's General template opened in metres with another render engine.)
+- **Fresing > Show all of Blender** brings all of Blender's menus, tools and tabs back in one click (workspace **Full
+  access**; nothing in the project changes). **Back to the Fresing window** hides them again and returns to the
+  workspace you were in. Picking **Full access** in the Workspace list does the same. Greyed in the Client view.
+- In Blender's Edit Mode (or another mode) the header stays Blender's own, so the way back to Object Mode is always
+  there.
 
 ## 0.2.183 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
 

@@ -270,6 +270,8 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **Show the Fresing panel** – brings the side panel back on the Fresing tab ([If the Fresing panel is gone](#panel-gone)).
 - **Show Blender's editors** / **Hide Blender's editors** – Blender's Outliner and Properties editor at the right
   ([below](#blender-editors)).
+- **Show all of Blender** / **Back to the Fresing window** – all of Blender's own menus, tools and tabs, and back
+  ([below](#quiet-window)).
 - **Make demo project… / Open demo project** – the [demo project](#demo).
 - **User guide**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
 - **Tools and checks** – **Run the self-test**, **PC check…** and **Open the app folder** (the Tools folder with the
@@ -294,6 +296,38 @@ need them: the Fresing tab has the parts tree and every setting the app uses. Th
 The side panel is **solid**: it no longer lets the 3D view shine through, so its texts and boxes stay readable on a
 light background. (The app switches Blender's preference **Region Overlap** off once. You can turn it on again in
 **Edit > Preferences > Interface > Editors > Region Overlap**; the app keeps your choice.)
+
+<a id="quiet-window"></a>
+### A quiet window: what is hidden and how to get it back
+
+Fresing Render runs inside Blender, a program for modelling and animation. The parts of Blender that edit a model
+are hidden, so the window shows only what you need to look at your model and make pictures:
+
+<img class="wide" src="img/quiet_header.png" alt="The 3D view's header in the quiet window: View, shading, Make">
+
+- **The 3D view's header** has the **View** menu, gizmos, overlays, X-ray and the shading buttons (Solid, Material,
+  Live preview) and the app's own **Make** button. Blender's **Object Mode**, **Select**, **Add** and **Object** menus
+  and its modelling settings (orientation, pivot, snapping, proportional editing) are not drawn – they were about
+  460 px of the header (measured on the 1,800 px test window).
+- **The tool row** under the header (select-box buttons, Options) is off.
+- **The top bar** has no **Scene** and **View Layer** fields on the right.
+- **The start-up screen** shows the app's own lines: **New project**, **Open…**, **Recover Last Session**, your
+  recent projects, **Take the test tour**, **Demo project** and **User guide**. Blender's templates and web links are
+  not shown.
+- **File > New** (and **Ctrl+N**) offers only **New project**: a new project starts exactly like the app does –
+  millimetres, Cycles and the app's layout. (Blender's **General** template opened in metres with another render engine.)
+
+<img src="img/quiet_splash.png" alt="The start-up screen with the app's own lines">
+
+**To get it all back:** **Fresing > Show all of Blender**. It switches the project to the workspace **Full access**:
+Blender's menus, tools, workspace tabs, the Scene and View Layer fields, its start-up screen and File > New list come
+back at once. Nothing in your project is changed. The entry then says **Back to the Fresing window**: it hides them
+again and puts the project back in the workspace it was in before. Picking **Workspace > Full access** at the top of
+the Fresing tab does the same; leaving it hides everything again.
+
+- In the **Client view** the entry is greyed (Workspace > Full access unlocks the project first).
+- If you are in Blender's **Edit Mode** (or another mode) when you go back, the header stays Blender's own until you
+  are in Object Mode again, so you never lose the menu that gets you out.
 
 <a id="welcome"></a>
 ### The welcome (the first starts)

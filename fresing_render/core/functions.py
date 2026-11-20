@@ -436,13 +436,13 @@ fn(id="lifting.hook", short="Hook to here", title="Hook to here and the crane us
 
 fn(id="lifting.rig", short="Lift points", title="Rigging: lift points, sling set, shackles, spreader", family="lifting",
    panel="FRESING_PT_lifting_rigging", button="fresing.lifting_points_find", guide="lifting-rigging",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.184", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.185", workspaces=_LIFT)
 fn(id="lifting.hang", short="Hang on the hook", title="Hang the load on the hook: tilt, leg angles and forces, C2–C4",
    family="lifting", panel="FRESING_PT_lifting_rigging", button="fresing.lifting_hang", guide="lifting-hang",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.184", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.185", workspaces=_LIFT)
 fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its falls over head and block sheaves, line pull",
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_reeve", guide="lifting-reeve",
-   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.184", workspaces=_LIFT)
+   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.185", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
@@ -570,6 +570,13 @@ fn(id="help.show_panel", short="Show the panel", title="Show the Fresing panel",
 fn(id="help.blender_editors", headline=True, short="Blender editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
    "them back; a solid side panel", family="help", panel="TOPBAR_MT_fresing", button="fresing.blender_editors",
    guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
+fn(id="help.quiet_window", headline=True, short="Quiet window", title="A quiet window: the 3D view header, top bar, "
+   "start-up screen and File > New without Blender's editing parts", family="help", panel="VIEW3D_HT_header",
+   button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",), since="0.2.184",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
+fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of Blender / Back to the Fresing window", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
+   since="0.2.184", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

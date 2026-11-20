@@ -350,6 +350,12 @@ def s_client_view():
     check("the Fresing menu is still in the top bar", topbar._draw_in_editor_menus in
           bpy.types.TOPBAR_MT_editor_menus._dyn_ui_initialize())
     for idname in topbar.entries():
+        if idname == "fresing.blender_all":      # task 0241: Show all of Blender is greyed here – the lock refuses it
+            q = mod("blender.quiet")              # and its tooltip says how to unlock
+            check("Client view: Show all of Blender is greyed, with the reason", not lock.allowed(idname)
+                  and not bpy.ops.fresing.blender_all.poll()
+                  and q.FRESING_OT_blender_all.description(bpy.context, None).startswith(q.LOCKED_TEXT))
+            continue
         check(f"Client view: {idname} is not refused by the lock", lock.allowed(idname))
     check("Client view: a change of the project is still refused", not lock.allowed("fresing.joint_add"))
     with override():

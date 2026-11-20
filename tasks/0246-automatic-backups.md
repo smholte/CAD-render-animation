@@ -1,6 +1,6 @@
 # 0246 – Automatic project backups
 
-**Who:** worker · **Status:** open – waits for 0241 (`ui_topbar.py`) · **Branch:** `task/0246-automatic-backups`
+**Who:** worker · **Status:** running · **Branch:** `task/0246-automatic-backups`
 **Started by:** lead chat, 20 Nov 2026 23:05 (owner's answers 22:40 + 22:44) · **Model:** Opus · effort Medium
 **Area:** new **Backups lane** – new files `fresing_render/core/backups.py` (pure logic, no `bpy`),
 `fresing_render/blender/backups.py` (timer, save, start question), `fresing_render/blender/ops_backups.py` (Restore

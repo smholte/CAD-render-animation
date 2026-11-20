@@ -530,6 +530,12 @@ fresing_render/            the Blender extension (Python package)
                            `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
                            asks `editors.request`), Region Overlap off once (the solid side panel); screens are changed
                            only from a timer and nothing sets a 3D view's settings until it was drawn (`settled()`)
+    quiet.py               task 0241: a quiet window outside Full access – the 3D view header (View, gizmos, overlays,
+                           X-ray, shading + Make; Blender's own in any mode but Object Mode), no tool header row (from a
+                           timer after `editors.settled`), the top bar's right part without Scene / View Layer, the splash
+                           with Fresing's lines, File > New / Ctrl+N = New project; switched by `lock.blender_ui`; only
+                           Blender's own entry of a class's `draw._draw_funcs` is swapped (`swap`), so appended items stay;
+                           Fresing > Show all of Blender / Back to the Fresing window (`fresing.blender_all`, scene["fr_ws_before_all"])
     welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
@@ -1354,6 +1360,10 @@ the release → Delete); the next run on `main` publishes it again.
   every timer that tidies the view after a load waits for `editors.busy()` (`ui_header._tab`, the test tour's
   `ops_tour._go_pending` – it crashed `ui_test_tour.py` on GitHub –, the Set-up window's split, which otherwise measured
   the view before the column was closed). Closing the column makes BOTH the 3D view and the timeline under it grow.
+- Replacing a menu's or header's `draw` (`cls.draw = f`) drops every function other add-ons appended or prepended:
+  Blender keeps them in a list on the wrapped draw (`cls.draw._draw_funcs`, made by `cls._dyn_ui_initialize()`), with
+  the class's own draw as one entry. To redraw Blender's part only, swap that one entry (`quiet.swap`, task 0241). A
+  splash open at the start (the app shows it) swallows simulated keys: send Esc first (Ctrl+N did nothing until then).
 - Setting `$env:USERPROFILE` to another folder makes Windows answer "" for the Desktop and other known folders
   (`[Environment]::GetFolderPath`): the installer stopped at its shortcuts (task 0217; an independent review had judged
   it safe). Change it only for one child process (`ci_windows_install.ps1` does for `ci_toolbox_windows.py`).
