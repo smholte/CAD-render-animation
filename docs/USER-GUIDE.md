@@ -364,7 +364,7 @@ once so you see what it does. Then it waits for **Next** in the **Lesson** panel
   next lessons.
 - **More …** shows a longer text about the step; **This in the user guide** opens its section here.
 - **Back** takes the last step back (the same as **Ctrl+Z**) and shows it again.
-- **Switch to Build it yourself** goes on in the other way from the step you are on; **Stop** ends the lesson –
+- **Go on as Build it yourself** goes on in the other way from the step you are on; **Stop the lesson** ends it –
   everything made so far stays in the project.
 
 <a id="learn-build"></a>

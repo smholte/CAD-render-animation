@@ -89,10 +89,12 @@ class FRESING_PT_lesson(ui._Panel, bpy.types.Panel):
                     layout.prop(p, "lesson_play_on")
             except Exception:  # noqa: BLE001
                 pass
-        row = layout.row(align=True)
+        ui.gap(layout)
+        col = layout.column(align=True)
         other = "BUILD" if lesson._S["mode"] == "SHOW" else "SHOW"
-        row.operator("fresing.lesson_mode", text=f"Switch to {lesson.MODES[other]}").mode = other
-        row.operator("fresing.lesson_stop", text="Stop", icon="X")
+        col.operator("fresing.lesson_mode", text=f"Go on as {lesson.MODES[other]}",
+                     icon="TOOL_SETTINGS" if other == "BUILD" else "PLAY").mode = other
+        col.operator("fresing.lesson_stop", text="Stop the lesson", icon="X")
 
 
 class FRESING_OT_lesson_next(bpy.types.Operator):

@@ -322,20 +322,41 @@ def s_show_costs_and_picture():
     check("... and the app has not done it yet", les().state()["phase"] == "point", les().state())
     win, area, region, sb = ui()
     with bpy.context.temp_override(window=win, screen=win.screen, area=area, region=region):
-        bpy.ops.view3d.view_selected()                  # (for the guide's picture: the boom large, its card beside it)
+        bpy.ops.view3d.view_all(center=False)           # (for the guide's picture: the whole crane, the card beside it)
+        bpy.ops.view3d.zoom(delta=4)
     S["pic"] = True
     return 0.8
 
 
 @step
 def s_show_picture_and_costs():
+    """The guide's picture: the crane with its card (3D view) beside the Lesson panel and the pointed button (the side
+    panel's top and the part round the button), side by side."""
     full = os.path.join(OUT, "screen.png")
     screen(full)
     win, area, region, sb = ui()
-    h = min(area.height, 1450)
-    subprocess.run(["convert", full, "-crop", f"{area.width}x{h}+{area.x}+{win.height - (area.y + area.height)}",
-                    "+repage", "-resize", "1100x1100>", "-quality", "84", os.path.join(OUT, "lesson_show_me.jpg")],
-                   check=False)
+    sb_top = win.height - (sb.y + sb.height)
+    f = hl().found()
+    box = f.get("button") if f else None
+    btn = sb.height - (box[1] + box[3]) // 2 if box else 600
+    card = les()._S.get("card")
+    if card and card[4]:
+        bx = (card[4][0] + card[4][2]) / 2
+        by = (card[4][1] + card[4][3]) / 2
+    else:
+        bx, by = region.width / 2, region.height / 2
+    vw, vh = min(1000, region.width), min(1100, region.height)
+    vx = int(min(max(region.x + bx - vw / 2, region.x), region.x + region.width - vw))
+    vy = int(min(max(win.height - (region.y + by) - vh / 2, win.height - (region.y + region.height)),
+                 win.height - region.y - vh))
+    by0 = int(min(max(sb_top + btn - 320, sb_top + 520), sb_top + sb.height - 580))
+    parts = [("view.png", f"{vw}x{vh}+{vx}+{vy}"), ("sideA.png", f"{sb.width}x520+{sb.x}+{sb_top}"),
+             ("sideB.png", f"{sb.width}x580+{sb.x}+{by0}")]
+    for name, geo in parts:
+        subprocess.run(["convert", full, "-crop", geo, "+repage", os.path.join(OUT, name)], check=False)
+    subprocess.run(["convert", os.path.join(OUT, "view.png"), "(", os.path.join(OUT, "sideA.png"),
+                    os.path.join(OUT, "sideB.png"), "-append", ")", "+append", "-resize", "1300x1100>", "-quality", "84",
+                    os.path.join(OUT, "lesson_show_me.jpg")], check=False)
     hl().stats(reset=True)
     les().stats(reset=True)
     with bpy.context.temp_override(window=win, screen=win.screen, area=area, region=sb):
