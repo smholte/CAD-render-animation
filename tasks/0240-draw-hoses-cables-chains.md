@@ -1,6 +1,6 @@
 # 0240 – Hoses, cables and drag chains placed in the app by clicking points (no CAD part needed)
 
-**Who:** worker · **Status:** running · **Branch:** `claude/optimistic-ptolemy-3f7duz` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.180) · **Branch:** `claude/optimistic-ptolemy-3f7duz` (the web session's branch)
 **Started by:** lead, 20 Nov 2026 (owner 16:55: "hoses and cables are usually not included in the cad model, so i want
 to place them from inside of fresing render easily, by selecting positions. The same for drag chains, they are often
 included but very simplified so not useful for animations so they would most likely be hidden for render") ·
@@ -161,7 +161,11 @@ the cable-lay vessel (private).
   replaced CAD hose hidden, luff 15° end on fitting 0.0000 mm, one click + Esc, undo / redo.
 - Tour set: builds in 7.6 s; checks: ends / clips 0.000 mm, length kept 0.00 %, links 0.0000 mm, 6 contacts; clash
   check 0 rows. PC check `motion.drawn` OK in 3.5 s. Existing flex / paths tests: 195 passed.
-- GitHub runs: see below.
+- GitHub runs: 4 full runs. 1: red – `tests/test_idprops.py` refused `sp["hit"] = np.array(...)` in tour.py (a plain dict,
+  but the check reads it as an ID property; line removed). 2: green. 3 and 4: green, needed because tasks 0229, 0228 and
+  0221 took 0.2.177–0.2.179 while this one ran (merge main + renumber each time). Released as 0.2.180.
+- Subagents: one independent tester (general-purpose, worktree): wrote tests/test_flex_drawn_independent.py from the
+  brief; its 4 findings were fixed by the worker and its xfails turned into normal tests.
 
 **Open points / follow-up tasks:**
 - The drawn route of a cable is read once; a model update keeps it as clicked (not re-laid on moved sheaves).
