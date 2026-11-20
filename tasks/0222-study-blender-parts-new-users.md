@@ -1,6 +1,6 @@
 # 0222 – Study (findings only): which parts of Blender's own interface a Fresing Render user does not need
 
-**Who:** worker · **Status:** open – can start (study, no code – no lane) · **Branch:** `task/0222-study-blender-parts`
+**Who:** worker · **Status:** running (study, no code – no lane) · **Branch:** `claude/admiring-ritchie-6ap2v0`
 **Started by:** lead, 19 Nov 2026 (owner, 00:05: "I want the app as simple as possible, with the needed functions,
 and my guess is that most users are not familiar with Blender … but the option to open it easily will be good")
 · **Model:** Opus · effort Medium
