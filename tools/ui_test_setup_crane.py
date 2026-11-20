@@ -273,7 +273,7 @@ def s_place():
         ref = L.place(bpy.context, os.path.join(mod("core.lifting_library").BUILTIN_DIR, cls), (0.0, 400.0, 0.0), 0.0)
     with open(S["path"], encoding="utf-8") as fh:
         saved = json.load(fh)
-    names = {j.name for j in L.own_joints(sc, own)}
+    names = {j.name for j in L.own_joints(sc, own)} - {L.prefix(own) + "Hoist drum"}     # 0232: the reeved rope's drum
     check(f"{cls}: placed from the library – its joints and poses as saved",
           names == {L.prefix(own) + j["name"] for j in saved["rig"]["joints"]}
           and set(L.pose_names(own)) == {p["name"] for p in saved["rig"]["poses"]})

@@ -39,7 +39,7 @@ TOO_SHORT = 0.01     # m: a leg stretched more than this does not reach its poin
 TILT_NOTE = 10.0     # degrees: a load tilted more than this gets a note
 ROLL_TILT = 90.0     # degrees: a load turned further than this has rolled over
 _H = 1.0e-6          # step of the numerical Hessian (well below a taut leg's stretch)
-YAW = 1.0e-7         # a hair of stiffness that keeps the load's heading where turning about the vertical is free
+YAW = 3.0e-4         # a hair of stiffness that keeps the load's heading where turning about the vertical is free
 FLAT = 1.0e-3        # an eigenvalue of the energy's curvature this close to 0 counts as 0
 
 
