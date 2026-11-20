@@ -1,6 +1,6 @@
 # 0221 – Blender's right-hand column hidden; "Show Blender's editors" in the Fresing menu; a solid side panel
 
-**Who:** worker · **Status:** open – can start (Start & learn lane) · **Branch:** `task/0221-blender-editors-hidden`
+**Who:** worker · **Status:** running (Start & learn lane) · **Branch:** `task/0221-blender-editors-hidden`
 **Started by:** lead, 19 Nov 2026 (owner, 00:05: "I want the app as simple as possible, with the needed functions …
 most users are not familiar with Blender … but the option to open it easily will be good") · **Model:** Opus · effort
 Medium
