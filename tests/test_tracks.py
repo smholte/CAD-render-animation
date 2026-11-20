@@ -204,6 +204,63 @@ def test_the_top_track_lifts_and_squeezes_with_its_pads_running(made):
     pose(cable=0.0, lift=0.0)
 
 
+def _rot_about_hinge(deg):
+    """World 4x4 of a tilt by ``deg`` about the tensioner's hinge (the maker's TILT_HINGE, along +Y)."""
+    import make_test_tracks as M
+    t = math.radians(deg)
+    c, s = math.cos(t), math.sin(t)
+    h = np.array([M.TILT_HINGE[0], 0.0, M.TILT_HINGE[1]]) / 1000.0
+    r = np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+    m = np.eye(4)
+    m[:3, :3], m[:3, 3] = r, h - r @ h
+    return m
+
+
+def test_the_tracks_and_the_cable_follow_the_tilting_frame(made):
+    """Task 0229 (stand-in for the demo's tensioners that lift and tilt): the tensioner tilts 6° on its hinge, pushed by
+    the tilt cylinder under the deck. Every track part, the cable and its rollers move with the frame as one rigid body;
+    the links stay on their loops one pitch apart while the cable runs and the top track is lifted; the cylinder's rod
+    stays on its axis in the barrel."""
+    from fresing_render.blender import cylinders
+    sc = _sc()
+    tilt = joints.find(sc, tracks.TEST_TILT)
+    cyl = cylinders.find(sc, tracks.TEST_TILT_CYL)
+    assert tilt is not None and cyl is not None
+    j, why = cylinders.arm_joint(sc, cyl)
+    assert j is not None and j.name == tracks.TEST_TILT, why
+    pose(cable=0.0, lift=0.0)
+    bot, top = tracks.find(sc, "Bottom track"), tracks.find(sc, "Top track")
+    watched = tracks.parts_of(sc, bot)[::5] + tracks.parts_of(sc, top)[::5]
+    before = {o.name: evaluated(o) for o in watched}
+    cable0 = paths.shape_now(sc, paths.find(sc, tracks.TEST_CABLE)).copy()
+    rollers = [o for o in sc.objects if o.get(build.PROP_NAME) == "CABLE ROLLER"]
+    rol0 = {o.name: np.array(o.matrix_world) for o in rollers}
+    len0 = cylinders.length_now(cyl)
+    joints.set_value(tilt, math.radians(6.0))
+    update()
+    R = _rot_about_hinge(6.0)
+    for name, pts in before.items():
+        want = pts @ R[:3, :3].T + R[:3, 3]
+        assert np.abs(evaluated(bpy.data.objects[name]) - want).max() < 2e-5, name
+    for o in rollers:
+        assert np.abs(np.array(o.matrix_world) - R @ rol0[o.name]).max() < 2e-5, o.name
+    cab = paths.shape_now(sc, paths.find(sc, tracks.TEST_CABLE))
+    assert len(cab) == len(cable0)
+    assert np.abs(cab - (cable0 @ R[:3, :3].T + R[:3, 3])).max() < 1e-3      # the cable rides with the frame
+    for it in (bot, top):
+        check_on_loop(it, "tilted")
+    pose(cable=0.37, lift=0.15)
+    for it in (bot, top):
+        check_on_loop(it, "tilted, running and lifted")
+    # the cylinder: longer by the rod pin's move along its axis, the rod in line with the barrel
+    import make_test_tracks as M
+    rp = R @ np.array([M.TILT_ROD_PIN[0] / 1000.0, 0.0, M.TILT_ROD_PIN[1] / 1000.0, 1.0])
+    want = math.hypot(rp[0] - M.TILT_BARREL_PIN[0] / 1000.0, rp[2] - M.TILT_BARREL_PIN[1] / 1000.0)
+    assert cylinders.length_now(cyl) == pytest.approx(want, abs=1e-4) and cylinders.length_now(cyl) > len0 + 0.03
+    joints.set_value(tilt, 0.0)
+    pose(cable=0.0, lift=0.0)
+
+
 def test_drivers_need_no_python(made):
     """One driver per track (on its run object), a simple expression; the parts have none."""
     sc = _sc()
