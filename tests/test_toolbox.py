@@ -121,7 +121,11 @@ def test_samples_read_and_the_manifest_passes_the_checker(root, tmp_path):
     assert doc["start"]["program"] == "/opt/Fresing Render/blender-launcher" and doc["app_version"] == "0.2.999"
 
 
-def test_the_sample_folders_jobs_are_taken_up_as_the_format_says(tmp_path):
+def test_the_sample_folders_jobs_are_taken_up_as_the_format_says(tmp_path, monkeypatch):
+    # the sample's jobs are of 18 Nov 2026; the inbox deletes a final job a day later by the wall clock (FORMAT.md
+    # 7.4), so this test failed from 20 Nov on: the clean-up sees the sample's evening
+    from datetime import datetime, timezone
+    monkeypatch.setattr(tb.time, "time", lambda: datetime(2026, 11, 18, 21, 0, tzinfo=timezone.utc).timestamp())
     root = tmp_path / "Toolbox"
     shutil.copytree(SAMPLES / "Toolbox", root)
     ib = inbox(root, tmp_path)
