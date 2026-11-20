@@ -46,7 +46,7 @@ chat and gives the exact sentence to paste, with where, which model and which ef
 
 **A start sentence only when the task can start now** (owner, 20 Nov 2026): the lead gives a task's sentence only
 when the owner can start it at that moment – its brief is on `main`, every task it waits for is merged, its lane is free
-and fewer than about four code tasks are running. A task that still waits gets one plain line ("0241: after 0221 and
+and fewer than about four code tasks are running – **and the task has not started yet**: no branch of it on GitHub (`git fetch --depth=1 origin '+refs/heads/*:refs/remotes/origin/*'`, then `git for-each-ref --sort=-committerdate` and the branches' last commit messages), TASKS.md not "running" or "done"; when a previous lead chat gave its sentence near its end, ask the owner before giving it again (owner, 20 Nov 2026, after 0244 got a second sentence). A task that still waits gets one plain line ("0241: after 0221 and
 0236 are merged") and **no** sentence; the lead gives the sentence in the status check where it becomes startable.
 
 **The permission to push to `main` is in the start sentence** (owner, 16 Nov 2026): a web session may push only to its
@@ -1322,11 +1322,15 @@ the release → Delete); the next run on `main` publishes it again.
   that made it has set its own `hide_select` / `lock_*` (an import locks its parts in place a little later). The
   unlock puts such objects (`lock.NEW`) as the app itself leaves them, not as they were at that moment.
 - A browser without a window with `--virtual-time-budget` (`core/web3d_env.read_page`) jumps its clock ahead whenever
-  the page waits for work off the main thread (`createImageBitmap`, a Blob read) and then writes the page out as
-  "loading": the PC check's `web3d.small` failed 5 of 6 times on a web machine and three runs in a row on GitHub's
-  Windows (task 0062; 0187 and 0195 had re-run it). A `fetch` under way holds that clock: a test's page (`?frames=`,
-  `?selftest=`) fetches a 1-byte blob of its own, one after the other, until it is ready (`holdTestClock` in
-  `web/fr_page.js`; 7–8 reads). Mark the stages in a copy of the page (`data-…` on `<html>`) to see where it stops.
+  the page waits for something nothing holds (work off the main thread, the graphics process starting) and then writes
+  the page out as "loading": the PC check's `web3d.small` failed 5 of 6 times on a web machine (task 0062), and on
+  GitHub's Windows now and then (5 tasks; the whole line took 5–6 s for a 20 s clock). A `fetch` under way holds that
+  clock (busy work still uses it, 1:1, and each fetch a few ms). Task 0242's stage marks (a copy of the page writing
+  `data-fr-stages` on `<html>`) showed that on Windows 0.5–3.7 s of the clock went by before the hold started – it sat
+  at the end of `fr_page.js` – and the hold stopped at "ready", before the first picture the checks read. The hold is
+  now the page's **first script** (`_HOLD` in `web3d_env.py`) and lasts until the first picture is drawn (self-test:
+  both answers); `read_page` opens a page still "loading" once more with a 60 s clock (`tries`, `tries_note`). A page
+  waiting on a read that never ends (a stream) keeps the clock stopped for ever: a time-out, not "loading".
 - A mesh can be closer to the exact surface and look worse: vertices put halfway along a rounded strip, at different
   distances from the wall on straight and diagonal edges, drew a saw-tooth in the shading, and a vertex put into a long
   strip triangle made a fan that leaned across it (task 0167). Look at a small render of a changed surface, not only at
@@ -1353,3 +1357,7 @@ the release → Delete); the next run on `main` publishes it again.
 - Setting `$env:USERPROFILE` to another folder makes Windows answer "" for the Desktop and other known folders
   (`[Environment]::GetFolderPath`): the installer stopped at its shortcuts (task 0217; an independent review had judged
   it safe). Change it only for one child process (`ci_windows_install.ps1` does for `ci_toolbox_windows.py`).
+- A file Windows has just deleted can keep its name for a moment while something still holds it (a virus scan of a
+  program that was started a second ago): a rename onto that name is refused, a rename of it finds no file (WinError 2;
+  the app-icon test made `Fresing Render.exe` again right after taking it out of use, task 0242). `winexe.swap_in` tries
+  again for up to 3 s; `take_out` waits up to 0.5 s for the name to go.

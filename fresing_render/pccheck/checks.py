@@ -2841,13 +2841,15 @@ def web3d_small(ctx):
         return f"{out['text']}; {pics}; no WebGL in the browser without a window; not counted"
     _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
     places = got.get("places") or {}
+    _check(got["state"] != "loading", "the page gave no places of its parts: still loading after a second, longer "
+                                      "opening")
     _check(places, f"the page gave no places of its parts ({got['state'][:60]})")
     n = node[slide.name]
     here = np.array(places[str(n)], np.float64)
     want = keys.played(*ch[(n, "rotation")], [t], "rotation")[0]
     _check(np.abs(here[3:7] - want).max() < 1e-4, "the page plays the packed turns differently from the app")
     return f"{out['text']}; keys within 0.1 mm / 0.05°; {pics}; the page unpacked and played it in " \
-           f"{os.path.basename(browser)}"
+           f"{os.path.basename(browser)}{env.tries_note(got)}"
 
 
 def _player_check(page_path: str, ctx) -> str:
@@ -3028,11 +3030,12 @@ def web3d_under(ctx):
     _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
     pl = got.get("player") or {}
     under = pl.get("under") or {}
+    _check(got["state"] != "loading", "the page was still loading after a second, longer opening")
     _check(under.get("under") and under.get("cut") and under.get("ground") and under.get("dive"),
            f"the page does not show the seabed, the box, the soil or the camera under water: {under}")
     _check("under" in (pl.get("items") or []) and "dive" in (pl.get("items") or []),
            "the page's settings have no 'Under the sea' or 'Camera under water'")
-    return note + "; the page shows them (Under the sea and Camera under water in its settings)"
+    return note + "; the page shows them (Under the sea and Camera under water in its settings)" + env.tries_note(got)
 
 
 @line("web3d.bake", "Web 3D model with baked light", "0.2.89",

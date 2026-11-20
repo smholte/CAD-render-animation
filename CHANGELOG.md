@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.183 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
+
+- **PC check, web 3D model lines:** "Web 3D model: smaller file" and "Web 3D model under the sea" no longer fail now
+  and then with "the page gave no places of its parts" or "the page does not show the seabed". The browser without a
+  window that the check uses ran ahead of the page; the page now keeps it waiting until its first picture is drawn.
+  Should a page still not be ready, the check opens it once more with more time and says so in its line.
+- **Windows:** making `Fresing Render.exe` again right after it was removed (for example when Smart App Control is
+  switched off again) no longer fails when Windows still holds the old file for a moment – the app waits up to 3 s.
 ## 0.2.182 – 20 Nov 2026 – Hose, cable and drag chain kinds, colours and sizes (task 0243)
 
 - **Pick a kind, a colour and a size.** Every hose, cable and drag chain – drawn or read from CAD – has **Kind**,
