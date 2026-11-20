@@ -119,14 +119,17 @@ class Floor:
     """An occupancy grid of the floor (x, y) between ``lo`` and ``hi``: a cell is taken when something stands in it
     between ``BAND`` above the floor. ``free(r)`` = the cells a body of radius ``r`` can stand on."""
 
-    def __init__(self, lo, hi, z: float = 0.0, cell: float = 0.05, max_cells: int = 320):
+    def __init__(self, lo, hi, z: float = 0.0, cell: float = 0.05, max_cells: int = 320, origin=None):
         lo = np.asarray(lo[:2], float)
+        # ``origin``: a point the cell lines go through (the machine's holder): the grid then sits the same way
+        # round the machine wherever the machine stands (task 0239); None = the world's own lines (task 0194)
+        org = np.zeros(2) if origin is None else np.asarray(origin[:2], float)
         hi = np.asarray(hi[:2], float)
         span = float(max(hi - lo))
         self.cell = max(float(cell), span / max_cells)
         # the grid sits on the world's own cell lines (not on wherever ``lo`` happens to be), so a map made round a
         # point that moved by rounding noise (a model update with nothing changed) has the same cells (task 0194)
-        lo = np.floor(np.round(lo / self.cell, 4)) * self.cell
+        lo = org + np.floor(np.round((lo - org) / self.cell, 4)) * self.cell
         self.lo = lo
         self.shape = (int(math.ceil((hi[0] - lo[0]) / self.cell)) + 1, int(math.ceil((hi[1] - lo[1]) / self.cell)) + 1)
         self.occ = np.zeros(self.shape, bool)
