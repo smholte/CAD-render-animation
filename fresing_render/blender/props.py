@@ -3967,6 +3967,27 @@ class FRLiftCrane(bpy.types.PropertyGroup):
         description="The outrigger (stabiliser) spread across, pad centre to pad centre, m. A value between two of "
                     "the file's charts takes the next narrower one (the next safer chart) and says so")
     pose: StringProperty(description="The crane's pose put last (its file's poses: Travel, Set up, Working …)")
+    reeved: BoolProperty(default=False, description="The hoist rope runs in its falls over the head and block sheaves "
+                                                    "to the winch drum (Reeve the rope)")
+    falls: IntProperty(default=0, description="The falls (parts of line) the rope was reeved in")
+    rope_objects: CollectionProperty(type=FRObjectRef, description="What Reeve the rope made: the rope, the sheaves, "
+                                                                   "the drum")
+
+
+def _lift_rig_changed(self, context):
+    from . import lifting
+    lifting.load_changed(context.scene if context else None, recompute=False)
+
+
+class FRLiftPoint(bpy.types.PropertyGroup):
+    """A lift point of a load (task 0232): a spot on one of its parts where a sling leg's shackle is pinned."""
+    obj: PointerProperty(type=bpy.types.Object, description="The part the lift point is on")
+    co: FloatVectorProperty(size=3, description="The lift point in the part's own coordinates (m)")
+    length: FloatProperty(
+        name="Leg", default=0.0, min=0.0, soft_max=30.0, unit="LENGTH", update=_lift_rig_changed,
+        description="This leg's length, m (hook to the shackle's pin). 0 = the sling set's leg length. Hang on the "
+                    "hook again after a change")
+    named: BoolProperty(default=False, description="Found by its part's name (a padeye, a corner casting)")
 
 
 class FRLiftDensity(bpy.types.PropertyGroup):
@@ -4011,6 +4032,35 @@ class FRLiftLoad(bpy.types.PropertyGroup):
     marker: PointerProperty(type=bpy.types.Object, description="The CoG marker (an empty that rides on the load)")
     clearance: FloatProperty(name="Above the load", default=2.0, min=0.0, soft_max=20.0, unit="LENGTH",
                              description="How far above the load's top Above the load puts the hook, m")
+    # ---- rigging (task 0232) ----
+    points: CollectionProperty(type=FRLiftPoint)
+    points_index: IntProperty(default=0)
+    sling: StringProperty(default="", update=_lift_rig_changed,
+                          description="The sling set the load hangs on (a built-in sample or your own gear)")
+    shackle: StringProperty(default="", update=_lift_rig_changed,
+                            description="The shackle at each lift point")
+    spreader: StringProperty(default="", update=_lift_rig_changed,
+                             description="A spreader beam or lifting frame between the hook and the load ('' = none)")
+    leg_length: FloatProperty(
+        name="Leg length", default=3.0, min=0.1, soft_max=30.0, unit="LENGTH", update=_lift_rig_changed,
+        description="The sling legs' length, m (hook – or the spreader's bottom padeye – to the shackle's pin). "
+                    "Longer legs stand steeper and carry less each")
+    top_length: FloatProperty(
+        name="Top legs", default=3.0, min=0.1, soft_max=30.0, unit="LENGTH", update=_lift_rig_changed,
+        description="With a spreader: the legs from the hook to its top padeyes, m")
+    leg_mode: EnumProperty(
+        name="3 / 4 legs", default="RIGID", update=_lift_rig_changed,
+        description="How the legs of a 3- or 4-leg set share the load in the check (C3)",
+        items=[("RIGID", "Two legs carry", "Rigid load: plan with two legs carrying it all (LEEA / EN 818-4)"),
+               ("EQUALISED", "Equal share", "Only with equalisers fitted: every leg its share"),
+               ("DNV", "Share x 1.25", "Offshore: equal share x the skew factor 1.25 (DNV)")])
+    rig_state: EnumProperty(default="NONE", items=[("NONE", "Not hung", ""), ("HUNG", "On the hook", ""),
+                                                   ("DOWN", "Set down", "")])
+    hung_on: StringProperty(default="", description="The crane the load hangs on")
+    hang: PointerProperty(type=bpy.types.Object, description="The empty the load's parts follow (on the hook, or "
+                                                             "where it was set down)")
+    rig_objects: CollectionProperty(type=FRObjectRef, description="Slings, shackles and spreader drawn by the app")
+    rig_result: StringProperty(default="", description="The last hang's result (JSON): legs, forces, checks")
 
 
 class FRLifting(bpy.types.PropertyGroup):
@@ -4764,7 +4814,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRCutTarget, FRCut, FRFlexClip, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
            FRHouse, FRPersonAction, FRPersonSettings,
-           FRLiftCrane, FRLiftDensity, FRLiftLoad, FRLifting,
+           FRLiftCrane, FRLiftPoint, FRLiftDensity, FRLiftLoad, FRLifting,
            FRCraneAxis, FRCraneGroup, FRCraneRow, FRCraneChart, FRCraneProblem, FRCraneSetup,
            FRSceneSettings)
 

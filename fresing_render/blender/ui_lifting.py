@@ -1,4 +1,4 @@
-"""Side panel: 8 Lifting plan (task 0201) – Equipment, Load, Hook & capacity. Same layout rules as ui.py.
+"""Side panel: 8 Lifting plan (task 0201) – Equipment, Load, Rigging (task 0232), Hook & capacity. Same layout rules as ui.py.
 
 Nothing is worked out while drawing: the readout comes from ``lifting.readout`` (cached on a cheap key), the library
 from ``lifting.library`` (read once until Refresh)."""
@@ -12,7 +12,7 @@ import bpy
 from ..core import lifting as core
 from ..core.words import plural
 from . import lifting
-from .ui import _Panel, big, fold, gap, header_status, hint, primary, split_props, steps, wrap
+from .ui import _Panel, big, fold, gap, header_status, hint, missing, primary, split_props, steps, wrap
 
 STATUS_ICON = {core.OK: "STRIP_COLOR_04", core.AMBER: "STRIP_COLOR_02", core.RED: "STRIP_COLOR_01",
                core.NOT_CHECKED: "STRIP_COLOR_09"}
@@ -75,6 +75,8 @@ class FRESING_PT_lifting(_Panel, bpy.types.Panel):
         gap(layout)
         steps(layout, context, ["Equipment: pick a crane, Place… and click where it stands; pick its pose and set-up",
                                 "Load: select the parts to lift (or a box), check the mass and the CoG marker",
+                                "Rigging: the lift points, the sling set and shackles; Hang on the hook – the load hangs "
+                                "under the hook with each leg's force",
                                 "Hook & capacity: Hook to here – the crane moves its hook there and shows the crane "
                                 "use at that radius"],
               key="fr_how_lifting", used=bool(L.cranes))
@@ -174,6 +176,13 @@ def _draw_crane(layout, context, scene, c):
                 sp = lifting.setup(scene, c).get("outriggers")
                 if sp is not None:
                     hint(layout, context, f"The pose gives {sp:.2f} m.")
+    gap(layout)
+    from . import lifting_rope
+    if lifting_rope.is_reeved(c):
+        layout.label(text=f"Hoist rope: {plural(c.falls, 'fall')}, reeved", icon="CON_FOLLOWPATH")
+    else:
+        hint(layout, context, "The hoist rope is one piece (placed before rope reeving came).")
+        layout.operator("fresing.lifting_reeve", text="Reeve the rope", icon="CON_FOLLOWPATH")
     gap(layout)
     row = layout.row(align=True)
     row.operator("fresing.lifting_move", text="Move…", icon="ORIENTATION_GLOBAL")
@@ -301,10 +310,130 @@ def _draw_gross(layout, context, scene, ld):
     col = box.column(align=True)
     col.label(text=f"Load {_t(m)} x {ld.contingency:.2f} = {_t(g.factored)}")
     col.label(text=f"   ({src})")
-    col.label(text="Rigging 0 t (slings come later)")
+    from . import lifting_rig
+    rg = lifting_rig.rigging_mass(ld)
+    col.label(text=f"Rigging {_t(rg)}" + ("" if ld.points else " (no rigging yet)"))
     if c is not None:
         col.label(text=f"Hook block {_t(g.hook_block)}" + (" (in the chart)" if includes else ""))
-    col.label(text=f"Gross load {_t(g.total)}", icon="FORCE_FORCE")
+    col.label(text=f"Gross load {_t(g.total + rg)}", icon="FORCE_FORCE")
+
+
+class FRESING_PT_lifting_rigging(_Panel, bpy.types.Panel):
+    bl_label = "Rigging"
+    bl_parent_id = "FRESING_PT_lifting"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _ok(context)
+
+    def draw_header(self, context):
+        self.layout.label(icon="LINKED")
+
+    def draw_header_preset(self, context):
+        ld = lifting.active_load(context.scene)
+        if ld is None:
+            header_status(self.layout, "no load")
+        elif ld.rig_state == "HUNG":
+            header_status(self.layout, "on the hook")
+        elif ld.rig_state == "DOWN":
+            header_status(self.layout, "set down")
+        else:
+            header_status(self.layout, plural(len(ld.points), "lift point"))
+
+    def draw(self, context):
+        from . import lifting_rig as RG
+        layout = self.layout
+        scene = context.scene
+        ld = lifting.active_load(scene)
+        if ld is None:
+            missing(layout, context, "No load yet: make one under Load first.")
+            return
+        steps(layout, context, ["Lift points: Find lift points (padeyes, lugs, corner castings by name) or Add lift "
+                                "point and click them on the load",
+                                "Gear: a sling set, the shackles, a spreader if wanted (Hang picks the smallest chain "
+                                "sling and shackle that carry it when none is picked)",
+                                "Hang on the hook: the load hangs under the active crane's hook; the legs' angles and "
+                                "forces are checked (C2–C4)"],
+              key="fr_how_lifting_rigging", used=bool(ld.points))
+        gap(layout)
+        layout.label(text=f"{ld.name}: lift points", icon="EMPTY_SINGLE_ARROW")
+        row = layout.row(align=True)
+        row.operator("fresing.lifting_points_find", text="Find lift points", icon="VIEWZOOM")
+        row.operator("fresing.lifting_point_add", text="Add lift point", icon="ADD")
+        if ld.points:
+            col = layout.column(align=True)
+            for i, p in enumerate(ld.points):
+                row = col.row(align=True)
+                part = p.obj.get("fr_name", p.obj.name) if p.obj is not None else "(part gone)"
+                row.label(text=f"{p.name}  {part}", icon="DOT")
+                row.prop(p, "length", text="Leg")
+                row.operator("fresing.lifting_point_remove", text="", icon="X").index = i
+            hint(layout, context, "Leg 0 = the sling set's leg length.")
+        gap(layout)
+        layout.label(text="Gear", icon="LINKED")
+        for op, title, path, empty in (("fresing.lifting_sling", "Sling", ld.sling, "picked when hung"),
+                                       ("fresing.lifting_shackle", "Shackles", ld.shackle, "picked when hung"),
+                                       ("fresing.lifting_spreader", "Spreader", ld.spreader, "none")):
+            g = RG.gear(path)
+            split = layout.split(factor=0.3, align=True)
+            split.label(text=title)
+            split.operator_menu_enum(op, "item", text=g.name if g is not None else empty)
+        col = split_props(layout)
+        col.prop(ld, "leg_length", text="Leg length")
+        if ld.spreader:
+            col.prop(ld, "top_length", text="Top legs")
+        if len(ld.points) in (3, 4) and not ld.spreader:
+            col.prop(ld, "leg_mode", text="3 / 4 legs")
+        hint(layout, context, f"Rigging {_t(RG.rigging_mass(ld))} (slings, shackles, spreader): added to the gross "
+                              "load.")
+        gap(layout)
+        if lifting.active_crane(scene) is None:
+            missing(layout, context, "No crane yet: place one under Equipment.")
+        else:
+            big(layout, "fresing.lifting_hang", "Hang on the hook" if ld.rig_state != "HUNG" else
+                "Hang on the hook again", icon="TRIA_DOWN_BAR")
+        row = layout.row(align=True)
+        row.operator("fresing.lifting_set_down", text="Set down", icon="TRIA_DOWN")
+        row.operator("fresing.lifting_rig_remove", text="Remove", icon="TRASH")
+        _draw_hang(layout, context, scene, ld)
+
+
+def _draw_hang(layout, context, scene, ld):
+    from . import lifting_rig as RG
+    r = RG.result(ld)
+    if r is None or ld.rig_state == "NONE":
+        return
+    gap(layout)
+    if RG.stale(scene, ld):
+        wrap(layout, context, "The mass, the gear or the lift points changed since it was hung: Hang on the hook "
+                              "again.", icon="ERROR", alert=True)
+    box = layout.box()
+    col = box.column(align=True)
+    col.label(text=("On the hook" if ld.rig_state == "HUNG" else "Set down") + f" · tilt {r['tilt']:.1f}°")
+    for lg in r["legs"]:
+        row = col.row(align=True)
+        word = f"{lg['name']}: {_t(lg['force'] / core.G)} at {lg['angle']:.0f}°" if lg["taut"] else \
+            f"{lg['name']}: slack"
+        if lg["at_hook"] and abs(lg["planned"] - lg["force"]) > 1.0:
+            word += f" (plan {_t(lg['planned'] / core.G)})"
+        row.label(text=word)
+        if ld.rig_state == "HUNG":
+            row.operator("fresing.lifting_leg_go", text="", icon="VIEWZOOM").leg = lg["name"]
+    for p in r["problems"]:
+        wrap(layout, context, p, icon="ERROR", alert=True)
+    for n in r["notes"]:
+        wrap(layout, context, n, icon="INFO")
+    gap(layout)
+    for chk in r["checks"]:
+        rows = chk["parts"] or [chk]
+        for x in rows:
+            row = layout.row()
+            row.alert = x["status"] == core.RED
+            use = f" {x['use'] * 100:.0f} %" if x.get("use") is not None else ""
+            row.label(text=f"{chk['check']} {x['title']}:{use}", icon=STATUS_ICON[x["status"]])
+    hint(layout, context, f"Limits: amber from {core.DEFAULT_LIMITS.rigging * 100:.0f} % of a WLL, red above 100 %. "
+                          "Within the entered gear and limits only.")
 
 
 class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
@@ -380,13 +509,20 @@ class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
             row.alert = red
             row.label(text=f"Gross load {_t(ro.gross)}: {ro.words}", icon=STATUS_ICON.get(ro.status, "INFO"))
             wrap(layout, context, ro.reason, icon="ERROR" if red else "INFO", alert=red)
+        lp = lifting.line_pull(scene, c, ro.gross)
+        row = layout.row()
+        row.alert = lp.status == core.RED
+        row.label(text=f"Line pull {_t(lp.value)} on {plural(int(lp.inputs['falls']), 'fall')}"
+                       + (f": {lp.use * 100:.0f} % of the winch" if lp.use is not None else ""),
+                  icon=STATUS_ICON[lp.status])
         if ro.sample:
             _sample_line(layout, context)
         hint(layout, context, f"Limits: amber from {core.DEFAULT_LIMITS.crane * 100:.0f} % of the chart, red above "
                               "100 %. Within the entered chart and limits only.")
 
 
-CLASSES = (FRESING_PT_lifting, FRESING_PT_lifting_equipment, FRESING_PT_lifting_load, FRESING_PT_lifting_hook)
+CLASSES = (FRESING_PT_lifting, FRESING_PT_lifting_equipment, FRESING_PT_lifting_load, FRESING_PT_lifting_rigging,
+           FRESING_PT_lifting_hook)
 
 
 def unregister_previews():

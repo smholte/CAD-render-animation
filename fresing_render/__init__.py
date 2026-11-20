@@ -35,6 +35,7 @@ def _classes():
     from .blender import ops_people, ui_people    # task 0157: 6 Animation > People (before the Clash check)
     from .blender import ops_tc_person            # task 0156: the operator at a manual tool change
     from .blender import ops_lifting, ui_lifting  # task 0201: 8 Lifting plan
+    from .blender import ops_lifting_rig  # task 0232: 8 Lifting plan > Rigging, Reeve the rope
     from .blender import ops_lifting_make, ui_lifting_make  # task 0204: 8 Lifting plan > Equipment > Make a crane…
     from .blender import ops_usage, ui_usage      # task 0181: the usage tracker, favourites bar, My usage
     from .blender import about                    # task 0206: About Fresing Render, the licence files
@@ -62,7 +63,7 @@ def _classes():
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
-            + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ui_lifting.CLASSES
+            + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ops_lifting_rig.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES)
 

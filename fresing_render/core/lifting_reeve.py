@@ -210,8 +210,9 @@ def drum_spool(rv: Reeving, layers: int) -> S.Spool:
 
 
 def drum_table(rv: Reeving, hmax: float, dead_turns: float = 3.0) -> DrumTable:
-    """The drum's turn and the rope's outside radius for hoist values 0 … hmax: with the hook lowest, ``dead_turns``
-    stay on the drum; every metre the hook goes up winds falls metres on (spool.py's drum, layer by layer)."""
+    """The drum's turn and the rope's outside radius for hoist values 0 … hmax (the hoist joint's value: 0 = the hook
+    at its highest = the drum fullest; hmax = the hook lowest, only ``dead_turns`` left on the drum). Every metre the
+    hook goes down pays falls metres off (spool.py's drum, layer by layer)."""
     hmax = max(float(hmax), 1e-3)
     d = rv.rope_d
     w0 = rv.falls * hmax + dead_turns * 2 * math.pi * (rv.drum_r + d / 2.0)

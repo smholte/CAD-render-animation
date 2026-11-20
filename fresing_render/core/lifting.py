@@ -562,6 +562,11 @@ MAX_LEG_ANGLE = 60.0  # degrees to vertical: above it a sling leg is not rated
 SIDE_LOAD_ANGLE = 5.0  # degrees out of a shackle's bow plane: flagged
 
 
+def _cap(item: str) -> str:
+    """'sling leg A' -> 'Sling leg A' (str.capitalize would write 'Sling leg a')."""
+    return item[:1].upper() + item[1:]
+
+
 def wll_use(force: float, wll: float | None, item: str = "sling", angle: float | None = None, mode_factor: float = 1.0,
             side_angle: float | None = None, limits: Limits = DEFAULT_LIMITS) -> Result:
     """C4: use = force / (WLL × mode factor · g); a leg more than 60° from vertical is red; a shackle loaded more
@@ -578,15 +583,15 @@ def wll_use(force: float, wll: float | None, item: str = "sling", angle: float |
                      f"({NOT_CHECKED_BY_APP}).")
     inputs = dict(force=force, wll=wll, item=item, angle=angle, mode_factor=mode_factor, side_angle=side_angle)
     if wll is None:
-        return _result("C4", f"{item.capitalize()} WLL", "force / (WLL × mode factor)", inputs, value=force,
+        return _result("C4", f"{_cap(item)} WLL", "force / (WLL × mode factor)", inputs, value=force,
                        amber_at=limits.rigging, floor=floor, notes=notes,
-                       what=f"{item.capitalize()}: {_ft(force)}, no WLL entered")
+                       what=f"{_cap(item)}: {_ft(force)}, no WLL entered")
     rating = wll * mode_factor
     use = force / (rating * G)
-    what = f"{item.capitalize()}: {_ft(force)} on a WLL of {_t(rating)}"
+    what = f"{_cap(item)}: {_ft(force)} on a WLL of {_t(rating)}"
     if mode_factor != 1.0:
         what += f" ({_t(wll)} × mode factor {mode_factor:g})"
-    return _result("C4", f"{item.capitalize()} WLL", "force / (WLL × mode factor)", inputs, value=force,
+    return _result("C4", f"{_cap(item)} WLL", "force / (WLL × mode factor)", inputs, value=force,
                    limit=rating, use=use, amber_at=limits.rigging, floor=floor, notes=notes, what=what)
 
 

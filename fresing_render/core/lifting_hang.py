@@ -39,6 +39,7 @@ TOO_SHORT = 0.01     # m: a leg stretched more than this does not reach its poin
 TILT_NOTE = 10.0     # degrees: a load tilted more than this gets a note
 ROLL_TILT = 90.0     # degrees: a load turned further than this has rolled over
 _H = 1.0e-6          # step of the numerical Hessian (well below a taut leg's stretch)
+YAW = 1.0e-7         # a hair of stiffness that keeps the load's heading where turning about the vertical is free
 FLAT = 1.0e-3        # an eigenvalue of the energy's curvature this close to 0 counts as 0
 
 
@@ -131,6 +132,12 @@ class _System:
         self.R = [np.eye(3) for _ in range(n)]
         self.c = [c.copy() for c in self.rest]
 
+    def yaw(self, x=None) -> float:
+        """The load's turn about the vertical from where it stood (a 2-leg sling leaves it free: task 0232's
+        independent tester found the answer turning with the crane's heading)."""
+        R = self.R[0] if x is None else _rot(x[3:6]) @ self.R[0]
+        return math.atan2(R[1, 0] - R[0, 1], R[0, 0] + R[1, 1])
+
     def point(self, end, R=None, c=None, x=None):
         if end is None:
             return self.hook
@@ -151,7 +158,7 @@ class _System:
             s = float(np.linalg.norm(d)) - float(lg.length)
             if s > 0:
                 e += 0.5 * STIFF * s * s
-        return e
+        return e + 0.5 * YAW * self.yaw(x) ** 2
 
     def gradient(self, x):
         """dE/dx (translations, then rotation vectors about each CoG); exact where x's turns are 0."""
@@ -159,6 +166,7 @@ class _System:
         g = np.zeros(6 * n)
         for b in range(n):
             g[6 * b + 2] += self.w[b]
+        g[5] += YAW * self.yaw(x)
         for lg in self.legs:
             P, Q = self.point(lg.top, x=x), self.point(lg.bottom, x=x)
             d = P - Q

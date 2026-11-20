@@ -26,6 +26,7 @@ DATA = os.path.join(HERE, "data")
 MACHINE = os.path.join(DATA, "test_machine.step")
 MATERIALS = os.path.join(DATA, "test_materials.step")
 CRANE_A = os.path.join(DATA, "test_crane_a.step")
+LOADS = os.path.join(DATA, "test_loads.step")          # task 0231: the invented loads (pump skid, container)
 CRANE_B = os.path.join(DATA, "test_crane_b.step")
 FACES = os.path.join(DATA, "test_faces_a.step")
 MILL = os.path.join(DATA, "test_mill.step")
@@ -384,6 +385,62 @@ def lifting_hook(ctx):
     ctx.metric("hook to here", round(t_hook * 1000.0), "ms")
     ctx.metric("crane + load + hook", round(t_all, 1), "s")
     return f"{cog}; {msg}"
+
+
+@line("lifting.hang", "Lifting plan: rig the pump skid and hang it on the hook", "0.2.183",
+      what="The pump skid of test_loads.step (6 t) as the load, its four padeyes found by name, Above the load with "
+           "the AT-40, Hang on the hook: its CoG under the hook, the legs' forces within 1 % of the hand formulas "
+           "(C3 rule), the load follows the hook; Set down leaves it where it is")
+def lifting_hang(ctx):
+    import bpy
+
+    from ..blender import build, lifting, lifting_rig, logic
+    scene = ctx.fresh(LOADS)
+    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE), (1.0, 7.6, 0.0), math.pi)
+    lifting.apply_pose(scene, c, "Set up")
+    part = next(o for o in logic.descendants(build.model_roots(scene)[0]) if o.get(build.PROP_NAME) == "PUMP SKID.ASM")
+    ld = lifting.new_load(scene, [part], "Pump skid")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", 6.0, "ESTIMATE"
+    _check(lifting_rig.find_named(scene, ld) == 4, "the skid's four padeyes were not found by their names")
+    ld.leg_length = 4.0
+    ld.clearance = 3.2
+    a = lifting.hook_to(scene, c, lifting.above_load(scene, ld), ld)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    t0 = time.time()
+    lifting_rig.hang(scene, c, ld)
+    t_hang = time.time() - t0
+    msg = lifting_rig.check_hang(scene)
+    before = lifting.cog_world(ld)
+    lifting_rig.set_down(scene, ld)
+    import numpy as np
+    _check(np.linalg.norm(lifting.cog_world(ld) - before) < 1e-6, "Set down moved the load")
+    ctx.metric("hang on the hook", round(t_hang * 1000.0), "ms")
+    return msg
+
+
+@line("lifting.reeve", "Lifting plan: the AT-100's rope reeved in 8 falls", "0.2.183",
+      what="The AT-100 placed: its hoist rope runs from the drum over 4 head and 4 block sheaves in 8 falls; the hook "
+           "1 m up winds 8 m of rope (the drawn rope's length and the drum's turn); the line pull (C10) is shown")
+def lifting_reeve(ctx):
+    import bpy
+
+    from ..blender import lifting, lifting_rope
+    scene = ctx.fresh(LOADS)
+    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", "AT-100"), (1.0, 12.0, 0.0), math.pi)
+    lifting.apply_pose(scene, c, "Working")
+    msg = lifting_rope.check(scene, c, 1.0)
+    rig = lifting.rig_of(c)
+    hoist = rig.role["hoist"]
+    v = lifting.values(scene, c)[hoist]
+    t0 = time.time()
+    for k in range(10):
+        lifting.set_values(scene, c, {hoist: v + 200.0 * (k + 1)})
+    t_move = (time.time() - t0) / 10
+    lifting.set_values(scene, c, {hoist: v})
+    ro = lifting.readout(scene, c)
+    lp = lifting.line_pull(scene, c, ro.gross if not isinstance(ro, str) else 0.0)
+    ctx.metric("hook move, AT-100 reeved", round(t_move * 1000.0, 1), "ms")
+    return msg + f"; {lp.message}"
 
 
 @line("lifting.make", "Lifting plan: make a crane from numbers", "0.2.159",
