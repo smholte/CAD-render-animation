@@ -382,8 +382,8 @@ def missing_uses(info: KitInfo, app_package: str) -> list[str]:
     for name in info.uses:
         parts = name.split(".")
         ok = False
-        for cut in range(len(parts), 0, -1):
-            mod_name = app_package + "." + ".".join(parts[:cut])
+        for cut in range(len(parts), -1, -1):
+            mod_name = ".".join([app_package] + parts[:cut])
             try:
                 obj = importlib.import_module(mod_name)
             except ImportError:
