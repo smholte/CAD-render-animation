@@ -67,8 +67,9 @@ PAY = "fr_cable_pay"
 LOOK = "fr_cable_look"
 ATTR = "fr_cable"
 PAY_BIAS = 2.0
-KINDS = {"POWER": 1.0, "ROPE": 2.0, "SERVED": 3.0}
-MATERIALS = {"POWER": "cable_power", "ROPE": "wire_rope", "SERVED": "cable_served"}
+KINDS = {"POWER": 1.0, "ROPE": 2.0, "SERVED": 3.0, "HOSE": 4.0, "BRAID": 5.0, "SLEEVE": 6.0}
+MATERIALS = {"POWER": "cable_power", "ROPE": "wire_rope", "SERVED": "cable_served",
+             "HOSE": "hose_hydraulic", "BRAID": "hose_braided", "SLEEVE": "hose_sleeve"}       # (task 0243: hoses)
 YARN, BAND = "fr_cable_yarn", "fr_cable_band"                       # served cable (task 0158)
 YARN_RGB, BAND_RGB = "fr_cable_yarn_rgb", "fr_cable_band_rgb"
 #: every property a look writes on a cable object (a spool's rope copies them, a cable that stops being one loses them)
@@ -126,6 +127,27 @@ DEFAULTS = {
                    rag=0.004,                        # ragged band edges: ± m at wear 1 (a third of it when new)
                    strand_height=0.35,               # the strand's relief as a share of the yarn pitch
                    bump=0.8),
+    # task 0243: hose kinds (core/flex_kinds.py). HOSE: a printed line along a hydraulic hose – blocks of "letters"
+    # in a narrow band on one side; pitch = one print repeat, width = the share of a repeat that is printed
+    "HOSE": dict(pitch=0.25, starts=0, width=0.55,
+                 band=0.035,                         # the print's height round the hose, in turns (share of 360°)
+                 letters=14.0,                       # letter cells in one printed block
+                 ink=0.62,                           # share of a cell that is ink
+                 print=(0.82, 0.82, 0.78),           # sRGB: white print
+                 print_roughness=0.5),
+    # BRAID: a woven steel braid – carriers laid both ways, over one and under one (a basket weave)
+    "BRAID": dict(pitch=0.06, starts=16, width=0.5,
+                  wires=5.0,                         # wires side by side in one carrier
+                  dark=(0.05, 0.05, 0.055),          # sRGB: the dark gaps between the carriers
+                  height=0.004,                      # relief of a carrier, m (scaled to the lay length / 0.06)
+                  bump=0.6),
+    # SLEEVE: a spiral wrap; where it does not cover, the black hose underneath shows, a little deeper
+    "SLEEVE": dict(pitch=0.025, starts=1, width=0.78,
+                   hose=(0.03, 0.03, 0.032),         # sRGB: the hose in the gaps
+                   hose_roughness=0.6,
+                   edge=0.06,                        # rounded wrap edge, share of a period
+                   depth=0.0015,                     # how much deeper the gap lies, m
+                   bump=0.7),
 }
 
 
@@ -140,8 +162,8 @@ def kind_name(kind) -> str:
         if k not in KINDS:
             raise ValueError(f"unknown cable look {kind!r}")
         return k
-    k = float(kind)
-    return "SERVED" if k > 2.5 else "ROPE" if k > 1.5 else "POWER"
+    k = int(math.floor(float(kind) + 0.5))
+    return {1: "POWER", 2: "ROPE", 3: "SERVED", 4: "HOSE", 5: "BRAID", 6: "SLEEVE"}.get(k, "SERVED" if k > 6 else "POWER")
 
 
 def defaults(kind) -> dict:
@@ -180,6 +202,9 @@ def look_values(kind, diameter: float = 0.0, pitch: float = 0.0, angle: float = 
     if k == "ROPE":
         starts = -STRANDS if angle < 0.0 else STRANDS
         w = 0.0 if width is None else width
+    elif k in ("HOSE", "BRAID", "SLEEVE"):                  # task 0243: core/flex_kinds.pattern_look gives these
+        starts = int(d["starts"])
+        w = d["width"] if width is None else width
     else:
         starts = stripes(float(diameter), pitch, float(angle))
         w = d["width"] if width is None else width
@@ -211,6 +236,8 @@ def pattern(kind, s, phi, paid_out, look=None, edge: float = 0.0):
     share of a period – its 50 % point is where the hard edge is). Wire rope: the height 0 … 1 of the strand
     surface (1 on a crown, 0 in the valley between two strands)."""
     k = kind_name(kind)
+    if k in ("HOSE", "BRAID", "SLEEVE"):
+        return hose_pattern(k, s, phi, paid_out, look)
     f = phase(k, s, phi, paid_out, look)
     f = f - np.floor(f)
     if k == "ROPE":
@@ -239,6 +266,39 @@ def wires(s, phi, paid_out, look=None, count: float | None = None, slant: float 
     f = n * u + starts * np.asarray(phi, float) / (2.0 * math.pi)
     f = f - np.floor(f)
     out = np.abs(np.sin(math.pi * count * (f - (1.0 + slant) * n * u)))
+    return float(out) if np.ndim(out) == 0 else out
+
+
+def hose_pattern(kind, s, phi, paid_out=0.0, look=None):
+    """The hose patterns of task 0243 (what the nodes' ``FR cable pattern`` gives), ``u = (s − paid out) / pitch``,
+    ``θ = φ / 2π``:
+
+    * HOSE: 1 on the print, else 0. Print where ``|θ'| < band / 2`` (θ' = θ wrapped to −½ … ½: the line runs along
+      φ = 0), ``fract(u) < width`` (a printed block of the repeat) and ``fract(fract(u) / width · letters) < ink``.
+    * BRAID: the height 0 … 1 of the braid. Carriers one way ``p = n · (u + θ)``, the other ``q = n · (u − θ)``
+      (n = starts); a carrier's profile ``sqrt(1 − (2 · fract − 1)²)``; on top is the one way where
+      ``floor(p) + floor(q)`` is even, else the other (over one, under one).
+    * SLEEVE: 1 on the wrap, 0 in the gap: ``phase = u + starts · θ``, wrap where ``fract(phase) < width``."""
+    k = kind_name(kind)
+    pitch, starts, w = _look(k, look)
+    d = defaults(k)
+    u = (np.asarray(s, float) - paid_out) / pitch
+    th = np.asarray(phi, float) / (2.0 * math.pi)
+    if k == "HOSE":
+        tw = th - np.floor(th + 0.5)
+        fu = u - np.floor(u)
+        cell = fu / max(w, 1e-9) * float(d["letters"])
+        out = ((np.abs(tw) < 0.5 * float(d["band"])) & (fu < w) & (cell - np.floor(cell) < float(d["ink"])))
+        out = out.astype(float)
+    elif k == "BRAID":
+        n = max(abs(starts), 1)
+        p, q = n * (u + th), n * (u - th)
+        prof = lambda f: np.sqrt(np.maximum(1.0 - (2.0 * (f - np.floor(f)) - 1.0) ** 2, 0.0))   # noqa: E731
+        even = np.mod(np.floor(p) + np.floor(q), 2.0) < 0.5
+        out = np.where(even, prof(p), prof(q))
+    else:
+        f = u + starts * th
+        out = ((f - np.floor(f)) < w).astype(float)
     return float(out) if np.ndim(out) == 0 else out
 
 
@@ -633,6 +693,94 @@ def _served_nodes(b, d: dict, color, metallic, rough, normal):
     return color, metallic, rough, bump.outputs["Normal"]
 
 
+def _hose_print(b, d: dict, color, metallic, rough, normal):
+    """HOSE (task 0243): the printed line – see ``hose_pattern``."""
+    m = b.math
+    y = 2200
+    i = _inputs(b, d, y)
+    x0 = -2300
+    tw = m("ABSOLUTE", m("SUBTRACT", i["turns"], m("FLOOR", m("ADD", i["turns"], 0.5, x=x0, y=y + 200),
+                                                    x=x0 + 150, y=y + 200), x=x0 + 300, y=y + 200),
+           x=x0 + 450, y=y + 200)
+    in_band = m("LESS_THAN", tw, 0.5 * float(d["band"]), x=x0 + 600, y=y + 200)
+    fu = m("FRACT", i["u"], x=x0, y=y)
+    in_block = m("LESS_THAN", fu, i["width"], x=x0 + 150, y=y)
+    cell = m("FRACT", m("MULTIPLY", m("DIVIDE", fu, m("MAXIMUM", i["width"], 1e-9, x=x0, y=y - 200),
+                                      x=x0 + 150, y=y - 150), float(d["letters"]), x=x0 + 300, y=y - 150),
+             x=x0 + 450, y=y - 150)
+    ink = m("LESS_THAN", cell, float(d["ink"]), x=x0 + 600, y=y - 150)
+    fac = _named(m("MULTIPLY", m("MULTIPLY", m("MULTIPLY", in_band, in_block, x=x0 + 750, y=y + 100), ink,
+                                 x=x0 + 900, y=y), i["has"], x=x0 + 1050, y=y), NODE_PATTERN, "Print")
+    color = b.mix("RGBA", fac, color, _linear(d["print"]), x=x0 + 1250, y=y)
+    rough = b.mix("FLOAT", fac, rough, float(d["print_roughness"]), x=x0 + 1250, y=y - 250)
+    return color, metallic, rough, normal
+
+
+def _braid(b, d: dict, color, metallic, rough, normal):
+    """BRAID (task 0243): carriers both ways, over one and under one – see ``hose_pattern``."""
+    m = b.math
+    y = 2200
+    i = _inputs(b, d, y)
+    has = i["has"]
+    x0 = -2300
+    n = m("MAXIMUM", m("ABSOLUTE", i["starts"], x=x0, y=y - 300), 1.0, x=x0 + 150, y=y - 300)
+    p = m("MULTIPLY", n, m("ADD", i["u"], i["turns"], x=x0, y=y), x=x0 + 150, y=y)
+    q = m("MULTIPLY", n, m("SUBTRACT", i["u"], i["turns"], x=x0, y=y - 150), x=x0 + 150, y=y - 150)
+
+    def prof(v, yy):
+        xs = m("SUBTRACT", m("MULTIPLY", m("FRACT", v, x=x0 + 300, y=yy), 2.0, x=x0 + 450, y=yy), 1.0,
+               x=x0 + 600, y=yy)
+        return m("SQRT", m("MAXIMUM", m("SUBTRACT", 1.0, m("MULTIPLY", xs, xs, x=x0 + 750, y=yy), x=x0 + 900, y=yy),
+                           0.0, x=x0 + 1050, y=yy), x=x0 + 1200, y=yy)
+
+    hp, hq = prof(p, y), prof(q, y - 150)
+    par = m("FLOORED_MODULO", m("ADD", m("FLOOR", p, x=x0 + 300, y=y - 350), m("FLOOR", q, x=x0 + 300, y=y - 500),
+                                x=x0 + 450, y=y - 400), 2.0, x=x0 + 600, y=y - 400)
+    odd = m("GREATER_THAN", par, 0.5, x=x0 + 750, y=y - 400)
+    height = _named(b.mix("FLOAT", odd, hp, hq, x=x0 + 1400, y=y), NODE_PATTERN, "Braid height")
+    # the wires of the carrier on top: fine lines along it
+    top = b.mix("FLOAT", odd, p, q, x=x0 + 1400, y=y - 300)
+    wire = m("ABSOLUTE", m("SINE", m("MULTIPLY", m("FRACT", top, x=x0 + 1550, y=y - 300),
+                                     math.pi * float(d["wires"]), x=x0 + 1700, y=y - 300), x=x0 + 1850, y=y - 300),
+             x=x0 + 2000, y=y - 300)
+    dark = m("MULTIPLY", b.map(height, 0.0, 0.5, 1.0, 0.0, x=x0 + 1600, y=y + 250), has, x=x0 + 1800, y=y + 250,
+             clamp=True)
+    color = b.mix("RGBA", dark, color, _linear(d["dark"]), x=x0 + 2000, y=y)
+    rough = b.mix("FLOAT", dark, rough, 0.6, x=x0 + 2000, y=y - 250)
+    relief = m("MULTIPLY", m("ADD", m("MULTIPLY", height, 0.85, x=x0 + 2150, y=y - 500),
+                             m("MULTIPLY", wire, 0.15, x=x0 + 2150, y=y - 650), x=x0 + 2300, y=y - 550),
+               m("MULTIPLY", i["pitch"], float(d["height"]) / 0.06, x=x0 + 2300, y=y - 700), x=x0 + 2450, y=y - 550)
+    bump = b.node("ShaderNodeBump", x0 + 2650, y - 550, Strength=float(d["bump"]), Distance=1.0)
+    b.put(bump.inputs["Height"], m("MULTIPLY", relief, has, x=x0 + 2550, y=y - 550))
+    if normal is not None:
+        b.put(bump.inputs["Normal"], normal)
+    return color, metallic, rough, bump.outputs["Normal"]
+
+
+def _sleeve(b, d: dict, color, metallic, rough, normal):
+    """SLEEVE (task 0243): a spiral wrap, the black hose in its gaps – see ``hose_pattern``."""
+    m = b.math
+    y = 2200
+    i = _inputs(b, d, y)
+    has = i["has"]
+    x0 = -2300
+    f = m("FRACT", m("ADD", i["u"], m("MULTIPLY", i["starts"], i["turns"], x=x0, y=y - 150), x=x0 + 150, y=y),
+          x=x0 + 300, y=y)
+    half = m("MULTIPLY", i["width"], 0.5, x=x0, y=y - 400)
+    dist = m("ABSOLUTE", m("SUBTRACT", f, half, x=x0 + 450, y=y), x=x0 + 600, y=y)       # from the wrap's middle
+    soft = m("ADD", m("DIVIDE", m("SUBTRACT", half, dist, x=x0 + 750, y=y), float(d["edge"]), x=x0 + 900, y=y), 0.5,
+             x=x0 + 1050, y=y, clamp=True)
+    wrap_ = _named(m("SUBTRACT", 1.0, m("MULTIPLY", m("SUBTRACT", 1.0, soft, x=x0 + 1200, y=y), has,
+                                        x=x0 + 1350, y=y), x=x0 + 1500, y=y), NODE_PATTERN, "Wrap")
+    color = b.mix("RGBA", wrap_, _linear(d["hose"]), color, x=x0 + 1700, y=y)
+    rough = b.mix("FLOAT", wrap_, float(d["hose_roughness"]), rough, x=x0 + 1700, y=y - 250)
+    bump = b.node("ShaderNodeBump", x0 + 1900, y - 600, Strength=float(d["bump"]), Distance=1.0)
+    b.put(bump.inputs["Height"], m("MULTIPLY", wrap_, float(d["depth"]), x=x0 + 1750, y=y - 600))
+    if normal is not None:
+        b.put(bump.inputs["Normal"], normal)
+    return color, metallic, rough, bump.outputs["Normal"]
+
+
 def apply(b, bsdf, spec: dict, color, metallic, rough, normal):
     """Put a cable look into a material that ``materials.build_nodes`` is building. ``spec``: the library entry's
     ``cable`` dict (``kind`` "POWER" | "ROPE" | "SERVED" and any key of ``DEFAULTS``); ``color``, ``metallic``, ``rough``,
@@ -644,6 +792,12 @@ def apply(b, bsdf, spec: dict, color, metallic, rough, normal):
         return _rope(b, d, color, metallic, rough, normal)
     if kind == "SERVED":
         return _served_nodes(b, d, color, metallic, rough, normal)
+    if kind == "HOSE":
+        return _hose_print(b, d, color, metallic, rough, normal)
+    if kind == "BRAID":
+        return _braid(b, d, color, metallic, rough, normal)
+    if kind == "SLEEVE":
+        return _sleeve(b, d, color, metallic, rough, normal)
     return _power(b, d, color, metallic, rough, normal)
 
 

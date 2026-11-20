@@ -52,6 +52,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   drawn   task 0240: a hose drawn through two clips (view_drawn_hose.jpg) and a cable route drawn over the drum,
       two sheaves and the chute (view_drawn_cable.jpg); Cycles on the processor, as "render".
 
+  kinds   task 0243: one drawn hose of each kind on the hoses model (view_flex_kinds.jpg) and the drawn drag chain as a
+      closed chain on the gantry (view_chain_types.jpg); Cycles on the processor, as "render".
+
   cables_panel   the panel 4 Motion > Cables and paths (panel_cables; as "panels", on test_paths_a.step, task 0078).
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
@@ -1178,6 +1181,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             with override():
                 if MODE == "flex_panels":
                     fx.set_up_test_hoses(sc)
+                    sc.fresing.flex[0].hose_kind = "HYDRAULIC"         # task 0243: Kind · Colour · Size shown
                 else:
                     fx.set_up_test_chains(sc)
             sc.fresing.flex_index = 0
@@ -1196,6 +1200,8 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             sc = bpy.context.scene
             with override():
                 mod("blender.paths").set_up_test_model(sc)
+                sc.fresing.cables[0].cable_kind = "ROPE"               # task 0243: Kind · Colour · Size shown
+                sc.fresing.cables[0].size = "R16"                      # (sheaves of Ø360: D >= 20 d)
             sc.fresing.cables_index = 0
             sc.fresing.cables[0].contacts_index = 2
             select_only()
@@ -2202,6 +2208,52 @@ def render_drawn():
     one("test_paths_a.step", tour.drawn_cable_setup, "view_drawn_cable", view="FRONT")
 
 
+def render_kinds():
+    """Task 0243: the test tour's row of six drawn hoses, one per kind (``tour.kind_row_setup``), and the drawn chain
+    on the gantry as a closed chain (view_flex_kinds.jpg, view_chain_types.jpg; Cycles on the processor)."""
+    import addon_utils
+    from mathutils import Matrix, Vector
+    addon_utils.enable(pkg(), default_set=True)
+    cams, flex, tour, build = (mod("blender.cameras"), mod("blender.flex"), mod("blender.tour"),
+                               mod("blender.build"))
+
+    def one(step_file, setup, name, at, target, lens):
+        bpy.ops.wm.read_factory_settings(use_empty=False)
+        addon_utils.enable(pkg(), default_set=True)
+        assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, step_file), quality="normal") == {"FINISHED"}
+        sc = bpy.context.scene
+        s = sc.fresing
+        root = build.model_roots(sc)[0]
+        setup(sc, root)
+        bpy.context.view_layer.update()
+        flex.refresh(sc, force=True)
+        s.background, s.env_detail = "FACTORY", "SIMPLE"   # as the test tour's set: the sky washed the colours out
+        cam = cams.add_camera(sc, "ISO", lens, name="Guide view")
+        m = root.matrix_world
+        a, t = m @ Vector(at), m @ Vector(target)
+        cam.matrix_world = Matrix.Translation(a) @ (t - a).normalized().to_track_quat("-Z", "Y").to_matrix().to_4x4()
+        sc.camera = cam
+        s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 900, 600, False, SCRATCH
+        mod("blender.render").apply_output(sc, s)
+        t0 = time.time()
+        assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+        log("render", name, f"{time.time() - t0:.0f} s")
+        path = os.path.join(OUT, name + ".jpg")
+        subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", path], check=True)
+
+    def hoses(sc, root):
+        flex.set_up_test_hoses(sc)
+        tour.kind_row_setup(sc, root)
+
+    def chain(sc, root):
+        flex.set_up_test_chains(sc)
+        name = tour.drawn_chain_setup(sc, root)
+        flex.find(sc, name).chain_kind = tour.DRAWN_CHAIN_TYPE
+
+    one("test_flex_hoses_a.step", hoses, "view_flex_kinds", (0.86, 1.3, 0.8), (0.86, 0.39, 0.17), 34)
+    one("test_flex_chains_a.step", chain, "view_chain_types", (0.2, -0.9, 0.7), (0.05, 0.07, 0.35), 40)
+
+
 def render_spools(full: bool = False):
     """Task 0080: the spooling test model after 5 m of wire and 8 m of cable: the drum and the carousel, each in a
     render of its own, side by side. ``full`` (task 0174, view_spools_full.jpg): the drum wound full to its flanges
@@ -2367,6 +2419,12 @@ elif MODE == "operator":
 elif MODE == "people":
     try:
         render_people()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "kinds":
+    try:
+        render_kinds()
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

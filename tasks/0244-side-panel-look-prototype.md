@@ -1,6 +1,6 @@
 # 0244 – Prototype (findings only): steps and their functions look different in the side panel
 
-**Who:** worker · **Status:** open – can start (findings only: no merge of app code, does not count as a code task) ·
+**Who:** worker · **Status:** done (20 Nov) (findings only: no merge of app code, does not count as a code task) ·
 **Branch:** the session's own; prototype code pushed with `[skip ci]`, never merged; report + pictures to `main` as
 `tasks/` files only
 **Started by:** lead chat, 20 Nov 2026 21:55 (owner 21:02, with a screenshot: "need to easily see where a step ends and a
@@ -74,10 +74,10 @@ rule – match the real Blender theme): window `#1d1d1d`, step bar `#3d3d3d`, fu
 
 ## Done when
 
-- [ ] Prototype code on the branch, pushed with `[skip ci]` on every push, **never merged**; no version change
-- [ ] Pictures + page + report on `main` as `tasks/` files only (a `tasks/`-only push starts no run)
-- [ ] Timings measured on the 4-core web machine with the real Blender (name it), at both widths
-- [ ] Report filled in below
+- [x] Prototype code on the branch, pushed with `[skip ci]` on every push, **never merged**; no version change
+- [x] Pictures + page + report on `main` as `tasks/` files only (a `tasks/`-only push starts no run)
+- [x] Timings measured on the 4-core web machine with the real Blender (name it), at both widths
+- [x] Report filled in below
 
 ## Not in this task
 
@@ -88,10 +88,125 @@ coaching) – that is the later study; Blender's side-panel tabs (0222 package C
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 20 Nov 2026. Prototype on branch `claude/peaceful-cray-57hntp` (commits with
+`[skip ci]`, never merged, no version change). Pictures `tasks/img/0244/` (54 JPEGs + `times_*.json`), page
+`tasks/0244_page/index.html` (its own `img/`, ready for the lead to publish).
 
-**What changed:**
+**What changed (branch only):** `blender/look244.py` (the look, its switches, the overlay, one-open-at-a-time, the two
+"inside the step" variants), a few hooked lines in `panels.py` (`_make_draw`, `_make_poll`, the toggle operator),
+`ui.py` (`fold`) and `__init__.py`; `tools/proto_0244_shots.py` (pictures + timings). The look is switched at run time
+(`look244.set(look="old"|"new"|"fallback", how=, arrow=, one_open=, overlay=)`), so today's and the new look come from
+the same app.
 
-**Tested and measured** (name the machine and the model):
+**Answers**
 
-**Open points / follow-up tasks:**
+1. **Functions drawn inside the step?** Not needed. Since 0062 every Fresing panel already draws its own title row
+   (`panels.draw_title`), so the new look is drawn **in that one place** and the functions stay Blender sub-panels:
+   panel ids, `PARENT`, `OPEN`, `open_to`, `show_only`, `places.py`, the function list, usage counting, lessons, tour,
+   PC check and tests keep working unchanged. Tried both "inside" ways to compare (pictures `fold_cyl`, `lpanel_cyl`):
+   (b) the app's own fold rows inside the step body (reusing each sub-panel's `draw` with a stand-in `self`) **looks
+   the same** as the sub-panel way – green arrow, frame, one-open all work – but every function would get a new
+   address for no gain; (a) Blender's `layout.panel()` draws **its own small white arrow** (cannot be hidden or made
+   green), no frame round the open body, Blender keeps its open state per region in the file (only `panel_prop` with
+   our own property could set it) and nothing gives one-open-at-a-time. → keep sub-panels, change `draw_title`.
+   Open / closed per project: as today (`panels.OPEN`, "Keep sections as I left them").
+2. **Greys from Blender's colour settings: they do not work for the Fresing tab.** In 5.2.3 the panel colours are
+   global (`user_interface.panel_back / panel_header / panel_sub_back`, no longer per editor), and the app's panels
+   (all `HIDE_HEADER` since 0062) **draw no panel background at all** – measured: set loud red / green / blue, the
+   Fresing tab did not change by one pixel, only Blender's own Properties panels did (picture `blender_probe_*`). The
+   only fills a layout can have are boxes (`wcol_box`, ONE colour for every box) and buttons. So: a lighter step bar
+   AND darker function rows AND a dark open body cannot all come from the theme. The prototype changes ONE theme
+   field: every box's **outline** #3d3d3d → #575757 (the open function's frame; #555 itself is too close to the
+   buttons' #545454 for the overlay to tell apart). That also shows on every other box of the app and on Blender's own
+   boxes in Show all of Blender (pictures `blender_new_*` vs `blender_old_*`). The 3D view header and menus do not change.
+3. **Green arrows:** custom icons (`bpy.utils.previews`, 32 px PNGs drawn in code, smoothed edges) – sharp at 100 %
+   and 200 % (pictures `*_2560s2_*`). Both shades shown (`new_cyl` #8cc46f, `new_cyl_brand` #479B29).
+4. **Frame and green line:** the frame is a `layout.box()` round title + body (Blender's box fill already gives the
+   dark body). The green lines, the lighter step bar and the darker indented closed rows are drawn **over** the side
+   panel after Blender drew it (a POST_PIXEL draw handler): the arrow icons carry a marker bar of one exact colour,
+   the handler finds it in the pixels, paints it over and draws: step bar +13 grey (additive, so the white text stays
+   white) with a 3 px green edge; closed function row −10 grey from its indent; open function a 3 px green line down
+   the frame's left edge (found by walking the frame's outline colour); an open fold inside it a dashed grey line.
+   Way (b), cheaper: read only an **80 px strip** on the panel's left instead of the whole panel (everything it looks
+   for sits there). Fallback without overlay (pictures `fallback_*`): step bar in a box as today, functions indented,
+   open function framed, green arrows – no lighter bar, no green line.
+5. **One open at a time:** works (opening one folds the others of that step; Ctrl+click as today). With 11 functions in
+   step 4, three open (picture `new_three`) is a long scroll – recommend **on** by default, a preference to turn it off.
+6. **The full change** – see the plan below.
+
+**Tested and measured** (4-core web machine, real Blender 5.2.3 Linux under xvfb – software drawing, no graphics card;
+test crane `tests/data/test_crane_a.step` with the tour's boom joint + luffing cylinder; UI scale 100 %; side panel
+292 px wide, 898 px high at 1920 × 1080 and 1,231 px at 2560 × 1440; median of 2 rounds of 30 redraws of the side
+panel with `wm.redraw_timer`; the overlay's own time from its handler in redraws with swap, where it found its 6–11
+markers):
+
+| Look | Open functions | 1920: panel redraw ms | 1920: of it the overlay ms | 2560: panel redraw ms | 2560: of it the overlay ms |
+| --- | --- | --- | --- | --- | --- |
+| Today | 0 | 1.1 | – | 0.9 | – |
+| Today | 1 | 1.1 | – | 1.1 | – |
+| Today | 3 | 1.1 | – | 1.0 | – |
+| New look without the green line (fallback) | 0 | 0.9 | – | 1.0 | – |
+| New look without the green line (fallback) | 1 | 1.0 | – | 1.1 | – |
+| New look without the green line (fallback) | 3 | 0.8 | – | 1.1 | – |
+| New look, green line – reads a 80 px strip | 0 | 1.7 | 1.1 | 2.0 | 1.3 |
+| New look, green line – reads a 80 px strip | 1 | 1.8 | 1.3 | 2.0 | 1.6 |
+| New look, green line – reads a 80 px strip | 3 | 1.9 | 1.3 | 2.2 | 1.8 |
+| New look, green line – reads the whole panel | 0 | 3.1 | 2.5 | 3.7 | 2.9 |
+| New look, green line – reads the whole panel | 1 | 3.0 | 3.4 | 3.7 | 3.8 |
+| New look, green line – reads the whole panel | 3 | 3.1 | 2.7 | 4.7 | 4.0 |
+
+Scrolling and dragging a joint: the overlay cost the same per redraw (strip 1.4 / 1.4 ms at 1920, 1.8 / 1.9 ms at
+2560; whole panel 2.8 / 2.5 and 4.3 / 5.7 ms). The fallback costs nothing measurable (0.8–1.1 ms = today). Expect the
+owner's PC to draw faster; the side panel only redraws when something in it changes (hover, scroll, a value).
+Found on the way: `wm.redraw_timer(type="DRAW")` draws the side panel but a POST_PIXEL handler then reads a buffer
+without the panel in it (0 markers found); `DRAW_SWAP` reads the real one. No pytest run: nothing of the branch is
+meant for `main` (GitHub run: none, `[skip ci]` on every push).
+
+**Owner's choices left** (on the page): arrow green (★ light #8cc46f); one open at a time (★ on by default); green line
+with the overlay (★, ~1–2 ms per side-panel redraw) or the fallback.
+
+**Plan for the full change (brief-ready):**
+- **One task, Opus · Medium, Start & learn lane**, after 0241 and before 0222 B/C and the "top of the side panel too
+  full" study (that study then works on the new look); it must not run beside any task in `ui*.py`, `panels.py`,
+  `highlight.py`, the lessons (0230) or the guide pictures. All eight steps at once (the look is drawn in one place, a
+  task per step would only repeat the tests and pictures); ~1 day of work, most of it pictures and tests.
+- **`panels.py`:** `draw_title` gets the new rows (step bar, function row with indent, green arrow icons with markers),
+  `_make_draw` frames an open function in a box; keep calling `ui.HOOKS["header"]` (the prototype drops it). Level 2
+  sub-panels (CNC machine > Rotary axes …, Milling > Chips) look like folds inside a function: green arrow, no frame.
+  `open_to`, `show_only`, `PARENT`, `OPEN`, `only`, `fold_sections`, "Keep sections as I left them", the section tabs:
+  **no change**. One-open-at-a-time in `FRESING_OT_panel_toggle` + a preference in `prefs.py` (default from the owner).
+- **`ui.fold`:** the app's own fold row (green arrow, body indented) instead of `layout.panel()`, open state in the app
+  (like `panels.OPEN`, saved with "Keep sections"); `highlight.fold_open` / `HOOKS["fold"]` asked as today; every
+  `fold(...)` id keeps working. "How it works" folds become such rows too.
+- **New `blender/side_look.py`** (from `look244.py`): icons, the overlay (strip read, one draw handler, runs while the
+  side panel shows the Fresing tab; off in background runs), the one theme field. **The theme field goes into the
+  app's own config only**: set at start by the app template (`app_template/…/__init__.py` load_post, like the add-on
+  switch) and put back for plain Blender – never in the user's own Blender. If the owner picks the fallback, no
+  overlay module, only the box outline.
+- **`highlight.py` / lessons (0230):** the marker colours differ (`MARKS` vs the look's), but both read the pixels:
+  let the highlight's `_draw_side` and the look's overlay share ONE read per redraw (the highlight already reads the
+  whole panel while a lesson points). Section look "4" (a bar on the header's left edge) sits where the green edge is:
+  draw it on the right, or use look "5" only. Test `test_highlight.py` with the new rows.
+- **Favourites, declutter, hides (`usage.py`, 0181 / 0208 / 0236):** `context.fr_panel` and `panel_opened` stay; a hidden
+  function's row simply is not drawn (as today) – no change, only their real-app tests' pixel spots.
+- **`core/functions.py` anchors, `places.py`, the PC-check lines, the tour stops:** no change (same panels, titles,
+  places). The tour's shots and the PC check's pictures change look (re-record `tools/tour_versions.py` only if a stop's
+  check reads pixels).
+- **Real-app tests:** the step bar is no box any more (rows ~2 px lower) and function rows start ~10 px further right –
+  tests that click fixed spots in the side panel (0197 counted 19 files) re-measure; tests that find a row by text are
+  unaffected. Add: a test that the overlay finds its markers and paints them over (no marker colour left in the
+  panel), one-open-at-a-time, the theme field set and put back, a fold's open state kept.
+- **Guide pictures:** every side-panel picture in `docs/img/` (132 files, most show a panel) – retake with
+  `tools/guide_screens.py`; the guide's text about "the fold arrow" stays true.
+- **Not in it:** the top of the side panel (the later study), Blender's side-panel tabs (0222 C).
+
+**For CLAUDE.md section 8 (lead):** (1) Blender 5.2.3: panel colours are global (`user_interface.panel_*`), and
+`HIDE_HEADER` panels – all of the Fresing tab – draw no panel background: only boxes and buttons have a fill.
+(2) `wm.redraw_timer(type="DRAW")` gives a POST_PIXEL handler of a side panel a buffer without the panel; time with it,
+but check pixel-reading code with `DRAW_SWAP`. (3) A label's icon is drawn dimmed (a marker icon of one exact colour
+came out 61,111,42 instead of 71,155,40); an emboss-free operator button's icon comes out within 1 of its colour.
+
+**Open points / follow-up tasks:** the full change above (after the owner's three choices). The dashed line of an open
+fold runs to the bottom of its function's frame (prototype: right when the fold is the last thing in the function –
+the full change marks the fold's end). Leftover branch for the owner to delete: `claude/peaceful-cray-57hntp`.
+Subagents: none (a prototype of one module). Runs on GitHub: none (`[skip ci]`).
