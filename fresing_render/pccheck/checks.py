@@ -955,6 +955,77 @@ def motion_drawn(ctx):
             "cable route: 6 contacts, 5 turning")
 
 
+@line("motion.flex_kinds", "Hose and cable kinds, chain types and standard sizes", "0.2.182",
+      what="Task 0243: on the hoses model six hoses are drawn and each gets a kind – hydraulic, steel-braided, "
+           "pneumatic, protective sleeve, machine cable, power cable: a size pick sets its diameter and smallest bend, "
+           "the tube is drawn that thick, each kind has its own look (one shared material per kind and colour), a "
+           "number typed by hand makes the size Custom. On the gantry a drawn drag chain is open, closed, half-open and "
+           "steel in turn: links one pitch apart, its moving end on its bracket as X travels. A small processor render "
+           "of the six hoses")
+def motion_flex_kinds(ctx):
+    import numpy as np
+
+    from ..blender import build, cameras, drawn, flex, joints, render, tour
+    from ..core import flex_kinds
+    scene = ctx.fresh(FLEX_HOSES)
+    flex.set_up_test_hoses(scene)
+    root = build.model_roots(scene)[0]
+    t0 = time.time()
+    names = tour.kind_row_setup(scene, root)
+    ctx.metric("six hoses drawn and given a kind", time.time() - t0, "s")
+    looks = set()
+    worst = 0.0
+    for name, kid in zip(names, tour.KIND_ROW):
+        it = flex.find(scene, name)
+        sz = flex_kinds.size(kid, it.size_id)
+        _check(sz is not None and abs(it.diameter - sz.od) < 1e-6 and abs(it.min_radius - sz.bend) < 1e-6,
+               f"'{name}' does not have its standard size's numbers")
+        worst = max(worst, abs(2.0 * tour._tube_radius(scene, it) - sz.od))
+        looks.add(it.part.material_slots[0].material.name)
+        _check(not it.problem, f"'{name}': {it.problem}")
+    _check(worst < 1e-4, f"a hose is drawn {worst * 1000:.2f} mm off its size's diameter")
+    _check(len(looks) == len(names), "two kinds share one look")
+    it = flex.find(scene, names[2])
+    it.diameter = it.diameter + 0.001
+    _check(it.size == "CUSTOM", "a diameter typed by hand did not make the size Custom")
+    it.size = "OD8"
+    _check(abs(it.diameter - 0.008) < 1e-6, "the size 8 mm did not set the diameter")
+    m = root.matrix_world
+    from mathutils import Vector
+    cam = cameras.add_camera(scene, "ISO", 32.0, name="PC check kinds")
+    at, target = m @ Vector((0.86, 1.45, 0.95)), m @ Vector((0.86, 0.39, 0.2))
+    from mathutils import Matrix
+    cam.matrix_world = Matrix.Translation(at) @ (target - at).normalized().to_track_quat("-Z", "Y").to_matrix().to_4x4()
+    scene.camera = cam
+    s = scene.fresing
+    _small_output(s)
+    s.use_gpu = False
+    path = os.path.join(ctx.work, "flex_kinds.png")
+    info = render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "flex_kinds", "Hose and cable kinds (processor, draft)", model_check=False)
+
+    scene = ctx.fresh(FLEX_CHAINS)
+    flex.set_up_test_chains(scene)
+    name = tour.drawn_chain_setup(scene, build.model_roots(scene)[0])
+    chord = end = 0.0
+    for kid in ("OPEN", "CLOSED", "HALF", "STEEL"):
+        it = flex.find(scene, name)
+        it.chain_kind = kid
+        _check(flex_kinds.size(kid, it.size_id) is not None, f"the {kid.lower()} chain got no standard size")
+        for x in (0.14, -0.14):
+            joints.set_value(joints.find(scene, "X"), x)
+            _update()
+            flex.refresh(scene)
+            it = flex.find(scene, name)
+            pins = flex.pins_now(scene, it)
+            chord = max(chord, float(np.abs(np.linalg.norm(np.diff(pins, axis=0), axis=1) - it.pitch).max()))
+            end = max(end, float(np.linalg.norm(pins[-1] - drawn.world_spot(it.b_part, it.b_point, (1, 0, 0))[0])))
+            _check(not it.problem, f"{kid.lower()} chain, X at {x * 1000:.0f} mm: {it.problem}")
+    _check(chord < 1e-5 and end < 1e-4, f"chain types: links {chord * 1000:.4f} mm off, end {end * 1000:.3f} mm off")
+    return (f"6 kinds, Ø to {worst * 1000:.3f} mm, {len(looks)} looks; 4 chain types: links to {chord * 1000:.4f} mm; "
+            f"render {info['seconds']} s")
+
+
 @line("motion.paths", "A cable runs over sheaves, rollers and a chute", "0.2.80",
       what="A winch drum, an A-frame with two grooved sheaves, a V-roller cradle and a chute: the wire rope is read "
            "from its CAD solid and lies in the grooves; a Run motor step moves it at 10 m/min and the drum, the "
@@ -4649,7 +4720,7 @@ def app_learning(ctx):
     return f"'{L.one_line(q['fid'])}' offered, listed, ticked after 3 days; next to learn: {len(cands)} candidates"
 
 
-@line("app.lessons", "Lessons: the crane in Build it yourself to the end, Show me's first three steps", "0.2.182",
+@line("app.lessons", "Lessons: the crane in Build it yourself to the end, Show me's first three steps", "0.2.183",
       what="Fresing > Learn… is there; the crane lesson in Build it yourself does every step with Do it for me and goes "
            "on by itself once the project shows each done (11 steps: joints, camera, scene, animation, Build, exploded "
            "view, the queue); Show me points, does steps 2 to 4 itself and waits for Next; nothing of the lesson runs "

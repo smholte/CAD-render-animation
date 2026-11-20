@@ -184,6 +184,25 @@ MATERIALS: dict[str, dict] = {
                          base_color=(0.032, 0.032, 0.034), roughness=0.82, sheen=0.5, sheen_roughness=0.35,
                          cable=dict(kind="SERVED", pitch=1.0, starts=0, width=0.035)),
 
+    # ---- task 0243: hose kinds (core/flex_kinds.py); patterns drawn along the hose by blender/cable_looks.py ----
+    # hydraulic rubber hose: rubber of the given colour (black by default), a fine grain, a printed line along it
+    "hose_hydraulic": dict(label="Hydraulic hose, rubber with a printed line", category="Plastic & rubber",
+                           needs_color=True, roughness=0.7, specular=0.35, sheen=0.3, sheen_roughness=0.5,
+                           variation=dict(scale=400.0, roughness_min=0.62, roughness_max=0.8, color_amount=0.06),
+                           cable=dict(kind="HOSE")),
+    # a woven stainless-steel braid (no geometry: colour and bump)
+    "hose_braided": dict(label="Steel-braided hose", category="Metal", base_color=(0.72, 0.73, 0.74), metallic=1.0,
+                         roughness=0.32, cable=dict(kind="BRAID")),
+    # a spiral wrap of the given colour; the gaps show a black hose underneath
+    "hose_sleeve": dict(label="Protective spiral sleeve", category="Plastic & rubber", needs_color=True,
+                        roughness=0.45, specular=0.5, cable=dict(kind="SLEEVE")),
+    # a clear polyurethane air tube: see-through, a slight blue-grey tint
+    "pu_tube_clear": dict(label="Polyurethane tube, clear", category="Plastic & rubber",
+                          base_color=(0.86, 0.9, 0.92), roughness=0.18, transmission=0.92, ior=1.5),
+    # galvanised wire rope: duller and darker than the bright rope
+    "wire_rope_galv": dict(label="Steel wire rope, galvanised", category="Metal", base_color=(0.5, 0.51, 0.52),
+                           metallic=1.0, roughness=0.55, cable=dict(kind="ROPE", pitch=0.16, starts=6, width=0.0)),
+
     # ---- task 0116: offshore structures (wind turbine foundations, J-tubes, boat landings) --------------------
     # cast concrete: light warm grey, matte, a calm tone variation over metres, fine pores
     "concrete": dict(label="Concrete", category="Other", base_color=(0.60, 0.585, 0.55), roughness=0.86,
@@ -273,6 +292,11 @@ UIDS: dict[str, int] = {
     "from_file": 54,
     "paint_blade_eroded": 55,
     "cable_served": 56,
+    "hose_hydraulic": 57,
+    "hose_braided": 58,
+    "hose_sleeve": 59,
+    "pu_tube_clear": 60,
+    "wire_rope_galv": 61,
 }
 
 DEFAULT_COLOR = "RAL 7035"

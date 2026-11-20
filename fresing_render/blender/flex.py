@@ -68,7 +68,7 @@ MOD = "FR flex"                         # the modifier's name on a flex part
 SHAPES = "FR flex shapes"
 COLLECTION = "Flex parts"
 TREES = {"HOSE": "FR flex hose", "LINK": "FR flex link", "CHAIN": "FR flex chain"}
-VERSION = 2                             # of the node trees: an older tree is made again
+VERSION = 3                             # of the node trees (3: the hose has fr_cable, task 0243): an older tree is made again
 POINTS = 33                             # centreline points of a hose (what the solver gives)
 DRAWN = POINTS + 2                      # … and what is kept: one more point close to each end (see ``_with_ends``)
 END_SHARE = 0.25                        # that point lies this share of the first (last) piece from the end
@@ -1181,42 +1181,20 @@ def _strip(ob) -> None:
 # ---------------------------------------------------------------------------
 
 def _prism(outline: np.ndarray, z0: float, z1: float):
-    """A flat outline (k, 2) in x, y pushed out from z0 to z1: (points, faces), faces looking outward."""
-    x, y = outline[:, 0], outline[:, 1]
-    if float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y)) < 0.0:
-        outline = outline[::-1]
-    k = len(outline)
-    pts = [(float(px), float(py), z0) for px, py in outline] + [(float(px), float(py), z1) for px, py in outline]
-    faces = [tuple(range(k - 1, -1, -1)), tuple(range(k, 2 * k))]
-    faces += [(i, (i + 1) % k, k + (i + 1) % k, k + i) for i in range(k)]
-    return pts, faces
+    """A flat outline (k, 2) in x, y pushed out from z0 to z1 (core/flex_chain.prism, kept here for older callers)."""
+    return CH.prism(outline, z0, z1)
 
 
-def _made_link_data(pitch: float, width: float, height: float):
-    """Points and faces of one app-made link in its pin frame: its first pin at the origin, x to the next pin, y
-    from the fixed run towards the moving run, z across the chain. Two cranked side plates (the rear half sits
-    inside the next link's front half, as real links do) and a bar at the top and at the bottom."""
-    r = 0.5 * height
-    t = min(max(0.06 * width, 0.0006), 0.2 * width)
-    arc = np.linspace(0.5 * math.pi, 1.5 * math.pi, 9)
-    rear = np.concatenate([[(0.62 * pitch, r)], np.stack([r * np.cos(arc), r * np.sin(arc)], axis=1),
-                           [(0.62 * pitch, -r)]])
-    front = np.stack([pitch - rear[:, 0], rear[:, 1]], axis=1)
-    bar = 0.16 * height
-    box = np.array([(0.3 * pitch, 0.0), (0.7 * pitch, 0.0), (0.7 * pitch, bar), (0.3 * pitch, bar)])
-    pieces = []
-    for side in (1.0, -1.0):
-        z_in, z_mid, z_out = side * (0.5 * width - 2.0 * t), side * (0.5 * width - t), side * 0.5 * width
-        pieces.append(_prism(rear, min(z_in, z_mid), max(z_in, z_mid)))
-        pieces.append(_prism(front, min(z_mid, z_out), max(z_mid, z_out)))
-    inner = 0.5 * width - 1.5 * t
-    pieces.append(_prism(box + (0.0, r - bar), -inner, inner))
-    pieces.append(_prism(box + (0.0, -r), -inner, inner))
-    pts, faces = [], []
-    for p, f in pieces:
-        faces += [tuple(i + len(pts) for i in face) for face in f]
-        pts += p
-    return pts, faces
+def _made_link_data(pitch: float, width: float, height: float, kind: str = "OPEN"):
+    """Points and faces of one app-made link of the chain type ``kind`` (core/flex_chain.link_mesh)."""
+    return CH.link_mesh(kind, pitch, width, height)
+
+
+def link_type(item) -> str:
+    """The link shape an app-made chain draws: its kind's (task 0243), else the open link of 0.2.180."""
+    from ..core import flex_kinds
+    k = flex_kinds.get(getattr(item, "chain_kind", "NONE"))
+    return k.links if k is not None and k.links else "OPEN"
 
 
 def _made_link_name(item) -> str:
@@ -1226,10 +1204,12 @@ def _made_link_name(item) -> str:
 def _made_link(scene, item):
     """The object of the app-made link of this chain (made or made again when its sizes changed)."""
     dims = (round(float(item.pitch), 6), round(float(item.width), 6), round(float(item.height), 6))
+    kind = link_type(item)
     ob = bpy.data.objects.get(_made_link_name(item)) if _made_link_name(item) else None
-    if ob is not None and tuple(round(float(v), 6) for v in ob.get("fr_flex_dims", ())) == dims:
+    if ob is not None and tuple(round(float(v), 6) for v in ob.get("fr_flex_dims", ())) == dims and \
+            ob.get("fr_flex_link", "OPEN") == kind:
         return ob
-    pts, faces = _made_link_data(*dims)
+    pts, faces = _made_link_data(*dims, kind)
     me = bpy.data.meshes.new(f"{MADE_LINK} {label(item)}")
     me[TAG] = True
     me.from_pydata(pts, [], faces)
@@ -1246,6 +1226,7 @@ def _made_link(scene, item):
         if old is not None and old.users == 0:
             bpy.data.meshes.remove(old)
     ob["fr_flex_dims"] = list(dims)
+    ob["fr_flex_link"] = kind
     return ob
 
 
@@ -1374,14 +1355,19 @@ def _build_hose(ng) -> None:
     fine = b.new("GeometryNodeSetSplineResolution")
     b.link(kind.outputs[0], fine.inputs[0])
     fine.inputs["Resolution"].default_value = SMOOTH
+    # task 0243: the attribute the hose patterns read (blender/cable_looks.py): (cos φ, sin φ, metres along)
+    from . import paths
+    path, along = paths._capture(b, fine.outputs[0], _sock(b.new("GeometryNodeSplineParameter").outputs, "Length"))
     circle = b.new("GeometryNodeCurvePrimitiveCircle")
     circle.inputs["Resolution"].default_value = SIDES
     b.link(gin.outputs["Radius"], circle.inputs["Radius"])
+    profile, share = paths._capture(b, circle.outputs["Curve"],
+                                    _sock(b.new("GeometryNodeSplineParameter").outputs, "Factor"))
     tube = b.new("GeometryNodeCurveToMesh")
-    b.link(fine.outputs[0], tube.inputs["Curve"])
-    b.link(circle.outputs["Curve"], tube.inputs["Profile Curve"])
+    b.link(path, tube.inputs["Curve"])
+    b.link(profile, tube.inputs["Profile Curve"])
     tube.inputs["Fill Caps"].default_value = True
-    b.link(_slot(b, _shade(b, tube.outputs[0])), gout.inputs[0])
+    b.link(_slot(b, _shade(b, paths.store_look_attribute(b, tube.outputs[0], share, along))), gout.inputs[0])
 
 
 def _shade(b: _Nodes, geometry):
@@ -2622,6 +2608,13 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
         _rebuild(scene)
     except Exception as exc:
         notes.append(f"The hoses and drag chains could not be drawn again ({exc or type(exc).__name__})")
+    from . import kinds                         # task 0243: a kind's look and pattern onto the new revision's part
+    for it in list(scene.fresing.flex):
+        if kinds.kind_id(it):
+            try:
+                kinds.apply_look(scene, it)
+            except Exception as exc:
+                notes.append(f"{label(it)}: its kind's look could not be put back ({exc or type(exc).__name__})")
     return notes
 
 

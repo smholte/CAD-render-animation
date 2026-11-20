@@ -177,13 +177,13 @@ fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the 
 # ----- learning: lessons on the sample projects (task 0230) -----
 fn(id="learn.window", short="Learn", headline=True, title="Learn: sample projects to View, Show me or Build it yourself", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_lessons", guide="learn", tour=("lessons",),
-   pccheck=("app.lessons",), since="0.2.182")
+   pccheck=("app.lessons",), since="0.2.183")
 fn(id="learn.show_me", short="Show me", title="Show me: the app does each step of a lesson", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_start", text="Show me", guide="learn-show-me", tour=("lessons",), pccheck=("app.lessons",),
-   since="0.2.182")
+   since="0.2.183")
 fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that waits until you did each step", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_start", text="Build it yourself", guide="learn-build",
-   tour=("lessons",), pccheck=("app.lessons",), since="0.2.182")
+   tour=("lessons",), pccheck=("app.lessons",), since="0.2.183")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
@@ -282,6 +282,12 @@ fn(id="flex.draw_chain", title="Draw a drag chain between two brackets", family=
 fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simplified CAD part", family="machines",
    panel="FRESING_PT_flex", button="fresing.drawn_replace", guide="replace-cad", tour=("drawn_replace",),
    pccheck=("motion.drawn",), since="0.2.180")
+fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
+   panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
+   pccheck=("motion.flex_kinds",), since="0.2.182")
+fn(id="flex.chain_types", title="Drag chain types: open, closed, half-open, steel", family="machines",
+   panel="FRESING_PT_flex", prop="chain_kind", text="Type", guide="chain-types", tour=("chain_types",),
+   pccheck=("motion.flex_kinds",), since="0.2.182")
 fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRESING_PT_tracks",
    button="fresing.track_add", guide="tracks", tour=("tracks",), pccheck=("motion.tracks",), since="0.2.87")
 
@@ -293,6 +299,9 @@ fn(id="paths.draw_cable", short="Draw a cable", title="Draw a cable route by cli
    panel="FRESING_PT_cables", button="fresing.cable_draw", guide="draw-cable", tour=("drawn_cable",),
    pccheck=("motion.drawn",), since="0.2.180",
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
+fn(id="paths.cable_kinds", title="Cable kinds: machine, power, offshore cable, wire rope; standard sizes",
+   family="offshore", panel="FRESING_PT_cables", prop="cable_kind", text="Kind", guide="cable-kinds",
+   tour=("flex_kinds",), pccheck=("motion.flex_kinds",), since="0.2.182")
 fn(id="offshore.served_cable", title="Served cable look: yarn and marker spirals", family="offshore",
    panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),
    pccheck=("looks.served_cable",), since="0.2.116")

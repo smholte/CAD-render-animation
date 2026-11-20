@@ -3,7 +3,8 @@ Draw hose (replacing the CAD hose HYDRAULIC HOSE ARM, which hides while clicking
 block's fitting – the hover shows that part –, a click; Backspace takes it back; the click again; the mouse onto the
 arm's fitting, a click; Enter. The drawn hose is in the list, its ends on the two fittings, the CAD hose hidden for
 good; the arm luffs and the hose follows. Then Draw hose again, one click and Esc: nothing is drawn. Undo takes the
-drawn hose back, redo brings it again.
+drawn hose back, redo brings it again. Task 0243: the drawn hose is a hydraulic hose of the nearest standard size; Size,
+Kind and Colour picked as the drop-downs pick them, a diameter typed by hand makes it Custom; undo steps back.
 
 The clicks in the 3D view are real mouse events of a running picker (the operator is started as a button starts it).
 
@@ -325,6 +326,69 @@ def s_redone():
     check("redo: it is back, drawn, and follows the motion", it is not None and it.drawn
           and flex().status(sc, it)[1] == "OK")
     bpy.context.preferences.system.use_region_overlap = True
+    return 0.5
+
+
+def set_enum(path, value):
+    """A drop-down pick as the side panel makes it: the RNA value set, one undo step."""
+    with override():
+        return bpy.ops.wm.context_set_enum("EXEC_DEFAULT", True, data_path=path, value=value)
+
+
+@step
+def s_kind_defaults():
+    # task 0243: the picker gave the drawn hose its kind and the standard size nearest its fitting
+    sc = bpy.context.scene
+    it = flex().find(sc, "Hose 1")
+    check("the drawn hose is a hydraulic hose of a standard size", it.hose_kind == "HYDRAULIC" and it.size_id
+          and it.kind_colour == "BLACK", f"{it.hose_kind} {it.size_id}")
+    mod("blender.panels").open_to("FRESING_PT_flex")
+    redraw()
+    r = set_enum("scene.fresing.flex[0].size", "DN25")
+    check("Size DN 25 from the drop-down sets Ø 38.5 mm and the bend 300 mm",
+          r == {"FINISHED"} and abs(it.diameter - 0.0385) < 1e-6 and abs(it.min_radius - 0.3) < 1e-6,
+          f"{it.diameter} {it.min_radius}")
+    return 1.0
+
+
+@step
+def s_kind_colour():
+    sc = bpy.context.scene
+    it = flex().find(sc, "Hose 1")
+    r = set_enum("scene.fresing.flex[0].hose_kind", "PNEUMATIC")
+    check("Kind: pneumatic tube – still black (it comes in black too), the size nearest 38.5 mm (16 mm), its look",
+          r == {"FINISHED"} and it.kind_colour == "BLACK" and it.size_id == "OD16"
+          and it.part.get("fr_group_manual") == "Pneumatic tube, black", f"{it.kind_colour} {it.size_id}")
+    set_enum("scene.fresing.flex[0].colour", "RED")
+    check("Colour red: the red tube's look", it.part.get("fr_group_manual") == "Pneumatic tube, red")
+    with override():
+        bpy.ops.wm.context_set_float("EXEC_DEFAULT", True, data_path="scene.fresing.flex[0].diameter", value=0.015)
+    check("a diameter typed by hand: the size reads Custom", it.size == "CUSTOM" and it.size_id == "")
+    shot("kinds_panel")
+    with override():
+        bpy.ops.ed.undo()
+    return 1.0
+
+
+@step
+def s_kind_undo():
+    it = flex().find(bpy.context.scene, "Hose 1")
+    check("undo: the size is back (16 mm)", it.size_id == "OD16" and abs(it.diameter - 0.016) < 1e-6,
+          f"{it.size_id} {it.diameter}")
+    with override():
+        bpy.ops.ed.undo()
+        bpy.ops.ed.undo()
+    return 1.0
+
+
+@step
+def s_kind_undo2():
+    sc = bpy.context.scene
+    it = flex().find(sc, "Hose 1")
+    check("undo twice more: a hydraulic hose DN 25 again, its look back",
+          it.hose_kind == "HYDRAULIC" and it.size_id == "DN25"
+          and it.part.get("fr_group_manual") == "Hydraulic hose, black", f"{it.hose_kind} {it.size_id}")
+    check("… and it still follows the motion", flex().status(sc, it)[1] == "OK", flex().status(sc, it)[0])
     return 0.5
 
 

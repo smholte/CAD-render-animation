@@ -959,3 +959,87 @@ def fit_solid(verts, pitch: float | None = None) -> ChainFit:
                         width=width, height=height)
     fit.pins = drawn.pins[0] @ frame[:3, :3].T + frame[:3, 3]
     return fit
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# the link the app draws (a chain that is one solid, or drawn in the app): one low-poly link per type (task 0243)
+# ---------------------------------------------------------------------------------------------------------------
+
+LINK_TYPES = ("OPEN", "CLOSED", "HALF", "STEEL")
+
+
+def prism(outline, z0: float, z1: float) -> tuple:
+    """A flat outline (k, 2) in x, y pushed out from z0 to z1: (points, faces), faces looking outward."""
+    outline = np.asarray(outline, float)
+    x, y = outline[:, 0], outline[:, 1]
+    if float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y)) < 0.0:
+        outline = outline[::-1]
+    k = len(outline)
+    pts = [(float(px), float(py), z0) for px, py in outline] + [(float(px), float(py), z1) for px, py in outline]
+    faces = [tuple(range(k - 1, -1, -1)), tuple(range(k, 2 * k))]
+    faces += [(i, (i + 1) % k, k + (i + 1) % k, k + i) for i in range(k)]
+    return pts, faces
+
+
+def _rod(x: float, y: float, r: float, z0: float, z1: float, sides: int = 8) -> tuple:
+    """A round bar across the chain (along z) through (x, y)."""
+    a = np.linspace(0.0, 2.0 * math.pi, sides, endpoint=False)
+    return prism(np.stack([x + r * np.cos(a), y + r * np.sin(a)], axis=1), z0, z1)
+
+
+def _join(pieces) -> tuple:
+    pts, faces = [], []
+    for p, f in pieces:
+        faces += [tuple(i + len(pts) for i in face) for face in f]
+        pts += p
+    return pts, faces
+
+
+def link_mesh(kind: str, pitch: float, width: float, height: float) -> tuple:
+    """Points and faces of one app-made link in its pin frame: its first pin at the origin, x to the next pin, y
+    from the fixed run towards the moving run (so +y is the inside of the bend, −y the outside), z across the chain;
+    ``width`` and ``height`` the link's outer size.
+
+    * OPEN (and every older project: what 0.2.180 drew): two cranked side plates (the rear half sits inside the next
+      link's front half, as real links do) and a crossbar at the top and at the bottom.
+    * CLOSED: the side plates with a lid at the top and at the bottom, each nearly a pitch long: a closed tube.
+    * HALF: a lid on the outside of the bend (−y), a crossbar on the inside.
+    * STEEL: straight steel side plates with rounded ends, overlapping the next link's, and two round crossbar tubes.
+    """
+    kind = kind if kind in LINK_TYPES else "OPEN"
+    r = 0.5 * height
+    t = min(max(0.06 * width, 0.0006), 0.2 * width)
+    pieces = []
+    if kind == "STEEL":
+        t = min(max(0.05 * width, 0.002), 0.15 * width)
+        arc = np.linspace(-0.5 * math.pi, 0.5 * math.pi, 9)
+        ends = 0.95 * r
+        right = np.stack([pitch + 0.12 * pitch + ends * np.cos(arc), ends * np.sin(arc)], axis=1)
+        left = np.stack([-0.12 * pitch - ends * np.cos(arc), ends * np.sin(arc)], axis=1)[::-1]
+        plate = np.concatenate([right, left])
+        for side in (1.0, -1.0):
+            z_in, z_out = side * (0.5 * width - t), side * 0.5 * width
+            # the plates alternate in and out in a real chain; one plate a little inside its neighbour is enough
+            pieces.append(prism(plate, min(z_in, z_out), max(z_in, z_out)))
+        inner = 0.5 * width - t
+        tube = 0.13 * height
+        pieces.append(_rod(0.5 * pitch, r - tube, tube, -inner, inner))
+        pieces.append(_rod(0.5 * pitch, -r + tube, tube, -inner, inner))
+        return _join(pieces)
+    arc = np.linspace(0.5 * math.pi, 1.5 * math.pi, 9)
+    rear = np.concatenate([[(0.62 * pitch, r)], np.stack([r * np.cos(arc), r * np.sin(arc)], axis=1),
+                           [(0.62 * pitch, -r)]])
+    front = np.stack([pitch - rear[:, 0], rear[:, 1]], axis=1)
+    for side in (1.0, -1.0):
+        z_in, z_mid, z_out = side * (0.5 * width - 2.0 * t), side * (0.5 * width - t), side * 0.5 * width
+        pieces.append(prism(rear, min(z_in, z_mid), max(z_in, z_mid)))
+        pieces.append(prism(front, min(z_mid, z_out), max(z_mid, z_out)))
+    inner = 0.5 * width - 1.5 * t
+    bar = 0.16 * height
+    box = np.array([(0.3 * pitch, 0.0), (0.7 * pitch, 0.0), (0.7 * pitch, bar), (0.3 * pitch, bar)])
+    lid = np.array([(0.03 * pitch, 0.0), (0.97 * pitch, 0.0), (0.97 * pitch, bar), (0.03 * pitch, bar)])
+    top = lid if kind == "CLOSED" else box                # +y: the inside of the bend
+    bottom = lid if kind in ("CLOSED", "HALF") else box   # −y: the outside
+    pieces.append(prism(top + (0.0, r - bar), -inner, inner))
+    pieces.append(prism(bottom + (0.0, -r), -inner, inner))
+    return _join(pieces)

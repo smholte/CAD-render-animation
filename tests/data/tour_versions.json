@@ -38,7 +38,7 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.182",
+   "changed": "0.2.183",
    "fp": "0a685f7e7b4a4e87"
   },
   "crane_setup": {
@@ -73,8 +73,8 @@
   },
   "flex_drawn": {
    "added": "0.2.180",
-   "changed": "",
-   "fp": "671abdf1f9fab10b"
+   "changed": "0.2.182",
+   "fp": "ac568aee084c5c4a"
   },
   "gantry": {
    "added": "0.2.47",
@@ -128,7 +128,7 @@
   },
   "mill": {
    "added": "0.2.47",
-   "changed": "0.2.182",
+   "changed": "0.2.183",
    "fp": "93df25aae714a629"
   },
   "moving_cable": {

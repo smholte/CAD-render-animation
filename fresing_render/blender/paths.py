@@ -1604,6 +1604,12 @@ def _build(ng, moving: bool) -> None:
     b.link(path, tube.inputs["Curve"])
     b.link(profile, tube.inputs["Profile Curve"])
     tube.inputs["Fill Caps"].default_value = True
+    b.link(flex._slot(b, flex._shade(b, store_look_attribute(b, tube.outputs[0], share, along))), gout.inputs[0])
+
+
+def store_look_attribute(b, geometry, share, along):
+    """The tube's point attribute ``fr_cable`` = (cos φ, sin φ, s) from the profile's share of the turn and the
+    metres along (the cable looks read it; hoses too since task 0243). Returns the geometry socket."""
     phi = b.new("ShaderNodeMath", operation="MULTIPLY")
     b.link(share, phi.inputs[0])
     phi.inputs[1].default_value = 2.0 * math.pi
@@ -1616,9 +1622,9 @@ def _build(ng, moving: bool) -> None:
     b.link(along, xyz.inputs["Z"])
     store = b.new("GeometryNodeStoreNamedAttribute", data_type="FLOAT_VECTOR", domain="POINT")
     store.inputs["Name"].default_value = cable_looks.ATTR
-    b.link(tube.outputs[0], store.inputs["Geometry"])
+    b.link(geometry, store.inputs["Geometry"])
     b.link(xyz.outputs[0], flex._sock(store.inputs, "Value"))
-    b.link(flex._slot(b, flex._shade(b, store.outputs[0])), gout.inputs[0])
+    return store.outputs[0]
 
 
 def _tree(moving: bool):
@@ -2818,6 +2824,10 @@ def _group(scene, item) -> None:
     part = item.part
     s = scene.fresing
     want = GROUPS.get(item.look)
+    from . import kinds
+    spec = kinds.cable_group(item)              # task 0243: a kind and colour picks the group (shared material)
+    if spec is not None:
+        want = spec[0]
     cur = part.get("fr_group_manual", "") or ""
     if want:
         if cur == want:
@@ -2828,13 +2838,15 @@ def _group(scene, item) -> None:
         part["fr_group_manual"] = want
         g = logic.ensure_group(s, want)
         if new:
-            g.material = cable_looks.MATERIALS[item.look]
+            g.material = spec[1] if spec is not None else cable_looks.MATERIALS[item.look]
+            if spec is not None and spec[2]:
+                g.color = spec[2]
     else:
         if WAS not in item:
             return
         was = item[WAS]
         del item[WAS]
-        if cur not in GROUPS.values():
+        if cur not in GROUPS.values() and cur not in kinds._kind_groups():
             return                              # the user put it somewhere else since: it stays there
         if was:
             part["fr_group_manual"] = was

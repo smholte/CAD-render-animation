@@ -469,8 +469,11 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
                      icon="BLANK1")
                 layout.operator("fresing.cable_motor_step", text="Add a Run motor step", icon="ADD")
 
-        # -- its look
+        # -- its kind, colour and size (task 0243), its look
         gap(layout)
+        from .ui_flex import draw_kind
+        draw_kind(layout, context, cb)
+        gap(layout, size=0.5)
         col = split_props(layout)
         col.prop(cb, "look", text="Look")
         if cb.look == "POWER":

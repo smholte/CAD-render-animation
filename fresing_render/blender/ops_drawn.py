@@ -32,6 +32,10 @@ from .ops_motion import over_panel
 HELP = "Backspace: undo the last click.  Esc / right-click: stop.  Middle mouse / scroll: move the view"
 
 
+#: the kind a drawn item starts with (task 0243; core/flex_kinds.py): the size is then the nearest standard one
+DEFAULT_KIND = {"HOSE": "HYDRAULIC", "CABLE": "MACHINE", "CHAIN": "OPEN", "ROUTE": "ROPE"}
+
+
 def _say(context, op, text: str, level: str = "INFO") -> None:
     context.scene.fresing.last_message = text
     op.report({level}, text)
@@ -233,10 +237,12 @@ class FRESING_OT_flex_draw(_Picker, bpy.types.Operator):
         target = _replace_target(context, self.replace)
         if self.kind == "CHAIN":
             item, notes = flex.draw_chain(scene, spots[0], spots[1], replace=target)
+            item.chain_kind = DEFAULT_KIND["CHAIN"]            # task 0243: an open chain, the nearest size
             what = f"Drag chain '{item.name}' drawn: {plural(item.count, 'link')}, bend radius " \
                    f"{item.radius * 1000.0:.0f} mm – move the axis and it rolls"
         else:
             item, notes = flex.draw_hose(scene, spots, soft=self.kind == "CABLE", replace=target)
+            item.hose_kind = DEFAULT_KIND[self.kind]           # task 0243: the size nearest the fitting's Ø
             word = "Cable" if self.kind == "CABLE" else "Hose"
             clips = f", through {plural(len(item.clips), 'clip')}" if len(item.clips) else ""
             what = f"{word} '{item.name}' drawn: {item.length * 1000.0:.0f} mm long{clips} – move a joint and it " \
@@ -324,6 +330,7 @@ class FRESING_OT_cable_draw(_Picker, bpy.types.Operator):
         target = _replace_target(context, self.replace)
         item, notes = paths.draw_cable(scene, start, wheels, end, joint=scene.fresing.cable_speed, replace=target,
                                        wind=self.wind)
+        item.cable_kind = DEFAULT_KIND["ROUTE"]                # task 0243: a wire rope, the size nearest its Ø
         for note in notes[2:]:
             self.report({"WARNING"}, note)
         _say(context, self, f"Cable '{item.name}' drawn over {plural(len(paths._wheels(item)), 'wheel')}"
