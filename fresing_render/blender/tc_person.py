@@ -403,7 +403,7 @@ def _tool_shape(ob, spindle) -> tuple:
     return _np4(F), p
 
 
-def _floor(scene, centre_xy, skip: set, also=()) -> core.Floor:
+def _floor(scene, centre_xy, skip: set, also=()) -> core.Floor:  # grid lines through centre_xy (task 0239)
     """What stands on the floor round ``centre_xy`` between knee and head height (every shown mesh but the operator,
     its tools, people and items), and the door also open. ``also``: points the map must reach (the owner's spots)."""
     from . import surroundings as sur
@@ -411,7 +411,7 @@ def _floor(scene, centre_xy, skip: set, also=()) -> core.Floor:
     pts = np.array([tuple(centre_xy[:2])] + [tuple(p[:2]) for p in also], float)
     lo = pts.min(axis=0) - AREA
     hi = pts.max(axis=0) + AREA
-    fl = core.Floor(lo, hi, z=z, cell=0.04)
+    fl = core.Floor(lo, hi, z=z, cell=0.04, origin=centre_xy)
     door = door_joint(scene)
     door_obs = {ob.name for ob in (_members(door) if door is not None else [])}
     move = None
