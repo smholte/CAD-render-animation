@@ -913,7 +913,7 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47")
+@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.185")
 def build_faces(b: Build):
     import bpy
 
@@ -4931,6 +4931,37 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      where="Fresing menu > My learning list…; the question at the top of the Fresing tab; the What's next card",
      since="0.2.160", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
+
+
+def _backup_setup(scene):
+    """Task 0246: a backup of the tour project, made now (as the timer does after 5 minutes of work)."""
+    from . import backups
+    backups.make(scene, force=True)
+
+
+def _check_backups(scene):
+    import bpy
+
+    from ..core import backups as core
+    from . import backups, ui_topbar
+    _check("fresing.backups_window" in ui_topbar.entries(), "Restore a backup… is not in the Fresing menu")
+    _check(bool(bpy.data.filepath), "the tour project has no file: no Backups folder next to it")
+    found = backups.project_backups()
+    _check(bool(found), "no backup of the tour project: " + (backups._S.get("last_reason") or "none was made"))
+    folder = os.path.dirname(found[0].path)
+    _check(folder == core.folder_next_to(bpy.data.filepath), f"the backup is not next to the project but in {folder}")
+    others = [n for n in os.listdir(folder) if core.parse(n, core.project_name(bpy.data.filepath)) is None]
+    _check(not others, f"other files in the Backups folder: {others}")
+    return f"{len(found)} backup(s) of the tour project, {core.size_text(core.total_size(found))}"
+
+
+stop("backups", OUT, "faces", "Automatic backups",
+     "Fresing > Restore a backup… lists a backup of this tour project made just now (Today and the time, its size), "
+     "with Restore and a folder button. Restore keeps your work as a backup first, then opens the backup. In Edit > "
+     "Preferences > Add-ons > Fresing Render the box Automatic backups has the switch, every 5 minutes, keep the last 5 "
+     "and one a day for 7 days.",
+     where="Fresing menu > Restore a backup…; Edit > Preferences > Add-ons > Fresing Render > Automatic backups",
+     since="0.2.185", shot="Painted faces", check=_check_backups, setup=_backup_setup)
 
 # ---------------------------------------------------------------------------
 # every machining stop: the block shows what the program does (task 0223)
