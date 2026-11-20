@@ -136,6 +136,8 @@ def register():
     from .blender import lock, ui_top, workspaces
     from .blender import highlight
     highlight.register()                     # task 0062: what a lesson points with (nothing runs until one points)
+    from .blender import look244
+    look244.register()                       # PROTOTYPE 0244 (never merged)
     lock.register()                          # task 0062: the Client view's lock (keys, new objects)
     workspaces.register()                    # the project's workspace after a load; the open sections at a save
     ui_top.register_header()                 # "Make" in the 3D view's header
@@ -271,6 +273,8 @@ def unregister():
     ui_top.unregister_header()
     workspaces.unregister()
     lock.unregister()
+    from .blender import look244
+    look244.unregister()
     from .blender import highlight
     highlight.unregister()
     for cls in reversed(_all_classes()):

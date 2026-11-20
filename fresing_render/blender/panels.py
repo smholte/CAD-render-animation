@@ -302,6 +302,13 @@ def _make_draw(cls, body):
             self.layout.context_string_set("fr_panel", cls.__name__)    # task 0181: a click knows its panel
         except Exception:  # noqa: BLE001
             pass
+        from . import look244                          # PROTOTYPE 0244
+        if look244.new() and look244.in_steps(cls.__name__):
+            look244.CURRENT[0] = cls.__name__
+            try:
+                return look244.draw_panel(self, context, cls, body)
+            finally:
+                look244.CURRENT[0] = ""
         if draw_title(self, context, cls):
             scene = getattr(context, "scene", None)
             if scene is not None:
@@ -319,9 +326,13 @@ def _make_poll(cls, own):
     name = cls.__name__
 
     def poll(c, context):
+        from . import look244                          # PROTOTYPE 0244
+        if look244.hidden_sub(name):
+            return False
         if not visible(name, context):
             return False
         return own(context) if own is not None else True
+    cls._fr_own_poll = own
     return classmethod(poll)
 
 
@@ -416,6 +427,9 @@ class FRESING_OT_panel_toggle(bpy.types.Operator):
                 pass
         else:
             set_open(self.name, self.name not in OPEN)
+        if self.name in OPEN:
+            from . import look244                      # PROTOTYPE 0244
+            look244.one_open(self.name)
         if self.name in OPEN:
             try:
                 from . import usage

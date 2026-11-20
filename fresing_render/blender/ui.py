@@ -151,6 +151,9 @@ HOOKS = {"fold": None, "header": None}
 
 def fold(layout, idname: str, title: str, icon: str = "NONE", closed: bool = True):
     """A foldable part of a panel; returns its body layout or None when folded."""
+    from . import look244                              # PROTOTYPE 0244
+    if look244.new() and look244.CURRENT[0]:
+        return look244.fold(layout, idname, title, icon, closed)
     forced = HOOKS["fold"]
     if forced is not None and forced(idname):          # a lesson points into this fold: open, whatever it was
         header, body = layout.panel_prop(context_wm(), "fresing_fold_open")
