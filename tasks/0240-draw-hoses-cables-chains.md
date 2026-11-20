@@ -1,6 +1,6 @@
 # 0240 – Hoses, cables and drag chains placed in the app by clicking points (no CAD part needed)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0240-draw-hoses-cables-chains`
+**Who:** worker · **Status:** running · **Branch:** `claude/optimistic-ptolemy-3f7duz` (the web session's branch)
 **Started by:** lead, 20 Nov 2026 (owner 16:55: "hoses and cables are usually not included in the cad model, so i want
 to place them from inside of fresing render easily, by selecting positions. The same for drag chains, they are often
 included but very simplified so not useful for animations so they would most likely be hidden for render") ·

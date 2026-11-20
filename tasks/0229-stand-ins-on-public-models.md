@@ -21,18 +21,11 @@ closer than 0.02 (`joints.table_keys` leader × 1000 – **no public test**), tr
 lowered on a wire between open tracks with the clash check, the 38 kg/m catenary + Lay data checks, a wrap set by hand
 kept through a model update, 400+ joints in a batch, the clash check with many turning parts.
 
-## Owner's change (20 Nov 16:55) – the whole cable-lay project goes private
+## Owner's correction (20 Nov 17:02)
 
-Not only the equipment: the ship, its wind park and its animations leave the public repository too (package 2). So
-three more things lose their only big public proof and need a stand-in here (add them to the list below):
-- **11. Vessel at work + vessel motion at ship size:** on the public test hull (`test_thrusters`; task 0234 is giving
-  it a real hull shape – use what is on `main`, change no maker) scaled up **inside the test** to ship size (~100 m),
-  vessel at work + motion, the numbers the demo checks today (wake, thruster jets, motion amplitudes per sea state).
-- **12. Re-bake after a sea change with a cable on the seabed:** on `test_sea` (no maker change), Calm → Rough after
-  Build, the job's steps, Cancel – today `test_demo_project_rebake.py`.
-- **13. A turning-parts clash case at size:** the rotors / propellers the public demo was going to keep – covered by
-  item 9's roller rim if you add a few big turning rotors to it.
-The PC check's Heavy line `heavy.demo` is package 2's (it moves to the invented Heavy machine or the Lifting site).
+The ship with its deck crane and the wind park **stay public** (the public demo "Vessel in a wind park" keeps vessel
+at work, vessel motion, the park and a re-bake). Only the equipment goes private – **the list below is the whole job**;
+an earlier note that added items 11–13 is withdrawn.
 
 ## What to do
 
