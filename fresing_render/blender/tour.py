@@ -1595,6 +1595,254 @@ def _check_cables(scene):
             f"{turning} parts turning with it to {slip * 1000:.3f} mm")
 
 
+# ---------------------------------------------------------------------------
+# hoses, a drag chain and a cable route drawn by clicking (task 0240)
+# ---------------------------------------------------------------------------
+
+DRAWN_ANIM = "Drawn hose, chain and cable"
+DRAWN_CHAINS_AT = (0.0, -1.1, 0.0)              # the gantry beside the hoses model (m)
+DRAWN_PATHS_AT = (0.0, 1.5, 0.0)                # the cable model on the other side
+DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE = "Hose 1", "Drag chain 1", "Drawn rope"
+
+
+def _drawn_click(scene, root, origin, direction, want: str, hide=()):
+    """A click as Draw hose / Draw drag chain / Draw cable route take it: a ray (in the model's own coordinates, so
+    a moved model is clicked where it is now) cast as the picker casts it, with the CAD parts in ``hide`` hidden
+    meanwhile (the picker hides the part it replaces: it lies on the fittings). Returns the spot."""
+    import numpy as np
+    import bpy
+    from mathutils import Vector
+
+    from . import build, drawn, hover, logic
+    for ob in hide:
+        logic.set_visible_flags(ob, True)
+    _update()
+    try:
+        m = root.matrix_world
+        o, d = m @ Vector(origin), (m.to_3x3() @ Vector(direction)).normalized()
+        ob, index, loc, normal = hover.cast(scene, bpy.context.evaluated_depsgraph_get(), o, d)
+        _check(index >= 0 and ob.get(build.PROP_NAME) == want,
+               f"the click meant for '{want}' hits '{ob.get(build.PROP_NAME) if ob is not None else 'nothing'}'")
+        sp = drawn.spot(ob, index, loc, normal)
+        sp["hit"] = np.array(loc)
+        return sp
+    finally:
+        for ob in hide:
+            if not ob.get(build.PROP_EXCLUDED):
+                logic.set_visible_flags(ob, False)
+        _update()
+
+
+def drawn_hose_setup(scene, root) -> str:
+    """On the hoses model (tools/make_test_flex.py, at ``root``): the CAD hose HYDRAULIC HOSE ARM leaves the list, and
+    a hose is drawn in its place – end A on FITTING VALVE C, two clips on the base's top, end B on FITTING ARM –,
+    replacing it. The luff gets its limits first (the length then fits the whole travel). Returns the item's name."""
+    import math
+
+    from . import flex, joints
+    i = next((k for k, it in enumerate(scene.fresing.flex) if it.name == "HYDRAULIC HOSE ARM"), -1)
+    if i >= 0:
+        flex.remove(scene, i)
+    luff = joints.find(scene, "Luff")
+    luff.rot_min, luff.rot_max, luff.use_limits = math.radians(-20.0), math.radians(20.0), True
+    cad = _ob(scene, "HYDRAULIC HOSE ARM")
+    spots = [_drawn_click(scene, root, (0.432, -0.069, 0.5), (0, 0, -1), "FITTING VALVE C", (cad,)),
+             _drawn_click(scene, root, (0.6, -0.12, 0.8), (0, 0, -1), "BASE", (cad,)),
+             _drawn_click(scene, root, (0.85, -0.12, 0.8), (0, 0, -1), "BASE", (cad,)),
+             _drawn_click(scene, root, (1.002, -0.3, 0.6), (0, 1, 0), "FITTING ARM", (cad,))]
+    item, notes = flex.draw_hose(scene, spots, replace=cad)
+    _check(not notes, "; ".join(notes))
+    return item.name
+
+
+def drawn_chain_setup(scene, root) -> str:
+    """On the gantry (test_flex_chains_a.step, at ``root``, its joints made by ``flex.set_up_test_chains``): the CAD
+    chain X leaves the list and a drag chain is drawn between its two brackets, replacing the CAD links."""
+    from . import build, flex
+    i = next((k for k, it in enumerate(scene.fresing.flex) if it.name == "CHAIN X.ASM"), -1)
+    if i >= 0:
+        flex.remove(scene, i)
+    home = _ob(scene, "CHAIN X.ASM")
+    links = [o for o in build.iter_parts(scene) if build.logical_parent(o) == home]
+    a = _drawn_click(scene, root, (-0.04, -1.0, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED", links)
+    b = _drawn_click(scene, root, (-0.01, -1.0, 0.44), (0, 1, 0), "CHAIN BRACKET X MOVING", links)
+    item, notes = flex.draw_chain(scene, a, b, replace=links[0])
+    _check(not notes, "; ".join(notes))
+    return item.name
+
+
+def drawn_cable_setup(scene, root) -> str:
+    """On the cable model (test_paths_a.step, at ``root``): the joint "A-frame luff" and a cable route drawn by
+    clicking – the winch drum, SHEAVE 1, SHEAVE 2, the CHUTE, a free end –, replacing the CAD rope."""
+    from mathutils import Vector
+
+    from . import joints, paths
+    rope = _ob(scene, "WIRE ROPE")
+    start = _drawn_click(scene, root, (0.0, 0.0, 0.45), (1, 0, 0), "WINCH DRUM", (rope,))
+    wheels = []
+    for name, o, d in (("SHEAVE 1", (1.9104, 0.0, 3.0), (0, 0, -1)), ("SHEAVE 2", (1.5, 0.0, 0.5), (0, 0, 1)),
+                       ("CHUTE", (2.7, 0.0, 1.5), (0, 0, -1))):
+        sp = _drawn_click(scene, root, o, d, name, (rope,))
+        wheels.append((sp["part"], sp["hit"], False))
+    item, _notes = paths.draw_cable(scene, start, wheels, None, name=DRAWN_CABLE, diameter=0.024, replace=rope)
+    m = root.matrix_world
+    luff = joints.create(scene, "ROTATE", [_ob(scene, "A-FRAME.ASM")], m @ Vector((1.5, 0.0, 0.73)),
+                         (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="A-frame luff")
+    luff.rot_min, luff.rot_max, luff.use_limits = -0.26, 0.26, True
+    return item.name
+
+
+def drawn_motion(a, cable_joint: str) -> None:
+    """The steps of the drawn stops: the arm luffs, X travels, the A-frame luffs while the drawn rope runs."""
+    _joint_step(a, "Luff", 0.0, 2.0, math.radians(16.0), label="Arm up 16°")
+    _joint_step(a, "Luff", 2.0, 2.0, math.radians(-10.0), label="Arm down to -10°")
+    _joint_step(a, "X", 0.0, 2.0, 0.14, slide=True, label="X out 140 mm")
+    _joint_step(a, "X", 2.0, 2.0, -0.14, slide=True, label="X back 280 mm")
+    _joint_step(a, "A-frame luff", 0.5, 1.5, math.radians(10.0), label="A-frame forward")
+    _joint_step(a, "A-frame luff", 2.5, 1.5, 0.0, label="A-frame back")
+    blk = a.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", cable_joint, 0.0, 4.0, "LINEAR"
+    blk.speed_mmin = 10.0
+
+
+@tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.176")
+def build_flex_drawn(b: Build):
+    from mathutils import Vector
+
+    from . import build, flex, paths
+    sc, s = b.scene, b.s
+    _look("PRODUCT")
+    s.background, s.env_detail = "FACTORY", "SIMPLE"
+    roots = sorted(build.model_roots(sc), key=build.uid_scope)
+    _check(len(roots) == 3, f"{len(roots)} models instead of 3")
+    hoses, chains, cable = roots
+    chains.location = chains.location + Vector(DRAWN_CHAINS_AT)
+    cable.location = cable.location + Vector(DRAWN_PATHS_AT)
+    _update()
+    flex.set_up_test_hoses(sc)
+    flex.set_up_test_chains(sc)
+    for name in ("HYDRAULIC HOSE CYL A", "HYDRAULIC HOSE CYL B", "CABLE", "CHAIN Y.ASM", "CHAIN Z.ASM"):
+        it = flex.find(sc, name)                # (only the drawn ones in this set's list)
+        if it is not None:
+            flex.remove(sc, flex.index_of(sc, it))
+    _update()
+    hose = drawn_hose_setup(sc, hoses)
+    chain = drawn_chain_setup(sc, chains)
+    rope = drawn_cable_setup(sc, cable)
+    _check((hose, chain, rope) == (DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE), f"named {hose}, {chain}, {rope}")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: drawn hose, chain and cable")
+    drawn_motion(_animation(b, DRAWN_ANIM, shot.name), paths.find(sc, DRAWN_CABLE).joint)
+
+
+def check_drawn_hose(scene) -> str:
+    """The drawn hose over the animation: ends on their fittings, through its clips, its length kept."""
+    import numpy as np
+
+    from ..core import flex as fcore
+    from . import drawn, flex
+    it = flex.find(scene, DRAWN_HOSE)
+    _check(it is not None and it.drawn, "the drawn hose is missing")
+    _check(len(it.clips) == 2, f"it runs through {len(it.clips)} clips, not 2")
+    end = stretch = moved = 0.0
+    first = None
+    for f in sorted({scene.frame_start, scene.frame_end} | set(range(scene.frame_start, scene.frame_end, 12))):
+        scene.frame_set(f)
+        _update()
+        line = flex.shape_now(scene, it)
+        stops = [drawn.world_spot(it.a_part, it.a_point, it.a_dir)[0]]
+        stops += [drawn.world_spot(c.part, c.point, c.dir)[0] for c in it.clips]
+        stops.append(drawn.world_spot(it.b_part, it.b_point, it.b_dir)[0])
+        for p in stops:
+            end = max(end, float(np.linalg.norm(line - p, axis=1).min()))
+        stretch = max(stretch, abs(float(fcore.polyline_length(line)) / it.length - 1.0))
+        first = line if first is None else first
+        moved = max(moved, float(np.abs(line - first).max()))
+    _check(not it.problem, f"'{it.name}': {it.problem}")
+    _check(moved > 0.05, f"the drawn hose moved only {moved * 1000:.0f} mm")
+    _check(end < 1e-4, f"the drawn hose is {end * 1000:.3f} mm off an end or a clip")
+    _check(stretch < 0.005, f"the drawn hose changed its length by {stretch * 100:.2f} %")
+    return f"through 2 clips, ends and clips on their parts to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
+
+
+def check_drawn_chain(scene) -> str:
+    """The drawn chain over the animation: links one pitch apart, the moving end on its bracket."""
+    import numpy as np
+
+    from . import drawn, flex
+    it = flex.find(scene, DRAWN_CHAIN)
+    _check(it is not None and it.drawn and it.made_links, "the drawn drag chain is missing")
+    chord = end = moved = 0.0
+    first = None
+    for f in sorted({scene.frame_start, scene.frame_end} | set(range(scene.frame_start, scene.frame_end, 12))):
+        scene.frame_set(f)
+        _update()
+        pins = flex.pins_now(scene, it)
+        chord = max(chord, float(np.abs(np.linalg.norm(np.diff(pins, axis=0), axis=1) - it.pitch).max()))
+        end = max(end, float(np.linalg.norm(pins[-1] - drawn.world_spot(it.b_part, it.b_point, (1, 0, 0))[0])))
+        first = pins if first is None else first
+        moved = max(moved, float(np.abs(pins - first).max()))
+    _check(not it.problem, f"'{it.name}': {it.problem}")
+    _check(moved > 0.05, f"the drawn chain moved only {moved * 1000:.0f} mm")
+    _check(chord < 1e-5, f"a link is {chord * 1000:.4f} mm longer or shorter than its link length")
+    _check(end < 1e-4, f"the chain's moving end is {end * 1000:.3f} mm off its bracket")
+    return f"{it.count} links one pitch apart to {chord * 1000:.4f} mm, moving end on its bracket to {end * 1000:.3f} mm"
+
+
+def check_drawn_cable(scene) -> str:
+    """The drawn cable route over the animation: as the CAD rope it replaces – six contacts, five turning, on its
+    sheaves, paid out."""
+    import numpy as np
+
+    from . import joints, paths
+    it = paths.find(scene, DRAWN_CABLE)
+    _check(it is not None and it.drawn, "the drawn cable is missing")
+    _check(paths.status(scene, it)[1] == "OK", f"the cable says: {paths.status(scene, it)[0]}")
+    kinds = [c.kind for c in it.contacts]
+    _check(kinds == ["SHEAVE", "SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"], f"its contacts: {kinds}")
+    cab = joints.find(scene, it.joint)
+    off = slip = pay = 0.0
+    for f in sorted({scene.frame_start, scene.frame_end} | set(range(scene.frame_start, scene.frame_end, 15))):
+        scene.frame_set(f)
+        _update()
+        pts = np.array(paths.shape_now(scene, it), dtype=float)
+        for w in paths.wheels_now(scene, it):
+            d = pts - np.asarray(w.centre, float)
+            ax = np.asarray(w.axis, float)
+            off = max(off, abs(float(np.linalg.norm(d - np.outer(d @ ax, ax), axis=1).min()) - float(w.radius)))
+        pay = joints.get_value(cab)
+        for c in it.contacts:
+            if c.kind in paths.TURNING and c.turns and c.joint:
+                j = joints.find(scene, c.joint)
+                slip = max(slip, abs(joints.get_value(j) - math.radians(c.ratio) * pay * 1000.0)
+                           * paths.radius_of(it, c))
+    _check(pay > 0.5, f"only {pay:.2f} m of rope ran")
+    _check(off < 5e-4, f"the rope is {off * 1000:.2f} mm off a sheave")
+    _check(slip < 1e-3, f"a sheave or roller is {slip * 1000:.2f} mm behind the rope")
+    return f"6 contacts, {pay:.2f} m ran, on its sheaves to {off * 1000:.2f} mm, wheels turn with it"
+
+
+def check_drawn_replace(scene) -> str:
+    """The CAD parts the drawn ones replace: hidden for good – the view, renders, the clash check, the web model."""
+    from . import build, clash, flex, paths, web3d
+    items = [flex.find(scene, DRAWN_HOSE), flex.find(scene, DRAWN_CHAIN), paths.find(scene, DRAWN_CABLE)]
+    _check(all(it is not None for it in items), "a drawn item is missing")
+    replaced = [r.obj for it in items for r in it.replaces if r.obj is not None]
+    _check(len(replaced) == 1 + 18 + 1, f"{len(replaced)} replaced CAD parts, not 20 (hose, 18 links, rope)")
+    checked = {o.name for o in clash.objects(scene)}
+    web = {o.name for o in web3d.objects(scene)[0]}
+    for ob in replaced:
+        name = ob.get(build.PROP_NAME)
+        _check(ob.get(build.PROP_EXCLUDED) and ob.hide_render and not ob.visible_get(), f"'{name}' still shows")
+        _check(ob.name not in checked, f"'{name}' is still in the clash check")
+        _check(ob.name not in web, f"'{name}' is still in the web 3D model")
+    for it in items:
+        _check(it.part.name in web, f"the drawn '{it.name}' is not in the web 3D model")
+    return "the CAD hose, the 18 CAD links and the CAD rope hidden for good; the drawn ones in the web model"
+
+
 SPOOL_ANIM = "Spooling"
 
 
@@ -3678,6 +3926,26 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
      auto="clip")
+stop("drawn_hose", MOTION, "flex_drawn", "A hose drawn by clicking, through two clips",
+     "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
+     "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
+     "fittings, and keeps its length.", where="4 Motion > Hoses and drag chains > Draw hose", animation=DRAWN_ANIM,
+     play=True, since="0.2.176", check=check_drawn_hose, auto="clip")
+stop("drawn_chain", MOTION, "flex_drawn", "A drag chain drawn between two brackets",
+     "Left: the gantry's X chain was drawn with two clicks on its brackets; the app draws its links. X travels out "
+     "and back: the chain rolls over its bend, link by link, and its moving end stays on its bracket.",
+     where="4 Motion > Hoses and drag chains > Draw drag chain", animation=DRAWN_ANIM, play=True, at=0.5,
+     since="0.2.176", check=check_drawn_chain, auto="clip")
+stop("drawn_cable", MOTION, "flex_drawn", "A cable route drawn by clicking",
+     "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
+     "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
+     where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
+     since="0.2.176", check=check_drawn_cable, auto="clip")
+stop("drawn_replace", MOTION, "flex_drawn", "The CAD parts the drawn ones replace are hidden",
+     "The CAD hose, the gantry's 18 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
+     "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
+     where="4 Motion > Hoses and drag chains > Replaces selected CAD part", shot="Tour: drawn hose, chain and cable",
+     since="0.2.176", check=check_drawn_replace)
 stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "

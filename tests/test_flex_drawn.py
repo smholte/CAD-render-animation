@@ -260,6 +260,31 @@ def test_a_part_gone_and_save_and_open(hoses, tmp_path):
     assert item.part.name == "Lamp cable" and item.part.get(build.PROP_NAME) == "Lamp cable"
 
 
+def test_the_queue_copy_builds_the_drawn_hose_again(hoses, tmp_path):
+    """The render queue opens a copy of the project and builds again: the drawn hose (with a clip) is drawn the same."""
+    sc = hoses
+    a, b = hose_ab(sc)
+    clip = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
+    flex.draw_hose(sc, [a, clip, b])
+    anim = sc.fresing.animations.add()
+    anim.name, anim.tail, anim.fps = "Queue", 0.0, "25"
+    blk = anim.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "JOINT", "Luff", 0.0, 1.0, "LINEAR"
+    blk.use_from, blk.to_angle = True, math.radians(14)
+    assert not animation.bake(sc, anim)["warnings"]
+    sc.frame_set(20)
+    want = flex.shape_now(sc, flex.find(sc, "Hose 1"))
+    path = str(tmp_path / "queue copy.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    r = animation.bake(sc, sc.fresing.animations["Queue"])
+    assert not r["warnings"], r["warnings"]
+    sc.frame_set(20)
+    got = flex.shape_now(sc, flex.find(sc, "Hose 1"))
+    assert got.shape == want.shape and np.abs(got - want).max() < 1e-6
+
+
 def test_model_update_keeps_a_drawn_hose_on_its_parts(hoses):
     sc = hoses
     a, b = hose_ab(sc)

@@ -465,9 +465,9 @@ def draw_panel():
 def test_the_panel_draws_empty_and_with_a_cable(model):
     sc = model
     texts, head, rows, touched = draw_panel()                        # no cable yet: the steps and the buttons
-    assert texts[0] == "How it works" and texts[1].startswith("1.  Click the cable or wire rope")     # task 0062: a fold
-    assert head == ["none"] and rows == [] == touched
-    assert "Add cable" in texts and "Add all 1 found by name" in texts and "What it touches" not in " ".join(texts)
+    assert texts[0] == "How it works" and texts[1].startswith("1.  No cable in the CAD model?")     # task 0062: a fold
+    assert head == ["none"] and rows == [] == touched                                          # (0240: Draw first)
+    assert "Add cable" in texts and "Draw cable route" in texts and "Add all 1 found by name" in texts and "What it touches" not in " ".join(texts)
 
     pick([T.ob(sc, ROPE)])
     assert bpy.ops.fresing.cable_add() == {"FINISHED"}

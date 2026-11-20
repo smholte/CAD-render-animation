@@ -1413,6 +1413,58 @@ draws links along it, and in the fold **More** you set the **Width** and **Heigh
 - Not in yet: hoses that push against other parts or each other, hoses with three ends, and bundles of cables.
   A cable that runs over sheaves and winch drums is the next chapter, **Cables and paths**.
 
+<a id="draw-hose"></a>
+#### Draw a hose your CAD model does not have
+
+Most CAD models have no hoses or cables. Draw them here, with a few clicks:
+
+1. In 4 Motion > **Hoses and drag chains**, press **Draw hose** (or **Draw cable** for a soft cable that hangs).
+2. Click the **fitting at end A**. The face under the mouse lights up in magenta with the line the hose will leave
+   along: on a round stub or gland the hose leaves along its axis, from the end you click near; on a flat face (a
+   fitting's end face, a port) from the middle of the face, straight out of it.
+3. Click the **clips** the hose runs through, in order – as many as you like, or none. On a flat face the hose lies
+   on the face; in a round bore it runs through along the bore.
+4. Click the **fitting at end B**, then press **Enter**.
+
+<img class="wide" src="img/view_drawn_hose.jpg" alt="A hose drawn with four clicks: from the valve block's fitting through two clips on the base to the arm's fitting">
+
+The hose appears in the list (named "Hose 1", double-click to rename it) and follows the motion like a hose read
+from CAD. Its **diameter** comes from a round fitting you clicked (else 20 mm; a cable 12 mm), its **length** is the
+shortest smooth line between its ends and clips that keeps its bends wide, plus 5 %. When the joints that move its
+ends have **limits**, the length is long enough for their whole travel; without limits it fits the pose you drew it
+in (the message says so) – give the joint its limits and press **Length as drawn**, or make **Length** longer by hand.
+
+While clicking: **Backspace** (or Ctrl+Z) takes the last click back, **Esc** or a right-click stops without drawing,
+the middle mouse and the wheel move the view as usual. A hose, cable or chain itself cannot be clicked (it shows red):
+click the part it is fixed to.
+
+<a id="draw-chain"></a>
+#### Draw a drag chain between two brackets
+
+A drag chain in CAD is often one simplified block, of no use for an animation. Draw a real one:
+
+1. Press **Draw drag chain**.
+2. Click the **bracket of the fixed end** (on the part that stands still), then the **bracket on the part that
+   moves**. It is drawn at once.
+
+The runs lie along the travel of the slide joint that moves the second bracket, the **bend radius** is half the gap
+between the two runs, and the link length, height and width follow from it; the number of **Links** is enough for the
+joint's travel (with its limits; else the distance between the brackets now, either way). The app draws the links;
+they roll with the axis like a chain read from CAD. Under the list: **Flip bend** puts the bend on the other side,
+**Swap ends** makes the other bracket the fixed one, **Links for the travel** works the number of links out again.
+Change **Bend radius**, **Links**, **Link length**, and in **More** the **Width** and **Height**, as you like.
+
+<a id="replace-cad"></a>
+#### Replace a simplified CAD hose, chain or cable
+
+A drawn hose, chain or cable can **replace** the simplified CAD part: that part is then hidden for good – in the view,
+in renders, in the clash check and in the web 3D model – and shows again when you remove the drawn one.
+
+- Click a part that is named like a hose or a drag chain: the panel offers **Draw a hose to replace it** (or a drag
+  chain). While you click, that CAD part is hidden, so the fittings or brackets under it can be clicked.
+- Or later: choose the drawn one in the list, click the CAD part in the 3D view, press **Replaces selected CAD part**.
+  One link of a CAD chain is enough: its whole row is replaced. The eye button beside it shows the CAD part again.
+
 <a id="cables"></a>
 ### Cables and paths
 
@@ -1433,6 +1485,25 @@ you see it move. (A hose that hangs and bends is the other panel: **Hoses and dr
 2. In 4 Motion > **Cables and paths**, press **Add cable**. (Nothing selected: press it and click the cable.)
 3. The cable gets a line in the list, and the list **What it touches** fills. The cable is drawn with its
    look: black with yellow stripes, or steel strands.
+
+<a id="draw-cable"></a>
+**Draw a cable route** (no cable in the CAD model)
+
+1. In 4 Motion > **Cables and paths**, press **Draw cable route**.
+2. Click where the cable **starts**: a winch drum or a carousel (the cable starts wrapped on it, from where you click),
+   or a point on a part.
+3. Click each **sheave, roller or chute** it runs over, in order, on the side the cable passes (click the groove or
+   the barrel). Click the same part again and the cable passes on its other side.
+4. Click a **flat face** where the cable ends – it is drawn at once – or press **Enter** for a free end that hangs
+   down from the last wheel.
+
+<img class="wide" src="img/view_drawn_cable.jpg" alt="A wire rope drawn by clicking the drum, two sheaves and the chute">
+
+The app lays the cable tight over what you clicked and then reads it as it reads a CAD cable: it gets the same list
+**What it touches** (rollers it lies on are found by themselves), every sheave, roller and drum turns with it, and
+Build, the re-bake and the web 3D model work as for any cable. Its diameter is 20 mm: change it under the list, with
+the look and **Speed from** as for **Add cable**. Backspace, Ctrl+Z and Esc work as in **Draw hose**. A drawn cable
+can replace the CAD part of a simplified cable: see **Replace a simplified CAD hose, chain or cable** above.
 
 Above **Add cable** is **Speed from**. Leave it empty and the app makes a new joint "Cable <name>" for the cable.
 Pick a slide joint you already have there (for example the speed of a winch) and that joint becomes the speed of

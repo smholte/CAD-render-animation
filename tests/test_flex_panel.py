@@ -491,9 +491,10 @@ def draw_panel():
 def test_the_panel_draws_empty_and_with_hoses_and_chains(hoses, folder):
     sc = hoses
     texts, head, rows = draw_panel()                                 # nothing added yet: the steps and the buttons
-    assert texts[0] == "How it works" and texts[1].startswith("1.  Click the hose or cable in the")   # task 0062: a fold
-    assert head == ["none"] and rows == []
-    for button in ("Add hose", "Add cable", "Add drag chain", "Find hoses and chains", "Find and add all"):
+    assert texts[0] == "How it works" and texts[1].startswith("1.  No hose in the CAD model?")   # task 0062: a fold
+    assert head == ["none"] and rows == []                                                      # (0240: Draw first)
+    for button in ("Draw hose", "Draw cable", "Draw drag chain", "Add hose", "Add cable", "Add drag chain",
+                   "Find hoses and chains", "Find and add all"):
         assert button in texts, button
 
     assert bpy.ops.fresing.flex_find(add=True) == {"FINISHED"}

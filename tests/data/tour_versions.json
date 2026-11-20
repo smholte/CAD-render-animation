@@ -71,6 +71,11 @@
    "changed": "",
    "fp": "00c405423a66e0ea"
   },
+  "flex_drawn": {
+   "added": "0.2.176",
+   "changed": "",
+   "fp": "a0a1c40f9e0d98fd"
+  },
   "gantry": {
    "added": "0.2.47",
    "changed": "0.2.171",

@@ -185,6 +185,12 @@ class FRESING_OT_flex_draw(_Picker, bpy.types.Operator):
 
     @classmethod
     def description(cls, context, properties):
+        if properties.replace:
+            what = "drag chain: click its two brackets" if properties.kind == "CHAIN" else \
+                "hose: click its fitting at end A, any clips, its fitting at end B, then press Enter"
+            return (f"Draws a {what}. It replaces the simplified CAD part you selected: that part hides while you "
+                    "click, so the parts under it can be clicked, and stays hidden for good while the drawn one is "
+                    "there")
         if properties.kind == "CHAIN":
             return ("Draws a drag chain by clicking its two brackets: first the bracket of the fixed end, then the "
                     "bracket on the part that moves. The app draws the links; they roll with the axis. Then set the "

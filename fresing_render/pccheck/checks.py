@@ -893,6 +893,68 @@ def motion_flex(ctx):
     return f"{note}; 3 chains: moving ends to {worst_end * 1000:.3f} mm"
 
 
+@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.176",
+      what="Task 0240: on the hoses model a hose is drawn by four clicks (two fittings, two clips) in place of a CAD "
+           "hose, which is hidden; posed at three luff angles its ends and clips stay on their parts and it keeps its "
+           "length. On the gantry a drag chain is drawn between the X chain's two brackets: its links stay one pitch "
+           "apart and its moving end on its bracket as X travels. On the cable model a route is drawn by clicking the "
+           "drum, two sheaves and the chute: it reads the same six contacts as the CAD rope and its sheaves turn with it")
+def motion_drawn(ctx):
+    import numpy as np
+
+    from ..blender import build, drawn, flex, joints, paths, tour
+    scene = ctx.fresh(FLEX_HOSES)
+    flex.set_up_test_hoses(scene)
+    root = build.model_roots(scene)[0]
+    t0 = time.time()
+    name = tour.drawn_hose_setup(scene, root)
+    ctx.metric("draw a hose through two clips", time.time() - t0, "s")
+    it = flex.find(scene, name)
+    _check(it is not None and len(it.clips) == 2, "the drawn hose or its clips are missing")
+    cad = next(o for o in scene.objects if o.get(build.PROP_NAME) == "HYDRAULIC HOSE ARM")
+    _check(cad.get(build.PROP_EXCLUDED) and cad.hide_render, "the CAD hose it replaces still shows")
+    worst = 0.0
+    for deg in (0.0, 15.0, -12.0):
+        joints.set_value(joints.find(scene, "Luff"), math.radians(deg))
+        _update()
+        flex.refresh(scene)
+        it = flex.find(scene, name)
+        line = flex.shape_now(scene, it)
+        stops = [drawn.world_spot(it.a_part, it.a_point, it.a_dir)[0]]
+        stops += [drawn.world_spot(c.part, c.point, c.dir)[0] for c in it.clips]
+        stops.append(drawn.world_spot(it.b_part, it.b_point, it.b_dir)[0])
+        worst = max([worst] + [float(np.linalg.norm(line - p, axis=1).min()) for p in stops])
+        _check(not it.problem, f"at {deg:.0f}°: {it.problem}")
+    _check(worst < 1e-4, f"the drawn hose is {worst * 1000:.3f} mm off an end or a clip")
+
+    scene = ctx.fresh(FLEX_CHAINS)
+    flex.set_up_test_chains(scene)
+    name = tour.drawn_chain_setup(scene, build.model_roots(scene)[0])
+    chord = end = 0.0
+    for x in (0.14, -0.14, 0.0):
+        joints.set_value(joints.find(scene, "X"), x)
+        _update()
+        flex.refresh(scene)
+        it = flex.find(scene, name)
+        pins = flex.pins_now(scene, it)
+        chord = max(chord, float(np.abs(np.linalg.norm(np.diff(pins, axis=0), axis=1) - it.pitch).max()))
+        end = max(end, float(np.linalg.norm(pins[-1] - drawn.world_spot(it.b_part, it.b_point, (1, 0, 0))[0])))
+        _check(not it.problem, f"X at {x * 1000:.0f} mm: {it.problem}")
+    _check(chord < 1e-5 and end < 1e-4, f"the drawn chain: links {chord * 1000:.4f} mm off, end {end * 1000:.3f} mm off")
+
+    scene = ctx.fresh(PATHS)
+    name = tour.drawn_cable_setup(scene, build.model_roots(scene)[0])
+    it = paths.find(scene, name)
+    kinds = [c.kind for c in it.contacts]
+    _check(kinds == ["SHEAVE", "SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"], f"the drawn route reads {kinds}")
+    lead = joints.find(scene, it.joint)
+    turning = [joints.find(scene, c.joint) for c in it.contacts if c.kind in paths.TURNING and c.joint]
+    _check(len(turning) == 5 and all(j is not None and j.follows == lead.name for j in turning),
+           "not every sheave and roller turns with the drawn cable")
+    return (f"hose through 2 clips on its parts to {worst * 1000:.3f} mm; chain links to {chord * 1000:.4f} mm; "
+            "cable route: 6 contacts, 5 turning")
+
+
 @line("motion.paths", "A cable runs over sheaves, rollers and a chute", "0.2.80",
       what="A winch drum, an A-frame with two grooved sheaves, a V-roller cradle and a chute: the wire rope is read "
            "from its CAD solid and lies in the grooves; a Run motor step moves it at 10 m/min and the drum, the "
