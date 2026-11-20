@@ -1,6 +1,6 @@
 # 0226 – Study (findings only): the cable-lay vessel's equipment becomes private – what moves, what stays, how
 
-**Who:** worker · **Status:** open – can start (study, no code – no lane) · **Branch:** `task/0226-study-private-vessel`
+**Who:** worker · **Status:** running (study, no code – no lane) · **Branch:** `task/0226-study-private-vessel`
 **Started by:** lead, 19 Nov 2026 (owner, 20:34: "the cable laying ship should be a demo model, but not shipped with
 the app, it should be kept private for me"; 20:53, final: "the ship itself can stay, but all the equipments need to
 come off. the demo models can stay.")
