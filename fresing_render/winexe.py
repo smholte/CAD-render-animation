@@ -28,6 +28,7 @@ import os
 import struct
 import subprocess
 import sys
+import time
 
 COPY_NAME = "Fresing Render.exe"
 STAMP_NAME = "fresing-render-exe.json"
@@ -424,9 +425,40 @@ def take_out(blender_exe: str, why: str) -> None:
     """Stop using the copy: the stamp is cleared (``usable`` is False) and the copy deleted when it is not running."""
     folder = os.path.dirname(os.path.abspath(blender_exe))
     _remove(os.path.join(folder, STAMP_NAME))
-    if os.path.isfile(copy_path(blender_exe)):
-        _remove(copy_path(blender_exe))
-        log("copy taken out of use:", why)
+    copy = copy_path(blender_exe)
+    if os.path.isfile(copy):
+        for _ in range(6):                         # task 0242: a scan may hold it a moment after its first start
+            _remove(copy)                          # (a running copy stays: ~0.5 s, and only while it runs)
+            if not os.path.isfile(copy):
+                break
+            time.sleep(0.1)
+        log("copy taken out of use:" if not os.path.isfile(copy) else
+            "copy taken out of use (still there while it runs or is held):", why)
+
+
+def swap_in(tmp: str, dst: str, old: str, tries: int = 30, wait: float = 0.1) -> None:
+    """Put ``tmp`` in the place of ``dst``. A running copy (this app) cannot be replaced but can be renamed: it is moved
+    aside to ``old`` first. Task 0242: a copy deleted a moment ago can still hold its name while Windows (a virus scan
+    after its first start) has it open – "delete pending": the rename onto it is refused and the name is gone a moment
+    later (WinError 2 in run 44776685998). Then it is simply tried again, for up to about 3 s."""
+    for k in range(tries):
+        try:
+            os.replace(tmp, dst)
+            return
+        except PermissionError:
+            if k == tries - 1:
+                raise
+        try:
+            os.replace(dst, old)                   # the copy is running: move it aside
+        except (FileNotFoundError, PermissionError):
+            time.sleep(wait)                       # pending delete: wait for its name to go, then try again
+            continue
+        try:
+            os.replace(tmp, dst)
+            return
+        except OSError:
+            os.replace(old, dst)                   # put the running one back: never leave no copy at all
+            raise
 
 
 def ensure(blender_exe: str, icon: str) -> str:
@@ -464,15 +496,7 @@ def ensure(blender_exe: str, icon: str) -> str:
         ok, said = answers(tmp)
         if not ok:
             raise OSError(f"the copy did not start ({said})")
-        try:
-            os.replace(tmp, dst)
-        except PermissionError:                    # the copy is running (this app): move it aside, it can be renamed
-            os.replace(dst, old)
-            try:
-                os.replace(tmp, dst)
-            except OSError:
-                os.replace(old, dst)               # put the running one back: never leave no copy at all
-                raise
+        swap_in(tmp, dst, old)
         with open(os.path.join(folder, STAMP_NAME), "w", encoding="utf-8") as fh:
             json.dump(dict(want, ok=True, said=said), fh)
         log("made", dst, "-", said)

@@ -215,3 +215,65 @@ def test_output_goes_to_a_file_when_there_is_no_console(tmp_path, monkeypatch):
     assert path == str(tmp_path / w.LOG_NAME) and "hello" in open(path, encoding="utf-8").read()
     monkeypatch.undo()
     assert w.output_to_file(str(tmp_path / w.COPY_NAME)) == ""       # a console is there: nothing changes
+
+
+class _PendingDelete:
+    """Windows' renames as task 0242 saw them: a copy deleted a moment ago still holds its name ("delete pending")
+    for ``held`` more tries – a rename onto it is refused, a rename of it finds no file."""
+
+    def __init__(self, dst, held, running=False):
+        self.dst, self.held, self.running, self.calls = os.path.normcase(dst), held, running, []
+        self.real = os.replace
+
+    def __call__(self, a, b):
+        self.calls.append((os.path.basename(a), os.path.basename(b)))
+        if self.held > 0:
+            self.held -= 1
+            if os.path.normcase(b) == self.dst:
+                raise PermissionError(13, "Access is denied")
+            if os.path.normcase(a) == self.dst:
+                raise FileNotFoundError(2, "The system cannot find the file specified")
+        if self.running and os.path.normcase(b) == self.dst:
+            raise PermissionError(13, "Access is denied")     # a running program cannot be replaced, only renamed
+        self.real(a, b)
+        if os.path.normcase(a) == self.dst:
+            self.running = False
+
+
+def _swap_files(tmp_path, with_dst):
+    tmp, dst, old = (str(tmp_path / n) for n in ("Fresing Render.new.exe", "Fresing Render.exe",
+                                                 "Fresing Render.old.exe"))
+    with open(tmp, "w") as fh:
+        fh.write("new")
+    if with_dst:
+        with open(dst, "w") as fh:
+            fh.write("running")
+    return tmp, dst, old
+
+
+def test_swap_in_waits_for_a_copy_whose_delete_is_pending(tmp_path, monkeypatch):
+    """Task 0242 (run 44776685998, WinError 2): the copy was taken out of use and made again at once; its old name was
+    still held, the rename aside found no file and the app stayed on blender.exe. It is tried again."""
+    tmp, dst, old = _swap_files(tmp_path, with_dst=False)
+    fake = _PendingDelete(dst, held=6)
+    monkeypatch.setattr(w.os, "replace", fake)
+    monkeypatch.setattr(w.time, "sleep", lambda s: None)
+    w.swap_in(tmp, dst, old)
+    assert open(dst).read() == "new" and not os.path.exists(tmp) and not os.path.exists(old)
+    assert ("Fresing Render.exe", "Fresing Render.old.exe") in fake.calls
+
+
+def test_swap_in_moves_a_running_copy_aside(tmp_path, monkeypatch):
+    tmp, dst, old = _swap_files(tmp_path, with_dst=True)
+    monkeypatch.setattr(w.os, "replace", _PendingDelete(dst, held=0, running=True))
+    w.swap_in(tmp, dst, old)
+    assert open(dst).read() == "new" and open(old).read() == "running"
+
+
+def test_swap_in_gives_up_when_the_name_stays_held(tmp_path, monkeypatch):
+    tmp, dst, old = _swap_files(tmp_path, with_dst=False)
+    monkeypatch.setattr(w.os, "replace", _PendingDelete(dst, held=10 ** 6))
+    monkeypatch.setattr(w.time, "sleep", lambda s: None)
+    with pytest.raises(PermissionError):
+        w.swap_in(tmp, dst, old, tries=5)
+    assert open(tmp).read() == "new"                      # nothing lost: ensure() then keeps Blender's own programs

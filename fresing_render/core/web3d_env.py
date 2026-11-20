@@ -515,9 +515,44 @@ def _inline(text: str) -> str:
     return "<script>\n" + text.replace("</script", "<\\/script") + "\n</script>"
 
 
+# Task 0242 (0062): a test's browser without a window (``read_page``: --virtual-time-budget) runs on its own clock and
+# jumps it ahead whenever the page waits for something nothing holds (work off the main thread: the pictures' decoding,
+# the unpacking, the graphics process starting, a timer); it then wrote the page out while it still said "loading" (on
+# GitHub's Windows machines in 5-6 s for a 20 s clock). A read under way holds that clock, so a test's page (?frames=,
+# ?selftest=) reads a byte of its own, one read after the other, from its very first script until the test has what it
+# reads: the first picture drawn (with it the places, tubes and state) and, for a self-test, both answers - or an
+# error. Each read still moves that clock a few ms (5,000 reads ~ 20 s on the web machine), so a page that never gets
+# there is written out as "loading" when the budget is used up; 30,000 reads is only a last stop. Nobody's own
+# browser does this (no such query).
+_HOLD = """<script>
+(function () {
+  var q = location.search;
+  if (!/[?&](frames|selftest)=/.test(q) || typeof fetch !== 'function' || typeof Blob !== 'function') return;
+  var url, n = 0, self = /[?&]selftest=1(&|$)/.test(q);
+  try { url = URL.createObjectURL(new Blob(['x'])); } catch (e) { return; }
+  function done() {
+    var p = window.frPage, d = document.documentElement.dataset;
+    if (!p) return false;
+    if (p.errors && p.errors.length) return true;
+    if (!p.ready || !(p.frames >= 1)) return false;
+    return !self || !!(d.frSelftest && d.frTools);
+  }
+  (function again() {
+    if (++n > 30000 || done()) {
+      URL.revokeObjectURL(url);
+      document.documentElement.dataset.frHeld = String(n);
+      return;
+    }
+    fetch(url).then(again, function () { URL.revokeObjectURL(url); });
+  })();
+})();
+</script>"""
+
+
 _PAGE = """<!doctype html>
 <html lang="en">
 <head>
+{hold}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{title}</title>
@@ -605,7 +640,7 @@ def page_html(title: str, glb: bytes, st: dict, pictures: dict | None = None, no
                     + base64.b64encode(raw).decode("ascii") + "</script>")
     # every "<" escaped (task 0161, 0147 row 15): a name holding "<!--" and then "<script" kept the block open
     text = json.dumps(st, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c")
-    return _PAGE.format(title=title_h, note=note, settings=text, data="\n".join(data),
+    return _PAGE.format(hold=_HOLD, title=title_h, note=note, settings=text, data="\n".join(data),
                         three=_inline(_read(THREE_FILE)), math=_inline(_read(MATH_FILE)),
                         tubes=_inline(_read(TUBES_FILE)), page=_inline(_read(PAGE_FILE)),
                         player=_inline(_read(PLAYER_FILE)), measure=_inline(_read(MEASURE_FILE)),
@@ -671,7 +706,8 @@ def open_headless(page_path: str, browser: str = "", query: str = "auto=0&frames
     return read_page(page_path, browser, query, seconds)["state"]
 
 
-def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5", seconds: float = 120.0) -> dict:
+def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5", seconds: float = 120.0,
+              budget: int = 20000, again: int = 60000) -> dict:
     """As ``open_headless``, but everything the page writes into its own HTML: {"state": …, "light": {light,
     materials, meshes, plain, background} or None, "probe": [[r, g, b, a], …] or None} (task 0107; ``probe`` only
     with ``probe=x,y;x,y`` in ``query``, screen places 0 … 1 from the top left), "player": the player's state
@@ -679,7 +715,25 @@ def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5",
     own check found {ok, menu, space, help, link, warned} (task 0134); "tubes": with ``tubes=1`` the drawn cables'
     centre lines [{name, count, pay, points (Blender world, m)}] (task 0142); "tools": with ``selftest=1`` what the
     part tools' own check found {ok, buttons, pick, card, measure, fade, cut, faces} (task 0135); "places": with
-    ``places=1`` every animated node's place as three.js plays it {node: [x y z qx qy qz qw sx sy sz]} (task 0175)."""
+    ``places=1`` every animated node's place as three.js plays it {node: [x y z qx qy qz qw sx sy sz]} (task 0175).
+    Task 0242: a page still "loading" when the browser wrote it out is opened once more with the longer clock
+    ``again`` (virtual ms; 0 = no second try); "tries" says how many openings it took (1 or 2), "first" what the
+    first one said. Still "loading" after that stays "loading": the caller's check fails."""
+    out = _read_page_once(page_path, browser, query, seconds, budget)
+    out["tries"] = 1
+    if out["state"] == "loading" and again:
+        first = out["state"]
+        out = _read_page_once(page_path, browser, query, seconds, again)
+        out["tries"], out["first"] = 2, first
+    return out
+
+
+def tries_note(got: dict) -> str:
+    """'' when the page was ready at the first opening, else a few words for a PC-check line's text (task 0242)."""
+    return "; the page needed a second, longer opening" if got.get("tries", 1) > 1 else ""
+
+
+def _read_page_once(page_path: str, browser: str, query: str, seconds: float, budget: int) -> dict:
     browser = browser or find_browser()
     if not browser:
         raise RuntimeError("no Edge, Chrome or Chromium found")
@@ -688,7 +742,7 @@ def read_page(page_path: str, browser: str = "", query: str = "auto=0&frames=5",
     head = [] if "headless-shell" in os.path.basename(browser) else ["--headless=new"]
     args = [browser, *head, f"--user-data-dir={profile}", "--use-angle=swiftshader",
             "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--no-first-run", "--no-default-browser-check",
-            "--disable-extensions", "--virtual-time-budget=20000", "--dump-dom", url]
+            "--disable-extensions", f"--virtual-time-budget={int(budget)}", "--dump-dom", url]
     flags = 0
     if sys.platform == "win32":
         flags = 0x08000000                                     # CREATE_NO_WINDOW: no console window pops up

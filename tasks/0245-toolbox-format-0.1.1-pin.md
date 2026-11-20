@@ -1,6 +1,6 @@
 # 0245 – toolbox-format v0.1.1 pinned; Windows checks W2 (junction in an inbox) and W3 (status.json replaced while read)
 
-**Who:** worker · **Status:** open – waits for 0242 (same lane: Windows CI, `THIRD-PARTY-NOTICES.md`) ·
+**Who:** worker · **Status:** running ·
 **Branch:** `task/0245-toolbox-format-0.1.1`
 **Started by:** lead, 20 Nov 2026 (lead post: ToolBox's messages of 19 and 20 Nov – v0.1.1 tagged, W2 / W3 asked of us) ·
 **Model:** Opus · effort Medium
