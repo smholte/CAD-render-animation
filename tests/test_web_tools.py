@@ -94,9 +94,12 @@ def model(hide_names=False, faces=True) -> bytes:
     data = {}
     for k, (name, group, at, (pts, nrm, tri, starts, axes, af)) in enumerate(PARTS):
         mesh = g.mesh(f"Mesh {k + 1}", pts, web3d.quantize_normals(nrm), None, [(look, tri)], max_step=0.001)
-        rows = wf.classify(pts, tri, wf.face_of_triangles(len(tri), starts), axes, af)
+        face = wf.face_of_triangles(len(tri), starts)
+        rows = wf.classify(pts, tri, face, axes, af)
         dq = g.dequantize[mesh]
-        data[mesh] = wf.pack([wf.face_of_triangles(len(tri), starts)], wf.to_written(rows, *(dq or (None, None))))
+        data[mesh] = (*wf.pack([face], wf.to_written(rows, *(dq or (None, None)))),       # task 0219: + edges
+                      wf.pack_edges(wf.edges_to_written(wf.edges(pts, tri, face, rows), *(dq or (None, None))),
+                                    wf.row_numbers([face], rows)))
         node = {"name": f"Part {k + 1}" if hide_names else name, "translation": list(at),
                 "extras": {"fr_card": group if hide_names else name}}
         g.place_mesh(node, mesh, root)
@@ -402,6 +405,7 @@ def test_selftest_and_keys_help(tmp_path):
     out = probe(path, [{"key": "?"}, {"eval": "document.getElementById('fr-help').textContent"}])
     assert "measure" in out["out"][1] and "slice" in out["out"][1] and "fade the rest" in out["out"][1]
     assert st["tools"]["slices"] == 6 and st["tools"]["slice"]
+    assert st["tools"]["edges"] == 16 and st["tools"]["labels"] is True          # task 0219
 
 
 @browser_test
@@ -687,3 +691,155 @@ def test_six_slices_and_the_panel(tmp_path):
     assert len(o[17]) == 8 and all("Edit" in t or "Done" in t for t in o[17]) and "Hide" in o[17][0]
     assert o[18] is True
     assert o[21]["sliceOpen"] is False and o[21]["cutting"] == 8      # Esc ends editing, then closes the list
+
+
+# ---------------------------------------------------------------------------
+# task 0219: edges and labels apart
+# ---------------------------------------------------------------------------
+
+def test_edge_maths():
+    """fromEdge (moved, scaled, mirrored), every pair with an edge, one edge alone, the drawn points, nearEdge."""
+    ident = "[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]"
+    moved = "[2,0,0,0, 0,2,0,0, 0,0,2,0, 1,2,3,1]"                    # scale 2, moved by (1, 2, 3)
+    mirror = "[-1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]"
+    line_row = "[4, 0, 1, 0, 0, 0.1, 0.4, 0, 0.1, 0, 0, 0]"            # along x at z 0.1, 400 mm
+    circ_row = "[5, 2, -1, 0.6, 0.1, 0.15, 0.62, 0.1, 0.15, 0, 0, 2 * Math.PI]"   # Ø40 at the shaft's top
+    arc_row = "[5, 2, -1, 0, 0, 0, 0.01, 0, 0, 0, 0, Math.PI / 2]"     # a quarter arc R10 from +x to +y
+    o = run_measure(f"[M.fromEdge({line_row}, {ident}, [0.2, 0.03, 0.1]), M.fromEdge({line_row}, {moved}, [0, 0, 0]),"
+                    f" M.fromEdge({circ_row}, {ident}, [0.7, 0.1, 0.15]), M.fromEdge({arc_row}, {mirror}, [-0.01, 0.01, 0]),"
+                    f" M.fromEdge([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], {ident}, [0, 0, 0])]")
+    assert o[0]["kind"] == "line" and np.allclose(o[0]["p"], [0.2, 0, 0.1]) and abs(o[0]["len"] - 0.4) < 1e-12
+    assert np.allclose(o[1]["a"], [1, 2, 3.2]) and abs(o[1]["len"] - 0.8) < 1e-12 and np.allclose(o[1]["p"], [1, 2, 3.2])
+    assert o[2]["kind"] == "circle" and abs(o[2]["r"] - 0.02) < 1e-12 and np.allclose(o[2]["p"], [0.62, 0.1, 0.15])
+    m = o[3]                                                            # mirrored: from -x round to +y
+    assert np.allclose(m["s"], [-0.01, 0, 0]) and np.allclose(m["d"], [0, 0, -1]) and abs(m["sweep"] - np.pi / 2) < 1e-12
+    assert o[4] is None
+
+    E1 = "M.fromEdge([4,0,0, 0,0,0.1, 0.4,0,0.1, 0,0,0], " + ident + ", [0.2, 0, 0.1])"       # block's top front
+    E2 = "M.fromEdge([4,0,0, 0,0.2,0.1, 0.4,0.2,0.1, 0,0,0], " + ident + ", [0.2, 0.2, 0.1])"  # top back
+    E3 = "M.fromEdge([4,0,0, 0.4,0,0, 0.4,0,0.1, 0,0,0], " + ident + ", [0.4, 0, 0.05])"      # upright, x 0.4
+    C1 = "M.fromEdge([5,0,0, 0.6,0.1,0.15, 0.62,0.1,0.15, 0,0,2*Math.PI], " + ident + ", [0.62, 0.1, 0.15])"
+    C2 = "M.fromEdge([5,0,0, 0.8,0.1,0.12, 0.815,0.1,0.12, 0,0,-2*Math.PI], " + ident + ", [0.8, 0.1, 0.12])"
+    C3 = "M.fromEdge([5,0,0, 0.6,0.1,0.0, 0.62,0.1,0.0, 0,0,2*Math.PI], " + ident + ", [0.62, 0.1, 0])"
+    top = "{kind: 'flat', p: [0.1, 0.1, 0.1], n: [0, 0, 1]}"
+    floor = "{kind: 'flat', p: [0.1, 0.1, 0], n: [0, 0, -1]}"
+    pin = "{kind: 'round', p: [0.815, 0.1, 0.06], o: [0.8, 0.1, 0], d: [0, 0, 1], r: 0.015}"
+    pt = "{kind: 'point', p: [0.2, 0.05, 0.3]}"
+    o = run_measure(f"[M.measure({E1}, {E2}), M.measure({E1}, {E3}), M.measure({E1}, {floor}), M.measure({top}, {E3}),"
+                    f" M.measure({E3}, {pin}), M.measure({C1}, {C2}), M.measure({C1}, {C3}), M.measure({C1}, {top}),"
+                    f" M.measure({pin}, {C1}), M.measure({C1}, {E1}), M.measure({pt}, {E1}), M.measure({C1}, {pt}),"
+                    f" M.single({E1}), M.single({C1}), M.single(M.fromEdge({arc_row}, {ident}, [0, 0, 0])),"
+                    f" M.measure({E1}, {C1}, 'points')]")
+    assert o[0]["type"] == "edges" and abs(o[0]["dist"] - 0.2) < 1e-12 and o[0]["lines"] == ["Edge to edge 200.0 mm"]
+    assert abs(o[1]["dist"]) < 1e-12 and "The edges cross" in o[1]["lines"][0] and "90.0°" in o[1]["lines"][1]
+    assert o[2]["type"] == "face-edge" and abs(o[2]["dist"] - 0.1) < 1e-12 and o[2]["lines"][0] == "Face to edge 100.0 mm"
+    assert np.allclose(o[2]["vec"], [0, 0, -0.1])                       # from the edge down to the floor
+    assert o[3]["type"] == "face-edge" and "meets the face at 90.0°" in o[3]["lines"][0]
+    assert o[4]["type"] == "edges" and abs(o[4]["dist"] - np.hypot(0.4, 0.1)) < 1e-12 and \
+        o[4]["lines"][0].startswith("Edge to centre")
+    c = o[5]                                                            # parallel axes, 200 across, 30 along
+    assert c["type"] == "circles" and abs(c["dist"] - np.hypot(0.2, 0.03)) < 1e-12
+    assert c["lines"][1] == "Across the axes 200.0 mm · along 30.0 mm"
+    assert o[6]["lines"][1] == "On one axis" and abs(o[6]["dist"] - 0.15) < 1e-12
+    assert o[7]["type"] == "circle-face" and abs(o[7]["dist"] - 0.05) < 1e-12 and np.allclose(o[7]["vec"], [0, 0, -0.05])
+    assert o[8]["type"] == "circle-axis" and abs(o[8]["dist"] - 0.2) < 1e-12 and np.allclose(o[8]["vec"], [-0.2, 0, 0])
+    assert o[9]["type"] == "circle-edge" and abs(o[9]["dist"] - np.hypot(0.1, 0.05)) < 1e-12
+    assert o[10]["type"] == "point-edge" and abs(o[10]["dist"] - np.hypot(0.05, 0.2)) < 1e-12
+    assert o[11]["type"] == "circle-point"
+    assert o[12]["lines"] == ["Straight edge, 400.0 mm long"]
+    assert o[13]["type"] == "diameter" and o[13]["lines"] == ["Ø 40.0 mm  (radius 20.0 mm)", "Round edge (a whole circle)"]
+    assert o[14]["lines"][1] == "Round edge, an arc of 90.0°"
+    assert o[15]["type"] == "points"
+
+    arc = f"M.fromEdge({arc_row}, {ident}, [0, 0, 0])"
+    o = run_measure(f"[M.edgePoints({arc}, 64), M.edgePoints({E1}), M.nearEdge({arc}, [0.02, 0.02, 0.003]),"
+                    f" M.nearEdge({arc}, [-0.02, -0.001, 0]), M.nearEdge({E1}, [0.5, 0.01, 0.1])]")
+    pts = np.array(o[0])
+    assert len(pts) == 17 and np.allclose(pts[0], [0.01, 0, 0]) and np.allclose(pts[-1], [0, 0.01, 0])
+    assert np.allclose(np.linalg.norm(pts, axis=1), 0.01)
+    assert np.allclose(o[1], [[0, 0, 0.1], [0.4, 0, 0.1]])
+    q = np.array([0.01 / np.sqrt(2), 0.01 / np.sqrt(2), 0.0])
+    assert np.allclose(o[2]["q"], q) and abs(o[2]["dist"] - np.linalg.norm(np.array([0.02, 0.02, 0.003]) - q)) < 1e-12
+    assert np.allclose(o[3]["q"], [0, 0.01, 0]) or np.allclose(o[3]["q"], [0.01, 0, 0])   # beyond the arc: an end
+    assert np.allclose(o[4]["q"], [0.4, 0, 0.1])                       # beyond the line: its end
+
+
+def overlap(a, b, gap=0.0):
+    return abs(a["x"] - b["x"]) * 2 < a["w"] + b["w"] + 2 * gap - 1e-9 and \
+        abs(a["y"] - b["y"]) * 2 < a["h"] + b["h"] + 2 * gap - 1e-9
+
+
+def test_labels_are_laid_out_apart():
+    """The owner's case of 18 Nov (X over Y, the distance half under Z), labels on one spot, several measurements'
+    labels close together, random clusters: no two boxes overlap, the first label stays where it belongs."""
+    owner = [{"x": 400, "y": 300, "w": 70, "h": 20}, {"x": 395, "y": 302, "w": 78, "h": 20},   # 160.0 mm, X −27.8
+             {"x": 402, "y": 296, "w": 66, "h": 20}, {"x": 410, "y": 308, "w": 84, "h": 20}]   # Y 4.07, Z −157.5
+    same = [{"x": 100, "y": 100, "w": 60, "h": 20} for _ in range(6)]
+    rng = np.random.default_rng(219)
+    rand = [[{"x": float(400 + rng.normal(0, 15)), "y": float(300 + rng.normal(0, 10)),
+              "w": float(rng.uniform(40, 110)), "h": 20.0} for _ in range(int(rng.integers(2, 9)))] for _ in range(40)]
+    dots = [{"x": 400, "y": 300, "w": 10, "h": 10}, {"x": 430, "y": 320, "w": 10, "h": 10}]
+    cases = [owner, same] + rand
+    o = run_measure("[" + ",".join(f"M.layout({json.dumps(c)}, {json.dumps(dots)})" for c in cases) +
+                    f", M.leader({{x: 100, y: 50, w: 60, h: 20}}, {{x: 100, y: 100}})]")
+    leader = o.pop()
+    for case, got in zip(cases, o):
+        boxes = [dict(b, x=g["x"], y=g["y"]) for b, g in zip(case, got)]
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                assert not overlap(boxes[i], boxes[j]), (case, got)
+            for d in dots:
+                assert not overlap(boxes[i], d), (case, got)
+            moved = abs(boxes[i]["x"] - case[i]["x"]) > case[i]["w"] / 2 or abs(boxes[i]["y"] - case[i]["y"]) > case[i]["h"] / 2
+            assert got[i]["moved"] == moved
+            assert np.hypot(boxes[i]["x"] - case[i]["x"], boxes[i]["y"] - case[i]["y"]) < 300    # stays near
+    assert np.allclose(leader, [100, 60, 100, 100])                    # from the box's lower edge down to the point
+    # nothing in the way: nothing moves
+    o = run_measure("M.layout([{x: 10, y: 10, w: 50, h: 20}, {x: 200, y: 10, w: 50, h: 20}], [])")
+    assert o == [{"x": 10, "y": 10, "moved": False}, {"x": 200, "y": 10, "moved": False}]
+
+
+@browser_test
+def test_edges_hover_and_measure_and_labels_apart(tmp_path):
+    """On the page: near the block's top front edge the pointer picks the edge (it lights up), far from it the face;
+    edge to edge, the shaft's top rim (Ø40) and centre to centre to the pin's rim; with X / Y / Z on, no label covers
+    another (three parts of a short slanted measurement)."""
+    path, glb = write(tmp_path / "edges.html")
+    assert sum(len(e) for e in wf.read_edges(glb).values()) == 12 + 2 + 2
+    edge_front = [0.2, 0.0, 0.1]                                       # on the top front edge of the block
+    near = f"(function () {{ var s = frPage.partTools.screenOf({json.dumps(edge_front)}); return frPage.partTools"
+    rim = [0.6 + 0.02 * np.cos(-1.2), 0.1 + 0.02 * np.sin(-1.2), 0.15]
+    pin_rim = [0.8 + 0.015 * np.cos(-1.0), 0.1 + 0.015 * np.sin(-1.0), 0.12]
+    steps = [{"eval": CAM}, {"wait": 300}, {"key": "d"}]
+    steps += [{"eval": near + ".hover(s.x, s.y + 3); })()"}, {"wait": 100}, {"eval": "frPage.partTools.state()"}]  # 3-5
+    steps += [{"eval": at("block_top").replace("return [s.x, s.y];", "return frPage.partTools.hover(s.x, s.y);")}]  # 6
+    steps += [{"eval": near + ".pickAt(s.x, s.y + 3); })()"}]                                   # 7
+    steps += [{"eval": near + ".click(s.x, s.y + 2); })()"}]                                    # 8: the edge
+    back = f"(function () {{ var s = frPage.partTools.screenOf({json.dumps([0.2, 0.2, 0.1])});" \
+           " return frPage.partTools.click(s.x, s.y + 2); })()"
+    steps += [{"eval": back}]                                                                    # 9: back top edge
+    for p in (rim, pin_rim):                                                                     # 10, 11
+        steps += [{"eval": f"(function () {{ var s = frPage.partTools.screenOf({json.dumps(list(map(float, p)))});"
+                           " return frPage.partTools.click(s.x, s.y + 2); })()"}]
+    steps += clicks("block_top")                                                                 # 12: a new one
+    steps += [{"key": "x"}] + clicks("shaft_top") + [{"wait": 200}, {"eval": "frPage.partTools.state()"}]  # 13-16
+    out = probe(path, steps)
+    assert out["ok"], out
+    o = out["out"]
+    assert o[5]["hoverEdge"] is True and ":e" in o[5]["hover"] and o[5]["edgesDrawn"] == 1
+    assert ":e" not in o[6]                                            # the middle of the face: the face
+    assert o[7]["kind"] == "line" and abs(o[7]["len"] - 0.4) < 2e-3
+    assert o[8]["result"]["type"] == "edge" and o[8]["result"]["lines"][0].startswith("Straight edge, 400")
+    r = o[9]["result"]
+    assert r["type"] == "edges" and abs(r["dist"] - 0.2) < 2e-3 and r["lines"][0].startswith("Edge to edge"), r
+    r = o[10]["result"]
+    assert r["type"] == "diameter" and abs(r["dist"] - 0.04) < 1e-3 and "whole circle" in r["lines"][1], r
+    r = o[11]["result"]
+    assert r["type"] == "circles" and abs(r["dist"] - np.hypot(0.2, 0.03)) < 2e-3, r
+    assert r["lines"][1].startswith("Across the axes 200")
+    st = o[16]
+    assert st["result"]["type"] == "planes" and len(st["labelBoxes"]) >= 1
+    boxes = st["labelBoxes"]
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            assert not overlap(boxes[i], boxes[j]), boxes

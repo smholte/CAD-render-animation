@@ -35,6 +35,12 @@ def export(scene, path, **kw):
         return out, fh.read()
 
 
+def step_of(data):
+    """{mesh number: its 16-bit step (the node's scale)}."""
+    doc, _ = core.read_glb(data)
+    return {n["mesh"]: n.get("scale", [1.0])[0] for n in doc["nodes"] if "mesh" in n}
+
+
 def diameters(data):
     """{mesh number: sorted Ø of its round faces in mm} read back from the file."""
     doc, _ = core.read_glb(data)
@@ -59,6 +65,17 @@ def test_face_data_and_cards_with_hidden_names(crane, tmp_path):
     # the crane's known sizes: bolt holes Ø13, boom pin Ø40 in a Ø40.4 bore, luffing pins Ø20, piston Ø50, rod Ø22
     for d in (13.0, 20.0, 22.0, 40.0, 40.4, 50.0):
         assert d in all_d, (d, all_d)
+    # task 0219: the CAD edges – straight ones and round rims, among them the boom pin's Ø40 and the bolt holes' Ø13
+    edges = wf.read_edges(data)
+    assert len(edges) >= 10
+    allE = np.vstack(list(edges.values()))
+    assert (allE[:, 0] == wf.LINE).sum() > 200 and (allE[:, 0] == wf.CIRCLE).sum() > 30
+    rims = set()
+    for k, et in edges.items():
+        for e in et[et[:, 0] == wf.CIRCLE]:
+            rims.add(round(float(np.linalg.norm(e[6:9] - e[3:6])) * step_of(data)[k] * 2000, 1))
+    for d in (13.0, 40.0):
+        assert d in rims, (d, sorted(rims))
     # the boom pin's bore Ø40.4 and the lug round it share one axis line (0122): each keeps its own radius
     assert any(40.4 in ds and 100.0 in ds for ds in diameters(data).values())
     doc, _ = core.read_glb(data)
@@ -91,7 +108,8 @@ def test_cards_with_names_and_labels_and_no_face_data(crane, tmp_path):
     out_on, with_faces = export(crane, tmp_path / "on.glb")
     out_off, without = export(crane, tmp_path / "off.glb", faces=False)
     assert wf.read(without) == {} and out_off["face_bytes"] == 0
-    assert 0 < len(with_faces) - len(without) < 0.2 * len(without)          # about a tenth more
+    # task 0219: with the edges about a third more on this draft with small pictures (the page: +11 %)
+    assert 0 < len(with_faces) - len(without) < 0.4 * len(without)
     assert c is not None
 
 

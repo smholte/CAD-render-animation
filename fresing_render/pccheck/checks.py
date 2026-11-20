@@ -2690,11 +2690,13 @@ def _player_check(page_path: str, ctx) -> str:
     tools = found[0].get("tools") or {}                 # task 0135: the part tools on the exported page
     _check(tools.get("faces"), "the page has no faces for measuring (Faces for measuring is on by default)")
     _check(tools.get("ok"), f"the page's part tools did not work: {tools}")
+    _check(tools.get("edges", 0) > 0, "the page has no edges for measuring (task 0219)")
     warned = found[0].get("warned")
     _check(bool(warned), "the page did not say it draws without the graphics card (a browser without a window "
                          "has none)")
     return (f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}); part tools: card, measure, "
-            f"fade, {tools.get('slices', 0)} slices in {os.path.basename(browser)}")
+            f"fade, {tools.get('slices', 0)} slices, {tools.get('edges', 0)} edges, labels apart in "
+            f"{os.path.basename(browser)}")
 
 
 @line("web3d.moving", "Web 3D model: cables, ropes and coils move with their looks", "0.2.114",

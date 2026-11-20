@@ -3169,8 +3169,8 @@ the machine himself, or for your website.
    longer changes the view names. The line under it shows the names the page will get (the first three and "…"),
    so nothing goes out unseen. A page exported before keeps its names; export again to get the new ones.
    **Faces for measuring** (on by default): the parts' flat and round faces go into the file, so the page can
-   measure between planes, read a hole's diameter and measure centre to centre ([Measure](#web3d-tools)); about a
-   tenth more file.
+   measure between planes, read a hole's diameter, measure centre to centre and to the parts' **edges**
+   ([Measure](#web3d-tools)); about a tenth more page (the test crane's page: +11 % for the faces and edges together).
 4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
    (meshopt), about **half the file**; the page opens it as before, also offline. Since 0.2.143 the motion is packed
    too: each part keeps only the moments a straight blend cannot give (every frame stays within 0.1 mm and 0.05° of
@@ -3298,8 +3298,8 @@ System → "Use graphics acceleration when available" on, then restart. Meanwhil
 
 Four buttons on the **left** of the page work on the parts. A click is a press and release without dragging, so
 turning the view never picks a part. On a phone or tablet a **tap** is a click, and a **long press** (half a second)
-on a part shows its card whatever tool is on. With the mouse, the part (or, while measuring, the face) under the
-pointer lights up.
+on a part shows its card whatever tool is on. With the mouse, the part (or, while measuring, the face or edge) under
+the pointer lights up.
 
 - **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
   Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
@@ -3313,6 +3313,22 @@ pointer lights up.
   - two **round faces** – **centre to centre**: the distance between their axes (axes not parallel: the shortest
     distance between them and their angle);
   - a **flat face and a round face** – from the plane to the axis (**face to centre**).
+
+  **Edges** (since 0.2.NN): move the pointer close to an edge of a part – where two faces meet – and the **edge**
+  lights up as an orange line instead of the face; a click picks it (a picked edge shows blue). A **straight edge**
+  measures like an axis, a **round edge** (a hole's rim, where a rounding meets a flat face) by its centre:
+  - one straight edge – its **length**; one round edge – its **diameter** (and the angle of the arc when it is not a
+    whole circle);
+  - edge to edge – parallel: the **distance between them**; not parallel: the shortest distance and their angle;
+  - a straight edge and a flat face – **face to edge** (along the face), or the angle where it meets the face;
+  - a straight edge and a round face – **edge to centre** (to the axis);
+  - a round edge and anything – from its **centre**: to another round edge's centre (with the distance **across**
+    and **along** the axes when they are parallel – a hole pattern), to an axis or a straight edge, square to a
+    flat face, or to a point.
+
+  The numbers never cover each other: when the measurement's own number and its X / Y / Z numbers would lie on top
+  of each other (points close together on the screen), they move apart and a short line points from each moved
+  number to where it belongs.
 
   **Points** measures the straight distance between the two clicked points. **X / Y / Z parts as arrows** (X) shows
   the measurement's X, Y and Z parts as three arrows in the axis colours (X red, Y green, Z blue, as in Blender), each

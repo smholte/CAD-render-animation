@@ -3992,10 +3992,13 @@ def _check_web3d(scene):
     from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø40)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
+    edges = wf.read_edges(data)                         # task 0219: the straight and round edges
+    _check(sum(len(e) for e in edges.values()) > 0, "the file has no edges for measuring")
     _check("fr_tools" in open(out["html"], encoding="utf-8").read() or "partTools" in
            open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
-            f"{len(st['views'])} saved views; faces for measuring in {len(faces)} meshes")
+            f"{len(st['views'])} saved views; faces for measuring in {len(faces)} meshes, "
+            f"{sum(len(e) for e in edges.values())} edges")
 
 
 def _check_web3d_env(scene):
@@ -4078,7 +4081,8 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "camera. A still crane draws nothing while you do not touch it. A red bar at the top only when the browser "
      "draws without the graphics card. On the left the part tools: Part info (click a part: a card with its group, "
      "and Round face Ø … for a pin or a hole), Measure (click the boom pin: Ø 40.0 mm; two flat faces: the distance "
-     "between them), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
+     "between them; move the pointer close to an edge – it lights up orange – and click it: a straight edge gives its "
+     "length, a hole's rim its Ø; two edges: the distance between them; the numbers never cover each other), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
      "faces red; add a second slice, Edit one and drag its arrow or a yellow knob, Delete it with the ×) and Fade the "
      "rest (click a part: the rest goes see-through).",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d, changed="0.2.169")

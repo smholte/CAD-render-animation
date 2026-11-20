@@ -5,8 +5,12 @@
 //   Measure (D)          two clicks. Faces (default): two flat faces – the distance between the planes (parallel
 //                        within 1°) or the angle between them; two round faces – centre to centre (between the
 //                        axes); a flat and a round face – from the plane to the axis; one round face – its
-//                        diameter. Points: the straight distance between the two clicked points. X / Y / Z parts (X):
-//                        every measurement also as three arrows in the axis colours, each with its own number
+//                        diameter. Task 0219: near a CAD edge the pointer picks the EDGE (it lights up as a line):
+//                        a straight edge measures like an axis, a round edge (a hole's rim, a rounding) by its centre
+//                        and shows its Ø (fr_measure.js says which pair gives what). Points: the straight distance
+//                        between the two clicked points. X / Y / Z parts (X): every measurement also as three arrows
+//                        in the axis colours, each with its own number. The numbers never cover each other: a label
+//                        that would is moved aside with a short line to where it belongs (FRMeasure.layout)
 //   Slice (C)            task 0218 (was Cutaway): Add slice, then click a face (flat: in its plane; round: through
 //                        its axis, square to the view) or choose X / Y / Z. The side away from the camera stays, Flip
 //                        keeps the other side. Up to 8 slices at once, numbered and listed with Edit, Hide / Show and
@@ -68,6 +72,11 @@
     '#fr-marks .fr-lbl { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; padding: 2px 6px;',
     '  border-radius: 4px; background: rgba(20,28,34,.82); color: #fff; font: 600 12px "IBM Plex Sans", "Segoe UI",',
     '  system-ui, sans-serif; font-variant-numeric: tabular-nums; border-left: 3px solid #F2A900; }',
+    '#fr-marks .fr-edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }',
+    '#fr-marks .fr-edges path { fill: none; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round;',
+    '  filter: drop-shadow(0 0 1px rgba(0,0,0,.55)); }',
+    '#fr-marks .fr-lead { position: absolute; height: 0; border-top: 1.5px solid rgba(255,255,255,.85);',
+    '  transform-origin: 0 0; box-shadow: 0 0 2px rgba(0,0,0,.6); }',
     '#fr-marks .fr-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;',
     '  background: #F2A900; border: 2px solid #fff; box-sizing: border-box; }',
     '#fr-card { position: absolute; z-index: 3; transform: translate(-50%, calc(-100% - 12px)); display: none;',
@@ -220,6 +229,8 @@
   var three = null, ray = null, faces = null, faceMeshes = {}, primStart = {}, ready = false;
   var hiPart = null, hiFace = null, pickFaces = [];     // highlight overlays
   var HI = null, HI_FACE = null, HI_PICK = null, lineMat = null, lines = null, arrows = [];
+  var hiEdge = null, pointerKind = 'mouse';               // task 0219: the edge under the pointer {mesh, i, row}
+  var SNAP_PX = 9, SNAP_TOUCH_PX = 18;                   // how near (CSS px) the pointer must be to pick an edge
   var live = [], gz = null, drag = null;              // task 0218: the planes that cut now; the handles
   var faded = new Map(), fadeClones = new Map();         // mesh -> its own material; material -> see-through copy
   var tmpM = new T.Matrix4(), tmpV = new T.Vector3();
@@ -246,8 +257,8 @@
       var keys = Object.keys(fx.meshes);
       var jobs = keys.map(function (k) {
         var a = fx.meshes[k];
-        return Promise.all([page.gltf.parser.getDependency('accessor', a[0]), page.gltf.parser.getDependency('accessor', a[1])])
-          .then(function (r) { faceMeshes[k] = { runs: r[0].array, rows: r[1].array }; });
+        return Promise.all(a.slice(0, 3).map(function (i) { return page.gltf.parser.getDependency('accessor', i); }))
+          .then(function (r) { faceMeshes[k] = { runs: r[0].array, rows: r[1].array, edges: r[2] ? r[2].array : null }; });
       });
       facesLoaded = Promise.all(jobs).then(function () { faces = fx; refresh(); }, function (e) {
         page.errors.push('face data: ' + (e && e.message || e));
@@ -354,7 +365,29 @@
     var n = faces.row || 8;
     var end = lo + 1 < runs.length / 2 ? runs[2 * lo + 2] : starts[starts.length - 1];
     return { row: Array.prototype.slice.call(fm.rows, r * n, r * n + n), first: runs[2 * lo], end: end,
-             prim: as.primitives || 0, starts: starts };
+             prim: as.primitives || 0, starts: starts, ri: r, key: String(as.meshes) };
+  }
+  // task 0219: the edge of the hit's CAD face nearest the pointer (x, y), when it is within a few pixels: {i, row}
+  function edgeAt(hit, x, y, touch) {
+    if (!hit || !hit.run || hit.tube || hit.cap) return null;
+    var fm = faceMeshes[hit.run.key], E = fm && fm.edges;
+    if (!E) return null;
+    if (!fm.byRow) {                                   // the edges of each face row (records of 9 or 12 numbers)
+      fm.byRow = {};
+      for (var at = 0; at + 9 <= E.length; at += Math.round(E[at]) === 5 ? 12 : 9) {
+        [E[at + 1], E[at + 2]].forEach(function (r) { if (r >= 0) (fm.byRow[r] = fm.byRow[r] || []).push(at); });
+      }
+    }
+    var list = fm.byRow[hit.run.ri];
+    if (!list) return null;
+    var m = modelMatrix(hit.mesh).elements, p = toModel(hit.point), best = null, lim = touch ? SNAP_TOUCH_PX : SNAP_PX;
+    list.forEach(function (i) {
+      var row = Array.prototype.slice.call(E, i, i + (Math.round(E[i]) === 5 ? 12 : 9)), k = M.fromEdge(row, m, p);
+      if (!k) return;
+      var q = screenOfWorld(toWorld(M.nearEdge(k, p).q)), d = Math.hypot(q.x - x, q.y - y);
+      if (d <= lim && (!best || d < best.d)) best = { i: i, row: row, d: d };
+    });
+    return best;
   }
 
   // the model's own coordinates (Blender's axes, the vessel at rest)
@@ -389,14 +422,19 @@
       var n = st.slices.indexOf(k.cap) >= 0 ? M.slice.plane(k.cap).n : k.capN;
       return { kind: 'flat', p: toModel(w), n: [-n[0], -n[1], -n[2]], face: 1, cap: true };
     }
+    if (k.edge) {                         // task 0219: a CAD edge
+      var e = M.fromEdge(k.edge.row, modelMatrix(k.mesh).elements, toModel(w));
+      e.face = 0;
+      return e;
+    }
     var p = M.fromRow(k.run ? k.run.row : null, modelMatrix(k.mesh).elements, toModel(w));
     p.face = k.run ? k.run.row[0] : 0;
     return p;
   }
   function keep(hit) {
     return { mesh: hit.mesh, local: hit.mesh.worldToLocal(hit.point.clone()), part: hit.part, cap: hit.cap || null,
-             capN: hit.cap ? M.slice.plane(hit.cap).n : null,
-             run: hit.cap || hit.tube ? null : runOf(hit.mesh, hit.faceIndex) };
+             capN: hit.cap ? M.slice.plane(hit.cap).n : null, edge: hit.edge || null,
+             run: hit.cap || hit.tube || hit.edge ? null : runOf(hit.mesh, hit.faceIndex) };
   }
 
   // ---------------------------------------------------------------- highlights
@@ -439,13 +477,16 @@
   }
   function setHover(hit) {
     var faceWise = st.tool === 'measure' || st.adding;
-    var key = hit ? (faceWise && hit.run ? hit.mesh.uuid + ':' + hit.run.first : hit.part.uuid) : '';
+    var key = hit ? (faceWise && hit.edge ? hit.mesh.uuid + ':e' + hit.edge.i :
+                     faceWise && hit.run ? hit.mesh.uuid + ':' + hit.run.first : hit.part.uuid) : '';
     if (key === (st.hover || '')) return;
     st.hover = key;
     clearOverlay(hiPart); hiPart = null;
     clearOverlay(hiFace); hiFace = null;
+    hiEdge = hit && faceWise && hit.edge ? { mesh: hit.mesh, row: hit.edge.row } : null;
     if (hit) {
-      if (faceWise && hit.run) hiFace = overlayFace(hit.mesh, hit.run, HI_FACE);
+      if (hiEdge) { /* the edge is drawn as a line (beforeDraw) */ }
+      else if (faceWise && hit.run) hiFace = overlayFace(hit.mesh, hit.run, HI_FACE);
       else hiPart = overlayPart(hit.part, HI);
       clip([HI, HI_FACE]);
     }
@@ -871,6 +912,8 @@
 
   function faceText(p) {
     if (p.cap) return 'Cut face';
+    if (p.kind === 'line') return 'Straight edge ' + M.mm(p.len);
+    if (p.kind === 'circle') return 'Round edge Ø ' + M.mm(2 * p.r);
     if (p.kind === 'round') return 'Round face Ø ' + M.mm(2 * p.r);
     if (p.kind === 'axis') return 'Round face (cone or rounded edge)';
     if (p.kind === 'flat') return 'Flat face';
@@ -905,6 +948,10 @@
       setFade(hit ? hit.part : null);
     } else if (st.tool === 'measure') {
       if (!hit) { clearMeasure(); return; }
+      if (st.mode === 'faces' && faces && !hit.tube && !hit.cap) {
+        hit.run = runOf(hit.mesh, hit.faceIndex);
+        hit.edge = edgeAt(hit, x, y, pointerKind !== 'mouse');
+      }
       var k = keep(hit);
       if (st.mode === 'faces' && !faces) k.run = null;
       if (st.picks.length >= 2) st.picks = [];
@@ -951,8 +998,8 @@
         });
       }
       if (st.mode === 'faces' && !faces) hint = 'This page has no face data (exported without “Faces for measuring”): it measures between points.';
-      else if (!st.picks.length) hint = st.mode === 'faces' ? 'Click a face: flat or round (a round face shows its diameter).' : 'Click a first point.';
-      else if (st.picks.length === 1) hint = st.mode === 'faces' ? 'Click a second face, or a round face’s diameter is shown.' : 'Click a second point.';
+      else if (!st.picks.length) hint = st.mode === 'faces' ? 'Click a face (flat or round) or an edge: near an edge the pointer picks the edge (it lights up as a line).' : 'Click a first point.';
+      else if (st.picks.length === 1) hint = st.mode === 'faces' ? 'Click a second face or edge, or a round face’s diameter is shown.' : 'Click a second point.';
       else hint = 'Click again for a new measurement · empty space or Esc clears it.';
     } else if (st.tool === 'info') {
       resultEl.innerHTML = '';
@@ -964,17 +1011,39 @@
     if (hintEl) hintEl.textContent = hint;
   }
 
-  var labelEls = [];
+  // labels: asked for one by one while drawing, then placed together so none covers another (task 0219)
+  var labelEls = [], leadEls = [], labelAsk = [], labelBoxes = [];
   function label(k, text, at, colour) {
     var e = labelEls[k];
     if (!e) { e = labelEls[k] = el('div', { 'class': 'fr-lbl' }); marks.appendChild(e); }
     var s = screenOfWorld(at);
-    e.textContent = text;
+    if (e.textContent !== text) e.textContent = text;
     e.style.borderLeftColor = colour || '#F2A900';
-    e.style.left = s.x + 'px'; e.style.top = s.y + 'px';
     e.style.display = s.behind ? 'none' : 'block';
     e.className = colour ? 'fr-lbl' : 'fr-lbl fr-main';
+    if (!s.behind) labelAsk.push({ e: e, x: s.x, y: s.y });
     return k + 1;
+  }
+  function placeLabels(dots) {
+    var boxes = labelAsk.map(function (a) { return { x: a.x, y: a.y, w: a.e.offsetWidth || 60, h: a.e.offsetHeight || 20 }; });
+    var fixed = dots.map(function (d) { return { x: d.x, y: d.y, w: 10, h: 10 }; });
+    var at = M.layout(boxes, fixed), nLead = 0;
+    labelBoxes = [];
+    at.forEach(function (q, i) {
+      var e = labelAsk[i].e;
+      e.style.left = q.x + 'px'; e.style.top = q.y + 'px';
+      labelBoxes.push({ x: q.x, y: q.y, w: boxes[i].w, h: boxes[i].h, text: e.textContent, moved: q.moved });
+      if (!q.moved) return;
+      var L = M.leader({ x: q.x, y: q.y, w: boxes[i].w, h: boxes[i].h }, labelAsk[i]), l = leadEls[nLead];
+      if (!l) { l = leadEls[nLead] = el('div', { 'class': 'fr-lead' }); marks.insertBefore(l, marks.firstChild); }
+      var dx = L[2] - L[0], dy = L[3] - L[1];
+      l.style.left = L[0] + 'px'; l.style.top = L[1] + 'px'; l.style.width = Math.hypot(dx, dy) + 'px';
+      l.style.transform = 'rotate(' + Math.atan2(dy, dx) + 'rad)';
+      l.style.display = 'block';
+      nLead++;
+    });
+    for (var i = nLead; i < leadEls.length; i++) leadEls[i].style.display = 'none';
+    labelAsk = [];
   }
   var dotEls = [];
   function dot(k, at) {
@@ -985,14 +1054,47 @@
     e.style.display = s.behind ? 'none' : 'block';
     return k + 1;
   }
+  // edges drawn on the screen, 3 px wide (a WebGL line is 1 px): an SVG over the view
+  var edgeSvg = null, edgeEls = [];
+  function edgeLine(n, k, colour) {
+    if (!edgeSvg) {
+      edgeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      edgeSvg.setAttribute('class', 'fr-edges');
+      marks.insertBefore(edgeSvg, marks.firstChild);
+    }
+    var e = edgeEls[n];
+    if (!e) { e = edgeEls[n] = document.createElementNS('http://www.w3.org/2000/svg', 'path'); edgeSvg.appendChild(e); }
+    var d = '', pen = false;
+    M.edgePoints(k, 64).forEach(function (q) {
+      var sc = screenOfWorld(toWorld(q));
+      if (sc.behind) { pen = false; return; }
+      d += (pen ? 'L' : 'M') + sc.x.toFixed(1) + ' ' + sc.y.toFixed(1);
+      pen = true;
+    });
+    e.setAttribute('d', d);
+    e.setAttribute('stroke', colour);
+    e.style.display = '';
+    return n + 1;
+  }
   function beforeDraw() {
     if (st.slices.length) { placeSlices(); drawHandles(); } else if (gz) gz.visible = false;
-    var nl = 0, nd = 0, segs = [], cols = [];
+    var nl = 0, nd = 0, ne = 0, segs = [], cols = [], dots = [];
+    labelAsk = [];
+    if (hiEdge && st.tool === 'measure') {
+      three.scene.updateMatrixWorld();
+      var he = M.fromEdge(hiEdge.row, modelMatrix(hiEdge.mesh).elements, [0, 0, 0]);
+      if (he) ne = edgeLine(ne, he, '#F2A900');
+    }
     if (st.tool === 'measure' && st.picks.length) {
       three.scene.updateMatrixWorld();
       compute();
       if (result) {
-        result.picks.forEach(function (p) { nd = dot(nd, toWorld(p.p)); });
+        result.picks.forEach(function (p) {
+          if (p.kind === 'line' || p.kind === 'circle') ne = edgeLine(ne, p, '#2F9BFF');
+          var w = toWorld(p.p), sc = screenOfWorld(w);
+          if (!sc.behind) dots.push(sc);
+          nd = dot(nd, w);
+        });
         if (result.from && result.to) {
           var a = toWorld(result.from), b = toWorld(result.to);
           segs.push(a, b); cols.push([0.95, 0.66, 0], [0.95, 0.66, 0]);
@@ -1027,6 +1129,8 @@
       card.style.display = s.behind ? 'none' : 'block';
     }
     for (var i = nl; i < labelEls.length; i++) labelEls[i].style.display = 'none';
+    for (i = ne; i < edgeEls.length; i++) edgeEls[i].style.display = 'none';
+    placeLabels(dots);
     for (i = nd; i < dotEls.length; i++) dotEls[i].style.display = 'none';
     var g = lines.geometry;
     if (segs.length) {
@@ -1073,6 +1177,7 @@
     c.addEventListener('pointercancel', endIt, true);
     c.addEventListener('pointerdown', function (e) {
       downs[e.pointerId] = true; nDown++;
+      pointerKind = e.pointerType || 'mouse';
       clearTimeout(longTimer);
       if (nDown > 1) { press = null; return; }
       var p = local(e);
@@ -1085,7 +1190,7 @@
     c.addEventListener('pointermove', function (e) {
       var p = local(e);
       if (press && Math.hypot(p.x - press.x, p.y - press.y) > 6) { clearTimeout(longTimer); press.moved = true; }
-      if (e.pointerType === 'mouse' && !e.buttons && (st.tool || st.adding)) hover(p.x, p.y);
+      if (e.pointerType === 'mouse' && !e.buttons && (st.tool || st.adding)) { pointerKind = 'mouse'; hover(p.x, p.y); }
     });
     var up = function (e) {
       if (downs[e.pointerId]) { delete downs[e.pointerId]; nDown = Math.max(0, nDown - 1); }
@@ -1113,6 +1218,7 @@
       var hit = pickAt(hoverAt[0], hoverAt[1]);
       hoverCost = performance.now() - t0;
       if (hit) hit.run = runOf(hit.mesh, hit.faceIndex);
+      if (hit && st.tool === 'measure' && !st.adding && st.mode === 'faces') hit.edge = edgeAt(hit, hoverAt[0], hoverAt[1], false);
       setHover(hit);
     });
   }
@@ -1158,23 +1264,36 @@
                faces: !!faces, hover: st.hover || '',
                result: r ? { type: r.type, dist: r.dist, angle: r.angle, lines: r.lines,
                              parts: (r.parts || []).map(function (q) { return [q.axis, q.value]; }),
-                             picks: r.picks.map(function (p) { return { kind: p.kind, r: p.r || 0, p: p.p }; }) } : null,
+                             picks: r.picks.map(function (p) { return { kind: p.kind, r: p.r || 0, p: p.p, len: p.len || 0,
+                                                                         c: p.c || null, sweep: p.sweep || 0 }; }) } : null,
                lines: lines ? lines.visible : false,
                labels: labelEls.filter(function (e) { return e.style.display !== 'none'; }).map(function (e) { return e.textContent; }),
+               // task 0219: where the labels stand on the screen (tests check that none covers another)
+               labelBoxes: labelBoxes.map(function (b) { return { x: b.x, y: b.y, w: b.w, h: b.h, text: b.text, moved: b.moved }; }),
+               leaders: leadEls.filter(function (e) { return e.style.display !== 'none'; }).length,
+               hoverEdge: !!hiEdge,
+               edgesDrawn: edgeEls.filter(function (e) { return e.style.display !== 'none' && e.getAttribute('d'); }).length,
                clipped: ready ? materials().filter(function (m) { return m.clippingPlanes && m.clippingPlanes.length; }).length : 0,
                // every cut material uses the one live plane (not a copy left where the slider was)
                stale: ready ? materials().filter(function (m) {
                  return m.clippingPlanes && m.clippingPlanes.length && (m.clippingPlanes.length !== live.length ||
                    m.clippingPlanes.some(function (p, i) { return p !== live[i]; })); }).length : 0 };
     },
+    hover: function (x, y) {             // as a mouse resting there (the next frame lights the face or edge up)
+      var h = pickAt(x, y);
+      if (h) { h.run = runOf(h.mesh, h.faceIndex); if (st.tool === 'measure' && st.mode === 'faces') h.edge = edgeAt(h, x, y, false); }
+      setHover(h);
+      return st.hover || '';
+    },
     // a point of the model (Blender's world, metres) on the screen (CSS pixels of the view)
     screenOf: function (a) { three.scene.updateMatrixWorld(); return screenOfWorld(toWorld(a)); },
     pickAt: function (x, y) {
       var h = pickAt(x, y);
       if (!h) return null;
+      if (st.mode === 'faces' && !h.tube && !h.cap) { h.run = runOf(h.mesh, h.faceIndex); h.edge = edgeAt(h, x, y, false); }
       var k = keep(h), p = pickNow(k);
       return { card: String(h.part.userData.fr_card || ''), name: h.part.name, kind: p.kind, r: p.r || 0, p: p.p,
-               n: p.n || null, d: p.d || null };
+               n: p.n || null, d: p.d || null, len: p.len || 0, c: p.c || null, sweep: p.sweep || 0 };
     },
     click: function (x, y) { onClick(x, y); return page.partTools.state(); },
     longPress: function (x, y) { onLongPress(x, y); return page.partTools.state(); },
@@ -1239,7 +1358,15 @@
     st.slices.slice().forEach(function (s) { deleteSlice(s.id); });
     r.slice = r.slice && live.length === 0 && materials().every(function (m) { return !m.clippingPlanes || !m.clippingPlanes.length; });
     openSlices(false);
-    r.ok = r.buttons === 4 && r.pick && r.card && r.measure && r.fade && r.slice;
+    // task 0219: the edges read from the file, and two labels on one spot laid out apart
+    r.edges = 0;
+    Object.keys(faceMeshes).forEach(function (k) {
+      var E = faceMeshes[k].edges;
+      for (var at = 0; E && at + 9 <= E.length; at += Math.round(E[at]) === 5 ? 12 : 9) r.edges++;
+    });
+    var lay = M.layout([{ x: 50, y: 50, w: 80, h: 20 }, { x: 52, y: 51, w: 80, h: 20 }], []);
+    r.labels = !M.overlaps({ x: lay[0].x, y: lay[0].y, w: 80, h: 20 }, { x: lay[1].x, y: lay[1].y, w: 80, h: 20 }, 0);
+    r.ok = r.buttons === 4 && r.pick && r.card && r.measure && r.fade && r.slice && r.labels;
     root.dataset.frTools = JSON.stringify(r);
   }
 

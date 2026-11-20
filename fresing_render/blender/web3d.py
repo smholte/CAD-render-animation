@@ -969,9 +969,10 @@ def part_labels(scene, animated: bool = False) -> dict:
 
 
 def face_data(me, co: np.ndarray, tri: np.ndarray, mi: np.ndarray, dq=None):
-    """Task 0135: (runs, rows) of a CAD mesh's flat and round faces in the order its triangles are written (one
+    """Task 0135: (runs, rows, edges) of a CAD mesh's flat and round faces in the order its triangles are written (one
     primitive per material slot, ``sorted(set(mi))``), in the coordinates they are written in (``dq``: the 16-bit
-    points' (centre, step)); None for a mesh without CAD faces (a milled part, a drawn tube, a mesh model)."""
+    points' (centre, step)); None for a mesh without CAD faces (a milled part, a drawn tube, a mesh model). Task
+    0219: ``edges`` = the straight and round CAD edges between two faces (core/web3d_faces.py), None without any."""
     from ..core import web3d_faces as wf
     starts = me.get("fr_face_starts") if me is not None else None
     if starts is None or not len(tri):
@@ -995,8 +996,13 @@ def face_data(me, co: np.ndarray, tri: np.ndarray, mi: np.ndarray, dq=None):
     rows = wf.classify(co, tri, face, axes, axis_faces)
     if not rows:
         return None
-    rows = wf.to_written(rows, *(dq if dq else (None, None)))
-    return wf.pack([face[mi == slot] for slot in sorted(set(mi.tolist()))], rows)
+    found = wf.edges(co, tri, face, rows)                 # task 0219: the CAD edges between two faces
+    per_prim = [face[mi == slot] for slot in sorted(set(mi.tolist()))]
+    got = wf.pack(per_prim, wf.to_written(rows, *(dq if dq else (None, None))))
+    if got is None:
+        return None
+    etable = wf.pack_edges(wf.edges_to_written(found, *(dq if dq else (None, None))), wf.row_numbers(per_prim, rows))
+    return (*got, etable)
 
 
 def mesh_arrays(me, own_uv: bool = False, uv: bool = True):
