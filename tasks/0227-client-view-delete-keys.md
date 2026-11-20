@@ -84,10 +84,12 @@ selected objects?" menu, no part gone), on Windows as on Linux.
   with the change. (One local batch first showed 4 Outliner routes of `lock` failing: two leftover background
   renders of my own experiments had the machine at load 10; rerun in the same order without them: 19/19.)
 - Full access afterwards: a click selects, Delete deletes (checked in `clientkeys`).
-- Windows: GitHub's Windows part A now tries `ui_test_client_keys.py` with a window after the repair install; see
-  the GitHub run below for whether Blender could open a window there (no graphics card). The PC check's
-  `panel.workspaces` runs on Windows in any case (background: no keymaps there, so it checks undo and the freed part,
-  not the keys).
+- Windows: the keys cannot be checked on GitHub's Windows machine. Run 44739423914 tried `ui_test_client_keys.py`
+  with a window there after the repair install: Blender opened no window (no graphics card), waited until it was
+  stopped after 4 minutes, so the step was taken out again. Every other Windows run of Blender is a background run,
+  which has no keymaps and no events. What does run on Windows: the PC check's `panel.workspaces` (undo to before the
+  pick stays in the Client view, a freed and selected part is taken back) – OK in that run. The keys themselves: the
+  owner's steps below.
 
 **Owner's steps to confirm on your PC** (after Update now to 0.2.174):
 1. Open a project with a model. At the top of the Fresing tab, Workspace: **All functions**. Click a part: it lights up.
@@ -101,4 +103,9 @@ If any part still lights up in step 3–5, tell the lead exactly what you did ju
 
 **Open points / follow-up tasks:**
 - The exact clicks on the owner's PC are not known; the steps above confirm or reopen it.
-- GitHub runs: see below.
+- GitHub runs: 44739423914 (branch, full) – red for two reasons outside this task: (1) `tests/test_toolbox.py`
+  `test_the_sample_folders_jobs_are_taken_up_as_the_format_says` failed on `main` too since 19 Nov evening: the inbox
+  deletes a job a day after it became final, and the sample's job finished on 18 Nov 20:15 (a date time-bomb of
+  0217) – the test now looks at the sample as on that evening and checks the deletion a day later; (2) Windows PC check
+  `web3d.small` "the page gave no places of its parts" (the flaky line of CLAUDE.md section 8; passed in 0.2.173's
+  run). The Windows window try was in that run too (above).
