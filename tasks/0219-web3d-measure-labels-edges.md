@@ -1,6 +1,6 @@
 # 0219 – Web 3D page: measurement labels never overlap; measure to an edge
 
-**Who:** worker · **Status:** waiting – after 0218 (same lane, same file `fr_tools.js`) · **Branch:**
+**Who:** worker · **Status:** running · **Branch:**
 `task/0219-web3d-measure-edges`
 **Started by:** lead, 18 Nov 2026 (owner's list of 18 Nov 22:21, through the ToolBox lead's lead-post message
 `1118-toolbox-to-fresing-render-viewer-and-slice.md`) · **Model:** Opus · effort Medium
