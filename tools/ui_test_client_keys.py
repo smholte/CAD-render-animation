@@ -13,8 +13,9 @@ the pick – the lock went off and the part selected before was selected again. 
 
     xvfb-run -a -s "-screen 0 1800x1300x24" blender -p 0 0 1800 1300 --app-template fresing_render \\
         --enable-event-simulate --python tools/ui_test_client_keys.py
-The log goes to $UITEST_OUT (default ~/fresing_ui_test_client_keys). It also runs on GitHub's Windows machine when
-Blender can open a window there (tools/ci_windows_install.ps1)."""
+The log goes to $UITEST_OUT (default ~/fresing_ui_test_client_keys). Linux only: on GitHub's Windows machine (no
+graphics card) Blender opens no window – tried in task 0227, it waited 4 minutes and was stopped. The Windows PC
+check's line panel.workspaces checks the undo and the freed part there (no keys: a background Blender has none)."""
 
 import importlib
 import os

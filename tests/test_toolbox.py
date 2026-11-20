@@ -121,7 +121,13 @@ def test_samples_read_and_the_manifest_passes_the_checker(root, tmp_path):
     assert doc["start"]["program"] == "/opt/Fresing Render/blender-launcher" and doc["app_version"] == "0.2.999"
 
 
-def test_the_sample_folders_jobs_are_taken_up_as_the_format_says(tmp_path):
+def test_the_sample_folders_jobs_are_taken_up_as_the_format_says(tmp_path, monkeypatch):
+    # the inbox deletes a job a day after its status became final (FORMAT.md 7.4): look at the sample as on the
+    # evening it was made, not today (task 0227: from 19 Nov 2026 20:15 on this test failed with the real clock)
+    from datetime import datetime
+    made = datetime.fromisoformat("2026-11-18T21:00:00+01:00").timestamp()
+    clean = tb.Inbox.clean
+    monkeypatch.setattr(tb.Inbox, "clean", lambda self, at=None: clean(self, made if at is None else at))
     root = tmp_path / "Toolbox"
     shutil.copytree(SAMPLES / "Toolbox", root)
     ib = inbox(root, tmp_path)
@@ -130,6 +136,8 @@ def test_the_sample_folders_jobs_are_taken_up_as_the_format_says(tmp_path):
     assert status(root, "20261118-203000-c81e55")["state"] == "cancelled"
     assert status(root, "20261118-195100-9f3c2a")["state"] == "done"        # final: left as it is
     assert ib.jobs == {}
+    ib.clean(made + 2 * tb.DAY)                                               # a day after final: deleted
+    assert not (root / "tools" / tb.ME / "inbox" / "20261118-195100-9f3c2a").exists()
 
 
 def test_a_house_arrives_waits_and_is_answered(root, tmp_path):
