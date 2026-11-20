@@ -42,7 +42,7 @@ def addon():
     fresing_render.unregister()
 
 
-def rim(dip=None):
+def rim(dip=None, rotors=False, post_in_rotor=False):
     """The deck and 200 rollers. ``dip``: a block slides along the first row of rollers (keyed, 0.5 m/s class motion)
     with its underside that many metres below the rollers' tops (negative: that far above them)."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -72,7 +72,56 @@ def rim(dip=None):
         blk.location = (0, -half_y + 3.0, 0)                          # over 19 rollers of the first row
         blk.keyframe_insert("location", frame=FRAMES)
         _linear(blk)
+    if rotors:
+        big_turning_parts(sc, post_in_rotor)
     return sc
+
+
+def blade(n, k, length, r0, width, thick, axis):
+    """Blade k of n: a box from radius r0 to length, turned k/n of a turn about the rotor axis ('x' or 'y')."""
+    a = 2 * math.pi * k / n
+    v, t = box((-thick / 2, -width / 2, r0), (thick / 2, width / 2, length))
+    out = []
+    for x, y, z in v:                                      # turn about X by a (blade along +Z at a = 0)
+        y2, z2 = y * math.cos(a) - z * math.sin(a), y * math.sin(a) + z * math.cos(a)
+        out.append((x, y2, z2) if axis == "x" else (y2, x, z2))
+    return out, t
+
+
+def rotor(sc, name, at, n, length, axis, turns):
+    """A round hub (turning, keyed) with n blades as its children: the blades are not round, so they are checked."""
+    hub = part(sc, f"{name} HUB", prism(roller(0.8, 24), -0.5, 0.5) if axis == "x" else _along_y(0.8, 0.5))
+    hub.location = at
+    for k in range(n):
+        part(sc, f"{name} BLADE {k}", blade(n, k, length, 0.8, 1.0 if length > 5 else 0.2, 0.5 if length > 5 else 0.05,
+                                            axis), parent=hub)
+    idx = 0 if axis == "x" else 1
+    hub.rotation_euler = (0, 0, 0)
+    hub.keyframe_insert("rotation_euler", frame=1)
+    e = [0, 0, 0]
+    e[idx] = 2 * math.pi * turns
+    hub.rotation_euler = tuple(e)
+    hub.keyframe_insert("rotation_euler", frame=FRAMES)
+    _linear(hub)
+    return hub
+
+
+def _along_y(r, half):
+    v, t = prism(roller(r, 24), -half, half)
+    return [(y, x, z) for x, y, z in v], t
+
+
+def big_turning_parts(sc, post_in_rotor):
+    """3 rotors of 3 blades (40 m across, hub 25 m up, beside the rim, tower behind the rotor plane), 2 propellers of 4
+    blades (3 m) under the deck. ``post_in_rotor``: a post stands in the way of rotor 0's lowest blade tip."""
+    for i in range(3):
+        x = -80.0 - i * 80.0
+        rotor(sc, f"ROTOR {i}", (x, 40.0, 25.0), 3, 20.0, "x", 1.0)
+        part(sc, f"TOWER {i}", box((x - 3.5, 39.5, 0.0), (x - 2.5, 40.5, 24.0)))
+    if post_in_rotor:
+        part(sc, "POST", box((-80.2, 39.8, 0.0), (-79.8, 40.2, 8.0)))            # the blade tip reaches down to 5 m
+    for i in range(2):
+        rotor(sc, f"PROP {i}", (0.5 + i * 4.5, -2.0, -2.8), 4, 1.5, "y", 6.0)
 
 
 def timed(sc):
@@ -110,4 +159,27 @@ def test_a_block_pushed_5_mm_into_the_rollers_is_found_and_named():
     others = {(x.b if x.a == "BLOCK" else x.a) for x in rows}
     assert all(o.startswith("ROLLER 0") for o in others) and len(others) >= 10, sorted(others)
     assert max(x.depth for x in rows) == pytest.approx(5 * MM, abs=0.5 * MM)
+    assert dt < LIMIT_S
+
+
+def test_big_rotors_and_propellers_are_checked_not_held_and_clear():
+    sc = rim(rotors=True)
+    r, dt = timed(sc)
+    print(f"\nrim + 3 rotors + 2 propellers: {dt:.1f} s, stats {r.stats}")
+    assert not r.rows, [core.row_text(x) for x in r.rows[:5]]
+    blades = 3 * 3 + 2 * 4
+    hubs = 5
+    assert r.stats["held"] == 2 * ROWS * PER_ROW + hubs, r.stats          # no blade held still
+    assert r.stats["parts"] >= 401 + hubs + blades
+    assert dt < LIMIT_S
+
+
+def test_a_blade_tip_through_a_post_is_found_and_named():
+    sc = rim(rotors=True, post_in_rotor=True)
+    r, dt = timed(sc)
+    print(f"\nrotors + post in the way: {dt:.1f} s, {len(r.rows)} rows, stats {r.stats}")
+    rows = [x for x in r.rows if x.kind == "CLASH"]
+    assert rows, "the post in the rotor's way was not found"
+    assert all("POST" in {x.a, x.b} for x in rows), [core.row_text(x) for x in r.rows[:5]]
+    assert all((x.b if x.a == "POST" else x.a).startswith("ROTOR 0 BLADE") for x in rows)
     assert dt < LIMIT_S
