@@ -795,7 +795,7 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   machines, wires, the spread's layout) and the **complete cable-lay demo project** – the private repository
   **`smholte/fresing-render-vessel`** keeps the whole project as a self-contained **demo kit** (its own copies of the
   ship, environment, equipment and animations; owner 20 Nov 16:55). The public app knows only "demo kits", never this
-  one. Since the cut (task 0247, 0.2.185) none of the equipment's code, files or pictures is on `main` (the report
+  one. Since the cut (task 0247, 0.2.186) none of the equipment's code, files or pictures is on `main` (the report
   pictures in `tasks/img/` go with package 4): **never add equipment to the public ship, the public demo, a test model,
   a tour set, a picture, a web page or a report** (`tests/test_demo_project.py` fails on an equipment word in the
   demo's files, parts and objects). Never copy anything from the private repository into this one – also not as a

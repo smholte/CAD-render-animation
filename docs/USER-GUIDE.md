@@ -3385,7 +3385,7 @@ the machine himself, or for your website.
 **File size.** The page holds the model packed (the browser unpacks it as it opens), so the
 page is about as big as the `.glb`, not a third bigger. Pictures are saved as WebP where that is smaller and as
 faithful as JPG (every current browser reads WebP); a part that is in the project twice with the same shape is stored
-once. Pages exported before stay as they were; export again to get the smaller page. Measured on the old demo project (a cable-lay vessel, before version 0.2.185; 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
+once. Pages exported before stay as they were; export again to get the smaller page. Measured on the old demo project (a cable-lay vessel, before version 0.2.186; 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.

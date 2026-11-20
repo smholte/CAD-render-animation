@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.186 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
+
+- **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own
+  deck crane in an offshore wind park of nine turbines and a substation, the park's power cable lying on the seabed
+  right under her. Its video lasts about a minute: she sails in and holds her place on her thrusters, her crane slews
+  outboard and lowers its hook (the wire comes off the drum layer by layer), along her hull and under water at her
+  thrusters, at the seabed where the cable comes down turbine WTG 05, the park from above and at night. It is made in
+  about a minute instead of six. The cable-lay equipment of the old demo is no longer part of the app.
+- **New saved cameras** in the demo: **Deck crane** and **At the seabed** (through the cut-away behind the stern, along
+  the cable to the turbine's foot).
+- **The clash check can leave a whole model out, stored in the project.** The demo's wind park is left out this way
+  (its nine turning rotors would make the check several times as long); the mark stays when you save, reopen or
+  update the model. A demo kit uses it for its own scenery.
+
 ## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
 
 The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.
