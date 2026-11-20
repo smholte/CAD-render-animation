@@ -92,9 +92,9 @@ def _chevron(rgb, down: bool, w: int = 32):
         return math.hypot(px - ax - t * dx, py - ay - t * dy)
     s = w / 32.0
     if down:                                   # PNG rows go down: y grows downwards here
-        a, b, c = (7 * s, 11 * s), (16 * s, 20.5 * s), (25 * s, 11 * s)
+        a, b, c = (9.5 * s, 11.5 * s), (18 * s, 20 * s), (26.5 * s, 11.5 * s)
     else:
-        a, b, c = (12 * s, 7 * s), (21.5 * s, 16 * s), (12 * s, 25 * s)
+        a, b, c = (13.5 * s, 7.5 * s), (22.5 * s, 16 * s), (13.5 * s, 24.5 * s)
     half = 2.1 * s
 
     def fn(x, y):
@@ -111,7 +111,7 @@ def _chevron(rgb, down: bool, w: int = 32):
 def _marked(rgb, chevron):
     """An arrow with the marker: a bar on the icon's left edge, 6 px of 32, full height, one exact colour."""
     def fn(x, y):
-        return (*rgb, 255) if x < 6 else chevron(x, y)
+        return (*rgb, 255) if x < 5 else chevron(x, y)
     return fn
 
 
@@ -435,7 +435,7 @@ def _draw():
                     ground = np.minimum(ground + tint, 1.0)
                 elif spots is fns and fr is None:
                     ground = np.maximum(ground - DARKER, 0.0)
-                _rect(x0 - 1, y0 - 1, x1 + 2 + round(s), y1 + 2, (*ground, 1.0))
+                _rect(x0 - 1, y0 - 1, x1 + 2, y1 + 2, (*ground, 1.0))
         for (x0, y0, x1, y1) in steps:
             cy = (y0 + y1) // 2
             _rect(round(8 * s), cy - round(11.5 * s), round(8 * s) + lw, cy + round(11.5 * s), g)

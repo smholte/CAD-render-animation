@@ -90,8 +90,13 @@ def s_state():
     ob.select_set(True)
     bpy.context.view_layer.objects.active = ob
     log("joints", len(sc.fresing.joints), "cylinders", len(sc.fresing.cylinders))
+    for o in sc.objects:
+        o.select_set(o.get("fr_name", "").startswith(("BOOM", "PEDESTAL", "HYDRAULIC", "TROLLEY", "BASE")))
     with override():
-        bpy.ops.view3d.view_all()
+        bpy.ops.view3d.view_selected()
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    ob.select_set(True)
     return 1.0
 
 
