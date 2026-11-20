@@ -1,26 +1,31 @@
-# Task 0242 (throw-away, removed before merging): open the two web-page check pages many times in Edge on Windows.
+# Task 0242 (throw-away, removed before merging): the PC-check lines web3d.small / web3d.under on Windows, the code of
+# main (old) against this branch (new), on the same machines.
 name: tmp 0242 web page on Windows
 on:
   push:
     branches: [claude/modest-einstein-fendd4]
     paths: ["tools/tmp0242/**", ".github/workflows/tmp-0242.yml"]
 jobs:
-  edge:
+  lines:
     strategy:
       fail-fast: false
       matrix:
-        k: [1, 2, 3, 4, 5, 6]
+        k: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     runs-on: windows-2025
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
       - uses: actions/setup-python@v5
-        with: {python-version: "3.13"}
-      - run: python -m pip install numpy
-      - name: Edge version
-        shell: pwsh
-        run: (Get-Item "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe").VersionInfo.ProductVersion
-      - name: one at a time
-        run: python tools/tmp0242/loop.py 30 1
-      - name: three at a time (a busy PC)
-        run: python tools/tmp0242/loop.py 30 3
+        with: {python-version: "3.13", cache: pip, cache-dependency-path: tools/requirements-dev.txt}
+      - run: python -m pip install -r tools/requirements-dev.txt
+      - name: main's code beside
+        run: git worktree add ../old origin/main
+      - name: old and new, three times each, taking turns
+        run: |
+          python tools/tmp0242/lines.py ../old 1
+          python tools/tmp0242/lines.py . 1
+          python tools/tmp0242/lines.py ../old 1
+          python tools/tmp0242/lines.py . 1
+          python tools/tmp0242/lines.py ../old 1
+          python tools/tmp0242/lines.py . 1
