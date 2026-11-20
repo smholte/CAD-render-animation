@@ -1,11 +1,11 @@
-"""The demo's vessel (tasks 0076, 0153): hull, superstructure, propulsion and deck outfitting. Invented; generic
-features every offshore construction / cable-lay vessel has, nothing of a real vessel or company.
+"""The demo's ship (tasks 0076, 0153; task 0247: the bare ship): hull, superstructure, propulsion and deck outfitting.
+Invented; generic features every offshore construction vessel has, nothing of a real vessel or company.
 
 Model coordinates as everywhere in the demo: mm, x to the bow (transom at 0), y to port, z up (waterline 0).
 
 Hull (task 0153): ruled between stations (a smooth loft meshes ~5 x heavier, task 0074), a raked stem with flare,
 a bulbous bow, a flat transom with a centre skeg, bilge keels, a sheer forward of the superstructure (the deck aft of it
-stays flat at ``deck_z``: everything of the cable-lay spread stands on it). Its paint is split in height: HULL BOTTOM
+stays flat at ``deck_z``: a plain working deck, task 0247). Its paint is split in height: HULL BOTTOM
 (antifouling, keel up to ``BOOT_LO``), BOOT TOP (the black band round the waterline), HULL (above it); MAIN DECK is the
 top ``DECK_T`` of the hull, so it follows the sheer.
 
@@ -14,7 +14,7 @@ tunnel thrusters (openings through the hull, a propeller inside each). The joint
 demo's animation turns the propellers; task 0154's water effects read them).
 
 Outfitting: accommodation block with window rows, bridge with wings, funnels, mast with radars, antennas and lights,
-lifeboats in davits, railings, a deck crane (slew + luff joints, parked), bollards, fairleads, hatches, windlasses,
+lifeboats in davits, railings, a deck crane (slew + luff joints, a hoist on the boom; parked), bollards, fairleads, hatches, windlasses,
 hawse pipes and anchors, a rubbing strake (where fenders touch the side), freeing ports in the bulwark, name and
 draft-mark boards (the app puts the decals on them).
 """
@@ -37,7 +37,7 @@ WHITE = (0.93, 0.93, 0.91)
 GLASS = (0.10, 0.14, 0.18)
 GALV = (0.60, 0.61, 0.62)
 ORANGE = (0.95, 0.42, 0.05)
-ROPE_GREY = (0.45, 0.46, 0.47)          # as machines.ROPE_GREY (the hoist wire, task 0174)
+ROPE_GREY = (0.45, 0.46, 0.47)          # the hoist wire (task 0174)
 YELLOW = (0.976, 0.659, 0.0)
 BRONZE = (0.80, 0.55, 0.35)
 LAMP = (1.0, 0.95, 0.8)
@@ -74,7 +74,7 @@ HOUSE_AFT = 29000.0           # the accommodation's aft face this far from the b
 HOUSE_FWD = 14000.0           # its front (the sheer starts here)
 TIER_H = 2800.0
 
-# deck crane (port side, forward of the carousel well), parked with its boom up and forward
+# deck crane (port side, amidships), parked with its boom up and forward
 CRANE_X_FROM_BOW = 40000.0
 CRANE_Y = 10300.0
 CRANE_BOOM = 22000.0
@@ -485,9 +485,9 @@ def deck_crane() -> Asm:
         *[g.box(sc_[0] - 120.0, sy0, sc_[2] - 60.0, 240.0, 30.0, -400.0 - sc_[2] + 60.0 + 1.0) for sy0 in (30.0, -60.0)],
         g.rod((sc_[0], -60.0, sc_[2]), (sc_[0], 60.0, sc_[2]), hz["pin_r"])), YELLOW))
     boom.add(Part("HOIST WIRE", g.route_solid(hz["route"], HOIST_ROPE_D / 2), ROPE_GREY))
-    boom.add(Part("HOOK BLOCK", g.fuse(g.box(-350.0, -250.0, -1500.0, 700.0, 500.0, 900.0),
-                                       g.rod((0, 0, -1500.0), (0, 0, -2100.0), 120.0)), ORANGE),
-             T(*hz["hook_origin"]) @ Rot((0, 1, 0), CRANE_LUFF))
+    ch = boom.add(Part("HOOK BLOCK", g.fuse(g.box(-350.0, -250.0, -1500.0, 700.0, 500.0, 900.0),
+                                            g.rod((0, 0, -1500.0), (0, 0, -2100.0), 120.0)), ORANGE),
+                  T(*hz["hook_origin"]) @ Rot((0, 1, 0), CRANE_LUFF))
     cb = slew.add(boom, T(*pin) @ Rot((0, 1, 0), -CRANE_LUFF))
     cs = a.add(slew)
     a.joint("Slew", "rotate", [cs], (0, 0, 0), (0, 0, 1), None,
@@ -504,6 +504,11 @@ def deck_crane() -> Asm:
     shc = (B @ np.array([*sc_, 1.0]))[:3]
     a.joint("Head sheave turn", "rotate", [[cs, cb, cs_]], shc, (0, 1, 0), None,
             {"by": "winch", "note": "turned by the hoist wire (task 0174)"}, rides_on="Luff")
+    hook = (B @ np.array([*hz["hook_origin"], 1.0]))[:3]
+    a.joint(HOOK, "slide", [[cs, cb, ch]], hook, (0, 0, -1), [0.0, HOOK_DROP],
+            {"by": "winch", "note": "task 0247: the hook block lowered on the hoist wire (mm down; plumb while the boom "
+                                    "is parked)"}, rides_on="Luff")
+    a.info["hook"] = hook.tolist()
     a.info["tip_z"] = float(pin[2] + L * math.sin(math.radians(CRANE_LUFF)))
     a.info["hoist"] = {"drum_centre": dc.tolist(), "sheave_centre": shc.tolist(), "rope_d": HOIST_ROPE_D}
     return a
@@ -516,6 +521,8 @@ HOIST_RC = 220.0              # the rope's middle on the first layer
 HOIST_LAYERS = 4
 HOIST_SHEAVE_R = 300.0        # the head sheave: the rope's middle round it
 HOIST_DROP = 1200.0           # the wire from the head sheave down to the hook block's top
+HOOK = "Hook lower"           # task 0247: the hook block's slide joint (the demo lowers it on the hoist wire)
+HOOK_DROP = 30000.0           # its travel: down to the water beside the ship with the crane slewed outboard
 
 
 def hoist() -> dict:
@@ -592,19 +599,27 @@ def windlass() -> Part:
 # ---------------------------------------------------------------------------------------------------------
 
 
-def vessel(p, pos, kit=None) -> Asm:
-    """The whole vessel as one assembly (its own file ``demo_vessel.step`` too). ``info``: the deck outline, the hull's
-    stations, the outfitting's boxes (the tests check they keep clear of the cable-lay spread)."""
-    from .machines import Kit
-    kit = kit or Kit(p)
-    L = pos["length"]
+class Kit:
+    """Builds each shared part once (the app instances one mesh for every place: the propellers)."""
+
+    def __init__(self):
+        self._cache: dict = {}
+
+    def get(self, key, make):
+        if key not in self._cache:
+            self._cache[key] = make()
+        return self._cache[key]
+
+
+def vessel(p, kit: Kit | None = None) -> Asm:
+    """The whole ship as one assembly (task 0247: the bare ship – plain deck, closed bulwark, its own deck crane).
+    ``p``: ``params.ShipParams``. ``info``: the deck outline, the hull's stations, the thrusters, the boards."""
+    kit = kit or Kit()
+    L = p.length
     st = stations(p, L)
     f = p.beam / 27000.0
     hull = hull_solid(p, L)
     big = 4 * L
-    well_r = p.carousel_d / 2 + 900.0
-    well_floor = -700.0
-    well = g.cyl(well_r, p.deck_z - well_floor + 4000, (pos["carousel_x"], 0, well_floor))
     zone = lambda z0, z1: g.box(-L, -big / 2, z0, 3 * L, big, z1 - z0)  # noqa: E731
     # the hull's top is plane between stations (two level lines): bands that follow it, sampled at the stations
     xs_st = [-L] + [s[0] for s in st] + [2 * L]
@@ -625,19 +640,15 @@ def vessel(p, pos, kit=None) -> Asm:
     bulb = g.revolve(prof, (bx0, 0.0, bz), (1.0, 0.0, 0.0))
     tunnels = [g.cyl(BOW_TUNNEL_R, 4 * p.beam, (L - xb, -2 * p.beam, BOW_Z), (0, 1, 0)) for xb in BOW_TUNNELS]
     a = Asm("VESSEL")
-    bottom = g.cut(g.fuse(g.common(hull, zone(-big, BOOT_LO)), g.cut(bulb, zone(BOOT_LO, big))), well, *tunnels)
-    boot = g.cut(g.common(hull, zone(BOOT_LO, BOOT_HI)), well)
-    top = g.cut(g.common(hull, band(DECK_T, -DECK_T, lo_abs=BOOT_HI)), well)
-    deck = g.cut(g.common(hull, band(DECK_T, 500.0)), well)
+    bottom = g.cut(g.fuse(g.common(hull, zone(-big, BOOT_LO)), g.cut(bulb, zone(BOOT_LO, big))), *tunnels)
+    boot = g.common(hull, zone(BOOT_LO, BOOT_HI))
+    top = g.common(hull, band(DECK_T, -DECK_T, lo_abs=BOOT_HI))
+    deck = g.common(hull, band(DECK_T, 500.0))
     inner = g.common(hull, band(0.0, -DECK_T, lo_abs=-big))        # the hull without its deck plate
     a.add(Part("HULL BOTTOM", bottom, HULL_RED))
     a.add(Part("BOOT TOP", boot, BLACK))
     a.add(Part("HULL", top, HULL_BLUE))
     a.add(Part("MAIN DECK", deck, DECK_GREY))
-    # well lining (grey) so the well does not show the hull's colours
-    lining = g.fuse(g.tube(well_r + 1.0, well_r - 30.0, p.deck_z - well_floor, (pos["carousel_x"], 0, well_floor)),
-                    g.cyl(well_r - 30.0, 30.0, (pos["carousel_x"], 0, well_floor)))
-    a.add(Part("CAROUSEL WELL", lining, DECK_GREY))
     # skeg on the centre line aft, bilge keels along the bilges amidships
     skeg_prof = [(800.0, -1600.0), (14000.0, -5700.0), (14000.0, -6100.0), (9000.0, -6100.0), (2500.0, -4200.0),
                  (800.0, -2600.0)]
@@ -649,8 +660,8 @@ def vessel(p, pos, kit=None) -> Asm:
         c0 = np.array([0.0, side * 11300.0 * f, -6000.0 + 2200.0]) + 2200.0 * n       # the bilge's 45° point
         a.add(Part("BILGE KEEL", g.beam(c0 + [24000.0, 0, 0], c0 + [L - 38000.0, 0, 0], 30.0, 1600.0, up=n),
                    HULL_RED))
-    # bulwark on the deck edge (the stations' deck edges, following the sheer), open at the stern and where the quay's
-    # cable comes aboard; freeing ports along its foot
+    # bulwark on the deck edge (the stations' deck edges, following the sheer), closed all round (task 0247: a plain
+    # deck); freeing ports along its foot
     outline = [(s[0], -s[1]) for s in st] + [(s[0], s[1]) for s in reversed(st)]
     inner_o = offset_polygon(outline, 160.0)
     top_z = p.deck_z + SHEER + BULWARK_H + 500.0
@@ -668,10 +679,8 @@ def vessel(p, pos, kit=None) -> Asm:
     for x, side in fair:
         zf = p.deck_z + sheer(x, L) + 650.0
         fair_cut.append(g.box(x - 400.0, -big / 2, zf - 220.0, 800.0, big, 440.0))
-    bw = g.cut(bw, g.box(-2000, -p.beam, p.deck_z - 100, 5200, 2 * p.beam, 1500),
-               g.box(3000, -p.beam, p.deck_z - 100, pos["board_x"] + 1500 - 3000, p.beam, 1500), *ports, *fair_cut)
+    bw = g.cut(bw, *ports, *fair_cut)
     a.add(Part("BULWARK", bw, HULL_BLUE))
-    outfit = {}                                     # name -> list of boxes (model mm) the tests check
     fl = Part("FAIRLEAD", fairlead_shape(), BLACK)
     for x, side in fair:
         zf = p.deck_z + sheer(x, L) + 650.0
@@ -715,7 +724,6 @@ def vessel(p, pos, kit=None) -> Asm:
     # superstructure, lifeboats in davits
     sup, si = superstructure(p, L)
     a.add(sup, T(0, 0, 0), "SUPERSTRUCTURE")
-    outfit["SUPERSTRUCTURE"] = [[si["aft"], si["bridge"][1], -si["wing"], si["wing"], p.deck_z, si["top_z"]]]
     boat = Part("LIFEBOAT", lifeboat_shape(), ORANGE)
     dv_y0, dv_y1 = 8650.0, 10600.0
     zd = p.deck_z + TIER_H
@@ -724,17 +732,12 @@ def vessel(p, pos, kit=None) -> Asm:
         a.add(boat, T(xb, side * dv_y1, p.deck_z + TIER_H + 200.0))
         for dx in (-2900.0, 2900.0):
             a.add(Part("DAVIT", g.xform(davit(side * dv_y0, side * dv_y1, zd, zd + 4600.0), T(xb + dx, 0, 0)), GALV))
-        outfit.setdefault("LIFEBOAT", []).append([xb - 3750.0, xb + 3750.0, side * dv_y1 - 1300.0,
-                                                  side * dv_y1 + 1300.0, zd, zd + 4600.0])
-    # deck crane on port, forward of the carousel well
+    # deck crane on port, amidships
     crane = deck_crane()
     xk = L - CRANE_X_FROM_BOW
-    c = a.add(crane, T(xk, CRANE_Y * f, p.deck_z), "DECK CRANE")
-    yk = CRANE_Y * f
-    pin_z = p.deck_z + 3230.0 + 3200.0
-    outfit["DECK CRANE"] = [[xk - 2700.0, xk + 1600.0, yk - 2700.0, yk + 1600.0, p.deck_z, pin_z + 600.0],
-                            [xk + 1700.0, xk + 700.0 + CRANE_BOOM * math.cos(math.radians(CRANE_LUFF)) + 1700.0,
-                             yk - 1100.0, yk + 1100.0, pin_z - 600.0, p.deck_z + crane.info["tip_z"]]]
+    a.add(crane, T(xk, CRANE_Y * f, p.deck_z), "DECK CRANE")
+    crane_info = {"slew_axis": [xk, CRANE_Y * f, p.deck_z], "tip_z": p.deck_z + crane.info["tip_z"],
+                  "hook": (T(xk, CRANE_Y * f, p.deck_z) @ np.r_[crane.info["hook"], 1.0])[:3].tolist()}
     # bollards, hatches, windlasses, hawse pipes and anchors
     bl = bollard()
     for x, side in [(L - 44500.0, s) for s in (-1, 1)] + [(L - HOUSE_AFT - 1500.0, s) for s in (-1, 1)] + \
@@ -742,15 +745,12 @@ def vessel(p, pos, kit=None) -> Asm:
         zz = p.deck_z + sheer(x, L)
         y = side * (side_hit(g.polygon_prism(outline, 20.0, T(0, 0, zz - 10.0)), x, zz, side) * side - 1300.0)
         a.add(bl, T(x, y, zz))
-        outfit.setdefault("BOLLARD", []).append([x - 900.0, x + 900.0, y - 400.0, y + 400.0, zz, zz + 770.0])
     hatch = Part("HATCH COVER", g.fuse(g.box(-1300.0, -1300.0, 0.0, 2600.0, 2600.0, 450.0),
                                        g.box(-1200.0, -1200.0, 450.0, 2400.0, 2400.0, 120.0),
                                        *[g.box(-1100.0 + 2000.0 * k, -150.0, 570.0, 200.0, 300.0, 120.0)
                                          for k in (0, 1)]), DECK_GREY)
     for x, y in ((L - 36000.0, -5500.0), (L - 36000.0, 0.0), (L - HOUSE_AFT - 3000.0, 0.0)):
         a.add(hatch, T(x, y, p.deck_z))
-        outfit.setdefault("HATCH COVER", []).append([x - 1300.0, x + 1300.0, y - 1300.0, y + 1300.0, p.deck_z,
-                                                     p.deck_z + 690.0])
     wl = windlass()
     an = Part("ANCHOR", anchor_shape(), BLACK)
     for side in (-1, 1):
@@ -768,14 +768,12 @@ def vessel(p, pos, kit=None) -> Asm:
                                         g.tube(420.0, 230.0, 120.0, out_ - 60.0 * d / np.linalg.norm(d), d)), BLACK))
         q, n, t, u = side_point(hull, xh, zh - 1300.0, side)
         a.add(an, g.Frame(q + 330.0 * n - 1250.0 * u, t, u))
-        outfit.setdefault("WINDLASS", []).append([xw - 900.0, xw + 900.0, side * 2600.0 - 1500.0,
-                                                  side * 2600.0 + 1500.0, zz, zz + 1800.0])
     a.info["length"] = L
     a.info["deck_outline"] = [[round(x, 1), round(y, 1)] for x, y in outline]
     a.info["stations"] = [[round(float(v), 1) for v in s] for s in st]
     a.info["thrusters"] = thr
     a.info["boards"] = boards
-    a.info["outfit"] = outfit
+    a.info["crane"] = crane_info
     a.info["sheer_from"] = L - SHEER_LEN
     return a
 

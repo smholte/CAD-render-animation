@@ -14,6 +14,12 @@ tool, its holder and the spindle do. With milling on, the workpiece is checked a
 two lists of objects: objects to check as well (they must be meshes) and objects to leave out. A hose that bends
 along with the parts it joins should be left out (it touches them on purpose).
 
+**Left out by a tag** (task 0247): ``leave_out(ob)`` stores ``NO_CLASH`` on an object (a model root, a part, an
+empty) and its part ID in the scene's list ``NO_CLASH``: every part under it is left out of the check. Both are custom
+properties, so they are saved with the project; a model update makes new objects but keeps the root's part ID, so the
+scene's list carries the tag over. A demo kit's ROV and the demo's wind
+park use it; code that registers a hook works only while that code is loaded, a tag also in a reopened project.
+
 The result is kept with the project (``scene.fresing.clash``, a few rows) together with a fingerprint of the built
 keys: when the animation is built again the rows no longer fit it and are cleared (a timer started by a depsgraph
 handler; ``drop_if_stale`` does it by hand).
@@ -36,6 +42,7 @@ MARK = "Clash: "                        # timeline markers this check makes star
 RED = (1.0, 0.08, 0.05, 0.5)
 HOOKS: list = []                        # fn(scene) -> (objects to add, objects to leave out); see the docstring
 CLASH_MESH = "fr_clash_mesh"            # on an object: a mesh the check uses instead of its own (task 0156)
+NO_CLASH = "fr_no_clash"                # on an object: it and everything under it is left out (task 0247)
 _RUNTIME: dict = {}                     # per scene: the signature cache, the parts shown red, the progress
 _DRAW = {"handle": None, "batches": {}}
 
@@ -127,10 +134,50 @@ def label(ob) -> str:
     return inst if inst.startswith(name + ":") else name
 
 
+def _tagged_uids(scene) -> list:
+    v = scene.get(NO_CLASH) if scene is not None else None
+    return [str(u) for u in v] if v else []
+
+
+def leave_out(ob, on: bool = True) -> None:
+    """Store (or clear) "left out of the clash check" on ``ob``: it and every part under it (task 0247). Kept twice:
+    on the object, and its part ID in the scene's list ``NO_CLASH`` – a model update makes new objects but keeps the
+    model root's ID (and a part's, where it matches), so the list carries the tag over."""
+    uid = ob.get(build.PROP_UID)
+    scenes = [sc for sc in bpy.data.scenes if ob.name in sc.objects] or [bpy.context.scene]
+    if on:
+        ob[NO_CLASH] = True
+    elif NO_CLASH in ob:
+        del ob[NO_CLASH]
+    if not uid:
+        return
+    for sc in scenes:
+        have = _tagged_uids(sc)
+        want = sorted(set(have) | {uid}) if on else [u for u in have if u != uid]
+        if want != have:
+            if want:
+                sc[NO_CLASH] = want
+            elif NO_CLASH in sc:
+                del sc[NO_CLASH]
+
+
+def left_out(ob, scene=None) -> bool:
+    """``ob`` or an object above it carries the tag ``NO_CLASH`` (on itself, or its part ID in the scene's list)."""
+    uids = set(_tagged_uids(scene if scene is not None else bpy.context.scene))
+    seen = 0
+    while ob is not None and seen < 256:
+        if ob.get(NO_CLASH) or (uids and ob.get(build.PROP_UID) in uids):
+            return True
+        ob = build.logical_parent(ob)                   # the CAD structure (past the empties a joint puts in)
+        seen += 1
+    return False
+
+
 def objects(scene) -> list:
-    """The meshes the check compares: the parts (not the excluded ones) and the tool copies of a G-code build."""
+    """The meshes the check compares: the parts (not the excluded ones, not those left out by the tag ``NO_CLASH``)
+    and the tool copies of a G-code build."""
     from . import gcode
-    out = [ob for ob in build.iter_parts(scene) if not ob.get(build.PROP_EXCLUDED)]
+    out = [ob for ob in build.iter_parts(scene) if not ob.get(build.PROP_EXCLUDED) and not left_out(ob, scene)]
     names = {ob.name for ob in out}
     for ob in gcode.copies(scene).values():
         if ob.type == "MESH" and ob.name in scene.objects and ob.name not in names:

@@ -1753,10 +1753,6 @@ in red.
   in the CAD file again and the joints the app made for it go. Nothing is deleted from the model.
 - The cable takes the material of its look; paint schemes, hiding and fades keep working. The clash check
   (6 Animation) leaves the drawn cable out, because it lies on its rollers on purpose.
-- The **demo project** (Help > Make demo project…) shows it on the invented cable-lay vessel: its power cable lies
-  on its path over 218 rollers and its bends, with the yellow stripes, on the joint "Cable travel"; in the
-  roller-highway shot it runs at 10 m/min and every roller turns with it. (A demo made with an older version:
-  make it again.)
 - The cable going into the sea: **Into the sea**, just below. The coil on a carousel or a drum: **Drums and
   carousels**, below. The tensioner tracks that grip the cable: **Tracks and belts**, after it.
 
@@ -2086,8 +2082,6 @@ and the note says "its teeth will drift through the links".
 - Nothing is worked out per frame in Python: it works in the render queue and with scripts switched off.
 - The clash check (6 Animation) leaves the parts of a track out.
 - A model update keeps the tracks.
-- The **demo project** uses it: in shot 5 the pads of the tensioners run with the cable while the top track
-  squeezes it.
 
 <a id="poses"></a>
 ### Poses & exploded views
@@ -3371,7 +3365,7 @@ the machine himself, or for your website.
    so nothing goes out unseen. A page exported before keeps its names; export again to get the new ones.
    **Faces for measuring** (on by default): the parts' flat and round faces go into the file, so the page can
    measure between planes, read a hole's diameter, measure centre to centre and to the parts' **edges**
-   ([Measure](#web3d-tools)); the edges add up to about a tenth to the page (measured: the test crane's page +0.7 %, the demo vessel's +12 %).
+   ([Measure](#web3d-tools)); the edges add up to about a tenth to the page (measured: the test crane's page +0.7 %, the old cable-lay demo's +12 %).
 4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
    (meshopt), about **half the file**; the page opens it as before, also offline. Since 0.2.143 the motion is packed
    too: each part keeps only the moments a straight blend cannot give (every frame stays within 0.1 mm and 0.05° of
@@ -3391,7 +3385,7 @@ the machine himself, or for your website.
 **File size.** The page holds the model packed (the browser unpacks it as it opens), so the
 page is about as big as the `.glb`, not a third bigger. Pictures are saved as WebP where that is smaller and as
 faithful as JPG (every current browser reads WebP); a part that is in the project twice with the same shape is stored
-once. Pages exported before stay as they were; export again to get the smaller page. Measured on the demo project (cable-lay vessel, 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
+once. Pages exported before stay as they were; export again to get the smaller page. Measured on the old demo project (a cable-lay vessel, before version 0.2.185; 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.
@@ -3600,7 +3594,7 @@ the page is often a little *smaller* than without surroundings, because the page
 Not on the page: the halls, the quay and the props; hoses and cables (as before).
 
 Measured on the 4-core test machine **without a graphics card** (software drawing, so only the differences mean
-something): the invented 124 m cable-lay vessel (Draft, Texture size 512) exports in 3–5 s with every item on; its
+something): the old demo's invented 124 m vessel (Draft, Texture size 512) exports in 3–5 s with every item on; its
 page is 5.5 MB and draws its first picture after about 2 s. Phone, Balanced and Best draw 10,000, 38,000 and 102,000
 points of sea and 1,000, 2,600 and 5,900 rain drops; Best draws far fewer pictures a second there (0.4 against 3.5), which
 is what Auto quality is for. On a PC with a graphics card all three are many times faster.
@@ -3999,6 +3993,9 @@ What counts:
 - Parts that already touch or overlap in the CAD model at the first frame (a pin in its bore, a press fit) only
   count when they go clearly deeper: by more than the clash depth plus half of the overlap they start with.
 - Hidden parts are left out while they are hidden (Show / Hide steps, visibility sets).
+- A model the project marks as left out is never checked: the demo's wind park (it never comes near the ship, and its
+  nine turning rotors would make the check several times as long) and a demo kit's own scenery. The mark is kept with
+  the project, also after a model update.
 - Milling: the cutting part of a tool (from its tip up to the end of its flutes, from the tool list) going
   through the workpiece is meant to cut: it is not a clash (a 45° face mill: as wide as the top of its inserts). The rest of the tool, its holder and the spindle are
   checked against the workpiece, the vice and the table. With milling on, the workpiece is checked as it is cut at
@@ -4038,8 +4035,9 @@ How long it takes, measured on the 4-core cloud test machine: the test crane's a
 cylinder slides in its barrel; 0.1–0.3 s before version 0.2.101), the CNC
 gantry's 2,983-frame tool-change program 7 s, the scissor lift and crank (49 parts that touch everywhere) 15 s,
 the PC check's made-up 3,000-part machine 10 s long 73 s (its modules run through each other on purpose: 1,668
-clashes), the demo vessel's 73 s animation with its turning rollers, wheels, sprockets, sheaves and carousel 3.4 min
-(Draft meshes; 14 min before version 0.2.90).
+clashes), the old cable-lay demo's 73 s animation with its turning rollers, wheels, sprockets, sheaves and carousel
+3.4 min (Draft meshes; 14 min before version 0.2.90), the demo "Vessel in a wind park" (its crane, propellers and
+radars; the park left out) under a minute.
 Expected on a PC with a fast processor: about half as long (not measured yet).
 
 **Make the video**
@@ -4573,122 +4571,77 @@ since the version you had say "– New" in the list, the changed ones "– Chang
 **More**: **Show the tour folder**, **Make the tour again…**.
 
 <a id="demo"></a>
-## Demo project – an invented cable-lay vessel
+## Demo project – Vessel in a wind park
 
-The **demo project** shows what the app can do on a big machine, ready to show to others: an invented cable-lay
-vessel (about 120 m, a 24 m carousel with its loading tower and arch, roller highways, two tensioners, a cable
-engine on the lower path, a D-quadrant on rails, the quadrant handler at the stern, winches and a CPS rack; about 1,350 parts),
-at work in an invented **offshore wind park** (nine turbines and a substation, about 760 parts more). It is **not** a
-real vessel, park or anyone's design: the app draws it itself, from general sizes.
+The **demo project** shows what the app can do on a big model, ready to show to others: an invented ship (about
+120 m, with her own deck crane and a plain working deck; about 110 parts) holding her place in an invented
+**offshore wind park** (nine turbines and a substation, about 760 parts more), with the park's power cable lying on
+the seabed right under her. It is **not** a real ship, park or anyone's design: the app draws it itself, from
+general sizes.
 
-<img class="panel" src="img/demo_overview.jpg" alt="The demo vessel on the open sea, seen from the stern quarter">
+<img class="panel" src="img/demo_overview.jpg" alt="The demo ship on the open sea in the wind park, seen from the stern quarter">
 
 **Make it (once per version)**
-1. **Help > Make demo project…**, then **Make it**. It is made in the background in a few minutes; the bottom line
-   of the window shows how far ("Writing the model 1/3", "Importing", "Joints 120/317", "Animation"). You can keep
-   working.
+1. **Help > Make demo project…**, pick **Vessel in a wind park**, then **Make it**. It is made in the background in a
+   minute or two; the bottom line of the window shows how far ("Writing the model 1/3", "Importing", "Joints 10/13",
+   "Animation"). You can keep working.
 2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
 3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
    your own project first: changes that are not saved are lost when another project opens.
 
-It goes to **Documents\Fresing Render\Demo\<version>**: the project "Demo cable-lay vessel <version>.blend" and a
+It goes to **Documents\Fresing Render\Demo\<version>**: the project "Vessel in a wind park <version>.blend" and a
 folder "model" with the STEP files the app drew. Making it again replaces the demo of this version.
 
 **What is in it** – set up the way you would, with the app's own buttons:
-- **The vessel itself:** a shaped hull – a raked bow with flare and a bulbous bow, a sheer forward, a flat transom
-  with a skeg, bilge keels –, an accommodation block with rows of windows, a bridge with wings, two funnels, a mast
-  with two radars, antennas and lights, lifeboats in davits, railings, a deck crane parked with its boom up,
-  bollards, fairleads, hatches, windlasses with their anchors in the hawse pipes, and a rubbing strake along each
-  side. Under water: two **azimuth thrusters** at the stern (a propeller in a nozzle, each turns about its upright
-  axis) and two **bow tunnel thrusters** (openings through the bow, a propeller inside each).
-- **Looks:** machinery deep blue, accents orange, structure yellow, rubber pads, a black cable; the hull dark blue
-  with light run-down streaks, a black boot-top band round the waterline, red antifouling below with **marine
-  growth** under the waterline, the name "DEMO LAYER" on both bows and draft marks fore and aft (text decals), a
-  non-slip deck, a white superstructure with tinted glass, galvanised railings and davits, orange lifeboats, bronze
-  propellers; the rubbing strake and the deck fittings are worn down to bare steel at their edges.
-- **4 Motion:** 317 joints on the vessel, 108 on the quay and 19 in the wind park. The vessel's own: each azimuth thruster's **Steer** and
-  **Propeller turn** (riding on the steer), each bow thruster's **Propeller turn**, the two radars' turn, and the deck
-  crane's **Slew** and **Luff** (0 = parked; negative lowers the boom). In the animation the propellers and radars
-  turn the whole time. Every roller, sprocket and wheel the cable runs over
-  follows one slide joint, **Cable travel** (metres of cable paid out): move it and they all turn. The carousel's
-  support rollers follow the carousel, the quadrant's rail wheels its travel; each tensioner's top track first
-  **lifts**, then **tilts** out to its own side of the vessel about a hinge along the cable (a stack: tensioner 1 to
-  port, tensioner 2 to starboard); its two tilt **cylinders** follow, as do the quadrant handler's two. The quadrant system is a stack too: the
-  D-quadrant's **travel** rides on the **Handler tilt** and its **tip** (about the A&R wire's eye at the top of its
-  curve) on the travel, so once the D is on the handler it tilts with it. The side lanes run
-  straight into the D's gutter (no S-bends): the D-quadrant is exactly as wide as the cable's path, so on its way aft
-  it passes through both tensioners' lines. Every roller cradle in its way **drops** out of it: one "Cradle … drop"
-  joint per lane, the others of that lane follow. The A&R winch's drum follows the
-  D's travel as its wire pays out.
-- **Wires that move:** the **A&R wire** and the two **tipping wires** are cables of 4 Motion > Cables and paths with
-  **Winch keeps it tight** on: the A&R wire comes off its winch drum (the drum turns as it pays out), runs along the
-  deck to the eye at the top of the D's curve and over the handler's top pulley once the handler tilts; the tipping
-  wires come up the swivel posts, over their sheaves to the D's bottom corners (shown once they are connected).
-  The winches pay out exactly what the D's motion needs. Every winch drum holds its wire rope in layers (4 Motion >
-  Drums and carousels): the two **tipping winches** have narrow drums (fleet angle 1.7°), and their drum wire pays out
-  what the tipping wire takes – its speed follows the tipping wire's one to one.
+- **The ship:** a shaped hull – a raked bow with flare and a bulbous bow, a sheer forward, a flat transom with a
+  skeg, bilge keels –, a plain deck with a bulwark all round, an accommodation block with rows of windows, a bridge
+  with wings, two funnels, a mast with two radars, antennas and lights, lifeboats in davits, railings, bollards,
+  fairleads, hatches, windlasses with their anchors in the hawse pipes, and a rubbing strake along each side. Under
+  water: two **azimuth thrusters** at the stern (a propeller in a nozzle, each turns about its upright axis) and two
+  **bow tunnel thrusters** (openings through the bow, a propeller inside each).
+- **Her deck crane:** on the port side amidships, its boom parked up and forward, a **hoist** on the boom – a drum at
+  its foot, the wire along under the boom over a sheave at its head and down to the hook block.
+- **Looks:** the hull dark blue with light run-down streaks, a black boot-top band round the waterline, red
+  antifouling below with **marine growth** under the waterline, the name "DEMO LAYER" on both bows and draft marks
+  fore and aft (text decals), a non-slip deck, a white superstructure with tinted glass, a yellow crane with an orange
+  hook block, galvanised railings and davits, orange lifeboats, bronze propellers; the rubbing strake and the deck
+  fittings are worn down to bare steel at their edges.
+- **4 Motion:** 13 joints on the ship and 19 in the wind park, plus the crane's wire speed. The ship's own: each
+  azimuth thruster's **Steer** and **Propeller turn** (riding on the steer), each bow thruster's **Propeller turn**,
+  the two radars' turn, and the deck crane's **Slew**, **Luff** (0 = parked; negative lowers the boom), **Hoist drum
+  turn**, **Head sheave turn** and **Hook lower**. The crane's hoist wire is a cable of 4 Motion > Cables and paths on
+  its own speed joint, **DECK CRANE: Hoist wire travel** (metres of wire paid out): it is wound on the drum in
+  layers (4 Motion > Drums and carousels; the drum turns as the wire comes off) and its end rides on the hook block,
+  whose **Hook lower** follows the wire one to one – pay out 20 m and the hook goes down 20 m.
 - **The wind park:** nine turbines on monopiles in three rows – 1.2 km apart along a row, 1.5 km between the rows –
   and an offshore substation between the rows (a jacket on piles, three decks under cladding, a helideck, a crane,
   J-tubes up to its cable deck, a boat landing). The turbines are sized from the IEA 15 MW reference turbine's public
   numbers (240 m rotor, 150 m hub height); each has a transition piece with its platform, boat landing, ladder, davit
   and J-tubes, and scour rock round its foot. They are their own model, **DEMO WIND PARK** (file demo_park.step),
-  that **stands on the seabed**: it moves aft with the seabed as the cable is laid, and **5 Scene & Render > Vessel
-  motion** keeps it **Still**, so it never heaves or rolls with the vessel. The cable's **first end** comes up the
-  J-tube of turbine **WTG 05** and runs over its scour rock down to the seabed, where the laid cable carries on to the
-  touch-down. 4 Motion: per turbine **WTG nn: Yaw** and **WTG nn: Rotor** (a motor; every rotor faces the same wind
-  and turns clockwise seen from the front, each at its own phase), and **Park: on to turbine B**: between shot 8b
-  and shot 9 it moves the park on (as if 1.2 km had been laid), so the second end is laid down beside turbine
-  **WTG 06**. The park is scenery: the model's size, the floor and vessel motion still measure the vessel.
-  **Lights:** red aviation lights on every nacelle and yellow marine lights on the platforms and the substation's
-  corners flash together; the substation's floodlights burn steadily.
-- **The ROV:** an invented work-class ROV (its own model, **DEMO ROV**, file demo_rov.step) hovers 2.5 m over the
-  seabed, 8 m to the side of the touch-down, its camera and two lights on it; its propellers turn. It is **Still**
-  for vessel motion (it flies on its own thrusters), and its tether is a hose (4 Motion > Hoses and drag chains) from
-  its bend restrictor to the transom, so it follows the vessel's heave. It is there while the cable is laid (shots
-  1–8b) and gone from shot 9 on.
-- **The cable** weighs 38 kg/m in water (Ø 200 mm, the heavy end of real power cables): at the 32 m layback it
-  leaves horn A at 68°, with about 7 kN at the seabed and 19 kN at the top.
-- **Second end:** the cable's last stretch with its CPS (pull head shackled at the D's bar end), round the D's
-  gutter, aft over horn A into the sea – shown from shot 9, when the lay has reached the cable's end.
-- **CPS from the rack:** the set on the rack's top shelf next to the orange ramp rides on a hidden line, the cable
-  **CPS run** in 4 Motion > Cables and paths (its speed joint is the metres the set has moved): down the ramp and the
-  curved slide, along side B's roller cradles (higher in the V than the cable: it is twice as thick), round the D's
-  gutter (on its floor, against its guide rollers) and down side A. Its pieces follow the line round every bend.
-- **5 Scene & Render:** the open sea (the waterline where the vessel floats), the Sun light look, saved cameras for
-  each shot, **Stern thrusters** (under water, looking at the azimuth thrusters) and **Hull side** (along the
-  starboard side from ahead of the bow), and a second saved scene **Loading at the quay** (the quay, its storage carousel and loading tower). The
-  brand kit "Demo".
-- **Vessel motion:** on the open sea the vessel heaves, pitches and rolls gently with the swell (Calm).
-- **6 Animation > What it can do today** (about 3 minutes with the title and end card): a flight round the vessel that
-  ends riding with it on the swell, the deck from above, **beside turbine WTG 05** (shot 2b: its boat landing and
-  J-tube, the vessel laying away from it), the carousel and the arch (× 10 time-lapse), the rollers
-  turning with the cable, a tensioner opening (the top track lifts, then tilts out to the vessel's side) and
-  squeezing, then X-ray with labels, a close-up of a winch's
-  **Lebus drum** (35° crossovers, risers at the flanges) with a blurred background, then **into the sea** (shot 8):
-from above the stern quarter, through the cut-away, the cable hangs from horn A down to the seabed 30 m below
-(touch-down 32 m behind the horn) and pays out at 10 m/min (surface lay) while the seabed passes aft; the ROV watches
-the touch-down, and a **Lay data** box (a label on the cable with live numbers, see [Labels](#labels)) shows the top
-and bottom tension, the layback, the departure angle, the lay speed and the water depth as a lay supervisor sees
-them. The **park from above**
-(shot 8a, × 30 time-lapse): the vessel lays on through the rows, the substation beyond. Then a **CPS set from the
-rack** (shot 8b, × 15 time-lapse): it slides tail first down the orange ramp and the curved slide onto side B, runs
-round the D and down side A, stops before tensioner 2 and runs back until its pull head is at the D's bar end – its
-place in front of the cable end, which is connected to its rear end as the next shot begins. Then the **quadrant
-operation at the second end** (shots 9–12): both tensioners open, the lanes' cradles drop, the D-quadrant travels
-aft between the tensioners onto the handler with the cable end on it, the tipping wires are connected and the
-handler tilts over the stern (9); the handler goes on to 110°, the D swings to hang plumb from the A&R wire and is
-lowered through the cut-away to near the seabed (10); it tips flat and is set down – the cable stays in the
-gutter to its far end, the end that points the way the cable lies, and bends down from there onto the seabed – then
-the cable and its CPS are let go and lie on the seabed (11); the D comes back up, onto the handler, the handler tilts back and the D travels back to its
-place, the tensioners close (12). Last, **the park at night** (shot 13): a Weather & time step to Night shift, turbine
-WTG 06 beside the vessel, the red and yellow lights flashing together across the park. The rotors and propellers
-turn all the time. The captions say where it runs faster than real (the handler's tilt in shots 9 and 12 too:
-× 30), and shot 5 names the tensioner (15–20 t class) and the cable (Ø 200 mm, MBR 3.5 m). Click **Build & play**, or put it in the render
-queue.
-
-The labels of the X-ray step and the Lay data box also show in
-pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
-renders** under 6 Animation > Labels, and tick it again before you render the video.
+  that stands on the seabed; **5 Scene & Render > Vessel motion** keeps it **Still**, so it never heaves or rolls with
+  the ship. 4 Motion: per turbine **WTG nn: Yaw** and **WTG nn: Rotor** (a motor; every rotor faces the same wind and
+  turns clockwise seen from the front, each at its own phase), and **Park: on to turbine B** (moves the whole park
+  along the cable). The park is scenery: the model's size, the floor and vessel motion still measure the ship. It is
+  left out of the clash check (see [Clash check](#clash)). **Lights:** red aviation lights on every nacelle and yellow
+  marine lights on the platforms and the substation's corners flash together; the substation's floodlights burn
+  steadily.
+- **The power cable** (Ø 200 mm) comes up the J-tube of turbine **WTG 05**, runs over its scour rock down to the
+  seabed and lies on along it – right under the ship – to its sealed end beside turbine **WTG 06**, 1.2 km on.
+- **5 Scene & Render:** the open sea (the waterline where the ship floats), 30 m deep, with a **cut-away** of 150 m ×
+  30 m behind the stern (its size typed in) so you see the seabed, the cable and turbine WTG 05's foot; the Sun light
+  look, Weather & time; saved cameras **Overview**, **Stern thrusters** (under water, looking at the azimuth
+  thrusters), **Hull side** (along the starboard side from ahead of the bow), **At the seabed** (along the cable to
+  WTG 05's foot), **Deck crane**, **Beside turbine A**, **Park overview** and **Park at night**, and a second saved
+  scene **At the quay** (the ship moored starboard side to). The brand kit "Demo".
+- **Vessel motion:** on the open sea the ship heaves, pitches and rolls gently with the swell (Calm).
+- **6 Animation > What it can do today** (about a minute, plus the title and end card): she sails in at 6 knots (a
+  wake, her waves, a bow wave) in a flight round her that ends riding with her on the swell; **beside turbine
+  WTG 05**: its boat landing and J-tube, the cable going down into the sea; then she holds her place over the cable on
+  her thrusters (**Vessel at work**, dynamic positioning) and her **deck crane** slews outboard and lowers its hook,
+  the wire coming off the drum; along the **hull side** and, under water, the **stern thrusters** turning and pushing;
+  **at the seabed**: the cable coming down WTG 05's J-tube and lying on under the ship; the **park from above**; last,
+  **the park at night**: a Weather & time step to Night shift, the red and yellow lights flashing together across the
+  park. The rotors, propellers and radars turn all the time. Click **Build & play**, or put it in the render queue.
 
 <a id="demo-kits"></a>
 ### Demo kits

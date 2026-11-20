@@ -1,8 +1,9 @@
-"""Task 0108: one worker of the demo project's clash check (``tests/test_demo_clash.py``), run as its own process.
+"""Task 0108: one worker of a clash check split into windows of frames, run as its own process (made for the old demo
+project's check; task 0247: its proof stays in ``tests/test_clash_windows.py``, on the clash test model).
 
-    python demo_clash_child.py <project.blend> <out.json> <claim folder> <whole.pickle> <first-last> [<first-last> ...]
+    python clash_windows_child.py <project.blend> <out.json> <claim folder> <whole.pickle> <first-last> [<first-last> ...]
 
-Opens the saved demo project (it is saved built; the test builds it again and compares the fingerprint of the keys),
+Opens the saved project (it is saved built; the test builds it again and compares the fingerprint of the keys),
 waits for ``whole.pickle`` (``hold_whole``, which the test works out once for all workers) and runs the app's clash
 check (``blender/clash.py``) on each window of frames given, with the sea at rest. Each window is checked exactly as the
 whole animation is, with one difference made on purpose so that it is **as strict as the whole check**: how deep two
@@ -129,7 +130,7 @@ def windows(f0: int, f1: int, n: int) -> list:
 
 def check_in_windows(scene, blend: str, folder: str, n: int, workers: int = 4, timeout: float = 3600) -> list:
     """Task 0145: the clash check of the scene's built animation as windows of frames in ``workers`` processes at once,
-    as ``tests/test_demo_clash.py`` checks the whole demo (same child, same proof). ``blend``: this scene saved built
+    as the old demo's whole check was (same child, same proof; ``tests/test_clash_windows.py``). ``blend``: this scene saved built
     (the workers open it); ``folder``: an empty folder for the claims and logs. The scene's own reading of the whole
     animation (``hold_whole``) is handed to the workers. Proves that the workers checked this very build and that the
     windows together hold every moment and every step between two moments; returns the windows' results."""
