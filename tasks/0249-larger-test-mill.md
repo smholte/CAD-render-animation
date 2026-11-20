@@ -48,6 +48,9 @@ class of machine, so nobody can read the Fresing 400 into them.
   possible. Keep the part and assembly names the app and tests look for (`TABLE.ASM`, `X.ASM`, `Z.ASM`, `SPINDLE`,
   `END MILL D10`, `STOCK …`, `RELEASE BUTTON`, `SLIDING DOOR` …); add a `Y.ASM` / saddle only if the tests' joints are
   updated with it.
+- **Coolant drain** (owner 20 Nov 23:50, for 0251's liquid): a chip tray under and round the table with a slope,
+  troughs along the way covers and a **drain hole** (a separate part `COOLANT DRAIN`) – if 0251's report is out, use its
+  list for the tray and drain; else a plain sloped tray to one drain at the front right.
 - Detail and size: more detail than today is welcome (owner 22:19: somewhat larger files allowed) – **up to about 4 MB
   per STEP** (today 1.5–1.8 MB); report the sizes and the import time at Normal.
 
