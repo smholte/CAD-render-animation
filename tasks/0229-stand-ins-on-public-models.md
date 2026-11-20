@@ -80,10 +80,45 @@ The demo and its tests (they stay until package 2); `make_test_sea.py`, `make_te
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, branch `claude/loving-babbage-gn6leq` (the session's branch), 20 Nov 2026.
+Items 11–13 of the owner's 16:55 note were withdrawn by the 17:02 correction; the rotors of item 13 were already in
+item 9's file and stay (they cost ~5 s).
 
-**What changed:**
+**What changed – one stand-in per row of study 0226 section 2:**
 
-**Tested and measured** (name the machine and the model):
+| Row | Stand-in | File |
+| --- | --- | --- |
+| Carousel spooling | core: odd/even full layers + 60 % top layer, leave radius moves outwards when paid out from the innermost turn (and the converse), one diameter per turn, the climb's quarter turn | `tests/test_spool_standins.py` |
+| Lebus drum with climbs | test_spool's drum as Lebus, first layer r 0.180 m: climb pieces 7.0–8.5 mm, `table_keys` k = 1000, no key lost after `fc.update()`; Build through two climbs: worst 0.0009° (limit 0.1°); a control that Blender merges 7.7 mm keys (20 → 10) | same |
+| Tensioner tracks (lift + tilt) | `make_test_tracks.py`: TILT FOUNDATION, TILT PIN, TILT CYLINDER BARREL / ROD (made up); the set-up's joint "Tensioner tilt" driven by "Tilt cylinder", the cable's ends on the BASE FRAME; animation tilts 6° and back. Test: track parts, rollers and cable follow as one body to 0.02 mm, links on their loops while tilted, running and lifted, the cylinder's length right to 0.1 mm. `test_tracks_core.py` now on the model's own pins (no demo numbers) | `tests/test_tracks.py`, `tests/test_tracks_core.py` |
+| Cable over rollers, long cable | already public: `test_paths_core.py::test_centreline_of_a_300_m_cable` (a made-up 300 m tube read in pieces) – no new test | – |
+| Chute / sea, 38 kg/m, Lay data | on `test_sea`: own catenary vs the app to 1e-4 (bottom 5.18 kN, top 11.54 kN, 63.4°), 19 kg/m halves them, the drawn line within 5 cm; the Lay data label: every row = the cable's numbers, inside 1920×1080 and 3840×2160 | `tests/test_sea_realism.py` |
+| Load lowered past a part | on `test_moving` (built once): a guide slot made in the test, 3 cm clear: 0 rows; moved 5 cm into the way: only slot rows, 1.5–3 cm deep | `tests/test_moving_lowering.py` |
+| Wrap by hand through an update | on `test_swivel`: wrap set by hand on the sheave under Swivel → Slew, same-file update: kept; also slewed +30° / -40° first (sheave > 1 m from its CAD place): wrap, slew and place kept | `tests/test_paths_wrap_moving.py` |
+| Joints in a batch | 400 parts, 400 joints (100 stacked) in one `_batch`: 0.6 s, 2 scene updates (0 inside), 18 sampled parts where the maths puts them | `tests/test_joint_batch_size.py` |
+| Clash at size | 200 rollers + shafts on a deck: 0 rows, 400 held, 4.3 s; + 3 rotors 40 m and 2 propellers: blades not held, 0 rows; controls: a block 5 mm into the rollers (19 rows) and a blade tip through a post (3 rows) found | `tests/test_clash_rim.py` |
+| Vessel motion, re-bake, ROV | stay public (owner's correction) / none needed (study) | – |
+
+No stand-in reads `demo_model/`, `blender/demo*.py` or the demo tests (`make_test_tracks.py` still uses the shared
+shape helpers `demo_model/geom.py`, as before).
+
+**Faults found:**
+- **Tracks animation (pre-existing since 0079/0122):** its second lift step started "from 0" (`use_from` off), so the
+  top track jumped 150 mm down in ONE frame at 4 s. Found by the tilt step doing the same (a 0.7 mm clash row at frames
+  150–151). Fixed: every step of the test model's animation starts from where its joint is (`tracks.set_up_test_model`).
+- **Clash check, not fixed (design):** parts that stand still against each other are one body and never checked: a
+  roller modelled 5 mm into a fixed deck, or a post through a held roller, gives no row (subagent C). For the lead.
+- The cable read from the CAD bar had both ends on the model root (they touch nothing), so it did not tilt with the
+  frame; the set-up puts them on the BASE FRAME (`paths.set_end`), as a user would.
+
+**Tested and measured** (4-core web machine): the new files 21 tests in 91 s (lowering 56 s of it); `test_tracks*`
+70 tests; tour stop `tracks` Go + check; `test_tour_clash.py[tracks]` 0 rows (13 s). The maker writes the model in
+14 s (184 parts, 661 KB; tilted 10°: 5 mm clear, rod 213 mm in its barrel). GitHub: see the runs below.
+
+**Subagents:** A (spool, `test_spool_standins.py`), B (`test_moving_lowering.py`, `test_sea_realism.py`,
+`test_paths_wrap_moving.py`), C sonnet (`test_joint_batch_size.py`, `test_clash_rim.py`, then the rotors), D (items
+11–12) stopped at the owner's correction before writing anything. The worker did item 3 and merged; nothing re-done.
 
 **Open points / follow-up tasks:**
+- Static overlaps inside one rigid body are not reported by the clash check (above).
+- The guide's tracks picture was not made again (the panel did not change; the model only gained the tilt parts).
