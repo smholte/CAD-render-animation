@@ -3170,7 +3170,7 @@ the machine himself, or for your website.
    so nothing goes out unseen. A page exported before keeps its names; export again to get the new ones.
    **Faces for measuring** (on by default): the parts' flat and round faces go into the file, so the page can
    measure between planes, read a hole's diameter, measure centre to centre and to the parts' **edges**
-   ([Measure](#web3d-tools)); about a tenth more page (the test crane's page: +11 % for the faces and edges together).
+   ([Measure](#web3d-tools)); the edges add up to about a tenth to the page (measured: the test crane's page +0.7 %, the demo vessel's +12 %).
 4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
    (meshopt), about **half the file**; the page opens it as before, also offline. Since 0.2.143 the motion is packed
    too: each part keeps only the moments a straight blend cannot give (every frame stays within 0.1 mm and 0.05° of
