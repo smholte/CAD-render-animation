@@ -233,6 +233,7 @@ def _add_buttons(layout, scene, first: bool) -> None:
     """Add cable (bigger while the list is empty: then it is the panel's one action) and, when parts are named
     like a cable, Add all. Grey: the section's one blue button is Build & play."""
     big(layout, "fresing.cable_add", "Add cable", "ADD", BIG if first else MEDIUM)
+    big(layout, "fresing.cable_draw", "Draw cable route", "GREASEPENCIL")    # task 0240: no cable in the CAD model
     n = found_count(scene)
     if n:
         layout.operator("fresing.cable_add_all", text=f"Add all {n} found by name", icon="VIEWZOOM")
@@ -412,7 +413,9 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
                       icon="TIME")
             box.operator("fresing.rebake_cancel", text="Cancel", icon="CANCEL")
             gap(layout)
-        steps(layout, context, ["Click the cable or wire rope in the 3D view",
+        steps(layout, context, ["No cable in the CAD model? Press 'Draw cable route': click where it starts, "
+                                "each sheave, roller or chute in order, then where it ends (Enter: a free end)",
+                                "A cable in the CAD model: click it in the 3D view",
                                 "Press 'Add cable': the app reads what it runs over and makes all of that "
                                 "turn with it",
                                 f"Give it a speed: in {where('animation')} add the step 'Run motor', speed in "
@@ -494,7 +497,11 @@ class FRESING_PT_cables(_Panel, bpy.types.Panel):
                 col.prop(cb, "yarn_angle", text="Lay angle")
                 col.prop(cb, "yarn_color", text="Yarn colour")
                 col.prop(cb, "wear", text="Wear")
-        layout.operator("fresing.cable_read", text="From CAD cable again", icon="FILE_REFRESH")
+        if cb.drawn:                            # task 0240: drawn by clicking – the CAD part it may replace
+            from .ui_flex import _replaces_rows
+            _replaces_rows(layout, context, cb, "CABLE")
+        else:
+            layout.operator("fresing.cable_read", text="From CAD cable again", icon="FILE_REFRESH")
 
         # -- what it touches
         gap(layout)

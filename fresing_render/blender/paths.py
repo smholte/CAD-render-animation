@@ -741,7 +741,7 @@ def _rounds(scene, part, pts: np.ndarray, radius: float, memo: dict, skip: set) 
     margin = radius + reach + 0.002
     parts = [ob for ob in build.iter_parts(scene)
              if ob.name not in skip and not ob.get(build.PROP_EXCLUDED) and ob.data is not None
-             and "fr_axes" in ob.data and len(ob.data.vertices)]
+             and "fr_axes" in ob.data and len(ob.data.vertices) and not ob.get("fr_drawn")]
     if not parts:
         return [], {}
     world = np.stack([flex._cad_world(ob, memo) for ob in parts])
@@ -1265,6 +1265,168 @@ def read_cad(scene, item, part, update: bool = False) -> list[str]:
         notes += _sea.add_sea_end(scene, _cable(scene, name))
     notes += _rebuild(scene, _cable(scene, name))
     return notes
+
+
+# ---------------------------------------------------------------------------
+# a cable route drawn in the app by clicking (task 0240)
+# ---------------------------------------------------------------------------
+
+DRAWN_DIAMETER = 0.02                   # m: a drawn cable's diameter when none is given
+FREE_DROP = 0.5                         # m: a free end hangs this far straight down from its last wheel
+
+
+def _wheel_at(scene, ob, hit, cable_r: float) -> dict:
+    """The round part ``ob`` clicked at ``hit`` (world) as a wheel for a drawn route: {"part", "centre", "axis",
+    "radius" (to the cable's middle), "surface", "full" (round all the way: it may turn), "hit"}. Raises PathError."""
+    name = _part_name(ob) or "Nothing"
+    if ob is None or ob.type != "MESH" or ob.get(build.PROP_KIND) != "part" or ob.get("fr_drawn"):
+        raise PathError(f"'{name}' is not a part the cable can run over.")
+    found = _axis_of(ob, hit)
+    if found is None:
+        raise PathError(f"'{name}' has no round face: the cable needs a roller, a sheave, a drum or a round chute.")
+    w = _world(ob)
+    origin, axis = _at(w, found[0]), _unit(w[:3, :3] @ found[1])
+    verts, tris = flex._mesh_arrays(ob.data)
+    vw = _at(w, verts)
+    hit = np.asarray(hit, dtype=float)
+    at = float((hit - origin) @ axis)
+    place, seat = P.seat(vw, tris, origin, axis, at, cable_r, search=2.0 * cable_r)
+    here = float(P.surface_radius(vw, tris, origin, axis, at, 0.5 * cable_r))
+    if here <= 0.0:
+        raise PathError(f"'{name}' has no round surface where it was clicked: click its groove or barrel.")
+    if seat <= 0.0 or seat > here + cable_r - max(0.0002, 0.02 * cable_r):
+        place, seat = at, here + cable_r        # no groove there: the cable lies on the surface
+    centre = origin + axis * float(place)
+    return {"part": ob, "centre": centre, "axis": axis, "radius": float(seat), "full": bool(P.is_round(vw, origin,
+            axis, tris)), "hit": hit, "flip": False}
+
+
+def _route(start, wheels: list, end, on_drum: bool) -> tuple:
+    """(the path, the wheels with their sides) of a drawn route; tries the side a click asks for, the drum's both
+    ways (the shorter wrap first). Raises PathError with the solver's words."""
+    stops = [start] + [w["centre"] for w in wheels] + [end]
+    sides = []
+    for k, w in enumerate(wheels):
+        a, b = np.asarray(stops[k], dtype=float), np.asarray(stops[k + 2], dtype=float)
+        heading = _unit(b - a)
+        side = P._side(w["hit"], w["centre"], w["axis"], heading) or 1
+        if k == 0 and on_drum:
+            side = 0                            # decided below: the shorter wrap
+        sides.append(-side if w["flip"] else side)
+
+    def solve(sd):
+        ws = [P.Wheel(w["centre"], w["axis"], w["radius"], int(x)) for w, x in zip(wheels, sd)]
+        return P.solve(start, ws, end, start_on_wheel=on_drum)
+
+    tries = [sides]
+    if on_drum:
+        tries = [[1] + sides[1:], [-1] + sides[1:]]
+    results = [(solve(t), t) for t in tries]
+    good = [(r, t) for r, t in results if r.ok]
+    if not good:
+        r = results[0][0]
+        raise PathError(f"The route cannot be drawn: {r.problem}")
+    if on_drum:
+        good.sort(key=lambda rt: float(rt[0].wrap[0]))
+        if wheels[0]["flip"]:
+            good = good[::-1]
+    return good[0]
+
+
+def draw_cable(scene, start: dict, wheels: list, end: dict | None = None, name: str = "", joint: str = "",
+               look: str = "ROPE", diameter: float = 0.0, replace=None, wind: bool = False) -> tuple:
+    """A cable whose route the user clicked: ``start`` (``drawn.spot`` of the click: on a drum or carousel – a part
+    round all the way – the cable starts on it and wraps it; else at that point), ``wheels`` = [(part, the point
+    clicked (world), flip)] in order – sheaves, rollers, drums, chutes; the cable passes on the side clicked, ``flip``
+    the other –, ``end`` (a spot: the cable ends there; None: a free end hanging ``FREE_DROP`` below the last wheel).
+    The route is solved as a tight cable (``core/paths.solve``), drawn as the app's own object and read like a CAD
+    cable (``read_cad``): it runs, turns its wheels and pays out as one. ``wind``: a drum or carousel at the start
+    also gets its layers (4 Motion > Drums and carousels). Returns (item, notes). Raises PathError; nothing stays."""
+    from . import drawn
+    cable_r = 0.5 * float(diameter or DRAWN_DIAMETER)
+    if start is None or start.get("part") is None:
+        raise PathError("Click where the cable starts: a drum, or a point on a part.")
+    wheels = list(wheels or [])
+    on_drum = False
+    rows = []
+    s_ob = start["part"]
+    s_hit = np.asarray(start.get("hit", start["point"]), dtype=float)       # where it was clicked
+    found = _axis_of(s_ob, s_hit) if start.get("round") else None
+    if found is not None:                       # a drum or carousel: the cable starts wrapped on it
+        try:
+            w0 = _wheel_at(scene, s_ob, s_hit, cable_r)
+        except PathError:
+            w0 = None
+        if w0 is not None and w0["full"]:
+            on_drum = True
+            w0["flip"] = bool(start.get("flip"))
+            rows.append(w0)
+    for ob, hit, flip in wheels:
+        if ob is None:
+            continue
+        if rows and rows[-1]["part"] == ob:     # the same part again: the other side
+            rows[-1]["flip"] = not rows[-1]["flip"]
+            continue
+        w = _wheel_at(scene, ob, hit, cable_r)
+        w["flip"] = bool(flip)
+        rows.append(w)
+    if on_drum:
+        c, ax, r = rows[0]["centre"], rows[0]["axis"], rows[0]["radius"]
+        rel = s_hit - c
+        rel = rel - ax * float(rel @ ax)
+        if float(np.linalg.norm(rel)) < 1e-9:
+            rel = np.cross(ax, (0.0, 0.0, 1.0)) if abs(ax[2]) < 0.9 else np.cross(ax, (1.0, 0.0, 0.0))
+        a_point = c + _unit(rel) * r
+    else:
+        a_point = np.asarray(start["point"], dtype=float) + np.asarray(start["dir"], dtype=float) * cable_r
+    if end is not None:
+        if end.get("part") is None:
+            raise PathError("Click where the cable ends on a part, or press Enter for a free end.")
+        b_point = np.asarray(end["point"], dtype=float) + np.asarray(end["dir"], dtype=float) * cable_r
+    elif rows:
+        last = rows[-1]
+        b_point = last["centre"] + np.array((0.0, 0.0, -1.0)) * (last["radius"] + FREE_DROP)
+        b_point = b_point + _unit(np.cross(last["axis"], (0.0, 0.0, 1.0))) * last["radius"] * \
+            (1 if not last["flip"] else -1)
+    else:
+        raise PathError("Click where the cable ends, or a wheel it runs over first.")
+    if not rows and float(np.linalg.norm(b_point - a_point)) < 0.01:
+        raise PathError("The cable's start and end are the same place: click two places apart.")
+    path, sides = _route(a_point, rows, b_point, on_drum)
+    item = add_cable(scene, name or "Cable 1", joint)
+    iname = item.name
+    with _quiet(item):
+        item.look = look
+        item.drawn = True
+    item["look_was"] = look
+    part = drawn.make_object(scene, "CABLE", iname, path.points, cable_r)
+    with _quiet(find(scene, iname)):
+        find(scene, iname).part = part          # (so that removing it on a failure takes the object too)
+    early = []
+    if replace is not None:                     # first: the CAD cable lies where the drawn one is read
+        try:
+            drawn.replace(scene, find(scene, iname), replace)
+        except drawn.DrawError as exc:
+            early.append(str(exc))
+    try:
+        notes = read_cad(scene, find(scene, iname), part)
+    except Exception:
+        it = find(scene, iname)
+        if it is not None:
+            remove(scene, index_of(scene, it))
+        drawn.delete_object(part)
+        raise
+    notes = [n.replace("off the cable as drawn in CAD", "off the route as drawn") for n in notes] + early
+    item = find(scene, iname)
+    if on_drum and wind:
+        from . import spool as _spool
+        kind = "CAROUSEL" if abs(float(rows[0]["axis"][2])) > 0.9 else "DRUM"
+        try:
+            _spool.add(scene, kind, rows[0]["part"], iname)
+        except Exception as exc:                # noqa: BLE001 - the cable stays; the drum turns with it as a wheel
+            notes.append(f"'{_part_name(rows[0]['part'])}' turns with the cable; its layers could not be set up "
+                         f"({exc}): add it in 4 Motion > Drums and carousels")
+    return find(scene, iname), notes
 
 
 def _usual_pitch(look: str, diameter: float) -> float:
@@ -2866,6 +3028,9 @@ def cable_renamed(scene, item) -> None:
             ob[paths_riders.TAG] = new
     if item.shapes is not None and item.shapes.name.startswith(SHAPES):
         item.shapes.name = f"{SHAPES} {new}"
+    if item.drawn:                              # task 0240: its own object and the CAD parts it replaces
+        from . import drawn
+        drawn.renamed(item, old)
 
 
 def version_names(scene) -> None:
@@ -3309,6 +3474,12 @@ def remove(scene, index: int) -> None:
         if _alive(scene, item.part):
             _strip(scene, item, item.part)
         _remove_shapes(scene, item)
+        if item.drawn:                          # task 0240: the app's own object goes, the CAD parts it replaced show
+            from . import drawn
+            drawn.unreplace(scene, item)
+            made = item.part
+            item.part = None
+            drawn.delete_object(made)
         s.cables.remove(index_of(scene, item))
         s.cables_index = max(0, min(s.cables_index, len(s.cables) - 1))
     finally:
@@ -3911,7 +4082,7 @@ def candidates(scene) -> list:
     taken = {ob.name for ob in cable_parts(scene)} | {ob.name for ob in flex.flex_parts(scene)}
     out = []
     for ob in build.iter_parts(scene):
-        if ob.name in taken or ob.get(build.PROP_EXCLUDED):
+        if ob.name in taken or ob.get(build.PROP_EXCLUDED) or ob.get("fr_drawn"):
             continue
         words = _part_name(ob).upper().replace(".", " ").replace("_", " ").replace("-", " ")
         words = " " + " ".join(words.split()) + " "
@@ -4177,14 +4348,17 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                         setattr(it, key + "_part", wheels[k].carrier)
             if it.part is None:
                 notes.append(f"{who}: its part is gone in the new revision")
+            if it.drawn:                        # task 0240: the CAD parts it replaces stay hidden in the new revision
+                from . import drawn
+                drawn.after_model_update(scene, it, by_uid, mapping)
         for name in names:
             it = _cable(scene, name)
             if it.part is None:
                 continue
             who = f"Cable '{label(it)}'"
             try:
-                if same_model(scene, by_uid) or cable_kept(scene, by_uid, it):
-                    _keep_after_update(scene, name)
+                if it.drawn or same_model(scene, by_uid) or cable_kept(scene, by_uid, it):
+                    _keep_after_update(scene, name)     # (a drawn route is not read again: it was clicked)
                 else:
                     read_cad(scene, it, it.part, update=True)
             except PathError as exc:

@@ -1339,3 +1339,66 @@ def carried(points_a, points_b) -> np.ndarray:
         good = turn & np.isfinite(spun).all(axis=(1, 2))
         out[good] = spun[good]
     return out[0] if one else out
+
+
+# ---------------------------------------------------------------------------------------------------------
+# a hose drawn in the app (task 0240): its first length, and a hose held by clips = segments
+# ---------------------------------------------------------------------------------------------------------
+
+SLACK = 0.05               # a drawn hose starts this share longer than the shortest smooth line between its ends
+LEAST_BEND = 2.5           # … whose bends stay at least this many diameters (unless the smallest bend says more)
+_HANDLES = (0.2, 0.28, 0.36, 0.45, 0.55, 0.7, 0.85, 1.0, 1.25, 1.5, 2.0, 2.6, 3.4)   # × the distance of the ends
+
+
+def smooth_line(p0, t0, p1, t1, handle: float, n: int = 65) -> np.ndarray:
+    """A smooth line (n, 3) from p0 leaving along t0 to p1 arriving along t1: the cubic Bézier curve whose two
+    inner control points lie ``handle`` metres along t0 from p0 and back along t1 from p1."""
+    p0, p1 = np.asarray(p0, dtype=float), np.asarray(p1, dtype=float)
+    t0, t1 = (_unit_or(np.asarray(t, dtype=float)[None], (p1 - p0)[None])[0] for t in (t0, t1))
+    c0, c1 = p0 + handle * t0, p1 - handle * t1
+    u = np.linspace(0.0, 1.0, max(int(n), 2))[:, None]
+    v = 1.0 - u
+    return v ** 3 * p0 + 3.0 * v * v * u * c0 + 3.0 * v * u * u * c1 + u ** 3 * p1
+
+
+def natural_length(p0, t0, p1, t1, least_radius: float = 0.0, slack: float = SLACK, n: int = 65):
+    """The length a hose drawn between two ends starts with: the shortest of a row of smooth lines with the end
+    directions (``smooth_line``, wider and wider handles) whose tightest bend is at least ``least_radius``,
+    ``slack`` longer. Returns (length, that line (n, 3)). When no line of the row keeps the bend, the one that bends
+    least is taken. Two ends on one point (a clip clicked twice): a loop of the least radius."""
+    p0, p1 = np.asarray(p0, dtype=float), np.asarray(p1, dtype=float)
+    d = float(np.linalg.norm(p1 - p0))
+    scale = max(d, 2.0 * float(least_radius), 1e-6)
+    best = None
+    for h in _HANDLES:
+        line = smooth_line(p0, t0, p1, t1, h * scale, n)
+        r = float(bend_radius(line))
+        length = float(polyline_length(line))
+        if r >= least_radius:
+            return length * (1.0 + slack), line
+        if best is None or r > best[0]:
+            best = (r, length, line)
+    return best[1] * (1.0 + slack), best[2]
+
+
+def shares(lengths) -> np.ndarray:
+    """Each segment's share of the whole length (they add up to 1); segments of no length share evenly."""
+    a = np.maximum(np.asarray(lengths, dtype=float).reshape(-1), 0.0)
+    if not len(a):
+        return a
+    total = float(a.sum())
+    return a / total if total > 0.0 else np.full(len(a), 1.0 / len(a))
+
+
+def segment_points(segments: int, per: int) -> int:
+    """Points of a hose of ``segments`` pieces of ``per`` points each, joined (a clip's point is kept once)."""
+    return int(segments) * (int(per) - 1) + 1 if segments > 0 else 0
+
+
+def join(pieces) -> np.ndarray:
+    """The pieces of a hose (each (..., per, 3), the last point of one = the first of the next) as one line
+    (..., segment_points(len(pieces), per), 3): the shared points once."""
+    pieces = [np.asarray(p, dtype=float) for p in pieces]
+    if not pieces:
+        return np.zeros((0, 3))
+    return np.concatenate([pieces[0]] + [p[..., 1:, :] for p in pieces[1:]], axis=-2)

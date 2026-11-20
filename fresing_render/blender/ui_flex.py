@@ -75,9 +75,53 @@ def _end_row(layout, context, item, end: str) -> None:
     row.operator("fresing.flex_set_end", text="", icon="EYEDROPPER").end = end
 
 
+def _draw_buttons(layout) -> None:
+    """Draw hose · Draw cable / Draw drag chain (task 0240): for what the CAD model does not have."""
+    row = big_row(layout, MEDIUM)
+    row.operator("fresing.flex_draw", text="Draw hose", icon="GREASEPENCIL").kind = "HOSE"
+    row.operator("fresing.flex_draw", text="Draw cable", icon="GREASEPENCIL").kind = "CABLE"
+    big(layout, "fresing.flex_draw", "Draw drag chain", "GREASEPENCIL").kind = "CHAIN"
+
+
+def _replace_offer(layout, context) -> None:
+    """A selected part named like a hose or chain (often simplified, task 0240): offer to draw one in its place."""
+    scene = context.scene
+    ob = context.view_layer.objects.active
+    if ob is None or not ob.select_get() or ob.get("fr_kind") != "part" or ob.get("fr_drawn") or ob.get("fr_excluded"):
+        return
+    if ob.name in {o.name for o in flex.flex_parts(scene)}:
+        return
+    kind = flex._kind_by_name(ob)
+    if not kind:
+        return
+    chain = kind != "HOSE"
+    box = layout.box()
+    wrap(box, context, f"'{ops_flex._name(ob)}' looks like a {'drag chain' if chain else 'hose'}. Draw one to "
+         "replace it: the CAD part is hidden while the drawn one is there", icon="INFO")
+    op = box.operator("fresing.flex_draw", text="Draw a drag chain to replace it" if chain else
+                      "Draw a hose to replace it", icon="GREASEPENCIL")
+    op.kind, op.replace = ("CHAIN" if chain else "HOSE"), ob.name
+    gap(layout, size=0.5)
+
+
+def _replaces_rows(layout, context, item, target: str) -> None:
+    """A drawn item: the CAD part it replaces, with Replaces selected CAD part / Show it again (task 0240)."""
+    from . import drawn
+    names = drawn.replaced_names(item)
+    if names:
+        more = f" and {plural(len(names) - 1, 'more part')}" if len(names) > 1 else ""
+        wrap(layout, context, f"Replaces: {names[0]}{more} (hidden for good)", icon="HIDE_ON")
+    row = layout.row(align=True)
+    row.operator("fresing.drawn_replace", text="Replaces selected CAD part", icon="UV_SYNC_SELECT").target = target
+    if names:
+        row.operator("fresing.drawn_unreplace", text="", icon="HIDE_OFF").target = target
+
+
 def _add_buttons(layout, first: bool) -> None:
-    """Add hose · Add cable / Add drag chain / Find. ``first``: nothing added yet, so "Find and add all" is offered
-    too. (All grey: the section's one blue button is Build & play.)"""
+    """Draw … (task 0240) / Add hose · Add cable / Add drag chain / Find. ``first``: nothing added yet, so "Find and
+    add all" is offered too. (All grey: the section's one blue button is Build & play.)"""
+    _draw_buttons(layout)
+    gap(layout, size=0.5)
     row = big_row(layout, MEDIUM)
     row.operator("fresing.flex_add_hose", text="Add hose", icon="ADD").soft = False
     row.operator("fresing.flex_add_hose", text="Add cable", icon="ADD").soft = True
@@ -110,13 +154,16 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        steps(layout, context, ["Click the hose or cable in the 3D view (or press 'Find hoses and chains')",
-                                "Press 'Add hose' or 'Add cable'",
+        steps(layout, context, ["No hose in the CAD model? Press 'Draw hose', click the fitting at end A, any "
+                                "clips, the fitting at end B, then Enter",
+                                "A hose in the CAD model: click it in the 3D view (or press 'Find hoses and "
+                                "chains'), then 'Add hose' or 'Add cable'",
                                 "Move a joint: the hose follows, both ends stay on their parts",
                                 "A drag chain: click one of its links (the app takes the whole row), "
                                 "then 'Add drag chain'"],
               key="fr_how_flex", used=bool(len(s.flex)))
         gap(layout)
+        _replace_offer(layout, context)
         if not len(s.flex):
             _add_buttons(layout, first=True)
             return
@@ -136,7 +183,7 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
             return
         gap(layout)
         chain = fx.kind == "CHAIN"
-        wrap(layout, context, flex.label(fx), icon=ICONS[fx.kind])
+        wrap(layout, context, flex.label(fx) + ("  (drawn)" if fx.drawn else ""), icon=ICONS[fx.kind])
         text, level = flex.status(scene, fx)
         if level in ALERT:
             what = "Drag chain" if chain else "Hose"
@@ -157,6 +204,8 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
             sub = col.row(align=True)
             sub.enabled = bool(fx.made_links)          # CAD links: as many as there are
             sub.prop(fx, "count", text="Links")
+            if fx.drawn:
+                col.prop(fx, "pitch", text="Link length")
         else:
             col.prop(fx, "stiffness", text="Stiffness")
             col.prop(fx, "sag", text="Sag")
@@ -164,14 +213,26 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
             col.prop(fx, "length", text="Length")
             cad = fx.cad_length
             if cad > 0.0 and abs(fx.length - cad) > DIFFERS * cad:
-                layout.label(text=f"In the CAD file: {cad * 1000.0:.1f} mm", icon="BLANK1")
+                layout.label(text=f"{'As drawn' if fx.drawn else 'In the CAD file'}: {cad * 1000.0:.1f} mm",
+                             icon="BLANK1")
+            if fx.drawn and len(fx.clips):
+                layout.label(text=f"Runs through {plural(len(fx.clips), 'clip')}", icon="BLANK1")
 
         gap(layout)
         _end_row(layout, context, fx, "A")
         _end_row(layout, context, fx, "B")
         if chain:
-            layout.operator("fresing.flex_swap_ends", text="Swap ends", icon="ARROW_LEFTRIGHT")
-        layout.operator("fresing.flex_fit", text="Fit to the CAD pose", icon="LOOP_BACK")
+            row = layout.row(align=True)
+            row.operator("fresing.flex_swap_ends", text="Swap ends", icon="ARROW_LEFTRIGHT")
+            if fx.drawn:
+                row.operator("fresing.flex_flip_bend", text="Flip bend", icon="MOD_MIRROR")
+        if fx.drawn:
+            layout.operator("fresing.flex_fit", text="Links for the travel" if chain else "Length as drawn",
+                            icon="LOOP_BACK")
+            gap(layout, size=0.5)
+            _replaces_rows(layout, context, fx, "FLEX")
+        else:
+            layout.operator("fresing.flex_fit", text="Fit to the CAD pose", icon="LOOP_BACK")
 
         # -- rarely changed
         gap(layout)
@@ -179,7 +240,8 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
         if body:
             col = split_props(body)
             if chain:
-                col.prop(fx, "pitch", text="Link length")
+                if not fx.drawn:
+                    col.prop(fx, "pitch", text="Link length")
                 if fx.made_links:
                     col.prop(fx, "width", text="Width")
                     col.prop(fx, "height", text="Height")

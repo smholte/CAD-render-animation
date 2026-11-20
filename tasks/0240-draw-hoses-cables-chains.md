@@ -69,6 +69,40 @@ hose or chain is **replaced**: one click hides it for good (view, renders, clash
 7. **Independent tests** by a subagent that did not write the pickers: odd clicks (same face twice, a clip behind end B,
    a fitting on a part that later moves out of reach), undo mid-picking, Esc.
 
+## Design (worker, 20 Nov)
+
+- **Drawn object.** Every drawn item has an app-made object of its own (new `blender/drawn.py`): a mesh part
+  (`fr_kind` "part", so 3 Looks' group material, the web export and the render queue treat it as any part), no
+  parent, identity matrix, in its own collection "Drawn hoses and cables" (a model update sets only the model's
+  collections aside), tagged `fr_drawn` = HOSE / CHAIN / CABLE, `fr_uid` "fr-drawn/<kind>/<n>". Its own mesh is a
+  tube along the drawn line (shown when the item is off or broken: "keeps its last place").
+- **Clicks -> spots** (`drawn.spot(ob, polygon, location, normal)`): a round face -> the point on its axis at the
+  end of the face nearer the click, direction along the axis out of that end; a flat face -> its centre when the
+  face is small (<= 100 mm), else the clicked point, direction = its normal. Spots are kept in the clicked part's
+  own coordinates.
+- **Hose** (`flex.draw_hose`): an FRFlex item kind HOSE with `drawn` on, part = the drawn object, ends A/B from
+  the spots, `clips` (new collection FRFlexClip: part, uid, point, dir) between them; each segment's share of the
+  length in `item["shares"]`. Default length = `core/flex.natural_length` per segment (a smooth curve with the end
+  directions, its bends kept >= max(smallest bend, 2.5 x diameter)) x 1.05. `_solve` splits a hose with clips into
+  one row per segment, joins the drawn points (layout: segments x (DRAWN - 1) + 1 points).
+- **Drag chain** (`flex.draw_chain`): FRFlex kind CHAIN, `made_links` on, part = the drawn object; frame from the
+  travel axis of the joint that moves the moving bracket (else the clicked faces), radius = half the gap between the
+  runs, pitch / height / width from the radius, count from the joint's travel (else the gap); `Flip bend`.
+- **Cable** (`paths.draw_cable`): the clicks (start on a drum or a part, sheaves / rollers / chutes in order with
+  their side, end) are solved with `core/paths.solve`; a tube along that path becomes the drawn object, which is
+  then read with the normal `read_cad` – so the result is a normal cable item. A drum at the start becomes its spool
+  (`spool.add`).
+- **Replace** (`drawn.replace` / `drawn.unreplace`): the picked CAD part (a chain link: its whole row) is excluded
+  (hidden in view and render, left out of the clash check and web export), remembered on the item (`replaces`,
+  `replace_uids`), shown again when the item is removed (only what the app excluded).
+- **Model update**: drawn items keep their drawn object; ends / clips go to the new parts by part ID (a part gone:
+  the item says so and its object shows its last shape); no new hook in `reimport.py` was needed (flex / paths
+  already run after an update).
+- Ops: `fresing.flex_draw` (HOSE / CHAIN; click picker with hover, Backspace undoes a click, Enter finishes),
+  `fresing.cable_draw`, `fresing.drawn_replace` / `fresing.drawn_unreplace`. Tour set `flex_drawn` on
+  `test_flex_hoses_a` + `test_flex_chains_a` + `test_paths_a` (FACTORY).
+- Subagent: independent tests of the pickers and the draw functions (odd clicks, Esc, undo), written from this brief.
+
 ## Done when
 
 - [ ] A hose drawn with two clicks (and with two clips between) follows a joint move and a Build like a CAD hose;
