@@ -217,6 +217,13 @@ class FRESING_OT_learn_lesson(bpy.types.Operator):
         _open_later(les.id, self.mode, at=k)
         return {"FINISHED"}
 
+    def invoke(self, context, event):
+        if bpy.data.is_dirty:              # the lesson starts a new project: ask first (the independent tester, finding 1)
+            return context.window_manager.invoke_confirm(
+                self, event, title="Start the lesson in a new project?", confirm_text="Start the lesson",
+                message="This project has changes that are not saved: they are lost. Save it first to keep them.")
+        return self.execute(context)
+
 
 class FRESING_OT_learn_start(bpy.types.Operator):
     """Starts a lesson in a new project with the sample model (your open project is not changed: save it first).
@@ -247,6 +254,13 @@ class FRESING_OT_learn_start(bpy.types.Operator):
             return {"CANCELLED"}
         _open_later(self.lesson, self.mode)
         return {"FINISHED"}
+
+    def invoke(self, context, event):
+        if bpy.data.is_dirty:              # the lesson starts a new project: ask first (the independent tester, finding 1)
+            return context.window_manager.invoke_confirm(
+                self, event, title="Start the lesson in a new project?", confirm_text="Start the lesson",
+                message="This project has changes that are not saved: they are lost. Save it first to keep them.")
+        return self.execute(context)
 
 
 class FRESING_OT_learn_view(bpy.types.Operator):

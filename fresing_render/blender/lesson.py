@@ -46,11 +46,12 @@ TICK = 0.1                  # seconds between two looks of the timer while a les
 PANEL = "FRESING_PT_lesson"
 KEY = "fr_lesson"           # scene property: the id of the lesson this project follows
 KEY_MODE = "fr_lesson_mode"
+KEY_STEP = "fr_lesson_step"  # ... and the step it was at (where it goes on after a reopen)
 MODES = {"SHOW": "Show me", "BUILD": "Build it yourself"}
 
 _S: dict = {"lesson": None, "mode": "SHOW", "step": 0, "phase": "", "t_phase": 0.0, "seen_at": None, "more": False,
             "shown": False, "scrolls": 0, "timer": False, "handles": [], "note": "", "history": [], "drawn": False,
-            "card": None, "failed": "", "stats": {"card": [0, 0.0], "tick": [0, 0.0], "check": [0, 0.0]}}
+            "card": None, "failed": "", "hold": False, "stats": {"card": [0, 0.0], "tick": [0, 0.0], "check": [0, 0.0]}}
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +118,40 @@ def first_not_done(scene, les: Lesson) -> int:
         if not is_done(scene, st):
             return i
     return len(les.steps)
+
+
+def place(scene, les: Lesson, k: int) -> int:
+    """Where the lesson is, coming from step ``k`` (where it was): back while the step before it is not done any more
+    (undo, Back), then on past every step that is done (the user was quicker). A setting of an earlier step changed
+    later (another light look, chips off) does not send the lesson back – only undoing everything in between does
+    (the independent tester's finding 4)."""
+    k = max(0, min(int(k), len(les.steps)))
+    while k > 0 and not is_done(scene, les.steps[k - 1]):
+        k -= 1
+    while k < len(les.steps) and is_done(scene, les.steps[k]):
+        k += 1
+    return k
+
+
+def import_model(set_id: str):
+    """Step 1's ``do``: Import STEP… of the learning set's model (Draft), when the project has none – undone past the
+    import, the lesson imports it again instead of getting stuck."""
+    def do(scene):
+        from . import tour
+        model = next(m for m in tour.SETS[set_id].models if m.lower().endswith((".step", ".stp")))
+        res = bpy.ops.fresing.import_step(filepath=model, quality="draft")
+        if res != {"FINISHED"}:
+            raise RuntimeError(f"Import STEP returned {res}")
+    return do
+
+
+def locked(scene) -> bool:
+    """The Client view's lock is on in this project: the lesson pauses (it would edit a locked project)."""
+    try:
+        from . import workspaces
+        return bool(workspaces.locked(scene))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _select(scene, st: Step) -> None:
@@ -226,6 +261,11 @@ def _point(scene) -> None:
     _S["scrolls"] = 0
     _S["shown"] = False
     _S["failed"] = ""
+    _S["hold"] = False
+    try:
+        scene[KEY_STEP] = _S["step"]
+    except Exception:  # noqa: BLE001 - a scene that cannot be written (a restricted context)
+        pass
     if st is None:
         highlight.clear()
         _set_phase("end")
@@ -256,7 +296,12 @@ def start(scene, lesson_id: str, mode: str = "SHOW", at: int | None = None) -> N
     if at is not None and at > 0:
         run(scene, lesson_id, until=at)
     _S.update(lesson=lesson_id, mode=mode, note="", history=[], failed="")
-    _S["step"] = first_not_done(scene, les)
+    if at is not None:
+        _S["step"] = place(scene, les, at)
+    elif scene.get(KEY) == lesson_id and KEY_STEP in scene:     # going on in a project that followed it
+        _S["step"] = place(scene, les, scene[KEY_STEP])
+    else:
+        _S["step"] = first_not_done(scene, les)
     scene[KEY] = lesson_id
     scene[KEY_MODE] = mode
     _add_handlers()
@@ -268,13 +313,13 @@ def stop(forget: bool = False) -> None:
     from . import highlight
     if forget:
         try:
-            for k in (KEY, KEY_MODE):
+            for k in (KEY, KEY_MODE, KEY_STEP):
                 if k in bpy.context.scene:
                     del bpy.context.scene[k]
         except Exception:  # noqa: BLE001
             pass
     was = _S["lesson"] is not None
-    _S.update(lesson=None, phase="", card=None)
+    _S.update(lesson=None, phase="", card=None, failed="", note="", hold=False)
     _remove_handlers()
     if was:
         try:
@@ -304,6 +349,10 @@ def do_step(scene) -> bool:
     st = step()
     if st is None:
         return False
+    if locked(scene):
+        _S["failed"] = "the Client view is on: pick another workspace (or Full access) to go on"
+        _redraw()
+        return False
     try:
         do(scene, st)
     except Exception as e:  # noqa: BLE001 - the card says what went wrong, the lesson stays on this step
@@ -331,7 +380,7 @@ def next_step(scene) -> None:
     st = step()
     if st is not None and st.show and _S["shown"] is False and _S["phase"] == "done":
         _finish_show(scene, st)
-    _S["step"] = first_not_done(scene, les)
+    _S["step"] = place(scene, les, _S["step"])
     _point(scene)
 
 
@@ -386,12 +435,19 @@ def tick(scene=None, now: float | None = None) -> None:
     ph = _S["phase"]
     if st is None:
         return
+    if locked(scene):                                   # the Client view: the lesson waits (finding 3)
+        _S["note"] = "paused: the Client view is on"
+        return
     if ph == "point":
+        if is_done(scene, st):                          # the user was quicker: never done twice (finding 2)
+            _set_phase("done")
+            _redraw()
+            return
         if _S["seen_at"] is None and _seen():
             _S["seen_at"] = now
         age = now - _S["t_phase"]
-        if not _S["failed"] and ((_S["seen_at"] is not None and now - _S["seen_at"] >= SHOW_DELAY)
-                                 or age >= SHOW_LATEST):
+        if not _S["failed"] and not _S["hold"] and ((_S["seen_at"] is not None and now - _S["seen_at"] >= SHOW_DELAY)
+                                                    or age >= SHOW_LATEST):
             do_step(scene)
     elif ph == "wait":
         c0 = time.perf_counter()
@@ -506,6 +562,8 @@ def card_lines(st: Step, more: bool, phase: str, mode: str, k: int, n: int, fail
     if phase == "done":
         hint = ("Well done – the next step follows" if mode == "BUILD" else
                 "Next follows by itself (Play on)" if play_on() else "Next in the Lesson panel")
+    elif mode == "SHOW" and _S["hold"]:
+        hint = "Taken back: Next shows it again"
     elif mode == "SHOW":
         hint = "Watch: the app does this step"
     else:
@@ -666,8 +724,9 @@ def _redraw() -> None:
 def _after_undo(_dummy=None):
     les = current()
     if les is not None:
-        _S["step"] = first_not_done(bpy.context.scene, les)
+        _S["step"] = place(bpy.context.scene, les, _S["step"])
         _point(bpy.context.scene)
+        _S["hold"] = _S["mode"] == "SHOW"               # Show me after Ctrl+Z / Back: it waits for Next (finding 7)
 
 
 @persistent

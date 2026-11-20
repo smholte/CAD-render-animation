@@ -308,7 +308,18 @@ def s_let_it_build_again():
     return 0.2
 
 
-wait_until("Show me builds again by itself", lambda: les().state()["phase"] == "done"
+@step
+def s_held_after_undo():
+    """After Ctrl+Z Show me waits (task 0230, finding 7): it does not build again by itself; Next does."""
+    st = les().state()
+    check("after Ctrl+Z Show me waits for Next (nothing built again by itself)", st["phase"] == "point"
+          and not bpy.context.scene.fresing.anim_baked, st)
+    with override():
+        bpy.ops.fresing.lesson_next()
+    return 0.3
+
+
+wait_until("Next: Show me builds again", lambda: les().state()["step"] >= 8
            and bool(bpy.context.scene.fresing.anim_baked), 20)
 
 
@@ -371,13 +382,9 @@ def s_client_view():
     with override():
         r = bpy.ops.fresing.workspace_pick(name="Client view")
     check("Client view on while a lesson runs", r == {"FINISHED"}, r)
-    try:
-        with override():
-            r = bpy.ops.fresing.lesson_next()
-        ok = True
-    except RuntimeError as e:
-        ok, r = False, str(e).splitlines()[0]
-    check("... the Lesson panel's Next still works in the Client view", ok, r)
+    with override():
+        refused = not bpy.ops.fresing.lesson_next.poll()
+    check("... Next is refused in the Client view (it would change the locked project)", refused)
     return 0.5
 
 

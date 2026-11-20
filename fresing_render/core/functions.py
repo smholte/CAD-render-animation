@@ -172,13 +172,13 @@ fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the 
 # ----- learning: lessons on the sample projects (task 0230) -----
 fn(id="learn.window", title="Learn: sample projects to View, Show me or Build it yourself", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_lessons", guide="learn", tour=("lessons",),
-   pccheck=("app.lessons",), since="0.2.181")
+   pccheck=("app.lessons",), since="0.2.182")
 fn(id="learn.show_me", title="Show me: the app does each step of a lesson", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_start", text="Show me", guide="learn-show-me", tour=("lessons",), pccheck=("app.lessons",),
-   since="0.2.181")
+   since="0.2.182")
 fn(id="learn.build", title="Build it yourself: a lesson that waits until you did each step", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_start", text="Build it yourself", guide="learn-build",
-   tour=("lessons",), pccheck=("app.lessons",), since="0.2.181")
+   tour=("lessons",), pccheck=("app.lessons",), since="0.2.182")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", title="Import a STEP file", family="import", panel="FRESING_PT_import",

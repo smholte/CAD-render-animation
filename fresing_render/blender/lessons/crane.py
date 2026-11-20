@@ -11,7 +11,7 @@ import math
 
 import bpy
 
-from ..lesson import Lesson, Step, lesson
+from ..lesson import Lesson, Step, import_model, lesson
 
 BOOM_UP = math.radians(35)
 SCENE = "Hero view"               # the saved scene the lesson makes (the tour adds its own "Tour view")
@@ -110,7 +110,8 @@ def _step(scene):
 
 
 def _has_joint_step(scene) -> bool:
-    return any(b.kind == "JOINT" and b.joint for a in scene.fresing.animations for b in a.blocks)
+    names = {j.name for j in scene.fresing.joints}
+    return any(b.kind == "JOINT" and b.joint in names for a in scene.fresing.animations for b in a.blocks)
 
 
 def _build(scene):
@@ -157,7 +158,7 @@ CRANE = lesson(Lesson(
         Step("import.step", "Import the model",
              "Import STEP… read the test crane. It stands still, every part in its CAD place.",
              more="Draft is quick for trying things; Normal for pictures. A model update later keeps all your work.",
-             do=None, done=lambda sc: sc.fresing.model_count > 0),
+             do=import_model("crane"), done=lambda sc: sc.fresing.model_count > 0),
         Step("looks.light_look", "Pick a light look",
              "Product studio sets the background, the light and the floor in one click.",
              more="The looks are starting points: every setting below them can still be changed. The look you picked "

@@ -4649,7 +4649,7 @@ def app_learning(ctx):
     return f"'{L.one_line(q['fid'])}' offered, listed, ticked after 3 days; next to learn: {len(cands)} candidates"
 
 
-@line("app.lessons", "Lessons: the crane in Build it yourself to the end, Show me's first three steps", "0.2.181",
+@line("app.lessons", "Lessons: the crane in Build it yourself to the end, Show me's first three steps", "0.2.182",
       what="Fresing > Learn… is there; the crane lesson in Build it yourself does every step with Do it for me and goes "
            "on by itself once the project shows each done (11 steps: joints, camera, scene, animation, Build, exploded "
            "view, the queue); Show me points, does steps 2 to 4 itself and waits for Next; nothing of the lesson runs "

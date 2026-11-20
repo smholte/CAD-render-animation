@@ -1,8 +1,8 @@
 """Task 0230, the independent tester: trying to break the lessons (bpy module).
 
-Each test says what a user does, what should happen and checks it. Tests marked ``xfail(strict=True)`` show a fault
-found in the code as it was handed over (they fail = the fault is still there; a fix turns them into a pass, and the
-strict xfail then asks for the mark to go).
+Each test says what a user does, what should happen and checks it. The faults it found in the code as it was handed
+over (findings 1–6 in the task's report: unsaved work, a step done twice, the Client view, a later change sending the
+lesson back, the mill's own joint names, undone past the import) were strict xfails; they pass since the fixes.
 """
 
 import os
@@ -48,8 +48,6 @@ def cameras(sc):
 # 1. Show me does a step again that the user already did
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="Show me's 'point' phase never looks at done(): a step the user did while the "
-                                       "button glowed is done a second time (a third camera)")
 def test_show_me_does_not_do_again_what_the_user_did_while_it_pointed(les):
     lesson = les
     sc = lesson.new_project("crane")
@@ -64,8 +62,6 @@ def test_show_me_does_not_do_again_what_the_user_did_while_it_pointed(les):
     assert cameras(sc) == 2, f"Show me added another camera: {cameras(sc)} cameras"
 
 
-@pytest.mark.xfail(strict=True, reason="the Next button in Show me's 'point' phase runs do() without asking done(): "
-                                       "the joint the user made is made a second time")
 def test_next_in_show_me_after_the_user_did_the_step(les):
     lesson = les
     sc = lesson.new_project("crane")
@@ -79,8 +75,6 @@ def test_next_in_show_me_after_the_user_did_the_step(les):
 # 2. a later change to what an earlier step set sends the lesson back
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="where the lesson is = the first step not done: trying another light look "
-                                       "later sends the lesson back to step 2, and Show me then puts Product back")
 def test_trying_another_light_look_later_does_not_send_the_lesson_back(les):
     lesson = les
     sc = lesson.new_project("crane")
@@ -92,8 +86,6 @@ def test_trying_another_light_look_later_does_not_send_the_lesson_back(les):
     assert lesson.state()["step"] == 5, f"the lesson went to step {lesson.state()['step'] + 1}"
 
 
-@pytest.mark.xfail(strict=True, reason="the mill's chips step accepts any setting but None: putting the chips back "
-                                       "to None later (they slow the view) sends the lesson back to 'Chips'")
 def test_mill_chips_off_later_does_not_send_the_lesson_back(les):
     lesson = les
     from fresing_render.blender import machining
@@ -110,8 +102,6 @@ def test_mill_chips_off_later_does_not_send_the_lesson_back(les):
 # 3. a step done another way, then "Do it for me" on a later step
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="mill step 11's do finds the axes by the names 'Z' and 'X': with the user's own "
-                                       "names its steps point at joints that do not exist, yet done() is true")
 def test_mill_axes_with_the_users_own_names_then_do_it_for_me(les):
     lesson = les
     from mathutils import Vector
@@ -140,8 +130,6 @@ def test_mill_axes_with_the_users_own_names_then_do_it_for_me(les):
 # 4. the Client view
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="fresing.lesson_* are not in lock.ALLOWED: in the Client view the Lesson "
-                                       "panel's Stop / Next / Back are refused while Show me goes on")
 def test_client_view_the_lesson_can_still_be_stopped(les):
     lesson = les
     from fresing_render.blender import lock, workspaces
@@ -155,8 +143,6 @@ def test_client_view_the_lesson_can_still_be_stopped(les):
         workspaces.switch(sc, "All functions")
 
 
-@pytest.mark.xfail(strict=True, reason="Show me's timer goes on editing a project that was switched to the Client "
-                                       "view (the boom's joint is made in a locked project)")
 def test_client_view_show_me_does_not_edit_the_locked_project(les):
     lesson = les
     from fresing_render.blender import lock, workspaces
@@ -195,9 +181,6 @@ def test_client_view_resume_is_refused_not_broken(les):
 # 5. the Learn window throws away unsaved work
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="Learn > Show me / Build it yourself / a learning list's lesson start a new "
-                                       "project (read_homefile) without asking: unsaved work is lost (the test "
-                                       "tour's Open asks first, ops_tour.py)")
 def test_starting_a_lesson_asks_before_unsaved_work_is_lost(les):
     from fresing_render.blender import ops_learning
     for cls in (ops_learning.FRESING_OT_learn_start, ops_learning.FRESING_OT_learn_lesson):
@@ -385,9 +368,6 @@ def test_switching_mode_in_the_middle(les):
 # 9. undone past the import (many Ctrl+Z): step 1 has no do
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="step 1 (Import) has do=None: Show me / Next / Do it for me 'do' nothing and "
-                                       "the card says 'The step was done, but the project does not show it yet'; "
-                                       "Next is refused – the lesson is stuck")
 @pytest.mark.parametrize("mode", ["SHOW", "BUILD"])
 def test_undone_past_the_import_the_lesson_is_not_stuck(les, mode):
     lesson = les

@@ -109,7 +109,8 @@ class FRESING_OT_lesson_next(bpy.types.Operator):
         return lesson.running()
 
     def execute(self, context):
-        if lesson._S["phase"] in ("point", "wait"):
+        st = lesson.step()
+        if lesson._S["phase"] in ("point", "wait") and st is not None and not lesson.is_done(context.scene, st):
             if not lesson.do_step(context.scene):
                 return {"CANCELLED"}
         lesson.next_step(context.scene)

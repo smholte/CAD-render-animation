@@ -488,7 +488,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.175")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.182")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1124,7 +1124,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.101")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.182")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -4334,7 +4334,7 @@ stop("finishing", OUT, HUB_SET, "Finished video: cards, captions",
      "TEST TOUR watermark, the logo as a picture card in a corner and a soft chord as music. They are put on in the "
      "rendered MP4 video: render it with the queue (Render queue stop).",
      where=f"{places.where('finishing')}; {places.where('brand')}; {places.where('cards')}; {places.where('music')}",
-     animation="Finished video", check=_check_finishing, since="0.2.47", changed="0.2.181")
+     animation="Finished video", check=_check_finishing, since="0.2.47", changed="0.2.182")
 stop("labels", OUT, HUB_SET, "Labels with lines",
      "Two labels, 'Boom' and 'Trolley', with lines to their parts. Labels are drawn in rendered pictures and "
      "videos: press Render picture to see them.", where=places.where("labels"), check=_check_labels,
@@ -4811,7 +4811,7 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'.",
      where="Fresing menu > Learn…; the Lesson panel at the top of the Fresing tab while a lesson runs",
-     since="0.2.181", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.182", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 # ---------------------------------------------------------------------------

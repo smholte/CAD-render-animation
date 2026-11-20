@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import bpy
 
-from ..lesson import Lesson, Step, lesson
+from ..lesson import Lesson, Step, import_model, lesson
 
 STOCK = "STOCK 200x200x40"
 BIT = "END MILL D10"
@@ -127,7 +127,13 @@ def _steps(scene):
     s = scene.fresing
     a = _anim(scene)
     s.animations_index = list(s.animations).index(a)
-    for joint, start, seconds, to in SLOT:
+    from .crane import joint_on
+    parts = {name: part for name, part, _d in AXES}
+    for axis, start, seconds, to in SLOT:
+        j = joint_on(scene, parts[axis], "SLIDE")          # the axis's joint, whatever the user called it
+        if j is None:
+            raise RuntimeError(f"no slide joint moves {parts[axis]}")
+        joint = j.name
         s.joints_index = s.joints.find(joint)
         res = bpy.ops.fresing.block_add(kind="JOINT")
         if res != {"FINISHED"}:
@@ -138,7 +144,9 @@ def _steps(scene):
 
 
 def _joint_steps(scene) -> int:
-    return sum(1 for a in scene.fresing.animations for b in a.blocks if b.kind == "JOINT" and b.joint)
+    """Move joint steps on joints that exist."""
+    names = {j.name for j in scene.fresing.joints}
+    return sum(1 for a in scene.fresing.animations for b in a.blocks if b.kind == "JOINT" and b.joint in names)
 
 
 def _build(scene):
@@ -164,7 +172,7 @@ MILL = lesson(Lesson(
         Step("import.step", "Import the model",
              "Import STEP… read the test mill: a table, a head, an end mill and a steel block, all standing still.",
              more="Draft is quick for trying things; Normal for pictures.",
-             do=None, done=lambda sc: sc.fresing.model_count > 0),
+             do=import_model("mill"), done=lambda sc: sc.fresing.model_count > 0),
         Step("looks.light_look", "Pick a light look",
              "Product studio sets the background, the light and the floor in one click.",
              do=lambda sc: _tour()._look("PRODUCT"),

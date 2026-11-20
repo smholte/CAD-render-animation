@@ -65,6 +65,7 @@ ALLOWED = {
     "fresing.blender_editors",                   # task 0221: its own poll greys it in the Client view, with the reason
     "fresing.rebake", "fresing.rebake_cancel",          # cables follow a sea change the Client view may make
     "fresing.toolbox_report", "fresing.toolbox_not_now",     # task 0217: a status-bar line; turning a job down
+    "fresing.lesson_stop", "fresing.lesson_more", "fresing.lesson_mode",   # task 0230: a lesson can always be stopped
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_")     # task 0181: the usage tracker changes nothing in the model
