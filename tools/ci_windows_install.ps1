@@ -441,6 +441,38 @@ if ($Uninstall) {
                 $ErrorActionPreference = $oldEap
                 $checks["Toolbox inbox on Windows: short file, open status.json, junction (exit code $tbCode)"] = ($tbCode -eq 0)
             }
+            if ($Part -ne "b" -and $round -eq "repair") {
+                # task 0227: the Client view's keys in the real app with a window (tools/ui_test_client_keys.py) - only
+                # when Blender can open a window on this machine (no graphics card: it may not); else said, not failed
+                $ckOut = Join-Path $OutDir "clientkeys"
+                New-Item -ItemType Directory -Force -Path $ckOut | Out-Null
+                $ckLog = Join-Path $ckOut "ui_test_client_keys.log"
+                Remove-Item -LiteralPath $ckLog -Force -ErrorAction SilentlyContinue
+                $env:UITEST_OUT = $ckOut
+                $ckScript = Join-Path $PSScriptRoot "ui_test_client_keys.py"
+                Note "The Client view's keys in the app with a window (task 0227)"
+                $t0 = Get-Date
+                $p = Start-Process -FilePath $BlenderExe.FullName -ArgumentList @("-p", "0", "0", "1600", "1000",
+                        "--app-template", "fresing_render", "--enable-event-simulate", "--python-exit-code", "1",
+                        "--python", "`"$ckScript`"") -PassThru -RedirectStandardOutput (Join-Path $ckOut "blender.log") `
+                        -RedirectStandardError (Join-Path $ckOut "blender.stderr.log")
+                $null = $p.Handle
+                if (-not $p.WaitForExit(4 * 60 * 1000)) { & taskkill /T /F /PID $p.Id | Out-Null }
+                $env:UITEST_OUT = ""
+                $secs = [math]::Round(((Get-Date) - $t0).TotalSeconds)
+                $ckText = if (Test-Path -LiteralPath $ckLog) { Get-Content -LiteralPath $ckLog -Raw -Encoding utf8 } else { "" }
+                if ($ckText) { $ckText -split "`n" | ForEach-Object { Write-Host "   $_" } }
+                Get-Content -LiteralPath (Join-Path $ckOut "blender.log") -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "   $_" }
+                $m = [regex]::Match($ckText, "RESULT (\d+)/(\d+)")
+                if (-not $ckText) {
+                    $Summary += "| Client view keys in the app (task 0227) | not run: Blender opened no window on this machine (no graphics card) | $secs s |"
+                } elseif ($m.Success -and $m.Groups[1].Value -eq $m.Groups[2].Value -and [int]$m.Groups[2].Value -ge 12) {
+                    $Summary += "| Client view keys in the app (task 0227) | ✅ $($m.Groups[1].Value)/$($m.Groups[2].Value) | $secs s |"
+                } else {
+                    Problem "the Client view's keys in the app: $(if ($m.Success) { $m.Value } else { 'no RESULT line' }) - see clientkeys\ui_test_client_keys.log"
+                    $Summary += "| Client view keys in the app (task 0227) | ❌ $(if ($m.Success) { $m.Value } else { 'stopped half-way' }) | $secs s |"
+                }
+            }
         }
         foreach ($k in $checks.Keys) {
             if (-not $checks[$k]) { Problem "missing after install: $k" }

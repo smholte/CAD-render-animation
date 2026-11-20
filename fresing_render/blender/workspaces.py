@@ -542,14 +542,52 @@ def _on_save(_dummy=None):
             pass
 
 
+_KEPT: dict = {}                 # task 0227: the locked workspace before an undo / redo (scene name -> fields)
+_WS_FIELDS = ("ws_name", "ws_data", "ws_ticks")
+
+
+@persistent
+def _before_undo(_dummy=None):
+    """Task 0227: remember the locked workspace before Ctrl+Z / Ctrl+Shift+Z. An undo to a step from before the
+    Client view was picked would take the project out of it – the lock off and the part selected then selected
+    again, so X and Delete deleted it. Only Workspace > Full access unlocks."""
+    from . import lock
+    _KEPT.clear()
+    scene = bpy.context.scene
+    s = _settings(scene) if scene is not None else None
+    if s is None or not lock.ON[0] or not locked(scene):
+        return
+    _KEPT[scene.name] = tuple(getattr(s, f) for f in _WS_FIELDS)
+
+
+def _keep_locked(scene) -> bool:
+    """After an undo / redo: the project was in a locked workspace before it and the step brought back one without
+    the lock – put the locked one back (the rest of the undo stays). True when it was put back."""
+    kept = _KEPT.pop(scene.name, None)
+    _KEPT.clear()
+    if kept is None or locked(scene):
+        return False
+    s = _settings(scene)
+    for f, v in zip(_WS_FIELDS, kept):
+        if getattr(s, f) != v:
+            setattr(s, f, v)
+    return True
+
+
 @persistent
 def _after_undo(_dummy=None):
-    """Undo and redo put the project's workspace back; the lock and Blender's tabs follow it."""
+    """Undo and redo put the project's workspace back; the lock and Blender's tabs follow it. Task 0227: never out
+    of a locked workspace (``_before_undo``)."""
     from . import lock
     scene = bpy.context.scene
     if scene is None or _settings(scene) is None:
+        _KEPT.clear()
         return
     try:
+        if _keep_locked(scene):
+            from . import panels
+            panels.tab_check(scene)
+            _redraw()
         if locked(scene) != lock.ON[0] or bool(lock.marked()) != lock.ON[0]:
             lock.apply(scene, locked(scene))
         elif lock.ON[0]:                     # task 0213: an undo step pushed before the lock marked the objects
@@ -560,7 +598,8 @@ def _after_undo(_dummy=None):
         print("Fresing Render: lock not put right after undo:", exc)
 
 
-_HANDLERS = (("load_post", _on_load), ("save_pre", _on_save), ("undo_post", _after_undo), ("redo_post", _after_undo))
+_HANDLERS = (("load_post", _on_load), ("save_pre", _on_save), ("undo_pre", _before_undo), ("redo_pre", _before_undo),
+             ("undo_post", _after_undo), ("redo_post", _after_undo))
 
 
 def register() -> None:

@@ -201,7 +201,10 @@ For showing a finished project, or handing the PC to someone who should only loo
   editor menu, <kbd>Shift</kbd>+<kbd>F9</kbd>, a new window, another of Blender's workspaces
   (<kbd>Ctrl</kbd>+<kbd>Page Up</kbd>) or an area made full-size with <kbd>Ctrl</kbd>+<kbd>Space</kbd> all
   show the Info area instead, within a tenth of a second;
-- <kbd>Ctrl</kbd>+<kbd>Z</kbd> never frees a part or the camera, also right after an import;
+- <kbd>Ctrl</kbd>+<kbd>Z</kbd> never frees a part or the camera, also right after an import, and never takes the project
+  out of the Client view (undo of earlier work still happens; only the Workspace switcher leaves the Client view);
+- <kbd>X</kbd> and <kbd>Delete</kbd> do nothing, also with <kbd>Shift</kbd>, and a part that was selected before you
+  switched is no longer selected;
 - File > Save As, Import and Export are off.
 
 Importing, the surroundings, camera views (also **New camera view**), saved scenes (also **Save scene**),

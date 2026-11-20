@@ -628,6 +628,23 @@ def panel_workspaces(ctx):
                "the Client view did not lock every part")
         _check(bpy.ops.fresing.group_add.poll() is False and bpy.ops.fresing.light_look.poll(),
                "the Client view does not refuse editing buttons (or refuses the light looks too)")
+        # task 0227: Ctrl+Z never leaves the Client view, a part freed or selected while locked is taken back
+        part = next((ob for ob in scene.objects if ob.type == "MESH"), None)
+        workspaces._before_undo()                     # what an undo to before the pick leaves, as the handlers see it
+        lock._unlock_all()
+        s.ws_name = W.DEFAULT
+        if part is not None:
+            part.select_set(True)
+        workspaces._after_undo()
+        _check(workspaces.name_of(scene) == "Client view" and lock.ON[0] and not bpy.context.selected_objects
+               and all(ob.hide_select for ob in scene.objects),
+               "Ctrl+Z took the project out of the Client view (or left a part selected)")
+        if part is not None:
+            part.hide_select = False
+            part.select_set(True)
+            lock._after_change()
+            _check(part.hide_select and not bpy.context.selected_objects,
+                   "a part made clickable and selected in the Client view was not taken back")
         workspaces.switch(scene, "Full access")
         now = {ob.name: (ob.hide_select, tuple(ob.lock_location), tuple(ob.lock_rotation), tuple(ob.lock_scale))
                for ob in scene.objects}

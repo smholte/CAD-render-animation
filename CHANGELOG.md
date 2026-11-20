@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.174 – 20 Nov 2026 – The Client view keeps parts safe from X and Delete (task 0227)
+
+- **Client view:** Ctrl+Z no longer takes the project out of the Client view. Before, Ctrl+Z right after picking the
+  Client view undid the pick itself: the lock went off, the part you had selected before was selected again, and X /
+  Delete deleted it. Undo of earlier work still happens; only the Workspace switcher leaves the Client view.
+- In the Client view a part that somehow became clickable or selected is locked and deselected again at once.
+- X and Delete are also blocked with Shift (Blender's "Delete globally"); Tab still does nothing. In Full access they
+  work as before.
+
 ## 0.2.173 – 19 Nov 2026 – A house from House Planner by itself (task 0217)
 
 - A house sent from House Planner now **arrives by itself**: no Save, no Import, no sending the bake back by hand. The
