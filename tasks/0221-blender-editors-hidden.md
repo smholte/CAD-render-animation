@@ -1,6 +1,6 @@
 # 0221 – Blender's right-hand column hidden; "Show Blender's editors" in the Fresing menu; a solid side panel
 
-**Who:** worker · **Status:** running (Start & learn lane) · **Branch:** `task/0221-blender-editors-hidden`
+**Who:** worker · **Status:** done (0.2.179) (Start & learn lane) · **Branch:** `task/0221-blender-editors-hidden`
 **Started by:** lead, 19 Nov 2026 (owner, 00:05: "I want the app as simple as possible, with the needed functions …
 most users are not familiar with Blender … but the option to open it easily will be good") · **Model:** Opus · effort
 Medium
@@ -67,16 +67,16 @@ different parts of the UI").
 
 ## Done when
 
-- [ ] New file, the test tour project, the demo and an old own project (saved with the column) open with no Outliner
+- [x] New file, the test tour project, the demo and an old own project (saved with the column) open with no Outliner
       / Properties column and the 3D view to the right edge; the Fresing side panel still on the Fresing tab
-- [ ] Show / Hide works both ways, repeatedly, at 1920 and 2560 px; the choice survives a restart (real-app test as
+- [x] Show / Hide works both ways, repeatedly, at 1920 and 2560 px; the choice survives a restart (real-app test as
       0198 / 0213 use)
-- [ ] Client view: hidden, entry greyed; lock off → the user's choice back
-- [ ] Region Overlap off after the update on an existing install and on a fresh one; a user's own "on" kept after a
+- [x] Client view: hidden, entry greyed; lock off → the user's choice back
+- [x] Region Overlap off after the update on an existing install and on a fresh one; a user's own "on" kept after a
       restart; the side panel solid on the tour's white background (screenshot in the report)
-- [ ] Nothing in background runs touches screens or preferences (queue render, PC check, self-test still green)
-- [ ] Screenshots checked with `tools/ui_screens.py`; guide, function list, PC-check line; precheck green
-- [ ] Report filled in, merged, released
+- [x] Nothing in background runs touches screens or preferences (queue render, PC check, self-test still green)
+- [x] Screenshots checked with `tools/ui_screens.py`; guide, function list, PC-check line; precheck green
+- [x] Report filled in, merged, released
 
 ## Not in this task
 
@@ -126,7 +126,8 @@ one menu entry. Any panel inside the Fresing tab.
 - Show / Hide at 1920 x 1080: column 337 px (Blender's own 339); at 2560 x 1440: 450 px (453). Hidden: the 3D view
   and the timeline both reach the right edge (1916 / 2556 of 1920 / 2560).
 - Side panel on a white viewport background at 2560: solid, the navigation gizmo and the header visible.
-- GitHub runs: see below.
+- GitHub: 4 full runs. 44765162821 red (the three causes below); 44777647366 and 44784154598 green but `main` had
+  taken the version each time (0231, 0229, 0228 merged meanwhile: renumbered 0.2.176 → 0.2.179); 44789273857 green.
 
 **Open points / follow-up tasks:**
 - A new window (Window > New Main Window) or switching to another of Blender's workspaces in Full access is not tidied
