@@ -89,7 +89,7 @@ def fresh() -> dict:
     return {MARKER: VERSION, "track": True, "sessions": 0, "first": "", "functions": {}, "buttons": {}, "panels": {},
             "stages": {}, "saved": {},
             "bar": {"on": True, "size": BAR_DEFAULT, "pins": [], "order": []},
-            "declutter": {"on": True, "threshold": THRESHOLD_DEFAULT, "asked": [], "session": 0},
+            "declutter": {"on": True, "threshold": THRESHOLD_DEFAULT, "asked": [], "session": 0, "new": {}},
             "hidden": [], "learning": L.fresh()}
 
 
@@ -140,6 +140,9 @@ def clean(data) -> dict:
         out["declutter"].update(on=bool(d.get("on", True)),
                                 threshold=_int(d.get("threshold"), THRESHOLD_DEFAULT, 1, 1000),
                                 asked=_ids(d.get("asked")), session=_int(d.get("session")))
+        new = d.get("new")
+        if isinstance(new, dict):                # task 0236: {function id: the session it was first offered}
+            out["declutter"]["new"] = {str(k): _int(v) for k, v in new.items()}
     out["hidden"] = _ids(data.get("hidden"))
     out["learning"] = L.clean(data.get("learning"))          # task 0208: an older file has none
     return out
@@ -351,6 +354,14 @@ def last_use(state: dict, panel: str, funcs=None, children=None) -> int:
     return last
 
 
+def note_new(state: dict, ids) -> None:
+    """Task 0236: these functions were offered to the user at this start (What's new lists them). A panel holding one
+    is not asked about until ``threshold`` sessions have passed: a function the user has never seen is not 'unused'."""
+    new = state["declutter"].setdefault("new", {})
+    for fid in ids:
+        new.setdefault(fid, state["sessions"])
+
+
 def declutter_candidate(state: dict, shown: set, used: set, hidden_panels: set = frozenset(), funcs=None,
                         children=None, titles=None) -> str:
     """The panel to ask about now ('' = none). ``shown``: the function ids the project's workspace shows; ``used``: the
@@ -382,6 +393,8 @@ def declutter_candidate(state: dict, shown: set, used: set, hidden_panels: set =
             continue
         if any(f.id in state["hidden"] for f in items):
             continue
+        if any(f.id in d.get("new", {}) and state["sessions"] - d["new"][f.id] < n for f in items):
+            continue                              # offered by What's new less than ``threshold`` sessions ago
         last = last_use(state, panel, funcs, children)
         if last and state["sessions"] - last < n:
             continue
@@ -474,7 +487,8 @@ def stage_rows(state: dict) -> list:
 def profile_part(state: dict, with_counts: bool = False) -> dict:
     """What a profile adds to an own-workspace file: {"favourites": …, "usage": … (only when ticked)}."""
     out = {"favourites": {"on": bool(state["bar"]["on"]), "size": state["bar"]["size"],
-                          "pins": list(state["bar"]["pins"])}}
+                          "pins": list(state["bar"]["pins"])},
+           "hidden": {"ids": list(state["hidden"])}}      # task 0236: kept apart from the workspace's own hides (reset undoes)
     if with_counts:
         out["usage"] = {k: state[k] for k in ("sessions", "functions", "buttons", "panels", "stages", "saved")}
         out["usage"]["learning"] = L.profile_part(state, True)
@@ -490,6 +504,10 @@ def take_profile(state: dict, data: dict, with_counts: bool = False, funcs=None)
         state["bar"]["on"] = bool(fav.get("on", True))
         state["bar"]["size"] = _int(fav.get("size"), BAR_DEFAULT, BAR_MIN, BAR_MAX)
         state["bar"]["pins"] = [p for p in _ids(fav.get("pins")) if p in funcs]
+    hid = data.get("hidden") if isinstance(data, dict) else None
+    for fid in _ids(hid.get("ids") if isinstance(hid, dict) else None):                         # the profile's hides join the user's own: "Back to the workspace" undoes
+        if fid in funcs and fid not in state["hidden"]:
+            state["hidden"].append(fid)
     u = data.get("usage") if isinstance(data, dict) else None
     if with_counts and isinstance(u, dict):
         other = clean(dict(u, **{MARKER: VERSION}))

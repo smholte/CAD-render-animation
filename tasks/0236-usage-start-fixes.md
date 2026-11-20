@@ -1,6 +1,6 @@
 # 0236 – Fixes from bug hunt 0209, group F: usage tracker and start (declutter, profiles, damaged start file, What's new, favourites)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0236-usage-start-fixes`
+**Who:** worker · **Status:** done (0.2.181) · **Branch:** `task/0236-usage-start-fixes`
 **Started by:** lead, 20 Nov 2026 (bug hunt 0209 rows 13, 19, 22, 25, 26, 34) · **Model:** Sonnet · effort Medium
 **Area:** Usage lane – `core/usage.py`, `blender/usage.py`, `blender/ops_usage.py`, `blender/ui_usage.py`; `core/start.py`
 (the start file's `load`, `new_functions`); `core/functions.py` (new optional fields + `changed=` values, no entry
@@ -68,10 +68,12 @@ The splash and Blender's own parts (0222 packages, Start & learn lane); lessons 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 20 Nov 2026
 
-**What changed:**
+**What changed:** Row 13: `declutter.new` {function: session first offered}, `usage.note_new` at each start from the start file's What's new range; a panel with such a function is not asked about for `threshold` sessions. Row 19: a profile keeps the personal hides in its own `hidden` {ids} (new profile key), not in the workspace's `hide`; the importer adds them to the user's hides, so reset undoes them. Row 22: `usage.refresh_personal` from the depsgraph handler, at most every 2 s and only when something is hidden. Row 25: `core/start.load` cleans every field (junk version = none), `new_functions` gives nothing for a junk `since`. Row 26: `headline=True` (workspaces, Client view, folded sections, Fresing menu, What's new, Blender editors) listed first; `changed=` on milling.fast_map, web.moving, offshore.sea_cable and the three usage functions; What's new says "N new, M better" with a second list "Better since …" (`better_functions`). Row 34: `short=` (at most 16 characters, precheck-checked) on 48 functions; the question has two gaps above it. Guide and CHANGELOG updated.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender module): new tests in test_start, test_usage, test_usage_blender (rows 13, 19, 22, 25, 26, 34 incl. the real function list from 0.2.141); real-app `usage` test 31/31; screenshot of the bar and question at the default width looked at (labels whole). GitHub: full run 44806756204 green on the merged commit; main run 44810536040: release 0.2.181 published, Windows self-update and "Offer the release" green.
 
-**Open points / follow-up tasks:**
+**Runs:** 3 full runs. (1) 44769321642 (0.2.176): everything green except the Windows PC-check line `web3d.small` ("page gave no places of its parts, ready PHONE frames 0"), failed again on re-run; known flake, fixed by task 0242. (2) a version clash with main (0.2.180) – merged and renumbered to 0.2.181; (3) 44806756204 green. Also: a new function from main (paths.draw_cable, help.blender_editors) had a long label – got `short=`.
+
+**Open points / follow-up tasks:** The landing-page deploy after the release failed ("No artifacts named github-pages were found", run 44810536040) – not caused by this change; needs a Pages re-run. No subagents ran; the independent review was skipped (no Windows-only code). The profile's `hidden` key is new: an older app opens such a profile as a plain workspace. A profile exported before this change still has its hides inside the workspace's `hide`.
