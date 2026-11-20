@@ -300,3 +300,12 @@ landing page's guide, the tour, the PC check or CI artifacts. Git history and th
    repository and by hand (`workflow_dispatch`), Linux only (no Windows job – Windows minutes count double), one job,
    aim ≤ ~10 min per run, `concurrency` cancels a superseded run, no artifacts kept beyond a few days. The public
    repository's tests stay as they are (public repositories' minutes are free).
+
+**Owner's change (20 Nov 2026, 16:55, to the lead):** "for private you keep the entire cable laying ship project with
+ship, equipment, environment, animations and all." – **answers 1–3 are replaced:** the ship (with its deck crane), its
+wind park / quay / seabed cable and its animations go private too; **no public "Vessel in a wind park"**. Public stays
+only what is generic and used elsewhere (`demo_model/geom.py`; the turbine maker only if the site's IEA stand-in still
+needs it – package 2 decides from 0228's `uses` list). Help > Make demo project… then lists the added kits only (later
+also 0211's Lifting site). 0211's offshore stage cannot use this ship: an invented barge / jack-up of its own. Briefs
+0228, 0229, 0234 and CLAUDE.md section 6 updated the same day.
+

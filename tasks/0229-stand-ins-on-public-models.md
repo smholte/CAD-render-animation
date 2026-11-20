@@ -21,6 +21,19 @@ closer than 0.02 (`joints.table_keys` leader × 1000 – **no public test**), tr
 lowered on a wire between open tracks with the clash check, the 38 kg/m catenary + Lay data checks, a wrap set by hand
 kept through a model update, 400+ joints in a batch, the clash check with many turning parts.
 
+## Owner's change (20 Nov 16:55) – the whole cable-lay project goes private
+
+Not only the equipment: the ship, its wind park and its animations leave the public repository too (package 2). So
+three more things lose their only big public proof and need a stand-in here (add them to the list below):
+- **11. Vessel at work + vessel motion at ship size:** on the public test hull (`test_thrusters`; task 0234 is giving
+  it a real hull shape – use what is on `main`, change no maker) scaled up **inside the test** to ship size (~100 m),
+  vessel at work + motion, the numbers the demo checks today (wake, thruster jets, motion amplitudes per sea state).
+- **12. Re-bake after a sea change with a cable on the seabed:** on `test_sea` (no maker change), Calm → Rough after
+  Build, the job's steps, Cancel – today `test_demo_project_rebake.py`.
+- **13. A turning-parts clash case at size:** the rotors / propellers the public demo was going to keep – covered by
+  item 9's roller rim if you add a few big turning rotors to it.
+The PC check's Heavy line `heavy.demo` is package 2's (it moves to the invented Heavy machine or the Lifting site).
+
 ## What to do
 
 1. **Spool:** `test_spool`'s carousel – a case with an odd number of full layers + a partly paid-out top layer leaving

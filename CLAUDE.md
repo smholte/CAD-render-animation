@@ -764,17 +764,19 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **House Planner is private** (owner, 13 Nov 2026): Fresing Render workers **never attach or clone
   `smholte/house-planner-dev`** – it holds the owner's own house. The House lane works only from the public format
   repository `smholte/house-scene-format`, and its tests use only that repository's made-up sample packages.
-- **The cable-lay vessel's equipment is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → the cut →
-  pictures). The public repository keeps the **bare ship** (`demo_model/vessel.py`, **with its own deck crane** – owner
-  20 Nov; plain deck: the carousel well and the aft bulwark opening closed by the cut), the environment (sea, seabed,
-  wind park, turbines, substation, quay, the cable on the seabed) and the test models. Everything else on or hanging
-  from the ship (carousel, tensioners, chute, A-frame / quadrant, ROV, deck machines, the spread's layout and wires)
-  lives in the private repository **`smholte/fresing-render-vessel`** as a **demo kit**; the public app knows only
-  "demo kits", never this one. Until the cut is merged the equipment's code is still on `main`: **no new pictures,
-  renders, web pages, guide pictures, tour stops or report pictures of it, and no new equipment parts**. Never copy
-  anything from the private repository into this one – also not as a "test model". The full demo is the owner's private
-  demo for a company, not part of the learning environment. Old task texts and CHANGELOG lines that describe it stay;
-  no history rewrite (owner 20 Nov).
+- **The cable-lay vessel project is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → the cut →
+  pictures). **Everything of it** – the ship (hull, superstructure, its deck crane), its equipment (carousel,
+  tensioners, chute, A-frame / quadrant, ROV, deck machines, wires), its environment set-up (wind park, quay, the cable
+  on the seabed) and its animations – lives in the private repository **`smholte/fresing-render-vessel`** as a **demo
+  kit** (owner 20 Nov 16:55: "the entire cable laying ship project with ship, equipment, environment, animations and
+  all"). The public app knows only "demo kits", never this one; only generic libraries other public code uses stay
+  public (`demo_model/geom.py`, and the turbine maker only while the site's IEA stand-in needs it). Until the cut is
+  merged its code is still on `main`: **no new pictures, renders, web pages, guide pictures, tour stops, test models or
+  report pictures of the ship, its equipment or its park, and no new parts for them**. Never copy anything from the
+  private repository into this one – also not as a "test model" or a hull shape. The app's general functions (sea,
+  vessel motion, vessel at work, weather, surroundings) stay public and are shown on the public test models. The full
+  demo is the owner's private demo for a company, not part of the learning environment. Old task texts and CHANGELOG
+  lines that describe it stay; no history rewrite (owner 20 Nov).
 - **Who may attach the private vessel repository:** the lead (to read its runs) and only tasks whose file header says
   **"Private vessel: yes"**; the lead's start sentence then names the repository. Such a task follows the private
   repository's own `CLAUDE.md`, reports in numbers only, and its public part (the kit hook) goes through this repository
@@ -782,7 +784,7 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   projects):** no scheduled runs – push and by hand only, Linux only, one job of about 10 minutes, superseded runs
   cancelled, artifacts kept a few days at most.
 - **A cable / spool / track / sea task without that line** tests on the public test models (`test_spool`, `test_tracks`,
-  `test_paths_a`, `test_sea`, `test_moving`, `test_swivel`, `test_thrusters`) and the public demo. If a change may break
+  `test_paths_a`, `test_sea`, `test_moving`, `test_swivel`, `test_thrusters`). If a change may break
   the full demo (a renamed function the kit uses – `kit.json` `uses` –, a changed `@stage`, the kit hook), say so in the
   report: the lead asks the owner to run the private workflow by hand.
 - **The Fresing 400 is not public yet** (owner, 12 Nov 2026): it is not ready to be shown in full. Its milling video
