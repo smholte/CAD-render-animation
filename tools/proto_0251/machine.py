@@ -408,10 +408,11 @@ def run(kind, out, frames_arg="all", eng="CYCLES"):
         bl.set_drops(drops_ob, a, b)
 
     # camera
-    target = np.array(wp.matrix_world.translation) + np.array([0, 0, 0.0])
-    cam_cfg = {3: dict(dist=0.95, elev=38, azim=-60, lens=40), 4: dict(dist=0.6, elev=35, azim=-65, lens=40),
-               5: dict(dist=0.6, elev=40, azim=-60, lens=40)}[kind]
-    bl.studio(tuple(target - np.array([0, 0, 0.03])), res=RES, **cam_cfg)
+    bb = np.array([wp.matrix_world @ Vector(c) for c in wp.bound_box])
+    target = 0.5 * (bb.min(0) + bb.max(0))
+    cam_cfg = {3: dict(dist=0.95, elev=38, azim=-60, lens=40), 4: dict(dist=0.62, elev=30, azim=-62, lens=40),
+               5: dict(dist=0.55, elev=38, azim=-58, lens=40)}[kind]
+    bl.studio(tuple(target - np.array([0, 0, 0.05 if kind != 3 else 0.03])), res=RES, **cam_cfg)
     # the app's world is replaced by the studio's; the machine keeps its own materials
     bl.engine(eng, SAMPLES if eng == "CYCLES" else 32)
     fr = list(range(f0, f1 + 1, STEP)) if frames_arg == "all" else [f0 + int(x) for x in frames_arg.split(",")]

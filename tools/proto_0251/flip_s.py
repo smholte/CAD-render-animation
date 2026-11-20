@@ -42,6 +42,9 @@ def setup_render(cache, sc, carrier, place, res=None, frames=None, bake=None):
     sc.frame_start, sc.frame_end = 0, (frames or S.FRAMES) - 1
     for nm in ("Plate", "Block", "Tray floor", "Wall -x", "Wall +x", "Wall -y", "Wall +y"):
         ob = bpy.data.objects[nm]
+        dec = ob.modifiers.new("Coarse", "DECIMATE")       # the height-map meshes are dense; Mantaflow voxelises
+        dec.decimate_type = "DISSOLVE"                     # every effector each step: flat faces merged first
+        dec.angle_limit = 0.02
         m = ob.modifiers.new("Fluid", "FLUID")
         m.fluid_type = "EFFECTOR"
         m.effector_settings.effector_type = "COLLISION"

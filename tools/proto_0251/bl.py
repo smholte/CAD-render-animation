@@ -117,7 +117,8 @@ def liquid_grid(name, bed, cell, x0, y0, mat, parent=None):
         p.use_smooth = True
     ob = obj(name, me, mat, parent)
     ob["fr_bed"] = B.ravel().tolist() if B.size < 2000 else None
-    _CACHE[name] = dict(bed=B.ravel().astype(np.float32), xy=verts[:, :2].astype(np.float32), shape=bed.shape)
+    _CACHE[name] = dict(bed=B.ravel().astype(np.float32), xy=verts[:, :2].astype(np.float32), shape=bed.shape,
+                        cell=float(cell))
     return ob
 
 
@@ -131,6 +132,15 @@ def set_liquid(ob, depth, show=0.06e-3, bed=None):
     else:
         bed = np.nan_to_num(np.asarray(bed, np.float32), nan=float(np.min(c["bed"])))
     wet = d > show
+    # a cell on a steep wall (its bed steps more than 2 cells to a neighbour) with only a film on it is drawn dry:
+    # a height field draws a film running down a wall as a jagged sheet; the wet sheen shows it instead
+    st = np.zeros_like(bed, bool)
+    lim = 2.0 * c["cell"]
+    st[1:, :] |= np.abs(bed[1:, :] - bed[:-1, :]) > lim
+    st[:-1, :] |= np.abs(bed[1:, :] - bed[:-1, :]) > lim
+    st[:, 1:] |= np.abs(bed[:, 1:] - bed[:, :-1]) > lim
+    st[:, :-1] |= np.abs(bed[:, 1:] - bed[:, :-1]) > lim
+    wet &= ~(st & (d < 1.5e-3))
     lvl = np.where(wet, bed + d, -np.inf)
     # the highest wet neighbour's level (4-neighbours)
     nb = np.full_like(lvl, -np.inf)
@@ -201,16 +211,16 @@ def drop_radii(vols, cap=1.6e-3, floor=0.35e-3):
     return np.clip(r * 1.4, floor, cap)
 
 
-def split_drops(P, vols, cap=1.6e-3, step=None, seed_axis=2):
+def split_drops(P, vols, cap=1.2e-3, step=None, seed_axis=2):
     """A big volume is drawn as a short stream of drops (deterministic: spaced along -z)."""
     vcap = 4 / 3 * np.pi * (cap / 1.4) ** 3
     out_p, out_r = [], []
     for p, v in zip(P, vols):
-        k = int(min(12, max(1, np.ceil(v / vcap))))
+        k = int(min(4, max(1, np.ceil(v / vcap))))
         r = drop_radii(np.array([v / k]))[0]
         for i in range(k):
             q = np.array(p, float)
-            q[seed_axis] += i * 1.6 * r
+            q[seed_axis] += i * 2.2 * r
             out_p.append(q)
             out_r.append(r)
     return np.array(out_p).reshape(-1, 3), np.array(out_r)

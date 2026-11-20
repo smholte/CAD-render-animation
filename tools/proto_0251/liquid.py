@@ -32,6 +32,7 @@ NU = 1.0e-6          # kinematic viscosity of a water-based emulsion, m^2/s
 FILM = 0.04e-3       # this much stays on a wetted surface (it does not flow; it dries)
 SHOW = 0.06e-3       # thinner than this is drawn as dry (the wet sheen shows it)
 STOKES = math.sqrt(NU * 2 * math.pi)   # oscillating flow: the wall's boundary layer (Stokes layer at ~1 Hz) brakes it
+WEIR = 1.5          # critical flow factor (see step)
 CD = 0.62            # orifice discharge coefficient (sharp-edged hole)
 
 
@@ -143,14 +144,16 @@ class Chart:
             vL, vR = ~np.isnan(EL), ~np.isnan(ER)
             both = vL & vR
             hf = np.where(both, 0.5 * (hL + hR), np.where(vL, hL, hR))
-            # over a step down (a cliff, a pocket's rim) the head is at most the upstream depth (a free overfall):
-            # without it a cell at the top of the step empties in one step and fills again (rings of waves)
-            dE = np.where(both, np.clip(EL - ER, -hR, hL), np.where(vL, hL, -hR))
+            dE = np.where(both, EL - ER, np.where(vL, hL, -hR))
             dE = np.nan_to_num(dE)
             acc = 0.5 * (gnp_p[A] + gnp_p[B]) * dE / l + 0.5 * (gb_p[A] + gb_p[B])
             Q += dt * l * hf * acc
             hh = np.maximum(hf, 2e-5)
             Q /= 1.0 + dt * (3.0 * NU / hh ** 2 + STOKES / hh)
+            # never more than critical flow over a weir from the upstream cell (q = 1.5 l sqrt(g) h^1.5): over a step
+            # down (a cliff, a pocket's rim) the top cell otherwise empties in one step and fills again (rings)
+            gq = np.sqrt(0.5 * (gnp_p[A] + gnp_p[B]))
+            Q[:] = np.clip(Q, -WEIR * l * gq * hR ** 1.5, WEIR * l * gq * hL ** 1.5)
             if self.open_edges:
                 Q[:] = np.where(both, Q, np.where(vL & ~vR, np.maximum(Q, 0), np.where(~vL & vR, np.minimum(Q, 0), 0)))
             else:
