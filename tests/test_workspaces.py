@@ -381,6 +381,109 @@ def test_an_undo_to_before_the_lock_marked_new_objects_locks_them_again():
     assert lock.marked() == 0
 
 
+def _undo_to(sc, lock, ws_name, select=()):
+    """What a memfile undo to a step from before the lock leaves: that step's workspace, objects without the lock's
+    marks, and that step's selection (the handlers around it are what the app adds)."""
+    from fresing_render.blender import workspaces
+    workspaces._before_undo()
+    lock._unlock_all()
+    sc.fresing.ws_name, sc.fresing.ws_data, sc.fresing.ws_ticks = ws_name, "", ""
+    for ob in select:
+        ob.select_set(True)
+    if select:
+        bpy.context.view_layer.objects.active = select[0]
+    workspaces._after_undo()
+
+
+def test_ctrl_z_never_takes_the_project_out_of_the_client_view():
+    """Task 0227: in the Client view, Ctrl+Z undid the pick of the Client view itself: the lock went off and the part
+    selected before it was selected again, so X and Delete deleted it (found in the real app; the owner's PC saw a
+    part deleted in the Client view). The Client view now stays; only Workspace > Full access leaves it."""
+    workspaces, panels, lock = _mods()
+    sc = _new(CRANE)
+    part = next(o for o in sc.objects if o.type == "MESH")
+    try:
+        assert bpy.ops.fresing.workspace_pick(name="Client view") == {"FINISHED"}
+        _undo_to(sc, lock, "All functions", select=[part])
+        assert workspaces.name_of(sc) == "Client view" and lock.ON[0]
+        assert lock.marked() == len(bpy.data.objects) and all(o.hide_select for o in bpy.data.objects)
+        assert not bpy.context.selected_objects and bpy.context.view_layer.objects.active is None
+        _undo_to(sc, lock, "Full access")                         # a redo / an older step: the same
+        assert workspaces.name_of(sc) == "Client view" and lock.ON[0] and lock.tabs_hidden()
+        # an undo inside the Client view (a family tick) still undoes, and the workspace is not touched
+        workspaces._before_undo()
+        sc.fresing.ws_ticks = ""
+        workspaces._after_undo()
+        assert workspaces.name_of(sc) == "Client view" and lock.ON[0]
+        # Full access leaves it; an undo from there may go back to anything
+        workspaces.switch(sc, "Full access")
+        _undo_to(sc, lock, "All functions")
+        assert workspaces.name_of(sc) == "All functions" and not lock.ON[0]
+    finally:
+        workspaces.switch(sc, "All functions")
+    assert lock.marked() == 0
+
+
+def test_a_part_freed_or_selected_while_locked_is_taken_back():
+    """Task 0227: whatever frees a part in the Client view (a script, the Properties editor, an undo that brings
+    back a selection) – the next scene update locks it and clears the selection; the unlock puts it back as it was
+    before the lock."""
+    workspaces, panels, lock = _mods()
+    sc = _new(CRANE)
+    before = {o.name: o.hide_select for o in sc.objects}
+    part = next(o for o in sc.objects if o.type == "MESH")
+    empty = next(o for o in sc.objects if o.type == "EMPTY")
+    try:
+        workspaces.switch(sc, "Client view")
+        for ob in (part, empty):
+            ob.hide_select = False                                # it keeps the lock's mark
+            ob.select_set(True)
+        bpy.context.view_layer.objects.active = part
+        assert len(bpy.context.selected_objects) == 2
+        lock._after_change()                                      # the scene update the click / change causes
+        assert part.hide_select and empty.hide_select and not bpy.context.selected_objects
+        assert bpy.context.view_layer.objects.active is None and lock.CAUGHT[0] > 0
+        new = bpy.data.objects.new("made by a script", None)      # made while locked, never marked: caught too
+        sc.collection.objects.link(new)
+        new.select_set(True)
+        lock._guard()                                             # the guard, when no scene update came
+        assert new.hide_select and lock.MARK in new and not new.select_get()
+        bpy.data.objects.remove(new)
+    finally:
+        workspaces.switch(sc, "All functions")
+    assert {o.name: o.hide_select for o in sc.objects} == before and lock.marked() == 0
+
+
+def test_the_lock_swallows_x_and_delete_with_any_modifier_and_tab():
+    """Task 0227: Shift+X / Shift+Delete is Blender's "Delete globally": the lock's keys take X and Delete with any
+    modifier. (Blender as a module has no keymaps: the real-app tests press them.)"""
+    from fresing_render.blender import lock
+    keys = {(name, key): mods for name, _space, key, mods in lock._KEYS}
+    for key in ("X", "DEL"):
+        assert keys[("Object Mode", key)] == {"any": True} and keys[("Outliner", key)] == {"any": True}
+    assert ("Object Non-modal", "TAB") in keys
+
+
+def test_holding_the_lock_costs_little_on_a_big_model():
+    """Task 0227: the check runs at every scene update and every 0.1 s while locked: one ``foreach_get`` over the
+    objects, measured here with 5,000 objects (4-core web machine: ~1 ms)."""
+    import time
+    workspaces, panels, lock = _mods()
+    sc = _new()
+    for i in range(5000):
+        sc.collection.objects.link(bpy.data.objects.new(f"part {i}", None))
+    try:
+        workspaces.switch(sc, "Client view")
+        t0 = time.perf_counter()
+        for _ in range(20):
+            assert lock.hold() == 0
+        ms = (time.perf_counter() - t0) / 20 * 1000
+        print(f"hold() with 5,000 objects: {ms:.2f} ms")
+        assert ms < 15
+    finally:
+        workspaces.switch(sc, "All functions")
+
+
 def test_every_function_a_locked_workspace_shows_has_a_button_that_works_there():
     """Task 0213 (bug hunt 0209 row 24): the Client view showed New camera view, Save scene and Every paint scheme
     with greyed buttons. A function shown in a locked built-in workspace must have its button allowed."""

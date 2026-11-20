@@ -10,7 +10,12 @@ project's workspace has ``lock`` (the built-in Client view, or an own workspace 
   selection and the active object are cleared – so Blender's own G / R / S, Delete and Edit Mode act on nothing. What
   each object had before is remembered on the object (``fr_cv``) and put back, also the app's own "Locked in place";
 * Delete, X, Tab and Ctrl+Shift+S are swallowed by an add-on keymap (its operator's ``poll`` is the lock, so the keys
-  pass on to Blender's own the moment the lock is off – measured in the real app);
+  pass on to Blender's own the moment the lock is off – measured in the real app). Task 0227: X and Delete with any
+  modifier (Shift+X deletes "globally"), and the keys are put in place again whenever the lock goes on;
+* task 0227: whatever frees a part while the lock is on (a click on a part someone made clickable again, an undo, a
+  script) is caught at the next scene update and by the guard: an object that can be clicked is locked again, the
+  selection and the active object are cleared (``hold``). And Ctrl+Z / Ctrl+Shift+Z never take the project out of
+  the Client view (``workspaces._before_undo``): only Workspace > Full access unlocks it;
 * the Outliner areas show the Info editor instead (remembered on the screen, put back), and the File menu loses
   Save As, Save Copy, Link, Append, Import and Export. Task 0213: an Outliner opened any other way while the lock is
   on – the editor-type menu of an area, Shift+F9, a new window, another of Blender's workspaces (Ctrl+Page Up), an
@@ -89,6 +94,8 @@ def allowed(idname: str) -> bool:
 _LOCKS = ("lock_location", "lock_rotation", "lock_scale")
 _COUNT = [0]
 _BUSY = [False]              # the lock is being put on or off: the update handler keeps out
+CAUGHT = [0]                 # task 0227: objects ``hold`` had to take back (freed or selected while locked)
+SWALLOWED = [0]              # task 0227: keys the lock swallowed (X, Delete, Tab, Ctrl+Shift+S): read by the tests
 
 
 def _lock_object(ob, new: bool = False) -> None:
@@ -210,6 +217,70 @@ def _after_change(scene=None, _depsgraph=None):
         pass
     if ON[0] and len(bpy.data.objects) != _COUNT[0]:
         relock()                             # also clears the selection (a new camera came selected)
+    if ON[0]:
+        try:
+            hold()                           # task 0227: nothing clickable, nothing selected, whatever freed it
+        except Exception:  # noqa: BLE001 - never break an update over the lock
+            pass
+
+
+def _clickable() -> list:
+    """The objects that can be clicked (``hide_select`` off). One ``foreach_get`` over every object: ~0.2 ms for
+    5,000 objects, so it may run at every update and in the guard."""
+    obs = bpy.data.objects
+    n = len(obs)
+    if not n:
+        return []
+    flags = [False] * n
+    try:
+        obs.foreach_get("hide_select", flags)
+    except (TypeError, RuntimeError, AttributeError):
+        return [ob for ob in obs if not ob.hide_select]
+    return [obs[i] for i, f in enumerate(flags) if not f]
+
+
+def hold() -> int:
+    """While the lock is on (task 0227): an object that can be clicked is made unclickable again (one made
+    meanwhile gets its mark), and the selection and the active object are cleared – in every scene's view layers.
+    However a part got free or selected (a click, an undo, a script, the Properties editor), the next scene update
+    or the guard takes it back. Returns how many objects were caught."""
+    if not ON[0] or _BUSY[0]:
+        return 0
+    return _hold()
+
+
+def _hold() -> int:
+    n = 0
+    for ob in _clickable():
+        if ob.library is not None:           # a linked object cannot be changed (and is not the project's)
+            continue
+        if MARK in ob:                       # freed while locked: unclickable again; its mark keeps what it was
+            ob.hide_select = True            # before the lock, which the unlock puts back
+        else:
+            _lock_object(ob, new=True)
+        n += 1
+    for sc in bpy.data.scenes:
+        for vl in sc.view_layers:
+            try:
+                picked = list(vl.objects.selected)
+                active = vl.objects.active
+            except (RuntimeError, AttributeError):
+                continue
+            picked = [ob for ob in picked if ob is not None]     # a view layer read inside a load handler can hold
+            for ob in picked:                                  # an empty entry (finding 7 of task 0062)
+                try:
+                    ob.select_set(False, view_layer=vl)
+                except (RuntimeError, AttributeError):
+                    pass
+            if active is not None:
+                try:
+                    vl.objects.active = None
+                except (RuntimeError, AttributeError):
+                    pass
+            n += len(picked) + (active is not None)
+    if n:
+        CAUGHT[0] += n
+    return n
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +327,10 @@ def _guard():
         if _swap_outliners(True):
             _topbar_redraw()
     except Exception:  # noqa: BLE001 - never stop the guard over one window
+        pass
+    try:
+        hold()                               # task 0227: also when no scene update came
+    except Exception:  # noqa: BLE001
         pass
     return GUARD_EVERY
 
@@ -384,21 +459,29 @@ class FRESING_OT_client_locked(bpy.types.Operator):
         return ON[0]
 
     def execute(self, context):
+        SWALLOWED[0] += 1
         self.report({"WARNING"}, MESSAGE)
         return {"FINISHED"}
 
 
-_KEYS = (("Object Mode", "EMPTY", "DEL", {}), ("Object Mode", "EMPTY", "X", {}),
-         ("Object Non-modal", "EMPTY", "TAB", {}), ("Outliner", "OUTLINER", "DEL", {}),
-         ("Outliner", "OUTLINER", "X", {}), ("Window", "EMPTY", "S", {"ctrl": True, "shift": True}))
+# task 0227: X and Delete with any modifier – Shift+X / Shift+Delete is Blender's "Delete globally"
+_KEYS = (("Object Mode", "EMPTY", "DEL", {"any": True}), ("Object Mode", "EMPTY", "X", {"any": True}),
+         ("Object Non-modal", "EMPTY", "TAB", {}), ("Outliner", "OUTLINER", "DEL", {"any": True}),
+         ("Outliner", "OUTLINER", "X", {"any": True}), ("Window", "EMPTY", "S", {"ctrl": True, "shift": True}))
 _KEYMAPS: list = []
 
 
 def _add_keys() -> None:
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon if wm is not None else None
-    if kc is None or _KEYMAPS:
+    if kc is None:
         return
+    try:
+        if _KEYMAPS and all(kmi.idname == FRESING_OT_client_locked.bl_idname for _km, kmi in _KEYMAPS):
+            return
+    except ReferenceError:                   # the keymap was replaced meanwhile: add the keys again
+        pass
+    _remove_keys()
     for name, space, key, mods in _KEYS:
         km = kc.keymaps.new(name=name, space_type=space)
         kmi = km.keymap_items.new(FRESING_OT_client_locked.bl_idname, key, "PRESS", **mods)
@@ -427,6 +510,9 @@ def apply(scene, on: bool) -> None:
         if on:
             ON[0] = True
             _lock_all()
+            _hold()                          # task 0227: an object that kept the mark but lost hide_select
+            if not bpy.app.background:
+                _add_keys()                  # task 0227: the keys, also when the add-on keymap was not there at start
         else:
             ON[0] = False
             if marked():

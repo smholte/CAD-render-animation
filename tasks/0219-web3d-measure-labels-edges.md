@@ -48,7 +48,7 @@ Slice (0218); a page that opens on its own by a link, other file types, STEP in 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 20 Nov 2026 · version 0.2.174
+**Chat / date:** Claude Code on the web, 20 Nov 2026 · version 0.2.175
 
 **What changed:**
 - **Edges in the file** (`core/web3d_faces.py` `edges`, `fit_edge`, `pack_edges`, `unpack_edges`, `read_edges`): mesh
