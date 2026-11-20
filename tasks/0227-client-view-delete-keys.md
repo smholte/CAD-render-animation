@@ -1,6 +1,6 @@
 # 0227 – Client view: X and Delete still delete a part on the owner's PC
 
-**Who:** worker · **Status:** open · **Branch:** `task/0227-client-view-delete-keys`
+**Who:** worker (Claude Code on the web) · **Status:** running · **Branch:** `claude/cad-render-animation-0227-p50i7q`
 **Model:** Opus · effort Medium · **Lane:** Start & learn (before 0221)
 **Started by:** lead, 20 Nov 2026 · **Area:** `fresing_render/blender/lock.py` (the Client view's lock), its real-app
 test, the PC-check / tour line of the Client view if one checks keys
