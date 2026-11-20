@@ -1,6 +1,6 @@
 # 0239 – Fix from bug hunt 0209, group I: the tool-change person's stand spot when the machine is moved
 
-**Who:** worker · **Status:** open · **Branch:** `task/0239-operator-stand-spot`
+**Who:** worker · **Status:** done · **Branch:** `task/0239-operator-stand-spot`
 **Started by:** lead, 20 Nov 2026 (bug hunt 0209 row 18) · **Model:** Sonnet · effort Medium
 **Area:** People – `core/tc_person.py` (the floor grid and `stand_spot`), its tests (`tests/test_tc_person*`); the
 `operator` tour set only if its check needs a number (then `changed=` + re-record).
@@ -38,10 +38,10 @@ Walk paths and other people (0157), other 0209 rows.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** web worker, 20 Nov 2026
 
-**What changed:**
+**What changed:** `Floor(origin=)`: the grid's cell lines go through the holder (0194's snapping kept); `stand_spot` asks one cell more room. Version 0.2.185.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (name the machine and the model): web machine. New test moves the machine 1/7/13/25 cm and turns it 90°: same spot (turned: within half a cell, tie on a cell line), room round it ≥ WORK_ROOM. test_tc_person* (23 Blender tests too) and the operator set's clash check (0 rows) green.
 
 **Open points / follow-up tasks:**
