@@ -1,6 +1,6 @@
 # 0248 – A let-go sea cable lies straight: the cable already on the seabed stays put, only the freed stretch lies down
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0248-let-go-cable-lies-straight`
+**Who:** worker · **Status:** running · **Branch:** `task/0248-let-go-cable-lies-straight`
 **Started by:** lead, 20 Nov 2026 (owner 23:30, with three screenshots of test-tour stop 38 "A cable on a moving part"
 on 0.2.182: "after dropping a cable it gets wobbly (not realistic, it should stay straight) – probably not fully
 straight at the end, but it wobbles through the entire cable. Also in the full cable laying demo.")

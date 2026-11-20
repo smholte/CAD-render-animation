@@ -1,6 +1,6 @@
 # 0241 – A quiet window: the 3D view header, top bar and splash without Blender's editing parts (0222 package A)
 
-**Who:** worker · **Status:** open – start after 0221 **and** 0236 are merged · **Branch:** `task/0241-quiet-window`
+**Who:** worker · **Status:** done (0.2.184) · **Branch:** `task/0241-quiet-window`
 **Started by:** lead, 20 Nov 2026 (study 0222 package A; owner's answers 20 Nov 16:22: order A → B → C, a Fresing-menu
 switch back to all of Blender, splash with Fresing's lines only, the view's grey text kept) · **Model:** Opus · effort
 Medium
@@ -114,10 +114,54 @@ key list (`lock._KEYS`), the Client view's rules, 0221's editors code beyond cal
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 20 Nov 2026 (branch `task/0241-quiet-window`).
 
 **What changed:**
+- New `blender/quiet.py`: outside Full access the 3D view header draws only the editor-type button, View, gizmos,
+  overlays, X-ray and shading (based on Blender 5.2.3's `VIEW3D_HT_header.draw`); in any mode but Object Mode it draws
+  Blender's own header. Top bar's right part without Scene / View Layer (`draw_right` replaced like lock.py's
+  `draw_left`). Splash: Start (New project, Open…, Recover Last Session, Take the test tour = `fresing.tour_take`,
+  Demo project = `fresing.demo_make`, User guide) + Recent Files; the welcome / What's new box stays on top; the
+  first-start quick setup untouched. File > New and Ctrl+N (same menu): New project = `wm.read_homefile` with the app
+  template (mm, Cycles, app layout – checked in the real app). The Client view's File menu uses the same list.
+- Appended functions survive: only Blender's own entry in `cls.draw._draw_funcs` is swapped (`quiet.swap`), so Make,
+  the Fresing button, the welcome box and any add-on's items keep their place; also after patch → unpatch → patch.
+- Tool header row off in every 3D view (not the Set-up window) from a timer that waits for `editors.settled()` and
+  `not editors.busy()` (0221's lesson), never inside load_post. Full access (panel or menu) shows it again with the
+  toolbar.
+- One switch: `lock.blender_ui()` calls `quiet.apply(not on, toolbar=…)` (the only lock.py change). At the start the
+  default workspace decides (`quiet._first`, a timer). Nothing is patched in a background Blender.
+- Fresing > **Show all of Blender** / **Back to the Fresing window** (`fresing.blender_all`, icon BLENDER), right below
+  Show / Hide Blender's editors: switches to Full access and keeps the workspace it came from (name, own-workspace
+  data and family ticks) in `scene["fr_ws_before_all"]` – no props.py change; Back restores it, or the default
+  workspace when nothing is remembered. In the Client view the lock greys it (not on the allow-list) and the tooltip
+  says "Not in the Client view – Workspace > Full access unlocks it". `ui_test_start.py`'s "every menu entry allowed"
+  check now makes that one exception and checks the grey and the reason.
+- Function list `help.quiet_window` (headline, short "Quiet window") and `help.blender_all`; PC-check line `app.quiet`
+  (MIN_LINES_FULL 111); guide section "A quiet window: what is hidden and how to get it back" + Fresing menu line;
+  pictures `quiet_header.png`, `quiet_splash.png`, `app_after_import.png` new (`guide_screens.py` window mode makes
+  them); CLAUDE.md layout + a section-8 lesson.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender 5.2.3 under xvfb, no graphics card):
+- New real-app test `tools/ui_test_quiet.py` (group pccheck-b, MIN_CHECKS 78): 78/78, 0.6 min – start, splash at
+  start, Ctrl+N, File > New, the splash's lines, New project (mm, Cycles, Fresing tab, toolbar folded), Show all /
+  Back ×4 with the previous workspace, Edit Mode keeps Blender's header, Client view greyed, Full access from the
+  panel and Back to the default, patch/unpatch/patch, an old own project saved with the tool header, a tour and a
+  demo project open quiet, a dummy add-on's header / top-bar / splash / File > New items drawn throughout.
+- Header width freed (screenshot, header columns with nothing drawn): **465 px** at a 1920 px window (1916 px header)
+  and **465 px** at 2560 px (2556 px header); also 465 px at the CI's 1800 px. The dropped items have fixed widths.
+- Also run locally: layout 69/69, start 65/65, lock 19/19, clientkeys 12/12; pytest test_quiet (11), functions,
+  editors, user guide, about, start, workspaces (+ independent), pccheck, learning, highlight; PC-check lines
+  app.quiet + app.editors OK; tooltip report 877 ok; precheck green.
+- Screenshot of the splash: `docs/img/quiet_splash.png` (Start column + Recent Files under the Fresing picture).
+- No helper agents (no Windows-only code; the change is drawing code checked by the real-app test).
+- GitHub: 3 full runs. Run 44820461955 red in one check (`test_workspaces.py`: a function shown in the Client view
+  must have a button that works there) – the two functions now name every workspace but the Client view; run
+  44825357474 green; 0242 took 0.2.183 meanwhile, so merge + renumber to 0.2.184: run 44829430511 green (24 min).
 
 **Open points / follow-up tasks:**
+- The welcome box (the first starts) sits above the splash's Fresing picture as before; under simulated events it is
+  off, so the real-app test sees only the lines below it – the owner sees both on his PC.
+- `fresing.blender_all` remembers the previous workspace in the project; picking another workspace in the panel
+  while in Full access does not clear it (Back then goes to the remembered one).
+- Packages B and C of 0222 next in this lane.
