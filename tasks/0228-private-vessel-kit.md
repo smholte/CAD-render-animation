@@ -1,6 +1,6 @@
 # 0228 – The vessel's equipment in a private repository as a "demo kit"; the public app learns to add a kit
 
-**Who:** worker · **Status:** running · **Branch:** `task/0228-private-vessel-kit` (public) + `main` of the private repository
+**Who:** worker · **Status:** done 20 Nov (0.2.178) · **Branch:** `task/0228-private-vessel-kit` (public) + `main` of the private repository
 **Started by:** lead, 20 Nov 2026 (study 0226 package 1; owner's answers 20 Nov 16:22–16:35) · **Model:** Opus · effort High
 **Private vessel: yes** – this task attaches `smholte/fresing-render-vessel` (private, made empty by the owner on 20 Nov
 16:35) with push access; the start sentence names it.
@@ -106,16 +106,16 @@ of the app's demo:
 
 ## Done when
 
-- [ ] Public: test kit added, built, removed in tests; real-app test of the list + Add; the public demo and all demo
+- [x] Public: test kit added, built, removed in tests; real-app test of the list + Add; the public demo and all demo
       tests unchanged and green; guide, function list, PC-check line, COMPANY-USE line; precheck green; merged + released
-- [ ] Private: on the web machine the kit + the newest public release make the full demo with the same joints, stages,
+- [x] Private: on the web machine the kit + the newest public release make the full demo with the same joints, stages,
       shots and frame count as today's public demo (numbers in the report); the private workflow green on push, ≤ ~10 min,
       no schedule, Linux only; a kit zip published by hand as a private release
-- [ ] The 53 (+ checked) pictures in the private `img/`; nothing deleted from the public repository
-- [ ] Owner steps in the report (numbered, click by click): download the kit from the private release, Help > Make
+- [x] The 53 (+ checked) pictures in the private `img/`; nothing deleted from the public repository
+- [x] Owner steps in the report (numbered, click by click): download the kit from the private release, Help > Make
       demo project… > Add a demo kit…, Make, what he should see. **His confirmation on his PC is an owner to-do, not a
       blocker for merging**
-- [ ] Report filled in (runs needed, private minutes used per run)
+- [x] Report filled in (runs needed, private minutes used per run)
 
 ## Not in this task
 
@@ -126,10 +126,89 @@ the stand-in tests (0229); the report pictures' deletion from `main` (package 4)
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (4 cores), 20 Nov 2026, branch `task/0228-private-vessel-kit` → **0.2.178**;
+private repository `smholte/fresing-render-vessel` (`main`). No subagents (the kit is copies + a hook; the hook's tests
+and the real-app test were written from the brief; an independent review was skipped – no Windows-only code, the risky
+part, the kit build, is proven by building the full demo both ways and comparing).
 
-**What changed:**
+**Owner's change during the task:** at 16:55 / 17:02 the lead passed on that the kit holds the **whole** project (its
+own ship, park, equipment, stages), while the ship, crane and park stay public. So a kit is a **complete demo of its
+own**: a kit build sets the app's demo stages aside and runs only the kit's maker and stages (section "Design").
 
-**Tested and measured** (name the machine and the model):
+**What changed (public, additive):**
+- `core/demo_kits.py` (new): kit.json check (id slug, versions, module paths, title usable as a file name), zip check
+  (one top folder, no `..`, absolute paths, backslashes or links, size limits), unpack (replace on Add again), list,
+  remove, deterministic `pack`; `loaded()` puts a kit on `sys.path` with the app as `fresing_app` (a meta-path alias:
+  the same module objects, the app's `__spec__` kept) and forgets the kit afterwards; `missing_uses`; the version
+  message ("This kit was made for 0.2.180–0.2.199. Download the kit's newer version.").
+- `core/demo_kit_run.py` (new): starts a kit's maker as its own program with Blender's Python.
+- `blender/demo.py`: `build_project(kit=…)` (`_kit_build`: app stages set aside, stage `kit_model` = the kit's maker,
+  the kit's stage module, its `Demo` subclass; app stages back afterwards; nothing left after a failure),
+  `build_main(kit=…)`, `kits_dir`, `kit_folder` (`<demo folder>/Kits/<id>/<version>/`), `PUBLIC`, `KIT_TAG`,
+  `Demo.anim_name`, `project_path(…, title)`, `exists(…, title)`. No public stage changed.
+- `blender/ops_demo.py`: the Make window's list (app demo while `PUBLIC`, then each kit "title (kit n)"), Add a demo
+  kit… (`fresing.demo_kit_add`, .zip picker), Remove (`fresing.demo_kit_remove`, asks first), Make / Cancel / Open per
+  entry, Help > Open <kit title>. Add / Remove are not in `lock.ALLOWED` (off in the Client view; the function entry
+  is not shown there either).
+- `pccheck/runner.py`: `demobuild <folder> [small] --kit <id>`. PC-check line `demo.kit` (Full; `MIN_LINES_FULL` 107).
+- Test kit `tests/data/demo_kit_test/` (a deck plate and a box sliding on it, stage `box` + the app's `finish`), its
+  zip in `fresing_render/data/demo_kit_test.zip` (a test keeps it equal to the packed folder).
+- Guide: "Demo kits" in chapter `demo` (anchor `demo-kits`); `docs/COMPANY-USE.md` (+ its copy in `licenses/`): a demo
+  kit is Python code that runs in the app – add only kits you made yourself; function `help.demo_kits` (since 0.2.178);
+  CHANGELOG; CLAUDE.md section 3 line.
+
+**Private repository:** a self-contained kit `fresing-vessel` (copies of `demo_model/` except `geom.py`, of `demo.py`
+without its framework, `demo_park.py`, `demo_rov.py`; its own maker), `make_kit.py`, 18 copied demo test files (152
+tests) + `kit_made.py` + `test_kit_builds.py`, the tools, 62 pictures (the 53 of study 0226 + 0106 ×5, 0109_presets,
+0179_before_360, 0143's page – looked at – + the guide's `demo_overview.jpg`), one workflow (push + by hand, Linux, one
+job, no schedule, no artifacts), its `CLAUDE.md`, `README.md` and `REPORT.md`.
+
+**What the kit imports from the public app (`kit.json` `uses`, package 2 keeps these):** `demo_model.geom`; from
+`blender.demo` the framework: `Demo`, `STAGES`, `stage`, `Cancelled`, `cancel_path`, `model_dir`, `project_dir`; the
+app modules `blender.animation, build, callouts, cameras, clash, cylinders, decals, faces, flex, joints, logic,
+materials, paths, paths_riders, paths_sea, spool, states, tour, tracks, vessel_motion, vessel_work, weather`.
+
+**Tested and measured** (web machine, 4 cores, Blender 5.2.3 as a module unless named):
+- The kit makes **the same demo** as the app's own (both built here): the same 41 stages in the same order (+ `kit_model`
+  first); scaled-down form 356 = 356 joints, 6 = 6 cylinders, 19 = 19 saved scenes, 109 = 109 steps, 4,481 = 4,481
+  frames, 3,269 = 3,269 objects (356 s with the kit, 332 s the app's own); full form 466 = 466 joints, 20 = 20 saved
+  scenes, 3,696 = 3,696 objects, same steps and frames (411 s / 389 s). (The tour stop's "432 joints" text is older than
+  tasks 0159–0173.)
+- On the kit's demo: `test_kit_builds.py` 3/3, `test_demo_project_cable.py` + ROV + park models 20/20 (276 s),
+  `_park` + `_realism` 17/17 (284 s), `_quadrant` + `_cps` 7/7 (962 s).
+- Public: `tests/test_demo_kits.py` 33 tests (~30 s: refusals, add/replace/list/remove, the alias, the maker program,
+  a build with the test kit, a kit lacking a `uses` name or a stage leaves nothing, `demobuild --kit`); real-app test
+  `demokits` 23/23 (the Make window, Add, refusals, Client view, no app demo in the list, Make with the test kit through
+  the background Blender in 7 s, Open, Remove); PC-check line `demo.kit` OK in 4 s; `test_demo_project.py` +
+  `test_pccheck.py` 46/47 before the version raise (the one: `since` ahead of the version, fixed by the raise).
+- GitHub (public): **3 full runs**, all green – 26.4 min, 35.0 min, 25.2 min (then `main` reused it: release in 4.5 min) – the 2nd and 3rd only because tasks 0231
+  and 0229 took 0.2.176 and 0.2.177 meanwhile (renumbered twice).
+- GitHub (private, Linux, one job, no schedule): push run 7.4 min (kit demo made on v0.2.178 in 357 s, 21 tests passed;
+  packages not cached yet), the by-hand release run 6.0 min (288 s, 21 passed, release `kit-1`). A third run started by
+  a REPORT.md-only push was cancelled after a few seconds (open point: such pushes could skip the run).
+
+**Owner steps** (on your PC, after the update to 0.2.178):
+1. On github.com, signed in: **smholte/fresing-render-vessel** → **Releases** → **Demo kit 1 (cable-lay vessel)** →
+   click **FresingVesselKit-1.zip** to download it.
+2. In Fresing Render: **Help > Make demo project…**. The window lists "Demo cable-lay vessel".
+3. Click **Add a demo kit…** → pick the downloaded **FresingVesselKit-1.zip** → **Add a demo kit…** (the blue button
+   of the file window). The status line says "Demo kit added: Demo cable-lay vessel (full) (kit 1)".
+4. **Help > Make demo project…** again: the list now shows **Demo cable-lay vessel (full) (kit 1)** under the app's own;
+   click it → **Make it**. The bottom line shows "Making Demo cable-lay vessel (full): …" for a few minutes.
+5. When the small window says it is ready, click **Open demo project** (later: **Help > Open Demo cable-lay vessel
+   (full)**). You should see the demo exactly as before: 466 joints in 4 Motion, the saved scenes, and 6 Animation >
+   "What it can do today" (Build & play). It is in Documents\Fresing Render\Demo\Kits\fresing-vessel\0.2.178.
+6. Tell the lead if anything differs from the demo you had (this is an owner to-do, not a blocker).
 
 **Open points / follow-up tasks:**
+- **ROV clash hook:** `demo_rov` adds a clash-check hook (leave the ROV out) when its code is loaded; the kit's code is
+  loaded only while the demo is built. Today the app's own `demo_rov.py` still registers it, so nothing changes; after
+  the cut (package 2) the clash check in an opened kit demo would check the ROV. Package 2: store "leave out of the clash
+  check" in the project (a part tag) instead of code.
+- Package 2 (the cut) keeps exactly the `uses` names above public; the kit then needs nothing else. After the cut, set
+  `demo.PUBLIC` as decided (the hook already works with no app demo in the list – tested).
+- The tour stop text "432 joints" is out of date (466) – package 2 rewrites that stop anyway.
+- Private copies of `test_demo_project.py` still hold checks of the app's own demo (Cancel, failure, tour stop, menu):
+  sort out after the cut (private CLAUDE.md says so).
+- The private workflow runs on every push to its `main`, also one that changes only `REPORT.md`: a `paths-ignore` for
+  `*.md` / `img/` would save the owner's minutes (left for the next private task, it needs a run of its own).
