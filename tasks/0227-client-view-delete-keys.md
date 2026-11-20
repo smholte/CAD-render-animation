@@ -34,16 +34,16 @@ selected objects?" menu, no part gone), on Windows as on Linux.
 
 ## Done when
 
-- [ ] Found why X / Delete reach Blender's delete on the owner's set-up (say which route selected the part and why the
+- [x] Found why X / Delete reach Blender's delete on the owner's set-up (say which route selected the part and why the
       key got through); a test that failed before for each route found
-- [ ] In the Client view: no part or sub-assembly can be selected by any route the worker finds (3D view click, box
+- [x] In the Client view: no part or sub-assembly can be selected by any route the worker finds (3D view click, box
       select, the Fresing tree, Select All, selected before the switch), and X, Delete and the Object menu's Delete do
       nothing – the real-app test presses them with a part selected the way the owner could, and counts the objects
-- [ ] Full access afterwards: X and Delete work as before
-- [ ] Windows: the Windows CI job checks the swallowed keys if it can (else say why not), and the report gives the
+- [x] Full access afterwards: X and Delete work as before
+- [x] Windows: the Windows CI job checks the swallowed keys if it can (else say why not), and the report gives the
       owner numbered steps to confirm on his PC
-- [ ] Tests added/updated; full suite passes; guide line of the Client view still true
-- [ ] Report below filled in
+- [x] Tests added/updated; full suite passes; guide line of the Client view still true
+- [x] Report below filled in
 
 ## Not in this task
 
@@ -109,3 +109,7 @@ If any part still lights up in step 3–5, tell the lead exactly what you did ju
   0217) – the test now looks at the sample as on that evening and checks the deletion a day later; (2) Windows PC check
   `web3d.small` "the page gave no places of its parts" (the flaky line of CLAUDE.md section 8; passed in 0.2.173's
   run). The Windows window try was in that run too (above).
+- 44743465436 (branch, full, 2c1fc91): green, 19.4 min. Then `main` merged in (only task files had moved) and
+  fast-forwarded; `main`'s run publishes 0.2.174. Two code runs in all: the first red for the two reasons above.
+- No helper-agent review: no Windows-only code shipped (the Windows CI step was tried and taken out again).
+- Subagents: none.
