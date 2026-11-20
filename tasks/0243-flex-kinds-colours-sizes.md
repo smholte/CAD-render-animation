@@ -1,6 +1,6 @@
 # 0243 – Hoses, cables and drag chains: standard kinds, colours and sizes to pick from; open / closed / half-open / steel chains
 
-**Who:** worker · **Status:** running · **Branch:** `claude/funny-clarke-fxi82c`
+**Who:** worker · **Status:** done (0.2.182) · **Branch:** `claude/funny-clarke-fxi82c`
 **Started by:** lead, 20 Nov 2026 (owner 17:36: "for hoses and cables i want to have standard colours and materials to
 choose from, and different sizes. also for drag chain different types, open closed. also different sizes"; his picks
 17:40 in the answer box below) · **Model:** Opus · effort Medium
@@ -141,7 +141,7 @@ paywalled and were not read; the web pages could not be opened from the session 
   materials use only nodes both engines know (`test_cable_looks`).
 - Flex tests 79 passed (`test_flex`, `test_flex_drawn`, `test_flex_drawn_independent`), panels, functions, places,
   guide, materials looks. Tooltip check: 884 ok, 0 missing.
-- GitHub: see below.
+- GitHub: 1 full run, green (44813373475, 29 min; main had moved: 0236 took 0.2.181 before the first push, so one renumber before it).
 
 **Open points / follow-up tasks:**
 - Not tested separately: queue render and web export of the new looks (they go the same path as the cable looks);
