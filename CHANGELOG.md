@@ -5,6 +5,30 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.184 – 20 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+
+- **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
+  lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
+  in a hole lands on the hole's axis). Pick a **sling set** (chain grade 8, wire rope or round slings; 1, 2 or 4 legs),
+  the **shackles** and, if wanted, a **spreader beam** or the **lifting frame** LF-20 for a 20 ft container. All
+  built-in gear is invented SAMPLE gear in usual size classes; your own slings, shackles and spreaders are files like
+  your cranes.
+- **Hang on the hook.** The load hangs under the crane's hook the way it really would: its centre of gravity straight
+  under the hook, tilted when its CoG is off the middle. It then follows the hook – Hook to here, crane poses, joints,
+  Build and the render queue. **Set down** leaves it where it is; **Remove** puts it back.
+- **Each leg's angle and force**, and the checks C2 (two legs), C3 (three or four legs: "two legs carry", equal share
+  or the offshore × 1.25), C4 (each shackle, the spreader, its legs) in green / amber / red. Plain words for odd cases:
+  a slack leg, a leg too short, a load that would roll over (CoG above its lift points). The rigging's mass is added
+  to the gross load.
+- **The hoist rope runs in its falls.** A crane you place now has its rope reeved from the winch drum over the boom
+  head's sheaves and down and up through the hook block's (the AT-100: 8 falls over 4 + 4 sheaves). Raising the hook
+  1 m winds 8 m onto the drum, which turns layer by layer. Cranes placed before keep their one-piece rope until you
+  press **Reeve the rope** (Equipment).
+- **Line pull (C10)** in Hook & capacity: the pull in the hoist rope for the gross load on the crane's falls (reeving
+  efficiency of API RP 9B), against the winch's maximum.
+- Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
+  lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+
 ## 0.2.183 – 20 Nov 2026 – The web-page checks no longer fail at random (task 0242)
 
 - **PC check, web 3D model lines:** "Web 3D model: smaller file" and "Web 3D model under the sea" no longer fail now

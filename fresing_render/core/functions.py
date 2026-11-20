@@ -436,13 +436,13 @@ fn(id="lifting.hook", short="Hook to here", title="Hook to here and the crane us
 
 fn(id="lifting.rig", short="Lift points", title="Rigging: lift points, sling set, shackles, spreader", family="lifting",
    panel="FRESING_PT_lifting_rigging", button="fresing.lifting_points_find", guide="lifting-rigging",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.183", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.184", workspaces=_LIFT)
 fn(id="lifting.hang", short="Hang on the hook", title="Hang the load on the hook: tilt, leg angles and forces, C2–C4",
    family="lifting", panel="FRESING_PT_lifting_rigging", button="fresing.lifting_hang", guide="lifting-hang",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.183", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.184", workspaces=_LIFT)
 fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its falls over head and block sheaves, line pull",
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_reeve", guide="lifting-reeve",
-   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.183", workspaces=_LIFT)
+   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.184", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
