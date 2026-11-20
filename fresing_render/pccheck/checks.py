@@ -893,7 +893,7 @@ def motion_flex(ctx):
     return f"{note}; 3 chains: moving ends to {worst_end * 1000:.3f} mm"
 
 
-@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.176",
+@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.177",
       what="Task 0240: on the hoses model a hose is drawn by four clicks (two fittings, two clips) in place of a CAD "
            "hose, which is hidden; posed at three luff angles its ends and clips stay on their parts and it keeps its "
            "length. On the gantry a drag chain is drawn between the X chain's two brackets: its links stay one pitch "

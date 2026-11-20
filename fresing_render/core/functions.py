@@ -256,14 +256,14 @@ fn(id="machines.chains", title="Drag chains", family="machines", panel="FRESING_
    button="fresing.flex_add_chain", guide="hoses", tour=("chains",), pccheck=("motion.flex",), since="0.2.78")
 fn(id="flex.draw_hose", title="Draw a hose or cable by clicking: fittings and clips", family="machines",
    panel="FRESING_PT_flex", button="fresing.flex_draw", text="Draw hose", guide="draw-hose", tour=("drawn_hose",),
-   pccheck=("motion.drawn",), since="0.2.176",
+   pccheck=("motion.drawn",), since="0.2.177",
    manual_estimate=("use", 1500, "model the hose as a curve between the fittings and reshape it at the key frames"))
 fn(id="flex.draw_chain", title="Draw a drag chain between two brackets", family="machines", panel="FRESING_PT_flex",
    button="fresing.flex_draw", text="Draw drag chain", guide="draw-chain", tour=("drawn_chain",),
-   pccheck=("motion.drawn",), since="0.2.176")
+   pccheck=("motion.drawn",), since="0.2.177")
 fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simplified CAD part", family="machines",
    panel="FRESING_PT_flex", button="fresing.drawn_replace", guide="replace-cad", tour=("drawn_replace",),
-   pccheck=("motion.drawn",), since="0.2.176")
+   pccheck=("motion.drawn",), since="0.2.177")
 fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRESING_PT_tracks",
    button="fresing.track_add", guide="tracks", tour=("tracks",), pccheck=("motion.tracks",), since="0.2.87")
 
@@ -273,7 +273,7 @@ fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRE
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
 fn(id="paths.draw_cable", title="Draw a cable route by clicking: drum, sheaves, end", family="offshore",
    panel="FRESING_PT_cables", button="fresing.cable_draw", guide="draw-cable", tour=("drawn_cable",),
-   pccheck=("motion.drawn",), since="0.2.176",
+   pccheck=("motion.drawn",), since="0.2.177",
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
 fn(id="offshore.served_cable", title="Served cable look: yarn and marker spirals", family="offshore",
    panel="FRESING_PT_cables", prop="look", guide="served-cable", tour=("served",),

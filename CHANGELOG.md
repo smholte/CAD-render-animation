@@ -5,6 +5,27 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.177 – 20 Nov 2026 – Draw hoses, cables and drag chains by clicking (task 0240)
+
+- **Draw hose / Draw cable** (4 Motion > Hoses and drag chains): for the hoses and cables your CAD model does not have.
+  Click the fitting at end A, any clips the hose runs through, the fitting at end B, then press Enter. The face under
+  the mouse lights up with the line the hose will take. The hose gets a sensible length – long enough for the travel of
+  the joints that move its ends, when they have limits – and follows the motion like a hose read from CAD, also
+  through its clips.
+- **Draw drag chain**: click the bracket of the fixed end, then the bracket on the part that moves. The app draws a
+  chain of links that rolls with the axis; its bend radius, links, width and height follow from the brackets and the
+  travel and can be changed. **Flip bend** puts the bend on the other side.
+- **Draw cable route** (4 Motion > Cables and paths): click where the cable starts (a drum, or a point on a part), each
+  sheave, roller or chute in order (the same one again: the other side), then where it ends (or Enter for a free
+  end). It becomes a normal cable: it runs, turns its sheaves, rollers and drum, and pays out like a cable read from
+  CAD.
+- **Replaces CAD part**: a drawn hose, chain or cable can replace a simplified CAD part – it is then hidden in the
+  view, in renders, in the clash check and in the web 3D model, and shows again when you remove the drawn one. Click a
+  part named like a hose or a chain and the panel offers to draw one in its place.
+- While clicking: Backspace (or Ctrl+Z) takes the last click back, Esc stops. Drawn items stay through a model
+  update, save and open, undo, Build and the render queue. New test tour stops (set "Hoses, a chain and a cable
+  drawn by clicking") and a PC check line `motion.drawn`.
+
 ## 0.2.176 – 20 Nov 2026 – Lifting test tour: a real yard, real-size loads, the load always in view (task 0231)
 The three Lifting stops of the test tour now look like a real lift: a quayside yard with an IBC on its pallet, a 6 t
 pump skid and a 20 ft container (invented, real sizes), and the AT-40 standing on four timber crane mats. The skid is
