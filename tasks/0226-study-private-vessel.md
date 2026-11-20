@@ -57,6 +57,10 @@ costs: broken clones and forks, and the old releases stay out there anyway).
    repository may be attached and by which tasks only – like the House Planner rule), and how a worker who needs the
    equipment for a cable task tests without it.
 
+**Owner, 20 Nov 2026:** the full cable-lay demo (vessel with all its equipment) becomes a **private demo project he shows to a
+company** – his showing piece, not part of the public learning environment. The public test-tour sets are the users' learning
+environment (their offshore sets get their own invented, fitting environments) and must not depend on the private demo.
+
 ## Done when
 
 - [ ] The table of every place (point 1) with public / equipment / mixed and the split for "mixed"
