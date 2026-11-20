@@ -440,6 +440,46 @@ if ($Uninstall) {
                 } finally { $env:USERPROFILE = $realProfile }
                 $ErrorActionPreference = $oldEap
                 $checks["Toolbox inbox on Windows: short file, open status.json, junction (exit code $tbCode)"] = ($tbCode -eq 0)
+                # task 0245: the toolbox format's W2 (junctions) and W3 (status.json replaced while another process reads
+                # it, 40 s) with the installed Blender's own python.exe, and at the same time with the runner's Python 3.11
+                $w23Script = Join-Path $PSScriptRoot "ci_toolbox_w2w3.py"
+                $blPython = Get-ChildItem -LiteralPath $BlenderExe.Directory.FullName -Recurse -Filter "python.exe" -Depth 4 -ErrorAction SilentlyContinue |
+                    Where-Object { $_.FullName -match '\\python\\bin\\python\.exe$' } | Select-Object -First 1
+                $py311 = Get-ChildItem -Path (Join-Path "$env:RUNNER_TOOL_CACHE" "Python\3.11.*\x64\python.exe") -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+                $oldEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+                $w23Watch = [System.Diagnostics.Stopwatch]::StartNew()
+                $w23Runs = @()
+                $p311 = $null
+                if ($py311) {
+                    $log311 = Join-Path $OutDir "toolbox_w2w3_py311.txt"
+                    $p311 = Start-Process -FilePath $py311.FullName -PassThru -NoNewWindow -RedirectStandardOutput $log311 `
+                        -RedirectStandardError "$log311.err" -ArgumentList @("`"$w23Script`"", "`"$(Join-Path $WorkDir 'w2w3 py311 é')`"", "--label", "runner-3.11")
+                }
+                if ($blPython) {
+                    & $blPython.FullName $w23Script (Join-Path $WorkDir "w2w3 blender é") --label "Blender" 2>&1 | Tee-Object -Variable w23Out | ForEach-Object { Write-Host "   $_" }
+                    $w23Runs += , @("Blender's Python", $LASTEXITCODE, ($w23Out | Out-String))
+                } else { Problem "W2/W3: no python.exe in the installed Blender" }
+                if ($p311) {
+                    $p311.WaitForExit()
+                    $t311 = (Get-Content -LiteralPath $log311 -Raw) + (Get-Content -LiteralPath "$log311.err" -Raw -ErrorAction SilentlyContinue)
+                    $t311 -split "`n" | ForEach-Object { Write-Host "   [3.11] $_" }
+                    $w23Runs += , @("runner's Python 3.11", $p311.ExitCode, $t311)
+                } else { $Summary += "| W2/W3 with the runner's Python 3.11 | skipped: no Python 3.11 in $env:RUNNER_TOOL_CACHE | |" }
+                $w23Secs = [math]::Round($w23Watch.Elapsed.TotalSeconds, 1)
+                $ErrorActionPreference = $oldEap
+                foreach ($run in $w23Runs) {
+                    $line = ($run[2] -split "`n" | Where-Object { $_ -match '^W2W3 ' } | Select-Object -Last 1)
+                    $detail = "no result line"
+                    if ($line) {
+                        $j = $line.Substring(5) | ConvertFrom-Json
+                        $detail = "Python $($j.python), $($j.windows); refused writes $($j.w3.refused_writes) " +
+                            "($($j.w3.refused_quick_reads) quick reads / $($j.w3.refused_held_reads) held 0.5 s), longest refused " +
+                            "$($j.w3.longest_refused_s) s, over 0.25 s: $($j.w3.refused_over_0_25_s); reader $($j.w3.reader | ConvertTo-Json -Compress)"
+                    }
+                    if ($run[1] -ne 0) { Problem "W2/W3 with $($run[0]) failed (exit code $($run[1]))" }
+                    $Summary += "| W2/W3 (task 0245) with $($run[0]) | $(if ($run[1] -eq 0) { '✅' } else { '❌' }) $detail | $w23Secs s |"
+                }
             }
         }
         foreach ($k in $checks.Keys) {

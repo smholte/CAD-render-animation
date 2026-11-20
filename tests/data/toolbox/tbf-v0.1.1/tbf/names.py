@@ -13,7 +13,8 @@ JOB_ID = re.compile(r"[a-z0-9][a-z0-9-]{7,63}")
 TYPE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
 ACTION_ID = TYPE_ID
 EXT = re.compile(r"\.[a-z0-9]{1,16}")
-TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)")
+TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)", re.ASCII)
+TIME_FIELDS = ("created", "updated", "asked", "seen")             # the times of the format's files
 
 JOB_FILES = ("job.json", "status.json", "cancel.json")          # the format's own files in a job folder
 _WINDOWS = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(1, 10)} | {f"lpt{i}" for i in range(1, 10)}
@@ -97,31 +98,52 @@ def _const(x):
     raise JsonError(f"{x} is not allowed in JSON")
 
 
-def _control(x, where="") -> str | None:
-    if isinstance(x, str):
-        return where if any(ord(c) < 32 or ord(c) == 127 for c in x) else None
-    if isinstance(x, dict):
-        for k, v in x.items():
-            hit = _control(k, f"{where}/{k}") or _control(v, f"{where}/{k}")
-            if hit:
-                return hit
-    if isinstance(x, list):
-        for i, v in enumerate(x):
-            hit = _control(v, f"{where}/{i}")
-            if hit:
-                return hit
+def _number(digits: str):
+    """a whole number as JavaScript reads it when Python cannot hold it as text: more than 4000 digits become a
+    float (Infinity), as JSON.parse gives (Python 3.11 refuses to read ints of more than 4300 digits)"""
+    return int(digits) if len(digits) <= 4000 else float(digits)
+
+
+def _text_problem(s: str) -> str | None:
+    if any(ord(c) < 32 or ord(c) == 127 for c in s):
+        return "holds a control character (line break, tab …)"
+    if any(0xD800 <= ord(c) <= 0xDFFF for c in s):           # json.loads joins escaped pairs; what is left is alone
+        return "is not UTF-8 text (an unpaired \\ud800–\\udfff escape)"
     return None
 
 
-def load_json(data: bytes) -> dict:
+def _text_at(doc) -> tuple[str, str] | None:
+    """(where, why) of the first key or text that breaks section 3.4, walking without recursion"""
+    todo = [("", doc)]
+    while todo:
+        where, x = todo.pop()
+        if isinstance(x, str):
+            why = _text_problem(x)
+            if why:
+                return where, why
+        elif isinstance(x, dict):
+            for k, v in reversed(list(x.items())):
+                why = _text_problem(k)
+                if why:
+                    return f"{where}/{k}", why
+                todo.append((f"{where}/{k}", v))
+        elif isinstance(x, list):
+            todo.extend((f"{where}/{i}", v) for i, v in reversed(list(enumerate(x))))
+    return None
+
+
+def load_json(data: bytes, keys_twice: str = "refuse") -> dict:
     """a toolbox JSON file as an object, or JsonError: UTF-8 without a byte-order mark, one object, no key twice,
-    no NaN or Infinity, no control characters in any text (section 3.4)"""
+    no NaN or Infinity, no control characters and nothing that is not UTF-8 in any text (section 3.4).
+    ``keys_twice="last"``: a key written twice is not refused but the last one counts, as in JavaScript – for
+    readers, which need not notice it (3.4); the checker refuses it."""
     if len(data) > MAX_JSON:
         raise JsonError("is larger than 1 MiB")
     if data[:3] == b"\xef\xbb\xbf":
         raise JsonError("starts with a byte-order mark")
     try:
-        doc = json.loads(data.decode("utf-8"), object_pairs_hook=_pairs, parse_constant=_const)
+        doc = json.loads(data.decode("utf-8"), object_pairs_hook=_pairs if keys_twice == "refuse" else None,
+                         parse_constant=_const, parse_int=_number)
     except UnicodeDecodeError:
         raise JsonError("is not UTF-8") from None
     except RecursionError:
@@ -130,7 +152,7 @@ def load_json(data: bytes) -> dict:
         raise JsonError(f"is not JSON ({e.msg}, line {e.lineno})") from None
     if not isinstance(doc, dict):
         raise JsonError("is not a JSON object")
-    hit = _control(doc)
+    hit = _text_at(doc)
     if hit is not None:
-        raise JsonError(f"holds a control character (line break, tab …) at {hit or '/'}")
+        raise JsonError(f"{hit[1]} at {hit[0] or '/'}")
     return doc

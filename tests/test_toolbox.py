@@ -16,7 +16,7 @@ import pytest
 from fresing_render.core import toolbox as tb
 
 HERE = Path(__file__).parent
-PIN = HERE / "data" / "toolbox" / "tbf-v0.1"
+PIN = HERE / "data" / "toolbox" / "tbf-v0.1.1"
 SAMPLES = PIN / "samples"
 HP = "nl.fresing.house-planner"
 HOUSE = HERE / "data" / "house" / "hsf-v1.0.1" / "samples" / "sample-house.hpscene"
@@ -186,8 +186,9 @@ def test_no_house_planner_manifest_keeps_the_bake_and_says_where(root, tmp_path)
 @pytest.mark.parametrize("case, code", [
     ("unknown-action", "unknown-action"), ("wrong-type", "wrong-type"), ("zip-renamed", "wrong-type"),
     ("reserved-name", "bad-job"), ("path-in-name", "bad-job"), ("too-big", "bad-job"), ("wrong-to", "bad-job"),
-    ("id-not-folder", "bad-job"), ("unknown-field", "bad-job"), ("duplicate-key", "bad-job"), ("link", "bad-job"),
-    ("not-json", "bad-job"), ("from-is-to", "bad-job"), ("job-json-folder", "bad-job")])
+    ("id-not-folder", "bad-job"), ("unknown-field", "bad-job"), ("link", "bad-job"),
+    ("not-json", "bad-job"), ("from-is-to", "bad-job"), ("job-json-folder", "bad-job"), ("size-too-big", "bad-job"),
+    ("name-too-long", "bad-job")])
 def test_bad_jobs_are_refused_with_their_code(root, tmp_path, case, code):
     jid = "20261118-120000-abcdef"
     if case == "unknown-action":
@@ -213,10 +214,16 @@ def test_bad_jobs_are_refused_with_their_code(root, tmp_path, case, code):
         d = make_job(root, job="20261118-120000-ffffff")
     elif case == "unknown-field":
         d = make_job(root, priority="high")
-    elif case == "duplicate-key":
+    elif case == "size-too-big":                 # toolbox-format 0.1.1: no file has this size – refused at once,
+        d = make_job(root)                           # not after a minute as "not complete yet"
+        doc = json.loads((d / "job.json").read_text())
+        doc["files"][0]["size"] = 2**53
+        (d / "job.json").write_text(json.dumps(doc))
+    elif case == "name-too-long":                # 0.1.1: a name of 120 characters the PC cannot hold (here 338 bytes)
         d = make_job(root)
-        text = (d / "job.json").read_text()
-        (d / "job.json").write_text(text[:-1] + ', "title": "Twice"}')
+        doc = json.loads((d / "job.json").read_text())
+        doc["files"][0]["name"] = "\u20ac" * 110 + ".hpscene"
+        (d / "job.json").write_text(json.dumps(doc))
     elif case == "link":
         d = make_job(root)
         os.remove(d / "sample-house.hpscene")
@@ -236,6 +243,18 @@ def test_bad_jobs_are_refused_with_their_code(root, tmp_path, case, code):
     assert st["state"] == "failed" and st["code"] == code, st
     assert ib.jobs == {} and ib.notes and "refused" in ib.notes[-1]
     assert d.is_dir() and HOUSE.is_file()                        # nothing outside the job folder was touched
+
+
+def test_a_key_written_twice_the_last_counts(root, tmp_path):
+    """toolbox-format 0.1.1: a reader takes a key written twice as JavaScript does – the last counts (FORMAT.md 3.4;
+    only the checker refuses it). Before, Fresing Render refused such a job that House Planner's own code reads."""
+    d = make_job(root)
+    text = (d / "job.json").read_text()
+    (d / "job.json").write_text(text[:-1] + ', "title": "Twice"}')
+    ib = inbox(root, tmp_path)
+    ib.look()
+    assert status(root, d.name)["state"] == "waiting"
+    assert ib.jobs[d.name].title == "Twice"
 
 
 def test_a_newer_version_is_refused_with_the_clear_sentence(root, tmp_path):

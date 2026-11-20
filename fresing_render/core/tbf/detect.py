@@ -21,6 +21,42 @@ _SPACE = b" \t\r\n"
 
 
 # ---------------------------------------------------------------- the rules themselves
+MAX_COUNT = 4294967294       # the largest number in a count Python's re can hold
+
+
+def _set_problem(p: str, i: int) -> tuple[int, str | None]:
+    """a set [ … ] that starts at p[i]: (index of its closing ], why it is not allowed or None)"""
+    i += 1
+    if p[i:i + 1] == "^":
+        i += 1
+    if p[i:i + 1] == "]":
+        return i, "has an empty [] group"
+    items = []                                   # (text, is a class like \d)
+    while i < len(p) and p[i] != "]":
+        if p[i] == "\\":
+            nxt = p[i + 1:i + 2]
+            if not nxt:
+                return i, "ends with a backslash"
+            if nxt.isalnum() and nxt not in "sSdDwW":
+                return i, f"uses \\{nxt} (only \\s \\S \\d \\D \\w \\W and escaped signs are allowed)"
+            items.append((p[i:i + 2], nxt in "sSdDwW"))
+            i += 2
+        else:
+            items.append((p[i], False))
+            i += 1
+    if i >= len(p):
+        return i, "has a [ that is never closed"
+    k = 0
+    while k < len(items):                        # a - between two items is a range: neither end may be \d, \s, \w …
+        if k + 2 < len(items) and items[k + 1] == ("-", False):
+            if items[k][1] or items[k + 2][1]:
+                return i, "has a range in a set that starts or ends at \\s, \\d or \\w (like [\\d-z])"
+            k += 3
+        else:
+            k += 1
+    return i, None
+
+
 def pattern_problem(p) -> str | None:
     """why a head_matches pattern is not one JavaScript and Python read alike (section 5.2); None when it is"""
     if not isinstance(p, str) or not p:
@@ -29,7 +65,7 @@ def pattern_problem(p) -> str | None:
         return f"is longer than {MAX_PATTERN} characters"
     if any(ord(c) < 32 or ord(c) > 126 for c in p):
         return "holds a character outside plain ASCII"
-    i, in_class, counted = 0, False, False       # counted: the last thing was a count (* + ? {n,m})
+    i, counted = 0, False                        # counted: the last thing was a count (* + ? {n,m})
     while i < len(p):
         c = p[i]
         was, counted = counted, False
@@ -41,14 +77,10 @@ def pattern_problem(p) -> str | None:
                 return f"uses \\{nxt} (only \\s \\S \\d \\D \\w \\W and escaped signs are allowed)"
             i += 2
             continue
-        if in_class:
-            in_class = c != "]"
-        elif c == "[":
-            in_class = True
-            if p[i + 1:i + 2] == "^":
-                i += 1
-            if p[i + 1:i + 2] == "]":
-                return "has an empty [] group"
+        if c == "[":
+            i, why = _set_problem(p, i)
+            if why:
+                return why
         elif c in "^$":
             return f"uses {c} (say where the file starts with starts_with instead)"
         elif c == ".":
@@ -56,9 +88,11 @@ def pattern_problem(p) -> str | None:
         elif c == "(" and p[i + 1:i + 2] == "?":
             return "uses a (?…) group"
         elif c == "{":
-            m = re.match(r"\{\d+(,\d*)?\}", p[i:])
+            m = re.match(r"\{([0-9]+)(,([0-9]*))?\}", p[i:])
             if not m:
                 return "has a { that is not a count like {2}, {2,} or {2,5}"
+            if any(n and int(n) > MAX_COUNT for n in (m.group(1), m.group(3))):
+                return f"has a count larger than {MAX_COUNT}"
             i += m.end() - 1
             counted = True
         elif c in "*+":
@@ -68,11 +102,9 @@ def pattern_problem(p) -> str | None:
         elif c == "?":
             counted = not was                   # a ? after a count makes it lazy; it is not a count itself
         i += 1
-    if in_class:
-        return "has a [ that is never closed"
     try:
         re.compile(p, re.ASCII)
-    except re.error as e:
+    except (re.error, OverflowError, RecursionError) as e:
         return f"is not a pattern ({e})"
     return None
 
@@ -296,7 +328,7 @@ class Sniff:
         try:
             with open(self.path, "rb") as fh:
                 data = zip_read(fh, self.path.stat().st_size, entries[name])
-            return None if data is None else load_json(data)
+            return None if data is None else load_json(data, "last")    # a key twice: the last, as in JavaScript
         except (OSError, JsonError):
             return None
 

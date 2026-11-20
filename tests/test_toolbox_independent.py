@@ -1,5 +1,5 @@
 """Independent tests of fresing_render/core/toolbox.py (task 0217), written from the toolbox format v0.1
-(tests/data/toolbox/tbf-v0.1/FORMAT.md) by someone who did not write the module. Plain Python, no Blender.
+(tests/data/toolbox/tbf-v0.1.1/FORMAT.md, the same text as v0.1) by someone who did not write the module. Plain Python, no Blender.
 
 The pinned checker (``tbf.check`` of the tag) is the judge of what the Inbox writes. One known checker gap: after a
 final status the job's own files are deleted on purpose (FORMAT.md 7.4 allows it) and the checker then says
@@ -20,7 +20,7 @@ import pytest
 
 from fresing_render.core import toolbox as tb
 
-PIN = Path(__file__).resolve().parent / "data" / "toolbox" / "tbf-v0.1"
+PIN = Path(__file__).resolve().parent / "data" / "toolbox" / "tbf-v0.1.1"
 SAMPLES = PIN / "samples"
 FILES = SAMPLES / "files"
 ME = "nl.fresing.render"
@@ -814,11 +814,10 @@ def _mutants(doc):
 
 def _checker_ok(path: Path, kind: str) -> bool:
     rep = CHECK.Report("x")
-    doc = CHECK.read_doc(path, _KIND_SCHEMA[kind], rep, "x")
-    if doc is None:
-        return False
-    CHECK._times(doc, ["created", "updated", "asked", "seen"], rep, "x")
-    return rep.ok
+    # v0.1.1: read_doc checks the times itself (``_times`` is gone), and a READER takes a key written twice (the
+    # last counts, as in JavaScript; ``strict=False``) – toolbox.read_doc is a reader (task 0245)
+    doc = CHECK.read_doc(path, _KIND_SCHEMA[kind], rep, "x", strict=False)
+    return doc is not None and rep.ok
 
 
 def _mine_ok(path: Path, kind: str) -> bool:

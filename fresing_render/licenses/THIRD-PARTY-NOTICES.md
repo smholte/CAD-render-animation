@@ -72,10 +72,10 @@ the built-in crane classes (`data/lifting/`, invented classes), `data/sample-hou
 `smholte/house-scene-format`), the user guide (built from `docs/USER-GUIDE.md` with the Python package `markdown`,
 BSD-3-Clause – only its output is shipped) and the brand files (see the brand note above).
 
-**The Toolbox format's reference code** (task 0217): `fresing_render/core/tbf/` holds `names.py`, `detect.py` and
-`types.json` of https://github.com/smholte/toolbox-format, tag `v0.1` (MIT, © 2026 Fresing – checked in that
+**The Toolbox format's reference code** (task 0217, tag `v0.1.1` since task 0245): `fresing_render/core/tbf/` holds `names.py`, `detect.py` and
+`types.json` of https://github.com/smholte/toolbox-format, tag `v0.1.1` (MIT, © 2026 Fresing – checked in that
 repository's `LICENSE` at the tag), byte for byte but one marked line; the MIT notice is in `core/tbf/__init__.py`.
-A copy of the whole tag (text, schemas, checker, made-up samples) is in `tests/data/toolbox/tbf-v0.1/` (repository only).
+A copy of the whole tag (text, schemas, checker, made-up samples) is in `tests/data/toolbox/tbf-v0.1.1/` (repository only).
 
 No pictures, HDRIs, sounds or music of others ship with the app. (360° photos and music are the user's own, chosen in
 the app; `docs/SURROUNDINGS.md` only links to where free ones can be found.)

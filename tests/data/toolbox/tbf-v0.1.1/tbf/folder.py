@@ -24,12 +24,13 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .check import FINAL, FOLDER_FILE, Report, check_manifest, read_doc
+from .check import FINAL, FOLDER_FILE, JUNCTION, Report, check_manifest, look, parse_doc, read_doc
 from .detect import detect, load_types
 from .names import VERSION, is_job_id, is_tool_id, name_problem
 
 DAY = 24 * 3600
 ALIVE_FRESH = 30          # seconds: an alive.json older than this means "not watching"
+MAX_SIZE = 2**53 - 1      # bytes: no file is larger; JavaScript cannot count further
 
 
 class JobProblem(Exception):
@@ -65,7 +66,7 @@ def write_json(path: Path, doc: dict, tries: int = 5):
     """Whole or not at all: written beside the file, then moved over it. Windows refuses the move while another
     program has the file open, so it is tried a few times; after that the OSError is the caller's to catch, and the
     write is done again at its next look (FORMAT.md section 2)."""
-    tmp = path.with_name(path.name + ".tmp")
+    tmp = path.with_name(f"{path.name}.{os.getpid()}-{secrets.token_hex(4)}.tmp")   # its own: copies write at once
     tmp.write_bytes(_bytes(doc))
     for n in range(tries):
         try:
@@ -76,11 +77,20 @@ def write_json(path: Path, doc: dict, tries: int = 5):
                 tmp.unlink(missing_ok=True)
                 raise
             time.sleep(0.05)
+        except OSError:
+            tmp.unlink(missing_ok=True)
+            raise
 
 
 def is_link(p: Path) -> bool:
-    """a link, or on Windows a junction: never read as a job, never followed when cleaning up"""
-    return p.is_symlink() or bool(getattr(os.path, "isjunction", lambda _p: False)(p))
+    """a link, or on Windows a junction: never read as a job, never followed when cleaning up. Python 3.11 (the
+    one in Blender) has no os.path.isjunction; the reparse tag of os.lstat tells it there."""
+    if p.is_symlink() or getattr(os.path, "isjunction", lambda _p: False)(p):
+        return True
+    try:
+        return getattr(os.lstat(p), "st_reparse_tag", 0) == JUNCTION
+    except (OSError, ValueError):
+        return False
 
 
 def ensure_folder(root: Path):
@@ -100,7 +110,7 @@ def read_tool(root: Path, tool_id: str) -> dict | None:
     path = root / "tools" / tool_id / "toolbox.json"
     if not is_tool_id(tool_id) or not path.is_file():
         return None
-    return check_manifest(path, Report(tool_id), load_types(), folder=tool_id)
+    return check_manifest(path, Report(tool_id), load_types(), folder=tool_id, strict=False)
 
 
 def all_types(root: Path) -> list[dict]:
@@ -117,7 +127,7 @@ def all_types(root: Path) -> list[dict]:
 
 
 def is_alive(root: Path, tool_id: str) -> bool:
-    doc = read_doc(root / "tools" / tool_id / "alive.json", "alive-0", Report(""), "alive.json") \
+    doc = read_doc(root / "tools" / tool_id / "alive.json", "alive-0", Report(""), "alive.json", strict=False) \
         if (root / "tools" / tool_id / "alive.json").is_file() else None
     try:
         seen = datetime.fromisoformat(doc["seen"].replace("Z", "+00:00"))
@@ -149,11 +159,12 @@ def send(root: Path, sender: str, to: str, action: str, files: list[Path], ret: 
     if act is None:
         raise ValueError(f"{to} has no action {action}")
     types = all_types(root)
-    listed = []
+    listed, seen = [], set()
     for f in files:
-        why = name_problem(f.name)
+        why = name_problem(f.name) or ("is there twice (capitals do not count)" if f.name.lower() in seen else None)
         if why:
             raise ValueError(f"the file name {f.name!r} {why}")
+        seen.add(f.name.lower())
         kind, _ = detect(f, types)
         if kind not in act["accepts"]:
             raise ValueError(f"{to} does not accept {kind} for {action} ({f.name})")
@@ -165,6 +176,7 @@ def send(root: Path, sender: str, to: str, action: str, files: list[Path], ret: 
         shutil.copyfile(f, folder / f.name)
     doc = {"format": "toolbox-job", "version": VERSION, "job": job, "created": now(), "from": sender, "to": to,
            "action": action, "files": listed}
+    title = title[:120] if title else None             # at most 120 characters (6.1), as JavaScript shortens it
     for key, value in (("return", ret), ("reply_to", reply_to), ("title", title), ("options", options)):
         if value is not None:
             doc[key] = value
@@ -175,7 +187,7 @@ def send(root: Path, sender: str, to: str, action: str, files: list[Path], ret: 
 def read_status(root: Path, to: str, job: str) -> dict | None:
     """the status of a job this tool sent; None when there is none yet or the job is gone"""
     path = root / "tools" / to / "inbox" / job / "status.json"
-    return read_doc(path, "status-0", Report(""), "status.json") if path.is_file() else None
+    return read_doc(path, "status-0", Report(""), "status.json", strict=False) if path.is_file() else None
 
 
 def cancel(root: Path, to: str, job: str):
@@ -202,7 +214,7 @@ def unfinished(root: Path, me: str) -> list[tuple[Path, dict]]:
     out = []
     for d in sorted(inbox.iterdir()) if inbox.is_dir() else []:
         if d.is_dir() and not is_link(d) and is_job_id(d.name) and (d / "status.json").is_file():
-            st = read_doc(d / "status.json", "status-0", Report(""), "")
+            st = read_doc(d / "status.json", "status-0", Report(""), "", strict=False)
             if st is not None and st["state"] not in FINAL:
                 out.append((d, st))
     return out
@@ -235,9 +247,14 @@ def is_stalled(status: dict | None, at: datetime | None = None) -> bool:
 
 def take(root: Path, manifest: dict, folder: Path) -> tuple[dict, list[tuple[str, str, Path]]]:
     """Check a job of my inbox as section 6.3 says. Returns the job and its files as (name, type, path).
-    Raises JobProblem; raises FileNotFoundError("…not complete…") when a file is still being written."""
+    Raises JobProblem; raises FileNotFoundError("…not complete…") when a file is still being written or cannot be
+    read right now (another program holds it): try again at the next look (section 2)."""
+    try:
+        data = (folder / "job.json").read_bytes()
+    except OSError as e:
+        raise FileNotFoundError(f"job.json cannot be read right now ({e.strerror or e})") from None
     rep = Report("")
-    job = read_doc(folder / "job.json", "job-0", rep, "job.json")
+    job = parse_doc(data, "job-0", rep, "job.json", strict=False)
     if job is None:
         raise JobProblem("bad-job", rep.errors[0] if rep.errors else "job.json cannot be read")
     if job["job"] != folder.name or job["to"] != manifest["id"] or job["from"] == job["to"]:
@@ -251,14 +268,24 @@ def take(root: Path, manifest: dict, folder: Path) -> tuple[dict, list[tuple[str
         if why or f["name"].lower() in seen:
             raise JobProblem("bad-job", f"the file name {f['name']!r} {why or 'is listed twice'}")
         seen.add(f["name"].lower())
+        if f["size"] > MAX_SIZE:
+            raise JobProblem("bad-job", f"{f['name']}: no file has {f['size']} bytes")
         p = folder / f["name"]
-        if p.is_symlink() or (p.exists() and not p.is_file()):
+        kind, size = look(p)
+        if kind == "bad-name":
+            raise JobProblem("bad-job", f"the file name {f['name']!r} cannot be used on this system")
+        if kind in ("link", "not-file"):
             raise JobProblem("bad-job", f"{f['name']} is not a plain file")
-        if not p.is_file() or p.stat().st_size < f["size"]:
+        if kind == "unreadable":
+            raise FileNotFoundError(f"{f['name']} cannot be read right now ({size})")
+        if kind == "missing" or size < f["size"]:
             raise FileNotFoundError(f"{f['name']} is not complete yet")
-        if p.stat().st_size != f["size"]:
+        if size != f["size"]:
             raise JobProblem("bad-job", f"{f['name']} is larger than job.json says")
-        kind, _ = detect(p, types)
+        try:
+            kind, _ = detect(p, types)
+        except OSError as e:
+            raise FileNotFoundError(f"{f['name']} cannot be read right now ({e.strerror or e})") from None
         if kind != f["type"]:
             raise JobProblem("wrong-type", f"{f['name']} is {kind}, not {f['type']}")
         if kind not in action["accepts"]:
@@ -299,10 +326,11 @@ def clean(root: Path, me: str, at: float | None = None):
     at = time.time() if at is None else at
     inbox = root / "tools" / me / "inbox"
     for d in list(inbox.iterdir()) if inbox.is_dir() else []:
-        if not d.is_dir() or is_link(d):                # only real folders; a link is never followed
+        if not d.is_dir() or is_link(d) or not is_job_id(d.name):   # only real job folders; a link is never followed
             continue
         age = at - d.stat().st_mtime
-        status = read_doc(d / "status.json", "status-0", Report(""), "") if (d / "status.json").is_file() else None
+        status = read_doc(d / "status.json", "status-0", Report(""), "", strict=False) \
+            if (d / "status.json").is_file() else None
         final = status is not None and status["state"] in FINAL
         if final:
             try:

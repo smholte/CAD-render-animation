@@ -1,12 +1,13 @@
-# toolbox-format, pinned at tag v0.1
+# toolbox-format, pinned at tag v0.1.1
 
-Copied read-only from the public repository `smholte/toolbox-format`, **tag `v0.1`, commit
-`aa75e8525dec3ccde8f5ebac2cb13b606edf6c61`** (18 Nov 2026, MIT licence – `LICENSE`), for task 0217: the text
+Copied read-only from the public repository `smholte/toolbox-format`, **tag `v0.1.1`, commit
+`cc0356c39c1237c1c89d0c557e9cb83b39962e7b`** (20 Nov 2026, MIT licence – `LICENSE`), for task 0245 (before: tag `v0.1`,
+task 0217): the text
 (`FORMAT.md`), the type list, the schemas, the reference code and checker (`tbf/`, `check.py`) and the made-up samples.
 Never edit these files: a newer tag is a new task, which copies the new files and this list again.
 `tests/test_toolbox_pinned.py` checks every file against the SHA-256 below.
 
-Run the checker: `~/venv/bin/python tests/data/toolbox/tbf-v0.1/check.py <Toolbox folder>` (needs `jsonschema`,
+Run the checker: `~/venv/bin/python tests/data/toolbox/tbf-v0.1.1/check.py <Toolbox folder>` (needs `jsonschema`,
 `tools/requirements-dev.txt`).
 
 ## SHA-256
@@ -44,9 +45,9 @@ c0127bf69f44a14943c5d0387dc90ed1109e451565bb58888661d875cf0e8497  schemas/folder
 2aeba5512c84084a892efcbe7364bfeffe04cafc2258c91196e1d63ca57ef17c  schemas/tool-0.schema.json
 94b831b1ed5fa6e7e6295834b624f974e7e74ff6e74f0f34474c5a9e62963317  schemas/types-0.schema.json
 371588c48fbdd77997a3911e0777cc1e765fc728906344ce8488c4d8cd0db0f0  tbf/__init__.py
-fda26d4846159290fa309496caee0c49de5e95392fb47d92235f9e600979f824  tbf/check.py
-084a1e2aecc4602a22963ef1bba55fd7b3e512a27add8416a516cb272be62fa5  tbf/detect.py
-9f4c9035e0261e50ee476981e6ec6300df4de580dff26df276211210327a1f3b  tbf/folder.py
-0c1d68682a613f27b3b02f66728b399412cea34dad2f7ab1dcb7a38831b03e41  tbf/names.py
+0d27c1d13e9c5729296530e369d30598eee14ef09a1573ef1c106bfb0d4a95de  tbf/check.py
+3e96a7caf04ca04c6d502044138b86f9327cf56b0c02e8d1f882c8877199e3af  tbf/detect.py
+dfd7046cbf288f465be37aebf5678a3f152e1e2985e612091ed126cf65102dc4  tbf/folder.py
+ca03b7992884016f7e63b03c1a9b385d06bee2bf53cc7c2a27d695e72010c283  tbf/names.py
 82178d4dec9781d76c1a58805c4f6e29c2d2ec6cdaa43f96893f5b39fd1eea73  types.json
 ```

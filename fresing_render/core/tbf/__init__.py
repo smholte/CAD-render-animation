@@ -1,5 +1,5 @@
 """Copied from the toolbox format's reference code (task 0217): ``names.py`` and ``detect.py`` of
-https://github.com/smholte/toolbox-format, tag v0.1 (commit aa75e8525dec3ccde8f5ebac2cb13b606edf6c61), and its
+https://github.com/smholte/toolbox-format, tag v0.1.1 (commit cc0356c39c1237c1c89d0c557e9cb83b39962e7b; task 0245), and its
 ``types.json`` – byte for byte, except one line of ``detect.py`` (where ``types.json`` lies, marked "Fresing Render").
 ``tests/test_toolbox_pinned.py`` checks that.
 

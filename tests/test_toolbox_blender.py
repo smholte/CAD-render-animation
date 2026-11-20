@@ -22,7 +22,7 @@ from fresing_render.core import house_scene as hs  # noqa: E402
 from fresing_render.core import toolbox as tb  # noqa: E402
 
 HERE = Path(__file__).parent
-PIN = HERE / "data" / "toolbox" / "tbf-v0.1"
+PIN = HERE / "data" / "toolbox" / "tbf-v0.1.1"
 HOUSE = HERE / "data" / "house" / "hsf-v1.0.1" / "samples" / "sample-house.hpscene"
 HP = "nl.fresing.house-planner"
 

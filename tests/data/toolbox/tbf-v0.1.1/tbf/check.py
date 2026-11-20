@@ -6,21 +6,25 @@ something is probably wrong.
 """
 from __future__ import annotations
 
+import errno
 import json
+import os
 import re
+import stat
 from functools import lru_cache
 from pathlib import Path
 
 import jsonschema
 
 from .detect import detect, load_types, type_problems
-from .names import (JOB_FILES, VERSION, JsonError, is_job_id, is_tool_id, is_type_ref, load_json, name_problem,
-                    time_problem)
+from .names import (JOB_FILES, TIME_FIELDS, VERSION, JsonError, is_job_id, is_tool_id, is_type_ref, load_json,
+                    name_problem, time_problem)
 
 SCHEMAS = Path(__file__).resolve().parent.parent / "schemas"
 FOLDER_FILE = "toolbox-folder.json"
 FINAL = ("done", "failed", "cancelled")
 _ABSOLUTE = re.compile(r"([A-Za-z]:[\\/]|/)")
+JUNCTION = getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", 0xA0000003)    # a Windows junction, told by os.lstat
 
 
 class Report:
@@ -58,18 +62,26 @@ def _schema(name: str):
     return jsonschema.Draft202012Validator(json.loads((SCHEMAS / f"{name}.schema.json").read_text("utf-8")))
 
 
-def read_doc(path: Path, schema: str, rep: Report, where: str) -> dict | None:
-    """the JSON file as an object when it is whole and of this version; None (and errors in ``rep``) otherwise"""
+def read_doc(path: Path, schema: str, rep: Report, where: str, strict: bool = True) -> dict | None:
+    """the JSON file as an object when it is whole and of this version; None (and errors in ``rep``) otherwise.
+    ``strict=False`` is for readers: a key written twice is not refused (the last counts, as in JavaScript)."""
     try:
-        doc = load_json(path.read_bytes())
+        data = path.read_bytes()
     except OSError as e:
         rep.error(f"{where}: cannot be read ({e.strerror or e})")
         return None
+    return parse_doc(data, schema, rep, where, strict)
+
+
+def parse_doc(data: bytes, schema: str, rep: Report, where: str, strict: bool = True) -> dict | None:
+    """read_doc for bytes already read"""
+    try:
+        doc = load_json(data, "refuse" if strict else "last")
     except JsonError as e:
         rep.error(f"{where}: {e}")
         return None
     v = doc.get("version")
-    if isinstance(v, str) and re.fullmatch(r"\d+\.\d+", v) and v != VERSION:
+    if isinstance(v, str) and re.fullmatch(r"[0-9]+\.[0-9]+", v) and v != VERSION:
         rep.error(f"{where}: is version {v}; this checker reads {VERSION} only (until 1.0 a reader takes its own "
                   "version and no other)")
         return None
@@ -79,15 +91,38 @@ def read_doc(path: Path, schema: str, rep: Report, where: str) -> dict | None:
         rep.error(f"{where}{': ' + at if at else ''}: {e.message}"[:400])
     if len(errors) > 8:
         rep.error(f"{where}: … and {len(errors) - 8} more")
-    return None if errors else doc
+    if errors:
+        return None
+    if doc["version"] != VERSION:               # the schema's \d also takes digits of other scripts
+        rep.error(f"{where}: version {doc['version']!r} is not a version like {VERSION}")
+        return None
+    bad_time = False
+    for k in TIME_FIELDS:                       # the schemas only say what a time looks like (3.4)
+        why = time_problem(doc[k]) if k in doc else None
+        if why:
+            rep.error(f"{where}: {k} {why}")
+            bad_time = True
+    return None if bad_time else doc
 
 
-def _times(doc: dict, keys, rep: Report, where: str):
-    for k in keys:
-        if k in doc:
-            why = time_problem(doc[k])
-            if why:
-                rep.error(f"{where}: {k} {why}")
+def look(p: Path) -> tuple[str, int | str | None]:
+    """what is at ``p``, without following a link: ("file", size), ("missing", None), ("link", None),
+    ("not-file", None), ("bad-name", why) – a name this system cannot hold – or ("unreadable", why)"""
+    try:
+        st = os.lstat(p)
+    except (FileNotFoundError, NotADirectoryError):
+        return "missing", None
+    except ValueError as e:                     # a name the system cannot take at all
+        return "bad-name", str(e)
+    except OSError as e:
+        if e.errno in (errno.ENAMETOOLONG, errno.EINVAL, errno.EILSEQ):
+            return "bad-name", e.strerror or str(e)
+        return "unreadable", e.strerror or str(e)
+    if stat.S_ISLNK(st.st_mode) or getattr(st, "st_reparse_tag", 0) == JUNCTION:
+        return "link", None
+    if not stat.S_ISREG(st.st_mode):
+        return "not-file", None
+    return "file", st.st_size
 
 
 # ---------------------------------------------------------------- types.json
@@ -117,9 +152,9 @@ def check_types_file(path: Path, rep: Report) -> list[dict]:
 
 # ---------------------------------------------------------------- toolbox.json
 def check_manifest(path: Path, rep: Report, builtin: list[dict], folder: str | None = None,
-                   where: str | None = None) -> dict | None:
+                   where: str | None = None, strict: bool = True) -> dict | None:
     where = where or path.name
-    doc = read_doc(path, "tool-0", rep, where)
+    doc = read_doc(path, "tool-0", rep, where, strict)
     if doc is None:
         return None
     ok = True
@@ -191,7 +226,6 @@ def check_job(folder: Path, rep: Report, types: list[dict], tool: dict | None = 
     at = f"{where}/job.json"
     if job["job"] != folder.name:
         rep.error(f"{at}: its job is {job['job']} but its folder is named {folder.name}")
-    _times(job, ["created"], rep, at)
     action = None
     if tool is not None:
         if job["to"] != tool["id"]:
@@ -230,14 +264,25 @@ def check_job(folder: Path, rep: Report, types: list[dict], tool: dict | None = 
             continue
         seen.add(name.lower())
         p = folder / name
-        if not p.is_file() or p.is_symlink():
-            rep.error(f"{where}: the file {name} is missing")
+        kind, size = look(p)
+        if kind == "bad-name":
+            rep.error(f"{at}: the file name {name!r} cannot be used on this system ({size})")
             continue
-        size = p.stat().st_size
+        if kind == "unreadable":
+            rep.error(f"{where}: the file {name} cannot be read ({size})")
+            continue
+        if kind != "file":
+            rep.error(f"{where}: the file {name} is missing" if kind == "missing" else
+                      f"{where}: {name} is not a plain file (a link or a folder)")
+            continue
         if size != f["size"]:
             rep.error(f"{where}/{name}: is {size} bytes, job.json says {f['size']} – not written to the end?")
             continue
-        found, note = detect(p, types)
+        try:
+            found, note = detect(p, types)
+        except OSError as e:
+            rep.error(f"{where}: the file {name} cannot be read ({e.strerror or e})")
+            continue
         if found != f["type"]:
             rep.error(f"{where}/{name}: job.json calls it {f['type']}, but it is {found}"
                       + (f" ({note})" if note else ""))
@@ -250,7 +295,6 @@ def check_job(folder: Path, rep: Report, types: list[dict], tool: dict | None = 
             doc = read_doc(folder / doc_name, schema, rep, f"{where}/{doc_name}")
             if doc is None:
                 continue
-            _times(doc, ["updated", "asked"], rep, f"{where}/{doc_name}")
             if doc["job"] != job["job"]:
                 rep.error(f"{where}/{doc_name}: is about the job {doc['job']}, not this one")
             if doc_name == "status.json":
@@ -307,9 +351,7 @@ def check_folder(root: Path, rep: Report):
             if entry.name not in ("toolbox.json", "alive.json", "inbox", icon):
                 rep.warn(f"{at}/{entry.name}: the format does not know this entry of a tool's folder")
         if (d / "alive.json").is_file():
-            alive = read_doc(d / "alive.json", "alive-0", rep, f"{at}/alive.json")
-            if alive:
-                _times(alive, ["seen"], rep, f"{at}/alive.json")
+            read_doc(d / "alive.json", "alive-0", rep, f"{at}/alive.json")
         inbox = d / "inbox"
         if not inbox.is_dir():
             continue

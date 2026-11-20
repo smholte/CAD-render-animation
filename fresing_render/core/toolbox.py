@@ -1,6 +1,6 @@
 """The Toolbox folder (task 0217): how Fresing Render takes jobs from other tools on this PC and sends results back.
 
-The format is ``smholte/toolbox-format`` tag v0.1 (pinned in ``tests/data/toolbox/tbf-v0.1``; read its FORMAT.md). In
+The format is ``smholte/toolbox-format`` tag v0.1.1 (pinned in ``tests/data/toolbox/tbf-v0.1.1``; read its FORMAT.md). In
 short: a folder ``Toolbox`` in the user's home folder (``TOOLBOX_HOME`` overrides it); each tool has a manifest
 ``tools/<id>/toolbox.json`` and an inbox; a hand-over is a *job* = a folder in the receiver's inbox with the files and
 ``job.json`` (written last); the receiver writes ``status.json``; a result goes back as a new job in the sender's inbox.
@@ -16,6 +16,7 @@ The checks of the JSON files follow the tag's schemas field by field (no ``jsons
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -41,6 +42,7 @@ SHORT_WAIT = 60.0          # s a file that is still short may get before the job
 ALIVE_EVERY = 10.0         # s between two alive.json (6.4)
 PROGRESS_GAP = 1.0         # s: status.json at most once a second (7.1)
 CLEAN_EVERY = 60.0         # s between two clean-ups of the inbox (7.4)
+MAX_SIZE = 2**53 - 1       # bytes: no file is larger, JavaScript cannot count further (toolbox-format 0.1.1)
 HOMEPAGE = "https://smholte.github.io/CAD-render-animation/"
 ACTIONS = [
     {"id": "import-step", "label": "Import STEP", "accepts": ["step"]},
@@ -400,7 +402,7 @@ def read_doc(path: Path, kind: str) -> dict:
     if not data:
         raise OSError(f"{path.name} is empty (still being written?)")
     try:
-        doc = _names.load_json(data)
+        doc = _names.load_json(data, "last")      # a key written twice: the last counts, as in JavaScript (0.1.1)
     except _names.JsonError as e:
         raise Bad(f"{path.name} {e}") from None
     check_doc(doc, kind)
@@ -532,7 +534,19 @@ def take(root: Path, me: dict, folder: Path, types: list[dict] | None = None) ->
             raise JobProblem("bad-job", f"the file {f['name']} is listed twice")
         seen.add(f["name"].lower())
     for f in job["files"]:
+        if f["size"] > MAX_SIZE:
+            raise JobProblem("bad-job", f"{f['name']}: no file has {f['size']} bytes")
         p = folder / f["name"]
+        try:
+            os.lstat(p)
+        except (FileNotFoundError, NotADirectoryError):
+            pass
+        except ValueError:
+            raise JobProblem("bad-job", f"the file name {f['name']!r} cannot be used on this PC") from None
+        except OSError as e:
+            if e.errno in (errno.ENAMETOOLONG, errno.EINVAL, errno.EILSEQ):
+                raise JobProblem("bad-job", f"the file name {f['name']!r} cannot be used on this PC") from None
+            raise                                      # held by another program just now: the next look
         if is_link(p) or (p.exists() and not p.is_file()):
             raise JobProblem("bad-job", f"{f['name']} is not a plain file")
         if not p.is_file():
