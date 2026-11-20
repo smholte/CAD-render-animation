@@ -286,3 +286,17 @@ landing page's guide, the tour, the PC check or CI artifacts. Git history and th
 6. **Rewrite the git history** to remove it from the past too? *Recommended: no* – every clone and running session breaks, and the 100+ old releases keep the code anyway (today 0 forks, 0 stars).
 7. Private repository name **`smholte/fresing-render-vessel`** – OK? You make it empty and private on github.com (steps in package 1).
 8. Your GitHub plan – **Free or Pro**? (decides how often the private tests can run; github.com → Settings → Billing)
+
+**Owner's answers (20 Nov 2026, 16:22–16:29, to the lead):**
+1. **The ship's own deck crane stays public with the ship** (provision crane with hoist). All the rest of the equipment goes private.
+2. **Yes, a plain deck** – the carousel well and the aft bulwark opening are closed in the public ship.
+3. **Yes** – the public demo is "Vessel in a wind park" (sails in, holds position, park, weather, cable on the seabed, no cable laying).
+4. **Yes** – delete the ~53 report pictures from `main` (copies in the private repository first).
+5. **Leave** old reports and CHANGELOG entries that describe the equipment in words.
+6. **No** history rewrite.
+7. Private repository: **`smholte/fresing-render-vessel`** (the owner makes it empty and private).
+8. GitHub plan **Free** – and private Actions minutes are **shared with the owner's other private projects**. So the
+   private repository's tests are kept small: **no daily or scheduled run**; they run only on a push to the private
+   repository and by hand (`workflow_dispatch`), Linux only (no Windows job – Windows minutes count double), one job,
+   aim ≤ ~10 min per run, `concurrency` cancels a superseded run, no artifacts kept beyond a few days. The public
+   repository's tests stay as they are (public repositories' minutes are free).

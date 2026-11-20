@@ -140,3 +140,12 @@ when opening menus).
 5. The grey text top left of the view ("User Perspective (1) Collection"): hide it, or keep it?
 6. **H** hides a part in Blender – keep it for those who know it, or swallow it like Delete?
 7. Order A (quiet window) → B (keys, right-click) → C (menus, Blender's side-panel tabs) – right, or B first?
+
+**Owner's answers (20 Nov 2026, 16:22, to the lead):**
+1. **Also a switch in the Fresing menu** – besides Workspace > Full access, one entry in the Fresing menu brings back all of Blender's tools (next to 0221's Show / Hide Blender's editors).
+2. Right-click on a part: **a short Fresing menu** (zoom to it, show in the tree, hide / show only this, label here, add joint here).
+3. **Yes** – F12 / Ctrl+F12 do the app's Render image / Render animation.
+4. Splash: **Fresing's lines only** – Blender's lists and links dropped.
+5. The view's grey text: **keep it for now** (package D later).
+6. **H: keep it.**
+7. Order **A → B → C**, all after 0221 (Start & learn lane).
