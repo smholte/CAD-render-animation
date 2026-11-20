@@ -564,7 +564,8 @@ def tabs_hidden() -> bool:
 
 
 def blender_ui(on: bool, toolbar: bool = False) -> None:
-    """``on`` (Full access): Blender's workspace tabs are drawn again. Off: the top bar is drawn without them.
+    """``on`` (Full access): Blender's workspace tabs are drawn again. Off: the top bar is drawn without them, and
+    (task 0241, ``quiet.py``) the 3D view header, the top bar's right part, the splash and File > New are quiet.
     ``toolbar``: also show Blender's toolbar in the 3D views (when the user switches to Full access; a project that
     opens starts with it folded in every workspace)."""
     on = bool(on)
@@ -591,6 +592,11 @@ def blender_ui(on: bool, toolbar: bool = False) -> None:
                     space.show_region_toolbar = False
     if changed:
         _topbar_redraw()
+    try:                                     # task 0241: the quiet window (3D view header, top bar, splash, File > New)
+        from . import quiet
+        quiet.apply(not on, toolbar=toolbar)
+    except Exception as exc:  # noqa: BLE001 - never break the workspace switch over the drawing
+        print("Fresing Render: quiet window not switched:", exc)
 
 
 CLASSES = (FRESING_OT_client_locked,)

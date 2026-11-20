@@ -551,6 +551,12 @@ fn(id="help.show_panel", short="Show the panel", title="Show the Fresing panel",
 fn(id="help.blender_editors", headline=True, short="Blender editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
    "them back; a solid side panel", family="help", panel="TOPBAR_MT_fresing", button="fresing.blender_editors",
    guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
+fn(id="help.quiet_window", headline=True, short="Quiet window", title="A quiet window: the 3D view header, top bar, "
+   "start-up screen and File > New without Blender's editing parts", family="help", panel="VIEW3D_HT_header",
+   button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",), since="0.2.999")
+fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of Blender / Back to the Fresing window", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
+   since="0.2.999")
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
