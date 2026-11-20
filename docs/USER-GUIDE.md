@@ -1429,7 +1429,8 @@ draws links along it, and in the fold **More** you set the **Width** and **Heigh
   of them through the whole animation; a still of a single pose may show the other.
 - The tick in the list switches an item off: the stiff CAD part shows again, exactly as imported. **−** takes it
   off the list; nothing is deleted from the model. **Select** (the arrow button) shows which part it is.
-- The hose or chain takes the material of its CAD part, so paint schemes, hiding and fades work as before.
+- The hose or chain takes the material of its CAD part, so paint schemes, hiding and fades work as before – until
+  you pick a **Kind** (below): then it takes the kind's look.
 - A model update (1 Import) keeps your hoses and chains, and the settings you changed.
 - The clash check (6 Animation) leaves hoses and chains out.
 - Not in yet: hoses that push against other parts or each other, hoses with three ends, and bundles of cables.
@@ -1487,6 +1488,55 @@ in renders, in the clash check and in the web 3D model – and shows again when 
 - Or later: choose the drawn one in the list, click the CAD part in the 3D view, press **Replaces selected CAD part**.
   One link of a CAD chain is enough: its whole row is replaced. The eye button beside it shows the CAD part again.
 
+<a id="flex-kinds"></a>
+#### Kind, colour and size
+
+Every hose, cable and drag chain in the list – read from CAD or drawn – can get a standard **Kind**, a **Colour** of
+that kind and a **Size** from its list (under the list, above Stiffness). The kind brings the look; the size sets the
+numbers at once.
+
+<img class="wide" src="img/view_flex_kinds.jpg" alt="Six drawn arches on the test arm's base, one per kind: hydraulic hose, steel-braided hose, pneumatic tube, spiral sleeve, machine cable, power cable">
+
+| Kind | Colours | Sizes |
+| --- | --- | --- |
+| **Hydraulic hose** – black rubber with a white printed line | black, grey | DN 6 … DN 51 of EN 853 type 2SN (outer Ø and smallest bend from makers' data sheets for that standard) |
+| **Steel-braided hose** – a woven stainless braid | stainless steel | the same as the hydraulic hose |
+| **Pneumatic tube** – matte polyurethane | blue, black, clear (see-through), red, yellow, green, silver | outer Ø 4, 6, 8, 10, 12, 16 mm (bend radius: one maker's typical values) |
+| **Protective sleeve** – a spiral wrap, the black hose showing in its gaps | black, orange, yellow | 16 … 63 mm |
+| **Machine cable** – a PUR cable made to move in a drag chain | grey, orange, black, green | 6 … 28 mm, smallest bend 7.5 × Ø |
+| **Power cable** – a fixed cable with a smooth sheath | black, grey | 10 … 60 mm, smallest bend 10 × Ø |
+
+- **Size** sets the **Diameter** and the **Smallest bend**. Change either number by hand and the size reads
+  **Custom**: your own numbers. The line under Size says what the size gives ("Ø 19.0 mm, smallest bend 130 mm").
+- A kind also sets a sensible **Stiffness** and **Sag**; change them as you like.
+- One look per kind and colour, shared by every hose that has it: in 3 Looks it is a group ("Pneumatic tube,
+  blue"), so you can still change that look there for all of them at once.
+- **Kind: As in the CAD file** (every hose read before this version) keeps the part's own look and your numbers.
+- A hose drawn with **Draw hose** starts as a hydraulic hose, a cable drawn with **Draw cable** as a machine cable,
+  each with the standard size nearest the fitting you clicked. A drawn hose whose length is still "as drawn" gets the
+  length that keeps the new size's smallest bend.
+- The sizes without a public standard (cables, sleeves, drag chains) are invented round numbers, not a maker's
+  catalogue.
+
+<a id="chain-types"></a>
+#### Drag chain types
+
+A drag chain the app draws (drawn with **Draw drag chain**, or a CAD chain that is one solid) has a **Type**, a
+**Colour** and a **Size**:
+
+<img class="wide" src="img/view_chain_types.jpg" alt="The test gantry: the drawn X chain as a closed chain, lids top and bottom, beside the CAD Z chain's open links">
+
+- **Open chain** – two side links and a crossbar at the top and the bottom: the cables inside show.
+- **Closed chain** – lids top and bottom: a closed tube.
+- **Half-open chain** – a lid on the outside of the bend, crossbars on the inside.
+- **Steel chain** – steel side plates with round crossbar tubes, for heavy duty.
+
+Plastic chains come in black, grey and orange; the steel chain in steel. A **Size** ("Chain 25 x 50": inside height
+x inside width, in mm) sets the link's width, height and length and the bend radius nearest the one it has; the
+number of links changes so the chain keeps its length. A drawn chain keeps a bend no bigger than half the gap
+between its brackets (a bigger one could not come back to the moving bracket). A chain of real CAD links keeps its
+links' own shape: it has no type or size. A drawn chain starts as an open chain of the nearest size.
+
 <a id="cables"></a>
 ### Cables and paths
 
@@ -1523,8 +1573,9 @@ you see it move. (A hose that hangs and bends is the other panel: **Hoses and dr
 
 The app lays the cable tight over what you clicked and then reads it as it reads a CAD cable: it gets the same list
 **What it touches** (rollers it lies on are found by themselves), every sheave, roller and drum turns with it, and
-Build, the re-bake and the web 3D model work as for any cable. Its diameter is 20 mm: change it under the list, with
-the look and **Speed from** as for **Add cable**. Backspace, Ctrl+Z and Esc work as in **Draw hose**. A drawn cable
+Build, the re-bake and the web 3D model work as for any cable. It starts as a **wire rope** of the standard size
+nearest 20 mm: change its kind, colour and size under the list (see **Cable kinds** below), with **Speed from** as for
+**Add cable**. Backspace, Ctrl+Z and Esc work as in **Draw hose**. A drawn cable
 can replace the CAD part of a simplified cable: see **Replace a simplified CAD hose, chain or cable** above.
 
 Above **Add cable** is **Speed from**. Leave it empty and the app makes a new joint "Cable <name>" for the cable.
@@ -1551,6 +1602,21 @@ within about 1 m of it, also when other parts of the model changed; only the cab
 
 You can also use a **Move joint** step on the cable's joint: "pay out to 25 m". The value of the joint is the
 metres of cable paid out, so the same cable can be moved by hand in 4 Motion, like any slide joint.
+
+<a id="cable-kinds"></a>
+**Cable kinds** (Kind · Colour · Size, above the look)
+
+| Kind | Colours | Sizes |
+| --- | --- | --- |
+| **Machine cable** (PUR) | grey, orange, black, green | 6 … 28 mm, smallest bend 7.5 × Ø |
+| **Power cable** | black, grey | 10 … 60 mm, smallest bend 10 × Ø |
+| **Offshore power cable** | black with yellow stripes, or served yarn with yellow spirals (the looks below) | 100 … 300 mm, smallest bend 20 × Ø |
+| **Wire rope** | bright, galvanised | 6 … 64 mm (the series makers list under EN 12385-4); smallest bend 10 × Ø – a sheave at least 20 × the rope's Ø (ISO 4308-1, class M5) |
+
+A size sets the **Diameter** and the **Min. bend (MBR)** (in **More**); change one by hand and the size reads
+**Custom**. A kind sets the **Look** that goes with it (the stripes, the served yarn, the strands, or a plain sheath
+of the colour). **Own look** (every cable from before this version) keeps the look you picked. A rope too thick for
+its sheaves says so: "bends tighter than its smallest bend … at SHEAVE 2" – pick a thinner size or bigger sheaves.
 
 **The look**
 

@@ -1603,6 +1603,11 @@ DRAWN_ANIM = "Drawn hose, chain and cable"
 DRAWN_CHAINS_AT = (0.0, -1.1, 0.0)              # the gantry beside the hoses model (m)
 DRAWN_PATHS_AT = (0.0, 1.5, 0.0)                # the cable model on the other side
 DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE = "Hose 1", "Drag chain 1", "Drawn rope"
+#: task 0243: drawn hoses on the base's top behind the arm (free of the CAD hoses and cable there), one per kind, in
+#: three rows of two: each an arch between two ends 300 mm apart along X, looking up
+KIND_ROW = ("HYDRAULIC", "BRAIDED", "PNEUMATIC", "SLEEVE", "MACHINE", "POWER")
+KIND_ROW_X, KIND_ROW_Y, KIND_ROW_SPAN = (0.565, 0.875), (0.345, 0.39, 0.435), 0.30          # m, along the base (model coordinates)
+DRAWN_CHAIN_TYPE = "CLOSED"
 
 
 def _drawn_click(scene, root, origin, direction, want: str, hide=()):
@@ -1690,6 +1695,26 @@ def drawn_cable_setup(scene, root) -> str:
     return item.name
 
 
+def kind_row_setup(scene, root) -> list:
+    """Task 0243, on the hoses model (at ``root``): a hose of each kind of ``KIND_ROW`` drawn on the base's top, in
+    three rows of two arches, each with its kind's first colour and the standard size nearest 20 mm. Returns the items' names."""
+    from ..core import flex_kinds
+    from . import flex
+    names = []
+    for k, kid in enumerate(KIND_ROW):
+        x, y = KIND_ROW_X[k % 2], KIND_ROW_Y[k // 2]
+        done = [flex.find(scene, n).part for n in names]        # (an arch drawn already may be over the spot)
+        a = _drawn_click(scene, root, (x, y, 0.5), (0, 0, -1), "BASE", done)
+        b = _drawn_click(scene, root, (x + KIND_ROW_SPAN, y, 0.5), (0, 0, -1), "BASE", done)
+        item, notes = flex.draw_hose(scene, [a, b], soft=flex_kinds.get(kid).family == "cable",
+                                     name=flex_kinds.get(kid).label)
+        _check(not notes, "; ".join(notes))
+        item.hose_kind = kid
+        item.sag = 0.0                          # (the soft cables too: an arch each, not hanging into the base)
+        names.append(item.name)
+    return names
+
+
 def drawn_motion(a, cable_joint: str) -> None:
     """The steps of the drawn stops: the arm luffs, X travels, the A-frame luffs while the drawn rope runs."""
     _joint_step(a, "Luff", 0.0, 2.0, math.radians(16.0), label="Arm up 16°")
@@ -1704,7 +1729,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.181")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -1729,6 +1754,13 @@ def build_flex_drawn(b: Build):
     chain = drawn_chain_setup(sc, chains)
     rope = drawn_cable_setup(sc, cable)
     _check((hose, chain, rope) == (DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE), f"named {hose}, {chain}, {rope}")
+    # task 0243: standard kinds – a row of one hose per kind, the chain closed, the rope galvanised
+    kind_row_setup(sc, hoses)
+    flex.find(sc, DRAWN_CHAIN).chain_kind = DRAWN_CHAIN_TYPE
+    cab = paths.find(sc, DRAWN_CABLE)
+    cab.cable_kind = "ROPE"
+    cab.colour = "GALVANISED"
+    cab.size = "R16"                            # sheaves of Ø360: at least 20 x d (ISO 4308-1, M5) allows 18 mm
     _update()
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: drawn hose, chain and cable")
@@ -1820,6 +1852,97 @@ def check_drawn_cable(scene) -> str:
     _check(off < 5e-4, f"the rope is {off * 1000:.2f} mm off a sheave")
     _check(slip < 1e-3, f"a sheave or roller is {slip * 1000:.2f} mm behind the rope")
     return f"6 contacts, {pay:.2f} m ran, on its sheaves to {off * 1000:.2f} mm, wheels turn with it"
+
+
+def _tube_radius(scene, item) -> float:
+    """The drawn tube's radius, measured: the largest distance of its points from the middle line, in a slice
+    across the middle of the hose."""
+    import bpy
+    import numpy as np
+
+    from . import flex
+    _update()
+    ob = item.part.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    me = ob.to_mesh()
+    pts = np.array([v.co[:] for v in me.vertices], dtype=float)
+    ob.to_mesh_clear()
+    mw = np.array(item.part.matrix_world)
+    pts = pts @ mw[:3, :3].T + mw[:3, 3]
+    line = flex.shape_now(scene, item)
+    k = len(line) // 2
+    mid, tan = line[k], line[k + 1] - line[k - 1]
+    tan = tan / np.linalg.norm(tan)
+    rel = pts - mid
+    near = rel[(np.abs(rel @ tan) < 0.003) & (np.linalg.norm(rel, axis=1) < 0.1)]
+    _check(len(near) > 0, f"'{item.name}': no tube points at its middle")
+    return float(np.linalg.norm(near - np.outer(near @ tan, tan), axis=1).max())
+
+
+def check_flex_kinds(scene) -> str:
+    """Task 0243: one drawn hose per kind – the size's Ø drawn (to 0.1 mm), the kind's look (one shared material per
+    kind and colour), the hose patterns' numbers; the rope's kind and colour."""
+    from ..core import flex_kinds
+    from . import cable_looks, flex, paths
+    mats, worst = {}, 0.0
+    for kid in KIND_ROW:
+        k = flex_kinds.get(kid)
+        it = flex.find(scene, k.label)
+        _check(it is not None and it.hose_kind == kid, f"the {k.label.lower()} is missing")
+        sz = flex_kinds.size(kid, it.size_id)
+        _check(sz is not None, f"'{it.name}' has no standard size")
+        _check(abs(it.diameter - sz.od) < 1e-6 and abs(it.min_radius - sz.bend) < 1e-6,
+               f"'{it.name}': its numbers are not those of {sz.label}")
+        worst = max(worst, abs(2.0 * _tube_radius(scene, it) - sz.od))
+        mat = it.part.material_slots[0].material if it.part.material_slots else None
+        _check(mat is not None and mat.get("fr_material") == k.colours[0].material,
+               f"'{it.name}' has the look {mat.get('fr_material') if mat else None}, not {k.colours[0].material}")
+        mats[kid] = mat
+        if k.pattern:
+            _check(cable_looks.LOOK in it.part and int(round(it.part[cable_looks.LOOK][3])) ==
+                   int(cable_looks.KINDS[k.pattern]), f"'{it.name}' draws no {k.pattern.lower()} pattern")
+        _check(flex.status(scene, it)[1] == "OK", f"'{it.name}': {flex.status(scene, it)[0]}")
+    _check(len({m.name for m in mats.values()}) == len(KIND_ROW), "two kinds share one look")
+    _check(worst < 1e-4, f"a hose is drawn {worst * 1000:.2f} mm thicker or thinner than its size")
+    cab = paths.find(scene, DRAWN_CABLE)
+    _check(cab.cable_kind == "ROPE" and cab.part.get("fr_group_manual") == "Wire ropes, galvanised"
+           and abs(cab.diameter - 0.016) < 1e-6, "the drawn rope is not a galvanised wire rope of 16 mm")
+    return f"{len(KIND_ROW)} kinds, each Ø as its size to {worst * 1000:.3f} mm, one look per kind; the rope galvanised"
+
+
+def check_chain_types(scene) -> str:
+    """Task 0243: the drawn chain as each of the four types in turn, at the start, middle and end of X's travel: its
+    standard numbers, links one pitch apart, the moving end on its bracket; back to the closed chain at the end."""
+    import numpy as np
+
+    from ..core import flex_kinds
+    from . import drawn, flex
+    it = flex.find(scene, DRAWN_CHAIN)
+    _check(it is not None and it.made_links, "the drawn drag chain is missing")
+    frames = (scene.frame_start, (scene.frame_start + scene.frame_end) // 2 - 10, scene.frame_end)
+    chord = end = 0.0
+    try:
+        for kid in ("OPEN", "CLOSED", "HALF", "STEEL"):
+            it.chain_kind = kid
+            sz = flex_kinds.size(kid, it.size_id)
+            _check(sz is not None and abs(it.pitch - sz.pitch) < 1e-6 and abs(it.width - sz.width) < 1e-6,
+                   f"the {kid.lower()} chain does not have its size's numbers")
+            for f in frames:
+                scene.frame_set(f)
+                _update()
+                flex.refresh(scene, force=True)
+                _check(flex.status(scene, it)[1] == "OK", f"{kid.lower()} chain: {flex.status(scene, it)[0]}")
+                pins = flex.pins_now(scene, it)
+                chord = max(chord, float(np.abs(np.linalg.norm(np.diff(pins, axis=0), axis=1) - it.pitch).max()))
+                end = max(end, float(np.linalg.norm(pins[-1] - drawn.world_spot(it.b_part, it.b_point,
+                                                                                 (1, 0, 0))[0])))
+    finally:
+        it.chain_kind = DRAWN_CHAIN_TYPE
+        scene.frame_set(scene.frame_start)
+        _update()
+    _check(chord < 1e-5, f"a link is {chord * 1000:.4f} mm off its link length")
+    _check(end < 1e-4, f"the chain's moving end is {end * 1000:.3f} mm off its bracket")
+    return f"open, closed, half-open and steel: links one pitch apart to {chord * 1000:.4f} mm, end on its bracket " \
+           f"to {end * 1000:.3f} mm"
 
 
 def check_drawn_replace(scene) -> str:
@@ -4084,6 +4207,17 @@ stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
      where="4 Motion > Hoses and drag chains > Replaces selected CAD part", shot="Tour: drawn hose, chain and cable",
      since="0.2.180", check=check_drawn_replace)
+stop("flex_kinds", MOTION, "flex_drawn", "Hose and cable kinds, colours and sizes",
+     "Behind the arm on the base, six drawn arches in three rows, one per kind: a black hydraulic hose with a white printed line, "
+     "a steel-braided hose (a woven steel look), a blue pneumatic tube, a black spiral sleeve over a hose, a grey "
+     "machine cable and a black power cable. The drawn rope on the right is a galvanised 16 mm wire rope (duller than bright steel).",
+     where="4 Motion > Hoses and drag chains > Kind · Colour · Size", shot="Tour: drawn hose, chain and cable",
+     since="0.2.181", check=check_flex_kinds)
+stop("chain_types", MOTION, "flex_drawn", "Drag chain types",
+     "The drawn chain on the gantry is a closed chain now: lids top and bottom, a closed tube. Its Type can be "
+     "open, closed, half-open (a lid on the outside of the bend) or steel; each rolls with X as before.",
+     where="4 Motion > Hoses and drag chains > Type", animation=DRAWN_ANIM, play=True, at=0.5,
+     since="0.2.181", check=check_chain_types, auto="clip")
 stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "

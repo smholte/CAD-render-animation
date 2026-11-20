@@ -36,8 +36,9 @@ def test_library_entries():
     assert m["wire_rope"]["category"] == "Metal" and m["wire_rope"]["cable"]["kind"] == "ROPE"
     assert materials_lib.UIDS["pom_black"] == 48                     # the last number before this task
     assert materials_lib.UIDS["cable_power"] == 49 and materials_lib.UIDS["wire_rope"] == 50
-    assert CL.MATERIALS == {"POWER": "cable_power", "ROPE": "wire_rope", "SERVED": "cable_served"}
-    assert CL.KINDS == {"POWER": 1.0, "ROPE": 2.0, "SERVED": 3.0}
+    assert CL.MATERIALS == {"POWER": "cable_power", "ROPE": "wire_rope", "SERVED": "cable_served",
+                            "HOSE": "hose_hydraulic", "BRAID": "hose_braided", "SLEEVE": "hose_sleeve"}   # (0243)
+    assert CL.KINDS == {"POWER": 1.0, "ROPE": 2.0, "SERVED": 3.0, "HOSE": 4.0, "BRAID": 5.0, "SLEEVE": 6.0}
     assert (CL.PAY, CL.LOOK, CL.ATTR, CL.PAY_BIAS) == ("fr_cable_pay", "fr_cable_look", "fr_cable", 2.0)
     # the sheath is the plain black cable's, the rope's base a grey metal
     black = m["cable_black"]
@@ -351,7 +352,7 @@ def test_material_is_built_by_the_apps_own_path(scene):
         _only_nodes_both_engines_know(mat)
         bsdf = next(n for n in mat.node_tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled")
         assert bsdf.inputs["Base Color"].is_linked and bsdf.inputs["Roughness"].is_linked
-        assert bsdf.inputs["Normal"].is_linked == (kind != "POWER")               # a bump for strands and yarn
+        assert bsdf.inputs["Normal"].is_linked == (kind not in ("POWER", "HOSE"))   # a bump: strands, yarn, braid, wrap
         assert bsdf.inputs["Metallic"].is_linked == (kind == "ROPE")
         # no cable look: the hook leaves a material alone
         plain = bpy.data.materials.new("plain")
@@ -649,13 +650,18 @@ def test_a_part_without_the_attribute_shows_the_plain_base(scene, tmp_path):
         got = render(tmp_path / "bare.exr")[:, :, 0]
         want = (CL.bands(s, -CL.PAY_BIAS, None, None, phi=phi) if kind == "SERVED" else
                 CL.pattern(kind, s, phi, -CL.PAY_BIAS, None, **({"edge": 0.01} if kind == "POWER" else {})))
-        assert np.isfinite(got).all() and np.abs(got - want.mean(axis=2)).mean() < 0.01, kind
+        # (task 0243: the braid switches carrier at every crossing and the wrap has a softened edge – the render's
+        # pixel filter differs from a plain mean of the sub-samples there; the pattern itself must still match)
+        tol = {"BRAID": 0.06, "SLEEVE": 0.06}.get(kind, 0.01)
+        assert np.isfinite(got).all() and np.abs(got - want.mean(axis=2)).mean() < tol, kind
+        if kind in ("BRAID", "SLEEVE"):
+            assert np.corrcoef(got.ravel(), want.mean(axis=2).ravel())[0, 1] > 0.8, kind
         t.probe(CL.NODE_HAS)
         assert np.allclose(render(tmp_path / "bare.exr", samples=2), 1.0, atol=1e-4)
         # a pitch of 0 with other numbers set, a width beyond 1: still nothing breaks
         t.look([0.0, 5.0, 3.0, 1.0])
         t.probe()
-        assert np.abs(render(tmp_path / "bare.exr")[:, :, 0] - want.mean(axis=2)).mean() < 0.01, kind
+        assert np.abs(render(tmp_path / "bare.exr")[:, :, 0] - want.mean(axis=2)).mean() < tol, kind
         bpy.data.objects.remove(t.ob)
 
 
