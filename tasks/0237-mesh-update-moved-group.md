@@ -1,6 +1,6 @@
 # 0237 – Fix from bug hunt 0209, group G: a mesh model update of a moved group whose part also changed
 
-**Who:** worker · **Status:** open · **Branch:** `task/0237-mesh-update-moved-group`
+**Who:** worker · **Status:** running · **Branch:** `task/0237-mesh-update-moved-group`
 **Started by:** lead, 20 Nov 2026 (bug hunt 0209 row 5; after 0214) · **Model:** Opus · effort Medium
 **Area:** Import lane – `blender/reimport.py` (`_made_assemblies` and the pairing of unnamed parts; nothing else in it),
 `tools/make_test_mesh.py` only if a new test file is needed, tests (`tests/test_reimport*` / `test_mesh*`).
