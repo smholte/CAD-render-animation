@@ -893,7 +893,7 @@ def motion_flex(ctx):
     return f"{note}; 3 chains: moving ends to {worst_end * 1000:.3f} mm"
 
 
-@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.177",
+@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.178",
       what="Task 0240: on the hoses model a hose is drawn by four clicks (two fittings, two clips) in place of a CAD "
            "hose, which is hidden; posed at three luff angles its ends and clips stay on their parts and it keeps its "
            "length. On the gantry a drag chain is drawn between the X chain's two brackets: its links stay one pitch "
@@ -1162,7 +1162,8 @@ def motion_swivel(ctx):
 
 @line("motion.tracks", "Tensioner tracks and a belt run with the cable", "0.2.87",
       what="The tensioner test model: the cable runs, the pads of both tracks run round their sprockets with it (the "
-           "pads holding the cable as fast as the cable), the top track lifts and squeezes, a belt of separate links "
+           "pads holding the cable as fast as the cable), the top track lifts and squeezes, the tensioner tilts 6° on "
+           "its hinge and back, a belt of separate links "
            "runs round three pulleys; every link's two hinges on its loop, one pitch apart")
 def motion_tracks(ctx):
     from ..blender import animation, cameras, render, tour, tracks

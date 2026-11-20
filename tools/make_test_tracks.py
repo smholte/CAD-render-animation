@@ -153,6 +153,17 @@ CROSSHEAD_Z = (1850.0, 1950.0)
 ROD_R, CYL_BORE, ROD_TOP = 30.0, 33.0, 2050.0
 BARREL_TOP = 2250.0
 DECK_BOLTS = [(x, y) for x in (780.0, -780.0) for y in (160.0, -160.0)]
+# task 0229: the tensioner tilts on a hinge at its +X end, pushed up by a cylinder under the deck (made-up sizes)
+TILT_HINGE = (860.0, -40.0)                         # (x, z) of the hinge pin's axis (along Y)
+TILT_PIN_R = 12.5
+TILT_BARREL_PIN = (-100.0, -300.0)                  # (x, z): the tilt cylinder's barrel eye, on the foundation
+TILT_ROD_PIN = (-700.0, -60.0)                      # (x, z): its rod eye, on the BASE FRAME's clevis under the deck
+TILT_EYE_R, TILT_EYE_PIN_R, TILT_EYE_HOLE = 30.0, 15.0, 16.0     # the eyes 1 mm loose on their pins
+TILT_BODY = (45.0, 420.0, 50.0)                     # barrel body along its axis from its pin: s 45..420, r 50
+TILT_BORE = (70.0, 28.0)                            # its bore from s 70 to the open end, r 28
+TILT_ROD_R = 25.0
+TILT_MAX = 10.0                                     # degrees the frame tilts at most (the check)
+FOUNDATION_Z = (-400.0, -360.0)
 
 # =====================================================================================================================
 # the numbers (mm)
@@ -337,7 +348,8 @@ _TRACK_PARTS = (["DRIVE SPROCKET", "IDLER SPROCKET"] + ["SPROCKET SHAFT"] * 2 + 
 PARTS = (["BASE FRAME", "CABLE", "CABLE ROLLER", "CABLE ROLLER"] + _TRACK_PARTS + ["TOP TRACK FRAME"] + _TRACK_PARTS
          + ["HYDRAULIC CYLINDER ROD"] * 2
          + ["BELT FRAME", "BELT PULLEY A", "BELT PULLEY B", "BELT PULLEY C"] + ["BELT LINK"] * BELT_N
-         + ["PORTAL FRAME"] + ["HYDRAULIC CYLINDER BARREL"] * 2 + ["ISO 4017 M20 x 40 - 8.8 HDG"] * 4)
+         + ["PORTAL FRAME"] + ["HYDRAULIC CYLINDER BARREL"] * 2 + ["ISO 4017 M20 x 40 - 8.8 HDG"] * 4
+         + ["TILT FOUNDATION", "TILT PIN", "TILT CYLINDER BARREL", "TILT CYLINDER ROD"])       # task 0229
 ASSEMBLIES = [ROOT, "BOTTOM TRACK.ASM", "TOP CARRIAGE.ASM", "TOP TRACK.ASM", "BELT DRIVE.ASM"]
 _ASM_PATH = {"bottom": f"{ROOT}#1/BOTTOM TRACK.ASM#1", "top": f"{ROOT}#1/TOP CARRIAGE.ASM#1/TOP TRACK.ASM#1"}
 
@@ -367,6 +379,8 @@ def _uids():
     u["PORTAL FRAME"] = f"{ROOT}#1/PORTAL FRAME#1"
     for k in range(1, 5):
         u[f"BOLT {k}"] = f"{ROOT}#1/{BOLT}#{k}"
+    for name in ("TILT FOUNDATION", "TILT PIN", "TILT CYLINDER BARREL", "TILT CYLINDER ROD"):   # task 0229
+        u[name] = f"{ROOT}#1/{name}#1"
     return u
 
 
@@ -428,6 +442,14 @@ def _numbers():
                            "radius": CABLE_ROLLER_R, "axis": (0.0, 1.0, 0.0)} for k, x in enumerate(CABLE_ROLLER_X)],
         "lift": {"assembly": UID["TOP CARRIAGE.ASM"], "frame_uid": UID["TOP TRACK FRAME"], "axis": (0.0, 0.0, 1.0)},
         "base_uid": UID["BASE FRAME"],
+        "tilt": {"hinge": (TILT_HINGE[0], 0.0, TILT_HINGE[1]), "axis": (0.0, 1.0, 0.0), "pin_uid": UID["TILT PIN"],
+                 "foundation_uid": UID["TILT FOUNDATION"], "barrel_uid": UID["TILT CYLINDER BARREL"],
+                 "rod_uid": UID["TILT CYLINDER ROD"], "barrel_pin": (TILT_BARREL_PIN[0], 0.0, TILT_BARREL_PIN[1]),
+                 "rod_pin": (TILT_ROD_PIN[0], 0.0, TILT_ROD_PIN[1]), "max_deg": TILT_MAX,
+                 "moving": [UID[k] for k in ("BASE FRAME", "CABLE", "CABLE ROLLER 1", "CABLE ROLLER 2",
+                                             "BOTTOM TRACK.ASM", "TOP CARRIAGE.ASM", "PORTAL FRAME",
+                                             "HYDRAULIC CYLINDER BARREL 1", "HYDRAULIC CYLINDER BARREL 2")]
+                 + [UID[f"BOLT {k}"] for k in range(1, 5)]},
         "belt": {
             "assembly": UID["BELT DRIVE.ASM"], "frame_uid": UID["BELT FRAME"],
             "pb": BELT_PITCH, "N": BELT_N, "zC": round(BELT_C_Z, 9), "loop_length": round(BELT_LOOP.length, 6),
@@ -537,6 +559,16 @@ def base_frame():
             parts.append(box(x - 25.0, s * 55.0, 40.0, x + 25.0, s * 75.0, 945.0))
         parts.append(ycyl(CABLE_ROLLER_BORE, x, CABLE_ROLLER_Z, -75.0, 75.0))
     holes += [G.cyl(10.5, 42.0, (x, y, -1.0)) for x, y in DECK_BOLTS]
+    hx, hz = TILT_HINGE                                         # task 0229: the hinge lugs under the +X end
+    for s in (1, -1):
+        parts.append(box(800.0, s * 120.0, hz, hx + 30.0, s * 140.0, 1.0))
+        parts.append(ycyl(30.0, hx, hz, *sorted((s * 120.0, s * 140.0))))
+    holes.append(ycyl(TILT_PIN_R, hx, hz, -150.0, 150.0))
+    rx, rz = TILT_ROD_PIN                                       # the tilt cylinder's rod clevis + its pin
+    for s in (1, -1):
+        parts.append(box(rx - 30.0, s * 30.0, rz, rx + 30.0, s * 50.0, 1.0))
+        parts.append(ycyl(30.0, rx, rz, *sorted((s * 30.0, s * 50.0))))
+    parts.append(ycyl(TILT_EYE_PIN_R, rx, rz, -50.0, 50.0))
     return G.cut(G.fuse(*parts), *holes)
 
 
@@ -580,6 +612,58 @@ def rod():
 def deck_bolt():
     """ISO 4017 M20 x 40: the head on z 0..12.5, the shank down to z = -40."""
     return hex_bolt(20, 40.0)
+
+
+def _tilt_axis():
+    """The tilt cylinder's axis in the x-z plane: unit vector from the barrel's pin to the rod's, and its length."""
+    d = np.array(TILT_ROD_PIN) - np.array(TILT_BARREL_PIN)
+    return d / np.linalg.norm(d), float(np.linalg.norm(d))
+
+
+def _along(s_, u, p0):
+    return (p0[0] + u[0] * s_, 0.0, p0[1] + u[1] * s_)
+
+
+def tilt_foundation():
+    """Task 0229: a slab under the tensioner with the hinge's two lugs at +X and the barrel's clevis + pin."""
+    z0, z1 = FOUNDATION_Z
+    hx, hz = TILT_HINGE
+    parts = [box(-900.0, -260.0, z0, 930.0, 260.0, z1)]
+    for s in (1, -1):
+        parts.append(box(hx - 30.0, s * 145.0, z1 - 1.0, hx + 30.0, s * 165.0, hz))
+        parts.append(ycyl(30.0, hx, hz, *sorted((s * 145.0, s * 165.0))))
+    bx, bz = TILT_BARREL_PIN
+    for s in (1, -1):
+        parts.append(box(bx - 30.0, s * 40.0, z1 - 1.0, bx + 30.0, s * 60.0, bz))
+        parts.append(ycyl(30.0, bx, bz, *sorted((s * 40.0, s * 60.0))))
+    parts.append(ycyl(TILT_EYE_PIN_R, bx, bz, -60.0, 60.0))
+    return G.cut(G.fuse(*parts), ycyl(TILT_PIN_R, hx, hz, -170.0, 170.0))
+
+
+def tilt_pin():
+    return ycyl(TILT_PIN_R, TILT_HINGE[0], TILT_HINGE[1], -170.0, 170.0)
+
+
+def tilt_barrel():
+    """The tilt cylinder's barrel in the model's place: an eye on its pin, a body along the axis with an open bore."""
+    u, _L = _tilt_axis()
+    d = (float(u[0]), 0.0, float(u[1]))
+    s0, s1, r = TILT_BODY
+    b0, br = TILT_BORE
+    eye = G.cut(ycyl(TILT_EYE_R, *TILT_BARREL_PIN, -35.0, 35.0), ycyl(TILT_EYE_HOLE, *TILT_BARREL_PIN, -36.0, 36.0))
+    body = G.fuse(G.cyl(r, s1 - s0, _along(s0, u, TILT_BARREL_PIN), d),
+                  G.cyl(22.0, s0 - TILT_EYE_R + 8.0, _along(TILT_EYE_R - 4.0, u, TILT_BARREL_PIN), d))
+    return G.cut(G.fuse(eye, body), G.cyl(br, s1 - b0 + 1.0, _along(b0, u, TILT_BARREL_PIN), d))
+
+
+def tilt_rod():
+    """The tilt cylinder's rod in the model's place: an eye on the BASE FRAME's clevis pin, the rod into the barrel."""
+    u, L = _tilt_axis()
+    d = (-float(u[0]), 0.0, -float(u[1]))
+    eye = G.cut(ycyl(TILT_EYE_R, *TILT_ROD_PIN, -25.0, 25.0), ycyl(TILT_EYE_HOLE, *TILT_ROD_PIN, -26.0, 26.0))
+    s0 = TILT_EYE_R - 4.0
+    s1 = L - TILT_BORE[0] - 10.0                                # its end 10 mm short of the bore's bottom
+    return G.fuse(eye, G.cyl(TILT_ROD_R, s1 - s0, _along(s0, -u, TILT_ROD_PIN), d))
 
 
 def belt_link():
@@ -660,6 +744,10 @@ def model():
     bt = G.Part(BOLT, deck_bolt(), ZINC)
     for x, y in DECK_BOLTS:
         root.add(bt, G.T(x, y, 40.0))
+    root.add(G.Part("TILT FOUNDATION", tilt_foundation(), GREY))          # task 0229
+    root.add(G.Part("TILT PIN", tilt_pin(), STEEL))
+    root.add(G.Part("TILT CYLINDER BARREL", tilt_barrel(), DARK))
+    root.add(G.Part("TILT CYLINDER ROD", tilt_rod(), CHROME))
     return root
 
 
@@ -768,6 +856,8 @@ def check(root, say=print):
         touch.add(frozenset((UID[f"HYDRAULIC CYLINDER ROD {k}"], UID["TOP TRACK FRAME"])))
     for k in range(1, 5):
         touch.add(frozenset((UID[f"BOLT {k}"], UID["BASE FRAME"])))
+    touch |= {frozenset((UID["TILT PIN"], UID["BASE FRAME"])), frozenset((UID["TILT PIN"], UID["TILT FOUNDATION"])),
+              }                     # task 0229 (the cylinder's eyes sit 1 mm loose on their pins: they touch nothing)
     overlap = {frozenset((UID[f"BELT LINK {k + 1}"], UID[f"BELT LINK {(k + 1) % BELT_N + 1}"])) for k in range(BELT_N)}
     found = set()
     for i, (na, ua, sa) in enumerate(parts):
@@ -812,6 +902,27 @@ def check(root, say=print):
     assert lifted > 50.0, ("the top track lifted 150 mm comes near the portal", lifted)
     say("  clearances: " + ", ".join(f"{k} {v:.1f}" for k, v in gaps.items())
         + f"; the rods {rods:.1f} from the portal and barrels (radial), the carriage lifted 150 mm {lifted:.0f}")
+    # task 0229: tilted up to TILT_MAX about the hinge, what moves stays clear of what stays; the rod stays in its bore
+    moving = [s for _n, u, s in parts if any(u == m or u.startswith(m + "/") for m in NUMBERS["tilt"]["moving"])]
+    still = [shape[UID["TILT FOUNDATION"]]] + [s for _n, u, s in parts if u.startswith(UID["BELT DRIVE.ASM"] + "/")]
+    hinge = (TILT_HINGE[0], 0.0, TILT_HINGE[1])
+    still_boxes = [bounds(f) for f in still]
+    tilt_gap = 1e9
+    for a in (0.0, TILT_MAX / 2.0, TILT_MAX):
+        for m in moving:
+            mt = G.xform(m, G.Rot(Y, a, hinge))
+            lo, hi = bounds(mt)
+            for f, (flo, fhi) in zip(still, still_boxes):
+                if np.linalg.norm(np.maximum(np.maximum(flo - hi, lo - fhi), 0.0)) < 20.0:
+                    tilt_gap = min(tilt_gap, _dist(mt, f))
+    assert tilt_gap >= 5.0, ("the tilted tensioner comes near the foundation or the belt", tilt_gap)
+    u, L = _tilt_axis()
+    rp = G.Rot(Y, TILT_MAX, hinge) @ np.array([TILT_ROD_PIN[0], 0.0, TILT_ROD_PIN[1], 1.0])
+    L_max = float(np.hypot(rp[0] - TILT_BARREL_PIN[0], rp[2] - TILT_BARREL_PIN[1]))
+    in_bore = TILT_BODY[1] - (TILT_BORE[0] + 10.0) - (L_max - L)
+    assert in_bore > 100.0, ("the tilt cylinder's rod leaves its barrel", in_bore)
+    say(f"  tilted {TILT_MAX:.0f}°: {tilt_gap:.1f} from the foundation and the belt drive; the tilt cylinder "
+        f"{L:.1f} -> {L_max:.1f} long, its rod {in_bore:.0f} in the barrel")
     # the chains: pins one pitch apart, the links' hinges on them
     for which in ("bottom", "top"):
         p = track_pins(which)

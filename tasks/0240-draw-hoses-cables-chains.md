@@ -122,7 +122,7 @@ the cable-lay vessel (private).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 20 Nov 2026 (branch `claude/optimistic-ptolemy-3f7duz`; release 0.2.177)
+**Chat / date:** Claude Code on the web, 20 Nov 2026 (branch `claude/optimistic-ptolemy-3f7duz`; release 0.2.178)
 
 **What changed:**
 - New `blender/drawn.py` (the drawn object: an app-made mesh part with no parent in "Drawn hoses and cables"; click ->

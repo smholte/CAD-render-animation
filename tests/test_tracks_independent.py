@@ -838,8 +838,9 @@ def built_tracks(model, built_run):
 def test_built_lift_and_squeeze(model, built_tracks):
     sc = model
     seen = []
-    for f in (1, 40, 76, 120, 151, 200):
+    for f in (1, 40, 76, 200):          # (task 0229: 120 and 151 are tilted 6° – test_tracks.py checks those)
         sc.frame_set(f)
+        assert abs(joints.get_value(joints.find(sc, tracks.TEST_TILT))) < 1e-6, f
         lift = jval(LIFT)
         seen.append(lift)
         everything_on_loop("top", lift=lift, travel=cable_sign() * jval(CABLE), tag=f"Tracks frame {f}:")
