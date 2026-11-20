@@ -44,6 +44,20 @@ kept through a model update, 400+ joints in a batch, the clash check with many t
 10. A stand-in that **fails** shows a real fault: fix it in the app if it is small (one module, with its test), else
     leave the test marked `xfail` with the reason and name it in the report for the lead.
 
+## Design (worker, 20 Nov – the split over subagents)
+
+Each stand-in is a **new test file** (one owner per file); nothing reads `demo_model/`, `blender/demo*.py` or the demo
+tests. App code only for a fault a stand-in finds, and then only after the worker agrees (it stays with the worker).
+
+| Who | Items | Files it owns |
+| --- | --- | --- |
+| worker | 3 tracks on a hinge + cylinder; 7 (already public: `test_paths_core.py::test_centreline_of_a_300_m_cable`, a made-up 300 m tube read in pieces – no new test) | `tools/make_test_tracks.py`, both `test_tracks.step`, `tests/test_tracks*.py`, `blender/tracks.py` set-up, `tour.py`, `tour_versions` |
+| subagent A (spool) | 1 carousel odd full layers + partly paid-out top layer leaving at its innermost turn; 2 Lebus drum, climbs 7–8 mm of payout apart, drum within 0.1° after Build (`joints.table_keys`) | `tests/test_spool_standins.py` |
+| subagent B (motion / sea / update) | 4 `test_moving` block lowered on a wire past a part made in the test, clash check 0 rows; 5 the 38 kg/m catenary tension + Lay data label on `test_sea`; 6 a wrap set by hand on a sheave on a moving part (`test_swivel`'s davit or `test_paths_a`), update with the same file, wrap kept | `tests/test_moving_lowering.py`, `tests/test_sea_realism.py`, `tests/test_paths_wrap_moving.py` |
+| subagent C (size) | 8 a made-up 400-joint scene in one `joints._batch` (time, one update in / one out, every joint where it should be); 9 a made-up rim of 200 rollers turning on a plain deck, the clash check's result (0 rows, rollers held still) and time | `tests/test_joint_batch_size.py`, `tests/test_clash_rim.py` |
+
+Test times: each new file aims at < 2 min on the 4-core web machine (they join a pytest group by themselves).
+
 ## Done when
 
 - [ ] Each row of study 0226 section 2's table has its stand-in (or a line in the report why none is needed)
