@@ -1,6 +1,6 @@
 # 0219 – Web 3D page: measurement labels never overlap; measure to an edge
 
-**Who:** worker · **Status:** running · **Branch:**
+**Who:** worker · **Status:** done (0.2.175) · **Branch:**
 `task/0219-web3d-measure-edges`
 **Started by:** lead, 18 Nov 2026 (owner's list of 18 Nov 22:21, through the ToolBox lead's lead-post message
 `1118-toolbox-to-fresing-render-viewer-and-slice.md`) · **Model:** Opus · effort Medium
@@ -85,6 +85,10 @@ Slice (0218); a page that opens on its own by a link, other file types, STEP in 
   records saved ~20 % against fixed 12-number rows. The Blender test's limit for faces+edges went from 20 % to 40 %
   of the small-picture draft `.glb`.
 - No independent reviewer/tester subagent (no Windows code; usage rule).
+- **GitHub runs: 3.** Run 1 red: `test_toolbox`'s sample test failed on `main` too (a date time-bomb – 0227 fixed it
+  the same hour; I took its fix) and Windows' `web3d.small` (the known flaky page read; green on the next run, my
+  code was the same). Run 2: version clash (0227 took 0.2.174 → 0.2.175) merged; then the Linux PC check passed 15 min
+  on a runner ~1.8× slower on every line – re-ran the failed job: green (11.2 min). Fast-forward to `main`.
 
 **Open points / follow-up tasks:**
 - Edges between two faces without a face row (both free-form) are left out: the page finds edges from the hovered
