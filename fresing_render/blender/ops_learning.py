@@ -160,21 +160,191 @@ class FRESING_OT_learn_next(bpy.types.Operator):
         return {"FINISHED"}
 
 
+_MODE_ITEMS = [("SHOW", "Show me", "The app does each step while you watch"),
+               ("BUILD", "Build it yourself", "You do each step where it glows")]
+
+
+def _open_later(lesson_id: str, mode: str, at: int | None = None) -> None:
+    """A new project and the lesson, a moment after the button (not inside a window that is closing)."""
+    from . import lesson
+
+    def go():
+        try:
+            lesson.open_lesson(lesson_id, mode, at=at)
+        except Exception as exc:  # noqa: BLE001 - said in the status bar, the app goes on
+            print("Fresing Render (lesson):", exc)
+            try:
+                bpy.context.scene.fresing.last_message = f"The lesson could not start: {exc}"
+            except Exception:  # noqa: BLE001
+                pass
+        return None
+    bpy.app.timers.register(go, first_interval=0.05)
+
+
 class FRESING_OT_learn_lesson(bpy.types.Operator):
-    """A lesson for this function (Show me, Build it yourself): the lessons come with a later update"""
+    """Opens the lesson that teaches this function, at its own step, in a new project with the sample model: the
+    steps before it are done for you. Show me: the app does the step while you watch; Build it yourself: you do it"""
 
     bl_idname = "fresing.learn_lesson"
-    bl_label = "Show me"
+    bl_label = "Lesson"
     bl_options = {"INTERNAL"}
 
     fid: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+    mode: EnumProperty(items=_MODE_ITEMS, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, props):
+        from . import lesson
+        les, k = lesson.of_function(props.fid) if props is not None else (None, -1)
+        if les is None:
+            return "This function has no lesson yet: lessons come for more sample projects with later updates"
+        how = "the app does it while you watch" if props.mode == "SHOW" else "you do it, the app points"
+        return (f"Opens the lesson '{les.title}' at step {k + 1} in a new project with the sample model: {how}. "
+                "Your open project is not changed (save it first)")
 
     @classmethod
     def poll(cls, context):
-        return False                 # the hook: the lessons task puts its lesson here
+        return True
 
     def execute(self, context):
-        return {"CANCELLED"}
+        from . import lesson
+        les, k = lesson.of_function(self.fid)
+        if les is None:
+            self.report({"INFO"}, "This function has no lesson yet")
+            return {"CANCELLED"}
+        core.add(usage.state(), self.fid)
+        learning.save()
+        _open_later(les.id, self.mode, at=k)
+        return {"FINISHED"}
+
+
+class FRESING_OT_learn_start(bpy.types.Operator):
+    """Starts a lesson in a new project with the sample model (your open project is not changed: save it first).
+    Show me: the app does each step while you watch. Build it yourself: you do each step where it glows"""
+
+    bl_idname = "fresing.learn_start"
+    bl_label = "Start the lesson"
+    bl_options = {"INTERNAL"}
+
+    lesson: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+    mode: EnumProperty(items=_MODE_ITEMS, options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, props):
+        from . import lesson
+        les = lesson.LESSONS.get(props.lesson) if props is not None else None
+        if les is None:
+            return "Lesson coming: this sample project gets its lesson with a later update. View shows it finished"
+        if props.mode == "SHOW":
+            return (f"Show me: a new project with the plain model, then the app does each of the {len(les.steps)} "
+                    "steps itself – the button glows, a card beside the part says what happens, Next goes on")
+        return (f"Build it yourself: a new project with the plain model; you do each of the {len(les.steps)} steps "
+                "where it glows, the lesson goes on once the project shows it done. Do it for me does a step for you")
+
+    def execute(self, context):
+        from . import lesson
+        if self.lesson not in lesson.LESSONS:
+            return {"CANCELLED"}
+        _open_later(self.lesson, self.mode)
+        return {"FINISHED"}
+
+
+class FRESING_OT_learn_view(bpy.types.Operator):
+    """View: opens the test tour's finished project of this sample at its first stop (Go). When the test tour is not
+    made yet, it is made first (in the background, a few minutes)"""
+
+    bl_idname = "fresing.learn_view"
+    bl_label = "View"
+    bl_options = {"INTERNAL"}
+
+    set: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+
+    def execute(self, context):
+        import os
+
+        from . import ops_tour, tour
+        if self.set not in tour.SETS:
+            return {"CANCELLED"}
+        path = tour.set_path(tour.default_folder(), ops_tour._version(), self.set)
+        if not os.path.isfile(path):
+            self.report({"INFO"}, "The test tour is made first (a few minutes): then press View again")
+            return bpy.ops.fresing.tour_take("EXEC_DEFAULT")
+        first = next((st for st in tour.STOPS if st.set == self.set), None)
+        if first is not None:
+            ops_tour._PENDING["stop"] = first.id
+        if os.path.normcase(os.path.abspath(bpy.data.filepath or "")) == os.path.normcase(path) and first:
+            ops_tour._PENDING.pop("stop", None)
+            return bpy.ops.fresing.tour_go("EXEC_DEFAULT", stop=first.id)
+        bpy.ops.wm.open_mainfile(filepath=path)
+        return {"FINISHED"}
+
+
+def teaches(set_id: str) -> str:
+    """One line: what a learning set teaches (its lesson's line, else its stops' titles)."""
+    from . import lesson, tour
+    les = lesson.LESSONS.get(set_id)
+    if les is not None:
+        return les.teaches
+    titles = [st.title for st in tour.STOPS if st.set == set_id]
+    return ", ".join(titles[:3]) + (" …" if len(titles) > 3 else "")
+
+
+class FRESING_OT_learn_lessons(bpy.types.Operator):
+    """Learn the app on sample projects: View shows a finished one, Show me lets the app do each step while you
+    watch, Build it yourself lets you do each step while the app points"""
+
+    bl_idname = "fresing.learn_lessons"
+    bl_label = "Learn"
+    bl_options = {"INTERNAL"}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=720, title="Learn", confirm_text="Close")
+
+    def execute(self, context):
+        return {"FINISHED"}
+
+    def draw(self, context):
+        draw_lessons(self.layout)
+
+
+def draw_lessons(layout) -> None:
+    """The Learn window: the sets with a lesson first (three buttons), then every other set with View."""
+    from . import lesson, tour
+    col = layout.column(align=True)
+    for line in ("Three ways to learn on a sample project. View: the finished project (the test tour).",
+                 "Show me: the app does each step while you watch. Build it yourself: you do each step, the app",
+                 "points and goes on when it is done. Both start a new project: save your own work first."):
+        row = col.row()
+        row.active = False
+        row.label(text=line)
+    layout.separator()
+    box = layout.box()
+    for set_id, ts in tour.SETS.items():
+        les = lesson.LESSONS.get(set_id)
+        if les is None:
+            continue
+        row = box.row(align=True)
+        split = row.split(factor=0.42, align=True)
+        split.label(text=f"{ts.title} ({len(les.steps)} steps)", icon="LIGHT")
+        right = split.row(align=True)
+        right.operator("fresing.learn_view", text="View", icon="HIDE_OFF").set = set_id
+        op = right.operator("fresing.learn_start", text="Show me", icon="PLAY")
+        op.lesson, op.mode = set_id, "SHOW"
+        op = right.operator("fresing.learn_start", text="Build it yourself", icon="TOOL_SETTINGS")
+        op.lesson, op.mode = set_id, "BUILD"
+        sub = box.row()
+        sub.active = False
+        sub.label(text="      " + _clip(les.teaches, 96))
+    layout.separator()
+    row = layout.row()
+    row.label(text="More sample projects – View now; Show me and Build it yourself: lesson coming", icon="TIME")
+    flow = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+    for set_id, ts in tour.SETS.items():
+        if set_id in lesson.LESSONS:
+            continue
+        cell = flow.row(align=True).split(factor=0.76, align=True)
+        cell.label(text=_clip(ts.title, 44))
+        cell.operator("fresing.learn_view", text="View", icon="HIDE_OFF").set = set_id
 
 
 class FRESING_OT_learn_window(bpy.types.Operator):
@@ -232,8 +402,11 @@ def draw_list(layout, told=()) -> None:
         op = t.operator("fresing.learn_show", text="Tour")
         op.fid, op.how = fid, "TOUR"
         lesson = right.row(align=True)
-        lesson.enabled = False
-        lesson.operator("fresing.learn_lesson", text="Show me").fid = fid
+        lesson.enabled = bool(f.lesson)
+        op = lesson.operator("fresing.learn_lesson", text="Show me")
+        op.fid, op.mode = fid, "SHOW"
+        op = lesson.operator("fresing.learn_lesson", text="Build")
+        op.fid, op.mode = fid, "BUILD"
         right.operator("fresing.learn_done", text="Done" if not item["done"] else "Undo").fid = fid
         right.operator("fresing.learn_remove", text="", icon="X").fid = fid
         if item["auto"]:
@@ -294,7 +467,8 @@ def _draw_fresing_menu(layout) -> None:
 
 
 CLASSES = (FRESING_OT_learn_show, FRESING_OT_learn_add, FRESING_OT_learn_add_new, FRESING_OT_learn_done,
-           FRESING_OT_learn_remove, FRESING_OT_learn_next, FRESING_OT_learn_lesson, FRESING_OT_learn_window)
+           FRESING_OT_learn_remove, FRESING_OT_learn_next, FRESING_OT_learn_lesson, FRESING_OT_learn_window,
+           FRESING_OT_learn_start, FRESING_OT_learn_view, FRESING_OT_learn_lessons)
 
 
 def register() -> None:

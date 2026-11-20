@@ -45,7 +45,7 @@ class TOPBAR_MT_fresing(bpy.types.Menu):
             _op(layout, "fresing.tour_cancel", icon="CANCEL")
         else:
             _op(layout, "fresing.tour_take", text="Take the test tour", icon="VIEW_CAMERA")
-        state = welcome.load()
+        _op(layout, "fresing.learn_lessons", text="Learn…", icon="LIGHT")    # task 0230: View / Show me / Build        state = welcome.load()
         pending = welcome.core.whats_new_pending(state)
         _op(layout, "fresing.whats_new", text=f"What's new in {welcome.version()}" + ("  •" if pending else ""),
             icon="INFO")
@@ -84,7 +84,7 @@ def unregister_handlers() -> None:
 
 def entries() -> list:
     """The menu's operator ids in order (tests, the PC check)."""
-    return ["fresing.tour_take", "fresing.whats_new", "fresing.show_panel", "fresing.blender_editors", "fresing.demo_make", "fresing.user_guide",
+    return ["fresing.tour_take", "fresing.learn_lessons", "fresing.whats_new", "fresing.show_panel", "fresing.blender_editors", "fresing.demo_make", "fresing.user_guide",
             "fresing.self_test", "fresing.pc_check", "fresing.open_app_folder", "fresing.update_check", "fresing.usage_window", "fresing.learn_window", "fresing.welcome",
             "fresing.about"]
 

@@ -211,12 +211,12 @@ def s_go_other_done():
 @step
 def s_marks():
     r1 = op("fresing.tour_mark", stop="cylinder", state="OK")
-    r2 = op("fresing.tour_mark", stop="sea", state="PROBLEM")
-    r3 = op("fresing.tour_note", stop="sea", note="test note é")
+    r2 = op("fresing.tour_mark", stop="looks", state="PROBLEM")
+    r3 = op("fresing.tour_note", stop="looks", note="test note é")
     data = tour().load_results(STATE["folder"], STATE["version"])
     check("OK / Problem / Note are saved next to the tour",
           (r1, r2, r3) == ({"FINISHED"},) * 3 and data["stops"]["cylinder"]["state"] == "OK"
-          and data["stops"]["sea"] == {"state": "PROBLEM", "note": "test note é"})
+          and data["stops"]["looks"] == {"state": "PROBLEM", "note": "test note é"})
     redraw()
     return 0.5
 
@@ -226,9 +226,9 @@ def s_copy():
     r = op("fresing.tour_copy")
     text = bpy.context.window_manager.clipboard
     path = tour().results_txt_path(STATE["folder"], STATE["version"])
-    sea = tour().find("sea")
+    sea = tour().find("looks")
     check("Copy results: the clipboard has every stop", r == {"FINISHED"} and text.count("\n") >= len(tour().STOPS)
-          and f"[PROBLEM] {sea.title} (sea) - test note é" in text, text[:200])
+          and f"[PROBLEM] {sea.title} (looks) - test note é" in text, text[:200])
     check("Copy results: the text file next to the tour", os.path.isfile(path))
     sidebar_shot("02_tour_panel_marked")
     return 0.5

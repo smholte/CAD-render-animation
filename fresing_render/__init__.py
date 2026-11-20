@@ -36,6 +36,7 @@ def _classes():
     from .blender import ops_tc_person            # task 0156: the operator at a manual tool change
     from .blender import ops_lifting, ui_lifting  # task 0201: 8 Lifting plan
     from .blender import ops_lifting_make, ui_lifting_make  # task 0204: 8 Lifting plan > Equipment > Make a crane…
+    from .blender import ui_lesson                # task 0230: the Lesson panel (on top, under the test tour's)
     from .blender import ops_usage, ui_usage      # task 0181: the usage tracker, favourites bar, My usage
     from .blender import about                    # task 0206: About Fresing Render, the licence files
     from .blender import apptools                 # task 0212: Fresing > Tools and checks
@@ -55,7 +56,7 @@ def _classes():
     looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
-    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
@@ -136,6 +137,8 @@ def register():
     from .blender import lock, ui_top, workspaces
     from .blender import highlight
     highlight.register()                     # task 0062: what a lesson points with (nothing runs until one points)
+    from .blender import lesson
+    lesson.register()                        # task 0230: the lessons (nothing runs until one is started)
     lock.register()                          # task 0062: the Client view's lock (keys, new objects)
     workspaces.register()                    # the project's workspace after a load; the open sections at a save
     ui_top.register_header()                 # "Make" in the 3D view's header
@@ -271,6 +274,8 @@ def unregister():
     ui_top.unregister_header()
     workspaces.unregister()
     lock.unregister()
+    from .blender import lesson
+    lesson.unregister()
     from .blender import highlight
     highlight.unregister()
     for cls in reversed(_all_classes()):

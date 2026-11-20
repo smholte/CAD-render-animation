@@ -95,6 +95,23 @@ environments 0231, 0233–0235).
 The other sets' lessons (later, after 0231 and 0233–0235 settle the sets); the guide inside the app; `fresing://`;
 lesson downloads; any tour set other than the crane hub and `mill`; 0222's Blender-interface packages.
 
+## Design (worker, 20 Nov)
+
+- `blender/lesson.py` – the engine: `Lesson` / `Step` (function, title, say, more, parts, select, do, done, show, point),
+  `LESSONS`, `first_not_done`, `run` (View's recipe: every step not done → `do` → `done` must be true), the running
+  lesson (`start(scene, id, mode, at)`, `stop(forget)`, `do_step`, `next_step`, `back`, `tick(scene, now)` = the timer's
+  look, `advance`), pointing through `highlight.point_function` / `point` (+ `keep_clear("FRESING_PT_lesson")`), the
+  card (`place_card`, draw handler on the 3D view), the side panel scrolled to the target, handlers only while a lesson
+  runs (`handlers_left`), `new_project` / `open_lesson` (waits for `editors.busy()` before pointing: Blender 5.2.3
+  crash).
+- `blender/lessons/crane.py` (11 steps), `lessons/mill.py` (13 steps); `tour.build_crane` / `build_mill` run them first.
+- `blender/ui_lesson.py` – the Lesson panel + `fresing.lesson_*`; `ops_learning.py` – `fresing.learn_lessons` (Learn
+  window), `learn_start`, `learn_view`, `learn_lesson` (0208's hook, at the function's step).
+- `core/functions.py` – `read_lessons` (AST, no Blender), `problems(lesson_steps=)`; `lesson=` links; `learn.*`.
+- `highlight.py` – marks an `operator_menu_enum` too (the animation's + for a step); `_show_tab` waits for the editors.
+- Tests: `tests/test_lessons.py` (bpy module), `tools/ui_test_lesson.py` (real app, group tour-b), PC-check
+  `app.lessons`, tour stop `lessons`.
+
 ---
 
 ## Report (filled in by the chat that did the task)

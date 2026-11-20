@@ -294,7 +294,14 @@ def _read_prefs() -> None:
 
 
 def _show_tab() -> None:
-    """The side panel is there and shows the Fresing tab."""
+    """The side panel is there and shows the Fresing tab. Not while Blender's column is being closed after a load:
+    a 3D view's setting set then crashes Blender 5.2.3 (task 0221; found again by task 0230's lesson start)."""
+    try:
+        from . import editors
+        if editors.busy():
+            return
+    except Exception:  # noqa: BLE001 - no editors module: nothing is closed
+        pass
     for win in bpy.context.window_manager.windows:
         for area in win.screen.areas:
             if area.type != "VIEW_3D":
@@ -339,6 +346,8 @@ class _L:
             return lambda *a, **k: _L(real(*a, **k), self._in)
         if name == "operator":
             return self._operator
+        if name == "operator_menu_enum":
+            return self._menu
         if name == "prop":
             return self._prop
         if name == "panel":
@@ -376,6 +385,16 @@ class _L:
         if self._is_target(idname=idname, text=k.get("text")):
             k = self._marked(k)
         return self._l.operator(idname, *a, **k)
+
+    def _menu(self, idname, prop, *a, **k):
+        """A drop-down button of an operator (the animation's + for a step, task 0230): it takes no icon of ours,
+        so it gets the marker in front of it, as a setting does."""
+        if self._is_target(idname=idname, text=k.get("text")):
+            row = self._l.row(align=True)
+            row.label(text="", icon_value=_S["icons"]["field"].icon_id)
+            _S["marked"] = _S["menu"] = True
+            return row.operator_menu_enum(idname, prop, *a, **k)
+        return self._l.operator_menu_enum(idname, prop, *a, **k)
 
     def _prop(self, data, prop, *a, **k):
         if self._is_target(prop=prop):                  # a setting keeps its own look: the marker stands in front
@@ -430,7 +449,7 @@ def _swap(cls, attr: str) -> None:
         def wrapped(self, context):
             t = _S["target"]
             if t is not None and name == t["panel"]:
-                _S["marked"] = _S["fold_next"] = _S["outside"] = False
+                _S["marked"] = _S["fold_next"] = _S["outside"] = _S["menu"] = False
                 inner(_Self(self), context)
                 if _S["outside"] and not _S["marked"]:
                     _S["anywhere"] = _S["again"] = True
@@ -848,7 +867,8 @@ def _draw_side() -> None:
         buf.dimensions = vp[2] * vp[3] * 4
         px = np.frombuffer(buf, dtype=np.uint8).reshape(vp[3], vp[2], 4)
         t = _S["target"]
-        seen = locate(px, "button" if t["button"] else "field" if t["prop"] else "", clear=bool(_S["clear"]))
+        kind = "field" if t["prop"] or _S.get("menu") else "button" if t["button"] else ""
+        seen = locate(px, kind, clear=bool(_S["clear"]))
         seen["region"] = (region.x, region.y, region.width, region.height)
         st = _S["stats"]["read"]
         st[0] += 1

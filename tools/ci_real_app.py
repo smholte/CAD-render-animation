@@ -68,7 +68,7 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
               "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 88, "tour2": 2, "tourui": 15, "layout": 66,
-              "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31,
+              "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31, "lesson": 40,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "toolbox": 19,
               "clientkeys": 12, "demokits": 23, "drawn": 17}
@@ -89,7 +89,7 @@ GROUPS = {
     "callouts": ["callouts"],
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox"],        # toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
-    "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
+    "tour-b": ["tour2", "highlight", "start", "lesson"],   # lesson: task 0230 (~1.5 min)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane"],   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
@@ -191,6 +191,9 @@ TESTS = {
     "clientkeys": ("Real app: the Client view – a part selected before, Ctrl+Z, a click, A, a part freed by a script: "
                    "nothing selected; X, Delete, Shift+X, Shift+Delete, Tab and Object > Delete delete nothing; Full "
                    "access: Delete works again (ui_test_client_keys.py)", "ui_test_client_keys.py", True),
+    "lesson": ("Real app: lessons – Fresing > Learn…, Build it yourself on the crane by clicking where the highlight "
+               "points and Do it for me, a step done another way, Show me from the learning list at its step, Back, "
+               "saved half-way and going on, nothing left after Stop (ui_test_lesson.py)", "ui_test_lesson.py", True),
     "setup": ("Real app: the Set-up window – opens with its tab, Next / Back, a click in the main window, save and "
               "open, close (ui_test_setup.py)", "ui_test_setup.py", True),
 }

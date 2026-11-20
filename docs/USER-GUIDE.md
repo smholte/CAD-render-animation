@@ -266,6 +266,7 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **Take the test tour** – opens the [test tour](#tour) of this version; when it is not made yet, it is made first
   (in the background: the bottom line of the window shows how far it is, and **Cancel making the test tour** appears
   in the menu while it runs).
+- **Learn…** – the sample projects to learn on: View, Show me, Build it yourself ([Learn](#learn)).
 - **What's new in 0.2.…** – what this version brings (see below). A dot after it means you have not opened it yet.
 - **Show the Fresing panel** – brings the side panel back on the Fresing tab ([If the Fresing panel is gone](#panel-gone)).
 - **Show Blender's editors** / **Hide Blender's editors** – Blender's Outliner and Properties editor at the right
@@ -327,6 +328,60 @@ opens it:
 3. **Cancel** = later: What's new stays in the **Fresing** menu (with a dot) until you open it.
 
 It never shows after going back to an older version or installing the same version again.
+
+<a id="learn"></a>
+## Learn – lessons on the sample projects
+
+**Fresing > Learn…** opens a window with the app's sample projects (the projects of the [test tour](#tour), each one
+small model with its own surroundings). There are three ways to learn on each of them:
+
+- **View** – the finished project: the test tour opens at that sample, its first stop set up (when the test tour is not
+  made yet, it is made first – a few minutes in the background – then press View again).
+- **Show me** – the app does each step itself while you watch.
+- **Build it yourself** – you do each step; the app shows you where and goes on once the project shows it is done.
+
+<img class="panel" src="img/learn_window.png" alt="The Learn window: Crane and Milling a slot with View, Show me and Build it yourself, the other samples with View">
+
+**Crane** (11 steps: a light look, a rotate joint and a joint on it, a camera, a saved scene, an animation with a step,
+Build & play, an exploded view and a picture in the render queue) and **Milling a slot** (13 steps: three slide axes, the
+bit and the workpiece, raw steel, chips, a close-up, the cut as two steps, Build & play and a picture of the cut) have a
+lesson now. The other samples have **View**; their lessons follow with later updates.
+
+Show me and Build it yourself start a **new project** with the sample's plain model, as the import leaves it. Your open
+project is not changed – save it first. The new project is not saved until you save it.
+
+<a id="learn-show-me"></a>
+### Show me
+
+The app points at the button of each step – the button stands out in the side panel (the rest is dimmed, as set in
+**Edit > Preferences > Add-ons > Fresing Render > Lesson highlight**), the parts it works on are shown in the 3D view and
+a card beside them says what happens. After a moment the app presses the button itself: a new joint swings out and back
+once so you see what it does. Then it waits for **Next** in the **Lesson** panel at the top of the Fresing tab.
+
+<img class="panel" src="img/lesson_show_me.jpg" alt="Show me points at Add rotate joint: the button is clear in the dimmed side panel, the boom is shown, the card beside it says what happens">
+
+- **Play on** (under the buttons) lets the lesson go on by itself after a short pause. The app remembers it for your
+  next lessons.
+- **More …** shows a longer text about the step; **This in the user guide** opens its section here.
+- **Back** takes the last step back (the same as **Ctrl+Z**) and shows it again.
+- **Switch to Build it yourself** goes on in the other way from the step you are on; **Stop** ends the lesson –
+  everything made so far stays in the project.
+
+<a id="learn-build"></a>
+### Build it yourself
+
+The app points the same way, but **you** press the button – or do the step your own way: any way that leaves the project
+showing the step done counts (a joint made from the list's **+**, a camera from another view, a scene under your own
+name). The card turns to **Done** and the next step follows by itself. **Do it for me** does the step for you, as Show me
+would.
+
+Where the lesson is, is read from the project: the first step it does not show done yet. So **Back** and **Ctrl+Z**
+move the lesson back too, and a project you saved half-way and open again shows the **Lesson** panel with **Show me** and
+**Build it yourself** to go on where you stopped (**Forget the lesson** takes the panel away).
+
+From your [learning list](#learning-list) (**Show me**, **Build**) and from the question about a panel you never use
+(**Show me in a lesson**), a function that has a lesson opens it at its own step: the steps before it are done for you.
+
 
 <a id="usage"></a>
 ## Your usage and the favourites bar
@@ -402,10 +457,11 @@ usage.
 
 **Fresing > My learning list…** opens the list.
 
-<img class="panel" src="img/learning_list.png" alt="My learning list: each function with Guide, Tour, a greyed Show me, Done and a cross">
+<img class="panel" src="img/learning_list.png" alt="My learning list: each function with Guide, Tour, Show me and Build, Done and a cross">
  Each line has the function's name and **Guide** (its section in this
 guide), **Tour** (its stop in the test tour, with the button pointed at), **Done** (tick it yourself; click again to take
-the tick away) and a cross (take it off). A greyed **Show me** is where the lessons will come later. **A function is
+the tick away) and a cross (take it off). **Show me** and **Build** open the function's [lesson](#learn) at its own
+step (greyed while its sample project has no lesson yet). **A function is
 ticked by itself when you use it on 3 different days** (a setting in My usage: *Days of use = learned*); the list says so
 once: *"You've got the hang of …"*. **Clear my usage data** asks whether to clear the list too; the list only goes in an
 exported profile when you include your usage counts.
