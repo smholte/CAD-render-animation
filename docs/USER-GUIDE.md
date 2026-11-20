@@ -3314,7 +3314,7 @@ the pointer lights up.
     distance between them and their angle);
   - a **flat face and a round face** – from the plane to the axis (**face to centre**).
 
-  **Edges** (since 0.2.NN): move the pointer close to an edge of a part – where two faces meet – and the **edge**
+  **Edges** (since 0.2.174): move the pointer close to an edge of a part – where two faces meet – and the **edge**
   lights up as an orange line instead of the face; a click picks it (a picked edge shows blue). A **straight edge**
   measures like an axis, a **round edge** (a hole's rim, where a rounding meets a flat face) by its centre:
   - one straight edge – its **length**; one round edge – its **diameter** (and the angle of the arc when it is not a

@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.174 – 20 Nov 2026 – Web 3D page: measure to edges, numbers never on top of each other (task 0219)
+
+- **Measure to an edge** on the web 3D page: move the pointer close to an edge of a part – it lights up as an orange
+  line – and click it. A straight edge gives its length, a round edge (a hole's rim, where a rounding meets a flat
+  face) its diameter. Two edges: the distance between them (or the shortest distance and the angle); an edge and a
+  flat face: face to edge; a round edge measures from its centre – to another hole's centre (with the distance
+  across and along the axes), to an axis, an edge or a face.
+- **The numbers never cover each other**: when the distance and its X / Y / Z numbers would lie on top of each other,
+  they move apart and a short line points to where each belongs.
+- The edges come from the export's faces (no change to the import); a page gets about a tenth bigger (measured: the
+  test crane's page +0.7 %, the demo vessel's +12 %). Export again to get edges on an older page.
+
 ## 0.2.173 – 19 Nov 2026 – A house from House Planner by itself (task 0217)
 
 - A house sent from House Planner now **arrives by itself**: no Save, no Import, no sending the bake back by hand. The
