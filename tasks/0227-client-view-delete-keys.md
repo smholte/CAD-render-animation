@@ -15,8 +15,9 @@ selected objects?" menu, no part gone), on Windows as on Linux.
 - Owner's check on his PC, 20 Nov 2026 (Windows 11, app on 0.2.168 or newer – the worker asks nothing, it tests on the
   newest `main`): in the Client view **G does nothing and Tab does nothing (right), but X opens Blender's small menu
   "Delete selected objects?" with Delete / Cancel, and pressing Delete while a part or a sub-assembly is selected
-  deletes it.** He did not say how the part got selected (clicked in the 3D view, picked in the Fresing tab's tree,
-  or selected before switching to the Client view) – try every route.
+  deletes it.** **Owner, 20 Nov 13:22: the part was selected by clicking it in the 3D view while in the Client view;
+  clicking in the Fresing tab's tree does nothing.** So a 3D-view click still selects a part while locked (the lock
+  should make objects unclickable) – start there; still try the other routes.
 - `lock.py` says (top docstring, `_KEYS` near line 391): selection and the active object are cleared when the lock goes
   on, objects are made unclickable, and Delete, X, Tab and Ctrl+Shift+S are swallowed by an add-on keymap whose
   operator's `poll` is the lock. So on his PC either a part can still be selected while locked, or the swallowing
