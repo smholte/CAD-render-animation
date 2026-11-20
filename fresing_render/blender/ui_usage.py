@@ -52,6 +52,7 @@ class FRESING_PT_favourites(_Panel, bpy.types.Panel):
         if panel:
             if fids:
                 ui.gap(layout)
+                ui.gap(layout)                          # task 0236: the question stands apart from the buttons above
             q = learning.question(panel)
             box = layout.box()
             if q["fid"]:

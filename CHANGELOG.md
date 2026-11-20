@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.176 – 20 Nov 2026 – Usage and start fixes (task 0236)
+
+- **No question about what is new to you.** After an update the app no longer asks "You haven't used Equipment
+  recently. Hide it?" for a panel What's new has just listed; it waits 10 app starts.
+- **What's new leads with what you see first** (workspaces, the Client view, folded sections, the Fresing menu), says "N
+  new, M better" and has a second short list, **Better since …**, for functions that got visibly better.
+- **A profile's hidden panels can be undone.** Export profile keeps your hides apart from the workspace; an imported
+  profile's hides join yours, and **Back to the workspace as it came** shows them again.
+- A panel you hid shows again when the project starts using it (after Build, undo or a model update), not only at the
+  next start.
+- A damaged start file (wrong numbers or versions) is repaired instead of stopping What's new and the welcome.
+- The favourites bar shows whole labels at the normal side-panel width, and the question about an unused panel stands
+  apart from the buttons above it.
+
 ## 0.2.175 – 20 Nov 2026 – Web 3D page: measure to edges, numbers never on top of each other (task 0219)
 
 - **Measure to an edge** on the web 3D page: move the pointer close to an edge of a part – it lights up as an orange

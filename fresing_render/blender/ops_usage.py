@@ -223,7 +223,8 @@ def export_profile(scene, name: str, with_counts: bool = False) -> str:
         raise ValueError(problem)
     ws = W.make_own(name, workspaces.current(scene), workspaces.ticks(scene), "Profile: workspace, favourites bar "
                                                                               "and hidden panels")
-    ws.hide = tuple(sorted(set(ws.hide) | set(workspaces.PERSONAL["hide"])))
+    # task 0236: the personal hides stay personal (they go into the profile's "hidden", not into the workspace's own
+    # hides), so "Back to the workspace as it came" still undoes them
     ws.extra = core.profile_part(usage.state(), with_counts)
     path = W.save_in(_profiles_folder(), ws)
     workspaces.forget_scan()

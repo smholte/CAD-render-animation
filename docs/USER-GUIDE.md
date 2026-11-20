@@ -295,9 +295,10 @@ The first start of a newer version (after **Update now**, or a new installer) sh
 "What's new since 0.2.…" when you skipped versions – once, at the top of the start-up screen. **Show What's new…**
 opens it:
 
-1. **New functions** – the functions this version adds (at most eight lines, newest first; "improved" for one that
-   got better). **Show in guide** opens this guide at that function. **All release notes** opens the release page
-   with every change.
+1. **New functions** – the functions this version adds, at most eight lines: first what you meet first (workspaces,
+   the Client view, the folded sections, the Fresing menu), then the newest. The line above the list says "N new, M
+   better". **Better since …** is a second short list of functions that got visibly better. **Show in guide** opens
+   this guide at that function. **All release notes** opens the release page with every change.
 2. **The test models** – "2 new test models, 1 changed", with their names. Pick **Only the new and changed test
    models** (much quicker to make than the whole tour) or **The whole tour**, then **Make the tour**. When it is
    ready, open it: the Test tour panel marks the new stops "– New" and the changed ones "– Changed", and says
@@ -358,6 +359,9 @@ in one line, and:
 - **Not now** – the panel stays; it is not asked about again.
 - **Don't ask again** – no more questions (switch them back on with **Offer to hide unused panels** and **Offer to
   teach unused functions** in My usage). With teaching switched off the question only offers to hide, as before.
+
+A panel that **What's new** has just listed is not asked about until 10 app starts have passed: you cannot have used
+what you have not seen yet. A panel you hid shows again by itself when the project starts using it.
 
 The first three also put the function on your learning list. At most one question per start, each panel once.
 **Never about a panel the open project uses**: a project with a way cover shows Way covers even when you hid it, and
@@ -424,13 +428,14 @@ project does not use. Switch it off with **Suggest what to learn next** in My us
 ### Profiles: your side panel as one file
 
 **Export profile…** saves the project's workspace together with your favourites bar (its pins, on/off, size) and
-the panels you hid, as one file in the library folder **Workspaces** – the same kind of file as
+the panels you hid (kept apart from the workspace's own settings), as one file in the library folder **Workspaces** – the same kind of file as
 [your own workspaces](#own-workspaces), with the bar added. Your usage counts go in only when you tick **Include my
 usage counts**. The project uses the profile from then on.
 
 **Import profile…** takes such a file (from a colleague, or one a team keeps in the shared library): it is copied
 into your Workspaces folder – replacing your own workspace of the same name –, the project switches to it and your
-favourites bar takes its pins. Counts in the file are added to yours only when you tick **Add the usage counts in
+favourites bar takes its pins; the panels it hides are added to your own, so **Back to the workspace as it came**
+(My usage) shows them again. Counts in the file are added to yours only when you tick **Add the usage counts in
 the file**. An older version of the app opens a profile as a plain workspace.
 
 <a id="start"></a>

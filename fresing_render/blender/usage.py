@@ -34,10 +34,11 @@ from ..core import usage as core
 
 FILE_ENV = "FRESING_USAGE_FILE"          # tests: the usage file to use instead of the one in the settings folder
 SAVE_SECONDS = 30.0
+USED_SECONDS = 2.0                       # personal hides are looked at again at most this often (task 0236)
 GO_SECONDS = 6.0                         # a favourite's button is pointed at this long
 
 _S: dict = {"state": None, "path": "", "dirty": False, "note": "", "started": False, "prompt": "", "prompted": "",
-            "go": "", "go_t": 0.0, "last_panel": ""}
+            "go": "", "go_t": 0.0, "last_panel": "", "used_t": 0.0}
 CLOCK = core.Clock()
 _DEPTH = [0]
 _BY_OP: dict = {}                        # operator id -> True when some function or rule names it (cheap skip)
@@ -227,10 +228,26 @@ def start() -> None:
     s = state()
     if counting():
         core.start_session(s, datetime.date.today().isoformat())
+        _note_new_functions()
     else:
         s["bar"]["order"] = core.bar_order(s)
     save(force=counting())
     project_changed(getattr(bpy.context, "scene", None))
+
+
+def _note_new_functions() -> None:
+    """Task 0236: the functions What's new advertises after this update are not 'unused': the declutter question
+    leaves their panels alone until ``threshold`` sessions have passed."""
+    try:
+        from ..core import start as start_core
+        from . import welcome
+        welcome.at_start()                       # idempotent: the start file knows this update before we ask
+        wn = welcome.load().get("whats_new", {})
+        if wn.get("to") == welcome.version() and wn.get("from"):
+            rows = start_core.new_functions(F.FUNCTIONS, wn["from"], welcome.version(), 10 ** 6)
+            core.note_new(state(), [f.id for f, _k in rows])
+    except Exception as exc:  # noqa: BLE001 - never stop the app from starting
+        print("Fresing Render (usage): new functions not noted:", exc)
 
 
 def bar(scene=None) -> list:
@@ -255,6 +272,8 @@ def bar(scene=None) -> list:
 def label(fid: str) -> str:
     """A favourite's short button text."""
     f = F.FUNCTIONS[fid]
+    if f.short:                                  # task 0236: a label that fits the half-width button
+        return f.short
     text = f.text or f.title
     for cut in (":", " (", ","):
         if cut in text:
@@ -333,6 +352,18 @@ def apply_personal(scene) -> tuple:
             panels.tab_check(scene)
         panels.redraw()
     return hide
+
+
+def refresh_personal(scene, force: bool = False) -> None:
+    """Task 0236: a panel the user hid shows again when the project starts using it (after Build, undo, a model
+    update …). Looked at when the scene changes, at most every ``USED_SECONDS``, and only when something is hidden."""
+    if scene is None or not state()["hidden"]:
+        return
+    now = time.monotonic()
+    if not force and now - _S["used_t"] < USED_SECONDS:
+        return
+    _S["used_t"] = now
+    apply_personal(scene)
 
 
 def prompt() -> str:
@@ -416,6 +447,10 @@ def _on_save(_dummy=None):
 @persistent
 def _on_change(_scene=None, _depsgraph=None):
     activity()
+    try:
+        refresh_personal(_scene if getattr(_scene, "fresing", None) is not None else bpy.context.scene)
+    except Exception as exc:  # noqa: BLE001 - never break a scene update
+        print("Fresing Render (usage):", exc)
 
 
 def _save_timer():
