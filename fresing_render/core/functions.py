@@ -276,7 +276,7 @@ fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRE
 fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_add", guide="cables", tour=("cables",), pccheck=("motion.paths",), since="0.2.80",
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
-fn(id="paths.draw_cable", title="Draw a cable route by clicking: drum, sheaves, end", family="offshore",
+fn(id="paths.draw_cable", short="Draw a cable", title="Draw a cable route by clicking: drum, sheaves, end", family="offshore",
    panel="FRESING_PT_cables", button="fresing.cable_draw", guide="draw-cable", tour=("drawn_cable",),
    pccheck=("motion.drawn",), since="0.2.180",
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
@@ -548,7 +548,7 @@ fn(id="help.whats_new", headline=True, short="What's new", title="What's new aft
    tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
 fn(id="help.show_panel", short="Show the panel", title="Show the Fresing panel", family="help", panel="VIEW3D_HT_header",
    button="fresing.show_panel", guide="panel-gone", tour=("panel_back",), pccheck=("app.layout",), since="0.2.150")
-fn(id="help.blender_editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
+fn(id="help.blender_editors", headline=True, short="Blender editors", title="Blender's Outliner and Properties hidden; Fresing > Show Blender's editors brings "
    "them back; a solid side panel", family="help", panel="TOPBAR_MT_fresing", button="fresing.blender_editors",
    guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
 
