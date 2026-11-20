@@ -1,6 +1,6 @@
 # 0229 – Stand-in tests on public models for what only the demo vessel's equipment proves today
 
-**Who:** worker · **Status:** open · **Branch:** `task/0229-stand-ins-public-models`
+**Who:** worker · **Status:** running · **Branch:** `claude/loving-babbage-gn6leq` (the web session's branch)
 **Started by:** lead, 20 Nov 2026 (study 0226 package 3; owner's answers 20 Nov) · **Model:** Opus · effort Medium
 **Area:** tests (`test_spool*`, `test_tracks*`, `test_moving*`, `test_sea*`, `test_paths*`, `test_swivel*`,
 `test_joint_batch*`, `test_clash*`, `test_demo_project_realism.py` only to re-home its two public checks),
