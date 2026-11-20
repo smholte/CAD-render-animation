@@ -4486,7 +4486,7 @@ def app_editors(ctx):
 
 @line("app.quiet", "A quiet window: the 3D view header shows View, shading and Make, no Object / Add menus; the "
       "splash shows Fresing's lines; Fresing > Show all of Blender brings Blender's menus back, Back to the Fresing "
-      "window hides them", "0.2.999",
+      "window hides them", "0.2.183",
       what="Checks that the quiet drawings swap only Blender's own part of the 3D view header, the splash and File > "
            "New (an add-on's appended items stay, also after switching back and forth), the splash's lines, and "
            "Fresing > Show all of Blender / Back to the Fresing window on a project: Full access and back to the "
