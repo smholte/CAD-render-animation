@@ -1,6 +1,6 @@
 # 0221 – Blender's right-hand column hidden; "Show Blender's editors" in the Fresing menu; a solid side panel
 
-**Who:** worker · **Status:** running (Start & learn lane) · **Branch:** `task/0221-blender-editors-hidden`
+**Who:** worker · **Status:** done (0.2.179) (Start & learn lane) · **Branch:** `task/0221-blender-editors-hidden`
 **Started by:** lead, 19 Nov 2026 (owner, 00:05: "I want the app as simple as possible, with the needed functions …
 most users are not familiar with Blender … but the option to open it easily will be good") · **Model:** Opus · effort
 Medium
@@ -67,16 +67,16 @@ different parts of the UI").
 
 ## Done when
 
-- [ ] New file, the test tour project, the demo and an old own project (saved with the column) open with no Outliner
+- [x] New file, the test tour project, the demo and an old own project (saved with the column) open with no Outliner
       / Properties column and the 3D view to the right edge; the Fresing side panel still on the Fresing tab
-- [ ] Show / Hide works both ways, repeatedly, at 1920 and 2560 px; the choice survives a restart (real-app test as
+- [x] Show / Hide works both ways, repeatedly, at 1920 and 2560 px; the choice survives a restart (real-app test as
       0198 / 0213 use)
-- [ ] Client view: hidden, entry greyed; lock off → the user's choice back
-- [ ] Region Overlap off after the update on an existing install and on a fresh one; a user's own "on" kept after a
+- [x] Client view: hidden, entry greyed; lock off → the user's choice back
+- [x] Region Overlap off after the update on an existing install and on a fresh one; a user's own "on" kept after a
       restart; the side panel solid on the tour's white background (screenshot in the report)
-- [ ] Nothing in background runs touches screens or preferences (queue render, PC check, self-test still green)
-- [ ] Screenshots checked with `tools/ui_screens.py`; guide, function list, PC-check line; precheck green
-- [ ] Report filled in, merged, released
+- [x] Nothing in background runs touches screens or preferences (queue render, PC check, self-test still green)
+- [x] Screenshots checked with `tools/ui_screens.py`; guide, function list, PC-check line; precheck green
+- [x] Report filled in, merged, released
 
 ## Not in this task
 
@@ -88,10 +88,48 @@ one menu entry. Any panel inside the Fresing tab.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 20 Nov 2026
 
 **What changed:**
+- New `fresing_render/blender/editors.py`: finds Blender's column (an Outliner or Properties editor whose left edge
+  touches the main – biggest – 3D view's right edge and lies beside it; an Outliner the Client view turned into Info
+  counts too), closes it (`screen.area_close`) or splits it off the 3D view again (Blender's factory width, 17.7 % of
+  the window, Outliner 18.4 % of the column on top). Any other layout is left alone.
+- The choice: `<config>/fresing_layout.json` (`editors` hidden / shown, `overlap_off`), default hidden. Every load
+  `ui_header._on_load` tidies follows it; Client view (`lock.apply`) hides it and the entry is greyed with "Not in the
+  Client view – Full access brings it back"; lock off → the user's choice back.
+- Fresing menu: **Show / Hide Blender's editors** under "Show the Fresing panel" (icon PROPERTIES), in `entries()`.
+- Region Overlap off: once in the app (remembered, a user's own "on" is kept) and in the template's `_set_preferences`
+  (preferences reset). Never in a background Blender.
+- **Blender crash found and avoided:** setting a 3D view's settings (`show_region_toolbar`) right after `area_close`
+  segfaults Blender 5.2.3 until the window is drawn again (reproduced in plain Blender; also crashed when closing
+  inside `load_post`). Screens are changed from a timer; a POST_PIXEL draw handler marks `settled()`, and
+  `put_layout_right` / `apply` wait for it. Lesson added to CLAUDE.md section 8.
+- First GitHub run (44765162821) red, three causes, all fixed: (1) `ui_test_tour.py` crashed Blender – the test tour's
+  `ops_tour._go_pending` set the side panel right after the column was closed (the same Blender crash); it now waits
+  for `editors.busy()`. (2) "Set up a crane": a project opened and the Set-up window split the 3D view at once, before
+  the deferred close – the view then grew under it ("the split-off view did not get its size"); `ops_setup.open_window`
+  waits for `editors.busy()` and finds the 3D view again. (3) `ui_test_flex.py` / `ui_test_paths.py` /
+  `ui_test_spool.py` took the side panel's width off the view's region (right only with Region Overlap on); the flex
+  test also looks closer at its 10 mm cable (the view is narrower with a solid side panel).
+- Tests: `tests/test_editors.py` (12: column finding on measured factory / shown layouts, other layouts untouched,
+  swapped Info, width, settings file, menu, grey, background touches nothing, the Client view's index list);
+  `tools/ui_test_layout.py` +28 checks (new, own project saved with the column, old project, tour set, demo: hidden,
+  view to the right edge; Show / Hide, five fast clicks, Client view grey and back, Region Overlap off and a user's
+  "on" kept); `ui_test_lock.py` (the timeline becomes the Outliner to guard), `ui_test_panel.py` (Client view: no
+  column; Full access: the user's "shown" back). PC-check line `app.editors`, function `help.blender_editors`, guide
+  section "Blender's Outliner and Properties (hidden)", Client-view text, picture `app_after_import.png` made again.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, real Blender 5.2.3 under xvfb, no model needed):
+- Real-app: layout 69/69, panel 39/39, lock 19/19, client keys 12/12, tour 15/15, flex 31/31, cables 36/36,
+  set-up crane 32/32, set-up 46/46, highlight 74/74, start 63/63. pytest of the changed areas green.
+- Show / Hide at 1920 x 1080: column 337 px (Blender's own 339); at 2560 x 1440: 450 px (453). Hidden: the 3D view
+  and the timeline both reach the right edge (1916 / 2556 of 1920 / 2560).
+- Side panel on a white viewport background at 2560: solid, the navigation gizmo and the header visible.
+- GitHub: 4 full runs. 44765162821 red (the three causes below); 44777647366 and 44784154598 green but `main` had
+  taken the version each time (0231, 0229, 0228 merged meanwhile: renumbered 0.2.176 → 0.2.179); 44789273857 green.
 
 **Open points / follow-up tasks:**
+- A new window (Window > New Main Window) or switching to another of Blender's workspaces in Full access is not tidied
+  until the next load (the Layout workspace is the one the app uses).
+- The owner's check on his PC: the update turns Region Overlap off once – a look at 2560 px with his own projects.

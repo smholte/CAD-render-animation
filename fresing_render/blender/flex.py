@@ -205,7 +205,22 @@ def broken(scene, item) -> str:
         return "the part its fixed end sat on is gone" if item.kind == "CHAIN" else "the part its end A sat on is gone"
     if not _alive(scene, item.b_part):
         return "the part its moving end sat on is gone" if item.kind == "CHAIN" else "the part its end B sat on is gone"
+    if item.kind == "HOSE":
+        for k, c in enumerate(item.clips):
+            if not _alive(scene, c.part):
+                return f"the part clip {k + 1} sat on is gone"
     return ""
+
+
+def end_objects(item) -> list:
+    """The parts the item's shape hangs on: end A, end B and (a drawn hose) every clip's part, in that order."""
+    return [item.a_part, item.b_part] + ([c.part for c in item.clips] if item.kind == "HOSE" else [])
+
+
+def hose_points(item) -> int:
+    """Points of a hose in a moment of the shapes mesh: DRAWN per segment, a clip's point once (task 0240)."""
+    from ..core import flex as HS
+    return HS.segment_points(len(item.clips) + 1, DRAWN)
 
 
 def _usable(scene) -> list:
@@ -307,7 +322,7 @@ class _Near:
         # an excluded part (hidden for good) is never what an end or a bend rests on (task 0082: the demo's second end
         # lies on the lay cable's path, kept out until the quadrant operation)
         self.parts = [ob for ob in build.iter_parts(scene) if ob.name not in skip and len(ob.data.vertices)
-                      and not ob.get(build.PROP_EXCLUDED)]
+                      and not ob.get(build.PROP_EXCLUDED) and not ob.get("fr_drawn")]
         self.world = np.stack([_cad_world(ob, self.memo) for ob in self.parts]) if self.parts else np.zeros((0, 4, 4))
         box = np.array([[tuple(c) for c in ob.bound_box] for ob in self.parts], dtype=float).reshape(-1, 8, 3)
         corners = np.einsum("kij,kcj->kci", self.world[:, :3, :3], box) + self.world[:, None, :3, 3]
@@ -640,9 +655,426 @@ def add_chain(scene, links: list, part=None):
     return s.flex[len(s.flex) - 1], geo["notes"]
 
 
+# ---------------------------------------------------------------------------
+# drawn in the app by clicking points (task 0240)
+# ---------------------------------------------------------------------------
+
+DRAWN_DIAMETER = {False: 0.02, True: 0.012}    # a hose / a cable drawn with no round face to read it from
+SAME_SPOT = 0.001                       # m: two clicks this close are one click
+
+
+def _dedupe(spots: list) -> list:
+    """The spots without a click repeated on the same place (a double click, the same face twice)."""
+    out = []
+    for sp in spots:
+        if out and out[-1]["part"] == sp["part"] and \
+                float(np.linalg.norm(np.asarray(out[-1]["point"]) - np.asarray(sp["point"]))) < SAME_SPOT:
+            continue
+        out.append(sp)
+    return out
+
+
+def _stops(item) -> list:
+    """[(point, direction)] in the world now: end A, the clips, end B (directions along the hose, A -> B)."""
+    from . import drawn
+    out = [drawn.world_spot(item.a_part, item.a_point, item.a_dir)]
+    out += [drawn.world_spot(c.part, c.point, c.dir) for c in item.clips]
+    out.append(drawn.world_spot(item.b_part, item.b_point, item.b_dir))
+    return out
+
+
+def _natural_now(item) -> tuple:
+    """(length of each segment, the lines) for where the ends and clips are now (``core/flex.natural_length``)."""
+    from ..core import flex as HS
+    least = max(float(item.min_radius), HS.LEAST_BEND * float(item.diameter))
+    stops = _stops(item)
+    lengths, lines = [], []
+    for (p0, t0), (p1, t1) in zip(stops[:-1], stops[1:]):
+        length, line = HS.natural_length(p0, t0, p1, t1, least)
+        lengths.append(length)
+        lines.append(line)
+    return lengths, lines
+
+
+def travel_joints(scene, item) -> list:
+    """The joints that move one of the item's end parts (or clips) against another: the hose must reach over their
+    travel. Names, nearest first."""
+    obs = [o for o in end_objects(item) if o is not None]
+    sets = [_movers(o) for o in obs]
+    if not sets:
+        return []
+    moving = set().union(*sets) - set.intersection(*[set(x) for x in sets])
+    names = []
+    for j in scene.fresing.joints:
+        if any(o is not None and o.name in moving for o in (j.motion, j.frame)) and j.name not in names:
+            names.append(j.name)
+    return names
+
+
+def _natural(scene, item) -> tuple:
+    """(length of each segment, the lines, the joints with no limits) the hose needs: where its ends and clips are
+    now, and – unless an animation is built – at both ends of the travel of each joint between them that has limits
+    (each segment the longest of those). The lines are those of now."""
+    from . import joints
+    lengths, lines = _natural_now(item)
+    free = []
+    if _baked(scene):
+        return lengths, lines, free
+    best = np.array(lengths)
+    for name in travel_joints(scene, item):
+        j = joints.find(scene, name)
+        if j is None or j.follows:
+            continue
+        if not j.use_limits:
+            free.append(name)
+            continue
+        lo, hi = (j.rot_min, j.rot_max) if j.kind == "ROTATE" else (j.slide_min, j.slide_max)
+        now = joints.get_value(j)
+        try:
+            for v in (lo, hi):
+                joints.set_value(j, float(v))
+                bpy.context.view_layer.update()
+                best = np.maximum(best, _natural_now(item)[0])
+        finally:
+            joints.set_value(joints.find(scene, name), now)
+            bpy.context.view_layer.update()
+    return [float(x) for x in best], lines, free
+
+
+def default_size(scene, item) -> list[str]:
+    """A drawn hose: the length (and each segment's share) it starts with, for where its ends and clips are now.
+    A drawn chain: the links it starts with. Returns notes."""
+    from . import drawn
+    from ..core import flex as HS
+    why = broken(scene, item)
+    if why:
+        return [f"{_word(item)} '{label(item)}': {why}"]
+    if item.kind == "HOSE":
+        _STATE["busy"] += 1
+        try:
+            lengths, lines, _free = _natural(scene, item)
+        finally:
+            _STATE["busy"] -= 1
+        with _quiet(item):
+            item.length = float(sum(lengths))
+            item.cad_length = item.length
+            item["shares"] = [float(x) for x in HS.shares(lengths)]
+        line = HS.join(lines)
+        drawn.set_tube(item.part, line, 0.5 * float(item.diameter))
+        if not len(item.clips):
+            _store_guides(item, line)
+    else:
+        size = _chain_size(scene, item)
+        with _quiet(item):
+            item.count = size["count"]
+    _rebuild(scene)
+    return []
+
+
+def _store_guides(item, line: np.ndarray) -> None:
+    """The drawn line as each end's part sees it: the hose stays on the side it was drawn on (see ``_guide``)."""
+    from ..core import flex as HS
+    pts = HS.resample(line, GUIDE_POINTS)
+    for key in ("a", "b"):
+        ob = getattr(item, key + "_part")
+        inv = np.linalg.inv(_np(ob.matrix_world))
+        idprops.store_array(item.part, GUIDE + key, _at(inv, pts))
+
+
+def draw_hose(scene, spots: list, soft: bool = False, name: str = "", diameter: float = 0.0, replace=None):
+    """A hose (``soft``: a cable) the user drew by clicking: ``spots`` (``drawn.spot`` of each click) = end A, the
+    clips it runs through, end B. It gets the app's own object, a diameter from end A's round face (else B's, else
+    ``DRAWN_DIAMETER``), the length of a smooth line between its ends and clips that keeps its bends wide
+    (``core/flex.natural_length``) and 5 % more, and follows the motion like a hose read from CAD. ``replace``: a
+    simplified CAD hose it replaces (``drawn.replace``). Returns (item, notes). Raises FlexError."""
+    from . import drawn
+    from ..core import flex as HS
+    spots = _dedupe(list(spots or []))
+    if len(spots) < 2:
+        raise FlexError("Click the fitting at end A, then (optional) the clips, then the fitting at end B.")
+    for sp in spots:
+        if sp["part"] is None or drawn.is_drawn(sp["part"]) or sp["part"].get(build.PROP_KIND) != "part":
+            raise FlexError("Each click must be on a part of the model (not on a drawn hose or cable).")
+    taken = {ob.name for ob in flex_parts(scene)}
+    for sp in spots:
+        if sp["part"].name in taken:
+            raise FlexError(f"'{_part_name(sp['part'])}' is a hose or chain itself: click the fitting or clip it "
+                            "is fixed to.")
+    if not diameter:
+        diameter = next((sp["diameter"] for sp in (spots[0], spots[-1]) if sp["round"] and sp["diameter"] > 0.0),
+                        DRAWN_DIAMETER[bool(soft)])
+        diameter = float(min(max(diameter, 0.002), 0.3))
+    pts = [np.asarray(sp["point"], dtype=float) for sp in spots]
+    dirs = [np.asarray(sp["dir"], dtype=float) for sp in spots]
+    dirs[-1] = -dirs[-1]                        # end B: the direction the hose arrives in (into the fitting)
+    for k in range(1, len(spots) - 1):          # a clip: along the way from the stop before to the stop after
+        way = pts[k + 1] - pts[k - 1]
+        if not spots[k]["round"]:               # on a flat face: the hose lies on it, along it
+            n = dirs[k] / (np.linalg.norm(dirs[k]) or 1.0)
+            pts[k] = pts[k] + n * 0.5 * diameter
+            along = way - n * float(way @ n)
+            if float(np.linalg.norm(along)) < 1e-9:
+                along = np.cross(n, (0.0, 0.0, 1.0)) if abs(n[2]) < 0.9 else np.cross(n, (1.0, 0.0, 0.0))
+            dirs[k] = along / np.linalg.norm(along)
+        elif float(dirs[k] @ way) < 0.0:        # through a bore: along its axis, the way the hose goes
+            dirs[k] = -dirs[k]
+    s = scene.fresing
+    item = s.flex.add()
+    index = len(s.flex) - 1
+    base = name or ("Cable" if soft else "Hose")
+    with _quiet(item):
+        item.name = _unique(scene, base if name else f"{base} 1")
+        item["name_was"] = item.name
+        item.kind = "HOSE"
+        item.drawn = True
+        item.diameter = diameter
+        item["cad_diameter"] = diameter
+        item.stiffness, item.sag, item.min_radius = (0.2, 0.8, 0.0) if soft else (0.6, 0.5, 0.0)
+        for key, sp, d in (("a", spots[0], dirs[0]), ("b", spots[-1], dirs[-1])):
+            ob = sp["part"]
+            inv = np.linalg.inv(_np(ob.matrix_world))
+            local = inv[:3, :3] @ d
+            setattr(item, key + "_part", ob)
+            setattr(item, key + "_uid", ob.get(build.PROP_UID, ""))
+            setattr(item, key + "_point", tuple(_at(inv, sp["point"])))
+            setattr(item, key + "_dir", tuple(local / (np.linalg.norm(local) or 1.0)))
+            item[key + "_user"] = True
+        for sp, p, d in zip(spots[1:-1], pts[1:-1], dirs[1:-1]):
+            c = item.clips.add()
+            ob = sp["part"]
+            inv = np.linalg.inv(_np(ob.matrix_world))
+            local = inv[:3, :3] @ d
+            c.part, c.uid = ob, ob.get(build.PROP_UID, "")
+            c.point = tuple(_at(inv, p))
+            c.dir = tuple(local / (np.linalg.norm(local) or 1.0))
+    item = s.flex[index]
+    _STATE["busy"] += 1                         # (the joints are moved to the ends of their travel and back)
+    try:
+        lengths, lines, free = _natural(scene, item)
+    finally:
+        _STATE["busy"] -= 1
+    item = s.flex[index]
+    line = HS.join(lines)
+    part = drawn.make_object(scene, "CABLE" if soft else "HOSE", item.name, line, 0.5 * diameter)
+    with _quiet(item):
+        item.part = part
+        item.part_uid = part.get(build.PROP_UID, "")
+        item.length = float(sum(lengths))
+        item.cad_length = item.length
+        item["shares"] = [float(x) for x in HS.shares(lengths)]
+    part[TAG] = True
+    if not len(item.clips):
+        _store_guides(item, line)
+    notes = []
+    if free:
+        notes.append(f"{_word(item)} '{item.name}' is as long as this pose needs: "
+                     f"{', '.join(repr(n) for n in free[:2])} {'has' if len(free) == 1 else 'have'} no limits. Give "
+                     "the joint its limits and press 'Length as drawn' – or move it to its ends and check the hose")
+    if replace is not None:
+        try:
+            drawn.replace(scene, item, replace)
+        except drawn.DrawError as exc:
+            notes.append(str(exc))
+    s.flex_index = index
+    _rebuild(scene)
+    return s.flex[index], notes
+
+
+def _travel_joint(scene, moving, fixed):
+    """The joint nearest above ``moving`` in the tree that does not move ``fixed`` too: what carries the moving end."""
+    from . import joints
+    above_fixed = _movers(fixed)
+    by_empty = {}
+    for j in scene.fresing.joints:
+        for o in (j.motion, j.frame):
+            if o is not None:
+                by_empty[o.name] = j.name
+    p = moving.parent
+    while p is not None:
+        if p.get(build.PROP_KIND) in build.JOINT_KINDS and p.name not in above_fixed and p.name in by_empty:
+            return joints.find(scene, by_empty[p.name])
+        p = p.parent
+    return None
+
+
+def _chain_frame(scene, a_spot: dict, b_spot: dict, flip: bool = False) -> tuple:
+    """(frame 4 x 4 world: origin = the fixed pin, x along the fixed run towards the bend, y towards the moving run,
+    z across; the gap between the runs; the travel joint or None) for a chain between the two clicked brackets."""
+    from . import joints
+    a, b = np.asarray(a_spot["point"], dtype=float), np.asarray(b_spot["point"], dtype=float)
+    j = _travel_joint(scene, b_spot["part"], a_spot["part"])
+    u = None
+    d = b - a
+    if j is not None and j.kind == "SLIDE":
+        u = np.array(joints.axis_world(j)[1], dtype=float)
+    if u is None:                               # no slide joint (yet): from the clicked faces
+        na = np.asarray(a_spot["dir"], dtype=float)
+        nb = np.asarray(b_spot.get("dir", na), dtype=float)
+        if abs(float(na @ nb)) > 0.95:          # both on a side face: that is across the chain (w)
+            wn = na / (np.linalg.norm(na) or 1.0)
+            up = np.array((0.0, 0.0, 1.0))
+            if abs(float(wn[2])) < 0.7:         # standing chain: the runs lie one above the other
+                v = up - wn * float(up @ wn)
+            else:                               # a chain on its side: the runs lie side by side, across the gap
+                v = d - wn * float(d @ wn)
+            v = v / (np.linalg.norm(v) or 1.0)
+            u = np.cross(v, wn)
+        else:                                   # along the fixed bracket's face, square to the gap
+            u = d - na * float(d @ na)
+            if float(np.linalg.norm(u)) < 1e-6:
+                u = np.cross(na, (0.0, 0.0, 1.0)) if abs(na[2]) < 0.9 else np.cross(na, (1.0, 0.0, 0.0))
+        if float(np.linalg.norm(u)) < 1e-9:
+            u = np.array((1.0, 0.0, 0.0))
+    u = u / np.linalg.norm(u)
+    v = d - u * float(d @ u)
+    na, nb = (np.asarray(sp.get("dir", (0.0, 0.0, 0.0)), dtype=float) for sp in (a_spot, b_spot))
+    if abs(float(na @ nb)) > 0.95 and abs(float(na @ u)) < 0.1:
+        # both brackets clicked on a side face (the same way): that is across the chain – the runs lie in a plane
+        # square to it, whatever the two faces' offset sideways (the chain then rises evenly to the moving end)
+        wn = na - u * float(na @ u)
+        wn /= np.linalg.norm(wn)
+        v = v - wn * float(v @ wn)
+    gap = float(np.linalg.norm(v))
+    if gap < 1e-4:
+        raise FlexError("The two brackets lie on one line along the travel: click the bracket of the moving run, "
+                        "which lies above (or beside) the fixed run.")
+    v /= gap
+    if float(d @ u) < -1e-6:                    # the bend lies beyond the moving end
+        u = -u
+    if flip:
+        u = -u
+    w = np.cross(u, v)
+    frame = np.eye(4)
+    frame[:3, 0], frame[:3, 1], frame[:3, 2], frame[:3, 3] = u, v, w, a
+    return frame, gap, j
+
+
+def _chain_size(scene, item) -> dict:
+    """The links a drawn chain needs for its travel: {"count"} (the joint's limits when it has them, else the
+    moving end's distance from the fixed end now, at least 4 bend radii either way)."""
+    from . import joints
+    frame = _np(_world(item.a_part)) @ np.array(item.frame, dtype=float).reshape(4, 4)
+    end = _at(_np(_world(item.b_part)), np.array(item.b_point))
+    u_now = float((end - frame[:3, 3]) @ frame[:3, 0])
+    R, p = float(item.radius), float(item.pitch)
+    j = _travel_joint(scene, item.b_part, item.a_part)
+    lo = hi = u_now
+    if j is not None and j.kind == "SLIDE" and j.use_limits:
+        sign = float(np.sign(np.array(joints.axis_world(j)[1]) @ frame[:3, 0])) or 1.0
+        now = joints.get_value(j)
+        ends = [u_now + sign * (float(j.slide_min) - now), u_now + sign * (float(j.slide_max) - now)]
+        lo, hi = min(ends), max(ends)
+    else:
+        reach = max(abs(u_now), 4.0 * R)
+        lo, hi = -reach, reach
+    length = math.pi * R + max(hi, -lo, 0.0) + 2.0 * p
+    return {"count": int(max(4, math.ceil(length / p)))}
+
+
+def draw_chain(scene, fixed: dict, moving: dict, name: str = "", flip: bool = False, replace=None):
+    """A drag chain the user drew by clicking its two brackets (``drawn.spot`` of each): the fixed end's and the
+    moving end's. The runs lie along the travel of the joint that moves the moving bracket (else along the clicked
+    faces); bend radius = half the gap between the runs; link length, height and width follow from the radius, the
+    number of links from the travel. ``flip``: the bend on the other side. The app draws the links. ``replace``: a
+    simplified CAD chain it replaces. Returns (item, notes). Raises FlexError."""
+    from . import drawn
+    a_ob, b_ob = fixed["part"], moving["part"]
+    for ob in (a_ob, b_ob):
+        if ob is None or drawn.is_drawn(ob) or ob.get(build.PROP_KIND) != "part":
+            raise FlexError("Click the brackets on parts of the model (not on a drawn hose, cable or chain).")
+    if a_ob == b_ob:
+        raise FlexError(f"Both brackets are on '{_part_name(a_ob)}': the moving bracket sits on the part that moves.")
+    taken = {ob.name for ob in flex_parts(scene)}
+    if a_ob.name in taken or b_ob.name in taken:
+        raise FlexError("A bracket was clicked on a hose or chain itself: click the parts the chain is fixed to.")
+    frame, gap, j = _chain_frame(scene, fixed, moving, flip)
+    radius = max(0.5 * gap, 0.01)
+    height = min(max(radius / 3.0, 0.008), 0.15)
+    pitch = min(CH.PITCH_PER_HEIGHT * height, radius / (CH.MIN_RADIUS + 0.05))
+    width = 2.4 * height
+    s = scene.fresing
+    item = s.flex.add()
+    index = len(s.flex) - 1
+    with _quiet(item):
+        item.name = _unique(scene, name or "Drag chain 1")
+        item["name_was"] = item.name
+        item.kind = "CHAIN"
+        item.drawn = True
+        item.made_links = True
+        for key, ob in (("a", a_ob), ("b", b_ob)):
+            setattr(item, key + "_part", ob)
+            setattr(item, key + "_uid", ob.get(build.PROP_UID, ""))
+            item[key + "_user"] = True
+        local = np.linalg.inv(_np(a_ob.matrix_world)) @ frame
+        item.frame = tuple(local.reshape(-1))
+        item.a_point = tuple(local[:3, 3])
+        item.b_point = tuple(_at(np.linalg.inv(_np(b_ob.matrix_world)), moving["point"]))
+        item.radius, item.pitch, item.width, item.height = radius, pitch, width, height
+        item.mode = "STRAIGHT"
+        item["flip"] = bool(flip)
+    item = s.flex[index]
+    with _quiet(item):
+        item.count = _chain_size(scene, item)["count"]
+    spec = CH.ChainSpec(float(item.pitch), int(item.count), float(item.radius), item.mode)
+    moving_local = _at(np.linalg.inv(frame), moving["point"])
+    pins = _at(frame, CH.chain_pins(spec, moving_local[None]).pins[0])
+    part = drawn.make_object(scene, "CHAIN", item.name, pins, 0.5 * height)
+    with _quiet(item):
+        item.part = part
+        item.part_uid = part.get(build.PROP_UID, "")
+    part[TAG] = True
+    notes = []
+    if j is None:
+        notes.append(f"Drag chain '{item.name}': no slide joint moves '{_part_name(b_ob)}' – the runs lie along the "
+                     "clicked faces. Check 'Links' when the axis is made")
+    if replace is not None:
+        try:
+            drawn.replace(scene, item, replace)
+        except drawn.DrawError as exc:
+            notes.append(str(exc))
+    s.flex_index = index
+    _rebuild(scene)
+    return s.flex[index], notes
+
+
+def flip_bend(scene, item) -> None:
+    """A drawn chain: its bend goes to the other side (the fixed run runs the other way along the travel)."""
+    if not item.drawn or item.kind != "CHAIN" or broken(scene, item):
+        return
+    a = _np(_world(item.a_part))
+    frame = a @ np.array(item.frame, dtype=float).reshape(4, 4)
+    frame[:3, 0] = -frame[:3, 0]
+    frame[:3, 2] = -frame[:3, 2]                # (x, y, z) stays right-handed
+    local = np.linalg.inv(a) @ frame
+    with _quiet(item):
+        item.frame = tuple(local.reshape(-1))
+        item["flip"] = not bool(item.get("flip"))
+    _rebuild(scene)
+
+
 def swap_ends(scene, item) -> None:
     """A chain: the other end is the fixed one. (Read from the CAD pose again; numbers set by hand stay.)"""
     if item.kind != "CHAIN" or broken(scene, item) in ("a link is gone", "its part is gone"):
+        return
+    if item.drawn:                              # task 0240: the other bracket is the fixed one
+        if broken(scene, item):
+            return
+        a = _np(_world(item.a_part))
+        frame = a @ np.array(item.frame, dtype=float).reshape(4, 4)
+        fixed = {"part": item.b_part, "point": _at(_np(_world(item.b_part)), np.array(item.b_point))}
+        moving = {"part": item.a_part, "point": frame[:3, 3]}
+        new = frame.copy()                      # the runs swap: the bend stays where it is (x), y and z turn over
+        new[:3, 1], new[:3, 2], new[:3, 3] = -frame[:3, 1], -frame[:3, 2], fixed["point"]
+        with _quiet(item):
+            a_uid, b_uid = item.a_uid, item.b_uid
+            item.a_part, item.b_part = fixed["part"], moving["part"]
+            item.a_uid, item.b_uid = b_uid, a_uid
+            local = np.linalg.inv(_np(_world(item.a_part))) @ new
+            item.frame = tuple(local.reshape(-1))
+            item.a_point = tuple(local[:3, 3])
+            item.b_point = tuple(_at(np.linalg.inv(_np(_world(item.b_part))), moving["point"]))
+            item["swapped"] = not bool(item.get("swapped"))
+        _rebuild(scene)
         return
     swapped = not bool(item.get("swapped"))
     with _quiet(item):
@@ -658,6 +1090,8 @@ def swap_ends(scene, item) -> None:
 def fit_to_cad(scene, item) -> list[str]:
     """Reset: the length, the ends, the pitch, the radius … as the CAD pose has them. Stiffness, sag and the
     smallest bend stay. Returns notes."""
+    if item.drawn:                              # task 0240: no CAD shape – the first numbers for where it is now
+        return default_size(scene, item)
     for key in ("a_user", "b_user", "swapped"):
         if key in item:
             del item[key]
@@ -714,6 +1148,12 @@ def remove(scene, index: int) -> None:
     for ob in parts_of(scene, item):
         _strip(ob)
     _remove_made_link(item)
+    if item.drawn:                              # task 0240: the app's own object goes, the CAD parts it replaced show
+        from . import drawn
+        drawn.unreplace(scene, item)
+        made = item.part
+        item.part = None
+        drawn.delete_object(made)
     s.flex.remove(index)
     s.flex_index = max(0, min(s.flex_index, len(s.flex) - 1))
     forget()
@@ -1120,7 +1560,7 @@ def _layout(scene) -> int:
         if broken(scene, it):
             n = 0
         elif it.kind == "HOSE":
-            n = DRAWN
+            n = hose_points(it)
         else:
             n = int(it.count) if it.made_links else len(it.links)
         if it.offset != offset or it.points != n:
@@ -1241,14 +1681,14 @@ def _sync(scene) -> None:
 # ---------------------------------------------------------------------------
 
 def _end_names(its) -> list:
-    return sorted({ob.name for _i, it in its for ob in (it.a_part, it.b_part)})
+    return sorted({ob.name for _i, it in its for ob in end_objects(it)})
 
 
 def _places_now(its) -> dict:
     """Object name -> its world matrix now, as (1, 4, 4), for the end parts of these items."""
     out = {}
     for _i, it in its:
-        for ob in (it.a_part, it.b_part):
+        for ob in end_objects(it):
             if ob.name not in out:
                 out[ob.name] = _np(_world(ob))[None]
     return out
@@ -1269,48 +1709,65 @@ def _solve(its, mats: dict, frames: int):
     hoses = [(i, it) for i, it in its if it.kind == "HOSE"]
     if hoses:
         from ..core import flex as HS
-        h = len(hoses)
+        # one row per segment: a hose without clips is one segment, a drawn hose through clips one per stretch
+        # between them (task 0240), each with its share of the length and the clip's direction at both its ends
+        rows = []                               # (k of the hose, segment, from, to)
+        for k, (_i, it) in enumerate(hoses):
+            obs = end_objects(it)
+            stops = [(obs[0], it.a_point, it.a_dir)] + [(c.part, c.point, c.dir) for c in it.clips] \
+                + [(obs[1], it.b_point, it.b_dir)]
+            for seg in range(len(stops) - 1):
+                rows.append((k, seg, stops[seg], stops[seg + 1]))
+        h = len(rows)
         p0, t0, p1, t1 = (np.empty((frames, h, 3)) for _ in range(4))
         length, stiff, sag, rmin = (np.empty((frames, h)) for _ in range(4))
-        guide = np.full((frames, h, GUIDE_POINTS, 3), np.nan)       # (a row of NaN: no guide for that hose)
-        for k, (_i, it) in enumerate(hoses):
-            a, b = mats[it.a_part.name], mats[it.b_part.name]
-            p0[:, k] = np.array(it.a_point) @ a[:, :3, :3].transpose(0, 2, 1) + a[:, :3, 3]
-            t0[:, k] = np.array(it.a_dir) @ a[:, :3, :3].transpose(0, 2, 1)
-            p1[:, k] = np.array(it.b_point) @ b[:, :3, :3].transpose(0, 2, 1) + b[:, :3, 3]
-            t1[:, k] = np.array(it.b_dir) @ b[:, :3, :3].transpose(0, 2, 1)
-            length[:, k] = it.length
-            stiff[:, k] = HS.stiff_length(it.diameter, it.stiffness)
-            sag[:, k] = it.sag
-            rmin[:, k] = it.min_radius
-            g = _guide(it, a, b)                # which way the hose lies: it stays on the side CAD drew it on
-            if g is not None:
-                guide[:, k] = g
+        guide = np.full((frames, h, GUIDE_POINTS, 3), np.nan)       # (a row of NaN: no guide for that row)
+
+        def at(ob, point, direction):
+            m = mats[ob.name]
+            return (np.array(point) @ m[:, :3, :3].transpose(0, 2, 1) + m[:, :3, 3],
+                    np.array(direction) @ m[:, :3, :3].transpose(0, 2, 1))
+
+        for r, (k, seg, (oa, pa, da), (ob_, pb, db)) in enumerate(rows):
+            it = hoses[k][1]
+            p0[:, r], t0[:, r] = at(oa, pa, da)
+            p1[:, r], t1[:, r] = at(ob_, pb, db)
+            length[:, r] = it.length * _share(it, seg)
+            stiff[:, r] = HS.stiff_length(it.diameter, it.stiffness)
+            sag[:, r] = it.sag
+            rmin[:, r] = it.min_radius
+            if not len(it.clips):               # which way the hose lies: it stays on the side CAD drew it on
+                g = _guide(it, mats[it.a_part.name], mats[it.b_part.name])
+                if g is not None:
+                    guide[:, r] = g
         if frames > 1:
             # the frames of a built animation, in their order: each hose keeps one shape along the motion where it
             # can (a slack hose often has two, and solved frame by frame it would jump from one to the other once)
             pts = np.empty((frames, h, POINTS, 3))
             short, tight = (np.zeros((frames, h), dtype=bool) for _ in range(2))
             need = np.empty((frames, h))
-            for k in range(h):
-                r = HS.solve_motion(p0[:, k], t0[:, k], p1[:, k], t1[:, k], length[:, k], stiff[:, k], sag[:, k],
-                                    rmin[:, k], n=POINTS, guide=guide[:, k])
-                pts[:, k], short[:, k], need[:, k], tight[:, k] = r.points, r.short, r.need, r.tight
+            for r in range(h):
+                res = HS.solve_motion(p0[:, r], t0[:, r], p1[:, r], t1[:, r], length[:, r], stiff[:, r], sag[:, r],
+                                      rmin[:, r], n=POINTS, guide=guide[:, r])
+                pts[:, r], short[:, r], need[:, r], tight[:, r] = res.points, res.short, res.need, res.tight
         else:
-            r = HS.solve_hoses(p0.reshape(-1, 3), t0.reshape(-1, 3), p1.reshape(-1, 3), t1.reshape(-1, 3),
-                               length.reshape(-1), stiff.reshape(-1), sag.reshape(-1), rmin.reshape(-1), n=POINTS,
-                               guide=guide.reshape(-1, GUIDE_POINTS, 3))
-            pts = r.points.reshape(frames, h, POINTS, 3)
-            short, need, tight = (x.reshape(frames, h) for x in (r.short, r.need, r.tight))
+            res = HS.solve_hoses(p0.reshape(-1, 3), t0.reshape(-1, 3), p1.reshape(-1, 3), t1.reshape(-1, 3),
+                                 length.reshape(-1), stiff.reshape(-1), sag.reshape(-1), rmin.reshape(-1), n=POINTS,
+                                 guide=guide.reshape(-1, GUIDE_POINTS, 3))
+            pts = res.points.reshape(frames, h, POINTS, 3)
+            short, need, tight = (x.reshape(frames, h) for x in (res.short, res.need, res.tight))
         _STATE["solves"] += frames * h
-        zero = np.zeros((frames, DRAWN, 3))
+        missing = np.where(short, need - length, 0.0)
         for k, (i, it) in enumerate(hoses):
-            out[i] = (_with_ends(pts[:, k]), zero, zero)
-            if short[:, k].any():               # the first moment it happens, and the most it is short by
-                problems[i] = ("short", int(np.argmax(short[:, k])),
-                               float((need[:, k] - it.length)[short[:, k]].max()))
-            elif tight[:, k].any():
-                problems[i] = ("tight", int(np.argmax(tight[:, k])), float(it.min_radius))
+            mine = [r for r, row in enumerate(rows) if row[0] == k]
+            line = HS.join([_with_ends(pts[:, r]) for r in mine])
+            zero = np.zeros(line.shape)
+            out[i] = (line, zero, zero)
+            sh, ti = short[:, mine].any(axis=1), tight[:, mine].any(axis=1)
+            if sh.any():                        # the first moment it happens, and the most it is short by
+                problems[i] = ("short", int(np.argmax(sh)), float(missing[:, mine].sum(axis=1).max()))
+            elif ti.any():
+                problems[i] = ("tight", int(np.argmax(ti)), float(it.min_radius))
     for i, it in its:
         if it.kind != "CHAIN":
             continue
@@ -1335,6 +1792,19 @@ def _solve(its, mats: dict, frames: int):
         if c.short.any():
             problems[i] = ("reach", int(np.argmax(c.short)), 0.0)
     return out, problems
+
+
+def _share(it, seg: int) -> float:
+    """The share of the hose's length its segment ``seg`` has (a drawn hose through clips, task 0240)."""
+    n = len(it.clips) + 1
+    if n == 1:
+        return 1.0
+    have = it.get("shares")
+    if have is not None and len(have) == n:
+        a = np.maximum(np.array(have, dtype=float), 0.0)
+        if a.sum() > 0.0:
+            return float(a[seg] / a.sum())
+    return 1.0 / n
 
 
 def _guide(it, a: np.ndarray, b: np.ndarray):
@@ -1412,10 +1882,10 @@ def _moved(scene) -> list:
     for i, it in enumerate(scene.fresing.flex):
         if not it.enabled:
             continue
-        a, b = it.a_part, it.b_part
-        if a is None or b is None:
+        obs = end_objects(it)
+        if any(o is None for o in obs):
             continue
-        key = _np(_world(a)).tobytes() + _np(_world(b)).tobytes()
+        key = b"".join(_np(_world(o)).tobytes() for o in obs)
         if last.get((name, i)) != key:
             out.append((i, key))
     return out
@@ -1430,9 +1900,10 @@ def _down_in(m: np.ndarray) -> np.ndarray:
 
 def _remember(scene, i, it, mats: dict, arrays) -> None:
     """Keep what item i was solved for (its end parts' places) and its solved slice: moved as a whole later."""
-    a, b = mats[it.a_part.name][0], mats[it.b_part.name][0]
+    a = mats[it.a_part.name][0]
+    rel = np.stack([np.linalg.solve(a, mats[o.name][0]) for o in end_objects(it)[1:]])
     lo, n = int(it.offset), int(it.points)
-    _STATE["solved"][(scene.name, i)] = (a, np.linalg.solve(a, b), _down_in(a),
+    _STATE["solved"][(scene.name, i)] = (a, rel, _down_in(a),
                                          tuple(np.array(x[0, lo:lo + n], dtype=float) for x in arrays))
 
 
@@ -1446,8 +1917,9 @@ def _carried(scene, i, it, mats: dict):
     a0, rel0, down0, (co, fx, fz) = kept
     if co.shape[0] != int(it.points):
         return None
-    a, b = mats[it.a_part.name][0], mats[it.b_part.name][0]
-    if not np.allclose(np.linalg.solve(a, b), rel0, rtol=0.0, atol=RIGID_TOL):
+    a = mats[it.a_part.name][0]
+    rel = np.stack([np.linalg.solve(a, mats[o.name][0]) for o in end_objects(it)[1:]])
+    if rel.shape != rel0.shape or not np.allclose(rel, rel0, rtol=0.0, atol=RIGID_TOL):
         return None
     if it.kind == "HOSE" and float(np.dot(_down_in(a), down0)) < math.cos(GRAVITY_TURN):
         return None
@@ -1514,7 +1986,7 @@ def _read_places(scene, its, first: int, frames: int) -> dict:
             also += [ob for ob in (fn(scene) or ()) if ob is not None]
         except Exception as exc:                # never break a Build over another module's wish
             print("Fresing Render: read hook failed:", exc)
-    return read_places(scene, [ob for _i, it in its for ob in (it.a_part, it.b_part)], first, frames, also=also,
+    return read_places(scene, [ob for _i, it in its for ob in end_objects(it)], first, frames, also=also,
                        keep=True)
 
 
@@ -1790,7 +2262,7 @@ def changed(scene, item) -> None:
     if item.kind == "CHAIN" and not item.made_links and item.count != len(item.links) and len(item.links):
         with _quiet(item):
             item.count = len(item.links)                  # CAD links: as many as there are
-    same_layout = int(item.points) == (DRAWN if item.kind == "HOSE" else
+    same_layout = int(item.points) == (hose_points(item) if item.kind == "HOSE" else
                                        (int(item.count) if item.made_links else len(item.links)))
     if broken(scene, item) or not same_layout or _shapes(scene) is None:
         _rebuild(scene)
@@ -1946,7 +2418,11 @@ def shape_now(scene, item) -> np.ndarray:
     got = _slice_now(scene, item)
     if got is None:
         return np.zeros((0, 3))
-    return np.delete(got[0], (1, DRAWN - 2), axis=0) if item.kind == "HOSE" else got[0]
+    if item.kind != "HOSE":
+        return got[0]
+    segs = len(item.clips) + 1                  # (each segment has its two extra points near its ends)
+    drop = [s_ * (DRAWN - 1) + k for s_ in range(segs) for k in (1, DRAWN - 2)]
+    return np.delete(got[0], drop, axis=0)
 
 
 def pins_now(scene, item) -> np.ndarray:
@@ -2017,7 +2493,7 @@ def candidates(scene) -> list:
     taken = {ob.name for ob in flex_parts(scene)}
     out, rows = [], {}
     for ob in build.iter_parts(scene):
-        if ob.name in taken or ob.get(build.PROP_EXCLUDED):
+        if ob.name in taken or ob.get(build.PROP_EXCLUDED) or ob.get("fr_drawn"):
             continue
         kind = _kind_by_name(ob)
         if kind == "LINKS?":
@@ -2076,10 +2552,12 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
     forget()
 
     def concerned(it) -> bool:                  # an item of another model stays as it is
-        uids = [it.part_uid, it.a_uid, it.b_uid] + it.link_uids.split("\n")
+        uids = [it.part_uid, it.a_uid, it.b_uid] + it.link_uids.split("\n") + [c.uid for c in it.clips] \
+            + it.replace_uids.split("\n")
         return any(u and (u in mapping or u in by_uid) for u in uids)
 
     todo = [it for it in s.flex if concerned(it)]
+    last = {it.name: shape_now(scene, it) for it in todo if it.drawn}     # (task 0240: a part gone keeps its place)
     _STATE["busy"] += 1
     try:
         for it in todo:                         # first every item to its new parts, then read (ends never sit on
@@ -2089,7 +2567,12 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                     setattr(it, key + "_part", ob)
                     if ob is None and it.get(key + "_user"):
                         del it[key + "_user"]
-                if it.kind == "HOSE" or it.made_links:
+                if it.drawn:                    # task 0240: the app's own object stays; clips go to the new parts
+                    for c in it.clips:
+                        c.part = _new_object(scene, c.uid, by_uid, mapping)
+                    from . import drawn
+                    drawn.after_model_update(scene, it, by_uid, mapping)
+                elif it.kind == "HOSE" or it.made_links:
                     it.part = _new_object(scene, it.part_uid, by_uid, mapping)
                 else:
                     uids = [u for u in it.link_uids.split("\n") if u]
@@ -2101,6 +2584,16 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
         for it in todo:
             name = f"{_word(it)} '{label(it)}'"
             try:
+                if it.drawn:                    # nothing to read again: drawn by hand
+                    why = broken(scene, it)
+                    if why:
+                        notes.append(f"{name}: {why} in the new revision – it keeps its last place")
+                        pts = last.get(it.name)
+                        if pts is not None and len(pts) >= 2 and _alive(scene, it.part):
+                            from . import drawn
+                            drawn.set_tube(it.part, pts, 0.5 * float(it.diameter if it.kind == "HOSE" else
+                                                                     it.height))
+                    continue
                 if it.kind == "HOSE" or it.made_links:
                     if it.part is None:
                         notes.append(f"{name}: its part is gone in the new revision")

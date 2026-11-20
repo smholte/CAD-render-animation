@@ -271,7 +271,7 @@ def spot_on(part):
     if not co:
         return None
     x_lo = max(80, int(min(c.x for c in co)))
-    x_hi = min(region.width - sb.width - 40, int(max(c.x for c in co)))
+    x_hi = min(min(region.width, sb.x - region.x) - 40, int(max(c.x for c in co)))
     y_lo = max(80, int(min(c.y for c in co)))
     y_hi = min(region.height - 120, int(max(c.y for c in co)))
     good = []

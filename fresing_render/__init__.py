@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.176"
+__version__ = "0.2.181"
 
 _modules = []
 
@@ -15,7 +15,7 @@ def _classes():
     from .blender import (ops_callouts, ops_clash, ops_coolant, ops_cylinders, ops_decals, ops_doublearm, ops_fade, ops_gcode,
                           ops_import, ops_linkages, ops_machining, ops_main, ops_motion, ops_panels, ops_waycover,
                           ops_demo, ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
-                          ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_header, ui_topbar, welcome, ui_machining, ui_motion, ui_tour, ui_video,
+                          ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_header, ui_topbar, welcome, editors, ui_machining, ui_motion, ui_tour, ui_video,
                           ui_section, ui_waycover, updates)
     from .blender import ops_section                # task 0086: 3 Looks > Slice
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
@@ -24,6 +24,7 @@ def _classes():
     from .blender import ops_flex, ui_flex          # task 0058: 4 Motion > Hoses and drag chains
     from .blender import ops_paths, ui_paths        # task 0078: 4 Motion > Cables and paths (after Hoses and drag chains)
     from .blender import ops_paths_sea              # task 0081: … > Into the sea, things on the cable
+    from .blender import ops_drawn                  # task 0240: Draw hose / cable route / drag chain by clicking
     from .blender import ops_product_video       # task 0101: 6 Animation > Make a product video
     from .blender import ops_spool, ui_spool        # task 0080: 4 Motion > Drums and carousels (after Cables and paths)
     from .blender import ops_tracks, ui_tracks      # task 0079: 4 Motion > Tracks and belts (after Drums and carousels)
@@ -54,10 +55,10 @@ def _classes():
     looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
-    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
-            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
+            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
@@ -144,6 +145,8 @@ def register():
     ui_header.register_handlers()
     from .blender import ui_topbar, welcome
     ui_topbar.register_handlers()            # task 0199: the Fresing menu in the top bar
+    from .blender import editors
+    editors.register_handlers()              # task 0221: a 3D view drawn after Blender's column was closed / shown
     welcome.register_handlers()              # task 0199: the welcome and What's new at the start
     from .blender import ops_usage
     ops_usage.register()                     # task 0181: counting, the session, My usage in the Help menu
@@ -257,6 +260,8 @@ def unregister():
     ui_header.unregister_handlers()
     from .blender import ui_topbar, welcome
     ui_topbar.unregister_handlers()
+    from .blender import editors
+    editors.unregister_handlers()
     welcome.unregister_handlers()
     from .blender import ops_usage
     ops_usage.unregister()

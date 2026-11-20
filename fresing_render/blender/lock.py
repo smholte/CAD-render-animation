@@ -62,6 +62,7 @@ ALLOWED = {
     "fresing.release_notes", "fresing.about", "fresing.about_open",   # task 0206: only opens a window / a file
     "fresing.self_test", "fresing.open_app_folder",              # task 0212: a check in its own window, a folder
     "fresing.client_locked",
+    "fresing.blender_editors",                   # task 0221: its own poll greys it in the Client view, with the reason
     "fresing.rebake", "fresing.rebake_cancel",          # cables follow a sea change the Client view may make
     "fresing.toolbox_report", "fresing.toolbox_not_now",     # task 0217: a status-bar line; turning a job down
 }
@@ -501,6 +502,18 @@ def _remove_keys() -> None:
 # on and off
 # ---------------------------------------------------------------------------
 
+def _editors(on: bool) -> None:
+    """Task 0221: Blender's right-hand column is hidden while the lock is on (its Outliner, just turned into Info, goes
+    with it); off, the user's own choice comes back. From a timer: the lock also changes inside a load handler."""
+    if bpy.app.background:
+        return
+    try:
+        from . import editors
+        editors.request(False if on else None)
+    except Exception as exc:  # noqa: BLE001 - never stop the lock over the layout
+        print("Fresing Render: Blender's editors not followed:", exc)
+
+
 def apply(scene, on: bool) -> None:
     """Put the lock on or off for the open project. Safe to call again: only what is not locked yet is locked, and
     only what the lock changed is put back."""
@@ -518,6 +531,7 @@ def apply(scene, on: bool) -> None:
             if marked():
                 _unlock_all()
         _swap_outliners(on)
+        _editors(on)
         _file_menu(on)
         if on:
             _start_guard()

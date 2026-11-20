@@ -132,6 +132,8 @@ def s_esc():
 def s_esc2():
     win, _area, region = view()
     win.event_simulate(type="ESC", value="RELEASE", x=region.x + 300, y=region.y + 300)
+    # task 0221: Blender's own column (with its Outliner) is hidden – the timeline becomes an Outliner to be guarded
+    next(a for a in win.screen.areas if a.type == "DOPESHEET_EDITOR").ui_type = "OUTLINER"
     return 0.8
 
 

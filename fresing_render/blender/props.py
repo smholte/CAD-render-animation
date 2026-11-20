@@ -2396,9 +2396,34 @@ def _flex_changed(self, context):
     flex.changed(context.scene, self)
 
 
+def _flex_renamed(self, context):
+    """A drawn hose or chain was renamed (task 0240): its own object and the CAD parts it replaces follow."""
+    old = self.get("name_was", "")
+    if old == self.name:
+        return
+    self["name_was"] = self.name
+    if self.drawn and old:
+        from . import drawn
+        drawn.renamed(self, old)
+
+
+class FRFlexClip(bpy.types.PropertyGroup):
+    """A clip a drawn hose runs through (task 0240): the part it is on and where, in that part's own coordinates."""
+    part: PointerProperty(type=bpy.types.Object)
+    uid: StringProperty()
+    point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
+    dir: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))
+
+
 class FRFlex(bpy.types.PropertyGroup):
     """A hose, a cable or a drag chain that follows the motion (task 0058). See blender/flex.py."""
-    name: StringProperty(name="Name", description="Name of this hose, cable or drag chain. Double-click to rename it")
+    name: StringProperty(name="Name", description="Name of this hose, cable or drag chain. Double-click to rename it",
+                         update=_flex_renamed)
+    # ---- drawn in the app (task 0240): ``part`` is then the app's own object (blender/drawn.py) ----
+    drawn: BoolProperty(default=False)
+    clips: CollectionProperty(type=FRFlexClip)             # a drawn hose: the clips it runs through, from end A on
+    replaces: CollectionProperty(type=FRObjectRef)         # the simplified CAD parts it replaces (excluded meanwhile)
+    replace_uids: StringProperty()
     kind: EnumProperty(name="Kind", default="HOSE",
                        items=[("HOSE", "Hose or cable", "One bendable part between two ends"),
                               ("CHAIN", "Drag chain", "An energy chain: two straight runs and a bend that rolls")])
@@ -2634,6 +2659,9 @@ class FRCable(bpy.types.PropertyGroup):
                     "shows exactly as in the CAD file and nothing turns with it")
     part: PointerProperty(type=bpy.types.Object)           # the CAD cable (its shape is replaced by the drawn one)
     part_uid: StringProperty()
+    drawn: BoolProperty(default=False)                     # task 0240: ``part`` is the app's own object (drawn.py)
+    replaces: CollectionProperty(type=FRObjectRef)         # … and the simplified CAD parts it replaces
+    replace_uids: StringProperty()
     joint: StringProperty()                                # the slide joint whose value is the metres paid out
     made_joint: BoolProperty(default=False)                # the app made that joint (removed with the cable)
     diameter: FloatProperty(
@@ -4640,7 +4668,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRVesselThruster, FRVesselWork, FRWeb3D, FRWeather,
-           FRCutTarget, FRCut, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
+           FRCutTarget, FRCut, FRFlexClip, FRFlex, FRCableContact, FRCableRiderPart, FRCableRider, FRCable, FRSpoolFollower, FRSpool,
            FRTrackWheel, FRTrack,
            FRHouse, FRPersonAction, FRPersonSettings,
            FRLiftCrane, FRLiftDensity, FRLiftLoad, FRLifting,

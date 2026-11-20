@@ -67,11 +67,11 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 84, "tour2": 2, "tourui": 15, "layout": 38,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 88, "tour2": 2, "tourui": 15, "layout": 66,
               "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "toolbox": 19,
-              "clientkeys": 12}
+              "clientkeys": 12, "demokits": 23, "drawn": 17}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -85,7 +85,7 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 # (tools/ci_precheck.py). The longest job sets the run's length (with the queued-render test of test_air.py, ~10 min).
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
-    "pccheck-b": ["pccheck2", "lock", "clientkeys"],   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
+    "pccheck-b": ["pccheck2", "lock", "clientkeys", "demokits", "drawn"],   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
     "callouts": ["callouts"],
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox"],        # toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
@@ -123,6 +123,9 @@ TESTS = {
                  "ui_test_waycover.py", True),
     "flex": ("Real app: hoses and drag chains – click a hose, Add hose, the arm luffs; click one link, Add drag "
              "chain, X moves; undo, save and open (ui_test_flex.py)", "ui_test_flex.py", True),
+    "drawn": ("Real app: Draw hose – the picker's hover on the fittings, a click, Backspace, the clicks again, Enter; "
+              "the CAD hose replaced, the arm luffs; one click and Esc; undo and redo (ui_test_drawn.py)",
+              "ui_test_drawn.py", True),
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
@@ -182,6 +185,9 @@ TESTS = {
     "lock": ("Real app: the Client view's lock holds – Ctrl+Z after an import, every way back to an Outliner (menu, "
              "Shift+F9, a new window, another workspace, Ctrl+Space), the Set-up step through Ctrl+Z (ui_test_lock.py)",
              "ui_test_lock.py", True),
+    "demokits": ("Real app: demo kits – the Make window's list, Add a demo kit…, a broken zip and an old kit refused, "
+                 "Add / Remove off in the Client view, the list with no app demo, Make with the test kit in the "
+                 "background, Open it, Remove (ui_test_demo_kits.py)", "ui_test_demo_kits.py", True),
     "clientkeys": ("Real app: the Client view – a part selected before, Ctrl+Z, a click, A, a part freed by a script: "
                    "nothing selected; X, Delete, Shift+X, Shift+Delete, Tab and Object > Delete delete nothing; Full "
                    "access: Delete works again (ui_test_client_keys.py)", "ui_test_client_keys.py", True),

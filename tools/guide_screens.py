@@ -49,6 +49,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   flex_panels   the panels of 4 Motion > Hoses and drag chains (panel_4_flex_empty / panel_4_flex / panel_4_flex_chain; as
       "panels", on the hoses model, then the chains model).
 
+  drawn   task 0240: a hose drawn through two clips (view_drawn_hose.jpg) and a cable route drawn over the drum,
+      two sheaves and the chute (view_drawn_cable.jpg); Cycles on the processor, as "render".
+
   cables_panel   the panel 4 Motion > Cables and paths (panel_cables; as "panels", on test_paths_a.step, task 0078).
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
@@ -2119,6 +2122,53 @@ def render_flex():
         "view_flex_chains")
 
 
+def render_drawn():
+    """Task 0240: a hose drawn through two clips on the hoses model (the arm up 12°) and a cable route drawn over the
+    drum, two sheaves and the chute (view_drawn_hose.jpg, view_drawn_cable.jpg; Cycles on the processor, as "render").
+    The set-ups are the test tour's (``tour.drawn_hose_setup``, ``tour.drawn_cable_setup``)."""
+    import addon_utils
+    addon_utils.enable(pkg(), default_set=True)
+    joints, cams, flex, tour, build = (mod("blender.joints"), mod("blender.cameras"), mod("blender.flex"),
+                                       mod("blender.tour"), mod("blender.build"))
+
+    def one(step_file, setup, name, moves=(), view="ISO"):
+        bpy.ops.wm.read_factory_settings(use_empty=False)
+        addon_utils.enable(pkg(), default_set=True)
+        assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, step_file), quality="normal") == {"FINISHED"}
+        sc = bpy.context.scene
+        s = sc.fresing
+        setup(sc, build.model_roots(sc)[0])
+        for jn, val in moves:
+            joints.set_value(s.joints.get(jn), val)
+        bpy.context.view_layer.update()
+        flex.refresh(sc, force=True)
+        s.background = "SKY"
+        s.floor = "VISIBLE"
+        s.floor_use_own_color = True
+        s.floor_color = (0.42, 0.42, 0.4)
+        cam = cams.add_camera(sc, view, 50.0, name="Guide view")
+        sc.camera = cam
+        bpy.context.view_layer.update()
+        cams.fit(cam, sc)
+        s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 900, 600, False, SCRATCH
+        mod("blender.render").apply_output(sc, s)
+        t = time.time()
+        assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+        log("render", name, f"{time.time() - t:.0f} s")
+        path = os.path.join(OUT, name + ".jpg")
+        subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", path], check=True)
+        return path
+
+    def hose(sc, root):
+        flex.set_up_test_hoses(sc)
+        for n in ("HYDRAULIC HOSE CYL A", "HYDRAULIC HOSE CYL B", "CABLE"):
+            flex.remove(sc, flex.index_of(sc, flex.find(sc, n)))
+        tour.drawn_hose_setup(sc, root)
+
+    one("test_flex_hoses_a.step", hose, "view_drawn_hose", [("Luff", math.radians(12))])
+    one("test_paths_a.step", tour.drawn_cable_setup, "view_drawn_cable", view="FRONT")
+
+
 def render_spools(full: bool = False):
     """Task 0080: the spooling test model after 5 m of wire and 8 m of cable: the drum and the carousel, each in a
     render of its own, side by side. ``full`` (task 0174, view_spools_full.jpg): the drum wound full to its flanges
@@ -2284,6 +2334,12 @@ elif MODE == "operator":
 elif MODE == "people":
     try:
         render_people()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "drawn":
+    try:
+        render_drawn()
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

@@ -44,6 +44,11 @@ chat and gives the exact sentence to paste, with where, which model and which ef
 > Read CLAUDE.md and TASKS.md in github.com/smholte/CAD-render-animation and do task 0013. You have my permission
 > to push to main: merge after a green GitHub run without asking me, then check that main really contains your commit.
 
+**A start sentence only when the task can start now** (owner, 20 Nov 2026): the lead gives a task's sentence only
+when the owner can start it at that moment – its brief is on `main`, every task it waits for is merged, its lane is free
+and fewer than about four code tasks are running. A task that still waits gets one plain line ("0241: after 0221 and
+0236 are merged") and **no** sentence; the lead gives the sentence in the status check where it becomes startable.
+
 **The permission to push to `main` is in the start sentence** (owner, 16 Nov 2026): a web session may push only to its
 own branch unless the owner says otherwise in the chat, and a worker that stops to ask waits unseen (0164 waited over
 an hour). Every start sentence the lead gives carries that line. A worker that still has to stop for the owner says so
@@ -520,6 +525,11 @@ fresing_render/            the Blender extension (Python package)
                            on any button of a function (``UI_MT_button_context_menu``), What's new adds the new
                            functions, one "Next to learn" line a session on the What's next card; the use days are
                            counted in ``usage.record``
+    editors.py             task 0221: Blender's right-hand column (Outliner + Properties next to the main 3D view) closed on
+                           every load the app tidies, Fresing > Show / Hide Blender's editors, the choice in
+                           `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
+                           asks `editors.request`), Region Overlap off once (the solid side panel); screens are changed
+                           only from a timer and nothing sets a 3D view's settings until it was drawn (`settled()`)
     welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
@@ -534,6 +544,11 @@ fresing_render/            the Blender extension (Python package)
                            is a COPY of a Cycles scene (switching an engine froze the real app); ops_web3d.py (Export…,
                            progress, Cancel), ui_web3d.py (5 Scene & Render > Web 3D model); viewer: fresing_render/web/
                            (model-viewer 4.4.0, Apache-2.0); site: "Turn it yourself" -> model/index.html
+    demo.py                task 0228: **demo kits** – `build_project(kit=…)` sets the app's own stages aside and runs only
+                           the kit's maker (stage `kit_model`, `core/demo_kit_run.py`) and the stages its module registers;
+                           `core/demo_kits.py` checks / unpacks / lists kit zips (kit.json), the app is `fresing_app` inside
+                           a kit; Help > Make demo project…'s list + Add a demo kit… / Remove in ops_demo.py; `PUBLIC`
+                           (the app's own demo in the list); test kit tests/data/demo_kit_test (zip in fresing_render/data)
     demo.py                demo project "Cable-lay vessel" (task 0077): Help > Make demo project; a background Blender
                            runs the model maker, imports, makes 415 joints (a "Cable travel" slide joint the cable-turned
                            rollers follow), the handler cylinders, sea + quay scenes, cameras and the animation "What it
@@ -764,19 +779,19 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **House Planner is private** (owner, 13 Nov 2026): Fresing Render workers **never attach or clone
   `smholte/house-planner-dev`** – it holds the owner's own house. The House lane works only from the public format
   repository `smholte/house-scene-format`, and its tests use only that repository's made-up sample packages.
-- **The cable-lay vessel project is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → the cut →
-  pictures). **Everything of it** – the ship (hull, superstructure, its deck crane), its equipment (carousel,
-  tensioners, chute, A-frame / quadrant, ROV, deck machines, wires), its environment set-up (wind park, quay, the cable
-  on the seabed) and its animations – lives in the private repository **`smholte/fresing-render-vessel`** as a **demo
-  kit** (owner 20 Nov 16:55: "the entire cable laying ship project with ship, equipment, environment, animations and
-  all"). The public app knows only "demo kits", never this one; only generic libraries other public code uses stay
-  public (`demo_model/geom.py`, and the turbine maker only while the site's IEA stand-in needs it). Until the cut is
-  merged its code is still on `main`: **no new pictures, renders, web pages, guide pictures, tour stops, test models or
-  report pictures of the ship, its equipment or its park, and no new parts for them**. Never copy anything from the
-  private repository into this one – also not as a "test model" or a hull shape. The app's general functions (sea,
-  vessel motion, vessel at work, weather, surroundings) stay public and are shown on the public test models. The full
-  demo is the owner's private demo for a company, not part of the learning environment. Old task texts and CHANGELOG
-  lines that describe it stay; no history rewrite (owner 20 Nov).
+- **The cable-lay vessel's equipment is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → the cut →
+  pictures). **Public stays:** the **ship with its own deck crane** (`demo_model/vessel.py`; plain deck after the cut –
+  carousel well and aft bulwark opening closed), the **wind park** (turbines, substation), the sea, seabed and quay, and
+  the public demo **"Vessel in a wind park"** (owner 20 Nov 17:02: "the windpark and the ship with the crane stays").
+  **Private:** everything else on or hanging from the ship (carousel, tensioners, chute, A-frame / quadrant, ROV, deck
+  machines, wires, the spread's layout) and the **complete cable-lay demo project** – the private repository
+  **`smholte/fresing-render-vessel`** keeps the whole project as a self-contained **demo kit** (its own copies of the
+  ship, environment, equipment and animations; owner 20 Nov 16:55). The public app knows only "demo kits", never this
+  one. Until the cut is merged the equipment's code is still on `main`: **no new pictures, renders, web pages, guide
+  pictures, tour stops or report pictures of the equipment, and no new equipment parts**. Never copy anything from the
+  private repository into this one – also not as a "test model". The full demo is the owner's private demo for a
+  company, not part of the learning environment. Old task texts and CHANGELOG lines that describe it stay; no history
+  rewrite (owner 20 Nov).
 - **Who may attach the private vessel repository:** the lead (to read its runs) and only tasks whose file header says
   **"Private vessel: yes"**; the lead's start sentence then names the repository. Such a task follows the private
   repository's own `CLAUDE.md`, reports in numbers only, and its public part (the kit hook) goes through this repository
@@ -784,7 +799,7 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   projects):** no scheduled runs – push and by hand only, Linux only, one job of about 10 minutes, superseded runs
   cancelled, artifacts kept a few days at most.
 - **A cable / spool / track / sea task without that line** tests on the public test models (`test_spool`, `test_tracks`,
-  `test_paths_a`, `test_sea`, `test_moving`, `test_swivel`, `test_thrusters`). If a change may break
+  `test_paths_a`, `test_sea`, `test_moving`, `test_swivel`, `test_thrusters`) and the public demo. If a change may break
   the full demo (a renamed function the kit uses – `kit.json` `uses` –, a changed `@stage`, the kit hook), say so in the
   report: the lead asks the owner to run the private workflow by hand.
 - **The Fresing 400 is not public yet** (owner, 12 Nov 2026): it is not ready to be shown in full. Its milling video
@@ -1328,6 +1343,13 @@ the release → Delete); the next run on `main` publishes it again.
   uninstaller became "â€“", whose last byte is a typographic quote that ends a PowerShell string, and the whole script
   failed to parse (task 0217). Installer files stay plain ASCII (`tests/test_toolbox.py`
   `test_the_installer_files_are_plain_ascii`); `tools/ci_windows_install.ps1` runs in PowerShell 7 and may hold accents.
+- Blender 5.2.3 crashes (segfault) when a 3D view's settings are SET (`show_region_toolbar`) after an area beside it
+  was closed with `screen.area_close` and before the window was drawn again – also when the window had been drawn
+  before, also after `wm.redraw_timer`; reading is safe. Closing areas inside a `load_post` handler crashed too (task
+  0221). Change screens from a timer, and set nothing on a 3D view until a draw handler has run (`editors.settled()`):
+  every timer that tidies the view after a load waits for `editors.busy()` (`ui_header._tab`, the test tour's
+  `ops_tour._go_pending` – it crashed `ui_test_tour.py` on GitHub –, the Set-up window's split, which otherwise measured
+  the view before the column was closed). Closing the column makes BOTH the 3D view and the timeline under it grow.
 - Setting `$env:USERPROFILE` to another folder makes Windows answer "" for the Desktop and other known folders
   (`[Environment]::GetFolderPath`): the installer stopped at its shortcuts (task 0217; an independent review had judged
   it safe). Change it only for one child process (`ci_windows_install.ps1` does for `ci_toolbox_windows.py`).

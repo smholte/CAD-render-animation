@@ -223,7 +223,7 @@ def spot_on(part):
     for poly in list(me.polygons)[::max(1, len(me.polygons) // 300)]:
         p = mw @ poly.center
         co = view3d_utils.location_3d_to_region_2d(region, rv3d, p)
-        if co is None or not (120 < co.x < region.width - sb.width - 60 and 80 < co.y < region.height - 120):
+        if co is None or not (120 < co.x < min(region.width, sb.x - region.x) - 60 and 80 < co.y < region.height - 120):
             continue
         along = view3d_utils.region_2d_to_vector_3d(region, rv3d, co).normalized()
         facing = -(mw.to_3x3() @ poly.normal).normalized().dot(along)

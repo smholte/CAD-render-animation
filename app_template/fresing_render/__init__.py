@@ -51,6 +51,8 @@ def _set_preferences(_dummy=None):
     prefs.view.show_splash = True
     prefs.view.show_tooltips_python = False
     prefs.filepaths.use_relative_paths = True
+    if not bpy.app.background:
+        prefs.system.use_region_overlap = False     # task 0221: a solid side panel, not see-through over the 3D view
 
 
 def _enable_fresing_render() -> str:

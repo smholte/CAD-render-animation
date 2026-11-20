@@ -1595,6 +1595,252 @@ def _check_cables(scene):
             f"{turning} parts turning with it to {slip * 1000:.3f} mm")
 
 
+# ---------------------------------------------------------------------------
+# hoses, a drag chain and a cable route drawn by clicking (task 0240)
+# ---------------------------------------------------------------------------
+
+DRAWN_ANIM = "Drawn hose, chain and cable"
+DRAWN_CHAINS_AT = (0.0, -1.1, 0.0)              # the gantry beside the hoses model (m)
+DRAWN_PATHS_AT = (0.0, 1.5, 0.0)                # the cable model on the other side
+DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE = "Hose 1", "Drag chain 1", "Drawn rope"
+
+
+def _drawn_click(scene, root, origin, direction, want: str, hide=()):
+    """A click as Draw hose / Draw drag chain / Draw cable route take it: a ray (in the model's own coordinates, so
+    a moved model is clicked where it is now) cast as the picker casts it, with the CAD parts in ``hide`` hidden
+    meanwhile (the picker hides the part it replaces: it lies on the fittings). Returns the spot."""
+    import bpy
+    from mathutils import Vector
+
+    from . import build, drawn, hover, logic
+    for ob in hide:
+        logic.set_visible_flags(ob, True)
+    _update()
+    try:
+        m = root.matrix_world
+        o, d = m @ Vector(origin), (m.to_3x3() @ Vector(direction)).normalized()
+        ob, index, loc, normal = hover.cast(scene, bpy.context.evaluated_depsgraph_get(), o, d)
+        _check(index >= 0 and ob.get(build.PROP_NAME) == want,
+               f"the click meant for '{want}' hits '{ob.get(build.PROP_NAME) if ob is not None else 'nothing'}'")
+        sp = drawn.spot(ob, index, loc, normal)
+        return sp
+    finally:
+        for ob in hide:
+            if not ob.get(build.PROP_EXCLUDED):
+                logic.set_visible_flags(ob, False)
+        _update()
+
+
+def drawn_hose_setup(scene, root) -> str:
+    """On the hoses model (tools/make_test_flex.py, at ``root``): the CAD hose HYDRAULIC HOSE ARM leaves the list, and
+    a hose is drawn in its place – end A on FITTING VALVE C, two clips on the base's top, end B on FITTING ARM –,
+    replacing it. The luff gets its limits first (the length then fits the whole travel). Returns the item's name."""
+    import math
+
+    from . import flex, joints
+    i = next((k for k, it in enumerate(scene.fresing.flex) if it.name == "HYDRAULIC HOSE ARM"), -1)
+    if i >= 0:
+        flex.remove(scene, i)
+    luff = joints.find(scene, "Luff")
+    luff.rot_min, luff.rot_max, luff.use_limits = math.radians(-20.0), math.radians(20.0), True
+    cad = _ob(scene, "HYDRAULIC HOSE ARM")
+    spots = [_drawn_click(scene, root, (0.432, -0.069, 0.5), (0, 0, -1), "FITTING VALVE C", (cad,)),
+             _drawn_click(scene, root, (0.6, -0.12, 0.8), (0, 0, -1), "BASE", (cad,)),
+             _drawn_click(scene, root, (0.85, -0.12, 0.8), (0, 0, -1), "BASE", (cad,)),
+             _drawn_click(scene, root, (1.002, -0.3, 0.6), (0, 1, 0), "FITTING ARM", (cad,))]
+    item, notes = flex.draw_hose(scene, spots, replace=cad)
+    _check(not notes, "; ".join(notes))
+    return item.name
+
+
+def drawn_chain_setup(scene, root) -> str:
+    """On the gantry (test_flex_chains_a.step, at ``root``, its joints made by ``flex.set_up_test_chains``): the CAD
+    chain X leaves the list and a drag chain is drawn between its two brackets, replacing the CAD links."""
+    from . import build, flex
+    i = next((k for k, it in enumerate(scene.fresing.flex) if it.name == "CHAIN X.ASM"), -1)
+    if i >= 0:
+        flex.remove(scene, i)
+    home = _ob(scene, "CHAIN X.ASM")
+    links = [o for o in build.iter_parts(scene) if build.logical_parent(o) == home]
+    a = _drawn_click(scene, root, (-0.04, -1.0, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED", links)
+    b = _drawn_click(scene, root, (-0.01, -1.0, 0.44), (0, 1, 0), "CHAIN BRACKET X MOVING", links)
+    item, notes = flex.draw_chain(scene, a, b, replace=links[0])
+    _check(not notes, "; ".join(notes))
+    return item.name
+
+
+def drawn_cable_setup(scene, root) -> str:
+    """On the cable model (test_paths_a.step, at ``root``): the joint "A-frame luff" and a cable route drawn by
+    clicking – the winch drum, SHEAVE 1, SHEAVE 2, the CHUTE, a free end –, replacing the CAD rope."""
+    from mathutils import Vector
+
+    from . import joints, paths
+    rope = _ob(scene, "WIRE ROPE")
+    start = _drawn_click(scene, root, (0.0, 0.0, 0.45), (1, 0, 0), "WINCH DRUM", (rope,))
+    wheels = []
+    for name, o, d in (("SHEAVE 1", (1.9104, 0.0, 3.0), (0, 0, -1)), ("SHEAVE 2", (1.5, 0.0, 0.5), (0, 0, 1)),
+                       ("CHUTE", (2.7, 0.0, 1.5), (0, 0, -1))):
+        sp = _drawn_click(scene, root, o, d, name, (rope,))
+        wheels.append((sp["part"], sp["hit"], False))
+    item, _notes = paths.draw_cable(scene, start, wheels, None, name=DRAWN_CABLE, diameter=0.024, replace=rope)
+    m = root.matrix_world
+    luff = joints.create(scene, "ROTATE", [_ob(scene, "A-FRAME.ASM")], m @ Vector((1.5, 0.0, 0.73)),
+                         (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="A-frame luff")
+    luff.rot_min, luff.rot_max, luff.use_limits = -0.26, 0.26, True
+    return item.name
+
+
+def drawn_motion(a, cable_joint: str) -> None:
+    """The steps of the drawn stops: the arm luffs, X travels, the A-frame luffs while the drawn rope runs."""
+    _joint_step(a, "Luff", 0.0, 2.0, math.radians(16.0), label="Arm up 16°")
+    _joint_step(a, "Luff", 2.0, 2.0, math.radians(-10.0), label="Arm down to -10°")
+    _joint_step(a, "X", 0.0, 2.0, 0.14, slide=True, label="X out 140 mm")
+    _joint_step(a, "X", 2.0, 2.0, -0.14, slide=True, label="X back 280 mm")
+    _joint_step(a, "A-frame luff", 0.5, 1.5, math.radians(10.0), label="A-frame forward")
+    _joint_step(a, "A-frame luff", 2.5, 1.5, 0.0, label="A-frame back")
+    blk = a.blocks.add()
+    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", cable_joint, 0.0, 4.0, "LINEAR"
+    blk.speed_mmin = 10.0
+
+
+@tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180")
+def build_flex_drawn(b: Build):
+    from mathutils import Vector
+
+    from . import build, flex, paths
+    sc, s = b.scene, b.s
+    _look("PRODUCT")
+    s.background, s.env_detail = "FACTORY", "SIMPLE"
+    roots = sorted(build.model_roots(sc), key=build.uid_scope)
+    _check(len(roots) == 3, f"{len(roots)} models instead of 3")
+    hoses, chains, cable = roots
+    chains.location = chains.location + Vector(DRAWN_CHAINS_AT)
+    cable.location = cable.location + Vector(DRAWN_PATHS_AT)
+    _update()
+    flex.set_up_test_hoses(sc)
+    flex.set_up_test_chains(sc)
+    for name in ("HYDRAULIC HOSE CYL A", "HYDRAULIC HOSE CYL B", "CABLE", "CHAIN Y.ASM", "CHAIN Z.ASM"):
+        it = flex.find(sc, name)                # (only the drawn ones in this set's list)
+        if it is not None:
+            flex.remove(sc, flex.index_of(sc, it))
+    _update()
+    hose = drawn_hose_setup(sc, hoses)
+    chain = drawn_chain_setup(sc, chains)
+    rope = drawn_cable_setup(sc, cable)
+    _check((hose, chain, rope) == (DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE), f"named {hose}, {chain}, {rope}")
+    _update()
+    _camera(b, "ISO", "Tour view")
+    shot = _shot(b, "Tour: drawn hose, chain and cable")
+    drawn_motion(_animation(b, DRAWN_ANIM, shot.name), paths.find(sc, DRAWN_CABLE).joint)
+
+
+def check_drawn_hose(scene) -> str:
+    """The drawn hose over the animation: ends on their fittings, through its clips, its length kept."""
+    import numpy as np
+
+    from ..core import flex as fcore
+    from . import drawn, flex
+    it = flex.find(scene, DRAWN_HOSE)
+    _check(it is not None and it.drawn, "the drawn hose is missing")
+    _check(len(it.clips) == 2, f"it runs through {len(it.clips)} clips, not 2")
+    end = stretch = moved = 0.0
+    first = None
+    for f in sorted({scene.frame_start, scene.frame_end} | set(range(scene.frame_start, scene.frame_end, 12))):
+        scene.frame_set(f)
+        _update()
+        line = flex.shape_now(scene, it)
+        stops = [drawn.world_spot(it.a_part, it.a_point, it.a_dir)[0]]
+        stops += [drawn.world_spot(c.part, c.point, c.dir)[0] for c in it.clips]
+        stops.append(drawn.world_spot(it.b_part, it.b_point, it.b_dir)[0])
+        for p in stops:
+            end = max(end, float(np.linalg.norm(line - p, axis=1).min()))
+        stretch = max(stretch, abs(float(fcore.polyline_length(line)) / it.length - 1.0))
+        first = line if first is None else first
+        moved = max(moved, float(np.abs(line - first).max()))
+    _check(not it.problem, f"'{it.name}': {it.problem}")
+    _check(moved > 0.05, f"the drawn hose moved only {moved * 1000:.0f} mm")
+    _check(end < 1e-4, f"the drawn hose is {end * 1000:.3f} mm off an end or a clip")
+    _check(stretch < 0.005, f"the drawn hose changed its length by {stretch * 100:.2f} %")
+    return f"through 2 clips, ends and clips on their parts to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
+
+
+def check_drawn_chain(scene) -> str:
+    """The drawn chain over the animation: links one pitch apart, the moving end on its bracket."""
+    import numpy as np
+
+    from . import drawn, flex
+    it = flex.find(scene, DRAWN_CHAIN)
+    _check(it is not None and it.drawn and it.made_links, "the drawn drag chain is missing")
+    chord = end = moved = 0.0
+    first = None
+    for f in sorted({scene.frame_start, scene.frame_end} | set(range(scene.frame_start, scene.frame_end, 12))):
+        scene.frame_set(f)
+        _update()
+        pins = flex.pins_now(scene, it)
+        chord = max(chord, float(np.abs(np.linalg.norm(np.diff(pins, axis=0), axis=1) - it.pitch).max()))
+        end = max(end, float(np.linalg.norm(pins[-1] - drawn.world_spot(it.b_part, it.b_point, (1, 0, 0))[0])))
+        first = pins if first is None else first
+        moved = max(moved, float(np.abs(pins - first).max()))
+    _check(not it.problem, f"'{it.name}': {it.problem}")
+    _check(moved > 0.05, f"the drawn chain moved only {moved * 1000:.0f} mm")
+    _check(chord < 1e-5, f"a link is {chord * 1000:.4f} mm longer or shorter than its link length")
+    _check(end < 1e-4, f"the chain's moving end is {end * 1000:.3f} mm off its bracket")
+    return f"{it.count} links one pitch apart to {chord * 1000:.4f} mm, moving end on its bracket to {end * 1000:.3f} mm"
+
+
+def check_drawn_cable(scene) -> str:
+    """The drawn cable route over the animation: as the CAD rope it replaces – six contacts, five turning, on its
+    sheaves, paid out."""
+    import numpy as np
+
+    from . import joints, paths
+    it = paths.find(scene, DRAWN_CABLE)
+    _check(it is not None and it.drawn, "the drawn cable is missing")
+    _check(paths.status(scene, it)[1] == "OK", f"the cable says: {paths.status(scene, it)[0]}")
+    kinds = [c.kind for c in it.contacts]
+    _check(kinds == ["SHEAVE", "SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"], f"its contacts: {kinds}")
+    cab = joints.find(scene, it.joint)
+    off = slip = pay = 0.0
+    for f in sorted({scene.frame_start, scene.frame_end} | set(range(scene.frame_start, scene.frame_end, 15))):
+        scene.frame_set(f)
+        _update()
+        pts = np.array(paths.shape_now(scene, it), dtype=float)
+        for w in paths.wheels_now(scene, it):
+            d = pts - np.asarray(w.centre, float)
+            ax = np.asarray(w.axis, float)
+            off = max(off, abs(float(np.linalg.norm(d - np.outer(d @ ax, ax), axis=1).min()) - float(w.radius)))
+        pay = joints.get_value(cab)
+        for c in it.contacts:
+            if c.kind in paths.TURNING and c.turns and c.joint:
+                j = joints.find(scene, c.joint)
+                slip = max(slip, abs(joints.get_value(j) - math.radians(c.ratio) * pay * 1000.0)
+                           * paths.radius_of(it, c))
+    _check(pay > 0.5, f"only {pay:.2f} m of rope ran")
+    _check(off < 5e-4, f"the rope is {off * 1000:.2f} mm off a sheave")
+    _check(slip < 1e-3, f"a sheave or roller is {slip * 1000:.2f} mm behind the rope")
+    return f"6 contacts, {pay:.2f} m ran, on its sheaves to {off * 1000:.2f} mm, wheels turn with it"
+
+
+def check_drawn_replace(scene) -> str:
+    """The CAD parts the drawn ones replace: hidden for good – the view, renders, the clash check, the web model."""
+    from . import build, clash, flex, paths, web3d
+    items = [flex.find(scene, DRAWN_HOSE), flex.find(scene, DRAWN_CHAIN), paths.find(scene, DRAWN_CABLE)]
+    _check(all(it is not None for it in items), "a drawn item is missing")
+    replaced = [r.obj for it in items for r in it.replaces if r.obj is not None]
+    _check(len(replaced) == 1 + 18 + 1, f"{len(replaced)} replaced CAD parts, not 20 (hose, 18 links, rope)")
+    checked = {o.name for o in clash.objects(scene)}
+    web = {o.name for o in web3d.objects(scene)[0]}
+    for ob in replaced:
+        name = ob.get(build.PROP_NAME)
+        _check(ob.get(build.PROP_EXCLUDED) and ob.hide_render and not ob.visible_get(), f"'{name}' still shows")
+        _check(ob.name not in checked, f"'{name}' is still in the clash check")
+        _check(ob.name not in web, f"'{name}' is still in the web 3D model")
+    for it in items:
+        _check(it.part.name in web, f"the drawn '{it.name}' is not in the web 3D model")
+    return "the CAD hose, the 18 CAD links and the CAD rope hidden for good; the drawn ones in the web model"
+
+
 SPOOL_ANIM = "Spooling"
 
 
@@ -1965,7 +2211,7 @@ def _check_swivel(scene):
 TRACKS_ANIM = "Tracks"
 
 
-@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step", added="0.2.87", changed="0.2.101")
+@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step", added="0.2.87", changed="0.2.177")
 def build_tracks(b: Build):
     from . import tracks
     sc = b.scene
@@ -1993,12 +2239,14 @@ def _check_tracks(scene):
     _check(all(it is not None for it in its), "a track is missing")
     cab = joints.find(scene, paths.find(scene, tracks.TEST_CABLE).joint)
     lift = joints.find(scene, tracks.TEST_LIFT)
+    tilt = joints.find(scene, tracks.TEST_TILT)
     off = chord = 0.0
-    lifts = []
+    lifts, tilts = [], []
     for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 25)) | {scene.frame_end}):
         scene.frame_set(f)
         _update()
         lifts.append(joints.get_value(lift))
+        tilts.append(joints.get_value(tilt) if tilt is not None else 0.0)
         for it in its:
             for ob in [o for o in tracks.parts_of(scene, it) if o.get(tracks.ROLE) == "link"][::5]:
                 a, b = tracks.hinge_world(scene, it, ob)
@@ -2018,9 +2266,12 @@ def _check_tracks(scene):
     _check(off < 1e-4, f"a link's hinge is {off * 1000:.2f} mm off its loop")
     _check(chord < 5e-5, f"a link's hinges are {chord * 1000:.3f} mm from one pitch apart")
     _check(max(lifts) > 0.14 and abs(lifts[-1] + 0.002) < 1e-4, "the top track did not lift and squeeze")
+    _check(math.degrees(max(tilts)) > tracks.TEST_TILT_DEG - 0.1 and abs(tilts[-1]) < 1e-4,
+           f"the tensioner tilted {math.degrees(max(tilts)):.1f}° (and back)")
     return (f"{ran:.2f} m of cable, the pads with it to {abs(run - want) * 1000:.2f} mm, sprocket "
             f"{math.degrees(turn):.0f}°; hinges on their loops to {off * 1000:.3f} mm, one "
-            f"pitch apart to {chord * 1000:.3f} mm; top track lifted {max(lifts) * 1000:.0f} mm")
+            f"pitch apart to {chord * 1000:.3f} mm; top track lifted {max(lifts) * 1000:.0f} mm, the tensioner tilted "
+            f"{math.degrees(max(tilts)):.1f}°")
 
 
 def _check_spool(scene):
@@ -3405,43 +3656,113 @@ def _check_mesh(scene):
 # Lifting plan (task 0201): an AT-40 beside the test crane, the test crane's boom as the load
 # ---------------------------------------------------------------------------
 
-@tour_set("lifting", "Lifting plan – crane, load and hook", "test_crane_a.step", added="0.2.156",
-          changed="0.2.159")
-def build_lifting(b: Build):
+# the invented loads of test_loads.step (task 0231), each sized for its equipment: the pump skid is the lift of the
+# set, the IBC and the container stand in the yard (the container is the big crane's load, the IBC the forklift's)
+LIFT_CRANE = "AT-40"
+LIFT_LOAD, LIFT_LOAD_MASS = "PUMP SKID.ASM", 6.0          # t, invented ("estimate" as source)
+YARD_LOADS = (("IBC ON PALLET.ASM", 1.1), ("PUMP SKID.ASM", 6.0), ("20 FT CONTAINER.ASM", 18.0))
+MAT_H = 0.2                                               # m: a crane mat's thickness
+LIFT_VIEW = "ISO_LEFT"                                    # from the IBC's side: crane and container stay behind the skid
+
+
+def _yard(b: Build) -> None:
+    """The quayside ground of the Lifting sets (task 0231)."""
+    _look("PRODUCT")
+    b.s.env_detail = "SIMPLE"
+    b.s.background = "QUAY"
+    _update()
+
+
+def _crane_mats(b: Build, crane) -> int:
+    """A crane mat under each outrigger pad of the crane in the set-up pose: plain boxes named 'Tour crane mat N'
+    (the Lifting plan has no mats yet), put where the pads are worked out from the crane's own file."""
     import bpy
     import numpy as np
 
-    from . import build, lifting, logic
-    sc = b.scene
-    _look("PRODUCT")
-    roots = build.model_roots(sc)
-    mn, mx = (np.asarray(v, float) for v in logic.update_bounds(sc))
-    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE),
-                      (float(mx[0]) + 6.0, float(0.5 * (mn[1] + mx[1])), float(mn[2])), math.pi)
-    lifting.apply_pose(sc, c, "Set up")
+    from . import lifting, materials
+    data = lifting.item_at(lifting.path_of(crane)).data
+    og = data["outriggers"]
+    pose = next(p for p in data["rig"]["poses"] if p["name"] == "Set up")
+    half_b = float(og["b_in"]) + int(og["stages"]) * float(pose["values"].get("Outriggers", 0.0)) / 1000.0
+    pad = max(og.get("pad", [0.6, 0.6])) * 2.4
+    root = crane.root
+    M = np.array(root.matrix_world)
+    mat = materials.ensure_material("Crane mat", "paint_satin", "RAL 8001")
+    n = 0
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            c = M @ np.array([sx * float(og["a"]), sy * half_b, 0.0, 1.0])
+            x, y = pad / 2, pad / 2
+            vs = [(-x, -y, -MAT_H), (x, -y, -MAT_H), (x, y, -MAT_H), (-x, y, -MAT_H),
+                  (-x, -y, 0), (x, -y, 0), (x, y, 0), (-x, y, 0)]
+            fs = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+            n += 1
+            me = bpy.data.meshes.new(f"Tour crane mat {n}")
+            me.from_pydata(vs, [], fs)
+            me.update()
+            me.materials.append(mat)
+            ob = bpy.data.objects.new(f"Tour crane mat {n}", me)
+            ob.location = (float(c[0]), float(c[1]), MAT_H)
+            ob.rotation_euler = (0.0, 0.0, lifting.heading_of(crane))
+            b.scene.collection.objects.link(ob)
+    return n
+
+
+def _yard_crane(b: Build, path: str, at: tuple, heading: float = math.pi):
+    """A crane from the library on mats at ``at`` (x, y) on the yard, in its pose 'Set up'."""
+    import bpy
+
+    from . import lifting
+    c = lifting.place(bpy.context, path, (at[0], at[1], MAT_H), heading)
+    lifting.apply_pose(b.scene, c, "Set up")
     _update()
-    pts = _lifting_points(sc)
-    _camera(b, "ISO", "Tour lifting", lens=35.0, points=pts)
+    _crane_mats(b, c)
+    return c
+
+
+def _skid_load(b: Build):
+    """The pump skid as the Lifting plan's load: 6 t invented, CoG computed from its parts (the pump and the motor stand
+    off the middle, so the CoG is not in the middle of the frame)."""
+    from . import build, lifting, logic
+    part = next(o for o in logic.descendants(build.model_roots(b.scene)[0])
+                if o.get(build.PROP_NAME) == LIFT_LOAD)
+    ld = lifting.new_load(b.scene, [part], "Pump skid")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", LIFT_LOAD_MASS, "ESTIMATE"
+    return ld
+
+
+@tour_set("lifting", "Lifting plan – crane, load and hook", "test_loads.step", added="0.2.156",
+          changed="0.2.176")
+def build_lifting(b: Build):
+    """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
+    crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
+    crane's carrier is never between the camera and the CoG (every stop checks that)."""
+    import bpy
+
+    from . import lifting
+    sc = b.scene
+    _yard(b)
+    c = _yard_crane(b, os.path.join(DATA, "lifting", LIFT_CRANE), (1.0, 7.6))
+    _camera(b, LIFT_VIEW, "Tour lifting", lens=35.0, points=_lifting_points(sc))
     _shot(b, "@lifting_place")
-    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
-    ld = lifting.new_load(sc, [part], "Test crane boom")
-    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
-    _close_camera(b, lifting.cog_world(ld), 1.6, "Tour lifting CoG")
+    ld = _skid_load(b)
+    _close_camera(b, lifting.cog_world(ld), 5.5, "Tour lifting CoG", view=LIFT_VIEW)
     _shot(b, "@lifting_cog")
     a = lifting.hook_to(sc, c, lifting.above_load(sc, ld), ld)
     _check(a.ok, f"Hook to here: {a.reason}")
-    _camera(b, "ISO", "Tour lifting hook", lens=35.0, points=_lifting_points(sc))
+    _update()
+    _camera(b, LIFT_VIEW, "Tour lifting hook", lens=35.0, points=_lifting_points(sc, LIFT_LOAD))
     _shot(b, "@lifting_hook")
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.161", changed="0.2.166")
+          added="0.2.161", changed="0.2.176")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
     from . import crane_example, setup_crane
     sc = b.scene
-    _look("PRODUCT")
+    _yard(b)
     crane_example.rig(sc, "KB-20", check=True, clash=False)
     from . import ops_setup
     k = setup_crane.step_index("CRANE_KNUCKLE", "check")
@@ -3477,32 +3798,28 @@ def _check_crane_setup(scene):
     red = [p.text for p in cs.problems if p.severity == "red"]
     _check(not red, "Check: " + "; ".join(red[:2]))
     return f"{len(js)} joints with {len(roles)} roles, hook point set, Check: nothing wrong"
-@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_crane_a.step", added="0.2.159",
-          changed="0.2.159")
+@tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_loads.step", added="0.2.159",
+          changed="0.2.176")
 def build_lifting_make(b: Build):
-    """Task 0204: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next to the
-    tour, placed beside the test crane, set up, Hook to here above the test crane's boom."""
+    """Task 0204 / 0231: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next
+    to the tour, placed on mats beside the yard's container and set up; its boom stands out, slewed over the yard (pose 'Working' + slew 90°) and
+    the panel shows its radius and chart. No Hook to here: that is the 'lifting' set's stop."""
     import bpy
-    import numpy as np
 
-    from . import build, lifting, logic, ops_lifting_make
+    from . import lifting, ops_lifting_make
     sc = b.scene
-    _look("PRODUCT")
+    _yard(b)
     lib = os.path.join(b.folder, "Lifting equipment")
     os.makedirs(lib, exist_ok=True)
     job = ops_lifting_make.make_now(ops_lifting_make.tour_spec(), lib, replace=True)
-    roots = build.model_roots(sc)
-    mn, mx = (np.asarray(v, float) for v in logic.update_bounds(sc))
-    c = lifting.place(bpy.context, job.item_path, (float(mx[0]) + 7.0, float(0.5 * (mn[1] + mx[1])), float(mn[2])),
-                      math.pi)
-    lifting.apply_pose(sc, c, "Set up")
-    part = next(o for o in logic.descendants(roots[0]) if o.get(build.PROP_NAME) == lifting.EXAMPLE_LOAD)
-    ld = lifting.new_load(sc, [part], "Test crane boom")
-    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", lifting.EXAMPLE_MASS, "DRAWING"
-    a = lifting.hook_to(sc, c, lifting.above_load(sc, ld), ld)
-    _check(a.ok, f"Hook to here: {a.reason}")
+    c = _yard_crane(b, job.item_path, (9.0, 10.5))
+    lifting.apply_pose(sc, c, "Working")
+    v = lifting.values(sc, c)
+    v["Slew"] = 90.0                           # the boom over the yard, not over the water
+    lifting.set_values(sc, c, v)
+    c.pose = ""
     _update()
-    _camera(b, "ISO", "Tour lifting make", lens=35.0, points=_lifting_points(sc))
+    _camera(b, LIFT_VIEW, "Tour lifting make", lens=35.0, points=_lifting_points(sc, "20 FT CONTAINER.ASM"))
     _shot(b, "@lifting_make")
 
 
@@ -3519,34 +3836,103 @@ def _check_lifting_make(scene):
         raise ValueError(f"{len(tele)} telescope joints, not 4 (5 sections)")
     if not lifting.item_at(lifting.path_of(c)).sample:
         raise ValueError("the made crane is not marked SAMPLE")
-    return lifting.check_rig(scene) + "; " + lifting.check_example(scene)
+    v = lifting.values(scene, c)
+    if abs(v.get("Slew", 0.0) - 90.0) > 0.5 or v.get("Telescope", 0.0) <= 0.0:
+        raise ValueError(f"the boom is not slewed over the yard and out (slew {v.get('Slew')}, telescope "
+                         f"{v.get('Telescope')})")
+    ro = lifting.readout(scene, c)
+    if isinstance(ro, str):
+        raise ValueError(f"no reach readout: {ro}")
+    if ro.radius < 8.0:
+        raise ValueError(f"the boom reaches only {ro.radius:.1f} m (the pose 'Working' puts it out)")
+    return (lifting.check_rig(scene) + f"; boom out: radius {ro.radius:.1f} m, chart '{ro.chart.name}'")
 
 
-def _lifting_points(scene):
+def _lifting_points(scene, only: str = ""):
+    """Box corners of every part (the camera frames the whole yard); ``only``: the crane, the mats and that
+    sub-assembly's parts (a closer picture of the lift)."""
     import numpy as np
 
-    from . import build
+    from . import build, logic
+    keep = None
+    if only:
+        root = next(o for o in logic.descendants(build.model_roots(scene)[0]) if o.get(build.PROP_NAME) == only)
+        keep = {o.name for o in logic.descendants(root)}
+        keep |= {o.name for r in build.model_roots(scene)[1:] for o in logic.descendants(r)}
     pts = []
-    for ob in build.iter_parts(scene):
+    for ob in list(build.iter_parts(scene)) + [o for o in scene.objects if o.name.startswith("Tour crane mat")]:
+        if keep is not None and ob.name not in keep and not ob.name.startswith("Tour crane mat"):
+            continue
         M = np.array(ob.matrix_world)
         for c in ob.bound_box:
             pts.append((M @ np.r_[np.asarray(c, float), 1.0])[:3])
     return np.array(pts)
 
 
+def _cog_in_view(scene, with_hook: bool = False) -> str:
+    """Task 0231: what the camera must show at a Lifting stop – the load's CoG is in the picture and nothing but the
+    load itself is between the camera and the CoG (a ray from the camera to the CoG; study 0224 found the crane's own
+    carrier deck in the way at every Lifting stop, which no check had caught); with ``with_hook`` the hook block is in
+    the picture too. ValueError with the plain reason."""
+    import bpy
+    from bpy_extras.object_utils import world_to_camera_view
+    from mathutils import Vector
+
+    from . import lifting
+    L = lifting.plan(scene)
+    if not L.loads:
+        raise ValueError("no load in the lifting plan")
+    ld = L.loads[0]
+    cam = scene.camera
+    if cam is None:
+        raise ValueError("the stop has no camera")
+    cog = lifting.cog_world(ld)
+    if cog is None:
+        raise ValueError("the load has no CoG marker")
+    cog = Vector(tuple(cog))
+    mine = {o.name for o in lifting.load_parts(ld)}
+    eye = cam.matrix_world.translation.copy()
+    ray = cog - eye
+    dist = ray.length
+    dg = bpy.context.evaluated_depsgraph_get()
+    ok, loc, _n, _i, ob, _m = scene.ray_cast(dg, eye, ray.normalized(), distance=dist + 0.01)
+    if ok and ob is not None and ob.name not in mine and (loc - eye).length < dist - 0.02:
+        raise ValueError(f"'{ob.get(build_mod().PROP_NAME, ob.name)}' is between the camera and the CoG "
+                         f"({(loc - eye).length:.1f} of {dist:.1f} m from the camera)")
+    uv = world_to_camera_view(scene, cam, cog)
+    if not (0.02 < uv.x < 0.98 and 0.02 < uv.y < 0.98 and uv.z > 0):
+        raise ValueError(f"the CoG is not in the picture (at {uv.x:.2f}, {uv.y:.2f})")
+    out = f"the CoG is in view, nothing between it and the camera ({dist:.1f} m)"
+    if with_hook:
+        c = L.cranes[0] if L.cranes else None
+        hook = lifting._hook_block_world(scene, c) if c is not None else None
+        if hook is None:
+            raise ValueError("the crane has no hook block")
+        uh = world_to_camera_view(scene, cam, Vector(tuple(hook)))
+        if not (0.0 < uh.x < 1.0 and 0.0 < uh.y < 1.0 and uh.z > 0):
+            raise ValueError(f"the hook block is not in the picture (at {uh.x:.2f}, {uh.y:.2f})")
+        out += ", the hook block too"
+    return out
+
+
+def build_mod():
+    from . import build
+    return build
+
+
 def _check_lifting_place(scene):
     from . import lifting
-    return lifting.check_rig(scene)
+    return lifting.check_rig(scene) + "; " + _cog_in_view(scene)
 
 
 def _check_lifting_cog(scene):
     from . import lifting
-    return lifting.check_cog(scene)
+    return lifting.check_cog(scene) + "; " + _cog_in_view(scene)
 
 
 def _check_lifting_hook(scene):
     from . import lifting
-    return lifting.check_example(scene)
+    return lifting.check_example(scene) + "; " + _cog_in_view(scene, with_hook=True)
 
 LOOK, MOTION, MACH, OUT = GROUPS
 
@@ -3678,6 +4064,26 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
      auto="clip")
+stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
+     "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
+     "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
+     "fittings, and keeps its length.", where="4 Motion > Hoses and drag chains > Draw hose", animation=DRAWN_ANIM,
+     play=True, since="0.2.180", check=check_drawn_hose, auto="clip")
+stop("drawn_chain", MOTION, "flex_drawn", "A drawn drag chain",
+     "Left: the gantry's X chain was drawn with two clicks on its brackets; the app draws its links. X travels out "
+     "and back: the chain rolls over its bend, link by link, and its moving end stays on its bracket.",
+     where="4 Motion > Hoses and drag chains > Draw drag chain", animation=DRAWN_ANIM, play=True, at=0.5,
+     since="0.2.180", check=check_drawn_chain, auto="clip")
+stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
+     "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
+     "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
+     where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
+     since="0.2.180", check=check_drawn_cable, auto="clip")
+stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
+     "The CAD hose, the gantry's 18 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
+     "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
+     where="4 Motion > Hoses and drag chains > Replaces selected CAD part", shot="Tour: drawn hose, chain and cable",
+     since="0.2.180", check=check_drawn_replace)
 stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "
@@ -3691,10 +4097,11 @@ stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
      "keep running; the rods of its two lift cylinders slide up into the barrels on the portal) and comes back down "
-     "to squeeze the cable 2 mm. Behind, a belt of separate links runs round three pulleys of different size; all "
-     "wheels turn with the chain.",
+     "to squeeze the cable 2 mm. Meanwhile the whole tensioner tilts 6° on its hinge and back, pushed up by the tilt "
+     "cylinder under its deck: the tracks, their pads and the cable go with it and keep running. Behind, a belt of "
+     "separate links runs round three pulleys of different size; all wheels turn with the chain.",
      where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
-     auto="clip", changed="0.2.101")
+     auto="clip", changed="0.2.177")
 stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "The cable runs over the rollers and the horn at the stern and hangs in a curve down to the seabed 15 m below, "
      "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "
@@ -3743,18 +4150,18 @@ stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "joint", since="0.2.99", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
 
 stop("lifting_place", MOTION, "lifting", "Lifting: a crane placed",
-     "Beside the test crane stands the built-in AT-40 sample crane, placed from 8 Lifting plan > Equipment, its boom "
-     "turned towards the test crane and set up on its four outriggers (pose 'Set up': beams out, pads down on the "
-     "ground). Its joints carry its name ('AT-40 · Slew', 'AT-40 · Luff' …); the panel shows the planning-aid line "
-     "and the SAMPLE line.", where="8 Lifting plan > Equipment", since="0.2.156", check=_check_lifting_place)
+     "On a quayside yard – an IBC on its pallet, a pump skid and a 20 ft container – stands the built-in AT-40 sample "
+     "crane, placed from 8 Lifting plan > Equipment and set up on its four outriggers, each on a timber crane mat "
+     "(pose 'Set up': beams out, pads down). Its joints carry its name ('AT-40 · Slew', 'AT-40 · Luff' …); the panel "
+     "shows the planning-aid line and the SAMPLE line.", where="8 Lifting plan > Equipment", since="0.2.156", check=_check_lifting_place)
 stop("lifting_cog", MOTION, "lifting", "Lifting: the load and its CoG",
-     "The test crane's yellow boom is the load (8 Lifting plan > Load: 1.2 t from the drawing). The CoG symbol – a "
-     "circle in black and white quarters, 'CoG' next to it – sits inside the boom, drawn on top of everything; the "
-     "panel says '(computed)'.", where="8 Lifting plan > Load", since="0.2.156", check=_check_lifting_cog)
+     "The pump skid is the load (8 Lifting plan > Load: 6 t, an invented estimate). The CoG symbol – a circle in "
+     "black and white quarters, 'CoG' next to it – sits inside the skid, off the middle of its frame because the pump "
+     "and the motor stand on one side, drawn on top of everything; the panel says '(computed)'.", where="8 Lifting plan > Load", since="0.2.156", check=_check_lifting_cog)
 stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
-     "Above the load: the AT-40 slewed, luffed and telescoped so its hook block hangs plumb 2 m above the boom's "
+     "Above the skid: the AT-40 slewed, luffed and telescoped so its hook block hangs plumb 2 m above the skid's "
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
-     "radius), the gross load (1.2 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
+     "radius), the gross load (6 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
      where="8 Lifting plan > Hook & capacity", since="0.2.156", check=_check_lifting_hook)
 
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
@@ -3764,10 +4171,10 @@ stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "chart are in; the crane stands in its pose 'Working'. The Set-up window is on its step Check: nothing wrong.",
      where="8 Lifting plan > Equipment > Set up a crane…", since="0.2.161", check=_check_crane_setup)
 stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
-     "Beside the test crane stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… "
-     "from the AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its "
-     "outriggers and its hook hangs above the test crane's boom (Hook to here). Its boom has 5 sections (joints "
-     "Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
+     "On the yard stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… from the "
+     "AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its outriggers and "
+     "mats, its boom raised, slewed over the yard and telescoped out; the panel shows its radius and chart. Its boom "
+     "has 5 sections (joints Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
      where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", check=_check_lifting_make)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",

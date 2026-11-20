@@ -5,6 +5,7 @@
   (camera, shading, sizes, the far clip of task 0193).
 * Live preview keeps the user's last choice (stored in the extension's preferences) through the test tour and the
   demo; a project of his own opens as it was saved.
+* Task 0221: Blender's Outliner and Properties column follows the user's choice (``editors.py``, hidden by default).
 * A "Fresing" button at the right of the 3D view's header brings a hidden side panel back (``fresing.show_panel``).
 """
 
@@ -113,6 +114,9 @@ def _restore_preview() -> None:
 
 def put_layout_right() -> bool:
     """Side panel shown on the Fresing tab, toolbar folded, in every 3D view. True when every tab was set."""
+    from . import editors
+    if not editors.settled():             # task 0221: an area was just closed beside it – after the next draw
+        return False
     done = True
     for _win, area in _view_areas():
         space = area.spaces.active
@@ -130,6 +134,11 @@ def _on_load(_dummy=None):
         _restore_preview()
     except Exception as exc:  # noqa: BLE001 - never break loading
         print("Fresing Render: layout not tidied:", exc)
+    try:                                   # task 0221: Blender's right-hand column as the user chose (hidden)
+        from . import editors
+        editors.on_load()
+    except Exception as exc:  # noqa: BLE001 - never break loading
+        print("Fresing Render: Blender's editors not tidied:", exc)
     try:                                   # task 0062: a Set-up window saved with the project is back on its tab
         from . import ops_setup
         ops_setup.restore_tabs()

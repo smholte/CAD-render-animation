@@ -893,6 +893,68 @@ def motion_flex(ctx):
     return f"{note}; 3 chains: moving ends to {worst_end * 1000:.3f} mm"
 
 
+@line("motion.drawn", "Hoses, a drag chain and a cable route drawn by clicking", "0.2.180",
+      what="Task 0240: on the hoses model a hose is drawn by four clicks (two fittings, two clips) in place of a CAD "
+           "hose, which is hidden; posed at three luff angles its ends and clips stay on their parts and it keeps its "
+           "length. On the gantry a drag chain is drawn between the X chain's two brackets: its links stay one pitch "
+           "apart and its moving end on its bracket as X travels. On the cable model a route is drawn by clicking the "
+           "drum, two sheaves and the chute: it reads the same six contacts as the CAD rope and its sheaves turn with it")
+def motion_drawn(ctx):
+    import numpy as np
+
+    from ..blender import build, drawn, flex, joints, paths, tour
+    scene = ctx.fresh(FLEX_HOSES)
+    flex.set_up_test_hoses(scene)
+    root = build.model_roots(scene)[0]
+    t0 = time.time()
+    name = tour.drawn_hose_setup(scene, root)
+    ctx.metric("draw a hose through two clips", time.time() - t0, "s")
+    it = flex.find(scene, name)
+    _check(it is not None and len(it.clips) == 2, "the drawn hose or its clips are missing")
+    cad = next(o for o in scene.objects if o.get(build.PROP_NAME) == "HYDRAULIC HOSE ARM")
+    _check(cad.get(build.PROP_EXCLUDED) and cad.hide_render, "the CAD hose it replaces still shows")
+    worst = 0.0
+    for deg in (0.0, 15.0, -12.0):
+        joints.set_value(joints.find(scene, "Luff"), math.radians(deg))
+        _update()
+        flex.refresh(scene)
+        it = flex.find(scene, name)
+        line = flex.shape_now(scene, it)
+        stops = [drawn.world_spot(it.a_part, it.a_point, it.a_dir)[0]]
+        stops += [drawn.world_spot(c.part, c.point, c.dir)[0] for c in it.clips]
+        stops.append(drawn.world_spot(it.b_part, it.b_point, it.b_dir)[0])
+        worst = max([worst] + [float(np.linalg.norm(line - p, axis=1).min()) for p in stops])
+        _check(not it.problem, f"at {deg:.0f}°: {it.problem}")
+    _check(worst < 1e-4, f"the drawn hose is {worst * 1000:.3f} mm off an end or a clip")
+
+    scene = ctx.fresh(FLEX_CHAINS)
+    flex.set_up_test_chains(scene)
+    name = tour.drawn_chain_setup(scene, build.model_roots(scene)[0])
+    chord = end = 0.0
+    for x in (0.14, -0.14, 0.0):
+        joints.set_value(joints.find(scene, "X"), x)
+        _update()
+        flex.refresh(scene)
+        it = flex.find(scene, name)
+        pins = flex.pins_now(scene, it)
+        chord = max(chord, float(np.abs(np.linalg.norm(np.diff(pins, axis=0), axis=1) - it.pitch).max()))
+        end = max(end, float(np.linalg.norm(pins[-1] - drawn.world_spot(it.b_part, it.b_point, (1, 0, 0))[0])))
+        _check(not it.problem, f"X at {x * 1000:.0f} mm: {it.problem}")
+    _check(chord < 1e-5 and end < 1e-4, f"the drawn chain: links {chord * 1000:.4f} mm off, end {end * 1000:.3f} mm off")
+
+    scene = ctx.fresh(PATHS)
+    name = tour.drawn_cable_setup(scene, build.model_roots(scene)[0])
+    it = paths.find(scene, name)
+    kinds = [c.kind for c in it.contacts]
+    _check(kinds == ["SHEAVE", "SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"], f"the drawn route reads {kinds}")
+    lead = joints.find(scene, it.joint)
+    turning = [joints.find(scene, c.joint) for c in it.contacts if c.kind in paths.TURNING and c.joint]
+    _check(len(turning) == 5 and all(j is not None and j.follows == lead.name for j in turning),
+           "not every sheave and roller turns with the drawn cable")
+    return (f"hose through 2 clips on its parts to {worst * 1000:.3f} mm; chain links to {chord * 1000:.4f} mm; "
+            "cable route: 6 contacts, 5 turning")
+
+
 @line("motion.paths", "A cable runs over sheaves, rollers and a chute", "0.2.80",
       what="A winch drum, an A-frame with two grooved sheaves, a V-roller cradle and a chute: the wire rope is read "
            "from its CAD solid and lies in the grooves; a Run motor step moves it at 10 m/min and the drum, the "
@@ -1100,7 +1162,8 @@ def motion_swivel(ctx):
 
 @line("motion.tracks", "Tensioner tracks and a belt run with the cable", "0.2.87",
       what="The tensioner test model: the cable runs, the pads of both tracks run round their sprockets with it (the "
-           "pads holding the cable as fast as the cable), the top track lifts and squeezes, a belt of separate links "
+           "pads holding the cable as fast as the cable), the top track lifts and squeezes, the tensioner tilts 6° on "
+           "its hinge and back, a belt of separate links "
            "runs round three pulleys; every link's two hinges on its loop, one pitch apart")
 def motion_tracks(ctx):
     from ..blender import animation, cameras, render, tour, tracks
@@ -4314,6 +4377,42 @@ def app_layout(ctx):
     return None
 
 
+@line("app.editors", "Blender's Outliner and Properties hidden, Fresing > Show Blender's editors brings them back, "
+      "a solid side panel", "0.2.179",
+      what="Checks that the layout is put right when a project opens, the menu entry Fresing > Show / Hide Blender's "
+           "editors and its own reason in the Client view, which areas count as "
+           "Blender's column (only an Outliner or Properties editor right next to the 3D view), the width it comes "
+           "back at, the choice file in the settings folder, and Region Overlap off once (a user's own on kept)")
+def app_editors(ctx):
+    import bpy
+
+    from ..blender import editors, lock, ui_header, ui_topbar
+    _check(ui_topbar._has("fresing.blender_editors"), "the operator 'Show Blender's editors' is missing")
+    _check("fresing.blender_editors" in ui_topbar.entries(), "Show Blender's editors is not in the Fresing menu")
+    _check(ui_header._on_load in bpy.app.handlers.load_post, "the layout is not put right when a project opens")
+    _check("fresing.blender_editors" in lock.ALLOWED, "the entry would be refused without its Client view reason")
+    factory = [("PROPERTIES", 1579, 24, 339, 837), ("OUTLINER", 1579, 864, 339, 189),
+               ("DOPESHEET_EDITOR", 2, 24, 1574, 74), ("VIEW_3D", 2, 101, 1574, 952)]
+    _check(sorted(editors.column_indices(factory, editors.main_index(factory))) == [0, 1],
+           "Blender's Outliner / Properties column is not recognised")
+    own = [("OUTLINER", 2, 101, 300, 952), ("VIEW_3D", 305, 101, 1270, 952), ("IMAGE_EDITOR", 1579, 24, 339, 1029)]
+    _check(editors.column_indices(own, editors.main_index(own)) == [], "a layout of the user's own would be changed")
+    f = editors.split_factor(1920, 1916)
+    _check(abs((1 - f) * 1916 - 339) < 2, f"the column would come back {int((1 - f) * 1916)} px wide, not 339")
+    path = os.path.join(ctx.work, "Layout é", editors.FILE_NAME)
+    _check(editors.read(path)["editors"] == "hidden", "a new user does not start with Blender's editors hidden")
+    editors.write(path, {"editors": "shown", "overlap_off": True})
+    _check(editors.read(path) == {"editors": "shown", "overlap_off": True}, "the choice is not kept in its file")
+    real = editors.load()
+    if not bpy.context.preferences.system.use_region_overlap:
+        overlap = "off (solid side panel)"
+    elif real["overlap_off"]:
+        overlap = "on (your own choice, kept)"
+    else:
+        overlap = "on – the app switches it off at its next start"
+    return f"your choice: Blender's editors {real['editors']}; Region Overlap {overlap}"
+
+
 @line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",
       what="Checks the Fresing menu in the top bar, the start file (welcome three times, What's new once after an "
            "update, nothing after the same version), the page that opens the user guide at a section, and that What's "
@@ -4577,6 +4676,49 @@ def tour_make(ctx):
             bad.append(f"{st.number}. {st.title}: {exc}")
     _check(not bad, " | ".join(bad[:4]))
     return f"{len(out['files'])} projects in {time.time() - t0:.0f} s, {len(tour.STOPS)} stops"
+
+
+@line("demo.kit", "Demo kits: add a kit, make its demo, remove it", "0.2.178",
+      what="Adds the made-up test kit (a box on a deck plate) to a kits folder of the check's own, makes its demo the "
+           "way Help > Make demo project… does (the kit's model maker as a program of its own, its stage, Build), "
+           "checks that the box's slide joint moves the box and that the saved camera is there, then removes the kit")
+def demo_kit(ctx):
+    import bpy
+
+    from .. import __version__
+    from ..blender import demo, joints
+    from ..core import demo_kits
+    kits = os.path.join(ctx.work, "Demo kits é")                 # never the user's own kits folder
+    old = os.environ.get(demo_kits.ENV)
+    os.environ[demo_kits.ENV] = kits
+    try:
+        info = demo_kits.add(os.path.join(DATA, "demo_kit_test.zip"), demo.kits_dir(), __version__)
+        _check([k.id for k in demo_kits.list_kits(kits)] == ["test-kit"], "the added kit is not in the list")
+        folder = demo.kit_folder(os.path.join(ctx.work, "Demo é"), info.id)
+        t0 = time.time()
+        out = demo.build_project(folder, __version__, small=True, kit=info)
+        ctx.metric("make", time.time() - t0, "s")
+        _check(list(out["seconds"]) == ["kit_model", "box", "finish"], f"the kit's build ran {list(out['seconds'])}")
+        _check(demo.exists(folder, __version__, info.title), "the kit's demo project was not saved")
+        bpy.ops.wm.open_mainfile(filepath=out["path"])
+        sc = bpy.context.scene
+        jt = sc.fresing.joints.get("Box slide")
+        _check(jt is not None, "the kit's demo has no joint 'Box slide'")
+        box = next((o for o in sc.objects if o.get("fr_name") == "TEST BOX"), None)
+        _check(box is not None, "the kit's demo has no box")
+        x0 = box.matrix_world.translation.x
+        joints.set_value(jt, 1.5)
+        bpy.context.view_layer.update()
+        moved = box.matrix_world.translation.x - x0
+        _check(abs(moved - 1.5) < 1e-3, f"the joint moved the box {moved:.3f} m, not 1.5 m")
+        _check(any(s.name == "Box from the side" for s in sc.fresing.shots), "the kit's saved camera is missing")
+        _check(demo_kits.remove(kits, info.id) and not demo_kits.list_kits(kits), "the kit could not be removed")
+    finally:
+        if old is None:
+            os.environ.pop(demo_kits.ENV, None)
+        else:
+            os.environ[demo_kits.ENV] = old
+    return f"test kit made in {time.time() - t0:.0f} s, its joint moves the box"
 
 
 @line("updates.check", "Update check", "0.2.16", what="The update address answers (nothing is installed)")

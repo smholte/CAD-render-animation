@@ -197,7 +197,9 @@ For showing a finished project, or handing the PC to someone who should only loo
   hidden;
 - no part can be clicked, moved or deleted – also not with Blender's own keys (<kbd>G</kbd>,
   <kbd>X</kbd>, <kbd>Delete</kbd>, <kbd>Tab</kbd>);
-- Blender's list of objects (top right) is replaced, and it stays away: picking it again in an area's
+- Blender's Outliner and Properties editor at the right are hidden, also when you chose to see them
+  (**Fresing > Show Blender's editors** is greyed: "Not in the Client view – Full access brings it back"); any other
+  Outliner (Blender's list of objects) is replaced, and it stays away: picking it again in an area's
   editor menu, <kbd>Shift</kbd>+<kbd>F9</kbd>, a new window, another of Blender's workspaces
   (<kbd>Ctrl</kbd>+<kbd>Page Up</kbd>) or an area made full-size with <kbd>Ctrl</kbd>+<kbd>Space</kbd> all
   show the Info area instead, within a tenth of a second;
@@ -209,8 +211,8 @@ For showing a finished project, or handing the PC to someone who should only loo
 
 Importing, the surroundings, camera views (also **New camera view**), saved scenes (also **Save scene**),
 the turntable, **Render image** and the queue (also **Every paint scheme**) still work. A new camera is
-locked like the rest. What still gets through on purpose: the Properties editor's own settings and
-Blender's Python console. **Workspace > Full access** (or any other workspace) undoes the lock completely. There is
+locked like the rest. What still gets through on purpose: the settings of a Properties editor you opened yourself
+in another area, and Blender's Python console. **Workspace > Full access** (or any other workspace) undoes the lock completely. There is
 no password: it stops accidents, not people.
 
 <a id="whats-next"></a>
@@ -266,12 +268,32 @@ own things in one place, whatever workspace you are in (also in the Client view)
   in the menu while it runs).
 - **What's new in 0.2.…** – what this version brings (see below). A dot after it means you have not opened it yet.
 - **Show the Fresing panel** – brings the side panel back on the Fresing tab ([If the Fresing panel is gone](#panel-gone)).
+- **Show Blender's editors** / **Hide Blender's editors** – Blender's Outliner and Properties editor at the right
+  ([below](#blender-editors)).
 - **Make demo project… / Open demo project** – the [demo project](#demo).
 - **User guide**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
 - **Tools and checks** – **Run the self-test**, **PC check…** and **Open the app folder** (the Tools folder with the
   shortcuts that used to be in the Start menu; [One shortcut](#tools-and-checks)).
 - **My usage…** – what the app counted about your work, the favourites bar and its switches ([below](#my-usage)).
 - **Welcome screen…** – the welcome below, again.
+
+<a id="blender-editors"></a>
+### Blender's Outliner and Properties (hidden)
+
+The 3D view reaches the right edge of the window: Blender's **Outliner** (its list of objects, top right) and its
+**Properties editor** (below it) are hidden in every project – also in one saved with them. Fresing Render does not
+need them: the Fresing tab has the parts tree and every setting the app uses. They are for users who know Blender.
+
+- **Fresing > Show Blender's editors** brings both back at the right of the 3D view (Outliner on top, Properties
+  below, Blender's usual width). The same entry then says **Hide Blender's editors**.
+- Your choice is kept: every project you open, the test tour and the demo follow it, also after a restart (it is
+  stored in Blender's settings folder, not in the project).
+- In the **Client view** they are always hidden and the entry is greyed; **Full access** brings back what you chose.
+- Only the Outliner and Properties editor right next to the 3D view are hidden. A layout you split yourself stays.
+
+The side panel is **solid**: it no longer lets the 3D view shine through, so its texts and boxes stay readable on a
+light background. (The app switches Blender's preference **Region Overlap** off once. You can turn it on again in
+**Edit > Preferences > Interface > Editors > Region Overlap**; the app keeps your choice.)
 
 <a id="welcome"></a>
 ### The welcome (the first starts)
@@ -1418,6 +1440,58 @@ draws links along it, and in the fold **More** you set the **Width** and **Heigh
 - Not in yet: hoses that push against other parts or each other, hoses with three ends, and bundles of cables.
   A cable that runs over sheaves and winch drums is the next chapter, **Cables and paths**.
 
+<a id="draw-hose"></a>
+#### Draw a hose your CAD model does not have
+
+Most CAD models have no hoses or cables. Draw them here, with a few clicks:
+
+1. In 4 Motion > **Hoses and drag chains**, press **Draw hose** (or **Draw cable** for a soft cable that hangs).
+2. Click the **fitting at end A**. The face under the mouse lights up in magenta with the line the hose will leave
+   along: on a round stub or gland the hose leaves along its axis, from the end you click near; on a flat face (a
+   fitting's end face, a port) from the middle of the face, straight out of it.
+3. Click the **clips** the hose runs through, in order – as many as you like, or none. On a flat face the hose lies
+   on the face; in a round bore it runs through along the bore.
+4. Click the **fitting at end B**, then press **Enter**.
+
+<img class="wide" src="img/view_drawn_hose.jpg" alt="A hose drawn with four clicks: from the valve block's fitting through two clips on the base to the arm's fitting">
+
+The hose appears in the list (named "Hose 1", double-click to rename it) and follows the motion like a hose read
+from CAD. Its **diameter** comes from a round fitting you clicked (else 20 mm; a cable 12 mm), its **length** is the
+shortest smooth line between its ends and clips that keeps its bends wide, plus 5 %. When the joints that move its
+ends have **limits**, the length is long enough for their whole travel; without limits it fits the pose you drew it
+in (the message says so) – give the joint its limits and press **Length as drawn**, or make **Length** longer by hand.
+
+While clicking: **Backspace** (or Ctrl+Z) takes the last click back, **Esc** or a right-click stops without drawing,
+the middle mouse and the wheel move the view as usual. A hose, cable or chain itself cannot be clicked (it shows red):
+click the part it is fixed to.
+
+<a id="draw-chain"></a>
+#### Draw a drag chain between two brackets
+
+A drag chain in CAD is often one simplified block, of no use for an animation. Draw a real one:
+
+1. Press **Draw drag chain**.
+2. Click the **bracket of the fixed end** (on the part that stands still), then the **bracket on the part that
+   moves**. It is drawn at once.
+
+The runs lie along the travel of the slide joint that moves the second bracket, the **bend radius** is half the gap
+between the two runs, and the link length, height and width follow from it; the number of **Links** is enough for the
+joint's travel (with its limits; else the distance between the brackets now, either way). The app draws the links;
+they roll with the axis like a chain read from CAD. Under the list: **Flip bend** puts the bend on the other side,
+**Swap ends** makes the other bracket the fixed one, **Links for the travel** works the number of links out again.
+Change **Bend radius**, **Links**, **Link length**, and in **More** the **Width** and **Height**, as you like.
+
+<a id="replace-cad"></a>
+#### Replace a simplified CAD hose, chain or cable
+
+A drawn hose, chain or cable can **replace** the simplified CAD part: that part is then hidden for good – in the view,
+in renders, in the clash check and in the web 3D model – and shows again when you remove the drawn one.
+
+- Click a part that is named like a hose or a drag chain: the panel offers **Draw a hose to replace it** (or a drag
+  chain). While you click, that CAD part is hidden, so the fittings or brackets under it can be clicked.
+- Or later: choose the drawn one in the list, click the CAD part in the 3D view, press **Replaces selected CAD part**.
+  One link of a CAD chain is enough: its whole row is replaced. The eye button beside it shows the CAD part again.
+
 <a id="cables"></a>
 ### Cables and paths
 
@@ -1438,6 +1512,25 @@ you see it move. (A hose that hangs and bends is the other panel: **Hoses and dr
 2. In 4 Motion > **Cables and paths**, press **Add cable**. (Nothing selected: press it and click the cable.)
 3. The cable gets a line in the list, and the list **What it touches** fills. The cable is drawn with its
    look: black with yellow stripes, or steel strands.
+
+<a id="draw-cable"></a>
+**Draw a cable route** (no cable in the CAD model)
+
+1. In 4 Motion > **Cables and paths**, press **Draw cable route**.
+2. Click where the cable **starts**: a winch drum or a carousel (the cable starts wrapped on it, from where you click),
+   or a point on a part.
+3. Click each **sheave, roller or chute** it runs over, in order, on the side the cable passes (click the groove or
+   the barrel). Click the same part again and the cable passes on its other side.
+4. Click a **flat face** where the cable ends – it is drawn at once – or press **Enter** for a free end that hangs
+   down from the last wheel.
+
+<img class="wide" src="img/view_drawn_cable.jpg" alt="A wire rope drawn by clicking the drum, two sheaves and the chute">
+
+The app lays the cable tight over what you clicked and then reads it as it reads a CAD cable: it gets the same list
+**What it touches** (rollers it lies on are found by themselves), every sheave, roller and drum turns with it, and
+Build, the re-bake and the web 3D model work as for any cable. Its diameter is 20 mm: change it under the list, with
+the look and **Speed from** as for **Add cable**. Backspace, Ctrl+Z and Esc work as in **Draw hose**. A drawn cable
+can replace the CAD part of a simplified cable: see **Replace a simplified CAD hose, chain or cable** above.
 
 Above **Add cable** is **Speed from**. Leave it empty and the app makes a new joint "Cable <name>" for the cable.
 Pick a slide joint you already have there (for example the speed of a winch) and that joint becomes the speed of
@@ -4496,6 +4589,28 @@ queue.
 The labels of the X-ray step and the Lay data box also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 6 Animation > Labels, and tick it again before you render the video.
+
+<a id="demo-kits"></a>
+### Demo kits
+
+A **demo kit** is a demo project someone made for the app – its own model and animation – in one **.zip** file. The
+app's own demo needs no kit; a kit adds a demo of its own to the list.
+
+1. **Help > Make demo project…** lists the demos: the app's own, then every kit you added (its name and kit version).
+2. **Add a demo kit…** under the list: pick the kit's .zip. The app checks it and keeps a copy in its settings folder;
+   the kit is now in the list. Adding a newer zip of the same kit replaces the older one.
+3. Pick the kit in the list and click **Make it**: its demo is made in the background like the app's own (the bottom
+   line shows how far, **Help > Cancel demo project** stops it). It goes to
+   **Documents\Fresing Render\Demo\Kits\<kit>\<version>**, next to the app's own demo. **Help > Open <kit name>**
+   opens it.
+4. **Remove** (next to Add a demo kit…, with the kit picked) takes the kit off the list; a demo already made from it
+   stays.
+
+**Versions:** a kit is made for some versions of the app ("made for 0.2.180–0.2.199", shown under the list). After an
+update that is outside them, the app says so – download the kit's newer version and add it again.
+
+**A demo kit is Python code that runs in the app:** add only kits you made yourself (see the company notes,
+`docs/COMPANY-USE.md`). In the **Client view** Add a demo kit… and Remove are switched off.
 
 <a id="lifting-equipment"></a>
 ## Own lifting equipment (file format)
