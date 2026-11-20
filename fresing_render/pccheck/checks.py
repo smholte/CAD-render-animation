@@ -4579,7 +4579,7 @@ def tour_make(ctx):
     return f"{len(out['files'])} projects in {time.time() - t0:.0f} s, {len(tour.STOPS)} stops"
 
 
-@line("demo.kit", "Demo kits: add a kit, make its demo, remove it", "0.2.176",
+@line("demo.kit", "Demo kits: add a kit, make its demo, remove it", "0.2.177",
       what="Adds the made-up test kit (a box on a deck plate) to a kits folder of the check's own, makes its demo the "
            "way Help > Make demo project… does (the kit's model maker as a program of its own, its stage, Build), "
            "checks that the box's slide joint moves the box and that the saved camera is there, then removes the kit")

@@ -517,7 +517,7 @@ fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", but
 fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
    button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
-   panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.176",
+   panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.177",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app
 fn(id="help.start_here", title="Fresing menu: test tour, What's new, guide, checks in one place", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.tour_take", guide="start-here", tour=("start_here",),

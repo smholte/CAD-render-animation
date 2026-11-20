@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.176 – 20 Nov 2026 – Demo kits: a demo project from a zip (task 0228)
+## 0.2.177 – 20 Nov 2026 – Demo kits: a demo project from a zip (task 0228)
 
 - **Help > Make demo project…** now shows a list: the app's own demo, then every **demo kit** you added. A demo kit
   is a demo project someone made for the app – its own model and animation – in one .zip file.
@@ -18,6 +18,13 @@ installer of that version was built from.
 - A demo kit is Python code that runs in the app: add only kits you made yourself. In the Client view Add and Remove
   are switched off.
 - The PC check has a new line, "Demo kits", that adds a small made-up test kit, makes its demo and removes it again.
+## 0.2.176 – 20 Nov 2026 – Lifting test tour: a real yard, real-size loads, the load always in view (task 0231)
+The three Lifting stops of the test tour now look like a real lift: a quayside yard with an IBC on its pallet, a 6 t
+pump skid and a 20 ft container (invented, real sizes), and the AT-40 standing on four timber crane mats. The skid is
+the load; its CoG sits off the middle because the pump and motor are on one side. Every stop now checks that the load's
+CoG is in the picture and that nothing – not even the crane's own carrier – hides it from the camera. The "crane made
+from numbers" stop shows that crane by itself with its boom out; "Set up a crane" stands on the same ground. New test
+model: test_loads.
 
 ## 0.2.175 – 20 Nov 2026 – Web 3D page: measure to edges, numbers never on top of each other (task 0219)
 

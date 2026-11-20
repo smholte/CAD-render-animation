@@ -1,6 +1,6 @@
 # 0231 – Learning set "Lifting": real-size loads on a yard, the load always in view
 
-**Who:** worker · **Status:** open · **Branch:** `task/0231-learning-set-lifting`
+**Who:** worker · **Status:** done (0.2.176) · **Branch:** `task/0231-learning-set-lifting`
 **Started by:** lead, 20 Nov 2026 (study 0224 package A; owner's answers 20 Nov: the tour is the learning environment,
 each set its own fitting environment; Q3 several real-size invented loads, each sized to its equipment) · **Model:**
 Sonnet · effort Medium
@@ -64,10 +64,23 @@ Rigging, slings, falls (0232); forklifts (L8); `blender/lifting.py` and the PC c
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 20 Nov 2026
 
-**What changed:**
+**What changed:** `tools/make_test_loads.py` -> `test_loads.step` (+ copy, `tests/test_make_test_loads.py`): IBC on pallet
+(1.2 x 1.0 x 1.15 m, 1.1 t), pump skid (4 x 2 m, pump + motor on the +y side, 6 t, 4 padeyes), 20 ft container (6058 x
+2438 x 2591, 18 t, 4 top corner castings); 27 named parts. Masses are entered in the tour as source "estimate" (the app has
+no "invented" source). Sets `lifting`, `lifting_make`, `crane_setup` now on the QUAY yard (`_yard`); AT-40 on four plain
+mat boxes "Tour crane mat N" (the Lifting set-up has no mats), skid = the load, camera ISO_LEFT. New check
+`_cog_in_view` in all three Lifting stops (CoG in the picture, ray camera -> CoG hits only the load, hook block in view at
+the hook stop). `lifting_make`: the made AT-100 alone, pose Working + slew 90, readout radius 14.7 m, no Hook to here.
+The IBC and the container stand in the yard (no new stops). Pictures: `tasks/0231-pictures/` (400 px).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, real Blender 5.2.3): the check failed on the old set at all 3 stops
+('CARRIER DECK' in the way), passes on the new; `tests/test_tour_lifting.py` (10) also proves it fails with a cube in the
+way; `test_tour_clash.py` 48 passed; test_tour (Lifting + build) passed. Set build time before -> after: lifting 3.8 -> 2.9 s,
+crane_setup 2.9 -> 3.0 s, lifting_make 4.1 -> 5.8 s. GitHub: 2 runs (the full run, then a docs run after merging a
+documents-only main), green; released 0.2.176.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** the guide's Lifting picture and text still show the test crane's boom (the PC check's
+example is unchanged, as briefed). 0232 can add its rigging stop to `lifting` using `_skid_load` / `_yard_crane`; IBC and
+container are ready for forklifts (L8) and a big crane. The hook picture frames the whole crane, so the skid is small.
