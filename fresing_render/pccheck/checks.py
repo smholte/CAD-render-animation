@@ -1100,7 +1100,8 @@ def motion_swivel(ctx):
 
 @line("motion.tracks", "Tensioner tracks and a belt run with the cable", "0.2.87",
       what="The tensioner test model: the cable runs, the pads of both tracks run round their sprockets with it (the "
-           "pads holding the cable as fast as the cable), the top track lifts and squeezes, a belt of separate links "
+           "pads holding the cable as fast as the cable), the top track lifts and squeezes, the tensioner tilts 6° on "
+           "its hinge and back, a belt of separate links "
            "runs round three pulleys; every link's two hinges on its loop, one pitch apart")
 def motion_tracks(ctx):
     from ..blender import animation, cameras, render, tour, tracks
@@ -4579,7 +4580,7 @@ def tour_make(ctx):
     return f"{len(out['files'])} projects in {time.time() - t0:.0f} s, {len(tour.STOPS)} stops"
 
 
-@line("demo.kit", "Demo kits: add a kit, make its demo, remove it", "0.2.177",
+@line("demo.kit", "Demo kits: add a kit, make its demo, remove it", "0.2.178",
       what="Adds the made-up test kit (a box on a deck plate) to a kits folder of the check's own, makes its demo the "
            "way Help > Make demo project… does (the kit's model maker as a program of its own, its stage, Build), "
            "checks that the box's slide joint moves the box and that the saved camera is there, then removes the kit")
