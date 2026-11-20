@@ -314,12 +314,13 @@ def test_crane_saved_scene_alone_does_not_pass_the_explode_step(les):
     assert not lesson.is_done(sc, lesson.LESSONS["crane"].steps[9])
 
 
-def test_play_on_goes_on_by_itself_and_off_waits(les):
+def test_play_on_goes_on_by_itself_and_off_waits(les, monkeypatch):
     lesson = les
     from fresing_render.blender import prefs
-    p = prefs.get()
+    p = prefs.get()                     # Blender as a module has no add-on preferences: a stand-in for the switch
     if p is None:
-        pytest.skip("no add-on preferences in Blender as a module")
+        p = type("Prefs", (), {"lesson_play_on": False})()
+        monkeypatch.setattr(lesson, "play_on", lambda: bool(p.lesson_play_on))
     was = p.lesson_play_on
     try:
         sc = lesson.new_project("crane")
