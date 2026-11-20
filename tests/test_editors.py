@@ -125,7 +125,7 @@ def test_a_background_blender_touches_nothing(tmp_path, monkeypatch):
     assert editors.solid_side_panel() is False and editors.solid_side_panel(force=True) is False
     assert editors.apply(True) is True and editors.apply(False) is True and editors.on_load() is True
     editors.request(True)
-    assert not bpy.app.timers.is_registered(editors._run_request)
+    assert not bpy.app.timers.is_registered(editors._run_request) and not editors.busy() and editors.settled()
     assert bpy.context.preferences.system.use_region_overlap == before
     assert not os.path.exists(path)
 
@@ -143,6 +143,9 @@ def test_the_layout_follows_on_every_load():
     assert "editors.on_load()" in src and "editors.settled()" in src
     from fresing_render.blender import lock
     assert "editors.request(" in open(lock.__file__, encoding="utf-8").read()
+    from fresing_render.blender import ops_setup, ops_tour      # the timers that touch the view after a load wait
+    assert "editors.busy()" in open(ops_tour.__file__, encoding="utf-8").read()
+    assert "editors.busy()" in open(ops_setup.__file__, encoding="utf-8").read()
 
 
 def test_closing_an_area_keeps_the_client_views_list(monkeypatch):

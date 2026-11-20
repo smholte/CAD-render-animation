@@ -166,7 +166,7 @@ def spot_on(part):
     for poly in list(me.polygons)[::max(1, len(me.polygons) // 300)]:
         p = mw @ poly.center
         co = view3d_utils.location_3d_to_region_2d(region, rv3d, p)
-        if co is None or not (120 < co.x < region.width - sb.width - 60 and 80 < co.y < region.height - 120):
+        if co is None or not (120 < co.x < min(region.width, sb.x - region.x) - 60 and 80 < co.y < region.height - 120):
             continue
         along = view3d_utils.region_2d_to_vector_3d(region, rv3d, co).normalized()
         facing = -(mw.to_3x3() @ poly.normal).normalized().dot(along)
@@ -313,7 +313,7 @@ def s_add_hose():
           it is not None and it.a_part == named("FITTING VALVE C") and it.b_part == named("FITTING ARM"))
     mod("blender.joints").set_value(mod("blender.joints").find(sc, "Luff"), LUFF)       # the arm's tip goes up
     bpy.context.view_layer.update()
-    view((0.78, 0.3, 0.5), 1.3)                             # close on the cable (10 mm thick) for the next click
+    view((0.78, 0.3, 0.5), 1.0)                             # close on the cable (10 mm thick) for the next click (task 0221: the solid side panel makes the view narrower)
     wiggle()
     return 1.5
 

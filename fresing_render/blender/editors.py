@@ -201,6 +201,12 @@ def settled() -> bool:
     return not _SETTLING[0]
 
 
+def busy() -> bool:
+    """The column is about to be closed or opened (a request waits) or was just changed (not drawn yet): a 3D view's
+    size is about to change. The Set-up window waits before it splits the view."""
+    return _SETTLING[0] or bpy.app.timers.is_registered(_run_request)
+
+
 def hide(win) -> int:
     """Close the column of this window. Returns how many areas were closed."""
     screen = win.screen

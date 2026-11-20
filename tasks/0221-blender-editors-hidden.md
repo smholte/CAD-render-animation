@@ -105,6 +105,13 @@ one menu entry. Any panel inside the Fresing tab.
   segfaults Blender 5.2.3 until the window is drawn again (reproduced in plain Blender; also crashed when closing
   inside `load_post`). Screens are changed from a timer; a POST_PIXEL draw handler marks `settled()`, and
   `put_layout_right` / `apply` wait for it. Lesson added to CLAUDE.md section 8.
+- First GitHub run (44765162821) red, three causes, all fixed: (1) `ui_test_tour.py` crashed Blender – the test tour's
+  `ops_tour._go_pending` set the side panel right after the column was closed (the same Blender crash); it now waits
+  for `editors.busy()`. (2) "Set up a crane": a project opened and the Set-up window split the 3D view at once, before
+  the deferred close – the view then grew under it ("the split-off view did not get its size"); `ops_setup.open_window`
+  waits for `editors.busy()` and finds the 3D view again. (3) `ui_test_flex.py` / `ui_test_paths.py` /
+  `ui_test_spool.py` took the side panel's width off the view's region (right only with Region Overlap on); the flex
+  test also looks closer at its 10 mm cable (the view is narrower with a solid side panel).
 - Tests: `tests/test_editors.py` (12: column finding on measured factory / shown layouts, other layouts untouched,
   swapped Info, width, settings file, menu, grey, background touches nothing, the Client view's index list);
   `tools/ui_test_layout.py` +28 checks (new, own project saved with the column, old project, tour set, demo: hidden,
@@ -114,7 +121,8 @@ one menu entry. Any panel inside the Fresing tab.
   section "Blender's Outliner and Properties (hidden)", Client-view text, picture `app_after_import.png` made again.
 
 **Tested and measured** (4-core web machine, real Blender 5.2.3 under xvfb, no model needed):
-- Real-app: layout 69/69, panel 39/39, lock 19/19, client keys 12/12. pytest of the changed areas green.
+- Real-app: layout 69/69, panel 39/39, lock 19/19, client keys 12/12, tour 15/15, flex 31/31, cables 36/36,
+  set-up crane 32/32, set-up 46/46, highlight 74/74, start 63/63. pytest of the changed areas green.
 - Show / Hide at 1920 x 1080: column 337 px (Blender's own 339); at 2560 x 1440: 450 px (453). Hidden: the 3D view
   and the timeline both reach the right edge (1916 / 2556 of 1920 / 2560).
 - Side panel on a white viewport background at 2560: solid, the navigation gizmo and the header visible.
