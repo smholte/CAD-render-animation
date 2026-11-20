@@ -319,3 +319,28 @@ def test_stand_spot_does_not_move_with_rounding_noise():
         spots.append(s)
     for s in spots[1:]:
         assert np.allclose(s, spots[0], atol=1e-6), spots
+
+
+def test_stand_spot_is_the_same_wherever_the_machine_stands():
+    """Task 0239 (bug hunt 0209 row 18): the machine moved by fractions of a cell, or turned a quarter, gives the same spot
+    round it, and the arms (WORK_ROOM) never reach into the cabinet."""
+    cell = 0.04
+    spots = []
+    for dx, dy, turn in [(0, 0, 0), (0.01, 0.01, 0), (0.07, 0.13, 0), (0.13, 0.07, 0), (0.25, 0.25, 0), (0.07, 0.13, 1)]:
+        fl = T.Floor((-3.0 + dx, -4.0 + dy), (3.0 + dx, 2.0 + dy), z=0.0, cell=cell, origin=(dx, dy))
+        lo, hi = (-0.45, -0.28), (0.45, 0.5)
+        if turn:                                      # turned 90 degrees about z: (x, y) -> (-y, x)
+            lo, hi = (-hi[1], lo[0]), (-lo[1], hi[0])
+        fl.add_box((lo[0] + dx, lo[1] + dy, 0.0), (hi[0] + dx, hi[1] + dy, 1.45))
+        front = (1.0, 0.0) if turn else (0.0, -1.0)   # the way to the person turns with the machine
+        s = T.stand_spot(fl, (dx, dy), front)
+        assert s is not None
+        rel = np.array(s) - (dx, dy)
+        if turn:
+            rel = np.array((rel[1], -rel[0]))         # back into the unturned frame
+        spots.append((rel, turn))
+        # the person's round room is clear of the cabinet's true edge (not only of its marked cells)
+        near = np.array((np.clip(s[0] - dx, lo[0], hi[0]), np.clip(s[1] - dy, lo[1], hi[1]))) + (dx, dy)
+        assert np.linalg.norm(near - s) >= T.WORK_ROOM - 1e-6, (dx, dy, turn)
+    for r, turn in spots[1:]:                         # a turned cabinet's edge lies on a cell line: 0194 keeps both cells
+        assert np.allclose(r, spots[0][0], atol=cell * 0.5 + 1e-6 if turn else 1e-6), spots

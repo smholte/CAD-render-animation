@@ -1,6 +1,6 @@
 # 0238 – Fix from bug hunt 0209, group H: the riding camera's re-bake in steps (no 13 s freeze after a sea change)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0238-camera-rebake-in-steps`
+**Who:** worker · **Status:** running · **Branch:** `task/0238-camera-rebake-in-steps`
 **Started by:** lead, 20 Nov 2026 (bug hunt 0209 row 20; 0216 done) · **Model:** Opus · effort Medium
 **Area:** Scene & Render lane (the camera part) – `blender/camera_path.py` (`_sample`), `blender/rebake.py` (the
 `cameras` step of the re-bake job), tests (`test_camera_ride_rebake*`, `test_rebake*`). Nothing in `paths.py`,
