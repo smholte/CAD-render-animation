@@ -1804,8 +1804,8 @@ costs time while the animation plays: Build & play works out every frame once.
 - **"hangs too flat to touch 'HORN'"**: the cable is pulled so hard that it would leave before the horn.
 - **"is so tight that it lifts its end off the seabed"**: drawn as a curve between the horn and its end, with its
   length; pay out more or set the touch-down again.
-- **"has … m more cable than the water is deep"**: it would pile up on the seabed under the horn (drawn lying in
-  snakes, with its length).
+- **"has … m more cable than the water is deep"**: it would pile up on the seabed under the horn (drawn with its
+  length: the cable laid earlier stays straight, the extra lies in one bight next to the touch-down).
 - **"is … m too short to reach its end on the seabed"**: drawn straight.
 
 **Things on the cable** (a CPS set, a bend restrictor, a pull head). Select their parts or their assembly in the 3D
@@ -1885,6 +1885,12 @@ a quadrant lies down flat, the end goes with it. **Into the sea > Settles in** s
 it stays exactly where it was let go, as before). The cable keeps its length; once it lies on the seabed the app
 does not warn that it "piles up" or "bends over the end" – lying there is what it should do. Let it go just as the
 quadrant or block starts to come up again, so the cable sinks while its carrier moves away.
+
+The cable that already lies on the seabed when you let go **stays exactly where it lay**. Only the stretch that hung
+in the water lies down: the end goes down and forward along the lay line together, so that stretch lies in line with
+the cable before it, and what is left over lies in **one smooth bight** next to the end – never tighter than the
+cable's **Smallest bend** (none set: 10 x its diameter). If the end cannot go forward far enough (it would hang from a
+contact before it again), the bight grows sideways instead.
 
 A project saved with version 0.2.109 or older opens with **Settles in** at 0 for a cable that was let go and never had
 it set, so it stays where it was let go, as it did then; set it again to let the cable sink.

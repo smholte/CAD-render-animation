@@ -300,7 +300,7 @@ fn(id="offshore.moving_cable", short="Moving cable", title="A cable on a moving 
    since="0.2.95")
 fn(id="offshore.settle", title="A let-go cable settles onto the seabed", family="offshore", panel="FRESING_PT_cables",
    fold="fr_cables_sea", prop="sea_settle", guide="settle", tour=("moving_cable",), pccheck=("motion.moving_cable",),
-   since="0.2.103")
+   since="0.2.103", changed="0.2.185")
 fn(id="offshore.swivel", title="A sheave on a swivel turns to its wire", family="offshore", panel="FRESING_PT_cables",
    prop="swivel", guide="swivel", tour=("swivel",), pccheck=("motion.swivel",), since="0.2.103")
 fn(id="offshore.spool", short="Drums", title="Drums and carousels", family="offshore", panel="FRESING_PT_spools",

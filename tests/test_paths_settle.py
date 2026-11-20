@@ -5,6 +5,7 @@ block lifts 5 m again; in 2 s (the set-up's; 4 s is the default) what was let go
 Blender as a module.
 """
 
+import json
 import math
 import os
 import sys
@@ -150,3 +151,136 @@ def test_keep_tight_payout_has_no_step_where_the_hang_off_changes():
     assert np.all(np.diff(out[80:105]) <= 0.01 + 1e-12)          # it goes one way through the ramp
     same = paths.ramp_steps(trend, np.zeros(F, dtype=int), 25)   # no change of hang-off: nothing changes
     assert np.allclose(same, trend)
+
+
+# --- task 0248: the cable on the seabed stays put, the freed stretch lies down in line -----------------------------
+
+def _line(sc):
+    return np.array([_bed(sc, p) for p in paths.shape_now(sc, _cable(sc))])
+
+
+def _to_polyline(pts, line):
+    """Each point's distance to the polyline ``line``."""
+    a, b = line[:-1], line[1:]
+    ab = b - a
+    l2 = np.maximum((ab * ab).sum(1), 1e-30)
+    out = np.empty(len(pts))
+    for i, p in enumerate(pts):
+        t = np.clip(((p - a) * ab).sum(1) / l2, 0.0, 1.0)
+        out[i] = np.linalg.norm(a + ab * t[:, None] - p, axis=1).min()
+    return out
+
+
+def _from_end(line):
+    """Each point's length along the cable from its end S (the last point)."""
+    d = np.linalg.norm(np.diff(line[::-1], axis=0), axis=1)
+    return np.concatenate([np.cumsum(d)[::-1], [0.0]])
+
+
+def _length(line):
+    return float(np.linalg.norm(np.diff(line, axis=0), axis=1).sum())
+
+
+@pytest.fixture(scope="module")
+def let_go_frames(built):
+    """The cable at every frame from the let-go to the end (seabed coordinates), and its numbers at the let-go."""
+    sc, _w = built
+    animation.bake(sc, sc.fresing.animations[paths.MOVING_ANIMATION])      # (as built: an earlier test changed it)
+    f0 = _let_go(sc)
+    lines = {}
+    for f in range(f0, sc.frame_end + 1):
+        sc.frame_set(f)
+        lines[f] = _line(sc)
+    sc.frame_set(f0)
+    lay = json.loads(_cable(sc).get(paths.LAY, "{}"))[str(f0)]
+    return sc, f0, lines, lay
+
+
+def test_the_cable_on_the_seabed_stays_where_it_lay(let_go_frames):
+    """Before 0248 the whole laid cable turned into a snake of 4 m waves (0.50 m sideways at the let-go's end)."""
+    sc, f0, lines, lay = let_go_frames
+    laid0 = lay[3]                                          # (metres from S that lay straight at the let-go)
+    assert laid0 > 50.0
+    p0 = lines[f0]
+    kept = p0[_from_end(p0) <= laid0 - 0.01]
+    assert np.abs(kept[:, 1]).max() < 1e-3                  # (the lay line is the seabed's x axis: straight on it)
+    worst = max(float(_to_polyline(kept, line).max()) for line in lines.values())
+    assert worst < 1e-3, worst
+    lengths = [_length(line) for line in lines.values()]
+    assert max(lengths) - min(lengths) < 1e-3
+
+
+def test_the_freed_cable_lies_down_in_line(let_go_frames):
+    """Settled, the cable that hung lies in line with the laid cable (no kink at the old touch-down), its extra length
+    taken up by the end going forward along the lay line, the rest in one gentle bight not tighter than the cable's
+    smallest bend (here none is set: 10 x its Ø)."""
+    sc, f0, lines, lay = let_go_frames
+    it = _cable(sc)
+    aft = np.array(it.sea_dir, dtype=float)
+    assert float(np.dot(lay[:3], aft)) < -1.0 and abs(float(np.cross(lay[:3], aft)[2])) < 1e-6   # (forward: −lay)
+    end = lines[sc.frame_end]
+    sc.frame_set(sc.frame_end)
+    laid = paths_sea.numbers(sc, it)["laid"]               # (on the seabed now, from S to the touch-down)
+    back = _from_end(end)
+    on = back <= laid - 0.01                                # (the touch-down itself and the turn round the sheave,
+    bed, bb = end[on][::-1], back[on][::-1]                 # which lies flat beside it, are the end's: left out)
+    freed = bed[bb >= lay[3] - 1.0]                         # from a metre before the old touch-down on
+    d = np.diff(freed[:, :2], axis=0)
+    ln = np.linalg.norm(d, axis=1)
+    d, ln = d[ln > 1e-6], ln[ln > 1e-6]
+    ang = np.arctan2(d[:, 1], d[:, 0])
+    turn = np.angle(np.exp(1j * np.diff(ang)))
+    # in line where the old touch-down was (no kink there): the piece of the cable that passes it lies on the line
+    j = int(np.searchsorted(bb, lay[3]))
+    assert 0 < j < len(bb) and abs(bed[j - 1, 1]) < 1e-3 and abs(bed[j, 1]) < 1e-3
+    assert np.abs(turn).max() < paths_sea.BIGHT_STEP * 1.2  # … nor anywhere (a point per 3° of the bight)
+    # one bight: the line turns one way, back, and one way again (four arcs), never tighter than 10 x Ø
+    k = np.abs(turn[:-1]) / np.maximum(0.5 * (ln[:-2] + ln[1:-1]), 1e-9)
+    assert 1.0 / k.max() >= paths_sea.min_bend(it) * 0.99, (1.0 / k.max(), paths_sea.min_bend(it))
+    side = freed[:, 1]
+    assert (side <= 1e-6).all() or (side >= -1e-6).all()    # all to one side
+    assert np.abs(side).max() < 3.0                         # a gentle bight, not a loop across the seabed
+
+
+def test_the_let_go_settles_without_a_jump(let_go_frames):
+    """From frame to frame during the settle the cable moves no further than its end does (the end goes down and
+    forward together over Settles in, smoothstep: at most 1.5 x the even speed)."""
+    sc, f0, lines, lay = let_go_frames
+    it = _cable(sc)
+    frames = sorted(lines)
+    fps = sc.render.fps
+    reach = math.hypot(math.hypot(lay[0], lay[1]), 15.0) * 1.5 / (it.sea_settle * fps)
+    worst = 0.0
+    for a, b in zip(frames, frames[1:]):
+        worst = max(worst, float(_to_polyline(lines[b], lines[a]).max()), float(_to_polyline(lines[a], lines[b]).max()))
+    assert worst < 2.0 * reach, (worst, reach)
+
+
+def test_every_way_to_a_frame_gives_the_same_shape(let_go_frames, tmp_path):
+    """Played in order, jumped to, solved again as Build solves it, posed live and after opening the saved project:
+    the same cable after the let-go."""
+    sc, f0, lines, lay = let_go_frames
+    after = (f0 + 20, f0 + 45, sc.frame_end)
+    sc.frame_set(sc.frame_start)
+    for f in after:                                         # jumped to
+        sc.frame_set(f)
+        assert np.abs(_line(sc) - lines[f]).max() < 1e-4, f
+    it = _cable(sc)
+    slots = paths._inputs_of(it)[1]
+    rel, first = paths._stored_places(sc, it, slots)
+    for f in after:                                         # Build's one-moment solve, and the pose shown
+        sc.frame_set(f)
+        it = _cable(sc)
+        for res in (paths._solve_item(sc, it, rel[f - first:f - first + 1], first=f),
+                    paths._solve_item(sc, it, rel[f - first:f - first + 1])):
+            want = paths._at(paths._world(it.part), res["points"][0])
+            got = np.array(paths.shape_now(sc, it))
+            # (a moment solved alone may spread its points otherwise: compared as lines, both ways)
+            assert max(_to_polyline(got, want).max(), _to_polyline(want, got).max()) < 1e-3, f
+    path = str(tmp_path / "settle.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    for f in after:                                         # after opening the project
+        sc.frame_set(f)
+        assert np.abs(_line(sc) - lines[f]).max() < 1e-4, f
