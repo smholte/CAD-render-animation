@@ -163,7 +163,7 @@ def test_crane_model_update_is_refused_and_a_deleted_crane_is_removed():
     assert BL.active_crane(sc) is not None
     p = BL.prefix(c)
     s = sc.fresing
-    assert any(j.name.startswith(p) for j in s.joints) and len(s.cables)
+    assert any(j.name.startswith(p) for j in s.joints) and c.reeved       # task 0232: the rope is reeved, not a cable
     for o in [c.root] + list(logic.descendants(c.root)):
         bpy.data.objects.remove(o, do_unlink=True)
     _update()

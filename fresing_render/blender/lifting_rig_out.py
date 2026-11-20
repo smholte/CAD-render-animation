@@ -285,7 +285,13 @@ def build(scene) -> dict:
                        mass=mass, cog=cog, rig=rig, limits=limits, charts=SC.chart_dicts(scene),
                        source=cs.chart_source or "Own crane, set up in Fresing Render")
     if cs.hook_block_t > 0:
-        data["hook_blocks"] = [{"name": "main", "mass": round(cs.hook_block_t, 4), "sheaves": int(cs.falls)}]
+        data["hook_blocks"] = [{"name": "main", "mass": round(cs.hook_block_t, 4), "sheaves": int(cs.falls),
+                                "falls": int(cs.falls)}]
+    try:                       # task 0232: the rope's reeving (sizes guessed; the file can be edited)
+        from ..core import lifting_reach as _LR, lifting_reeve as _RV
+        data["reeving"] = _RV.guess(_LR.Rig(data))
+    except Exception:  # noqa: BLE001 - a rig Hook to here cannot read gets no reeving: Reeve the rope guesses later
+        pass
     if outr is not None:
         data["outriggers"] = outr
     if tblock is not None:

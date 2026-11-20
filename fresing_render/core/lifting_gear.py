@@ -135,6 +135,7 @@ class Gear:
     """One piece of rigging gear, SI."""
     name: str
     kind: str
+    cls: str = ""
     wll: float | None = None          # kg (a sling: per leg)
     mass: float = 0.0                 # kg, own (fittings; a sling's legs come from their length)
     material: str = ""
@@ -172,7 +173,7 @@ def _vecs(v) -> list:
 def gear_of(item) -> Gear:
     """Read an item (library ``Item``) into a Gear; its problems (plain words) in ``Gear.problems``."""
     d = item.data if hasattr(item, "data") else item
-    g = Gear(name=str(d.get("name", "")), kind=str(d.get("kind", "")))
+    g = Gear(name=str(d.get("name", "")), kind=str(d.get("kind", "")), cls=str(d.get("class", "")))
     if getattr(item, "problems", None):
         g.problems = list(item.problems)
         return g
@@ -225,8 +226,14 @@ def gear_of(item) -> Gear:
 
 
 def label(g: Gear) -> str:
-    """A short line for a list: 'Chain grade 8, 4-leg, 8 t per leg (16 mm)'."""
-    return g.name
+    """A short name for a button: 'Chain 4-leg 8 t', 'Shackle 4.75 t', 'LF-20'."""
+    t = f"{g.wll / 1000.0:g} t" if g.wll else ""
+    if g.kind == "sling":
+        word = {"chain": "Chain", "wire": "Wire rope", "round": "Round sling"}.get(g.material, "Sling")
+        return f"{word} {g.legs}-leg {t}".strip()
+    if g.kind == "shackle":
+        return f"Shackle {t}".strip()
+    return g.cls or g.name
 
 
 def shackle_for(force_kg: float, user_items=()) -> object | None:

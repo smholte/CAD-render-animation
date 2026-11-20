@@ -1,6 +1,6 @@
 # 0232 – Lifting L5: rigging (lift points, slings, shackles, spreader, the load hanging under the hook) + the hoist rope reeved in several falls
 
-**Who:** worker · **Status:** open · **Branch:** `task/0232-lifting-l5-rigging`
+**Who:** worker · **Status:** done · **Branch:** `claude/wizardly-gates-yursxk`
 **Started by:** lead, 20 Nov 2026 (study 0180 section 9 row L5; owner 18 Nov: "+ wire rope with several falls – reeving
 over boom-head and hook-block sheaves, drum") · **Model:** Opus · effort High
 **Area:** Lifting lane – new `core/lifting_hang.py` (the hang solver, pure Python), new `core/lifting_reeve.py` (falls,
@@ -85,12 +85,12 @@ AT-100), so raising the hook winds the drum by falls × the hook's travel, and t
 
 ## Done when
 
-- [ ] 0180's C2 / C3 hand cases come out of the solver + checks on a real hang within 0.5 %; C10 hand case
-- [ ] The load hangs under the hook and follows Hook to here, a pose and a joint step; Set down; Build keeps it
-- [ ] AT-100: 8 falls drawn over 4 + 4 sheaves to the drum; hook up 1 m → drum payout 8 m (± a layer step); the time
+- [x] 0180's C2 / C3 hand cases come out of the solver + checks on a real hang within 0.5 %; C10 hand case
+- [x] The load hangs under the hook and follows Hook to here, a pose and a joint step; Set down; Build keeps it
+- [x] AT-100: 8 falls drawn over 4 + 4 sheaves to the drum; hook up 1 m → drum payout 8 m (± a layer step); the time
       per hook move on the AT-100 and the CC-1600 measured (web machine; expectation for the owner's PC said as such)
-- [ ] Model update (same file) keeps lift points, rigging and the hang; Client view cannot edit them
-- [ ] Rigging stop(s) in the `lifting` set on 0231's loads; guide, function list, PC-check lines, tooltips; precheck,
+- [x] Model update (same file) keeps lift points, rigging and the hang; Client view cannot edit them
+- [x] Rigging stop(s) in the `lifting` set on 0231's loads; guide, function list, PC-check lines, tooltips; precheck,
       `tests/test_tour_clash.py` 0 clashes, full suite green; report filled in, merged, released
 
 ## Not in this task
@@ -102,10 +102,76 @@ offshore DAF on rigging (L9), `reimport.py`, other tour sets.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 20 Nov 2026 – branch `claude/wizardly-gates-yursxk` (the session's
+branch, not `task/0232-…`).
 
 **What changed:**
+- `core/lifting_hang.py` (new): the hang solver – rigid bodies (load, spreader) on legs that only pull, least potential
+  energy by damped Newton (legs as very stiff springs: 0.1 mm stretch under the whole weight), forces = stiffness x
+  stretch; stability from the energy's curvature (roll-over, turns freely, slack legs, legs too short, tilt notes);
+  `single`, `with_spreader`, `checks` (C2 / C3 / C4 from `core/lifting.py` on the solved geometry), `design_force`.
+  ~5–20 ms per hang.
+- `core/lifting_reeve.py` (new): falls → head / block sheaves and dead end, the rope's path in three frames (drum,
+  head, block), payout = falls x hook travel, the drum's turn and rope radius from `core/spool.py`'s layers
+  (`drum_table`), `guess` for a crane file without reeving.
+- `core/lifting.py`: **C10 Hoist line pull** = gross / (falls x E), E = (K^N − 1)/(K^S·N·(K − 1)), K = 1.04 roller /
+  1.09 plain – source **API RP 9B (14th ed., 2015)**; hand case 10 t on 8 falls: E 84.16 %, 1.485 t, 22.85 % of 6.5 t.
+  `wll_use` titles keep the leg's letter ("Shackle A", was "Shackle a").
+- `core/lifting_gear.py` (new): 85 invented built-in rigging items in the library format (chain grade 8 / wire / round
+  slings 1-, 2-, 4-leg; bow shackles 2–150 t; spreader beams SB-10/25/50; lifting frame LF-20 for a 20 ft container);
+  own gear = library files (kinds sling, shackle, spreader_beam, lifting_frame; table `rigging`). `core/lifting_library`
+  knows the fields `reeving` and `rigging`.
+- Crane files: `reeving` (rope Ø from the winch's line pull, head / block sheave radii and pitch, block axle above the
+  hook, the drum; JSON only – `lifting_model/equipment.py` + `make_lifting_cranes.py --json-only`; models, rig and chart
+  hashes unchanged, so placed cranes are not "made again"). Make a crane gets it from the maker; Set up a crane writes a
+  guessed one (`lifting_rig_out.py`) and `falls` in its hook block.
+- `blender/lifting_rope.py` (new): **Reeve the rope** – one polyline mesh, three vertex groups tied by **Hook modifiers**
+  to the motion empties of slew, hook swing and hoist, a tube by Geometry Nodes; app-made head and block sheaves; a
+  drum joint "<crane> · Hoist drum" following the hoist by a table (spool layers) with the drum and its rope coil (radius
+  by a table driver). No Python per frame. New cranes are reeved at **Place**; older projects keep the one-piece rope
+  until **Reeve the rope** (Equipment). The CAD "HOIST ROPE" part is excluded and its cable removed.
+- `blender/lifting_rig.py` (new): lift points (Find by name: padeye, lug, eye, top corner casting – a padeye's hole
+  axis; Add by a click with the hover picker), gear, **Hang on the hook** (an empty on the hoist's motion in the solved
+  pose + a Child Of "FR hang" on the load's parts, inverse identity), slings / shackles / master link / spreader drawn as
+  app objects on the hook, **Set down**, **Remove**, the result as JSON on the load (stale when mass / gear / points
+  change), `after_model_update`, `check_hang`.
+- `blender/lifting.py` (additive): Place reeves; Remove sets a hung load down and takes the reeving; removing a load
+  takes its rigging; the readout's gross includes the rigging mass; `line_pull`; model update keeps points and hang.
+- UI: new sub-panel **8 Lifting plan > Rigging** (`ui_lifting.py`, `core/places.py`), operators in
+  `ops_lifting_rig.py`; Equipment shows the reeving / Reeve the rope; Hook & capacity the line pull; Load the rigging
+  mass. Function list `lifting.rig`, `lifting.hang`, `lifting.reeve`; guide sections + `panel_8_lifting_rigging.png`
+  (and the other three Lifting pictures again); PC-check lines `lifting.hang`, `lifting.reeve`; tour stops
+  `lifting_rig` (skid on a 4-leg chain set, tilted, rope in 4 falls) and `lifting_spreader` (empty container 2.3 t on
+  the LF-20) in the `lifting` set, with stop set-ups so earlier stops show the loads unrigged.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (web machine, 4 cores, no graphics card; Blender as a module unless named):
+- Hand cases out of the solver: C2 T_A 6.988 / T_B 4.881 t (rel. 5e-4), C3 12.289 t rigid / 6.145 equal / 7.681 DNV,
+  98.3 % and 76.2 %; the same C2 and C3 cases **on real hangs in the app** (box loads, `tests/test_lifting_rigging.py`)
+  within 0.5 %; spreader 6.5625 t top legs, 5.0 t bottom legs.
+- AT-100: 8 falls drawn over 4 + 4 sheaves; hook 1 m up → drawn rope 8.00 m longer, drum turned within a layer step
+  of 8 m. CC-1600: 28 falls over 14 + 14.
+- **Time per hook move** (set the hoist + update the scene, 20 moves): AT-100 **0.74 ms** reeved vs 0.37 ms without
+  the rope; CC-1600 **2.95 ms** vs 2.06 ms. PC check line on this machine: 0.80 ms. Expectation for the owner's PC
+  (not measured there): about the same or less – the rope is a few hundred points moved by Blender's own modifiers.
+- Hang on the hook: 137–155 ms (the skid, 4 legs, incl. drawing the gear).
+- Follows Hook to here, a Build (frame 1 after bake), Set down stays put, save + open keeps hang and rope, model update
+  of `test_loads.step` (same file) keeps the 4 points and the hang (CoG within 2 mm), Client view: Hang / Find / Add /
+  Reeve are refused.
+- Local: `test_lifting_hang.py` (11), **`test_lifting_hang_independent.py` (42, written by an independent subagent from
+  the brief)**, `test_lifting_reeve.py`, `test_lifting_rigging.py` (7), `test_lifting_plan*.py`,
+  `test_lifting_with_rest.py`, `test_setup_crane*.py`, `test_tour_lifting.py` (13), `test_tour.py` (102),
+  `test_tour_clash.py[lifting]`, PC-check lines lifting.* (6 OK), tooltip report strict (884 ok), precheck.
+- Subagents: one independent tester (tests from the brief and study 0180, not the code): 42 tests; it found **one real
+  fault** – on a 2-leg sling the load's heading drifted (free turn about the vertical; up to 6° depending on the
+  crane's heading). Fixed by a hair of yaw stiffness (`YAW`); its test passes now. A segfault found by
+  `test_setup_crane.py` (a joint-list item kept across adding the drum joint) was fixed before merging.
 
 **Open points / follow-up tasks:**
+- The lead line runs straight from the drum to the lead sheave (on the telescopic cranes inside the boom box); real
+  cranes guide it along the boom top over rollers – a look for L8/L9.
+- The drum's coil is a cylinder whose radius steps with the layers; the turns are not drawn one by one.
+- With vessel motion on, a hung load would get the deck's motion twice (its parts' own Child Of + the hook): L9.
+- Shackle side load (C4 note) is not worked out from the padeye's plane yet; hitch modes (choke, basket) are in the
+  gear files but the legs are always straight.
+- A load set down "where it is" stays in the air if the hook was not lowered first (as the panel says).
+- Leftover branch: none new (the session's branch `claude/wizardly-gates-yursxk`).

@@ -96,6 +96,19 @@ def from_data(d: dict, falls: int) -> Reeving:
                    k=float(d.get("k", lifting.K_ROLLER)))
 
 
+def guess(rig) -> dict:
+    """A reeving table (mm, a crane file's ``reeving``) for a crane whose file has none (an own crane set up from its
+    STEP): sheaves and drum of a usual size, the drum a little behind and below the boom's foot, turning with the
+    slew. ``rig``: ``lifting_reach.Rig``. Marked ``"guessed": true``."""
+    luff = np.asarray(rig._p[rig.role["luff"]], float)
+    d = 16.0
+    return {"units": "mm", "rope_d": d, "head_r": 250.0, "block_r": 200.0, "head_pitch": 3 * d, "block_pitch": 3 * d,
+            "block_above_hook": 800.0,
+            "drum": {"centre": [round(float(luff[0] - 1200.0), 1), 0.0, round(float(max(luff[2] - 900.0, 600.0)), 1)],
+                     "r": 250.0, "w": 600.0, "joint": rig.role["slew"]},
+            "k": lifting.K_ROLLER, "guessed": True}
+
+
 def ys(n: int, pitch: float) -> np.ndarray:
     return (np.arange(n) - (n - 1) / 2.0) * pitch
 

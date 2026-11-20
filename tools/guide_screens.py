@@ -62,7 +62,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   people_panel   6 Animation > People (panel_6_people; as "panels", the example "two people meet" on the crane, Anna
       selected, task 0157).
   lifting_panel   8 Lifting plan (task 0201): the section with Equipment, Load, Hook & capacity (panel_8_lifting*; as
-      "panels", the AT-40 beside the test crane, the boom as the load, the hook above it).
+      "panels", the AT-40 beside the test crane, the boom as the load, the hook above it); task 0232: Rigging with the
+      boom on a 2-leg sling, hung (panel_8_lifting_rigging).
   people   the example built and rendered at the handshake (people_meet.jpg; Cycles on the processor, as "render").
   operator   the test mill in its cabinet: the operator takes the tool out of the spindle (toolchange_person.jpg) and
       lays it on the trolley (toolchange_person_trolley.jpg), task 0156; Cycles on the processor, as "render".
@@ -1765,6 +1766,36 @@ elif MODE == "lifting_panel":
     step(lambda: (shoot_sidebar("panel_8_lifting_load"), 0.5)[1])
     step(lambda: (show_only([("FRESING_PT_lifting_hook", False, True)]), wiggle(), 2.0)[2])
     step(lambda: (shoot_sidebar("panel_8_lifting_hook"), 0.5)[1])
+
+    def _rigging_setup():
+        # task 0232: the boom on a 2-leg sling – a lift point near each end of its top, Hang on the hook
+        import numpy as np
+        L = mod("blender.lifting")
+        RG = mod("blender.lifting_rig")
+        sc = bpy.context.scene
+        ld = L.active_load(sc)
+        pts = np.array([list(o.matrix_world @ Vector(c)) for o in L.load_parts(ld) for c in o.bound_box])
+        lo, hi = pts.min(axis=0), pts.max(axis=0)
+        ax = int(np.argmax((hi - lo)[:2]))
+        mid = 0.5 * (lo + hi)
+        part = L.load_parts(ld)[0]
+        for f in (0.15, 0.85):
+            p = mid.copy()
+            p[ax] = lo[ax] + f * (hi[ax] - lo[ax])
+            p[2] = hi[2]
+            RG.add_point(sc, ld, part, p)
+        ld.leg_length = 2.5
+        p = L.above_load(sc, ld)
+        p[2] += 1.0
+        L.hook_to(sc, L.active_crane(sc), p, ld)
+        with override():
+            RG.hang(sc, L.active_crane(sc), ld)
+        sc.fresing.lifting.message = ""
+        show_only([("FRESING_PT_lifting_rigging", False, True)])
+        wiggle()
+        return 2.5
+    step(_rigging_setup)
+    step(lambda: (shoot_sidebar("panel_8_lifting_rigging"), 0.5)[1])
 
 elif MODE == "house_panel":
     # task 0114: 5 Scene & Render > House from House Planner with the made-up sample house imported and one moment

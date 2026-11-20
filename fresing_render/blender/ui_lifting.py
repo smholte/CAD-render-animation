@@ -364,9 +364,9 @@ class FRESING_PT_lifting_rigging(_Panel, bpy.types.Panel):
         if ld.points:
             col = layout.column(align=True)
             for i, p in enumerate(ld.points):
-                row = col.row(align=True)
                 part = p.obj.get("fr_name", p.obj.name) if p.obj is not None else "(part gone)"
-                row.label(text=f"{p.name}  {part}", icon="DOT")
+                col.label(text=f"{p.name}: {part}", icon="DOT")
+                row = col.row(align=True)
                 row.prop(p, "length", text="Leg")
                 row.operator("fresing.lifting_point_remove", text="", icon="X").index = i
             hint(layout, context, "Leg 0 = the sling set's leg length.")
@@ -378,7 +378,7 @@ class FRESING_PT_lifting_rigging(_Panel, bpy.types.Panel):
             g = RG.gear(path)
             split = layout.split(factor=0.3, align=True)
             split.label(text=title)
-            split.operator_menu_enum(op, "item", text=g.name if g is not None else empty)
+            split.operator_menu_enum(op, "item", text=RG.GR.label(g) if g is not None else empty)
         col = split_props(layout)
         col.prop(ld, "leg_length", text="Leg length")
         if ld.spreader:
@@ -512,8 +512,8 @@ class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
         lp = lifting.line_pull(scene, c, ro.gross)
         row = layout.row()
         row.alert = lp.status == core.RED
-        row.label(text=f"Line pull {_t(lp.value)} on {plural(int(lp.inputs['falls']), 'fall')}"
-                       + (f": {lp.use * 100:.0f} % of the winch" if lp.use is not None else ""),
+        row.label(text=f"Line pull {_t(lp.value)} ({plural(int(lp.inputs['falls']), 'fall')})"
+                       + (f": {lp.use * 100:.0f} %" if lp.use is not None else ""),
                   icon=STATUS_ICON[lp.status])
         if ro.sample:
             _sample_line(layout, context)

@@ -110,7 +110,8 @@ def test_round_trip_places_and_hooks_as_the_class(cls, lib_tmp):
     ref = BL.place(bpy.context, os.path.join(LIFT, cls), location=(0.0, 500.0, 0.0), heading=0.0)
     with open(path, encoding="utf-8") as fh:
         saved = json.load(fh)
-    assert {j.name for j in BL.own_joints(sc, own)} == {BL.prefix(own) + j["name"] for j in saved["rig"]["joints"]}
+    assert {j.name for j in BL.own_joints(sc, own)} - {BL.prefix(own) + "Hoist drum"} == \
+        {BL.prefix(own) + j["name"] for j in saved["rig"]["joints"]}          # task 0232: + the reeved rope's drum
     assert set(BL.pose_names(own)) == {p["name"] for p in saved["rig"]["poses"]}
     rig = BL.rig_of(own)
     assert np.allclose(rig.hook_cad, saved["rig"]["hook"]["point"])

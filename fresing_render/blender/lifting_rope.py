@@ -54,15 +54,7 @@ def spec(data: dict, rig) -> dict:
     rv = data.get("reeving")
     if isinstance(rv, dict) and "head_r" in rv:
         return rv
-    hoist = rig.role["hoist"]
-    head = np.asarray(rig._p[hoist], float)
-    luff = np.asarray(rig._p[rig.role["luff"]], float)
-    d = 16.0
-    return {"units": "mm", "rope_d": d, "head_r": 250.0, "block_r": 200.0, "head_pitch": 3 * d, "block_pitch": 3 * d,
-            "block_above_hook": 800.0,
-            "drum": {"centre": [float(luff[0] - 1200.0), 0.0, float(max(luff[2] - 900.0, 600.0))], "r": 250.0,
-                     "w": 600.0, "joint": rig.role["slew"]},
-            "k": 1.04, "guessed": True, "head_at": head.tolist()}
+    return RV.guess(rig)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -249,6 +241,7 @@ def _drum(scene, crane, rig, rv, D, s, carrier, coll) -> list:
     hoist = rig.role["hoist"]
     hj = joints.find(scene, lifting.prefix(crane) + hoist)
     hmax = joints.limits(hj)[1] if hj.use_limits else 60.0
+    hj = None                                       # (an item of a collection that grows below: never kept)
     hmax = min(max(hmax, 1.0), 300.0)
     table = RV.drum_table(rv, hmax)
     origin = Vector(tuple(D[:3, 3]))
@@ -289,7 +282,7 @@ def _drum(scene, crane, rig, rv, D, s, carrier, coll) -> list:
     coil.matrix_world = Matrix(F.tolist())
     lifting._update()
     _keep_on(coil, turn)
-    src = hj.motion
+    src = joints.find(scene, lifting.prefix(crane) + hoist).motion      # look it up again: the joint list grew
     for i in (0, 1):
         fc = coil.driver_add("scale", i)
         joints._table_driver(fc, src, joints.Map(xs=table.hoist, ys=table.outside * s), 0.0)
