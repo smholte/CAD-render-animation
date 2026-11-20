@@ -46,7 +46,7 @@ chat and gives the exact sentence to paste, with where, which model and which ef
 
 **A start sentence only when the task can start now** (owner, 20 Nov 2026): the lead gives a task's sentence only
 when the owner can start it at that moment – its brief is on `main`, every task it waits for is merged, its lane is free
-and fewer than about four code tasks are running. A task that still waits gets one plain line ("0241: after 0221 and
+and fewer than about four code tasks are running – **and the task has not started yet**: no branch of it on GitHub (`git fetch --depth=1 origin '+refs/heads/*:refs/remotes/origin/*'`, then `git for-each-ref --sort=-committerdate` and the branches' last commit messages), TASKS.md not "running" or "done"; when a previous lead chat gave its sentence near its end, ask the owner before giving it again (owner, 20 Nov 2026, after 0244 got a second sentence). A task that still waits gets one plain line ("0241: after 0221 and
 0236 are merged") and **no** sentence; the lead gives the sentence in the status check where it becomes startable.
 
 **The permission to push to `main` is in the start sentence** (owner, 16 Nov 2026): a web session may push only to its
