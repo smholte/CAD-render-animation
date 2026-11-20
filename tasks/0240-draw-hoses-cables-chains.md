@@ -122,10 +122,50 @@ the cable-lay vessel (private).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 20 Nov 2026 (branch `claude/optimistic-ptolemy-3f7duz`; release 0.2.177)
 
 **What changed:**
+- New `blender/drawn.py` (the drawn object: an app-made mesh part with no parent in "Drawn hoses and cables"; click ->
+  spot; replace / unreplace) and `blender/ops_drawn.py` (pickers `fresing.flex_draw` HOSE / CABLE / CHAIN and
+  `fresing.cable_draw`, `fresing.drawn_replace` / `drawn_unreplace`, `fresing.flex_flip_bend`). Hover as the other
+  pickers; Backspace / Ctrl+Z take a click back, Esc / right-click stop, Enter finishes; the CAD part to be replaced
+  hides while clicking.
+- `core/flex.py`: `natural_length` (shortest smooth line with the end directions keeping max(smallest bend, 2.5 x
+  diameter), + 5 %; a loop beside the line when ends are in line), `shares`, `segment_points`, `join`.
+- `blender/flex.py`: `draw_hose` (clips = new `FRFlexClip` collection; one solver row per segment, length split by
+  `item["shares"]`), `draw_chain` (frame from the slide joint moving the moving bracket, else from the clicked faces),
+  `flip_bend`, `swap_ends` / `fit_to_cad` ("Length as drawn" / "Links for the travel") for drawn items; the default
+  length covers the limits of the joints between the ends (a joint without limits: a note). Model update keeps drawn
+  items (no re-read; a part gone -> "keeps its last place": its object gets the last shape).
+- `blender/paths.py`: `draw_cable` – the clicked route solved with `core/paths.solve` (held), drawn as a tube, read
+  with the normal `read_cad`: a normal cable item (drum start = first wheel; `wind` would add a spool). Drawn cables
+  are not read again at a model update.
+- `props.py` additive (`FRFlexClip`, `drawn`, `clips`, `replaces`, `replace_uids` on FRFlex and FRCable). No change
+  to `reimport.py` was needed. Panels: Draw buttons, "looks like a hose: draw one to replace it", Replaces rows.
+- For 0243 (lead's note): diameter and look (cables) and the chain's width, height, link length and bend radius stay
+  plain settings on each item, one place each; no presets or size list were built.
+- Tour set `flex_drawn` (FACTORY; hoses + gantry + cable model) with stops drawn_hose, drawn_chain, drawn_cable,
+  drawn_replace; PC check line `motion.drawn`; functions `flex.draw_hose`, `flex.draw_chain`, `flex.replace_cad`,
+  `paths.draw_cable`; guide sections + `view_drawn_hose.jpg`, `view_drawn_cable.jpg`, new panel pictures.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine):
+- `tests/test_flex_drawn.py` 13 tests (two clicks; two clips at three poses and in a Build; replace in view / render /
+  clash / web; save + open; queue copy; model update A -> B; odd clicks; chain rolls, flip, swap; cable route over
+  drum + 2 sheaves + chute reads the same 6 contacts as the CAD rope, sheave 1 turns 1 m / 0.25 m per metre).
+- Independent tests (subagent, did not write the code): `tests/test_flex_drawn_independent.py`, 34 tests. It found 4
+  faults, all fixed: a default line folded back on itself for ends in line; a chain could not be drawn before its axis
+  had a slide joint; a cable end beside the last sheave's plane was refused (route now solved "held", as CAD draws it);
+  the cable picker took a flat face as a wheel. Not tested by it: the modal keys (the real-app test does), queue,
+  scripts off, Client view.
+- Real app `tools/ui_test_drawn.py` (group pccheck-b): 17/17, 28 s – hover on both fittings, click, Backspace, Enter,
+  replaced CAD hose hidden, luff 15° end on fitting 0.0000 mm, one click + Esc, undo / redo.
+- Tour set: builds in 7.6 s; checks: ends / clips 0.000 mm, length kept 0.00 %, links 0.0000 mm, 6 contacts; clash
+  check 0 rows. PC check `motion.drawn` OK in 3.5 s. Existing flex / paths tests: 195 passed.
+- GitHub runs: see below.
 
 **Open points / follow-up tasks:**
+- The drawn route of a cable is read once; a model update keeps it as clicked (not re-laid on moved sheaves).
+- A drum at the start is a turning wheel; layers on it ("wind", spool.add) have no button yet (the picker's property
+  only), and need a coil part.
+- Clips hold the hose fixed (no sliding through a clip); a flat clip makes the hose lie on its face.
+- Step 4 of the hoses panel's "How it works" still describes only Add drag chain.

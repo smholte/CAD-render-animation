@@ -1609,7 +1609,6 @@ def _drawn_click(scene, root, origin, direction, want: str, hide=()):
     """A click as Draw hose / Draw drag chain / Draw cable route take it: a ray (in the model's own coordinates, so
     a moved model is clicked where it is now) cast as the picker casts it, with the CAD parts in ``hide`` hidden
     meanwhile (the picker hides the part it replaces: it lies on the fittings). Returns the spot."""
-    import numpy as np
     import bpy
     from mathutils import Vector
 
@@ -1624,7 +1623,6 @@ def _drawn_click(scene, root, origin, direction, want: str, hide=()):
         _check(index >= 0 and ob.get(build.PROP_NAME) == want,
                f"the click meant for '{want}' hits '{ob.get(build.PROP_NAME) if ob is not None else 'nothing'}'")
         sp = drawn.spot(ob, index, loc, normal)
-        sp["hit"] = np.array(loc)
         return sp
     finally:
         for ob in hide:
