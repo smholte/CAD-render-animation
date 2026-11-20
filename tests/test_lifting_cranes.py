@@ -73,7 +73,7 @@ def test_equipment_file(name):
     assert all(v > 0 for v in d["mass"].values())
     assert set(d) <= set(("format", "format_version", "kind", "class", "name", "units", "mass", "cog", "rig",
                           "charts", "hook_blocks", "outriggers", "tracks", "axles", "wll", "limits", "sample",
-                          "derived_from", "source")), "only the fields of the format (study 0180 section 4)"
+                          "derived_from", "source", "reeving")), "only the fields of the format (study 0180 section 4)"
     rig = d["rig"]
     names = {j["name"] for j in rig["joints"]}
     for j in rig["joints"]:
