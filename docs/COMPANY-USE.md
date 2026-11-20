@@ -67,6 +67,11 @@ The request carries only `FresingRender/<version> (update check)` as its `User-A
   a link, and imports or bakes only when the user presses **Import now** / **Bake now**. A house it bakes goes back as a
   file into House Planner's folder there. Like the user's Documents, anything that can write in that folder can offer
   the app a file.
+- **demo kits** (task 0228): Help > Make demo project… > **Add a demo kit…** unpacks a zip the user picks into Blender's
+  settings folder (`fresing_demo_kits`) and **Make** runs the Python code in it inside the app, like an add-on – it
+  can do anything the app can. **A demo kit is Python code that runs in the app: add only kits you made yourself.**
+  The app checks the zip's layout and the versions it was made for, not what the code does (`core/demo_kits.py`,
+  `blender/demo.py` `_kit_build`). The app itself downloads no kit and reaches no network for one.
 - no crash reports, no telemetry, no licence server, no account.
 
 **Blender itself.** The installer switches Blender's **online access on** (`Install-FresingRender.ps1`, the `set_prefs.py`

@@ -4563,6 +4563,28 @@ The labels of the X-ray step and the Lay data box also show in
 pictures of the demo (stills show every label that is on): for a picture without them, untick **Draw labels in
 renders** under 6 Animation > Labels, and tick it again before you render the video.
 
+<a id="demo-kits"></a>
+### Demo kits
+
+A **demo kit** is a demo project someone made for the app – its own model and animation – in one **.zip** file. The
+app's own demo needs no kit; a kit adds a demo of its own to the list.
+
+1. **Help > Make demo project…** lists the demos: the app's own, then every kit you added (its name and kit version).
+2. **Add a demo kit…** under the list: pick the kit's .zip. The app checks it and keeps a copy in its settings folder;
+   the kit is now in the list. Adding a newer zip of the same kit replaces the older one.
+3. Pick the kit in the list and click **Make it**: its demo is made in the background like the app's own (the bottom
+   line shows how far, **Help > Cancel demo project** stops it). It goes to
+   **Documents\Fresing Render\Demo\Kits\<kit>\<version>**, next to the app's own demo. **Help > Open <kit name>**
+   opens it.
+4. **Remove** (next to Add a demo kit…, with the kit picked) takes the kit off the list; a demo already made from it
+   stays.
+
+**Versions:** a kit is made for some versions of the app ("made for 0.2.180–0.2.199", shown under the list). After an
+update that is outside them, the app says so – download the kit's newer version and add it again.
+
+**A demo kit is Python code that runs in the app:** add only kits you made yourself (see the company notes,
+`docs/COMPANY-USE.md`). In the **Client view** Add a demo kit… and Remove are switched off.
+
 <a id="lifting-equipment"></a>
 ## Own lifting equipment (file format)
 

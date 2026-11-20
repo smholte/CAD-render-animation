@@ -532,7 +532,9 @@ def run_from_argv(argv: list | None = None) -> core.Run:
         return None
     if extra and extra[0].strip().lower() == "demobuild":       # Help > Make demo project (task 0077)
         from ..blender import demo
-        code = demo.build_main(extra[1] if len(extra) > 1 else "", small="small" in extra[2:])
+        rest = extra[2:]
+        kit = rest[rest.index("--kit") + 1] if "--kit" in rest[:-1] else ""        # task 0228: a demo kit's demo
+        code = demo.build_main(extra[1] if len(extra) > 1 else "", small="small" in rest, kit=kit)
         if code:
             raise SystemExit(code)
         return None

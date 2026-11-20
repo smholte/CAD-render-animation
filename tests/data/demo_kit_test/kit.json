@@ -1,0 +1,12 @@
+{
+  "id": "test-kit",
+  "title": "Test kit box",
+  "kit_version": "1",
+  "app_min": "0.2.0",
+  "app_max": "",
+  "stage_module": "fr_test_kit.stages",
+  "maker": "fr_test_kit.make",
+  "stages": ["box", "finish"],
+  "uses": ["blender.demo.Demo", "blender.demo.stage", "blender.demo.finish", "blender.joints.create",
+           "demo_model.geom.write_step"]
+}
