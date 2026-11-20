@@ -1,6 +1,6 @@
 # 0241 – A quiet window: the 3D view header, top bar and splash without Blender's editing parts (0222 package A)
 
-**Who:** worker · **Status:** done (0.2.183) · **Branch:** `task/0241-quiet-window`
+**Who:** worker · **Status:** done (0.2.184) · **Branch:** `task/0241-quiet-window`
 **Started by:** lead, 20 Nov 2026 (study 0222 package A; owner's answers 20 Nov 16:22: order A → B → C, a Fresing-menu
 switch back to all of Blender, splash with Fresing's lines only, the view's grey text kept) · **Model:** Opus · effort
 Medium
@@ -155,6 +155,9 @@ key list (`lock._KEYS`), the Client view's rules, 0221's editors code beyond cal
   app.quiet + app.editors OK; tooltip report 877 ok; precheck green.
 - Screenshot of the splash: `docs/img/quiet_splash.png` (Start column + Recent Files under the Fresing picture).
 - No helper agents (no Windows-only code; the change is drawing code checked by the real-app test).
+- GitHub: 3 full runs. Run 44820461955 red in one check (`test_workspaces.py`: a function shown in the Client view
+  must have a button that works there) – the two functions now name every workspace but the Client view; run
+  44825357474 green; 0242 took 0.2.183 meanwhile, so merge + renumber to 0.2.184: run 44829430511 green (24 min).
 
 **Open points / follow-up tasks:**
 - The welcome box (the first starts) sits above the splash's Fresing picture as before; under simulated events it is
