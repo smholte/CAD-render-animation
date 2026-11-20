@@ -1965,7 +1965,7 @@ def _check_swivel(scene):
 TRACKS_ANIM = "Tracks"
 
 
-@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step", added="0.2.87", changed="0.2.101")
+@tour_set("tracks", "Tensioner tracks and a belt", "test_tracks.step", added="0.2.87", changed="0.2.176")
 def build_tracks(b: Build):
     from . import tracks
     sc = b.scene
@@ -3700,7 +3700,7 @@ stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "cylinder under its deck: the tracks, their pads and the cable go with it and keep running. Behind, a belt of "
      "separate links runs round three pulleys of different size; all wheels turn with the chain.",
      where="4 Motion > Tracks and belts", animation=TRACKS_ANIM, play=True, since="0.2.87", check=_check_tracks,
-     auto="clip", changed="0.2.101")
+     auto="clip", changed="0.2.176")
 stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "The cable runs over the rollers and the horn at the stern and hangs in a curve down to the seabed 15 m below, "
      "seen through the cut-away behind the stern. It pays out at 60 m/min: its stripes run down the curve but stand "
