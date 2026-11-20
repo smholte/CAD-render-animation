@@ -26,7 +26,7 @@ import numpy as np
 from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from ..core.words import plural
-from . import build, drawn, flex, hover, paths
+from . import build, drawn, flex, hover, logic, paths
 from .ops_motion import over_panel
 
 HELP = "Backspace: undo the last click.  Esc / right-click: stop.  Middle mouse / scroll: move the view"
@@ -67,6 +67,12 @@ class _Picker:
             self.report({"WARNING"}, "Use this from the 3D view")
             return {"CANCELLED"}
         self._clicks = []                       # [(object name, polygon, location, normal)]
+        self._hidden = []                       # the CAD part it will replace: hidden while clicking (it lies on the
+        target = _replace_target(context, getattr(self, "replace", ""))      # fittings and brackets)
+        for p in (drawn.replace_targets(context.scene, target) if target is not None else []):
+            if p.visible_get():
+                logic.set_visible_flags(p, True)
+                self._hidden.append(p.name)
         context.window.cursor_modal_set("EYEDROPPER")
         hover.start(context, self, "", refuse=_refuse(context.scene))
         self._status(context, prompt)
@@ -78,6 +84,11 @@ class _Picker:
 
     def _end(self, context) -> None:
         hover.end(self, context)
+        for name in getattr(self, "_hidden", []):
+            ob = context.scene.objects.get(name)
+            if ob is not None and not ob.get(build.PROP_EXCLUDED):
+                logic.set_visible_flags(ob, False)
+        self._hidden = []
         try:
             context.window.cursor_modal_restore()
             context.workspace.status_text_set(None)

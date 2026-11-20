@@ -71,7 +71,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "toolbox": 19,
-              "clientkeys": 12}
+              "clientkeys": 12, "drawn": 17}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -85,7 +85,7 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 # (tools/ci_precheck.py). The longest job sets the run's length (with the queued-render test of test_air.py, ~10 min).
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
-    "pccheck-b": ["pccheck2", "lock", "clientkeys"],   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
+    "pccheck-b": ["pccheck2", "lock", "clientkeys", "drawn"],   # drawn: task 0240 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
     "callouts": ["callouts"],
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox"],        # toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
@@ -123,6 +123,9 @@ TESTS = {
                  "ui_test_waycover.py", True),
     "flex": ("Real app: hoses and drag chains – click a hose, Add hose, the arm luffs; click one link, Add drag "
              "chain, X moves; undo, save and open (ui_test_flex.py)", "ui_test_flex.py", True),
+    "drawn": ("Real app: Draw hose – the picker's hover on the fittings, a click, Backspace, the clicks again, Enter; "
+              "the CAD hose replaced, the arm luffs; one click and Esc; undo and redo (ui_test_drawn.py)",
+              "ui_test_drawn.py", True),
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
