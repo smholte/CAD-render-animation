@@ -1,6 +1,6 @@
 # 0230 – Lessons: Show me and Build it yourself – the engine, the Learn window, the crane and mill lessons
 
-**Who:** worker · **Status:** open (start after 0221 is merged) · **Branch:** `task/0230-lessons`
+**Who:** worker · **Status:** running (20 Nov) · **Branch:** `claude/clever-cray-qd0bn8`
 **Started by:** lead, 20 Nov 2026 (study 0123 task 3; owner 15 Nov answers; owner 20 Nov: "the test tour is the users'
 learning environment"; owner 16:35: brief the learning sets and the lessons task together) · **Model:** Opus · effort High
 **Area:** Learning lane – new `blender/lesson.py` (engine), `blender/lessons/` (one module per set: `crane.py`,
