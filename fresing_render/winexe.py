@@ -427,12 +427,13 @@ def take_out(blender_exe: str, why: str) -> None:
     _remove(os.path.join(folder, STAMP_NAME))
     copy = copy_path(blender_exe)
     if os.path.isfile(copy):
-        for _ in range(10):                        # task 0242: a scan may hold it a moment after its first start
-            _remove(copy)
+        for _ in range(6):                         # task 0242: a scan may hold it a moment after its first start
+            _remove(copy)                          # (a running copy stays: ~0.5 s, and only while it runs)
             if not os.path.isfile(copy):
                 break
             time.sleep(0.1)
-        log("copy taken out of use:", why)
+        log("copy taken out of use:" if not os.path.isfile(copy) else
+            "copy taken out of use (still there while it runs or is held):", why)
 
 
 def swap_in(tmp: str, dst: str, old: str, tries: int = 30, wait: float = 0.1) -> None:
