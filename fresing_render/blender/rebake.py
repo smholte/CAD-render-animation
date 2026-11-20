@@ -205,7 +205,26 @@ def _fcurve_values(id_block, path: str, n: int, frame: float):
     return out
 
 
-def cameras(scene) -> list[str]:
+def camera_objects(scene) -> list:
+    """The parts the built camera steps ride on or keep in the middle (task 0238): read in the re-bake's pass through
+    the frames with the hoses' and cables' parts, a frame per job step. Not a part drawn by nodes (the pass hides
+    those and works their place out from the parent's, without constraints): the camera reads that one itself."""
+    from . import camera_path, states
+    _anim, blocks = _camera_blocks(scene)
+    uids = states.by_uid(scene)
+    out = {}
+    for b in blocks:
+        if b.camera_mode not in camera_path.MODES:
+            continue
+        for uid in ((b.target_uid if b.camera_mode == "RIDE" else ""),
+                    (b.aim_uid if camera_path.looks_at_part(b) else "")):
+            ob = uids.get(uid) if uid else None
+            if ob is not None and not any(m.type == "NODES" for m in getattr(ob, "modifiers", ())):
+                out[ob.name] = ob
+    return list(out.values())
+
+
+def cameras(scene, places: dict | None = None) -> list[str]:
     """The Animation camera's keys worked out again as Build works them out (``animation._camera_track``), from its
     own state at frame 1 (the start camera, as Build had it) and the model centre of that Build: the steps that ride
     or watch a part read where it is now. Returns Build's warnings of the camera steps."""
@@ -230,7 +249,8 @@ def cameras(scene) -> list[str]:
     c = scene.get(camera_path.CENTRE)
     centre = Vector([float(v) for v in c]) if c is not None and len(c) == 3 else animation._model_centre(scene)
     warnings: list[str] = []
-    ctx = camera_path.Context(scene, anim, blocks, states.by_uid(scene), centre, warnings)
+    ctx = camera_path.Context(scene, anim, blocks, states.by_uid(scene), centre, warnings, places=places,
+                              first=int(scene.frame_start))
     track = animation._camera_track(anim, blocks, start, centre, int(scene.frame_end), ctx, warnings)
     cb = animation._channelbag(cam, "OBJECT")
     rows, q_prev = [], None
@@ -296,12 +316,19 @@ def _steps_once(scene, todo: dict, notes: list):
             pobs, animated = _paths_objects(scene)
             if animated:
                 also += pobs
+        cam_names = []
+        if todo.get("cameras"):                 # task 0238: the riding camera's parts, read in the same pass
+            cam_obs = camera_objects(scene)
+            cam_names = [ob.name for ob in cam_obs]
+            also += cam_obs
         if not obs and also:                    # (no hose to read: the cables' objects, as the cables read them)
             obs, also, keep_shown = also, [], False
         if obs:
             with flex.at_first_frame(scene):
                 for p in flex.read_steps(scene, obs, first, frames, keep_shown=keep_shown, also=also, keep=True):
                     yield READ_SHARE * p
+        # (taken now: the cables' bake lets go of what the pass read)
+        cam_places = {n: a for n, a in flex.kept_read(scene, first, frames).items() if n in cam_names}
         yield READ_SHARE
         share = (1.0 - READ_SHARE) / max(1, sum(1 for k in ("flex", "paths", "cameras") if todo.get(k)))
         done = READ_SHARE
@@ -316,7 +343,7 @@ def _steps_once(scene, todo: dict, notes: list):
             yield done
         if todo.get("cameras"):                 # task 0192 (bug hunt 6 row 7): the steps that ride on a part
             with flex.at_first_frame(scene):
-                notes += cameras(scene)
+                notes += cameras(scene, places=cam_places)
         yield 1.0
     finally:
         flex.drop_read()

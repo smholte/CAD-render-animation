@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.185 – 20 Nov 2026 – No long freeze for a riding camera after a sea change (task 0238)
+
+- **The window keeps moving while the camera is worked out again.** After a change of the sea (Calm → Rough, the water
+  level) a camera step that rides on a part was worked out again in one go: on the full demo (4,481 frames) the window
+  stood still for 10–11 s at the end of the progress bar. Now the camera's part is read in the same pass through the
+  frames as the hoses and cables, a frame at a time, with the progress bar moving and Cancel working; its own last step
+  takes about half a second. The whole re-bake on the demo is about 11 s shorter (103 → 91 s on the 4-core test machine).
+  The camera's path is the same as before.
+
 ## 0.2.184 – 20 Nov 2026 – A quiet window (task 0241)
 
 - **Only what you need to look at your model.** The 3D view's header now has the **View** menu, the shading buttons
