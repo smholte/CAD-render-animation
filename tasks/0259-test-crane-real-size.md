@@ -1,6 +1,6 @@
 # 0259 – The test crane at real size: a ×5 service crane (boom ~7.5 m, boom pin ~2 m up) everywhere – tour, lessons, PC check, guide and the automatic tests
 
-**Who:** worker · **Status:** open – waits for 0234 (its `marine` and `vessel` sets use the test crane) · **Branch:**
+**Who:** worker · **Status:** open – waits for 0234 (its `marine` and `vessel` sets use the test crane) and 0249 merged (same lane; 0250 after this task) · **Branch:**
 `task/0259-test-crane-real-size`
 **Started by:** lead, 21 Nov 2026 (owner 14:13, two screenshots: the test crane beside a 1.75 m person and an IBC on the
 quay looks like a toy – "should not be this small compared to other models. make sure that the scale is realistic."
@@ -52,7 +52,10 @@ crane lesson, the PC check, most guide pictures).
   Build it yourself the same project (`tests/test_lessons.py`); cameras of every set that shows the crane framed again
   (the whole crane, or the detail the stop's text names); `changed=` on every touched set +
   `python3 tools/tour_versions.py --record` after merging `main` once.
-- **Others in the same files:** 0249 (mills) in `pccheck/checks.py`, `guide_screens.py`; 0233 waits for this task; 0235 and
+- **Others in the same files:** 0249 (mills) in `pccheck/checks.py`, `guide_screens.py`; **0233 merged first** (its worker ran
+  on the old brief, 21 Nov): it put the sets in halls, a studio, a quay and a warehouse with the 1 m crane – check every
+  crane set there again at the new size (camera, the crane fits the hall / quay, people walk under the boom; 0233's
+  open points: `people` shows the crane as "the small thing at the left", `night` has no floodlit spot); 0235 and
   0258 run beside it (no shared files). Merge `main` once, right before the version.
 - Lifting lane: the Lifting tests and `ui_test_lifting*.py` use the test crane – their loads, radii and charts must still
   make sense at the new size (no load heavier than the crane could lift; say what you changed).
