@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.202")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.203")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -927,7 +927,7 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.202")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.203")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
@@ -1154,7 +1154,7 @@ def offshore_structure(scene) -> dict:
     return made
 
 
-@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.202")
+@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.203")
 def build_marine(b: Build):
     """Task 0234: the marine looks on a monopile in the open sea (study 0224: the pile standing in the real sea with
     the sea cut-away, the waterline from the sea, the whole pile in frame)."""
@@ -1223,7 +1223,7 @@ def _check_marine(scene):
             f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
 
 
-@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.202")
+@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.203")
 def build_cutaway(b: Build):
     from mathutils import Vector
     sc = b.scene
@@ -2621,7 +2621,7 @@ def _check_full_spools(scene, sps) -> str:
             f"layers), one cable to {worst * 1000:.2f} mm")
 
 
-@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.202")
+@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.203")
 def build_copies(b: Build):
     from mathutils import Vector
 
@@ -2652,7 +2652,7 @@ def _check_copies(scene):
     return "two cranes kept apart"
 
 
-@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.202")
+@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.203")
 def build_update(b: Build):
     import bpy
 
@@ -3623,7 +3623,7 @@ VESSEL_ANIM = "Vessel at sea"
 VESSEL_PROPS = ("PERSON", "IBC")          # beside the 8 m test crane on the deck
 
 
-@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.202")
+@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.203")
 def build_vessel(b: Build):
     from mathutils import Vector
 
@@ -3698,7 +3698,7 @@ WEATHER_ANIM = "Weather changes"
 # ----- props for scale in detail (task 0155) -----
 
 
-@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124", changed="0.2.202")
+@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124", changed="0.2.203")
 def build_props(b: Build):
     from . import cameras, props_scale
     _look("PRODUCT")
@@ -3742,7 +3742,7 @@ def _check_operator(scene):
     return tc_person.check_test_model(scene)
 
 
-@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128", changed="0.2.202")
+@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128", changed="0.2.203")
 def build_people(b: Build):
     import numpy as np
 
@@ -3771,7 +3771,7 @@ def _check_people(scene):
     return people.check_example(scene)
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.202")
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.203")
 def build_weather(b: Build):
     from . import weather
     sc, s = b.scene, b.s
@@ -4660,7 +4660,7 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
-     at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.202")
+     at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.203")
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
      "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "
@@ -4951,7 +4951,7 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
      "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
-     check=_check_web3d, changed="0.2.202")
+     check=_check_web3d, changed="0.2.203")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
@@ -5187,6 +5187,33 @@ stop("start_here", OUT, HUB_SET, "Start here: the Fresing menu",
      "after an update.",
      where="The Fresing menu in the top bar (after Help)", since="0.2.155", shot="Tour view",
      check=_check_start_here, auto=lambda ctx, scene, st: "")
+
+def _check_keys(scene):
+    """Task 0253: Blender's keys swallowed outside Full access, F12 bound to the app, the right-click menu's entries."""
+    import bpy
+
+    from . import context_menu, lock
+    _check(hasattr(bpy.ops.fresing, "blender_key") and hasattr(bpy.ops.fresing, "view_menu"),
+           "the operators of the keys and the right-click menu are missing")
+    _check(lock.keys_quiet(), "the tour project is in Full access: Blender's keys are not swallowed")
+    _check(bpy.ops.fresing.blender_key.poll() and bpy.ops.fresing.key_render.poll(),
+           "Blender's keys are not swallowed here")
+    part = next((o for o in scene.objects if o.get("fr_name") == "BOOM"), None)
+    _check(part is not None, "the boom is missing")
+    target = context_menu.target_of(scene, part)
+    return f"{len(lock.BLENDER_KEYS)} Blender keys swallowed; right-click on the boom: menu for {target.get('fr_name')}"
+
+
+stop("keys", OUT, HUB_SET, "Keys and the right-click menu",
+     "Click the boom, then press Delete, X, Shift+D or Ctrl+J: nothing happens to the crane, and the status bar at the "
+     "bottom says \"That is a Blender key – Fresing > Show all of Blender gives you Blender's keys\". H still hides the "
+     "boom, Alt+H shows it again. Right-click on the boom: a short menu – Zoom to it, Show in 2 Structure, Hide, Show "
+     "only this, Add a label here, Add joint here… – try Zoom to it and Show only this (Show all brings the crane back). "
+     "Right-click on empty space: Zoom to all, Show all. F12 renders a picture with the app (as Render image). Fresing > "
+     "Show all of Blender: Delete deletes again and the right-click shows Blender's own menu; Back to the Fresing "
+     "window takes them away again.",
+     where="The 3D view (keys and right-click); Fresing > Show all of Blender", since="0.2.202", shot="Tour view",
+     check=_check_keys, auto=lambda ctx, scene, st: "")
 
 def _check_usage(scene):
     """The usage tracker (task 0181): its panel, buttons and menu lines, and its rules on a made-up state (the

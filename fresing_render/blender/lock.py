@@ -28,6 +28,14 @@ Switching to a workspace without the lock (Full access, or any other) undoes all
 Ctrl+Z of earlier work, File > Open, the Properties editor's own buttons, the Python console (level b of 0062 is
 the owner's pick: these stay).
 
+**Blender's keys** (task 0253, study 0222 package B): outside Full access – every workspace but Full access, the same
+switch as the quiet window (``blender_ui``) – Blender's harmful keys (``BLENDER_KEYS``: delete, duplicate, join,
+parent, apply, collections, add, modes, subdivision, workspace, keyframes) run ``fresing.blender_key``, which changes
+nothing and says how to get them back; F12 / Ctrl+F12 are the app's Render image / Render animation
+(``fresing.key_render``); the right mouse opens the Fresing menu (``context_menu.py``). Their ``poll`` asks
+``keys_quiet``, so in Full access every key is Blender's at once. In the Client view the swallowed keys give the lock's
+message (and count in ``SWALLOWED``).
+
 **Blender's own tabs** (Layout, Modeling, Sculpting …): hidden in every workspace except Full access by drawing the
 top bar's left part without them. No Blender workspace is deleted; Full access draws the tabs again.
 """
@@ -36,6 +44,7 @@ from __future__ import annotations
 
 import bpy
 from bpy.app.handlers import persistent
+from bpy.props import BoolProperty, StringProperty
 
 ON = [False]                 # the lock is on (asked by every fresing operator's poll: keep it a plain list)
 MARK = "fr_cv"               # per object: what the lock changed (bit 0: was clickable; bits 1-9: was not locked)
@@ -67,6 +76,9 @@ ALLOWED = {
     "fresing.toolbox_report", "fresing.toolbox_not_now",     # task 0217: a status-bar line; turning a job down
     "fresing.lesson_stop", "fresing.lesson_more", "fresing.lesson_mode",   # task 0230: a lesson can always be stopped
     "fresing.left_fold", "fresing.hub_mode",     # task 0260: the left panel folds; the Learning hub only opens projects
+    "fresing.blender_key", "fresing.key_render",  # task 0253: a swallowed key; F12 / Ctrl+F12 = render (allowed above)
+    "fresing.view_menu", "fresing.ctx_zoom", "fresing.ctx_tree",   # task 0253: the right-click menu's viewing entries
+    "fresing.ctx_hide", "fresing.ctx_only", "fresing.ctx_show_all",   # (in the Client view they hide in the view only)
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_",
@@ -451,6 +463,70 @@ def _file_menu(on: bool) -> None:
         _unpatch(cls, "draw")
 
 
+# task 0227: X and Delete with any modifier – Shift+X / Shift+Delete is Blender's "Delete globally"
+_KEYS = (("Object Mode", "EMPTY", "DEL", {"any": True}), ("Object Mode", "EMPTY", "X", {"any": True}),
+         ("Object Non-modal", "EMPTY", "TAB", {}), ("Outliner", "OUTLINER", "DEL", {"any": True}),
+         ("Outliner", "OUTLINER", "X", {"any": True}), ("Window", "EMPTY", "S", {"ctrl": True, "shift": True}))
+
+
+# ---------------------------------------------------------------------------
+# task 0253: Blender's keys outside Full access (study 0222 package B)
+# ---------------------------------------------------------------------------
+
+KEY_MESSAGE = "That is a Blender key – Fresing > Show all of Blender gives you Blender's keys"
+KEPT = [0]                   # task 0253: Blender keys swallowed outside Full access (tests, the PC check)
+LAST_KEY = [""]
+
+
+def keys_quiet() -> bool:
+    """Are Blender's harmful keys swallowed now? Every workspace but Full access (the quiet window's switch)."""
+    return _SHOWN[0] is False
+
+
+# (keymap, space, key, modifiers, what it is in Blender) – swallowed outside Full access. H / Alt+H / Shift+H, A,
+# G / R / S, Home, the numpad, Z, Space, Ctrl+Space, Ctrl+Z, F3, N, F11, Ctrl+S / Ctrl+O stay Blender's.
+BLENDER_KEYS = (
+    ("Object Mode", "EMPTY", "X", {"any": True}, "delete"),
+    ("Object Mode", "EMPTY", "DEL", {"any": True}, "delete"),
+    ("Object Non-modal", "EMPTY", "TAB", {}, "Edit Mode"),
+    ("Object Non-modal", "EMPTY", "TAB", {"ctrl": True}, "mode menu"),
+    ("Object Mode", "EMPTY", "D", {"shift": True}, "duplicate"),
+    ("Object Mode", "EMPTY", "D", {"alt": True}, "duplicate linked"),
+    ("Object Mode", "EMPTY", "J", {"ctrl": True}, "join"),
+    ("Object Mode", "EMPTY", "P", {"ctrl": True}, "parent"),
+    ("Object Mode", "EMPTY", "P", {"alt": True}, "clear parent"),
+    ("Object Mode", "EMPTY", "A", {"ctrl": True}, "apply"),
+    ("Object Mode", "EMPTY", "M", {}, "move to collection"),
+    ("Object Mode", "EMPTY", "M", {"shift": True}, "link to collection"),
+    ("Object Mode", "EMPTY", "A", {"shift": True}, "add"),
+    ("Object Mode", "EMPTY", "H", {"ctrl": True}, "hide collection"),
+    *(("Object Mode", "EMPTY", k, {"ctrl": True}, "subdivision")
+      for k in ("ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE")),
+    ("Screen", "EMPTY", "PAGE_UP", {"ctrl": True}, "workspace"),
+    ("Screen", "EMPTY", "PAGE_DOWN", {"ctrl": True}, "workspace"),
+    ("Object Mode", "EMPTY", "I", {}, "insert keyframe"),
+    ("Object Mode", "EMPTY", "I", {"alt": True}, "delete keyframe"),
+    ("Object Mode", "EMPTY", "K", {}, "keyframe menu"),
+    ("User Interface", "EMPTY", "I", {}, "keyframe on a setting"),
+    ("User Interface", "EMPTY", "I", {"alt": True}, "keyframe on a setting"),
+    ("Outliner", "OUTLINER", "X", {"any": True}, "delete"),
+    ("Outliner", "OUTLINER", "DEL", {"any": True}, "delete"),
+)
+# F12 / Ctrl+F12 = the app's Render image / Render animation; the right mouse / Menu key = the Fresing menu
+APP_KEYS = (("Screen", "EMPTY", "F12", {}, "fresing.key_render", {"animation": False}),
+            ("Screen", "EMPTY", "F12", {"ctrl": True}, "fresing.key_render", {"animation": True}),
+            ("Object Mode", "EMPTY", "RIGHTMOUSE", {}, "fresing.view_menu", {}),
+            ("Object Mode", "EMPTY", "APP", {}, "fresing.view_menu", {}))
+
+
+def key_label(key: str, mods: dict) -> str:
+    """"Shift+D", "Ctrl+0" …: how a key of the list is written for people."""
+    names = {"DEL": "Delete", "TAB": "Tab", "PAGE_UP": "Page Up", "PAGE_DOWN": "Page Down", "ZERO": "0", "ONE": "1",
+             "TWO": "2", "THREE": "3", "FOUR": "4", "FIVE": "5"}
+    out = [m.capitalize() for m in ("ctrl", "shift", "alt") if mods.get(m)]
+    return "+".join(out + [names.get(key, key)])
+
+
 class FRESING_OT_client_locked(bpy.types.Operator):
     """The project is locked against changes in the Client view: this key does nothing here. Pick Workspace >
     Full access at the top of the Fresing tab to unlock it"""
@@ -468,11 +544,71 @@ class FRESING_OT_client_locked(bpy.types.Operator):
         return {"FINISHED"}
 
 
-# task 0227: X and Delete with any modifier – Shift+X / Shift+Delete is Blender's "Delete globally"
-_KEYS = (("Object Mode", "EMPTY", "DEL", {"any": True}), ("Object Mode", "EMPTY", "X", {"any": True}),
-         ("Object Non-modal", "EMPTY", "TAB", {}), ("Outliner", "OUTLINER", "DEL", {"any": True}),
-         ("Outliner", "OUTLINER", "X", {"any": True}), ("Window", "EMPTY", "S", {"ctrl": True, "shift": True}))
+class FRESING_OT_blender_key(bpy.types.Operator):
+    """That is one of Blender's own keys (delete, duplicate, join, parent, apply, add, modes, keyframes): outside Full
+    access it does nothing, so no part is lost or changed by accident. Fresing > Show all of Blender gives you
+    Blender's keys"""
+
+    bl_idname = "fresing.blender_key"
+    bl_label = "Blender key"
+    bl_options = {"INTERNAL"}
+
+    key: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        return keys_quiet()
+
+    def execute(self, context):
+        LAST_KEY[0] = self.key
+        if ON[0]:                                # the Client view keeps its own, stricter message
+            SWALLOWED[0] += 1
+            self.report({"WARNING"}, MESSAGE)
+        else:
+            KEPT[0] += 1
+            self.report({"INFO"}, KEY_MESSAGE)
+        return {"FINISHED"}
+
+
+class FRESING_OT_key_render(bpy.types.Operator):
+    """F12 renders the picture of the active camera with the app, as the blue Render image button; Ctrl+F12 renders
+    this animation in the background, as Make's Render animation. In Full access they are Blender's own again"""
+
+    bl_idname = "fresing.key_render"
+    bl_label = "Render (F12)"
+    bl_options = {"INTERNAL"}
+
+    animation: BoolProperty(options={"SKIP_SAVE", "HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        scene = getattr(context, "scene", None)
+        return keys_quiet() and scene is not None and getattr(scene, "fresing", None) is not None
+
+    def execute(self, context):
+        if not self.animation:
+            res = bpy.ops.fresing.render("INVOKE_DEFAULT")
+        else:
+            s = context.scene.fresing
+            if not len(s.animations):
+                from ..core import places
+                self.report({"WARNING"}, f"No animation yet: make one in {places.where('animation')}")
+                return {"CANCELLED"}
+            a = s.animations[min(s.animations_index, len(s.animations) - 1)]
+            res = bpy.ops.fresing.queue_add("INVOKE_DEFAULT", kind="ANIMATION", name=a.name, start=True)
+        return {"FINISHED"} if res & {"FINISHED", "RUNNING_MODAL"} else {"CANCELLED"}
+
+
 _KEYMAPS: list = []
+
+
+def _wanted() -> list:
+    """Every add-on key: (keymap, space, key, modifiers, operator, its settings)."""
+    out = [(n, sp, k, m, FRESING_OT_client_locked.bl_idname, {}) for n, sp, k, m in _KEYS]
+    out += [(n, sp, k, m, FRESING_OT_blender_key.bl_idname, {"key": key_label(k, m)})
+            for n, sp, k, m, _what in BLENDER_KEYS]
+    out += list(APP_KEYS)
+    return out
 
 
 def _add_keys() -> None:
@@ -480,15 +616,18 @@ def _add_keys() -> None:
     kc = wm.keyconfigs.addon if wm is not None else None
     if kc is None:
         return
+    wanted = _wanted()
     try:
-        if _KEYMAPS and all(kmi.idname == FRESING_OT_client_locked.bl_idname for _km, kmi in _KEYMAPS):
+        if len(_KEYMAPS) == len(wanted) and all(kmi.idname == w[4] for (_km, kmi), w in zip(_KEYMAPS, wanted)):
             return
     except ReferenceError:                   # the keymap was replaced meanwhile: add the keys again
         pass
     _remove_keys()
-    for name, space, key, mods in _KEYS:
+    for name, space, key, mods, idname, props in wanted:
         km = kc.keymaps.new(name=name, space_type=space)
-        kmi = km.keymap_items.new(FRESING_OT_client_locked.bl_idname, key, "PRESS", **mods)
+        kmi = km.keymap_items.new(idname, key, "PRESS", **mods)
+        for k, v in props.items():
+            setattr(kmi.properties, k, v)
         _KEYMAPS.append((km, kmi))
 
 
@@ -533,6 +672,11 @@ def apply(scene, on: bool) -> None:
             ON[0] = False
             if marked():
                 _unlock_all()
+            try:                             # task 0253: what the Client view's right-click menu hid in the view
+                from . import context_menu
+                context_menu.unhide_client()
+            except Exception as exc:  # noqa: BLE001 - never stop the lock over the view
+                print("Fresing Render: parts hidden in the Client view not shown again:", exc)
         _swap_outliners(on)
         _editors(on)
         _file_menu(on)
@@ -598,9 +742,16 @@ def blender_ui(on: bool, toolbar: bool = False) -> None:
         quiet.apply(not on, toolbar=toolbar)
     except Exception as exc:  # noqa: BLE001 - never break the workspace switch over the drawing
         print("Fresing Render: quiet window not switched:", exc)
+    if not bpy.app.background:               # task 0253: Blender's keys (their poll asks ``keys_quiet``) and the
+        try:                                 # right-click menu
+            _add_keys()
+            from . import context_menu
+            context_menu.apply(not on)
+        except Exception as exc:  # noqa: BLE001 - never break the workspace switch over the keys
+            print("Fresing Render: keys / right-click menu not switched:", exc)
 
 
-CLASSES = (FRESING_OT_client_locked,)
+CLASSES = (FRESING_OT_client_locked, FRESING_OT_blender_key, FRESING_OT_key_render)
 
 
 def register() -> None:

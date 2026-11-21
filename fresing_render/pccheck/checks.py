@@ -4767,6 +4767,86 @@ def app_quiet(ctx):
     return f"the window's drawing: {shown}"
 
 
+@line("app.keys", "Blender's keys: Delete, Shift+D, Ctrl+J … do nothing outside Full access and say how to get them; F12 / "
+      "Ctrl+F12 render with the app; right-click on a part opens a short Fresing menu", "0.2.202",
+      what="Checks the list of swallowed keys (and that H, A, G, Ctrl+Z stay Blender's), that they are swallowed in "
+           "every workspace but Full access and come back in Full access, that a swallowed key changes nothing in the "
+           "project, the Client view's own message, F12 / Ctrl+F12 bound to the app's render, and the right-click "
+           "menu: Blender's own drawing found, the Fresing menu's entries on empty space")
+def app_keys(ctx):
+    import bpy
+
+    from ..blender import context_menu, lock, quiet, workspaces
+    labels = {lock.key_label(k, m) for _km, _sp, k, m, _w in lock.BLENDER_KEYS}
+    for want in ("X", "Delete", "Tab", "Shift+D", "Alt+D", "Ctrl+J", "Ctrl+P", "Ctrl+A", "M", "Shift+A", "Ctrl+H",
+                 "Ctrl+1", "Ctrl+Page Up", "I", "K"):
+        _check(want in labels, f"the key {want} is not swallowed outside Full access")
+    for keep in ("H", "A", "G", "R", "S"):
+        _check(keep not in labels, f"the key {keep} should stay Blender's")
+    app = {(k, bool(m.get("ctrl"))): op for _km, _sp, k, m, op, _p in lock.APP_KEYS}
+    _check(app.get(("F12", False)) == "fresing.key_render" and app.get(("F12", True)) == "fresing.key_render",
+           "F12 / Ctrl+F12 are not bound to the app's render")
+    cls = bpy.types.VIEW3D_MT_object_context_menu
+    _check(quiet._own(cls, quiet.draw_funcs(cls)) >= 0 or quiet.blender_draw(cls) is not None,
+           "Blender's own right-click menu is not found: the Fresing menu cannot replace it")
+    if not bpy.app.background:
+        kc = bpy.context.window_manager.keyconfigs.addon
+        items = [(kmi.idname, kmi.type) for km in kc.keymaps for kmi in km.keymap_items
+                 if kmi.idname.startswith("fresing.")]
+        _check(("fresing.key_render", "F12") in items, "the F12 key is not in the app's key map")
+        _check(("fresing.view_menu", "RIGHTMOUSE") in items, "the right mouse is not in the app's key map")
+    scene = bpy.context.scene
+    before = workspaces.name_of(scene)
+
+    def state():
+        return (sorted((o.name, o.parent.name if o.parent else "", o.hide_render) for o in scene.objects),
+                bpy.context.mode, len(bpy.data.actions), len(bpy.data.collections))
+
+    try:
+        workspaces.switch(scene, "Product design & R&D")
+        _check(lock.keys_quiet() and bpy.ops.fresing.blender_key.poll() and bpy.ops.fresing.key_render.poll(),
+               "Blender's keys are not swallowed outside Full access")
+        was, kept = state(), lock.KEPT[0]
+        for _km, _sp, k, m, _w in lock.BLENDER_KEYS:
+            bpy.ops.fresing.blender_key(key=lock.key_label(k, m))
+        _check(lock.KEPT[0] - kept == len(lock.BLENDER_KEYS), "not every Blender key was swallowed")
+        _check(state() == was, "a swallowed key changed the project")
+        context_menu.HIT.update(target="", part="")
+
+        class Layout:
+            def __init__(self):
+                self.texts, self.operator_context = [], ""
+
+            def label(self, text="", icon="NONE"):
+                pass
+
+            def separator(self, **_kw):
+                pass
+
+            def operator(self, idname, text="", icon="NONE"):
+                self.texts.append(text)
+                return type("Props", (), {})()
+
+        lay = Layout()
+        context_menu._draw(type("Menu", (), {"layout": lay})(), bpy.context)
+        _check(tuple(lay.texts) == context_menu.ON_EMPTY, f"the right-click menu on empty space shows {lay.texts}")
+        workspaces.switch(scene, "Client view")
+        sw = lock.SWALLOWED[0]
+        bpy.ops.fresing.blender_key(key="Shift+D")
+        _check(lock.SWALLOWED[0] == sw + 1, "the Client view does not give its own message for a Blender key")
+        workspaces.switch(scene, "Full access")
+        _check(not lock.keys_quiet() and not bpy.ops.fresing.blender_key.poll()
+               and not bpy.ops.fresing.key_render.poll() and not bpy.ops.fresing.view_menu.poll(),
+               "Full access does not give Blender's keys back")
+    finally:
+        workspaces.switch(scene, "Full access")
+        try:
+            workspaces.switch(scene, before if before != "Client view" else "All functions")
+        except KeyError:                               # an own workspace whose file is not here
+            workspaces.switch(scene, "All functions")
+    return f"{len(lock.BLENDER_KEYS)} Blender keys swallowed outside Full access, back in Full access; F12 = the app's render"
+
+
 @line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",
       what="Checks the Fresing menu in the top bar, the start file (welcome three times, What's new once after an "
            "update, nothing after the same version), the page that opens the user guide at a section, and that What's "

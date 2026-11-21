@@ -33,13 +33,13 @@
   },
   "copies": {
    "added": "0.2.47",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "54bbe571bac4c965"
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.202",
-   "fp": "ea7d860000622dea"
+   "changed": "0.2.203",
+   "fp": "5d5062dead716057"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -48,7 +48,7 @@
   },
   "cutaway": {
    "added": "0.2.64",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "bcb4d308f0388e28"
   },
   "cylinder": {
@@ -108,12 +108,12 @@
   },
   "looks": {
    "added": "0.2.47",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "24c41015621405be"
   },
   "marine": {
    "added": "0.2.94",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "e82e941c4dc358eb"
   },
   "marks": {
@@ -143,7 +143,7 @@
   },
   "people": {
    "added": "0.2.128",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "920a8336f62183c4"
   },
   "productvideo": {
@@ -153,7 +153,7 @@
   },
   "props": {
    "added": "0.2.124",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "f97e3ac6034ad527"
   },
   "rotary4": {
@@ -213,12 +213,12 @@
   },
   "update": {
    "added": "0.2.47",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "491378704f47758d"
   },
   "vessel": {
    "added": "0.2.65",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "b23a63e7846cdf77"
   },
   "vessel_work": {
@@ -238,7 +238,7 @@
   },
   "weather": {
    "added": "0.2.88",
-   "changed": "0.2.202",
+   "changed": "0.2.203",
    "fp": "d3ec1ec576c1fd30"
   }
  }
