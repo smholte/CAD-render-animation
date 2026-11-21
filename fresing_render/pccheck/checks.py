@@ -4487,6 +4487,58 @@ def app_editors(ctx):
     return f"your choice: Blender's editors {real['editors']}; Region Overlap {overlap}"
 
 
+@line("backups.makes_one", "Automatic backups: a copy of the open project, the keep rule, nothing else deleted",
+      "0.2.187",
+      what="Saves a backup copy of the open project into a temporary folder (the project keeps its file name and its "
+           "unsaved mark, the save handlers keep out), then runs the keep rule on made-up backups next to other files "
+           "and checks that only old backups of that project were deleted")
+def backups_makes_one(ctx):
+    import time
+    from datetime import date, datetime, timedelta
+
+    import bpy
+
+    from ..blender import backups, ui_topbar
+    from ..core import backups as core
+    _check(ui_topbar._has("fresing.backups_window"), "the operator 'Restore a backup…' is missing")
+    _check("fresing.backups_window" in ui_topbar.entries(), "Restore a backup… is not in the Fresing menu")
+    folder = os.path.join(ctx.work, "Backups é")
+    os.makedirs(folder, exist_ok=True)
+    before, dirty = bpy.data.filepath, bpy.data.is_dirty
+    path = os.path.join(folder, core.backup_name("PC check", datetime.now()))
+    t0 = time.perf_counter()
+    backups.write_copy(path)
+    secs = time.perf_counter() - t0
+    _check(os.path.isfile(path) and os.path.getsize(path) > 0, "no backup file was written")
+    _check(bpy.data.filepath == before, "the open project's file name changed with the backup")
+    _check(bpy.data.is_dirty == dirty, "the open project's unsaved mark changed with the backup")
+    _check(not backups.saving(), "the 'saving a backup' flag stayed on")
+    keep = os.path.join(ctx.work, "Keep é")
+    os.makedirs(keep, exist_ok=True)
+    today = date.today()
+    made = []
+    for i in range(12):                                # 12 backups, one every 6 hours back from now
+        t = datetime.now() - timedelta(hours=6 * i)
+        p = os.path.join(keep, core.backup_name("Mill", t))
+        with open(p, "wb") as f:
+            f.write(b"x")
+        made.append((t, p))
+    others = ["Mill.blend", "Mill.blend1", "Lathe backup 2020-01-01 10-00.blend", "notes.txt"]
+    for n in others:
+        with open(os.path.join(keep, n), "wb") as f:
+            f.write(b"y")
+    gone = core.clean(keep, "Mill", 5, 7, today)
+    left = set(os.listdir(keep))
+    _check(all(n in left for n in others), "a file that is not a backup of this project was deleted")
+    kept = core.keep(core.listing(keep, "Mill") + [core.Backup(p, t, 1, 0.0) for t, p in made if p in gone], 5, 7,
+                     today)
+    _check(not (kept & set(gone)), "a backup the keep rule keeps was deleted")
+    _check(len(core.listing(keep, "Mill")) == len(kept) and len(kept) >= 5, f"{len(kept)} backups kept")
+    ctx.metric("backup", secs, "s")
+    return f"a backup of {core.size_text(os.path.getsize(path))} in {secs:.2f} s; {len(gone)} old backups deleted, " \
+           f"{len(kept)} kept, other files left alone"
+
+
 @line("app.quiet", "A quiet window: the 3D view header shows View, shading and Make, no Object / Add menus; the "
       "splash shows Fresing's lines; Fresing > Show all of Blender brings Blender's menus back, Back to the Fresing "
       "window hides them", "0.2.184",

@@ -356,6 +356,12 @@ def s_client_view():
                   and not bpy.ops.fresing.blender_all.poll()
                   and q.FRESING_OT_blender_all.description(bpy.context, None).startswith(q.LOCKED_TEXT))
             continue
+        if idname == "fresing.backups_window":   # task 0246: no backups in the Client view – greyed, with the reason
+            ob = mod("blender.ops_backups")
+            check("Client view: Restore a backup… is greyed, with the reason", not lock.allowed(idname)
+                  and not bpy.ops.fresing.backups_window.poll()
+                  and ob.FRESING_OT_backups_window.description(bpy.context, None).startswith(ob.LOCKED_TEXT))
+            continue
         check(f"Client view: {idname} is not refused by the lock", lock.allowed(idname))
     check("Client view: a change of the project is still refused", not lock.allowed("fresing.joint_add"))
     with override():
