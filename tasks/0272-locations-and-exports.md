@@ -1,6 +1,6 @@
 # 0272 – Locations: several folders per kind (company, department, mine) + export places
 
-**Who:** worker · **Status:** open – waits for 0271 (same lane: adds its tabs) · **Branch:** `task/0272-locations`
+**Who:** worker · **Status:** open – after 0278 (both change `prefs.py`; 0271 done) · **Branch:** `task/0272-locations`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "for organisation and user set-ups you should be able to refer to
 different file locations from one of the settings pages, such as decals location, render export. For places where you
 take information from, such as STEP models, decals, materials, you should be able to select multiple file locations –
@@ -47,6 +47,26 @@ decision **0004** ("where do renders go").
    - The old **Shared library** folder becomes, on first start, a "Mine" location for every kind with today's sub-folder
      layout (`HDRI`, `Templates`, `Rule sets`, `Logos`, `Stickers`, `Brand kits`, `Lifting equipment`) – nothing a user
      has today disappears.
+   - **A ready-made "Mine" folder for every user, no set-up needed (owner 21 Nov 22:39,** screenshot of Make a crane
+     ending in "No library folder: set the library folder in Preferences first"**):** when no Shared library folder
+     was set, the app makes its own on first use – one folder per user, e.g. `Documents\Fresing Render\Library` with
+     the sub-folders above (the worker picks the place, says it in the report; OneDrive-moved Documents handled like
+     Pictures in `render.py`). Every kind works straight away; the user can change or add folders in Settings >
+     Locations. **No "No library folder" message is left anywhere** – today in `ops_lifting_make.py` ~165,
+     `lifting_rig_out.py` ~379, `core/lifting_library.py` ~576, `lifting_model/job.py` ~47 (read side + that message
+     only); any message that still names "Preferences" for a Fresing setting names **Fresing Settings** instead.
+     **When a set-up file was installed first** (an organisation's or the user's own `.frsetup`, e.g. by IT before the
+     first start – owner 21 Nov 22:45): the ready-made Mine folders are still made, but **switched off**; the user
+     gets one plain note ("Your organisation's set-up is in use. Your own folders are ready but switched off – turn
+     them on in Fresing Settings > Locations") and can switch them on per kind there. Without a set-up file they are
+     on.
+     **Existing users after the update** (like the owner) get the same: no Shared library folder set → the ready-made
+     folder is made and switched on at the first start of the new version; a Shared library folder already set → it
+     becomes their Mine location as above (nothing new made, nothing moved).
+     **Users who update count the same** (owner 21 Nov 22:48 – he has no library folder set today): after the update
+     to this version, the first start (or first use) makes the ready-made folders for him, switched on; a Shared
+     library folder he had set stays his Mine location instead. The update test (`tools/update_test_blender.py`)
+     covers both: an old install with no folder and one with a folder.
    **One file (owner 21 Nov 17:53):** "the set-up should be only one file or one zip, so a user or organisation can
    easily copy and paste one file to and from the app; updating from set-up files should be easy, also when the old
    and new file have different names." So a set-up is **one file, `<name>.frsetup`** (a zip): `setup.json` (a fixed
@@ -107,6 +127,12 @@ decision **0004** ("where do renders go").
       incl. a renamed newer file, an older file, a damaged zip, a zip with a path outside its folder
 - [ ] `core/locations.py` with tests (merge, same names, read-only, unreachable folder, relative paths, the set-up
       file's checks with plain-word errors)
+- [ ] Update from the previous version: no folder set → ready-made folders made and on; a folder set → kept as Mine
+- [ ] Update test: an older version's settings with no library folder → after the update the ready-made folder is
+      there and on; with one set → that one is Mine
+- [ ] With a set-up file installed first: Mine folders made but off, the note shown once, switch on per kind works
+- [ ] A fresh user (no settings) makes a crane, adds a logo and saves a rule set without setting any folder; no
+      "No library folder" message left (`git grep`)
 - [ ] Every listed reader goes through it; a test proves no reader still builds its own library path
 - [ ] Locations and Exports tabs; real-app test: two set-up files + a Mine folder, a decal and a rule set from each
       shown with badges; an unreachable folder does not slow the start (number in the report)
