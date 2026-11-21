@@ -635,7 +635,7 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     hung = {hh: g[2] for hh, g in groups.items()}
     r_min = min_bend(item)
     for hh, (idx, _a, hr) in groups.items():            # what the bight on the seabed must keep to (task 0248)
-        hr["r_min"] = np.full(len(idx), r_min)
+        hr.update(r_min=np.full(len(idx), r_min))
         hr.update(_paths().let_go_keep(scene, item, hh, idx, first))
         hr["bight"] = C.bight(hr)
     # how many points the hanging part needs (one count for all moments)
