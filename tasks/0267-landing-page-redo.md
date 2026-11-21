@@ -1,6 +1,6 @@
 # 0267 – Landing page redo: picture and video rows, "Turn it yourself" row, "Who it is for" as a band + numbered cards, a lighter fresing.nl-style overhaul, a "How it works" page, a tool switcher
 
-**Who:** worker · **Status:** running · **Branch:** `task/0267-landing-page-redo`
+**Who:** worker · **Status:** done · **Branch:** `task/0267-landing-page-redo`
 **Started by:** lead, 21 Nov 2026 (owner 16:41–17:09: "I want to redo the page"; picks from the lead's mock-ups: layout
 H's dark band with D's numbered cards, full text kept; the rest of the page "a little overhaul, but I like the lighter
 look for this website, so not as much dark as fresing.nl"; "How it works" as its own page now; the Fresing Viewer page
@@ -103,19 +103,19 @@ https://smholte.github.io/house-planner/).
 
 ## Done when
 
-- [ ] The three pictures are gone from the page, media.json and `site/media/`; the three "redo" files are still there
-- [ ] Pictures row and videos row scroll left / right (swipe, trackpad, Shift + wheel, keys, ‹ › arrows), snap, work
+- [x] The three pictures are gone from the page, media.json and `site/media/`; the three "redo" files are still there
+- [x] Pictures row and videos row scroll left / right (swipe, trackpad, Shift + wheel, keys, ‹ › arrows), snap, work
       without script; the same row shows "Turn it yourself"
-- [ ] "Who it is for" = dark band + three numbered cards as above; phone layout stacks
-- [ ] The lighter overhaul (labels, numbered "What it does", cut-corner button, spec strip); the page stays light
-- [ ] "How it works" page built, in the menu, its links checked
-- [ ] Tool switcher with House Planner in "More tools"; the tool list in one data file
-- [ ] `tests/test_site.py` updated (rows from media.json, deleted files not referenced, the new page built, the tool
+- [x] "Who it is for" = dark band + three numbered cards as above; phone layout stacks
+- [x] The lighter overhaul (labels, numbered "What it does", cut-corner button, spec strip); the page stays light
+- [x] "How it works" page built, in the menu, its links checked
+- [x] Tool switcher with House Planner in "More tools"; the tool list in one data file
+- [x] `tests/test_site.py` updated (rows from media.json, deleted files not referenced, the new page built, the tool
       list); `python3 tools/build_site.py` builds; full suite passes
-- [ ] Screenshots at 2560 px, 1440 px and a phone width of the page and the new page, checked by eye and by a second
+- [x] Screenshots at 2560 px, 1440 px and a phone width of the page and the new page, checked by eye and by a second
       reviewer that did not write the page (fresh subagent) – rows, arrows at the ends, the band, the cards
-- [ ] After the merge: the live page checked (GitHub Pages deploy), noted in the report
-- [ ] Report below filled in
+- [x] After the merge: the live page checked (GitHub Pages deploy), noted in the report – deploy confirmed by GitHub; the page itself could not be opened from the web machine (see report)
+- [x] Report below filled in
 
 ## Not in this task
 
@@ -165,7 +165,14 @@ the app and the user guide's content.
   arrow covered the first picture (now hidden at an end), the two drawings' labels. Left as is: a third picture half
   visible at the right edge on desktop (on purpose – shows the row goes on; snapping keeps the left edge whole) and the
   muted top video keeps playing when a row video starts.
-- GitHub runs: see below.
+- GitHub: 3 full runs. Run 1 (44925808763) red only because the PC check (all its lines OK) ran past its 15-min box
+  on a slow runner (scenes and pccheck-b were SLOW in the same run); nothing of the app changed. Run 2 (44927846911)
+  green after merging main; main had moved by code meanwhile (0.2.197), so run 3 (44930151601) green after one more
+  merge, then `main` fast-forwarded to cb79ec6.
+- Live page: the "Landing page" workflow's deploy first failed on GitHub's side ("Found 0 artifact(s)" right after a
+  good upload); re-run of that job green. GitHub's deployment record: environment github-pages, commit cb79ec6, state
+  success. This web machine cannot open smholte.github.io (the proxy refuses it), so the live page was not looked at
+  from here – the owner sees it at https://smholte.github.io/CAD-render-animation/ (Ctrl+F5 once).
 
 **Open points / follow-up tasks:**
 - The new renders of 0268 go in with the take-in (a media.json line each; no code change).
