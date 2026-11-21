@@ -1464,6 +1464,28 @@
       4.3
     ]
   },
+  "reeving": {
+    "units": "mm",
+    "rope_d": 14.0,
+    "head_r": 62.4,
+    "block_r": 53.0,
+    "head_pitch": 42.0,
+    "block_pitch": 42.0,
+    "block_above_hook": 567.3,
+    "drum": {
+      "centre": [
+        -500.0,
+        0.0,
+        2734.0
+      ],
+      "r": 150.0,
+      "w": 300.0,
+      "joint": "Slew"
+    },
+    "k": 1.04,
+    "bearings": "roller",
+    "source": "sheave friction factor K = 1.04 (roller bearings), API RP 9B"
+  },
   "sample": true,
   "source": "invented sample – Fresing Render",
   "outriggers": {

@@ -4492,8 +4492,75 @@ message gives the hook height from the crane's base ("hook 7.02 m below the cran
 *"SAMPLE – not for real lifts. Invented values to show how the app works. Enter the chart of your real crane."*
 Before you plan a real lift, copy the class nearest your crane into your library and enter its real chart.
 
-Rigging (slings, shackles, the load hanging under the hook), the lift path with checks along it, ground pressure and
-the printed plan come in later versions.
+The box also shows the **line pull**: the pull in the hoist rope at the winch for the gross load on the crane's falls
+(check C10, below), against the winch's maximum line pull from the crane's file.
+
+The lift path with checks along it, ground pressure and the printed plan come in later versions.
+
+<a id="lifting-rigging"></a>
+### Rigging: lift points, slings, shackles, spreader
+
+<img class="panel" src="img/panel_8_lifting_rigging.png" alt="Rigging: two lift points, a chain sling and shackles, the load on the hook with each leg's force and the checks">
+
+8 Lifting plan > **Rigging** says how the active load is lifted.
+
+1. **Lift points.** **Find lift points** puts one on every part of the load named like a lift point – a padeye, a
+   lifting lug or eye, the top corner castings of a container – in a padeye's hole, on a casting's top. **Add lift
+   point** lets you click them on the load yourself: a click in a hole puts the point on the hole's axis (where the
+   shackle's pin goes); Esc when you are done. The points are lettered A, B, C …; each has its own **Leg** length
+   (0 = the sling set's). The × removes one.
+2. **Gear.** **Sling**: chain (grade 8), wire rope or round slings (colour by WLL), 1, 2 or 4 legs, with their WLL
+   per leg. **Shackles**: a bow shackle at each lift point (2–150 t). **Spreader**: none, a spreader beam (SB-10,
+   SB-25, SB-50) or the lifting frame LF-20 for a 20 ft container – then two **Top legs** run from the hook to it and a
+   leg from each of its bottom padeyes down to a lift point. **Leg length**: hook (or the spreader's padeye) to the
+   shackle's pin; longer legs stand steeper and carry less each. With 3 or 4 legs, **3 / 4 legs** says how they are
+   planned to share the load (C3): *Two legs carry* (a rigid load, the usual rule), *Equal share* (only with
+   equalisers) or *Share x 1.25* (offshore, DNV). Gear not picked when you hang: the smallest built-in chain sling and
+   shackle that carry the legs' forces are picked and shown. The built-in gear is invented SAMPLE gear in usual size
+   classes; your own slings, shackles and spreaders are files like your cranes in the library folder "Lifting
+   equipment".
+3. The **rigging mass** (slings, shackles, the spreader) is added to the gross load (Load and Hook & capacity).
+
+<a id="lifting-hang"></a>
+### Hang on the hook, Set down
+
+**Hang on the hook** hangs the load on the active crane's hook. The app works out where it comes to rest: its
+**centre of gravity straight under the hook**, every leg at its length or slack. A load whose CoG is not in the
+middle of its lift points **tilts** until it is – the box says by how much. It then follows the hook like a part of the
+crane: Hook to here, a crane pose, a joint you move, a Build, the render queue.
+
+The box lists each leg: its **force** in t and its **angle** from vertical (a magnifier shows that leg in the 3D
+view), "slack" for a leg that carries nothing, and with 3 or 4 legs the force it is **planned for** (the C3 rule). The
+checks below it, green / amber / red against your rigging limit (amber from 90 % of a WLL):
+
+- **C2** two legs: each leg against its WLL (statics in the plane of the legs).
+- **C3** three or four legs: the largest leg force by the rule you picked, and the sling set's rating (2.1 x the leg
+  WLL for legs up to 45° from vertical, 1.5 x up to 60°, not rated above 60°).
+- **C4** each shackle (and with a spreader its WLL and each bottom leg).
+
+Plain words when something is odd: a slack leg, a leg too short to reach its point, a load that hangs on one line
+("turns freely about the line between its lift points"), and a **CoG above the lift points** of a two-point lift:
+"The load would roll over" – lift it at points above its CoG, or with a spreader frame.
+
+**Set down** takes the load off the hook where it is now (lower the hook onto the ground first): it stays there, the
+slings and the spreader are taken off. **Remove** takes the rigging off: the parts stand where they stood before; the
+lift points and the gear stay. When you change the mass, the gear or the lift points of a hung load, the box says so:
+**Hang on the hook again**.
+
+<a id="lifting-reeve"></a>
+### The hoist rope in its falls
+
+A crane you place gets its hoist rope **reeved**: from the winch drum up to the boom head, over the head's lead
+sheave, down and up through the hook block's sheaves to the **dead end** – on the head when the falls are even, on the
+block when they are odd. The AT-100's hook block hangs in 8 falls over 4 head and 4 block sheaves. Raising the hook
+1 m winds 8 m onto the drum, which turns as the joint "<crane> · Hoist drum" (4 Motion > Joints), layer by layer.
+Cranes placed with an older version keep their rope in one piece until you press **Reeve the rope** under Equipment.
+
+**Line pull (C10)** = gross load / (falls x E). E is the reeving efficiency of API RP 9B (14th ed., 2015):
+E = (K^N − 1) / (K^S · N · (K − 1)) with N falls, S sheaves the rope runs over (here as many as the falls) and the
+sheave friction factor K = 1.04 for roller bearings (1.09 for plain bushings). Example: 10 t on 8 falls: E = 84.2 %,
+line pull 1.49 t – 22.9 % of the AT-100's winch (6.5 t). It leaves out the rope's own weight, acceleration and the
+drum's layers.
 
 <a id="lifting-own-crane"></a>
 ### Set up your own crane

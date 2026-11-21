@@ -295,7 +295,7 @@ def s_placed():
     check("a click puts it down where the ray meets the ground", np.linalg.norm(got - want) < 0.001
           and c.name == "AT-40", f"{np.linalg.norm(got - want) * 1000:.2f} mm")
     check("its joints carry its name", all(j.name.startswith("AT-40 · ") for j in L().own_joints(sc, c))
-          and len(L().own_joints(sc, c)) == 19)
+          and len([j for j in L().own_joints(sc, c) if not j.name.endswith(" · Hoist drum")]) == 19)   # 0232: + drum
     err = hook_errors(c)
     check("AT-40: every pose of its file puts the hook block where its maker's kinematics say", err < 5.0,
           f"{err:.3f} mm")

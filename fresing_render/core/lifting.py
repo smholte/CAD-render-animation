@@ -1,4 +1,4 @@
-"""Lifting plans (task 0182, Lifting lane L1): the checks C1–C9, the load chart and the words – plain Python.
+"""Lifting plans (task 0182, Lifting lane L1): the checks C1–C10 (C10: task 0232), the load chart and the words – plain Python.
 
 Study 0180 section 3 has the formulas and the worked cases the tests use; section 8 the words. No Blender, no NumPy:
 every later Lifting task (equipment library, cranes, rigging, the lift path, the printed plan) calls these.
@@ -135,6 +135,7 @@ LEAVES_OUT = {
     "C7": "Attachments (their weight and offset need the maker's re-rating).",
     "C8": "The current DNV-ST-N001 edition's values (to be checked), dynamic analysis.",
     "C9": "Hinge and gripper structure, pile ovalisation, dynamics.",
+    "C10": "The rope's own weight, acceleration, the drum's layers and fleet angle; the rope's strength and wear.",
 }
 
 
@@ -561,6 +562,11 @@ MAX_LEG_ANGLE = 60.0  # degrees to vertical: above it a sling leg is not rated
 SIDE_LOAD_ANGLE = 5.0  # degrees out of a shackle's bow plane: flagged
 
 
+def _cap(item: str) -> str:
+    """'sling leg A' -> 'Sling leg A' (str.capitalize would write 'Sling leg a')."""
+    return item[:1].upper() + item[1:]
+
+
 def wll_use(force: float, wll: float | None, item: str = "sling", angle: float | None = None, mode_factor: float = 1.0,
             side_angle: float | None = None, limits: Limits = DEFAULT_LIMITS) -> Result:
     """C4: use = force / (WLL × mode factor · g); a leg more than 60° from vertical is red; a shackle loaded more
@@ -577,15 +583,15 @@ def wll_use(force: float, wll: float | None, item: str = "sling", angle: float |
                      f"({NOT_CHECKED_BY_APP}).")
     inputs = dict(force=force, wll=wll, item=item, angle=angle, mode_factor=mode_factor, side_angle=side_angle)
     if wll is None:
-        return _result("C4", f"{item.capitalize()} WLL", "force / (WLL × mode factor)", inputs, value=force,
+        return _result("C4", f"{_cap(item)} WLL", "force / (WLL × mode factor)", inputs, value=force,
                        amber_at=limits.rigging, floor=floor, notes=notes,
-                       what=f"{item.capitalize()}: {_ft(force)}, no WLL entered")
+                       what=f"{_cap(item)}: {_ft(force)}, no WLL entered")
     rating = wll * mode_factor
     use = force / (rating * G)
-    what = f"{item.capitalize()}: {_ft(force)} on a WLL of {_t(rating)}"
+    what = f"{_cap(item)}: {_ft(force)} on a WLL of {_t(rating)}"
     if mode_factor != 1.0:
         what += f" ({_t(wll)} × mode factor {mode_factor:g})"
-    return _result("C4", f"{item.capitalize()} WLL", "force / (WLL × mode factor)", inputs, value=force,
+    return _result("C4", f"{_cap(item)} WLL", "force / (WLL × mode factor)", inputs, value=force,
                    limit=rating, use=use, amber_at=limits.rigging, floor=floor, notes=notes, what=what)
 
 
@@ -1037,3 +1043,45 @@ def upending(items, hook_s: float, angle: float, rope=(0.0, 1.0), off_hinge: boo
         return _result("C9", "Upending", formula, inputs, value=f, details=details, notes=notes, what=what)
     return _result("C9", "Upending", formula, inputs, value=f, limit=capacity, use=f / (capacity * G),
                    amber_at=limits.crane, details=details, notes=notes, what=f"{what} against {_t(capacity)}")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# C10 – hoist line pull (task 0232)
+
+K_ROLLER = 1.04    # sheave friction factor, roller (anti-friction) bearings – API RP 9B (14th ed., 2015)
+K_PLAIN = 1.09     # sheave friction factor, plain (bronze) bushings – the same source
+REEVING_SOURCE = ("API RP 9B (14th ed., 2015): reeving efficiency E = (K^N − 1) / (K^S · N · (K − 1)), N parts of line, "
+                  "S sheaves, sheave friction factor K = 1.04 roller bearings, 1.09 plain bushings")
+
+
+def reeving_efficiency(falls: int, sheaves: int | None = None, k: float = K_ROLLER) -> float:
+    """E = (K^N − 1) / (K^S · N · (K − 1)): the share of the ideal pull W / N the hoist line gives when the rope runs
+    over S sheaves (S = N when the line from the drum comes over the head's lead sheave, as on the app's cranes)."""
+    n = int(falls)
+    if n < 1:
+        raise ValueError("The rope needs at least one fall.")
+    s = n if sheaves is None else int(sheaves)
+    if k <= 1.0 + EPS:
+        return 1.0
+    return (k ** n - 1.0) / (k ** s * n * (k - 1.0))
+
+
+def hoist_line_pull(gross: float, falls: int, max_line_pull: float | None = None, sheaves: int | None = None,
+                    k: float = K_ROLLER, limits: Limits = DEFAULT_LIMITS) -> Result:
+    """C10: line pull = gross / (falls × E) (kg as a pull; E: ``reeving_efficiency``), against the winch's maximum
+    line pull from the crane's file (kg); amber from the crane limit. No maximum entered -> not checked."""
+    e = reeving_efficiency(falls, sheaves, k)
+    pull = gross / (int(falls) * e)
+    inputs = dict(gross=gross, falls=int(falls), sheaves=int(falls) if sheaves is None else int(sheaves), k=k,
+                  max_line_pull=max_line_pull)
+    details = dict(efficiency=e, pull=pull, ideal=gross / int(falls), source=REEVING_SOURCE)
+    formula = "line pull = gross / (falls × E), E = (K^N − 1) / (K^S·N·(K − 1))"
+    what = f"Gross {_t(gross)} on {int(falls)} falls (E {e * 100:.1f} %): line pull {_t(pull)}"
+    if max_line_pull is None:
+        return _result("C10", "Hoist line pull", formula, inputs, value=pull, details=details,
+                       amber_at=limits.crane, what=what + ", no maximum line pull entered")
+    if not (_finite(max_line_pull) and max_line_pull > 0):
+        raise ValueError("The maximum line pull must be a number above 0.")
+    return _result("C10", "Hoist line pull", formula, inputs, value=pull, limit=max_line_pull,
+                   use=pull / max_line_pull, amber_at=limits.crane, details=details,
+                   what=what + f" on a winch of {_t(max_line_pull)}")

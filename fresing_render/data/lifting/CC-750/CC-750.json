@@ -1634,6 +1634,28 @@
     ],
     "jib_charts_boom_angle": 80.0
   },
+  "reeving": {
+    "units": "mm",
+    "rope_d": 30.0,
+    "head_r": 428.7,
+    "block_r": 364.4,
+    "head_pitch": 90.0,
+    "block_pitch": 90.0,
+    "block_above_hook": 2117.9,
+    "drum": {
+      "centre": [
+        -2580.0,
+        0.0,
+        2861.1
+      ],
+      "r": 616.0,
+      "w": 2520.0,
+      "joint": "Slew"
+    },
+    "k": 1.04,
+    "bearings": "roller",
+    "source": "sheave friction factor K = 1.04 (roller bearings), API RP 9B"
+  },
   "sample": true,
   "source": "invented sample – Fresing Render",
   "tracks": {

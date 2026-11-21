@@ -167,6 +167,40 @@ def hook_blocks(name) -> list:
              "wll": wll}]
 
 
+def reeving(name) -> dict:
+    """Task 0232: the hoist rope's reeving (mm, the rig's units): the rope's middle round a head and a block sheave,
+    their pitch across the axle, the rope's diameter (from the winch's line pull: a running rope's breaking force
+    about 4.5 x the pull, 0.86 kN per mm² of d²), where the block's sheave axle sits above the hook point, and the
+    winch drum (centre in the CAD pose, barrel radius, width; it turns with the slew). The drum of a crawler and a
+    knuckle-boom crane is not in their model: the app draws it there."""
+    import math as _m
+    c = _cls(name)
+    L = C.layout(c)
+    p = L.pts
+
+    def middle(r):
+        return r - 1.2 * max(6.0, 0.06 * r)
+    rs = p["hook_sheave_r"] if c.kind == "CC" else p["sheave_r"]
+    d = 2.0 * _m.ceil(_m.sqrt(4.5 * float(c.line_pull) * 9.80665 / 0.86) / 2.0)
+    head_r = middle(rs)
+    block_r = min(0.85 * head_r, 0.26 * c.block_h)
+    if c.kind == "AT":
+        wx, wz, wr = p["winch"]
+        drum = {"centre": [round(wx, 1), 0.0, round(wz, 1)], "r": round(wr, 1), "w": round(c.boom_w + 20.0, 1)}
+    elif c.kind == "CC":
+        wr = 0.22 * c.boom_w
+        drum = {"centre": [round(p["xp"] - 1.3 * c.boom_w - wr, 1), 0.0, round(p["turn_top"] + wr + 300.0, 1)],
+                "r": round(wr, 1), "w": round(0.9 * c.boom_w, 1)}
+    else:
+        p1 = p["p1"]
+        drum = {"centre": [round(p1[0] - 500.0, 1), 0.0, round(p1[2] - 300.0, 1)], "r": 150.0, "w": 300.0}
+    drum["joint"] = "Slew"
+    return {"units": "mm", "rope_d": d, "head_r": round(head_r, 1), "block_r": round(block_r, 1),
+            "head_pitch": round(3.0 * d, 1), "block_pitch": round(3.0 * d, 1),
+            "block_above_hook": round(0.7564 * c.block_h, 1), "drum": drum, "k": 1.04, "bearings": "roller",
+            "source": "sheave friction factor K = 1.04 (roller bearings), API RP 9B"}
+
+
 def data(name, cogs: dict, step: str | None = None, cls_word: str | None = None) -> dict:
     """The whole equipment file of a class; ``cogs`` = group -> [x, y, z] m (from the maker's solids). A made crane
     (task 0204) passes its dataclass, its STEP file name and its size-class word ('AT-120')."""
@@ -185,6 +219,7 @@ def data(name, cogs: dict, step: str | None = None, cls_word: str | None = None)
         "charts": K.charts_of(c),
         "hook_blocks": hook_blocks(name),
         "limits": limits(name),
+        "reeving": reeving(name),
         "sample": True,
         "source": SOURCE,
     }

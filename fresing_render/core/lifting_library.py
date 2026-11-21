@@ -68,6 +68,8 @@ FIELDS = (
     "format", "format_version", "kind", "class", "name", "units", "mass", "cog", "rig", "charts", "hook_blocks",
     "outriggers", "tracks", "axles", "wll", "limits", "sample", "derived_from", "source", "made_from",
     "footprint",                 # task 0203: an own crane without outriggers or tracks – its support area (m)
+    "reeving",                   # task 0232: the hoist rope's falls over head and block sheaves, the winch drum (mm)
+    "rigging",                   # task 0232: a sling set's, shackle's or spreader's own numbers (core/lifting_gear)
 )
 SAMPLE_STILL = ("These are still the sample's charts: the SAMPLE mark stays. Enter the chart of your real equipment "
                 "first.")
@@ -317,7 +319,7 @@ def validate(data, builtin: bool = False) -> Item:
         if not isinstance(hb, list) or not all(isinstance(b, dict) and _num(b.get("mass")) and b["mass"] >= 0
                                                for b in hb):
             p.append("'hook_blocks' must be a list of blocks, each with a mass of 0 or more.")
-    for k in ("rig", "limits", "outriggers", "tracks", "axles"):
+    for k in ("rig", "limits", "outriggers", "tracks", "axles", "reeving", "rigging"):
         if k in data and not isinstance(data[k], (dict, list)) and data[k] is not None:
             p.append(f"'{k}' must be a table (a JSON object or list).")
     if "sample" in data and not isinstance(data["sample"], bool):

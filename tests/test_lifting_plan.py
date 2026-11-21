@@ -83,7 +83,8 @@ def test_place_rigs_the_crane_as_its_maker_says(name):
     c = BL.place(bpy.context, _item(name), (12.0, -3.0, 0.0), math.radians(30))
     assert c.name == name and c.builtin and c.root is not None and c.chart_hash.startswith("sha256:")
     own = BL.own_joints(sc, c)
-    assert len(own) == len(BL.item_at(c.item_path).data["rig"]["joints"])
+    # + the drum joint of the reeved rope (task 0232)
+    assert len(own) == len(BL.item_at(c.item_path).data["rig"]["joints"]) + 1 and c.reeved
     assert all(j.name.startswith(name + " · ") for j in own)
     M = np.array(c.root.matrix_world)
     assert np.allclose(M[:3, 3], (12.0, -3.0, 0.0), atol=1e-6)

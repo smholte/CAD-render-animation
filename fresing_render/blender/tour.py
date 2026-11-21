@@ -3842,8 +3842,8 @@ def _skid_load(b: Build):
     return ld
 
 
-@tour_set("lifting", "Lifting plan – crane, load and hook", "test_loads.step", added="0.2.156",
-          changed="0.2.176")
+@tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
+          changed="0.2.192")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -3864,6 +3864,83 @@ def build_lifting(b: Build):
     _update()
     _camera(b, LIFT_VIEW, "Tour lifting hook", lens=35.0, points=_lifting_points(sc, LIFT_LOAD))
     _shot(b, "@lifting_hook")
+    # task 0232: the rigging – the skid on a 4-leg chain set (its CoG off the middle: it tilts, the legs nearest the
+    # CoG carry most), the empty container on the LF-20 lifting frame; the AT-40's rope reeved in its 4 falls
+    ct = _container_load(b)
+    sc.fresing.lifting.load_index = 0
+    _rig_up(sc, ld, ct)
+    _lift_rig(sc)
+    _update()
+    _camera(b, LIFT_VIEW, "Tour lifting rig", lens=35.0, points=_lifting_points(sc, LIFT_LOAD))
+    _shot(b, "@lifting_rig")
+    _lift_spreader(sc)
+    _update()
+    _camera(b, LIFT_VIEW, "Tour lifting spreader", lens=35.0, points=_lifting_points(sc, LIFT_CONTAINER))
+    _shot(b, "@lifting_spreader")
+    _lift_rest(sc)
+    sc.fresing.lifting.load_index = 0
+
+
+LIFT_CONTAINER, LIFT_CONTAINER_MASS = "20 FT CONTAINER.ASM", 2.3     # t: an empty 20 ft container (tare, estimate)
+SKID_LEGS, SKID_CLEAR = 4.0, 4.6            # m: the skid's chain legs; the hook that far above its top
+CONTAINER_LEGS, FRAME_LEGS, CONTAINER_CLEAR = 1.2, 3.0, 5.6
+
+
+def _container_load(b: Build):
+    from . import build, lifting, logic
+    part = next(o for o in logic.descendants(build.model_roots(b.scene)[0])
+                if o.get(build.PROP_NAME) == LIFT_CONTAINER)
+    ld = lifting.new_load(b.scene, [part], "Container")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", LIFT_CONTAINER_MASS, "ESTIMATE"
+    return ld
+
+
+def _rig_up(scene, skid, ct) -> None:
+    """The gear of both loads (picked as a planner would; Hang picks nothing then)."""
+    from . import lifting_rig
+    lifting_rig.find_named(scene, skid)
+    skid.sling, skid.shackle = "builtin:CH8-4L-13", "builtin:SH-4.75"
+    skid.leg_length = SKID_LEGS
+    lifting_rig.find_named(scene, ct)
+    ct.sling, ct.shackle, ct.spreader = "builtin:CH8-2L-10", "builtin:SH-3.25", "builtin:LF-20"
+    ct.leg_length, ct.top_length = CONTAINER_LEGS, FRAME_LEGS
+
+
+def _lift_loads(scene):
+    from . import lifting
+    L = lifting.plan(scene)
+    return {ld.name: ld for ld in L.loads}
+
+
+def _lift_rest(scene) -> None:
+    """Every load of the set back on the ground, unrigged (the stops before the rigging, and before each hang)."""
+    from . import lifting_rig
+    for ld in _lift_loads(scene).values():
+        if ld.rig_state != "NONE":
+            lifting_rig.remove(scene, ld)
+    scene.fresing.lifting.load_index = 0
+
+
+def _hang_one(scene, name: str) -> None:
+    from . import lifting, lifting_rig
+    _lift_rest(scene)
+    L = lifting.plan(scene)
+    ld = _lift_loads(scene)[name]
+    L.load_index = list(L.loads).index(ld)
+    c = L.cranes[0]
+    p = lifting.above_load(scene, ld)
+    p[2] += {"Pump skid": SKID_CLEAR, "Container": CONTAINER_CLEAR}[name] - ld.clearance   # the legs' room
+    a = lifting.hook_to(scene, c, p, ld)
+    _check(a.ok, f"Hook to here above the {name.lower()}: {a.reason}")
+    lifting_rig.hang(scene, c, ld)
+
+
+def _lift_rig(scene) -> None:
+    _hang_one(scene, "Pump skid")
+
+
+def _lift_spreader(scene) -> None:
+    _hang_one(scene, "Container")
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
@@ -3980,7 +4057,7 @@ def _lifting_points(scene, only: str = ""):
     return np.array(pts)
 
 
-def _cog_in_view(scene, with_hook: bool = False) -> str:
+def _cog_in_view(scene, with_hook: bool = False, load=None) -> str:
     """Task 0231: what the camera must show at a Lifting stop – the load's CoG is in the picture and nothing but the
     load itself is between the camera and the CoG (a ray from the camera to the CoG; study 0224 found the crane's own
     carrier deck in the way at every Lifting stop, which no check had caught); with ``with_hook`` the hook block is in
@@ -3993,7 +4070,7 @@ def _cog_in_view(scene, with_hook: bool = False) -> str:
     L = lifting.plan(scene)
     if not L.loads:
         raise ValueError("no load in the lifting plan")
-    ld = L.loads[0]
+    ld = load or L.loads[0]
     cam = scene.camera
     if cam is None:
         raise ValueError("the stop has no camera")
@@ -4007,7 +4084,8 @@ def _cog_in_view(scene, with_hook: bool = False) -> str:
     dist = ray.length
     dg = bpy.context.evaluated_depsgraph_get()
     ok, loc, _n, _i, ob, _m = scene.ray_cast(dg, eye, ray.normalized(), distance=dist + 0.01)
-    if ok and ob is not None and ob.name not in mine and (loc - eye).length < dist - 0.02:
+    drawn = ob is not None and (ob.get("fr_rigging") or ob.get("fr_reeved"))     # the app's slings and rope (0232)
+    if ok and ob is not None and ob.name not in mine and not drawn and (loc - eye).length < dist - 0.02:
         raise ValueError(f"'{ob.get(build_mod().PROP_NAME, ob.name)}' is between the camera and the CoG "
                          f"({(loc - eye).length:.1f} of {dist:.1f} m from the camera)")
     uv = world_to_camera_view(scene, cam, cog)
@@ -4044,6 +4122,28 @@ def _check_lifting_cog(scene):
 def _check_lifting_hook(scene):
     from . import lifting
     return lifting.check_example(scene) + "; " + _cog_in_view(scene, with_hook=True)
+
+
+def _check_lifting_rig(scene):
+    from . import lifting, lifting_rig, lifting_rope
+    L = lifting.plan(scene)
+    ld = _lift_loads(scene)["Pump skid"]
+    r = lifting_rig.result(ld)
+    _check(len(ld.points) == 4 and r is not None and r["tilt"] > 1.0, "the skid does not hang tilted on 4 legs")
+    near = max(r["legs"], key=lambda lg: lg["force"])
+    msg = lifting_rig.check_hang(scene, L.cranes[0], ld)
+    return (msg + f"; most: leg {near['name']}; " + lifting_rope.check(scene, L.cranes[0]) + "; "
+            + _cog_in_view(scene, with_hook=True, load=ld))
+
+
+def _check_lifting_spreader(scene):
+    from . import lifting, lifting_rig
+    L = lifting.plan(scene)
+    ld = _lift_loads(scene)["Container"]
+    r = lifting_rig.result(ld)
+    _check(r is not None and len(r["legs"]) == 6, "the container does not hang on the frame (2 top + 4 legs)")
+    _check(all(c["status"] != "red" for c in r["checks"]), "a rigging check is red")
+    return lifting_rig.check_hang(scene, L.cranes[0], ld) + "; " + _cog_in_view(scene, load=ld)
 
 LOOK, MOTION, MACH, OUT = GROUPS
 
@@ -4272,16 +4372,33 @@ stop("lifting_place", MOTION, "lifting", "Lifting: a crane placed",
      "On a quayside yard – an IBC on its pallet, a pump skid and a 20 ft container – stands the built-in AT-40 sample "
      "crane, placed from 8 Lifting plan > Equipment and set up on its four outriggers, each on a timber crane mat "
      "(pose 'Set up': beams out, pads down). Its joints carry its name ('AT-40 · Slew', 'AT-40 · Luff' …); the panel "
-     "shows the planning-aid line and the SAMPLE line.", where="8 Lifting plan > Equipment", since="0.2.156", check=_check_lifting_place)
+     "shows the planning-aid line and the SAMPLE line.", where="8 Lifting plan > Equipment", since="0.2.156", check=_check_lifting_place,
+     setup=_lift_rest)
 stop("lifting_cog", MOTION, "lifting", "Lifting: the load and its CoG",
      "The pump skid is the load (8 Lifting plan > Load: 6 t, an invented estimate). The CoG symbol – a circle in "
      "black and white quarters, 'CoG' next to it – sits inside the skid, off the middle of its frame because the pump "
-     "and the motor stand on one side, drawn on top of everything; the panel says '(computed)'.", where="8 Lifting plan > Load", since="0.2.156", check=_check_lifting_cog)
+     "and the motor stand on one side, drawn on top of everything; the panel says '(computed)'.", where="8 Lifting plan > Load", since="0.2.156", check=_check_lifting_cog,
+     setup=_lift_rest)
 stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "Above the skid: the AT-40 slewed, luffed and telescoped so its hook block hangs plumb 2 m above the skid's "
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
-     "radius), the gross load (6 t + the 0.45 t hook block) and the crane use in % with 'Within entered limits'.",
-     where="8 Lifting plan > Hook & capacity", since="0.2.156", check=_check_lifting_hook)
+     "radius), the gross load (6 t + the rigging picked for it + the 0.45 t hook block), the crane use in % with "
+     "'Within entered limits' and the hoist line pull on its 4 falls.",
+     where="8 Lifting plan > Hook & capacity", since="0.2.156", changed="0.2.192", check=_check_lifting_hook,
+     setup=_lift_rest)
+stop("lifting_rig", MOTION, "lifting", "Lifting: skid on a 4-leg sling",
+     "The pump skid hangs on the AT-40's hook on a 4-leg grade 8 chain set (4 m legs, a 4.75 t bow shackle in each "
+     "padeye – found by their names). Its CoG is off the middle (pump and motor on one side), so it hangs tilted a "
+     "few degrees with the CoG straight under the hook; 8 Lifting plan > Rigging lists each leg's angle and force – "
+     "the legs nearest the CoG carry most – and the checks: sling legs (two legs carry, C3) and each shackle (C4). "
+     "The hoist rope runs in its 4 falls over 2 head and 2 block sheaves to the winch drum.",
+     where="8 Lifting plan > Rigging", since="0.2.192", check=_check_lifting_rig, setup=_lift_rig)
+stop("lifting_spreader", MOTION, "lifting", "Lifting: container on a frame",
+     "The empty 20 ft container (2.3 t) hangs under the LF-20 lifting frame: two top legs from the hook to the "
+     "frame, four short legs straight down to its top corner castings (found by name). Rigging shows the six legs "
+     "– the four bottom ones nearly vertical – and the checks: the top legs (C2), the frame's WLL and each bottom leg "
+     "and shackle (C4); none red.",
+     where="8 Lifting plan > Rigging", since="0.2.192", check=_check_lifting_spreader, setup=_lift_spreader)
 
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "

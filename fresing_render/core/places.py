@@ -74,6 +74,7 @@ PLACES = {
     # 8 Lifting plan (task 0201), in the order the work goes
     "FRESING_PT_lifting_equipment": ("FRESING_PT_lifting", "Equipment"),
     "FRESING_PT_lifting_load": ("FRESING_PT_lifting", "Load"),
+    "FRESING_PT_lifting_rigging": ("FRESING_PT_lifting", "Rigging"),
     "FRESING_PT_lifting_hook": ("FRESING_PT_lifting", "Hook & capacity"),
 }
 

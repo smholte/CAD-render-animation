@@ -472,6 +472,11 @@ def place(context, path: str, location=(0.0, 0.0, 0.0), heading: float = 0.0, na
     root = import_model(context, item.model, up=str((item.data.get("rig") or {}).get("up_axis", "Z")))
     c = rig_model(context, root, item, name)
     place_at(c, location, heading)
+    try:                                       # task 0232: a new crane's rope runs in its falls
+        from . import lifting_rope
+        lifting_rope.reeve(context.scene, c)
+    except Exception as exc:  # noqa: BLE001 - the one-piece rope stays; Reeve the rope says why
+        print("Fresing Render (lifting): the rope stays in one piece:", exc)
     return c
 
 
@@ -496,6 +501,9 @@ def remove(scene, crane) -> dict:
     gone = {"cables": 0, "tracks": 0, "cylinders": 0, "poses": 0, "joints": 0, "objects": 0}
     if animation.has_keys(scene):
         animation.clear_keys(scene)
+    from . import lifting_rig, lifting_rope           # task 0232: a load on its hook is set down, its rope goes
+    lifting_rig.on_crane_removed(scene, crane)
+    gone["objects"] += lifting_rope.unreeve(scene, crane, keep_cad=True)
     for i in reversed(range(len(s.cables))):
         if s.cables[i].name.startswith(p):
             paths.remove(scene, i)
@@ -681,6 +689,17 @@ def setup(scene, crane) -> dict:
     return out
 
 
+def line_pull(scene, crane, gross: float):
+    """Task 0232, check C10: the hoist line's pull for a gross load (kg) on the crane's falls, against its winch."""
+    from . import lifting_rope
+    data = item_at(path_of(crane)).data
+    falls = lifting_rope.falls_of(data)
+    mx = (data.get("limits") or {}).get("max_line_pull")
+    k = float((data.get("reeving") or {}).get("k", lifting.K_ROLLER))
+    fm = lifting.MASS_UNITS[LL.units_of(data)[0]]
+    return lifting.hoist_line_pull(gross, falls, None if mx is None else float(mx) * fm, k=k)
+
+
 def hook_to(scene, crane, world_point, load=None) -> LR.Answer:
     """Put the hook (plumb) on a world point: the answer; the crane moves only when it is ok."""
     check_joints(scene, crane)
@@ -721,7 +740,8 @@ def _key(scene, crane, load):
     ld = None
     if load is not None:
         ld = (load.name, load.mass_mode, round(load.mass_t, 6), round(load.contingency, 6),
-              round(load.volume_mass, 3), load.source)
+              round(load.volume_mass, 3), load.source, load.sling, load.shackle, load.spreader,
+              round(load.leg_length, 4), round(load.top_length, 4), len(load.points))
     return (crane.name, vals, R, st, ld, _mtime(item_at(path_of(crane)).path or path_of(crane)))
 
 
@@ -738,9 +758,11 @@ def readout(scene, crane, load=None) -> LR.Readout | str:
         check_joints(scene, crane)
         rig = rig_of(crane)
         m = load_mass(scene, load)[0] if load is not None else 0.0
+        from . import lifting_rig
         out = LR.readout(rig, values(scene, crane), charts_of(crane), setup(scene, crane), load_kg=m,
                          contingency=float(load.contingency) if load is not None else 1.0,
-                         hook_block_kg=hook_block_kg(crane))
+                         hook_block_kg=hook_block_kg(crane),
+                         rigging_kg=lifting_rig.rigging_mass(load) if load is not None else 0.0)
     except LR.ReachError as exc:
         out = str(exc)
     _READ[crane.name] = (key, out)
@@ -1017,6 +1039,8 @@ def new_box(scene, size, mass_t: float, location=None, name: str = ""):
 def remove_load(scene, load) -> None:
     L = plan(scene)
     name = load.name
+    from . import lifting_rig
+    lifting_rig.remove(scene, load)                  # task 0232: its rigging goes, its parts stand where they stood
     for ob in (load.marker, load.box):
         if ob is not None and ob.name in bpy.data.objects:
             me = ob.data if ob.type == "MESH" else None
@@ -1039,6 +1063,10 @@ def after_model_update(scene, by_uid, mapping) -> list[str]:
         if ld.kind != "PARTS":
             continue
         hand = cog_by_hand(ld)
+        if ld.rig_state != "NONE":                   # task 0232: measure the CoG with the load at rest
+            from . import lifting_rig
+            lifting_rig._detach(ld)
+            _update()
         hand_world = cog_world(ld) if hand else None
         moved, gone = False, []
         for i in reversed(range(len(ld.parts))):
@@ -1066,6 +1094,9 @@ def after_model_update(scene, by_uid, mapping) -> list[str]:
             notes.append(f"Lifting load '{ld.name}': {len(gone)} of its parts are gone in the new revision ("
                          + ", ".join(gone[:5]) + (" …" if len(gone) > 5 else "") + ")"
                          + ("; it has no parts left" if not ld.parts else ""))
+    from . import lifting_rig
+    lifting_rig.after_model_update(scene, by_uid)    # task 0232: lift points and the hang on the new parts
+    _update()
     _READ.clear()
     return notes
 
@@ -1216,8 +1247,9 @@ def check_example(scene) -> str:
     ro = readout(scene, c, ld)
     if isinstance(ro, str) or ro.use is None:
         raise ValueError(f"no crane use at the hook: {ro if isinstance(ro, str) else ro.reason}")
+    from . import lifting_rig
     ref = lifting.crane_use(load_mass(scene, ld)[0] * ld.contingency, ro.radius, ro.chart,
-                            hook_block=hook_block_kg(c))
+                            hook_block=hook_block_kg(c), rigging=lifting_rig.rigging_mass(ld))
     if abs(ref.use - ro.use) > 1e-9:
         raise ValueError("the crane use shown is not the chart's")
     if cog_world(ld) is None:

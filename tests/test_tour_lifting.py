@@ -7,7 +7,8 @@ import pytest
 
 from fresing_render.blender import tour
 
-LIFTING_STOPS = ("lifting_place", "lifting_cog", "lifting_hook")
+LIFTING_STOPS = ("lifting_place", "lifting_cog", "lifting_hook", "lifting_rig")
+RIG_STOPS = ("lifting_spreader",)       # task 0232 (lifting_rig is in LIFTING_STOPS: its CoG is the skid's)
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +38,7 @@ def test_the_sets_build_on_the_yard(built):
     assert len(mats) == 4
 
 
-@pytest.mark.parametrize("stop_id", LIFTING_STOPS + ("lifting_make", "crane_setup"))
+@pytest.mark.parametrize("stop_id", LIFTING_STOPS + RIG_STOPS + ("lifting_make", "crane_setup"))
 def test_each_lifting_stop_passes_its_check(built, stop_id):
     bpy, folder, _out = built
     st = tour.find(stop_id)
