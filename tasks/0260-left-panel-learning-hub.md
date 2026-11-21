@@ -136,6 +136,43 @@ and say so** – the lead then asks the owner.
 - Owner's aim: the app as simple as possible for users who do not know Blender, Blender's tools easy to reach for those
   who do. Every button gets a tooltip.
 
+## Design (worker, 21 Nov – step 1 done)
+
+**Step 1 – the left side: Blender's own toolbar region (TOOLS) of the 3D view, widened.** Measured in the real
+Blender 5.2.3 under xvfb at 1920 x 1080 (web machine, 4 cores): a panel with `bl_region_type = "TOOLS"` draws below
+Blender's tool buttons; Blender's tool buttons go away when `VIEW3D_PT_tools_active`'s own draw is swapped for an
+empty one (`quiet.swap`, as 0241 does for the header), so outside Full access the region holds only Fresing's panels
+and in Full access the tools come back above them. A script cannot set a region's width (`Region.width` is
+read-only), so the app writes the region's stored width (`ARegion.sizex`, a 16-bit number) itself: it is found by
+its neighbours (the region's own width and height as two 16-bit numbers, then region type 5 = TOOLS and alignment
+3 = LEFT – nothing is written unless all four match) and the toolbar is switched off and on to take it: 58 -> 250 px
+at once, 250 -> 31 px for the folded strip. The width is saved with the project like Blender's own; a user's drag
+is kept (the app widens only a region narrower than it reads). Overlap off: a solid panel. The region scrolls like
+Blender's toolbar. The fallback (an area of its own) is not needed. Not measurable here: a second monitor (the
+left panel belongs to the 3D view of each window, nothing depends on the monitor) and Windows (the same struct on
+64-bit Windows; the search refuses to write when the pattern is not found, then the panel keeps Blender's width).
+
+**Files and what goes between them**
+- `blender/ui_left.py` (new, worker): `LeftPanel` mixin (VIEW_3D / TOOLS, `_fr_left = True`), the width
+  (`sizex_address(region)`, `set_width(area, px)`, `ensure(area)` called by `ui_header.put_layout_right`,
+  `strip(context)` = region narrower than `STRIP_BELOW`), `FRESING_PT_left_quick` (Live preview + Build & play + the
+  fold button; icons only in the strip), `FRESING_PT_hub` (Learning hub: the switch View | Show me | Build it
+  yourself, Open the Learning hub), operators `fresing.left_fold`, `fresing.hub_mode`.
+- `blender/ops_make.py` (new, worker): output windows – `fresing.make_window(key)`, `fresing.make_close`,
+  `fresing.make_fold`; `FRESING_PT_make_window` (side panel tab "Make" of a window whose screen has
+  `fr_output = <key>`). The window is made with the Set-up window's machinery (`ops_setup.open_window(..., mark=,
+  value=, tab=)`).
+- `winplace.py` (new, worker; Windows only, ctypes): find a Blender window's HWND by its place and size, raise it,
+  read / set its rectangle – the output window comes to the front and opens where it was. Independent review.
+- `panels.py`: left panels get the app's title row and poll like the right ones (`LEFT`); `side_window(win)` = a
+  Set-up or output window (no left panel, not tidied).
+- Moved to the left (region only, same class names): `updates.FRESING_PT_update`, `ui_top.FRESING_PT_workspace`,
+  `ui_usage.FRESING_PT_favourites`, `ui_tour.FRESING_PT_tour`, `ui_lesson.FRESING_PT_lesson`, `ui_top.FRESING_PT_next`.
+- Preferences (per user): `left_folded`, `left_width`, `next_folded`, `make_open`.
+- The rename "Test tour" -> "Learning hub" in user-visible strings: a subagent (worktree), every file except
+  `ui_left.py`, `ops_make.py`, `ui_top.py`, `ui_tour.py`, `ui_usage.py`, `panels.py`, `__init__.py`, `lock.py`,
+  `ops_setup.py`, `ui_header.py`, `quiet.py`, `editors.py`, `prefs.py` (the worker's).
+
 ---
 
 ## Report (filled in by the chat that did the task)
