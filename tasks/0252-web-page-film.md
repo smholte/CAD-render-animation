@@ -1,6 +1,6 @@
 # 0252 – Web 3D page: "Film" – play the motion through the video's camera, with the page's baked light
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0252-web-page-film`
+**Who:** worker · **Status:** running · **Branch:** `claude/sleepy-fermat-52ww3l` (the web session's branch)
 **Started by:** lead, 21 Nov 2026 13:50 (owner 13:30: "now we have the 3D viewer and the camera positions, could we
 also have a button to follow the cameras through the animation – like the real rendered animation, but with the baked
 light in the 3D web viewer"; his picks 13:45, see Background) · **Model:** Opus · effort High
