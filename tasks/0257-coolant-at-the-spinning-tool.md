@@ -1,6 +1,6 @@
 # 0257 – Coolant at the spinning tool: wraps round it, is flung off at the tool's speed, deflected at high rpm
 
-**Who:** worker · **Status:** open – waits for 0249 (it owns the `coolant` tour set and the test mills) · **Branch:** `task/0257-coolant-at-the-tool`
+**Who:** worker · **Status:** running · **Branch:** `task/0257-coolant-at-the-tool`
 **Started by:** lead, 21 Nov 2026 (owner 14:01: "the fluid should interact with the milling bit, so when the mill is
 spinning fast the coolant should also turn around the mill and get splashed away – look up what it looks like")
 · **Model:** Opus · effort Medium
