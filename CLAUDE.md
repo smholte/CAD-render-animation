@@ -540,6 +540,13 @@ fresing_render/            the Blender extension (Python package)
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the
                            "Fresing" menu after Help (appended to TOPBAR_MT_editor_menus, which lock.py's drawing calls too)
+    lesson.py lessons/     lessons (task 0230): Show me / Build it yourself on a learning set – a lesson = steps (function
+                           id, texts, parts, ``do`` = the button's own call, ``done`` = a check on the scene, ``show``);
+                           where it is = the first step not done (undo, Back, reopen land right); points through
+                           highlight.py, a card beside the parts (``place_card``), a timer only while a lesson runs;
+                           ``run`` = View's recipe (the crane hub's and the mill set's builds run it first); one module
+                           per lesson in lessons/ (crane.py, mill.py); ui_lesson.py = the Lesson panel; the Learn window
+                           (Fresing > Learn…, View / Show me / Build it yourself per set) in ops_learning.py
     tour.py                test tour (task 0059): the stops (one `stop(...)` each) and the sets (one small project per
                            test model, `@tour_set`), the build, Go (`apply`), OK / Problem results (JSON next to the
                            tour); ops_tour.py (Help > Make / Open test tour project, Go, marks, Copy results);
@@ -876,6 +883,16 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   or line does not exist (its message says what to fix). A picture, video or 3D model on the site names its functions
   in `site/media/media.json` (`"functions": [...]`): the page links them to the guide. (The lesson rule follows with the
   lessons task, study 0123.)
+- **Lesson step** (owner's wish, study 0123, task 0230): a task that adds a function the owner can see on a learning set
+  that has a lesson (`fresing_render/blender/lessons/<set>.py`: today `crane`, `mill`) adds its step(s) to that lesson
+  in the same task: `Step("<function id>", title, say, more=, parts=, select=, do=, done=, show=)` – `do` = the
+  button's own call (`bpy.ops.fresing.…`), or for a click on the model the function the click ends in; `done` = a
+  check on the scene that is **false on the plain import and true however the user did it** (compare with the import:
+  it already makes a camera); the set's build in `tour.py` runs `lesson.run(scene, "<set>")` first, so View, Show me
+  and Build it yourself make the same project (`tests/test_lessons.py` compares them) – and every existing stop's
+  check must give the same numbers. Link it: `lesson="<set>:<step>"` on the function's entry. Run it once in Show me.
+  The precheck refuses a `lesson=` that names no step or another function's step, and a step whose function is not in
+  the list. A new lesson: a module in `blender/lessons/`, imported in its `__init__.py`.
 - **Licence and third parties** (task 0205): the app is GPL-3.0-or-later (`LICENSE`). A new library, font, picture, model
   or sound from someone else goes into `THIRD-PARTY-NOTICES.md` in the same task, with its licence **checked at its
   source** (not from memory); one whose licence does not allow a public repository or shipping is flagged to the owner,
