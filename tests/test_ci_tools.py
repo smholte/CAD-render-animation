@@ -753,3 +753,19 @@ def test_workflow_runs_windows_in_parts_and_judges_lane_runs():
     assert '[ValidateSet("all", "a", "b")] [string]$Part = "all"' in ps
     for part in ("a", "b"):                                   # every verdict step of the job belongs to a part
         assert f"matrix.part.part == '{part}'" in text
+
+
+def test_files_that_skip_on_github_never_share_a_pytest_group():
+    """Task 0248: each group allows one skipped test; the files that skip one on GitHub by design go to different
+    groups, however the times would pack them (here both would land in the lightest group)."""
+    import ci_groups
+    skippy = sorted(ci_groups.SKIPS_ON_GITHUB)
+    files = [f"tests/test_big_{i}.py" for i in range(3)] + skippy
+    secs = {f"tests/test_big_{i}.py": 600.0 for i in range(3)}
+    secs.update({f: 1.0 for f in skippy})
+    groups = ci_groups.pytest_groups(files, secs, n=4, selftest=False)
+    owners = [g["name"] for f in skippy for g in groups if f in g["files"]]
+    assert len(owners) == len(skippy) == len(set(owners))
+    for g in ci_groups.matrix_pytest():                                     # and in the real split
+        assert len(ci_groups.SKIPS_ON_GITHUB.intersection(g["files"])) <= 1, g["name"]
+
