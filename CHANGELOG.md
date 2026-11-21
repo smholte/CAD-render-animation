@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.203 – 21 Nov 2026 – Live preview and Build & play once, top left; the left panel's folds are kept (task 0278)
+## 0.2.204 – 21 Nov 2026 – Live preview and Build & play once, top left; the left panel's folds are kept (task 0278)
 
 - **Live preview** and **Build & play** are now only on the left panel (top left, also in its folded strip). They are
   gone from 5 Scene & Render and 6 Animation, so the right panel is shorter. 6 Animation still says **Built · Space
@@ -21,6 +21,14 @@ installer of that version was built from.
   sections as I left them", the Learning hub and the guide; the guide's picture of the sections shows all eight.
 - The section tabs **All · 1 … 8** have short tooltips: a number shows only its section's name ("Import", "Lifting
   plan"), All shows "All sections". How the tabs work is in the user guide.
+## 0.2.203 – 21 Nov 2026 – The test crane at real size (task 0259)
+
+- **The test crane is now a service crane at real size**, five times bigger than before: a base of 5 × 3 m, a boom of
+  7.5 m on a pin 2.4 m up – a person walks under it – and real bolts (M30 anchor bolts, M24 screws), pins (Ø100 boom
+  pin, Ø70 cylinder pins) and a luffing cylinder with a Ø200 bore. Next to the people, the IBC and the containers of
+  the Learning hub it no longer looks like a toy. Same parts, names, colours and joints as before.
+- The Learning hub, the crane lesson, the PC check and the user guide's pictures use the new crane. Projects you made
+  with the old test crane open as before.
 ## 0.2.202 – 21 Nov 2026 – Blender's keys can no longer break the model; F12 renders; a short right-click menu (task 0253)
 
 - **Blender keys that delete or change parts do nothing outside Full access.** Delete, X, Shift+D, Alt+D, Ctrl+J,

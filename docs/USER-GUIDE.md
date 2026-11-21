@@ -1354,7 +1354,7 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
 **Before you click, the face lights up.** While the app waits for that click, the face under the mouse
 turns magenta – the whole hole, shaft or flat face, as one piece – with the axis it would give: a line
 through a hole's or shaft's centre, or an arrow standing on a flat face. Next to the mouse (and at the
-bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø40.4 mm – axis through its
+bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø100.4 mm – axis through its
 centre". So you see whether you are on the hole or on the face next to it before you click. The floor and
 empty space do not light up ("Not a part"); a spot this click would refuse turns red and says why. The
 same happens for a cylinder's pins and the double arm's hub and pot hinge. Every other click on the model
@@ -3776,7 +3776,7 @@ the pointer lights up.
 
 - **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
   Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
-  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 40.0 mm**.
+  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 100.0 mm**.
   A label's live numbers ({speed}, {top} … of a cable into the sea) are filled in as at the frame shown on a still
   page; on a page with the animation the lines that hold one are left out (the card cannot follow them while it plays).
 - **Measure** (D): click two faces. **Faces** (the default) measures what was clicked:

@@ -149,11 +149,11 @@ def s_state():
     s = sc.fresing
     joints, states, queue = mod("blender.joints"), mod("blender.states"), mod("blender.queue")
     pin = ob("BOOM.PIN")
-    pivot = Vector((0.1, 0.3, 0.42))
+    pivot = Vector((0.5, 1.5, 2.45))
     origin, direction, _desc = joints.axis_from_hit(pin, 0, pivot, Vector((0, 0, 1)))
     j1 = joints.create(sc, "ROTATE", [ob("BOOM.ASM")], origin, direction, ref=pin, name="Boom luff")
     j1.use_limits = True
-    j2 = joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((0.7, 0.3, 0.45)), Vector((1, 0, 0)),
+    j2 = joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((3.5, 1.5, 2.65)), Vector((1, 0, 0)),
                        name="Trolley", base=None)
     s.joints_index = 0
     joints.set_value(j1, math.radians(20))
@@ -185,7 +185,7 @@ def s_state():
     if os.environ.get("UISHOT_STACK"):
         # UISHOT_STACK=1: a second joint on the trolley rides on "Trolley"; the trolley is selected,
         # so Add joint says it goes on top, and the joint on top is the selected one in the list
-        joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((0.7, 0.3, 0.45)), Vector((0, 1, 0)),
+        joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((3.5, 1.5, 2.65)), Vector((0, 1, 0)),
                       name="Trolley side shift")
         s.joints_index = len(s.joints) - 1
         active = "TROLLEY.ASM"

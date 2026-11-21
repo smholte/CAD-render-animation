@@ -85,7 +85,7 @@ def notes(sc):
 
 
 def boom_tip(sc):
-    return ob(sc, "BOOM").matrix_world @ Vector((1.5, 0, 0))
+    return ob(sc, "BOOM").matrix_world @ Vector((7.5, 0, 0))
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ def crane_on_machine(tmp_path):
     """Crane A and the machine; the boom turns on the machine's frame (a joint across the two models)."""
     sc = load(tmp_path, CRANE_A, MACHINE)
     boom = ob(sc, "BOOM.ASM")
-    j = joints.create(sc, "ROTATE", [boom], Vector((0.1, 0.3, 0.4)), Vector((0, 0, 1)), name="Slew",
+    j = joints.create(sc, "ROTATE", [boom], Vector((0.5, 1.5, 2.4)), Vector((0, 0, 1)), name="Slew",
                       base=ob(sc, "FRAME", "TEST.MACHINE"))
     joints.set_value(j, math.radians(20))
     update()
@@ -258,7 +258,7 @@ def test_way_cover_across_two_models(tmp_path):
 
 def bolt_at(sc, x, y):
     return next(o for o in build.iter_parts(sc) if o[build.PROP_NAME].startswith("ISO 4017")
-                and (o.matrix_world.translation - Vector((x, y, 0.1))).length < 1e-3)
+                and (o.matrix_world.translation - Vector((x, y, 0.5))).length < 1e-3)
 
 
 def camera(sc):
@@ -270,13 +270,13 @@ def camera(sc):
 
 def test_labels_and_sharp_spot_follow_their_parts(tmp_path):
     sc = load(tmp_path, CRANE_A)
-    j = joints.create(sc, "ROTATE", [ob(sc, "BOOM.ASM")], Vector((0.1, 0.3, 0.4)), Vector((0, 0, 1)))
+    j = joints.create(sc, "ROTATE", [ob(sc, "BOOM.ASM")], Vector((0.5, 1.5, 2.4)), Vector((0, 0, 1)))
     joints.set_value(j, math.radians(30))
     update()
     boom = ob(sc, "BOOM")
-    point = boom.matrix_world @ Vector((1.0, 0, 0.05))
+    point = boom.matrix_world @ Vector((5.0, 0, 0.25))
     callouts.add(sc, boom, point, "Boom")
-    gone = bolt_at(sc, 0.05, 0.05)                      # not in revision B
+    gone = bolt_at(sc, 0.25, 0.25)                      # not in revision B
     callouts.add(sc, gone, gone.matrix_world.translation, "Bolt")
     cam = camera(sc)
     marker = cameras.set_focus(cam, sc, boom, point)
@@ -297,7 +297,7 @@ def test_labels_and_sharp_spot_follow_their_parts(tmp_path):
 
 def test_sharp_spot_on_a_gone_part_stays_where_it_was(tmp_path):
     sc = load(tmp_path, CRANE_A)
-    gone = bolt_at(sc, 0.05, 0.05)
+    gone = bolt_at(sc, 0.25, 0.25)
     point = gone.matrix_world.translation + Vector((0, 0, 0.02))
     cam = camera(sc)
     marker = cameras.set_focus(cam, sc, gone, point)
@@ -334,16 +334,16 @@ def snapshot(sc):
 
 def crane_with_work(tmp_path):
     sc = load(tmp_path, CRANE_A)
-    jb = joints.create(sc, "ROTATE", [ob(sc, "BOOM.ASM")], Vector((0.1, 0.3, 0.4)), Vector((0, 0, 1)),
+    jb = joints.create(sc, "ROTATE", [ob(sc, "BOOM.ASM")], Vector((0.5, 1.5, 2.4)), Vector((0, 0, 1)),
                        name="Slew")
     trolley = ob(sc, "TROLLEY.ASM")
     jt = joints.create(sc, "SLIDE", [trolley], trolley.matrix_world.translation, Vector((1, 0, 0)),
                        base=ob(sc, "BOOM.ASM"), name="Trolley")
     joints.set_value(jb, math.radians(20))
-    joints.set_value(jt, 0.1)
+    joints.set_value(jt, 0.5)
     boom = ob(sc, "BOOM")
     callouts.add(sc, boom, boom.matrix_world.translation, "Boom")
-    gone = bolt_at(sc, 0.05, 0.05)                      # not in revision B
+    gone = bolt_at(sc, 0.25, 0.25)                      # not in revision B
     callouts.add(sc, gone, gone.matrix_world.translation, "Bolt")
     cameras.set_focus(camera(sc), sc, gone, gone.matrix_world.translation)
     cameras.set_focus(camera(sc), sc, boom, boom.matrix_world.translation)

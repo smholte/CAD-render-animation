@@ -178,7 +178,7 @@ CRANE = lesson(Lesson(
                   "panel says so above the buttons before you click.",
              parts=("TROLLEY.ASM",), select=("TROLLEY.ASM",), do=_trolley,
              done=lambda sc: joint_on(sc, "TROLLEY.ASM", "SLIDE") is not None,
-             show=_wiggle("TROLLEY.ASM", "SLIDE", 0.35)),
+             show=_wiggle("TROLLEY.ASM", "SLIDE", 1.75)),
         Step("scene.camera", "A camera view of your own",
              "The import made a first camera. Add one more: 3/4 hero, high.",
              more="Views: front, side, top, isometric and two 3/4 hero views; More has the rest. The camera frames "

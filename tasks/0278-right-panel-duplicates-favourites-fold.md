@@ -82,7 +82,7 @@ What Live preview or Build & play do; the left panel's layout and its fold (0260
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker), 21 Nov 2026 · 0.2.203
+**Chat / date:** Claude Code on the web (worker), 21 Nov 2026 · 0.2.204
 
 **What changed:**
 - **Live preview** row gone from 5 Scene & Render > Image size & render (Render image stays its blue button);
@@ -93,7 +93,7 @@ What Live preview or Build & play do; the left panel's layout and its fold (0260
   was before Build & play, and the joints can be moved by hand again. Build & play (top left) builds it again". Not
   built: a grey hint "Not built yet: Build & play is at the top left." (A label "Clear" beside a hint was tried
   first: the hint was cut off at the default width, so it went.)
-- **Pointers moved to the left:** function `animation.build` now names `FRESING_PT_left_quick` (`changed=0.2.203`),
+- **Pointers moved to the left:** function `animation.build` now names `FRESING_PT_left_quick` (`changed=0.2.204`),
   so the crane (step 9) and mill lessons' Build step light up the left button – and the strip's icon when folded
   (real-app test). Texts: `ui_clash` how-to, `ui_fade` (2), `ui_people`, `ui_machining`, `toolpath.py` message,
   `clash.py` error, the two lesson texts, `prefs.live_preview`'s description, `ui.primary` docstring → "(top left)".
@@ -127,7 +127,7 @@ What Live preview or Build & play do; the left panel's layout and its fold (0260
   the sections; pictures redone: panel_5_output, panel_6_animation / motor / fade / camera_ride / camera_path /
   sequence / product_video / back_to_cad, sidebar_sections, usage_bar. COMPANY-USE names the new file.
 - PC-check line `panel.folds` (Full, MIN_LINES_FULL 119); function `panel.left` and `usage.favourites` `changed=`;
-  crane tour set `changed=0.2.203` (lesson text) + `tour_versions.py --record`; CLAUDE.md section 8 entry.
+  crane tour set `changed=0.2.204` (lesson text) + `tour_versions.py --record`; CLAUDE.md section 8 entry.
 
 **Tested and measured** (4-core web machine, test crane): `tests/test_left_folds.py` (new, 8) + functions, places,
 panels, usage, settings, workspaces, lessons, guide, about, learning, phase2, tour: 380 passed. Real app

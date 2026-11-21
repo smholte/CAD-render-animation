@@ -111,7 +111,7 @@ def hex_prism(af: float, h: float, z0: float = 0.0):
 # ISO metric: thread d -> (hex across flats, hex head height, socket head Ø, socket head height, socket af, nut height)
 METRIC = {6: (10, 4.0, 10, 6, 5, 5.2), 8: (13, 5.3, 13, 8, 6, 6.8), 10: (16, 6.4, 16, 10, 8, 8.4),
           12: (18, 7.5, 18, 12, 10, 10.8), 16: (24, 10.0, 24, 16, 14, 14.8), 20: (30, 12.5, 30, 20, 17, 18.0),
-          24: (36, 15.0, 36, 24, 19, 21.5)}
+          24: (36, 15.0, 36, 24, 19, 21.5), 30: (46, 18.7, 45, 30, 22, 25.6)}
 
 
 def hex_bolt(d: int, length: float):
@@ -136,5 +136,5 @@ def nut(d: int):
 def washer(d: int):
     """ISO 7089 washer on z 0 .. t."""
     od, t = {6: (12, 1.6), 8: (16, 1.6), 10: (20, 2.0), 12: (24, 2.5), 16: (30, 3.0), 20: (37, 3.0),
-             24: (44, 4.0)}[d]
+             24: (44, 4.0), 30: (56, 4.0)}[d]
     return g.cut(g.cyl(od / 2, t), g.cyl(d / 2 + 0.2, t + 2, (0, 0, -1)))

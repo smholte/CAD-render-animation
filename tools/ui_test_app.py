@@ -149,7 +149,7 @@ def s_wait_import():
     check("import in the app (background reader + modal)", s.model_count == 1, s.last_message)
     win, area, region = ui()
     d = region.data.view_location
-    check("view framed on the model", abs(d.x - 0.8) < 0.3 and abs(d.y - 0.3) < 0.3, tuple(round(v, 2) for v in d))
+    check("view framed on the model", abs(d.x - 4.0) < 1.5 and abs(d.y - 1.5) < 1.5, tuple(round(v, 2) for v in d))
     return 1.0
 
 
@@ -159,7 +159,7 @@ def s_panels():
     s = bpy.context.scene.fresing
     # click the boom in the viewport: subassembly selection
     boom = find("BOOM")
-    x, y = to_window(boom.matrix_world @ Vector((1.0, 0, 0.05)))
+    x, y = to_window(boom.matrix_world @ Vector((5.0, 0, 0.25)))
     click(x, y)
     return 0.8
 
@@ -218,7 +218,7 @@ def s_view_behind_sidebar():
     win, area, region = ui()
     rv3d = region.data
     x, y = first_header()
-    target = find("BOOM").matrix_world @ Vector((1.0, 0, 0.05))
+    target = find("BOOM").matrix_world @ Vector((5.0, 0, 0.25))
     _saved_view[:] = [rv3d.view_location.copy()]
     behind = view3d_utils.region_2d_to_location_3d(region, rv3d, (x - region.x, y - region.y), target)
     rv3d.view_location += target - behind
@@ -246,8 +246,8 @@ def s_view_back():
 
 
 def pin_spot():
-    # a point on top of the pin's round face (Ø40 along Y), in front of the pedestal
-    return to_window(find("BOOM.PIN").matrix_world @ Vector((0, -0.085, 0.0199)))
+    # a point on top of the pin's round face (Ø100 along Y), in front of the pedestal
+    return to_window(find("BOOM.PIN").matrix_world @ Vector((0, -0.425, 0.0499)))
 
 
 def move_to(x, y):
@@ -283,7 +283,7 @@ def s_hover_pin_seen():
     ok = h is not None and h.part == find("BOOM.PIN").name and h.kind in ("shaft", "hole") and h.face == 0 and h.tris[0] == 0
     check("hover: the pin's round face lights up", ok, repr(h)[:160])
     check("hover: status bar names it and its axis",
-          "Ø40 mm – axis through its centre" in (hover._S["status"] or ""), hover._S["status"])
+          "Ø100 mm – axis through its centre" in (hover._S["status"] or ""), hover._S["status"])
     check("hover: drawn in the 3D view", len(hover._S["handles"]) == 2)
     if h is not None and h.origin is not None:
         _hovered[:] = [h.origin.copy(), h.direction.copy()]
@@ -306,7 +306,7 @@ def s_joint_made():
         joints = mod("blender.joints")
         o, d = joints.axis_world(s.joints[0])
         detail = f"axis through {tuple(round(v, 3) for v in o)} dir {tuple(round(v, 3) for v in d)}"
-        ok = abs(abs(d.y) - 1) < 1e-3 and abs(o.x - 0.1) < 1e-3 and abs(o.z - 0.4) < 1e-3
+        ok = abs(abs(d.y) - 1) < 1e-3 and abs(o.x - 0.5) < 1e-3 and abs(o.z - 2.4) < 1e-3
     check("click on the pin hole gives the pin axis", ok, detail + " | " + s.last_message)
     hover = mod("blender.hover")
     check("hover: gone after the click", not hover.active() and hover.current() is None and not hover._S["handles"])
@@ -364,7 +364,7 @@ def s_trolley():
     try:
         j = joints.create(bpy.context.scene, "SLIDE", [tr], tr.matrix_world.translation, Vector((1, 0, 0)),
                           base=find("BOOM.ASM"))
-        joints.set_value(j, 0.4)
+        joints.set_value(j, 2.0)
         check("slide joint on the boom", True)
     except Exception as exc:
         check("slide joint on the boom", False, str(exc))
@@ -494,8 +494,8 @@ def s_after_reload():
     with override():
         bpy.ops.fresing.shot_apply(name="Hero")
     bpy.context.view_layer.update()
-    tip = find("BOOM").matrix_world @ Vector((1.5, 0, 0))
-    check("saved scene puts the boom up", tip.z > 0.9, f"tip z {tip.z:.3f}")
+    tip = find("BOOM").matrix_world @ Vector((7.5, 0, 0))
+    check("saved scene puts the boom up", tip.z > 4.9, f"tip z {tip.z:.3f}")
     shot("08_scene_hero")
     return 0.5
 

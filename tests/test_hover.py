@@ -73,12 +73,12 @@ def same_as_click(sc, h, origin, direction):
 
 def test_shaft_lights_up_with_its_axis(scene):
     pin = ob(scene, "BOOM.PIN")
-    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.425, 0.05)), (0, 0, 1))
     h = look(scene, origin, direction)
-    assert h.part == pin.name and h.kind == "shaft" and abs(h.diameter - 40) < 0.05, h
+    assert h.part == pin.name and h.kind == "shaft" and abs(h.diameter - 100) < 0.05, h
     assert h.tris == (0, 52), h.tris                       # the pin's whole round face (its CAD face block)
-    assert abs(abs(h.direction.y) - 1) < 1e-6 and abs(h.origin.x - 0.1) < 1e-6 and abs(h.origin.z - 0.4) < 1e-6
-    assert "Shaft Ø40 mm – axis through its centre" in h.text, h.text
+    assert abs(abs(h.direction.y) - 1) < 1e-6 and abs(h.origin.x - 0.5) < 1e-6 and abs(h.origin.z - 2.4) < 1e-6
+    assert "Shaft Ø100 mm – axis through its centre" in h.text, h.text
     # the line reaches past the pin on both ends
     ys = sorted(p.y for p in h.ends)
     bb = [pin.matrix_world @ Vector(c) for c in pin.bound_box]
@@ -96,12 +96,12 @@ def test_hole_lights_up_with_its_axis(scene):
         o.location.z += 5.0                                 # the pin (and the boom on it) out of the hole
     bpy.context.view_layer.update()
     try:
-        y = 0.3 - 0.07                                      # in the front cheek (y 0.22 .. 0.245; the boom sits
+        y = 1.5 - 0.35                                      # in the front cheek (y 1.145 .. 1.225; the boom sits
                                                             # between the two; task 0122: the foot is wider)
-        origin, direction = Vector((0.1, y, 0.41)), Vector((0, 0, 1))      # from inside the bore, up at its wall
+        origin, direction = Vector((0.5, y, 2.425)), Vector((0, 0, 1))     # from inside the bore, up at its wall
         h = look(scene, origin, direction)
         assert h.part == ped.name and h.kind == "hole", h
-        assert h.text.endswith("Hole Ø40.4 mm – axis through its centre"), h.text
+        assert h.text.endswith("Hole Ø100.4 mm – axis through its centre"), h.text
         # the bore's whole CAD face block: 52 triangles ((212, 264) on the task-0122 crane; OpenCascade may number the
         # faces in another order, so the block's place is read from the part's face starts)
         assert h.tris[1] - h.tris[0] == 52 and h.tris[0] in list(ped.data["fr_face_starts"]), h.tris
@@ -119,7 +119,7 @@ def test_flat_face_gives_an_arrow(scene):
     base = ob(scene, "BASE")
     bb = [base.matrix_world @ Vector(c) for c in base.bound_box]
     top = max(c.z for c in bb)
-    origin, direction = ray_at((0.3, 0.45, top), (0, 0, 1))
+    origin, direction = ray_at((1.5, 2.25, top), (0, 0, 1))
     h = look(scene, origin, direction)
     assert h.part == base.name and h.kind == "flat", h
     assert (h.direction - Vector((0, 0, 1))).length < 1e-6
@@ -129,9 +129,9 @@ def test_flat_face_gives_an_arrow(scene):
 
 
 def test_floor_and_empty_space_are_not_parts(scene):
-    h = look(scene, Vector((3.0, 3.0, 1.0)), Vector((0, 0, -1)))
+    h = look(scene, Vector((10.0, 10.0, 1.0)), Vector((0, 0, -1)))
     assert not h.part and h.text.startswith("Not a part") and not h.ends, h
-    assert click(scene, Vector((3.0, 3.0, 1.0)), Vector((0, 0, -1))) is None
+    assert click(scene, Vector((10.0, 10.0, 1.0)), Vector((0, 0, -1))) is None
     h = look(scene, Vector((0, 0, 10)), Vector((0, 0, 1)))
     assert not h.part and h.text == "Not a part (empty space)"
 
@@ -142,7 +142,7 @@ def test_copies_of_one_part_each_in_their_own_place(scene):
     hs = []
     for w in (w0, w1):
         c = w.matrix_world.translation
-        origin, direction = ray_at(c + Vector((0, 0, 0.025)), (0, 0, 1))
+        origin, direction = ray_at(c + Vector((0, 0, 0.125)), (0, 0, 1))
         h = look(scene, origin, direction)
         assert h.part == w.name, h
         same_as_click(scene, h, origin, direction)
@@ -153,7 +153,7 @@ def test_copies_of_one_part_each_in_their_own_place(scene):
 
 def test_refused_spot_says_why(scene):
     pin = ob(scene, "BOOM.PIN")
-    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.425, 0.05)), (0, 0, 1))
     h = look(scene, origin, direction, refuse=lambda part, o, d: "not on the arm")
     assert h.refused == "not on the arm" and h.text == "BOOM.PIN: not on the arm"
 
@@ -161,7 +161,7 @@ def test_refused_spot_says_why(scene):
 def test_time_per_move_on_the_crane(scene):
     """The work of one mouse move: well under a frame on the test crane (numbers for the report)."""
     pin = ob(scene, "BOOM.PIN")
-    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.425, 0.05)), (0, 0, 1))
     look(scene, origin, direction)
     t0 = time.perf_counter()
     for _ in range(50):
@@ -197,7 +197,7 @@ def test_overlay_leaves_the_project_alone(scene, tmp_path):
     before = state()
     hover.start(bpy.context, object(), "Click a hole")
     pin = ob(sc, "BOOM.PIN")
-    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.425, 0.05)), (0, 0, 1))
     hover._S["hover"] = look(sc, origin, direction)
     assert hover.current() is not None and hover.active()
     assert state() == before
@@ -216,7 +216,7 @@ def look_point(sc, origin, direction, note=None, refuse=None):
 
 def spot(scene):
     pin = ob(scene, "BOOM.PIN")
-    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.425, 0.05)), (0, 0, 1))
     return pin, origin, direction
 
 
@@ -250,7 +250,7 @@ def test_a_failing_note_never_breaks_the_pick(scene):
 def test_decal_note_says_flat_or_wraps_round(scene):
     from fresing_render.blender import decals, ops_decals
     pin = ob(scene, "BOOM.PIN")
-    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.425, 0.05)), (0, 0, 1))
     h = look_point(scene, origin, direction, note=ops_decals._decal_note)
     assert h.text.startswith("Decal on ") and h.text.endswith("wraps round")
     assert decals.wraps_round(pin, h.face)
@@ -322,7 +322,7 @@ def test_highlight_gone_after_end_undo_and_file_load(scene, tmp_path):
     op = object()
     hover.start(bpy.context, op, "Click a hole")
     pin = ob(scene, "BOOM.PIN")
-    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.085, 0.02)), (0, 0, 1))
+    origin, direction = ray_at(pin.matrix_world @ Vector((0, -0.425, 0.05)), (0, 0, 1))
     hover._S["hover"] = look(scene, origin, direction)
     hover.end(object())                                     # another pick's end does not end this one
     assert hover.current() is not None

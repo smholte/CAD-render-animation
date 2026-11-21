@@ -17,7 +17,7 @@ HERE = os.path.dirname(__file__)
 CRANE_A = os.path.join(HERE, "data", "test_crane_a.step")
 CRANE_B = os.path.join(HERE, "data", "test_crane_b.step")
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
-P = Vector((0.75, 0.25, 0.45))            # a pivot point on the trolley (TROLLEY.ASM sits at 0.7, 0.225, 0.45)
+P = Vector((3.75, 1.25, 2.65))            # a pivot point on the trolley (TROLLEY.ASM sits at 3.5, 1.125, 2.65)
 TOL = 1e-5                                # 0.01 mm: Blender keeps matrices in single precision
 
 import fresing_render  # noqa: E402
@@ -117,7 +117,7 @@ def test_owner_example_moves_add_up(scene):
     update()
     assert close(trolley_point(scene) - q0, (0, 1.0, 0))
     # the rest of the crane did not move
-    assert close(ob(scene, "BOOM").matrix_world.translation, (0.1, 0.3, 0.4))
+    assert close(ob(scene, "BOOM").matrix_world.translation, (0.5, 1.5, 2.4))
 
 
 def test_same_result_when_added_at_zero(scene):

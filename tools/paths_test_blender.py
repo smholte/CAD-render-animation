@@ -26,7 +26,7 @@ try:
     check("import from an accented path (reader subprocess)", r == {"FINISHED"} and s.model_count == 1, s.last_message)
     check("cache folder name", True, os.listdir(importlib.import_module(pk + ".blender.ops_import").cache_root())[:3])
     boom = next(o for o in sc.objects if o.get("fr_name") == "BOOM.ASM")
-    j = J.create(sc, "ROTATE", [boom], Vector((0.1, 0.3, 0.4)), Vector((0, 1, 0)))
+    j = J.create(sc, "ROTATE", [boom], Vector((0.5, 1.5, 2.4)), Vector((0, 1, 0)))
     J.set_value(j, math.radians(20))
     proj = os.path.join(D, "Project ö – kraan.blend")
     bpy.ops.wm.save_as_mainfile(filepath=proj)
