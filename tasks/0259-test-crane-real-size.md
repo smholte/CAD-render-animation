@@ -110,7 +110,7 @@ Same names, tree, colours, part count (13 unique, 20 placed) and joints. `tour.C
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 21 Nov 2026 · released as 0.2.202
+**Chat / date:** Claude Code on the web, 21 Nov 2026 · released as 0.2.203
 
 **What changed:**
 - `tools/make_test_crane.py`: the crane x 5 (design table above). Final pin height **2.4 m** (pedestal 400 mm taller than
@@ -125,7 +125,7 @@ Same names, tree, colours, part count (13 unique, 20 placed) and joints. `tour.C
   **Left as they were (old projects):** `test_crane_inv_a.step`, `test_crane_inv_c.step`, `test_crane_plain.step`.
 - Tour: `CRANE_PIVOT`, `CRANE_PIN_R`, `CRANE_BOOM`, `TROLLEY_RUN` (0.35 → 1.75 m), `LUFF_ROD_EYE`, `LUFF_PIN_HALF`,
   `CUT_FROM` (0.2 → 1.0 m), the cutaway camera, the second copy 4.5 m over (1.5 m between the bases), the trail 40 mm
-  thick, the people stop's and web 3D stop's texts; `changed="0.2.202"` on the 10 crane sets, the people and web3d
+  thick, the people stop's and web 3D stop's texts; `changed="0.2.203"` on the 10 crane sets, the people and web3d
   stops; record made. Crane lesson: the trolley's Show me wiggle 1.75 m. PC check: `_tip`, joints.rotate / stack,
   looks.cutaway camera, model.update_safe pivot.
 - Tests (numbers "old x 5", z "x 5 + 0.4" from the pedestal up; lines changed for another reason):
