@@ -319,14 +319,15 @@ def set_up_test_model(scene, detail: str = "NORMAL") -> None:
     the spindle) and T2 ball Ø10 (finishing) in the tool list, both picked here."""
     from mathutils import Vector
 
-    from . import build, joints
+    from . import build, joints, waycover
 
     def ob(name):
         return next(o for o in scene.objects if o.get(build.PROP_NAME) == name)
 
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = ob(asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    waycover.set_up_test_mill(scene)                # task 0249: the VMC's Y way covers follow the saddle
     gcode.find_axes(scene)
     tool, stock, fin = ob(TEST_TOOL), ob(TEST_STOCK), ob(TEST_PART)
     gcode.use_tool(scene, tool)

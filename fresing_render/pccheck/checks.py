@@ -3301,8 +3301,9 @@ def scene_props(ctx):
 
 
 @line("toolchange.person", "A person changes the tool", "0.2.132",
-      what="The test mill in its cabinet (task 0156): the operator walks up before the tool change, opens the sliding "
-           "door, takes T1 out, lays it on the trolley, puts T2 in, closes the door and walks away. Build, the pause "
+      what="The test mill in its enclosure (task 0156; task 0249: the larger VMC): the operator walks up before the "
+           "tool change, opens the sliding doors, takes T1 out, lays it on the trolley, puts T2 in, closes the doors "
+           "and walks away. Build, the pause "
            "grown to what the person needs, the hand on the holder, the frame time, a small render (processor, draft)")
 def toolchange_person(ctx):
     import bpy
@@ -3565,7 +3566,7 @@ def _mill_scene(ctx, scale: float = 1.0, x_mm: float = 50.0):
         raise RuntimeError("the Manifold library did not load: run Install.bat again")
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     a = scene.fresing.animations.add()
@@ -3688,7 +3689,7 @@ def milling_air(ctx):
     from mathutils import Vector
 
     from ..blender import joints
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
@@ -3783,7 +3784,7 @@ def milling_coolant(ctx):
     from ..blender import animation, coolant, gcode, joints, machining
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
@@ -3880,8 +3881,8 @@ M30
 
 
 @line("milling.tools", "Milling: each tool of the tool list cuts with its own shape", "0.2.36",
-      what="The test mill runs a program with a tool change: a Ø50 face mill on a BT30 arbor faces a strip 1 mm deep, "
-           "then a Ø6 drill in a BT30 chuck (25 mm longer, tip to gauge line) drills a hole 8 mm deep; both are read "
+      what="The test mill runs a program with a tool change: a Ø50 face mill on a BT40 arbor faces a strip 1 mm deep, "
+           "then a Ø6 drill in a BT40 chuck (25 mm longer, tip to gauge line) drills a hole 8 mm deep; both are read "
            "back from the milled block, with the length offset and the time per frame")
 def milling_tools(ctx):
     import bpy
@@ -3891,7 +3892,7 @@ def milling_tools(ctx):
     from ..blender import animation, gcode, joints, machining, tools
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
@@ -3908,10 +3909,10 @@ def milling_tools(ctx):
     machining.settings(scene).detail = "FINE"
     face = tools.add_row(scene, "FACE", 1)
     face.diameter, face.lead_angle = 0.05, 1.5707963
-    face.length, face.holder, face.holder_length = 0.04, "BT30", 0.045      # a BT30 arbor (task 0049)
+    face.length, face.holder, face.holder_length = 0.04, "BT40", 0.045      # an arbor (task 0049; BT40: task 0249)
     drill = tools.add_row(scene, "DRILL", 2)
     drill.diameter = 0.006
-    drill.length, drill.holder, drill.holder_length = 0.05, "BT30", 0.06    # in a BT30 chuck: 25 mm longer
+    drill.length, drill.holder, drill.holder_length = 0.05, "BT40", 0.06    # in a chuck: 25 mm longer
     path = os.path.join(ctx.work, "pccheck_tools.ngc")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(TOOLS_PROGRAM)
@@ -3953,7 +3954,7 @@ def milling_tools(ctx):
     _check(abs(d_face - 1.0) < 0.05, f"the face mill cut {d_face:.2f} mm deep, not 1 mm")
     _check(abs(d_edge) < 0.05, f"the face mill cut wider than Ø50 ({d_edge:.2f} mm deep 25.5 mm from its path)")
     _check(abs(d_drill - 8.0) < 0.05, f"the drill went {d_drill:.2f} mm deep, not 8 mm")
-    return (f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm, BT30 length offset 25.00 → "
+    return (f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm, BT40 length offset 25.00 → "
             f"{lift:.2f} mm; {per:.0f} ms per frame")
 
 
@@ -4132,7 +4133,7 @@ def _finish_scene(ctx, xs, ys, seconds: float = 6.0):
         raise RuntimeError("the Manifold library did not load: run Install.bat again")
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)

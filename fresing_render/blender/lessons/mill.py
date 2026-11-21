@@ -14,7 +14,7 @@ from ..lesson import Lesson, Step, import_model, lesson
 
 STOCK = "STOCK 200x200x40"
 BIT = "END MILL D10"
-AXES = (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))
+AXES = (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))
 SLOT = (("Z", 0.0, 0.8, -25.0), ("X", 0.8, 1.6, 60.0))      # joint, start s, seconds, to mm: plunge, then along X
 SCENE = "Close-up"
 ANIM = "Mill a slot"
@@ -178,10 +178,11 @@ MILL = lesson(Lesson(
              do=lambda sc: _tour()._look("PRODUCT"),
              done=lambda sc: _look_is(sc, "PRODUCT")),
         Step("joints.slide", "The axes: three slide joints",
-             "Add slide joint three times: the table along Y, the X carriage along X, the head along Z.",
+             "Add slide joint three times: the saddle along Y, the table along X, the head along Z.",
              more="Click a long straight edge or a rail for the direction. Name them Y, X and Z: the steps of the cut "
-                  "below move them.",
-             parts=("TABLE.ASM", "X.ASM", "Z.ASM"), select=("TABLE.ASM",), do=_axes,
+                  "below move them. On this machine the table carries the block: X points to the left, so a positive "
+                  "X moves the tool to the right on the block, as on the machine.",
+             parts=("Y.ASM", "X.ASM", "Z.ASM"), select=("Y.ASM",), do=_axes,
              done=lambda sc: _slides(sc) == 3),
         Step("milling.cut", "The bit",
              "The end mill is selected. Use as bit (4 Motion > Milling): its shape is read from the part.",

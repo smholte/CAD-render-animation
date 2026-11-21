@@ -1,22 +1,30 @@
-"""Write the test mill on a cabinet, inside an enclosure with a sliding door, as a STEP assembly (task 0156: a person
-changes the tool by hand). All sizes in mm. Nothing of a real machine.
+"""Write the test mill (the vertical machining centre of make_test_mill.py) inside its own sheet-metal enclosure with
+two front sliding doors as a STEP assembly (task 0156: a person changes the tool by hand; task 0249: the larger VMC
+standing on the floor in its own enclosure – no cabinet stand). All sizes in mm; the floor is z 0. Nothing of a real
+machine. (The file keeps its old name: every caller knows it.)
 
-TEST.MILL.CABINET
-  CABINET STAND             steel cabinet 800 x 720 x 850 (z 0..850), a toe recess at its front foot, two doors
-                            drawn as shallow grooves; its bottom (z 0) is the floor
-  ENCLOSURE                 panels round the mill on the stand: back, sides, roof and a front panel with an opening
-                            x -260..260, z 900..1850 (one solid); its roof at z 2000
-  DOOR RAIL                 the sliding door's rail above the opening, x -430..870 (the door runs out to the right)
-  SLIDING DOOR              a frame 540 x 970 in front of the opening (its middle open, like a clear window) with a
-                            vertical handle bar on its left edge; slides along +x (a slide joint in the tests, open at
-                            +530 mm)
-  TEST.MILL                 the test mill of make_test_mill.py, raised by 910 (its bed's bottom on the stand's top),
-                            its head (Z.ASM) 80 higher; in the spindle END MILL D10 BT30: a Ø10 end mill in a BT30-like
-                            holder, gauge line at the nose (z 210 + 910), tip 120 below it;
-                            on its head (Z.ASM) a RELEASE BUTTON: a bracket on the left with a green push button
-                            (the drawbar's release) facing the operator at x -130, z 240 (mill coordinates)
+TEST.MILL.ENCLOSED
+  ENCLOSURE                 one sheet-metal solid round the machine (x -1250..1250, back face y 1390): back, sides,
+                            roof (z 2500), the upper front panel (y -380..-372) with the door opening x -600..600,
+                            z 840..1960, and below it a lower front (front face y -398, up to z 750; a toe recess 60 deep, 100 high under
+                            the doors) with a shelf
+  DOOR RAIL                 the doors' rail above the opening, x -1250..1250
+  SLIDING DOOR              the left door: a frame x -615..0 (its window drawn open; 210 wide at the meeting edge),
+                            y -396..-382, z 820..1980, a vertical handle bar Ø16 at x -170 (its front y -451);
+                            slides along -x (a slide joint in the tests, open at +350 mm): the door the person opens,
+                            away from the tool trolley on its right
+  SLIDING DOOR RIGHT        the right door, x 0..615, its handle at x 170; slides along +x (it follows the left
+                            door's joint with ratio -1 in the tests)
+  CONTROL PANEL             a plain box with a screen on an arm at the right front corner (no maker's look)
+  WORK LIGHT                a light bar under the roof inside, over the table
+  TEST.MILL                 the VMC of make_test_mill.py, raised by 900 (the bed's bottom on the floor), its head
+                            (Z.ASM) 80 higher; in the spindle END MILL D10 BT40: a Ø10 end mill in a BT40-like holder,
+                            gauge line at the spindle's nose (z 210 + 900), tip 120 below it; on its head (Z.ASM) a
+                            RELEASE BUTTON: a bracket on the cartridge's left with a green push button (the drawbar's
+                            release) facing the operator at x -130, z 240 (mill coordinates)
 
-The spindle's axis is at x = 0, y = 0; the door's front face at y = -290, its handle bar's front at y = -330.
+The spindle's axis is at x = 0, y = 0, 380 mm behind the doors' panel: a person standing at the doors leans in and
+reaches the holder and the button (blender/tc_person.py).
 
 usage: python make_test_mill_cabinet.py out.step
 """
@@ -26,83 +34,92 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_test_mill as mill  # noqa: E402
-from machine_parts import DARK, LIGHT_GREY, RAIL_STEEL, asm, chamfered_rect, g, part, write  # noqa: E402
+from machine_parts import (DARK, ENCLOSURE_GREY, RAIL_STEEL, SCREEN, asm, bt40_holder_with_end_mill,  # noqa: E402
+                           chamfer, chamfered_rect, g, part, sliding_door, write)
 
-RAISE = 910.0                     # the mill's bed bottom (-60) on the stand's top (850)
-STAND_TOP = 850.0
-ENC = (-440.0, 440.0, -270.0, 450.0)       # enclosure x0, x1, y0 (front panel's front), y1 (back panel's back)
-ROOF = 2000.0
-OPEN = (-260.0, 260.0, 900.0, 1850.0)       # the front panel's opening: x0, x1, z0, z1
-DOOR = (-270.0, 270.0, 890.0, 1860.0)       # the door's frame: x0, x1, z0, z1
-DOOR_Y = (-290.0, -276.0)                  # the door's back and front faces (y): 6 mm in front of the panel
-DOOR_OPEN = 530.0                          # mm the door slides to the right to open
-CABINET_BLUE = (0.16, 0.2, 0.26)
-
-
-def stand():
-    x0, x1, y0, y1 = -400.0, 400.0, -300.0, 420.0
-    body = g.polygon_prism(chamfered_rect(x0, y0, x1 - x0, y1 - y0, 6.0), STAND_TOP)
-    toe = g.box(x0 - 1, y0 - 1, -1.0, x1 - x0 + 2, 61.0, 81.0)            # toe recess 60 deep, 80 high
-    grooves = [g.box(x - 2.0, y0 - 1.0, 120.0, 4.0, 4.0, 680.0) for x in (-1.0, -380.0, 378.0)]
-    grooves.append(g.box(x0 + 20, y0 - 1.0, 798.0, x1 - x0 - 40, 4.0, 4.0))
-    return g.cut(body, toe, *grooves)
+RAISE = -mill.FLOOR                       # the mill's floor (z -900) on the floor (0)
+X0, X1, BACK = -1250.0, 1250.0, 1390.0    # the enclosure's sides and its back wall's back face
+PANEL = -380.0                            # the upper front panel's front face (y); it is T thick
+APRON = (-398.0, 750.0)                   # the lower front: its front face (y), its top (z)
+ROOF = 2500.0
+T = 8.0                                   # sheet
+OPEN = (-600.0, 600.0, 840.0, 1960.0)      # the front panel's opening: x0, x1, z0, z1
+DOOR_Y = PANEL - 2.0                       # the doors' back face (y): 2 mm in front of the panel
+DOOR_T = 14.0
+DOOR_Z = (820.0, 1980.0)
+DOOR_W = 615.0
+DOOR_OPEN = 350.0                          # mm the left door slides to the left to open (the right one as far right):
+                                           # its handle stays inside the opening, where the hand comes from
+HANDLE_X = -170.0                          # the left door's handle (the person's: away from the trolley on its right),
+HANDLE_X_RIGHT = 170.0                     # far enough out that the person stands as close as the doors allow
+HANDLE_OUT = 55.0                          # its bar's front this far before the door: room for the fist behind it
+TOE = (60.0, 100.0)                        # the toe recess under the lower front: depth, height (in front of the doors)
 
 
 def enclosure():
-    x0, x1, y0, y1 = ENC
-    t = 10.0
-    back = g.box(x0, y1 - t, STAND_TOP, x1 - x0, t, ROOF - STAND_TOP)
-    left = g.box(x0, y0, STAND_TOP, t, y1 - y0, ROOF - STAND_TOP)
-    right = g.box(x1 - t, y0, STAND_TOP, t, y1 - y0, ROOF - STAND_TOP)
-    roof = g.box(x0, y0, ROOF - t, x1 - x0, y1 - y0, t)
-    front = g.box(x0, y0, STAND_TOP, x1 - x0, t, ROOF - STAND_TOP)
-    hole = g.box(OPEN[0], y0 - 1.0, OPEN[2], OPEN[1] - OPEN[0], t + 2.0, OPEN[3] - OPEN[2])
-    return g.cut(g.fuse(back, left, right, roof, front), hole)
+    yf, ztop = APRON
+    back = g.box(X0, BACK - T, 0.0, X1 - X0, T, ROOF)
+    sides = [g.box(x, yf, 0.0, T, BACK - yf, ztop) for x in (X0, X1 - T)]
+    sides += [g.box(x, PANEL, ztop, T, BACK - PANEL, ROOF - ztop) for x in (X0, X1 - T)]
+    roof = g.box(X0, PANEL, ROOF - T, X1 - X0, BACK - PANEL, T)
+    apron = g.box(X0, yf, 0.0, X1 - X0, T, ztop)
+    shelf = g.box(X0, yf, ztop - T, X1 - X0, PANEL + T - yf, T)
+    front = g.box(X0, PANEL, ztop - T, X1 - X0, T, ROOF - ztop + T)
+    hole = g.box(OPEN[0], PANEL - 1.0, OPEN[2], OPEN[1] - OPEN[0], T + 2.0, OPEN[3] - OPEN[2])
+    toe = g.box(OPEN[0], yf - 1.0, -1.0, OPEN[1] - OPEN[0], TOE[0] + 1.0, TOE[1] + 1.0)        # room for the toes
+    toe_back = g.box(OPEN[0], yf + TOE[0], 0.0, OPEN[1] - OPEN[0], T, TOE[1] + T)
+    toe_top = g.box(OPEN[0], yf, TOE[1], OPEN[1] - OPEN[0], TOE[0] + T, T)
+    return g.fuse(g.cut(g.fuse(back, *sides, roof, apron, shelf, front), hole, toe), toe_back, toe_top)
 
 
 def door_rail():
-    return g.box(-430.0, DOOR_Y[0] - 4.0, DOOR[3] + 4.0, 1300.0, 30.0, 16.0)
+    return g.box(X0, DOOR_Y - DOOR_T - 8.0, DOOR_Z[1] + 4.0, X1 - X0, PANEL - (DOOR_Y - DOOR_T - 8.0), 20.0)
 
 
-def door():
-    x0, x1, z0, z1 = DOOR
-    yb, yf = DOOR_Y
-    frame = g.box(x0, yb, z0, x1 - x0, yf - yb, z1 - z0)
-    window = g.box(x0 + 40.0, yb - 1.0, z0 + 40.0, x1 - x0 - 80.0, yf - yb + 2.0, z1 - z0 - 80.0)
-    frame = g.cut(frame, window)
-    bar = g.cyl(11.0, 360.0, (x0 + 24.0, -318.0, 1000.0))                 # the handle bar, Ø22
-    feet = [g.box(x0 + 16.0, -318.0, z, 16.0, 44.0, 16.0) for z in (1000.0, 1344.0)]
-    return g.fuse(frame, bar, *feet)
+def doors():
+    z0, z1 = DOOR_Z
+    kw = dict(handle_z=(1180.0, 1580.0), handle_r=8.0, handle_out=HANDLE_OUT)
+    right = sliding_door(0.0, DOOR_W, z0, z1, DOOR_Y, DOOR_T, handle_x=HANDLE_X_RIGHT, sides=(210.0, 60.0), **kw)
+    left = sliding_door(-DOOR_W, 0.0, z0, z1, DOOR_Y, DOOR_T, handle_x=HANDLE_X, sides=(60.0, 210.0), **kw)
+    return right, left
+
+
+def control_panel():
+    """A plain operator panel: a box with a screen and a key field, on an arm from the enclosure's right side."""
+    x0 = X1 + 60.0
+    box = g.polygon_prism(chamfered_rect(x0, -600.0, 420.0, 90.0, 12.0), 600.0, g.T(0, 0, 1150.0))
+    screen = g.box(x0 + 40.0, -602.0, 1430.0, 340.0, 4.0, 270.0)
+    keys = g.box(x0 + 40.0, -602.0, 1190.0, 340.0, 4.0, 200.0)
+    arm = g.box(X1, -470.0, 1600.0, 140.0, 60.0, 60.0)
+    hinge = g.cyl(40.0, 80.0, (X1 + 50.0, -510.0, 1590.0))
+    link = g.box(X1 + 20.0, -560.0, 1600.0, 60.0, 100.0, 60.0)
+    return g.fuse(g.cut(box, screen, keys), arm, hinge, link)
+
+
+def work_light():
+    bar = g.polygon_prism(chamfered_rect(-450.0, -380.0, 900.0, 70.0, 10.0), 40.0, g.T(0, 0, ROOF - T - 70.0))
+    lens = g.box(-430.0, -370.0, ROOF - T - 74.0, 860.0, 50.0, 4.0)
+    brackets = [g.box(x, -360.0, ROOF - T - 30.0, 30.0, 30.0, 30.0) for x in (-400.0, 370.0)]
+    return g.fuse(bar, lens, *brackets)
 
 
 def release_button():
-    """The drawbar release button on the head's left side (task 0156): a bracket from the collar with a box and a
-    round green push button facing the operator (-y); in Z.ASM's coordinates (mm, as make_test_mill.py)."""
-    bracket = g.box(-150.0, -32.0, 222.0, 108.0, 32.0, 36.0)
-    cap = g.cyl(8.0, 8.0, (-130.0, -32.0, 240.0), (0.0, -1.0, 0.0))
-    return g.fuse(bracket, cap)
+    """The drawbar release button on the head's left (task 0156): a bracket from the cartridge with a box and a round
+    green push button facing the operator (-y); in Z.ASM's coordinates (mm, as make_test_mill.py)."""
+    bracket = g.box(-160.0, -40.0, 222.0, 87.0, 40.0, 36.0)
+    cap = g.cyl(8.0, 8.0, (-130.0, -40.0, 240.0), (0.0, -1.0, 0.0))
+    return chamfer(g.fuse(bracket, cap), 2.0, lambda p: abs(p[0] + 160.0) < 1e-6)
 
 
 HEAD_UP = 80.0                    # the head sits this much higher than on the plain test mill: room for a holder
 TOOL_TIP = 10.0                   # the tool's tip in the head's coordinates (before HEAD_UP): 20 above the stock
 
 
-def end_mill_in_holder():
-    """T1 as it sits in the spindle: a BT30-like holder (flange Ø46 with its V groove, body Ø32, nut Ø28) and a
-    Ø10 end mill 36 mm out of it; its gauge line (the flange's top) 120 mm above the tip, at the spindle's nose."""
-    cutter = g.cyl(5.0, 38.0)
-    nut = g.cyl(14.0, 12.0, (0.0, 0.0, 36.0))
-    body = g.revolve([(0.0, 47.0), (13.5, 47.0), (16.0, 56.0), (16.0, 99.0), (0.0, 99.0)])
-    flange = g.revolve([(0.0, 99.0), (23.0, 99.0), (23.0, 104.0), (19.5, 107.0), (23.0, 110.0), (23.0, 120.0),
-                        (0.0, 120.0)])
-    return g.fuse(cutter, nut, body, flange)
-
-
 def model():
     sx, sy, sz, sdx, sdy, sdz = mill.STOCK
     stock = part("STOCK 200x200x40", g.box(sx, sy, sz, sdx, sdy, sdz), mill.ALU)
     finished = part("FINISHED PART", mill.finished_part(), mill.ALU)
-    end_mill = part("END MILL D10 BT30", end_mill_in_holder(), (0.62, 0.63, 0.66))
+    end_mill = part("END MILL D10 BT40", bt40_holder_with_end_mill(), (0.62, 0.63, 0.66))
     ball = part("BALL MILL D6", mill.ball_mill(3.0, 30.0))
     button = part("RELEASE BUTTON", release_button(), (0.1, 0.55, 0.2))
     m = mill.machine("TEST.MILL", stock, finished, mill.STOCK, [(end_mill, (0.0, 0.0, TOOL_TIP)),
@@ -110,13 +127,15 @@ def model():
                                                                 (button, (0.0, 0.0, 0.0))], ball_bracket=True)
     if not _raise_head(m):
         raise RuntimeError("no Z.ASM in the test mill")
-    return asm("TEST.MILL.CABINET", part("CABINET STAND", stand(), CABINET_BLUE),
-               part("ENCLOSURE", enclosure(), LIGHT_GREY), part("DOOR RAIL", door_rail(), RAIL_STEEL),
-               part("SLIDING DOOR", door(), DARK), (m, (0.0, 0.0, RAISE)))
+    right, left = doors()
+    return asm("TEST.MILL.ENCLOSED", part("ENCLOSURE", enclosure(), ENCLOSURE_GREY),
+               part("DOOR RAIL", door_rail(), RAIL_STEEL), part("SLIDING DOOR", left, DARK),
+               part("SLIDING DOOR RIGHT", right, DARK), part("CONTROL PANEL", control_panel(), SCREEN),
+               part("WORK LIGHT", work_light(), (0.9, 0.9, 0.85)), (m, (0.0, 0.0, RAISE)))
 
 
 def _raise_head(node) -> bool:
-    """Z.ASM HEAD_UP higher in its carriage (the CAD pose: the tool in its holder clears the stock)."""
+    """Z.ASM HEAD_UP higher on its column (the CAD pose: the tool in its holder clears the stock)."""
     for c in getattr(node, "children", []):
         if getattr(c.node, "name", "") == "Z.ASM":
             c.M = c.M @ g.T(0.0, 0.0, HEAD_UP)

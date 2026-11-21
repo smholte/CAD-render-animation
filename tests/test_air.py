@@ -1,7 +1,7 @@
 """Task 0039: air blast on the test mill (tests/data/test_mill.step) with a G-code program.
 
-The block (200 x 200 x 40 mm, top at z = 70 mm) sits on the table that slides along Y; the head (spindle
-Ø60 mm, bottom at z = 130 mm, the Ø10 end mill's tip at z = 90 mm) moves along X and Z. The program cuts a
+The block (200 x 200 x 40 mm, top at z = 70 mm) sits on the table that moves along X and Y (task 0249: a VMC);
+the head (spindle nose Ø110 mm, bottom at z = 130 mm, the Ø10 end mill's tip at z = 90 mm) moves along Z. The program cuts a
 pocket 60 x 40 mm, 4 mm deep, in the middle of the block, with air on (M7) while it cuts and off (M9) before
 it goes up.
 """
@@ -85,7 +85,7 @@ def scene(tmp_path):
     sc = bpy.context.scene
     sc.fresing.out_folder = str(tmp_path)
     assert bpy.ops.fresing.import_step(filepath=MILL, quality="draft") == {"FINISHED"}
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = ob(sc, asm)
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     assert bpy.ops.fresing.cnc_find_axes() == {"FINISHED"}
@@ -204,7 +204,7 @@ def test_external_nozzle_follows_the_head_and_blows(scene):
     assert len(o) == frames
     # the nozzle sits on the head: it goes down 25 mm with Z for the cut (Z -4 from Z 5 … and up to 20 mm)
     assert float(np.ptp(o[:, 2])) > 0.015
-    assert float(np.ptp(o[:, 0])) > 0.05                       # and along X with the carriage
+    assert float(np.ptp(o[:, 0])) < 1e-4                       # task 0249: X moves the table, not the head
     bk, n_air = chips_at_end(scene, frames)
     scene.fresing.cnc.air_source = "SPINDLE"
     scene.fresing.cnc.air_on_code = 150                         # (no air: the program has no M150)
@@ -324,7 +324,7 @@ def test_queue_render_blows_the_part_clean(scene):
 
     from fresing_render.blender import logic, queue
     s = scene.fresing
-    for name in ("X.ASM", "COLUMN", "FINISHED PART"):          # what moves still moves and cuts, it is only not seen
+    for name in ("Z.ASM", "COLUMN", "FINISHED PART"):          # what moves still moves and cuts, it is only not seen
         logic.set_hidden(ob(scene, name), True)
     text = POCKET.replace("M7\n", "").replace("M9\n", "")
     _a, _b, frames = build_program(scene, text, fit=0.3, fps=24, gcode_clean=True, gcode_clean_time=0.5)
@@ -347,8 +347,10 @@ def test_queue_render_blows_the_part_clean(scene):
     cam = bpy.data.objects.new("Top cam", cam_data)
     scene.collection.objects.link(cam)
     cam.location = (float(best[0]), float(best[1]), 0.3)
+    table = ob(scene, "X.ASM")                  # task 0249: the table carries the block along X; the camera rides along
+    cam.parent, cam.matrix_parent_inverse = table, table.matrix_world.inverted()
     scene.camera = cam
-    for name in ("X.ASM", "COLUMN", "FINISHED PART"):
+    for name in ("Z.ASM", "COLUMN", "FINISHED PART"):
         logic.set_hidden(ob(scene, name), True)
     a, _b, frames2 = build_program(scene, text, fit=0.3, fps=24, gcode_clean=True, gcode_clean_time=0.5)
     assert frames2 == frames

@@ -540,7 +540,7 @@ def test_milled_slot_in_blender_floor_and_top_are_flat(tmp_path):
             o.select_set(True)
             bpy.context.view_layer.objects.active = o
 
-        for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
             o = ob(asm)
             joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
         a = sc.fresing.animations.add()

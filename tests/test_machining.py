@@ -1,8 +1,8 @@
 """Task 0027: milling in Blender on the test mill (tools/make_test_mill.py, tests/data/test_mill.step).
 
-The machine: the table (with the 200 x 200 x 40 mm stock, z 30..70 mm) slides along Y, the carriage
-along X, the head along Z. The flat end mill Ø10 has its tip at (0, 0, 90) mm, the ball end mill Ø6 at
-(120, 0, 90) mm. Every size below is worked out by hand from those numbers.
+The machine (task 0249: a VMC): the saddle slides along Y, the table (with the 200 x 200 x 40 mm stock, z 30..70 mm)
+along X on it, the head along Z. The X joint points to -x: a positive X moves the tool to +x on the block. The flat
+end mill Ø10 has its tip at (0, 0, 90) mm, the ball end mill Ø6 at (120, 0, 90) mm. Every size below is worked out by hand from those numbers.
 """
 
 import math
@@ -36,7 +36,7 @@ def addon():
 
 
 def _setup_axes(sc):
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = ob(sc, asm)
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
 
@@ -365,7 +365,7 @@ def test_queue_render_shows_the_cut(scene, tmp_path):
     set_up(scene)                              # picked while the bit can still be clicked
     # only the block and the table are in the picture: what moves is hidden (it still moves and cuts),
     # and the finished part (in the same place as the stock) too
-    for name in ("X.ASM", "COLUMN", "FINISHED PART"):
+    for name in ("Z.ASM", "COLUMN", "FINISHED PART"):
         logic.set_hidden(ob(scene, name), True)
     cam_data = bpy.data.cameras.new("Mill cam")
     cam = bpy.data.objects.new("Mill cam", cam_data)
@@ -373,6 +373,8 @@ def test_queue_render_shows_the_cut(scene, tmp_path):
     cam.location = (0.12, -0.22, 0.24)
     cam.rotation_euler = (Vector((0.025, 0.0, 0.07)) - cam.location).to_track_quat("-Z", "Y").to_euler()
     cam_data.lens = 50
+    table = ob(scene, "X.ASM")                  # task 0249: the table moves along X; the camera rides with it
+    cam.parent, cam.matrix_parent_inverse = table, table.matrix_world.inverted()
     scene.camera = cam
     # built after hiding and the camera: 'Build' remembers how things looked and the queue builds again
     anim(scene, [("Z", 0.0, 0.04, -25.0), ("X", 0.04, 0.04, 50.0)])         # 3 frames: above, plunged, slot
@@ -669,7 +671,7 @@ def test_queued_still_shows_the_cut_look(scene, tmp_path):
     m = machining.settings(scene)
     m.cut_look = "PICK"
     m.cut_material = "emission_light"
-    for name in ("X.ASM", "COLUMN", "FINISHED PART"):
+    for name in ("Z.ASM", "COLUMN", "FINISHED PART"):
         logic.set_hidden(ob(scene, name), True)
     cam_data = bpy.data.cameras.new("Mill cam")
     cam = bpy.data.objects.new("Mill cam", cam_data)

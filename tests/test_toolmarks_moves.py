@@ -597,7 +597,7 @@ def test_the_milled_mesh_has_the_attributes(blender, tmp_path):
     """Test mill, a slot from a joint animation (no program): 5 mm deep, 50 mm along X, flat end mill Ø10."""
     bpy = blender
     from fresing_render.blender import animation, machining
-    sc = _scene(bpy, tmp_path, MILL, (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)),
+    sc = _scene(bpy, tmp_path, MILL, (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)),
                                       ("Z", "Z.ASM", (0, 0, 1))))
     a = sc.fresing.animations.add()
     a.name, a.tail = "Mill", 0.0

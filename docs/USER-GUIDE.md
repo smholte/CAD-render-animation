@@ -2728,8 +2728,8 @@ With **Tool lengths move the spindle** ticked (as a tool length offset G43 does)
 one in the spindle moves the spindle up by the difference, so every tool's tip is where the program says; the
 spindle adjusts at the change, so no tool ever goes lower than the program says: a longer new tool is put in with
 the spindle already up (when the head stays where it is), and on the way back from the change position the head
-comes down onto the program's point with the new tool's length. Tools in different holders work too: a face mill 40 mm out of a 45 mm BT30
-arbor (85 mm) and an end mill 38 mm out of a 60 mm BT30 chuck (98 mm) differ by 13 mm. For a tool shown by a part
+comes down onto the program's point with the new tool's length. Tools in different holders work too: a face mill 40 mm out of a 45 mm BT40
+arbor (85 mm) and an end mill 38 mm out of a 60 mm BT40 chuck (98 mm) differ by 13 mm. For a tool shown by a part
 or a STEP model with its holder inside, type the **Gauge length** (tip to gauge line, as on the tool's data sheet
 or the presetter) into the row: it wins over stick-out + holder. Projects from before 0.2.38 whose tools all sit in
 one kind of holder move the spindle as before.
@@ -2837,7 +2837,7 @@ After the last change it walks back to where it came from. The pause grows to wh
 seconds, plus the door (twice its travel time and the reach for its handle). The step's **Details** say how long
 each change takes ("The operator changes 1 tool, 9.7 s each at the machine").
 
-<img src="img/toolchange_person.jpg" alt="The test mill in its cabinet: the operator leans into the open door and pulls the end mill out of the spindle by its holder">
+<img src="img/toolchange_person.jpg" alt="The test mill in its enclosure: the operator leans in through the open sliding doors and pulls the end mill out of the spindle by its holder">
 
 <img src="img/toolchange_person_trolley.jpg" alt="The operator lays the end mill on the red tool trolley beside it; the ball mill waits on the trolley">
 
@@ -2847,7 +2847,9 @@ The person's settings are in 4 Motion > CNC machine > **Tool changes** > **Perso
   default (a machine shop).
 - **Door**: the joint that opens the machine's door (make it in 4 Motion: a slide joint for a sliding door, a rotate
   joint for a hinged one; closed as in your CAD model). **Opens by**: how far it slides or turns to be open. The
-  hand follows the handle as far as it reaches; a door that slides further runs on by itself. Empty: no door.
+  hand follows the handle as far as it reaches; a door that slides further runs on by itself. Empty: no door. Two
+  sliding doors that open away from each other (as on the test mill): pick the one with the handle the operator
+  takes, give the other door a slide joint of its own and let it follow the first with ratio −1 (4 Motion > Joints).
 - **Release button**: the left hand presses the button on the head while the right hand takes the tool out and puts
   the new one in. Off: the left hand stays down.
 - **Show the spots**: two markers in the view – an arrow where the operator stands at the machine and a circle where
@@ -3709,7 +3711,8 @@ brushed, ground or turned metal, the very fine orange peel of paint, tool marks 
 X-ray look (parts are whole and solid), chips, coolant,
 hoses and milling (material removal).
 
-Measured on the 4-core test machine without a graphics card: the test mill (9 parts) in about 3 s, 0.3 MB; a
+Measured on the 4-core test machine without a graphics card: the old small test mill (9 parts, before 0.2.194) in
+about 3 s, 0.3 MB; a
 made-up 3,000-part machine at Texture size 1024 in about 7 s, 17 MB compressed (35 MB without). Texture size 2048
 needs much less memory since version 0.2.82 (baked in smaller pieces). Numbers for bigger machines: task 0105's
 report.

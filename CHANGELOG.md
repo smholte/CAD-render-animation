@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.194 – 21 Nov 2026 – A larger test mill: a vertical machining centre (task 0249)
+
+- **New test mill.** The small test mill is gone. In its place is an invented **vertical machining centre**: travels
+  X 1000 × Y 500 × Z 500 mm, a 1200 × 500 table with three 18 mm T-slots, a BT40 spindle, a column with ribs,
+  telescopic way covers that follow the saddle, a chip tray that falls to a coolant drain and tank (ready for coolant
+  liquid later), about 2.4 m tall. The block, the tools, the programs and the work zero are where they were, so every
+  cut looks the same – only now the table moves along X and Y and the head along Z, as on most VMCs.
+- **A person changes the tool:** the machine now stands on the floor in its **own enclosure with two front sliding
+  doors**, a control panel and a work light (no cabinet). The operator walks up, opens the doors, leans in, takes the
+  BT40 tool out, lays it on the trolley, puts the next one in and closes the doors. People lean a little further now
+  when they reach into a machine (up to 65° instead of 55°).
+- **Test tour:** Milling a slot, Three tools and the hand, Tool marks, Air blast, Coolant, A person changes the tool
+  and The app makes the toolpath run on the new machine; the tools are BT40. The PC check's milling lines too.
+- **Fix – chips:** on a machine whose table rides on a saddle, chips that fell past the saddle sometimes fell
+  through the fixed parts beside it and on for ever; they now land on those parts (or the floor).
+
 ## 0.2.193 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
 
 - **Houses from House Planner:** Fresing Render follows the Toolbox format's bug-fix version 0.1.1. A job whose file

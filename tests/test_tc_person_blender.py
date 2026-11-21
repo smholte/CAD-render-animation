@@ -1,4 +1,4 @@
-"""Task 0156 in Blender: the operator changes the tool on the test mill in its cabinet (tour set "operator",
+"""Task 0156 in Blender: the operator changes the tool on the test mill in its enclosure (tour set "operator",
 tests/data/test_mill_cabinet.step), and the gloved hand of the "Three tools" set closes round the holder.
 
 The posed person (the evaluated mesh, arms and all) is checked against every machine part at the frames of the change:
@@ -15,7 +15,7 @@ import addon_utils  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
 import fresing_render  # noqa: E402
-from fresing_render.blender import animation, clash, gcode, tc_person, toolchange, tour  # noqa: E402
+from fresing_render.blender import animation, build, clash, gcode, tc_person, toolchange, tour  # noqa: E402
 from fresing_render.core import gcode as gcore  # noqa: E402
 from fresing_render.core import toolchange as TC  # noqa: E402
 
@@ -80,7 +80,7 @@ def test_the_hands_never_go_into_the_machine(built):
     op = tc_person.operator(sc)
     keys = TC.person_keys(*c.hand, c.door)
     door_span = [(f0 + x * 25, f0 + y * 25) for x, y, n in keys if n in tc_person.core.DOOR_MOVES]
-    door = next(o for o in sc.objects if o.name.startswith("SLIDING DOOR"))
+    door = next(o for o in sc.objects if o.get(build.PROP_NAME) == "SLIDING DOOR")      # the right one (task 0249)
     first, last = int(f0 + keys[0][0] * 25) - 25, int(f0 + keys[-1][1] * 25) + 25
     parts = [o for o in sc.objects if o.type == "MESH" and o is not op and not o.get(tc_person.TAG)
              and o.get(gcode.TAG) != "tool" and not o.name.startswith("FR ") and len(o.data.polygons)]
