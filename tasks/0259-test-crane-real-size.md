@@ -76,6 +76,36 @@ crane lesson, the PC check, most guide pictures).
 Surroundings and environments of the sets (0233 / 0234); other test models (after study 0258); the mills (0249 / 0250);
 app code. **Never the cable-lay vessel's equipment, never the Fresing 400.**
 
+## Design (worker, 21 Nov 2026)
+
+The crane's numbers, old → new (m unless said; `tools/make_test_crane.py` holds them):
+
+| What | Old | New |
+| --- | --- | --- |
+| Layout x, y | – | × 5 |
+| Layout z | – | × 5 for the base, its bolts, the cover and the pedestal's foot; × 5 **+ 0.4** for everything from the pedestal's block up (boom, trolley, cylinder, pins, lamp) – the pedestal is 400 mm taller for head room |
+| Boom pin (pivot) | (0.1, 0.3, 0.4) | (0.5, 1.5, 2.4) |
+| Boom | 1.5 long, 0.1 × 0.1 | 7.5 long, 0.5 × 0.5; underside 2.15 m up in the CAD pose |
+| Boom tip | (1.6, 0.3, 0.4) | (8.0, 1.5, 2.4) |
+| Trolley (TROLLEY.ASM origin) | pivot + (0.6, −0.075, 0.05) | pivot + (3.0, −0.375, 0.25) = (3.5, 1.125, 2.65) |
+| Trolley run in the tour | 0.35 | 1.75 (`tour.TROLLEY_RUN`) |
+| Base | 1.0 × 0.6 × 0.1 | 5.0 × 3.0 × 0.5 |
+| Cover | 0.3 × 0.2 × 0.010 at (0.6, 0.05, 0.1); rev. B +0.01 | 1.5 × 1.0 × **0.012** at (3.0, 0.25, 0.5); rev. B +0.05 |
+| Anchor bolts | `ISO 4017 M12 x 40 - 8.8 HDG`, holes Ø13 | `ISO 4017 M30 x 120 - 8.8 HDG`, holes Ø33, at (0.25 / 4.75, 0.25 / 2.75, 0.5) |
+| Foot screws | `ISO 4762 M10 x 20 - 12.9`, flange 20 mm | `ISO 4762 M24 x 60 - 12.9`, flange 60 mm |
+| Boom pin / bores / boom's round end | Ø40, 0.18 long / Ø40.4 / Ø100 | Ø100, 0.9 long / Ø100.4 / Ø500 |
+| Luffing pins | Ø20, 0.044 long (half 0.022) | Ø70, 0.22 long (half 0.11, `tour.LUFF_PIN_HALF`) |
+| Luffing cylinder | bore Ø52, piston Ø50, rod Ø22, 6 in / 140 out | bore Ø200, piston Ø198, rod Ø110, 30 in / 700 out (the same −1.5° … 37.6°) |
+| Rod eye centre (CAD pose) | (0.52, 0.3, 0.325) | (2.6, 1.5, 2.025) (`tour.LUFF_ROD_EYE`) |
+| Barrel pin | (0.19, 0.3, 0.195) | (0.95, 1.5, 1.375) |
+| Trolley wheels | Ø60 | Ø300 |
+| Rev. B lamp (boom space) | (1.45, 0, 0.08) | (7.25, 0, 0.4) |
+| Cut (tour `cutaway`) | starts 0.2 in front | 1.0 (`tour.CUT_FROM`) |
+
+No part lies inside another any more (the first crane's barrel end cap and rod end reached into the forks' plates).
+Same names, tree, colours, part count (13 unique, 20 placed) and joints. `tour.CRANE_PIVOT`, `CRANE_PIN_R`,
+`CRANE_BOOM` hold the numbers the tour and the PC check use.
+
 ---
 
 ## Report (filled in by the chat that did the task)

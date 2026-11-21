@@ -421,12 +421,20 @@ def _bake(scene, a) -> dict:
     return r
 
 
+# the test crane (tools/make_test_crane.py, task 0259: a service crane at real size), m
+CRANE_PIVOT = (0.5, 1.5, 2.4)          # the boom pin's centre
+CRANE_PIN_R = 0.05                     # the boom pin Ø100
+CRANE_BOOM = 7.5                       # the boom's length from the pin
+TROLLEY_RUN = 1.75                     # the trolley's run out along the boom in the tour's animations
+
+
 def _boom_joint(scene):
     from mathutils import Vector
 
     from . import joints
     pin = _ob(scene, "BOOM.PIN")
-    origin, direction, _desc = joints.axis_from_hit(pin, 0, Vector((0.1, 0.3, 0.42)), Vector((0, 0, 1)))
+    origin, direction, _desc = joints.axis_from_hit(pin, 0, Vector(CRANE_PIVOT) + Vector((0, 0, CRANE_PIN_R)),
+                                                    Vector((0, 0, 1)))
     if direction.y > 0:              # + turns the boom up (along +Y it went down through the base: found by 0065)
         direction = -direction
     j = joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], origin, direction, ref=pin, name="Boom")
@@ -436,7 +444,8 @@ def _boom_joint(scene):
 
 LUFF = "Luffing cylinder"
 YELLOW = "Welded frames & structures #F9A800"       # the crane's yellow group: boom and pedestal (task 0122)
-LUFF_ROD_EYE = (0.52, 0.3, 0.325)      # the rod eye's centre in the CAD pose, m (tools/make_test_crane.py luff_pins)
+LUFF_ROD_EYE = (2.6, 1.5, 2.025)       # the rod eye's centre in the CAD pose, m (tools/make_test_crane.py luff_pins)
+LUFF_PIN_HALF = 0.11                   # m: half a luffing pin's length (its axis from its head side)
 
 
 def luff_cylinder(scene):
@@ -453,7 +462,7 @@ def luff_cylinder(scene):
     def pin_at(name):                  # a pin part's axis: along its own +y, from its own origin (its head side)
         ob = _ob(scene, name)
         m = ob.matrix_world
-        return m @ Vector((0, 0.022, 0)), (m.to_3x3() @ Vector((0, 1, 0))).normalized(), ob
+        return m @ Vector((0, LUFF_PIN_HALF, 0)), (m.to_3x3() @ Vector((0, 1, 0))).normalized(), ob
 
     c, _notes = cylinders.create(scene, [_ob(scene, "HYDRAULIC CYLINDER.BARREL")], [_ob(scene, "HYDRAULIC CYLINDER.ROD")],
                                  pin_at("PEDESTAL.LUFF.PIN"), pin_at("BOOM.LUFF.PIN"), name=LUFF)
@@ -471,7 +480,7 @@ def luff_cylinder(scene):
 
 def _tip(scene):
     from mathutils import Vector
-    return _ob(scene, "BOOM").matrix_world @ Vector((1.5, 0, 0))
+    return _ob(scene, "BOOM").matrix_world @ Vector((CRANE_BOOM, 0, 0))
 
 
 def _logo(path: str) -> str:
@@ -535,7 +544,7 @@ def build_crane(b: Build):
     # Motion: joint, stack, exploded view
     a = _animation(b, "Boom and trolley", "Tour view")
     _joint_step(a, "Boom", 0.0, 3.0, math.radians(25))
-    _joint_step(a, "Trolley", 0.0, 3.0, 0.35, slide=True)
+    _joint_step(a, "Trolley", 0.0, 3.0, TROLLEY_RUN, slide=True)
     fade_and_trail(sc, _animation(b, FADE_ANIM, "Tour view"))
     camera_rides(sc, _animation(b, CAMERA_ANIM, "Tour view"))
     from . import build, states
@@ -620,7 +629,7 @@ def fade_and_trail(scene, a) -> None:
     draws the trolley's path. Also used by the PC check line motion.fade."""
     from . import build, trails
     _joint_step(a, "Boom", 0.0, 3.0, math.radians(25), label="The boom goes up")
-    _joint_step(a, "Trolley", 0.0, 3.0, 0.35, slide=True)
+    _joint_step(a, "Trolley", 0.0, 3.0, TROLLEY_RUN, slide=True)
     cover = _ob(scene, "COVER")
     blk = a.blocks.add()
     blk.kind, blk.start, blk.duration, blk.easing = "FADE_OUT", 0.5, 1.5, "SMOOTH"
@@ -633,7 +642,7 @@ def fade_and_trail(scene, a) -> None:
     t = trails.add(scene, trolley, "CLICKED", centre)
     t.animation = a.name
     t.name = "Trolley path"
-    t.color, t.thickness = (0.05, 0.85, 0.2), 0.008       # green: the crane is yellow
+    t.color, t.thickness = (0.05, 0.85, 0.2), 0.04        # green: the crane is yellow
 
 
 def _check_fade(scene):
@@ -671,7 +680,7 @@ def camera_rides(scene, a) -> None:
 
     from . import build
     _joint_step(a, "Boom", 0.0, PATH_END, math.radians(30), label="The boom goes up")
-    _joint_step(a, "Trolley", 0.0, PATH_END, 0.35, slide=True)
+    _joint_step(a, "Trolley", 0.0, PATH_END, TROLLEY_RUN, slide=True)
     boom, trolley = _ob(scene, "BOOM"), _ob(scene, "TROLLEY")
     ride = a.blocks.add()
     ride.kind, ride.camera_mode, ride.start, ride.duration, ride.cam_blend = "CAMERA", "RIDE", 0.0, RIDE_END, 0.0
@@ -761,7 +770,7 @@ def _check_boom(scene):
     a = _tip(scene).copy()
     scene.frame_set(end)
     moved = (_tip(scene) - a).length
-    _check(moved > 0.5, f"the boom's tip moved only {moved * 1000:.0f} mm")
+    _check(moved > 2.5, f"the boom's tip moved only {moved * 1000:.0f} mm")
     off = luff_eye_off(scene)
     _check(off < 0.05, f"the luffing cylinder's rod eye is {off:.2f} mm off its pin under the boom")
     return f"tip moved {moved * 1000:.0f} mm, {end} frames; rod eye on its pin to {off:.3f} mm"
@@ -772,7 +781,7 @@ def luff_eye_off(scene) -> float:
     from mathutils import Vector
     _update()
     rod, pin = _ob(scene, "HYDRAULIC CYLINDER.ROD"), _ob(scene, "BOOM.LUFF.PIN")
-    pr = pin.matrix_world @ Vector((0, 0.022, 0))
+    pr = pin.matrix_world @ Vector((0, LUFF_PIN_HALF, 0))
     axis = (pin.matrix_world.to_3x3() @ Vector((0, 1, 0))).normalized()
     eye = rod.matrix_world @ Vector(LUFF_ROD_EYE)     # the rod's own coordinates are the crane's (its assembly sits at 0)
     v = eye - pr
@@ -790,14 +799,14 @@ def _check_stack(scene):
     cad = trolley.matrix_world.translation.copy()
     scene.frame_set(scene.frame_end)
     sign = 1 if joints.axis_world(jb)[1].y > 0 else -1
-    pivot = Vector((0.1, 0.3, 0.4))
+    pivot = Vector(CRANE_PIVOT)
     a, d = joints.get_value(jb), joints.get_value(jt)
     want = pivot + Matrix.Rotation(sign * a, 3, "Y") @ (cad - pivot + Vector((d, 0, 0)))
     err = (trolley.matrix_world.translation - want).length
-    _check(abs(math.degrees(a) - 25) < 0.01 and abs(d - 0.35) < 1e-5,
+    _check(abs(math.degrees(a) - 25) < 0.01 and abs(d - TROLLEY_RUN) < 1e-5,
            f"at the end the boom is at {math.degrees(a):.1f}° and the trolley at {d * 1000:.0f} mm")
     _check(err < 1e-3, f"the trolley is {err * 1000:.1f} mm off where boom + slide put it")
-    return "boom 25° + trolley 350 mm"
+    return f"boom 25° + trolley {TROLLEY_RUN * 1000:.0f} mm"
 
 
 def _check_explode(scene):
@@ -827,7 +836,7 @@ def _check_turntable(scene):
     a = cam.matrix_world.translation.copy()
     scene.frame_set(max(2, scene.frame_end // 2))
     moved = (cam.matrix_world.translation - a).length
-    _check(moved > 0.3, f"the turntable camera moved only {moved * 1000:.0f} mm in half the video")
+    _check(moved > 1.5, f"the turntable camera moved only {moved * 1000:.0f} mm in half the video")
     return f"{scene.frame_end} frames"
 
 
@@ -1007,12 +1016,12 @@ MARKS_ANIM = "Tool marks"
 
 
 CUT_ANIM = "The pedestal opens up"
-CUT_FROM = 0.2                  # the cut starts 200 mm in front of the pedestal (nothing cut) and slides to the middle
+CUT_FROM = 1.0                  # the cut starts 1 m in front of the pedestal (nothing cut) and slides to the middle
 
 
 def cutaway(scene, a=None):
     """Cutaway (task 0086): a plane cut through the crane's pedestal and boom, hatched, taking away the half that
-    faces the camera; ``a``: a Move joint step slides it in from 200 mm in front. Also used by the PC check line
+    faces the camera; ``a``: a Move joint step slides it in from 1 m in front. Also used by the PC check line
     looks.cutaway. Returns the cut."""
     from mathutils import Euler, Matrix, Vector
 
@@ -1221,7 +1230,7 @@ def build_cutaway(b: Build):
     _studio(b)
     ped = _ob(sc, "PEDESTAL")
     centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
-    _close_camera(b, centre + Vector((0.1, 0.0, 0.05)), 0.55, "Tour cutaway")
+    _close_camera(b, centre + Vector((0.5, 0.0, 0.25)), 2.75, "Tour cutaway")
     shot = _shot(b, "Tour: cutaway")
     cutaway(sc, _animation(b, CUT_ANIM, shot.name))
 
@@ -2620,7 +2629,7 @@ def build_copies(b: Build):
     sc = b.scene
     _look("PRODUCT")
     first, second = sorted(build.model_roots(sc), key=build.uid_scope)
-    second.location = second.location + Vector((0.0, 2.2, 0.0))
+    second.location = second.location + Vector((0.0, 4.5, 0.0))      # 1.5 m between the bases
     _update()
     cover = next(o for o in sc.objects if o.get(build.PROP_NAME) == "COVER" and build.model_root_of(o) == second)
     logic.set_hidden(cover, True)
@@ -3611,7 +3620,7 @@ def _check_air(scene):
 VESSEL_ANIM = "Vessel at sea"
 
 
-VESSEL_PROPS = ("PERSON", "IBC")          # (a 20 ft container dwarfs the 2 m test crane)
+VESSEL_PROPS = ("PERSON", "IBC")          # beside the 8 m test crane on the deck
 
 
 @tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.196")
@@ -3741,7 +3750,7 @@ def build_people(b: Build):
     from . import surroundings as sur
     _look("PRODUCT")
     _surround(b, "QUAY")                       # task 0233: people on the quay round a real-size container, not beside
-    anna, ben, box = people.set_up_example(b.scene)         # a desk-size crane
+    anna, ben, box = people.set_up_example(b.scene)         # beside the crane (task 0259: at real size)
     pts = people.example_corners(b.scene)
     mn, mx = pts.min(0), pts.max(0)
     cont = sur.add_prop(b.scene, "CONTAINER")

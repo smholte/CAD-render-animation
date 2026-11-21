@@ -98,7 +98,8 @@ def _boom_joint(scene):
 
 def _tip(scene):
     from mathutils import Vector
-    return _ob(scene, "BOOM").matrix_world @ Vector((1.5, 0, 0))
+    from ..blender import tour
+    return _ob(scene, "BOOM").matrix_world @ Vector((tour.CRANE_BOOM, 0, 0))
 
 
 def _wait_queue(scene, minutes: float):
@@ -583,8 +584,8 @@ def looks_cutaway(ctx):
     s = scene.fresing
     ped = _ob(scene, "PEDESTAL")
     centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
-    pts = np.array([tuple(centre + Vector((0.1 + dx, dy, 0.05 + dz)) * 1.0) for dx in (-0.27, 0.27)
-                    for dy in (-0.27, 0.27) for dz in (-0.27, 0.27)])
+    pts = np.array([tuple(centre + Vector((0.5 + dx, dy, 0.25 + dz))) for dx in (-1.35, 1.35)
+                    for dy in (-1.35, 1.35) for dz in (-1.35, 1.35)])
     scene.camera = cameras.add_camera(scene, "ISO", 50.0, "Cut view", points=pts)
     a = s.animations.add()
     a.name, a.tail, a.fps = tour.CUT_ANIM, 0.0, "25"
@@ -741,7 +742,7 @@ def joints_rotate(ctx):
     joints.set_value(j, 0.0)
     _update()
     back = (_tip(scene) - before).length
-    _check(moved > 0.5 and back < 1e-4, f"the boom did not turn as expected (tip moved {moved * 1000:.0f} mm, "
+    _check(moved > 2.5 and back < 1e-4, f"the boom did not turn as expected (tip moved {moved * 1000:.0f} mm, "
                                         f"back {back * 1000:.2f} mm)")
     joints.remove(scene, j)
     return f"tip moved {moved * 1000:.0f} mm at 30°"
@@ -760,13 +761,14 @@ def joints_stack(ctx):
     jt = joints.create(scene, "SLIDE", [trolley], cad, Vector((1, 0, 0)), base=_ob(scene, "BOOM.ASM"), name="Trolley")
     sign = 1 if joints.axis_world(jb)[1].y > 0 else -1
     joints.set_value(jb, math.radians(30))
-    joints.set_value(jt, 0.2)
+    joints.set_value(jt, 1.0)
     _update()
-    pivot = Vector((0.1, 0.3, 0.4))
-    want = pivot + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ (cad - pivot + Vector((0.2, 0, 0)))
+    from ..blender import tour
+    pivot = Vector(tour.CRANE_PIVOT)
+    want = pivot + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ (cad - pivot + Vector((1.0, 0, 0)))
     err = (trolley.matrix_world.translation - want).length
     _check(err < 1e-3, f"the trolley is {err * 1000:.1f} mm off where boom + slide put it")
-    return "boom 30° + trolley 200 mm"
+    return "boom 30° + trolley 1000 mm"
 
 
 @line("joints.cylinder", "Cylinder: follows the arm, the stroke drives it", "0.2.25",
@@ -2153,7 +2155,8 @@ def model_update_safe(ctx):
     frame = next((o for o in scene.objects if o.get(build.PROP_NAME) == "FRAME"
                   and joints._root(o).get(build.PROP_NAME) == "TEST.MACHINE"), None)
     _check(frame is not None, "the test machine has no FRAME")
-    j = joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], Vector((0.1, 0.3, 0.4)), Vector((0, 0, 1)),
+    from ..blender import tour
+    j = joints.create(scene, "ROTATE", [_ob(scene, "BOOM.ASM")], Vector(tour.CRANE_PIVOT), Vector((0, 0, 1)),
                       name="Slew", base=frame)
     joints.set_value(j, math.radians(20))
     boom = _ob(scene, "BOOM")

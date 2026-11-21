@@ -1279,7 +1279,7 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
 **Before you click, the face lights up.** While the app waits for that click, the face under the mouse
 turns magenta – the whole hole, shaft or flat face, as one piece – with the axis it would give: a line
 through a hole's or shaft's centre, or an arrow standing on a flat face. Next to the mouse (and at the
-bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø40.4 mm – axis through its
+bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø100.4 mm – axis through its
 centre". So you see whether you are on the hole or on the face next to it before you click. The floor and
 empty space do not light up ("Not a part"); a spot this click would refuse turns red and says why. The
 same happens for a cylinder's pins and the double arm's hub and pot hinge. Every other click on the model
