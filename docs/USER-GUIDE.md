@@ -770,7 +770,10 @@ report ("BOOM is now called MAIN BOOM"). Names the app makes itself – the numb
 matched by their shape and place, never by that number. A group without a name ("Node 5") follows its parts: work
 on it – a Hide or Show step, the eye in 2 Structure, an Assembly sequence – stays on the same parts when another group
 is added or removed, when the new revision moves the group (its parts with names of their own are found by
-name wherever they went), and when only that group is left in the file. Names with letters such as å or ö stay as they are, also when another line of an older OBJ file
+name wherever they went), and when only that group is left in the file. When the group moved and one of its parts
+also changed shape, or its parts have no names either, its parts are found by their shape and the move they share;
+a part that changed keeps its work too, and the report says what happened ("Node 4 moved 100 mm; 1 part changed –
+its work is kept"). Names with letters such as å or ö stay as they are, also when another line of an older OBJ file
 is in Windows' own code page. A change to the files next to the model – the OBJ's material
 file (.mtl), a picture or a glTF's .bin – is noticed too: the model is read again, also by a new import. The file's
 own looks stay in the project when no part shows them (a group with another look), so **From file** always brings

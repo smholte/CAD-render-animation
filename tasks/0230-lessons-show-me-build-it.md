@@ -1,6 +1,6 @@
 # 0230 – Lessons: Show me and Build it yourself – the engine, the Learn window, the crane and mill lessons
 
-**Who:** worker · **Status:** done (0.2.186, 20 Nov) · **Branch:** `claude/clever-cray-qd0bn8`
+**Who:** worker · **Status:** done (0.2.187, 21 Nov) · **Branch:** `claude/clever-cray-qd0bn8`
 **Started by:** lead, 20 Nov 2026 (study 0123 task 3; owner 15 Nov answers; owner 20 Nov: "the test tour is the users'
 learning environment"; owner 16:35: brief the learning sets and the lessons task together) · **Model:** Opus · effort High
 **Area:** Learning lane – new `blender/lesson.py` (engine), `blender/lessons/` (one module per set: `crane.py`,
@@ -117,7 +117,7 @@ lesson downloads; any tour set other than the crane hub and `mill`; 0222's Blend
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (worker), 20 Nov 2026. Branch `claude/clever-cray-qd0bn8` (the session's branch;
-the brief's `task/0230-lessons` was not used). Version **0.2.186** (0.2.181–0.2.185 were taken by other tasks meanwhile).
+the brief's `task/0230-lessons` was not used). Version **0.2.187** (0.2.181–0.2.186 were taken by other tasks meanwhile).
 
 **What changed:**
 - **Engine** `blender/lesson.py`: lesson = steps (function, title, say, more, parts, select, do, done, show, point);
@@ -137,7 +137,7 @@ the brief's `task/0230-lessons` was not used). Version **0.2.186** (0.2.181–0.
 - **Tour**: `build_crane` = `lesson.run("crane")` + the tour's extra shots; `build_mill` = `lesson.run("mill")`.
   **Every crane and mill stop's check gives the same numbers as before** (compared before/after: only the planned
   changes differ – `finishing` now with a picture card + music, the menu has 15 entries). `sea` stop dropped
-  (`scene.surroundings` → `sea_cable`); new stop `lessons` (hub); `changed="0.2.186"` on crane + mill, recorded. The
+  (`scene.surroundings` → `sea_cable`); new stop `lessons` (hub); `changed="0.2.187"` on crane + mill, recorded. The
   mill set's close-up camera is now the "3/4 hero, high" button on the selected block (the shot is called "Close-up").
 - **Learn window** (Fresing > Learn…, `fresing.learn_lessons`): Crane and Milling a slot with View / Show me / Build it
   yourself, the 46 other sets with View (one header line says their lessons are coming, instead of 92 greyed buttons).
