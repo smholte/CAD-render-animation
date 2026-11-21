@@ -1,6 +1,6 @@
 # 0252 – Web 3D page: "Film" – play the motion through the video's camera, with the page's baked light
 
-**Who:** worker · **Status:** running · **Branch:** `claude/sleepy-fermat-52ww3l` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.194) · **Branch:** `claude/sleepy-fermat-52ww3l` (the web session's branch)
 **Started by:** lead, 21 Nov 2026 13:50 (owner 13:30: "now we have the 3D viewer and the camera positions, could we
 also have a button to follow the cameras through the animation – like the real rendered animation, but with the baked
 light in the 3D web viewer"; his picks 13:45, see Background) · **Model:** Opus · effort High
@@ -163,7 +163,8 @@ within ~1 mm / 0.05° of Blender's Animation camera, a cut jumps), CHANGELOG, CL
   fixed 3 with tests: the Film button pushed the play bar off a 280 px phone (and `layoutCheck` missed it); a Film
   shot further than the orbit limit was pulled in at every picture (drew all the time while paused, a 2 px drag
   snapped 379 m in); leaving during the end card and pressing Film showed the end card again.
-- GitHub runs: listed below.
+- GitHub runs: 3 – run 44907648752 (full, green, 19 min, before the tester's fixes), run 44909339361 (full, green,
+  28 min, fixes + main merged), then a docs run for a second merge of `main` (documents only) and the reuse release.
 
 **Owner steps** (after the update):
 1. Open a project whose animation has Camera steps (or Help > test tour, crane set, stop "Web 3D model").
