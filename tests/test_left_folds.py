@@ -149,3 +149,18 @@ def test_the_section_count_is_written_from_the_list():
     assert f"sections 1 to {n} start folded" in desc
     tab = bpy.types.WindowManager.bl_rna.properties["fresing_tab"].description
     assert f"all {n}" in tab
+
+
+def test_the_section_tabs_have_short_tooltips():
+    """Owner 21 Nov 22:45: tabs 1–8 show only the section's name, All shows "All sections"."""
+    from fresing_render.blender import panels
+    names = [panels.tab_tip(str(i)) for i in range(1, 9)]
+    assert names == ["Import", "Structure", "Looks", "Motion", "Scene & Render", "Animation", "Render queue",
+                     "Lifting plan"]
+    assert panels.tab_tip("ALL") == "All sections"
+    items = bpy.types.WindowManager.bl_rna.properties["fresing_tab"].enum_items
+    assert [(e.identifier, e.description) for e in items] == [("ALL", "All sections")] + [
+        (str(i), n) for i, n in enumerate(names, 1)]
+    op = bpy.ops.fresing.panel_tab.get_rna_type()
+    assert panels.FRESING_OT_panel_tab.description(bpy.context, type("P", (), {"tab": "8"})()) == "Lifting plan"
+    assert op is not None

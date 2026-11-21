@@ -504,14 +504,7 @@ class FRESING_OT_panel_tab(bpy.types.Operator):
 
     @classmethod
     def description(cls, context, properties):
-        t = properties.tab
-        if t.isdigit() and 1 <= int(t) <= len(SECTIONS):
-            title = list(places.SECTIONS.values())[int(t) - 1]
-            return (f"Shows only {title}, opened: the other sections are out of the way until you click All "
-                    "again")
-        if t == "ALL":
-            return "Shows every section again, each folded or open as you left it"
-        return "Shows only this section of the side panel, opened: the others are out of the way until you click All"
+        return tab_tip(properties.tab)       # task 0278 (owner 22:45): short – the longer words are in the guide
 
     def execute(self, context):
         t = self.tab if self.tab == "ALL" or (self.tab.isdigit() and 1 <= int(self.tab) <= len(SECTIONS)) else "ALL"
@@ -529,12 +522,18 @@ def _tab_changed(self, context):
     redraw()
 
 
+ALL_TIP = "All sections"
+
+
+def tab_tip(tab: str) -> str:
+    """A section tab's tooltip: only the section's name ("Import", "Lifting plan"); All: "All sections"."""
+    if tab.isdigit() and 1 <= int(tab) <= len(SECTIONS):
+        return list(places.SECTIONS.values())[int(tab) - 1].split(" ", 1)[1]
+    return ALL_TIP
+
+
 def _tab_items():
-    items = [("ALL", "All", "Shows every section, each folded or open as you left it")]
-    for i, title in enumerate(places.SECTIONS.values(), 1):
-        items.append((str(i), str(i), f"Shows only {title}, opened: the others are out of the way until you click "
-                                      "All again"))
-    return items
+    return [("ALL", "All", ALL_TIP)] + [(str(i), str(i), tab_tip(str(i))) for i in range(1, len(places.SECTIONS) + 1)]
 
 
 CLASSES = (FRESING_OT_panel_toggle, FRESING_OT_panel_tab)

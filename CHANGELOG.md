@@ -19,6 +19,8 @@ installer of that version was built from.
   they are as you left them. (Before, they opened again at every start.)
 - Texts that said "sections 1–7" now say **1–8** (8 Lifting plan): the User guide's tooltip, the setting "Keep
   sections as I left them", the Learning hub and the guide; the guide's picture of the sections shows all eight.
+- The section tabs **All · 1 … 8** have short tooltips: a number shows only its section's name ("Import", "Lifting
+  plan"), All shows "All sections". How the tabs work is in the user guide.
 
 ## 0.2.201 – 21 Nov 2026 – Fresing Settings: all settings in one window with tabs (task 0271)
 

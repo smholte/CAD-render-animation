@@ -76,10 +76,62 @@ What Live preview or Build & play do; the left panel's layout and its fold (0260
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 21 Nov 2026 · 0.2.202
 
 **What changed:**
+- **Live preview** row gone from 5 Scene & Render > Image size & render (Render image stays its blue button);
+  **Build & play** gone from 6 Animation. Both stay on the left panel (open + strip). `ui._viewport_rendered` (only
+  used by that row) removed.
+- **The X** (`fresing.anim_clear`): my call – an icon-only X beside the line "Built · Space plays it again", shown
+  only while the animation is built; new tooltip: "Stops the built animation and clears it: the model goes back as it
+  was before Build & play, and the joints can be moved by hand again. Build & play (top left) builds it again". Not
+  built: a grey hint "Not built yet: Build & play is at the top left." (A label "Clear" beside a hint was tried
+  first: the hint was cut off at the default width, so it went.)
+- **Pointers moved to the left:** function `animation.build` now names `FRESING_PT_left_quick` (`changed=0.2.202`),
+  so the crane (step 9) and mill lessons' Build step light up the left button – and the strip's icon when folded
+  (real-app test). Texts: `ui_clash` how-to, `ui_fade` (2), `ui_people`, `ui_machining`, `toolpath.py` message,
+  `clash.py` error, the two lesson texts, `prefs.live_preview`'s description, `ui.primary` docstring → "(top left)".
+  **Left as they are** (hints, not duplicates, or no place named): Clash's "No built animation to check yet" with
+  its Build & play button; texts "… press Build & play" that name no place (ops_paths, ops_tracks, ops_people,
+  ops_tc_person, ops_toolpath, ops_machining, ui_gcode, ui_coolant, ui_tracks, ui_paths, ui_spool, sequence,
+  coolant, machining, props); code comments "the section's one blue button is Build & play" in ui_flex / ui_paths /
+  ui_spool / ui_machining (internal only).
+- **Favourites folds:** no longer `HIDE_HEADER` – the app's title row with the fold arrow, star icon, gear on the
+  right; folded with a question waiting the header says **"1 question"** (chosen over a dot: readable).
+- **Folds kept over a restart – a finding:** Blender 5.2.3 does **not** keep the extension's own preferences over a
+  restart while the app template is on (measured: a value saved with Save Preferences reads back as its default with
+  `--app-template fresing_render`, and as saved without the template). So 0260's `left_folded` / `next_folded` never
+  survived a restart either, and neither does any other Fresing setting in the preferences (keep sections, lesson
+  look, backups, Live preview's last choice …). For this task the left panel's folds now live in
+  `<config>/fresing_left.json` (like `fresing_layout.json`): every left section's fold (only the user's own click is
+  remembered; a lesson / test opening a panel is not), the left panel's fold to the strip + its width, and What's
+  next. Read at the first look after the start and at every project load. **Step 5 result:** all of them needed it –
+  Workspace, Learning hub, its stops, Lesson opened again at every start/load; What's next and the strip forgot after
+  a restart. `prefs.py` got no new property (only the "1 to 8" description) – less for 0272 to merge.
+- **1–7 → 1–8:** User guide tooltip (app template), `keep_sections` description and the tab's description (count from
+  `places.SECTIONS`), tour text (from `places.SECTIONS`), guide (3 places + alt texts), docstrings in `panels.py`,
+  `ui_header.py`, `places.py`, `core/usage.py`, check names in `ui_test_layout.py` / `update_test_blender.py`,
+  CLAUDE.md. `sidebar_sections.png` now has 8 Lifting plan (`guide_screens.py` list); `panel_top_tabs.png` came out
+  identical (it already showed 1…8).
+- **Step 8 (owner 22:45): the section tabs' tooltips are short** – 1 … 8 only the section's name ("Import" …
+  "Lifting plan"), All "All sections"; one helper `panels.tab_tip` used by both `FRESING_OT_panel_tab.description` and
+  `_tab_items`; test `test_the_section_tabs_have_short_tooltips`. `tooltip_report.py` now lists these two as "weak"
+  (too short / repeats the label) – wanted by the owner, not a fault (it is not `--strict`'s "missing").
+- Guide: left panel section (no duplicates, the folds), Image size & render step 4, 6 Animation step 6, Favourites,
+  the sections; pictures redone: panel_5_output, panel_6_animation / motor / fade / camera_ride / camera_path /
+  sequence / product_video / back_to_cad, sidebar_sections, usage_bar. COMPANY-USE names the new file.
+- PC-check line `panel.folds` (Full, MIN_LINES_FULL 119); function `panel.left` and `usage.favourites` `changed=`;
+  crane tour set `changed=0.2.202` (lesson text) + `tour_versions.py --record`; CLAUDE.md section 8 entry.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, test crane): `tests/test_left_folds.py` (new, 8) + functions, places,
+panels, usage, settings, workspaces, lessons, guide, about, learning, phase2, tour: 380 passed. Real app
+`ui_test_left.py` 42/42 (was 30): lesson Build step points at the left button, open and strip; Favourites / Learning
+hub / Workspace / What's next fold, then **a second app is started in the same settings folder** and finds them as
+left (6 s); `ui_test_layout.py` 69/69. PC check `panel.folds` + `panel.two` OK. GitHub: see below.
 
 **Open points / follow-up tasks:**
+- **All other Fresing preferences are lost at every restart in the app** (see above) – a lead decision: either ship a
+  `userpref.blend` in the app template (Blender then keeps the template's preferences in its own file – changes where
+  all preferences live) or keep the app's settings in a file of its own. 0272 (Locations, `prefs.py`) should know
+  this before it starts.
+- No subagents were used.
