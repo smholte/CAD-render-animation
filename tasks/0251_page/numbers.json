@@ -163,9 +163,38 @@
   "update_ms": 108.72366850003345,
   "total_s": 4.045351173999734
  },
- "s_pbf": {},
- "s_flip": {},
- "flip_bake": {},
+ "s_pbf": {
+  "method": "pbf",
+  "engine": "CYCLES",
+  "frames": 192,
+  "render_s_per_frame": 10.313152950499898,
+  "first_frame_s": 6.965652585000498,
+  "update_ms": 35.805714500384056,
+  "total_s": 1986.8558230360013,
+  "mp4_bytes": 88482
+ },
+ "s_flip": {
+  "method": "flipmesh",
+  "engine": "CYCLES",
+  "frames": 96,
+  "render_s_per_frame": 8.77479097649939,
+  "first_frame_s": 5.201655447999656,
+  "update_ms": 6.5715160008039675,
+  "total_s": 770.3880320360004,
+  "mp4_bytes": 63431
+ },
+ "flip_bake": {
+  "seconds": 4076.7653284900007,
+  "cache_bytes": 86611756,
+  "res": 96,
+  "cells": [
+   0,
+   0,
+   0
+  ],
+  "frames": 96,
+  "s_per_frame": 42.466305505104174
+ },
  "machines": {
   "3": {
    "kind": 3,
@@ -370,7 +399,7 @@
   "pbf_bake_s_contended": 505.051633949,
   "hf_update_ms": 7.307629000024463,
   "hf_update_ms_max": 8.974176999799965,
-  "flip_8s_min": 132.8,
+  "flip_8s_min": 135.904,
   "flip_cells": "96 x 59 x 42 (5.4 mm)"
  }
 }

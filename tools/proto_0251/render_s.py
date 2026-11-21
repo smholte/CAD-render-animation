@@ -113,6 +113,50 @@ def setup_hf(npz, sc, carrier, place):
     return update
 
 
+def setup_flipmesh(folder, sc, carrier, place):
+    """Blender's liquid (Mantaflow) drawn from its baked mesh files (fluid_mesh_NNNN.bobj.gz): Blender would not play
+    its own bake back in a background session (see flip_s.py). Their points are in the domain's normalised space:
+    world = domain centre + point x the domain's largest size."""
+    import gzip
+    import struct
+    x0, x1, y0, y1, _, _ = S.TRAY
+    centre = np.array([(x0 + x1) / 2, (y0 + y1) / 2, 0.105])
+    size = x1 - x0 + 0.02
+    mat = bl.liquid_material("Liquid flip")
+    nt = mat.node_tree
+    for lk in list(nt.links):
+        if lk.to_node.name == "Mix Shader" and lk.to_socket.name == "Fac":
+            nt.links.remove(lk)
+    nt.nodes["Mix Shader"].inputs["Fac"].default_value = 1.0
+    me = bl.mesh("Liquid flip", np.zeros((0, 3)))
+    ob = bl.obj("Liquid flip", me, mat)
+
+    def update(f):
+        place(f)
+        path = os.path.join(folder, f"fluid_mesh_{f:04d}.bobj.gz")
+        m = ob.data
+        m.clear_geometry()
+        if os.path.exists(path):
+            b = gzip.open(path).read()
+            n = struct.unpack("<i", b[:4])[0]
+            v = np.frombuffer(b, "<f4", 3 * n, 4).reshape(-1, 3) * size + centre
+            o = 4 + 12 * n
+            nn = struct.unpack("<i", b[o:o + 4])[0]
+            o += 4 + 12 * nn
+            nt_ = struct.unpack("<i", b[o:o + 4])[0]
+            t = np.frombuffer(b, "<i4", 3 * nt_, o + 4).reshape(-1, 3)
+            m.vertices.add(n)
+            m.vertices.foreach_set("co", v.astype(np.float32).ravel())
+            m.loops.add(3 * nt_)
+            m.loops.foreach_set("vertex_index", t.astype(np.int32).ravel())
+            m.polygons.add(nt_)
+            m.polygons.foreach_set("loop_start", np.arange(0, 3 * nt_, 3, dtype=np.int32))
+            m.update()
+            m.polygons.foreach_set("use_smooth", np.ones(nt_, bool))
+        m.update()
+    return update
+
+
 def main():
     method, npz, out = sys.argv[1:4]
     frames = sys.argv[4] if len(sys.argv) > 4 else "all"
@@ -123,6 +167,8 @@ def main():
     elif method == "pbf":
         import render_pbf
         update = render_pbf.setup(npz, sc, carrier, place)
+    elif method == "flipmesh":
+        update = setup_flipmesh(npz, sc, carrier, place)
     else:
         import flip_s
         update = flip_s.setup_render(npz, sc, carrier, place)

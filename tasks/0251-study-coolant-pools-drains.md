@@ -1,6 +1,6 @@
 # 0251 – Study + prototype (findings only): coolant that pools in the cuts, moves with the machine and runs to the drain
 
-**Who:** worker · **Status:** running (findings only: a prototype on its own branch, `[skip ci]`, only the
+**Who:** worker · **Status:** done (21 Nov 2026) (findings only: a prototype on its own branch, `[skip ci]`, only the
 `tasks/` files go to `main`) · **Branch:** `task/0251-study-coolant-pools`
 **Started by:** lead, 20 Nov 2026 (owner 23:45: "I also want coolant fluid to simulate on the machine. So when milling
 collecting in the cut slots, moving around with the motions and going down in the drain." His picks 23:50 in the
@@ -87,12 +87,15 @@ All measured on the 4-core web machine without a graphics card (Blender 5.2.3, C
      core); 8–15 sub-steps a frame (stability: deeper pools need more).
    - **b · Particles** (`pbf.py`, position-based fluids, 2 mm particles, meshed by Geometry Nodes Points to Volume →
      Volume to Mesh): 0.64 s a frame alone at 7,500 particles (505 s for scene S with other jobs running), cache
-     16.7 MB, ~140 ms a frame to mesh in the 3D view. Thin films and run-off break into beads (a film thinner than a
+     16.7 MB, 36 ms a frame to mesh in the 3D view, Cycles 10.3 s a frame (the meshed volume). Thin films and run-off break into beads (a film thinner than a
      particle cannot exist), pockets 8 deep are 4 particles, particles fall through thin parts unless the step is
      small. Good for splash, wrong for pools/films.
    - **c · Blender's liquid (Mantaflow FLIP)**: crashes in Blender-as-a-module (`Manta::Error: can't clean grid
-     cache`) – runs only in the real Blender. Scene S at resolution 64: ~45 s a frame; at 96 (effector meshes
-     decimated): see the page (≈ 40 s a frame here) → ≈ 2 h for 8 s. Voxels of 5 mm: an 8 mm pocket is 1–2 cells, no
+     cache`) – runs only in the real Blender. Scene S at resolution 96 (5.4 mm cells, effector meshes decimated):
+     **42.5 s a frame** (mostly one core) → 2.3 h for the 8 s (136 min), cache 87 MB for 4 s. Playing the bake back failed in
+     every background way tried: reopening the saved file made Blender treat the bake as outdated, free it **and delete
+     its files**; a scene built again re-simulates at every frame (40 s, no mesh); even in the baking session a frame
+     change after the bake did not finish in 17 min. The video draws the baked mesh files (`.bobj.gz`) directly. Voxels of 5 mm: an 8 mm pocket is 1–2 cells, no
      films, no run-off along slots. Any change = bake again from the start. Not usable for a whole program.
    - **d · Searched:** games and films do big water exactly as a): a height field for the bulk + particles for what it
      cannot show (Chentanez & Müller 2010; Müller GDC 2008). Machining software (VERICUT, NCSIMUL) shows no coolant
@@ -189,6 +192,9 @@ it). No independent review: findings only, no app code.
 tool / spindle (none: the head stays dry); a fast table rapid in the prototype throws ~2 % past the tray (drops leave
 with the table's speed); the tray in the 3-axis run is the bed's flat top as a stand-in (liquid can sit "under" the
 table there – hidden).
+
+**GitHub runs:** none – the prototype commits carry `[skip ci]` and the push to `main` changes only `tasks/` and
+`TASKS.md`. The project progress note in the claude.ai project is out of reach from here: the lead adds the entry.
 
 **Branch:** keep `task/0251-study-coolant-pools` for build task A (its `liquid.py` and tests are the starting point);
 delete it after B is merged.

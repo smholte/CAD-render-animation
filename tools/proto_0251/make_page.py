@@ -103,7 +103,7 @@ for t in ("t1", "t2", "t3", "t4", "t5", "t6"):
 P = {
     "s_hf": jpg("out_s_hf/f0110.png", "s_hf.jpg"),
     "s_pbf": jpg("out_s_pbf/f0110.png", "s_pbf.jpg"),
-    "s_flip": jpg("out_s_flip/f0080.png", "s_flip.jpg"),
+    "s_flip": jpg("out_s_flip/f0060.png", "s_flip.jpg"),
     "s_hf_e": strip("out_s_hf_eevee", [1, 2], "s_hf_eevee.jpg", 480),
     "s_hf_e2": strip("eevee_try2", [0, 1], "s_hf_eevee_blended.jpg", 480),
     "s_hf_w": strip("out_s_hf_wb", [1, 2], "s_hf_workbench.jpg", 320),
@@ -244,7 +244,7 @@ below runs to a drain. 8 s, 24 fps.</p>
 <td>{num(extra, 'pbf_bake_s_contended', 0)} s with other jobs running; alone {num(extra, 'pbf_ms_first2s', 0)} ms a frame at {extra.get('pbf_particles_at_2s', '–')} particles (up to {extra.get('pbf_particles', '–')})</td>
 <td>{num(flip_bake, 's_per_frame')} s a frame at resolution {flip_bake.get('res', '–')} ({extra.get('flip_cells', '–')} cells) → {num(extra, 'flip_8s_min', 0)} min for 8 s</td></tr>
 <tr><td>Per frame in the 3D view (put the liquid in place)</td><td><b>{num(extra, 'hf_update_ms')} ms</b></td>
-<td>{num(s_pbf, 'update_ms')} ms (+ Geometry Nodes meshing)</td><td>reads its cache: {num(s_flip, 'update_ms')} ms</td></tr>
+<td>{num(s_pbf, 'update_ms')} ms (+ Geometry Nodes meshing)</td><td>drawn from its baked mesh files: {num(s_flip, 'update_ms')} ms (Blender itself would not play the bake back here)</td></tr>
 <tr><td>Cycles, 640 × 360, 24 samples</td><td>{num(s_hf, 'render_s_per_frame')} s a frame</td>
 <td>{num(s_pbf, 'render_s_per_frame')} s</td><td>{num(s_flip, 'render_s_per_frame')} s</td></tr>
 <tr><td>EEVEE / 3D view (Workbench)</td><td>{num(s_hf_e, 'render_s_per_frame')} s / {num(s_hf_w, 'render_s_per_frame', 2)} s a frame</td><td>works (same mesh)</td><td>works (same mesh)</td></tr>
