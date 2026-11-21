@@ -176,10 +176,16 @@ while Show me edited the locked project → pauses, Stop works; 4 a later settin
 7 Ctrl+Z in Show me was redone 1.6 s later → it now waits for Next; 8 Stop forgets the lesson – kept (Stop = end;
 a project saved while it runs offers to go on); 9 notes kept after the end → cleared. Its tests are in the suite.
 
-**Runs:** 6 full GitHub runs: the tour-version record (written with the version), Make test tour in the app (no active object in an operator – fixed), a line break lost in the Fresing menu (fixed + test), two skipped tests in one group (fixed), and four version numbers taken by tasks that merged first (0.2.181–0.2.185).
+**Runs:** 9 full GitHub runs. Real faults: the tour-version record (written with the version), Make test tour in the
+app (no active object inside an operator – fixed), a line break lost in the Fresing menu (fixed + a test that draws the
+menu), two tests that skip on GitHub put into one group by the new files (their times recorded so they stay apart).
+Once a slow runner (both PC-check halves ~40 % slower; the failed job re-run green). The rest: version numbers taken by
+tasks that merged first (0.2.181–0.2.188 – a merge and a new run each); final green run 44861881716 (0.2.189).
 
 **Open points / follow-up tasks:**
 - The other sets' lessons (lead, after 0231 and 0233–0235); a G-code lesson on the gantry set.
 - The welcome screen still offers only "Take the test tour" (its answers live in Blender's splash); Learn… is right
   under it in the Fresing menu.
 - On the owner's PC: Show me's timing and the card's place at his screen size; the highlight's cost on the RTX 3090.
+- Task 0249 replaces the test mill: the mill lesson's part names (TABLE.ASM, X.ASM, Z.ASM, END MILL D10, STOCK
+  200x200x40, FINISHED PART, BALL MILL D6) must follow – `tests/test_lessons.py` and the tour's mill stops will say so.
