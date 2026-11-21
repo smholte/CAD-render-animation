@@ -643,6 +643,8 @@ class Liquid:
             raise ValueError("one matrix track per chart")
         self.frames_n = min(m.shape[0] for m in self.mats) if self.mats else 0
         self.fps = float(fps)
+        if not self.fps > 0:
+            raise ValueError("fps must be > 0")
         self.floor_z = float(floor_z)
         self.hold = bool(hold)
         self.P = np.zeros((0, 3))
@@ -1006,6 +1008,8 @@ class Liquid:
             return
         self.poured += vol
         if p.chart is not None:
+            if not 0 <= int(p.chart) < len(self.grids):
+                raise ValueError(f"a pour names chart {p.chart}, there are {len(self.grids)}")
             g = self.grids[int(p.chart)]
             j, i, ok = g.cell_index(p.point[0], p.point[1])
             if not ok or not g.valid[j, i]:
@@ -1013,7 +1017,11 @@ class Liquid:
                 return
             self._rain(g, np.array([j]), np.array([i]), np.array([vol]), p.radius)
             return
-        hit = self._ray(np.asarray(p.point, float), np.asarray(p.direction, float), f)
+        pt, dr = np.asarray(p.point, float), np.asarray(p.direction, float)
+        if not (np.isfinite(pt).all() and np.isfinite(dr).all()) or not np.any(dr):
+            self.floor += vol                   # nowhere to aim: it is not lost from the bookkeeping
+            return
+        hit = self._ray(pt, dr, f)
         if hit is None:
             self.floor += vol
             return
@@ -1060,8 +1068,9 @@ class Liquid:
 
     def _tool(self, t: Tool, f, T):
         """The spinning tool throws off the liquid it touches and turns the liquid round it."""
-        if not t.rpm or t.radius <= 0:
-            return
+        if not t.rpm or not t.radius > 0 or not np.isfinite(
+                np.concatenate([np.ravel(t.tip), np.ravel(t.axis), [t.radius, t.flute, t.rpm]]).astype(float)).all():
+            return                              # a standing spindle, or no sensible tool: nothing
         a = np.asarray(t.axis, float)
         a = a / max(float(np.linalg.norm(a)), 1e-300)
         tip = np.asarray(t.tip, float)

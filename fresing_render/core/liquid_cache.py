@@ -32,7 +32,7 @@ _TAIL = struct.Struct("<QI4s")
 def encode_depth(d: np.ndarray) -> bytes:
     """One chart's depths (m) -> bytes: n wet (u32), the wet mask (packed bits), the 8-bit steps of the wet cells,
     n overflow (u32), their places in the wet list (u32) and 16-bit steps."""
-    q = np.rint(np.asarray(d, np.float64).ravel() / STEP)
+    q = np.rint(np.nan_to_num(np.asarray(d, np.float64).ravel(), nan=0.0, posinf=0.0, neginf=0.0) / STEP)
     np.clip(q, 0, 65535, out=q)
     q = q.astype(np.uint16)
     wet = q > 0
@@ -84,7 +84,10 @@ class Writer:
         self.f.write(MAGIC + _U32.pack(VERSION) + _U32.pack(len(head)) + head)
 
     def add(self, frame: int, depths, drops=None, drop_vol=None, totals=None):
-        """``depths``: per chart (ny, nx) m; ``drops`` (n, 3) m, ``drop_vol`` (n,) litres; ``totals`` dict (litres)."""
+        """``depths``: per chart (ny, nx) m; ``drops`` (n, 3) m, ``drop_vol`` (n,) litres; ``totals`` dict (litres).
+        A frame added twice keeps the later one."""
+        if self.f is None:
+            raise ValueError("the bake is closed")
         if len(depths) != len(self.shapes):
             raise ValueError("one depth grid per chart")
         parts = []
