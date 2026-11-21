@@ -324,7 +324,8 @@ fn(id="offshore.vessel_work", title="Vessel at work: wake, waves, thruster jets"
    panel="FRESING_PT_vessel_work", prop="mode", guide="vessel-work", tour=("vessel_work",),
    pccheck=("scene.vessel_work",), since="0.2.127")
 fn(id="offshore.thrusters", short="Thrusters", title="The vessel's thrusters", family="offshore", panel="FRESING_PT_vessel_work",
-   fold="fr_vessel_thrusters", button="fresing.vessel_thrusters_find", guide="vessel-work", since="0.2.127")
+   fold="fr_vessel_thrusters", button="fresing.vessel_thrusters_find", guide="vessel-work", tour=("vessel_work",),
+   since="0.2.127")
 
 # ----- 4 Motion: CNC machine -----
 fn(id="cnc.machine", short="CNC set-up", title="CNC machine set-up", family="cnc", panel="FRESING_PT_cnc", button="fresing.cnc_find_axes",
@@ -388,7 +389,7 @@ fn(id="scene.surroundings", title="Background & surroundings", family="scene", p
 fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", prop="lighting", guide="light",
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
-   guide="props", tour=("props",), pccheck=("scene.props",), since="0.2.17",
+   guide="props", tour=("props", "vessel"), pccheck=("scene.props",), since="0.2.17",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="animation.people", title="People walk, carry and meet", family="animation", panel="FRESING_PT_people",
    button="fresing.person_add", guide="people", tour=("people",), pccheck=("people.walk",), since="0.2.128")
@@ -396,7 +397,7 @@ fn(id="scene.props_detail", title="Props: detail by distance", family="scene", p
    prop="props_detail", guide="props-detail", since="0.2.124",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
-   prop="sea_cut_ground", guide="sea-ground", pccheck=("scene.sea_ground",), since="0.2.115",
+   prop="sea_cut_ground", guide="sea-ground", tour=("marine",), pccheck=("scene.sea_ground",), since="0.2.115",
    workspaces=("offshore", "education"))
 fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT_weather", prop="enabled",
    guide="weather", tour=("weather",),

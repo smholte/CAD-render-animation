@@ -3,14 +3,17 @@
     python tools/make_test_thrusters.py out.step   TEST.THRUSTERS (tests/data/test_thrusters.step, a copy in
                                                    fresing_render/data/)
 
-A small workboat: a box hull with a pointed bow, two azimuth thrusters under the stern, one tunnel thruster through the
+A small workboat: a hull with a flat bottom, round bilges and a fine bow (``tools/workboat_hull.py``, task 0234), a
+deckhouse with a window band, two azimuth thrusters under the stern, one tunnel thruster through the
 bow. mm, Z up, x towards the bow (transom at x = 0), y to port, the waterline at z = 0 (the app's Sea water level is
 set by ``blender/vessel_work.set_up_test_model``). Every part is one solid. The places the app's set-up needs are in
 ``fresing_render/core/vessel_work.TEST`` (this file reads them from there).
 
-  HULL               x 0 … 30000 square, the bow a wedge to the stem at x 36000, y ±6000, z -2500 … 2500; a tunnel
-                     Ø1400 across at the bow thruster (x 32000, z -1300)
-  WHEELHOUSE         x 21000 … 27000, y ±3500, z 2500 … 5500, a window band cut in
+  HULL               transom at x 0, the parallel body to x 33500 (y ±6000 at the deck, 150 narrower at the bilges,
+                     bilge radius 800, flat bottom at z -2500), the bow narrowing to the stem at x 40000, its forefoot
+                     rising to the waterline there; deck z 2500, the bow's (forecastle) z 3700; a tunnel Ø1400 across at the bow thruster (x 32000, z -1300)
+  WHEELHOUSE         x 21000 … 27000, y ±3500, z 2500 … 5500, a roof 100 wider all round, a window band cut in
+                     (front and sides)
   AZIMUTH PS / SB    steer axes at x 3500, y ±3000 under the hull's bottom (z -2500):
     THRUSTER HOUSING   Ø1800 x 200 under the hull (stays)
     STEERING UNIT      (turns with Steer) THRUSTER POD: strut 1000 x 400 down to the pod Ø800 along x (x -1200 …
@@ -38,6 +41,7 @@ from OCP.BRepPrimAPI import BRepPrimAPI_MakePrism  # noqa: E402
 from OCP.gp import gp_Ax1, gp_Dir, gp_Pnt, gp_Trsf, gp_Vec  # noqa: E402
 
 from fresing_render.core.vessel_work import TEST  # noqa: E402
+from workboat_hull import Hull, deckhouse  # noqa: E402
 
 HULL_BLUE = (0.09, 0.17, 0.32)
 RED = (0.55, 0.12, 0.10)
@@ -75,12 +79,27 @@ def propeller(R, hub_r, hub_len, along):
     return p
 
 
+FORECASTLE = 1200.0                           # the bow's deck this much higher than the main deck
+BOW_START, STEM_X = 33500.0, 40000.0          # task 0234: the bow starts past the bow tunnel (a tunnel cut through the
+                                              # curved bow made the file 280 KB bigger), the stem 4 m further forward
+STEM_RISE = 0.38                              # the forefoot meets the water at the stem: a fine waterline forward (the
+                                              # app reads the bow from it: blender/surroundings.stern_side)
+
+
+def hull_numbers() -> Hull:
+    return Hull(STEM_X, TEST["half_beam"], TEST["bottom"], TEST["deck"], BOW_START, bow_top=TEST["deck"] + FORECASTLE,
+                stem_rise=STEM_RISE)
+
+
 def hull():
-    L, Lb, hb = TEST["hull_length"], TEST["bow_start"], TEST["half_beam"]
-    z0, z1 = TEST["bottom"], TEST["deck"]
-    body = prism_xy([(0, -hb), (Lb, -hb), (L, 0), (Lb, hb), (0, hb)], z0, z1)
     bx, bz, br = TEST["bow_x"], TEST["bow_z"], TEST["tunnel_r"]
-    return cut(body, cyl(br, (bx, -2 * hb, bz), (bx, 2 * hb, bz)))
+    return cut(hull_numbers().solid(), cyl(br, (bx, -2 * TEST["half_beam"], bz), (bx, 2 * TEST["half_beam"], bz)))
+
+
+def tunnel_half() -> float:
+    """Half the bow tunnel's length: to the hull's side where it is narrowest round the tunnel, 120 inside it."""
+    h, bx, bz, br = hull_numbers(), TEST["bow_x"], TEST["bow_z"], TEST["tunnel_r"]
+    return min(h.half_at(bx + dx, bz + dz) for dx in (-br, 0.0, br) for dz in (-br, 0.0, br)) - 120.0
 
 
 def azimuth(name):
@@ -112,14 +131,10 @@ def bow_thruster(half):
 def model():
     root = Asm("TEST.THRUSTERS")
     root.add(Part("HULL", hull(), HULL_BLUE))
-    house = cut(box(21000.0, -3500.0, 2500.0, 27000.0, 3500.0, 5500.0),
-                box(26900.0, -3400.0, 4300.0, 27100.0, 3400.0, 5100.0))
-    root.add(Part("WHEELHOUSE", house, WHITE))
+    root.add(Part("WHEELHOUSE", deckhouse(21000.0, 27000.0, 3500.0, TEST["deck"], 3000.0), WHITE))
     for name, y in (("AZIMUTH PS", TEST["az_y"]), ("AZIMUTH SB", -TEST["az_y"])):
         root.add(azimuth(name), T(TEST["az_x"], y, TEST["bottom"]))
-    hb = TEST["half_beam"]
-    half = hb * (TEST["hull_length"] - TEST["bow_x"]) / (TEST["hull_length"] - TEST["bow_start"]) - 120.0
-    root.add(bow_thruster(half - 400.0), T(TEST["bow_x"], 0.0, TEST["bow_z"]))
+    root.add(bow_thruster(tunnel_half()), T(TEST["bow_x"], 0.0, TEST["bow_z"]))
     return root
 
 

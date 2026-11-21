@@ -113,8 +113,8 @@
   },
   "marine": {
    "added": "0.2.94",
-   "changed": "0.2.101",
-   "fp": "5f2a7ecd4a5f3e1a"
+   "changed": "0.2.196",
+   "fp": "ef256bd5d89b2bd7"
   },
   "marks": {
    "added": "0.2.73",
@@ -133,8 +133,8 @@
   },
   "moving_cable": {
    "added": "0.2.95",
-   "changed": "0.2.103",
-   "fp": "371ee515d0ebaf35"
+   "changed": "0.2.196",
+   "fp": "df3925ce70917f2d"
   },
   "operator": {
    "added": "0.2.132",
@@ -168,8 +168,8 @@
   },
   "sea_cable": {
    "added": "0.2.91",
-   "changed": "0.2.141",
-   "fp": "77d2f77399008b3a"
+   "changed": "0.2.196",
+   "fp": "54b653258a92863c"
   },
   "sequence": {
    "added": "0.2.79",
@@ -218,13 +218,13 @@
   },
   "vessel": {
    "added": "0.2.65",
-   "changed": "0.2.101",
-   "fp": "686476954e51c43c"
+   "changed": "0.2.196",
+   "fp": "fb4793ce7a6282f3"
   },
   "vessel_work": {
    "added": "0.2.127",
-   "changed": "",
-   "fp": "33d5ba9a23963217"
+   "changed": "0.2.196",
+   "fp": "1fe36a55e43c985b"
   },
   "waycover": {
    "added": "0.2.47",

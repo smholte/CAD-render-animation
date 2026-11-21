@@ -6,8 +6,10 @@
 mm, Z up, x towards the bow, the stern (transom) at x = 0, the waterline at z = 0 (draft 2 m: the app's Sea
 "water level" 2.0 m). Everything the cable does lies in the plane y = 0. Every part is one solid.
 
-  STERN DECK       the hull x 0..12000, y -3000..3000, z -2000..2500, its bilges chamfered 400; a rub rail along
-                   both sides; plating seams (8 wide, 3 deep) across the deck at x = 2000, 6000, 10000; a bulwark
+  STERN DECK       the hull (task 0234, ``tools/workboat_hull.py``): transom at x 0, the working deck x 0..12000 at z 2500,
+                   y ±3000 at the deck, a flat bottom at z -2000, round bilges (radius 700); forward of it the bow
+                   (7000 long, the forefoot rising to the waterline at the stem) with a forecastle at z 3540 and a deckhouse on it
+                   (x 13200..16200, y ±2100, 2400 high, a window band); a rub rail along both sides; plating seams (8 wide, 3 deep) across the deck at x = 2000, 6000, 10000; a bulwark
                    1000 high and 150 thick along both sides (a capping rail on top) and the transom (an opening
                    |y| < 900 for the cable and the horn) (task 0122)
   BULWARK STAY (14 x)  plates 15 thick, 350 x 800, inside the side bulwarks at x = 1500, 3000 … 10500
@@ -50,6 +52,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from make_test_paths import (Asm, Part, T, box, cut, cyl, fuse, gap, placed, revolve_y, solids,  # noqa: E402
                              volume, write_step)
 from model_details import chamfer, chamfered_rect, hex_bolt  # noqa: E402
+from workboat_hull import Hull, deckhouse  # noqa: E402
 from OCP.BRepAlgoAPI import BRepAlgoAPI_Common  # noqa: E402
 from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire  # noqa: E402
 from OCP.BRepOffsetAPI import BRepOffsetAPI_MakePipe  # noqa: E402
@@ -118,25 +121,36 @@ def _p(x, z):
 BULWARK_T, BULWARK_H = 150.0, 1000.0           # the bulwark: thickness, height above the deck
 
 
+BOW_LENGTH = 7000.0                            # task 0234: the bow forward of the working deck
+HOUSE = (1200.0, 4200.0, 2100.0, 2400.0)      # the deckhouse on the forecastle: x from / to (after the deck's end), half
+                                              # width, height
+
+
+def hull_numbers(x1, half=3000.0, bottom=-2000.0, top=DECK_TOP) -> Hull:
+    """The hull (task 0234, ``tools/workboat_hull.py``): the working deck x 0..x1, then the bow with a forecastle as high
+    as the bulwark's capping rail."""
+    return Hull(x1 + BOW_LENGTH, half, bottom, top, x1, bilge=700.0, flare=120.0, stem_rise=0.33,
+                bow_top=top + BULWARK_H + 40.0)
+
+
 def deck_shape(x1, seams_x, half=3000.0, bottom=-2000.0, top=DECK_TOP, opening=900.0):
-    """The hull x 0..x1, y ±half, z bottom..top as one solid: chamfered bilges, a rub rail, plating seams (8 wide, 3
-    deep) across the deck at ``seams_x``, a bulwark (BULWARK_H high, BULWARK_T thick) along both sides and the
-    transom (an opening |y| < ``opening``) with a capping rail on the sides. Its stays are parts of their own
-    (``stay_places``): one shape placed many times keeps the file small."""
-    c = 400.0
-    section = [(-half + c, bottom), (half - c, bottom), (half, bottom + c), (half, top), (-half, top),
-               (-half, bottom + c)]
-    along_x = G.Frame((0.0, 0.0, 0.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0))      # local (x, y) = world (y, z)
-    parts = [G.polygon_prism(section, x1, along_x)]
+    """The hull as one solid (``hull_numbers``: transom at x 0, a flat bottom at ``bottom``, round bilges, sides
+    leaning out to y ±half at the deck, the bow forward of x1 with a forecastle and a deckhouse on it), on the working
+    deck x 0..x1: a rub rail, plating seams (8 wide, 3 deep) across the deck at ``seams_x``, a bulwark (BULWARK_H high,
+    BULWARK_T thick) along both sides and the transom (an opening |y| < ``opening``) with a capping rail on the sides.
+    Its stays are parts of their own (``stay_places``): one shape placed many times keeps the file small."""
+    hull = hull_numbers(x1, half, bottom, top)
     t, h = BULWARK_T, BULWARK_H
+    fc = hull.bow_top
+    parts = [hull.solid(), deckhouse(x1 + HOUSE[0], x1 + HOUSE[1], HOUSE[2], fc, HOUSE[3])]
     for s in (1.0, -1.0):
         parts.append(box(0.0, s * (half - t), top, x1, s * half, top + h))                          # side bulwark
         parts.append(box(0.0, s * (half - t - 50.0), top + h, x1, s * half, top + h + 40.0))        # capping rail
-        parts.append(box(0.0, s * half, top - 260.0, x1, s * (half + 80.0), top - 160.0))          # rub rail
+        parts.append(box(0.0, s * (half - 60.0), top - 260.0, x1, s * (half + 80.0), top - 160.0))  # rub rail
         parts.append(box(0.0, s * opening, top, t, s * (half - t), top + h))                        # transom bulwark
     hull = G.fuse(*parts)
     seams = [box(x - 4.0, -(half - BULWARK_T), top - 3.0, x + 4.0, half - BULWARK_T, top + 1.0) for x in seams_x]
-    return G.cut(hull, *seams)
+    return G.cut(hull, *seams) if seams else hull
 
 
 def stay_shape():
