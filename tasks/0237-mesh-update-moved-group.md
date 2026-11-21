@@ -44,7 +44,7 @@ STEP updates (unchanged), lifting loads on updates (0214 done), other 0209 rows.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker), 20 Nov 2026 – version 0.2.185.
+**Chat / date:** Claude Code on the web (worker), 20 Nov 2026 – version 0.2.186.
 
 **What changed** (`blender/reimport.py` only, plus tests and one guide paragraph):
 - `_made_assemblies`: the vote no longer needs every part to move with the group. `_moved_along`: parts of unchanged

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.185 – 20 Nov 2026 – A mesh model update keeps the work on a moved group whose part changed (task 0237)
+## 0.2.186 – 21 Nov 2026 – A mesh model update keeps the work on a moved group whose part changed (task 0237)
 
 - **Updating a glTF, OBJ or FBX model no longer loses work** when a group without a name in the file ("Node 4") was
   moved in the new revision **and** one of its parts changed (for example 20 mm wider). The Hide step, the eye in
@@ -16,6 +16,9 @@ installer of that version was built from.
   group of 3,000 parts moved: before, all 3,000 came back as new). A part that changed shape keeps its work, and so
   does a part that only moved to another place inside the group.
 - The update report says what happened: "Node 4 moved 100 mm; 1 part changed – its work is kept".
+## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
+
+The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.
 
 ## 0.2.184 – 20 Nov 2026 – A quiet window (task 0241)
 
