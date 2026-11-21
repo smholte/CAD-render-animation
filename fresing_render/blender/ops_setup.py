@@ -330,11 +330,13 @@ def _take(job) -> None:
         other = b if piece == a else a
         job["close"] = [piece] + ([other] if job["close"] else [])
     job["piece"] = piece
-    if piece.type == "VIEW_3D" and piece.spaces.active.show_region_toolbar:
-        # task 0260: the toolbar region is the app's left panel; the piece is copied into the window, so it goes
-        # first – else it takes the window's width and the side panel is squeezed (27 px of 297 measured). The
-        # piece was drawn since its split (``_settled``), so setting it here is safe (CLAUDE.md, 0221).
-        piece.spaces.active.show_region_toolbar = False
+    if direction == "VERTICAL" and job.get("restore"):
+        # task 0260: the main view (the other half) gets its left panel back; it was drawn since the split
+        # (``_settled``), so setting it is safe (CLAUDE.md, 0221)
+        other = b if piece == a else a
+        if other.type == "VIEW_3D":
+            other.spaces.active.show_region_toolbar = True
+        job["restore"] = False
 
 
 def _finish(job) -> None:
@@ -401,7 +403,18 @@ def _run(job):
             _close(job)
         except Exception:  # noqa: BLE001
             pass
+        if job.get("restore"):            # the left panel back on the main view, once it was drawn again
+            bpy.app.timers.register(_left_back, first_interval=0.5)
     _STATE["busy"] = False
+    return None
+
+
+def _left_back():
+    try:
+        from . import ui_header
+        ui_header.put_layout_right()
+    except Exception:  # noqa: BLE001
+        pass
     return None
 
 
@@ -452,12 +465,24 @@ def _open_window(window, area, mark: str = MARK, value=1, done=None) -> None:
     job = {"win": window, "piece": area, "pieces": [], "pair": None, "close": [], "tries": 0,
            "todo": ["VERTICAL", "HORIZONTAL"], "w": w, "h": h, "keep": int(KEEP * scale),
            "smallest": int(SMALLEST * scale), "gen": _STATE["gen"], "mark": mark, "value": value, "done": done}
+    space = area.spaces.active if area.type == "VIEW_3D" else None
+    if space is not None and space.show_region_toolbar:
+        # task 0260: the toolbar region holds the app's left panel. A split copies it into the piece, and Blender
+        # then keeps the side panel squeezed beside it (measured: 27 px of a 297 px piece, also after hiding it
+        # later) – so it is off while the view is split and back on the main view after the first split
+        space.show_region_toolbar = False
+        job["restore"] = True
     try:
         _split(job, job["todo"].pop(0))
         bpy.app.timers.register(lambda: _run(job), first_interval=0.1 if job["pair"] else 0.0)
     except Exception:
         _STATE["busy"] = False
+        if job.get("restore"):
+            space.show_region_toolbar = True
         raise
+    if not job["pair"] and job.get("restore"):      # no split was made: nothing to wait for
+        space.show_region_toolbar = True
+        job["restore"] = False
 
 
 # ---------------------------------------------------------------------------------------------------------------
