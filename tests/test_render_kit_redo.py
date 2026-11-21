@@ -48,6 +48,7 @@ def test_redo_21_nov_in_models_ini():
     assert side["camera"] == {"at": [0.98078, -1.65913, 0.59383], "turn": [82.4523, 0.0, 32.0054]}
     assert side["lens"] == "50" and side["look"] == "DARK" and side["surroundings"] == "COLOR"
     assert not side["project"] and not side.get("pose")       # the arm as drawn, as in the first run
+    assert side["colours"] == by["thor"]["colours"]           # the colours of Thor's other pictures (owner 21 Nov)
     assert side["crop"] == pytest.approx((780 / 2400, 0.0, 1780 / 2400, 1.0))
     assert (general["width"], general["height"]) == ("2400", "1350")     # 1000 x 1350 px, as site/media/thor_side.jpg
     # the dropped views: no Seabed, no onshore stills; the onshore model stays in the kit, out of every run

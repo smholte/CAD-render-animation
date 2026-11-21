@@ -68,10 +68,71 @@ re-renders); new models from study 0113.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026 (branch `claude/cool-ramanujan-lzs9ul`).
 
 **What changed:**
+- **Thor side picture** (`[thor_side]` in `models.ini`): found how `site/media/thor_side.jpg` was made – the owner's
+  first kit run (8 Nov, app 0.2.36, commit 73cafe5): Thor as drawn (no project, no pose), view LOW, lens 50, space
+  NORMAL, DARK look, studio colour, 2400 x 1350 Final, then cut by hand to 1000 x 1350. I rebuilt that day's STEP with
+  that day's converter (`tools/a4_to_step.py` at 73cafe5, 82 MB, 522 parts – the misplaced library parts included),
+  imported it with today's kit code, and took the LOW camera the app works out for it. It renders the old picture
+  with the cut at x = 780 px (mean difference 5 of 255 grey levels, the misplaced parts only). Stored exactly:
+  `camera_at = 0.98078, -1.65913, 0.59383` (m), `camera_turn = 82.4523, 0, 32.0054` (degrees), `lens = 50`,
+  `crop = 780, 0, 1000, 1350` → a 1000 x 1350 file named `thor_side.jpg`, credited as Thor.
+  Colours: exactly Thor's lines (`[thor]`), so the picture has the colours of Thor's other renders on the site –
+  orange base and control box, black top (owner 21 Nov, during the task; a first try that copied the old picture's
+  grey foot / dark box was dropped). A test keeps the two colour lists equal.
+- **The white ring under Thor's head in the old picture was itself a misplaced part** (a second copy of the base's
+  foot, 0.385 m up); it is gone, as are the brackets on the head.
+- **Offshore turbine**: views `Work boat, Whole turbine` (Seabed dropped). The cut-away came from the turbine sheet's
+  `scene.cutaway` (made by `tools/site_projects/iea15.py`, applied by `blender/sheet.apply_scene`): removed, and the
+  sheet no longer has the "Seabed" camera (`DROPPED`). The video's camera is "Whole turbine". Seabed and scour
+  protection stay in the model, unseen. `site/render_kit/projects/iea15_offshore.json` matches a fresh conversion
+  of the owner's STEP (checked here, `test_shipped_sheets_match_a_fresh_conversion`).
+- **Onshore turbine**: `views = none` (and video none): the model stays in the kit, a model with nothing to make is
+  left out of every run and not listed in the window.
+- **Run choices** (`make_site_pictures.py`): a section with `jobs =` and no `file =` is a row of the start window
+  that makes only the stills / clips it names; `ticked = yes` makes it the only row ticked when the window opens (and
+  the run of the console route). `[Redo 21 Nov]` = `thor_side, iea15_offshore: Whole turbine, iea15_offshore: video`,
+  about 31 min on the RTX 3090 by the kit's estimate (an expectation, not measured). A stopped run continues with only
+  what it had. The window change is 3 lines in `kit_window.ps1` (a row is ticked when found and, if the row says so,
+  ticked); reviewed independently (a Sonnet helper: OK, ASCII + CRLF kept, the CI layout check unaffected).
+- New lines in `models.ini` (explained at its top): `camera_at`, `camera_turn`, `crop`, `names`, `model`,
+  `views = none`, run choices. README.txt: the Redo row; CLAUDE.md section 3.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no graphics card):
+- Overlay proof, today's corrected Thor through the kit at 1200 x 675 (crop 500 x 675, Preview, processor, 24 s):
+  `tasks/img/0268_thor_side_overlay.jpg` (old | new | 50 % blend | difference) and `0268_thor_side_edges.jpg`
+  (the old picture's edges in red over the new one). Best fit of the old picture at offset 0 px; camera, framing,
+  light and background the same; differences only at the head (misplaced parts gone) and the colours of the base and control box (now as
+  Thor's other site pictures).
+- "Redo 21 Nov" end to end with the real `models.ini` (`--small`, processor): exactly `thor_side.jpg`,
+  `iea15_offshore_whole_turbine.jpg`, `iea15_offshore_loop.mp4` + poster, in 87 s. The saved turbine project has
+  `sea_cutaway` off; Whole turbine still and frames 1 / 7 / 13 of the clip at 960 x 540:
+  `tasks/img/0268_turbine_no_cutaway.jpg` – the sea whole, no box anywhere.
+- New `tests/test_render_kit_redo.py` (14 tests: the shipped choice, run choices and rows, plain problems, the window
+  rows + a continued run, a real-Blender run with a stored camera, a crop and own name); `test_render_kit.py`,
+  `test_site_turbine.py`, `test_site_turbine_standin.py` (Seabed in the stand-in, left out by the converter) pass
+  locally; the owner's STEP sheet check passes. GitHub: see below.
 
 **Open points / follow-up tasks:**
+- The kit zip goes onto the draft release `site-kit` by `site-kit.yml` after the merge (it runs on a push to `main`
+  that changes `site/render_kit/`).
+- Take-in after 0267 (the lead starts it): the result zip holds `thor_side.jpg`, `iea15_offshore_whole_turbine.jpg`,
+  `iea15_offshore_loop.mp4` (+ `_poster.jpg`) – the names `tests/test_site.py` REDO already expects.
+- The Work boat picture was not asked for again; it may show the edge of the old cut-away (not checked on the
+  owner's render).
+
+**Owner's steps (on your PC, RTX 3090):**
+1. On github.com (signed in) open the repository's **Releases**, find the draft **"Site kit - pictures and videos for
+   the web page"** and click **fresing_site_kit.zip** (the new one, dated today or later).
+2. Right-click the zip > **Extract All...** > **Extract** (into Downloads, next to your earlier kit folders).
+3. Close Fresing Render. Open the new folder **"Fresing site kit"**, double-click **"Make site pictures.bat"**.
+4. In the start window, the top row of the Models list is **"Redo 21 Nov - only Thor side, Whole turbine and the
+   turbine video"** – ticked, all others unticked. If it offers **"Continue the run of …"**, untick that. Click
+   **Start**. Expected: about half an hour (the window shows its own estimate).
+5. When it is done, the **output** folder opens with **site_pictures_<date>.zip** and the contact sheet in your
+   browser: you should see three items – Thor upright in the dark studio, the whole turbine at sea without any hole in
+   the water, and the turning rotor clip.
+6. On the same draft release click **Edit** (pencil), drag the zip onto "Attach binaries by dropping them here", wait,
+   click **Save draft** (not Publish). Tell the lead chat: "redo pictures uploaded".
