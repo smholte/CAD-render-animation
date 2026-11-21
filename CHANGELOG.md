@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.191 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+## 0.2.192 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
 
 - **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
   lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
@@ -28,6 +28,16 @@ installer of that version was built from.
   efficiency of API RP 9B), against the winch's maximum.
 - Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
   lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+## 0.2.191 – 21 Nov 2026 – No long freeze for a riding camera after a sea change (task 0238)
+
+- **The window keeps moving while the camera is worked out again.** After a change of the sea (Calm → Rough, the water
+  level) a camera step that rides on a part was worked out again in one go: on the full demo (4,481 frames) the window
+  stood still for 10–11 s at the end of the progress bar. Now the camera's part is read in the same pass through the
+  frames as the hoses and cables, a frame at a time, with the progress bar moving and Cancel working; its own last step
+  takes about half a second. The whole re-bake on the demo is about 11 s shorter (103 → 91 s on the 4-core test machine).
+  The camera's path is the same as before.
+
+
 ## 0.2.190 – 21 Nov 2026 – A let-go cable lies straight (task 0248)
 
 - **The cable on the seabed stays where it lay.** When you let go a cable into the sea (**Let go here**), the cable

@@ -333,8 +333,9 @@ def test_readout_sums_the_gross_load(name):
     rig, charts = LR.Rig(d), charts_of(name)
     vals = poses_of(d)["Working"]
     ro = LR.readout(rig, vals, charts, None, load_kg=4000.0, contingency=1.25, hook_block_kg=900.0)
-    if ro.chart is None:
-        pytest.skip(ro.reason)
+    if ro.chart is None:          # (KB-200's jib charts are for another boom angle: the readout must say so. Task
+        assert ro.reason.startswith("No chart"), ro.reason   # 0238: a skip here filled a CI group's one allowed skip)
+        return
     g = LD.gross(4000.0, 1.25, 900.0, ro.chart.includes_hook_block)
     assert ro.gross == pytest.approx(g.total)
     ref = lifting.crane_use(5000.0, ro.radius, ro.chart, hook_block=900.0)

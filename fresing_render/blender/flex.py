@@ -1976,6 +1976,15 @@ def _read_places(scene, its, first: int, frames: int) -> dict:
                        keep=True)
 
 
+def kept_read(scene, first: int, frames: int) -> dict:
+    """What the last pass through the frames read and kept (``keep=True``) for these frames: name -> (frames, 4, 4),
+    or {} (task 0238: the riding camera's re-bake takes its parts' places from it)."""
+    kept = _STATE["read"]
+    if kept is None or kept[0] != (scene.name, int(first), int(frames)):
+        return {}
+    return dict(kept[1])
+
+
 def drop_read() -> None:
     """Forget the places a Build's pass through the frames read (the last module that wanted them calls this)."""
     _STATE["read"] = None
