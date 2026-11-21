@@ -16,7 +16,14 @@ Swapping in pictures (a later session, the same tool):
     tools/build_site.py --remove-web-model <id>                # a model of "Turn it yourself" in or out
 Both compress with ImageMagick / ffmpeg (JPG <= 400 KB, video <= 8 MB) and update site/media/media.json.
 
-"Turn it yourself" (tasks 0099, 0111): the landing page itself has no script. Its section shows one card per model of
+Task 0267: the page has two scrolling rows under "Made with Fresing Render" – media.json "pictures" items ending in
+.jpg are the Pictures row, those ending in .mp4 the Videos row (their order kept) – and "Turn it yourself" is the same
+row. The rows scroll without script; one short inline script (ROW_SCRIPT) adds the ‹ › arrows and plays one video at a
+time – nothing is loaded from another site. A second page, "How it works" (site/how-it-works/index.html), shares the
+header and the look. The header's tool switcher comes from site/tools.json (name, url, direct: a button of its own or
+an entry under "More tools"; here: this page).
+
+"Turn it yourself" (tasks 0099, 0111): the landing page loads no model. Its section shows one card per model of
 media.json "web_models" (poster, title, a line, the size) and each card opens that model's own page model/<id>/:
   - a .glb the app exported: a small page with the vendored model-viewer (fresing_render/web/, copied to vendor/)
     that loads media/<id>.glb only when it is opened;
@@ -56,6 +63,9 @@ WEB_MODEL_WARN = 10_000_000                # a web model (its .glb or its page):
 WEB_MODEL_MAX = 25_000_000                 # ... refused above this (export again with the Phone quality / 512 textures)
 FORBIDDEN_MODELS = ("fresing_400", "fresing400", "f400")   # not public (owner, 12 Nov 2026)
 COPY_DIRS = ("brand", "fonts")
+TOOLS_JSON = os.path.join(SITE, "tools.json")       # task 0267: the tool switcher in the header
+HOW_PAGE = os.path.join("how-it-works", "index.html")   # task 0267: the "How it works" page (template and built)
+PAGES = ("index.html", HOW_PAGE)
 
 sys.path.insert(0, ROOT)
 from fresing_render.core import functions  # noqa: E402
@@ -165,20 +175,78 @@ def hero_html(media: dict) -> str:
             f'preload="metadata" aria-label="{_esc(hero.get("caption", "Video"))}"></video>{cap}')
 
 
+def split_media(media: dict) -> tuple[list[dict], list[dict]]:
+    """Task 0267: media.json "pictures" split into the Pictures row (.jpg) and the Videos row (.mp4), order kept."""
+    items = media.get("pictures", [])
+    return ([p for p in items if not p["file"].lower().endswith(".mp4")],
+            [p for p in items if p["file"].lower().endswith(".mp4")])
+
+
+def row_html(rid: str, title: str, unit: str, items: list[str], kind: str = "") -> str:
+    """One scrolling row (task 0267): a title with the count, the strip of items (scrolls by itself – swipe, trackpad,
+    Shift + wheel, arrow keys once focused – and snaps to an item), and ‹ › buttons the inline script shows and
+    works. '' without items."""
+    if not items:
+        return ""
+    lis = "\n".join(f'        <li class="item">{it}</li>' for it in items)
+    cls = f"row row-{kind}" if kind else "row"
+    return f"""    <div class="{cls}" data-row>
+      <div class="row-head">
+        <h3 class="row-title" id="row-{rid}">{_esc(title)} <span class="count">{len(items)}</span></h3>
+      </div>
+      <div class="row-body">
+        <button type="button" class="arrow prev" aria-label="Previous {unit}" hidden>‹</button>
+        <ul class="strip" tabindex="0" aria-labelledby="row-{rid}">
+{lis}
+        </ul>
+        <button type="button" class="arrow next" aria-label="Next {unit}" hidden>›</button>
+      </div>
+    </div>"""
+
+
 def gallery_html(media: dict) -> str:
-    rows = []
-    for p in media.get("pictures", []):
-        f = _esc(p["file"])
-        if f.lower().endswith(".mp4"):
-            poster = f' poster="media/{_esc(p["poster"])}"' if p.get("poster") else ""
-            rows.append(f'      <figure><video src="media/{f}"{poster} muted loop playsinline controls preload="none" '
-                        f'aria-label="{_esc(p["caption"])}"></video><figcaption>{_esc(p["caption"])}{how_html(p)}</figcaption>'
-                        f'</figure>')
-            continue
-        rows.append(f'      <figure><a href="media/{f}"><img src="media/{f}" alt="{_esc(p["caption"])}" '
-                    f'loading="lazy" width="1600" height="900"></a><figcaption>{_esc(p["caption"])}{how_html(p)}</figcaption>'
-                    f'</figure>')
-    return "\n".join(rows)
+    """The two rows of "Made with Fresing Render": pictures on top, videos under it (task 0267)."""
+    pictures, videos = split_media(media)
+    pics = [f'<figure><a href="media/{_esc(p["file"])}"><img src="media/{_esc(p["file"])}" alt="{_esc(p["caption"])}" '
+            f'loading="lazy" width="1600" height="900"></a><figcaption>{_esc(p["caption"])}{how_html(p)}</figcaption>'
+            f'</figure>' for p in pictures]
+    vids = []
+    for p in videos:
+        poster = f' poster="media/{_esc(p["poster"])}"' if p.get("poster") else ""
+        vids.append(f'<figure><video src="media/{_esc(p["file"])}"{poster} muted loop playsinline controls '
+                    f'preload="none" aria-label="{_esc(p["caption"])}"></video><figcaption>{_esc(p["caption"])}'
+                    f'{how_html(p)}</figcaption></figure>')
+    return "\n".join(r for r in (row_html("pictures", "Pictures", "picture", pics, "media"),
+                                  row_html("videos", "Videos", "video", vids, "media")) if r)
+
+
+# the arrows of the rows and one video at a time (task 0267); the page works without it
+ROW_SCRIPT = """<script>
+(function () {
+  document.querySelectorAll('[data-row]').forEach(function (row) {
+    var strip = row.querySelector('.strip'), prev = row.querySelector('.prev'), next = row.querySelector('.next');
+    function step() {
+      var it = strip.querySelector('.item');
+      return it ? it.getBoundingClientRect().width + parseFloat(getComputedStyle(strip).columnGap || 0) : strip.clientWidth;
+    }
+    function ends() {
+      var max = strip.scrollWidth - strip.clientWidth;
+      prev.disabled = strip.scrollLeft <= 2;
+      next.disabled = strip.scrollLeft >= max - 2;
+      row.classList.toggle('fits', max <= 2);
+    }
+    prev.hidden = next.hidden = false;
+    prev.addEventListener('click', function () { strip.scrollBy({ left: -step(), behavior: 'smooth' }); });
+    next.addEventListener('click', function () { strip.scrollBy({ left: step(), behavior: 'smooth' }); });
+    strip.addEventListener('scroll', ends, { passive: true });
+    window.addEventListener('resize', ends);
+    ends();
+  });
+  document.addEventListener('play', function (e) {
+    document.querySelectorAll('.strip video').forEach(function (v) { if (v !== e.target) v.pause(); });
+  }, true);
+})();
+</script>"""
 
 
 def feature_html(media: dict) -> str:
@@ -221,22 +289,21 @@ def turn_html(media: dict) -> str:
         pic = (f'<img src="media/{_esc(w["poster"])}" alt="{title}" loading="lazy" width="1200" height="800">'
                if w.get("poster") else "")
         moves = " · moves by itself" if w.get("seconds") else ""
-        cards.append(f"""      <li class="card">
-        <a class="card-pic" href="model/{_esc(w["id"])}/">{pic}</a>
-        <h3>{title}</h3>
-        <p>{_esc(w.get("caption", ""))}{how_html(w)}</p>
-        <p class="small">{_esc(web3d.mb(size))} to download{moves}</p>
-        <a class="button" href="model/{_esc(w["id"])}/">Open the 3D model</a>
-      </li>""")
+        cards.append(f"""<div class="card">
+          <a class="card-pic" href="model/{_esc(w["id"])}/">{pic}</a>
+          <h3>{title}</h3>
+          <p>{_esc(w.get("caption", ""))}{how_html(w)}</p>
+          <p class="small">{_esc(web3d.mb(size))} to download{moves}</p>
+          <a class="button" href="model/{_esc(w["id"])}/">Open the 3D model</a>
+        </div>""")
     many = len(items) > 1
     return f"""<section id="turn" class="turn">
   <div class="wrap">
+    <p class="label">// Turn it yourself</p>
     <h2>Turn it yourself</h2>
     <p>Fresing Render also saves a machine as one 3D file with its looks and its motion, and a page that shows it in any web browser: drag to turn it, scroll to zoom. E-mail it to a customer or put it on your website.</p>
     <p class="small">{"Pick a model: each" if many else "The model"} loads only when you open it. Made with 5 Scene &amp; Render &gt; Web 3D model.</p>
-    <ul class="cards">
-{chr(10).join(cards)}
-    </ul>
+{row_html("models", "3D models", "model", cards, "cards")}
   </div>
 </section>
 """
@@ -372,9 +439,75 @@ def glb_of(path: str) -> bytes:
         raise ValueError(f"{os.path.basename(path)} holds no 3D model") from None
 
 
-def credits_html(media: dict) -> str:
+def load_tools(path: str = "") -> list[dict]:
+    """site/tools.json (task 0267): the Fresing tools the header links to, in order. Each: name, url, direct (a
+    button of its own; else under "More tools"), here (this site: marked, links to the page itself)."""
+    with open(path or TOOLS_JSON, encoding="utf-8") as fh:
+        tools = json.load(fh)["tools"]
+    for t in tools:
+        if not t.get("name") or not (t.get("here") or str(t.get("url", "")).startswith("https://")):
+            raise SystemExit(f"site/tools.json: every tool needs a name and an https address: {t}")
+    if sum(1 for t in tools if t.get("here")) != 1:
+        raise SystemExit("site/tools.json: exactly one tool is this site (here: true)")
+    return tools
+
+
+def tool_hosts(tools: list[dict] | None = None) -> set[str]:
+    """The hosts of the other tools' pages: links to them are allowed outside the credits."""
+    return {t["url"].split("/")[2] for t in (tools if tools is not None else load_tools()) if not t.get("here")}
+
+
+def tools_html(tools: list[dict], base: str = "") -> str:
+    """The tool switcher: direct buttons (this tool marked) and a "More tools" fold-down (<details>, no script)."""
+    direct, more = [], []
+    for t in tools:
+        if t.get("here"):
+            direct.append(f'<a class="tool here" href="{base or "./"}" aria-current="page">{_esc(t["name"])}</a>')
+        elif t.get("direct"):
+            direct.append(f'<a class="tool" href="{_esc(t["url"])}">{_esc(t["name"])}</a>')
+        else:
+            note = f'<span>{_esc(t["note"])}</span>' if t.get("note") else ""
+            more.append(f'<li><a href="{_esc(t["url"])}">{_esc(t["name"])}{note}</a></li>')
+    fold = (f'<details class="more-tools"><summary>More tools</summary><ul>{"".join(more)}</ul></details>'
+            if more else "")
+    return f'<div class="tools" aria-label="Fresing tools">{"".join(direct)}{fold}</div>'
+
+
+def nav_html(media: dict, base: str = "", here: str = "") -> str:
+    """The top menu; ``base`` = the way back to the landing page from a sub-page ('../')."""
+    links = [("#who", "Who it is for"), ("#what", "What it does")]
+    if web_models(media):
+        links.append(("#turn", "Turn it"))
+    links += [("how-it-works/", "How it works"), ("#install", "Install"), ("guide/", "User guide")]
+    out = []
+    for href, text in links:
+        cur = ' aria-current="page"' if href == here else ""
+        out.append(f'<a href="{base}{href}"{cur}>{text}</a>')
+    return "\n      ".join(out)
+
+
+def how_pictures(media: dict, n: int = 2) -> list[dict]:
+    """The pictures the "How it works" page shows: the first ``n`` of the Pictures row, one per model."""
+    seen, out = set(), []
+    for p in split_media(media)[0]:
+        if p.get("model") not in seen:
+            seen.add(p.get("model"))
+            out.append(p)
+        if len(out) == n:
+            break
+    return out
+
+
+def how_pictures_html(media: dict) -> str:
+    return "\n".join(f'    <figure><a href="../media/{_esc(p["file"])}"><img src="../media/{_esc(p["file"])}" '
+                     f'alt="{_esc(p["caption"])}" loading="lazy" width="1600" height="900"></a>'
+                     f'<figcaption>{_esc(p["caption"])}{how_html(p, "../guide/")}</figcaption></figure>'
+                     for p in how_pictures(media))
+
+
+def credits_html(media: dict, models: list[str] | None = None) -> str:
     rows = []
-    for mid in used_models(media):
+    for mid in (used_models(media) if models is None else models):
         m = media["models"][mid]
         text = _esc(m["credit"])
         links = []
@@ -443,19 +576,30 @@ def build(out: str = DEFAULT_OUT, version: str = "", size: int = 0, guide: bool 
     bad = unknown_functions(media)
     if bad:
         raise SystemExit("site/media/media.json: " + "; ".join(bad))
-    page = fill(open(os.path.join(SITE, "index.html"), encoding="utf-8").read(), {
+    tools = load_tools()
+    common = {
         "version": _esc(version), "date": _esc(entry["date"]), "size": _mb(size),
         "download_url": download_url(version), "asset_name": asset_name(version),
         "releases_url": f"{REPO_URL}/releases", "repo_url": REPO_URL, "blender": blender_version(),
+    }
+    page = fill(open(os.path.join(SITE, "index.html"), encoding="utf-8").read(), dict(common, **{
         "news_title": _esc(entry["title"][:1].upper() + entry["title"][1:]), "whats_new": md_to_html(entry["text"]),
         "hero_video": hero_html(media), "gallery": gallery_html(media), "feature": feature_html(media), "credits": credits_html(media),
-        "turn_section": turn_html(media), "turn_nav": '\n      <a href="#turn">Turn it</a>' if web_models(media) else "",
-    })
+        "turn_section": turn_html(media), "nav": nav_html(media), "tools": tools_html(tools), "row_script": ROW_SCRIPT,
+    }))
+    how = fill(open(os.path.join(SITE, HOW_PAGE), encoding="utf-8").read(), dict(common, **{
+        "nav": nav_html(media, "../", "how-it-works/"), "tools": tools_html(tools, "../"),
+        "pictures": how_pictures_html(media),
+        "credits": credits_html(media, [p["model"] for p in how_pictures(media) if p.get("model")]),
+    }))
     if os.path.isdir(out):
         shutil.rmtree(out)
     os.makedirs(os.path.join(out, "media"))
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as fh:
         fh.write(page)
+    os.makedirs(os.path.join(out, os.path.dirname(HOW_PAGE)))
+    with open(os.path.join(out, HOW_PAGE), "w", encoding="utf-8") as fh:
+        fh.write(how)
     shutil.copy2(os.path.join(SITE, "style.css"), out)
     for d in COPY_DIRS:
         shutil.copytree(os.path.join(SITE, d), os.path.join(out, d))
@@ -522,30 +666,17 @@ def check(out: str, media: dict | None = None) -> list[str]:
     """Problems of a built page ([] = fine)."""
     media = media if media is not None else load_media()
     problems = []
-    page_path = os.path.join(out, "index.html")
-    page = open(page_path, encoding="utf-8").read()
-    p = _Links()
-    p.feed(page)
-    for tag, ref, in_credits in p.refs:
-        if ref.startswith("#"):
+    page = open(os.path.join(out, "index.html"), encoding="utf-8").read()
+    allowed = set(ALLOWED_HOSTS) | tool_hosts()
+    guide_page = os.path.join(out, "guide", "index.html")
+    guide_ids = (set(re.findall(r'id="([^"]+)"', open(guide_page, encoding="utf-8").read()))
+                 if os.path.exists(guide_page) else None)
+    for rel in PAGES:
+        path = os.path.join(out, rel)
+        if not os.path.exists(path):
+            problems.append(f"missing page: {rel}")
             continue
-        if re.match(r"^[a-z]+:", ref):
-            if not ref.startswith("https://"):
-                problems.append(f"not https: {ref}")
-                continue
-            host = ref.split("/")[2]
-            if tag != "a":
-                problems.append(f"loads something from another site: {ref}")
-            elif not in_credits and host not in ALLOWED_HOSTS:
-                problems.append(f"link to {host} outside the credits: {ref}")
-            elif host == "github.com" and not in_credits and not ref.startswith(REPO_URL):
-                problems.append(f"link to another GitHub project: {ref}")
-            continue
-        target = os.path.join(out, ref.split("#")[0].split("?")[0])
-        if ref.endswith("/"):
-            target = os.path.join(target, "index.html")
-        if not os.path.exists(target):
-            problems.append(f"missing file: {ref}")
+        problems += _check_links(out, rel, open(path, encoding="utf-8").read(), allowed, guide_ids)
     css = open(os.path.join(out, "style.css"), encoding="utf-8").read()
     for ref in re.findall(r"url\(([^)]+)\)", css):
         ref = ref.strip("'\"")
@@ -559,6 +690,13 @@ def check(out: str, media: dict | None = None) -> list[str]:
             problems.append(f"model '{mid}' has no credit in media.json")
         elif _esc(m["credit"]) not in page:
             problems.append(f"model '{mid}' is not credited on the page")
+    how_path = os.path.join(out, HOW_PAGE)
+    if os.path.exists(how_path):
+        how = open(how_path, encoding="utf-8").read()
+        for pic in how_pictures(media):
+            m = media.get("models", {}).get(pic.get("model", ""), {})
+            if m.get("credit") and _esc(m["credit"]) not in how:
+                problems.append(f"{HOW_PAGE}: model '{pic['model']}' is shown but not credited there")
     credits_md = open(os.path.join(SITE, "CREDITS.md"), encoding="utf-8").read()
     for mid in used_models(media):
         m = media.get("models", {}).get(mid, {})
@@ -573,15 +711,52 @@ def check(out: str, media: dict | None = None) -> list[str]:
             problems.append(f"picture too big for the web: {f} ({size // 1000} KB, at most {JPG_MAX // 1000})")
         if f.lower().endswith(".mp4") and size > VIDEO_MAX * 1.1:
             problems.append(f"video too big for the web: {f} ({size / 1e6:.1f} MB, at most {VIDEO_MAX / 1e6:.0f})")
-    if "<script" in page.lower():
-        problems.append("the page has a script (none allowed)")
     problems += unknown_functions(media)
-    guide_page = os.path.join(out, "guide", "index.html")
-    if os.path.exists(guide_page):
-        ids = set(re.findall(r'id="([^"]+)"', open(guide_page, encoding="utf-8").read()))
-        for a in sorted(set(re.findall(r'href="guide/#([^"]+)"', page)) - ids):
-            problems.append(f"link to a guide section that does not exist: guide/#{a}")
     problems += check_model(out, media, credits_md)
+    return problems
+
+
+def _check_links(out: str, rel: str, page: str, allowed: set[str], guide_ids: set[str] | None) -> list[str]:
+    """One built page's links and scripts (task 0267: the landing page and "How it works")."""
+    problems = []
+    here = os.path.dirname(rel)
+    p = _Links()
+    p.feed(page)
+    for tag, ref, in_credits in p.refs:
+        if ref.startswith("#"):
+            continue
+        if re.match(r"^[a-z]+:", ref):
+            if not ref.startswith("https://"):
+                problems.append(f"{rel}: not https: {ref}")
+                continue
+            host = ref.split("/")[2]
+            if tag != "a":
+                problems.append(f"{rel}: loads something from another site: {ref}")
+            elif not in_credits and host not in allowed:
+                problems.append(f"{rel}: link to {host} outside the credits: {ref}")
+            elif host == "github.com" and not in_credits and not ref.startswith(REPO_URL):
+                problems.append(f"{rel}: link to another GitHub project: {ref}")
+            continue
+        local = os.path.normpath(os.path.join(here, ref.split("#")[0].split("?")[0] or "."))
+        target = os.path.join(out, local)
+        if ref.split("#")[0].endswith("/") or ref.split("#")[0] in ("", "./", "../"):
+            target = os.path.join(target, "index.html")
+        if local.startswith(".."):
+            problems.append(f"{rel}: link outside the site: {ref}")
+        elif not os.path.exists(target):
+            problems.append(f"{rel}: missing file: {ref}")
+        if guide_ids is not None and local.replace(os.sep, "/") == "guide" and "#" in ref:
+            anchor = ref.split("#", 1)[1]
+            if anchor not in guide_ids:
+                problems.append(f"{rel}: link to a guide section that does not exist: guide/#{anchor}")
+    scripts = re.findall(r"<script\b([^>]*)>(.*?)</script>", page, re.S | re.I)
+    if len(scripts) != page.lower().count("<script"):
+        problems.append(f"{rel}: a script that is not closed")
+    for attrs, body in scripts:
+        if "src" in attrs.lower():
+            problems.append(f"{rel}: a script loaded from a file (only the short inline script is allowed)")
+        elif body.strip() != ROW_SCRIPT[len("<script>"):-len("</script>")].strip():
+            problems.append(f"{rel}: a script that is not the rows' own (none other allowed)")
     return problems
 
 

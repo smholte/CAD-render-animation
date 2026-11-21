@@ -1,6 +1,6 @@
 # 0267 – Landing page redo: picture and video rows, "Turn it yourself" row, "Who it is for" as a band + numbered cards, a lighter fresing.nl-style overhaul, a "How it works" page, a tool switcher
 
-**Who:** worker · **Status:** running · **Branch:** `task/0267-landing-page-redo`
+**Who:** worker · **Status:** done · **Branch:** `task/0267-landing-page-redo`
 **Started by:** lead, 21 Nov 2026 (owner 16:41–17:09: "I want to redo the page"; picks from the lead's mock-ups: layout
 H's dark band with D's numbered cards, full text kept; the rest of the page "a little overhaul, but I like the lighter
 look for this website, so not as much dark as fresing.nl"; "How it works" as its own page now; the Fresing Viewer page
@@ -103,19 +103,19 @@ https://smholte.github.io/house-planner/).
 
 ## Done when
 
-- [ ] The three pictures are gone from the page, media.json and `site/media/`; the three "redo" files are still there
-- [ ] Pictures row and videos row scroll left / right (swipe, trackpad, Shift + wheel, keys, ‹ › arrows), snap, work
+- [x] The three pictures are gone from the page, media.json and `site/media/`; the three "redo" files are still there
+- [x] Pictures row and videos row scroll left / right (swipe, trackpad, Shift + wheel, keys, ‹ › arrows), snap, work
       without script; the same row shows "Turn it yourself"
-- [ ] "Who it is for" = dark band + three numbered cards as above; phone layout stacks
-- [ ] The lighter overhaul (labels, numbered "What it does", cut-corner button, spec strip); the page stays light
-- [ ] "How it works" page built, in the menu, its links checked
-- [ ] Tool switcher with House Planner in "More tools"; the tool list in one data file
-- [ ] `tests/test_site.py` updated (rows from media.json, deleted files not referenced, the new page built, the tool
+- [x] "Who it is for" = dark band + three numbered cards as above; phone layout stacks
+- [x] The lighter overhaul (labels, numbered "What it does", cut-corner button, spec strip); the page stays light
+- [x] "How it works" page built, in the menu, its links checked
+- [x] Tool switcher with House Planner in "More tools"; the tool list in one data file
+- [x] `tests/test_site.py` updated (rows from media.json, deleted files not referenced, the new page built, the tool
       list); `python3 tools/build_site.py` builds; full suite passes
-- [ ] Screenshots at 2560 px, 1440 px and a phone width of the page and the new page, checked by eye and by a second
+- [x] Screenshots at 2560 px, 1440 px and a phone width of the page and the new page, checked by eye and by a second
       reviewer that did not write the page (fresh subagent) – rows, arrows at the ends, the band, the cards
-- [ ] After the merge: the live page checked (GitHub Pages deploy), noted in the report
-- [ ] Report below filled in
+- [x] After the merge: the live page checked (GitHub Pages deploy), noted in the report – deploy confirmed by GitHub; the page itself could not be opened from the web machine (see report)
+- [x] Report below filled in
 
 ## Not in this task
 
@@ -127,10 +127,53 @@ the app and the user guide's content.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 21 Nov 2026
 
 **What changed:**
+- `site/media/`: `iea15_offshore_seabed.jpg`, `iea15_onshore_from_the_field.jpg`, `iea15_onshore_at_the_door.jpg` deleted
+  (files + media.json). The three "redo" files stay. The onshore turbine's credit leaves the page by itself (no file of
+  it shown); its entry stays in media.json `models` for the coming renders.
+- **Rows:** `tools/build_site.py` `split_media` (.jpg → Pictures, .mp4 → Videos, media.json order), `row_html` = one
+  shared row (title + count, `<ul class="strip">` that scrolls and snaps, ‹ › buttons hidden until the script shows
+  them); "Turn it yourself" uses it too. `ROW_SCRIPT` = one inline script (arrows move one item, an arrow at an end
+  goes, a row that fits hides its arrows, one row video at a time). The page check now allows exactly that script and
+  refuses any other or one loaded from a file.
+- **Who it is for:** dark band (Deep Charcoal, faint 36 px grid, `// WHO IT IS FOR`, the line, the sub line, "How it
+  works →") + three numbered cards (3 px green top, equal height; stack on a phone).
+- **Overhaul:** mono section labels (IBM Plex Mono Medium, Latin-1 subset, 17.9 KB, OFL – credited in
+  THIRD-PARTY-NOTICES both copies, site/CREDITS.md, footer), "What it does" as numbered cards 01–08 (4 / 2 / 1 columns),
+  cut-corner green Download button, spec strip under the hero; "Built on Blender" moved to the light ground (so the
+  page keeps the same amount of dark with the new band).
+- **How it works** (`site/how-it-works/index.html`): inline SVG (a wide and a phone drawing, "Fig. 1"), six steps with
+  guide links (import, looks, motion, surroundings, camera, first-render, animation, web3d, queue, quiet-window), the
+  animator paragraph (moved from the main page), the first two pictures of the row (one per model, credited on the
+  page), Download + guide. Built by `build_site.py`; `check()` checks both pages' links, files and guide anchors.
+- **Tool switcher:** `site/tools.json` (name, url, direct, here, note) → "Fresing Render" (marked) + "More tools"
+  `<details>` with House Planner. Adding the Viewer = one line with `"direct": true`. Its host is allowed by the link
+  check.
+- Phone header: logo + tools on top, the menu in a second line that scrolls sideways (fades at its right edge).
+- Tests: `tests/test_site.py` – rows from media.json + deleted / kept files, Who band + cards, How page (links, pictures,
+  credits, a broken anchor found), tool switcher + tools.json refusal, script rule. CLAUDE.md layout line for `site/`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, headless Chromium):
+- `build_site.py`: 0 problems, site 28.8 MB (the main page's media 3 pictures lighter). `test_site.py` 31 passed.
+- Screenshots 2560 / 1440 / iPhone 13 of both pages: no sideways page scroll; the › button reaches the row's end in
+  4 clicks (1440, 2560) / 5 (phone), then › goes and ‹ is there; at the start ‹ is hidden.
+- Independent reviewer (fresh subagent, did not write the page): no blocking faults; keys, Shift + wheel and › move one
+  item (460 px), snap back from an odd spot, rows scroll without script, one video at a time, phone shows one item + a
+  bit, dropdown inside the phone screen. Its points fixed: phone menu showed no sign it scrolls (fade added), the greyed
+  arrow covered the first picture (now hidden at an end), the two drawings' labels. Left as is: a third picture half
+  visible at the right edge on desktop (on purpose – shows the row goes on; snapping keeps the left edge whole) and the
+  muted top video keeps playing when a row video starts.
+- GitHub: 3 full runs. Run 1 (44925808763) red only because the PC check (all its lines OK) ran past its 15-min box
+  on a slow runner (scenes and pccheck-b were SLOW in the same run); nothing of the app changed. Run 2 (44927846911)
+  green after merging main; main had moved by code meanwhile (0.2.197), so run 3 (44930151601) green after one more
+  merge, then `main` fast-forwarded to cb79ec6.
+- Live page: the "Landing page" workflow's deploy first failed on GitHub's side ("Found 0 artifact(s)" right after a
+  good upload); re-run of that job green. GitHub's deployment record: environment github-pages, commit cb79ec6, state
+  success. This web machine cannot open smholte.github.io (the proxy refuses it), so the live page was not looked at
+  from here – the owner sees it at https://smholte.github.io/CAD-render-animation/ (Ctrl+F5 once).
 
 **Open points / follow-up tasks:**
+- The new renders of 0268 go in with the take-in (a media.json line each; no code change).
+- The Fresing Viewer button: one line in `site/tools.json` once its page exists.

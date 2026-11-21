@@ -73,5 +73,5 @@ no maker's name or logo is on the model.
 
 ## Type and logo
 
-- IBM Plex Sans, © IBM Corp., SIL Open Font License 1.1 (`site/fonts/OFL-IBM-Plex.txt`).
+- IBM Plex Sans and IBM Plex Mono, © IBM Corp., SIL Open Font License 1.1 (`site/fonts/OFL-IBM-Plex.txt`).
 - The Fresing logo (`site/brand/`) is Fresing's own, approved for this page by the owner (8 Nov 2026).

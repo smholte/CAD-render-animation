@@ -14,12 +14,9 @@
 <header class="bar">
   <div class="wrap bar-in">
     <a class="bar-logo" href="https://fresing.nl" aria-label="Fresing – fresing.nl"><img src="brand/fresing-logo_compact_reversed.svg" alt="Fresing" width="120" height="35"></a>
+    {{tools}}
     <nav aria-label="On this page">
-      <a href="#who">Who it is for</a>
-      <a href="#what">What it does</a>{{turn_nav}}
-      <a href="#blender">Built on Blender</a>
-      <a href="#install">Install</a>
-      <a href="guide/">User guide</a>
+      {{nav}}
     </nav>
   </div>
 </header>
@@ -30,7 +27,7 @@
     <div class="hero-text">
       <h1><img class="app-icon" src="brand/fresing-render/fresing-render-app-icon.svg" alt="" width="64" height="64">Fresing Render</h1>
       <p class="lead">Fresing Render turns your CAD model into renders and animations – fast enough for engineers to make them themselves, and a ready-made start for animators.</p>
-      <a class="download" href="{{download_url}}">
+      <a class="download cut" href="{{download_url}}">
         <span class="download-main">Download for Windows</span>
         <span class="download-sub">Version {{version}} · {{date}} · {{size}}</span>
       </a>
@@ -42,47 +39,55 @@
   </div>
 </section>
 
-<section class="gallery" aria-label="Pictures made with Fresing Render">
+<section class="spec" aria-label="In short">
+  <ul class="wrap spec-in">
+    <li><b>STEP in</b> from Inventor, Fusion, any CAD</li>
+    <li><b>Cycles</b> real light</li>
+    <li><b>Windows 10 / 11</b> no admin rights</li>
+    <li><b>Free</b> open source (GPL)</li>
+  </ul>
+</section>
+
+<section class="gallery" aria-label="Pictures and videos made with Fresing Render">
   <div class="wrap">
+    <p class="label">// Made with Fresing Render</p>
     <h2>Made with Fresing Render</h2>
-    <div class="grid">
 {{gallery}}
-    </div>
-    <p class="small">Click a picture to see it full size. Models: see <a href="#credits">credits</a>.</p>
+    <p class="small">Scroll sideways or use the arrows. Click a picture to see it full size. Models: see <a href="#credits">credits</a>.</p>
   </div>
 </section>
 
-<section id="who" class="what who">
+<section id="who" class="who">
   <div class="wrap">
-    <h2>Who it is for</h2>
-    <p class="tagline">Built to speed animators up – not to replace them.</p>
-    <div class="who-grid">
-      <div><h3>Engineers</h3><p>Renders and animations of your own machine without waiting for anyone – free and open source.</p></div>
-      <div><h3>Sales teams</h3><p>Show a client how the machine looks and moves – early, convincingly, straight from the engineering model.</p></div>
-      <div><h3>Animators</h3><p>Many animators worry about what AI means for their work. Fresing Render is built on the opposite idea: speed the animator up, not replace them. It takes over the repetitive set-up, so you start from a working scene and spend your time where an animation is won – light, camera, timing, story. You deliver faster and stay competitive, and the result still carries your skill.</p></div>
+    <div class="band">
+      <p class="label">// Who it is for</p>
+      <h2>Built to speed animators up – not to replace them.</h2>
+      <p class="band-sub">Import, sorting, materials and motion in a few clicks – the craft stays yours.</p>
+      <p><a class="band-link" href="how-it-works/">How it works →</a></p>
     </div>
-    <ul class="points">
-      <li><b>Easy for engineers.</b> Step by step, in plain words.</li>
-      <li><b>Fast.</b> Import, sorting, materials and motion in a few clicks instead of hours of set-up.</li>
-      <li><b>No limits for animators.</b> It stays a normal Blender scene: light, camera, effects and fine motion are all yours to push further – with all of <a href="#blender">Blender</a>.</li>
-      <li><b>Your real machine.</b> Every frame comes from your own CAD – true shape, true sizes, true motion. Nothing is guessed.</li>
-    </ul>
+    <ol class="who-cards">
+      <li><p class="label">01 · Engineers</p><h3>Render it yourself</h3><p>Your own machine, step by step, in plain words. No waiting for anyone.</p></li>
+      <li><p class="label">02 · Sales teams</p><h3>Show it before it exists</h3><p>How the machine looks and moves, straight from the engineering model. Nothing is guessed.</p></li>
+      <li><p class="label">03 · Animators</p><h3>Start from a working scene</h3><p>The set-up is done for you. Light, camera and story stay yours – with all of <a href="#blender">Blender</a>.</p></li>
+    </ol>
   </div>
 </section>
 
 <section id="what" class="what">
   <div class="wrap">
+    <p class="label">// What it does</p>
     <h2>What it does</h2>
-    <ul class="points">
-      <li><b>Drop in a STEP file.</b> Assemblies with thousands of parts, read on all processor cores; a new revision of the model keeps all your work.</li>
-      <li><b>Parts sorted and given materials.</b> Bolts by their DIN/ISO names, steel, aluminium, paint in RAL colours, rubber and glass – picked for you, changed with a click.</li>
-      <li><b>Motion.</b> Rotating and sliding joints, hydraulic cylinders that follow their arm, mechanisms such as scissor lifts and slider-cranks.</li>
-      <li><b>CNC milling.</b> Your G-code drives the machine; material disappears where the tool cuts, chips fly and the air blast blows them away.</li>
-      <li><b>Surroundings.</b> Open sea, a vessel deck, a quay, factory and CNC halls, or a clean studio with ready-made light looks.</li>
-      <li><b>Stills, turntables and finished videos.</b> Print sizes up to posters, one-click turntables, videos with title and end cards, captions, labels and music.</li>
-      <li><b>Render queue.</b> Line up pictures and videos and let them render on the graphics card while you keep working.</li>
-      <li><b>Updates itself.</b> A new version is offered in the app: one click and it installs.</li>
-    </ul>
+    <ol class="numbered">
+      <li><span class="num">01</span><h3>Drop in a STEP file</h3><p>Assemblies with thousands of parts, read on all processor cores; a new revision of the model keeps all your work.</p></li>
+      <li><span class="num">02</span><h3>Parts sorted and given materials</h3><p>Bolts by their DIN/ISO names, steel, aluminium, paint in RAL colours, rubber and glass – picked for you, changed with a click.</p></li>
+      <li><span class="num">03</span><h3>Motion</h3><p>Rotating and sliding joints, hydraulic cylinders that follow their arm, mechanisms such as scissor lifts and slider-cranks.</p></li>
+      <li><span class="num">04</span><h3>CNC milling</h3><p>Your G-code drives the machine; material disappears where the tool cuts, chips fly and the air blast blows them away.</p></li>
+      <li><span class="num">05</span><h3>Surroundings</h3><p>Open sea, a vessel deck, a quay, factory and CNC halls, or a clean studio with ready-made light looks.</p></li>
+      <li><span class="num">06</span><h3>Stills, turntables and finished videos</h3><p>Print sizes up to posters, one-click turntables, videos with title and end cards, captions, labels and music.</p></li>
+      <li><span class="num">07</span><h3>Render queue</h3><p>Line up pictures and videos and let them render on the graphics card while you keep working.</p></li>
+      <li><span class="num">08</span><h3>Updates itself</h3><p>A new version is offered in the app: one click and it installs.</p></li>
+    </ol>
+    <p class="small">Step by step from your STEP file to the finished video: <a href="how-it-works/">How it works</a>.</p>
   </div>
 </section>
 
@@ -90,6 +95,7 @@
 <section id="blender" class="blender">
   <div class="wrap blender-in">
     <div>
+      <p class="label">// Built on Blender</p>
       <h2>Built on Blender</h2>
       <p>Fresing Render is built on <a href="https://www.blender.org">Blender</a>, the free and open-source 3D software. Every picture and video is rendered with Blender's Cycles engine: real light, real reflections and real shadows, the same kind of light simulation used for films and product photos.</p>
       <p><b>You don't need to know Blender.</b> The Fresing Render installer downloads Blender {{blender}} LTS, checks it and sets it up as a standalone app: its own <b>Fresing Render</b> icon on your Desktop, its own settings and a side panel made for machines, separate from any other Blender on your PC. Updates come from inside the app.</p>
@@ -104,6 +110,7 @@
 <section id="install" class="install">
   <div class="wrap two">
     <div>
+      <p class="label">// Install</p>
       <h2>Install in 3 steps</h2>
       <ol class="steps">
         <li><a href="{{download_url}}">Download</a> <b>{{asset_name}}</b>.</li>
@@ -111,7 +118,7 @@
         <li>Double-click <b>Install.bat</b> in the unzipped folder. If Windows says "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>. When it is done, start <b>Fresing Render</b> from the Desktop.</li>
       </ol>
       <p class="small">The installer downloads Blender {{blender}} (about 400 MB) and keeps it separate from any other Blender on your PC.</p>
-      <p class="buttons"><a class="button" href="guide/">User guide</a> <a class="button ghost" href="{{releases_url}}">All releases</a></p>
+      <p class="buttons"><a class="button" href="guide/">User guide</a> <a class="button ghost" href="how-it-works/">How it works</a> <a class="button ghost" href="{{releases_url}}">All releases</a></p>
     </div>
     <div class="news">
       <h2>What's new in {{version}}</h2>
@@ -141,9 +148,10 @@
     <ul class="credits">
 {{credits}}
     </ul>
-    <p>Fresing Render is free software under the GNU General Public License, version 3 or later. <a href="{{repo_url}}">Source code on GitHub</a>. Built on <a href="https://www.blender.org">Blender</a>. The type is IBM Plex Sans (SIL Open Font License). <a href="{{repo_url}}/tree/main/site/brand/fresing-render">Fresing Render logo pack</a> (app icon and the &ldquo;Fr&rdquo; mark, SVG and PNG).</p>
+    <p>Fresing Render is free software under the GNU General Public License, version 3 or later. <a href="{{repo_url}}">Source code on GitHub</a>. Built on <a href="https://www.blender.org">Blender</a>. The type is IBM Plex Sans and IBM Plex Mono (SIL Open Font License). <a href="{{repo_url}}/tree/main/site/brand/fresing-render">Fresing Render logo pack</a> (app icon and the &ldquo;Fr&rdquo; mark, SVG and PNG).</p>
     <p>© Fresing · <a href="https://fresing.nl">fresing.nl</a> · This page sets no cookies and loads nothing from other sites.</p>
   </div>
 </footer>
+{{row_script}}
 </body>
 </html>
