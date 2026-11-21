@@ -817,12 +817,12 @@ def own_heavy_video(ctx):
 # the demo project (task 0077)
 # ---------------------------------------------------------------------------
 
-@line("heavy.demo", "Demo project: cable-lay vessel", "0.2.68", (H,), expected=300,
-      what="Makes the demo project as Help > Make demo project does (the invented cable-lay vessel: model, 416 "
-           "joints, sea, cameras, the animation 'What it can do today'), renders the overview and steps through the "
-           "animation",
+@line("heavy.demo", "Demo project: Vessel in a wind park", "0.2.68", (H,), expected=120,
+      what="Makes the demo project as Help > Make demo project does (the invented ship in a wind park: model, 33 "
+           "joints, the crane's hoist wire on its drum, sea, park, cameras, the animation 'What it can do today'), "
+           "renders the overview and steps through the animation",
       shows="How long the demo takes to make on this PC, the Build time of its animation, the time per frame while "
-            "you scrub it (1,250 parts, 300 joints turning), and the memory it needs",
+            "you scrub it (the ship, nine turbines with turning rotors, the crane's wire), and the memory it needs",
       not_shown="The demo's video rendered in full (render it from the queue: 7 Render queue)")
 def heavy_demo(ctx):
     import bpy
@@ -842,15 +842,12 @@ def heavy_demo(ctx):
     scene = bpy.context.scene
     s = scene.fresing
     _check(len(s.joints) >= demo.MIN_JOINTS, f"the demo has {len(s.joints)} joints, not {demo.MIN_JOINTS}")
-    for name in demo.TENSIONERS:                            # task 0102: lift, then tilt 70° out to its own side
-        tilt = s.joints.get(f"{name}: Top track tilt")
-        _check(tilt is not None and tilt.use_limits and abs(math.degrees(tilt.rot_max) - 70.0) < 0.01,
-               f"{name}'s top track does not tilt out 70°")
-        _check(s.joints.get(f"{name}: Top track lift") is not None, f"{name}'s top track does not lift")
+    hook = s.joints.get(demo.HOOK)                          # task 0247: the deck crane's hook on its hoist wire
+    _check(hook is not None and hook.follows == demo.CRANE_TRAVEL, "the deck crane's hook does not follow its wire")
     for n, _rpm in demo.turning_joints(demo.Demo(scene, folder, "pccheck", small=small())):   # task 0153
         j = s.joints.get(n)
         _check(j is not None and j.is_motor, f"the vessel's '{n}' is not there or does not turn without end")
-    for cam in (demo.STERN_THRUSTERS, demo.HULL_SIDE):
+    for cam in (demo.STERN_THRUSTERS, demo.HULL_SIDE, demo.DECK_CRANE, demo.AT_THE_SEABED):
         _check(scene.objects.get(cam) is not None, f"the demo has no saved camera '{cam}'")
     a = s.animations.get(demo.ANIM)
     _check(a is not None, f"the demo has no animation '{demo.ANIM}'")
@@ -870,7 +867,7 @@ def heavy_demo(ctx):
     path = os.path.join(ctx.work, "demo_overview.png")
     info = render.render_still(scene, s, z["still_quality"][0], filepath=path)
     ctx.metric("render", info["seconds"], "s")
-    ctx.picture(path, "demo_overview", "Demo project: the vessel on the open sea")
+    ctx.picture(path, "demo_overview", "Demo project: the ship on the open sea in the wind park")
     _memory(ctx)
     _check(per < 5.0, f"a frame of the demo animation takes {per:.1f} s: far too slow")
     return f"{len(s.joints)} joints, '{demo.ANIM}' {scene.frame_end} frames, {per * 1000:.0f} ms per frame"

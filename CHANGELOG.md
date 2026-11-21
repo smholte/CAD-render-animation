@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.188 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
+## 0.2.189 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
 
 - **Houses from House Planner:** Fresing Render follows the Toolbox format's bug-fix version 0.1.1. A job whose file
   says a size no file can have, or names a file Windows cannot hold, is now refused at once with a clear reason
@@ -14,6 +14,20 @@ installer of that version was built from.
   numbers, broken text) can no longer upset the inbox.
 - **Tested on Windows:** GitHub now checks that a folder link (junction) in the inbox is never followed or emptied,
   and that a job finishes right while another program keeps reading its status file.
+## 0.2.188 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
+
+- **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own
+  deck crane in an offshore wind park of nine turbines and a substation, the park's power cable lying on the seabed
+  right under her. Its video lasts about a minute: she sails in and holds her place on her thrusters, her crane slews
+  outboard and lowers its hook (the wire comes off the drum layer by layer), along her hull and under water at her
+  thrusters, at the seabed where the cable comes down turbine WTG 05, the park from above and at night. It is made in
+  about a minute instead of six. The cable-lay equipment of the old demo is no longer part of the app.
+- **New saved cameras** in the demo: **Deck crane** and **At the seabed** (through the cut-away behind the stern, along
+  the cable to the turbine's foot).
+- **The clash check can leave a whole model out, stored in the project.** The demo's wind park is left out this way
+  (its nine turning rotors would make the check several times as long); the mark stays when you save, reopen or
+  update the model. A demo kit uses it for its own scenery.
+
 ## 0.2.187 – 21 Nov 2026 – Automatic backups (task 0246)
 
 - **Your work is saved every 5 minutes.** While you work, the app saves a backup copy of the open project in a folder

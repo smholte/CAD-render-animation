@@ -356,8 +356,8 @@ def test_selftest_for_the_pc_check(tmp_path):
 # task 0179: a phone – one views control, one bottom stack, nothing on top of anything, the model in the free area
 # ---------------------------------------------------------------------------
 
-LONG = ["Shot 1: the whole vessel", "Shot 2: cable from the carousel", "Shot 3: carousel and arch",
-        "Shot 4: tensioners squeezing", "Shot 5: chute and the stern", "Shot 6: handling winch drum, depth of field"]
+LONG = ["Shot 1: the whole vessel", "Shot 2: the cable from the turbine", "Shot 3: the deck crane and its hook",
+        "Shot 4: thrusters under the stern", "Shot 5: the cable on the seabed", "Shot 6: the park, depth of field"]
 PHONES = ["360x780", "390x844", "412x915", "844x390"]          # the owner's phone first; the last one held sideways
 WIDE = ["768x1024", "1366x768", "1920x1080"]
 

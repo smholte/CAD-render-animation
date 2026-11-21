@@ -151,7 +151,7 @@ def s_add():
           os.path.isfile(os.path.join(KITS, "test-kit", "kit.json")), str(kits))
     items = [(i[0], i[1]) for i in ops_demo._which_items(None, bpy.context)]
     check("Make list: the app's own demo, then 'Test kit box (kit 1)'",
-          items == [(ops_demo.PUBLIC_ID, "Demo cable-lay vessel"), ("test-kit", "Test kit box (kit 1)")], str(items))
+          items == [(ops_demo.PUBLIC_ID, "Vessel in a wind park"), ("test-kit", "Test kit box (kit 1)")], str(items))
     with override():
         r = bpy.ops.fresing.demo_make("INVOKE_DEFAULT", folder=DEMO, which="test-kit")
     return 1.0
