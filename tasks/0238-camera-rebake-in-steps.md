@@ -1,6 +1,6 @@
 # 0238 – Fix from bug hunt 0209, group H: the riding camera's re-bake in steps (no 13 s freeze after a sea change)
 
-**Who:** worker · **Status:** done (0.2.186) · **Branch:** `task/0238-camera-rebake-in-steps`
+**Who:** worker · **Status:** done (0.2.187) · **Branch:** `task/0238-camera-rebake-in-steps`
 **Started by:** lead, 20 Nov 2026 (bug hunt 0209 row 20; 0216 done) · **Model:** Opus · effort Medium
 **Area:** Scene & Render lane (the camera part) – `blender/camera_path.py` (`_sample`), `blender/rebake.py` (the
 `cameras` step of the re-bake job), tests (`test_camera_ride_rebake*`, `test_rebake*`). Nothing in `paths.py`,
@@ -77,7 +77,7 @@ only):
   frame is set in the camera's own step; Cancel at 40 % of the pass leaves visibility, hide keys, the frame and the
   kept read as they were and takes the built animation off. Before the change the first test fails (3 job steps).
   `test_camera_ride_rebake.py`, `test_rebake_objects_gone.py`, `test_sea_after_build.py` pass locally.
-- GitHub: 2 full runs – the first green (run 44836750301, 55 min on busy runners); task 0239 took 0.2.185 meanwhile, so main was merged and the version renumbered to 0.2.186 (second run).
+- GitHub: 3 full runs – the first green (run 44836750301, 55 min on busy runners); task 0239 took 0.2.185 meanwhile, so main was merged and renumbered (second run, cancelled while queued); then 0237 took 0.2.186 – merged again, 0.2.187 (third run).
 
 **Open points / follow-up tasks:**
 - The cables' re-bake has single steps of 4–10 s on the full demo (one cable per step) – a follow-up for the cables lane
