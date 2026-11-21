@@ -63,7 +63,7 @@ WEIR = 1.5             # critical flow over a step: q = 1.5 sqrt(g) h^1.5 per me
 CD = 0.62              # orifice discharge coefficient (sharp-edged hole)
 HMIN = 2e-5            # the friction's depth never below this (m)
 DRIP_TIME = 0.15       # s: upside-down liquid drips off within about this
-CFL = 0.45             # sub-step = CFL x cell / wave speed
+CFL = 0.6             # sub-step = CFL x cell / wave speed
 TILE = 32              # cells per tile side
 _FR_A = 3.0 * NU       # laminar friction 3 nu / h^2 ...
 _FR_B = STOKES         # ... + the Stokes layer's STOKES / h (both x dt in the kernel)
