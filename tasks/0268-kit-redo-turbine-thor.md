@@ -1,6 +1,6 @@
 # 0268 – Render kit: the turbine still and video without the sea cut-away, Thor's side picture with the corrected model (same camera, light and background), the dropped shots taken out
 
-**Who:** worker → owner (renders on his PC) · **Status:** open · **Branch:** `task/0268-kit-redo-turbine-thor`
+**Who:** worker → owner (renders on his PC) · **Status:** running · **Branch:** `claude/cool-ramanujan-lzs9ul`
 **Started by:** lead, 21 Nov 2026 (owner 16:41: "these need to be redone without the cutout in the ocean: the whole
 turbine picture and the offshore turbine video"; "thor_side.jpg needs to be redone with the updated Thor model – I like
 the light and position and everything, only in the original model some parts were placed in the wrong position, so keep
