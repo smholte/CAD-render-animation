@@ -1,6 +1,6 @@
 # 0246 – Automatic project backups
 
-**Who:** worker · **Status:** running · **Branch:** `task/0246-automatic-backups`
+**Who:** worker · **Status:** done (0.2.187) · **Branch:** `task/0246-automatic-backups`
 **Started by:** lead chat, 20 Nov 2026 23:05 (owner's answers 22:40 + 22:44) · **Model:** Opus · effort Medium
 **Area:** new **Backups lane** – new files `fresing_render/core/backups.py` (pure logic, no `bpy`),
 `fresing_render/blender/backups.py` (timer, save, start question), `fresing_render/blender/ops_backups.py` (Restore
@@ -65,27 +65,27 @@ the saved project is older, and has **Fresing > Restore a backup…** to go back
 
 ## Done when
 
-- [ ] `core/backups.py`: names, the keep rule (last N + one per day for D days, the newest of each day kept), "newer
+- [x] `core/backups.py`: names, the keep rule (last N + one per day for D days, the newest of each day kept), "newer
       than the saved project", free-space check – unit tests with fake times and files, incl. a day boundary, N = 0,
       D = 0, and foreign files left alone
-- [ ] Real-app tests: a backup made after the interval when something changed, none when nothing changed, none in the
+- [x] Real-app tests: a backup made after the interval when something changed, none when nothing changed, none in the
       Client view, none while each `busy_job` kind runs (one stand-in is enough per kind), the open project's path,
       dirty mark and undo unchanged after a backup, the save handlers quiet, Restore replaces and keeps the old file,
       the start question for a saved and for an unsaved project
-- [ ] **Measured:** time of one backup save of the demo project (~226 MB) and of a small tour project on the web
+- [x] **Measured:** time of one backup save of the demo project (~226 MB) and of a small tour project on the web
       machine; how long the app stalls. If the demo stalls more than about 2 s, say so in the report with the numbers
       and propose a fix (compression off/on, a background copy) – do not build a background save in this task
-- [ ] Four settings (tick box, minutes, last N, days D) in Fresing's settings with tooltips; ranges: 1–60 min, N 1–50,
+- [x] Four settings (tick box, minutes, last N, days D) in Fresing's settings with tooltips; ranges: 1–60 min, N 1–50,
       D 0–60
-- [ ] Fresing > Restore a backup… (after merging 0241's `ui_topbar.py`), greyed in the Client view
-- [ ] One test-tour stop in a set that no running task owns (check the "Area" lines of 0230, 0232, 0233, 0234 first and
+- [x] Fresing > Restore a backup… (after merging 0241's `ui_topbar.py`), greyed in the Client view
+- [x] One test-tour stop in a set that no running task owns (check the "Area" lines of 0230, 0232, 0233, 0234 first and
       name the set in the report), `since=` on the stop and the function-list entry; the guide's saving chapter + one
       picture; one PC-check line `backups.makes_one` (a backup in a temp folder, the keep rule, nothing else deleted)
-- [ ] (Windows-only code: Documents path, file times, replacing a file Blender has open, long paths on a share)
+- [x] (Windows-only code: Documents path, file times, replacing a file Blender has open, long paths on a share)
       reviewed by a helper that did not write it; the Windows job green
-- [ ] Tests added/updated; full suite passes
-- [ ] (UI) screenshots checked with tools/ui_screens.py
-- [ ] Report below filled in, merged, released
+- [x] Tests added/updated; full suite passes
+- [x] (UI) screenshots checked with tools/ui_screens.py
+- [x] Report below filled in, merged, released
 
 ## Not in this task
 
@@ -99,10 +99,69 @@ the saved project is older, and has **Fresing > Restore a backup…** to go back
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 20–21 Nov 2026 · version 0.2.187
 
 **What changed:**
+- New `core/backups.py` (names, keep rule, newer-than-saved, free space, fallback folder per project *place*, the small
+  state file of unsaved backups already dealt with), `blender/backups.py` (10 s timer, waits, the copy save, Restore,
+  start question), `blender/ops_backups.py` (Restore a backup… window, Restore, Show in folder, the start question).
+- Backups are `save_as_mainfile(copy=True, relative_remap=False)`: a backup stands in for the project file at the
+  project's own place (Fresing's own `//` paths are not remapped by Blender either), so Restore = copy over the project
+  file and open it. Opening a backup straight from the folder may miss relative files (said in the guide).
+- "Changed" = a scene update counted by a `depsgraph_update_post` handler since the last backup / save / open
+  (`bpy.data.is_dirty` stays True after a copy and is not set by scripts in module mode, so it is not used).
+- `prefs.py`: four settings + "Automatic backups" box with the folder's size; `ui_topbar.py`: "Restore a backup…"
+  before "My usage…" (greyed in the Client view by the lock); one `if backups.saving(): return` in the save handlers of
+  `handlers.py` (covers flex's pause/resume, queue, spool), `usage.py`, `project_lock.py`. `flex.py` itself needed
+  nothing: its save hooks are called from `handlers.py`.
+- An unsaved project's backup restored opens as `Documents\Fresing Render\Recovered projects\Recovered project <time>.blend`.
+- The start question waits for the welcome / What's new (without changing `welcome.py`): until the start file is
+  written again (an answer), the user changes something, or 3 minutes.
+- **Not done (no API):** "while a modal Fresing window is open" – Blender 5.2.3 has no `Window.modal_operators`; the
+  long modal jobs are covered by `busy_job`, picks in the 3D view by `hover.active()`.
+- Tour stop `backups` (last stop, set **`faces`** – no running task owns it; `changed="0.2.185"`, tour_versions
+  recorded); PC-check line `backups.makes_one`; function `help.backups`; guide "Automatic backups" under Start here +
+  picture `docs/img/backups_window.png` (from the real-app test's screenshot).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender 5.2.3):
+- `tests/test_backups_core.py` (12) and `tests/test_backups_blender.py` (25): day boundary, N = 0, D = 0, foreign
+  files and a folder with a backup's name left alone; the copy leaves path / dirty mark as they were; handlers quiet;
+  Client view; each `busy_job` kind (re-bake, House bake, Web 3D export, clash check) and queue / tour / demo / import /
+  pick; switched off; fallback folder; too little space said once; Restore keeps the work; start question saved +
+  unsaved; colleague's project; path too long; a failed save falls back; restore leaves no temp file.
+- Real app `tools/ui_test_backups.py` (group `scenes`): 25/25 – the app's own timer made the backup after an Empty
+  was added like a button, path + unsaved mark kept, Ctrl+Z / redo work after it, queue / usage / "in use" handlers
+  not called, "in use" file untouched, idle app 0 files, Client view 0, clash check 0 then made once it ended, Restore,
+  the start question for a saved project (newer backup) and for unsaved work (Esc = turned down, not asked again).
+- `tests/test_tour.py` 101 passed (8 min); PC-check line OK (84 kB backup in 0.01 s, 6 deleted, 6 kept).
+- **Measured, one backup save** (3 runs each): the full demo project (made here with `small=False`, 246 MB file):
+  **1.26 / 1.32 / 1.27 s**; the project's own Ctrl+S 1.0 s. The tour project "Painted faces" (< 1 MB): 0.01–0.02 s.
+  The app stalls for that time once every 5 minutes at most (only after a change) – under the 2 s the brief allowed,
+  so no background save is proposed. On the owner's PC (NVMe, 24 cores) expected less; on a network share it depends
+  on the share (not measured).
+- Independent Windows review (a helper agent that did not write the code), 8 findings; fixed: (1) a colleague's
+  backups on a shared project were offered / restorable / cleaned by the second user → none offered, Restore refused,
+  this user's backups go to the app folder; (2) fallback folder per name only → `<name> <8 hex of the place>`; (3)
+  restore's mtime vs a file server's clock ahead → project set newer than every backup; (4) paths > 259 chars or a
+  failed save → the fallback folder; (5) `.fresing-restore` left after a failed copy → removed; (6) the write probe
+  every 30 s on a read-only folder → remembered per session. (7) OneDrive uploads backups: one line in the guide.
+  Not changed: (8) a case-only rename of a project leaves its old backups (safe: only deletes less).
+- GitHub: 4 runs. 44837050586 red: `ui_test_start.py` expects every Fresing-menu entry to work in the Client view
+  (the backups entry is greyed there on purpose → that test now checks it greyed with its reason, like Show all of
+  Blender), and the new test files' default 30 s times moved two Linux-skipping tests into one pytest group (2 skips,
+  1 allowed → their real times in `ci_times.json`). 44844452705 green, but 0.2.185 had gone to task 0239 meanwhile;
+  then 0.2.186 went to task 0237: renumbered twice. 44850170629 green (0.2.187), `main` fast-forwarded to it; release
+  run 44855004085 (mode reuse): published, the Windows update check and "Offer the release" green.
+- Subagents: one – the independent Windows review (read-only, general-purpose); its 6 fixes were made by the worker.
+- Progress note `claude/render-app-progress.md` (claude.ai project): not reachable from this session – for the lead.
 
 **Open points / follow-up tasks:**
+- No check for an open Fresing dialog (no Blender API); a backup during a props dialog is harmless (the dialog's
+  values are not in the file).
+- A case-only rename of a project (`mill.blend` → `Mill.blend`) leaves its older backups uncleaned (review point 8).
+- On the owner's PC: time one backup of his ~150 MB project (the status line shows "Backup saved"); the PC-check line
+  `backups.makes_one` gives the time of a small one.
+
+
+
+
