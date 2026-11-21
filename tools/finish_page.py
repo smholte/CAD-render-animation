@@ -34,14 +34,17 @@ JUDGE = {
     "fabric": (True, "S", "average colour + roughness (0.5 mm threads are 2.5 texels)",
                "Convincing speaker cloth in a product shot; threads show only at close range."),
     "grille": (True, "S", "holds (alpha mask) – pitch must divide 200 mm for a seamless tile",
-               "Real see-through holes; far away it becomes the right grey haze instead of moiré."),
+               "Real see-through holes; far away it becomes the right haze instead of moiré. On the 1 mm test disc "
+               "each hole also shows the disc's back face (the dashes in the close-up): fine for a thin sheet, odd "
+               "on a thick one."),
     "soft_touch": (True, "S", "plain factors (sheen is lost)",
                    "No pattern: the right numbers (rough 0.6, low specular, sheen) are the whole finish. Almost free."),
     "bead_blasted": (True, "S", "average roughness", "A finish every machine builder uses; cheap, one setting."),
     "shot_blasted": (True, "S", "average roughness + colour", "Bare steel before paint: cheap; good for frames and "
                                                                "fabrication drawings."),
     "hammertone": (True, "S", "holds (colour + normal, 5 mm marks)", "Classic machine paint; colour from the group."),
-    "wrinkle": (False, "S", "holds at 2048", "Reads as wrinkle only up close; at product distance it is matte paint."),
+    "wrinkle": (False, "S", "holds at 2048", "Reads as a wrinkle structure up close; at product distance it is a "
+                                              "slightly rough matte paint."),
     "antiskid": (True, "S", "holds", "Decks and walkways of the vessel and the machines; colour from the group."),
     "tread": (True, "M", "holds (8 lenses per 0.2 m tile, seamless)",
               "Bump only: the lenses do not stand out of the silhouette (plate edges stay flat). Good from 0.3 m on."),
@@ -68,7 +71,8 @@ JUDGE = {
     "scraped": (True, "S", "holds (pitch 12.5 mm divides 200 mm)", "The flaked ways of a mill – a detail machine "
                                                                      "people recognise at once."),
     "grip": (False, "S", "average", "Same code as the knurl at 3 mm; flat ends stay plain."),
-    "perlage": (False, "M", "the swirl's sheen is lost", "Looks right on flat faces; a niche (covers, watches)."),
+    "perlage": (False, "M", "the swirl's sheen is lost", "Reads more as scales than as overlapping brushed circles; "
+                                                         "would need more work. A niche (covers, watches)."),
 }
 
 
@@ -104,10 +108,12 @@ def main(argv=None):
                                                                                 else "product shot")
                     pics.append((name, cap))
         row = times.get(tags[0], {})
-        cost = ""
-        if "cost_pattern_s" in row and "cost_plain_s" in row:
-            pl, pa = row["cost_plain_s"], row["cost_pattern_s"]
-            cost = f"{pa:.0f} s vs {pl:.0f} s plain ({(pa / pl - 1) * 100:+.0f} %)"
+        parts = []
+        for ck, size in (("_960", "960 × 540"), ("", "1920 × 1080")):
+            if "cost_pattern_s" + ck in row and "cost_plain_s" + ck in row:
+                pl, pa = row["cost_plain_s" + ck], row["cost_pattern_s" + ck]
+                parts.append(f"{size}: {pa:.1f} s vs {pl:.1f} s plain ({(pa / pl - 1) * 100:+.0f} %)")
+        cost = " · ".join(parts)
         rec, effort, bake, verdict = JUDGE.get(fid, (False, "?", "?", ""))
         cards.append(dict(n=spec["n"], id=fid, label=spec["label"], pics=pics, size=spec["size"],
                           settings=spec["settings"], offer=spec["offer"], source=spec["source"], cost=cost,
@@ -177,7 +183,7 @@ def write(out, cards, extra, times, thumbs):
                  f"<p>{e(c['verdict'])}</p><dl>"
                  f"<dt>Real size</dt><dd>{e(c['size'])}</dd>"
                  f"<dt>Direction from</dt><dd>{e(c['source'])}</dd>"
-                 f"<dt>Render cost</dt><dd>{e(c['cost'] or 'not measured')} (1920 × 1080, 64 samples, 4-core CPU)</dd>"
+                 f"<dt>Render cost</dt><dd>{e(c['cost'] or 'not measured')} (product shot, 64 samples, 4-core CPU)</dd>"
                  f"<dt>Settings</dt><dd>{e(c['settings'])}</dd>"
                  f"<dt>Offered with</dt><dd>{e(c['offer'])}</dd>"
                  f"<dt>Web 3D model</dt><dd>{e(c['bake'])}</dd></dl><div class='pics'>")

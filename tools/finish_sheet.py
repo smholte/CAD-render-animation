@@ -489,13 +489,13 @@ def headset(sc, head, out, times):
     row = times.setdefault("_headset", {})
     global AZ, EL
     az0, el0 = AZ, EL
-    AZ, EL = math.radians(-35.0), math.radians(14.0)
-    frame_all(sc, head, 1.05)
+    AZ, EL = math.radians(38.0), math.radians(12.0)          # from the front right: the knob's side
+    frame_all(sc, head, 1.02)
     row["headset.png"] = render(sc, os.path.join(out, "headset.png"), 1920, 96)
     knob = next(ob for ob in head if ob.data.name.startswith("KNOB"))
     cup = next(ob for ob in head if ob.data.name.startswith("CUP") and (ob.matrix_world.translation - knob.matrix_world.translation).length < 0.05)
-    AZ, EL = math.radians(-58.0), math.radians(18.0)
-    camera(sc, (knob.matrix_world.translation + cup.matrix_world.translation) / 2 + Vector((0, 0, -0.004)), 0.16)
+    AZ, EL = math.radians(62.0), math.radians(16.0)
+    camera(sc, knob.matrix_world.translation + Vector((-0.006, 0, -0.012)), 0.13)
     row["headset_close.png"] = render(sc, os.path.join(out, "headset_close.png"), 1920, 96)
     AZ, EL = az0, el0
 
@@ -510,11 +510,15 @@ def thumbs(sc, single, out, times, eevee=False):
     blk.parent = knob.parent = cap.parent = None
     blk.matrix_world = Matrix.Rotation(math.radians(24), 4, "Z") @ Matrix.Translation((0, 0, 0))
     knob.matrix_world = Matrix.Translation((0.012, 0.004, 0.040))
-    cap.matrix_world = Matrix.Translation((0.03, -0.045, 0.018)) @ Matrix.Rotation(math.radians(-62), 4, "X")
+    cap.matrix_world = Matrix.Translation((0.035, -0.05, 0.0)) @ Matrix.Rotation(math.radians(-20), 4, "Z") @ \
+        Matrix.Rotation(math.radians(58), 4, "X")
     for ob in (blk, knob, cap):
         ob.hide_render = ob.hide_viewport = False
     bpy.context.view_layer.update()
     row = times.setdefault("_thumbs", {})
+    bpy.context.view_layer.update()
+    zmin = min((cap.matrix_world @ Vector(c)).z for c in cap.bound_box)
+    cap.matrix_world = Matrix.Translation((0, 0, -zmin)) @ cap.matrix_world
     for fid in ("plain", "knurl_diamond", "spun", "perforated", "carbon", "hammertone", "crosshatch", "rust"):
         m = bpy.data.materials.get("FR study thumb") or bpy.data.materials.new("FR study thumb")
         if fid == "plain":
