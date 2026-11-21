@@ -185,17 +185,17 @@ def add_decals():
     text.ink_color = (1.0, 1.0, 1.0)
     dec.fit(text)
     f, c, n = face_facing(ob("BASE"), (0, -1, 0))
-    plate = dec.add(ob("BASE"), f, (0.62, c[1], c[2]), n, "STICKER", sticker="TYPE_PLATE")
+    plate = dec.add(ob("BASE"), f, (3.1, c[1], c[2]), n, "STICKER", sticker="TYPE_PLATE")
     plate.plate_company, plate.plate_type, plate.plate_serial = "FRESING", "Test crane TC-1", "SN 0001"
-    plate.plate_weight = "350 kg"
-    plate.width = 0.16
+    plate.plate_weight = "8500 kg"
+    plate.width = 0.3
     f, c, n = face_facing(ob("PEDESTAL"), (0, -1, 0))
-    warn = dec.add(ob("PEDESTAL"), f, (c[0], c[1], c[2] + 0.04), n, "STICKER", sticker="WARN_LOAD")
-    warn.width = 0.1
+    warn = dec.add(ob("PEDESTAL"), f, (c[0], c[1], c[2] + 0.2), n, "STICKER", sticker="WARN_LOAD")
+    warn.width = 0.3
     f, c, n = face_facing(ob("TROLLEY"), (0, -1, 0))
     ce = dec.add(ob("TROLLEY"), f, c, n, "STICKER", sticker="CE")
     ce.ink_color = (1.0, 1.0, 1.0)                    # white on the black trolley
-    ce.width = 0.07
+    ce.width = 0.2
     return plate
 
 
