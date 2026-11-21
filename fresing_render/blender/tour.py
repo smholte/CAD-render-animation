@@ -202,7 +202,7 @@ def results_text(version: str, data: dict, pc: str = "") -> str:
     rows = data.get("stops", {})
     n_ok = sum(1 for s in STOPS if rows.get(s.id, {}).get("state") == OK_STATE)
     n_bad = sum(1 for s in STOPS if rows.get(s.id, {}).get("state") == PROBLEM)
-    out = [f"Fresing Render test tour {version} - {time.strftime('%Y-%m-%d %H:%M')}"]
+    out = [f"Fresing Render Learning hub {version} - {time.strftime('%Y-%m-%d %H:%M')}"]
     if pc:
         out.append(f"PC: {pc}")
     out.append(f"{n_ok} OK, {n_bad} problem, {len(STOPS) - n_ok - n_bad} not looked at, of {len(STOPS)} stops")
@@ -341,13 +341,16 @@ def _joint_step(a, joint: str, start: float, seconds: float, to: float, slide: b
     return blk
 
 
-def _xyz(scene, names=(("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))):
+def _xyz(scene, names=(("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))):
+    """The three slide axes; on the test mill (task 0249: a VMC) also its two Y way covers, so the saddle never runs
+    into them (``waycover.set_up_test_mill``)."""
     from mathutils import Vector
 
-    from . import joints
+    from . import joints, waycover
     for name, asm, d in names:
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    waycover.set_up_test_mill(scene)
 
 
 GANTRY_AXES = (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))
@@ -506,7 +509,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.189")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.198")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -915,7 +918,7 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.194")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.199")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
@@ -1088,29 +1091,130 @@ def marine_camera(scene, water: float = MARINE_WATER, name: str = "Marine looks"
     return cam
 
 
-@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.101")
+# task 0234: the marine set stands a monopile with its transition piece in the open sea (12 m deep, 9 m of the pile in
+# the seabed), the cut-away round it with the ground open: the pile is seen from its toe to the platform
+OFFSHORE_DEPTH, OFFSHORE_EMBED = 12.0, 9.0      # water depth, the pile's length in the seabed (m)
+OFFSHORE_TOP = 18.0                             # the transition piece's platform over the water (m)
+OFFSHORE_PARTS = {           # name: (material id, colour, radius, z from, z to (m over the water), x, y) - cylinders
+    "MONOPILE": ("paint_marine_growth", "RAL 1023", 2.5, -OFFSHORE_DEPTH - OFFSHORE_EMBED, 3.0, 0.0, 0.0),
+    "TRANSITION PIECE": ("paint_marine_streaks", "RAL 1023", 2.75, 2.0, OFFSHORE_TOP, 0.0, 0.0),
+    "BOAT LANDING PS": ("paint_marine_growth", "RAL 1023", 0.2, -3.0, 9.0, -3.25, 0.75),
+    "BOAT LANDING SB": ("paint_marine_growth", "RAL 1023", 0.2, -3.0, 9.0, -3.25, -0.75),
+    "PLATFORM": ("paint_marine_streaks", "RAL 7035", 5.0, OFFSHORE_TOP, OFFSHORE_TOP + 0.4, 0.0, 0.0),
+}
+OFFSHORE_MATTRESS = ("SCOUR MATTRESS", 7.0, 0.35)   # a concrete mattress round the pile on the seabed: half size, height
+
+
+def offshore_structure(scene) -> dict:
+    """Task 0234: a monopile and its transition piece (with a platform and a boat landing) and a concrete scour
+    mattress, made as parts of the model so the sea is built round them (the test crane's own parts are left out);
+    the water's surface at world z 0. Returns {part name: object}."""
+    import bmesh
+    import bpy
+
+    from . import build, logic, materials
+    root = build.model_roots(scene)[0]
+    logic.exclude([ob for ob in root.children if ob.get(build.PROP_KIND) in ("part", "assembly")])
+    made = {}
+
+    def part(name, bm, mat_id, colour):
+        me = bpy.data.meshes.new(f"Offshore {name}")
+        bm.to_mesh(me)
+        bm.free()
+        ob = bpy.data.objects.new(f"Offshore {name}", me)
+        scene.collection.objects.link(ob)
+        ob.parent = root
+        ob.matrix_parent_inverse = root.matrix_world.inverted()
+        ob[build.PROP_KIND], ob[build.PROP_NAME], ob[build.PROP_UID] = "part", name, f"offshore {name.lower()}"
+        materials.assign(ob, materials.ensure_material(f"Offshore: {name.title()}", mat_id, colour))
+        for poly in me.polygons:
+            poly.use_smooth = len(poly.vertices) == 4
+        made[name] = ob
+    for name, (mat_id, colour, r, z0, z1, x, y) in OFFSHORE_PARTS.items():
+        bm = bmesh.new()
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=48 if r > 1.0 else 16, radius1=r, radius2=r, depth=z1 - z0)
+        bmesh.ops.translate(bm, vec=(x, y, (z0 + z1) / 2), verts=bm.verts)
+        part(name, bm, mat_id, colour)
+    name, half, h = OFFSHORE_MATTRESS
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.scale(bm, vec=(2 * half, 2 * half, h), verts=bm.verts)
+    bmesh.ops.translate(bm, vec=(0.0, 0.0, -OFFSHORE_DEPTH + h / 2 - 0.05), verts=bm.verts)
+    part(name, bm, "concrete", "")
+    _update()
+    return made
+
+
+@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.196")
 def build_marine(b: Build):
+    """Task 0234: the marine looks on a monopile in the open sea (study 0224: the pile standing in the real sea with
+    the sea cut-away, the waterline from the sea, the whole pile in frame)."""
+    import numpy as np
+    from mathutils import Vector
+
+    from . import build, marine_looks
+    sc, s = b.scene, b.s
     _look("PRODUCT")
-    marine_demo(b.scene)
-    marine_camera(b.scene, name="Tour marine")
+    offshore_structure(sc)
+    low = float(build.world_bounds(list(build.iter_parts(sc)))[0][2])
+    s.background, s.env_detail, s.sea_state = "SEA", "SIMPLE", "CALM"
+    s.sea_depth, s.sea_clarity = OFFSHORE_DEPTH, 12.0
+    s.water_level = float(-low)                    # the water's surface at world z 0
+    s.sea_cut_auto = False                         # the box from the pile's axis towards the camera (-x): the
+    s.sea_cut_length, s.sea_cut_width = 36.0, 30.0  # pile stands in its far wall, its front seen down to the toe
+    from . import surroundings
+    mn, mx = surroundings._model_box(sc)
+    s.sea_cut_start = float(mn[0])
+    s.sea_cut_side = -float(mn[1] + mx[1]) / 2.0
+    s.sea_cutaway = True                           # (the ground goes on by itself: the pile reaches into the seabed)
+    _update()
+    marine_looks.sync(sc)
+    eye, at = Vector((-52.0, -24.0, 38.0)), Vector((0.0, 0.0, -3.0))
+    cam = _camera(b, "ISO", "Tour marine", lens=24.0)
+    cam.matrix_world = Matrix_look(eye, at)
+    cam.data.clip_end = 2000.0
     _shot(b, "@marine")
 
 
+def Matrix_look(eye, at):
+    """A camera matrix at ``eye`` looking at ``at`` (up: +z)."""
+    from mathutils import Matrix
+    return Matrix.Translation(eye) @ (at - eye).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+
+
 def _check_marine(scene):
+    """The monopile's growth below the sea's waterline and the transition piece's streaks, the concrete mattress on
+    the seabed, the ground open in the cut-away, the whole pile (toe to platform) inside the picture."""
     import bpy
+    from bpy_extras.object_utils import world_to_camera_view
+    from mathutils import Vector
 
-    from . import marine_looks
-    want = {"paint_marine_growth", "paint_marine_streaks", "concrete"}
-    shown = {ob.active_material.get("fr_material") for ob in bpy.data.objects
-             if ob.name.startswith("Marine ") and ob.type == "MESH" and ob.active_material is not None}
-    _check(want <= shown, f"missing looks: {', '.join(sorted(want - shown))}")
-    pile = bpy.data.objects.get("Marine pile")
-    _check(marine_looks.nodes_of(pile.active_material), "the pile's material has no marine growth")
-    _check(abs(marine_looks.waterline(scene) - MARINE_WATER) < 1e-6, "the waterline moved")
-    return f"{len(want)} marine looks, waterline {MARINE_WATER:.1f} m"
+    from . import marine_looks, surroundings
+    want = {"MONOPILE": "paint_marine_growth", "TRANSITION PIECE": "paint_marine_streaks",
+            OFFSHORE_MATTRESS[0]: "concrete"}
+    got = {n: bpy.data.objects.get(f"Offshore {n}") for n in want}
+    _check(all(got.values()), f"missing: {', '.join(n for n, o in got.items() if o is None)}")
+    for n, mat in want.items():
+        _check(got[n].active_material is not None and got[n].active_material.get("fr_material") == mat,
+               f"the {n.lower()} is not {mat}")
+    _check(marine_looks.nodes_of(got["MONOPILE"].active_material), "the monopile's material has no marine growth")
+    water = marine_looks.waterline(scene)
+    sea = surroundings.waterline(scene)
+    _check(sea is not None and abs(water - sea) < 1e-3, f"the growth's waterline {water:.2f} m is not the sea's")
+    _check(abs(water) < 0.05, f"the sea's surface is at {water:.2f} m, not at the pile's 0")
+    s = scene.fresing
+    _check(s.sea_cutaway and s.sea_cut_ground, "the cut-away or its ground is off")
+    cam = scene.camera
+    ends = {"toe": Vector((0.0, 0.0, water - OFFSHORE_DEPTH - OFFSHORE_EMBED)),
+            "platform": Vector((0.0, 0.0, water + OFFSHORE_TOP + 0.4))}
+    for n, p in ends.items():
+        v = world_to_camera_view(scene, cam, p)
+        _check(0.02 < v.x < 0.98 and 0.02 < v.y < 0.98 and v.z > 0, f"the pile's {n} is outside the picture")
+    return (f"growth below the waterline at {water:+.2f} m (the sea's), streaks, concrete; the pile from its toe "
+            f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
 
 
-@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.194")
+@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.199")
 def build_cutaway(b: Build):
     from mathutils import Vector
     sc = b.scene
@@ -1148,7 +1252,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.189")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -1197,7 +1301,7 @@ def _check_chips(scene):
     return f"{n} chips"
 
 
-@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.194")
+@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.199")
 def build_cylinder(b: Build):
     from mathutils import Vector
 
@@ -1270,7 +1374,7 @@ def _check_cylinder(scene):
 LIFT_ROD_PIN = (0.75 * math.cos(math.radians(15.0)), -0.08, 0.1 + 0.75 * math.sin(math.radians(15.0)))
 
 
-@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.194")
+@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.199")
 def build_linkage(b: Build):
     from mathutils import Vector
 
@@ -1349,7 +1453,7 @@ def _check_linkage(scene):
     return f"platform at 1.5 m, four-bar rocker swings {swing * 1000:.0f} mm"
 
 
-@tour_set("waycover", "Way cover", "test_waycover_b.step", added="0.2.47", changed="0.2.194")
+@tour_set("waycover", "Way cover", "test_waycover_b.step", added="0.2.47", changed="0.2.199")
 def build_waycover(b: Build):
     from mathutils import Vector
 
@@ -1376,7 +1480,7 @@ def build_waycover(b: Build):
     _joint_step(a, "X axis", 2.5, 2.0, 0.0, slide=True)
 
 
-@tour_set("waycover2", "Two way covers", "test_waycover_c.step", added="0.2.61", changed="0.2.194")
+@tour_set("waycover2", "Two way covers", "test_waycover_c.step", added="0.2.61", changed="0.2.199")
 def build_waycover_two(b: Build):
     from . import waycover
     sc = b.scene
@@ -1451,7 +1555,7 @@ def hoses_motion(a) -> None:
     _joint_step(a, "Slide", 2.5, 1.5, -0.10, slide=True, label="Slide back 220 mm")
 
 
-@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78", changed="0.2.194")
+@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78", changed="0.2.199")
 def build_hoses(b: Build):
     from . import flex
     sc = b.scene
@@ -1523,7 +1627,7 @@ def _check_hoses(scene):
     return f"4 hoses, ends on their fittings to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
 
 
-@tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78", changed="0.2.194")
+@tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78", changed="0.2.199")
 def build_chains(b: Build):
     from . import flex, gcode
     sc = b.scene
@@ -1558,7 +1662,7 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.194")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.199")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
@@ -2044,7 +2148,7 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.194")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.199")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -2089,7 +2193,7 @@ def _check_served(scene):
 SEA_ANIM = "Cable into the sea"
 
 
-@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.141")
+@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.196")
 def build_sea(b: Build):
     from . import paths, paths_sea
     sc = b.scene
@@ -2110,6 +2214,7 @@ def build_sea(b: Build):
     add_lay_label(sc, paths.find(sc, made["cable"]))       # task 0173: the cable's live numbers in a label
     cam = _camera(b, "ISO", "Tour view", lens=30.0)
     cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
+    cam.data.lens = 22.0                    # task 0234: wider, so the hull shows with the cable
     shot = _shot(b, "Tour: into the sea")
     a = s.animations[made["animation"]]
     a.start_shot = shot.name
@@ -2181,7 +2286,7 @@ def _check_sea_cable(scene):
 VESSEL_ANIM = "Vessel at work"
 
 
-@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127")
+@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127", changed="0.2.196")
 def build_vessel_work(b: Build):
     """Task 0154: a workboat with two azimuths and a bow thruster sails ahead at 8 knots, then pushes sideways."""
     from mathutils import Matrix, Vector
@@ -2192,7 +2297,9 @@ def build_vessel_work(b: Build):
     vessel_work.set_up_test_model(sc)
     _update()
     cam = _camera(b, "ISO", "Tour view", lens=28.0)
-    at, look = Vector((-45.0, -50.0, 40.0)), Vector((5.0, 0.0, -3.0))
+    root = next(o for o in sc.objects if o.get("fr_uid") == "TEST.THRUSTERS#1")      # task 0234: from the port
+    w = root.matrix_world                                                            # bow, closer: the hull, its
+    at, look = w @ Vector((54.0, 30.0, 13.0)), w @ Vector((16.0, 2.0, -0.5))        # wake and the jets to port
     cam.matrix_world = Matrix.Translation(at) @ (look - at).to_track_quat("-Z", "Y").to_matrix().to_4x4()
     cam.data.clip_end = 5000.0
     shot = _shot(b, "Tour: vessel at work")
@@ -2234,7 +2341,7 @@ def _check_vessel_work(scene):
 MOVING_ANIM = "Over the stern"
 
 
-@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.103")
+@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.196")
 def build_moving(b: Build):
     from . import paths
     sc = b.scene
@@ -2310,7 +2417,7 @@ def _check_moving_cable(scene):
 SWIVEL_ANIM = "Davit slews"
 
 
-@tour_set("swivel", "A sheave on a swivel", "test_swivel.step", added="0.2.138", changed="0.2.194")
+@tour_set("swivel", "A sheave on a swivel", "test_swivel.step", added="0.2.138", changed="0.2.199")
 def build_swivel(b: Build):
     from . import paths, paths_swivel
     sc = b.scene
@@ -2505,7 +2612,7 @@ def _check_full_spools(scene, sps) -> str:
             f"layers), one cable to {worst * 1000:.2f} mm")
 
 
-@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.194")
+@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.199")
 def build_copies(b: Build):
     from mathutils import Vector
 
@@ -2536,7 +2643,7 @@ def _check_copies(scene):
     return "two cranes kept apart"
 
 
-@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.194")
+@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.199")
 def build_update(b: Build):
     import bpy
 
@@ -2634,7 +2741,7 @@ def clash_arms(scene, a, seconds: float = 1.0) -> None:
         _joint_step(a, name, k * seconds, seconds, math.radians(deg))
 
 
-@tour_set("clash", "Clash check", "test_clash.step", added="0.2.53", changed="0.2.194")
+@tour_set("clash", "Clash check", "test_clash.step", added="0.2.53", changed="0.2.199")
 def build_clash(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -2725,7 +2832,7 @@ def check_sequence(scene, a=None) -> str:
     return f"12 parts out (least {least * 1000:.0f} mm), 5 fasteners first, back within {worst * 1000:.4f} mm"
 
 
-@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.194")
+@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.199")
 def build_sequence(b: Build):
     sc = b.scene
     _studio(b)
@@ -2756,7 +2863,7 @@ def check_product_video(scene) -> str:
     return f"{len(a.blocks)} steps, {len(close)} close-up, {animation.length_seconds(a):.0f} s without the cards"
 
 
-@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.194")
+@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.199")
 def build_productvideo(b: Build):
     from mathutils import Vector
 
@@ -2881,7 +2988,7 @@ def check_back_to_cad(scene) -> str:
     return f"carriage {before * 1000:.0f} mm -> {mid * 1000:.0f} mm -> 0, gripper -> 0"
 
 
-@tour_set("sequenceframe", "Round a frame, back to CAD", "test_sequence_frame.step", added="0.2.102", changed="0.2.194")
+@tour_set("sequenceframe", "Round a frame, back to CAD", "test_sequence_frame.step", added="0.2.102", changed="0.2.199")
 def build_sequenceframe(b: Build):
     from . import states
     sc = b.scene
@@ -2927,7 +3034,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.171")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.197")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -3107,7 +3214,7 @@ def build_rotary5(b: Build):
     a.start_shot = _shot(b, "Tour: 5th axis").name
 
 
-@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.101")
+@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.195")
 def build_toolpath(b: Build):
     from mathutils import Vector
 
@@ -3177,7 +3284,7 @@ def _check_rotary5(scene):
 # the cuts lie in the finished part's pocket (x -50..50, y -30..30, 10 deep): elsewhere the block is the finished part
 # up to its top, and a cut there goes into it; the face pass starts at X-10 so the ball mill hanging 120 mm beside the
 # spindle stays off the block (the clash check says so since task 0029 keeps every key of a fast program)
-TOOLS_TOUR = """(THREE TOOLS: FACE MILL, END MILL, CHAMFER MILL - BT30)
+TOOLS_TOUR = """(THREE TOOLS: FACE MILL, END MILL, CHAMFER MILL - BT40)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
 S6000 M3
@@ -3204,7 +3311,7 @@ M30
 """
 
 
-@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.101")
+@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_tools(b: Build):
     import bpy
     from mathutils import Vector
@@ -3221,12 +3328,12 @@ def build_tools(b: Build):
     _pick("bit", tool)
     _pick("workpiece", stock)
     face = tools.add_row(sc, "FACE", 1)
-    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT30", 0.045
+    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT40", 0.045
     face.lead_angle = 1.5707963
     end = tools.add_row(sc, "FLAT", 2)
-    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT30", 0.06
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT40", 0.06
     vee = tools.add_row(sc, "VEE", 3)
-    vee.diameter, vee.length, vee.holder, vee.holder_length = 0.01, 0.09, "BT30", 0.06
+    vee.diameter, vee.length, vee.holder, vee.holder_length = 0.01, 0.09, "BT40", 0.06
     a = _animation(b, "Three tools")
     _gcode_step(a, _program(b, "Tour three tools.ngc", TOOLS_TOUR), sc, gcode_speed="FIT", gcode_fit=14.0,
                 gcode_tc_time=1.0, gcode_hand=True)
@@ -3250,8 +3357,8 @@ def _check_tools(scene):
     from . import gcode, tools
     lift = gcode.length_offsets(scene, gcode.Machine(scene), [1, 2, 3], 1)
     _check(len(tools.rows(scene)) >= 3, "the tool list has fewer than 3 tools")
-    _check(all(r.holder == "BT30" for r in tools.rows(scene) if r.number in (1, 2, 3)), "not all three are BT30")
-    return "T1 face mill, T2 end mill, T3 chamfer mill (BT30); length offsets " + ", ".join(
+    _check(all(r.holder == "BT40" for r in tools.rows(scene) if r.number in (1, 2, 3)), "not all three are BT40")
+    return "T1 face mill, T2 end mill, T3 chamfer mill (BT40); length offsets " + ", ".join(
         f"T{k} {v * 1000:+.0f} mm" for k, v in sorted(lift.items()))
 
 
@@ -3278,7 +3385,7 @@ def _check_hand(scene):
 MARKS_FEED, MARKS_SPEED = 900.0, 3000.0          # the face mill: 900 mm/min at 3000 rpm = 0.30 mm per turn
 MARKS_SIZE = 7.0                                 # Mark size of the set: the arcs show in a close-up
 MARKS_CAMERA = 0.125                             # m from the camera to the middle of the faced strip
-MARKS_TOUR = f"""(TOOL MARKS: FACE MILL, END MILL, DRILL - BT30)
+MARKS_TOUR = f"""(TOOL MARKS: FACE MILL, END MILL, DRILL - BT40)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
 S{MARKS_SPEED:g} M3
@@ -3314,7 +3421,7 @@ M30
 """
 
 
-@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.101")
+@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.195")
 def build_marks(b: Build):
     from mathutils import Vector
 
@@ -3335,12 +3442,12 @@ def build_marks(b: Build):
     m = machining.settings(sc)
     m.marks, m.marks_size, m.marks_strength = True, MARKS_SIZE, 1.0
     face = tools.add_row(sc, "FACE", 1)
-    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT30", 0.045
+    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT40", 0.045
     face.lead_angle = 1.5707963
     end = tools.add_row(sc, "FLAT", 2)
-    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT30", 0.06
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT40", 0.06
     drill = tools.add_row(sc, "DRILL", 3)
-    drill.diameter, drill.length, drill.holder, drill.holder_length = 0.0085, 0.09, "BT30", 0.06
+    drill.diameter, drill.length, drill.holder, drill.holder_length = 0.0085, 0.09, "BT40", 0.06
     a = _animation(b, MARKS_ANIM)
     _gcode_step(a, _program(b, "Tour tool marks.ngc", MARKS_TOUR), sc, gcode_speed="FIT", gcode_fit=10.0,
                 gcode_tc_time=0.6, gcode_path=False)
@@ -3415,7 +3522,7 @@ M30
 """
 
 
-@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.101")
+@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_air(b: Build):
     import bpy
     from mathutils import Vector
@@ -3443,7 +3550,7 @@ def build_air(b: Build):
 COOLANT_TOUR = AIR_TOUR.replace("M7", "M8")
 
 
-@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.101")
+@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.195")
 def build_coolant(b: Build):
     from mathutils import Vector
 
@@ -3495,7 +3602,10 @@ def _check_air(scene):
 VESSEL_ANIM = "Vessel at sea"
 
 
-@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.101")
+VESSEL_PROPS = ("PERSON", "IBC")          # (a 20 ft container dwarfs the 2 m test crane)
+
+
+@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.196")
 def build_vessel(b: Build):
     from mathutils import Vector
 
@@ -3510,9 +3620,19 @@ def build_vessel(b: Build):
     s.background = "DECK"
     s.sea_state = "CALM"
     s.vessel.heading = "BEAM"
+    _update()
+    import numpy as np
+
+    from . import build, props_scale, surroundings  # task 0234: a person and a tank on the deck give the scale
+    props = [surroundings.add_prop(sc, kind) for kind in VESSEL_PROPS]
+    mn, mx = build.world_bounds(list(build.iter_parts(sc)))
+    for ob, (dx, dy) in zip(props, ((-0.2, 1.0), (1.2, 1.6))):      # behind the crane, seen from the camera
+        ob.location.x, ob.location.y = float(mx[0]) + dx, float(mx[1]) + dy
+    _update()
+    crane = np.array([(x, y, z) for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], mx[2])], float)
+    _camera(b, "ISO", "Tour deck", lens=24.0, points=np.vstack([crane, props_scale.corners(props)]))
     s.vessel.enabled = True
     _update()
-    _camera(b, "ISO", "Tour deck", lens=24.0)
     a = _animation(b, VESSEL_ANIM)
     _joint_step(a, "Boom", 1.0, 6.0, math.radians(20), label="Boom up at sea")
     a.start_shot = _shot(b, "@vessel").name
@@ -3544,7 +3664,12 @@ def _check_vessel(scene):
     scene.frame_set(max(2, scene.frame_end // 2))
     moved = (base.matrix_world.translation - a.translation).length
     _check(moved > 0.01, f"the crane's base moved only {moved * 1000:.0f} mm")
-    return vessel_motion.words(scene)
+    from . import surroundings
+    props = sorted(p.get(surroundings.PROP_TAG) for p in surroundings.props(scene))
+    _check(props == sorted(VESSEL_PROPS), f"the deck's props are {props}, not a person and an IBC tank")
+    for p in surroundings.props(scene):
+        _check(p.constraints.get(vessel_motion.CON) is not None, f"the {p.name} does not ride on the vessel")
+    return vessel_motion.words(scene) + "; a person and an IBC tank ride on the deck"
 
 
 # ----- weather and time of day (task 0109) -----
@@ -3555,7 +3680,7 @@ WEATHER_ANIM = "Weather changes"
 # ----- props for scale in detail (task 0155) -----
 
 
-@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124", changed="0.2.194")
+@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124", changed="0.2.199")
 def build_props(b: Build):
     from . import cameras, props_scale
     _look("PRODUCT")
@@ -3578,10 +3703,10 @@ PEOPLE_ANIM = "Two people meet"
 OPERATOR_ANIM = "A person changes the tool"
 
 
-@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.171")
+@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.195")
 def build_operator(b: Build):
-    """The test mill on its cabinet (tools/make_test_mill_cabinet.py): one manual change from T1 to T2 done by the
-    operator, who walks up, opens the sliding door, swaps the tools over the trolley, closes the door and walks
+    """The test mill in its enclosure (tools/make_test_mill_cabinet.py; task 0249: the larger VMC): one manual change
+    from T1 to T2 done by the operator, who walks up, opens the sliding doors, swaps the tools over the trolley, closes the door and walks
     away (task 0156; the set-up is shared with the PC check: ``tc_person.set_up_test_model``)."""
     from . import cameras, tc_person
     sc = b.scene
@@ -3599,7 +3724,7 @@ def _check_operator(scene):
     return tc_person.check_test_model(scene)
 
 
-@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128", changed="0.2.194")
+@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128", changed="0.2.199")
 def build_people(b: Build):
     import numpy as np
 
@@ -3628,7 +3753,7 @@ def _check_people(scene):
     return people.check_example(scene)
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.194")
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.199")
 def build_weather(b: Build):
     from . import weather
     sc, s = b.scene, b.s
@@ -3777,7 +3902,7 @@ def mesh_ring_click(scene):
     return ob, o, d, desc
 
 
-@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.194")
+@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.199")
 def build_mesh(b: Build):
     """The invented mesh crane (a glTF file: no CAD faces) imported; its 48-sided slewing ring clicked for a joint
     that turns the turret, as a user does it."""
@@ -4210,7 +4335,7 @@ stop("materials", LOOK, "looks", "Ready-made materials and Wear",
      "and trolley (both with Wear: in a rendered picture their sharp edges look worn and corners a little dirty), "
      "ground steel pins, a black anodised cylinder barrel with a chrome rod, rubber wheels, blue anodised cover, "
      "zinc flake bolts. The camera is close on the worn base and trolley, where Wear shows.",
-     where="3 Looks: the material groups, Ready-made material…, Wear", check=_check_materials, since="0.2.47", changed="0.2.194")
+     where="3 Looks: the material groups, Ready-made material…, Wear", check=_check_materials, since="0.2.47", changed="0.2.199")
 stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
@@ -4226,13 +4351,15 @@ stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",
-     animation="Mill a slot", at=1.0, check=_check_cut_look, since="0.2.47")
+     animation="Mill a slot", at=1.0, check=_check_cut_look, since="0.2.47", changed="0.2.195")
 stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
-     "A yellow pile standing in water: dark green-brown growth with a ragged top just below the waterline, a "
-     "greenish splash zone with thin rust streaks above it, clean yellow higher up. The grey wall behind has faint "
-     "run-down streaks; the block in front is light grey concrete.",
+     "A yellow monopile stands in the open sea, seen through a cut-away down to its toe 9 m in the seabed: dark "
+     "green-brown growth with a ragged top just below the waterline, a greenish splash zone with thin rust streaks "
+     "above it; the transition piece above it is clean yellow with faint run-down streaks under its grey platform, and "
+     "a light grey concrete mattress lies round the pile on the seabed.",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
-           "streaks; Concrete)", since="0.2.94", check=_check_marine)
+           "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
+     check=_check_marine, changed="0.2.196")
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
@@ -4241,10 +4368,11 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
      since="0.2.116", check=_check_served, auto="clip", changed="0.2.123")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
-     "The crane stands on the vessel deck in a calm beam sea: deck, containers and crane roll gently (about ±1.5°, "
-     "once in 11 s), pitch a little and rise and fall with the long waves while the boom goes up. The sea, the sky "
-     "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.65", animation=VESSEL_ANIM,
-     at=0.5, play=True, check=_check_vessel, auto="clip")
+     "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
+     "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
+     "fall with the long waves while the boom goes up. The sea, the sky and the camera stay put.",
+     where="5 Scene & Render > Vessel motion; Props for scale", since="0.2.65", animation=VESSEL_ANIM,
+     at=0.5, play=True, check=_check_vessel, auto="clip", changed="0.2.196")
 stop("weather", LOOK, "weather", "Weather: grey North Sea",
      "The crane on the quay in grey North Sea weather: overcast, a strong breeze, drizzle slanting in the wind and "
      "haze in the distance; the crane and the quay look wet (darker, glossy, puddles on flat parts).",
@@ -4254,7 +4382,7 @@ stop("weather_step", LOOK, "weather", "Weather changes in a video",
      "turns orange, clouds come in, the rain starts and the crane gets wet. Go shows it about halfway: the light is "
      "already lower and the rain is just starting.",
      where="6 Animation > Weather & time step", since="0.2.88", animation=WEATHER_ANIM, at=0.6, play=True,
-     check=_check_weather, auto="clip", changed="0.2.194")
+     check=_check_weather, auto="clip", changed="0.2.199")
 stop("start_scene", LOOK, "weather", "Save into start scene",
      "Weather & time shows a box under its tick: \"Build puts back the start scene 'Clear day': Weather Grey North Sea "
      "→ Clear Day …\" with the button Save into start scene. Clicking it would keep the grey weather at Build (leave it "
@@ -4262,7 +4390,7 @@ stop("start_scene", LOOK, "weather", "Save into start scene",
      since="0.2.125", shot="Weather: grey North Sea", check=_check_start_scene)
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
-     "on the quay (turned up to 4 for the picture).", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night, changed="0.2.194")
+     "on the quay (turned up to 4 for the picture).", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night, changed="0.2.199")
 stop("props", LOOK, "props", "Props for scale and people",
      "In a warehouse, beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
      "offshore coverall with reflective bands and gloves, one with both hands forward in office clothes and a "
@@ -4270,7 +4398,7 @@ stop("props", LOOK, "props", "Props for scale and people",
      "tank in its cage, a rack of four gas bottles and a red tool trolley. Faces, fingers and shoe soles show close "
      "up; nothing floats or sinks into the floor.",
      where="5 Scene & Render > Props for scale (click a person for its pose and clothes)", since="0.2.124",
-     check=_check_props, changed="0.2.194")
+     check=_check_props, changed="0.2.199")
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks, since="0.2.47")
@@ -4307,7 +4435,7 @@ stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
      "slides back and forth.", where="4 Motion > Mechanisms", animation="Lift and crank", play=True,
-     check=_check_linkage, auto="clip", since="0.2.47", changed="0.2.194")
+     check=_check_linkage, auto="clip", since="0.2.47", changed="0.2.199")
 stop("waycover", MOTION, "waycover", "Way cover follows the axis",
      "The carriage slides 500 mm along X on its rails and back; the five folded-sheet cover sections telescope out "
      "and in with it, each by its own share, over the rails and the ball screw.", where="4 Motion > Way covers", animation="X axis out and back", play=True,
@@ -4387,14 +4515,15 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "horn and the orange CPS set goes over the horn and down the curve on the cable. A label of four lines points "
      "at the touch-down: Lay data, the top tension, the layback and the speed (60 m/min while it pays out).",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
-     check=_check_sea_cable, auto="clip", changed="0.2.141")
+     check=_check_sea_cable, auto="clip", changed="0.2.196")
 stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
-     "A blue workboat sails ahead: a white wake trails behind its stern, fading and breaking up; its waves fan out "
+     "A blue workboat (a fine bow under a raised forecastle, a white wheelhouse) sails ahead, seen from close by off "
+     "its port bow: a white wake trails behind its stern, fading and breaking up; its waves fan out "
      "behind the bow in a wedge each side (about 20° to the track) and white water rolls off the bow. After 3 s it "
      "slows to a stop and pushes sideways: the azimuths under the stern swing round, the wake fades, and white, boiling "
      "jets stream out from the port side – the bow thruster's and the azimuths' – while the propellers turn.",
      where="5 Scene & Render > Vessel at work; 6 Animation: Vessel at work step", animation=VESSEL_ANIM, play=True,
-     since="0.2.127", check=_check_vessel_work, auto="clip")
+     since="0.2.127", check=_check_vessel_work, auto="clip", changed="0.2.196")
 stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
@@ -4405,7 +4534,7 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "travels and the block goes down, and the head sheave turns with it.",
      where="4 Motion > Cables and paths (Winch keeps it tight, Let go here, Into the sea > Settles in)",
      animation=MOVING_ANIM, play=True,
-     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.103")
+     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.196")
 stop("swivel", MOTION, "swivel", "Sheave turns to follow its wire",
      "A yellow deck davit slews 45° one way, 90° back and home again. Its grey wire comes from a fairlead on the deck, "
      "over a sheave under the arm's tip and straight down into the orange hook block. The sheave hangs in a swivel "
@@ -4513,15 +4642,16 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
-     at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.194")
+     at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.199")
 stop("operator", MACH, "operator", "A person changes the tool",
-     "On the test mill in its cabinet the operator walks up before the tool change, opens the sliding door with "
-     "the handle, presses the release button with the left hand and takes the end mill out by its BT30 holder, lays "
-     "it on the tool trolley, takes the ball mill, puts it in, closes the door and walks away after the program. "
+     "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
+     "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "
+     "with the left hand and takes the end mill out by its BT40 holder, lays it on the tool trolley, takes the ball "
+     "mill, puts it in, closes the doors and walks away after the program. "
      "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine. Each "
      "tool cuts a shallow strip into the block.",
      where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
-           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.171", animation=OPERATOR_ANIM,
+           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.195", animation=OPERATOR_ANIM,
      at=0.45, play=True,
      check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
@@ -4538,21 +4668,22 @@ stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      animation=ACCEL_ANIM, play=True, since="0.2.83", check=_check_accel, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
-     "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "
+     "from the tool list, each in a BT40 holder, changed with M6 and measured with G43. No tool goes into the block "
      "where the program does not cut (the end mill is 28 mm longer than the face mill). An M6 without G43 for the "
      "new tool would get a line in the Build result and a row in the clash check.",
-     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.76")
-stop("hand", MACH, "tools", "Tool change by hand (BT30)",
-     "At a tool change a gloved hand takes the tool out by its BT30 holder and puts the next one in; for a longer "
+     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.195")
+stop("hand", MACH, "tools", "Tool change by hand (BT40)",
+     "At a tool change a gloved hand takes the tool out by its BT40 holder and puts the next one in; for a longer "
      "tool the spindle first rises by the difference, then comes down to the program.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
-     at=-1.0, check=_check_hand, since="0.2.47", changed="0.2.76")
+     at=-1.0, check=_check_hand, since="0.2.47", changed="0.2.195")
 stop("marks", MACH, "marks", "Tool marks on cut faces",
      "A close-up of the milled aluminium block. The faced strip shows the wide arcs of the Ø50 face mill, bulging the "
      "way it went; the pocket's floor shows the finer arcs of the Ø10 end mill; its walls show fine upright lines and "
      "a level line where the second depth starts; the drilled hole shows rings. Look in "
      "rendered view and orbit: the sheen swirls with the arcs. The marks are drawn 7 times further apart than real "
      "(Mark size) so they show.",
-     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", animation=MARKS_ANIM, at=1.0,
+     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", changed="0.2.195", animation=MARKS_ANIM,
+     at=1.0,
      check=_check_marks)
 stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
      "The tools stand in their pockets from the first frame; at each change the carousel turns the shortest way, "
@@ -4581,19 +4712,21 @@ stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
      "the walls, ramping in), the ball end mill T2 finishes in lines across. The block turns into the part with its "
      "pocket, rounded boss and dome; the stock under the overhanging cap and in the hole stays.",
      where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.55",
+     changed="0.2.195",
      check=_check_toolpath, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table, the clamps and the block.",
-     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.101")
+     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.195")
 stop("air", MACH, "air", "Air blast",
      "The bit cuts a pocket with air on (M7 … M9): chips are blown away from the cut; at the end the part is "
      "blown clean.", where="4 Motion > CNC machine > Air blast", animation="Pocket with air", at=0.6, play=True,
-     check=_check_air, auto="clip", since="0.2.47")
+     check=_check_air, auto="clip", since="0.2.47", changed="0.2.195")
 
 stop("coolant", MACH, "coolant", "Coolant (flood)",
      "The bit cuts a pocket with flood coolant (M8 … M9): two blue hoses squirt milky coolant at the tool, drops "
      "fly off it, the block gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
-     animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48")
+     animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
+     changed="0.2.195")
 
 
 def _check_setup(scene):
@@ -4622,12 +4755,14 @@ def _setup_first_step(scene):
 
 
 stop("setup", MACH, "gantry", "Set-up window: step by step",
-     "Press Set-up window… (in Make at the top of the Fresing tab, or in 4 Motion > CNC machine): a small window of "
+     "Press Set-up window… (under the section tabs at the top of the Fresing panel, or in 4 Motion > CNC machine): a "
+     "small window of "
      "its own opens with 'Set up a CNC mill', step 1 of 5 – the axes X, Y and Z, already picked on this machine (a "
      "green tick). Next goes through the spindle, the tool and the workpiece, the work zero and the G-code program; "
      "the buttons are the same as in the side panel. Drag the window anywhere, also onto a second screen, and click "
      "parts in the main window while it is open. The drop-down at its top switches to 'Set up a mechanism'.",
-     where="Make > Set-up window…; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.152",
+     where="Set-up window… under the section tabs; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.152",
+     changed="0.2.197",
      animation="G-code", check=_check_setup, setup=_setup_first_step, auto=lambda ctx, scene, st: "")
 
 stop("still", OUT, HUB_SET, "Still picture",
@@ -4677,7 +4812,9 @@ def _check_web3d(scene):
     out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_")
     os.makedirs(out_dir, exist_ok=True)
     scene.fresing.web3d.texture_size = "512"
-    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512)
+    from . import web3d_film                             # task 0252: the built camera animation gives the page a Film
+    film = web3d_film.camera(scene) is not None
+    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512, animation=film)
     with open(out["path"], "rb") as fh:
         data = fh.read()
     bad = core.problems(data)
@@ -4692,6 +4829,7 @@ def _check_web3d(scene):
     with open(out["html"], encoding="utf-8") as fh:
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
+    _check(film and len(st.get("films") or []) == 1, "the page has no Film (the camera animation is built)")
     from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø40)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
@@ -4700,7 +4838,8 @@ def _check_web3d(scene):
     _check("fr_tools" in open(out["html"], encoding="utf-8").read() or "partTools" in
            open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
-            f"{len(st['views'])} saved views; faces for measuring in {len(faces)} meshes, "
+            f"{len(st['views'])} saved views; Film {out.get('film_keys', 0)} of {out.get('film_frames', 0)} frames; "
+            f"faces for measuring in {len(faces)} meshes, "
             f"{sum(len(e) for e in edges.values())} edges")
 
 
@@ -4779,7 +4918,7 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "This stop saves the crane as a web 3D model next to the tour. Press Open page in 5 Scene & Render > Web 3D "
      "model: your web browser shows the crane on a light background with its colours and shine; drag to turn it, "
      "scroll to zoom. The page is one file and also works without internet. On the right: the gear opens the "
-     "settings (quality, live pictures a second, your graphics card's name, auto-turn, sun), then Fullscreen, Reset "
+     "settings (quality, live pictures a second, your graphics card's name, auto-turn, sun; give the crane a quick flick with the mouse and let go: it keeps turning), then Fullscreen, Reset "
      "view, Screenshot, Copy link, keys (?) and the eye that hides every control; bottom left one button per saved "
      "camera. A still crane draws nothing while you do not touch it. A red bar at the top only when the browser "
      "draws without the graphics card. On the left the part tools: Part info (click a part: a card with its group, "
@@ -4787,8 +4926,12 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "between them; move the pointer close to an edge – it lights up orange – and click it: a straight edge gives its "
      "length, a hole's rim its Ø; two edges: the distance between them; the numbers never cover each other), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
      "faces red; add a second slice, Edit one and drag its arrow or a yellow knob, Delete it with the ×) and Fade the "
-     "rest (click a part: the rest goes see-through).",
-     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d, changed="0.2.175")
+     "rest (click a part: the rest goes see-through). The animation 'Camera rides and flies' is built, so the page "
+     "plays it with a Film button (a film camera) at the end of the play bar: pressed, the page shows the motion through "
+     "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
+     "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
+     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
+     check=_check_web3d, changed="0.2.198")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
@@ -4947,19 +5090,22 @@ def _check_make(scene):
 
 
 stop("workspace", OUT, HUB_SET, "Functions in this project",
-     "The top row of the Fresing tab says 'All functions': the workspace. Its small arrow is open here: under "
+     "On the left panel (left of the 3D view) the row under Live preview says 'All functions': the workspace. Its "
+     "small arrow is open here: under "
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
      "Sections 1 to 7 start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
-     "All · 1 … 7 show one section at a time.",
-     where="The Workspace row at the top of the Fresing tab", since="0.2.152", shot="Tour view",
+     "All · 1 … 8 under Make show one section at a time.",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
-stop("make", OUT, HUB_SET, "Make: every output side by side",
-     "Above 1 Import is the Make list: Picture, Product video, Turntable, 3D page, Animation and Queue. Click "
-     "Picture: the settings of 5 Scene & Render > Image size & render open right there, with a blue Render image "
-     "button. The same list is under Make in the header of the 3D view, so it is there whatever the side panel shows.",
-     where="Make, above 1 Import; Make in the 3D view's header", since="0.2.152", shot="Tour view", check=_check_make,
+stop("make", OUT, HUB_SET, "Make: each output in a window",
+     "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
+     "Animation and Queue (rest the mouse on one for its name; click Make for the list with names). Click Picture: a "
+     "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "
+     "Drag it anywhere, click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no "
+     "second window. The same list is under Make in the header of the 3D view.",
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.197", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
@@ -4989,9 +5135,9 @@ def _check_panel_back(scene):
 stop("panel_back", OUT, HUB_SET, "Fresing panel always back",
      "Move the mouse over the 3D view and press N: the side panel goes away, and a small Fresing button appears at "
      "the right end of the 3D view's header. Click it: the side panel is back on the Fresing tab and the button "
-     "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab with Blender's "
-     "toolbar folded. Live preview stays on or off as you left it when you go to another test tour project.",
-     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150",
+     "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab and the left panel "
+     "(Live preview, Workspace, Learning hub …) at the left of the view. Live preview stays on or off as you left it when you go to another Learning hub project.",
+     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150", changed="0.2.197",
      shot="Tour view", check=_check_panel_back, auto=lambda ctx, scene, st: "")
 
 def _check_start_here(scene):
@@ -5014,10 +5160,11 @@ def _check_start_here(scene):
 
 
 stop("start_here", OUT, HUB_SET, "Start here: the Fresing menu",
-     "At the top of the window, after Help, there is a menu Fresing: Take the test tour, What's new in this version, "
+     "At the top of the window, after Help, there is a menu Fresing: Open the Learning hub, What's new in this version, "
      "Show the Fresing panel, the demo project, the user guide, the PC check, Check for updates and the Welcome "
      "screen. What's new lists the new functions with Show in guide, and the new and changed test models with a tour "
-     "of only those. In this Test tour panel new stops say \"New\" and changed ones \"Changed\" after an update.",
+     "of only those. In the Learning hub stops on the left panel new stops say \"New\" and changed ones \"Changed\" "
+     "after an update.",
      where="The Fresing menu in the top bar (after Help)", since="0.2.155", shot="Tour view",
      check=_check_start_here, auto=lambda ctx, scene, st: "")
 
@@ -5051,10 +5198,10 @@ stop("usage", OUT, HUB_SET, "Favourites bar and My usage",
      "Fresing > My usage… (also at the end of Help) opens a window that says what the app counted on this PC – nothing "
      "is sent anywhere: your most used functions with a pin each, where your time goes per stage (bars), and the "
      "time saved, marked as an estimate with how it is worked out. Use a button a few times (for example Render image "
-     "twice): at the next start of the app it is on the favourites bar under the Workspace row; a click on it opens "
+     "twice): at the next start of the app it is on the favourites bar on the left panel; a click on it opens "
      "its section and points at the button. After 10 starts a panel you never used gets one quiet question at the "
      "top: Hide / Not now / Don't ask again.",
-     where="Fresing menu > My usage…; the favourites bar under the Workspace row", since="0.2.158",
+     where="Fresing menu > My usage…; the favourites bar on the left panel", since="0.2.158", changed="0.2.197",
      shot="Tour view", check=_check_usage, auto=lambda ctx, scene, st: "")
 
 def _check_learn(scene):
@@ -5087,13 +5234,13 @@ def _check_learn(scene):
 
 
 stop("learn", OUT, HUB_SET, "Learn as you go",
-     "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the test tour and Add to my "
+     "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the Learning hub and Add to my "
      "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
      "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "
      "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
      "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
-     where="Fresing menu > My learning list…; the question at the top of the Fresing tab; the What's next card",
-     since="0.2.160", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+     where="Fresing menu > My learning list…; the question and the What's next card on the left panel",
+     since="0.2.160", changed="0.2.197", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
 def _check_lessons(scene):
     """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""
@@ -5122,8 +5269,8 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "button glows, a card beside the part says what happens, Next goes on (or tick Play on) – and Build it yourself "
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'.",
-     where="Fresing menu > Learn…; the Lesson panel at the top of the Fresing tab while a lesson runs",
-     since="0.2.189", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
+     since="0.2.189", changed="0.2.197", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 
@@ -5475,7 +5622,7 @@ def open_set(folder: str, version: str, set_id: str) -> bool:
     if bpy.data.filepath and os.path.normcase(os.path.abspath(bpy.data.filepath)) == os.path.normcase(path):
         return False
     if not os.path.isfile(path):
-        raise RuntimeError(f"the tour project '{os.path.basename(path)}' is missing: make the test tour again "
-                           "(Help > Make test tour project)")
+        raise RuntimeError(f"the tour project '{os.path.basename(path)}' is missing: make the Learning hub again "
+                           "(Help > Make the Learning hub)")
     bpy.ops.wm.open_mainfile(filepath=path)
     return True

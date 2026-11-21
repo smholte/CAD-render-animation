@@ -1129,7 +1129,10 @@ class FRESING_OT_anim_build(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return _active_anim(context) is not None
+        if _active_anim(context) is None:
+            cls.poll_message_set("Make an animation first in 6 Animation")    # task 0260: the left panel's button
+            return False
+        return True
 
     def execute(self, context):
         a = _active_anim(context)

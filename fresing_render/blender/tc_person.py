@@ -412,16 +412,10 @@ def _floor(scene, centre_xy, skip: set, also=()) -> core.Floor:  # grid lines th
     lo = pts.min(axis=0) - AREA
     hi = pts.max(axis=0) + AREA
     fl = core.Floor(lo, hi, z=z, cell=0.04, origin=centre_xy)
-    door = door_joint(scene)
-    door_obs = {ob.name for ob in (_members(door) if door is not None else [])}
-    move = None
-    if door is not None:
-        try:
-            dd = _door(scene, (0.0, -1.0, 0.0))
-            if dd is not None:
-                move = dd.move(dd.open) @ core.PL.inv4(dd.move(joints.get_value(door)))
-        except Exception:
-            move = None
+    try:
+        moves = _door_moves(scene)
+    except Exception:
+        moves = {}
     for ob in scene.objects:
         if ob.type != "MESH" or ob.name in skip or ob.hide_render or ob.hide_viewport or ob.data is None:
             continue
@@ -444,11 +438,35 @@ def _floor(scene, centre_xy, skip: set, also=()) -> core.Floor:  # grid lines th
         me.loop_triangles.foreach_get("vertices", t)
         pts = v.reshape(-1, 3) @ M[:3, :3].T + M[:3, 3]
         tris = pts[t.reshape(-1, 3)]
-        fl.add_triangles(tris)
-        if move is not None and ob.name in door_obs:
-            tris2 = tris @ move[:3, :3].T + move[:3, 3]
-            fl.add_triangles(tris2)
+        move = moves.get(ob.name)
+        # a door: where it is now (closed) only for walking - it is open while the person leans in -, and open
+        fl.add_triangles(tris, lean=move is None)
+        if move is not None:
+            fl.add_triangles(tris @ move[:3, :3].T + move[:3, 3])
     return fl
+
+
+def _door_moves(scene) -> dict:
+    """{object name: the 4x4 that takes it from where it is now to where it is with the door open} for the parts of
+    the door's joint and of every joint that follows it (a second door sliding the other way, task 0249)."""
+    j = door_joint(scene)
+    if j is None:
+        return {}
+    closed, opened = door_values(scene, j)
+    if abs(opened - closed) < 1e-6:
+        return {}
+    v_door = joints.get_value(j)
+    out = {}
+    for jj in [j] + [f for f in scene.fresing.joints if f.follows == j.name and f.name != j.name]:
+        ratio = 1.0 if jj.name == j.name else float(jj.couple_ratio)
+        o, d = joints.axis_world(jj)
+        dd = core.Door("SLIDE" if jj.kind == "SLIDE" else "ROTATE", np.array(o, float), np.array(d, float), 0.0, 1.0,
+                       np.zeros(3), np.array((0.0, -1.0, 0.0)))
+        v_now = joints.get_value(jj)
+        move = dd.move(v_now + ratio * (opened - v_door)) @ core.PL.inv4(dd.move(v_now))
+        for ob in _members(jj):
+            out[ob.name] = move
+    return out
 
 
 def _button(scene, H: np.ndarray, toward: np.ndarray, skip: set):
@@ -933,7 +951,7 @@ def unregister() -> None:
 # ---------------------------------------------------------------------------
 
 TEST_ANIM = "A person changes the tool"
-TEST_PROGRAM = """(OPERATOR: T1 END MILL D10, T2 BALL MILL D8 - BT30, CHANGED BY HAND)
+TEST_PROGRAM = """(OPERATOR: T1 END MILL D10, T2 BALL MILL D8 - BT40, CHANGED BY HAND)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
 S8000 M3
@@ -961,17 +979,22 @@ def _part(scene, name):
     return hits[0]
 
 
+DOOR_OPEN = 0.35                    # m the test model's left door slides open (tools/make_test_mill_cabinet.py)
+
+
 def set_up_test_model(scene, ngc_path: str):
-    """The test mill on its cabinet (tests/data/test_mill_cabinet.step, tools/make_test_mill_cabinet.py) set up for
-    one manual change from T1 to T2 that the operator does: X/Y/Z joints, the CNC machine, two BT30 tools, the door's
-    slide joint "Door" (open at +530 mm), and an animation with the program (``TEST_PROGRAM`` written to
+    """The test mill in its enclosure (tests/data/test_mill_cabinet.step, tools/make_test_mill_cabinet.py; task 0249:
+    the larger VMC) set up for one manual change from T1 to T2 that the operator does: X/Y/Z joints, the CNC machine,
+    two BT40 tools, the Y way covers, the left door's slide joint "Door" (open at +350 mm, to the left: the trolley
+    stands on the person's right) and the right door's "Door right" that follows it the other way, and an animation with the program (``TEST_PROGRAM`` written to
     ``ngc_path``) whose tool changes are done by the person. Returns the animation."""
-    from . import logic, tools
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    from . import logic, tools, waycover
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _part(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    waycover.set_up_test_mill(scene)                         # the Y way covers follow the saddle (task 0249)
     gcode.find_axes(scene)
-    t1 = _part(scene, "END MILL D10 BT30")
+    t1 = _part(scene, "END MILL D10 BT40")
     gcode.use_tool(scene, t1)
     gcode.use_workpiece(scene, _part(scene, "STOCK 200x200x40"))
     if gcode.problem(scene):
@@ -980,14 +1003,18 @@ def set_up_test_model(scene, ngc_path: str):
         logic.set_hidden(_part(scene, name), True)
     end = tools.add_row(scene, "FLAT", 1)                    # T1: the model's own end mill in its holder
     tools.use_part(scene, end, t1)
-    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.036, "BT30", 0.084
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.036, "BT40", 0.084
     end.gauge_length = 0.12                                  # tip to the flange's top (tools/make_test_mill_cabinet)
     ball = tools.add_row(scene, "BALL", 2)
-    ball.diameter, ball.length, ball.holder, ball.holder_length = 0.008, 0.1, "BT30", 0.06
-    door = _part(scene, "SLIDING DOOR")
-    joints.create(scene, "SLIDE", [door], door.matrix_world.translation, Vector((1.0, 0.0, 0.0)), name="Door")
+    ball.diameter, ball.length, ball.holder, ball.holder_length = 0.008, 0.1, "BT40", 0.06
+    door = _part(scene, "SLIDING DOOR")                      # task 0249: the left door, it slides to the left
+    joints.create(scene, "SLIDE", [door], door.matrix_world.translation, Vector((-1.0, 0.0, 0.0)), name="Door")
+    right = _part(scene, "SLIDING DOOR RIGHT")               # the other door slides the other way
+    joints.create(scene, "SLIDE", [right], right.matrix_world.translation, Vector((-1.0, 0.0, 0.0)),
+                  name="Door right")
+    joints.set_follows(scene, scene.fresing.joints["Door right"], "Door", ratio=-1.0)
     c = settings(scene)
-    c.op_door, c.op_door_open = "Door", 0.53
+    c.op_door, c.op_door_open = "Door", DOOR_OPEN
     with open(ngc_path, "w", encoding="utf-8") as fh:
         fh.write(TEST_PROGRAM)
     a = scene.fresing.animations.add()
@@ -1003,8 +1030,9 @@ def set_up_test_model(scene, ngc_path: str):
 
 
 def test_camera_points() -> np.ndarray:
-    """Corners round the operator at the test mill (for a camera that frames them)."""
-    return np.array([(x, y, z) for x in (-0.9, 1.0) for y in (-2.0, 0.4) for z in (0.0, 1.9)])
+    """Corners round the operator at the test mill (for a camera that frames them): the person, the trolley and the
+    front of the enclosure with its doors (task 0249)."""
+    return np.array([(x, y, z) for x in (-1.0, 1.1) for y in (-1.9, 0.2) for z in (0.0, 2.1)])
 
 
 def check_test_model(scene) -> str:

@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.194"
+__version__ = "0.2.199"
 
 _modules = []
 
@@ -42,6 +42,7 @@ def _classes():
     from .blender import about                    # task 0206: About Fresing Render, the licence files
     from .blender import apptools                 # task 0212: Fresing > Tools and checks
     from .blender import ops_backups              # task 0246: Fresing > Restore a backup…, the start question
+    from .blender import ui_left, ops_make        # task 0260: the left panel, the output windows of Make
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -67,32 +68,34 @@ def _classes():
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
             + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ops_lifting_rig.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
-            + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES)
+            + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
+            + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES)
 
 
 def _all_classes():
     """Every class in the order it is registered (task 0062): the panels of the Fresing tab sorted the way the tab
-    shows them – update notice, test tour, Workspace, What's next, tabs, Make, then each section with its
-    sub-panels in the order of ``core/places.py`` (a sub-panel shows in registration order) – and each of them
-    given the app's own title row and its ``poll`` (``panels.install``)."""
+    shows them – Make, tabs, then each section with its sub-panels in the order of ``core/places.py`` (a sub-panel
+    shows in registration order) –, the panels of the left panel in their order (task 0260: Live preview and
+    Build & play, update notice, Workspace, Learning hub, its stops, Lesson, Favourites, What's next), and each of
+    them given the app's own title row and its ``poll`` (``panels.install``)."""
     import bpy
 
-    from .blender import lock, ops_workspace, panels, ui_top
+    from .blender import lock, ops_workspace, panels, ui_left, ui_top
     from .core import places
     classes = list(_classes())
-    for extra in (ops_setup_classes(), ):
+    for extra in (ops_setup_classes(), ui_top.LEFT + ui_top.LEFT_END):
         classes += [c for c in extra if c not in classes]
     tab = [c for c in classes if isinstance(c, type) and issubclass(c, bpy.types.Panel)
            and getattr(c, "bl_region_type", "") == "UI" and getattr(c, "bl_category", "") == "Fresing"]
-    rest = [c for c in classes if c not in tab]
+    left_order = ["FRESING_PT_left_quick", "FRESING_PT_update", "FRESING_PT_workspace", "FRESING_PT_hub",
+                  "FRESING_PT_tour", "FRESING_PT_lesson", "FRESING_PT_favourites", "FRESING_PT_next"]
+    left = sorted((c for c in classes if panels.is_left(c)),
+                  key=lambda c: left_order.index(c.__name__) if c.__name__ in left_order else len(left_order))
+    rest = [c for c in classes if c not in tab and c not in left]
     by_name = {c.__name__: c for c in tab}
     known = set(places.SECTIONS) | set(places.PLACES)
     top = [c for c in tab if c.__name__ not in known and not getattr(c, "bl_parent_id", "")]
-    ordered = top + list(ui_top.TOP)
-    fav = by_name.get("FRESING_PT_favourites")             # task 0181: the favourites bar under the workspace switcher
-    if fav is not None:
-        ordered.remove(fav)
-        ordered.insert(ordered.index(ui_top.TOP[0]) + 1, fav)
+    ordered = top + [c for c in ui_top.TOP if c not in top]
 
     def under(parent):
         for name in places.children(parent):
@@ -105,7 +108,7 @@ def _all_classes():
             ordered.append(by_name[sec])
             under(sec)
     ordered += [c for c in tab if c not in ordered]             # a panel core/places.py does not know yet: at the end
-    out = (list(panels.CLASSES) + list(lock.CLASSES) + list(ops_workspace.CLASSES) + rest + ordered
+    out = (list(panels.CLASSES) + list(lock.CLASSES) + list(ops_workspace.CLASSES) + rest + left + ordered
            + list(ui_top.POPOVERS))
     panels.install(out)
     return tuple(out)

@@ -104,7 +104,7 @@ def options(fid: str, funcs=None) -> dict:
     if f is None:
         return {"guide": "", "tour": "", "why_no_tour": "There is no such function"}
     return {"guide": f.guide, "tour": f.tour[0] if f.tour else "",
-            "why_no_tour": "" if f.tour else "The test tour has no stop for this function yet: use the guide"}
+            "why_no_tour": "" if f.tour else "The Learning hub has no stop for this function yet: use the guide"}
 
 
 def one_line(fid: str, funcs=None) -> str:

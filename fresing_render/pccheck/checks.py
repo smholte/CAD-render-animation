@@ -2852,6 +2852,76 @@ def web3d_small(ctx):
            f"{os.path.basename(browser)}{env.tries_note(got)}"
 
 
+@line("web3d.film", "Web 3D model: Film – the video's camera on the page", "0.2.194",
+      what="Task 0252: the crane with a built animation whose camera rides on the boom, flies a path watching the "
+           "trolley (with a glide-in), cuts to a second camera and keeps the trolley in the middle, saved as a web 3D "
+           "model with its animation and the three Film tick boxes on: the page's Film gives the app's Animation "
+           "camera at every frame (within 1 mm per metre of the crane and 0.05°), holds the shot before the cut, and "
+           "has the captions, the label and the cards; opened in Edge or Chrome without a window in the Film at a "
+           "moment of the ride and halfway into the cut's frame, its camera is the app's (the cut jumps, never glides)")
+def web3d_film(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import web3d, web3d_film as film_b
+    from ..core import web3d_env as env
+    from ..core import web3d_film as F
+    scene = ctx.fresh(CRANE_A)
+    film_b.set_up_test(scene)
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Crane film.glb"), size=512, animation=True,
+                       film_captions=True, film_labels=True, film_cards=True)
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    films = st.get("films") or []
+    _check(len(films) == 1, "the page has no Film (the project has a built Animation camera)")
+    film = films[0]
+    _check(all(k in film for k in ("captions", "labels", "cards")), "the Film's captions, labels or cards are missing")
+    cam = film_b.camera(scene)
+    dg = bpy.context.evaluated_depsgraph_get()
+    w, h = scene.render.resolution_x, scene.render.resolution_y
+    mats, vfov = [], []
+    for f in range(scene.frame_start, scene.frame_end + 1):
+        scene.frame_set(f)
+        ev = cam.evaluated_get(dg)
+        mats.append(np.array(ev.matrix_world))
+        p = np.array(ev.calc_matrix_camera(dg, x=w, y=h, scale_x=1.0, scale_y=1.0))
+        vfov.append(math.degrees(2 * math.atan(1.0 / p[1, 1])))
+    scene.frame_set(scene.frame_start)
+    pos, q = F.pose(np.array(mats))
+    dec = F.decode(film)
+    ep, ea, ev_ = F.errors(dec, pos, q, vfov)
+    size = float(np.linalg.norm(np.subtract(st["model"]["max"], st["model"]["min"])))
+    _check(ep <= 1e-3 * max(size, 1.0) and ea <= 0.05 and ev_ <= 0.05,
+           f"the Film is {ep * 1000:.2f} mm / {ea:.3f}° / fov {ev_:.3f}° off the app's camera at a frame")
+    cuts = film_b.cut_frames(scene)
+    k = cuts[0] - scene.frame_start if cuts else -1
+    _check(k > 0 and film["cut"] == [k], f"the cut is not in the Film ({film.get('cut')}, want {k})")
+    text = (f"{dec['n']} frames, {len(dec['keys'])} kept, {F.size_bytes(film) / 1000:.1f} KB; worst {ep * 1000:.2f} mm, "
+            f"{ea:.3f}°")
+    ctx.metric("film", F.size_bytes(film) / 1000, "KB")
+    browser = env.find_browser()
+    if not browser:
+        return f"{text}; no Edge or Chrome on this PC: the page was not opened"
+    for frame, want in ((13, 13), (k - 0.5, k - 1)):
+        query = f"auto=0&frames=2&film=1&paused=1&time={frame / dec['fps']:.6f}"
+        try:
+            got = env.read_page(out["html"], browser, query, seconds=90)
+        except RuntimeError as exc:
+            return f"{text}; {os.path.basename(browser)} gave no answer ({exc}); not counted"
+        if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
+            return f"{text}; no WebGL in the browser without a window; not counted"
+        _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
+        _check(got["state"] != "loading", "the page was still loading after a second, longer opening")
+        fs = (got.get("player") or {}).get("film")
+        _check(fs and fs.get("on"), f"the page did not open in the Film ({got['state'][:60]})")
+        off = float(np.linalg.norm(np.array(fs["camPos"]) - pos[want]))
+        ang = math.degrees(2 * math.acos(min(1.0, abs(float(np.dot(fs["camQuat"], q[want]))))))
+        what = "at the ride" if want == 13 else "halfway into the cut's frame (the shot before must hold)"
+        _check(off <= 1e-3 * max(size, 1.0) and ang <= 0.05,
+               f"the page's camera {what} is {off * 1000:.1f} mm / {ang:.2f}° off the app's")
+    return f"{text}; the page's camera is the app's at the ride and holds before the cut in {os.path.basename(browser)}"
+
+
 def _player_check(page_path: str, ctx) -> str:
     """Task 0134: the page's player in this PC's Edge or Chrome without a window (software drawing): the settings
     menu, the keys help and the link work, Space pauses and plays a page with motion, and the page says it draws
@@ -2895,6 +2965,8 @@ def _player_check(page_path: str, ctx) -> str:
         r = dict(got["selftest"], tools=got.get("tools"))
         _check(r.get("menu"), "the page's settings menu did not open")
         _check(r.get("help") and r.get("link"), "the page's keys help or its link to the view does not work")
+        _check(r.get("flick"), "a quick flick did not set the page's model spinning (or a slow drag did, or a press "
+                               "did not stop it)")
         found.append(r)
     _check(found[1].get("space") is True, "Space did not pause and play the page's motion")
     tools = found[0].get("tools") or {}                 # task 0135: the part tools on the exported page
@@ -2904,7 +2976,7 @@ def _player_check(page_path: str, ctx) -> str:
     warned = found[0].get("warned")
     _check(bool(warned), "the page did not say it draws without the graphics card (a browser without a window "
                          "has none)")
-    return (f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}); part tools: card, measure, "
+    return (f"player: menu, keys help, link, Space pause, flick spin, 'no graphics card' bar ({warned}); part tools: card, measure, "
             f"fade, {tools.get('slices', 0)} slices, {tools.get('edges', 0)} edges, labels apart in "
             f"{os.path.basename(browser)}")
 
@@ -3301,8 +3373,9 @@ def scene_props(ctx):
 
 
 @line("toolchange.person", "A person changes the tool", "0.2.132",
-      what="The test mill in its cabinet (task 0156): the operator walks up before the tool change, opens the sliding "
-           "door, takes T1 out, lays it on the trolley, puts T2 in, closes the door and walks away. Build, the pause "
+      what="The test mill in its enclosure (task 0156; task 0249: the larger VMC): the operator walks up before the "
+           "tool change, opens the sliding doors, takes T1 out, lays it on the trolley, puts T2 in, closes the doors "
+           "and walks away. Build, the pause "
            "grown to what the person needs, the hand on the holder, the frame time, a small render (processor, draft)")
 def toolchange_person(ctx):
     import bpy
@@ -3565,7 +3638,7 @@ def _mill_scene(ctx, scale: float = 1.0, x_mm: float = 50.0):
         raise RuntimeError("the Manifold library did not load: run Install.bat again")
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     a = scene.fresing.animations.add()
@@ -3688,7 +3761,7 @@ def milling_air(ctx):
     from mathutils import Vector
 
     from ..blender import joints
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
@@ -3783,7 +3856,7 @@ def milling_coolant(ctx):
     from ..blender import animation, coolant, gcode, joints, machining
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
@@ -3880,8 +3953,8 @@ M30
 
 
 @line("milling.tools", "Milling: each tool of the tool list cuts with its own shape", "0.2.36",
-      what="The test mill runs a program with a tool change: a Ø50 face mill on a BT30 arbor faces a strip 1 mm deep, "
-           "then a Ø6 drill in a BT30 chuck (25 mm longer, tip to gauge line) drills a hole 8 mm deep; both are read "
+      what="The test mill runs a program with a tool change: a Ø50 face mill on a BT40 arbor faces a strip 1 mm deep, "
+           "then a Ø6 drill in a BT40 chuck (25 mm longer, tip to gauge line) drills a hole 8 mm deep; both are read "
            "back from the milled block, with the length offset and the time per frame")
 def milling_tools(ctx):
     import bpy
@@ -3891,7 +3964,7 @@ def milling_tools(ctx):
     from ..blender import animation, gcode, joints, machining, tools
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
@@ -3908,10 +3981,10 @@ def milling_tools(ctx):
     machining.settings(scene).detail = "FINE"
     face = tools.add_row(scene, "FACE", 1)
     face.diameter, face.lead_angle = 0.05, 1.5707963
-    face.length, face.holder, face.holder_length = 0.04, "BT30", 0.045      # a BT30 arbor (task 0049)
+    face.length, face.holder, face.holder_length = 0.04, "BT40", 0.045      # an arbor (task 0049; BT40: task 0249)
     drill = tools.add_row(scene, "DRILL", 2)
     drill.diameter = 0.006
-    drill.length, drill.holder, drill.holder_length = 0.05, "BT30", 0.06    # in a BT30 chuck: 25 mm longer
+    drill.length, drill.holder, drill.holder_length = 0.05, "BT40", 0.06    # in a chuck: 25 mm longer
     path = os.path.join(ctx.work, "pccheck_tools.ngc")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(TOOLS_PROGRAM)
@@ -3953,7 +4026,7 @@ def milling_tools(ctx):
     _check(abs(d_face - 1.0) < 0.05, f"the face mill cut {d_face:.2f} mm deep, not 1 mm")
     _check(abs(d_edge) < 0.05, f"the face mill cut wider than Ø50 ({d_edge:.2f} mm deep 25.5 mm from its path)")
     _check(abs(d_drill - 8.0) < 0.05, f"the drill went {d_drill:.2f} mm deep, not 8 mm")
-    return (f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm, BT30 length offset 25.00 → "
+    return (f"face mill 1.00 → {d_face:.2f} mm, drill 8.00 → {d_drill:.2f} mm, BT40 length offset 25.00 → "
             f"{lift:.2f} mm; {per:.0f} ms per frame")
 
 
@@ -4132,7 +4205,7 @@ def _finish_scene(ctx, xs, ys, seconds: float = 6.0):
         raise RuntimeError("the Manifold library did not load: run Install.bat again")
     machining._RUNTIME.clear()
     scene = ctx.fresh(MILL)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     gcode.find_axes(scene)
@@ -4190,15 +4263,15 @@ def _top_of(scene, stock):
 
 
 @line("milling.fast_map", "Milling: a long finishing program as a height map", "0.2.117",
-      what="The test mill runs a finishing program of 1,300 short moves (a Ø10 ball follows a wavy surface, passes "
-           "0.6 mm apart). "
+      what="The test mill runs a finishing program of 1,500 short moves (a Ø10 ball follows a wavy surface, passes "
+           "0.5 mm apart). "
            "The block is worked out as a height map (Fast 3-axis passes, on by itself) and, for comparison, with an "
            "exact cut per move: both must show the same surface, at the depth the program says. The time and the "
            "number of faces of both")
 def milling_fast_map(ctx):
     from ..blender import machining
     xs = [-30.0 + 1.0 * k for k in range(61)]
-    ys = [-6.0 + 0.6 * k for k in range(21)]
+    ys = [-6.0 + 0.5 * k for k in range(25)]      # (0.6 mm apart was just below the map's density limit, task 0249)
     scene, frames, stock = _finish_scene(ctx, xs, ys)
     machining.sample(scene)
     m = machining.settings(scene)
@@ -4843,7 +4916,7 @@ def app_usage(ctx):
 
 
 @line("app.learning", "Learn as you go: the question teaches, the learning list, next to learn", "0.2.160",
-      what="The question about an unused panel offers the guide, the test tour and the learning list beside Hide (and "
+      what="The question about an unused panel offers the guide, the Learning hub and the learning list beside Hide (and "
            "only Hide when teaching is off); a function on the list is ticked by itself after use on 3 days and the "
            "list says so once; the quiet 'next to learn' never offers what was hidden, turned down or is used by the "
            "project; the usage file keeps the list (with an accent in its folder) and an older file without it reads")
@@ -4966,9 +5039,56 @@ def app_lessons(ctx):
             f"{time.time() - t1:.1f} s; nothing left running")
 
 
-@line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",
-      what="Makes the test tour (a small project per test model) and does Go and the number check of every stop, "
-           "without pictures (the PC check's mode Test tour renders them)")
+@line("panel.two", "Two panels: the work on the right, the rest on the left; Make's windows; the Learning hub switch",
+      "0.2.197",
+      what="The right panel starts with Make (one row of six outputs) and the section tabs, the left panel holds Live "
+           "preview + Build & play, the update notice, Workspace, the Learning hub, Favourites and What's next; each "
+           "output has its own window with a tooltip; on the crane sample the switch goes View -> Show me -> Build it "
+           "yourself. (Run without a window: the left panel's width, the windows on screen and scrolling are checked "
+           "by the real-app test and on your PC.)")
+def panel_two(ctx):
+    import bpy
+
+    from .. import _all_classes
+    from ..blender import lesson, ops_make, panels, ui_left, ui_top
+    classes = _all_classes()
+    left = [c.__name__ for c in classes if panels.is_left(c)]
+    _check(left[:1] == ["FRESING_PT_left_quick"] and left[-1:] == ["FRESING_PT_next"]
+           and {"FRESING_PT_workspace", "FRESING_PT_hub", "FRESING_PT_favourites", "FRESING_PT_update"} <= set(left),
+           f"the left panel holds {left}")
+    right = [c.__name__ for c in classes if getattr(c, "bl_region_type", "") == "UI"
+             and getattr(c, "bl_category", "") == "Fresing"]
+    _check(right[:3] == ["FRESING_PT_make", "FRESING_PT_tabs", "FRESING_PT_import"],
+           f"the right panel starts with {right[:3]}, not Make, the tabs, 1 Import")
+    _check(not set(left) & set(right), "a panel is on both sides")
+    keys = list(ops_make.outputs())
+    _check(len(keys) == 6, f"Make has {len(keys)} outputs, not 6")
+    for key in keys:
+        props = type("P", (), {"key": key})()
+        text = bpy.types.FRESING_OT_make_window.description(bpy.context, props)
+        _check(ops_make.title(key) in text and len(text) > 60, f"the output '{key}' has no proper tooltip: {text!r}")
+    _check(bpy.ops.fresing.make_window.poll() and bpy.ops.fresing.left_fold.poll(), "Make's windows or the fold refused")
+    scene = ctx.fresh(CRANE_A)
+    from ..blender import tour
+    scene[tour.TAG] = "crane"
+    st = ui_left.hub_state(scene)
+    _check(st["in_hub"] and st["mode"] == "VIEW" and st["lesson"], f"the crane sample does not show as View: {st}")
+    del scene[tour.TAG]
+    lesson.start(scene, "crane", "SHOW")
+    try:
+        _check(ui_left.hub_state(scene)["mode"] == "SHOW", "the crane lesson does not show as Show me")
+        _check(bpy.ops.fresing.hub_mode("EXEC_DEFAULT", mode="BUILD") == {"FINISHED"}
+               and ui_left.hub_state(scene)["mode"] == "BUILD" and lesson.state()["mode"] == "BUILD",
+               "the switch did not go from Show me to Build it yourself")
+    finally:
+        lesson.stop(forget=True)
+    _check(not ui_left.hub_state(scene)["in_hub"], "an own project still counts as a Learning hub project")
+    _check(callable(ui_top.draw_make), "Make's drawing is missing")
+
+
+@line("tour.make", "Learning hub: the projects are made, every stop's Go works", "0.2.47",
+      what="Makes the Learning hub (a small project per test model) and does Go and the number check of every stop, "
+           "without pictures (the PC check's mode Learning hub renders them)")
 def tour_make(ctx):
     import bpy
 

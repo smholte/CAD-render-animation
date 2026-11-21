@@ -1,6 +1,6 @@
 # 0255 – Coolant liquid A: the liquid core (`core/liquid.py`) – shallow-liquid height field, fast enough for a 10-minute program
 
-**Who:** worker · **Status:** running · **Branch:** `task/0255-liquid-core`
+**Who:** worker · **Status:** done (21 Nov 2026, no version) · **Branch:** `task/0255-liquid-core`
 **Started by:** lead, 21 Nov 2026 (study 0251, build task A; owner 20 Nov 23:45–23:50: coolant liquid that collects in
 the cut slots, moves with the machine and runs down a drain – study first, then build) · **Model:** Opus · effort High
 **Area:** Machining lane – **new files only:** `fresing_render/core/liquid.py` (no Blender), its helper-process runner
@@ -12,6 +12,67 @@ Start from the prototype on branch `task/0251-study-coolant-pools` (`tools/proto
 test mills (0249 is running in the Test models lane), the tour, the PC check, the guide. No version raise unless the
 precheck needs one for a new `core/` file (a `core/` module the app does not import yet ships but does nothing –
 say in the report what the precheck asked).
+
+## Design (worker, 21 Nov 2026 – committed before the code; the record if the session has to be continued)
+
+**Files.** `fresing_render/core/liquid.py` (solver, no Blender, NumPy only, SI inside: m, s, m³; litres and l/min at
+the edges), `fresing_render/core/liquid_pool.py` (helper processes + shared memory, started like the STEP reader's
+helpers), `fresing_render/core/liquid_cache.py` (8-bit cache), `tests/test_liquid.py` (the six tests + API),
+`tests/test_liquid_speed.py` (the 250,000-cell speed test), `tests/test_liquid_pool.py` (helpers, bit for bit),
+`tests/test_liquid_cache.py`; the independent tester's file `tests/test_liquid_independent.py`.
+
+**Grid.** A chart stores its cells with a ring of one "no surface" cell all round (open edges) – so every face the
+solver touches lies between two stored cells. Faces: `qx` (NY, NX-1) between columns, `qy` (NY-1, NX) between rows.
+**Tiles** of 64 × 64 cells; a face belongs to the tile of the cell on its +x / +y side.
+
+**One sub-step on a window.** The kernel works on a window = a run of tiles (core) + 2 cells all round. New depths of the
+core need the scaled fluxes of the core's faces, which need K (the "never more than the cell holds" factor) of the
+core + 1 ring, which needs the unscaled fluxes round those cells, which need depths of core + 2. Only element-wise
+operations (+ − × ÷ sqrt min max, no pow, no sums): **a cell's result is the same bit for bit whichever window or
+helper computes it** – this is what makes results independent of the helper count and the wet-region skipping exact.
+
+**Which tiles are stepped.** Per tile a state from its last computation: *dry* (no cell above the 0.04 mm film, all
+fluxes 0, no wet drain), *active*, *settled* (wet, but over the last frame every depth changed < 1 µm and every speed
+< 1 mm/s, no wet drain). A frame steps the active tiles + every tile next to one (8 neighbours) + tiles where drops,
+pours, a push or the tool land, + every wet tile of a chart whose effective gravity changed. Others are skipped:
+a dry tile would not change at all (exact); a settled tile is held at rest (its fluxes set to 0; faces between a
+stepped and a skipped tile are closed for the frame) – the only approximation the skipping adds. Neighbouring stepped
+tiles of one tile row are merged into one window (fewer NumPy calls).
+
+**Effective gravity** per cell = R₁ᵀ(g − a(p)) with a(p) affine in the cell's place (second differences of the
+carrier's matrices): per chart and frame a 3-vector + a 3 × 3 matrix; the fields are made per window from the cell
+centres (x, y, bed). Pure translation → one number per chart.
+
+**Sub-steps.** n = ceil(T / dt_max) rounded up to an even number (double buffers: depth and fluxes in buffer 0 at every
+frame boundary, so skipped tiles are current in both buffers). dt_max = 0.45 cell / √(g_n h_max).
+
+**Helpers** (`liquid_pool.Pool(n)`): plain-Python processes (`importer.runner.python_executable()` way; Windows:
+CREATE_NO_WINDOW + below-normal priority + a kill-on-close job object; Linux: PDEATHSIG; they stop when the parent
+stops), pickle messages over stdin / stdout as `step_reader`, the chart arrays in `multiprocessing.shared_memory`
+(children attach with `track=False`). Per sub-step the master sends each helper its windows and waits for all (one round
+trip per sub-step); the master computes a share itself. 0 helpers = everything in the master.
+
+**Inputs per frame** (callables of the frame number): `pours(f)` → list of `Pour` (world point + direction, or a chart
+cell area; l/min), `tool(f)` → `Tool` or None (tip, axis, radius, flute length, rpm signed: + = M3), `push(f)` →
+{chart: (ax, ay)} m/s² along the chart's x / y (for the air blast later; a surface stress τ is a = τ / (ρ h)).
+**Out per frame:** `Frame` (depths per chart as float32 copies on request, drops in flight: places, velocities,
+volumes, the bookkeeping in litres: poured, on charts, in flight, drained, floor, thrown by the tool). `velocity(c)`
+gives (u, v) per cell = the face fluxes / depth (for chips later).
+
+**The spinning tool.** Ω = −rpm·2π/60 · â (â from the tip up the shank; M3 = clockwise seen from the spindle). Cells
+whose centre lies within the tool's radius of its axis and whose liquid column overlaps the tool (tip − 0.5 mm …
+tip + flute): a share 1 − e^(−T/τ) (τ = 0.05 s) of the liquid above the film there is thrown off each frame as one drop
+per cell, from the tool's surface a little up the flutes, at v = min(ωR, 6 m/s) along (tangent + 0.25 radial + 0.1 up).
+Ring R … 3R round it: a push in the turning direction, a = 0.5 · min(ωR, 6) · (R / r) / 0.2 s, tapering to 0 at 3R,
+only on cells whose liquid reaches the tool's height.
+
+**Cache** (`liquid_cache`): one file, a JSON head (fingerprint, charts, frames), per frame per chart: a packed wet
+mask + uint8 depth in 0.05 mm steps (≥ 255 steps: an overflow list of uint16), zlib; the drops (float16 places,
+float32 volumes); an index of offsets at the end for random access.
+
+**Subagents.** (1) an independent tester (Sonnet, worktree) writes `tests/test_liquid_independent.py` from the brief
+and the API only, and tries to break it; (2) an independent reviewer (read-only) of `liquid_pool.py` for Windows
+(process start, shared memory, shutdown). The worker writes everything else.
 
 ## Goal
 
@@ -103,10 +164,109 @@ The Blender side (task B: charts found from the machine, the cut's top, bake at 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 21 Nov 2026.
 
 **What changed:**
+- `fresing_render/core/liquid.py` – the solver (study 0251 method a, cleaned up): charts with a ring of "no surface",
+  fluxes on faces, friction, critical flow over steps, film 0.04 mm, orifice drains, drops between charts (each flight
+  piece checked along its line, so a fast drop does not pass through a wall and one that flies into a wall falls at its
+  foot), effective gravity per cell as an affine field (3-vector + 3 × 3 per chart and frame), pours (world jet along a
+  direction or straight onto a chart), **the spinning tool** (thrown drops at min(ωR, **6 m/s**) along tangent + 0.25
+  out + 0.1 up the flutes, τ = 0.05 s; a swirl push in the turning sense out to 3 R, ≤ 4 m/s² round + ≤ 2 m/s² out),
+  **a push per cell in** (m/s² along the chart; `stress_push` turns a surface stress into one) and **velocities out**
+  (`velocity`, `flux`). Tiles of 32 × 32: dry tiles skipped exactly, still ones held (the only approximation), runs of
+  up to 8 tiles stepped as windows with element-wise operations only – bit for bit the same whoever steps them.
+  Sub-step CFL 0.6 (prototype 0.45: the six tests give the same numbers, ~5 % faster on the speed scene).
+- `fresing_render/core/liquid_pool.py` – helper processes on shared memory, started as the STEP reader's
+  (CREATE_NO_WINDOW + below-normal priority + kill-on-close job, no crash dialog, watch the parent, Blender's Python,
+  PYTHONHOME / PYTHONPATH as `runner.py`); one round trip per sub-step; time-outs (60 s start, 120 s an answer); a
+  helper that dies, hangs or a failure in the master mid-frame stops the bake with `HelperError` and every later step
+  refuses (the state is half stepped). A helper that does not come up is dropped (the others do its share).
+- `fresing_render/core/liquid_cache.py` – one file per bake: 8-bit steps of 0.05 mm where wet (packed mask + overflow
+  list of 16-bit steps), drops, totals, zlib per frame, an index for random access, a fingerprint, `.part` until closed.
+- Tests: `tests/liquid_scenes.py` (the six tests, scene S, the speed scene; `python tests/liquid_scenes.py`,
+  `--s`, `--speed 0,3,4`), `test_liquid.py` (21), `test_liquid_pool.py` (8), `test_liquid_cache.py` (7),
+  `test_liquid_speed.py` (1, time box), `test_liquid_independent.py` (73, the independent tester's).
+- CLAUDE.md section 3: the three files. No version raise: the precheck asked for none (nothing imports the modules yet).
 
-**Tested and measured** (name the machine and the model):
+**The API task B uses:**
+```
+charts = [Chart(name, bed (ny, nx) m – NaN = no surface, cell, x0, y0, open_edges=True, drain=area m² per cell)]
+sim = Liquid(charts, mats=[(frames, 4, 4) world-from-chart per chart], fps, floor_z, helpers=liquid_pool.default_helpers())
+for fr in sim.run(f0, f1, pours=lambda f: [Pour(nozzle_world, l_per_min, direction)],
+                  tool=lambda f: Tool(tip, axis, radius, flute, rpm),           # rpm > 0 = M3, < 0 = M4
+                  push=lambda f: {chart: (ax, ay)}):                            # later: the air blast
+    writer.add(fr.frame, [sim.depth(c) for c ...], fr.drops, fr.drop_vol, fr.totals)   # liquid_cache.Writer
+sim.set_bed(c, new_bed)      # the cut went deeper (every few frames)
+sim.velocity(c)              # (ny, nx, 2) m/s – chips later
+sim.close()
+reader = liquid_cache.Reader.open(path, fingerprint)  ->  reader.read(f) = depths, drops, volumes, totals
+```
+Frame f + 1 is the state after the step from f with the inputs of f. Matrices for every frame are given up front
+(effective gravity needs f − 1, f, f + 1). A `HelperError` means: bake again (with `helpers=0` if it repeats).
+
+**Tested and measured** (4-core web machine, Intel Xeon 2.1 GHz, one process unless said):
+
+| Study 0251's tests | Page (prototype) | Now |
+| --- | --- | --- |
+| T1 closed pocket holds | 12.86 of 12.8 cm³ | 12.86 (+0.5 %) |
+| T2 open slot drains | 8 % left, half in 0.33 s | 8.3 % left, half in 0.38 s |
+| T3 tilt spills | 14.9° (14.0° by geometry) | 15.0°; at 30° 3.38 cm³ left (3.46 by geometry) |
+| T4 tray, 95 % down the drain | 22.4 s after the pour | 22.5 s |
+| T5 slosh period | 1.25 s (1.28 by 2L/√(gh)) | 1.24 s |
+| T6 behind a one-cell wall | 0.000 cm³ | 0.000 cm³ |
+| bookkeeping | 1e-15 | ≤ 1e-13 l over 2,160 frames; < 1e-9 l every frame of a 1,200-frame run with everything at once |
+
+- Scene S (30,775 cells, 8 s): **9.5 s, 49.5 ms a frame** (the prototype on the same machine 16.5 s); at the end 70.5
+  cm³ on the surfaces and 22.5 drained (prototype 69.9 and 21.4, + 1.6 it lost past the tray: its drops could pass
+  through the tray between flight checks).
+- Spinning tool (D10, 10,000 rpm, a 2 mm pool): drops leave at 5.24 m/s along the turning direction (= ωR, to 1 %),
+  2.4 ml thrown in 2 s, bookkeeping exact; the pool turns clockwise seen from above with M3, the other way with M4
+  (same size), nothing with the spindle standing.
+- Push 0.1 m/s² on a 200 mm box: its top leans by L a / g = 2.04 mm (± 10 %), both ways.
+- **Same result with 0, 1, 2 and 4 helpers, bit for bit** (depths, drops, totals at every frame; also with per-cell
+  gravity, a hole, a tool and a push); same frame twice bit for bit.
+- Cache: a 250,000-cell frame reads in well under 2 ms (test); round trip within 0.025 mm.
+- **Speed scene** (255,000 cells: table 1200 × 500 with three T-slots + tray 1400 × 300 under it, 2 mm; 3 l/min moving
+  along the middle slot for 60 s, 30 s off; 2,160 frames):
+
+| | ms a frame | vs prototype |
+| --- | --- | --- |
+| prototype 0251 (one core; the independent tester ran beside it part of the time) | 755 | 1 × |
+| now, one process | 167 | 4.5 × |
+| now, 3 helpers (4 processes) | **89.5** | **8.4 ×** |
+| now, 4 helpers (5 processes on 4 cores) | 111 | 6.8 × |
+
+  68 % of the cells were stepped on average; 0 % of the frames were settled – the tray stays wet and running for the
+  whole 30 s (2.86 of 3 l went down the drain by the end). A frame where everything has come to rest costs **0.26 ms**
+  (median, 250,000 cells, test ≤ 1 ms).
+- **Expected for 0249's VMC, 10-minute program (14,400 frames), Normal, 24-core PC – an extrapolation, not a
+  measurement:** one process ~167 ms a frame → 40 min; the helpers gave 1.8 × on this 4-core machine (the processes
+  share cache and memory: each runs ~1.5 × slower when all four run). If the owner's PC gives 4–6 × with ~12 helpers
+  the bake takes **7–10 min**; at this machine's 1.8 × it would be ~22 min. Draft (4 mm cells) is ~8 × less work.
+  The PC check line of task B measures it.
+
+**Subagents:** an independent tester (Sonnet, worktree) wrote `tests/test_liquid_independent.py` (73 tests) from the
+brief and the API only: it found that after a `HelperError` the next step carried on alone from a half-stepped frame
+(already fixed by the review fix below when its test came in), and small things: a pour naming chart −1 took the last
+chart, fps 0 gave ZeroDivisionError, a NaN tool or pour direction gave numpy warnings, a closed cache accepted
+`add` – all fixed with plain errors / "to the floor". An independent reviewer (read-only) checked `liquid_pool.py` for
+Windows: no crash risks; fixed from it: the helpers' environment as `runner.py` (PYTHONHOME / PYTHONPATH, `-s`),
+time-outs instead of waiting for ever, a failure in the master mid-frame marks the pool broken, `start` drops a helper
+that cannot attach, no `preexec_fn` fork from a many-threaded Blender on Linux, wait after kill.
+
+**GitHub runs:** 3 – a full run of the finished branch (green, 24.4 min, run 44913413243), a full run after merging
+`main` (it brought other tasks' code; green, 30.4 min on busy runners, run 44915571396), then a docs run for `main`'s
+documents + this report before the fast-forward. Earlier pushes while building were lane runs. No red run.
 
 **Open points / follow-up tasks:**
+- **10 × not reached on the web machine: 8.4 × with 3 helpers.** What is left: (1) the helpers' scaling on 4 shared
+  cores (1.8 ×; smaller windows, priority and CFL tried: ±5 %); (2) in the speed scene nothing settles – the tray
+  really runs for the whole 30 s; (3) every wet area is stepped with a margin of one sub-step count of cells round
+  it (≥ 1 tile). Ideas if the PC check shows the VMC too slow: fluxes in float32 (half the memory traffic; the
+  bookkeeping stays exact because each face's flux is used once on both sides), a smaller margin from the wet cells'
+  distance to the tile edge, or local sub-steps per region.
+- The helpers' speed-up on the owner's 24-core PC is unknown until task B's PC check line measures it.
+- Liquid in a T-slot's undercut is not seen (a height map sees only the top) – as in the study.
+- A film on a gentle slope creeps (no surface tension in the model); held tiles stop it once it is slower than
+  1 mm/s and changes less than 1 µm a frame.

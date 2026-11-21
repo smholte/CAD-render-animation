@@ -530,7 +530,8 @@ def heavy_milling_finish(ctx):
     from ..blender import machining
     from .checks import _finish_depth, _finish_scene, _top_of
     if small():
-        xs, ys = [-30.0 + 1.0 * k for k in range(61)], [-6.0 + 0.6 * k for k in range(21)]
+        # (passes 0.5 mm apart: at 0.6 the program was just below the map's density limit, 0.747 of 0.75, task 0249)
+        xs, ys = [-30.0 + 1.0 * k for k in range(61)], [-6.0 + 0.5 * k for k in range(25)]
     else:
         xs, ys = [-50.0 + 0.5 * k for k in range(201)], [-30.0 + 0.3 * k for k in range(201)]
     t0 = time.time()

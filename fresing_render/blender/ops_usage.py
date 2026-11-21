@@ -465,7 +465,7 @@ SETTINGS = {
     "fresing_learn_teach": BoolProperty(
         name="Offer to teach unused functions", get=_lget("teach"), set=_lset("teach", then=_declutter_changed),
         description="The quiet question about a panel you have not used also offers to show it in the guide or the "
-                    "test tour, or to put it on your learning list. Off: the question only offers to hide"),
+                    "Learning hub, or to put it on your learning list. Off: the question only offers to hide"),
     "fresing_learn_next": BoolProperty(
         name="Suggest what to learn next", get=_lget("next_on"), set=_lset("next_on", then=_bar_changed),
         description="At most one quiet line a session on the What's next card: a function in the kind of work you do "

@@ -5,7 +5,7 @@ test drives the real thing: a model is imported, milled through the app's own op
 Blender shows is read back. Nothing here writes the attributes by hand.
 
 The test mill (tools/make_test_mill.py): the block is 200 x 200 x 40 mm, x/y -100 .. 100, z 30 .. 70 in its own
-space; the table carries it along Y, the carriage moves the tool along X, the head along Z. A program's zero is the
+space; the saddle carries it along Y and the table along X (task 0249: a VMC), the head moves the tool along Z. A program's zero is the
 middle of the block's top, so program Z-1 is z 69 mm in the block's own space. All places below are in that space,
 in mm: the marks are stored in the milled mesh's own space too.
 
@@ -83,7 +83,7 @@ def fresh(folder, model=MILL):
 def fresh_mill(folder, material="aluminium_machined"):
     """The test mill with its three slide joints; the block made of ``material`` in 3 Looks ("" = as imported)."""
     sc = fresh(folder)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = ob(sc, asm)
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     if material:
@@ -368,16 +368,16 @@ M30
 def tool_list(sc, face=True, end=True, drill=True, vee=True):
     if face:
         r = tools.add_row(sc, "FACE", 1)
-        r.diameter, r.length, r.holder, r.holder_length, r.lead_angle = 0.05, 0.085, "BT30", 0.045, math.pi / 2
+        r.diameter, r.length, r.holder, r.holder_length, r.lead_angle = 0.05, 0.085, "BT40", 0.045, math.pi / 2
     if end:
         r = tools.add_row(sc, "FLAT", 2)
-        r.diameter, r.length, r.holder, r.holder_length, r.flutes = 0.01, 0.098, "BT30", 0.06, FLUTES_END
+        r.diameter, r.length, r.holder, r.holder_length, r.flutes = 0.01, 0.098, "BT40", 0.06, FLUTES_END
     if drill:
         r = tools.add_row(sc, "DRILL", 3)
-        r.diameter, r.length, r.holder, r.holder_length = 0.006, 0.09, "BT30", 0.06
+        r.diameter, r.length, r.holder, r.holder_length = 0.006, 0.09, "BT40", 0.06
     if vee:
         r = tools.add_row(sc, "VEE", 4)
-        r.diameter, r.length, r.holder, r.holder_length = 0.01, 0.09, "BT30", 0.06
+        r.diameter, r.length, r.holder, r.holder_length = 0.01, 0.09, "BT40", 0.06
 
 
 def build_crossing(folder):
@@ -935,7 +935,9 @@ def test_render_shows_the_arcs_one_per_turn_times_mark_size(program, tmp_path):
     sc = program
     show_end(sc)
     wp = machining.workpiece(sc)
-    assert np.allclose(np.array(wp.matrix_world), np.eye(4), atol=1e-5), "the block is not back where it started"
+    M = np.array(wp.matrix_world)       # task 0249: the table carries the block along X too (the program ends at X60)
+    assert np.allclose(M[:3, :3], np.eye(3), atol=1e-5) and np.allclose(M[1:3, 3], 0.0, atol=1e-5), \
+        "the block is not back at its Y and Z"
     machining.settings(sc).marks_size = 10.0
     spoil()
     for o in sc.objects:
@@ -1149,12 +1151,14 @@ def test_queued_still_shows_the_marks_and_none_with_the_tick_off(tmp_path):
     cnc_machine(sc)
     tool_list(sc, end=False, drill=False, vee=False)
     # hidden and the camera set before Build: Build remembers how things looked, and the queue builds again
-    for name in ("X.ASM", "COLUMN", "FINISHED PART"):
+    for name in ("Z.ASM", "COLUMN", "FINISHED PART"):
         logic.set_hidden(ob(sc, name), True)
     cam = bpy.data.objects.new("above", bpy.data.cameras.new("above"))
     sc.collection.objects.link(cam)
     cam.data.type, cam.data.ortho_scale = "ORTHO", 0.060               # 60 mm along the feed
     cam.matrix_world = Matrix.Translation((0.0, STRIP_Y * MM, STRIP_Z * MM + 0.25))
+    table = ob(sc, "X.ASM")                 # task 0249: the table moves the block along X; the camera rides with it
+    cam.parent, cam.matrix_parent_inverse = table, table.matrix_world.inverted()
     sc.camera = cam
     lamp = bpy.data.objects.new("low lamp", bpy.data.lights.new("low lamp", "SUN"))
     sc.collection.objects.link(lamp)

@@ -84,10 +84,18 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
       await page.evaluate(w => window.__frAct(w, false), what);
       out.push(f1 - f0);                              // pictures drawn meanwhile: 0
     } else if (s.drag != null) {
-      const [x0, y0, x1, y1] = s.drag;
-      await page.mouse.move(x0, y0); await page.mouse.down();
-      for (let k = 1; k <= 10; k++) await page.mouse.move(x0 + (x1 - x0) * k / 10, y0 + (y1 - y0) * k / 10);
-      await page.mouse.up();
+      // [x0, y0, x1, y1, ms between the 10 moves (0 = as fast as can be), 'Shift' | 'right' | 'wait' (task 0256)]
+      const [x0, y0, x1, y1, ms, how] = s.drag;
+      const bt = how === 'right' ? { button: 'right' } : {};
+      if (how === 'Shift') await page.keyboard.down('Shift');
+      await page.mouse.move(x0, y0); await page.mouse.down(bt);
+      for (let k = 1; k <= 10; k++) {
+        await page.mouse.move(x0 + (x1 - x0) * k / 10, y0 + (y1 - y0) * k / 10);
+        if (ms) await page.waitForTimeout(ms);
+      }
+      if (how === 'wait') await page.waitForTimeout(300);        // held still before it is let go
+      await page.mouse.up(bt);
+      if (how === 'Shift') await page.keyboard.up('Shift');
       out.push(null);
     } else if (s.tap != null) {
       await page.mouse.click(s.tap[0], s.tap[1]); await page.waitForTimeout(80); out.push(null);

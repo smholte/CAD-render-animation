@@ -1,5 +1,6 @@
 """Task 0156, independent tests in Blender (written from the brief and the Design by an agent that did not write the
-code): the tour set "operator" (the test mill in its cabinet, tests/data/test_mill_cabinet.step) is built and its
+code): the tour set "operator" (the test mill in its enclosure, tests/data/test_mill_cabinet.step; task 0249: the VMC
+with two sliding doors) is built and its
 animation baked once; the tests then read the result. The last tests change the project (operator hidden, Clear keys,
 a Build with the hand, saving and opening) and run in this file's order.
 
@@ -241,9 +242,15 @@ def test_the_door_opens_and_closes(built):
     v2, x2 = value(sp["close"][0] - 0.1)
     v3, x3 = value(sp["close"][1] + 0.1)
     assert v0 == pytest.approx(0.0, abs=1e-4) and v3 == pytest.approx(0.0, abs=1e-4)
-    assert v1 == pytest.approx(0.53, abs=1e-4) and v2 == pytest.approx(0.53, abs=1e-4)
-    assert x1 - x0 == pytest.approx(0.53, abs=1e-3) and x3 == pytest.approx(x0, abs=1e-4)
-    assert value(sp["reach"][1])[0] == pytest.approx(0.53, abs=1e-4)          # open while the tool is changed
+    w = tc_person.DOOR_OPEN                     # task 0249: the VMC's left door, 0.35 m to the left (the cabinet's
+    assert v1 == pytest.approx(w, abs=1e-4) and v2 == pytest.approx(w, abs=1e-4)          # one: 0.53 m to the right)
+    assert x1 - x0 == pytest.approx(-w, abs=1e-3) and x3 == pytest.approx(x0, abs=1e-4)
+    assert value(sp["reach"][1])[0] == pytest.approx(w, abs=1e-4)             # open while the tool is changed
+    other = bpy.data.objects["SLIDING DOOR RIGHT"]                             # the right one slides the other way
+    sc.frame_set(int(round(_frame(sc, sp["reach"][1]))))
+    xr = other.matrix_world.translation.x
+    sc.frame_set(int(round(_frame(sc, sp["open"][0] - 0.3))))
+    assert xr - other.matrix_world.translation.x == pytest.approx(w, abs=1e-3)
 
 
 def _bones(rig, dg):
@@ -447,11 +454,36 @@ def _bake_with(**settings):
             setattr(c, k, v)
 
 
+_SHOT = {}
+
+
+def _doors_hidden(hide: bool):
+    """Task 0249: the VMC's enclosure has two sliding doors; "no door" is tried on the machine without them (with the
+    doors shut nobody reaches in, and the Build says so). Build puts back the visibility it saved and the set's start
+    shot shows the doors: keys cleared and the shot set aside first."""
+    from fresing_render.blender import logic
+    sc = _scene()
+    a = sc.fresing.animations[tour.OPERATOR_ANIM]
+    animation.clear_keys(sc)
+    if hide:
+        _SHOT["shot"], a.start_shot = a.start_shot, ""
+    for name in ("SLIDING DOOR", "SLIDING DOOR RIGHT"):
+        logic.set_hidden(bpy.data.objects[name], hide)
+    if not hide:
+        a.start_shot = _SHOT.pop("shot", a.start_shot)
+
+
 def test_other_settings_build_without_warnings(built):
     for kw in ({"op_height": "1.65"}, {"op_button": False}, {"op_door": ""}, {"op_helmet": True}):
-        res = _bake_with(**kw)
-        assert res["warnings"] == [], kw
-        assert not clash.check(_scene(), store=False).rows, kw
+        if kw.get("op_door") == "":
+            _doors_hidden(True)
+        try:
+            res = _bake_with(**kw)
+            assert res["warnings"] == [], kw
+            assert not clash.check(_scene(), store=False).rows, kw
+        finally:
+            if kw.get("op_door") == "":
+                _doors_hidden(False)
     _bake_with(op_door="")                               # no door: the change takes the person's time without one
     length = list(gcode.settings(_scene())["fr_op_times"])[1]
     assert length == pytest.approx(TC.person_min(0.0))

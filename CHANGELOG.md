@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.194 – 21 Nov 2026 – Test tour: every set in its own surroundings (task 0233)
+## 0.2.199 – 21 Nov 2026 – Test tour: every set in its own surroundings (task 0233)
 
 - **Test tour:** the machine sets stand in a hall that fits them (a factory or an assembly hall), the cable sets in a
   warehouse or factory, the looks and product-video sets in a clean light studio, and the people and props sets on a
@@ -15,6 +15,71 @@ installer of that version was built from.
   (dusk coming, rain starting) instead of the dark end.
 - **What's new / links:** the function list now links Couplings to the cable stop, Poses to the Model
   update stop, and Props: detail by distance to the props stop.
+
+## 0.2.198 – 21 Nov 2026 – Web 3D page: flick the model and it keeps turning (task 0256)
+
+- **Flick to spin.** On the web 3D page, drag the model quickly sideways and let go while it is still moving (mouse or
+  one finger): it keeps turning that way, then slows down to the slow auto-turn (one turn a minute, still in your
+  direction) – or to a stop when Auto-turn is off, like a turntable you gave a push. A slow drag still stops where you
+  let go; a touch, a key, a saved view, the Film or a part tool stops the spin. The Auto-turn line in the settings
+  says so.
+## 0.2.197 – 21 Nov 2026 – Two panels: the steps on the right, everything else on the left; Make in its own windows; the Learning hub (task 0260)
+
+- **The Fresing panel on the right shows only the work.** At its top: **Make**, the section tabs and (for a CNC mill or a
+  mechanism) **Set-up window…** – then 1 Import to 8 Lifting plan. The first step is always at the top.
+- **A new panel on the left of the 3D view** holds the rest: **Live preview** and **Build & play** (always there), the
+  update notice, your **Workspace**, the **Learning hub**, **Favourites** and **What's next**. The small arrow at its top
+  folds it to a narrow strip – Live preview and Build & play stay there as icons. The app keeps your choice. In Full
+  access Blender's own tool buttons are at its top again.
+- **Make is one row of six icons** (Picture, Product video, Turntable, 3D page, Animation, Queue); click **Make** for the
+  list with names. **Each output opens a window of its own** with its settings and Make button: drag it anywhere, also
+  onto a second screen – it stays open while you work elsewhere, until you close it. Pressing it again opens no second
+  one (on Windows it comes to the front and opens where it was last time).
+- **The test tour is now called the Learning hub.** On the left panel three buttons – **View · Show me · Build it
+  yourself** – switch between the three ways to learn in one click; in your own project they open the Learn window.
+  Your old test tour folder and results keep working.
+- **What's next** can be folded with a small arrow; it stays folded until you open it again.
+
+## 0.2.196 – 21 Nov 2026 – Test tour: the offshore sets in the open sea (task 0234)
+
+- **Marine looks** in the test tour now show on a monopile standing in the open sea: its transition piece and platform
+  above the water, and through a cut-away the pile right down to its toe 9 m in the seabed – growth below the sea's
+  own waterline, the splash zone above it, run-down streaks, a concrete mattress on the seabed.
+- **Vessel motion**: a person and an IBC tank stand on the deck beside the crane and roll with it.
+- **Vessel at work, Cable into the sea, A cable on a moving part**: the test boats have real hull shapes – a flat
+  bottom, round bilges, a fine bow under a raised forecastle and a deckhouse – and the workboat is seen from close by.
+  The app now also reads their bow from the hull, so the wake and the bow wave sit at the right end.
+- Nothing in the app itself changed; open the test tour (Help > Make test tour project) to see the new sets.
+## 0.2.195 – 21 Nov 2026 – A larger test mill: a vertical machining centre (task 0249)
+
+- **New test mill.** The small test mill is gone. In its place is an invented **vertical machining centre**: travels
+  X 1000 × Y 500 × Z 500 mm, a 1200 × 500 table with three 18 mm T-slots, a BT40 spindle, a column with ribs,
+  telescopic way covers that follow the saddle, a chip tray that falls to a coolant drain and tank (ready for coolant
+  liquid later), about 2.4 m tall. The block, the tools, the programs and the work zero are where they were, so every
+  cut looks the same – only now the table moves along X and Y and the head along Z, as on most VMCs.
+- **A person changes the tool:** the machine now stands on the floor in its **own enclosure with two front sliding
+  doors**, a control panel and a work light (no cabinet). The operator walks up, opens the doors, leans in, takes the
+  BT40 tool out, lays it on the trolley, puts the next one in and closes the doors. People lean a little further now
+  when they reach into a machine (up to 65° instead of 55°).
+- **Test tour:** Milling a slot, Three tools and the hand, Tool marks, Air blast, Coolant, A person changes the tool
+  and The app makes the toolpath run on the new machine; the tools are BT40. The PC check's milling lines too.
+- **Fix – chips:** on a machine whose table rides on a saddle, chips that fell past the saddle sometimes fell
+  through the fixed parts beside it and on for ever; they now land on those parts (or the floor).
+- **Fix – long finishing programs:** whether a long program is worked out the fast way (as a height map) no longer
+  depends on rounding noise of a few nanometres when its points lie on whole millimetres.
+
+## 0.2.194 – 21 Nov 2026 – Web 3D page: Film – the motion through the video's camera (task 0252)
+
+- **Film on the web page.** A web 3D model of a project whose animation has camera steps (Move to, Cut, Ride along,
+  Fly a path, Keep a part in the middle), exported with **Include animation**, gets a **Film** button at the end of
+  the page's play bar. Pressed, the page plays the motion **seen through the video's camera** – the same shots,
+  camera moves, cuts and zoom as the rendered video – with the page's own light. The time line, Space, the arrow keys
+  and the speed move it along. A drag or zoom leaves the Film while the motion plays on; the button then has an orange
+  ring and one press glides back. A copied link opens the page in the Film. The page still opens in the free view.
+- **Captions, labels, title and end card on the Film.** Three new tick boxes under Include animation (only when the
+  project has a built Animation camera; all off by default): **Film: captions**, **Film: labels** (the part labels
+  with their lines, riding on their parts) and **Film: title and end card**. They show only while the Film is on.
+- The Film costs a few KB (the test crane: 4 KB) and the page draws as fast with it as without.
 
 ## 0.2.193 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
 

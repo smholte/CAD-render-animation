@@ -72,14 +72,14 @@ class FRESING_OT_pc_check(bpy.types.Operator):
     mode: EnumProperty(name="Check", default="quick",
                        description="Quick tests the main functions in about 3 minutes; Full tests every function "
                                    "in about 15 minutes; Heavy loads the PC like real work (10 to 20 minutes); Test "
-                                   "tour renders a picture of every stop of the test tour (10 to 15 minutes)",
+                                   "tour renders a picture of every stop of the Learning hub (10 to 15 minutes)",
                        items=[("quick", "Quick (about 3 minutes)", "Import, a joint, a picture on the graphics card "
                                                                    "and a short EEVEE video"),
                               ("full", "Full (about 15 minutes)", "Every function of the app, with pictures"),
                               ("heavy", "Heavy (10 to 20 minutes)", "A big generated machine, 4K pictures and a "
                                                                     "10 second video: shows how the PC copes "
                                                                     "with real load"),
-                              ("tour", "Test tour (10 to 15 minutes)", "Goes through every stop of the test tour by "
+                              ("tour", "Learning hub (10 to 15 minutes)", "Goes through every stop of the Learning hub by "
                                                                        "itself: a picture of each stop with what you "
                                                                        "should see, and the number checks")])
     use_model: BoolProperty(name="Also test my own STEP file",
@@ -105,7 +105,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         col.separator()
         col.label(text="Runs in the background; you can keep working.", icon="INFO")
         if self.mode == "tour":
-            col.label(text="Makes a fresh test tour and renders every stop; your ticks stay.")
+            col.label(text="Makes a fresh Learning hub and renders every stop; your ticks stay.")
         if self.mode == "heavy":
             col.label(text="Heavy uses the whole PC for a while. Stop it any time:")
             col.label(text="Help > Cancel Fresing Render PC check.")

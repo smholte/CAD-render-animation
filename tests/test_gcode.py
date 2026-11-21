@@ -250,13 +250,14 @@ def test_a_turning_spindle_keeps_the_tip_on_the_program(scene, tmp_path):
 
 
 def test_the_workpiece_moving_on_a_table(tmp_path):
-    """The test mill: the table (with the workpiece) moves along Y, so the program's +Y moves the table -Y."""
+    """The test mill (task 0249: a VMC): the saddle and the table (with the workpiece) move along Y and X, so the
+    program's +Y moves the table -Y; the X joint points to -x, so the program's +X is a positive X."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon_utils.enable("cycles", default_set=True)
     sc = bpy.context.scene
     sc.fresing.out_folder = str(tmp_path)
     assert bpy.ops.fresing.import_step(filepath=MILL, quality="draft") == {"FINISHED"}
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = ob(sc, asm)
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     bpy.ops.fresing.cnc_find_axes()
@@ -265,7 +266,7 @@ def test_the_workpiece_moving_on_a_table(tmp_path):
     click(ob(sc, "STOCK 200x200x40"))
     bpy.ops.fresing.cnc_use_workpiece()
     m = gcode.Machine(sc)
-    assert m.moves_tool == [True, False, True] and m.sign[1] == -1.0
+    assert m.moves_tool == [False, False, True] and m.sign[1] == -1.0 and m.sign[0] == 1.0
     a, b = step(sc, program(tmp_path, "G0 X10 Y30 Z5\nG1 Z-1 F300\nG2 X10 Y30 I0 J-20 F900\nG0 Z20\nM30\n"))
     r = animation.bake(sc, a)
     assert check_path(sc, a, b, range(1, r["frames"] + 1), tool="END MILL D10") < 0.01, check_path.where

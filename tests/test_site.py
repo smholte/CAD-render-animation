@@ -83,10 +83,10 @@ def test_turn_it_yourself(built, tmp_path):
     assert [w["id"] for w in items] == ["test_atc", "thor"]
     assert "web_model" not in media                                        # converted to the list
     assert 'id="turn"' in page and 'href="#turn"' in page
-    assert "<script" not in page.lower()                                   # the models load only when opened
+    assert "<script src" not in page.lower()                               # the models load only when opened
     assert not re.search(r'(src|href)="[^"]*\.(glb|page\.html)"', page)
     turn = page[page.index('<section id="turn"'):page.index("</section>", page.index('<section id="turn"'))]
-    assert turn.count('<li class="card">') == len(items)
+    assert turn.count('<div class="card">') == len(items) and "data-row" in turn     # task 0267: a scrolling row
     for w in items:
         assert w["model"] in media["models"] and w.get("poster") and w.get("caption")
         card = turn[turn.index(f'href="model/{w["id"]}/"'):]
@@ -281,9 +281,12 @@ def test_links_only_to_github_and_fresing(built):
     hosts = {h for h in re.findall(r'(?:href|src)="https://([^/"]+)', page)}
     credit_part = page[page.index('<ul class="credits">'):page.index("</ul>", page.index('<ul class="credits">'))]
     outside = page.replace(credit_part, "")
-    assert {h for h in re.findall(r'(?:href|src)="https://([^/"]+)', outside)} <= {"github.com", "fresing.nl", "www.blender.org"}
+    assert {h for h in re.findall(r'(?:href|src)="https://([^/"]+)', outside)} <= \
+        {"github.com", "fresing.nl", "www.blender.org"} | build_site.tool_hosts()
+    assert build_site.tool_hosts() == {"smholte.github.io"}                # task 0267: the other Fresing tools
     assert "fresing.nl" in hosts
-    assert "<script" not in page.lower() and "fonts.googleapis" not in page
+    assert "<script src" not in page.lower() and "fonts.googleapis" not in page
+    assert page.lower().count("<script") == 1 and build_site.ROW_SCRIPT in page     # only the rows' inline script
 
 
 def test_check_finds_problems(built, tmp_path):
@@ -510,6 +513,120 @@ def test_built_on_blender_section(built):
     media = build_site.load_media()
     if media.get("feature"):
         assert f'media/{media["feature"]["file"]}' in sec
+
+
+def test_who_it_is_for_section(built):
+    """Tasks 0266, 0267: who it is for – a dark band with the line, three numbered cards under it; the long animator
+    paragraph is on the "How it works" page."""
+    out, _version, page = built
+    sec = page[page.index('<section id="who"'):page.index("</section>", page.index('<section id="who"'))]
+    band = sec[sec.index('class="band"'):sec.index("</div>", sec.index('class="band"'))]
+    assert "// Who it is for" in band and "Built to speed animators up – not to replace them." in band
+    assert 'href="how-it-works/"' in band
+    cards = re.findall(r"<li><p class=\"label\">(\d\d) · ([^<]+)</p><h3>([^<]+)</h3>", sec)
+    assert cards == [("01", "Engineers", "Render it yourself"), ("02", "Sales teams", "Show it before it exists"),
+                     ("03", "Animators", "Start from a working scene")]
+    assert "Nothing is guessed" in sec and "with all of" in sec
+    assert 'href="#who"' in page
+    how = open(os.path.join(out, "how-it-works", "index.html"), encoding="utf-8").read()
+    assert "Many animators worry about what AI means for their work" in how
+    assert "Many animators worry" not in page
+
+
+GONE = ("iea15_offshore_seabed.jpg", "iea15_onshore_from_the_field.jpg", "iea15_onshore_at_the_door.jpg")
+REDO = ("iea15_offshore_whole_turbine.jpg", "iea15_offshore_loop.mp4", "thor_side.jpg")
+
+
+def test_rows_from_media_json(built):
+    """Task 0267: pictures (.jpg) in one row, videos (.mp4) in the row under it, in media.json's order, each a
+    scrolling strip with ‹ › buttons the script shows; the three weak turbine pictures are gone, the "redo" files stay
+    until their new versions come."""
+    out, _version, page = built
+    media = build_site.load_media()
+    pictures, videos = build_site.split_media(media)
+    assert pictures and videos and len(pictures) + len(videos) == len(media["pictures"])
+    gal = page[page.index('<section class="gallery"'):page.index("</section>", page.index('<section class="gallery"'))]
+    pr = gal[gal.index('id="row-pictures"'):gal.index('id="row-videos"')]
+    vr = gal[gal.index('id="row-videos"'):]
+    assert [f for f in re.findall(r'<img src="media/([^"]+)"', pr)] == [p["file"] for p in pictures]
+    assert [f for f in re.findall(r'<video src="media/([^"]+)"', vr)] == [p["file"] for p in videos]
+    assert f'Pictures <span class="count">{len(pictures)}</span>' in pr and f'Videos <span class="count">{len(videos)}</span>' in vr
+    assert vr.count('preload="none"') == len(videos) and "autoplay" not in vr
+    assert page.count("\" data-row>") == 3                            # pictures, videos, Turn it yourself
+    assert page.count('class="arrow prev" aria-label=') == 3 and page.count('" hidden>') == 6   # shown by the script
+    assert page.count('<ul class="strip" tabindex="0"') == 3                # keys scroll a focused strip
+    css = open(os.path.join(out, "style.css"), encoding="utf-8").read()
+    assert "scroll-snap-type: x mandatory" in css and "scroll-snap-align: start" in css and "overflow-x: auto" in css
+    for f in GONE:
+        assert f not in page and f not in json.dumps(media)
+        assert not os.path.exists(os.path.join(build_site.MEDIA, f)) and not os.path.exists(os.path.join(out, "media", f))
+    for f in REDO:
+        assert f in json.dumps(media) and os.path.exists(os.path.join(build_site.MEDIA, f)) and f"media/{f}" in page
+
+
+def test_how_it_works_page(built, tmp_path):
+    """Task 0267: the "How it works" page – in the menu, the drawing, the steps with their guide chapters, existing
+    pictures only (credited), the same header; the checks cover its links."""
+    import shutil
+    out, _version, page = built
+    how = open(os.path.join(out, "how-it-works", "index.html"), encoding="utf-8").read()
+    assert 'href="how-it-works/"' in page and 'href="../how-it-works/" aria-current="page"' in how
+    assert how.count("<svg") == 2 and "Fig. 1" in how and "{{" not in how
+    for word in ("CAD", "FRESING RENDER", "BLENDER", "Stop here", "Carry on"):
+        assert word in how, word
+    anchors = re.findall(r'href="\.\./guide/#([^"]+)"', how)
+    for a in ("import", "looks", "motion", "surroundings", "camera", "animation", "web3d", "quiet-window"):
+        assert a in anchors, a
+    media = build_site.load_media()
+    shown = re.findall(r'<img src="\.\./media/([^"]+)"', how)
+    assert shown and set(shown) <= {p["file"] for p in media["pictures"]}
+    for p in build_site.how_pictures(media):
+        assert build_site._esc(media["models"][p["model"]]["credit"]) in how
+    assert "<script" not in how.lower()
+    assert build_site.tools_html(build_site.load_tools(), "../") in how
+    # a wrong guide anchor and a missing picture on that page are found
+    bad = str(tmp_path / "bad")
+    shutil.copytree(out, bad)
+    with open(os.path.join(bad, "how-it-works", "index.html"), "w", encoding="utf-8") as fh:
+        fh.write(how.replace("../guide/#import", "../guide/#no-such-place").replace("</main>", '<img src="../media/none.jpg"></main>'))
+    problems = build_site.check(bad)
+    assert any("no-such-place" in p and "how-it-works" in p for p in problems), problems
+    assert any("none.jpg" in p for p in problems), problems
+
+
+def test_tool_switcher(built, tmp_path):
+    """Task 0267: Fresing Render marked as this page, House Planner under "More tools" (<details>, no script); the list
+    is site/tools.json, so the Viewer is one line later."""
+    out, _version, page = built
+    tools = build_site.load_tools()
+    assert [t["name"] for t in tools if t.get("here")] == ["Fresing Render"]
+    assert any(t["name"] == "House Planner" and not t["direct"] for t in tools)
+    bar = page[page.index('<header class="bar">'):page.index("</header>")]
+    assert '<a class="tool here" href="./" aria-current="page">Fresing Render</a>' in bar
+    fold = bar[bar.index('<details class="more-tools">'):bar.index("</details>")]
+    assert "<summary>More tools</summary>" in fold and 'href="https://smholte.github.io/house-planner/"' in fold
+    assert "Viewer" not in bar                                             # its page does not exist yet
+    # one line more = a direct button; a tool without an https address is refused
+    more = tools + [{"name": "Fresing Viewer", "url": "https://smholte.github.io/viewer/", "direct": True}]
+    html = build_site.tools_html(more)
+    assert '<a class="tool" href="https://smholte.github.io/viewer/">Fresing Viewer</a>' in html
+    assert html.index("Fresing Viewer") < html.index("More tools")
+    bad = tmp_path / "tools.json"
+    bad.write_text(json.dumps({"tools": tools + [{"name": "X", "url": "http://x"}]}), encoding="utf-8")
+    with pytest.raises(SystemExit):
+        build_site.load_tools(str(bad))
+
+
+def test_page_script_is_only_the_rows(built, tmp_path):
+    """Task 0267: the one inline script is allowed; any other script, or one loaded from a file, is not."""
+    import shutil
+    out, _version, page = built
+    bad = str(tmp_path / "bad")
+    shutil.copytree(out, bad)
+    with open(os.path.join(bad, "index.html"), "w", encoding="utf-8") as fh:
+        fh.write(page.replace("</main>", '<script src="x.js"></script><script>alert(1)</script></main>'))
+    problems = build_site.check(bad)
+    assert any("loaded from a file" in p for p in problems) and any("not the rows' own" in p for p in problems)
 
 
 def test_how_its_done_links_to_the_guide(built, tmp_path, monkeypatch):

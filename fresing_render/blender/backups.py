@@ -119,7 +119,7 @@ def wait_reason(scene) -> str:
     try:
         from . import ops_tour
         if ops_tour.progress_text():
-            return "the test tour being made"
+            return "the Learning hub being made"
     except Exception:  # noqa: BLE001
         pass
     try:

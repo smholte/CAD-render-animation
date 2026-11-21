@@ -65,7 +65,7 @@ the Lifting sets, `tracks`, `spool`, the offshore sets, `house`, `operator`; les
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 21 Nov 2026 (Sonnet · Medium). Branch: the session's own branch, merged to `main` as 0.2.194.
+**Chat / date:** Claude Code on the web, 21 Nov 2026 (Sonnet · Medium). Branch: the session's own branch, merged to `main` as 0.2.199.
 
 **What changed:** (`blender/tour.py`, `core/functions.py` links only; no app code, no test model)
 
@@ -84,7 +84,7 @@ the Lifting sets, `tracks`, `spool`, the offshore sets, `house`, `operator`; les
 Framing faults of study 0224: `materials` closer on the worn group; `mechanism` camera keeps the raised 1.5 m platform
 in frame; `night` floodlights at strength 4 (was 1, almost black); `weather_step` now shows 0.6 of the video (dusk coming,
 rain starting) not the dark end; `sequence` camera a little closer (the column of parts is 1 m tall, so it stays small –
-see open points). Links: Couplings → `cables`, Poses → `update`, Props: detail by distance → `props`. `changed=` 0.2.194
+see open points). Links: Couplings → `cables`, Poses → `update`, Props: detail by distance → `props`. `changed=` 0.2.199
 on 21 sets and 6 stops, `tour_versions.py --record`, stop texts updated (materials, props, people, weather_step, night).
 Subagents: none.
 

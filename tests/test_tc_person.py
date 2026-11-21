@@ -344,3 +344,16 @@ def test_stand_spot_is_the_same_wherever_the_machine_stands():
         assert np.linalg.norm(near - s) >= T.WORK_ROOM - 1e-6, (dx, dy, turn)
     for r, turn in spots[1:]:                         # a turned cabinet's edge lies on a cell line: 0194 keeps both cells
         assert np.allclose(r, spots[0][0], atol=cell * 0.5 + 1e-6 if turn else 1e-6), spots
+
+
+def test_a_door_closed_is_only_in_the_way_of_walking():
+    """Task 0249: a door's closed place goes into the walking map only (``lean=False``): the person cannot stand in
+    it, but its head and chest may pass through it when it leans in (the door is open then)."""
+    fl = T.Floor((-1.0, -1.0), (1.0, 1.0), z=0.0, cell=0.04)
+    pane = np.array([[(-0.5, 0.0, 0.9), (0.5, 0.0, 0.9), (0.5, 0.0, 1.9)],
+                     [(-0.5, 0.0, 0.9), (0.5, 0.0, 1.9), (-0.5, 0.0, 1.9)]])          # a door at y = 0, 0.9 .. 1.9 m
+    fl.add_triangles(pane, lean=False)
+    assert not fl.is_free((0.0, -0.1), T.BODY)                  # nobody stands in the closed door
+    assert fl.clear_at(np.array((0.0, 0.0, 1.4)), T.CHEST_R, 0.08)      # the chest may lean through it
+    fl.add_triangles(pane)
+    assert not fl.clear_at(np.array((0.0, 0.0, 1.4)), T.CHEST_R, 0.08)  # a solid part in the same place: it may not

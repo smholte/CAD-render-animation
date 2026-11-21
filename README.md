@@ -2,8 +2,16 @@
 
 [![Tests](https://github.com/smholte/CAD-render-animation/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/smholte/CAD-render-animation/actions/workflows/tests.yml)
 
-Photo-realistic renders and animations of large STEP assemblies (hundreds to thousands of
-parts), built on Blender 5.2 LTS and its Cycles renderer. Owned by Fresing.
+Fresing Render turns your CAD model (large STEP assemblies, hundreds to thousands of parts) into
+renders and animations – fast enough for engineers to make them themselves, and a ready-made start for
+animators. Built on Blender 5.2 LTS and its Cycles renderer. Owned by Fresing. Free and open source.
+
+*Built to speed animators up – not to replace them.*
+
+- **Easy for engineers.** Step by step, in plain words.
+- **Fast.** Import, sorting, materials and motion in a few clicks instead of hours of set-up.
+- **No limits for animators.** It stays a normal Blender scene: light, camera, effects and fine motion are yours to push further.
+- **Your real machine.** Every frame comes from your own CAD – true shape, true sizes, true motion. Nothing is guessed.
 
 **Website and download: https://smholte.github.io/CAD-render-animation/**
 

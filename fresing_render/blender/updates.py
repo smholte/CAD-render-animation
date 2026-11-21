@@ -687,8 +687,8 @@ def notice_kind() -> str:
 
 class FRESING_PT_update(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "Fresing"
+    bl_region_type = "TOOLS"              # task 0260: at the top of the left panel (ui_left.py)
+    _fr_left = True
     bl_label = ""                         # the header says it all (draw_header)
     bl_order = 0                          # with 1 Import; registered before it, so it sits on top
 

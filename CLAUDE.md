@@ -320,6 +320,13 @@ fresing_render/            the Blender extension (Python package)
                            profiles; no network import – tested)
                            learning.py (task 0208: the learning list and the quiet "next to learn" – the part ``learning`` of the
                            usage file: list, use days, turned-down ids, rules; no network import – tested)
+                           liquid.py (task 0255: coolant liquid as a shallow-liquid height field – charts riding on their
+                           carriers, effective gravity per cell, open edges / walls / drains, drops between charts, pours,
+                           the spinning tool (thrown drops at ωR, a swirl), a push per cell (air later), velocities out
+                           (chips later); tiles: dry ones skipped exactly, still ones held; element-wise windows, so the
+                           result is the same bit for bit with any helper count), liquid_pool.py (its helper processes on
+                           shared memory, started as the STEP reader's), liquid_cache.py (the bake on disk: 8-bit steps of
+                           0.05 mm where wet, random access, a fingerprint)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -525,6 +532,16 @@ fresing_render/            the Blender extension (Python package)
                            on any button of a function (``UI_MT_button_context_menu``), What's new adds the new
                            functions, one "Next to learn" line a session on the What's next card; the use days are
                            counted in ``usage.record``
+    ui_left.py ops_make.py  task 0260: two panels – the **left panel** is the 3D view's toolbar region (TOOLS): Live
+                           preview + Build & play (also in the folded strip), update notice, Workspace, Learning hub
+                           (View | Show me | Build it yourself, `hub_state`, `fresing.hub_mode`), its stops, Lesson,
+                           Favourites, What's next (panels with `LeftPanel`; `panels.LEFT`, `panels.side_window`); its
+                           width is written into Blender's stored region width (`sizex_address`, found and checked by its
+                           neighbours; `set_width`, `ensure` at every load); Blender's tool buttons are swapped out by
+                           `quiet._no_tools` outside Full access. The right panel keeps Make (one row of icons or the
+                           list, `prefs.make_open`), the tabs, Set-up window…, 1 … 8. ops_make.py = an **output window**
+                           per Make output (`fresing.make_window`, made by `ops_setup.open_window(mark="fr_output")`, tab
+                           "Make"); `winplace.py` (Windows, ctypes) brings it to the front and puts it where it was
     editors.py             task 0221: Blender's right-hand column (Outliner + Properties next to the main 3D view) closed on
                            every load the app tidies, Fresing > Show / Hide Blender's editors, the choice in
                            `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
@@ -556,7 +573,13 @@ fresing_render/            the Blender extension (Python package)
                            48 px look first drops inputs that are one number), decals on their own UVs; the bake scene
                            is a COPY of a Cycles scene (switching an engine froze the real app); ops_web3d.py (Export…,
                            progress, Cancel), ui_web3d.py (5 Scene & Render > Web 3D model); viewer: fresing_render/web/
-                           (model-viewer 4.4.0, Apache-2.0); site: "Turn it yourself" -> model/index.html
+                           (model-viewer 4.4.0, Apache-2.0); site: "Turn it yourself" -> model/index.html.
+                           web3d_film.py (task 0252): the **Film** – the built Animation camera read in `Job._motion`'s
+                           pass through the frames (place, turn, fov from `calc_matrix_camera`), the video's cuts, and
+                           with the export's tick boxes its captions, labels (point in its part's glTF node) and title /
+                           end card -> the page's `ST.films[0]`; core/web3d_film.py = pose in three's world, thinning
+                           between cuts, delta-int JSON, `sample` = what fr_page.js plays; the Film button and the
+                           overlays in fr_player.js; `set_up_test` (crane: ride, path, cut, aim) for tests + PC check
     demo.py                task 0228: **demo kits** – `build_project(kit=…)` sets the app's own stages aside and runs only
                            the kit's maker (stage `kit_model`, `core/demo_kit_run.py`) and the stages its module registers;
                            `core/demo_kits.py` checks / unpacks / lists kit zips (kit.json), the app is `fresing_app` inside
@@ -595,7 +618,9 @@ fresing_render/            the Blender extension (Python package)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
 site/                      the landing page https://smholte.github.io/CAD-render-animation/ (task 0047): index.html +
-                           style.css (Fresing palette A, IBM Plex Sans in fonts/), brand/ (Fresing logos), media/ (pictures,
+                           style.css (Fresing palette A, IBM Plex Sans + Mono in fonts/; task 0267: picture / video / 3D
+                           model rows that scroll sideways from media.json, one inline script for their arrows; the page
+                           how-it-works/index.html; tools.json = the header's tool switcher), brand/ (Fresing logos), media/ (pictures,
                            video, media.json: captions + credits), CREDITS.md; render_kit/ (the owner's Windows kit: "Make site
                            pictures.bat" + make_site_pictures.py + models.ini; task 0112: projects.py makes a model that moves
                            from its sheet projects/<model>.json – joints, cylinders, poses, the loop – with the app's own
@@ -608,7 +633,10 @@ site/                      the landing page https://smholte.github.io/CAD-render
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
 tools/                     build_release.py, release_tools.py (release job), test-model makers (task 0122: details from
                            model_details.py – chamfers, outlines, ISO bolts/screws/nuts – and machine_parts.py – rails,
-                           guide blocks, servo motors, clamps – each part one solid), real-app tests,
+                           guide blocks, servo motors, clamps; task 0249: rails/blocks in any direction, way-cover
+                           sections, sliding doors, a BT40 holder – each part one solid; the test mill is a VMC since
+                           task 0249: make_test_mill.py (+ _cabinet = in its enclosure, + toolpath), its Y way covers set
+                           up by blender/waycover.set_up_test_mill), real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
                            job, ci_groups.py + ci_times.json parallel groups),
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
@@ -1370,6 +1398,12 @@ the release → Delete); the next run on `main` publishes it again.
   `stopImmediatePropagation` runs before OrbitControls' own listener on the same element, so the view does not turn and
   no click is counted; tests drag them at their screen points (`partTools.handles()`) in a window wide enough that the
   tool panel (top left) does not cover them.
+- A script cannot set a region's width (`Region.width` is read-only; task 0260). The 3D view's toolbar region keeps
+  its width in `ARegion.sizex` (16 bits, px at UI scale 1): `ui_left.sizex_address` finds it next to the region's own
+  width and height, type 5 (TOOLS) and alignment 3 (LEFT), checks it against the width on screen, and only then writes
+  it; switching `show_region_toolbar` off and on makes Blender take it at once. A panel drawn by a base class
+  (`VIEW3D_PT_tools_active` draws with `ToolSelectPanelHelper.draw`) is found in its draw list by the base's name
+  (`quiet._own`).
 - Windows PowerShell 5.1 reads a `.ps1` without a byte-order mark in the PC's code page: one "–" in a message of the
   uninstaller became "â€“", whose last byte is a typographic quote that ends a PowerShell string, and the whole script
   failed to parse (task 0217). Installer files stay plain ASCII (`tests/test_toolbox.py`
@@ -1398,6 +1432,16 @@ the release → Delete); the next run on `main` publishes it again.
   refused for as long as it is held (22–36 refusals in 40 s with a reader holding it 0.5 s, the longest 0.3–0.5 s; a
   reader that opens, reads and closes caused none): a retry of 5 x 50 ms is too short for such a reader – keep the
   write and do it at the next look (`Inbox._later`).
+- A person at a machine (task 0249, `core/tc_person.py`) stands its `WORK_ROOM` (0.25 m) off the frontmost thing in
+  front of it – a door handle – and reaches ~0.52 m (1.75 m tall) plus its lean: the spindle can be at most ~0.7 m
+  from where it stands. A VMC's doors must clear its table at the front end of Y, so they stand 0.4–0.5 m in front of
+  the spindle: the test mill's Y travel reaches 140 mm past the table's front edge, the lean goes to 65°, and the floor
+  map keeps a door's closed place only for walking (it is open while the person leans in). A smaller `WORK_ROOM` let
+  the belly touch the closed doors. Measure a new machine with the 1.65 m person too (it reaches 4 cm less).
+- Chips (task 0249): a cross table's saddle is the chips' *carrier*; a chip off its footprint went over to world space
+  only below the carrier's lowest top – a skirt lower than the fixed way covers beside it – so it came in *under* the
+  covers and fell for ever. A chip now goes over as soon as the next space's surface is a step below it
+  (`_Sim._lands_next`), and a chip under a surface stops on the floor.
 - A behaviour added by code that registers itself (a clash-check hook in `clash.HOOKS`) works only while that code is
   loaded: a demo kit's stages are loaded only while the kit is built, so its ROV was checked again in the reopened
   project (task 0228's open point). What a project must keep doing is stored in the project – a custom property on the

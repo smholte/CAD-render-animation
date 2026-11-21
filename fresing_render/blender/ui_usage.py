@@ -11,10 +11,11 @@ import bpy
 
 from ..core import functions as F
 from . import learning, ui, usage
-from .ui import _Panel, wrap
+from .ui import wrap
+from .ui_left import LeftPanel
 
 
-class FRESING_PT_favourites(_Panel, bpy.types.Panel):
+class FRESING_PT_favourites(LeftPanel, bpy.types.Panel):  # task 0260: on the left panel
     bl_label = "Favourites"
     bl_order = 0
     bl_options = {"HIDE_HEADER"}
@@ -71,7 +72,7 @@ class FRESING_PT_favourites(_Panel, bpy.types.Panel):
                 op.fid, op.how = q["fid"], "GUIDE"
                 row.enabled = bool(q["guide"])
                 row = col.row(align=True)
-                op = row.operator("fresing.learn_show", text="Show me in the test tour")
+                op = row.operator("fresing.learn_show", text="Show me in the Learning hub")
                 op.fid, op.how = q["fid"], "TOUR"
                 row.enabled = bool(q["tour"])
                 if F.FUNCTIONS[q["fid"]].lesson:              # task 0230: the function's lesson, at its step

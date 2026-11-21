@@ -66,6 +66,7 @@ ALLOWED = {
     "fresing.rebake", "fresing.rebake_cancel",          # cables follow a sea change the Client view may make
     "fresing.toolbox_report", "fresing.toolbox_not_now",     # task 0217: a status-bar line; turning a job down
     "fresing.lesson_stop", "fresing.lesson_more", "fresing.lesson_mode",   # task 0230: a lesson can always be stopped
+    "fresing.left_fold", "fresing.hub_mode",     # task 0260: the left panel folds; the Learning hub only opens projects
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_")     # task 0181: the usage tracker changes nothing in the model
@@ -587,10 +588,8 @@ def blender_ui(on: bool, toolbar: bool = False) -> None:
                 if area.type != "VIEW_3D":
                     continue
                 space = area.spaces.active
-                if on and toolbar:
-                    space.show_region_toolbar = True
-                elif not on and changed:
-                    space.show_region_toolbar = False
+                if not space.show_region_toolbar and (toolbar or changed):
+                    space.show_region_toolbar = True      # task 0260: the region holds the left panel in every workspace
     if changed:
         _topbar_redraw()
     try:                                     # task 0241: the quiet window (3D view header, top bar, splash, File > New)

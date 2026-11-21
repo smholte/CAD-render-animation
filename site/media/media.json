@@ -87,15 +87,6 @@
    ]
   },
   {
-   "file": "iea15_offshore_seabed.jpg",
-   "caption": "On the seabed: the monopile's foot in its rock scour protection",
-   "model": "iea15_offshore",
-   "functions": [
-    "scene.sea_ground",
-    "looks.marine"
-   ]
-  },
-  {
    "file": "iea15_offshore_loop.mp4",
    "poster": "iea15_offshore_loop_poster.jpg",
    "caption": "The IEA 15 MW reference turbine at its rated 7.56 rpm (made in Fresing Render)",
@@ -103,24 +94,6 @@
    "functions": [
     "animation.build",
     "joints.rotate"
-   ]
-  },
-  {
-   "file": "iea15_onshore_from_the_field.jpg",
-   "caption": "The same 15 MW turbine on land: hub 136 m above the field",
-   "model": "iea15_onshore",
-   "functions": [
-    "scene.surroundings",
-    "scene.weather"
-   ]
-  },
-  {
-   "file": "iea15_onshore_at_the_door.jpg",
-   "caption": "At its foot: the tower door, the stair and the concrete foundation",
-   "model": "iea15_onshore",
-   "functions": [
-    "scene.camera",
-    "looks.marine"
    ]
   }
  ],

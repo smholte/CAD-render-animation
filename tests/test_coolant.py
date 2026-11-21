@@ -80,7 +80,7 @@ def scene(tmp_path):
     sc = bpy.context.scene
     sc.fresing.out_folder = str(tmp_path)
     assert bpy.ops.fresing.import_step(filepath=MILL, quality="draft") == {"FINISHED"}
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = ob(sc, asm)
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     assert bpy.ops.fresing.cnc_find_axes() == {"FINISHED"}
