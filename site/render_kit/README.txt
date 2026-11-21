@@ -4,8 +4,8 @@ FRESING SITE KIT - pictures and videos for the web page
 Makes the pictures and the moving clips for https://smholte.github.io/CAD-render-animation/ with the
 Fresing Render installed on this PC (on the graphics card). Thor and the brick press become projects
 that move (joints, cylinders, an animation) and get Fresing Render's one-click product video. The
-IEA 15 MW wind turbine comes twice: at sea on its monopile (with a clip of the rotor turning) and
-on land.
+IEA 15 MW wind turbine comes at sea on its monopile (with a clip of the rotor turning); the one on
+land is in the kit for later and makes no pictures now.
 
 What you need: Fresing Render installed (Install.bat). Nothing else.
 
@@ -45,6 +45,11 @@ The start window
   (for example 60 % and 70 C); outside them the load above. The expected time counts both.
 - Models: untick the ones you do not want this time. The time next to each is at full load.
   A model whose STEP file is missing is unticked and skipped.
+- Redo 21 Nov (the top row of the list, the only one ticked when the window opens): makes only
+  the three pictures and clips asked for on 21 Nov - Thor's side picture again (thor_side.jpg,
+  same camera, light and background as the first one, from the corrected Thor), the offshore
+  turbine's "Whole turbine" picture and its 7.56 rpm clip, both without the cut-away in the sea.
+  About half an hour on the RTX 3090. Tick other models as well to make them too.
 - Start: Now, or At a time (the PC stays awake until then).
 - When done: Nothing, Sleep or Shut down. A 60-second countdown with Cancel comes first.
   After Stop nothing happens.

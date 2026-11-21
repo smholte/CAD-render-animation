@@ -30,6 +30,13 @@ Task 0144: the start window (kit_window.ps1) asks ``--estimate-json=<file>`` fir
 seconds, the saved standard, a run to continue), then starts the run with ``--choices=<file>`` (graphics-card load,
 max temperature, quiet hours, models, start time, what happens at the end) and ``--resume`` to continue a run that
 stopped. Pauses between frames, the temperature guard, Pause / Stop and the run's state: kit_run.py.
+
+Task 0268: a section with ``jobs =`` and no ``file =`` is a **run choice** (e.g. ``[Redo 21 Nov]``): a row of its own
+in the start window's list that makes only the pictures and clips it names (``thor_side, iea15_offshore: Whole
+turbine, iea15_offshore: video``); ``ticked = yes`` makes it the only row ticked when the window opens (and the run
+of the console route). A model may store its camera exactly (``camera_at``, ``camera_turn``), render a part of its
+picture (``crop``), name its files (``names``) and give its credit as another model (``model``); ``views = none``
+makes no stills (a model with no stills and no video is left out of a run).
 """
 
 from __future__ import annotations
@@ -95,6 +102,16 @@ def _read_text(path: str) -> str:
         return raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         return raw.decode("cp1252", errors="replace")
+
+
+def _numbers(text: str, n: int, sec: str, key: str) -> list[float]:
+    try:
+        vals = [float(v) for v in text.replace(";", ",").split(",") if v.strip()]
+    except ValueError:
+        vals = []
+    if len(vals) != n:
+        raise ValueError(f"[{sec}] {key} = {text}: needs {n} numbers with a comma between them")
+    return vals
 
 
 def find_model(models_dir: str, name: str) -> str:
@@ -329,15 +346,19 @@ def read_settings(path: str) -> tuple[dict, list[dict]]:
     for key in ("quality", "video_quality"):
         if general[key] not in QUALITIES + (("eevee",) if key == "video_quality" else ()):
             raise ValueError(f"[settings] {key} = {general[key]}: use one of {', '.join(QUALITIES)}")
-    models = []
+    models, run_secs = [], []
     for sec in cp.sections():
         if sec == "settings":
             continue
         m = {k: v.strip() for k, v in cp.items(sec)}
         m["id"] = sec
+        if "jobs" in m and not m.get("file"):           # task 0268: a run choice, read once the models are known
+            run_secs.append(m)
+            continue
         if not m.get("file"):
             raise ValueError(f"[{sec}] has no 'file = …' line")
-        m["views"] = _words(m.get("views", "LOW, ISO_LEFT")) or ["LOW"]
+        views = m.get("views", "LOW, ISO_LEFT")
+        m["views"] = [] if views.strip().lower() == "none" else (_words(views) or ["LOW"])
         own = sheet_cameras(m.get("project", "").strip())
         bad = [v for v in m["views"] if v not in VIEW_NAMES and v.upper() not in own]
         if bad:
@@ -374,10 +395,125 @@ def read_settings(path: str) -> tuple[dict, list[dict]]:
         m["colours"] = parse_colours(m.get("colours", ""), sec)
         if not m.get("credit"):
             raise ValueError(f"[{sec}] has no 'credit = …' line (the licence needs it on the page)")
+        _read_extras(m, general, sec)
         models.append(m)
     if not models:
         raise ValueError("models.ini lists no models")
+    general["runs"] = [read_run(r, models) for r in run_secs]
     return general, models
+
+
+def _read_extras(m: dict, general: dict, sec: str) -> None:
+    """Task 0268: a stored camera, a crop, the files' names, the model the credit is of."""
+    if "camera_at" in m or "camera_turn" in m:
+        m["camera"] = {"at": _numbers(m.get("camera_at", ""), 3, sec, "camera_at"),
+                       "turn": _numbers(m.get("camera_turn", ""), 3, sec, "camera_turn")}
+        if len(m["views"]) != 1:
+            raise ValueError(f"[{sec}] camera_at / camera_turn are for one picture: give one view, not "
+                             f"{len(m['views'])}")
+    if m.get("crop"):
+        x, y, w, h = _numbers(m["crop"], 4, sec, "crop")
+        W, H = float(general["width"]), float(general["height"])
+        if w < 1 or h < 1 or x < 0 or y < 0 or x + w > W or y + h > H:
+            raise ValueError(f"[{sec}] crop = {m['crop']}: must lie inside the picture ({W:.0f} x {H:.0f})")
+        m["crop"] = (x / W, y / H, (x + w) / W, (y + h) / H)        # fractions: the --small test crops the same
+    else:
+        m.pop("crop", None)
+    if m.get("names"):
+        names = [n.strip() for n in m["names"].replace(";", ",").split(",") if n.strip()]
+        if len(names) != len(m["views"]) or any(not n.replace("_", "").replace("-", "").isalnum() or not n.isascii()
+                                                for n in names):
+            raise ValueError(f"[{sec}] names = {m['names']}: one file name per view (letters, digits, _ and -)")
+        m["names"] = names
+    else:
+        m.pop("names", None)
+    m["credit_of"] = m.get("model", "").strip() or sec
+
+
+def still_name(m: dict, i: int) -> str:
+    """The file name (no ending) of the model's i-th still: ``<model>_<view>`` or its ``names`` line."""
+    if m.get("names"):
+        return m["names"][i]
+    return f"{m['id']}_{m['views'][i].lower().replace(' ', '_')}"
+
+
+def read_run(r: dict, models: list[dict]) -> dict:
+    """A run choice (task 0268): {'id', 'title', 'jobs': [(model id, unit or None = all)], 'ticked'}."""
+    by_id = {m["id"]: m for m in models}
+    jobs = []
+    for job in r["jobs"].replace(";", ",").split(","):
+        if not job.strip():
+            continue
+        mid, _, what = job.partition(":")
+        mid, what = mid.strip(), what.strip()
+        m = by_id.get(mid)
+        if m is None:
+            raise ValueError(f"[{r['id']}] jobs: {mid} is not a model of models.ini")
+        if not what:
+            unit = None
+        elif what.lower() == "video":
+            if m["video"] == "none":
+                raise ValueError(f"[{r['id']}] jobs: {mid} has no video (video = none)")
+            unit = "video"
+        else:
+            if what.upper() not in m["views"]:
+                raise ValueError(f"[{r['id']}] jobs: {mid} has no view '{what}' (its views: "
+                                 f"{', '.join(m['views']) or 'none'})")
+            unit = f"still:{what.lower()}"
+        jobs.append((mid, unit))
+    if not jobs:
+        raise ValueError(f"[{r['id']}] jobs: names nothing to make")
+    return {"id": r["id"], "title": r.get("title", "").strip() or r["id"], "jobs": jobs,
+            "ticked": r.get("ticked", "no").strip().lower() in ("yes", "true", "1")}
+
+
+def narrow(m: dict, units) -> dict | None:
+    """A copy of model ``m`` that makes only ``units`` (still:<view>, video); None when that is nothing."""
+    units = set(units)
+    c = dict(m)
+    idx = [i for i, v in enumerate(m["views"]) if f"still:{v.lower()}" in units]
+    c["views"] = [m["views"][i] for i in idx]
+    if m.get("captions") is not None:
+        caps = [x.strip() for x in m.get("captions", "").split("|")]
+        c["captions"] = " | ".join(caps[i] if i < len(caps) else "" for i in idx)
+    if m.get("names"):
+        c["names"] = [m["names"][i] for i in idx]
+    if "video" not in units:
+        c["video"] = "none"
+    return c if kit_run.units_of(c) else None
+
+
+def default_rows(models: list[dict], general: dict) -> list[str]:
+    """The rows ticked when the window opens (and the console route's run): the run choices marked ``ticked``, else
+    every model."""
+    ticked = [r["id"] for r in general.get("runs", []) if r["ticked"]]
+    return ticked or [m["id"] for m in models]
+
+
+def pick(models: list[dict], general: dict, wanted=None) -> tuple[list[dict], list[str]]:
+    """(the models a run makes – copies narrowed to the chosen stills and clips –, the wanted ids that are no row).
+    ``wanted``: ids of models and run choices (the window's ticked rows); None = ``default_rows``."""
+    runs = {r["id"]: r for r in general.get("runs", [])}
+    by_id = {m["id"]: m for m in models}
+    if wanted is None:
+        wanted = default_rows(models, general)
+    units: dict[str, set] = {}
+    unknown = []
+    for w in wanted:
+        if w in runs:
+            for mid, unit in runs[w]["jobs"]:
+                units.setdefault(mid, set()).update(kit_run.units_of(by_id[mid]) if unit is None else {unit})
+        elif w in by_id:
+            units.setdefault(w, set()).update(kit_run.units_of(by_id[w]))
+        else:
+            unknown.append(w)
+    out = []
+    for m in models:
+        if m["id"] in units:
+            c = narrow(m, units[m["id"]])
+            if c is not None:
+                out.append(c)
+    return out, unknown
 
 
 # ---------------------------------------------------------------------------
@@ -775,8 +911,10 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
     own = sheet_cameras(m["project"])
     for i, view in enumerate(m["views"]):
         unit = f"still:{view.lower()}"
-        jpg = os.path.join(send, f"{m['id']}_{view.lower().replace(' ', '_')}.jpg")
-        if view not in VIEW_NAMES and view.upper() in own:       # a camera the project brings (its sheet)
+        jpg = os.path.join(send, still_name(m, i) + ".jpg")
+        if m.get("camera"):                                      # task 0268: a camera stored exactly
+            cam = stored_camera(pkg, scene, m, view)
+        elif view not in VIEW_NAMES and view.upper() in own:     # a camera the project brings (its sheet)
             projects = _projects()
             sheet = projects.load(os.path.join(KIT_SHEETS, m["project"] + ".json"))
             cam = projects.sheet_camera(pkg, scene, projects.Model(pkg, scene, sheet), own[view.upper()])
@@ -784,7 +922,7 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
             cam = cameras.add_camera(scene, view, lens=float(m.get("lens", 50)), name=f"Site {view}",
                                      margin=cameras.SPACE.get(m.get("space", "NORMAL").upper(), 1.06))
         scene.camera = cam
-        png = os.path.join(full, f"{m['id']}_{view.lower().replace(' ', '_')}.png")
+        png = os.path.join(full, still_name(m, i) + ".png")
         if state is not None and state.is_done(m["id"], unit) and os.path.isfile(jpg):
             # the camera is made all the same: the scene must be as in the earlier run, or the clip's frames that
             # run made are not kept (the queue compares a fingerprint of every object)
@@ -794,13 +932,20 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
             pacer.show(step=f"Picture {i + 1} of {len(m['views'])} ({view})")
             pacer.before_still()
         t1 = time.time()
-        info = render.render_still(scene, s, quality, filepath=png)
+        set_crop(scene, m.get("crop"))
+        try:
+            info = render.render_still(scene, s, quality, filepath=png)
+        finally:
+            set_crop(scene, None)
         took = time.time() - t1
+        if m.get("crop"):
+            c = m["crop"]
+            info["size"] = (round(info["size"][0] * (c[2] - c[0])), round(info["size"][1] * (c[3] - c[1])))
         if clock is not None and quality in SAMPLES and SAMPLES[quality]:
             clock.setdefault("rates", []).append(took / (info["size"][0] * info["size"][1] / 1e6 * SAMPLES[quality]))
         jpg_copy(png, jpg, width)
         caption = captions[i] if i < len(captions) and captions[i] else m.get("title", m["id"])
-        made.append({"file": os.path.basename(jpg), "model": m["id"], "caption": caption, "kind": "picture"})
+        made.append({"file": os.path.basename(jpg), "model": m["credit_of"], "caption": caption, "kind": "picture"})
         log(f"  {view}: {info['size'][0]}×{info['size'][1]} on {info['device']} in {took:.0f} s")
         if state is not None:
             state.record(m["id"], unit, made[-1])
@@ -821,7 +966,7 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
         pace = {"pacer": pacer, "resume": resume} if pacer is not None else {}
         mp4, poster = VIDEO_MAKERS[m["video"]](pkg, scene, m, general, full, send, small, log, **pace)
         default = {"turntable": "turntable", "product": "product video", "animation": "in motion"}[m["video"]]
-        made.append({"file": os.path.basename(mp4), "poster": os.path.basename(poster), "model": m["id"],
+        made.append({"file": os.path.basename(mp4), "poster": os.path.basename(poster), "model": m["credit_of"],
                      "kind": "video", "video": m["video"], "loop": m["video"] in ("turntable", "animation"),
                      "caption": m.get("video_caption", f"{m.get('title', m['id'])}: {default}")})
         log(f"  video ({m['video']}): {os.path.getsize(mp4) / 1e6:.1f} MB in {time.time() - t1:.0f} s")
@@ -829,6 +974,40 @@ def do_model(pkg, m: dict, general: dict, models_dir: str, out: str, small: bool
             state.record(m["id"], "video", made[-1])
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(full, f"{m['id']}.blend"), copy=True)
     return made
+
+
+def credits_of(models: list[dict]) -> dict:
+    """{the model a credit is of: its first section} (``model = thor`` gives thor_side's pictures Thor's credit)."""
+    out = {}
+    for m in models:
+        out.setdefault(m.get("credit_of", m["id"]), m)
+    return out
+
+
+def stored_camera(pkg, scene, m: dict, view: str):
+    """A camera at the place stored in models.ini (task 0268: ``camera_at`` in metres, ``camera_turn`` in degrees X Y Z),
+    not worked out from the model's size – a picture made again from a changed model keeps its camera."""
+    import math
+    from mathutils import Euler, Matrix, Vector
+    cameras = importlib.import_module(pkg.__name__ + ".blender.cameras")
+    cam = cameras.add_camera(scene, view, lens=float(m.get("lens", 50)), name=f"Site {view}")
+    turn = Euler([math.radians(a) for a in m["camera"]["turn"]], "XYZ")
+    cam.matrix_world = Matrix.LocRotScale(Vector(m["camera"]["at"]), turn, None)
+    import bpy
+    bpy.context.view_layer.update()
+    return cam
+
+
+def set_crop(scene, crop) -> None:
+    """Render only ``crop`` (fractions left, top, right, bottom of the picture; None = all of it)."""
+    r = scene.render
+    if not crop:
+        r.use_border = r.use_crop_to_border = False
+        return
+    x0, y0, x1, y1 = crop
+    r.use_border = r.use_crop_to_border = True
+    r.border_min_x, r.border_max_x = x0, x1
+    r.border_min_y, r.border_max_y = 1.0 - y1, 1.0 - y0              # Blender counts from the bottom
 
 
 def contact_sheet(out: str, items: list[dict], models: list[dict], errors: list[str]) -> str:
@@ -915,6 +1094,18 @@ def _run_paced(models_dir, out, settings, small, only, cpu, log, start_at, choic
         return 3
 
 
+def resumed(models: list[dict], state) -> list[dict]:
+    """The models of a run being continued, each narrowed to the stills and clip that run had (task 0268)."""
+    by_id = {m["id"]: m for m in models}
+    out = []
+    for i in state.data["models"]:
+        if i in by_id:
+            c = narrow(by_id[i], state.data.get("units", {}).get(i, kit_run.units_of(by_id[i])))
+            if c is not None:
+                out.append(c)
+    return out
+
+
 def describe_choices(c: dict) -> str:
     """The choices in one line for the log."""
     t = f"{c['load']} % load" + (f", max {c['max_temp']} °C" if c["max_temp"] else "")
@@ -944,20 +1135,22 @@ def _run(models_dir, out, settings, small, only, cpu, log, start_at="", pacer=No
         gone = [i for i in state.data["models"] if i not in by_id]
         if gone:
             log("NOTE: no longer in models.ini, left out: " + ", ".join(gone))
-        models = [by_id[i] for i in state.data["models"] if i in by_id]
+        models = resumed(models, state)
         done, total = state.counts()
         log(f"Continuing the run of {state.data.get('started', '?')}: {done} of {total} pictures and clips done")
     else:
         wanted = choices.get("models")
         if isinstance(wanted, str):
             wanted = [w for w in wanted.split(",") if w]
-        if wanted:
-            unknown = [w for w in wanted if w not in {m["id"] for m in models}]
-            if unknown:
-                log("NOTE: not in models.ini, left out: " + ", ".join(unknown))
-            models = [m for m in models if m["id"] in wanted]
         if only:
-            models = [m for m in models if m["id"] in only.split(",")]
+            wanted = [w for w in only.split(",") if w]
+        rows = set(r["id"] for r in general.get("runs", []))
+        named = [w for w in (wanted or default_rows(models, general)) if w in rows]
+        if named:
+            log("Run: " + ", ".join(named))
+        models, unknown = pick(models, general, wanted or None)
+        if unknown:
+            log("NOTE: not in models.ini, left out: " + ", ".join(unknown))
     log("Graphics card: " + describe_choices(choices))
     est = estimate(models, general, models_dir)
     rest = {"gpu": 0.0, "cpu": 0.0}
@@ -1052,11 +1245,11 @@ def _run(models_dir, out, settings, small, only, cpu, log, start_at="", pacer=No
     used = {it["model"] for it in items}
     info = {"made": time.strftime("%Y-%m-%d %H:%M"), "app": getattr(pkg, "__version__", "?"), "device": device,
             "seconds": round(time.time() - t_start), "items": items,
-            "models": {m["id"]: {k: m.get(k, "") for k in ("title", "credit", "link", "licence", "licence_link")}
-                       for m in models if m["id"] in used}}
+            "models": {cid: {k: m.get(k, "") for k in ("title", "credit", "link", "licence", "licence_link")}
+                       for cid, m in credits_of(models).items() if cid in used}}
     with open(os.path.join(out, "send", "site_pictures.json"), "w", encoding="utf-8") as fh:
         json.dump(info, fh, indent=1, ensure_ascii=False)
-    sheet = contact_sheet(out, items, [m for m in models if m["id"] in used], errors)
+    sheet = contact_sheet(out, items, [m for cid, m in credits_of(models).items() if cid in used], errors)
     if pacer.waited or pacer.cooled or pacer.paused_s:
         log(f"Pauses for the graphics card: {say_time(pacer.waited)}; waiting for it to cool: "
             f"{say_time(pacer.cooled) if pacer.cooled else 'none'}; paused by hand: "
@@ -1088,28 +1281,42 @@ def show_estimate(models_dir: str, settings: str, only: str = "", json_path: str
         return 2
     if only:
         models = [m for m in models if m["id"] in only.split(",")]
-    est = estimate(models, general, models_dir)
-    print(f"Expected time on an RTX 3090 at full load: about {say_time(est['total'])} for {len(models)} models.")
+        general = dict(general, runs=[r for r in general.get("runs", []) if all(j[0] in {m["id"] for m in models}
+                                                                               for j in r["jobs"])])
+    default, _ = pick(models, general)
+    est = estimate(default, general, models_dir)
+    print(f"Expected time on an RTX 3090 at full load: about {say_time(est['total'])} for "
+          f"{len(default)} models.")
+    ticked = set(default_rows(models, general))
     rows = []
+    for r in general.get("runs", []):                # task 0268: a run choice is a row of its own, on top
+        chosen, _ = pick(models, general, [r["id"]])
+        parts = [estimate_parts(m, general, models_dir) for m in chosen]
+        found = all(find_model(models_dir, m["file"]) for m in chosen)
+        gpu, cpu = sum(p["gpu"] for p in parts), sum(p["cpu"] for p in parts)
+        print(f"  {r['title']}: about {say_time(gpu + cpu)}" + ("" if found else "   (a file is not found)"))
+        rows.append({"id": r["id"], "title": r["title"], "gpu": round(gpu, 1), "cpu": round(cpu, 1),
+                     "found": found, "ticked": r["id"] in ticked})
     for m in models:
+        if not kit_run.units_of(m):
+            print(f"  {m.get('title', m['id'])}: nothing to make (views = none, video = none)")
+            continue
         where = find_model(models_dir, m["file"])
         note = "" if where else "   (file not found: this model is skipped)"
-        print(f"  {m.get('title', m['id'])}: about {say_time(est[m['id']])}{note}")
         p = estimate_parts(m, general, models_dir)
+        print(f"  {m.get('title', m['id'])}: about {say_time(p['total'])}{note}")
         rows.append({"id": m["id"], "title": m.get("title", m["id"]), "gpu": round(p["gpu"], 1),
-                     "cpu": round(p["cpu"], 1), "found": bool(where)})
+                     "cpu": round(p["cpu"], 1), "found": bool(where), "ticked": m["id"] in ticked})
     if json_path:
         info = {"models": rows, "standard": kit_run.load_standard(), "standard_file": kit_run.standard_path(),
                 "factory": dict(kit_run.DEFAULT_STANDARD), "step": kit_run.STEP, "resume": None}
         res = kit_run.resume_info(out) if out else None
         if res:
             state = kit_run.RunState.load(out)
-            by_id = {m["id"]: m for m in models}
             left = {"gpu": 0.0, "cpu": 0.0}
-            for i in res["models"]:
-                if i in by_id:
-                    for k, v in left_parts(by_id[i], general, models_dir, state).items():
-                        left[k] += v
+            for m in resumed(models, state):
+                for k, v in left_parts(m, general, models_dir, state).items():
+                    left[k] += v
             res.update(text=kit_run.resume_text(res), gpu=round(left["gpu"], 1), cpu=round(left["cpu"], 1),
                        choices=state.data.get("choices", {}))
             info["resume"] = res

@@ -891,34 +891,11 @@
     122000.0
    ],
    "lens": 32.0
-  },
-  {
-   "name": "Seabed",
-   "eye": [
-    -34439.6959073927,
-    16059.493946146584,
-    -42000.0
-   ],
-   "target": [
-    0.0,
-    0.0,
-    -52000.0
-   ],
-   "lens": 18.0
   }
  ],
  "scene": {
   "water_level_m": 75.0,
-  "sea_depth_m": 30.0,
-  "cutaway": {
-   "centre_m": [
-    0.0,
-    0.0
-   ],
-   "length_m": 90.0,
-   "width_m": 90.0,
-   "ground": true
-  }
+  "sea_depth_m": 30.0
  },
  "notes": [
   "A door opening is cut into the tower (invented, as the door).",
