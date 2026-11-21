@@ -120,7 +120,8 @@ def watch(names):
             DRAWN[_name] = DRAWN.get(_name, 0) + 1
             return _body(self, context)
         counted._counted = True
-        cls.draw = panels._make_draw(cls, counted)
+        # task 0260: Make draws its own row (no title row of the app's): counted as it is
+        cls.draw = counted if name in panels._PLAIN else panels._make_draw(cls, counted)
 
 
 def drawn(name):

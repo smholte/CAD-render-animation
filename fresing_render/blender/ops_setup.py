@@ -330,6 +330,11 @@ def _take(job) -> None:
         other = b if piece == a else a
         job["close"] = [piece] + ([other] if job["close"] else [])
     job["piece"] = piece
+    if piece.type == "VIEW_3D" and piece.spaces.active.show_region_toolbar:
+        # task 0260: the toolbar region is the app's left panel; the piece is copied into the window, so it goes
+        # first – else it takes the window's width and the side panel is squeezed (27 px of 297 measured). The
+        # piece was drawn since its split (``_settled``), so setting it here is safe (CLAUDE.md, 0221).
+        piece.spaces.active.show_region_toolbar = False
 
 
 def _finish(job) -> None:
