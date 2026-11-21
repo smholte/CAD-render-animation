@@ -255,7 +255,13 @@ def _classes():
 
 def _no_tools(self, context):
     """Task 0260: Blender's tool buttons are not drawn in the 3D view's toolbar region outside Full access – the region
-    holds the app's left panel (``ui_left.py``); Full access (Show all of Blender) brings the tools back above it."""
+    holds the app's left panel (``ui_left.py``); Full access (Show all of Blender) brings the tools back above it.
+    Another mode than Object Mode: Blender's own (as the header)."""
+    if context.mode != "OBJECT":
+        orig = blender_draw(bpy.types.VIEW3D_PT_tools_active)
+        if orig is not None:
+            return orig(self, context)
+    return None
 
 
 def _views(include_setup: bool = False):

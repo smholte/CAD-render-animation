@@ -23,6 +23,7 @@ import json
 import os
 
 import bpy
+from bpy.app.handlers import persistent
 from bpy.props import StringProperty
 
 from . import ops_setup, panels, ui, ui_top
@@ -92,7 +93,7 @@ def remember(win) -> None:
     if not winplace.available():
         return
     key = win.screen.get(OUTPUT_MARK)
-    r = winplace.rect(win)
+    r = winplace.rect(win, key)
     if not key or r is None or not winplace.usable(r):
         return
     if not _PLACES:
@@ -126,11 +127,26 @@ def _placed(win) -> None:
     if not winplace.available():
         return
     key = win.screen.get(OUTPUT_MARK)
+    winplace.find(win, key)                   # the handle, while the window is new and stands where Blender put it
     r = read_places(places_path()).get(key)
     if r is not None:
-        winplace.place(win, r)
-    if not bpy.app.timers.is_registered(_watch):
+        winplace.place(win, r, key)
+    watch()
+
+
+def watch() -> None:
+    """Keep reading the places of the open output windows (Windows) – also of those a project brought back."""
+    from .. import winplace
+    if winplace.available() and output_windows() and not bpy.app.timers.is_registered(_watch):
         bpy.app.timers.register(_watch, first_interval=WATCH_SECONDS)
+
+
+@persistent
+def _on_load(_dummy=None):
+    from .. import winplace
+    winplace.forget()
+    if not bpy.app.background:
+        bpy.app.timers.register(lambda: (watch(), None)[1], first_interval=1.0)
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +163,18 @@ class FRESING_OT_make_window(bpy.types.Operator):
 
     key: StringProperty(name="Output", default="", options={"SKIP_SAVE"},
                         description="Which output: still, product, turn, web, anim or queue")
+
+    @classmethod
+    def register(cls):
+        if _on_load not in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.append(_on_load)
+
+    @classmethod
+    def unregister(cls):
+        while _on_load in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.remove(_on_load)
+        if bpy.app.timers.is_registered(_watch):
+            bpy.app.timers.unregister(_watch)
 
     @classmethod
     def description(cls, context, properties):
@@ -170,7 +198,7 @@ class FRESING_OT_make_window(bpy.types.Operator):
             from .. import winplace
             ops_setup.restore_tabs()
             ops_setup.redraw_all()
-            winplace.raise_window(there[0])
+            winplace.raise_window(there[0], self.key)
             self.report({"INFO"}, f"The {title(self.key)} window is open already")
             return {"FINISHED"}
         if ops_setup.busy():
