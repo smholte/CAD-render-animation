@@ -262,7 +262,9 @@
   "tests/test_tight_followers_independent.py": 65.4,
   "tests/test_winexe.py": 0.0,
   "tests/test_demo_project_realism.py": 91.1,
-  "tests/test_demo_project_update.py": 137.0
+  "tests/test_demo_project_update.py": 137.0,
+  "tests/test_backups_blender.py": 5.0,
+  "tests/test_backups_core.py": 0.5
  },
  "jobs": {
   "Precheck (version, counts, groups; picks the mode)": 0.5,

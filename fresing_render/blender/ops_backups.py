@@ -11,6 +11,8 @@ from bpy.props import StringProperty
 from ..core import backups as core
 from . import backups
 
+LOCKED_TEXT = "Not in the Client view (no backups are made there) – Workspace > Full access unlocks it"
+
 
 def _when_text(b) -> str:
     at = datetime.fromtimestamp(b.mtime)
@@ -25,6 +27,17 @@ class FRESING_OT_backups_window(bpy.types.Operator):
 
     bl_idname = "fresing.backups_window"
     bl_label = "Restore a backup…"
+
+    @classmethod
+    def description(cls, context, props):
+        doc = " ".join((cls.__doc__ or "").split())
+        try:
+            from . import workspaces
+            if context.scene is not None and workspaces.locked(context.scene):
+                return LOCKED_TEXT + ". " + doc
+        except Exception:  # noqa: BLE001
+            pass
+        return doc
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=640, title="Restore a backup",
