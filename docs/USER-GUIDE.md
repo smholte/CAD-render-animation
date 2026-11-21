@@ -3733,7 +3733,7 @@ the pointer lights up.
 
 - **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
   Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
-  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 40.0 mm**.
+  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 100.0 mm**.
   A label's live numbers ({speed}, {top} … of a cable into the sea) are filled in as at the frame shown on a still
   page; on a page with the animation the lines that hold one are left out (the card cannot follow them while it plays).
 - **Measure** (D): click two faces. **Faces** (the default) measures what was clicked:

@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.202 – 21 Nov 2026 – The test crane at real size (task 0259)
+
+- **The test crane is now a service crane at real size**, five times bigger than before: a base of 5 × 3 m, a boom of
+  7.5 m on a pin 2.4 m up – a person walks under it – and real bolts (M30 anchor bolts, M24 screws), pins (Ø100 boom
+  pin, Ø70 cylinder pins) and a luffing cylinder with a Ø200 bore. Next to the people, the IBC and the containers of
+  the Learning hub it no longer looks like a toy. Same parts, names, colours and joints as before.
+- The Learning hub, the crane lesson, the PC check and the user guide's pictures use the new crane. Projects you made
+  with the old test crane open as before.
+
 ## 0.2.201 – 21 Nov 2026 – Fresing Settings: all settings in one window with tabs (task 0271)
 
 - **Fresing > Settings…** opens one window with all of the app's own settings and a row of tabs along its top:

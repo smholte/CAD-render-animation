@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.201")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.202")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -927,7 +927,7 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.199")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.202")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
@@ -1154,7 +1154,7 @@ def offshore_structure(scene) -> dict:
     return made
 
 
-@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.196")
+@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.202")
 def build_marine(b: Build):
     """Task 0234: the marine looks on a monopile in the open sea (study 0224: the pile standing in the real sea with
     the sea cut-away, the waterline from the sea, the whole pile in frame)."""
@@ -1223,7 +1223,7 @@ def _check_marine(scene):
             f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
 
 
-@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.199")
+@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.202")
 def build_cutaway(b: Build):
     from mathutils import Vector
     sc = b.scene
@@ -2621,7 +2621,7 @@ def _check_full_spools(scene, sps) -> str:
             f"layers), one cable to {worst * 1000:.2f} mm")
 
 
-@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.199")
+@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.202")
 def build_copies(b: Build):
     from mathutils import Vector
 
@@ -2652,7 +2652,7 @@ def _check_copies(scene):
     return "two cranes kept apart"
 
 
-@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.199")
+@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.202")
 def build_update(b: Build):
     import bpy
 
@@ -3623,7 +3623,7 @@ VESSEL_ANIM = "Vessel at sea"
 VESSEL_PROPS = ("PERSON", "IBC")          # beside the 8 m test crane on the deck
 
 
-@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.196")
+@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.202")
 def build_vessel(b: Build):
     from mathutils import Vector
 
@@ -3698,7 +3698,7 @@ WEATHER_ANIM = "Weather changes"
 # ----- props for scale in detail (task 0155) -----
 
 
-@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124", changed="0.2.199")
+@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124", changed="0.2.202")
 def build_props(b: Build):
     from . import cameras, props_scale
     _look("PRODUCT")
@@ -3742,7 +3742,7 @@ def _check_operator(scene):
     return tc_person.check_test_model(scene)
 
 
-@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128", changed="0.2.199")
+@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128", changed="0.2.202")
 def build_people(b: Build):
     import numpy as np
 
@@ -3771,7 +3771,7 @@ def _check_people(scene):
     return people.check_example(scene)
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.199")
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.202")
 def build_weather(b: Build):
     from . import weather
     sc, s = b.scene, b.s
@@ -4660,7 +4660,7 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
-     at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.199")
+     at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.202")
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
      "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "
@@ -4850,7 +4850,7 @@ def _check_web3d(scene):
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
     _check(film and len(st.get("films") or []) == 1, "the page has no Film (the camera animation is built)")
-    from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø40)
+    from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø100)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
     edges = wf.read_edges(data)                         # task 0219: the straight and round edges
@@ -4942,7 +4942,7 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "view, Screenshot, Copy link, keys (?) and the eye that hides every control; bottom left one button per saved "
      "camera. A still crane draws nothing while you do not touch it. A red bar at the top only when the browser "
      "draws without the graphics card. On the left the part tools: Part info (click a part: a card with its group, "
-     "and Round face Ø … for a pin or a hole), Measure (click the boom pin: Ø 40.0 mm; two flat faces: the distance "
+     "and Round face Ø … for a pin or a hole), Measure (click the boom pin: Ø 100.0 mm; two flat faces: the distance "
      "between them; move the pointer close to an edge – it lights up orange – and click it: a straight edge gives its "
      "length, a hole's rim its Ø; two edges: the distance between them; the numbers never cover each other), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
      "faces red; add a second slice, Edit one and drag its arrow or a yellow knob, Delete it with the ×) and Fade the "
@@ -4951,7 +4951,7 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
      "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
-     check=_check_web3d, changed="0.2.198")
+     check=_check_web3d, changed="0.2.202")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
