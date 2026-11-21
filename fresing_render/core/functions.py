@@ -436,13 +436,13 @@ fn(id="lifting.hook", short="Hook to here", title="Hook to here and the crane us
 
 fn(id="lifting.rig", short="Lift points", title="Rigging: lift points, sling set, shackles, spreader", family="lifting",
    panel="FRESING_PT_lifting_rigging", button="fresing.lifting_points_find", guide="lifting-rigging",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.187", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.188", workspaces=_LIFT)
 fn(id="lifting.hang", short="Hang on the hook", title="Hang the load on the hook: tilt, leg angles and forces, C2–C4",
    family="lifting", panel="FRESING_PT_lifting_rigging", button="fresing.lifting_hang", guide="lifting-hang",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.187", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.188", workspaces=_LIFT)
 fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its falls over head and block sheaves, line pull",
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_reeve", guide="lifting-reeve",
-   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.187", workspaces=_LIFT)
+   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.188", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
@@ -585,6 +585,10 @@ fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar 
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")
 
+fn(id="help.backups", headline=True, short="Backups", title="Automatic backups every 5 minutes next to the project; "
+   "Fresing > Restore a backup… puts one back", family="help", panel="TOPBAR_MT_fresing", button="fresing.backups_window",
+   guide="backups", tour=("backups",), pccheck=("backups.makes_one",), since="0.2.187",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")

@@ -913,7 +913,7 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47")
+@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.187")
 def build_faces(b: Build):
     import bpy
 
@@ -3855,7 +3855,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.187")
+          changed="0.2.188")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4399,7 +4399,7 @@ stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
      "radius), the gross load (6 t + the rigging picked for it + the 0.45 t hook block), the crane use in % with "
      "'Within entered limits' and the hoist line pull on its 4 falls.",
-     where="8 Lifting plan > Hook & capacity", since="0.2.156", changed="0.2.187", check=_check_lifting_hook,
+     where="8 Lifting plan > Hook & capacity", since="0.2.156", changed="0.2.188", check=_check_lifting_hook,
      setup=_lift_rest)
 stop("lifting_rig", MOTION, "lifting", "Lifting: skid on a 4-leg sling",
      "The pump skid hangs on the AT-40's hook on a 4-leg grade 8 chain set (4 m legs, a 4.75 t bow shackle in each "
@@ -4407,13 +4407,13 @@ stop("lifting_rig", MOTION, "lifting", "Lifting: skid on a 4-leg sling",
      "few degrees with the CoG straight under the hook; 8 Lifting plan > Rigging lists each leg's angle and force – "
      "the legs nearest the CoG carry most – and the checks: sling legs (two legs carry, C3) and each shackle (C4). "
      "The hoist rope runs in its 4 falls over 2 head and 2 block sheaves to the winch drum.",
-     where="8 Lifting plan > Rigging", since="0.2.187", check=_check_lifting_rig, setup=_lift_rig)
+     where="8 Lifting plan > Rigging", since="0.2.188", check=_check_lifting_rig, setup=_lift_rig)
 stop("lifting_spreader", MOTION, "lifting", "Lifting: container on a frame",
      "The empty 20 ft container (2.3 t) hangs under the LF-20 lifting frame: two top legs from the hook to the "
      "frame, four short legs straight down to its top corner castings (found by name). Rigging shows the six legs "
      "– the four bottom ones nearly vertical – and the checks: the top legs (C2), the frame's WLL and each bottom leg "
      "and shackle (C4); none red.",
-     where="8 Lifting plan > Rigging", since="0.2.187", check=_check_lifting_spreader, setup=_lift_spreader)
+     where="8 Lifting plan > Rigging", since="0.2.188", check=_check_lifting_spreader, setup=_lift_spreader)
 
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
@@ -5048,6 +5048,37 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      where="Fresing menu > My learning list…; the question at the top of the Fresing tab; the What's next card",
      since="0.2.160", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
+
+
+def _backup_setup(scene):
+    """Task 0246: a backup of the tour project, made now (as the timer does after 5 minutes of work)."""
+    from . import backups
+    backups.make(scene, force=True)
+
+
+def _check_backups(scene):
+    import bpy
+
+    from ..core import backups as core
+    from . import backups, ui_topbar
+    _check("fresing.backups_window" in ui_topbar.entries(), "Restore a backup… is not in the Fresing menu")
+    _check(bool(bpy.data.filepath), "the tour project has no file: no Backups folder next to it")
+    found = backups.project_backups()
+    _check(bool(found), "no backup of the tour project: " + (backups._S.get("last_reason") or "none was made"))
+    folder = os.path.dirname(found[0].path)
+    _check(folder == core.folder_next_to(bpy.data.filepath), f"the backup is not next to the project but in {folder}")
+    others = [n for n in os.listdir(folder) if core.parse(n, core.project_name(bpy.data.filepath)) is None]
+    _check(not others, f"other files in the Backups folder: {others}")
+    return f"{len(found)} backup(s) of the tour project, {core.size_text(core.total_size(found))}"
+
+
+stop("backups", OUT, "faces", "Automatic backups",
+     "Fresing > Restore a backup… lists a backup of this tour project made just now (Today and the time, its size), "
+     "with Restore and a folder button. Restore keeps your work as a backup first, then opens the backup. In Edit > "
+     "Preferences > Add-ons > Fresing Render the box Automatic backups has the switch, every 5 minutes, keep the last 5 "
+     "and one a day for 7 days.",
+     where="Fresing menu > Restore a backup…; Edit > Preferences > Add-ons > Fresing Render > Automatic backups",
+     since="0.2.187", shot="Painted faces", check=_check_backups, setup=_backup_setup)
 
 # ---------------------------------------------------------------------------
 # every machining stop: the block shows what the program does (task 0223)

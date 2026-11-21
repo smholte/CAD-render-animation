@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 
 import bpy
-from bpy.props import BoolProperty, EnumProperty, FloatVectorProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, FloatVectorProperty, IntProperty, StringProperty
 
 ADDON_ID = __package__.rsplit(".", 1)[0]
 
@@ -79,6 +79,24 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         description="You ticked 'I understand' the first time you opened 8 Lifting plan: the app checks a lifting plan "
                     "against the data entered in it, not against the real equipment, ground or load")
 
+    # ---- automatic backups (task 0246) ----
+    backups_on: BoolProperty(
+        name="Make automatic backups", default=True,
+        description="Saves a copy of the open project every few minutes while you work, in a folder Backups next to "
+                    "the project (a project never saved: Documents\\Fresing Render\\Backups\\Unsaved projects). "
+                    "Fresing > Restore a backup… puts one back. Untick it for none, e.g. on a very big project")
+    backup_minutes: IntProperty(
+        name="Every (minutes)", default=5, min=1, max=60,
+        description="How often a backup is made while something changes. Nothing changed: no new file. Saving the "
+                    "project yourself starts the time again")
+    backup_keep: IntProperty(
+        name="Keep the last", default=5, min=1, max=50,
+        description="How many of the newest backups are kept; older ones are deleted, except one a day (below)")
+    backup_days: IntProperty(
+        name="One a day for (days)", default=7, min=0, max=60,
+        description="Also keeps the newest backup of each of these last days (today counts as one). 0: only the "
+                    "last backups above")
+
     live_preview: BoolProperty(
         name="Live preview was on", default=False, options={"HIDDEN"},
         description="Remembers the last choice of the Live preview button (5 Scene & Render), so the test tour and "
@@ -111,7 +129,32 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         row = box.row(align=True)
         row.prop(self, "lesson_part")
         row.prop(self, "lesson_colour")
+        draw_backups(layout, self)
         draw_updates(layout, self)
+
+
+def draw_backups(layout, p) -> None:
+    """The "Backups" box of the preferences (task 0246): the switch, the three numbers, the folder's size."""
+    box = layout.box()
+    box.label(text="Automatic backups", icon="FILE_BACKUP")
+    box.prop(p, "backups_on")
+    row = box.row(align=True)
+    row.active = p.backups_on
+    row.prop(p, "backup_minutes")
+    row.prop(p, "backup_keep")
+    row.prop(p, "backup_days")
+    try:
+        from ..core import backups as core
+        from . import backups
+        found = backups.project_backups()
+        if bpy.data.filepath:
+            where = "the Backups folder next to this project"
+        else:
+            where = "Unsaved projects"
+        box.label(text=f"{len(found)} backups of this project in {where}: "
+                       f"{core.size_text(core.total_size(found))}. Fresing > Restore a backup… puts one back")
+    except Exception:  # noqa: BLE001 - never break the preferences
+        pass
 
 
 def draw_updates(layout, p) -> None:

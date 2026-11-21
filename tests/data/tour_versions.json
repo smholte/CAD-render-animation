@@ -68,8 +68,8 @@
   },
   "faces": {
    "added": "0.2.47",
-   "changed": "",
-   "fp": "00c405423a66e0ea"
+   "changed": "0.2.187",
+   "fp": "052a5287da4fc2b2"
   },
   "flex_drawn": {
    "added": "0.2.180",
@@ -93,7 +93,7 @@
   },
   "lifting": {
    "added": "0.2.156",
-   "changed": "0.2.187",
+   "changed": "0.2.188",
    "fp": "7c987a6cc4f3be76"
   },
   "lifting_make": {

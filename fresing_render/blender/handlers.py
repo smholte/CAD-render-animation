@@ -14,7 +14,7 @@ from __future__ import annotations
 import bpy
 from bpy.app.handlers import persistent
 
-from . import build, logic
+from . import backups, build, logic
 
 _OWNER = object()
 _IGNORE: set[str] = set()
@@ -241,6 +241,8 @@ def _after_undo(_dummy=None):
 
 @persistent
 def _after_save(_dummy=None):
+    if backups.saving():                 # task 0246: an automatic backup, not the project's own save
+        return
     try:
         from . import flex
         flex.resume_read()
@@ -255,6 +257,8 @@ def _after_save(_dummy=None):
 
 @persistent
 def _before_save(_dummy=None):
+    if backups.saving():
+        return
     try:
         from . import queue
         queue.warn_busy_save(bpy.context.scene)   # Ctrl+S during a House bake / web 3D export / clash check (0118)
