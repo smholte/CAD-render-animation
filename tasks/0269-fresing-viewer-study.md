@@ -311,3 +311,13 @@ scripts were throw-away and are not in the repository.
 phones; a real CAD export (Inventor / Fusion) of 2,000 parts – the first run of V2 should use one the owner may share,
 or Thor's STEP (`tools/a4_to_step.py`). Subagent: one read-only helper mapped `fresing_render/web/` (section 3); nothing
 it found was re-done.
+
+### Owner's answers (21 Nov 2026)
+
+- **Repository:** `smholte/fresing-viewer` agreed – the owner makes it. The later fresing.nl address is decided later.
+- **App mark:** "Fv" – yes (the Fresing lead still checks it against the Brand Specification).
+- **Licence:** the owner asked for the options with their pros and cons (given in the chat: MIT, GPL-3.0, MPL-2.0,
+  own licence / closed) – open.
+- **Browsers:** the owner asked why Firefox cannot send to Fresing Render – explained in the chat (the Toolbox folder
+  needs the File System Access API, Chromium browsers only; ways round it listed) – open.
+- **Unattended make:** the owner asked what it means – explained in the chat (automatic draft / open first / both) – open.
