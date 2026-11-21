@@ -122,12 +122,67 @@ within ~1 mm / 0.05° of Blender's Animation camera, a cut jumps), CHANGELOG, CL
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026 (branch `claude/sleepy-fermat-52ww3l`, the session's own branch).
 
 **What changed:**
+- New `core/web3d_film.py` (no Blender): the camera's place / turn in the page's world, cuts, thinning between cuts
+  (0.25 mm per metre of the model, 0.02°, fov 0.02°, checked at every frame with the stored numbers), delta-int JSON,
+  `decode` / `sample` (what the page plays), the captions as seconds (`brand.caption_list`).
+- New `blender/web3d_film.py`: `Film` reads the built Animation camera in `Job._motion`'s pass (fov from
+  `calc_matrix_camera`), cuts from the Cut steps + jumps found in the numbers; captions (`video.captions_of`), labels
+  (point in its part's glTF node, live words per frame, window), title / end card (brand kit colours, logo ≤ 640 px).
+  `set_up_test`: the crane – ride on the boom, path watching the trolley with a glide-in, cut, keep the trolley in the
+  middle; label, captions, cards. A camera-only film (nothing else moves) plays too.
+- `web3d.py`: the hook in `_motion` / `finish` (`st["films"]`, the result line "Film: the video's camera, N KB").
+  `props.py` three tick boxes `film_captions`, `film_labels`, `film_cards` (off); `ops_web3d.py` passes them;
+  `ui_web3d.py` shows them under Include animation only with a built Animation camera, + a line in "On the page".
+- `fr_page.js`: the Film (camera from the motion's own time after OrbitControls, glide back 0.6 s, leaves on drag /
+  zoom / saved view / Reset / setCamera, `film=1` in the link and at the start, the cards' clock, `afterDraw`,
+  `page.nodes`, `filmState` in the PC check's state). `fr_player.js`: Film button (orange ring when left; on a phone
+  under 330 px the time text hides), captions / cards (DOM), labels (2D canvas, port of `place_labels`).
+- PC check `web3d.film` (Full; MIN_LINES_FULL 116), tour stop `web3d` (builds "Camera rides and flies", exports with
+  animation: the page has the Film; crane set changed 0.2.194, recorded), function `web.film`, guide "Film" section
+  (`#web3d-film`) + Playback line, CHANGELOG 0.2.194, CLAUDE.md section 3.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (web machine, 4 cores, software GL):
+- `tests/test_web3d_film.py` (14: data + page in headless Chromium), `tests/test_web3d_film_blender.py` (7: real
+  export of the crane against Blender's Animation camera at every frame, the cut, each camera mode, tick boxes, label
+  point, no film without camera / animation, the page's camera at three moments). Player, tools, web3d, functions,
+  guide, places, PC check tests pass; `test_tour.py -k web3d` passes; PC check line `web3d.film` OK (8.2 s).
+- **Accuracy:** crane (1.8 m): worst 0.44 mm, 0.015°, fov 0.0002° (limits 1.8 mm, 0.05°). Public demo "Vessel in a
+  wind park" (small form, 132 m): worst 33 mm (limit 132 mm), 0.020°, fov 0.0004°; 7 cuts found.
+- **Size:** crane 126 frames -> 98 kept, **4.0 KB**; public demo 1,489 frames -> 309 kept, **9.4 KB** (page ~40 MB:
+  0.02 %); a worst case of 4,481 frames that all must be kept (a camera turning all the time): < 200 KB (test).
+  The full demo kit was not measured (private repository, not this task's).
+- **Frame time:** the Film's own work per picture: 0.7 µs (camera) + 36 µs (one label, 1280 × 720 canvas) – under
+  0.3 % of a 60 fps picture. Pictures in 3 s on the synthetic page (capped at 60/s): 181 off, 180 on, 180 off.
+  On the crane at Best, 1280 × 720, software GL the numbers jump (13–21 pictures in 4 s, the Film's view fills more
+  of the screen); not a cost of the Film.
+- **Independent tester** (a subagent that did not write the code, 26 probe runs): 0 differences between the page and
+  `core.web3d_film.sample` over 58 times (cuts, sign flips, t = D, beyond); encode edge cases fine. Found 4 faults;
+  fixed 3 with tests: the Film button pushed the play bar off a 280 px phone (and `layoutCheck` missed it); a Film
+  shot further than the orbit limit was pulled in at every picture (drew all the time while paused, a 2 px drag
+  snapped 379 m in); leaving during the end card and pressing Film showed the end card again.
+- GitHub runs: listed below.
 
 **Owner steps** (after the update):
+1. Open a project whose animation has Camera steps (or Help > test tour, crane set, stop "Web 3D model").
+2. 6 Animation: **Build & play** the animation.
+3. 5 Scene & Render > Web 3D model: tick **Include animation**; under it, tick **Film: captions**, **Film: labels**,
+   **Film: title and end card** if wanted. Press **Export…**, then **Open page**.
+4. In the browser: press the **film-camera button** at the right end of the play bar. You should see the motion
+   through the video's camera (same shots and cuts as the video). Drag: you leave the Film, the motion goes on, the
+   button gets an orange ring; press it: the view glides back. Please check on your RTX 3090 that it stays smooth.
 
 **Open points / follow-up tasks:**
+- The time line's very end (t = length) shows the first frame, as the motion already does (the page loops): with a cut
+  near the end, the slider's last position shows the first shot. Not changed (would differ from the parts).
+- Not on the page (guide says so): depth of field, motion blur, music, watermark, picture cards, the brand kit's font.
+  The cards' clock runs at the play speed (2×: half their seconds). Captions / labels stay in the clean look (H) and
+  are not in Screenshot (S).
+- With vessel motion on the page, the parts move by the page's own sea motion while the Film's camera is the video's
+  keyed world camera: a camera riding on a moving vessel may sway slightly differently from the vessel on the page.
+- Labels' box placement uses the model's whole box as the outline (the video uses the shown parts' boxes).
+- Landing page: the Thor arm and the CEB press would gain most from a Film (their render-kit animations have camera
+  moves); needs the site's models exported again with Include animation (site lane).
+- The full demo kit's size (private) and the turntable / product video films (TASKS.md "Later").

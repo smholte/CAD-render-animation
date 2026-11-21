@@ -63,13 +63,13 @@ def film_block(extras=True):
     return film, pos, q, v
 
 
-def write(path, films=True, extras=True, animated=True):
+def write(path, films=True, extras=True, animated=True, film=None):
     ch = dict(env.default_choice(), shadows=False, auto=True, quality="BALANCED", sea=False, haze=False, rain=False)
     st = env.settings(ch, [-1.0, -1.0, 0.0], [4.0, 1.0, 0.6], sky={"kind": "SKY", "sun": env.sun_vector(40, 30)},
                       plain=True)
     st["views"] = VIEWS
     if films:
-        st["films"] = [film_block(extras)[0]]
+        st["films"] = [film or film_block(extras)[0]]
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(env.page_html("Film test", model(animated), st, animated=animated, note="Made with Fresing Render"))
     return str(path)
@@ -284,7 +284,9 @@ def test_label_line_ends_on_the_moving_part(tmp_path):
 @browser_test
 def test_film_button_on_a_phone_no_overlaps(tmp_path):
     path = write(tmp_path / "film.html")
-    for size, mobile in (("320x568", True), ("375x667", True), ("667x375", True), ("900x600", False)):
+    # 280 px: a folding phone's cover screen (the independent tester: the Film button pushed the bar out of it)
+    for size, mobile in (("280x500", True), ("320x568", True), ("375x667", True), ("667x375", True),
+                         ("900x600", False)):
         out = probe(path, [{"wait": 300}, {"eval": "frPage.layoutCheck()"},
                            {"eval": "frPage.paused = true, frPage.setFilm(true, false), frPage.setTime(1.0), 0"},
                            {"wait": 300}, {"eval": "frPage.layoutCheck()"}], query="soft=0", size=size, mobile=mobile)
@@ -309,3 +311,39 @@ def test_film_costs_no_frame_time(tmp_path):
     assert on >= 0.75 * min(off1, off2), (off1, on, off2)
     with open(os.path.join(str(tmp_path), "frames.json"), "w") as fh:
         json.dump([off1, on, off2], fh)
+
+
+@browser_test
+def test_a_far_shot_stays_far_and_draws_nothing_while_paused(tmp_path):
+    """A Film shot from much further than the page's orbit limit (30 model radii): the limit must not pull the camera
+    in at every picture (it drew all the time while paused), and a drag out of it turns from where it is."""
+    mats = np.array([look([1.5, -400.0, 200.0], [1.5, 0.0, 0.3]) for _k in range(N)])
+    pos, q = F.pose(mats)
+    film = F.encode(pos, q, np.full(N, 2.0), FPS, 16 / 9, 5.0)
+    path = write(tmp_path / "far.html", film=film)
+    out = probe(path, [{"wait": 800}, {"eval": "frPage.paused = true, frPage.setTime(1.0), frPage.setFilm(true, false), 0"},
+                       {"wait": 600}, {"frames": 1500}, {"eval": "frPage.filmState()"},
+                       {"drag": [450, 300, 452, 301]}, {"wait": 400}, {"eval": "frPage.filmState()"}],
+                query="soft=0", size="900x600")
+    assert out["ok"], out
+    o = out["out"]
+    assert o[3] <= 2, f"{o[3]} pictures in 1.5 s while paused"
+    far = np.linalg.norm(o[4]["camPos"])
+    assert far > 400 and not o[7]["on"]
+    assert abs(np.linalg.norm(o[7]["camPos"]) - far) < 0.05 * far, "the drag snapped the camera in"
+
+
+@browser_test
+def test_leaving_during_the_end_card_does_not_show_it_again(tmp_path):
+    path = write(tmp_path / "film.html")
+    out = probe(path, [{"wait": 500},
+                       {"eval": "frPage.paused = true, frPage.setTime(3.95), frPage.setFilm(true, false), frPage.paused = false, 0"},
+                       {"wait": 400}, {"eval": "frPage.filmCard()"},
+                       {"click": "#fr-playbar .fr-film"}, {"click": "#fr-playbar .fr-film"}, {"wait": 300},
+                       {"eval": "[frPage.filmCard(), frPage.filmState().time]"}],
+                query="soft=0", size="900x600")
+    assert out["ok"], out
+    o = out["out"]
+    assert o[3] and o[3]["kind"] == "end"
+    card, t = o[7]
+    assert (card is None or card["kind"] == "title") and t < 1.0, o[7]

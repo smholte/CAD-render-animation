@@ -771,6 +771,8 @@
     if (!dragging) slider.value = String(t);
     // a phone upright: the moment only (the whole length is the slider's end)
     timeEl.textContent = fmt(t) + (narrow && window.innerWidth < 380 ? '' : ' / ' + fmt(page.duration));
+    // task 0252: a phone narrower than 330 px with the Film button: the time line alone shows the moment
+    timeEl.style.display = filmBtn && window.innerWidth < 330 ? 'none' : '';
     playBtn.innerHTML = svg(page.paused ? 'play' : 'pause');
     playBtn.setAttribute('aria-label', page.paused ? 'Play' : 'Pause');
     playBtn.setAttribute('aria-pressed', page.paused ? 'false' : 'true');
@@ -1018,6 +1020,10 @@
     add('site', document.getElementById('fr-site'));
     add('part tool panel', document.getElementById('fr-tpanel'));   // task 0189: the part tools' panel (fr_tools.js)
     var W = window.innerWidth, H = window.innerHeight, overlaps = [], outside = [];
+    // task 0252: content wider than the screen widens the page itself (a phone then scrolls sideways or zooms out)
+    if (document.documentElement.scrollWidth > W + 0.5 || play.scrollWidth > play.clientWidth + 0.5) {
+      outside.push('page wider than the screen');
+    }
     items.forEach(function (a, i) {
       var r = a.r;
       if (r.left < sa.l - 0.5 || r.top < sa.t - 0.5 || r.right > W - sa.r + 0.5 || r.bottom > H - sa.b + 0.5) outside.push(a.name);

@@ -1484,6 +1484,7 @@
   controls.target.copy(centre);
   controls.minDistance = R * 0.05;
   controls.maxDistance = hasSea ? Math.min(12000, R * 60) : R * 30;
+  var MAX_DIST = controls.maxDistance;      // task 0252: a Film shot from further away lifts it (see setFilm)
   var HORIZON = Math.PI * 0.497;
   if (hasSea) controls.maxPolarAngle = HORIZON;
   // task 0143: the camera may dive (Camera under water); 0147 row 11: a saved view below the water or the floor is
@@ -1716,13 +1717,20 @@
                             t0: performance.now(), ms: 600 } : null;
       filmOn = true;
       filmLeft = false;
+      controls.maxDistance = Infinity;     // the orbit limit would pull a far shot in at every picture
       stopTurn();
       if (filmTime(elapsed) < 0.05 && !card) startCard('title');      // the Film from the start: its title card
     } else {
       filmOn = false;
       filmLeft = true;                     // the button shows it can take you back
       filmGlide = null;
-      if (card) { card = null; changed('card'); }
+      // a far shot: the visitor turns from where the camera is, never snapped in to the orbit limit
+      controls.maxDistance = Math.max(MAX_DIST, camera.position.distanceTo(controls.target) * 1.001);
+      if (card) {                          // left during the end card: the next press starts at the film's start
+        if (card.kind === 'end' && page.duration > 0) elapsed = Math.round(elapsed / page.duration) * page.duration;
+        card = null;
+        changed('card');
+      }
     }
     limitPolar();
     wake();
