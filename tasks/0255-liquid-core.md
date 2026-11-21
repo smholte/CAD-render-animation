@@ -1,6 +1,6 @@
 # 0255 – Coolant liquid A: the liquid core (`core/liquid.py`) – shallow-liquid height field, fast enough for a 10-minute program
 
-**Who:** worker · **Status:** running · **Branch:** `task/0255-liquid-core`
+**Who:** worker · **Status:** done (21 Nov 2026, no version) · **Branch:** `task/0255-liquid-core`
 **Started by:** lead, 21 Nov 2026 (study 0251, build task A; owner 20 Nov 23:45–23:50: coolant liquid that collects in
 the cut slots, moves with the machine and runs down a drain – study first, then build) · **Model:** Opus · effort High
 **Area:** Machining lane – **new files only:** `fresing_render/core/liquid.py` (no Blender), its helper-process runner
@@ -255,7 +255,9 @@ Windows: no crash risks; fixed from it: the helpers' environment as `runner.py` 
 time-outs instead of waiting for ever, a failure in the master mid-frame marks the pool broken, `start` drops a helper
 that cannot attach, no `preexec_fn` fork from a many-threaded Blender on Linux, wait after kill.
 
-**GitHub runs:** see below (filled in after merging).
+**GitHub runs:** 3 – a full run of the finished branch (green, 24.4 min, run 44913413243), a full run after merging
+`main` (it brought other tasks' code; green, 30.4 min on busy runners, run 44915571396), then a docs run for `main`'s
+documents + this report before the fast-forward. Earlier pushes while building were lane runs. No red run.
 
 **Open points / follow-up tasks:**
 - **10 × not reached on the web machine: 8.4 × with 3 helpers.** What is left: (1) the helpers' scaling on 4 shared
