@@ -33,7 +33,7 @@ def _state_icon(state: str) -> str:
 
 
 class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
-    bl_label = "Test tour"
+    bl_label = "Learning hub stops"
     bl_order = 0
 
     @classmethod
@@ -59,7 +59,7 @@ class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
         data = tour.load_results(folder, version)
         rows = data["stops"]
         current = tour.find(data.get("current", "")) or tour.STOPS[0]
-        ui.wrap(layout, context, f"Test tour {version}: pick a stop, press Go, look, then OK or Problem.")
+        ui.wrap(layout, context, f"Learning hub {version}: pick a stop, press Go, look, then OK or Problem.")
         since = _since()
         made = tour.made_sets(folder, version)
         if len(made) < len(tour.SETS):            # task 0199: a tour of only the new and changed test models

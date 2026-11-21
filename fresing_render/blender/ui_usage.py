@@ -72,7 +72,7 @@ class FRESING_PT_favourites(LeftPanel, bpy.types.Panel):  # task 0260: on the le
                 op.fid, op.how = q["fid"], "GUIDE"
                 row.enabled = bool(q["guide"])
                 row = col.row(align=True)
-                op = row.operator("fresing.learn_show", text="Show me in the test tour")
+                op = row.operator("fresing.learn_show", text="Show me in the Learning hub")
                 op.fid, op.how = q["fid"], "TOUR"
                 row.enabled = bool(q["tour"])
                 if F.FUNCTIONS[q["fid"]].lesson:              # task 0230: the function's lesson, at its step

@@ -77,6 +77,19 @@ def shot(name):
     return path
 
 
+def guide_crop(path, name, height=330):
+    """Task 0260: the left panel's top as a user guide picture (GUIDE_OUT set: docs/img), cut from a screenshot."""
+    out = os.environ.get("GUIDE_OUT")
+    if not out:
+        return
+    win, area, _r = view()
+    reg = mod("blender.ui_left").tools_region(area)
+    top = win.height - (reg.y + reg.height)
+    h = min(int(height * (bpy.context.preferences.system.ui_scale or 1.0)), reg.height)
+    subprocess.run(["convert", path, "-crop", f"{reg.width}x{h}+{reg.x}+{top}", "+repage",
+                    os.path.join(out, name + ".png")], check=False)
+
+
 def redraw():
     for win in bpy.context.window_manager.windows:
         for area in win.screen.areas:
@@ -159,7 +172,7 @@ def s_left_parts():
 
 @step
 def s_import():
-    data = os.path.join(os.path.dirname(mod("").__file__), "data", "test_crane.step")
+    data = os.path.join(os.path.dirname(mod("").__file__), "data", "test_crane_a.step")
     with override():
         r = bpy.ops.fresing.import_step("EXEC_DEFAULT", filepath=data)
     log("import:", r)
@@ -172,7 +185,7 @@ wait_until("the crane is imported", lambda: bpy.context.scene.fresing.model_coun
 @step
 def s_make_row():
     redraw()
-    shot("02_crane_two_panels")
+    guide_crop(shot("02_crane_two_panels"), "left_panel")
     with override():
         r = bpy.ops.fresing.make_window("EXEC_DEFAULT", key="still")
     check("Make > Picture starts its window", r == {"FINISHED"}, r)
@@ -209,7 +222,6 @@ def s_still_open():
     check("pressing Picture again gives no second window", r == {"FINISHED"} and len(outputs("still")) == 1)
     with override():
         bpy.ops.fresing.make_window("EXEC_DEFAULT", key="web")
-    shot("03_output_window")
     return 1.0
 
 
@@ -219,6 +231,11 @@ wait_until("a second output (3D page) opens its own window", lambda: len(outputs
 
 @step
 def s_close():
+    redraw()
+    shot("03_output_windows")
+    w = outputs("web")
+    if w:
+        log("3D page window:", w[0].x, w[0].y, w[0].width, w[0].height)
     with override():
         bpy.ops.fresing.make_close("EXEC_DEFAULT", key="")
     return 1.0
@@ -286,7 +303,7 @@ def s_client():
     check("Client view: the output windows open", bpy.ops.fresing.make_window.poll())
     check("Client view: the left panel folds", bpy.ops.fresing.left_fold.poll())
     shot("06_client_view")
-    workspace("Product & sales")
+    workspace("All functions")
     return 0.5
 
 
@@ -362,7 +379,7 @@ def s_hub_outside():
     st = mod("blender.ui_left").hub_state(sc)
     check("a Learning hub project of the crane: View, with a lesson", st["in_hub"] and st["mode"] == "VIEW"
           and st["lesson"], str(st))
-    shot("07_hub_view")
+    redraw()
     with override():
         r = bpy.ops.fresing.hub_mode("EXEC_DEFAULT", mode="SHOW")
     check("Show me from View opens the crane lesson", r == {"FINISHED"}, r)
@@ -386,7 +403,7 @@ def s_hub_build():
 
 @step
 def s_hub_shot():
-    shot("08_hub_lesson")
+    guide_crop(shot("08_hub_lesson"), "left_hub", 400)
     with override():
         bpy.ops.fresing.lesson_stop("EXEC_DEFAULT")
     return 0.5

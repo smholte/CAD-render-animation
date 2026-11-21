@@ -223,7 +223,7 @@ def _splash(self, context):
     col1.operator("wm.recover_last_session", icon="RECOVER_LAST")
     col1.separator()
     if _has("fresing.tour_take"):                    # the same operator as Fresing > Take the test tour
-        col1.operator("fresing.tour_take", text="Take the test tour", icon="VIEW_CAMERA")
+        col1.operator("fresing.tour_take", text="Open the Learning hub", icon="VIEW_CAMERA")
     if _has(ops_demo.FRESING_OT_demo_make.bl_idname):    # the same operator as Help > Make demo project…
         col1.operator(ops_demo.FRESING_OT_demo_make.bl_idname, text="Demo project", icon="MOD_OCEAN")
     if _has("fresing.user_guide"):

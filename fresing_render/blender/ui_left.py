@@ -285,7 +285,7 @@ class FRESING_PT_hub(LeftPanel, bpy.types.Panel):
     def draw_header_preset(self, context):
         st = hub_state(context.scene)
         if st["in_hub"]:
-            ui.header_status(self.layout, dict(MODES)[st["mode"]])
+            ui.header_status(self.layout, {"VIEW": "View", "SHOW": "Show me", "BUILD": "Build it"}[st["mode"]])
 
     def draw(self, context):
         layout = self.layout

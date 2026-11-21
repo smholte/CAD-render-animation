@@ -407,8 +407,7 @@ def test_every_panel_of_the_tab_has_a_place_and_every_function_a_panel():
     assert [p for p in named if not hasattr(bpy.types, p)] == []
     # a panel no function names can never be hidden: only the notices on top may be like that (task 0230: + the Lesson
     # panel, shown only while a lesson runs or a project offers to go on with one)
-    assert sorted(n for n in tab if n not in named) == ["FRESING_PT_left_quick", "FRESING_PT_lesson", "FRESING_PT_tour",
-                                                         "FRESING_PT_update"]     # task 0260: the left row repeats Live preview and Build & play
+    assert sorted(n for n in tab if n not in named) == ["FRESING_PT_lesson", "FRESING_PT_tour", "FRESING_PT_update"]
 
 
 def test_where_gives_a_text_for_every_panel():

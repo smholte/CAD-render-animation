@@ -82,16 +82,18 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 <img class="wide" src="img/app_after_import.png" alt="The Fresing Render window after an import">
 
 - The big area in the middle is the **view**: your model in 3D.
-- On its right edge is the **side panel** with the **Fresing** tab. Hidden? Click the **Fresing** button
-  in the view's header, or move the mouse over the view and press <kbd>N</kbd>.
+- On its right edge is the **side panel** with the **Fresing** tab: the steps of the work. Hidden? Click the
+  **Fresing** button in the view's header, or move the mouse over the view and press <kbd>N</kbd>.
+- On its left edge is the **left panel** ([below](#left-panel)): Live preview, Build & play, your Workspace, the
+  Learning hub, Favourites and What's next.
 - The other areas (the lists top right, the timeline at the bottom) are Blender's own. You rarely need
   them.
 
 <img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the seven sections, folded">
 
 The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work, and an eighth for
-lifting plans, **8 Lifting plan** ([below](#lifting)). Above them are the **Workspace** row, the **What's next**
-card, the section tabs and **Make**.
+lifting plans, **8 Lifting plan** ([below](#lifting)). Above them are only **Make**, the section tabs and (for a CNC
+mill or a mechanism) **Set-up window…** – so the first step is always at the top.
 
 Every section works the same way:
 
@@ -114,6 +116,31 @@ empties a list or a result, **Delete** deletes a file in the library, **Show in 
 in Explorer, **Add** makes a new thing, **Use as** takes the part you clicked, **Back to …** says where
 you go back to.
 
+<a id="left-panel"></a>
+### The left panel
+
+<img class="panel" src="img/left_panel.png" alt="The left panel: Live preview and Build & play, Workspace, Learning hub, Favourites, What's next">
+
+Everything that is not a step of the work sits on the left of the view, top to bottom:
+
+- **Live preview** and **Build & play** – always there, outside every fold. Live preview shows the real render in
+  the view ("Live preview: on" while it is on); Build & play builds the selected animation and plays it (greyed until
+  there is an animation: make one in 6 Animation). Both are the same buttons as in 5 Scene & Render and 6 Animation.
+- **Update available** – only after an update is found ([Updates](#updates)).
+- **Workspace** – which functions this project shows ([below](#workspaces)).
+- **Learning hub** – View, Show me or Build it yourself in one click ([Learning hub](#learning-hub)); in a sample
+  project also its stops, and the Lesson while a lesson runs.
+- **Favourites** – your most used buttons ([below](#favourites)).
+- **What's next** – what to do next in this project ([below](#whats-next)).
+
+**Fold it away:** the small **◀** at the right of the top row folds the left panel to a narrow strip with three icons:
+**▶** (opens it again), Live preview and Build & play – so they stay one click away. The app remembers it for every
+project. Drag the panel's edge to make it wider or narrower; projects open with it as wide as you left it.
+
+In **Full access** (Fresing > Show all of Blender) Blender's own tool buttons come back at the top of the left panel,
+the Fresing parts stay under them. Hidden left panel (Blender's View > Toolbar or <kbd>T</kbd>)? The **Fresing**
+button in the view's header brings both panels back.
+
 <a id="sections"></a>
 ### Sections: folded at the start, tabs, Ctrl+click
 
@@ -126,7 +153,7 @@ you go back to.
 - **Click a title** to open or fold it.
 - **<kbd>Ctrl</kbd>+click a title**: only that one stays open, the others on its level fold. The quick
   way to a calm panel.
-- **The tabs All · 1 … 7** under the Workspace row show one section at a time, opened. **All** brings the
+- **The tabs All · 1 … 8** under Make show one section at a time, opened. **All** brings the
   seven back.
 - Want the sections as you left them instead? **Edit > Preferences > Add-ons > Fresing Render >
   Keep sections as I left them**. There too: **Keep How it works open**.
@@ -218,20 +245,27 @@ no password: it stops accidents, not people.
 <a id="whats-next"></a>
 ### The What's next card
 
-In a new project a small card above the tabs says what to do next (import, sort the parts into groups,
-then the surroundings and **Render image**) with a button that opens that section. It goes away after
-the first render; the **×** hides it for this project.
+In a new project a small card at the bottom of the left panel says what to do next (import, sort the parts into
+groups, then the surroundings and **Render image**) with a button that opens that section. It goes away after the
+first render; the **×** hides it for this project. The small arrow in its title row folds it to that row – it stays
+folded, also in other projects, until you open it again.
 
 <a id="make"></a>
 ### Make: every picture, video and 3D page in one place
 
-<img class="panel" src="img/panel_top_make.png" alt="The Make list: Picture, Product video, Turntable, 3D page, Animation, Queue">
+<img class="panel" src="img/panel_top_make.png" alt="Make: one row with the six outputs as icons, above the section tabs">
 
-**Make**, above 1 Import, lists every kind of output side by side: **Picture**, **Product video**,
-**Turntable**, **3D page** (the web 3D model), **Animation** and **Queue**. Each button opens that
-output's own settings with its Make button – the same settings as in 5 Scene & Render, 6 Animation and
-7 Render queue, nothing is moved. The same list is in the header of the 3D view (**Make**, top of the
-view), so it is there whatever the side panel shows.
+**Make**, at the top of the Fresing panel, is one row: the word **Make** and six icons – **Picture**, **Product
+video**, **Turntable**, **3D page** (the web 3D model), **Animation** and **Queue** (rest the mouse on an icon for its
+name). Click **Make** for the list with names; click it again for the row. The app keeps your choice.
+
+Each icon opens that output's **own window** with its settings and its Make button – the same settings as in
+5 Scene & Render, 6 Animation and 7 Render queue: a change in one shows in the other. Drag the window anywhere, also
+onto a second screen; it stays open while you work in the main window or another output window, until you close it
+(**×** at its top). Pressing the same output again does not open a second one: on Windows it comes to the front, and
+it opens where it was last time. A window left open is saved with the project. The same list is in the header of the
+3D view (**Make**, top of the view): the main button there makes the output at once, the gear beside it opens its
+window.
 
 This guide is in the app under **Help > Fresing Render user guide**, and as the shortcut **User guide** in the
 app's Tools folder (**Fresing > Tools and checks > Open the app folder**).
@@ -247,7 +281,7 @@ Setting up a CNC mill or a mechanism takes a handful of steps in a long panel. T
 them one at a time, in a small window of its own that you can drag anywhere – also onto a second screen –
 while you click parts in the main window.
 
-1. Press **Set-up window…** (in **Make**, in 4 Motion > CNC machine or in 4 Motion > Mechanisms).
+1. Press **Set-up window…** (under the section tabs, in 4 Motion > CNC machine or in 4 Motion > Mechanisms).
 2. Pick what to set up at the top: **Set up a CNC mill** (axes X, Y, Z → spindle → tool and workpiece →
    work zero → G-code program) or **Set up a mechanism** (type → base → moving links → add it).
 3. Do what the step says – its buttons are the same ones as in the side panel, so what you do here shows
@@ -423,13 +457,28 @@ lesson now. The other samples have **View**; their lessons follow with later upd
 Show me and Build it yourself start a **new project** with the sample's plain model, as the import leaves it. Your open
 project is not changed – save it first. The new project is not saved until you save it.
 
+<a id="learning-hub"></a>
+### The Learning hub switch: View · Show me · Build it yourself
+
+<img class="panel" src="img/left_hub.png" alt="The Learning hub on the left panel: View, Show me and Build it yourself, the sample's name">
+
+At the top of the left panel's **Learning hub** three buttons switch between the three ways to learn, in one click. The
+way you are in shows pressed, also after the project is opened again.
+
+- **In a sample project** (one the Learning hub or a lesson opened): **View** opens the finished sample with its stops;
+  **Show me** and **Build it yourself** start its lesson. Between Show me and Build it yourself the lesson switches at
+  once, at the step you are on. Opening another project asks first when this one has unsaved changes. A sample without
+  a lesson shows Show me and Build it yourself greyed: **Lesson coming**.
+- **In your own project** the block has **Open the Learning hub**, and the three buttons open the **Learn** window with
+  that way chosen – pick a sample there.
+
 <a id="learn-show-me"></a>
 ### Show me
 
 The app points at the button of each step – the button stands out in the side panel (the rest is dimmed, as set in
 **Edit > Preferences > Add-ons > Fresing Render > Lesson highlight**), the parts it works on are shown in the 3D view and
 a card beside them says what happens. After a moment the app presses the button itself: a new joint swings out and back
-once so you see what it does. Then it waits for **Next** in the **Lesson** panel at the top of the Fresing tab.
+once so you see what it does. Then it waits for **Next** in the **Lesson** panel on the left panel.
 
 <img class="panel" src="img/lesson_show_me.jpg" alt="Show me points at Add rotate joint: the button is clear in the dimmed side panel, the boom is shown, the card beside it says what happens">
 
@@ -474,9 +523,9 @@ runs, the PC check and the render queue never count.
 <a id="favourites"></a>
 ### The favourites bar
 
-<img class="panel" src="img/usage_bar.png" alt="The favourites bar under the Workspace row, with the question about an unused panel under it">
+<img class="panel" src="img/usage_bar.png" alt="The favourites bar on the left panel, with the question about an unused panel under it">
 
-Under the **Workspace** row, at the top of the Fresing tab, the bar shows the functions you use most (6 buttons; 5
+On the left panel, under the **Learning hub**, the bar shows the functions you use most (6 buttons; 5
 to 8 in My usage). A function joins it once you have used it twice. **The bar is sorted when the app starts and
 never while you work**, so a button does not move under your mouse.
 
@@ -637,7 +686,7 @@ README.txt in the installer folder has the details: company PCs, updates, removi
 ### Updates: one click
 
 New versions come to the app by themselves. A few seconds after the app starts it looks on GitHub for
-a newer version. When there is one, **Update available** appears at the top of the Fresing tab:
+a newer version. When there is one, **Update available** appears at the top of the left panel:
 
 <img class="panel" src="img/panel_update.png" alt="Update available, with Update now">
 
@@ -645,7 +694,7 @@ a newer version. When there is one, **Update available** appears at the top of t
 2. Click **Update now**, then **Update now** again in the small window that asks.
 3. The app downloads the new version (a minute or less), saves your project, closes, installs the
    update and opens again with the same project. Nothing else to do.
-4. At the top of the Fresing tab it says **Updated to …**, with what's new. **Close** hides it.
+4. At the top of the left panel it says **Updated to …**, with what's new. **Close** hides it.
 
 <img class="panel" src="img/panel_update_done.png" alt="Updated to, after the update">
 
@@ -4738,7 +4787,7 @@ and a folder "Test tour 0.2.47 files" with the other projects. It is made new fo
 shows what this version can do.
 
 **Go through the stops**
-1. The **Learning hub** panel is on top of the Fresing tab (only in a tour project). The stops are in four
+1. The **Learning hub stops** are on the left panel, under the Learning hub switch (only in a sample project). The stops are in four
    folds: **Look**, **Motion**, **Machining**, **Pictures and videos**; the numbers in brackets say how many
    you have marked.
 2. Click a stop. Under the list you see what you should see and where the function is in the side panel.
