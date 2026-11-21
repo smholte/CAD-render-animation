@@ -74,7 +74,10 @@ NOT_COUNTED = {"fresing.panel_toggle", "fresing.panel_tab", "fresing.usage_go", 
                "fresing.usage_window", "fresing.usage_set", "fresing.usage_clear", "fresing.usage_reset",
                "fresing.usage_declutter", "fresing.usage_export", "fresing.usage_import", "fresing.usage_folder",
                "fresing.learn_show", "fresing.learn_add", "fresing.learn_add_new", "fresing.learn_done",
-               "fresing.learn_remove", "fresing.learn_next", "fresing.learn_window", "fresing.learn_lesson"}
+               "fresing.learn_remove", "fresing.learn_next", "fresing.learn_window", "fresing.learn_lesson",
+               "fresing.learn_lessons", "fresing.learn_start", "fresing.learn_view",       # task 0230: lessons
+               "fresing.lesson_next", "fresing.lesson_do", "fresing.lesson_back", "fresing.lesson_more",
+               "fresing.lesson_mode", "fresing.lesson_resume", "fresing.lesson_stop"}
 # Families never offered for hiding (there would be nothing to work with) and never on the bar (the panel's own
 # switches, menu lines).
 NEVER_ASK_FAMILIES = ("import", "help", "panel")

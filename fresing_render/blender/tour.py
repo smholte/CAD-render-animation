@@ -466,33 +466,45 @@ def _logo(path: str) -> str:
     return path
 
 
+def _music(path: str) -> str:
+    """A few seconds of a soft made-up chord as a WAV file (no one's music: the tour's own)."""
+    import wave
+
+    import numpy as np
+    rate = 22050
+    t = np.arange(rate * 4) / rate
+    tone = sum(np.sin(2 * np.pi * f * t) for f in (220.0, 277.2, 329.6)) / 3.0
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes((tone * 9000).astype("<i2").tobytes())
+    return path
+
+
 # ---------------------------------------------------------------------------
 # the sets (one project each) and their stops
 # ---------------------------------------------------------------------------
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.188")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.189")
 def build_crane(b: Build):
+    """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
+    project, task 0230), then the tour's own extra shots."""
     import bpy
 
-    from . import callouts, cameras, joints, queue, turntable
+    from . import animation, callouts, cameras, lesson, queue, turntable
     sc, s = b.scene, b.s
-    _look("PRODUCT")
-    boom = _boom_joint(sc)
-    trolley = _ob(sc, "TROLLEY.ASM")
-    from mathutils import Vector
-    joints.create(sc, "SLIDE", [trolley], trolley.matrix_world.translation.copy(), Vector((1, 0, 0)),
-                  base=_ob(sc, "BOOM.ASM"), name="Trolley")
+    lesson.run(sc, HUB_SET)
+    _bake(sc, s.animations["Boom up"])           # the lesson's animation builds without a warning
+    animation.clear_keys(sc)                     # the tour's project opens unbuilt: Go builds what a stop shows
     view = _camera(b, "ISO", "Tour view")
     _shot(b, "Tour view")
-
-    # Look: open sea, light looks
+    s.animations["Boom up"].start_shot = "Tour view"
     s.env_detail = "SIMPLE"
-    s.background = "SEA"
-    _camera(b, "ISO", "Tour sea", lens=35.0)
-    _shot(b, "@sea")
-    _look("PRODUCT")
+
+    # Look: light looks
     s.background = "COLOR"
     _look("DARK")
     sc.camera = view
@@ -500,8 +512,6 @@ def build_crane(b: Build):
     _look("PRODUCT")
 
     # Motion: joint, stack, exploded view
-    a = _animation(b, "Boom up", "Tour view")
-    _joint_step(a, "Boom", 0.0, 2.0, math.radians(35), label="Boom goes up")
     a = _animation(b, "Boom and trolley", "Tour view")
     _joint_step(a, "Boom", 0.0, 3.0, math.radians(25))
     _joint_step(a, "Trolley", 0.0, 3.0, 0.35, slide=True)
@@ -541,6 +551,9 @@ def build_crane(b: Build):
     a.fin_title, a.fin_subtitle = "Test crane", f"Fresing Render {b.version} test tour"
     a.fin_title_seconds = a.fin_end_seconds = 1.0
     a.video = "MP4"
+    card = a.cards.add()                         # a picture card in a corner and music under it (task 0230)
+    card.path, card.name, card.start, card.duration, card.mode = logo, "Tour logo", 0.3, 1.0, "CORNER"
+    a.music_on, a.music_file, a.music_fade_in, a.music_fade_out = True, _music(b.file("Tour music.wav")), 0.2, 0.5
 
     callouts.add(sc, _ob(sc, "BOOM"), _ob(sc, "BOOM").matrix_world.translation.copy(), "Boom")
     callouts.add(sc, _ob(sc, "TROLLEY"), _ob(sc, "TROLLEY").matrix_world.translation.copy(), "Trolley")
@@ -708,13 +721,6 @@ def _looks() -> list:
     return list(studio.LOOKS)
 
 
-def _check_sea(scene):
-    from . import surroundings
-    _check(scene.fresing.background == "SEA", "the background is not the open sea")
-    _check(surroundings.root_object() is not None, "the sea was not built")
-    return "open sea built"
-
-
 def _check_looks(scene):
     import bpy
     for look in _looks():
@@ -819,7 +825,16 @@ def _check_finishing(scene):
     finally:
         s.wm_kind = was
     _check(bool(fin.wm_logo_file) and not fin.watermark, "the Fresing logo watermark file is missing")
-    return "title, end card, captions, logo, Fresing logo watermark"
+    import os
+    cards = [c for c in a.cards if c.enabled and os.path.isfile(bpy_abspath(c.path))]
+    _check(len(cards) == 1, f"{len(cards)} picture cards, not 1")
+    _check(a.music_on and os.path.isfile(bpy_abspath(a.music_file)), "no music under the video")
+    return "title, end card, captions, logo, Fresing logo watermark, a picture card, music"
+
+
+def bpy_abspath(path: str) -> str:
+    import bpy
+    return bpy.path.abspath(path)
 
 
 def _labels_on(scene):
@@ -961,38 +976,7 @@ def _check_decals(scene):
     return f"{len(shown)} decals"
 
 
-MILL_SLOT = (("Z", 0.0, 0.8, -25.0), ("X", 0.8, 1.6, 60.0))
 MARKS_ANIM = "Tool marks"
-
-
-def _mill_set(b: Build, chips: str = "", raw: str = ""):
-    """The test mill with X/Y/Z, a slot (plunge 25 mm, 60 mm along X), the end mill as bit, the block as workpiece."""
-    from . import machining
-    sc = b.scene
-    _look("PRODUCT")
-    _xyz(sc)
-    a = _animation(b, "Mill a slot")
-    for j, start, dur, to in MILL_SLOT:
-        blk = a.blocks.add()
-        blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "JOINT", j, start, dur, "LINEAR"
-        blk.use_from, blk.to_dist = True, to * 0.001
-    import bpy
-    _pick("bit", _ob(sc, "END MILL D10"))
-    stock = _ob(sc, "STOCK 200x200x40")
-    _pick("workpiece", stock)
-    if raw:
-        g = sc.fresing.groups.get(stock.get("fr_group", ""))
-        if g is not None:
-            g.material = raw
-    if chips:
-        machining.settings(sc).chips = chips
-    from mathutils import Vector
-    tip = stock.matrix_world.translation + Vector((0.0, 0.0, 0.05))
-    cam = _close_camera(b, tip, 0.25, "Tour close-up")
-    a.start_shot = _shot(b, "Tour: close-up").name
-    del cam
-    _bake(sc, a)
-    return a
 
 
 CUT_ANIM = "The pedestal opens up"
@@ -1140,9 +1124,13 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.101")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.189")
 def build_mill(b: Build):
-    _mill_set(b, chips="FEW", raw="steel_raw")
+    """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
+    project; the stops show what it made."""
+    from . import lesson
+    lesson.run(b.scene, "mill")
+    b.scene.frame_set(b.scene.frame_start)
 
 
 def _milled(scene):
@@ -4094,9 +4082,6 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
      since="0.2.116", check=_check_served, auto="clip", changed="0.2.123")
-stop("sea", LOOK, HUB_SET, "Surroundings: open sea",
-     "The crane stands in the open sea with waves; the sky and the light come from the sea set-up.",
-     where="5 Scene & Render > Background & surroundings", check=_check_sea, since="0.2.47")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea: deck, containers and crane roll gently (about ±1.5°, "
      "once in 11 s), pitch a little and rise and fall with the long waves while the boom goes up. The sea, the sky "
@@ -4479,10 +4464,11 @@ stop("turntable", OUT, HUB_SET, "Turntable video",
      "The camera goes once round the crane in 4 seconds, at the same height.", where="5 Scene & Render > "
      "Turntable video", animation="Turntable", play=True, check=_check_turntable, auto="clip", since="0.2.47")
 stop("finishing", OUT, HUB_SET, "Finished video: cards, captions",
-     "The animation 'Finished video' has a title card, an end card, a caption 'The boom goes up', the tour logo "
-     "and a TEST TOUR watermark. They are put on in the rendered MP4 video: render it with the queue (Render queue stop).",
-     where=f"{places.where('finishing')}; {places.where('brand')}", animation="Finished video",
-     check=_check_finishing, since="0.2.47", changed="0.2.152")
+     "The animation 'Finished video' has a title card, an end card, a caption 'The boom goes up', the tour logo, a "
+     "TEST TOUR watermark, the logo as a picture card in a corner and a soft chord as music. They are put on in the "
+     "rendered MP4 video: render it with the queue (Render queue stop).",
+     where=f"{places.where('finishing')}; {places.where('brand')}; {places.where('cards')}; {places.where('music')}",
+     animation="Finished video", check=_check_finishing, since="0.2.47", changed="0.2.189")
 stop("labels", OUT, HUB_SET, "Labels with lines",
      "Two labels, 'Boom' and 'Trolley', with lines to their parts. Labels are drawn in rendered pictures and "
      "videos: press Render picture to see them.", where=places.where("labels"), check=_check_labels,
@@ -4932,6 +4918,36 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
      where="Fresing menu > My learning list…; the question at the top of the Fresing tab; the What's next card",
      since="0.2.160", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+
+def _check_lessons(scene):
+    """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""
+    import bpy
+
+    from ..core import functions
+    from . import lesson, ui_topbar
+    for op in ("learn_lessons", "lesson_start", "lesson_next", "lesson_do", "lesson_back", "lesson_stop"):
+        _check(hasattr(bpy.ops.fresing, op), f"the button fresing.{op} is missing")
+    _check("fresing.learn_lessons" in ui_topbar.entries(), "Learn… is not in the Fresing menu")
+    for lid in ("crane", "mill"):
+        les = lesson.LESSONS.get(lid)
+        _check(les is not None, f"the {lid} lesson is missing")
+        for k, st in enumerate(les.steps, 1):
+            _check(st.function in functions.FUNCTIONS, f"{lid} step {k}: unknown function {st.function}")
+    les = lesson.LESSONS[HUB_SET]
+    done = sum(1 for st in les.steps if lesson.is_done(scene, st))
+    _check(done >= len(les.steps) - 1, f"only {done} of the crane lesson's {len(les.steps)} steps are in this project")
+    return (f"crane lesson {len(les.steps)} steps ({done} done in this project), mill lesson "
+            f"{len(lesson.LESSONS['mill'].steps)} steps")
+
+
+stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
+     "Fresing > Learn… lists the learning sets. Crane and Milling a slot have three buttons: View opens this test "
+     "tour at the set, Show me opens a new project with the plain model and the app does each step itself – the "
+     "button glows, a card beside the part says what happens, Next goes on (or tick Play on) – and Build it yourself "
+     "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
+     "coming'.",
+     where="Fresing menu > Learn…; the Lesson panel at the top of the Fresing tab while a lesson runs",
+     since="0.2.189", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 

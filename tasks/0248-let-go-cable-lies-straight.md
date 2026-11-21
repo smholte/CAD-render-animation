@@ -1,6 +1,6 @@
 # 0248 – A let-go sea cable lies straight: the cable already on the seabed stays put, only the freed stretch lies down
 
-**Who:** worker · **Status:** done (0.2.189) · **Branch:** `task/0248-let-go-cable-lies-straight`
+**Who:** worker · **Status:** done (0.2.190) · **Branch:** `task/0248-let-go-cable-lies-straight`
 **Started by:** lead, 20 Nov 2026 (owner 23:30, with three screenshots of test-tour stop 38 "A cable on a moving part"
 on 0.2.182: "after dropping a cable it gets wobbly (not realistic, it should stay straight) – probably not fully
 straight at the end, but it wobbles through the entire cable. Also in the full cable laying demo.")
@@ -149,15 +149,15 @@ to the bight next to the touch-down; the warning is as it was.
 **Tour stop 38 / PC check:** their checks read the start's height, the lengths and the block, not the shape: no
 change; stop 38's text stays. Its picture changes only where the cable lies on the seabed.
 
-**GitHub runs:** 6 full runs (the last one the release check). 1 cancelled by the version push; 2 failed only `test_idprops`' source check
+**GitHub runs:** 7 full runs (the last one the release check). 1 cancelled by the version push; 2 failed only `test_idprops`' source check
 (`hr["r_min"] = np.…` looked like an ID property: now `hr.update(...)`); 3 green (62.7 min, queued behind other
-tasks); 4, 5 and 6 after merging `main` again – 0.2.186 went to 0237, 0.2.187 to 0246, 0.2.188 to 0247 (renumbered to
-0.2.189); 4 and 5 failed only "2 tests skipped (at most 1 allowed)" in pytest group 2: `test_web3d_keys` and
+tasks); 4 to 7 after merging `main` again – 0.2.186 went to 0237, 0.2.187 to 0246, 0.2.188 to 0247, 0.2.189 to 0230 (renumbered to
+0.2.190; run 7); 4 and 5 failed only "2 tests skipped (at most 1 allowed)" in pytest group 2: `test_web3d_keys` and
 `test_lifting_reach_independent` each skip one test on GitHub by design, and the time-balanced split put both into
 one group once new test files came in. Fixed in `tools/ci_groups.py` (`SKIPS_ON_GITHUB`: never two in one group) with a
 test in `test_ci_tools.py`.
 
-**Owner's PC steps** (after **Update now** to 0.2.189):
+**Owner's PC steps** (after **Update now** to 0.2.190):
 1. **Help > Make test tour project**, open it, go to stop **38 "A cable on a moving part"**, press **Go**.
 2. Play to the end. When the cable is let go near the seabed you should see: the black cable that already lies on the
    seabed stays dead straight and does not move; the end and its loop round the sheave go down and forward along the
@@ -181,6 +181,6 @@ test in `test_ci_tools.py`.
   (within the twitch test's 0.3 m). Older than 0248; the snake hid it.
 - PILED moments still hang straight down beside T and reach T with a sideways hop of `eta` at the touch-down (as
   before 0248).
-- A stored lay-down is worked out at **Let go here** and at Build; a project let go before 0.2.189 gets it at its next
+- A stored lay-down is worked out at **Let go here** and at Build; a project let go before 0.2.190 gets it at its next
   Build (until then: no slide, the bight in the freed stretch only).
 
