@@ -1,86 +1,103 @@
-"""Task 0077: the demo project "Cable-lay vessel" (Help > Make demo project, ``fresing_render/blender/demo.py``).
+"""Task 0077 / 0247: the demo project "Vessel in a wind park" (Help > Make demo project, ``fresing_render/blender/demo.py``).
 
 Blender as a Python module. The project is made once in its scaled-down form (the PC check's on GitHub: Draft meshes,
-no quay model; the same joints, cylinders, cameras and animation), then checked: every joint of the sheet with its
-type, limits, stack and coupling; a coupling's ratio; drivers that work with scripts off; the animation; save,
-reopen and Build again; Cancel; the stage list later tasks extend.
-
-Task 0145 split the shots' checks into ``test_demo_project_cable.py`` (shots 3–5), ``_cps.py`` (shots 8b, 9),
-``_quadrant.py`` (shots 10–12) and ``_lowering.py`` (the D's way, clash-checked). The demo project is made once per run and shared by these files (``tests/demo_made.py``, task 0145: the single file
-had grown to ~35 min on GitHub); each file opens the saved project itself.
+no quay model; the same joints, cameras and animation; ``tests/demo_made.py``), then checked: every joint of the sheet
+with its type, limits and stack; the deck crane's slew and hoist; drivers that work with scripts off; the animation;
+save, reopen and Build again; Cancel; a failure; the stage list later tasks extend; the clash check with the park left
+out by its stored tag; and **no name of the cable-lay vessel's equipment** anywhere in the public demo (task 0247: the
+equipment is private – a demo kit of the owner's).
 """
 
-import json  # noqa: F401
-import math  # noqa: F401
-import os  # noqa: F401
-import shutil  # noqa: F401
+import math
+import os
+import re
+import shutil
 import sys
-import time  # noqa: F401
 
-import numpy as np  # noqa: F401
+import numpy as np
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
-sys.path.insert(0, HERE)                          # (demo_made: the made demo project, task 0145; demo_cps_check, 0126)
+sys.path.insert(0, HERE)                          # (demo_made: the made demo project, task 0145)
 
 bpy = pytest.importorskip("bpy")
 pytest.importorskip("OCP")
 
-from demo_made import (VERSION, _cps_shot, _dense, _first_steps, _keys, _scene, _solved, _t9,  # noqa: E402,F401
-                       animation_frame, made, paths_riders_parts)
+from demo_made import VERSION, _keys, _scene, animation_frame, made  # noqa: E402,F401
 from fresing_render.blender import demo  # noqa: E402
+
+# Words of the cable-lay vessel's equipment (task 0247): none may name a file, a part or an object of the public demo.
+# The app's generic functions (spools, Lebus drums, tracks, the test models' tensioner) are not the demo.
+EQUIPMENT = re.compile(r"\b(CAROUSEL|TENSIONERS?|CHUTES?|QUADRANT|D-QUADRANT|A-?FRAME|LARS|ROV|CPS|CRADLES?|TRESTLES?|"
+                       r"LOADING TOWER|HORN [AB]|ROLLER HIGHWAY|CABLE ENGINE|HANDLING WINCH|TIPPING|A&R|LEBUS|"
+                       r"QUAY LOADING|STORAGE CAROUSEL|RADIUS CONTROLLER|SPREAD|ARCH)\b", re.I)
 
 
 def test_the_project_is_made_and_saved(made):
     folder, out = made["folder"], made["out"]
     assert out["path"] == demo.project_path(folder, VERSION) and os.path.isfile(out["path"])
+    assert os.path.basename(out["path"]) == f"Vessel in a wind park {VERSION}.blend"
     assert demo.exists(folder, VERSION)
     assert not os.path.exists(demo.progress_path(folder, VERSION))        # only while it is made
     sc = _scene()
     assert sc.get(demo.TAG) == VERSION and demo.is_demo(sc)
     info = demo.read_summary(folder, VERSION)
-    assert info["joints"] == len(sc.fresing.joints) and info["animation"] == demo.ANIM
+    assert info["joints"] == len(sc.fresing.joints) >= demo.MIN_JOINTS and info["animation"] == demo.ANIM
+    assert info["cylinders"] == 0
     # the status line went through the stages with counts
     texts = [t for _s, t in made["seen"]]
     assert any(t.startswith("Writing the model") for t in texts)
     assert "Importing" in texts and any(t.startswith("Joints ") for t in texts) and "Animation" in texts
 
 
+def test_no_equipment_in_the_public_demo(made):
+    """Task 0247: the files the maker wrote, the parts in them (STEP product names), the project's objects, groups,
+    joints, cables, spools, saved scenes and the animation's steps hold no word of the vessel's equipment."""
+    from fresing_render.blender import build, paths, spool
+    files = sorted(os.listdir(made["models"]))
+    assert files == ["demo_joints.json", "demo_park.step", "demo_route.json", "demo_vessel.step"], files
+    names = list(files)
+    for f in files:
+        if f.endswith(".step"):
+            with open(os.path.join(made["models"], f), encoding="utf-8", errors="replace") as fh:
+                names += re.findall(r"PRODUCT\('([^']*)'", fh.read())
+    assert len(names) > 100
+    sc = _scene()
+    s = sc.fresing
+    names += [o.name for o in sc.objects] + [o.get(build.PROP_NAME, "") for o in sc.objects]
+    names += [g.name for g in s.groups] + [j.name for j in s.joints] + [sh.name for sh in s.shots]
+    names += [it.name for it in paths.items(sc)] + [sp.name for sp in spool.items(sc)]
+    names += [b.name for a in s.animations for b in a.blocks] + [a.name for a in s.animations]
+    bad = sorted({n for n in names if EQUIPMENT.search(n)})
+    assert not bad, bad[:20]
+    # the plain deck: no well, no opening; the ship's own crane is there
+    parts = {o.get(build.PROP_NAME) for o in build.iter_parts(sc)}
+    assert {"DECK CRANE", "CRANE BOOM", "HOOK BLOCK", "HOIST WIRE", "MAIN DECK", "BULWARK"} - parts <= {"DECK CRANE"}
+    assert "CAROUSEL WELL" not in parts
+
+
 def test_every_joint_of_the_sheet(made):
     from mathutils import Vector
 
-    from fresing_render.blender import build, joints, paths
+    from fresing_render.blender import build, joints
     sc = _scene()
     sc.frame_set(1)
-    root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_cable_lay.step"))
+    root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_vessel.step"))
     M = root.matrix_world.copy()
     sheet = made["sheet"]["joints"]
-    assert len(sheet) == 319                           # task 0102: no S-bend cradles; the cradles that drop; task 0126:
-    #                                                    none under the CPS slide's last bend onto side B; task 0153: the
-    #                                                    vessel's 4 propellers, 2 steers, 2 radars, the crane's slew + luff;
-    #                                                    task 0174: the crane's hoist drum and head sheave
+    # the ship: 2 steers + 4 propellers, 2 radars, the crane's slew, luff, hoist drum, head sheave and hook
+    assert len(sheet) == 13
     by = {j.name: j for j in sc.fresing.joints}
-    # + Cable travel and handling winch 1's wire speed (task 0080; no quay in the small form)
-    # task 0082: the speed joints of the A&R wire, the two tipping wires and the second end; task 0126: the CPS run's
-    wires = [paths.find(sc, n).joint for n in (demo.AR_ITEM, demo.SECOND_ITEM, demo.CPS_RUN_ITEM)
-             + tuple(n for _k, n in demo.TIP_ITEMS)]
     park = made["sheet"]["machine_files"]["demo_park.step"]           # task 0166: the wind park's 19 joints
     assert len(park) == 19 and all(j["name"] in by for j in park)
-    # task 0174: the wire speeds of handling winch 2, the crane's hoist and (task 0173) the two tipping winches' drums
-    travels = ["HANDLING WINCH 2: Wire travel", demo.CRANE_TRAVEL] + [demo.TIP_TRAVEL.format(KEY=k.upper())
-                                                                      for k, _n in demo.TIP_ITEMS]
-    rov = made["sheet"]["machine_files"]["demo_rov.step"]             # task 0173: the ROV's 7 thrusters
-    assert len(rov) == 7 and all(j["name"] in by for j in rov)
-    assert len(by) == len(sheet) + 2 + 4 + 5 + len(park) + len(rov) and demo.CABLE in by and demo.WINCH_TRAVEL in by and all(w in by for w in wires)
-    assert all(t in by for t in travels)
-    cable_turned = spooled = 0
+    assert demo.CRANE_TRAVEL in by and len(by) == len(sheet) + 1 + len(park) == demo.MIN_JOINTS
     for row in sheet:
         j = by.get(row["name"])
         assert j is not None, row["name"]
         assert j.kind == ("ROTATE" if row["type"] == "rotate" else "SLIDE"), row["name"]
-        moved = {o.get(build.PROP_UID) for o in joints.moved_objects(sc, j)}   # a rider may carry the same part
+        moved = {o.get(build.PROP_UID) for o in joints.moved_objects(sc, j)}
         assert set(row["parts"]) <= moved, row["name"]
         lim = row["limits"]
         if lim is None:
@@ -93,105 +110,46 @@ def test_every_joint_of_the_sheet(made):
                 and math.isclose(j.slide_max * 1000, lim[1], abs_tol=1e-2), row["name"]
         below = joints.rides_on(sc, j)
         assert (below.name if below else None) == row.get("rides_on"), row["name"]
-        drive = row["drive"]
-        if j.couple_table:                                          # follows its spool's layer by table (task 0080)
-            assert j.couple_table in (f"spool:{demo.SPOOL_ITEM}", f"spool:{demo.WINCH_SPOOL}", f"spool:{demo.AR_SPOOL}",
-                                      "spool:Handling winch 2", f"spool:{demo.CRANE_SPOOL}",
-                                      *[f"spool:{demo.TIP_SPOOL.format(key=k)}" for k, _n in demo.TIP_ITEMS]), row["name"]
-            spooled += 1
-        elif j.follows in wires:                                    # turned by a tipping wire (task 0082)
-            assert "TIPPING" in row["name"] or "Swivel sheave" in row["name"], row["name"]
-        elif row["name"] == demo.PULLEY_TURN:                       # turned by the lowering's steps (task 0082)
-            assert not j.follows
-        elif "Swivel sheave" in row["name"] and row["name"].endswith(" swivel"):
-            assert not j.follows, row["name"]                       # turned to its wire (Swivel, task 0125)
-        elif j.follows == demo.WINCH_TRAVEL:                        # turned by handling winch 1's wire
-            assert "Fairlead" in row["name"], row["name"]
-        elif j.follows == demo.CRANE_TRAVEL:                        # turned by the crane's hoist wire (task 0174)
+        if j.couple_table:                                          # the hoist drum follows its spool by table
+            assert j.couple_table == f"spool:{demo.CRANE_SPOOL}", row["name"]
+        elif row["name"] == demo.HOOK:                              # the hook on the hoist wire, one to one
+            assert j.follows == demo.CRANE_TRAVEL and math.isclose(j.couple_ratio, 1.0, rel_tol=1e-6)
+        elif j.follows == demo.CRANE_TRAVEL:                        # the head sheave, turned by the wire (task 0174)
             assert row["name"].endswith("Head sheave turn"), row["name"]
-        elif drive.get("by") == "follows":
-            assert j.follows == drive["follows"] and math.isclose(j.couple_ratio, drive["ratio"], rel_tol=1e-5)
-        elif drive.get("by") in ("cable", "carousel"):
-            assert j.follows == demo.CABLE and math.isclose(j.couple_ratio, drive["deg_per_mm"], rel_tol=1e-5)
-            cable_turned += 1
         else:
             assert not j.follows, row["name"]
-        # the axis where the sheet puts it (model mm, in the model's frame: the vessel moves with the sea) – but a
-        # swivel head's sheave turns about the post to its wire from the first frame on (task 0125)
-        if "Swivel sheave" in row["name"] and row["name"].endswith(" turn") and "foot" not in row["name"]:
-            continue
         o, d = joints.axis_world(j)
         p = np.array(M @ Vector(np.array(row["axis"]["point"]) / 1000.0))
         dv = np.array((M.to_3x3() @ Vector(row["axis"]["direction"])).normalized())
         assert np.linalg.norm(np.cross(np.array(o) - p, dv)) < 1e-4, row["name"]
         assert abs(abs(float(np.dot(np.array(d), dv))) - 1.0) < 1e-6, row["name"]
-    assert cable_turned >= 204                          # 0102: fewer highway cradles (no S-bends; none where the
-    #                                                     D's bar stands at rest or on the rise's top); 0080: the carousel by table
-    assert spooled == 11      # carousel, arch, guide cage; handling winch 1's drum (0080) + level wind (0081); A&R drum (0082);
-    #                           task 0174: handling winch 2's drum + level wind, the crane's hoist drum; 0173: both tipping drums
 
 
-def test_a_coupling_turns_at_its_ratio(made):
-    from fresing_render.blender import joints
+def test_the_crane_slews_and_lowers_its_hook(made):
+    """Shot 3: the boom swings 90° outboard to port, then 20 m of wire comes off the drum and the hook goes down
+    plumb beside the ship, clear of the hull; the drum turned by the spool's table."""
+    from fresing_render.blender import build, joints, paths
     sc = _scene()
-    s = sc.fresing
-    from fresing_render.blender import animation
-    animation.clear_keys(sc)
-    cable = s.joints[demo.CABLE]
-    row = next(r for r in made["sheet"]["joints"] if r["drive"].get("by") == "cable")
-    roller = s.joints[row["name"]]
-    member = joints.members(roller)[0]
+    a = sc.fresing.animations[demo.ANIM]
+    slew = next(b for b in a.blocks if b.kind == "JOINT" and b.joint == demo.SLEW)
+    hoist = next(b for b in a.blocks if b.kind == "JOINT" and b.joint == demo.CRANE_TRAVEL)
+    assert hoist.start == pytest.approx(slew.start + slew.duration)
+    hook = next(o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == "HOOK BLOCK")
+    drum = joints.find(sc, next(j.name for j in sc.fresing.joints if j.name.endswith("Hoist drum turn")))
+    root = next(r for r in build.model_roots(sc) if r.get(build.PROP_SOURCE, "").endswith("demo_vessel.step"))
+    sc.frame_set(animation_frame(a, slew.start - 0.1))
+    z0, d0 = hook.matrix_world.translation.z, joints.get_value(drum)
+    sc.frame_set(animation_frame(a, hoist.start + hoist.duration + 0.2))
     bpy.context.view_layer.update()
-    before = member.matrix_world.copy()
-    joints.set_value(cable, 0.25)                                   # 250 mm of cable
-    bpy.context.view_layer.update()
-    bpy.context.view_layer.update()
-    want = math.radians(row["drive"]["deg_per_mm"] * 250.0)
-    assert math.isclose(joints.get_value(roller), want, rel_tol=1e-4)
-    turned = (before.inverted() @ member.matrix_world).to_quaternion().angle
-    assert math.isclose(turned, abs(want) % (2 * math.pi), abs_tol=1e-3)
-    # the carousel's support rollers follow the carousel, which follows the cable
-    car = s.joints["CAROUSEL: Carousel turn"]
-    sup = s.joints["CAROUSEL: Support roller 11100-1 turn"]
-    assert math.isclose(joints.get_value(sup), joints.get_value(car) * sup.couple_ratio, rel_tol=1e-4)
-    joints.set_value(cable, 0.0)
-
-
-def test_cylinders_follow_the_handler(made):
-    """The handler's two cylinders follow its tilt; the tensioners' four tilt cylinders (task 0102), pinned on the lift
-    frame and on the tilting carriage, follow the lift and the tilt: at 70° each is longer by about half a metre."""
-    from mathutils import Vector
-
-    from fresing_render.blender import cylinders, joints
-    sc = _scene()
-    s = sc.fresing
-    assert len(s.cylinders) == 2 + 4
-    tilt = s.joints["QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"]
-    c = s.cylinders[0]
-    length0 = cylinders.length_now(c)
-    joints.set_value(tilt, math.radians(60))
-    bpy.context.view_layer.update()
-    bpy.context.view_layer.update()
-    assert abs(cylinders.length_now(c) - length0) > 0.2          # the rod slides as the handler tilts
-    joints.set_value(tilt, 0.0)
-    bpy.context.view_layer.update()
-    for k in (1, 2):
-        lift, top = s.joints[f"TENSIONER {k}: Top track lift"], s.joints[f"TENSIONER {k}: Top track tilt"]
-        mine = [c for c in s.cylinders if c.name.startswith(f"Tensioner {k} tilt cylinder")]
-        assert len(mine) == 2
-        before = [cylinders.length_now(c) for c in mine]
-        joints.set_value(lift, 0.9)
-        joints.set_value(top, math.radians(70.0))
-        bpy.context.view_layer.update()
-        bpy.context.view_layer.update()
-        after = [cylinders.length_now(c) for c in mine]
-        assert all(0.4 < b - a < 0.7 for a, b in zip(before, after)), (before, after)
-        joints.set_value(top, 0.0)
-        joints.set_value(lift, 0.0)
-        bpy.context.view_layer.update()
-        bpy.context.view_layer.update()
-        assert [cylinders.length_now(c) for c in mine] == pytest.approx(before, abs=1e-4)
-    del Vector
+    assert joints.get_value(joints.find(sc, demo.SLEW)) == pytest.approx(math.radians(demo.CRANE_SLEW), abs=1e-3)
+    assert joints.get_value(joints.find(sc, demo.HOOK)) == pytest.approx(demo.CRANE_DROP, abs=1e-3)
+    local = root.matrix_world.inverted() @ hook.matrix_world.translation
+    beam = made["route"]["vessel"]["beam"] / 2000.0
+    assert local.y > beam + 1.0                                         # outboard of the port side
+    assert z0 - hook.matrix_world.translation.z == pytest.approx(demo.CRANE_DROP, abs=0.3)     # (vessel motion)
+    assert abs(math.degrees(joints.get_value(drum) - d0)) > 360.0       # the drum paid the wire out
+    it = paths.find(sc, demo.CRANE_WIRE)
+    assert it is not None and it.joint == demo.CRANE_TRAVEL and not it.problem
 
 
 def test_drivers_work_with_scripts_off(made):
@@ -204,7 +162,7 @@ def test_drivers_work_with_scripts_off(made):
             drv = fc.driver
             assert drv.type != "SCRIPTED" or drv.is_simple_expression, (ob.name, drv.expression)
             n += 1
-    assert n >= 300
+    assert n >= 30
 
 
 def test_scenes_cameras_brand_and_the_animation(made):
@@ -213,75 +171,67 @@ def test_scenes_cameras_brand_and_the_animation(made):
     assert s.shots.get(demo.SEA_SHOT) is not None
     for name in demo.VIEWS:
         assert s.shots.get(name) is not None and sc.objects.get(name) is not None, name
+    from fresing_render.blender import demo_park
+    for name in (demo_park.BESIDE_A, demo_park.PARK_OVERVIEW, demo_park.PARK_NIGHT):
+        assert sc.objects.get(name) is not None, name
     assert s.brand_name == "Demo" and os.path.isfile(bpy.path.abspath(s.brand_logo))
     a = s.animations[demo.ANIM]
     body = max(b.start + b.duration for b in a.blocks)
     cards = (a.fin_title_seconds if a.fin_title_on else 0) + (a.fin_end_seconds if a.fin_end_on else 0)
-    assert 60.0 <= body + cards <= 210.0, body + cards         # (0081: shot 8, 10 s more; 0082: shots 9–12, ~55 s;
-    #                                                            0126: shot 8b, ~24 s; 0166: the park's 2b, 8a, 13, 26 s)
+    assert 50.0 <= body <= 75.0 and 55.0 <= body + cards <= 80.0, (body, cards)       # "about a minute"
     kinds = {(b.kind, b.camera_mode if b.kind == "CAMERA" else "") for b in a.blocks}
-    assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("JOINT", ""), ("FADE_OUT", ""),
-            ("FADE_IN", "")} <= kinds
-    assert any(f"x {demo.LAPSE}" in b.name for b in a.blocks) and a.fin_captions   # the time-lapse in a caption
-    assert len(s.callouts) >= 4 and all(c.step == demo.XRAY_STEP for c in s.callouts[:-1])
-    assert s.callouts[-1].step == demo.SEA_CAPTION and s.callouts[-1].text == demo.LAY_DATA    # task 0173: shot 8
-    assert s.background == "SEA"
-
-
-def _keys(sc):
-    """Every key the Build wrote (layered actions: the channel bag of each object's slot)."""
-    from bpy_extras import anim_utils
-    out = {}
-    for ob in sc.objects:
-        ad = ob.animation_data
-        if ad is None or ad.action is None or ad.action_slot is None:
-            continue
-        cb = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
-        for fc in cb.fcurves if cb is not None else []:
-            pts = np.array([tuple(k.co) for k in fc.keyframe_points])
-            out[(ob.name, fc.data_path, fc.array_index)] = pts
-    return out
-
-
-def _drum_wire_shapes(sc) -> dict:
-    """The tipping winches' drum wires as Build drew them: name -> (frames, points, 3)."""
-    from fresing_render.blender import paths
-    out = {}
-    for key, _n in demo.TIP_ITEMS:
-        it = paths.find(sc, demo.TIP_DRUM_WIRE.format(key=key))
-        got = paths._arrays(sc, it)
-        out[it.name] = np.array(got[0], dtype=float)
-    return out
+    assert {("CAMERA", "PATH"), ("CAMERA", "ORBIT"), ("CAMERA", "RIDE"), ("CAMERA", "CUT"), ("JOINT", ""),
+            ("MOTOR", ""), ("VESSEL", ""), ("WEATHER", "")} <= kinds
+    assert a.fin_captions and a.fin_title == demo.TITLE
+    assert s.background == "SEA" and s.sea_depth == pytest.approx(demo.SEA_DEPTH)
+    assert s.sea_cutaway and not s.sea_cut_auto and s.sea_cut_length == pytest.approx(demo.CUT_LENGTH)
 
 
 def test_save_reopen_and_build_again_gives_the_same_keys(made, tmp_path):
-    from fresing_render.blender import animation, paths_sea
+    from fresing_render.blender import animation, paths
     sc = _scene()
     a = sc.fresing.animations[demo.ANIM]
     out = animation.bake(sc, a)
     first = _keys(sc)
-    marks = {it.name: float(it.sea_mark) for it in paths_sea.sea_cables(sc)}
-    drum_wires = _drum_wire_shapes(sc)          # task 0173: the tipping drums' wires (shapes, no keys of their own)
-    assert len(drum_wires) == 2 and all(len(v) > 1 for v in drum_wires.values())
-    assert len(first) > 15                  # the moved joints, the camera, the fades (followers are drivers)
+    wire = np.array(paths._arrays(sc, paths.find(sc, demo.CRANE_WIRE))[0], dtype=float)
+    assert len(first) > 15 and len(wire) > 1    # the moved joints, the camera, the fades (followers are drivers)
     path = str(tmp_path / "again.blend")
     bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
     bpy.ops.wm.open_mainfile(filepath=path)
     sc = _scene()
-    sc.frame_set(sc.frame_end)              # task 0138: Build with the last frame shown gives the same (was +114 m)
+    sc.frame_set(sc.frame_end)              # task 0138: Build with the last frame shown gives the same
     again_out = animation.bake(sc, sc.fresing.animations[demo.ANIM])
     again = _keys(sc)
-    assert {it.name: float(it.sea_mark) for it in paths_sea.sea_cables(sc)} == pytest.approx(marks, abs=1e-6)
     assert again_out["warnings"] == out["warnings"]
-    for k, v in _drum_wire_shapes(sc).items():
-        assert v.shape == drum_wires[k].shape and float(np.abs(v - drum_wires[k]).max()) < 1e-5, k
+    w2 = np.array(paths._arrays(sc, paths.find(sc, demo.CRANE_WIRE))[0], dtype=float)
+    assert w2.shape == wire.shape and float(np.abs(w2 - wire).max()) < 1e-5
     assert set(again) == set(first)
     for k, v in first.items():
         assert v.shape == again[k].shape and np.allclose(v, again[k], atol=1e-5), k
     bpy.ops.wm.open_mainfile(filepath=made["out"]["path"])
 
 
-# test_no_clash_in_the_animation: in tests/test_demo_clash.py since task 0108 (four processes at once)
+def test_no_clash_and_the_park_left_out_by_its_tag(made, tmp_path):
+    """The clash check over the whole animation: 0 rows (the crane's boom, hook and wire, the turning propellers and
+    radars). The park is left out by the tag stored on its model root (``clash.NO_CLASH``, task 0247) – also after the
+    project is saved and opened again, with no code of the demo's registered as a hook."""
+    from fresing_render.blender import build, clash, demo_park
+    sc = _scene()
+    path = str(tmp_path / "tagged.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = _scene()
+    r = demo_park.park_root(sc)
+    assert r is not None and r.get(clash.NO_CLASH) and not any("demo" in getattr(f, "__module__", "")
+                                                               for f in clash.HOOKS)
+    objs = clash.objects(sc)
+    park = [o for o in build.iter_parts(sc) if clash.left_out(o)]
+    assert len(park) > 500 and not set(o.name for o in objs) & set(o.name for o in park)
+    assert any(o.get(build.PROP_NAME) == "HOOK BLOCK" for o in objs)
+    res = clash.check(sc, store=False)
+    rows = [r_ for r_ in res.rows if r_.kind == "CLASH"]
+    assert not rows, [(r_.a, r_.b, r_.frame_from, round(r_.depth * 1000, 1)) for r_ in rows[:5]]
+    bpy.ops.wm.open_mainfile(filepath=made["out"]["path"])
 
 
 def test_cancel_leaves_nothing(made, tmp_path, monkeypatch):
@@ -294,7 +244,7 @@ def test_cancel_leaves_nothing(made, tmp_path, monkeypatch):
     monkeypatch.setattr(demo, "_run_maker", copy_model)
 
     def press_cancel(stage, text, done, total):
-        if text.startswith("Joints") and done >= 50:
+        if text.startswith("Joints") and done >= 10:
             with open(demo.cancel_path(folder, VERSION), "w", encoding="utf-8") as fh:
                 fh.write("cancel\n")
     with pytest.raises(demo.Cancelled):
@@ -319,27 +269,28 @@ def test_a_failure_leaves_nothing(made, tmp_path, monkeypatch):
 
 def test_stages_can_be_added_and_replaced():
     ids = [s.id for s in demo.STAGES]
-    assert ids[:5] == ["model", "looks", "hold", "marks", "joints"] and ids[-1] == "finish"   # hold: 0082, marks: 0153
-    assert ids[-4:-1] == ["propulsion", "park_rotors", "rov_thrusters"]   # tasks 0153, 0166, 0173: propellers, rotors
-    #                                                                       and the ROV's thrusters turn all the time
-    assert [i for i in ids if i.startswith("shot_")] == ["shot_fly", "shot_deck", "shot_turbine_a", "shot_carousel",
-                                                       "shot_rollers", "shot_tensioner", "shot_drum", "shot_sea",
-                                                       "shot_park", "shot_cps", "shot_quadrant", "shot_lower",
-                                                       "shot_tip", "shot_back", "shot_night"]
-    assert ids.index("park") == ids.index("sea") + 1 and ids.index("park_shift") == ids.index("shot_quadrant") - 1
+    assert ids == ["model", "looks", "marks", "joints", "crane", "surroundings", "sea", "park", "cameras",
+                   "park_cameras", "brand", "shot_fly", "shot_turbine_a", "shot_crane", "shot_hull", "shot_seabed",
+                   "shot_park", "shot_night", "propulsion", "park_rotors", "finish"], ids
     saved = list(demo.STAGES)
     before = [s.id for s in demo.STAGES]
     try:
-        @demo.stage("cable", "Cable on its path", after="joints")
-        def cable(d):
+        @demo.stage("crane", "The crane again", after="joints")
+        def crane(d):
             pass
 
-        @demo.stage("shot_rollers", "Shot 4 again")
-        def rollers(d):
+        @demo.stage("shot_hull", "Shot 4 again")
+        def hull(d):
             pass
         ids = [s.id for s in demo.STAGES]
         assert ids == before                                     # replaced in its place
-        assert ids.count("shot_rollers") == 1 and demo.STAGES[ids.index("shot_rollers")].fn is rollers
+        assert ids.count("shot_hull") == 1 and demo.STAGES[ids.index("shot_hull")].fn is hull
+
+        @demo.stage("shot_extra", "A new shot", after="shot_hull")
+        def extra(d):
+            pass
+        ids = [s.id for s in demo.STAGES]
+        assert ids[ids.index("shot_hull") + 1] == "shot_extra"
     finally:
         demo.STAGES[:] = saved
 
@@ -347,7 +298,9 @@ def test_stages_can_be_added_and_replaced():
 def test_the_maker_ships_with_the_extension():
     pkg = os.path.join(ROOT, "fresing_render", "demo_model")
     assert os.path.isfile(os.path.join(pkg, "make.py")) and os.path.isfile(os.path.join(pkg, "layout.py"))
-    assert not os.path.exists(os.path.join(ROOT, "tools", "demo_cable_lay"))
+    for gone in ("machines.py", "rov.py"):                              # task 0247: the equipment is private
+        assert not os.path.exists(os.path.join(pkg, gone)), gone
+    assert not os.path.exists(os.path.join(ROOT, "fresing_render", "blender", "demo_rov.py"))
     import subprocess
     r = subprocess.run([sys.executable, "-I", os.path.join(pkg, "make.py"), "--help"], capture_output=True, text=True)
     assert r.returncode == 0 and "--only" in r.stdout, r.stderr
@@ -365,7 +318,7 @@ def test_help_menu_buttons_have_tooltips(made):
 
 def test_the_vessel_in_detail(made):
     """Task 0153: the vessel's looks (antifouling with growth, boot top, glass …), its name and draft marks as decals,
-    the two new cameras, and the propellers and radars turning (motors) through the whole animation."""
+    the cameras, and the propellers and radars turning (motors) through the whole animation."""
     from fresing_render.blender import build, decals, joints, marine_looks
     sc = _scene()
     by_name = {}
@@ -377,6 +330,7 @@ def test_the_vessel_in_detail(made):
                                   ("HULL", "Demo: hull", "paint_marine_streaks"),
                                   ("PROPELLER", "Demo: propellers", "bronze"),
                                   ("WINDOW", "Demo: glass", "glass_tinted"),
+                                  ("CRANE BOOM", "Demo: yellow structure", "paint_marine"),
                                   ("MAIN DECK", "Demo: non-slip deck", "powder_coat")):
         assert groups[group].material == material, group
         for o in by_name[name]:
@@ -389,31 +343,31 @@ def test_the_vessel_in_detail(made):
         texts[o.name] = sorted(it.text for it in decals.items_of(o))
     assert sorted(t for t in texts.values() if t == [demo.VESSEL_NAME]) == [[demo.VESSEL_NAME]] * 2
     assert sum(1 for t in texts.values() if t == ["5M", "6M", "7M"]) == 4
-    # the new cameras: one under water at the stern, one along the side
+    # the cameras: one under water at the stern, one along the side, one at the seabed
     wl = marine_looks.waterline(sc)
     cam = sc.objects[demo.STERN_THRUSTERS]
     assert cam.type == "CAMERA" and cam.matrix_world.translation.z < wl - 3.0
+    assert sc.objects[demo.AT_THE_SEABED].matrix_world.translation.z < wl - demo.SEA_DEPTH + 10.0
     assert sc.objects[demo.HULL_SIDE].type == "CAMERA"
     # propellers and radars: motors, turning at their speed the whole animation
     a = sc.fresing.animations[demo.ANIM]
     end = max(b.start + b.duration for b in a.blocks)
     names = [n for n, _rpm in demo.turning_joints(demo.Demo(sc, made["folder"], VERSION, small=True))]
     assert len(names) == 6
-    t0, t1 = 20.0, 26.0
-    f0, f1 = animation_frame(a, t0), animation_frame(a, t1)
-    # task 0154: the propellers follow Vessel at work (ahead 6 kn, then DP from shot 3): at 20-26 s on DP
-    from fresing_render.core import vessel_work as vw_core
+    # task 0154: the propellers follow Vessel at work (ahead 6 kn, then DP from the crane's shot)
     from fresing_render.blender import vessel_work
+    from fresing_render.core import vessel_work as vw_core
     v = sc.fresing.vessel_work
     assert len(v.thrusters) == 4 and sorted(r.kind for r in v.thrusters) == ["AZIMUTH", "AZIMUTH", "TUNNEL", "TUNNEL"]
     steps = [b for b in a.blocks if b.kind == "VESSEL"]
     assert len(steps) == 1 and steps[0].vw_mode == "DP"
-    t0 = steps[0].start + steps[0].duration + 0.5            # (task 0166: shot 2b puts shot 3 at 22 s)
+    t0 = steps[0].start + steps[0].duration + 0.5
     t1 = t0 + 6.0
     f0, f1 = animation_frame(a, t0), animation_frame(a, t1)
     assert vessel_work.setting(sc).mode == "AHEAD" and vessel_work.setting(sc).speed == demo.TRANSIT_KNOTS
     ths = vessel_work.thrusters(sc)
     cmd = vw_core.command(vessel_work.block_setting(steps[0]), ths)
+    fps = sc.render.fps / sc.render.fps_base
     for i, r in enumerate(v.thrusters):
         j = joints.find(sc, r.joint)
         assert joints.is_motor(j) and r.joint in names, r.joint
@@ -421,7 +375,6 @@ def test_the_vessel_in_detail(made):
         v0 = joints.get_value(j)
         sc.frame_set(f1)
         v1 = joints.get_value(j)
-        fps = sc.render.fps / sc.render.fps_base
         want = vw_core.rate(ths[i].kind, cmd.loads[i], cmd.jets[i], r.rpm, r.reverse) * (f1 - f0) / fps
         assert abs(want) > 0.5 and v1 - v0 == pytest.approx(want, rel=0.02), r.joint
     for n in names:
@@ -435,6 +388,5 @@ def test_the_vessel_in_detail(made):
         v0 = joints.get_value(j)
         sc.frame_set(f1)
         v1 = joints.get_value(j)
-        fps = sc.render.fps / sc.render.fps_base
         want = 2 * math.pi * blk[0].speed_rpm / 60.0 * (f1 - f0) / fps
         assert v1 - v0 == pytest.approx(want, rel=0.02), n

@@ -1,4 +1,4 @@
-"""Measure where the time goes in a big Fresing Render project – the cable-lay demo above all (task 0195).
+"""Measure where the time goes in a big Fresing Render project – the demo project above all (task 0195).
 
 Not app code: a measuring tool. It changes the project only for a moment (hides a group, mutes a modifier kind, a
 light look, a sea state, a joint value) and puts every change back; in the app it opens the saved project again at

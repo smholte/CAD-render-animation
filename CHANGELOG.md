@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.188 – 21 Nov 2026 – A let-go cable lies straight (task 0248)
+## 0.2.189 – 21 Nov 2026 – A let-go cable lies straight (task 0248)
 
 - **The cable on the seabed stays where it lay.** When you let go a cable into the sea (**Let go here**), the cable
   that already lies on the seabed no longer turns into a snake of short waves from end to end: it does not move at
@@ -17,6 +17,21 @@ installer of that version was built from.
 - A cable that piles up while laying (the warning "has … m more cable than the water is deep") now lies straight from
   its end and puts the extra cable in one bight next to the touch-down, instead of waves along the whole cable.
 - Build after updating: a cable let go in an older version gets the new lying-down at its next **Build & play**.
+
+## 0.2.188 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
+
+- **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own
+  deck crane in an offshore wind park of nine turbines and a substation, the park's power cable lying on the seabed
+  right under her. Its video lasts about a minute: she sails in and holds her place on her thrusters, her crane slews
+  outboard and lowers its hook (the wire comes off the drum layer by layer), along her hull and under water at her
+  thrusters, at the seabed where the cable comes down turbine WTG 05, the park from above and at night. It is made in
+  about a minute instead of six. The cable-lay equipment of the old demo is no longer part of the app.
+- **New saved cameras** in the demo: **Deck crane** and **At the seabed** (through the cut-away behind the stern, along
+  the cable to the turbine's foot).
+- **The clash check can leave a whole model out, stored in the project.** The demo's wind park is left out this way
+  (its nine turning rotors would make the check several times as long); the mark stays when you save, reopen or
+  update the model. A demo kit uses it for its own scenery.
+
 
 ## 0.2.187 – 21 Nov 2026 – Automatic backups (task 0246)
 

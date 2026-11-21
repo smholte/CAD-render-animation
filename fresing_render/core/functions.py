@@ -300,7 +300,7 @@ fn(id="offshore.moving_cable", short="Moving cable", title="A cable on a moving 
    since="0.2.95")
 fn(id="offshore.settle", title="A let-go cable settles onto the seabed", family="offshore", panel="FRESING_PT_cables",
    fold="fr_cables_sea", prop="sea_settle", guide="settle", tour=("moving_cable",), pccheck=("motion.moving_cable",),
-   since="0.2.103", changed="0.2.188")
+   since="0.2.103", changed="0.2.189")
 fn(id="offshore.swivel", title="A sheave on a swivel turns to its wire", family="offshore", panel="FRESING_PT_cables",
    prop="swivel", guide="swivel", tour=("swivel",), pccheck=("motion.swivel",), since="0.2.103")
 fn(id="offshore.spool", short="Drums", title="Drums and carousels", family="offshore", panel="FRESING_PT_spools",
@@ -542,8 +542,8 @@ fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", 
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
-fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
-   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
+fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",
+   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68", changed="0.2.188")
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
    panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app

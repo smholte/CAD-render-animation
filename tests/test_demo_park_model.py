@@ -19,7 +19,7 @@ from fresing_render.demo_model import geom as g  # noqa: E402
 from fresing_render.demo_model import park as pk  # noqa: E402
 from fresing_render.demo_model import turbine as tb  # noqa: E402
 from fresing_render.demo_model import turbine_parts as tp  # noqa: E402
-from fresing_render.demo_model.params import ParkParams, Params  # noqa: E402
+from fresing_render.demo_model.params import ParkParams, ShipParams as Params  # noqa: E402
 
 
 @pytest.fixture(scope="module")

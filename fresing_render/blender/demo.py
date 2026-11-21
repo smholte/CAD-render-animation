@@ -1,32 +1,34 @@
-"""Demo project "Cable-lay vessel" (task 0077): Help > Make demo project.
+"""Demo project "Vessel in a wind park" (task 0077; task 0247): Help > Make demo project.
 
-One click writes the invented cable-lay vessel spread (``demo_model/``, tasks 0076 + 0084), imports it and sets it up
-the way the owner would – groups and looks, every joint of the joint sheet (stacks, couplings, a "Cable travel" slide
-joint the cable-turned rollers follow), the quadrant handler's cylinders, the open sea, saved cameras, a brand kit –
-and saves a ready project with the animation **"What it can do today"**. Everything goes through the app's own
-functions (the same calls the buttons make), so the project is exactly what a user would have made.
+One click writes the invented ship and the wind park round it (``demo_model/``), imports them and sets them up the way
+the owner would – groups and looks, the name and draft marks, the ship's joints (thrusters, propellers, radars, the deck
+crane), the crane's hoist wire on its drum, the open sea with its seabed and a cut-away, the park on the seabed with the
+power cable lying on it, saved cameras, a brand kit – and saves a ready project with the animation **"What it can do
+today"**: the ship sails in and holds her place over the cable on her thrusters, her crane slews and lowers its hook,
+the park's rotors turn, night falls. Everything goes through the app's own functions (the same calls the buttons make),
+so the project is exactly what a user would have made.
 
-    Documents\\Fresing Render\\Demo\\<version>\\Demo cable-lay vessel <version>.blend   the project
-    Documents\\Fresing Render\\Demo\\<version>\\model\\                                  STEP files + the two sheets
-    Documents\\Fresing Render\\Demo\\<version>\\making.json                              only while it is made
+    Documents\\Fresing Render\\Demo\\<version>\\Vessel in a wind park <version>.blend   the project
+    Documents\\Fresing Render\\Demo\\<version>\\model\\                                 STEP files + the two sheets
+    Documents\\Fresing Render\\Demo\\<version>\\making.json                             only while it is made
 
 The menu item starts a background Blender (``pccheck/launcher.py -- demobuild <folder>``, ``build_main``), which runs
 the model maker as its own program and then the stages below; the app shows the progress and can cancel at any moment
-(``ops_demo.py``). A demo that failed or was cancelled leaves nothing behind (its folder is deleted).
+(``ops_demo.py``). A demo that failed or was cancelled leaves nothing behind (its folder is deleted). A demo kit
+(task 0228, ``core/demo_kits.py``) is built by the same framework with its own maker and stages.
 
-ADDING TO THE DEMO (tasks 0079–0082: tensioner tracks, spooling, catenary, quadrant operations; 0078 added ``cable``): the project is
-built as a list of small named **stages**, run in order::
+ADDING TO THE DEMO: the project is built as a list of small named **stages**, run in order::
 
-    @stage("rollers", "Shot: roller highways")
-    def shot_rollers(d: Demo):
+    @stage("shot_crane", "Shot 3: the deck crane slews and lowers its hook")
+    def shot_crane(d: Demo):
         a = d.animation                         # "What it can do today"
-        d.joint(CABLE, d.t, 8.0, 1.33, slide=True, label="Rollers turn with the cable")
-        d.t += 8.0                              # the shot's length: the next shot starts there
+        d.joint(SLEW, d.t, 4.0, 90.0, label="The deck crane slews outboard")
+        d.t += 4.0                              # the shot's length: the next shot starts there
 
-A later task adds a stage (``@stage("cable", "Cable on its path", after="joints")``) or replaces one by giving the
-same id (``@stage("rollers", …)`` again: the newest wins, its place stays). Shots run in order and each advances
-``d.t`` (seconds on the animation's time line), so a shot put between two others moves the later ones along. Keep a
-stage small and name what it shows; ``d.progress()`` inside a long loop keeps the status bar alive and lets Cancel in.
+A later task adds a stage (``@stage("crane", "…", after="joints")``) or replaces one by giving the same id
+(``@stage("shot_crane", …)`` again: the newest wins, its place stays). Shots run in order and each advances ``d.t``
+(seconds on the animation's time line), so a shot put between two others moves the later ones along. Keep a stage
+small and name what it shows; ``d.progress()`` inside a long loop keeps the status bar alive and lets Cancel in.
 """
 
 from __future__ import annotations
@@ -42,17 +44,15 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
-TITLE = "Demo cable-lay vessel"
+TITLE = "Vessel in a wind park"
 ANIM = "What it can do today"
-CABLE = "Cable travel"                # the slide joint (m of cable paid out) every cable-turned part follows
 SEA_SHOT = "Open sea"
-QUAY_SHOT = "Loading at the quay"
+QUAY_SHOT = "At the quay"
 TAG = "fr_demo"                       # on the scene of the demo project: the version
-MODEL_KEYS = ("assembly", "quay_loading", "park", "rov")   # task 0166: the wind park round the vessel; 0173: the ROV
-QUAY_PREFIX = "QUAY: "                # in front of the quay file's joint names (its sheet names them on their own)
-SPEED = 10.0                          # m/min of cable while laying (0083)
-LAPSE = 90                            # time-lapse factor of the carousel shot (task 0080: 150 m, three turns come off)
-MIN_JOINTS = 318                      # the joint sheet's 317 + Cable travel (the quay's come on top)
+MODEL_KEYS = ("assembly", "park", "quay")   # the ship, the wind park round it (task 0166), the quay
+MIN_JOINTS = 33                       # the ship's 13 + the crane's hoist wire travel + the park's 19
+
+
 
 
 class Cancelled(Exception):
@@ -216,7 +216,6 @@ class Demo:
         self.stage = ""
         self.timings: dict[str, float] = {}
         self.notes: list[str] = []
-        self.set_down = None                     # (start, hoist, from) of the D's set-down step (tasks 0125, 0172)
         self.kit = None                          # task 0228: the demo kit being built (core/demo_kits.KitInfo)
         self.t = 0.0
         self._sheets: dict = {}
@@ -297,31 +296,6 @@ class Demo:
             a.quality, a.out_resolution, a.out_format, a.video = "preview", "hd", "presentation", "MP4"
         return a
 
-    def set_down_error(self, t0: float, t1: float) -> float:
-        """m: how much lower the A&R winch should lower the D for its lowest point (its mesh, every frame from ``t0`` to
-        ``t1`` of the built animation, vessel motion and all) to come to ``SET_DOWN_CLEAR`` over the seabed. Task 0172:
-        no longer a second Build at Make (the estimate before Build meets it): the demo's test checks it."""
-        import numpy as np
-
-        from . import animation, paths_sea
-        sc = self.scene
-        bed = paths_sea.waterline(sc) - SEA_DEPTH
-        parts = lowered_parts(sc)
-        pts = []
-        for o in parts:
-            co = np.empty(len(o.data.vertices) * 3)
-            o.data.vertices.foreach_get("co", co)
-            pts.append(co.reshape(-1, 3))
-        low = 1e9
-        keep = sc.frame_current
-        for f in range(animation.frame_of(self.animation, t0), animation.frame_of(self.animation, t1) + 1):
-            sc.frame_set(f)
-            for o, p in zip(parts, pts):
-                M = np.array(o.matrix_world)
-                low = min(low, float((p @ M[2, :3] + M[2, 3]).min()))
-        sc.frame_set(keep)
-        return low - (bed + SET_DOWN_CLEAR)
-
     def joint(self, joint: str, start: float, seconds: float, to: float, slide: bool = False, label: str = "",
               easing: str = "SMOOTH"):
         """A Move joint step (to: m for a slide joint, degrees for a rotate joint)."""
@@ -389,7 +363,7 @@ def _run_maker(d: Demo) -> None:
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
     log = os.path.join(d.model_dir, "maker log.txt")
-    keys = MODEL_KEYS if d.quay else ("assembly", "park", "rov")
+    keys = MODEL_KEYS if d.quay else ("assembly", "park")
     os.makedirs(d.model_dir, exist_ok=True)
     with open(log, "w", encoding="utf-8", errors="replace") as fh:
         proc = subprocess.Popen([import_runner.python_executable(), script, d.model_dir, "--only", ",".join(keys),
@@ -443,31 +417,20 @@ def make_model(d: Demo):
     t0 = time.time()
     _import(d, "assembly")
     if d.quay:
-        _import(d, "quay_loading")
+        _import(d, "quay")
     d.timings["import"] = time.time() - t0
 
 
 # ---------------------------------------------------------------------------
-# looks (0083 item 8): deep blue machinery, orange accents, yellow structure, grey deck, rubber pads, black cable
+# looks: the ship's paint, glass, galvanised outfitting, the deck crane's yellow
 # ---------------------------------------------------------------------------
 
 LOOKS = [
     # group, material, colour, part names (CAD names), only inside these machines ('' = anywhere)
-    ("Demo: machinery blue", "paint_marine", "RAL 5010",
-     ("TENSIONER BASE FRAME", "TOP TRACK FRAME", "CABLE ENGINE FRAME", "TOP WHEEL FRAME", "WINCH BASE FRAME",
-      "HYDRAULIC MOTOR", "PLANETARY GEARBOX", "DRIVE BRACKET", "WINCH PEDESTAL"), ()),
-    ("Demo: orange", "paint_marine", "RAL 2004",
-     ("HOOK BLOCK", "RIM FENCE", "TURNTABLE", "BARREL", "TOP TRACK LIFT FRAME", "CPS RAMP", "CPS SLIDE", "INNER CORE",
-      "WINCH DRUM", "DRUM FLANGE", "LEBUS RISER"), ()),
+    ("Demo: orange", "paint_marine", "RAL 2004", ("HOOK BLOCK", "WINCH DRUM", "DRUM FLANGE"), ()),
     ("Demo: yellow structure", "paint_marine", "RAL 1003",
-     ("ROLLER CRADLE", "ROLLER STAND", "ROLLER TRESTLE", "TOWER COLUMN", "ARCH", "ARCH FRAME", "GUIDE CAGE",
-      "GUIDE FRAME", "SLEW HOUSING", "RADIUS CONTROLLER", "CHUTE", "CHUTE SUPPORT", "RAMP SUPPORT", "CPS RACK",
-      "QUADRANT FRAME", "QUADRANT GUTTER", "HANDLER FRAME", "RAIL TRESTLE", "RAIL BOGIE", "SHEAVE POST",
-      "SHEAVE HEAD", "HINGE BRACKET", "CYLINDER BRACKET", "CYLINDER LUG", "ROLLER BRACKET", "FOOT FRAME",
-      "CRADLE LIFT FRAME", "A&R PAD EYE", "PAD EYE", "HANDLER TOP PULLEY", "TIPPING SHEAVE", "FOOT SHEAVE",
-      "CRANE PEDESTAL", "CRANE HOUSE", "CRANE BOOM", "HOIST BEARING", "BOOM HEAD SHEAVE", "HEAD SHEAVE BRACKET"), ()),
+     ("CRANE PEDESTAL", "CRANE HOUSE", "CRANE BOOM", "HOIST BEARING", "BOOM HEAD SHEAVE", "HEAD SHEAVE BRACKET"), ()),
     ("Demo: non-slip deck", "powder_coat", "RAL 7037", ("MAIN DECK", "HATCH COVER"), ()),
-    ("Demo: deck grey", "paint_marine", "RAL 7037", ("CAROUSEL WELL",), ()),
     # the vessel (task 0153): hull paint above the boot top with run-down streaks, the black boot top and the red
     # antifouling with marine growth below the waterline, white superstructure, glass, galvanised outfitting
     ("Demo: hull", "paint_marine_streaks", "RAL 5003", ("HULL", "BULWARK", "NAME BOARD"), ()),
@@ -485,13 +448,8 @@ LOOKS = [
     ("Demo: deck fittings", "paint_marine", "RAL 9005",
      ("BOLLARD", "FAIRLEAD", "WINDLASS", "HAWSE PIPE", "ANCHOR", "RUBBING STRAKE"), ()),
     ("Demo: lights", "emission_light", "RAL 9016", ("MAST LIGHT",), ()),
-    ("Demo: walkways", "paint_marine", "RAL 6011", ("GRATING WALKWAY",), ()),
-    ("Demo: rubber pads", "rubber_black", "", ("TRACK PAD", "CABLE ENGINE WHEEL"), ()),
-    ("Demo: steel", "steel_raw", "", ("PAD BACK PLATE", "TRACK CHAIN LINK", "DRIVE SPROCKET", "IDLER SPROCKET",
-                                       "QUADRANT RAIL"), ()),
-    ("Demo: rollers", "steel_machined", "", ("CABLE ROLLER", "GUIDE ROLLER", "SUPPORT ROLLER", "RAIL WHEEL"), ()),
-    ("Demo: power cable", "cable_black", "", ("CABLE", "CABLE COIL", "CABLE END"), ()),
-    ("Demo: wire rope", "galvanized", "", ("WIRE ROPE", "A&R WIRE", "TIPPING WIRE", "HOIST WIRE"), ()),
+    ("Demo: power cable", "cable_black", "", ("CABLE", "CABLE END"), ()),
+    ("Demo: wire rope", "galvanized", "", ("WIRE ROPE", "HOIST WIRE"), ()),
 ]
 
 
@@ -531,6 +489,8 @@ def looks(d: Demo):
 VESSEL_NAME = "DEMO LAYER"            # invented (demo_model/vessel.py NAME)
 DRAFT_MARKS = (("7M", 1.0), ("6M", 0.0), ("5M", -1.0))     # draft from the keel (6 m at the waterline), height (m)
 WHITE_INK = (0.85, 0.85, 0.83)
+
+
 
 
 def _outer_face(ob):
@@ -616,7 +576,7 @@ def _sheet_order(js: list[dict]) -> list[dict]:
     return out
 
 
-def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = "", cable: str = CABLE) -> int:
+def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = "", cable: str = "") -> int:
     """The sheet's joints through ``joints.create`` / ``set_follows`` (the buttons' own calls). Returns the count."""
     from mathutils import Vector
 
@@ -669,27 +629,6 @@ def make_joints(d: Demo, js: list[dict], key: str = "assembly", prefix: str = ""
     return total
 
 
-def turning_in_place(scene) -> list:
-    """The parts that only turn about their own round axis (rollers, sheaves, wheels, drums, the carousel with its
-    coil): what a clash check may leave out to save time (the cable on its path, task 0078, is left out by the
-    check itself). Such a part sweeps
-    only its own room, so it cannot run into anything it does not touch at the start; checked frame by frame, the
-    300 rollers made the check take hours on this model (task 0077, open point for the clash lane). The D-quadrant's
-    rail wheels too (task 0091): in the time-lapse they turn ~170° a frame, and the check's step between two frames
-    (one screw motion) then carries a rolling wheel's centre off its straight path into the rail."""
-    from . import build, joints
-    out = []
-    for j in scene.fresing.joints:
-        if j.kind != "ROTATE":
-            continue
-        top = joints.driver_of(scene, j)
-        if top is None or not (top.name in (CABLE, TRAVEL, WINCH_TRAVEL) or top.name.endswith("Drum turn")):
-            continue
-        for m in joints.members(j):
-            out.append(m)
-            out += [o for o in m.children_recursive if o.get(build.PROP_KIND) == "part"]
-    return out
-
 
 def _descendants(root):
     from . import logic
@@ -698,105 +637,24 @@ def _descendants(root):
 
 @stage("joints", "Joints")
 def make_all_joints(d: Demo):
-    from mathutils import Vector
-
-    from . import build, joints
+    from . import joints
     sc = d.scene
     t0 = time.time()
-    deck = d.part("MAIN DECK", root=d.root())
-    # "Cable travel": metres of cable paid out towards the sea; moves nothing itself (task 0078 puts the cable on it)
-    with joints._batch(sc):
-        cab = joints.create(sc, "SLIDE", [], d.mm((0.0, 0.0, 3000.0)), Vector((-1.0, 0.0, 0.0)), name=CABLE,
-                            base=deck, allow_empty=True)
-    cab.use_limits = False
     n = make_joints(d, d.sheet("joints")["joints"], "assembly")
-    if d.quay:
-        quay = d.sheet("joints")["machine_files"].get("demo_quay_loading.step", [])
-        n += make_joints(d, quay, "quay_loading", QUAY_PREFIX, cable="")
     joints.refresh_couplings(sc)
     d.timings["joints"] = time.time() - t0
-    d.notes.append(f"joints: {n} from the sheets + {CABLE}")
-    del build
+    d.notes.append(f"joints: {n} of the ship from the sheet")
 
 
 # ---------------------------------------------------------------------------
-# cylinders: the quadrant handler's two and the tensioners' tilt cylinders (task 0102), pin points in the route sheet;
-# the tensioners' lift cylinders stand straight under the lift frame: their rods ride on the lift joint
+# the deck crane's hoist (task 0174; task 0247: the hook follows the wire): the wire on its drum as a cable
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# the cable on its path (task 0078)
-# ---------------------------------------------------------------------------
-
-CABLE_ITEM = "Power cable"            # the cable in 4 Motion > Cables and paths
-
-
-@stage("cable", "Cable on its path", after="joints")
-def cable_on_its_path(d: Demo):
-    """The CAD cable becomes a cable on its path (4 Motion > Cables and paths, as the button "Add cable" does): its
-    centreline is read, the bends and the rollers it rests on are found, and it gets the served-cable look (task
-    0158: black yarn, pairs of yellow marker bands) whose bands run with "Cable travel" – the joint every cable-turned roller already follows. It stays as drawn
-    (``still``): its turn round the D-quadrant's gutter does not travel with the quadrant yet (task 0082)."""
-    from . import paths
-    sc = d.scene
-    t0 = time.time()
-    d.progress("Reading the cable")
-    part = d.part("CABLE", root=d.root())
-    item = paths.add_cable(sc, CABLE_ITEM, joint=CABLE)
-    notes = paths.read_cad(sc, item, part)
-    item = paths.find(sc, CABLE_ITEM)
-    item.still = True
-    item.mbr = float(d.sheet("route")["cable"]["mbr"]) / 1000.0
-    item.look = "SERVED"        # task 0158: black yarn, pairs of yellow marker bands (Power cable stays a choice)
-    item = paths.find(sc, CABLE_ITEM)
-    item.angle, item.stripe = math.radians(45.0), 0.3       # (the power cable's stripes, if the look is switched)
-    d.timings["cable"] = time.time() - t0
-    d.notes.append("cable: " + (notes[0] if notes else "read"))
-    for n in notes[1:4]:
-        d.notes.append("cable: " + n)
-
-
-# ---------------------------------------------------------------------------
-# the tensioners' tracks run with the cable (task 0079)
-# ---------------------------------------------------------------------------
-
-TRACK_SIDES = (("bottom", "Bottom"), ("top", "Top"))
-
-
-@stage("tracks", "Tensioner tracks: the pads run with the cable", after="cable")
-def tracks_stage(d: Demo):
-    """Each tensioner's two tracks become tracks of 4 Motion > Tracks and belts (as "Add track" does): the two
-    sprockets, one chain link, one pad and one back plate are clicked; the app finds the other 35 of each, lays the
-    loop and runs the chain on "Cable travel" (the cable passes between the tracks, so its joint is the default), the
-    pads on the gripping runs moving with the cable. The sprockets' own joints already follow the cable at one tooth
-    per link (the joint sheet's ratio): they are kept as they are."""
-    from . import joints, tracks
-    sc = d.scene
-    t0 = time.time()
-    n = 0
-    for ten in d.sheet("route")["tensioners"]:
-        for key, word in TRACK_SIDES:
-            tr = next(x for x in ten["tracks"] if x["name"] == key)
-            d.progress(f"{ten['name']}: {key} track", n, 4)
-            wheels = [joints.members(joints.find(sc, f"{ten['name']}: {word} track {which} sprocket turn"))[0]
-                      for which in ("drive", "idler")]
-            it = tracks.add(sc, wheels, d.uid(tr["links"][0]), [d.uid(tr["pads"][0]), d.uid(tr["back_plates"][0])],
-                            name=f"{ten['name'].title()} {key} track")
-            if it.joint != CABLE:
-                raise RuntimeError(f"track '{it.name}' runs on '{it.joint}', not on {CABLE}")
-            n += 1
-            d.notes.append("tracks: " + tracks.summary(sc, it))
-    d.timings["tracks"] = time.time() - t0
-
-
-# ---------------------------------------------------------------------------
-# the carousel and a handling winch spool their cable (task 0080)
-# ---------------------------------------------------------------------------
-
-SPOOL_ITEM = "Carousel"               # in 4 Motion > Drums and carousels
-WINCH_SPOOL = "Handling winch 1"
-WINCH_WIRE = "Handling wire 1"        # the handling winch's wire as a cable (its fairlead rope)
-WINCH_TRAVEL = "HANDLING WINCH 1: Wire travel"     # its speed (m of wire paid out); the drum follows it by table
+SLEW = "VESSEL: DECK CRANE: Slew"
+HOOK = "VESSEL: DECK CRANE: Hook lower"
+CRANE_SPOOL = "Crane hoist"
+CRANE_WIRE = "Crane hoist wire"
+CRANE_TRAVEL = "DECK CRANE: Hoist wire travel"
 
 
 def _joint_ending(d: Demo, suffix: str) -> str:
@@ -804,272 +662,6 @@ def _joint_ending(d: Demo, suffix: str) -> str:
         if j.name.endswith(suffix):
             return j.name
     raise RuntimeError(f"the demo has no joint '… {suffix}'")
-
-
-@stage("spool", "Carousel and winch drum: the cable comes off layer by layer", after="cable")
-def spool_stage(d: Demo):
-    """The carousel's coil becomes a spool of the power cable on "Cable travel" (4 Motion > Drums and carousels, as
-    "Add carousel" does): "Carousel turn" follows the cable by table, the loading arch slews with the layer and the
-    guide's roller cage swivels along the turn. Handling winch 1 (shot 6) gets its wire on its Lebus drum the same
-    way: the fairlead rope becomes a cable with its own speed joint, the drum follows it by table."""
-    from mathutils import Vector
-
-    from . import joints, paths, spool
-    sc = d.scene
-    t0 = time.time()
-    d.progress("The carousel's coil")
-    table = d.part("TURNTABLE", root=d.root())
-    coil = d.part("CABLE COIL", root=d.root())
-    spool.add(sc, "CAROUSEL", table, CABLE_ITEM, coil=coil, name=SPOOL_ITEM)
-    for suffix, mode in (("Arch slew", "ARM"), ("Guide cage swivel", "ALONG")):
-        spool.add_follower(sc, spool.find(sc, SPOOL_ITEM), _joint_ending(d, suffix), mode)
-    sp = spool.find(sc, SPOOL_ITEM)
-    d.notes.append("spool: " + spool.summary(sc, sp))
-    d.timings["spool carousel"] = time.time() - t0
-    # handling winch 1: its wire (the fairlead rope) on a speed joint of its own, the Lebus drum spools it
-    t1 = time.time()
-    d.progress("Handling winch 1's drum")
-    _handling_winch(d, 1)
-    d.timings["spool winch"] = time.time() - t1
-
-
-def _nearest(d: Demo, name: str, point):
-    """The part called ``name`` whose middle is nearest to ``point`` (world)."""
-    from mathutils import Vector
-
-    from . import build
-    best, dist = None, 1e30
-    for o in build.iter_parts(d.scene):
-        if o.get(build.PROP_NAME) != name:
-            continue
-        c = sum((o.matrix_world @ Vector(v) for v in o.bound_box), Vector()) / 8.0
-        if (c - point).length < dist:
-            best, dist = o, (c - point).length
-    if best is None:
-        raise RuntimeError(f"the demo model has no part '{name}'")
-    return best
-
-
-@stage("cylinders", "Cylinders")
-def make_cylinders(d: Demo):
-    from mathutils import Vector
-
-    from . import cylinders
-    h = d.sheet("route")["quadrant"]["handler"]
-    axis = (d.root().matrix_world.to_3x3() @ Vector(h["axis"])).normalized()
-    made = 0
-    for k, c in enumerate(h["cylinders"]):
-        asm, rod = d.uid(c["barrel"]), d.uid(c["rod"])
-        barrel = [o for o in asm.children if o is not rod]          # the sheet names the cylinder's assembly
-        bp, rp = d.mm(c["barrel_pin"]), d.mm(c["rod_pin"])
-        frame = d.part("HANDLER FRAME", root=d.root())             # the handler tilt's part: carries the rod pin
-        cyl, _notes = cylinders.create(d.scene, barrel, [rod], (bp, axis, barrel[0]), (rp, axis, rod),
-                                       barrel_carrier=_nearest(d, "CYLINDER BRACKET", bp), rod_carrier=frame,
-                                       name=f"Handler cylinder {'port' if c['barrel_pin'][1] > 0 else 'stb'}")
-        made += 1
-    # the tensioners' tilt cylinders (task 0102): barrel pinned on the lift frame, rod on the tilting carriage
-    for t in d.sheet("route")["tensioners"]:
-        for k, c in enumerate(t.get("tilt_cylinders", [])):
-            barrel, rod = d.uid(c["barrel"]), d.uid(c["rod"])
-            ax = (d.root().matrix_world.to_3x3() @ Vector(c["axis"])).normalized()
-            bp, rp = d.mm(c["barrel_pin"]), d.mm(c["rod_pin"])
-            cylinders.create(d.scene, [barrel], [rod], (bp, ax, barrel), (rp, ax, rod),
-                             barrel_carrier=_nearest(d, c["barrel_on"], bp), rod_carrier=_nearest(d, c["rod_on"], rp),
-                             name=f"{t['name'].title()} tilt cylinder {k + 1}")
-            made += 1
-    d.notes.append(f"cylinders: {made} (quadrant handler: follow the handler tilt; tensioners: follow the top "
-                   "track's tilt)")
-
-
-# ---------------------------------------------------------------------------
-# the quadrant operation's own parts (task 0082): the A&R wire, the tipping wires, the second end and its CPS set
-# ---------------------------------------------------------------------------
-#
-# The model holds them in the CAD pose (``demo_model/layout.py``): the A&R wire from its drum to the D's eye, the
-# tipping wires from the swivel posts over their head sheaves to the D's bar-end pad eyes, the cable's second end
-# from the D's lane-B bar end round the gutter to the sea, and a CPS set with its pull head at the bar end. They are
-# hidden (excluded) until the quadrant operation: shots 1–8 show the lay cable, and nothing reads them as a roller or a
-# contact of the lay cable. Task 0082 makes them app cables (keep tight, sea end, let go) and a rider in the stage
-# "wires" and shows them in shots 9–12.
-
-AR_WIRE = "A&R WIRE"
-TIPPING_WIRE = "TIPPING WIRE"
-
-
-def quadrant_ops_parts(d: Demo) -> list:
-    """The CAD parts (and the CPS set's assembly) of the quadrant operation: A&R wire, tipping wires, second end,
-    CPS."""
-    from . import build
-    se = d.sheet("route")["second_end"]
-    out = [o for o in build.iter_parts(d.scene) if o.get(build.PROP_NAME) in (AR_WIRE, TIPPING_WIRE)]
-    return out + [d.uid(se["solid"]), d.uid(se["cps"])]
-
-
-@stage("hold", "The quadrant operation's wires and second end: kept out until shot 9", after="looks")
-def hold_quadrant_parts(d: Demo):
-    from . import logic
-    objs = quadrant_ops_parts(d)
-    n = logic.exclude(objs)
-    d.notes.append(f"quadrant operation: {n} parts kept out until shot 9 (wires, second end, CPS)")
-
-
-AR_ITEM = "A&R wire"                  # from its drum (over the handler's top pulley once tilted) to the D's eye
-AR_SPOOL = "A&R winch"
-AR_DRUM = "QUADRANT SYSTEM: QUADRANT HANDLING WINCH: Drum turn"
-PULLEY_TURN = "QUADRANT SYSTEM: QUADRANT HANDLER: Top pulley turn"
-TIP_ITEMS = (("port", "Tipping wire port"), ("stb", "Tipping wire stb"))
-SECOND_ITEM = "Second end"            # the cable's second end, round the D's gutter (shots 9–12)
-CPS_RIDER = "CPS on the second end"
-LOWER = "QUADRANT SYSTEM: Quadrant lower"
-
-
-def _parts_named(d: Demo, name: str) -> list:
-    from . import build
-    return sorted((o for o in build.iter_parts(d.scene) if o.get(build.PROP_NAME) == name),
-                  key=lambda o: o.get(build.PROP_UID))
-
-
-def _rope_cable(d: Demo, name: str, part):
-    """A wire rope as a cable of 4 Motion > Cables and paths (as "Add cable" and "From CAD cable" do), its own speed
-    joint, the steel wire rope look."""
-    from . import flex, paths
-    sc = d.scene
-    from . import logic
-    logic.exclude([part], False)
-    logic.set_hidden(part, True)
-    item = paths.add_cable(sc, name)
-    with flex._quiet(item):
-        item.look = "ROPE"
-    item["look_was"] = "ROPE"
-    notes = paths.read_cad(sc, item, part)
-    return paths.find(sc, name), notes
-
-
-def _end_on(d: Demo, name: str, part) -> None:
-    """The cable's end at ``part`` (the one nearer it) stays with that part (as "End B: this part" does)."""
-    import numpy as np
-
-    from . import paths
-    sc = d.scene
-    it = paths.find(sc, name)
-    shape = paths.shape_now(sc, it)
-    c = np.array(d.middle(part))
-    end = "a" if np.linalg.norm(shape[0] - c) < np.linalg.norm(shape[-1] - c) else "b"
-    paths.set_end(sc, it, end, part)
-
-
-@stage("wires", "Wires that move: A&R wire, tipping wires, the second end", after="cylinders")
-def make_wires(d: Demo):
-    """Task 0082: the quadrant operation's wires and the cable's second end become cables of 4 Motion > Cables and paths
-    (they are shown from shot 9 on: hidden here, Show steps there).
-
-    - The A&R wire: read from the CAD wire, spooled on the A&R winch's drum (as handling winch 1, 0080), the handler's
-      top pulley added to its path (over its top), "Winch keeps it tight" (0082): the drum pays out what the D's travel,
-      the tilt and the lowering need. While the D travels the wire runs straight to its eye; once the handler has
-      tilted ~10° it bears on the pulley. The pulley is turned by the lowering's own steps (the wire runs over it only
-      once the D hangs from it).
-    - The tipping wires: read from the CAD wires (post top, over the head sheave, to the D's bar ends), "Winch keeps it
-      tight"; the head sheave follows each wire (the app), the foot sheave and the winch drum follow its speed joint.
-    - The second end: read from CABLE END (round the D's gutter, side A, horn A), the served-cable look; its sea end and
-      its CPS are added after shot 8 (stage "quadrant_ops")."""
-    import numpy as np
-
-    from . import joints, logic, paths, spool
-    sc = d.scene
-    t0 = time.time()
-    objs = quadrant_ops_parts(d)
-    for o in objs:                                      # each comes in when it is read (one at a time)
-        logic.set_hidden(o, True)                       # shown in shot 9 (Show steps): not in shots 1–8
-    js = {j["name"]: j for j in d.sheet("joints")["joints"]}
-    # ---- the A&R wire: spooled on its drum, over the handler's top pulley, kept tight
-    d.progress("The A&R wire")
-    ar = _parts_named(d, AR_WIRE)[0]
-    item, notes = _rope_cable(d, AR_ITEM, ar)
-    from . import build, flex
-    unit = joints.members(joints.find(sc, AR_DRUM))[0]
-    turning = {o.name for o in logic.descendants(unit)}
-    parts = [o for o in logic.descendants(build.logical_parent(unit)) if o.get(build.PROP_KIND) == "part"]
-    drum = next(o for o in parts if o.get(build.PROP_NAME) == "WINCH DRUM" and o.name in turning)
-    coil = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name in turning)
-    W = d.sheet("route")["wires"]
-    spool.add(sc, "DRUM", drum, AR_ITEM, coil=coil, name=AR_SPOOL)
-    paths.read_cad(sc, paths.find(sc, AR_ITEM), ar)      # read again: now it starts on its spool, ends at the D's eye
-    # the handler's top pulley joins its path (as "Add contact" does, clicked on its top): in the CAD pose the D stands
-    # far forward, so the wire could only come back round it – it goes over its top (the side it bears on once the
-    # handler tilts), and in the CAD pose it does not touch it yet (wrap 0): the wire runs straight to the eye until the
-    # handler's tilt brings the pulley under it (the app lifts a wheel the wire does not reach)
-    joints.set_follows(sc, joints.find(sc, PULLEY_TURN), "")     # (it followed Cable travel: the lowering turns it)
-    pulley = d.part("HANDLER TOP PULLEY", root=d.root())
-    k = paths.add_contact(sc, paths.find(sc, AR_ITEM), pulley,
-                          d.mm(np.array(W["ar"]["pulley_centre"]) + [0.0, 0.0, W["ar"]["pulley_r"]]))
-    paths.flip_contact(sc, paths.find(sc, AR_ITEM), k)  # (the side it is fitted on in the CAD pose comes back round it)
-    item = paths.find(sc, AR_ITEM)
-    with flex._quiet(item.contacts[k]):
-        item.contacts[k].wrap_cad = 0.0
-        item.contacts[k].wrap_user = True               # (kept by every reading: a model update, task 0192)
-        item.contacts[k].turns = False                  # (it turns only while the wire runs over it: the lowering's steps)
-    if joints.find(sc, PULLEY_TURN).follows:
-        joints.set_follows(sc, joints.find(sc, PULLEY_TURN), "")
-    paths.changed(sc, item)
-    warn = paths.set_keep_tight(sc, paths.find(sc, AR_ITEM), True)
-    if warn:
-        raise RuntimeError("; ".join(warn))
-    d.notes.append("wires: " + (notes[0] if notes else AR_ITEM))
-    # ---- the tipping wires: kept tight, the foot sheave and the winch drum follow the wire's speed
-    for (key, name), part in zip(TIP_ITEMS, _parts_named(d, TIPPING_WIRE)):
-        d.progress(f"The tipping wire {key}")
-        joints.set_follows(sc, joints.find(sc, f"QUADRANT SYSTEM: Swivel sheave {key} turn"), "")
-        it, notes = _rope_cable(d, name, part)
-        _end_on(d, name, d.uid(W[f"tipping_{key}"]["eye_carrier"]))
-        # the bend drawn for the fleet angle off the head sheave is in the air, not on a part: the wire runs straight
-        # from the sheave to the D's eye wherever the D goes
-        it = paths.find(sc, name)
-        for i in reversed([i for i, c in enumerate(it.contacts) if c.kind == "BEND"]):
-            paths.remove_contact(sc, paths.find(sc, name), i)
-        it = paths.find(sc, name)
-        warn = paths.set_keep_tight(sc, it, True)
-        if warn:
-            raise RuntimeError("; ".join(warn))
-        # task 0125: the sheave head turns to its wire (Swivel on the head sheave), no longer with the handler's tilt
-        # by a ratio (0095)
-        sw = f"QUADRANT SYSTEM: Swivel sheave {key} swivel"
-        joints.set_follows(sc, joints.find(sc, sw), "")
-        it = paths.find(sc, name)
-        head = [c for c in it.contacts if c.kind == "SHEAVE" and c.name == "TIPPING SHEAVE"]
-        if len(head) != 1:
-            raise RuntimeError(f"{name}: its head sheave was not read as one sheave")
-        head[0].swivel = sw
-        it = paths.find(sc, name)
-        sign = -1.0 if it.reverse else 1.0
-        for jn in (f"QUADRANT SYSTEM: Swivel sheave {key} foot sheave turn",
-                   f"QUADRANT SYSTEM: TIPPING WINCH {key.upper()}: Drum turn"):
-            joints.set_follows(sc, joints.find(sc, jn), it.joint, ratio=sign * float(js[jn]["drive"]["deg_per_mm"]))
-        d.notes.append("wires: " + (notes[0] if notes else name))
-    # ---- the second end
-    d.progress("The second end")
-    part = d.uid(d.sheet("route")["second_end"]["solid"])
-    logic.exclude([part, d.uid(d.sheet("route")["second_end"]["cps"])], False)
-    for o in (part, d.uid(d.sheet("route")["second_end"]["cps"])):
-        logic.set_hidden(o, True)
-    it = paths.add_cable(sc, SECOND_ITEM)
-    notes = paths.read_cad(sc, it, part)
-    it = paths.find(sc, SECOND_ITEM)
-    # its speed: Move steps of shot 9 (task 0126, ``haul_in``). Until then (hidden) it stands at 0 while 'Cable travel',
-    # the lay cable's metres, moves the seabed aft; just before shot 9 it takes Cable travel's value there, so the
-    # second end's touch-down lies behind the vessel as it was set in the CAD pose (0082 made it follow Cable travel)
-    it.mbr = float(d.sheet("route")["cable"]["mbr"]) / 1000.0
-    it.look = "SERVED"          # as the lay cable (task 0158)
-    it = paths.find(sc, SECOND_ITEM)
-    it.angle, it.stripe = math.radians(45.0), 0.3
-    d.notes.append("second end: " + (notes[0] if notes else "read"))
-    d.timings["wires"] = time.time() - t0
-
-
-# ---------------------------------------------------------------------------
-# every winch with its wire on its drum (task 0174)
-# ---------------------------------------------------------------------------
-
-WINCH_SPOOLS = {}                     # filled by the stage: spool name -> what it is (the report and the tests read it)
 
 
 def _winch_parts(d: Demo, drum_joint: str):
@@ -1085,140 +677,36 @@ def _winch_parts(d: Demo, drum_joint: str):
     return drum, on_drum, parts, winch
 
 
-def _handling_winch(d: Demo, k: int) -> None:
-    """Handling winch ``k``: its fairlead rope as a cable on a speed joint of its own, spooled on its Lebus drum, its
-    level wind following the layer (task 0080 for winch 1; 0174 the same for winch 2)."""
-    from mathutils import Vector
-
-    from . import build, joints, paths, spool
-    sc = d.scene
-    name, wire, travel = f"Handling winch {k}", f"Handling wire {k}", f"HANDLING WINCH {k}: Wire travel"
-    drum, on_drum, parts, _winch = _winch_parts(d, f"HANDLING WINCH {k}: Drum turn")
-    turning = {on_drum.name, drum.name}
-    rope = next(o for o in parts if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in turning)
-    deck = d.part("MAIN DECK", root=d.root())
-    with joints._batch(sc):
-        j = joints.create(sc, "SLIDE", [], d.mm((0.0, 0.0, 3000.0)), Vector((-1.0, 0.0, 0.0)), name=travel,
-                          base=deck, allow_empty=True)
-    j.use_limits = False
-    item = paths.add_cable(sc, wire, joint=travel)
-    paths.read_cad(sc, item, rope)
-    item = paths.find(sc, wire)
-    item.look = "ROPE"
-    spool.add(sc, "DRUM", drum, wire, coil=on_drum, name=name)
-    sp = spool.find(sc, name)
-    sp.groove = "LEBUS"
-    # its level wind follows the layer (task 0081): the fairlead sheave stays in line with the wrap, no fleet angle
-    spool.add_follower(sc, spool.find(sc, name), f"HANDLING WINCH {k}: Level wind", "ACROSS")
-    d.notes.append("spool: " + spool.summary(sc, spool.find(sc, name)))
-    WINCH_SPOOLS[name] = f"handling winch {k}: fairlead wire on its Lebus drum, level wind follows"
-
-
-TIP_SPOOL = "Tipping winch {key}"          # the drum: 4 Motion > Drums and carousels
-TIP_DRUM_WIRE = "Tipping drum wire {key}"   # its fixed lead (drum -> foot sheave -> post top) as a cable
-TIP_TRAVEL = "TIPPING WINCH {KEY}: Wire travel"
-def _tipping_winch(d: Demo, key: str, tip_item: str, deck) -> None:
-    """Tipping winch ``key``: its lead in the CAD (drum -> foot sheave -> up the swivel post) as a cable spooled on its
-    drum, on a speed joint of its own that follows the kept-tight tipping wire's one to one (task 0174's code)."""
+def _end_on(d: Demo, name: str, part) -> None:
+    """The cable's end at ``part`` (the one nearer it) stays with that part (as "End B: this part" does)."""
     import numpy as np
-    from mathutils import Vector
 
-    from . import build, joints, logic, paths, spool
+    from . import paths
     sc = d.scene
-    drum_joint = f"QUADRANT SYSTEM: TIPPING WINCH {key.upper()}: Drum turn"
-    drum, on_drum, parts, winch = _winch_parts(d, drum_joint)
-    mine = {o.name for o in logic.descendants(winch)}
-    centre = np.array(joints.find(sc, drum_joint).frame.matrix_world.translation)
-
-    def gap(o):
-        n = len(o.data.vertices)
-        if not n:
-            return 1e9
-        co = np.empty(3 * n, np.float32)
-        o.data.vertices.foreach_get("co", co)
-        m = np.array(o.matrix_world)
-        v = co.reshape(-1, 3).astype(float) @ m[:3, :3].T + m[:3, 3]
-        return float(np.linalg.norm(v - centre, axis=1).min())
-    leads = [o for o in build.iter_parts(sc) if o.get(build.PROP_NAME) == "WIRE ROPE" and o.name not in mine]
-    lead = min(leads, key=gap)
-    if gap(lead) > 2.0:
-        raise RuntimeError(f"tipping winch {key}: no wire lead found at its drum")
-    name, wire, travel = (TIP_SPOOL.format(key=key), TIP_DRUM_WIRE.format(key=key), TIP_TRAVEL.format(KEY=key.upper()))
-    with joints._batch(sc):
-        j = joints.create(sc, "SLIDE", [], Vector(centre), Vector((0.0, 0.0, 1.0)), name=travel, base=deck,
-                          allow_empty=True)
-    j.use_limits = False
-    item = paths.add_cable(sc, wire, joint=travel)
-    with paths._quiet(item):
-        item.look = "ROPE"
-    item["look_was"] = "ROPE"
-    paths.read_cad(sc, item, lead)
-    spool.add(sc, "DRUM", drum, wire, coil=on_drum, name=name)
-    # its speed: the tipping wire's, one to one (both counted as paid out)
-    tip = paths.find(sc, tip_item)
-    mine_it = paths.find(sc, wire)
-    ratio = (-1.0 if tip.reverse else 1.0) * (-1.0 if mine_it.reverse else 1.0)
-    joints.set_follows(sc, joints.find(sc, travel), tip.joint, ratio=ratio)
-    sp = spool.find(sc, name)
-    lo, hi = spool.fleet(sc, sp)
-    TIP_FLEET[key] = math.degrees(max(lo, hi))
-    # the narrow drum (task 0173, demo_model/layout.TIPPING_DRUM_LENGTH) keeps it under 2° – the usual limit for a
-    # drum without a level wind is 1.5–2°: its warning is set at 2°
-    sp.fleet_limit = math.radians(TIP_FLEET_MAX)
-    sp = spool.find(sc, name)
-    if TIP_FLEET[key] > TIP_FLEET_MAX:
-        raise RuntimeError(f"tipping winch {key}: fleet angle {TIP_FLEET[key]:.1f}°, more than {TIP_FLEET_MAX:.1f}°")
-    spool.status(sc, sp)
-    sp = spool.find(sc, name)
-    if sp.problem:
-        raise RuntimeError(f"tipping winch {key}: {sp.problem}")
-    d.notes.append("spool: " + spool.summary(sc, sp) + f", fleet angle {TIP_FLEET[key]:.1f}°")
-    WINCH_SPOOLS[name] = (f"tipping winch {key}: its lead (drum, foot sheave, up the post) on its drum, paying out what "
-                          f"the kept-tight tipping wire takes")
+    it = paths.find(sc, name)
+    shape = paths.shape_now(sc, it)
+    c = np.array(d.middle(part))
+    end = "a" if np.linalg.norm(shape[0] - c) < np.linalg.norm(shape[-1] - c) else "b"
+    paths.set_end(sc, it, end, part)
 
 
-TIP_FLEET = {}                        # tipping winch key -> its fleet angle (deg), filled by the stage
-TIP_FLEET_MAX = 2.0                   # deg: the tipping drums' fleet angle warning (task 0173)
-
-
-CRANE_SPOOL = "Crane hoist"
-CRANE_WIRE = "Crane hoist wire"
-CRANE_TRAVEL = "DECK CRANE: Hoist wire travel"
-
-
-@stage("winch_wires", "Every winch with its wire rope on its drum", after="wires")
-def winch_wires(d: Demo):
-    """Task 0174: every winch drum of the vessel holds its wire as a cable in layers (4 Motion > Drums and carousels),
-    the steel wire rope look:
-
-    - handling winch 2 as handling winch 1 (stage "spool"): its fairlead rope a cable on a speed joint of its own;
-    - each tipping winch (task 0173, 0174's code): its fixed lead in the CAD (drum -> foot sheave -> up the swivel
-      post) becomes a cable spooled on the drum; its speed follows the tipping wire's (kept tight, stage "wires") one
-      to one, so the drum pays out what the tipping wire takes – the drum turns by the spool's table. A Build reads
-      such a cable after the kept-tight payouts are written (``paths._after_tight``);
-    - the deck crane's hoist (an invented drum at the boom's foot, ``demo_model/vessel.hoist``): its wire to the hook;
-    - the A&R winch and handling winch 1 are spooled already (stages "wires", "spool")."""
+@stage("crane", "The deck crane's hoist: its wire on the drum, the hook on the wire", after="joints")
+def crane_hoist(d: Demo):
+    """The crane's hoist wire (in the CAD from the drum over the head sheave down to the hook block) becomes a cable on a
+    speed joint of its own (m of wire paid out), spooled on its drum (4 Motion > Drums and carousels; the drum turns by
+    the spool's table), its end on the hook block; the hook's slide joint follows the speed joint one to one, so paying
+    out wire lowers the hook."""
     import numpy as np
     from mathutils import Vector
 
     from . import build, joints, paths, spool
     sc = d.scene
     t0 = time.time()
-    WINCH_SPOOLS.clear()
-    WINCH_SPOOLS[WINCH_SPOOL] = "handling winch 1: fairlead wire on its Lebus drum, level wind follows (0080)"
-    WINCH_SPOOLS[AR_SPOOL] = "A&R winch: the A&R wire on its drum, kept tight (0082)"
-    d.progress("Handling winch 2's drum")
-    _handling_winch(d, 2)
-    deck = d.part("MAIN DECK", root=d.root())
-    for key, tip_item in TIP_ITEMS:
-        d.progress(f"The tipping winch {key}'s drum")
-        _tipping_winch(d, key, tip_item, deck)
-    # the deck crane's hoist (an invented drum at the boom's foot, task 0174): its wire to the hook block, parked
-    d.progress("The deck crane's hoist")
     drum_joint = _joint_ending(d, "DECK CRANE: Hoist drum turn")
     drum, on_drum, parts, _crane = _winch_parts(d, drum_joint)
     wire_part = next(o for o in parts if o.get(build.PROP_NAME) == "HOIST WIRE")
     hook = next(o for o in parts if o.get(build.PROP_NAME) == "HOOK BLOCK")
+    deck = d.part("MAIN DECK", root=d.root())
     with joints._batch(sc):
         j = joints.create(sc, "SLIDE", [], Vector(np.array(joints.find(sc, drum_joint).frame.matrix_world.translation)),
                           Vector((0.0, 0.0, 1.0)), name=CRANE_TRAVEL, base=deck, allow_empty=True)
@@ -1233,84 +721,10 @@ def winch_wires(d: Demo):
     sp = spool.find(sc, CRANE_SPOOL)
     if sp.problem:
         raise RuntimeError(f"deck crane: {sp.problem}")
+    joints.set_follows(sc, joints.find(sc, HOOK), CRANE_TRAVEL, ratio=1.0)
+    joints.refresh_couplings(sc)
     d.notes.append("spool: " + spool.summary(sc, sp))
-    WINCH_SPOOLS[CRANE_SPOOL] = "deck crane: its hoist wire on an invented drum at the boom's foot, to the hook block"
-    d.timings["winch wires"] = time.time() - t0
-
-
-CPS_RUN_ITEM = "CPS run"              # the line a CPS set runs along from the rack (hidden), task 0126
-CPS_RUN_RIDER = "CPS from the rack"
-CPS_SPEED = 10.0                      # m/min: a CPS set pulled along the deck (invented, plausible)
-CPS_LAPSE = 15                        # its time-lapse factor in shot 8b
-CPS_RACK, CPS_ON_D = "CPS rack", "CPS on the D"     # the saved cameras of shot 8b
-
-
-def cps_run_marks(d: Demo) -> dict:
-    """Metres along the CPS run's line (``CPS_RUN_ITEM``) and what its speed joint is set to (task 0126): ``front0`` the
-    set's front (its tail, the bend restrictors) on the rack, ``gutter`` where the line comes into the D's gutter (lane
-    B end), ``out`` the speed at the far end (the set's tail at the line's end, forward of tensioner 2), ``home`` the speed
-    with its pull head at the gutter's lane B end (where the second end's CPS lies in shot 9)."""
-    from . import paths
-    sc = d.scene
-    item = paths.find(sc, CPS_RUN_ITEM)
-    r = next(r for r in item.riders if r.name == CPS_RUN_RIDER)
-    cs = d.sheet("route")["cps_store"]
-    route = cs["run_route"]
-    seg = next(g for g in route["segments"] if g.get("rollers") == "quadrant gutter")
-    front0 = (float(cs["rack_x"][1]) - float(route["segments"][0]["start"][0])) / 1000.0   # (the shelf's end: its tail)
-    margin = front0 - float(r.length)                    # the line behind the set's nose
-    return {"front0": front0, "gutter": float(seg["s_start"]) / 1000.0, "length": float(item.length),
-            "out": float(item.length) - front0 - 0.001, "home": float(seg["s_start"]) / 1000.0 - margin,
-            "set_length": float(r.length), "joint": item.joint}
-
-
-@stage("cps_path", "The CPS run: its line from the rack round the D, the set on the rack that runs it", after="joints")
-def cps_path(d: Demo):
-    """Task 0126, the owner's CPS steps 1–5. ``CPS RUN LINE`` (a thin bar along the CPS's middle line, the maker's
-    ``route.cps_run_route``) becomes a cable of 4 Motion > Cables and paths (hidden, "Stays as drawn") whose speed joint
-    is the metres the set has moved; the set on the ramp's shelf rides on it (a rider, 0081), its parts in their CAD
-    places with nothing moved."""
-    import numpy as np
-
-    from . import build, flex, logic, paths, paths_riders
-    sc = d.scene
-    t0 = time.time()
-    cs = d.sheet("route")["cps_store"]
-    line, cset = d.uid(cs["run_line"]), d.uid(cs["run_set"])
-    logic.set_hidden(line, True)
-    item = paths.add_cable(sc, CPS_RUN_ITEM)
-    # the lay cable lies right under the line on the lanes (the CPS is higher in the V): its bends are bends in the air,
-    # not chutes on the cable (the cable becomes a cable of its own next, then every cable leaves the others out)
-    lay = d.uid(d.sheet("route")["cable"]["solid"])
-    was = lay.get(build.PROP_EXCLUDED, False)
-    lay[build.PROP_EXCLUDED] = True
-    try:
-        notes = paths.read_cad(sc, item, line)
-    finally:
-        lay[build.PROP_EXCLUDED] = was
-    item = paths.find(sc, CPS_RUN_ITEM)
-    with flex._quiet(item):
-        item.still = True                               # nothing it lies on moves: no shape per frame
-        item.diameter = 2.0 * float(cs["outer_radius"]) / 1000.0
-    paths.changed(sc, item)
-    item = paths.find(sc, CPS_RUN_ITEM)
-    shape = paths.shape_now(sc, item)
-    route = cs["run_route"]["segments"]
-    first = d.mm(route[0]["start"])
-    if float(np.linalg.norm(shape[0] - np.array(first))) > float(np.linalg.norm(shape[-1] - np.array(first))):
-        raise RuntimeError("the CPS run's line was read from its far end")
-    paths_riders.add(sc, item, [cset], where="END", at=0.0, name=CPS_RUN_RIDER)
-    item = paths.find(sc, CPS_RUN_ITEM)
-    r = next(r for r in item.riders if r.name == CPS_RUN_RIDER)
-    head = [p for p in r.parts if p.part is not None and p.part.get(build.PROP_NAME) == "PULL HEAD"]
-    if not head or float(head[0].at) < 0.5 * float(r.length):
-        raise RuntimeError("the CPS set on the ramp's shelf does not lie tail first towards the ramp")
-    with flex._quiet(r):
-        r.at = float(item.length) - cps_run_marks(d)["front0"]          # its parts where CAD has them
-    paths_riders.changed(sc, r)
-    d.notes.append(f"CPS run: {notes[0] if notes else 'read'}; the set {r.length:.2f} m on the rack, its line "
-                   f"{item.length:.1f} m")
-    d.timings["cps_path"] = time.time() - t0
+    d.timings["crane"] = time.time() - t0
 
 
 # ---------------------------------------------------------------------------
@@ -1328,18 +742,18 @@ def _water_level(d: Demo) -> float:
 def surroundings(d: Demo):
     import bpy
 
-    from . import logic, states
+    from . import logic
     s = d.s
     res = bpy.ops.fresing.light_look(look="SUN")
     if res != {"FINISHED"}:
         raise RuntimeError(f"light look Sun returned {res}")
     s.env_detail = "SIMPLE"
     if d.quay:
-        # the quay scene first: quay model shown, Quayside surroundings
-        quay = d.root("quay_loading")
+        # the quay scene first: the ship moored starboard side to, Quayside surroundings
+        quay = d.root("quay")
         s.background = "QUAY"
         s.water_level = _water_level(d)
-        d.camera(QUAY_SHOT, (-36000.0, -62000.0, 36000.0), (8000.0, -18000.0, 4000.0), lens=30.0)
+        d.camera(QUAY_SHOT, (-36000.0, -62000.0, 36000.0), (50000.0, -14000.0, 4000.0), lens=30.0)
         # the open sea: the quay hidden
         logic.set_hidden(quay, True)
     s.background = "SEA"
@@ -1350,77 +764,50 @@ def surroundings(d: Demo):
         s.vessel.enabled = True
         _update()
     d.camera(SEA_SHOT, (-30000.0, -52000.0, 42000.0), (36000.0, 0.0, 3000.0), lens=30.0)
-    del states
 
 
 # ---------------------------------------------------------------------------
-# the cable into the sea (task 0081)
+# the sea's depth and the cut-away (the cable on the seabed shows through it)
 # ---------------------------------------------------------------------------
 
-SEA_DEPTH = 30.0                      # m of water at the lay site
-SEA_LAYBACK = 32.0                    # m from horn A to the touch-down: 0083's numbers for 30 m (26–39 m at 20–50 m)
-SEA_LAID = 120.0                      # m already on the seabed behind the touch-down when the animation starts
-SEA_LAID_FIRST = 60.0                 # task 0166: the lay cable's (from turbine A's J-tube: the vessel ~130 m off it)
+SEA_DEPTH = 30.0                      # m of water in the park (the park's ParkParams.water_depth)
 SEA_CLARITY = 12.0                    # m: water clarity in the cut-away's walls
-SEA_SHOT_SECONDS = 10.0
-INTO_SEA = "Into the sea"             # the saved camera of shot 8
-SEA_ORBIT = -3.0                      # deg: its orbit about the vessel's middle (task 0173: was -10, which took the
-#                                       touch-down and the ROV out of the picture – or under the caption – at the end)
+CUT_LENGTH = 150.0                    # m: the cut-away from the transom aft past turbine A's foot …
+CUT_WIDTH = 30.0                      # … this wide
 
 
-@stage("sea", "Cable into the sea: catenary to the seabed, cut-away behind the stern", after="surroundings")
+@stage("sea", "Sea depth and the cut-away behind the stern", after="surroundings")
 def sea_stage(d: Demo):
-    """The power cable hangs from horn A into the sea (4 Motion > Cables and paths > Into the sea, as the button
-    does): 30 m of water, the touch-down 32 m behind the horn, 120 m already on the seabed; the vessel moves with
-    the lay, so the touch-down stays behind it while the seabed passes under. The Sea gets its seabed at 30 m, a
-    cut-away behind the stern placed by the cable, water clarity 12 m."""
-    from . import paths, paths_sea
-    sc = d.scene
-    t0 = time.time()
-    d.progress("The cable into the sea")
+    """30 m of water, a box of water taken away behind the stern (its size typed in: no cable hangs from the ship) out
+    past turbine A's foot, water clarity 12 m."""
     s = d.s
     s.sea_depth = SEA_DEPTH
-    item = paths.find(sc, CABLE_ITEM)
-    item.sea_depth, item.sea_layback, item.sea_laid, item.sea_mode = 0.0, SEA_LAYBACK, SEA_LAID_FIRST, "LAYBACK"
-    notes = paths_sea.add_sea_end(sc, paths.find(sc, CABLE_ITEM))
-    item = paths.find(sc, CABLE_ITEM)
-    if item.problem:
-        raise RuntimeError(f"the cable into the sea: {item.problem}")
     s.sea_clarity = SEA_CLARITY
-    s.sea_cut_auto = True
+    s.sea_cut_auto = False
+    s.sea_cut_length, s.sea_cut_width, s.sea_cut_start, s.sea_cut_side = CUT_LENGTH, CUT_WIDTH, 0.0, 0.0
     s.sea_cutaway = True
+    s.sea_cut_ground = False                  # (switching the cut-away on may set it: the seabed stays closed)
     _update()
-    n = paths_sea.numbers(sc, item)
-    d.notes.append(f"sea: layback {n['layback']:.1f} m, leaves horn A at {n['angle']:.0f}°, bottom tension "
-                   f"{n['bottom']:.1f} kN, top {n['top']:.1f} kN" + (f"; {notes[0]}" if notes else ""))
-    d.timings["sea"] = time.time() - t0
+    d.notes.append(f"sea: {SEA_DEPTH:.0f} m deep, a cut-away {CUT_LENGTH:.0f} m x {CUT_WIDTH:.0f} m behind the stern")
 
 
 # ---------------------------------------------------------------------------
 # saved cameras (model mm: x to the bow, transom at 0, y to port, z up)
 # ---------------------------------------------------------------------------
 
+OVERVIEW = "Overview"
 STERN_THRUSTERS = "Stern thrusters"
 HULL_SIDE = "Hull side"
+AT_THE_SEABED = "At the seabed"
+DECK_CRANE = "Deck crane"
 
 VIEWS = {
-    "Overview": ((-30000.0, -52000.0, 42000.0), (36000.0, 0.0, 3000.0), 30.0),
-    "Deck from above": ((50000.0, -45000.0, 135000.0), (52000.0, 0.0, 3000.0), 30.0),
-    "Carousel": ((42000.0, -20000.0, 17500.0), (60000.0, 0.0, 5500.0), 26.0),           # 0159: the full coil's arch
-    "Roller highway": ((12000.0, -8700.0, 6200.0), (22000.0, -4050.0, 5000.0), 24.0),
-    "Tensioner": ((19000.0, -14500.0, 9500.0), (26000.0, -5000.0, 6000.0), 30.0),
-    "Handling winch": ((-2600.0, -3200.0, 1300.0), "WINCH DRUM", 45.0),
-    "Stern": ((-13000.0, -21000.0, 13000.0), (6000.0, 0.0, 4000.0), 28.0),
-    "Quadrant": ((-7000.0, 15000.0, 9000.0), "QUADRANT FRAME", 26.0),
-    # task 0173: aimed lower and wider, so the touch-down and the ROV beside it (on the far side of the cable, seen
-    # through the cut-away) are in the picture with horn A, the ROV above the caption's band
-    INTO_SEA: ((-48000.0, -40000.0, 22000.0), (-23000.0, 0.0, -20000.0), 22.0),
-    "Over the stern": ((-38000.0, -30000.0, 10000.0), (-3000.0, 0.0, -10000.0), 30.0),       # shots 10, 12 (0082)
-    "At the seabed": ((-24000.0, -6000.0, -12000.0), (-4000.0, 0.0, -28500.0), 32.0),        # shot 11, under water
-    "CPS rack": ((11000.0, 23000.0, 14000.0), (24000.0, 6500.0, 5200.0), 26.0),              # shot 8b (0126)
-    "CPS on the D": ((49000.0, 12500.0, 14500.0), (35500.0, 0.0, 5000.0), 28.0),
+    OVERVIEW: ((-30000.0, -52000.0, 42000.0), (36000.0, 0.0, 3000.0), 30.0),
     STERN_THRUSTERS: ((-9000.0, -15000.0, -9500.0), (6000.0, 0.0, -5500.0), 24.0),    # task 0153: under water
     HULL_SIDE: ((146000.0, -32000.0, 4500.0), (96000.0, -9000.0, 1500.0), 32.0),     # the bow, along the stb side
+    # under water in the cut-away, along the cable aft to turbine A's foot (its J-tube, the scour rock)
+    AT_THE_SEABED: ((-60000.0, -14000.0, -24000.0), (-128000.0, 0.0, -27000.0), 28.0),
+    DECK_CRANE: ((150000.0, 40000.0, 40000.0), (80000.0, 12000.0, 14000.0), 30.0),    # ahead on port: the crane outboard
 }
 
 
@@ -1428,7 +815,7 @@ VIEWS = {
 def saved_cameras(d: Demo):
     for name, (at, target, lens) in VIEWS.items():
         d.camera(name, at, target, lens)
-    d.scene.camera = d.scene.objects.get("Overview")
+    d.scene.camera = d.scene.objects.get(OVERVIEW)
 
 
 @stage("brand", "Brand kit Demo")
@@ -1437,11 +824,11 @@ def brand_kit(d: Demo):
     s = d.s
     s.brand_name = "Demo"
     s.brand_logo = tour._logo(os.path.join(d.dir, "Demo logo.png"))
-    s.brand_contact = "Fresing Render demo · an invented vessel"
+    s.brand_contact = "Fresing Render demo · an invented ship"
 
 
 # ---------------------------------------------------------------------------
-# the animation "What it can do today": one stage per shot (0083's shot list as far as today's functions go)
+# the animation "What it can do today": one stage per shot (about a minute)
 # ---------------------------------------------------------------------------
 
 def _uid(ob) -> str:
@@ -1449,710 +836,61 @@ def _uid(ob) -> str:
     return ob[build.PROP_UID]
 
 
-@stage("shot_fly", "Shot 1: fly round the vessel")
+@stage("shot_fly", "Shot 1: fly round the ship")
 def shot_fly(d: Demo):
     from . import build
     a = d.animation
-    a.start_shot = "Overview"
+    a.start_shot = OVERVIEW
     a.fin_title_on, a.fin_end_on, a.fin_captions = True, True, True
-    a.fin_title, a.fin_subtitle = "Cable-lay vessel", "What Fresing Render can do today · an invented vessel"
+    a.fin_title, a.fin_subtitle = TITLE, "What Fresing Render can do today · an invented ship"
     a.fin_title_seconds = a.fin_end_seconds = 3.0
     a.fin_logo = "BR"
-    carousel = d.part("TURNTABLE", root=d.root())
-    fly = d.camera_step("PATH", d.t, 6.0, "On a calm sea", easing="LINEAR", cam_blend=0.0, path_look="PART",
-                        aim_uid=_uid(carousel), aim_name=carousel.get(build.PROP_NAME, "TURNTABLE"))
+    hull = d.part("HULL", root=d.root())
+    fly = d.camera_step("PATH", d.t, 6.0, "She sails in on a calm sea", easing="LINEAR", cam_blend=0.0,
+                        path_look="PART", aim_uid=_uid(hull), aim_name=hull.get(build.PROP_NAME, "HULL"))
     for p in ((95000.0, -70000.0, 30000.0), (40000.0, -85000.0, 26000.0), (-15000.0, -60000.0, 24000.0)):
         fly.path_points.add().co = d.mm(p)
     fly.path_from_here = True
-    hull = d.part("HULL", root=d.root())
     d.camera_step("RIDE", d.t + 6.0, 3.0, "", target_uid=_uid(hull), target_name="HULL", cam_blend=0.5,
                   ride_level=True)                       # then the camera rides with the vessel on the swell
     d.t += 9.0
 
 
-@stage("shot_deck", "Shot 2: the deck from above")
-def shot_deck(d: Demo):
-    cam = d.scene.objects.get("Deck from above")
-    d.camera_step("MOVE", d.t, 2.0, "The deck: carousel, highways, tensioners, quadrant", camera=cam)
-    d.camera_step("ORBIT", d.t + 2.0, 4.0, "", orbit_angle=math.radians(20.0), easing="LINEAR")
+CRANE_SLEW = 90.0                     # deg: the boom swings outboard to port
+CRANE_DROP = 20.0                     # m of wire paid out: the hook goes down beside the ship
+CRANE_SECONDS = 4.0                   # each of the two moves
+
+
+@stage("shot_crane", "Shot 3: the deck crane slews outboard and lowers its hook")
+def shot_crane(d: Demo):
+    cam = d.scene.objects.get(DECK_CRANE)
+    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
+    d.joint(SLEW, d.t, CRANE_SECONDS, CRANE_SLEW, label="On DP over the cable: the deck crane slews outboard …")
+    d.joint(CRANE_TRAVEL, d.t + CRANE_SECONDS, CRANE_SECONDS, CRANE_DROP, slide=True,
+            label="… and lowers its hook: the wire comes off the drum layer by layer")
+    d.camera_step("ORBIT", d.t, 2 * CRANE_SECONDS, "", orbit_angle=math.radians(-10.0), easing="SMOOTH")
+    d.t += 2 * CRANE_SECONDS
+
+
+@stage("shot_hull", "Shot 4: along the hull, the stern thrusters under water")
+def shot_hull(d: Demo):
+    d.camera_step("CUT", d.t, 0.0, "", camera=d.scene.objects.get(HULL_SIDE))
+    d.camera_step("ORBIT", d.t, 5.0, "She holds her place on her thrusters (dynamic positioning)",
+                  orbit_angle=math.radians(6.0), easing="SMOOTH")
+    d.t += 5.0
+    d.camera_step("CUT", d.t, 0.0, "", camera=d.scene.objects.get(STERN_THRUSTERS))
+    d.camera_step("ORBIT", d.t, 5.0, "Under water: the azimuth thrusters turn and push", orbit_angle=math.radians(-8.0),
+                  easing="SMOOTH")
+    d.t += 5.0
+
+
+@stage("shot_seabed", "Shot 5: at the seabed – the power cable lies on it")
+def shot_seabed(d: Demo):
+    d.camera_step("CUT", d.t, 0.0, "", camera=d.scene.objects.get(AT_THE_SEABED))
+    d.camera_step("ORBIT", d.t, 6.0, f"At the seabed, {SEA_DEPTH:.0f} m down: the power cable comes down turbine A's "
+                  "J-tube and lies on along the seabed, right under the ship", orbit_angle=math.radians(8.0),
+                  easing="SMOOTH")
     d.t += 6.0
-
-
-@stage("shot_carousel", "Shot 3: carousel and arch")
-def shot_carousel(d: Demo):
-    """Task 0080: the cable comes off the carousel's top layer turn by turn – the carousel turns by table, the arch
-    slews and the guide's cage swivels with the layer (no hand-made arch step any more)."""
-    cam = d.scene.objects.get("Carousel")
-    secs = 10.0
-    metres = SPEED / 60.0 * secs * LAPSE                 # 10 m/min real, time-lapse
-    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    d.joint(CABLE, d.t, secs, metres, slide=True, easing="LINEAR",
-            label=f"The top layer pays out, the arch follows (x {LAPSE})")
-    d.t += secs
-    d.cable_end = metres
-
-
-@stage("shot_rollers", "Shot 4: roller highways")
-def shot_rollers(d: Demo):
-    """Real time (task 0078): the cable runs at 10 m/min – a Run motor step on "Cable travel", speed in m/min – its
-    yellow stripes pass the rollers and every roller turns with it."""
-    secs = 7.0
-    start = getattr(d, "cable_end", 0.0)
-    cam = d.scene.objects.get("Roller highway")
-    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    fly = d.camera_step("PATH", d.t, secs, f"The cable runs at {SPEED:.0f} m/min: every roller turns with it",
-                        easing="LINEAR", cam_blend=0.0, path_look="AHEAD")
-    for p in ((20000.0, -8000.0, 6000.0), (32000.0, -7400.0, 6200.0)):
-        fly.path_points.add().co = d.mm(p)
-    fly.path_from_here = True
-    blk = d.animation.blocks.add()
-    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, d.t, secs, "LINEAR"
-    blk.speed_mmin = SPEED
-    d.t += secs
-    d.cable_end = start + SPEED / 60.0 * secs
-
-
-TENSIONER = "TENSIONER 2"
-LABELS = (("TRACK PAD", "Track pads (rubber)"), ("DRIVE SPROCKET", "Drive sprocket"),
-          ("PISTON ROD", "Lift cylinder"), ("TOP TRACK LIFT FRAME", "Lift frame"))
-XRAY_STEP = "X-ray: the tensioner's frames"
-TENSIONERS = ("TENSIONER 1", "TENSIONER 2")
-
-
-def tensioner_open(d: Demo, name: str) -> tuple[float, float]:
-    """How far a tensioner's top track lifts (m) and tilts out (deg) to open (task 0102): its lift's top limit and the
-    tilt's whole range – nothing of it then stands between the two cable lines."""
-    js = {j["name"]: j for j in d.sheet("joints")["joints"]}
-    return js[f"{name}: Top track lift"]["limits"][1] / 1000.0, js[f"{name}: Top track tilt"]["limits"][1]
-
-
-SHOT5_CAPTION = ("A 15–20 t tensioner on the Ø 200 mm power cable (MBR 3.5 m): the top track lifts (real speed)")
-
-
-@stage("shot_tensioner", "Shot 5: tensioner opens and squeezes, X-ray with labels")
-def shot_tensioner(d: Demo):
-    """Task 0102, as the owner works: the top track lifts, then tilts out to the vessel's side (starboard for tensioner
-    2, about its hinge along the cable on the outboard side), back, and closes on the cable. Task 0079: from the
-    squeeze on the cable runs at 10 m/min and the tracks' pads run with it (also through the X-ray and its labels)."""
-    from . import build, callouts
-    cam = d.scene.objects.get("Tensioner")
-    t = d.t
-    d.camera_step("CUT", t, 0.0, "", camera=cam)
-    lift, tilt = f"{TENSIONER}: Top track lift", f"{TENSIONER}: Top track tilt"
-    up, out = tensioner_open(d, TENSIONER)
-    d.joint(lift, t, 3.0, up, slide=True, label=SHOT5_CAPTION)
-    d.joint(tilt, t + 3.0, 3.0, out, label="… then tilts out to the vessel's side, clear of the cable's line")
-    d.joint(tilt, t + 6.5, 2.5, 0.0)
-    d.joint(lift, t + 9.0, 3.0, -0.02, slide=True, label="It closes and squeezes the cable")
-    # task 0079: from the squeeze on the cable runs again (real speed) and the pads run with it, through the X-ray
-    run = 8.0
-    blk = d.animation.blocks.add()
-    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, t + 9.0, run, "LINEAR"
-    blk.speed_mmin = SPEED
-    d.cable_end = getattr(d, "cable_end", 0.0) + SPEED / 60.0 * run
-    t += 12.0
-    ten = next(o for o in d.root().children_recursive if o.get(build.PROP_UID, "").endswith("/TENSIONER#2"))
-    frames = [o for o in ten.children_recursive if o.get(build.PROP_NAME) in ("TENSIONER BASE FRAME",
-                                                                                "TOP TRACK FRAME")]
-    for k, fr in enumerate(frames):
-        blk = d.animation.blocks.add()
-        blk.kind, blk.start, blk.duration, blk.easing = "FADE_OUT", t, 1.5, "SMOOTH"
-        blk.target_uid, blk.target_name = fr[build.PROP_UID], fr.get(build.PROP_NAME)
-        blk.fade_xray = True
-        blk.name = XRAY_STEP if k == 0 else ""
-    for name, text in LABELS:
-        part = next((o for o in ten.children_recursive if o.get(build.PROP_NAME) == name), None)
-        if part is not None:
-            from mathutils import Vector
-            co = [part.matrix_world @ Vector(c) for c in part.bound_box]
-            centre = sum(co, Vector()) / 8.0
-            callouts.add(d.scene, part, centre, text, step=XRAY_STEP)
-    d.s.callouts_on = True
-    if frames:
-        d.animation.blocks[len(d.animation.blocks) - len(frames)].duration = 4.0     # the labels' step: 4 s
-    for fr in frames:
-        f = d.animation.blocks.add()
-        f.kind, f.start, f.duration, f.easing = "FADE_IN", t + 4.0, 1.0, "SMOOTH"
-        f.target_uid, f.target_name = fr[build.PROP_UID], fr.get(build.PROP_NAME)
-        f.fade_xray = True
-    d.t = t + 5.0
-
-
-@stage("shot_drum", "Shot 6: handling winch drum, depth of field")
-def shot_drum(d: Demo):
-    from . import cameras, states
-    cam = d.scene.objects.get("Handling winch")
-    drum = d.part("WINCH DRUM", root=d.root())
-    keep = d.scene.camera
-    d.scene.camera = cam                        # the blur setting is the active camera's
-    d.s.camera_blur = "LITTLE"
-    cameras.set_focus(cam, d.scene, drum, d.middle(drum))
-    states.save_shot(d.scene, cam.name)
-    d.scene.camera = keep
-    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    d.joint(WINCH_TRAVEL, d.t, 7.0, 6.0, slide=True, easing="SMOOTH",
-            label="Handling winch: the wire comes off the Lebus drum, 35° crossovers")
-    d.t += 7.0
-
-
-QUADRANT_SPEED = 6.0                  # m/min: the D-quadrant's travel aft (an invented, plausible speed)
-QUADRANT_LAPSE = 60                   # its time-lapse factor in shot 9
-TRAVEL = "QUADRANT SYSTEM: Quadrant travel"
-TILT = "QUADRANT SYSTEM: QUADRANT HANDLER: Handler tilt"
-TIP = "QUADRANT SYSTEM: Quadrant tip"
-TILT_TO = 100.0                       # degrees at the end of shot 9 (the owner's "about 100°")
-TILT_SECONDS = 4.0
-TILT_REAL_SECONDS = 120.0             # the 0 -> 100° tilt with the D and the cable: 1–3 min real (study 0152, est.)
-TILT_LAPSE = round(TILT_REAL_SECONDS / TILT_SECONDS)     # its time-lapse factor in shots 9 and 12 (task 0173)
-AR_SPEED = 10.0                       # m/min: the A&R winch lowers and hoists the D (0083: 5–15 m/min)
-TIP_MINUTES = 15.0                    # the tipping (0083: 10–20 min, est.)
-OVER_THE_STERN = "Over the stern"     # the saved cameras of shots 10 and 11
-AT_THE_SEABED = "At the seabed"
-
-
-def cradle_drops(d: Demo) -> list[tuple[str, float]]:
-    """The lanes' cradles in the D's way (task 0102: one lead joint per lane, the others of the lane follow it): each
-    lead joint and how far it drops (m)."""
-    out = [(j["name"], j["limits"][1] / 1000.0) for j in d.sheet("joints")["joints"]
-           if j["name"].endswith(" drop") and j["drive"].get("by") == "operator"]
-    if not out:
-        raise RuntimeError("the demo model has no cradle that drops")
-    return out
-
-
-SEA_CAPTION = (f"Into the sea: the cable hangs to the seabed {SEA_DEPTH:.0f} m down and is laid at {SPEED:.0f} m/min "
-               "(surface lay)")
-LAY_DATA = ("Lay data\nTop tension {top} kN\nBottom tension {bottom} kN\nLayback {layback} m\n"
-            "Departure angle {angle}°\nLay speed {speed} m/min\nWater depth {depth} m")
-
-
-def lay_data_label(d: Demo, step: str):
-    """Task 0173 (study 0152 #1): the lay supervisor's numbers in shot 8 – a label on the power cable pointing at the
-    middle of its hanging stretch (the touch-down lies at the picture's bottom edge in shot 8), its fields filled
-    from the cable at every frame (``callouts.live_values``), shown during ``step``."""
-    import numpy as np
-    from mathutils import Vector
-
-    from . import callouts, paths, paths_sea
-    sc = d.scene
-    it = paths.find(sc, CABLE_ITEM)
-    got = paths_sea.tdp_world(sc, it)
-    if got is None:
-        raise RuntimeError("the power cable has no touch-down to point the lay data at")
-    mid = (np.asarray(got[0], float) + np.asarray(got[1], float)) / 2.0
-    line = np.asarray(paths.shape_now(sc, it), float)
-    at = line[int(np.argmin(np.linalg.norm(line - mid, axis=1)))]
-    c = callouts.add(sc, it.part, Vector(at), LAY_DATA, step=step)
-    d.s.callouts_on = True
-    d.notes.append("lay data: " + callouts.label_text(sc, c).replace("\n", "; "))
-    return c
-
-
-@stage("shot_sea", "Shot 8: into the sea – the catenary to the touch-down, the cable on the seabed")
-def shot_sea(d: Demo):
-    """From above and aft of the stern quarter, through the cut-away: the cable pays out at 10 m/min for 10 s, its
-    stripes run down the catenary to the touch-down and stand still on the seabed, the seabed passes aft under the
-    vessel (it moves with the lay), vessel motion Calm."""
-    cam = d.scene.objects.get(INTO_SEA)
-    d.camera_step("CUT", d.t, 0.0, "", camera=cam)
-    d.camera_step("ORBIT", d.t, SEA_SHOT_SECONDS, SEA_CAPTION, orbit_angle=math.radians(SEA_ORBIT), easing="SMOOTH")
-    lay_data_label(d, SEA_CAPTION)
-    blk = d.animation.blocks.add()
-    blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "MOTOR", CABLE, d.t, SEA_SHOT_SECONDS, "LINEAR"
-    blk.speed_mmin = SPEED
-    d.t += SEA_SHOT_SECONDS
-
-
-# ---------------------------------------------------------------------------
-# the quadrant operation (task 0082): the second end goes over the stern on the D, into the sea, tipped off on the
-# seabed (the owner's steps, tasks/0083 "Quadrant sequence")
-# ---------------------------------------------------------------------------
-
-def _cable_value_at(d: Demo, t: float) -> float:
-    """Metres of 'Cable travel' at the animation's time ``t`` (its Move and Run motor steps before it)."""
-    v = 0.0
-    for b in sorted((b for b in d.animation.blocks if b.joint == CABLE and b.start < t), key=lambda b: b.start):
-        k = min(1.0, (t - float(b.start)) / max(float(b.duration), 1e-9))
-        if b.kind == "JOINT":
-            v += (float(b.to_dist) - v) * k if k < 1.0 else float(b.to_dist) - v
-        elif b.kind == "MOTOR":
-            v += float(b.speed_mmin) / 60.0 * min(float(b.duration), t - float(b.start))
-    return v
-
-
-def _step(d: Demo, kind: str, ob, t: float, label: str = ""):
-    """A Show or Hide step for a part or assembly."""
-    from . import build
-    blk = d.animation.blocks.add()
-    blk.kind, blk.start, blk.duration = kind, t, 0.0
-    blk.target_uid, blk.target_name = _uid(ob), ob.get(build.PROP_NAME, ob.name)
-    blk.name = label
-    return blk
-
-
-def _part_of(d: Demo, name: str):
-    from . import paths
-    return paths.find(d.scene, name).part
-
-
-def ar_contact_tilt(d: Demo) -> float:
-    """The handler's tilt (deg) where the A&R wire, the D at the end of its travel, comes to bear on the top pulley."""
-    from ..demo_model import layout
-    from ..demo_model import route as rt
-    from ..demo_model.params import Params
-    p = Params()
-    pos = rt.positions(p)
-    W = d.sheet("route")["wires"]["ar"]
-    D = [W["drum_centre"][0], W["drum_centre"][2]]
-    lo, hi = 0.0, rt.TILT_END
-    if layout.ar_wire_length(p, pos, D, W["drum_r"], lo)[1] or not layout.ar_wire_length(p, pos, D, W["drum_r"], hi)[1]:
-        raise RuntimeError("the A&R wire does not come onto the top pulley while the handler tilts")
-    for _ in range(40):
-        mid = 0.5 * (lo + hi)
-        lo, hi = (lo, mid) if layout.ar_wire_length(p, pos, D, W["drum_r"], mid)[1] else (mid, hi)
-    return hi
-
-
-def lowered_parts(scene) -> list:
-    """The parts 'Quadrant lower' carries (the D itself, not its bogies on the rails), no cables."""
-    from . import joints, paths
-    j = joints.find(scene, LOWER)
-    cables = {o.name for o in paths.cable_parts(scene)}
-    return [o for o in (j.motion.children_recursive if j is not None and j.motion is not None else ())
-            if o.type == "MESH" and o.name not in cables and not o.get("fr_excluded")]
-
-
-class _Pose:
-    """The D (and the second end on its gutter) at joint values of the quadrant system, read from the model in the app
-    (model mm): set, read, put back."""
-
-    def __init__(self, d: Demo):
-        from . import joints
-        self.d, self.sc = d, d.scene
-        q = d.sheet("route")["quadrant"]
-        self.quad = d.uid(q["uid"])
-        self.names = (TRAVEL, TILT, LOWER, TIP)
-        self.was = {n: joints.get_value(joints.find(self.sc, n)) for n in self.names}
-        # (the D itself: what 'Quadrant lower' carries – its bogies stay on the rails; task 0125: the parts below the
-        # quadrant's assembly were the bogies only, so its depth was measured on the rail wheels)
-        self.parts = lowered_parts(self.sc)
-        arc = d.sheet("route")["second_end"]["route"]["segments"][0]
-        import numpy as np
-        c, nrm, p0 = (np.array(arc[k], float) for k in ("centre", "normal", "start"))
-        from ..demo_model.route import rotate
-        self.arc = np.array([c + rotate(p0 - c, nrm, a) for a in np.linspace(0.0, math.radians(arc["angle_deg"]), 37)])
-        self.M0 = self._at({})
-
-    def _at(self, values: dict):
-        import numpy as np
-
-        from . import joints
-        for n in self.names:
-            joints.set_value(joints.find(self.sc, n), float(values.get(n, 0.0)))
-        _update()
-        _update()
-        R = np.array(self.d.root().matrix_world)
-        return np.linalg.inv(R) @ np.array(self.quad.matrix_world)
-
-    def put_back(self):
-        from . import joints
-        for n, v in self.was.items():
-            joints.set_value(joints.find(self.sc, n), v)
-        _update()
-        _update()
-
-    def lowered(self) -> list:
-        return lowered_parts(self.sc)
-
-    def points(self, values: dict, every: int = 1):
-        """The D's mesh points (model mm, (n, 3)) at these joint values (every ``every``-th point of each part)."""
-        import numpy as np
-        self._at(values)
-        R = np.linalg.inv(np.array(self.d.root().matrix_world))
-        out = []
-        for o in self.lowered():
-            me = o.data
-            co = np.empty(len(me.vertices) * 3)
-            me.vertices.foreach_get("co", co)
-            W = R @ np.array(o.matrix_world)
-            out.append(co.reshape(-1, 3)[::every] @ W[:3, :3].T + W[:3, 3])
-        return np.concatenate(out) * 1000.0 if out else np.zeros((0, 3))
-
-    def lows(self, values: dict) -> tuple[float, float]:
-        """(lowest point of the D, lowest point of the cable round its gutter), model mm (z), at these values (m, rad)."""
-        import numpy as np
-        M = self._at(values)
-        R = np.linalg.inv(np.array(self.d.root().matrix_world))
-        zs = []
-        for o in self.parts:
-            W = R @ np.array(o.matrix_world)
-            box = np.array([tuple(c) for c in o.bound_box]) @ W[:3, :3].T + W[:3, 3]
-            zs.append(box[:, 2].min() * 1000.0)
-        D = M @ np.linalg.inv(self.M0)
-        arc = self.arc @ D[:3, :3].T + D[:3, 3] * 1000.0
-        return float(min(zs)), float(arc[:, 2].min())
-
-
-@stage("quadrant_ops", "The second end into the sea and its CPS (for shots 9–12)", after="shot_sea")
-def quadrant_ops(d: Demo):
-    """The second end gets its sea end (set in the pose the animation starts from; its speed follows 'Cable travel', so
-    the touch-down stays behind the vessel while the seabed passes aft in shots 1–8): its catenary from horn A to the
-    seabed as the lay cable's, 30 m of water; from shot 9 on nothing is paid out, so its length is kept. Its CPS set rides on it (0081), the pull head at
-    its start, on the D's bar end; the stage also works out how deep the D goes (``d.quadrant``)."""
-    from . import build, paths, paths_riders, paths_sea
-    sc = d.scene
-    t0 = time.time()
-    d.progress("The second end into the sea")
-    item = paths.find(sc, SECOND_ITEM)
-    item.sea_depth, item.sea_layback, item.sea_laid, item.sea_mode = 0.0, SEA_LAYBACK, SEA_LAID, "LAYBACK"
-    notes = paths_sea.add_sea_end(sc, paths.find(sc, SECOND_ITEM))
-    item = paths.find(sc, SECOND_ITEM)
-    if item.problem:
-        raise RuntimeError(f"the second end into the sea: {item.problem}")
-    cps = d.uid(d.sheet("route")["second_end"]["cps"])
-    length = d.sheet("route")["second_end"]["cps_length"] / 1000.0
-    paths_riders.add(sc, item, [cps], where="END", at=float(item.sea_mark) - length, name=CPS_RIDER)
-    item = paths.find(sc, SECOND_ITEM)
-    r = item.riders[len(item.riders) - 1]
-    head = [p for p in r.parts if p.part is not None and p.part.get(build.PROP_NAME) == "PULL HEAD"]
-    if head and float(head[0].at) < 0.5 * float(r.length):
-        r.flip = True                                   # its front (the bend restrictors) looks towards the sea
-        item = paths.find(sc, SECOND_ITEM)
-        r = item.riders[len(item.riders) - 1]
-    # the pull head at the cable's start, on the D's bar end, from shot 9 on (a rider moves along with what is paid
-    # out: 'Cable travel' when shot 9 starts)
-    r.at = float(item.sea_mark) - float(r.length) + _cable_value_at(d, d.t)
-    # how deep: lowered with the D hanging plumb until its lowest point is 1.5 m over the seabed (shot 10), tipped
-    # there towards flat (shot 11) and lowered on until the cable round its gutter lies on the seabed (let go there)
-    q = d.sheet("route")["quadrant"]
-    pose = _Pose(d)
-    try:
-        base = {TRAVEL: q["travel"][1] / 1000.0, TILT: math.radians(q["lower_tilt"])}
-        hang = dict(base, **{TIP: math.radians(q["hang_tip"])})
-        flat = dict(base, **{TIP: math.radians(-q["lower_tilt"])})
-        bed = -SEA_DEPTH * 1000.0
-        low_hang, _ = pose.lows(hang)
-        l1 = (low_hang - (bed + 1500.0)) / 1000.0
-        _, low_cable = pose.lows(flat)
-        l2 = (low_cable - 1000.0 * paths_sea.bottom_z(sc, item)) / 1000.0
-        sink = bed - pose.lows(dict(flat, **{LOWER: l2}))[0]
-    finally:
-        pose.put_back()
-    d.quadrant = {"lower_1": round(l1, 3), "lower_2": round(l2, 3), "sink": round(sink, 1)}
-    d.notes.append(f"second end: sea end {notes[0] if notes else 'set'}; CPS rider, front {r.mark:.1f} m along the "
-                   f"cable; the D lowered {l1:.1f} m, tipped (set down in shot 11)")
-    d.timings["quadrant_ops"] = time.time() - t0
-
-
-@stage("shot_cps", "Shot 8b: a CPS set from the rack, round the D and back, in front of the cable end", after="quadrant_ops")
-def shot_cps(d: Demo):
-    """Task 0126, the owner's CPS steps 1–5 (tasks/0083): the lay cable has gone overboard (hidden: the second end comes
-    in shot 9); a CPS set slides from the rack's top shelf, tail first, down the orange ramp and the curved slide onto
-    side B's cradles, travels round the D-quadrant at its stationary position and down side A, stops forward of
-    tensioner 2 and runs back the other way until its pull head is at the D's lane-B bar end: its place in front of the
-    cable end, which is connected to its rear end as shot 9 begins (the second end and its CPS there take its place)."""
-    from . import paths
-    m = cps_run_marks(d)
-    t = d.t
-    cam_a, cam_b = d.scene.objects.get(CPS_RACK), d.scene.objects.get(CPS_ON_D)
-    d.camera_step("CUT", t, 0.0, "", camera=cam_a)
-    _step(d, "HIDE", paths.find(d.scene, CABLE_ITEM).part, t,
-          "The cable's end comes: a CPS set (cable protection) goes on it – from the rack")
-    t += 1.0
-    out = round(m["out"] / (CPS_SPEED / 60.0) / CPS_LAPSE, 1)
-    d.joint(m["joint"], t, out, m["out"], slide=True, easing="SMOOTH",
-            label=f"The CPS set slides tail first down the orange ramp and the curved slide onto side B, round the D "
-                  f"and down side A (x {CPS_LAPSE})")
-    d.camera_step("MOVE", t + 0.42 * out, 4.0, "", camera=cam_b, easing="SMOOTH")
-    t += out
-    back = round((m["out"] - m["home"]) / (CPS_SPEED / 60.0) / CPS_LAPSE * 2.0, 1)
-    d.joint(m["joint"], t + 1.0, back, m["home"], slide=True, easing="SMOOTH",
-            label="It stops forward of tensioner 2 and runs back: its pull head at the D's bar end, in front of the "
-                  "cable end")
-    d.t = t + 1.0 + back + 1.5
-
-
-@stage("shot_quadrant", "Shot 9: the D carries the second end aft and over the stern", after="shot_cps")
-def shot_quadrant(d: Demo):
-    """The owner's steps 1–7 with the cable: the lay cable gives way to the second end (its end shackled at the D's bar
-    end, round the gutter, along side A and over horn A into the sea, its CPS on it). Both tensioners open – the top
-    track lifts, then tilts out – and the lanes' cradles drop, the D travels aft on its rails between the tensioners onto
-    the handler with the bight on it (time-lapse), the A&R wire paying out from its winch (kept tight); the tipping
-    wires are connected to the D's bar ends, and the handler tilts over the stern carrying it: the A&R wire comes onto
-    the top pulley, the cable leaves horn A and hangs from the D's gutter, the D ends vertical, curve up, hanging from
-    the A&R wire, both legs of the cable going down into the water (tasks 0091, 0095, 0102, 0082)."""
-    from . import build, paths
-    t = d.t
-    cam = d.scene.objects.get("Quadrant")
-    quad = d.part("QUADRANT FRAME", root=d.root())
-    travel = d.sheet("route")["quadrant"]["travel"][1] / 1000.0
-    secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
-    d.camera_step("CUT", t, 0.0, "", camera=cam)
-    _step(d, "HIDE", paths.find(d.scene, CABLE_ITEM).part, t)
-    _step(d, "HIDE", d.uid(d.sheet("route")["cps_store"]["run_set"]), t)     # (its place: the second end's CPS)
-    _step(d, "SHOW", _part_of(d, SECOND_ITEM), t, "The cable end is connected to the CPS's rear end: the second end, "
-                                                  "shackled at the D's bar end, round its gutter, over horn A into the sea")
-    _step(d, "SHOW", d.uid(d.sheet("route")["second_end"]["cps"]), t)
-    _step(d, "SHOW", _part_of(d, AR_ITEM), t)
-    for k, name in enumerate(TENSIONERS):
-        up, out = tensioner_open(d, name)
-        d.joint(f"{name}: Top track lift", t, 1.5, up, slide=True,
-                label="Both tensioners open: the top track lifts …" if k == 0 else "")
-        d.joint(f"{name}: Top track tilt", t + 1.5, 2.0, out,
-                label="… and tilts out to its own side, the lanes' cradles drop: the D's way is clear"
-                if k == 0 else "")
-    for lead, drop in cradle_drops(d):                 # the lanes' cradles drop while the tensioners tilt out
-        d.joint(lead, t + 1.5, 1.5, drop, slide=True)
-    t += 3.5
-    d.joint(TRAVEL, t, secs, travel, slide=True, easing="SMOOTH",
-            label=f"The D-quadrant carries the cable aft between the tensioners onto the handler, on its A&R wire "
-                  f"(x {QUADRANT_LAPSE})")
-    haul_in(d, t, secs, travel)
-    fly = d.camera_step("PATH", t, secs, "", easing="SMOOTH", cam_blend=0.0, path_look="PART", aim_uid=_uid(quad),
-                        aim_name=quad.get(build.PROP_NAME, "QUADRANT FRAME"))
-    for p in ((22000.0, 15500.0, 9500.0), (-3000.0, 15000.0, 9000.0)):
-        fly.path_points.add().co = d.mm(p)
-    fly.path_from_here = True
-    t += secs
-    d.camera_step("MOVE", t, 1.5, "The tipping wires are connected to the D's bar ends",
-                  camera=d.scene.objects.get("Stern"))
-    for _key, name in TIP_ITEMS:
-        _step(d, "SHOW", _part_of(d, name), t + 0.5)
-    t += 1.0
-    d.joint(TILT, t, TILT_SECONDS, TILT_TO,
-            label="The handler tilts over the stern: the wire comes onto the top pulley, the D hangs vertical, both "
-                  f"legs of the cable down into the water (x {TILT_LAPSE})")
-    t += TILT_SECONDS
-    d.camera_step("ORBIT", t, 3.0, "", orbit_angle=math.radians(8.0), easing="SMOOTH")   # a hold on the end picture
-    d.t = t + 3.0
-
-
-def haul_in(d: Demo, t: float, seconds: float, travel: float) -> None:
-    """The second end's speed (task 0126, 0125's open point 1): just before shot 9 (hidden) to 'Cable travel's metres
-    there; while the D carries the bight aft (``travel`` m from ``t``, as the D's own step) hauled in by as much: the
-    stretch from the D's gutter to horn A gets that much shorter, and with nothing hauled in the cable's hanging length
-    grew by it – 36 m piled up on the seabed by the end of the travel."""
-    from . import paths
-    j = paths.find(d.scene, SECOND_ITEM).joint
-    v9 = _cable_value_at(d, d.t)
-    t9 = min(b.start for b in d.animation.blocks if b.kind == "SHOW" and b.target_name == "CABLE END")
-    d.joint(j, t9 - 0.5, 0.4, v9, slide=True, easing="LINEAR")
-    d.joint(j, t, seconds, v9 - travel, slide=True, easing="SMOOTH")
-
-
-def _pulley(d: Demo, t: float, seconds: float, lowered_m: float) -> None:
-    """The top pulley turns with the wire the A&R winch pays out over it (to the angle for ``lowered_m`` of lowering)."""
-    dpm = next(j for j in d.sheet("joints")["joints"] if j["name"] == PULLEY_TURN)["drive"]["deg_per_mm"]
-    d.joint(PULLEY_TURN, t, seconds, lowered_m * 1000.0 * float(dpm))
-
-
-@stage("shot_lower", "Shot 10: the A&R winch lowers the D vertical into the sea", after="shot_quadrant")
-def shot_lower(d: Demo):
-    """The owner's steps 8–10: the handler tilts on to LOWER_TILT and the D, taken by its A&R wire, hangs plumb from its
-    eye (clear of the stern's horns); the A&R winch lowers it into the water and down to 1.5 m over the seabed, the
-    tipping winches paying out in step (both wires kept tight); from over the stern quarter through the cut-away
-    (time-lapse). The vessel holds its place: the D's gutter rollers turn with the lay cable's 'Cable travel', so a
-    creep would spin them while the D is lowered."""
-    q = d.sheet("route")["quadrant"]
-    l1 = d.quadrant["lower_1"]
-    t = d.t
-    d.camera_step("CUT", t, 0.0, "", camera=d.scene.objects.get(OVER_THE_STERN))
-    d.joint(TILT, t, 2.0, q["lower_tilt"], label="The handler tilts on: the D hangs plumb from its A&R wire")
-    d.joint(TIP, t, 2.0, q["hang_tip"])
-    t += 2.0
-    secs = 8.0
-    lapse = round(l1 / (AR_SPEED / 60.0) / secs)
-    d.joint(LOWER, t, secs, l1, slide=True,
-            label=f"The A&R winch lowers the D into the sea, the tipping winches pay out in step (x {lapse})")
-    _pulley(d, t, secs, l1)
-    d.camera_step("ORBIT", t, secs, "", orbit_angle=math.radians(-12.0), easing="SMOOTH")
-    d.t = t + secs + 1.0
-
-
-LET_GO_AFTER = 2.0                    # s after the D is set down: the second end is let go, the hoist begins
-SET_DOWN_TOL = 0.01                   # m: the D as built this far off its set-down height: its step is corrected
-SET_DOWN_CLEAR = 0.02                 # m: the D's lowest point over the seabed at the deepest heave
-
-
-def _vessel_at(d: Demo, frames) -> "list":
-    """(F, 4, 4) world: the vessel's motion at these frames (``core.vessel_motion`` as the rig's drivers give it:
-    T(pivot + heave) · R(pitch) · R(roll) · T(-pivot)); identities without vessel motion."""
-    import numpy as np
-
-    from . import vessel_motion as vm
-    sc = d.scene
-    out = np.tile(np.eye(4), (len(frames), 1, 1))
-    mo = vm.motion(sc) if vm.effective(sc) else None
-    p = vm.pivot(sc)
-    if mo is None or p is None:
-        return out
-    from . import animation
-    # (the animation's frame rate, as Build sets it: before the first Build the scene's own is Blender's 24 fps, and the
-    # heave read at 24 fps put the D's set-down 20 mm off – task 0172)
-    t = np.asarray(frames, float) / float(animation.fps_of(d.animation))
-    heave, roll, pitch = mo.heave.value(t), mo.roll.value(t), mo.pitch.value(t)
-    P = np.array(p, float)
-    for k in range(len(t)):
-        cr, sr, cp, sp = math.cos(roll[k]), math.sin(roll[k]), math.cos(pitch[k]), math.sin(pitch[k])
-        Rx = np.array([[1, 0, 0], [0, cr, -sr], [0, sr, cr]])
-        Ry = np.array([[cp, 0, sp], [0, 1, 0], [-sp, 0, cp]])
-        R = Ry @ Rx
-        out[k, :3, :3] = R
-        out[k, :3, 3] = P + np.array([0.0, 0.0, heave[k]]) - R @ P
-    return out
-
-
-HOIST_SECONDS = 2.0                   # s: shot 12's first step, the A&R winch hoists the D off the seabed to lower_1
-SET_DOWN_AFTER = 1.0                  # s of that hoist the set-down is measured over (the D comes up ~0.5 of the way)
-SET_DOWN_BAND = 2.0                   # m: only the D's points this near its lowest one can come lowest (roll, pitch)
-
-
-def set_down_shares(d: Demo, t0: float, secs: float, up_at: float, up_secs: float, frames) -> "list":
-    """(F,) the share of the set-down step's travel (0 = ``l_from``, 1 = the set-down depth) at each frame: the
-    lowering from ``t0`` (``secs`` long, eased), standing, then the hoist from ``up_at`` (``up_secs`` long, eased) back
-    to ``l_from`` – as Build keys them (task 0172: the estimate before Build ran 0.5 s into the hoist as if the D still
-    stood there, while the check after Build stopped at the hoist's start: 21 mm apart, a second Build every Make)."""
-    import numpy as np
-
-    from . import animation
-    a = d.animation
-    # (from the frame each step starts on to the frame it ends on, as Build keys them – a step that starts between
-    # frames is one frame shorter or longer than secs x fps: the independent tester of task 0172 – with its start and
-    # length as the step stores them, 32-bit numbers)
-    t0, secs, up_at, up_secs = (float(np.float32(x)) for x in (t0, secs, up_at, up_secs))
-    f0, f1 = animation.frame_of(a, t0), animation.frame_of(a, t0 + secs)
-    fu, fu1 = animation.frame_of(a, up_at), animation.frame_of(a, up_at + up_secs)
-    out = []
-    for f in frames:
-        down = animation.ease("SMOOTH", min(1.0, max(0.0, (f - f0) / max(f1 - f0, 1))))
-        up = animation.ease("SMOOTH", min(1.0, max(0.0, (f - fu) / max(fu1 - fu, 1)))) if f > fu else 0.0
-        out.append(down * (1.0 - up))
-    return np.array(out, dtype=float)
-
-
-def set_down_depth(d: Demo, t0: float, t1: float, guess: float, l_from: float, secs: float,
-                   up_at: float | None = None, up_secs: float = HOIST_SECONDS) -> float:
-    """How far the A&R winch lowers the D (m of 'Quadrant lower', tipped flat) in its step from ``t0`` (``secs`` long,
-    eased, from ``l_from``) so that up to ``t1`` its lowest point, heaving with the vessel, comes down to
-    ``SET_DOWN_CLEAR`` over the seabed at the deepest moment and never lower (measured on its mesh points, at every
-    frame, with the value the steps give it then: the lowering, standing, and from ``up_at`` the hoist back to
-    ``l_from`` over ``up_secs`` – task 0172)."""
-    import numpy as np
-
-    from . import animation, paths_sea
-    q = d.sheet("route")["quadrant"]
-    frames = np.arange(animation.frame_of(d.animation, t0), animation.frame_of(d.animation, t1) + 1)
-    share = set_down_shares(d, t0, secs, t1 + 1.0 if up_at is None else up_at, up_secs, frames)
-    V = _vessel_at(d, frames)
-    R0 = np.array(d.root().matrix_basis)
-    bed = paths_sea.waterline(d.scene) - SEA_DEPTH
-    base = {TRAVEL: q["travel"][1] / 1000.0, TILT: math.radians(q["lower_tilt"]), TIP: math.radians(-q["lower_tilt"])}
-    pose = _Pose(d)
-    try:
-        def world(lv):
-            pts = pose.points(dict(base, **{LOWER: lv})) / 1000.0
-            return pts @ R0[:3, :3].T + R0[:3, 3]
-        w0 = world(float(guess))
-        way = (world(float(guess) + 1.0) - w0).mean(axis=0)          # the lowering: a straight slide, per metre
-    finally:
-        pose.put_back()
-    w0 = w0[w0[:, 2] < float(w0[:, 2].min()) + SET_DOWN_BAND]           # (every point that can come lowest)
-
-    def low(l2: float) -> float:
-        lv = l_from + (l2 - l_from) * share                          # (F,): the value at each frame
-        z = np.einsum("fj,nj->fn", V[:, 2, :3], w0) + V[:, 2, 3][:, None]
-        z += ((lv - float(guess)) * (V[:, 2, :3] @ way))[:, None]
-        return float(z.min())
-
-    lo, hi = float(l_from), float(guess) + 20.0
-    if low(hi) > bed + SET_DOWN_CLEAR:
-        return hi
-    for _ in range(60):                                              # deeper lowering: lower point (monotone)
-        mid = 0.5 * (lo + hi)
-        lo, hi = (mid, hi) if low(mid) > bed + SET_DOWN_CLEAR else (lo, mid)
-    return lo
-
-
-@stage("shot_tip", "Shot 11: near the seabed the D tips, the cable lies on the seabed and is let go", after="shot_lower")
-def shot_tip(d: Demo):
-    """The owner's steps 11–13: near the seabed the A&R winch holds and the tipping winches pay out more – the D tips
-    about its A&R eye towards flat; lowered onto the seabed, the cable round its gutter lies there and the second end is
-    let go (its start and its turn round the gutter stay on the seabed: Let go, 0082)."""
-    from . import animation, paths
-    l1, l2 = d.quadrant["lower_1"], d.quadrant["lower_2"]
-    q = d.sheet("route")["quadrant"]
-    t = d.t
-    d.camera_step("CUT", t, 0.0, "", camera=d.scene.objects.get(AT_THE_SEABED))
-    secs = 5.0
-    d.joint(TIP, t, secs, -q["lower_tilt"],
-            label=f"Near the seabed the A&R winch holds, the tipping winches pay out: the D tips towards flat "
-                  f"(x {round(TIP_MINUTES * 60.0 / secs)})")
-    t += secs
-    # task 0125: lowered until the D, heaving with the vessel, just touches the seabed at its deepest (measured on its
-    # mesh at every frame it stands there) – no longer to where the cable round the gutter would lie on the seabed
-    up = t + 3.0 + LET_GO_AFTER                         # (shot 12 hoists from here: ``shot_back``)
-    l2 = set_down_depth(d, t, up + SET_DOWN_AFTER, l2, l1, 3.0, up_at=up)
-    d.quadrant["lower_2"] = round(l2, 3)
-    d.notes.append(f"shot 11: the D set down at {l2:.3f} m of lowering, {SET_DOWN_CLEAR * 1000:.0f} mm over the "
-                   "seabed at the deepest heave")
-    d.joint(LOWER, t, 3.0, l2, slide=True, label="Lowered onto the seabed")
-    d.set_down = (t, up, l1)                            # (checked on the built animation by the demo's test)
-    _pulley(d, t, 3.0, l2)
-    t += 3.0
-    sc = d.scene
-    # let go as the A&R winch begins to hoist: the cable end, its turn round the gutter and its CPS stay and settle onto
-    # the seabed (Settles in, task 0125) while the D comes up away from them
-    frame = animation.frame_of(d.animation, t + LET_GO_AFTER)
-    it = paths.find(sc, SECOND_ITEM)
-    gutter = [i for i, c in enumerate(it.contacts)
-              if c.kind in ("CHUTE", "SHEAVE", "BEND") and c.part is not None and "QUADRANT" in c.name]
-    for which in ["a"] + [str(i) for i in gutter]:
-        paths.let_go(sc, paths.find(sc, SECOND_ITEM), which, frame)
-    d.camera_step("ORBIT", t, LET_GO_AFTER, "Let go: the cable end, its turn round the gutter and its CPS settle "
-                  "onto the seabed", orbit_angle=math.radians(6.0), easing="SMOOTH")
-    d.t = t + LET_GO_AFTER
-
-
-@stage("shot_back", "Shot 12: the D comes back up, over the stern and onto its rails", after="shot_tip")
-def shot_back(d: Demo):
-    """The owner's steps 14–15: the A&R winch hoists the D (it tips back to hang plumb on the way), the handler tilts
-    back down with it (the A&R wire leaves the top pulley), the tipping wires are taken off, the D travels back along
-    its rails to its stationary place; at last the tensioners' top tracks come down again and the cradles rise."""
-    from . import paths
-    q = d.sheet("route")["quadrant"]
-    l1, l2 = d.quadrant["lower_1"], d.quadrant["lower_2"]
-    t = d.t
-    d.camera_step("MOVE", t, 2.0, "", camera=d.scene.objects.get(OVER_THE_STERN))
-    d.joint(LOWER, t, HOIST_SECONDS, l1, slide=True, label="The A&R winch hoists the D off the seabed …")
-    _pulley(d, t, HOIST_SECONDS, l1)
-    t += HOIST_SECONDS
-    secs = 6.0
-    d.joint(TIP, t, 2.0, q["hang_tip"])
-    d.joint(LOWER, t, secs, 0.0, slide=True,
-            label=f"… and back up out of the water (x {round(l1 / (AR_SPEED / 60.0) / secs)})")
-    _pulley(d, t, secs, 0.0)
-    t += secs
-    d.camera_step("CUT", t, 0.0, "", camera=d.scene.objects.get("Stern"))
-    d.joint(TIP, t, 1.0, 0.0)
-    t += 1.0
-    d.joint(TILT, t, TILT_SECONDS, 0.0, label=f"The handler tilts back down with the D (x {TILT_LAPSE})")
-    t += TILT_SECONDS
-    for _key, name in TIP_ITEMS:
-        _step(d, "HIDE", _part_of(d, name), t, "The tipping wires are taken off" if _key == "port" else "")
-    travel = d.sheet("route")["quadrant"]["travel"][1] / 1000.0
-    secs = round(travel / (QUADRANT_SPEED / 60.0) / QUADRANT_LAPSE, 1)
-    d.camera_step("MOVE", t, 2.0, "", camera=d.scene.objects.get("Quadrant"))
-    d.joint(TRAVEL, t + 0.5, secs, 0.0, slide=True,
-            label=f"The D travels back to its stationary place (x {QUADRANT_LAPSE})")
-    t += 0.5 + secs
-    for k, name in enumerate(TENSIONERS):
-        d.joint(f"{name}: Top track tilt", t, 2.0, 0.0,
-                label="The tensioners' top tracks come down again, the cradles rise" if k == 0 else "")
-        d.joint(f"{name}: Top track lift", t + 2.0, 1.5, 0.0, slide=True)
-    for lead, _drop in cradle_drops(d):
-        d.joint(lead, t, 1.5, 0.0, slide=True)
-    d.t = t + 3.5 + 1.0
-    del paths
 
 
 # the vessel's propellers and radars turn through the whole animation (task 0153; 0154's water effects read the
@@ -2173,11 +911,11 @@ def turning_joints(d: Demo) -> list[tuple[str, float]]:
     return out
 
 
-# task 0154: what the vessel does – she arrives at 6 knots (shots 1 and 2: a wake, her waves, a bow wave), then holds
-# her place on the cable route on her thrusters (DP, gently to starboard) from shot 3 on; the propellers follow
+# task 0154: what the vessel does – she arrives at 6 knots (shot 1 and the park's: a wake, her waves, a bow wave), then
+# holds her place over the cable on her thrusters (DP, gently to starboard) from the crane's shot on
 TRANSIT_KNOTS = 6.0
 DP_THRUST = 0.35
-DP_CHANGE = 3.0                       # s: the change from sailing to DP, ending as shot 3 starts
+DP_CHANGE = 3.0                       # s: the change from sailing to DP, ending as the crane's shot starts
 
 
 def _shot_start(d: Demo, camera: str) -> float:
@@ -2187,10 +925,8 @@ def _shot_start(d: Demo, camera: str) -> float:
     raise RuntimeError(f"the animation has no camera step to '{camera}'")
 
 
-@stage("propulsion", "The vessel at work: sailing in, then on DP; the propellers and radars turn", after="shot_back")
+@stage("propulsion", "The vessel at work: sailing in, then on DP; the propellers and radars turn")
 def propulsion(d: Demo):
-    import json
-
     from . import states, vessel_work
     sc, s = d.scene, d.s
     for name, rpm in turning_joints(d):
@@ -2211,7 +947,7 @@ def propulsion(d: Demo):
         data.setdefault("weather", {})["vessel_speed"] = TRANSIT_KNOTS
         data["vessel_work"] = json.loads(states.settings_json(s, ("vessel_work",)))["vessel_work"]
         shot.world = json.dumps(data)
-    t = _shot_start(d, "Carousel") - DP_CHANGE
+    t = _shot_start(d, DECK_CRANE) - DP_CHANGE
     blk = d.animation.blocks.add()
     blk.kind, blk.start, blk.duration, blk.easing = "VESSEL", t, DP_CHANGE, "SMOOTH"
     blk.vw_mode, blk.vw_side, blk.vw_thrust = "DP", "STBD", DP_THRUST
@@ -2468,7 +1204,4 @@ def build_main(folder: str = "", small: bool = False, kit: str = "") -> int:
     _write_json(result_path(folder), res)
     print(f"Demo project: {json.dumps(res)[:1500]}", flush=True)
     return code
-
-
 from . import demo_park  # noqa: E402,F401  (task 0166: registers the wind park's stages)
-from . import demo_rov  # noqa: E402,F401  (task 0173: registers the ROV's stages)

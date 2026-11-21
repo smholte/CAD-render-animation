@@ -1,7 +1,7 @@
-"""Task 0153: the demo's vessel in detail (fresing_render/demo_model/vessel.py) – hull, superstructure, propulsion,
-outfitting. OpenCascade only (the vessel is built alone, ~10 s); the whole spread's checks (the outfitting keeps clear
-of it, part counts, triangles) are in tests/test_demo_cable_lay.py, the app's side (looks, marks, cameras, the
-propellers turning, clash check) in tests/test_demo_project*.py.
+"""Task 0153 / 0247: the demo's ship in detail (fresing_render/demo_model/vessel.py) – hull, superstructure, propulsion,
+outfitting, her own deck crane with its hoist, a plain deck (no well, the bulwark closed all round). OpenCascade only
+(the ship is built alone, ~10 s); the app's side (looks, marks, cameras, the propellers turning, the crane's shot, the
+clash check) is in tests/test_demo_project*.py.
 """
 
 import math
@@ -17,19 +17,16 @@ sys.path.insert(0, os.path.dirname(HERE))
 pytest.importorskip("OCP")
 
 from fresing_render.demo_model import geom as g  # noqa: E402
-from fresing_render.demo_model import machines as m  # noqa: E402
-from fresing_render.demo_model import route as rt  # noqa: E402
 from fresing_render.demo_model import vessel as vs  # noqa: E402
-from fresing_render.demo_model.params import Params  # noqa: E402
+from fresing_render.demo_model.params import ShipParams  # noqa: E402
 
 
 @pytest.fixture(scope="module")
 def ves():
-    p = Params()
-    pos = rt.positions(p)
-    a = vs.vessel(p, pos, m.Kit(p))
+    p = ShipParams()
+    a = vs.vessel(p)
     parts = [(node, uid, W) for node, uid, W, _l, _p in g.walk(a) if isinstance(node, g.Part)]
-    return {"p": p, "pos": pos, "a": a, "parts": parts, "joints": {j["name"]: j for j in g.resolve_joints(a)}}
+    return {"p": p, "a": a, "parts": parts, "joints": {j["name"]: j for j in g.resolve_joints(a)}}
 
 
 def _named(ves, name):
@@ -71,7 +68,7 @@ def test_part_counts(ves):
 
 def test_joints_of_the_propulsion_radars_and_crane(ves):
     js = ves["joints"]
-    assert len(js) == 12                         # (task 0174: the crane's hoist drum and head sheave)
+    assert len(js) == 13                         # (task 0174: the crane's hoist drum and head sheave; 0247: its hook)
     for side in ("PS", "SB"):
         steer, prop = js[f"AZIMUTH THRUSTER {side}: Steer"], js[f"AZIMUTH THRUSTER {side}: Propeller turn"]
         assert np.allclose(steer["axis"]["direction"], [0, 0, 1])
@@ -85,10 +82,36 @@ def test_joints_of_the_propulsion_radars_and_crane(ves):
     for k in (1, 2):
         assert np.allclose(js[f"SUPERSTRUCTURE: Radar {k} turn"]["axis"]["direction"], [0, 0, -1])
     turning = {n for n, j in js.items() if j.get("motor")}           # turn without end (the app's Motor)
-    assert turning == set(js) - {"DECK CRANE: Luff", "DECK CRANE: Hoist drum turn", "DECK CRANE: Head sheave turn"}
-    for name in ("DECK CRANE: Hoist drum turn", "DECK CRANE: Head sheave turn"):
+    assert turning == set(js) - {"DECK CRANE: Luff", "DECK CRANE: Hoist drum turn", "DECK CRANE: Head sheave turn",
+                                 "DECK CRANE: Hook lower"}
+    for name in ("DECK CRANE: Hoist drum turn", "DECK CRANE: Head sheave turn", "DECK CRANE: Hook lower"):
         assert js[name]["rides_on"] == "DECK CRANE: Luff" and js[name]["drive"]["by"] == "winch"
     assert js["DECK CRANE: Luff"]["rides_on"] == "DECK CRANE: Slew" and js["DECK CRANE: Luff"]["limits"] == [-55.0, 10.0]
+    hook = js["DECK CRANE: Hook lower"]                              # task 0247: plumb down, on the boom
+    assert hook["type"] == "slide" and np.allclose(hook["axis"]["direction"], [0, 0, -1])
+    assert hook["limits"] == [0.0, vs.HOOK_DROP]
+
+
+def test_a_plain_deck(ves):
+    """Task 0247: no carousel well (the deck plate is whole: its area is the outline's) and the bulwark closed all
+    round – at the transom and along the starboard quarter, where the old spread's openings were."""
+    from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+    from OCP.TopAbs import TopAbs_IN
+    names = {n.name for n, _u, _W in ves["parts"]}
+    assert "CAROUSEL WELL" not in names
+    bw = next(_placed(n, W) for n, u, W in ves["parts"] if n.name == "BULWARK")
+    outline = np.array(ves["a"].info["deck_outline"])
+    p = ves["p"]
+    for x in (1500.0, 9000.0, 20000.0):
+        for side in (-1, 1):
+            half = outline[outline[:, 1] * side > 0]
+            order = np.argsort(half[:, 0])
+            edge = float(np.interp(x, half[order, 0], np.abs(half[order, 1])))
+            y = side * (edge - 80.0)                                   # in the bulwark plate, just inside the edge
+            st = BRepClass3d_SolidClassifier(bw, g.P((x, y, p.deck_z + 500.0)), 1e-3)
+            assert st.State() == TopAbs_IN, (x, side)
+    lo, _hi = _bbox(bw)
+    assert lo[0] < 200.0                                                # round the transom too
 
 
 def test_the_propellers_turn_free_of_their_nozzles_pods_and_tunnels(ves):
@@ -167,7 +190,7 @@ def test_the_thrusters_are_under_water_and_under_the_hull(ves):
 
 
 def test_the_bow_tunnels_go_through_the_hull(ves):
-    L = ves["pos"]["length"]
+    L = ves["p"].length
     bottom = [_placed(n, W) for n, u, W in ves["parts"] if n.name == "HULL BOTTOM"][0]
     for xb in vs.BOW_TUNNELS:
         hole = g.cyl(vs.BOW_TUNNEL_R - 5.0, 40000.0, (L - xb, -20000.0, vs.BOW_Z), (0, 1, 0))
@@ -178,7 +201,7 @@ def test_the_bow_tunnels_go_through_the_hull(ves):
 
 
 def test_hull_shape_sheer_stem_bulb_and_paint_bands(ves):
-    p, L = ves["p"], ves["pos"]["length"]
+    p, L = ves["p"], ves["p"].length
     st = vs.stations(p, L)
     flat = [s for s in st if s[0] <= L - vs.SHEER_LEN]
     assert all(s[5] == p.deck_z for s in flat)                     # the spread's deck stays level
@@ -200,17 +223,15 @@ def test_hull_shape_sheer_stem_bulb_and_paint_bands(ves):
 
 
 def _deck_area(ves):
-    """The deck outline's area less the carousel well (mm²)."""
+    """The deck outline's area (mm²): a plain deck, no well (task 0247)."""
     pts = np.array(ves["a"].info["deck_outline"])
     x, y = pts[:, 0], pts[:, 1]
-    area = 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
-    well_r = ves["p"].carousel_d / 2 + 900.0
-    return area - math.pi * well_r ** 2
+    return 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
 
 def test_superstructure_and_outfitting_stand_on_the_deck_inside_the_hull(ves):
     """Everything on deck stands inside the deck outline (lifeboats and the bridge's wings may reach out over it by
-    their own width only), the outfitting's boxes do not overlap each other."""
+    their own width only)."""
     from matplotlib.path import Path
     outline = Path(np.array(ves["a"].info["deck_outline"]))
     p = ves["p"]
@@ -222,12 +243,6 @@ def test_superstructure_and_outfitting_stand_on_the_deck_inside_the_hull(ves):
                 for y in (lo[1], hi[1]):
                     assert outline.contains_point((x, y)), uid
             assert lo[2] >= p.deck_z - 1.0, uid
-    boxes = [(k, np.array(b)) for k, bs in ves["a"].info["outfit"].items() for b in bs]
-    for i, (k1, b1) in enumerate(boxes):
-        for k2, b2 in boxes[i + 1:]:
-            apart = b1[1] <= b2[0] or b2[1] <= b1[0] or b1[3] <= b2[2] or b2[3] <= b1[2] or b1[5] <= b2[4] \
-                or b2[5] <= b1[4]
-            assert apart or {k1, k2} == {"SUPERSTRUCTURE", "LIFEBOAT"}, (k1, k2)
 
 
 def test_boards_lie_on_the_hull_side(ves):

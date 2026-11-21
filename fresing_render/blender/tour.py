@@ -472,7 +472,7 @@ def _logo(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.175")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.188")
 def build_crane(b: Build):
     import bpy
 
@@ -4606,7 +4606,7 @@ def _check_demo(scene):
     info = demo.read_summary(folder, __version__)
     _check(info.get("joints", 0) >= demo.MIN_JOINTS,
            f"the demo project has {info.get('joints', 0)} joints, not {demo.MIN_JOINTS}")
-    _check(120.0 <= info.get("seconds", 0) <= 200.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
+    _check(50.0 <= info.get("seconds", 0) <= 80.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
     with open(demo.project_path(folder, __version__), "rb") as fh:
         head = fh.read(7)
     _check(head == b"BLENDER" or head[:4] == b"\x28\xb5\x2f\xfd", "the demo project file is not a Blender file")
@@ -4800,16 +4800,18 @@ stop("make", OUT, HUB_SET, "Make: every output side by side",
      where="Make, above 1 Import; Make in the 3D view's header", since="0.2.152", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
-stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
-     "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
-     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 432 joints "
-     "(324 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay' and the saved "
-     "cameras 'Stern thrusters' (under water: two azimuth thrusters, their propellers in nozzles) and 'Hull side' (the "
-     "bow with its name, draft marks and the black boot top), and 6 Animation > 'What it can do today' plays a video "
-     "of about 2 ½ minutes (Build & play) in which the propellers and radars keep turning. This stop only checks that "
-     "the demo is there.",
+stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
+     "Help > Make demo project… makes the demo 'Vessel in a wind park' in the background (a minute or two on your PC; "
+     "the status bar shows how far). Then Help > Open demo project: an invented ship on the open sea in a wind park "
+     "of nine turbines; 4 Motion lists 33 joints (the ship's thrusters, propellers, radars and deck crane, the park's "
+     "turbines), 5 Scene & Render has the saved scene 'At the quay' and the saved cameras 'Stern thrusters' (under "
+     "water: two azimuth thrusters, their propellers in nozzles), 'Hull side' (the bow with its name, draft marks and "
+     "the black boot top), 'Deck crane' and 'At the seabed' (the power cable on the seabed, through the cut-away), and "
+     "6 Animation > 'What it can do today' plays a video of about a minute (Build & play): the ship sails in and holds "
+     "her place, her crane slews and lowers its hook, the rotors turn, night falls. This stop only checks that the "
+     "demo is there.",
      where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
-     auto=lambda ctx, scene, st: "", changed="0.2.120")
+     auto=lambda ctx, scene, st: "", changed="0.2.188")
 
 def _check_panel_back(scene):
     """The header button and its operator (task 0198)."""

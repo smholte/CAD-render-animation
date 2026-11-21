@@ -5,8 +5,7 @@
    point changes end between neighbouring moments; a free bend never goes into the seabed. Pure NumPy.
 2. ``blender/paths_rollers.py``: a sheave the cable has left stands still at Build, its coupling put aside and put
    back by 'Clear keys' (the cable paths test model, SHEAVE 2 carried out of the rope's way by a slide joint "Away").
-3. ``blender/demo.set_down_shares``: the shares worked out before Build equal what Build's keys give (a tiny
-   animation: one slide joint stepped down, held, stepped up).
+3. (``blender/demo.set_down_shares``: left with the vessel's equipment, task 0247 – its test is in the private kit.)
 
 It found five faults on the branch as handed over (16 Nov 2026); the worker fixed three (their tests now pass and say
 so). The two tests named "KNOWN_FAULT" are open points of task 0172: they hold the faults to the size they have now
@@ -15,7 +14,6 @@ so). The two tests named "KNOWN_FAULT" are open points of task 0172: they hold t
 
 import math
 import os
-import types
 
 import numpy as np
 import pytest
@@ -484,35 +482,3 @@ def test_a_sheave_turned_by_something_else_is_left_alone(blender):
     _built(sc, it, a)
     j2 = joints.find(sc, c2.joint)
     assert (j2.follows, j2.couple_ratio) == before and paths_rollers.WAS not in j2.motion
-
-
-def _shares_vs_built(folder, t0, secs, up_at, up_secs, l_from=0.0, l2=1.5):
-    """(max |value Build keys – value from demo.set_down_shares|, m) for "Away" stepped from l_from to l2 at t0
-    (``secs``, eased), held, and back at up_at (``up_secs``)."""
-    from fresing_render.blender import animation, demo, joints
-    sc, _it, a = _model(folder, [(t0, secs, l2), (up_at, up_secs, l_from)], motor=False)
-    b = a.blocks.add()                                   # (the animation runs on a little after the hoist)
-    b.kind, b.joint, b.start, b.duration = "JOINT", "Luff", up_at + up_secs + 0.5, 0.5
-    b.use_from, b.to_angle = True, 0.0
-    animation.bake(sc, a)
-    frames = np.arange(animation.frame_of(a, t0) - 3, animation.frame_of(a, up_at + up_secs) + 4)
-    got = _values(sc, joints.find(sc, "Away"), frames)
-    share = demo.set_down_shares(types.SimpleNamespace(animation=a), t0, secs, up_at, up_secs, frames)
-    return float(np.abs(got - (l_from + (l2 - l_from) * share)).max())
-
-
-@pytest.mark.parametrize("t0", [1.0, 1.1, 0.9])
-def test_set_down_shares_are_what_build_keys(blender, t0):
-    """Brief 3: the shares before Build model the lowering, standing and the hoist as Build keys them (steps that
-    start on a frame, 25 fps)."""
-    assert _shares_vs_built(blender, t0, 3.0, t0 + 5.0, 2.0) < 1e-5
-
-
-def test_set_down_shares_when_a_step_starts_between_frames(blender):
-    """Found by this tester, fixed by the worker (the steps' frames as Build works them out, from 32-bit numbers) – (minor, brief 3: the estimate before Build must equal what Build gives). ``set_down_shares`` spreads a
-    step over ``secs * fps`` frames from ``frame_of(t0)``; Build keys it from ``frame_of(t0)`` to
-    ``frame_of(t0 + secs)`` – one frame shorter or longer where a step starts between frames (``frame_of`` rounds half
-    to even). t0 = 1.02 s at 25 fps (25.5 frames): 74 frames built, 75 assumed – 31 mm apart mid-way on a 1.5 m step.
-    Near the step's ends (where the D is deepest) the gap is under 1 mm, so the set-down depth itself is hardly
-    touched; demo times reach 0.1 s steps (= 2.5 frames: ``round(…, 1)`` in shot_back)."""
-    assert _shares_vs_built(blender, 1.02, 3.0, 6.02, 2.0) < 1e-3
