@@ -911,6 +911,8 @@ class Liquid:
         dt = T / n
         cells = sum((r1 - r0) * (c1 - c0) for r0, r1, c0, c1 in runs)
         rain = bool(g.rain_tiles.any())
+        if self.pool is not None and self.pool.broken:
+            raise self.pool.HelperError(self.pool.broken)   # the state is half stepped: no going on alone
         if self.pool is not None and self.pool.worth(cells):
             reports = self.pool.frame(c, runs, n, dt, gc, gb, uniform, has_push, rain, self.kernels[c])
         else:

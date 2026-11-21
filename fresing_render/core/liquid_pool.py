@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import pickle
+import queue
 import struct
 import subprocess
 import sys
@@ -37,6 +38,8 @@ _MSG = b"FRL1"
 _HEAD = struct.Struct(">4sQ")
 MIN_CELLS = 16000          # a frame's stepped cells per helper below which the helper is not worth a round trip
 MAX_HELPERS = 32
+START_TIMEOUT = 60.0       # s for a helper to come up (a virus scan of its first start can take a while)
+ANSWER_TIMEOUT = 120.0     # s for one answer (a sub-step takes milliseconds): longer = the helper hangs
 
 
 class HelperError(RuntimeError):
@@ -166,7 +169,7 @@ def helper_main(parent_pid: int) -> int:
     _exit_with_parent(parent_pid)
     if os.name != "nt":
         try:
-            os.nice(int(os.environ.get("FR_NICE", "5")))               # Windows: the master starts helpers below normal priority
+            os.nice(5)               # Windows: the master starts helpers below normal priority
         except OSError:
             pass
     out_fd = os.dup(1)
@@ -275,14 +278,10 @@ def _kill_on_close_job():
     return job, assign, close
 
 
-def _die_with_parent() -> None:            # Linux: runs in the helper just before it starts
-    import ctypes
-    import signal
-    ctypes.CDLL(None, use_errno=True).prctl(1, int(signal.SIGKILL))   # PR_SET_PDEATHSIG
-
-
 class Pool:
     """``n`` helper processes and the charts' shared memory. ``python``: the Python to start them with."""
+
+    HelperError = HelperError
 
     def __init__(self, n: int, python: str | None = None):
         self.procs: list[subprocess.Popen] = []
@@ -299,9 +298,15 @@ class Pool:
                 self._job, assign, self._job_close = _kill_on_close_job()
             except Exception:
                 assign = None                  # the helpers still stop by themselves, a bit later
-        elif sys.platform.startswith("linux"):
-            kwargs["preexec_fn"] = _die_with_parent
-        cmd = [python or python_executable(), os.path.abspath(__file__), "--helper", str(os.getpid())]
+        # (Linux: no PR_SET_PDEATHSIG through preexec_fn – forking a many-threaded Blender with one can deadlock;
+        # every helper watches its parent itself.)
+        env = dict(os.environ)
+        for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
+            env.pop(var, None)                 # another program's Python settings must not leak in (as runner.py)
+        env["PYTHONPATH"] = os.pathsep.join(p for p in sys.path if p and os.path.isdir(p))
+        kwargs["env"] = env
+        self._queues: dict = {}
+        cmd = [python or python_executable(), "-s", os.path.abspath(__file__), "--helper", str(os.getpid())]
         for _ in range(max(0, min(int(n), MAX_HELPERS))):
             try:
                 proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, **kwargs)
@@ -313,17 +318,29 @@ class Pool:
                 except Exception:
                     pass
             self.procs.append(proc)
+            self._queues[proc.pid] = q = queue.Queue()
+            threading.Thread(target=self._reader, args=(proc, q), daemon=True).start()
         alive = []
         for p in self.procs:                   # every helper says it is ready (numpy loaded)
             try:
-                msg = _recv(p.stdout)
-                if msg[0] == "ready":
+                msg = self._queues[p.pid].get(timeout=START_TIMEOUT)
+                if isinstance(msg, tuple) and msg[0] == "ready":
                     alive.append(p)
                     continue
-            except Exception:
+            except queue.Empty:
                 pass
-            self._stop(p)
+            self._stop(p)                      # it did not come up: the others do its share
         self.procs = alive
+
+    @staticmethod
+    def _reader(proc, q):
+        """Reads a helper's answers into its queue (so the master can wait with a time-out)."""
+        while True:
+            try:
+                q.put(_recv(proc.stdout))
+            except BaseException as exc:      # noqa: BLE001 – end of the stream or a broken message
+                q.put(exc)
+                return
 
     @property
     def size(self) -> int:
@@ -340,21 +357,38 @@ class Pool:
     def start(self, metas):
         """Every helper attaches to the charts' blocks."""
         items = [(c, name, NY, NX, metas[c]) for c, name, NY, NX in self.charts]
+        ok = []
         for p in self.procs:
-            _send(p.stdin, ("init", items))
-        for p in list(self.procs):
-            self._answer(p)
+            try:
+                _send(p.stdin, ("init", items))
+                ok.append(p)
+            except Exception:
+                self._stop(p)
+        alive = []
+        for p in ok:                            # a helper that cannot attach is dropped: the others do its share
+            try:
+                self._answer(p, START_TIMEOUT)
+                alive.append(p)
+            except HelperError:
+                self._stop(p)
+        self.broken = None
+        self.procs = alive
 
     def worth(self, cells) -> bool:
         return self.broken is None and self.size > 0 and cells >= 2 * MIN_CELLS
 
-    def _answer(self, p):
+    def _answer(self, p, timeout=None):
+        timeout = ANSWER_TIMEOUT if timeout is None else timeout
         try:
-            msg = _recv(p.stdout)
-        except Exception as exc:
-            self.broken = f"a liquid helper stopped ({exc})"
-            raise HelperError(self.broken) from exc
-        if msg[0] != "ok":
+            msg = self._queues[p.pid].get(timeout=timeout)
+        except queue.Empty:
+            self.broken = f"a liquid helper did not answer within {timeout:.0f} s"
+            self._kill(p)
+            raise HelperError(self.broken) from None
+        if isinstance(msg, BaseException):
+            self.broken = f"a liquid helper stopped ({msg or type(msg).__name__})"
+            raise HelperError(self.broken) from msg
+        if not isinstance(msg, tuple) or msg[0] != "ok":
             self.broken = f"a liquid helper failed: {msg[1] if len(msg) > 1 else msg}"
             raise HelperError(self.broken)
         return msg
@@ -385,6 +419,14 @@ class Pool:
         """Step chart c's ``runs`` through ``n`` sub-steps with the helpers and ``local`` (the master's kernel)."""
         if self.broken:
             raise HelperError(self.broken)
+        try:
+            return self._frame(c, runs, n, dt, gc, gb, uniform, push, rain, local)
+        except BaseException as exc:          # noqa: BLE001 – the helpers' answers are out of step now: no more
+            if self.broken is None:
+                self.broken = f"the liquid bake stopped in a frame ({type(exc).__name__}: {exc})"
+            raise
+
+    def _frame(self, c, runs, n, dt, gc, gb, uniform, push, rain, local):
         cells = sum((r1 - r0) * (r3 - r2) for r0, r1, r2, r3 in runs)
         parts = max(1, min(self.size + 1, cells // MIN_CELLS))
         shares = self.split(runs, parts)
@@ -416,7 +458,15 @@ class Pool:
             raise HelperError(self.broken) from exc
 
     @staticmethod
-    def _stop(p):
+    def _kill(p):
+        try:
+            p.kill()
+            p.wait(timeout=5.0)
+        except Exception:
+            pass
+
+    @classmethod
+    def _stop(cls, p):
         try:
             p.stdin.close()
         except Exception:
@@ -424,15 +474,7 @@ class Pool:
         try:
             p.wait(timeout=2.0)
         except Exception:
-            p.kill()
-            try:
-                p.wait(timeout=2.0)
-            except Exception:
-                pass
-        try:
-            p.stdout.close()
-        except Exception:
-            pass
+            cls._kill(p)
 
     def close(self) -> None:
         """Stop the helpers and free the shared memory (the arrays handed out are no longer usable)."""
@@ -446,16 +488,12 @@ class Pool:
             try:
                 p.wait(timeout=max(0.1, end - time.time()))
             except Exception:
-                p.kill()
-            try:
-                p.stdout.close()
-            except Exception:
-                pass
+                self._kill(p)
         self.procs = []
         for shm in self.shms:
             try:
                 shm.close()
-            except BufferError:                 # a view is still held by the caller: the OS frees it at exit
+            except BufferError:                 # a view is still held by the caller: freed when the last view goes
                 pass
             except Exception:
                 pass
