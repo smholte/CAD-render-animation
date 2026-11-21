@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.185 – 20 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+## 0.2.186 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
 
 - **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
   lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
@@ -28,6 +28,10 @@ installer of that version was built from.
   efficiency of API RP 9B), against the winch's maximum.
 - Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
   lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
+
+The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.
+
 ## 0.2.184 – 20 Nov 2026 – A quiet window (task 0241)
 
 - **Only what you need to look at your model.** The 3D view's header now has the **View** menu, the shading buttons

@@ -387,7 +387,7 @@ def lifting_hook(ctx):
     return f"{cog}; {msg}"
 
 
-@line("lifting.hang", "Lifting plan: rig the pump skid and hang it on the hook", "0.2.185",
+@line("lifting.hang", "Lifting plan: rig the pump skid and hang it on the hook", "0.2.186",
       what="The pump skid of test_loads.step (6 t) as the load, its four padeyes found by name, Above the load with "
            "the AT-40, Hang on the hook: its CoG under the hook, the legs' forces within 1 % of the hand formulas "
            "(C3 rule), the load follows the hook; Set down leaves it where it is")
@@ -418,7 +418,7 @@ def lifting_hang(ctx):
     return msg
 
 
-@line("lifting.reeve", "Lifting plan: the AT-100's rope reeved in 8 falls", "0.2.185",
+@line("lifting.reeve", "Lifting plan: the AT-100's rope reeved in 8 falls", "0.2.186",
       what="The AT-100 placed: its hoist rope runs from the drum over 4 head and 4 block sheaves in 8 falls; the hook "
            "1 m up winds 8 m of rope (the drawn rope's length and the drum's turn); the line pull (C10) is shown")
 def lifting_reeve(ctx):
