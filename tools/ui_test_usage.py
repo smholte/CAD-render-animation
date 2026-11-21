@@ -302,17 +302,22 @@ def s_window():
 
 @step
 def s_window_shot():
-    win = ui()[0]
     subprocess.run(["import", "-window", "root", os.path.join(OUT, "04_my_usage.png")], check=False)
     grab_side("05_bar_after_hide.png")
-    win.event_simulate(type="ESC", value="PRESS", x=win.width // 2, y=win.height // 2)
     return 0.4
 
 
 @step
 def s_window_close():
-    win = ui()[0]
-    win.event_simulate(type="ESC", value="RELEASE", x=win.width // 2, y=win.height // 2)
+    # task 0271: My usage is a tab of the Fresing Settings window (it opens a moment after the button)
+    import importlib
+    st = importlib.import_module(usage().__name__.rsplit(".", 1)[0] + ".ops_settings")
+    if not st.settings_windows():
+        S["t_wait_settings"] = S.get("t_wait_settings", 0) + 1
+        if S["t_wait_settings"] < 40:
+            return "again"
+    with override():
+        bpy.ops.fresing.settings_close("EXEC_DEFAULT")
     return 0.5
 
 

@@ -119,36 +119,57 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         description="Remembers the last choice of the Live preview button (5 Scene & Render), so the Learning hub and "
                     "the demo project open with it on or off as you left it")
 
+    settings_tab: StringProperty(
+        name="Settings tab", default="general", options={"HIDDEN"},
+        description="The tab the Fresing Settings window opened on last time (it opens there again)")
+
     def draw(self, context):
+        """Task 0271: the settings live in the Fresing Settings window; this page only points there (the
+        properties stay here, so old projects, scripts and saved preferences keep working)."""
         layout = self.layout
-        layout.prop(self, "library_path")
-        layout.prop(self, "default_template")
-        row = layout.row(align=True)
-        row.label(text="Default rule set")
-        row.operator_menu_enum("fresing.rule_set_default", "name", text=self.default_rule_set or "Standard",
-                               icon="FILTER")
-        layout.label(text="Library layout: <library>/HDRI/*.exr|*.hdr, <library>/Templates/*.json, "
-                          "<library>/Rule sets/*.json, <library>/Logos/*.png and <library>/Stickers/*.png")
-        layout.prop(self, "hover_highlight")
-        box = layout.box()
-        box.label(text="Side panel", icon="MENU_PANEL")
-        row = box.row(align=True)
-        row.label(text="Workspace for new projects")
-        row.operator_menu_enum("fresing.workspace_default", "name", text=self.default_workspace or "All functions",
-                               icon="WORKSPACE")
-        box.prop(self, "keep_sections")
-        box.prop(self, "keep_howto")
-        box = layout.box()
-        box.label(text="Lesson highlight", icon="LIGHT")
-        row = box.row(align=True)
-        row.prop(self, "lesson_button")
-        row.prop(self, "lesson_section")
-        row = box.row(align=True)
-        row.prop(self, "lesson_part")
-        row.prop(self, "lesson_colour")
-        box.prop(self, "lesson_play_on")
-        draw_backups(layout, self)
-        draw_updates(layout, self)
+        layout.label(text="Fresing Render's settings are in their own window: Fresing > Settings…", icon="INFO")
+        row = layout.row()
+        row.scale_y = 1.3
+        row.operator("fresing.settings", text="Open Fresing Settings", icon="PREFERENCES")
+
+
+def draw_general(layout, p) -> None:
+    """Settings > General (task 0271): template, rule set, workspace for new projects, hover, library folder."""
+    col = layout.column()
+    col.prop(p, "library_path")
+    sub = col.row()
+    sub.active = False
+    sub.label(text="Holds the folders HDRI, Templates, Rule sets, Logos, Stickers, Workspaces")
+    col.separator()
+    col.prop(p, "default_template")
+    row = col.row(align=True)
+    row.label(text="Default rule set")
+    row.operator_menu_enum("fresing.rule_set_default", "name", text=p.default_rule_set or "Standard", icon="FILTER")
+    row = col.row(align=True)
+    row.label(text="Workspace for new projects")
+    row.operator_menu_enum("fresing.workspace_default", "name", text=p.default_workspace or "All functions",
+                           icon="WORKSPACE")
+    col.separator()
+    col.prop(p, "hover_highlight")
+
+
+def draw_side_panel(layout, p) -> None:
+    """Settings > Side panel (task 0271): how sections and How it works open."""
+    col = layout.column()
+    col.prop(p, "keep_sections")
+    col.prop(p, "keep_howto")
+
+
+def draw_lessons(layout, p) -> None:
+    """Settings > Lessons (task 0271): how a lesson points at a button, a section and a part."""
+    col = layout.column()
+    col.label(text="Lesson highlight", icon="LIGHT")
+    col.prop(p, "lesson_button")
+    col.prop(p, "lesson_section")
+    col.prop(p, "lesson_part")
+    col.prop(p, "lesson_colour")
+    col.separator()
+    col.prop(p, "lesson_play_on")
 
 
 def draw_backups(layout, p) -> None:
@@ -156,7 +177,7 @@ def draw_backups(layout, p) -> None:
     box = layout.box()
     box.label(text="Automatic backups", icon="FILE_BACKUP")
     box.prop(p, "backups_on")
-    row = box.row(align=True)
+    row = box.column(align=True)
     row.active = p.backups_on
     row.prop(p, "backup_minutes")
     row.prop(p, "backup_keep")
@@ -169,8 +190,10 @@ def draw_backups(layout, p) -> None:
             where = "the Backups folder next to this project"
         else:
             where = "Unsaved projects"
-        box.label(text=f"{len(found)} backups of this project in {where}: "
-                       f"{core.size_text(core.total_size(found))}. Fresing > Restore a backup… puts one back")
+        box.label(text=f"{len(found)} backups of this project: {core.size_text(core.total_size(found))}")
+        sub = box.row()
+        sub.active = False
+        sub.label(text=f"In {where}. Fresing > Restore a backup… puts one back")
     except Exception:  # noqa: BLE001 - never break the preferences
         pass
 

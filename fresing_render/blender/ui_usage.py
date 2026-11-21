@@ -26,7 +26,6 @@ class FRESING_PT_favourites(LeftPanel, bpy.types.Panel):  # task 0260: on the le
 
     def draw(self, context):
         layout = self.layout
-        usage.activity()
         fids = usage.bar(context.scene)
         pins = usage.state()["bar"]["pins"]
         if fids:

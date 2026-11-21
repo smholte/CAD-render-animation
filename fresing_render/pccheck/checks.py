@@ -4853,6 +4853,37 @@ def app_licences(ctx):
     return None
 
 
+@line("app.settings", "Fresing Settings: one window with tabs; only your own input counts as time in My usage",
+      "0.2.199",
+      what="Every tab of the Settings window draws (General, Side panel, Lessons, Backups, Updates, My usage, About), "
+           "the window's buttons are in the Fresing menu, the left panel and the Add-ons page, a tab is kept for the "
+           "next opening, and a played animation with no mouse or key adds no time to My usage")
+def app_settings(ctx):
+    import bpy
+
+    from ..blender import ops_settings, prefs, ui_settings, ui_topbar, usage
+    from ..core import usage as core
+    _check("fresing.settings" in ui_topbar.entries(), "Settings… is not in the Fresing menu")
+    for idname in ("fresing.settings", "fresing.settings_tab", "fresing.settings_close", "fresing.presence"):
+        _check(ui_topbar._has(idname), f"the operator {idname} is missing")
+    drawn = ui_settings.draw_all(bpy.context)
+    _check(drawn == list(ui_settings.KEYS), f"only these tabs draw: {', '.join(drawn)}")
+    p = prefs.get()
+    _check(p is not None, "the add-on's preferences are missing")
+    was = p.settings_tab
+    try:
+        _check(ops_settings.set_tab("usage") and ui_settings.current() == "usage", "the tab My usage is not kept")
+    finally:
+        p.settings_tab = was
+    s = core.fresh()
+    clock = core.Clock()
+    clock.tick(s, now=0.0, stage="render")              # a click, then 10 minutes of playback with no input
+    clock.tick(s, now=600.0)
+    _check(s["stages"].get("render", 0.0) == 0.0, f"10 min away counted {s['stages'].get('render')} s")
+    _check(usage._on_change.__code__.co_names.count("activity") == 0, "a change of the project still counts as you")
+    return f"{len(drawn)} tabs draw; 10 min of playback with no input: 0 s counted"
+
+
 @line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.158",
       what="Counts clicks into a usage file of its own (never yours; with an accent in its folder), checks every "
            "Fresing button counts, the bar is sorted at a start only, a panel is offered for hiding after 10 starts "

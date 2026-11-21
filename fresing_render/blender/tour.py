@@ -491,7 +491,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.198")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.199")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -5136,14 +5136,36 @@ def _check_usage(scene):
 
 
 stop("usage", OUT, HUB_SET, "Favourites bar and My usage",
-     "Fresing > My usage… (also at the end of Help) opens a window that says what the app counted on this PC – nothing "
-     "is sent anywhere: your most used functions with a pin each, where your time goes per stage (bars), and the "
+     "Fresing > My usage… (also at the end of Help) opens Fresing Settings on its tab My usage: what the app counted "
+     "on this PC – nothing is sent anywhere: your most used functions with a pin each, where your time goes per stage "
+     "(bars; only while you use the app – a played animation with nobody at the mouse adds nothing), and the "
      "time saved, marked as an estimate with how it is worked out. Use a button a few times (for example Render image "
      "twice): at the next start of the app it is on the favourites bar on the left panel; a click on it opens "
      "its section and points at the button. After 10 starts a panel you never used gets one quiet question at the "
      "top: Hide / Not now / Don't ask again.",
-     where="Fresing menu > My usage…; the favourites bar on the left panel", since="0.2.158", changed="0.2.197",
+     where="Fresing menu > My usage…; the favourites bar on the left panel", since="0.2.158", changed="0.2.199",
      shot="Tour view", check=_check_usage, auto=lambda ctx, scene, st: "")
+
+
+def _check_settings(scene):
+    """Fresing Settings (task 0271): its ways in and every tab drawn (no window opens in the check)."""
+    import bpy
+
+    from . import ui_settings, ui_topbar
+    _check("fresing.settings" in ui_topbar.entries(), "Settings… is not in the Fresing menu")
+    _check(hasattr(bpy.ops.fresing, "settings_tab"), "the tab button is missing")
+    drawn = ui_settings.draw_all(bpy.context)
+    _check(drawn == list(ui_settings.KEYS), f"only these tabs draw: {', '.join(drawn)}")
+    return f"{len(drawn)} tabs: " + ", ".join(t[1] for t in ui_settings.TABS)
+
+
+stop("settings", OUT, HUB_SET, "Fresing Settings",
+     "Fresing > Settings… (or the gear at the top of the left panel) opens one window with a row of tabs along its "
+     "top: General, Side panel, Lessons, Backups, Updates, My usage, About. Click a tab: its page shows. Close the "
+     "window with its X and open it again: it opens on the same tab. Drag it elsewhere, click in the main window: it "
+     "stays open.",
+     where="Fresing menu > Settings…; the gear on the left panel", since="0.2.199",
+     shot="Tour view", check=_check_settings, auto=lambda ctx, scene, st: "")
 
 def _check_learn(scene):
     """Learn as you go (task 0208): its buttons, the menu line, and its rules on a made-up user (the user's own usage

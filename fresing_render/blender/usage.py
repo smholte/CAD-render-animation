@@ -7,9 +7,11 @@
   one, its ``execute``) records one click before running. A button inside a button (an operator that calls another)
   counts once. The panel a button was clicked in comes with the click (``panels`` sets ``fr_panel`` on each panel's
   layout). Opening a panel (``fresing.panel_toggle``) counts for that panel;
-* **active time** – a click, a panel opening, a change of the project (``depsgraph_update_post``) and a redraw of the
-  favourites bar each mark "the user is here"; the time between two marks goes to the stage of the last used function
-  unless it was longer than ``core.IDLE`` (2 min);
+* **active time** – only the user's own input marks "the user is here" (task 0271): a click on a Fresing button, a
+  panel opening, and a mouse move (the mouse really moved), click or wheel anywhere in an app window
+  (``presence``, from ``ops_settings.FRESING_OT_presence`` in the keymap). The time between two marks goes to the stage
+  of the last used function unless it was longer than ``core.IDLE`` (2 min). A change of the project and a redraw are
+  NOT marks any more: both happen with nobody at the PC (playback, a render, Live preview, the queue, a re-bake);
 * **the session** – one app start; the favourites bar is sorted then, and never while the app runs;
 * **personal hides** – a declutter answer "Hide" puts a panel's functions on the user's own list; ``workspaces``
   hides them on top of any workspace except Full access (``workspaces.PERSONAL``), never one the open project uses.
@@ -38,7 +40,8 @@ USED_SECONDS = 2.0                       # personal hides are looked at again at
 GO_SECONDS = 6.0                         # a favourite's button is pointed at this long
 
 _S: dict = {"state": None, "path": "", "dirty": False, "note": "", "started": False, "prompt": "", "prompted": "",
-            "go": "", "go_t": 0.0, "last_panel": "", "used_t": 0.0}
+            "go": "", "go_t": 0.0, "last_panel": "", "used_t": 0.0, "xy": None, "seen_t": -1.0e9, "marks": 0}
+PRESENCE_SECONDS = 1.0                   # input marks presence at most this often (a mouse move comes many times a second)
 CLOCK = core.Clock()
 _DEPTH = [0]
 _BY_OP: dict = {}                        # operator id -> True when some function or rule names it (cheap skip)
@@ -80,7 +83,8 @@ def changed() -> None:
 
 def forget() -> None:
     """Read the file again next time (tests)."""
-    _S.update(state=None, path="", dirty=False, note="", started=False, prompt="", prompted="", go="")
+    _S.update(state=None, path="", dirty=False, note="", started=False, prompt="", prompted="", go="", xy=None,
+              seen_t=-1.0e9, marks=0)
     CLOCK.last, CLOCK.stage = None, ""
 
 
@@ -157,12 +161,29 @@ def panel_opened(name: str) -> None:
     changed()
 
 
-def activity() -> None:
-    """A sign that the user is working (cheap: called at redraws and changes)."""
+def presence(kind: str, x: int = 0, y: int = 0, now: float | None = None) -> bool:
+    """The user's own input (task 0271): a mouse move, a click or the wheel in an app window. A move counts only when
+    the mouse is somewhere else than at the last move (Blender also sends moves of its own, at the same spot). Marks
+    presence at most every ``PRESENCE_SECONDS``. True when it was taken as a sign of the user."""
+    if kind in ("MOUSEMOVE", "INBETWEEN_MOUSEMOVE"):
+        if _S["xy"] == (x, y):
+            return False
+        _S["xy"] = (x, y)
+    now = time.monotonic() if now is None else now
+    if now - _S["seen_t"] < PRESENCE_SECONDS:
+        return True
+    _S["seen_t"] = now
+    _S["marks"] += 1
+    activity(now)
+    return True
+
+
+def activity(now: float | None = None) -> None:
+    """A sign that the user is working: their own input (``presence``), never a redraw or a change by itself."""
     s = _S["state"]
     if s is None or not s["track"]:
         return
-    CLOCK.tick(s)
+    CLOCK.tick(s, now=now)
     _S["dirty"] = True if CLOCK.stage else _S["dirty"]
 
 
@@ -449,7 +470,7 @@ def _on_save(_dummy=None):
 
 @persistent
 def _on_change(_scene=None, _depsgraph=None):
-    activity()
+    # task 0271: no ``activity()`` here – a change happens also with nobody at the PC (playback, a render, a re-bake)
     try:
         refresh_personal(_scene if getattr(_scene, "fresing", None) is not None else bpy.context.scene)
     except Exception as exc:  # noqa: BLE001 - never break a scene update
