@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.202 – 21 Nov 2026 – Live preview and Build & play once, top left; the left panel's folds are kept (task 0278)
+## 0.2.203 – 21 Nov 2026 – Live preview and Build & play once, top left; the left panel's folds are kept (task 0278)
 
 - **Live preview** and **Build & play** are now only on the left panel (top left, also in its folded strip). They are
   gone from 5 Scene & Render and 6 Animation, so the right panel is shorter. 6 Animation still says **Built · Space
@@ -21,6 +21,19 @@ installer of that version was built from.
   sections as I left them", the Learning hub and the guide; the guide's picture of the sections shows all eight.
 - The section tabs **All · 1 … 8** have short tooltips: a number shows only its section's name ("Import", "Lifting
   plan"), All shows "All sections". How the tabs work is in the user guide.
+## 0.2.202 – 21 Nov 2026 – Blender's keys can no longer break the model; F12 renders; a short right-click menu (task 0253)
+
+- **Blender keys that delete or change parts do nothing outside Full access.** Delete, X, Shift+D, Alt+D, Ctrl+J,
+  Ctrl+P, Alt+P, Ctrl+A, M, Shift+M, Shift+A, Ctrl+H, Ctrl+0 … 5, Tab, Ctrl+Tab, Ctrl+Page Up / Down, I, Alt+I and K
+  change nothing; the status bar says "That is a Blender key – Fresing > Show all of Blender gives you Blender's keys".
+  H / Alt+H (hide / show), A, Home, the number pad, Z, Space, Ctrl+Z, F3, N, Ctrl+S and Ctrl+O work as before.
+- **F12** renders a picture with the app (as the blue Render image button), **Ctrl+F12** renders the animation in the
+  background (as Make's Render animation).
+- **Right-click on a part** selects it and opens a short menu: Zoom to it, Show in 2 Structure, Hide, Show only this,
+  Show all, Add a label here (pointing at the spot you clicked), Add joint here… On empty space: Zoom to all, Show all.
+  In the Client view only the viewing entries, and Hide there hides in the view only.
+- **Fresing > Show all of Blender** (Workspace > Full access) gives Blender's keys and its own right-click menu back at
+  once. New test-tour stop "Keys and the right-click menu" in the crane set; PC-check line app.keys.
 
 ## 0.2.201 – 21 Nov 2026 – Fresing Settings: all settings in one window with tabs (task 0271)
 

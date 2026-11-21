@@ -159,14 +159,14 @@ fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one 
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158", changed="0.2.202")      # task 0278: folds, kept over a restart
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.203")      # task 0278: folds, kept over a restart
 fn(id="usage.declutter", title="Offer to hide what you never use", family="panel", panel="FRESING_PT_favourites",
    button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158", changed="0.2.197")
 
 # task 0260: two panels – the left panel, the Learning hub's switch
 fn(id="panel.left", headline=True, title="The left panel: Live preview, Build & play, Workspace, Learning hub, Favourites, "
    "What's next – the steps alone on the right", family="panel", panel="FRESING_PT_left_quick", button="fresing.left_fold",
-   guide="left-panel", pccheck=("panel.two", "panel.folds"), since="0.2.197", changed="0.2.202")
+   guide="left-panel", pccheck=("panel.two", "panel.folds"), since="0.2.197", changed="0.2.203")
 fn(id="learn.hub", short="Learning hub", title="Learning hub: View, Show me or Build it yourself in one click", family="help",
    panel="FRESING_PT_hub", button="fresing.hub_mode", guide="learning-hub", pccheck=("panel.two",), since="0.2.197")
 
@@ -515,7 +515,7 @@ fn(id="animation.joint_step", title="Move joint step", family="animation", panel
    button="fresing.block_add", guide="animation", tour=("joint",), lesson="crane:8", since="0.2.10")
 fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_left_quick",
    button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10",
-   changed="0.2.202")     # task 0278: only on the left panel (top left; its strip too)
+   changed="0.2.203")     # task 0278: only on the left panel (top left; its strip too)
 fn(id="animation.motor", title="Run motor step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-motor", pccheck=("couplings.motor",), since="0.2.18")
 fn(id="animation.camera_path", short="Camera path", title="Camera rides along, flies a path, watches a part", family="animation",
@@ -604,6 +604,16 @@ fn(id="help.quiet_window", headline=True, short="Quiet window", title="A quiet w
 fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of Blender / Back to the Fresing window", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
    since="0.2.184", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+
+# task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
+fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "
+   "access; F12 / Ctrl+F12 render with the app", family="help", panel="VIEW3D_HT_header", button="fresing.key_render",
+   guide="keys-and-right-click", tour=("keys",), pccheck=("app.keys",), since="0.2.202",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
+fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-click on a part: a short Fresing menu "
+   "(zoom to it, show in the tree, hide, show only, label here, add joint here)", family="help",
+   panel="VIEW3D_HT_header", button="fresing.view_menu", guide="keys-and-right-click", tour=("keys",),
+   pccheck=("app.keys",), since="0.2.202")
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

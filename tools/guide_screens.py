@@ -932,6 +932,45 @@ elif MODE == "window":
         return 1.0
 
     @step
+    def w_right_click():
+        """Task 0253: a right-click on the boom opens the short Fresing menu (view_right_click.png)."""
+        from bpy_extras import view3d_utils
+        from mathutils import Vector
+        win, area, region, sb = areas()
+        select_only()
+        _QUIET["before_rc"] = grab_screen()
+        b = ob("BOOM")
+        box = [b.matrix_world @ Vector(c) for c in b.bound_box]
+        co = view3d_utils.location_3d_to_region_2d(region, region.data, sum(box, Vector()) / 8)
+        x, y = int(region.x + co.x), int(region.y + co.y)
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+        win.event_simulate(type="RIGHTMOUSE", value="PRESS", x=x, y=y)
+        win.event_simulate(type="RIGHTMOUSE", value="RELEASE", x=x, y=y)
+        return 0.6                                    # before a tooltip shows
+
+    @step
+    def w_shot_right_click():
+        import numpy as np
+        im = grab_screen()
+        diff = np.abs(im.astype(int) - _QUIET["before_rc"].astype(int)).max(axis=2) > 40
+        h, w = im.shape[:2]
+        win, area, region, sb = areas()
+        keep = np.zeros_like(diff)                    # only the 3D view itself (the left panel and timeline redraw)
+        top = win.height - (region.y + region.height)
+        keep[top + 90:top + region.height - 20, region.x + 20:region.x + region.width - 20] = True
+        diff &= keep
+        rows, cols = np.nonzero(diff.any(axis=1))[0], np.nonzero(diff.any(axis=0))[0]
+        if len(rows) and len(cols):                   # the menu and the selected boom, with some of the view round it
+            pad = 40
+            save_png(im[max(0, rows[0] - pad):min(h, rows[-1] + pad), max(0, cols[0] - pad):min(w, cols[-1] + pad)],
+                     "view_right_click")
+        else:
+            log("no right-click menu found on the screen")
+        win.event_simulate(type="ESC", value="PRESS", x=area.x + 30, y=area.y + 30)
+        win.event_simulate(type="ESC", value="RELEASE", x=area.x + 30, y=area.y + 30)
+        return 1.0
+
+    @step
     def w_joints():
         sc = bpy.context.scene
         sc.fresing.show_joints = True
