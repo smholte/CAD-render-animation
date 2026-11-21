@@ -166,6 +166,14 @@ branch, not `task/0232-…`).
   crane's heading). Fixed by a hair of yaw stiffness (`YAW`); its test passes now. A segfault found by
   `test_setup_crane.py` (a joint-list item kept across adding the drum joint) was fixed before merging.
 
+**GitHub runs:** 10 for the branch. Run 1 red: the independent tester's turn-invariance case failed on another CPU
+(the heading spring too weak – made firmer) and a real-app Set-up test counted the new drum joint (fixed). Run 2 green,
+but other tasks took the version first six times (0241, 0239, 0237, 0246, 0247, 0230, 0248, 0238 – each a merge of
+`main` and a renumber, 0.2.184 → 0.2.192); one of those runs failed only on two skipping test files in one pytest group
+(fixed on `main` by the lead's CI change). `main` fast-forwarded to the green commit f81e401; release v0.2.192 published,
+the Windows update check and "offer to the apps" green. The landing page job failed in GitHub's deploy step ("artifact
+metadata" – a GitHub service error, also on 0251's push); re-run once: green.
+
 **Open points / follow-up tasks:**
 - The lead line runs straight from the drum to the lead sheave (on the telescopic cranes inside the boom box); real
   cranes guide it along the boom top over rollers – a look for L8/L9.
