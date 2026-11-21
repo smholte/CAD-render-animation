@@ -5,6 +5,31 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.200 – 21 Nov 2026 – Coolant at the spinning tool: the splash follows the spindle speed (task 0257)
+
+- **The splash now depends on how fast the tool turns and how big it is.** Coolant leaves the tool at about the speed
+  of its rim (a Ø10 mm tool at 6,000 rpm: 3 m/s), in the turning direction (M3 / M4), in a flat band at the height where
+  the jets hit the tool – no longer a cloud up the whole tool at the same speed for every tool.
+- **Slow tool:** the coolant wears the tool as a film that turns with it and runs down to the tip, and drips off in a
+  few streams of big drops.
+- **Fast tool:** a fine, fast, flat spray; the faster, the finer. Above about 5 m/s at the rim the air turning with
+  the tool bends the end of each jet and breaks part of it into a mist round the tool – less coolant reaches the tool
+  (a Ø10 mm tool with full flow: about a quarter at 15,000 rpm). A stronger flow gets through better.
+- The speed comes from the program's S words at **Build & play**; press it once in older projects. The test tour's
+  Coolant stop now runs at 15,000 rpm. A frame still looks the same whatever frame was shown before; drawing it takes
+  about 0.5 ms more.
+
+## 0.2.199 – 21 Nov 2026 – Test tour: every set in its own surroundings (task 0233)
+
+- **Test tour:** the machine sets stand in a hall that fits them (a factory or an assembly hall), the cable sets in a
+  warehouse or factory, the looks and product-video sets in a clean light studio, and the people and props sets on a
+  quay and in a warehouse round a real-size container, so you see the function in a place it belongs.
+- **Cameras fixed:** Materials looks close at the worn base and trolley (Wear shows), the Mechanisms picture keeps the
+  raised scissor platform in the frame, the night shift is brighter, and the weather video's stop now shows its middle
+  (dusk coming, rain starting) instead of the dark end.
+- **What's new / links:** the function list now links Couplings to the cable stop, Poses to the Model
+  update stop, and Props: detail by distance to the props stop.
+
 ## 0.2.198 – 21 Nov 2026 – Web 3D page: flick the model and it keeps turning (task 0256)
 
 - **Flick to spin.** On the web 3D page, drag the model quickly sideways and let go while it is still moving (mouse or

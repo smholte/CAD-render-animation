@@ -1,0 +1,26 @@
+[
+ {
+  "rpm": 1000,
+  "rim": 0.52,
+  "look": "film",
+  "drop_mm": 2.4,
+  "film": 0.98,
+  "deflect": 0.0
+ },
+ {
+  "rpm": 6000,
+  "rim": 3.14,
+  "look": "spray",
+  "drop_mm": 0.54,
+  "film": 0.0,
+  "deflect": 0.0
+ },
+ {
+  "rpm": 15000,
+  "rim": 7.85,
+  "look": "spray",
+  "drop_mm": 0.22,
+  "film": 0.0,
+  "deflect": 0.31
+ }
+]
