@@ -262,7 +262,9 @@
   "tests/test_tight_followers_independent.py": 65.4,
   "tests/test_winexe.py": 0.0,
   "tests/test_demo_project_realism.py": 91.1,
-  "tests/test_demo_project_update.py": 137.0
+  "tests/test_demo_project_update.py": 137.0,
+  "tests/test_lessons.py": 25.0,
+  "tests/test_lessons_independent.py": 55.0
  },
  "jobs": {
   "Precheck (version, counts, groups; picks the mode)": 0.5,
@@ -1485,6 +1487,12 @@
   ],
   "tests/test_demo_project_update.py": [
    137.0
+  ],
+  "tests/test_lessons.py": [
+   25.0
+  ],
+  "tests/test_lessons_independent.py": [
+   55.0
   ]
  }
 }
