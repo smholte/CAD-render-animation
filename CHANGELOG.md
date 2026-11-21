@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.185 – 21 Nov 2026 – Automatic backups (task 0246)
+## 0.2.186 – 21 Nov 2026 – Automatic backups (task 0246)
 
 - **Your work is saved every 5 minutes.** While you work, the app saves a backup copy of the open project in a folder
   **Backups** next to it – only when something changed. Your project itself stays as it is (its name, the "not saved"
@@ -23,6 +23,10 @@ installer of that version was built from.
   are never offered to you. Settings: Edit > Preferences > Add-ons > Fresing Render > **Automatic backups** (on/off,
   every 1–60 min, keep the last 1–50, one a day for 0–60 days).
 - Measured on the 4-core test machine: one backup of the demo project (246 MB) takes 1.3 s; a small project 0.02 s.
+
+## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
+
+The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.
 
 ## 0.2.184 – 20 Nov 2026 – A quiet window (task 0241)
 
