@@ -4656,7 +4656,7 @@ stop("backtocad", MOTION, "sequenceframe", "Back to CAD step",
      auto="clip")
 
 stop("people", MOTION, "people", "People walk, carry and meet",
-     "On the quay beside a 20 ft container (the crane is the small thing at the left) Anna (orange coverall) walks in carrying a red toolbox, her feet stepping without sliding. "
+     "On the quay beside a 20 ft container (the crane stands out of the picture at the left) Anna (orange coverall) walks in carrying a red toolbox, her feet stepping without sliding. "
      "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
