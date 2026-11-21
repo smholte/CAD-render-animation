@@ -13,7 +13,7 @@ Light (task 0111, looked at both on the test mill): "Soft light baked, sun live"
 contact shadows baked, the sun and its shadow live, so a part that moves still casts its shadow where it is. "Live
 only" looked flat next to it; "Everything baked" leaves the shadows where they were at the first frame.
 
-A later model (the cable-lay vessel at sea, models of study 0113) is one more entry in MODELS with its make function;
+A later model (the demo ship at sea, models of study 0113) is one more entry in MODELS with its make function;
 the page needs no change.
 """
 

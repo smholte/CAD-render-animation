@@ -1,6 +1,6 @@
 # 0247 – The cut: the vessel's equipment leaves the public repository; the public demo becomes "Vessel in a wind park"
 
-**Who:** worker · **Status:** running · **Branch:** `task/0247-the-cut` (public) + a branch in the private repository
+**Who:** worker · **Status:** done (0.2.188) · **Branch:** `task/0247-the-cut` (public) + a branch in the private repository
 **Started by:** lead, 21 Nov 2026 00:10 (study 0226 package 2; owner's answers 20 Nov 16:22–17:02; owner asked 20 Nov
 23:01 whether the equipment is gone from the release – it is not: 0.2.184 still ships `demo_model/` and the full demo)
 · **Model:** Opus · effort High
@@ -114,19 +114,19 @@ run).
 
 ## Done when
 
-- [ ] `demo_model/`, `blender/demo*.py`, `tests/`, `tools/`, `docs/` and the release zips hold no equipment of the
+- [x] `demo_model/`, `blender/demo*.py`, `tests/`, `tools/`, `docs/` and the release zips hold no equipment of the
       vessel (the name test of E passes; F checked); the deck crane and the plain deck are in the public ship
-- [ ] The public demo "Vessel in a wind park" makes, opens, builds and plays (full and small form); numbers in the
+- [x] The public demo "Vessel in a wind park" makes, opens, builds and plays (full and small form); numbers in the
       report: joints, objects, triangles at Normal, saved scenes, frames, make time, frame time on the web machine
-- [ ] Help > Make demo project… lists "Vessel in a wind park" (and kits as before); Cancel / Open / demo kits unchanged
+- [x] Help > Make demo project… lists "Vessel in a wind park" (and kits as before); Cancel / Open / demo kits unchanged
       (`test_demo_kits.py`, real-app `demokits` green)
-- [ ] The clash check honours the stored tag through save, reopen and a model update (tests); without the old hook
-- [ ] Tour stop `demo` + `_check_demo`, `heavy.demo`, `help.demo`, guide chapter + picture + mentions, PC-check texts
+- [x] The clash check honours the stored tag through save, reopen and a model update (tests); without the old hook
+- [x] Tour stop `demo` + `_check_demo`, `heavy.demo`, `help.demo`, guide chapter + picture + mentions, PC-check texts
       updated; version fields (`changed=` / `since=`, `tools/tour_versions.py --record`)
-- [ ] Kit 2 builds the full demo on the cut public package with 0228's numbers; private tests green; kit 2 released
+- [x] Kit 2 builds the full demo on the cut public package with 0228's numbers; private tests green; kit 2 released
       after the public release (by hand, one run); the private workflow skips `*.md` / `img/` pushes
-- [ ] Full suite + GitHub green (fewer demo groups); CLAUDE.md sections 3 and 6, CHANGELOG
-- [ ] Report: numbers only for anything of the equipment – **no pictures of the equipment** anywhere (pictures of the
+- [x] Full suite + GitHub green (fewer demo groups); CLAUDE.md sections 3 and 6, CHANGELOG
+- [x] Report: numbers only for anything of the equipment – **no pictures of the equipment** anywhere (pictures of the
       public demo are fine); the owner's steps for kit 2
 
 ## Not in this task
@@ -141,12 +141,92 @@ run).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (4 cores), 20–21 Nov 2026, branch `task/0247-the-cut` → **0.2.188** (0.2.185 – 0.2.187
+went to tasks 0239, 0237 and 0246 meanwhile); private repository `smholte/fresing-render-vessel`, branch `task/0247-the-cut` → `main`, kit 2.
+No subagents (one design, mostly deletion and a few stages; the kit build on the new app is the independent proof).
 
-**What changed:**
+**What changed (public):**
+- `demo_model/`: `params.ShipParams` (fixed beam, the cable's Ø / MBR) + `ParkParams`; `vessel.py` the bare ship – no
+  carousel well or lining, the bulwark closed all round (transom and starboard quarter), its own small `Kit` cache, no
+  `outfit` boxes; **the deck crane stays** and its hook block got a slide joint **Hook lower** (plumb, 0–30 m) on its
+  hoist; `route.py` only the shared geometry (Line, Arc, Route, turn/pitch/s-bend, rope routes); `deck.py` only the quay;
+  `park.py` adds **CABLE ON THE SEABED** (from the first end's seabed point along the lay line to abeam turbine B) and its
+  sealed **CABLE END**; `layout.py` writes `demo_vessel.step` (root "DEMO VESSEL"), `demo_park.step`, `demo_quay.step`,
+  `demo_route.json` (ship, crane, `place` = park origin 105 m aft of the transom on the centre line, park, quay) and
+  `demo_joints.json` (the ship's 13 joints + the park's 19); `machines.py`, `rov.py` deleted; `geom.py` unchanged.
+- `blender/demo.py`: TITLE "Vessel in a wind park"; stages model, looks, marks, joints, **crane** (the hoist wire a cable
+  on "DECK CRANE: Hoist wire travel", spooled on its drum, its end on the hook; the hook follows the wire 1:1), surroundings
+  (quay scene "At the quay"), sea (30 m, a typed-in cut-away 150 × 30 m behind the stern), park, cameras (Overview, Stern
+  thrusters, Hull side, At the seabed, Deck crane + the park's three), brand, shots fly (aims at the hull) – turbine A –
+  **crane** (slew 90° outboard, 20 m of wire, the hook down beside the ship) – hull + stern thrusters – seabed – park –
+  night, propulsion (sails in at 6 kn, DP from the crane's shot), park rotors, finish. The framework the kit uses
+  (`Demo`, `STAGES`, `stage`, `Cancelled`, `cancel_path`, `model_dir`, `project_dir`) unchanged; `Demo.set_down_error`
+  and every equipment stage / constant / camera deleted; `MIN_JOINTS` 33; `PUBLIC` stays True. `demo_rov.py` deleted.
+- `blender/demo_park.py`: placed by the sheet's `place` on the ship at rest (no seabed motion – nothing is laid), Still,
+  shift stage gone, shots 2 / 6 / 7 reworded; its clash hook replaced by the tag.
+- `blender/clash.py` (additive): `NO_CLASH`, `leave_out(ob, on)`, `left_out(ob, scene)`; `objects()` honours it. Stored
+  twice: a custom property on the object and its part ID in the scene's list – a model update makes a **new** root
+  object (found by the test) but keeps its part ID, so the list carries the tag over. `HOOKS` stays (flex, paths, spool,
+  tracks, people, tc_person use it). A button would be useful for a user's own scenery model (a quay, a second machine
+  that never comes near): a later task.
+- Tour stop `demo` (text, `changed=0.2.188`; set crane `changed=0.2.188`, recorded), `_check_demo` (50–80 s);
+  `heavy.demo` (title, texts, the crane's hook coupling instead of the tensioners, the two new cameras); `help.demo`
+  title; `ops_demo.py` texts; guide chapter `demo` rewritten + the clash chapter's "left out" line + the other mentions
+  (cable / tracks bullets removed, measurements named "the old cable-lay demo"); **new `docs/img/demo_overview.jpg`**
+  (looked at: the ship, her crane, turbine A and the park, the sea – nothing else); CHANGELOG; CLAUDE.md §3 (`demo.py`,
+  `demo_model/`, tools), §5 (demo group), §6 (the rule after the cut), §8 (a hook works only while its code is loaded).
+- Tests: deleted `test_demo_cable_lay`, `_rov_model`, `test_demo_project_cable` / `_cps` / `_lowering` / `_quadrant` /
+  `_realism` / `_rebake` / `_update`, `test_demo_clash` + `_b`, `demo_cps_check.py`; the windows proof moved to
+  `tests/test_clash_windows.py` (+ `clash_windows_child.py`); trimmed `test_paths.py`, `test_paths_core.py`,
+  `test_flex_followups_independent.py` (set-down shares), `test_ci_tools.py`, `test_web_player.py` (strings);
+  rewritten `test_demo_project.py` (incl. **the equipment-word test** over the files, STEP product names, objects,
+  groups, joints, cables, spools, scenes and steps; the crane shot; the clash check with the park left out after a
+  reopen), `test_demo_project_park.py`, `test_demo_vessel.py` (+ a plain deck), new `test_clash_tag.py`. Tools deleted:
+  `make_demo_cable_lay.py`, `demo_cable_lay_pictures.py`, `measure_cables.py`. CI: `DEMO_GROUPS` 1, `ci_times.json`.
 
-**Tested and measured** (name the machine and the model):
+**Release check (F):** built `tools/build_release.py` on the branch and unpacked both zips: no `demo_rov.py`,
+`machines.py`, `rov.py`, no equipment STEP (the 43 STEP files are the test models and the lifting cranes), no sheet;
+a word search (carousel, tensioner, quadrant, chute, ROV, CPS, Lebus, DEMO CABLE LAY) in `demo_model/` and
+`blender/demo*.py` finds only `geom.py`'s generic Lebus-drum shapes and one docstring example (kept: `geom.py` stays as
+it is) and the sheet drive kind "carousel" in `make_joints`; the guide inside carries the new picture.
 
-**Owner steps** (after the update):
+**Tested and measured** (web machine, 4 cores, Blender 5.2.3 as a module):
+- Public demo, scaled-down form: made in 71–72 s (cable-lay demo: 356 s), 33 joints, 1,028 objects, 870 parts, 1.01 M
+  triangles (Draft), 9 saved scenes, 1,489 frames (59 s + cards), 6.2 ms per frame scrubbing. Full form (with the quay):
+  made in 76 s (write 31, import 8, park 14, Build 10), 33 joints, 1,054 objects, 893 parts, **1.96 M triangles at
+  Normal**, 10 saved scenes, 1,489 frames, 6.3 ms per frame. Clash check over the whole animation: 0 rows in 51 s.
+- `test_demo_project.py` 14 + `_park.py` 8 passed (~2 min on the made demo), `test_demo_vessel.py` +
+  `test_demo_park_model.py` 18, `test_clash_windows.py` 2, `test_clash_tag.py` 2, `test_demo_kits.py` +
+  `test_user_guide.py` + `test_functions.py` + `test_clash.py` 89, `test_ci_tools.py` 63, `test_tour_versions.py` +
+  `test_places.py` + `test_web_player.py` 31; PC-check line `heavy.demo` (scaled down) OK: make 72 s, Build 11 s,
+  8 ms per frame, peak 1.4 GB; tooltip report 884 / 0 missing; precheck passed.
+- **Kit 2 on the cut public branch** (private, numbers only): scaled-down 356 joints, 6 cylinders, 19 saved scenes, 109
+  steps, 4,481 frames, 3,269 objects (285 s) – equal to 0228; full form 466 joints, 20 saved scenes, 3,696 objects,
+  4,481 frames (346 s) – equal to 0228. In the reopened full project the ROV (28 parts) and the park (762 parts) are not
+  among the clash check's objects, and no kit code is in `clash.HOOKS`. Private tests (the workflow's set +
+  `test_demo_project.py`) 29 passed locally.
+- GitHub (public): **4 full runs.** Run 1 failed one test only (the tour stop's title over 32 characters; every other
+  job green, the demo group 1.9 min after a 1.2-min make – the cable-lay demo needed 3.7 + 4 × 6–10 min); run 2 green
+  (62 min in a busy queue) but 0.2.186 had gone to 0237 meanwhile; run 3 replaced when 0.2.187 went to 0246; run 4
+  green (42 min), `main` fast-forwarded (with 0246's report merged: a docs run).
+- GitHub (private, the owner's minutes): one proof run by hand on the branch with the public branch (6.1 min, green);
+  then the merge to `main` with `[skip ci]` and one by-hand release run for kit 2 (below).
+
+**Owner steps** (after the update to 0.2.188):
+1. **Help > Make demo project…** → pick **Vessel in a wind park** → **Make it**. About a minute later the small window
+   says it is ready → **Open demo project**. You should see the ship in the wind park; 6 Animation > "What it can do
+   today" → **Build & play**: about a minute – she sails in, her crane swings out and lowers its hook, the thrusters
+   under water, the cable on the seabed, the park, night.
+2. Your full cable-lay demo: on github.com, signed in: **smholte/fresing-render-vessel** → **Releases** → **Demo kit 2
+   (cable-lay vessel)** → download **FresingVesselKit-2.zip**. In Fresing Render: **Help > Make demo project…** → **Add a
+   demo kit…** → pick the zip → the status line says "Demo kit added". Then pick **Demo cable-lay vessel (full) (kit 2)**
+   → **Make it** (a few minutes) → **Help > Open Demo cable-lay vessel (full)**: the same demo as before (466 joints).
+   Use kit 2 from now on (it needs 0.2.188 or newer): with kit 1 the ROV is clash-checked again once the project
+   is reopened.
 
 **Open points / follow-up tasks:**
+- Package 4: the report pictures in `tasks/img/` and their links (untouched here).
+- A button "Leave out of the clash check" for a user's own model (the tag works; no button yet).
+- The old demo's measurements in the guide (web 3D, clash times) are kept as "the old cable-lay demo"; a later
+  measuring task can redo them on the public demo.
+- Leftover branches to delete on github.com: `task/0247-the-cut` (public and private).

@@ -1,12 +1,12 @@
-"""Write the invented cable-lay vessel spread into a folder (task 0077: the app's Help > Make demo project).
+"""Write the demo's ship, wind park and quay into a folder (task 0077: the app's Help > Make demo project; task 0247:
+"Vessel in a wind park").
 
-    python make.py <out folder> [--cable-d 200] [--only assembly,quay_loading] [--progress <file.json>]
+    python make.py <out folder> [--cable-d 200] [--only assembly,park,quay] [--progress <file.json>]
 
 Runs as its own program (Blender's Python with the bundled OpenCascade, like ``pccheck/heavy_scene.py``), so its
 memory does not count for the app and Cancel can stop it at any moment. It loads this folder as a package by its
 path: no relative-import surprises when it runs as a script, nothing of ``tools/`` needed. ``--progress`` writes
-{"stage": "write", "done": i, "total": n} before each file. The file list and what each holds: ``layout.FILES``
-and ``tools/make_demo_cable_lay.py`` (the same command for development).
+{"stage": "write", "done": i, "total": n} before each file. The file list and what each holds: ``layout.FILES``.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ def main(argv=None) -> int:
     def progress(i, n):
         write_progress(a.progress, stage="write", done=i, total=n)
 
-    S = layout.write(a.out, params.Params(cable_d=a.cable_d), only=only, progress=progress)
+    S = layout.write(a.out, params.ShipParams(cable_d=a.cable_d), only=only, progress=progress)
     write_progress(a.progress, stage="done", done=1, total=1, seconds=round(time.time() - t, 1))
     print(f"done in {time.time() - t:.0f} s: " + ", ".join(f"{k} {v:.1f} s" for k, v in S.timings.items()), flush=True)
     return 0

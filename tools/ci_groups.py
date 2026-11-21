@@ -37,7 +37,7 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TIMES = os.path.join(ROOT, "tools", "ci_times.json")
 PYTEST_GROUPS = 9                                  # task 0063: 4 groups took 8-14 min; task 0108: 7 groups 7-14 min, 9 plan ~10 (slowest of 3 runs)
-DEMO_GROUPS = 4                                    # task 0145: the demo's checks (~35 + ~20 min) after one make
+DEMO_GROUPS = 1                                    # task 0145: the demo's checks after one make (task 0247: ~5 min)
 DEMO_MARK = "demo_made"                            # a test file that opens the shared made demo imports this module
 NEW_FILE_SECS = 30.0
 SELFTEST = "packaged self-test"

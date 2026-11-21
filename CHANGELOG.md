@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.188 – 21 Nov 2026 – No long freeze for a riding camera after a sea change (task 0238)
+## 0.2.189 – 21 Nov 2026 – No long freeze for a riding camera after a sea change (task 0238)
 
 - **The window keeps moving while the camera is worked out again.** After a change of the sea (Calm → Rough, the water
   level) a camera step that rides on a part was worked out again in one go: on the full demo (4,481 frames) the window
@@ -14,6 +14,20 @@ installer of that version was built from.
   takes about half a second. The whole re-bake on the demo is about 11 s shorter (103 → 91 s on the 4-core test machine).
   The camera's path is the same as before.
 
+
+## 0.2.188 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
+
+- **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own
+  deck crane in an offshore wind park of nine turbines and a substation, the park's power cable lying on the seabed
+  right under her. Its video lasts about a minute: she sails in and holds her place on her thrusters, her crane slews
+  outboard and lowers its hook (the wire comes off the drum layer by layer), along her hull and under water at her
+  thrusters, at the seabed where the cable comes down turbine WTG 05, the park from above and at night. It is made in
+  about a minute instead of six. The cable-lay equipment of the old demo is no longer part of the app.
+- **New saved cameras** in the demo: **Deck crane** and **At the seabed** (through the cut-away behind the stern, along
+  the cable to the turbine's foot).
+- **The clash check can leave a whole model out, stored in the project.** The demo's wind park is left out this way
+  (its nine turning rotors would make the check several times as long); the mark stays when you save, reopen or
+  update the model. A demo kit uses it for its own scenery.
 
 ## 0.2.187 – 21 Nov 2026 – Automatic backups (task 0246)
 
