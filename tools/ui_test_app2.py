@@ -224,7 +224,7 @@ def s_cameras():
 @step
 def s_structure():
     s = bpy.context.scene.fresing
-    s.small_part_mm = 45.0
+    s.small_part_mm = 150.0                      # the screws (M24 x 60) and bolts (M30 x 120) of the crane
     r1 = op("fresing.select_small")
     n_sel = len(bpy.context.selected_objects)
     r2 = op("fresing.exclude_selected")
