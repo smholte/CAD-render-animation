@@ -1,9 +1,9 @@
-"""Task 0145: the demo project "Cable-lay vessel" made ONCE and shared by every test file that checks it.
+"""Task 0145: the demo project ("Vessel in a wind park" since task 0247) made ONCE and shared by every test file that checks it.
 
     python tests/demo_made.py <folder>          # make it there (GitHub: the job "Linux - make the demo project")
 
-The demo's tests (``tests/test_demo_project*.py``, ``tests/test_demo_clash.py``) were one file of ~35 min on GitHub
-(task 0134: one job near GitHub's 40-minute limit), and the clash check made the same project again. Now:
+The demo's tests (``tests/test_demo_project*.py``) were one file of ~35 min on GitHub (task 0134: one job near
+GitHub's 40-minute limit), and the clash check made the same project again. Now:
 
 - The project is made once, in its scaled-down form (``demo.build_project(..., small=True)``, as before), by this
   script as a program of its own. Next to it: ``made.json`` (the build's result, the status lines it showed) and
@@ -77,6 +77,8 @@ def read(dest: str) -> dict:
                            f"({ENV}={dest}; on GitHub $RUNNER_TEMP/demo-made)")
     with open(os.path.join(info["models"], "demo_joints.json"), encoding="utf-8") as fh:
         info["sheet"] = json.load(fh)
+    with open(os.path.join(info["models"], "demo_route.json"), encoding="utf-8") as fh:
+        info["route"] = json.load(fh)
     info["seen"] = [tuple(x) for x in info["seen"]]
     return info
 
@@ -152,44 +154,9 @@ def _keys(sc):
     return out
 
 
-def _t9(a) -> float:
-    """Where shot 9 starts: the second end is shown (task 0126: the lay cable is hidden earlier, in shot 8b)."""
-    return next(b.start for b in a.blocks if b.kind == "SHOW" and b.target_name == "CABLE END")
-
-
-def _first_steps(a) -> dict:
-    """The first Move step of each joint in shot 9 and later (the quadrant operation)."""
-    t9 = _t9(a)
-    out = {}
-    for b in sorted((b for b in a.blocks if b.kind == "JOINT" and b.start >= t9 - 1e-6), key=lambda b: b.start):
-        out.setdefault(b.joint, b)
-    return out
-
-
-def _cps_shot(sc, a) -> tuple:
-    """(first, last frame) of shot 8b (task 0126): from its cut to the second end's Show step."""
-    from fresing_render.blender import demo
-    t0 = next(b.start for b in a.blocks if b.kind == "CAMERA" and b.camera_mode == "CUT" and b.camera is not None
-              and b.camera.name == demo.CPS_RACK)
-    return animation_frame(a, t0), animation_frame(a, _t9(a))
-
-
 def animation_frame(a, t: float) -> int:
     from fresing_render.blender import animation
     return animation.frame_of(a, t)
-
-
-def paths_riders_parts(asm) -> list:
-    from fresing_render.blender import paths_riders
-    return paths_riders.parts_from([asm])
-
-
-def _solved(sc, item):
-    """The cable solved over the built frames as Build solved it: (result, first frame)."""
-    from fresing_render.blender import paths
-    _w, slots, *_ = paths._inputs_of(item)
-    rel, first = paths._stored_places(sc, item, slots)[:2]
-    return paths._solve_item(sc, item, rel, first=first), first
 
 
 def _dense(P, step=0.25):

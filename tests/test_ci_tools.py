@@ -273,8 +273,8 @@ def test_demo_files_have_groups_of_their_own():
     import ci_groups
     demo = ci_groups.matrix_demo()
     files = [f for g in demo for f in g["files"].split()]
-    assert "tests/test_demo_clash.py" in files and any(f.startswith("tests/test_demo_project") for f in files)
-    assert "tests/test_demo_cable_lay.py" not in files                     # the maker's own tests need no made demo
+    assert "tests/test_demo_project.py" in files and "tests/test_demo_project_park.py" in files
+    assert "tests/test_demo_vessel.py" not in files                        # the maker's own tests need no made demo
     assert all(g["name"].startswith("demo ") and not g["selftest"] for g in demo)
     plain = {f for g in ci_groups.matrix_pytest() for f in g["files"].split()}
     assert not plain & set(files)
@@ -680,8 +680,8 @@ def test_lane_plan_documents_and_test_files():
     assert not plan["full"] and "tests/test_user_guide.py" in _plan_files(plan)
     plan = G.lane_plan(["tests/test_web3d.py"])
     assert _plan_files(plan) == {"tests/test_web3d.py"}
-    plan = G.lane_plan(["tests/test_demo_clash_b.py"])                         # a demo file: in a demo group
-    assert not plan["pytest"] and _plan_files(plan, "demo") == {"tests/test_demo_clash_b.py"}
+    plan = G.lane_plan(["tests/test_demo_project_park.py"])                    # a demo file: in a demo group
+    assert not plan["pytest"] and _plan_files(plan, "demo") == {"tests/test_demo_project_park.py"}
     assert G.lane_plan(["TASKS.md"])["full"]                                    # nothing to run: not a lane run
 
 

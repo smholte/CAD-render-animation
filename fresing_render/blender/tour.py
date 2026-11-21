@@ -488,7 +488,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.188")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.189")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1124,7 +1124,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.188")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.189")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -4468,7 +4468,7 @@ stop("finishing", OUT, HUB_SET, "Finished video: cards, captions",
      "TEST TOUR watermark, the logo as a picture card in a corner and a soft chord as music. They are put on in the "
      "rendered MP4 video: render it with the queue (Render queue stop).",
      where=f"{places.where('finishing')}; {places.where('brand')}; {places.where('cards')}; {places.where('music')}",
-     animation="Finished video", check=_check_finishing, since="0.2.47", changed="0.2.188")
+     animation="Finished video", check=_check_finishing, since="0.2.47", changed="0.2.189")
 stop("labels", OUT, HUB_SET, "Labels with lines",
      "Two labels, 'Boom' and 'Trolley', with lines to their parts. Labels are drawn in rendered pictures and "
      "videos: press Render picture to see them.", where=places.where("labels"), check=_check_labels,
@@ -4592,7 +4592,7 @@ def _check_demo(scene):
     info = demo.read_summary(folder, __version__)
     _check(info.get("joints", 0) >= demo.MIN_JOINTS,
            f"the demo project has {info.get('joints', 0)} joints, not {demo.MIN_JOINTS}")
-    _check(120.0 <= info.get("seconds", 0) <= 200.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
+    _check(50.0 <= info.get("seconds", 0) <= 80.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
     with open(demo.project_path(folder, __version__), "rb") as fh:
         head = fh.read(7)
     _check(head == b"BLENDER" or head[:4] == b"\x28\xb5\x2f\xfd", "the demo project file is not a Blender file")
@@ -4786,16 +4786,18 @@ stop("make", OUT, HUB_SET, "Make: every output side by side",
      where="Make, above 1 Import; Make in the 3D view's header", since="0.2.152", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
-stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
-     "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
-     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 432 joints "
-     "(324 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay' and the saved "
-     "cameras 'Stern thrusters' (under water: two azimuth thrusters, their propellers in nozzles) and 'Hull side' (the "
-     "bow with its name, draft marks and the black boot top), and 6 Animation > 'What it can do today' plays a video "
-     "of about 2 ½ minutes (Build & play) in which the propellers and radars keep turning. This stop only checks that "
-     "the demo is there.",
+stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
+     "Help > Make demo project… makes the demo 'Vessel in a wind park' in the background (a minute or two on your PC; "
+     "the status bar shows how far). Then Help > Open demo project: an invented ship on the open sea in a wind park "
+     "of nine turbines; 4 Motion lists 33 joints (the ship's thrusters, propellers, radars and deck crane, the park's "
+     "turbines), 5 Scene & Render has the saved scene 'At the quay' and the saved cameras 'Stern thrusters' (under "
+     "water: two azimuth thrusters, their propellers in nozzles), 'Hull side' (the bow with its name, draft marks and "
+     "the black boot top), 'Deck crane' and 'At the seabed' (the power cable on the seabed, through the cut-away), and "
+     "6 Animation > 'What it can do today' plays a video of about a minute (Build & play): the ship sails in and holds "
+     "her place, her crane slews and lowers its hook, the rotors turn, night falls. This stop only checks that the "
+     "demo is there.",
      where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
-     auto=lambda ctx, scene, st: "", changed="0.2.120")
+     auto=lambda ctx, scene, st: "", changed="0.2.188")
 
 def _check_panel_back(scene):
     """The header button and its operator (task 0198)."""
@@ -4945,7 +4947,7 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'.",
      where="Fresing menu > Learn…; the Lesson panel at the top of the Fresing tab while a lesson runs",
-     since="0.2.188", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 

@@ -177,13 +177,13 @@ fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the 
 # ----- learning: lessons on the sample projects (task 0230) -----
 fn(id="learn.window", short="Learn", headline=True, title="Learn: sample projects to View, Show me or Build it yourself", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_lessons", guide="learn", tour=("lessons",),
-   pccheck=("app.lessons",), since="0.2.188")
+   pccheck=("app.lessons",), since="0.2.189")
 fn(id="learn.show_me", short="Show me", title="Show me: the app does each step of a lesson", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_start", text="Show me", guide="learn-show-me", tour=("lessons",), pccheck=("app.lessons",),
-   since="0.2.188")
+   since="0.2.189")
 fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that waits until you did each step", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_start", text="Build it yourself", guide="learn-build",
-   tour=("lessons",), pccheck=("app.lessons",), since="0.2.188")
+   tour=("lessons",), pccheck=("app.lessons",), since="0.2.189")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
@@ -557,8 +557,8 @@ fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", 
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
-fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
-   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
+fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",
+   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68", changed="0.2.188")
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
    panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app
