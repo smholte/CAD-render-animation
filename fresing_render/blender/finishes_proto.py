@@ -503,24 +503,26 @@ def hammertone(b: F, s: dict):
     v = b.vor(b.vmath("ADD", b.p(), b.vmath("SCALE", b.ncol(60.0), scale=cell * 0.5)), 1.0 / cell, "SMOOTH_F1", 0.9)
     vis = b.lod(cell)
     d = v[0]
-    h = b.math("MULTIPLY", b.math("POWER", b.map(d, 0.0, 0.7, 0.0, 1.0), 0.6), vis)
+    h = b.math("MULTIPLY", b.math("POWER", b.map(d, 0.0, 0.75, 0.0, 1.0), 2.0), vis)   # a round dimple per cell
     flake = b.vor(None, 1.0 / 0.00015, "F1")[1]                   # tiny metal flakes: a colour per flake
     fl = b.sep(flake)[0]
     base = (*lin(s["color"]), 1)
     light = (*[min(1, x * 1.7 + 0.04) for x in lin(s["color"])], 1)
-    col = b.mix("RGBA", b.map(h, 0.2, 1.0, 0.0, 0.7), light, base)
+    col = b.mix("RGBA", b.map(h, 0.3, 1.0, 0.0, 0.8), base, light)          # rims catch more light
     rough = b.math("ADD", s["roughness"], b.math("MULTIPLY", b.math("SUBTRACT", fl, 0.5), 0.12))
-    return dict(color=col, roughness=rough, metallic=s.get("metallic", 0.45), normal=b.bump(h, cell * 0.04))
+    return dict(color=col, roughness=rough, metallic=s.get("metallic", 0.45), normal=b.bump(h, cell * 0.09))
 
 
 def wrinkle(b: F, s: dict):
+    """Wrinkle paint: worm-like ridges ~1 mm (the ridges of a distorted noise: 1 - |2n - 1|, sharpened)."""
     sc = s["scale"]
     vis = b.lod(1.0 / sc * 1.5)
-    warp = b.vmath("ADD", b.p(), b.vmath("SCALE", b.ncol(sc / 4), scale=4.0 / sc))
-    h = b.noise3(warp, sc, 4.0, 0.55, "RIDGED_MULTIFRACTAL")
-    h = b.math("MULTIPLY", b.map(h, 0.2, 1.2, 0.0, 1.0), vis)
-    rough = b.math("ADD", s["roughness"], b.math("MULTIPLY", h, -0.1))
-    return dict(roughness=rough, normal=b.bump(h, 0.4 / sc))
+    warp = b.vmath("ADD", b.p(), b.vmath("SCALE", b.ncol(sc / 3), scale=3.0 / sc))
+    n = b.noise3(warp, sc, 2.0, 0.5)
+    ridge = b.math("SUBTRACT", 1.0, b.math("ABSOLUTE", b.math("SUBTRACT", b.math("MULTIPLY", n, 2.0), 1.0)))
+    h = b.math("MULTIPLY", b.math("POWER", ridge, 4.0), vis)
+    rough = b.math("ADD", s["roughness"], b.math("MULTIPLY", h, -0.12))
+    return dict(roughness=rough, normal=b.bump(h, 0.6 / sc))
 
 
 def antiskid(b: F, s: dict):
@@ -594,26 +596,22 @@ def expanded(b: F, s: dict):
     slope of the height across the strand)."""
     LW, SW, st = s["lwd"], s["swd"], s["strand"]
 
+    def rh(u, v, ou, ov):
+        a = b.math("SUBTRACT", b.math("WRAP", b.math("SUBTRACT", u, ou), LW, 0.0), LW / 2)
+        c = b.math("SUBTRACT", b.math("WRAP", b.math("SUBTRACT", v, ov), SW, 0.0), SW / 2)
+        return b.math("ADD", b.math("DIVIDE", b.math("ABSOLUTE", a), LW / 2), b.math("DIVIDE", b.math("ABSOLUTE", c), SW / 2))
+
     def mesh(u, v, k):
-        # staggered rhombus lattice: cell LW x SW, every second row shifted by LW/2
-        row = b.math("FLOOR", b.math("DIVIDE", v, SW / 2))
-        shift = b.math("MULTIPLY", b.math("FLOORED_MODULO", row, 2.0), LW / 2)
-        uu = b.math("SUBTRACT", b.math("WRAP", b.math("SUBTRACT", u, shift), LW, 0.0), LW / 2)
-        vv = b.math("SUBTRACT", b.math("WRAP", v, SW / 2, 0.0), SW / 4)
-        # rhombus "distance": |u|/(LW/2) + |v|/(SW/2) with the rhombus centred on the row's middle
-        m = b.math("ADD", b.math("DIVIDE", b.math("ABSOLUTE", uu), LW / 2),
-                   b.math("DIVIDE", b.math("ABSOLUTE", b.math("SUBTRACT", b.math("WRAP", v, SW, 0.0), SW / 2)), SW / 2))
-        return m
+        # two staggered grids of diamonds LW x SW tile the plane; the nearer diamond's measure is 0 (centre) .. 1 (edge)
+        return b.math("MINIMUM", rh(u, v, 0.0, 0.0), rh(u, v, LW / 2, SW / 2))
     m = _uvk(b, mesh)
-    # the opening is where the rhombus measure is below 1 - strand share; m in 0..2 over a cell
-    share = st / (SW / 2)
-    edge = b.smooth(m, 1.0 - share - 0.04, 1.0 - share + 0.04)            # 1 on metal
-    m2 = b.math("ADD", m, 0.0)
+    share = 2.0 * st / SW
+    edge = b.smooth(m, 1.0 - share - 0.03, 1.0 - share + 0.03)            # 1 on metal
     vis = b.lod(SW, 2.0, 5.0)
     open_area = (1.0 - share) ** 2
-    alpha = b.mix("FLOAT", vis, 1.0 - open_area * 0.8, edge)
-    slope = b.math("MULTIPLY", b.math("MULTIPLY", b.math("SUBTRACT", m2, 1.0 - share), edge), vis)
-    return dict(alpha=alpha, normal=b.bump(slope, SW * 0.4))
+    alpha = b.mix("FLOAT", vis, 1.0 - open_area, edge)
+    slope = b.math("MULTIPLY", b.math("MULTIPLY", b.math("DIVIDE", b.math("SUBTRACT", m, 1.0 - share), share), edge), vis)
+    return dict(alpha=alpha, normal=b.bump(slope, st * 0.8))
 
 
 def carbon(b: F, s: dict):

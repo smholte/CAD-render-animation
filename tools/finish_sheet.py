@@ -137,8 +137,6 @@ def stage(sc, fid, single, head, weld):
                 hi = Vector(map(max, hi, c))
         size = (hi - lo)
         (dx, dy, dz), rz = POSE[key]
-        half = max(size.x, size.y) / 2
-        x += half
         rot = Matrix.Rotation(math.radians(rz), 4, "Z")
         lean = LEAN.get(key, 0.0)
         if key == "plate" and spec.get("see_through"):
@@ -148,9 +146,13 @@ def stage(sc, fid, single, head, weld):
         if lean:
             rot = rot @ Matrix.Rotation(math.radians(lean), 4, "X")
         centre = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
-        M = Matrix.Translation((x + dx, dy, 0.0)) @ rot @ Matrix.Translation(-centre)
-        zmin = min((M @ Vector(c)).z for ob in (obs[:2] if key == "weld" else obs) for c in ob.bound_box)
-        M = Matrix.Translation((0, 0, -zmin)) @ M      # rests on the floor
+        M = rot @ Matrix.Translation(-centre)
+        pts = [M @ Vector(c) for ob in (obs[:2] if key == "weld" else obs) for c in ob.bound_box]
+        xs = [q.x for q in pts]
+        zmin = min(q.z for q in pts)
+        M = Matrix.Translation((x - min(xs) + dx, dy, -zmin)) @ M     # its left side at x, resting on the floor
+        half = (max(xs) - min(xs)) / 2
+        x += half
         for ob in obs:
             ob.parent = None
             ob.matrix_world = M if ob.name != "FR study weld bead" else M @ Matrix.Translation((0, 0.004, 0.008))
