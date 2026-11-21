@@ -1,6 +1,6 @@
 # 0278 – Live preview and Build & play only on the left panel; Favourites folds like the other sections and remembers it
 
-**Who:** worker · **Status:** running · **Branch:** `task/0278-left-panel-only`
+**Who:** worker · **Status:** done (0.2.204) · **Branch:** `task/0278-left-panel-only`
 **Started by:** lead, 21 Nov 2026 (owner 20:02, screenshot of 0.2.197 with the crane lesson done: "the live preview under
 5 Scene and Render can be removed because it's now always available on the left menu. The same for Build and play.
 Favourites section on the left should be possible to fold in like other functions; this one remembers its position
@@ -141,3 +141,10 @@ left (6 s); `ui_test_layout.py` 69/69. PC check `panel.folds` + `panel.two` OK. 
   all preferences live) or keep the app's settings in a file of its own. 0272 (Locations, `prefs.py`) should know
   this before it starts.
 - No subagents were used.
+- **GitHub runs: 4 full runs + 1 re-run of one job.** Run 1 (0.2.202): the lesson real-app test clicked step 9 in
+  the side panel (fixed: `ui_test_lesson.py` clicks in the region the highlight drew in) and the PC check ran out of
+  its 15 min on a slow runner. Run 2: green, but 0253 had taken 0.2.202 meanwhile → merge, 0.2.203. Run 3: 0259 took
+  0.2.203 → merge, 0.2.204; its PC check timed out again on a slow runner (every line slower, renders ~2x; reached
+  line 107 of 111 at 12 min, the green run at 8 min) – the failed job was re-run once: 12.1 min, green. The PC
+  check's group sits close to its 15-minute box on a slow runner: worth splitting further (lead).
+- The panel_6_* guide pictures were made before 0259 put the crane at real size (their numbers are the old crane's).
