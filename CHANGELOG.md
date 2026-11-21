@@ -5,6 +5,17 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.199 – 21 Nov 2026 – Test tour: every set in its own surroundings (task 0233)
+
+- **Test tour:** the machine sets stand in a hall that fits them (a factory or an assembly hall), the cable sets in a
+  warehouse or factory, the looks and product-video sets in a clean light studio, and the people and props sets on a
+  quay and in a warehouse round a real-size container, so you see the function in a place it belongs.
+- **Cameras fixed:** Materials looks close at the worn base and trolley (Wear shows), the Mechanisms picture keeps the
+  raised scissor platform in the frame, the night shift is brighter, and the weather video's stop now shows its middle
+  (dusk coming, rain starting) instead of the dark end.
+- **What's new / links:** the function list now links Couplings to the cable stop, Poses to the Model
+  update stop, and Props: detail by distance to the props stop.
+
 ## 0.2.198 – 21 Nov 2026 – Web 3D page: flick the model and it keeps turning (task 0256)
 
 - **Flick to spin.** On the web 3D page, drag the model quickly sideways and let go while it is still moving (mouse or
