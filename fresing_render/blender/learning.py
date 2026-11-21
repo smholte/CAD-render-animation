@@ -71,10 +71,10 @@ def show_in_tour(context, fid: str) -> str:
     f = F.FUNCTIONS.get(fid)
     opts = core.options(fid)
     if f is None or not opts["tour"] or tour.find(opts["tour"]) is None:
-        return opts["why_no_tour"] or "The test tour has no stop for this function"
+        return opts["why_no_tour"] or "The Learning hub has no stop for this function"
     mode = tour_state(context.scene)
     if mode == "none":
-        return "Make the test tour first: Fresing > Take the test tour"
+        return "Make the Learning hub first: Fresing > Open the Learning hub"
     _PEND["fid"] = fid
     if mode == "here":
         _go(opts["tour"])

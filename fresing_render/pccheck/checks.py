@@ -4913,7 +4913,7 @@ def app_usage(ctx):
 
 
 @line("app.learning", "Learn as you go: the question teaches, the learning list, next to learn", "0.2.160",
-      what="The question about an unused panel offers the guide, the test tour and the learning list beside Hide (and "
+      what="The question about an unused panel offers the guide, the Learning hub and the learning list beside Hide (and "
            "only Hide when teaching is off); a function on the list is ticked by itself after use on 3 days and the "
            "list says so once; the quiet 'next to learn' never offers what was hidden, turned down or is used by the "
            "project; the usage file keeps the list (with an accent in its folder) and an older file without it reads")
@@ -5036,9 +5036,9 @@ def app_lessons(ctx):
             f"{time.time() - t1:.1f} s; nothing left running")
 
 
-@line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",
-      what="Makes the test tour (a small project per test model) and does Go and the number check of every stop, "
-           "without pictures (the PC check's mode Test tour renders them)")
+@line("tour.make", "Learning hub: the projects are made, every stop's Go works", "0.2.47",
+      what="Makes the Learning hub (a small project per test model) and does Go and the number check of every stop, "
+           "without pictures (the PC check's mode Learning hub renders them)")
 def tour_make(ctx):
     import bpy
 

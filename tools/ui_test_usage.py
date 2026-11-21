@@ -339,7 +339,7 @@ def s_learn_ask():
 
 
 point_and_wait("learn_guide", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the guide")
-point_and_wait("learn_tour", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the test tour")
+point_and_wait("learn_tour", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the Learning hub")
 point_and_wait("learn_list", "FRESING_PT_favourites", "fresing.usage_declutter", "Add to my learning list")
 
 
