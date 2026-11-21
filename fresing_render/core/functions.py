@@ -313,7 +313,7 @@ fn(id="offshore.moving_cable", short="Moving cable", title="A cable on a moving 
    since="0.2.95")
 fn(id="offshore.settle", title="A let-go cable settles onto the seabed", family="offshore", panel="FRESING_PT_cables",
    fold="fr_cables_sea", prop="sea_settle", guide="settle", tour=("moving_cable",), pccheck=("motion.moving_cable",),
-   since="0.2.103")
+   since="0.2.103", changed="0.2.190")
 fn(id="offshore.swivel", title="A sheave on a swivel turns to its wire", family="offshore", panel="FRESING_PT_cables",
    prop="swivel", guide="swivel", tour=("swivel",), pccheck=("motion.swivel",), since="0.2.103")
 fn(id="offshore.spool", short="Drums", title="Drums and carousels", family="offshore", panel="FRESING_PT_spools",
@@ -451,13 +451,13 @@ fn(id="lifting.hook", short="Hook to here", title="Hook to here and the crane us
 
 fn(id="lifting.rig", short="Lift points", title="Rigging: lift points, sling set, shackles, spreader", family="lifting",
    panel="FRESING_PT_lifting_rigging", button="fresing.lifting_points_find", guide="lifting-rigging",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.190", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.191", workspaces=_LIFT)
 fn(id="lifting.hang", short="Hang on the hook", title="Hang the load on the hook: tilt, leg angles and forces, C2–C4",
    family="lifting", panel="FRESING_PT_lifting_rigging", button="fresing.lifting_hang", guide="lifting-hang",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.190", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.191", workspaces=_LIFT)
 fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its falls over head and block sheaves, line pull",
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_reeve", guide="lifting-reeve",
-   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.190", workspaces=_LIFT)
+   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.191", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),

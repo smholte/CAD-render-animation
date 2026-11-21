@@ -437,6 +437,32 @@ def pack(points, s=None, max_step: float | None = None):
     return lo, step, slo, sstep, q
 
 
+def as_packed(points, max_step: float | None = None, chunk: int = 256) -> np.ndarray:
+    """(K, n, 3) float64: the points as ``pack`` + ``unpack`` give them back to the page – rounded to each point's 16-bit
+    step (or kept as 32-bit numbers when a point travels too far) – worked out a block of moments at a time. Task
+    0248: the page's length along a cable is the chords of THESE points; points that fall on one place round apart
+    and each such piece adds its rounding (1.5 cm over a let-go cable's ~200 such pieces)."""
+    p = np.asarray(points, np.float64)
+    k = p.shape[0]
+    if k == 1:
+        return p[:1].astype(np.float32).astype(np.float64)
+    lo = p.min(axis=0).astype(np.float32)
+    step = ((p.max(axis=0) - lo.astype(np.float64)) / 65535.0).max(axis=1)
+    step = np.where(step > 0.0, step, 0.0).astype(np.float32)
+    out = np.empty_like(p)
+    big = max_step is not None and float(step.max()) > max_step
+    lo64 = lo.astype(np.float64)
+    safe = np.where(step > 0.0, step.astype(np.float64), 1.0)
+    for b in range(0, k, chunk):
+        d = p[b:b + chunk] - lo64[None]
+        if big:
+            out[b:b + chunk] = lo64[None] + d.astype(np.float32).astype(np.float64)
+        else:
+            q = np.clip(np.round(d / safe[None, :, None]), 0, 65535)
+            out[b:b + chunk] = lo64[None] + step.astype(np.float64)[None, :, None] * q
+    return out
+
+
 def delta(q) -> np.ndarray:
     """(K, n, c) 16-bit numbers -> the first moment, then each moment minus the one before (wrapping round 2^16, as
     the page's Uint16Array / Int16Array add them back; task 0175): meshopt packs the small steps of a slowly moving

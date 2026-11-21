@@ -207,3 +207,15 @@ def test_page_carries_the_tubes_script():
     assert "FRTubes" in text and text.index("FRTubes") < text.index("setupTubes")
     if NODE:
         subprocess.run([NODE, "--check", TUBES_JS], check=True)
+
+
+def test_as_packed_is_what_the_page_unpacks():
+    """Task 0248: the export decides whether a cable's own lengths along it go into the file by the chords of the
+    points as the page gets them – ``as_packed`` is exactly ``unpack(pack(...))``, 16-bit and 32-bit alike."""
+    rng = np.random.default_rng(1)
+    for spread in (1.0, 500.0):                              # (500 m: a point travels too far for 16 bits)
+        p = (rng.normal(size=(300, 50, 3)) * spread).astype(np.float32)
+        lo, step, _slo, _sstep, q = T.pack(p, None, max_step=T.POS_TOL)
+        assert np.array_equal(T.as_packed(p, T.POS_TOL, chunk=64), T.unpack(lo, step, q, len(p)))
+    one = rng.normal(size=(1, 5, 3)).astype(np.float32)
+    assert np.array_equal(T.as_packed(one), T.unpack(*T.pack(one)[:2], None, 1))

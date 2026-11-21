@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.190 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+## 0.2.191 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
 
 - **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
   lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
@@ -28,6 +28,19 @@ installer of that version was built from.
   efficiency of API RP 9B), against the winch's maximum.
 - Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
   lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+## 0.2.190 – 21 Nov 2026 – A let-go cable lies straight (task 0248)
+
+- **The cable on the seabed stays where it lay.** When you let go a cable into the sea (**Let go here**), the cable
+  that already lies on the seabed no longer turns into a snake of short waves from end to end: it does not move at
+  all, during the settle or after it.
+- **Only the stretch that hung in the water lies down** – in line with the cable before it. The let-go end goes down
+  and forward along the lay line together, and what is left over lies in **one smooth bight** next to the end, never
+  tighter than the cable's **Smallest bend** (none set: 10 x its diameter). Test tour stop "A cable on a moving part"
+  shows it.
+- A cable that piles up while laying (the warning "has … m more cable than the water is deep") now lies straight from
+  its end and puts the extra cable in one bight next to the touch-down, instead of waves along the whole cable.
+- Build after updating: a cable let go in an older version gets the new lying-down at its next **Build & play**.
+
 ## 0.2.189 – 21 Nov 2026 – Learn: Show me and Build it yourself on the sample projects (task 0230)
 
 - **Fresing > Learn…** lists the sample projects (the test tour's). **View** opens the finished one in the test tour.
@@ -47,6 +60,7 @@ installer of that version was built from.
   the same project). The crane's "open sea" stop is gone (the vessel and sea-cable stops show the sea); its finished
   video has a picture card and music; a new stop "Learn". New PC check line `app.lessons`; user guide chapter "Learn".
 
+
 ## 0.2.188 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
 
 - **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own
@@ -60,6 +74,7 @@ installer of that version was built from.
 - **The clash check can leave a whole model out, stored in the project.** The demo's wind park is left out this way
   (its nine turning rotors would make the check several times as long); the mark stays when you save, reopen or
   update the model. A demo kit uses it for its own scenery.
+
 
 ## 0.2.187 – 21 Nov 2026 – Automatic backups (task 0246)
 
@@ -80,6 +95,7 @@ installer of that version was built from.
   every 1–60 min, keep the last 1–50, one a day for 0–60 days).
 - Measured on the 4-core test machine: one backup of the demo project (246 MB) takes 1.3 s; a small project 0.02 s.
 
+
 ## 0.2.186 – 21 Nov 2026 – A mesh model update keeps the work on a moved group whose part changed (task 0237)
 
 - **Updating a glTF, OBJ or FBX model no longer loses work** when a group without a name in the file ("Node 4") was
@@ -91,6 +107,7 @@ installer of that version was built from.
   group of 3,000 parts moved: before, all 3,000 came back as new). A part that changed shape keeps its work, and so
   does a part that only moved to another place inside the group.
 - The update report says what happened: "Node 4 moved 100 mm; 1 part changed – its work is kept".
+
 ## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
 
 The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.

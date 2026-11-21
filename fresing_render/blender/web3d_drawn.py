@@ -481,9 +481,12 @@ def tube_spec(gltf, it: Item, times) -> dict | None:
                  and np.abs(sa - sa[:1]).max() <= 1e-7)
         if it.look is None and still:
             return None
-        # the length along the cable: s0 + chords, unless the app's own differs (a cable piled on the seabed)
+        # the length along the cable: s0 + chords of the points as the page gets them (rounded to 16 bits), unless
+        # the app's own differs from that (task 0248: points that fall on one place round apart – it adds up)
+        seen = T.as_packed(pts, T.POS_TOL / unit) if it.look is not None else pts.astype(np.float64)
         ch = np.concatenate([np.zeros((len(pts), 1)), np.cumsum(np.linalg.norm(np.diff(
-            pts.astype(np.float64), axis=1), axis=2), axis=1)], axis=1) * unit
+            seen, axis=1), axis=2), axis=1)], axis=1) * unit
+        del seen
         own_s = it.look is not None and np.abs(sa - s0[:, None] - ch).max() > T.S_TOL
         del ch
         parts = [pts.astype(np.float64), (n0 * it.radius)[:, None],
