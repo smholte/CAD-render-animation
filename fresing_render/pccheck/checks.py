@@ -387,7 +387,7 @@ def lifting_hook(ctx):
     return f"{cog}; {msg}"
 
 
-@line("lifting.hang", "Lifting plan: rig the pump skid and hang it on the hook", "0.2.189",
+@line("lifting.hang", "Lifting plan: rig the pump skid and hang it on the hook", "0.2.190",
       what="The pump skid of test_loads.step (6 t) as the load, its four padeyes found by name, Above the load with "
            "the AT-40, Hang on the hook: its CoG under the hook, the legs' forces within 1 % of the hand formulas "
            "(C3 rule), the load follows the hook; Set down leaves it where it is")
@@ -418,7 +418,7 @@ def lifting_hang(ctx):
     return msg
 
 
-@line("lifting.reeve", "Lifting plan: the AT-100's rope reeved in 8 falls", "0.2.189",
+@line("lifting.reeve", "Lifting plan: the AT-100's rope reeved in 8 falls", "0.2.190",
       what="The AT-100 placed: its hoist rope runs from the drum over 4 head and 4 block sheaves in 8 falls; the hook "
            "1 m up winds 8 m of rope (the drawn rope's length and the drum's turn); the line pull (C10) is shown")
 def lifting_reeve(ctx):
@@ -4904,6 +4904,66 @@ def app_learning(ctx):
         usage.forget()
         workspaces.PERSONAL["hide"] = ()
     return f"'{L.one_line(q['fid'])}' offered, listed, ticked after 3 days; next to learn: {len(cands)} candidates"
+
+
+@line("app.lessons", "Lessons: the crane in Build it yourself to the end, Show me's first three steps", "0.2.189",
+      what="Fresing > Learn… is there; the crane lesson in Build it yourself does every step with Do it for me and goes "
+           "on by itself once the project shows each done (11 steps: joints, camera, scene, animation, Build, exploded "
+           "view, the queue); Show me points, does steps 2 to 4 itself and waits for Next; nothing of the lesson runs "
+           "after Stop")
+def app_lessons(ctx):
+    import time
+
+    import bpy
+
+    from ..blender import highlight, lesson, ui_topbar
+    _check("fresing.learn_lessons" in ui_topbar.entries(), "Learn… is not in the Fresing menu")
+    les = lesson.LESSONS.get("crane")
+    _check(les is not None and len(les.steps) == 11, "the crane lesson is missing or not 11 steps")
+    t0 = time.time()
+    scene = ctx.fresh(CRANE_A)
+    lesson.start(scene, "crane", "BUILD")
+    try:
+        _check(lesson.state()["step"] == 1, f"Build it yourself starts at step {lesson.state()['step'] + 1}, not 2")
+        k = 1
+        while lesson.step() is not None:
+            st = lesson.step()
+            _check(not lesson.is_done(scene, st), f"step {k + 1} '{st.title}' counts as done before it was done")
+            _check(lesson.do_step(scene), f"Do it for me failed at step {k + 1} '{st.title}': {lesson.state()['failed']}")
+            now = time.time()
+            lesson.tick(scene, now=now + lesson.DONE_PAUSE + 0.1)       # "Done", then on by itself
+            k += 1
+            _check(lesson.state()["step"] == k or lesson.step() is None, f"the lesson did not go on after step {k}")
+        build_s = time.time() - t0
+        s = scene.fresing
+        _check(len(s.joints) >= 2 and len(s.shots) >= 2 and s.anim_baked and len(s.queue) == 1,
+               "the crane lesson's project misses its joints, scenes, built animation or queued picture")
+    finally:
+        lesson.stop(forget=True)
+    _check(lesson.handlers_left() == [] and highlight.handlers_left() == [],
+           f"left running after Stop: {lesson.handlers_left() + highlight.handlers_left()}")
+    t1 = time.time()
+    scene = ctx.fresh(CRANE_A)
+    lesson.start(scene, "crane", "SHOW")
+    try:
+        for k in (2, 3, 4):
+            st = lesson.step()
+            _check(lesson.state()["phase"] == "point", f"Show me does not point at step {k}")
+            now = time.time()
+            lesson.tick(scene, now=now)
+            _check(lesson.state()["phase"] == "point", f"Show me did step {k} before pointing at it")
+            lesson.tick(scene, now=now + lesson.SHOW_LATEST + 0.1)
+            _check(lesson.state()["phase"] == "done" and lesson.is_done(scene, st),
+                   f"Show me did not do step {k} '{st.title}': {lesson.state()['failed']}")
+            lesson.tick(scene, now=now + lesson.SHOW_LATEST + lesson.PLAY_PAUSE + 5.0)
+            _check(lesson.state()["phase"] == "done", "Show me went on without Next (Play on is off)")
+            bpy.ops.fresing.lesson_next()
+        _check(lesson.state()["step"] == 4, f"Show me is at step {lesson.state()['step'] + 1}, not 5")
+    finally:
+        lesson.stop(forget=True)
+    ctx.metric("lesson build", build_s, "s")
+    return (f"Build it yourself: 10 steps done for you in {build_s:.1f} s; Show me: steps 2–4 in "
+            f"{time.time() - t1:.1f} s; nothing left running")
 
 
 @line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",

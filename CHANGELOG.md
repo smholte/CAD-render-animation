@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.189 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+## 0.2.190 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
 
 - **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
   lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
@@ -28,6 +28,25 @@ installer of that version was built from.
   efficiency of API RP 9B), against the winch's maximum.
 - Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
   lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+## 0.2.189 – 21 Nov 2026 – Learn: Show me and Build it yourself on the sample projects (task 0230)
+
+- **Fresing > Learn…** lists the sample projects (the test tour's). **View** opens the finished one in the test tour.
+  **Crane** and **Milling a slot** now also have a lesson: **Show me** opens a new project with the plain model and the
+  app does each step itself – the button to press stands out in the side panel, the part is shown in the 3D view, a
+  card beside it says what happens – then waits for **Next** (or tick **Play on**). **Build it yourself** lets you do
+  each step: the app points, and goes on by itself once the project shows the step done, however you did it.
+  **Do it for me** does a step for you; **Back** (or Ctrl+Z) takes it back. The other samples get their lessons later.
+- The crane lesson (11 steps): light look, a rotate joint, a joint on a joint, a camera, a saved scene, an animation
+  with a step, Build & play, an exploded view, a picture in the render queue. The mill lesson (13 steps): three slide
+  axes, the bit, the workpiece, raw steel, chips, a close-up, the cut, Build & play and a picture of the cut.
+- A project saved half-way remembers its lesson: open it and the **Lesson** panel offers to go on where you stopped.
+  Starting a lesson asks first when your open project has unsaved changes. In the Client view a lesson waits.
+- **My learning list**: **Show me** and **Build** open the lesson of a function at its own step; the question about a
+  panel you never use offers **Show me in a lesson**.
+- The test tour: the crane and the mill are now made of their lessons' steps (View, Show me and Build it yourself give
+  the same project). The crane's "open sea" stop is gone (the vessel and sea-cable stops show the sea); its finished
+  video has a picture card and music; a new stop "Learn". New PC check line `app.lessons`; user guide chapter "Learn".
+
 ## 0.2.188 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
 
 - **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own

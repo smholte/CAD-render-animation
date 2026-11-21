@@ -43,7 +43,7 @@ def test_every_stop_is_complete():
         assert not set(ts.title) & set(':\\/*?"<>|'), ts.title
         assert any(s.set == ts.id for s in tour.STOPS), f"set {ts.id} has no stop"
     # the owner's open list (brief): each has its stop
-    for sid in ("materials", "cut_look", "decals", "faces", "sea", "looks", "joint", "stack", "cylinder", "mechanism",
+    for sid in ("materials", "cut_look", "decals", "faces", "looks", "joint", "stack", "cylinder", "mechanism",
                 "waycover", "copies", "update", "gcode", "tools", "hand", "atc", "chips", "air", "still", "turntable",
                 "finishing", "labels", "queue", "shapes"):
         assert tour.find(sid) is not None, sid
@@ -163,16 +163,16 @@ def test_go_mark_note_and_copy_buttons(built, tmp_path):
     assert bpy.ops.fresing.tour_go(stop="joint") == {"FINISHED"}
     assert bpy.context.scene.fresing.anim_baked == "Boom up"
     assert bpy.ops.fresing.tour_mark(stop="joint", state="OK") == {"FINISHED"}
-    assert bpy.ops.fresing.tour_mark(stop="sea", state="PROBLEM") == {"FINISHED"}
-    assert bpy.ops.fresing.tour_note("EXEC_DEFAULT", stop="sea", note="waves too high") == {"FINISHED"}
-    assert bpy.ops.fresing.tour_pick(stop="sea") == {"FINISHED"}
+    assert bpy.ops.fresing.tour_mark(stop="looks", state="PROBLEM") == {"FINISHED"}
+    assert bpy.ops.fresing.tour_note("EXEC_DEFAULT", stop="looks", note="rim too bright") == {"FINISHED"}
+    assert bpy.ops.fresing.tour_pick(stop="looks") == {"FINISHED"}
     data = tour.load_results(folder, "9.9.9")
-    assert data["current"] == "sea" and data["stops"]["sea"] == {"state": "PROBLEM", "note": "waves too high"}
+    assert data["current"] == "looks" and data["stops"]["looks"] == {"state": "PROBLEM", "note": "rim too bright"}
     assert bpy.ops.fresing.tour_copy() == {"FINISHED"}
     with open(tour.results_txt_path(folder, "9.9.9"), encoding="utf-8") as fh:
         text = fh.read()
-    sea = tour.find("sea")
-    assert f"[PROBLEM] {sea.title} (sea) - waves too high" in text and "[OK] Joint: the boom turns" in text
+    looks = tour.find("looks")
+    assert f"[PROBLEM] {looks.title} (looks) - rim too bright" in text and "[OK] Joint: the boom turns" in text
     # Go to a stop of another project opens it (in the app the stop is then set up after loading)
     assert bpy.ops.fresing.tour_go(stop="cylinder") == {"FINISHED"}
     assert bpy.context.scene[tour.TAG] == "cylinder"

@@ -63,6 +63,10 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         description="How a lesson shows the part to click in the 3D view",
         items=[("3", "Rest faded", "Everything else is faded, the part stays clear in its own colour"),
                ("1", "Glow", "The part is covered in a see-through glow that breathes slowly")])
+    lesson_play_on: BoolProperty(
+        name="Play on", default=False,
+        description="Show me goes on to the next step by itself after a short pause, instead of waiting for Next. "
+                    "Remembered for your next lessons")
     lesson_colour: FloatVectorProperty(
         name="Colour", subtype="COLOR_GAMMA", size=3, min=0.0, max=1.0, default=(0.278, 0.608, 0.161),
         description="The colour of the lesson highlight (Fresing Green to start with)")
@@ -129,6 +133,7 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         row = box.row(align=True)
         row.prop(self, "lesson_part")
         row.prop(self, "lesson_colour")
+        box.prop(self, "lesson_play_on")
         draw_backups(layout, self)
         draw_updates(layout, self)
 

@@ -82,6 +82,7 @@ PLACES = {
 OTHER = {
     "FRESING_PT_update": "Update available",
     "FRESING_PT_tour": "Test tour",
+    "FRESING_PT_lesson": "Lesson",
     "FRESING_PT_workspace": "Workspace",
     "FRESING_PT_favourites": "Favourites",
     "FRESING_PT_next": "What's next",
