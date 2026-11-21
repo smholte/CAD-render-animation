@@ -134,7 +134,25 @@ def main():
     info["s_per_frame"] = info["seconds"] / frames
     print(json.dumps(info))
     json.dump(info, open(os.path.join(cache, "bake.json"), "w"))
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(cache, "flip_s.blend"))
+    # render in this same session: reopening the saved file made Blender free the bake as "outdated" (and delete
+    # its files), and a scene built again re-simulates at every frame
+    if len(argv) > 3:
+        import bl
+        import numpy as np
+        out = argv[3]
+        bl.engine("CYCLES", 24)
+        ups = []
+        for f in range(min(frames, 30)):
+            a = time.perf_counter()
+            sc.frame_set(f)
+            bpy.context.evaluated_depsgraph_get()
+            ups.append(time.perf_counter() - a)
+        times = bl.render_frames(range(frames), out, lambda f: None)
+        res = dict(method="flip", engine="CYCLES", frames=frames, render_s_per_frame=float(np.median(times)),
+                   update_ms=1000 * float(np.median(ups)))
+        res["mp4_bytes"] = bl.mp4(out, os.path.join(out, "s_flip_cycles.mp4"))
+        json.dump(res, open(os.path.join(out, "times.json"), "w"), indent=1)
+        print(json.dumps(res), flush=True)
 
 
 if __name__ == "__main__":

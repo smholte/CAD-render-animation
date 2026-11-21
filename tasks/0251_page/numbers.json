@@ -1,0 +1,376 @@
+{
+ "standalone": [
+  {
+   "name": "Closed pocket fills and holds",
+   "pocket_cm3": 12.8,
+   "poured_cm3": 25.600000000000016,
+   "held_cm3": 12.864000000000004,
+   "in_pocket_cm3": 13.310085391206174,
+   "error_pct": 0.5000000000000243,
+   "ran_off_cm3": 10.142580816437253,
+   "balance": 6.617444900424217e-16,
+   "seconds": 17.66981217700004,
+   "frames": 336,
+   "cells": 10000
+  },
+  {
+   "name": "Open slot drains at its end",
+   "slot_cm3": 5.400000000000001,
+   "poured_cm3": 5.400000000000006,
+   "peak_cm3": 2.5048967570581655,
+   "left_cm3": 0.4463067193118922,
+   "left_pct": 8.264939246516514,
+   "half_s": 0.3333333333333333,
+   "ran_off_cm3": 4.952075903547599,
+   "balance": 6.274318127809626e-16,
+   "seconds": 3.158611586999996,
+   "frames": 288,
+   "cells": 4000
+  },
+  {
+   "name": "Tilted plate spills at the right angle",
+   "expected_deg": 14.036243467926479,
+   "spilled_at_deg": 14.874999999999996,
+   "error_deg": 0.8387565320735177,
+   "left_at_30deg_cm3": 3.381984714807764,
+   "expected_left_at_30deg_cm3": 3.4641016151377553,
+   "balance": 2.1175823681357508e-16,
+   "seconds": 10.965260145999764,
+   "frames": 288,
+   "cells": 6400
+  },
+  {
+   "name": "Sloped tray empties down its drain",
+   "poured_l": 0.33333333333333226,
+   "drained_l": 0.3187605232289951,
+   "peak_in_tray_cm3": 120.42263349652819,
+   "empty_95pct_s_after_stop": 22.375,
+   "film_left_cm3": 3.5967410286613966,
+   "left_cm3": 14.572810104337366,
+   "balance": 8.13151629364131e-16,
+   "seconds": 6.418422049999663,
+   "frames": 960,
+   "cells": 7500
+  },
+  {
+   "name": "Box stopped hard sloshes and settles",
+   "speed_m_s": 0.25,
+   "expected_period_s": 1.277101713628202,
+   "period_s": 1.245742092457421,
+   "first_wave_mm": 7.192361510062279,
+   "after_5s_mm": 3.314547144661879,
+   "settle_pct": 46.0842678725861,
+   "balance": 2.710505431213761e-16,
+   "seconds": 3.1183662640000875,
+   "frames": 240,
+   "cells": 2500
+  },
+  {
+   "name": "Nothing leaks through a wall",
+   "start_cm3": 19.2,
+   "worst_behind_wall_cm3": 0.0,
+   "volume_change": 0.0,
+   "seconds": 7.263905987000271,
+   "frames": 240,
+   "cells": 4800
+  },
+  {
+   "name": "Same frame, same liquid",
+   "identical": true
+  }
+ ],
+ "standalone_render": [
+  {
+   "test": "t1",
+   "frames": 96,
+   "render_s": 4.970885329999874,
+   "first_s": 3.3042797899997822,
+   "update_ms": 2.3880164999354747,
+   "mp4": 25995,
+   "fps": 7
+  },
+  {
+   "test": "t2",
+   "frames": 96,
+   "render_s": 2.3995800914999563,
+   "first_s": 2.2668456259998493,
+   "update_ms": 0.6913605002409895,
+   "mp4": 10421,
+   "fps": 8
+  },
+  {
+   "test": "t3",
+   "frames": 96,
+   "render_s": 3.56023494549936,
+   "first_s": 2.89469183500114,
+   "update_ms": 1.1092059994552983,
+   "mp4": 36058,
+   "fps": 8
+  },
+  {
+   "test": "t4",
+   "frames": 96,
+   "render_s": 4.253550075500243,
+   "first_s": 2.807946348000769,
+   "update_ms": 1.169288500022958,
+   "mp4": 19491,
+   "fps": 6
+  },
+  {
+   "test": "t5",
+   "frames": 96,
+   "render_s": 2.3664497500003563,
+   "first_s": 2.2173460589983733,
+   "update_ms": 0.466042500192998,
+   "mp4": 22794,
+   "fps": 10
+  },
+  {
+   "test": "t6",
+   "frames": 96,
+   "render_s": 3.198478113499732,
+   "first_s": 2.8991067610004393,
+   "update_ms": 0.8402455005125375,
+   "mp4": 60487,
+   "fps": 10
+  }
+ ],
+ "s_hf": {
+  "method": "hf",
+  "engine": "CYCLES",
+  "frames": 192,
+  "render_s_per_frame": 6.3844466020000255,
+  "first_frame_s": 5.22207554500028,
+  "update_ms": 106.33649650003463,
+  "total_s": 1223.592196645,
+  "mp4_bytes": 65814
+ },
+ "s_hf_eevee": {
+  "method": "hf",
+  "engine": "EEVEE",
+  "frames": 4,
+  "render_s_per_frame": 64.44234247700001,
+  "first_frame_s": 65.13848340000004,
+  "update_ms": 122.62707200011391,
+  "total_s": 256.29627192
+ },
+ "s_hf_workbench": {
+  "method": "hf",
+  "engine": "WORKBENCH",
+  "frames": 4,
+  "render_s_per_frame": 0.682877631500105,
+  "first_frame_s": 1.1641771590002463,
+  "update_ms": 108.72366850003345,
+  "total_s": 4.045351173999734
+ },
+ "s_pbf": {},
+ "s_flip": {},
+ "flip_bake": {},
+ "machines": {
+  "3": {
+   "kind": 3,
+   "frames": 289,
+   "build_s": 2.2525165090000883,
+   "rays_first_s": 0.11897680699985358,
+   "frame_pass_s": 7.097235613000521,
+   "cut_rays_s": 2.824374140006512,
+   "liquid_bake_s": 29.753399533999982,
+   "liquid_ms_per_frame": 102.95293956401377,
+   "cache_bytes": 13390635,
+   "cells": 44000,
+   "totals_end": {
+    "poured": 529.1666666666644,
+    "on_charts": 518.0952121440362,
+    "in_flight": 0.1713308947638785,
+    "drained": 0.18627090904436663,
+    "floor": 10.713852718822293
+   },
+   "charts": {
+    "table": [
+     150,
+     200
+    ],
+    "tray": [
+     100,
+     140
+    ]
+   },
+   "flow_l_min": 3.0,
+   "render_s_per_frame": 5.283478660000583,
+   "update_ms": 9.00686749992019,
+   "engine": "CYCLES",
+   "mp4_bytes": 128258
+  },
+  "4": {
+   "kind": 4,
+   "frames": 289,
+   "build_s": 11.094692987000599,
+   "rays_first_s": 0.017667877000349108,
+   "frame_pass_s": 21.08640665999974,
+   "cut_rays_s": 6.274446249000903,
+   "liquid_bake_s": 20.97919625099985,
+   "liquid_ms_per_frame": 72.59237457093373,
+   "cache_bytes": 28909207,
+   "cells": 22000,
+   "totals_end": {
+    "poured": 599.9999999999973,
+    "on_charts": 580.326763883169,
+    "in_flight": 5.532622020117991,
+    "drained": 11.172227360663253,
+    "floor": 2.9683867360496388
+   },
+   "charts": {
+    "bar 0": [
+     25,
+     160
+    ],
+    "bar 1": [
+     25,
+     160
+    ],
+    "bar 2": [
+     25,
+     160
+    ],
+    "bar 3": [
+     25,
+     160
+    ],
+    "tray": [
+     60,
+     100
+    ]
+   },
+   "flow_l_min": 3.0,
+   "render_s_per_frame": 5.477329473999816,
+   "update_ms": 7.846694999443571,
+   "engine": "CYCLES",
+   "mp4_bytes": 153213
+  },
+  "5": {
+   "kind": 5,
+   "frames": 289,
+   "build_s": 2.9639884449998135,
+   "rays_first_s": 0.04955455700019229,
+   "frame_pass_s": 5.230502559000342,
+   "cut_rays_s": 0.6847899989952566,
+   "liquid_bake_s": 15.877539617000366,
+   "liquid_ms_per_frame": 54.939583449828255,
+   "cache_bytes": 6523506,
+   "cells": 19869,
+   "totals_end": {
+    "poured": 602.0833333333305,
+    "on_charts": 588.0890155407063,
+    "in_flight": 9.581900038005159,
+    "drained": 0.0,
+    "floor": 4.41241775462186
+   },
+   "charts": {
+    "table C": [
+     93,
+     93
+    ],
+    "cradle": [
+     60,
+     87
+    ],
+    "tray": [
+     60,
+     100
+    ]
+   },
+   "flow_l_min": 3.0,
+   "render_s_per_frame": 5.402939166999204,
+   "update_ms": 6.014198999764631,
+   "engine": "CYCLES",
+   "mp4_bytes": 125135
+  }
+ },
+ "m3_eevee": {
+  "kind": 3,
+  "frames": 289,
+  "build_s": 2.5519695240000146,
+  "rays_first_s": 0.1404066340001009,
+  "frame_pass_s": 8.031590948001394,
+  "cut_rays_s": 3.17144211300365,
+  "liquid_bake_s": 31.930789177000406,
+  "liquid_ms_per_frame": 110.48715978200832,
+  "cache_bytes": 13390635,
+  "cells": 44000,
+  "totals_end": {
+   "poured": 529.1666666666644,
+   "on_charts": 518.0952121440362,
+   "in_flight": 0.1713308947638785,
+   "drained": 0.18627090904436663,
+   "floor": 10.713852718822293
+  },
+  "charts": {
+   "table": [
+    150,
+    200
+   ],
+   "tray": [
+    100,
+    140
+   ]
+  },
+  "flow_l_min": 3.0,
+  "render_s_per_frame": 59.19913974300016,
+  "update_ms": 9.956531000170799,
+  "engine": "EEVEE"
+ },
+ "m3_workbench": {
+  "kind": 3,
+  "frames": 289,
+  "build_s": 2.3259274539996113,
+  "rays_first_s": 0.13324760400064406,
+  "frame_pass_s": 7.484126311999717,
+  "cut_rays_s": 2.992963315995439,
+  "liquid_bake_s": 31.47034725100093,
+  "liquid_ms_per_frame": 108.89393512457069,
+  "cache_bytes": 13390635,
+  "cells": 44000,
+  "totals_end": {
+   "poured": 529.1666666666644,
+   "on_charts": 518.0952121440362,
+   "in_flight": 0.1713308947638785,
+   "drained": 0.18627090904436663,
+   "floor": 10.713852718822293
+  },
+  "charts": {
+   "table": [
+    150,
+    200
+   ],
+   "tray": [
+    100,
+    140
+   ]
+  },
+  "flow_l_min": 3.0,
+  "render_s_per_frame": 0.6829392274994461,
+  "update_ms": 9.421429000212811,
+  "engine": "WORKBENCH"
+ },
+ "extra": {
+  "hf_bake_s": 14.853145668000252,
+  "hf_ms": 77.36013368750132,
+  "hf_cache_mb": 6.324801,
+  "hf_totals_end": {
+   "poured": 93.05555555555563,
+   "on_charts": 69.93702767651251,
+   "in_flight": 0.11359138609316018,
+   "drained": 21.378381239190908,
+   "floor": 1.626555253758991
+  },
+  "pbf_ms_first2s": 644.6149056041577,
+  "pbf_particles_at_2s": 7452,
+  "pbf_particles": 11602,
+  "pbf_cache_mb": 16.678109,
+  "pbf_bake_s_contended": 505.051633949,
+  "hf_update_ms": 7.307629000024463,
+  "hf_update_ms_max": 8.974176999799965,
+  "flip_8s_min": 132.8,
+  "flip_cells": "96 x 59 x 42 (5.4 mm)"
+ }
+}

@@ -212,18 +212,19 @@ def drop_radii(vols, cap=1.6e-3, floor=0.35e-3):
 
 
 def split_drops(P, vols, cap=1.2e-3, step=None, seed_axis=2):
-    """A big volume is drawn as a short stream of drops (deterministic: spaced along -z)."""
+    """A big volume is drawn as a short stream of up to 4 drops (deterministic: spaced along +z)."""
+    P = np.asarray(P, float).reshape(-1, 3)
+    vols = np.asarray(vols, float)
+    if not len(vols):
+        return np.zeros((0, 3)), np.zeros(0)
     vcap = 4 / 3 * np.pi * (cap / 1.4) ** 3
-    out_p, out_r = [], []
-    for p, v in zip(P, vols):
-        k = int(min(4, max(1, np.ceil(v / vcap))))
-        r = drop_radii(np.array([v / k]))[0]
-        for i in range(k):
-            q = np.array(p, float)
-            q[seed_axis] += i * 2.2 * r
-            out_p.append(q)
-            out_r.append(r)
-    return np.array(out_p).reshape(-1, 3), np.array(out_r)
+    k = np.clip(np.ceil(vols / vcap), 1, 4).astype(int)
+    r = drop_radii(vols / k, cap)
+    idx = np.repeat(np.arange(len(vols)), k)
+    i = np.arange(len(idx)) - np.repeat(np.cumsum(k) - k, k)
+    out = P[idx].copy()
+    out[:, seed_axis] += i * 2.2 * r[idx]
+    return out, r[idx]
 
 
 # ---------------------------------------------------------------------------------------------------------------

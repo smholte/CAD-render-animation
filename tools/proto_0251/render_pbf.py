@@ -21,8 +21,9 @@ def surface_object(name, mat, spacing):
     m2p.inputs["Radius"].default_value = 0.75 * spacing
     p2v = n.new("GeometryNodePointsToVolume")
     p2v.inputs["Density"].default_value = 1.0
-    if "Voxel Size" in p2v.inputs:
-        p2v.inputs["Voxel Size"].default_value = 0.4 * spacing
+    p2v.inputs["Resolution Mode"].default_value = "Size"
+    p2v.inputs["Voxel Size"].default_value = 0.4 * spacing
+    p2v.inputs["Radius"].default_value = 0.85 * spacing
     v2m = n.new("GeometryNodeVolumeToMesh")
     if "Threshold" in v2m.inputs:
         v2m.inputs["Threshold"].default_value = 0.3
@@ -42,7 +43,7 @@ def surface_object(name, mat, spacing):
 
 
 def setup(npz, sc, carrier, place):
-    D = np.load(npz)
+    D = dict(np.load(npz))
     sp = float(D["spacing"])
     mat = bl.liquid_material("Liquid pbf")
     # no depth attribute on a meshed volume: full liquid look

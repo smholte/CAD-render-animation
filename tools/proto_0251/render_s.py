@@ -89,7 +89,7 @@ def jet_drops(f):
 
 
 def setup_hf(npz, sc, carrier, place):
-    D = np.load(npz)
+    D = dict(np.load(npz))          # into memory once (an npz decompresses a whole array at every access)
     liq = bl.liquid_material()
     dm = bl.drop_material()
     x0, y0, cell = D["plate_x0"]
