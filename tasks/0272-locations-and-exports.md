@@ -47,6 +47,32 @@ decision **0004** ("where do renders go").
    - The old **Shared library** folder becomes, on first start, a "Mine" location for every kind with today's sub-folder
      layout (`HDRI`, `Templates`, `Rule sets`, `Logos`, `Stickers`, `Brand kits`, `Lifting equipment`) – nothing a user
      has today disappears.
+   **One file (owner 21 Nov 17:53):** "the set-up should be only one file or one zip, so a user or organisation can
+   easily copy and paste one file to and from the app; updating from set-up files should be easy, also when the old
+   and new file have different names." So a set-up is **one file, `<name>.frsetup`** (a zip): `setup.json` (a fixed
+   **id**, name, level, label, **version** + date, who made it, the settings it sets, locations, export places,
+   defaults, first-start choices) and, optionally, the **content** itself in folders (Materials, Logos, Stickers,
+   Templates, Rule sets, Workspaces, Brand kits, Lifting equipment, Backgrounds) – so a small company without a network
+   share can hand out everything in one file. Folder paths inside it may be absolute (the company share) or point at
+   its own content.
+   - **Bring one in:** Settings > Locations > **Add a set-up file…**, dropping the file on the app window (a Blender
+     file handler, if Blender allows it for this kind – say), or the first-start set-up (0276). The app **copies** it
+     into its settings folder (content unpacked there, read-only) **or links** it where it lies (network / synced
+     folder: changes there are picked up at the next start) – the user picks, link is the default for a network path.
+   - **Update:** a file with the **same id** is the same set-up whatever its file name: newer version → "Update
+     *Offshore department* from version 3 to 4?" with the list of what changes (settings, folders, content added /
+     changed / removed) → Update / Keep the old one; older → says so, asks before going back; same version, other
+     content → shows the difference. A linked file that changed on the share: one quiet notice "Company set-up
+     updated (3 → 4)", Show changes.
+   - **Make one:** **Save as a set-up file…** – the user's own settings / locations / export places, ticks for what goes
+     in (and which content folders to pack), level and label, version raised by itself when saving over an older one
+     with the same id. **Edit this set-up file** (for the one who looks after it) does the same on an existing file.
+   - **What differs from standard:** the Locations tab (and 0276's first start) can show **"Different from standard"**
+     – every setting and folder where the active set-ups or the user's own choices differ from the app's defaults,
+     each with where it comes from (Company v4 / Offshore department v2 / Mine), and **Back to standard** per row for
+     the user's own ones.
+   - Checks with plain-word refusals: not a Fresing set-up, made by a newer app version (what is left out), content
+     with an unknown kind, a zip that would write outside its folder (path check), files over a size limit (say which).
    **Owner's answers 21 Nov 17:39:** set-up files may be local or on the network; same names → both shown with
    badges (agreed); the default export place stays **Renders next to the project** (agreed – 0004).
 3. **Merging:** lists show every item from every folder, sorted by name, each with its badge (Built-in · Company ·
@@ -77,6 +103,8 @@ decision **0004** ("where do renders go").
 
 ## Done when
 
+- [ ] The `.frsetup` file: save, add (copy / link), update by id with the change list, Different from standard; tests
+      incl. a renamed newer file, an older file, a damaged zip, a zip with a path outside its folder
 - [ ] `core/locations.py` with tests (merge, same names, read-only, unreachable folder, relative paths, the set-up
       file's checks with plain-word errors)
 - [ ] Every listed reader goes through it; a test proves no reader still builds its own library path
