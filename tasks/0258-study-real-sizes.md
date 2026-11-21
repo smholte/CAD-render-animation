@@ -1,6 +1,6 @@
 # 0258 – Study (findings only): is every test model, prop and person real size? A measured table, a proposed real size per model, and the model categories for the redo
 
-**Who:** worker · **Status:** open – can start (findings only, not a code task) · **Branch:** `task/0258-study-real-sizes`
+**Who:** worker · **Status:** running · **Branch:** `task/0258-study-real-sizes`
 **Started by:** lead, 21 Nov 2026 (owner 14:13, two screenshots of the test crane beside a person and an IBC on the
 quay: "the demo crane used a lot of places should not be this small compared to other models. make sure that the scale
 is realistic. and check the size of other objects as well." His pick 14:20: **study first, then one fix task per model
