@@ -115,7 +115,7 @@ h2 { font-size: 1.6rem; font-weight: 600; }
 .arrow.next { right: -14px; }
 .arrow:hover:not(:disabled) { background: var(--green); border-color: var(--green); color: var(--white); }
 .arrow:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
-.arrow:disabled { opacity: .35; cursor: default; box-shadow: none; }
+.arrow:disabled { visibility: hidden; }   /* at an end the button goes: it would cover the first picture */
 .row.fits .arrow { display: none; }
 /* "How it's done": guide links under a picture, video or 3D model (task 0124) */
 .how { display: block; margin-top: 4px; font-size: .85rem; }
@@ -239,6 +239,7 @@ h2 { font-size: 1.6rem; font-weight: 600; }
   .bar-in { flex-wrap: wrap; height: auto; padding-top: 10px; gap: 8px 16px; }
   .bar nav { order: 3; width: 100%; margin: 0; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; }
   .bar nav::-webkit-scrollbar { display: none; }
+  .bar nav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); padding-right: 40px; }
   .tools { margin-left: auto; }
   section[id], h2[id] { scroll-margin-top: 104px; }
 }
