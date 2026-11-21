@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.185 – 20 Nov 2026 – No long freeze for a riding camera after a sea change (task 0238)
+## 0.2.186 – 21 Nov 2026 – No long freeze for a riding camera after a sea change (task 0238)
 
 - **The window keeps moving while the camera is worked out again.** After a change of the sea (Calm → Rough, the water
   level) a camera step that rides on a part was worked out again in one go: on the full demo (4,481 frames) the window
@@ -13,6 +13,10 @@ installer of that version was built from.
   frames as the hoses and cables, a frame at a time, with the progress bar moving and Cancel working; its own last step
   takes about half a second. The whole re-bake on the demo is about 11 s shorter (103 → 91 s on the 4-core test machine).
   The camera's path is the same as before.
+
+## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
+
+The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.
 
 ## 0.2.184 – 20 Nov 2026 – A quiet window (task 0241)
 
