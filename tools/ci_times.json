@@ -264,7 +264,9 @@
   "tests/test_demo_project_realism.py": 91.1,
   "tests/test_demo_project_update.py": 137.0,
   "tests/test_lessons.py": 25.0,
-  "tests/test_lessons_independent.py": 55.0
+  "tests/test_lessons_independent.py": 60.0,
+  "tests/test_backups_blender.py": 5.0,
+  "tests/test_backups_core.py": 0.5
  },
  "jobs": {
   "Precheck (version, counts, groups; picks the mode)": 0.5,
@@ -1492,7 +1494,7 @@
    25.0
   ],
   "tests/test_lessons_independent.py": [
-   55.0
+   60.0
   ]
  }
 }

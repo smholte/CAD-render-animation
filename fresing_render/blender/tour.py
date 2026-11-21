@@ -488,7 +488,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.187")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.188")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -928,7 +928,7 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47")
+@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.187")
 def build_faces(b: Build):
     import bpy
 
@@ -1124,7 +1124,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.187")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.188")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -4468,7 +4468,7 @@ stop("finishing", OUT, HUB_SET, "Finished video: cards, captions",
      "TEST TOUR watermark, the logo as a picture card in a corner and a soft chord as music. They are put on in the "
      "rendered MP4 video: render it with the queue (Render queue stop).",
      where=f"{places.where('finishing')}; {places.where('brand')}; {places.where('cards')}; {places.where('music')}",
-     animation="Finished video", check=_check_finishing, since="0.2.47", changed="0.2.187")
+     animation="Finished video", check=_check_finishing, since="0.2.47", changed="0.2.188")
 stop("labels", OUT, HUB_SET, "Labels with lines",
      "Two labels, 'Boom' and 'Trolley', with lines to their parts. Labels are drawn in rendered pictures and "
      "videos: press Render picture to see them.", where=places.where("labels"), check=_check_labels,
@@ -4945,8 +4945,39 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'.",
      where="Fresing menu > Learn…; the Lesson panel at the top of the Fresing tab while a lesson runs",
-     since="0.2.187", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.188", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
+
+
+def _backup_setup(scene):
+    """Task 0246: a backup of the tour project, made now (as the timer does after 5 minutes of work)."""
+    from . import backups
+    backups.make(scene, force=True)
+
+
+def _check_backups(scene):
+    import bpy
+
+    from ..core import backups as core
+    from . import backups, ui_topbar
+    _check("fresing.backups_window" in ui_topbar.entries(), "Restore a backup… is not in the Fresing menu")
+    _check(bool(bpy.data.filepath), "the tour project has no file: no Backups folder next to it")
+    found = backups.project_backups()
+    _check(bool(found), "no backup of the tour project: " + (backups._S.get("last_reason") or "none was made"))
+    folder = os.path.dirname(found[0].path)
+    _check(folder == core.folder_next_to(bpy.data.filepath), f"the backup is not next to the project but in {folder}")
+    others = [n for n in os.listdir(folder) if core.parse(n, core.project_name(bpy.data.filepath)) is None]
+    _check(not others, f"other files in the Backups folder: {others}")
+    return f"{len(found)} backup(s) of the tour project, {core.size_text(core.total_size(found))}"
+
+
+stop("backups", OUT, "faces", "Automatic backups",
+     "Fresing > Restore a backup… lists a backup of this tour project made just now (Today and the time, its size), "
+     "with Restore and a folder button. Restore keeps your work as a backup first, then opens the backup. In Edit > "
+     "Preferences > Add-ons > Fresing Render the box Automatic backups has the switch, every 5 minutes, keep the last 5 "
+     "and one a day for 7 days.",
+     where="Fresing menu > Restore a backup…; Edit > Preferences > Add-ons > Fresing Render > Automatic backups",
+     since="0.2.187", shot="Painted faces", check=_check_backups, setup=_backup_setup)
 
 # ---------------------------------------------------------------------------
 # every machining stop: the block shows what the program does (task 0223)

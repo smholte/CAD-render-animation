@@ -177,13 +177,13 @@ fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the 
 # ----- learning: lessons on the sample projects (task 0230) -----
 fn(id="learn.window", short="Learn", headline=True, title="Learn: sample projects to View, Show me or Build it yourself", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_lessons", guide="learn", tour=("lessons",),
-   pccheck=("app.lessons",), since="0.2.187")
+   pccheck=("app.lessons",), since="0.2.188")
 fn(id="learn.show_me", short="Show me", title="Show me: the app does each step of a lesson", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_start", text="Show me", guide="learn-show-me", tour=("lessons",), pccheck=("app.lessons",),
-   since="0.2.187")
+   since="0.2.188")
 fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that waits until you did each step", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.learn_start", text="Build it yourself", guide="learn-build",
-   tour=("lessons",), pccheck=("app.lessons",), since="0.2.187")
+   tour=("lessons",), pccheck=("app.lessons",), since="0.2.188")
 
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
@@ -590,6 +590,10 @@ fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar 
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")
 
+fn(id="help.backups", headline=True, short="Backups", title="Automatic backups every 5 minutes next to the project; "
+   "Fresing > Restore a backup… puts one back", family="help", panel="TOPBAR_MT_fresing", button="fresing.backups_window",
+   guide="backups", tour=("backups",), pccheck=("backups.makes_one",), since="0.2.187",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")
