@@ -320,6 +320,13 @@ fresing_render/            the Blender extension (Python package)
                            profiles; no network import – tested)
                            learning.py (task 0208: the learning list and the quiet "next to learn" – the part ``learning`` of the
                            usage file: list, use days, turned-down ids, rules; no network import – tested)
+                           liquid.py (task 0255: coolant liquid as a shallow-liquid height field – charts riding on their
+                           carriers, effective gravity per cell, open edges / walls / drains, drops between charts, pours,
+                           the spinning tool (thrown drops at ωR, a swirl), a push per cell (air later), velocities out
+                           (chips later); tiles: dry ones skipped exactly, still ones held; element-wise windows, so the
+                           result is the same bit for bit with any helper count), liquid_pool.py (its helper processes on
+                           shared memory, started as the STEP reader's), liquid_cache.py (the bake on disk: 8-bit steps of
+                           0.05 mm where wet, random access, a fingerprint)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
