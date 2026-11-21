@@ -55,6 +55,11 @@ after the app is closed and opened again.
    Search the whole repository once more (`git grep -n -E "1[–-]7|1 to 7|seven sections"`) and fix any other user-facing
    one; better still, write the number from `places.SECTIONS` where a text is made in code, so a ninth section
    needs no hunt.
+8. **Short tooltips on the section tabs All · 1 … 8** (owner 21 Nov 22:45, screenshot of tab 3's tooltip "Shows only 3
+   Looks, opened: the other sections are out of the way until you click All again": "only short 'Looks' or so, this
+   goes for sections 1–8"). Tab 1–8: just the section's name ("Import", "Structure", "Looks", … "Lifting plan");
+   **All**: "All sections". Both places in `panels.py` (`FRESING_OT_panel_tab.description` ~line 463 and `_tab_items`
+   ~line 491). The longer explanation (Ctrl+click, out of the way until All) stays in the guide only.
 
 ## Done when
 
@@ -63,6 +68,7 @@ after the app is closed and opened again.
 - [ ] Lessons, texts, guide and function list point to the left panel's buttons; the crane and mill lessons pass
 - [ ] Favourites folds; its fold (and every other left section's) survives a restart – real-app test
 - [ ] `changed=` on the touched functions and tour stops (`python3 tools/tour_versions.py --record`)
+- [ ] Section tabs' tooltips are the section's name only; All = "All sections" (step 8)
 - [ ] No user-facing "1–7" / "seven sections" left (step 7)
 - [ ] Guide pictures redone (`tools/ui_screens.py`); full suite + GitHub run green
 - [ ] Report below filled in; merged, version, release (CLAUDE.md section 7)
