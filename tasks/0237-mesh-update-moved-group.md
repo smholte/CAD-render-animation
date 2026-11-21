@@ -1,6 +1,6 @@
 # 0237 – Fix from bug hunt 0209, group G: a mesh model update of a moved group whose part also changed
 
-**Who:** worker · **Status:** running · **Branch:** `task/0237-mesh-update-moved-group`
+**Who:** worker · **Status:** done (0.2.186) · **Branch:** `task/0237-mesh-update-moved-group`
 **Started by:** lead, 20 Nov 2026 (bug hunt 0209 row 5; after 0214) · **Model:** Opus · effort Medium
 **Area:** Import lane – `blender/reimport.py` (`_made_assemblies` and the pairing of unnamed parts; nothing else in it),
 `tools/make_test_mesh.py` only if a new test file is needed, tests (`tests/test_reimport*` / `test_mesh*`).
@@ -72,7 +72,8 @@ STEP updates (unchanged), lifting loads on updates (0214 done), other 0209 rows.
   file 1,500: 7.4 → 7.6 s, 3,000: 21.8 → 22.9 s (noise level); 3,000 unnamed boxes in a group moved 100 mm (+ a fixed
   group): 23.4 → 23.3 s, and now 3,003 kept instead of 3 kept / 3,000 new / 3,000 missing; 1,000 identical unnamed
   boxes moved: 5.4 → 4.9 s, all kept (was 1,000 new / missing). The EGR model itself was not run (not on this machine).
-- GitHub: see below.
+- GitHub: 2 full runs, both green – run 44836081391 (the branch), run 44843341700 after merging main (0.2.185 had
+  gone to task 0239 meanwhile: renumbered to 0.2.186); main fast-forwarded to that commit.
 
 **Subagents / independent review:** none (skipped to save usage; the change is pure matching logic with its own tests).
 
