@@ -1,6 +1,6 @@
 # 0233 – Learning sets in their own environments: the workshop and studio sets (framing, links, fitting surroundings)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0233-learning-sets-workshop`
+**Who:** worker · **Status:** open – waits for 0259 (test crane at real size) and the 0258 size study · **Branch:** `task/0233-learning-sets-workshop`
 **Started by:** lead, 20 Nov 2026 (study 0224 package D, widened by the owner's answers 20 Nov: the tour is the users'
 learning environment; **each set its own environment that fits the project and shows off its functions – from plain, to
 see-through, to a full ocean or a factory**) · **Model:** Sonnet · effort Medium
@@ -14,6 +14,16 @@ only); the guide's tour lines if they name these stops. No test model changes, n
 Each of these learning sets opens in surroundings that fit what it teaches – machines in a factory or workshop hall,
 looks and product videos in a clean studio, Slice in a see-through view, people and props on a quay or in a warehouse
 round real-size things, weather outdoors – with cameras that frame the subject, so the set can be shown as it is.
+
+## Changed 21 Nov 2026 (lead) – real sizes first
+
+The owner (21 Nov 14:13): the test crane "should not be this small compared to other models – make sure the scale is
+realistic, and check the size of other objects". So: **0259** makes the test crane real size (×5: boom ~7.5 m, boom pin
+~2 m) – it is the model of `looks`, `cutaway`, `copies`, `update`, `props`, `people`, `weather`; **0258** measures every
+other model and proposes real sizes. Start after 0259 is merged and 0258's table is on `main`. For a set whose model
+0258 marks "too small" and whose fix task has not run yet: give it its environment, but frame it loosely and say in the
+report that its fix task re-frames it. **No more "desk-size on a workbench"** for machines (owner's rule); the
+`people` fix of study 0224 (people round a real-size prop) still holds – with the real-size crane the crane may stay.
 
 ## Background
 
@@ -30,7 +40,7 @@ round real-size things, weather outdoors – with cameras that frame the subject
 - **Lead's default per set** (change it where another fits better – say why in the report): `looks` studio (showroom
   light, closer camera on the worn group); `cutaway` see-through (Slice shown in the studio); `cylinder`, `linkage`,
   `waycover`, `waycover2`, `hoses`, `chains`, `swivel`, `clash`, `copies`, `update`, `mesh` a hall (`FACTORY` /
-  `ASSEMBLY`; a desk-size test model on a workbench or stand prop where that reads better than on the floor);
+  `ASSEMBLY`; machines stand **at real size on the floor** – a workbench only for things that are really that small);
   `cables`, `served` `WAREHOUSE` or `FACTORY`; `sequence`, `productvideo`, `sequenceframe` studio (product-video look);
   `props`, `people` `QUAY` or `WAREHOUSE` with real-size props (container, pallet, IBC – 0155's props); `weather`
   outdoors (`QUAY`) with a floodlit spot for night.

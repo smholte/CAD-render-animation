@@ -4,7 +4,7 @@
 **Started by:** lead chat, 13 Nov 2026 (owner's wish: "also allow adding environment, like the moving sea and weather")
 **Lane:** Web 3D: `blender/web3d.py`, `core/web3d.py`, `ops_web3d.py`, `ui_web3d.py`, `fresing_render/web/` (the viewer
 page and its bundled libraries), their tests; the website's viewer page `site/model/` + `tools/build_site.py` only as far
-as a viewer change needs it (the site keeps its model). **Read only:** `surroundings.py` (the `SEA` table, `_waves`),
+as a viewer change needs it (the site keeps its model). **Read only:** `surroundings.py` (the `SEA` table, *(picture removed – private, task 0226)*),
 `world.py` / `studio` (light looks, sky, sun height, 360° photo), `vessel_motion.py` / `core/vessel_motion.py` (heave,
 pitch, roll numbers). Additive: `props.py` (`FRWeb3D`), the tour, the PC check, the guide.
 **Model:** **Opus · effort High** (subagents allowed, CLAUDE.md section 2) · **Place:** Claude Code on the web,
@@ -32,7 +32,7 @@ page for a phone stays smooth and a page for a big screen looks its best. Still 
   viewer, keep what the page does today: start in the app's Iso view, turn/zoom/pan by mouse and touch, the animation
   loop, the compressed model, the website's "Turn it yourself" page (`build_site.py --check` stays green).
 - The app's sea: `surroundings.SEA` (Calm 0.25 m swell, Rough 1.6 m, wavelengths, ripple bump, foam threshold) and
-  `_waves` (seeded directions/phases); vessel motion (task 0085) adds a long swell and moves model + deck by sine
+  *(picture removed – private, task 0226)* (seeded directions/phases); vessel motion (task 0085) adds a long swell and moves model + deck by sine
   drivers (heave / pitch / roll, heading, strength, roll period, pivot; "Still / Level" parts). The page should use
   **the same numbers in the same formulas in JavaScript**, so the sea and the vessel on the page move like the app's
   (no per-frame data in the file).
@@ -60,7 +60,7 @@ page for a phone stays smooth and a page for a big screen looks its best. Still 
      size, sky picture size, pixel ratio; plus **Auto** on the page: it lowers quality by itself when it cannot keep
      ~30 frames per second (and says so in a small corner note), so one page works on a phone and a PC.
    - The result line adds what the surroundings cost in the file (MB).
-2. **Sea on the page:** an endless sea to the horizon – the app's swell waves (same `SEA` + `_waves` numbers and
+2. **Sea on the page:** an endless sea to the horizon – the app's swell waves (same `SEA` + *(picture removed – private, task 0226)* numbers and
    seed) on a grid round the model, ripples by a moving normal map further out, foam/white caps in Rough, the water
    level and the hull's waterline as in the app. Off when the project has no sea surroundings (unless ticked).
 3. **Vessel motion:** the model (and deck) heave, pitch and roll on the page with the app's formula and numbers, in
@@ -184,8 +184,8 @@ so fps only compare levels):
   2.0 / 1.9 / 2.2 s, 3.3 / 3.5 / 0.4 fps (Phone / Balanced / Best). Sea points 9,985 / 37,633 / 101,761, rain drops
   975 / 2,600 / 5,850. Auto at Best in software GL steps down within ~3 s (test). Pixel ratio does not show in headless
   (device pixel ratio 1). Real fps on the owner's RTX 3090: to be measured by him.
-- Pictures (demo vessel, same camera, invented model): `tasks/img/0106_calm.jpg`, `_clouds`, `_haze`, `_sunset`,
-  `_overcast_rain` (overcast + rain + haze on the calm waves).
+- Pictures (demo vessel, same camera, invented model): *(picture removed – private, task 0226)*,
+  *(picture removed – private, task 0226)* (overcast + rain + haze on the calm waves).
 - Guide picture made with `tools/guide_screens.py`; tooltip check 0 missing; precheck passed.
 
 **Subagents:** (1) independent tester (did not write the page) – 28 settings variants, phone sizes, touch, Auto,

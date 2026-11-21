@@ -11,7 +11,7 @@ check, the guide.
 **Model:** **Fable · effort High** (subagents, CLAUDE.md section 2) – or Opus · High to save usage · **Place:** Claude Code
 on the web, environment "CAD-render-animation"
 **Runs beside:** 0079 (Flex parts + Demo models: `demo.py`, flex/paths files), 0106 (Web 3D files; it **reads**
-`surroundings.SEA` / `_waves` and the sky settings), 0108 (CI/test machinery). Touch none of their files.
+`surroundings.SEA` / *(picture removed – private, task 0226)* and the sky settings), 0108 (CI/test machinery). Touch none of their files.
 **Afterwards:** a Web 3D task brings this weather onto the web page (after 0106 and this task; the lead briefs it).
 
 ## Goal
@@ -32,7 +32,7 @@ the render queue too, on Cycles and EEVEE.
   (`WEATHER_ITEMS`), sun height, light rotation / strength, exposure (`props`, `world.py`); surroundings open sea, vessel
   deck, quayside, halls (`surroundings.py`, task 0016); the sea `SEA` Calm / Rough (swell, wavelengths, ripples,
   foam) with moving waves (geometry near the machine in Detailed); vessel motion adds a long swell (0085).
-- 0106 (running) copies today's `surroundings.SEA` and `_waves` into the web page. **The sea may change here** (owner,
+- 0106 (running) copies today's `surroundings.SEA` and *(picture removed – private, task 0226)* into the web page. **The sea may change here** (owner,
   13 Nov: it looks wrong, scope 0): put the new sea's definition – wave components, heights, crest/foam rule, colours –
   in **one pure-Python place** (`core/sea.py`, unit-tested: height and foam at a point and a time) so the later Web 3D
   task can copy it to the page. Do not edit 0106's files.
@@ -50,7 +50,7 @@ the render queue too, on Cycles and EEVEE.
    white, spaced at the main wavelength – stripes, not a sea; the pattern repeats visibly from above; the water is a flat
    dark green-grey; no foam where the hull meets the water. **Cause in the code** (`surroundings._water_shader`): foam =
    the crest attribute `fr_crest` + 0.35 × noise over a threshold (Rough 0.55), so every crest of the 70 m wave turns
-   white along its whole length; only 5–6 wave components (directions 25° ± 35°, `_waves`) plus vessel motion's swell;
+   white along its whole length; only 5–6 wave components (directions 25° ± 35°, *(picture removed – private, task 0226)*) plus vessel motion's swell;
    base colour (0.006, 0.03, 0.035) with little sky in it. **Aim:**
    - whitecaps only where waves are steep or breaking, patchy, short-lived and drifting; **coverage from the wind**
      (Bft 3 ≈ hardly any, Bft 6 ≈ a few per cent, storm much more; streaks of foam along the wind from about Bft 7) –
@@ -151,10 +151,10 @@ made of sines that drifts along the wind and lives a few seconds; streaks along 
 in the coverage part, so Python and the shader agree); `foam_threshold(bft) -> float` (calibrated so the share of sea
 above it equals the Monahan coverage; `core/weather.derive` already calls it for the `foam` channel); `STATES =
 {"CALM": 3.0, "ROUGH": 6.0}` (Beaufort; today's two choices); water colours. `blender/surroundings.py`: `SEA` and
-`_waves(state, swell=())` stay (0106 reads them; `_waves` returns the new components for CALM/ROUGH/WIND);
+`_waves(state, swell=())` stay (0106 reads them; *(picture removed – private, task 0226)* returns the new components for CALM/ROUGH/WIND);
 `s.sea_state` has a third item `WIND` ("From the wind": `scene["fr_wx_wind"]`… read the *settings*
 `scene.fresing.weather.wind` and `core.weather.wind_vector(weather.state(scene))` at build; the sea is rebuilt when
-they change – put them in `_settings_key`); the water shader reads the `foam` threshold from the channel when
+they change – put them in *(picture removed – private, task 0226)*); the water shader reads the `foam` threshold from the channel when
 `scene.fresing.weather.enabled` (VIEW_LAYER attribute `fr_wx_foam`), else from `foam_threshold(STATES[state])`;
 normals from the analytic slope (no repeat far away); deep-water colour + Fresnel + crest scatter, right under Sun and
 Overcast; **hull foam** at the waterline that follows heave and roll (e.g. a footprint line of the model at the water,
@@ -165,7 +165,7 @@ vessel motion keeps matching (`core/vessel_motion.scales` per state: give WIND t
 
 **Sky agent – interfaces.** `weather_sky.SUN_ROTATION_ZERO_AZ` (scene azimuth of the sky texture's sun at
 `sun_rotation` 0; `weather.switched` uses it so an old project's sun stays where it was); `world_branch(nt, scene, s,
-y) -> socket` used by `world.apply` instead of `_env_branch` when `weather.sky_on(scene)`: the sky from `sun_el` /
+y) -> socket` used by `world.apply` instead of *(picture removed – private, task 0226)* when `weather.sky_on(scene)`: the sky from `sun_el` /
 `sun_az` / `sun` / `clouds` / `low` / `day` (sunrise, day, golden hour, dusk colours), stars and a moon disc at night,
 haze towards the horizon, keeping today's ground below the horizon; `world.apply` calls `weather.after_world(scene)` at
 its end (guarded). `apply(scene, st, place)`: moonlight (a dim Sun lamp, energy driven by `moon`), sunlight if needed,
@@ -243,7 +243,7 @@ and flag inside the model tree. Merging also found: the sea material's own `fr_w
 delete it (renamed `fr_sea_weather`), a spray material left after Off.
 
 **Tested and measured** (web machine, 4 cores, no graphics card):
-- Local: `test_sea` 36, `test_weather_core` 21, `test_weather_sky` 13, `test_weather_look` + `_fx` 23, `test_weather` 15,
+- Local: `test_sea` 36, `test_weather_core` 21, `test_weather_sky` 13, `test_weather_look` + *(picture removed – private, task 0226)* 23, `test_weather` 15,
   `test_weather_independent` 64, `test_vessel_motion` 30, `test_surroundings` 76 – 213 + 64 pass together; `test_tour`
   64 pass (3 new stops: build, Go, check); tooltip check 714 / 0 missing; precheck green.
 - Sea (invented 124 m vessel, Rough, Detailed, Overcast, vessel motion, Draft 640×360): Cycles CPU top 41.4 → 47.4 s
@@ -254,8 +254,8 @@ delete it (renamed `fr_sea_weather`), a spray material left after Off.
 - Looks (spool test model on the quay, CPU seconds, machine shared): weather on but nothing wet/snowy +2 %; wet 1 +34 %;
   snow layer 0.7 +57 %; rain 0.6 with wet +86–95 %; falling snow +31 %; flag +2 %. EEVEE (software GL) wet/snow ~0.
 - Pictures: `tasks/img/0109_sea_before_after.jpg` (the owner's view: stripes before, patchy white caps + hull foam after),
-  `0109_sea_horizon.jpg`, `0109_time_of_day.jpg`, `0109_wet_snow.jpg`, `0109_presets.jpg`.
-- Presets contact sheet (`0109_presets.jpg`, Cycles CPU Draft 480×270, 24 samples): demo vessel 5.2–8.3 s, test mill
+  `0109_sea_horizon.jpg`, *(picture removed – private, task 0226)*.
+- Presets contact sheet (*(picture removed – private, task 0226)*, Cycles CPU Draft 480×270, 24 samples): demo vessel 5.2–8.3 s, test mill
   3.2–6.4 s per tile. It showed the mill's Night shift lit like day: the mast heads' glow lit a small model's quay at
   +4 EV – the heads now glow without lighting the scene (mill night/day screen brightness 0.20 / 0.59, 0.13 without
   floodlights; `0109_mill_night_fixed.jpg`; the sheet's mill night tile is from before the fix). Also fixed from it: the

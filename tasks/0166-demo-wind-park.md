@@ -228,8 +228,8 @@ hull heaves; the monopiles' feet stay 3 m in the seabed (every 25th frame + roun
 
 First park build: the blades were spline lofts, 261 k triangles each (7 M placed): now flat-faced, ~3 k.
 
-**Pictures** (invented content): `tasks/img/0166_beside_turbine_a.jpg`, `0166_park_overview.jpg`,
-`0166_park_at_night.jpg` (640 px, 24 samples, Cycles CPU).
+**Pictures** (invented content): *(picture removed – private, task 0226)*,
+*(picture removed – private, task 0226)* (640 px, 24 samples, Cycles CPU).
 
 **Open points**
 - The Sea's seabed is a 2 km square round the seabed motion: the outer rows' monopiles stand beyond it (under 30 m of

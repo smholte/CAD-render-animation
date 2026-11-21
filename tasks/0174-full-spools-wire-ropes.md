@@ -27,7 +27,7 @@ end, which can be **wound fully out and fully in** – the layers come off and g
 
 - `blender/spool.py` (0080): `DRAWN = {"DRUM": 2, "CAROUSEL": 1}` layers are drawn as rope (object "FR spool <name>",
   its Geometry Nodes trim the wound path by driven lengths); the full layers below are **one solid** ("FR spool solid
-  <name>", a sleeve on a drum, a ring on a carousel) scaled by a step table (`_solid_mesh`, `S.stack`,
+  <name>", a sleeve on a drum, a ring on a carousel) scaled by a step table (*(picture removed – private, task 0226)*, `S.stack`,
   `S.stack_breaks`). That solid is the black cylinder the owner sees.
 - 0159 filled the demo's carousel to the rim: 23 + 1 layers, 43.5 km of Ø 200 mm served cable; the top layer must be an
   even one (CLAUDE.md section 8, the carousel's alternating layers). 0158/0164: the served-cable look with spiral
@@ -101,7 +101,7 @@ does not change until the payout reaches it. So the coil is drawn in two kinds o
    comparison as the live rope's Start, so the drawn stretches always meet (no gap, no double layer).
 
 Per frame: n - 1 tiny drivers; the static tubes cost nothing until a layer change shows or hides one. The solid
-(`_solid_mesh`, "FR spool solid") is gone. The web page draws the whole coil as one spool rope (the wound path from the
+(*(picture removed – private, task 0226)*, "FR spool solid") is gone. The web page draws the whole coil as one spool rope (the wound path from the
 anchor to the window's end, cut from 0) when that adds < 5 MB, else as today.
 
 **Wind fully in and out.** The tables already span the whole range (W0 - total … W0); the live window is rewritten
@@ -199,7 +199,7 @@ Blender as a module, no graphics card; before = main at 0.2.133):
 | Cycles frame of the carousel shot, 480 × 270, 16 samples | 9.9 s | 11.3 s |
 | Web page | top layer + solid | the same (full coil ≈ 1 M points: over the 5 MB aim) |
 
-Picture: `tasks/img/0174_carousel_before_after.jpg` (the black ring gone). Turns: on a carousel neighbouring turns lie
+Picture: *(picture removed – private, task 0226)* (the black ring gone). Turns: on a carousel neighbouring turns lie
 one cable apart (0.9998 d, the spiral's lead), at least 0.89 d only up the climbs; on a drum the turns of a layer lie a
 pitch apart, but the layer above lies d·cos 30° out at constant radius (0080's maths) and where its helix crosses a turn
 below the two middles come 0.866 d close – pinned by a test (follow-up below).
