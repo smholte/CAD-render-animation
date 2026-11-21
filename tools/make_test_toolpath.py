@@ -1,12 +1,14 @@
-"""Write a small 3-axis mill with a stock block and a finished part as a STEP assembly (task 0029: the app makes the
+"""Write the test mill (task 0249: a vertical machining centre) with a stock block and a finished part as a STEP assembly (task 0029: the app makes the
 toolpath). Nothing of a real machine or part: all sizes in mm, Z up.
 
 TEST.TOOLPATH
-  BED, COLUMN …             fixed (the machine of the milling test model, tools/make_test_mill.py)
-  TABLE.ASM                 moves along Y (a slide joint in the tests)
-    TABLE                   box 400 x 300 x 30 (top at z = 30)
-    STOCK 120x80x40         the raw block: x -60..60, y -40..40, z 30..70
-    FINISHED PART           same place as the stock, inside it:
+  BED, COLUMN, CHIP TRAY …  fixed (the vertical machining centre of the milling test model, tools/make_test_mill.py,
+                            task 0249)
+  Y.ASM                     moves along Y (a slide joint in the tests): the SADDLE
+    X.ASM                   moves along X (the tests' joint points to -x)
+      TABLE                 1200 x 500 (top at z = 30)
+      STOCK 120x80x40       the raw block: x -60..60, y -40..40, z 30..70
+      FINISHED PART         same place as the stock, inside it:
                               base 120 x 80, top at z = 55
                               boss 24 x 24 up to z = 65 at x -52..-28, y -32..-8, its top edges rounded R3
                               pocket 36 x 22, 8 deep (floor z = 47), corners R5, at x 12..48, y -32..-10
@@ -14,12 +16,10 @@ TEST.TOOLPATH
                               mushroom (the undercut): post 10 x 10 (z 55..60) under a cap 22 x 16 (z 60..64) at
                               (28, 22): the cap hangs over by 6 / 3 mm - the stock under it cannot be cut from the top
                               through hole Ø10 at (52, 30)
-  X.ASM                     moves along X
-    CARRIAGE …              (the machine of make_test_mill.py, task 0122: rails, motors, the head, edge clamps
-                            18 mm low beside the stock's back and front faces, their screws 18 mm out)
-    Z.ASM                   moves along Z
-      SPINDLE               Ø60, its nose at z 130
-      END MILL D10          flat end mill Ø10 x 40, tip at x = 0, y = 0, z = 90 (20 mm above the stock)
+      EDGE CLAMP …          18 mm low beside the stock's back and front faces, their screws 18 mm out
+  Z.ASM                     moves along Z
+    SPINDLE                 BT40, its nose at z 130
+    END MILL D10            flat end mill Ø10 x 40, tip at x = 0, y = 0, z = 90 (20 mm above the stock)
 
 usage: python make_test_toolpath.py out.step
 """

@@ -1033,6 +1033,20 @@ class _Sim:
         rx, ry, ok = self.ride.index(x, y)
         self.pile_r[ry[ok], rx[ok]] = 0.0
 
+    def _lands_next(self, sel, frm: int, to: int, P, V, t: float) -> np.ndarray:
+        """Which of ``sel`` (chips off their own space's surfaces) are less than about a step above the surface of
+        space ``to`` under them (task 0249): they go over now and land there at the next step."""
+        out = np.zeros(len(sel), bool)
+        if not sel.any():
+            return out
+        i = np.nonzero(sel)[0]
+        C = self.to_space(to, t) @ np.linalg.inv(self.to_space(frm, t))
+        Pt = P[i] @ C[:3, :3].T + C[:3, 3]
+        st = self.surf_world(Pt[:, 0], Pt[:, 1]) if to == 1 else self.surf_carrier(Pt[:, 0], Pt[:, 1])
+        step = 0.5 * MM + 1.5 * np.abs(V[i, 2]) * self.dt
+        out[i] = np.isfinite(st) & (Pt[:, 2] >= st) & (Pt[:, 2] < st + step)
+        return out
+
     def to_space(self, sp: int, t: float) -> np.ndarray:
         """Riding space -> space ``sp`` (0 riding, 1 world, 2 carrier) at time t."""
         if sp == 0:
@@ -1237,11 +1251,23 @@ class _Sim:
                         hop = blown[wl]
                         if hop.any():                       # the air lifts it out of the pocket
                             V[wl[hop], 2] = np.maximum(V[wl[hop], 2], BLOWN_HOP)
+                        # task 0249: a chip under a surface of the machine (it came in below it) stops on the floor
+                        deep = wl[wor[wl] & (P_new[wl, 2] <= self.floor_z)]
+                        if len(deep):
+                            P_new[deep, 2] = self.floor_z
+                            V[deep] = 0.0
+                            hit_rest[deep] = True
                 # off everything that moves with the workpiece: on to carrier space (the table under a turning
                 # axis, task 0096) or world space (machine bed, floor); off the carrier: on to world space
                 off = ride & ~below & ~np.isfinite(surf) & (P_new[:, 2] < self.level)
                 off_c = onc & ~below & ~np.isfinite(surf) & (P_new[:, 2] < self.level_c)
-                for sel, frm, to in ((off, 0, 2 if self.carrier is not None else 1), (off_c, 2, 1)):
+                # task 0249: off its own space's surfaces and about to land on the next space's (a fixed surface
+                # beside a cross table's saddle lies higher than the saddle's lowest top): over now, or it would
+                # come in under that surface
+                to_r = 2 if self.carrier is not None else 1
+                off |= self._lands_next(ride & ~below & ~np.isfinite(surf) & ~off, 0, to_r, P_new, V, t_new)
+                off_c |= self._lands_next(onc & ~below & ~np.isfinite(surf) & ~off_c, 2, 1, P_new, V, t_new)
+                for sel, frm, to in ((off, 0, to_r), (off_c, 2, 1)):
                     if not sel.any():
                         continue
                     sw = np.nonzero(sel)[0]

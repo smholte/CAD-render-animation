@@ -652,6 +652,42 @@ def set_up_test_model(scene, carriage: bool = True) -> list:
     return list(scene.fresing.waycovers)
 
 
+TEST_MILL_COVERS = (("Y front", "WAY COVER Y FRONT", 6), ("Y back", "WAY COVER Y BACK", 5))
+TEST_MILL_TRAVEL = (-0.11, 0.39)          # m: the test mill's Y travel (tools/make_test_mill.py TRAVEL)
+
+
+def set_up_test_mill(scene, axis: str = "Y") -> list:
+    """The test mill's two telescopic Y way covers (tools/make_test_mill.py, task 0249) as the owner would set them
+    up: the Y joint gets the machine's travel as its limits, 'Y front' and 'Y back' follow it – section k of N at
+    k/N, the last section of each is bolted to the saddle (it moves with Y already). Nothing happens on a model
+    without the covers or without the joint. Returns the covers made."""
+    def parts(base):
+        return {o.get(build.PROP_NAME): o for o in scene.objects
+                if str(o.get(build.PROP_NAME, "")).startswith(base + " ")}
+    j = scene.fresing.joints.get(axis)
+    if j is None or not parts(TEST_MILL_COVERS[0][1]):
+        return []
+    joints._set_raw(j, use_limits=True, slide_min=TEST_MILL_TRAVEL[0], slide_max=TEST_MILL_TRAVEL[1])
+    out = []
+    for name, base, n in TEST_MILL_COVERS:
+        found = parts(base)
+        c = add_cover(scene, name)
+        c.axis = axis
+        reason = read_total(scene, c)
+        if reason:
+            raise RuntimeError(reason)
+        for k in range(1, n + 1):
+            ob = found.get(f"{base} {k}")
+            if ob is None:
+                raise RuntimeError(f"the test mill has no part '{base} {k}'")
+            add_section(scene, [ob], cover=c)
+        _built, problems = make(scene, c)
+        if problems:
+            raise RuntimeError("; ".join(problems))
+        out.append(c.name)
+    return out
+
+
 @persistent
 def _on_load(_dummy=None):
     """Projects saved with one way cover open with it as the first item of the list."""

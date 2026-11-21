@@ -12,6 +12,8 @@ import math
 import os
 import sys
 
+import numpy as np
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, HERE)
@@ -130,3 +132,81 @@ def asm(name: str, *children) -> g.Asm:
 
 def write(root: g.Asm, path: str) -> None:
     g.write_step(root, path)
+
+
+# ---------------------------------------------------------------------------
+# task 0249: the larger vertical machining centre (shared with task 0250's mills)
+# ---------------------------------------------------------------------------
+
+ENCLOSURE_GREY = (0.82, 0.83, 0.84)      # sheet metal of an enclosure (RAL 7035-ish, a shade darker than covers)
+COVER_GREY = (0.6, 0.62, 0.64)           # way-cover sheet steel
+TRAY_GREY = (0.45, 0.47, 0.5)            # the chip tray
+SCREEN = (0.05, 0.06, 0.08)
+
+
+def rail_along(length: float, start, along, up):
+    """A profile rail from ``start`` (its foot's middle at the start) ``length`` along ``along``, its height towards
+    ``up`` (the three are square to each other)."""
+    a, u = g.D_(along), g.D_(up)
+    width = tuple(np.cross(u, a))                      # local y (height) = along x width  ->  width = up x along
+    return on(rail(length), start, width, a)
+
+
+def block_on(length: float, at, along, up):
+    """A guide block (``guide_block``) round a rail laid with ``rail_along(.., along, up)``, its middle at ``at`` (on
+    the rail's foot line); its back is ``BLOCK_BACK`` from the foot along ``up``."""
+    a, u = g.D_(along), g.D_(up)
+    width = tuple(np.cross(u, a))
+    return on(guide_block(length), at, width, a)
+
+
+def way_cover_section(length: float, half_width: float, z_base: float, z_top: float, y_back: float,
+                      slope_deg: float = 2.0, t: float = 3.0, towards: float = -1.0):
+    """One section of a telescopic way cover lying along y: a sheet-steel hat – a gable roof falling ``slope_deg`` to
+    both sides (it sheds coolant sideways) and two skirts down to ``z_base`` – ``t`` thick, open at both ends. Its
+    roof's edges at ``z_top``, ``half_width`` out from x = 0; it runs from ``y_back`` ``length`` towards ``towards``
+    (-1: to -y, +1: to +y). Nested sections: each 2 t narrower and lower than the one round it (a gap of t)."""
+    w, tan = half_width, math.tan(math.radians(slope_deg))
+    peak = z_top + w * tan
+    prof = [(-w, z_base), (-w, z_top), (0.0, peak), (w, z_top), (w, z_base), (w - t, z_base), (w - t, z_top - t),
+            (0.0, peak - t), (-w + t, z_top - t), (-w + t, z_base)]
+    s = g.polygon_prism(prof, length)                 # local (x, y) = world (x, z), extruded along local z
+    start = y_back if towards < 0 else y_back + length
+    m = g.Frame((0.0, start, 0.0), (1, 0, 0), (0, -1, 0))        # local z -> -y, local y -> +z
+    return g.xform(s, m)
+
+
+def sliding_door(x0: float, x1: float, z0: float, z1: float, y_back: float, thick: float = 16.0, frame: float = 60.0,
+                 handle_x: float | None = None, handle_z=(380.0, 780.0), handle_r: float = 10.0,
+                 handle_out: float = 30.0, sides=None):
+    """A sliding door in the plane y = ``y_back`` .. ``y_back - thick`` (its front towards -y): a sheet frame
+    ``frame`` wide round a window opening (drawn open, like clear glass; ``sides``: (left, right) widths of the frame
+    instead), and a vertical handle bar (Ø 2 r) at ``handle_x`` standing ``handle_out`` in front of the door on two
+    feet."""
+    yf = y_back - thick
+    fl, fr = sides or (frame, frame)
+    door = g.box(x0, yf, z0, x1 - x0, thick, z1 - z0)
+    win = g.box(x0 + fl, yf - 1.0, z0 + frame + 40.0, x1 - x0 - fl - fr, thick + 2.0, z1 - z0 - 2 * frame - 120.0)
+    door = g.cut(door, win)
+    if handle_x is None:
+        return door
+    yc = yf - handle_out + handle_r
+    za, zb = handle_z
+    bar = g.cyl(handle_r, zb - za, (handle_x, yc, za))
+    feet = [g.box(handle_x - 8.0, yc, z - 8.0, 16.0, yf - yc + 1.0, 16.0) for z in (za + 30.0, zb - 30.0)]
+    return g.fuse(door, bar, *feet)
+
+
+def bt40_holder_with_end_mill(stick: float = 38.0, gauge: float = 120.0, d: float = 10.0):
+    """A BT40-like holder with a flat end mill Ø ``d`` (its tip at z = 0) along +z: the cutter, a collet nut Ø32, a
+    body Ø44 tapering to the flange Ø63.5 with its V groove and two drive slots; the flange's top (the gauge line) at
+    z = ``gauge`` – the taper above it sits inside the spindle and is not drawn."""
+    cutter = g.cyl(d / 2, stick)
+    nut = g.cyl(16.0, 14.0, (0.0, 0.0, stick - 2.0))
+    body = g.revolve([(0.0, stick + 12.0), (17.0, stick + 12.0), (22.0, stick + 30.0), (22.0, gauge - 26.0),
+                      (0.0, gauge - 26.0)])
+    fl = gauge - 26.0
+    flange = g.revolve([(0.0, fl), (31.75, fl), (31.75, fl + 8.0), (27.5, fl + 13.0), (31.75, fl + 18.0),
+                        (31.75, gauge), (0.0, gauge)])
+    slots = [g.box(x, -8.0, gauge - 8.0, 10.0, 16.0, 9.0) for x in (-32.0, 22.0)]
+    return g.cut(g.fuse(cutter, nut, body, flange), *slots)

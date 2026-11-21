@@ -226,7 +226,7 @@ def bench_sampling():
                 c.location = (src.location.x + (k % 70) * 0.002, src.location.y + (k // 70) * 0.002, src.location.z)
                 col.objects.link(c)
         if not sc.fresing.joints:
-            for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+            for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
                 o = obs[asm]
                 joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
         a = sc.fresing.animations.get("B") or sc.fresing.animations.add()
