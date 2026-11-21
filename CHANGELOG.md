@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.195 – 21 Nov 2026 – Two panels: the steps on the right, everything else on the left; Make in its own windows; the Learning hub (task 0260)
+
+- **The Fresing panel on the right shows only the work.** At its top: **Make**, the section tabs and (for a CNC mill or a
+  mechanism) **Set-up window…** – then 1 Import to 8 Lifting plan. The first step is always at the top.
+- **A new panel on the left of the 3D view** holds the rest: **Live preview** and **Build & play** (always there), the
+  update notice, your **Workspace**, the **Learning hub**, **Favourites** and **What's next**. The small arrow at its top
+  folds it to a narrow strip – Live preview and Build & play stay there as icons. The app keeps your choice. In Full
+  access Blender's own tool buttons are at its top again.
+- **Make is one row of six icons** (Picture, Product video, Turntable, 3D page, Animation, Queue); click **Make** for the
+  list with names. **Each output opens a window of its own** with its settings and Make button: drag it anywhere, also
+  onto a second screen – it stays open while you work elsewhere, until you close it. Pressing it again opens no second
+  one (on Windows it comes to the front and opens where it was last time).
+- **The test tour is now called the Learning hub.** On the left panel three buttons – **View · Show me · Build it
+  yourself** – switch between the three ways to learn in one click; in your own project they open the Learn window.
+  Your old test tour folder and results keep working.
+- **What's next** can be folded with a small arrow; it stays folded until you open it again.
+
 ## 0.2.194 – 21 Nov 2026 – Web 3D page: Film – the motion through the video's camera (task 0252)
 
 - **Film on the web page.** A web 3D model of a project whose animation has camera steps (Move to, Cut, Ride along,
