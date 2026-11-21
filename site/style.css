@@ -133,3 +133,9 @@ h2 { font-size: 1.6rem; font-weight: 600; }
   .grid { grid-template-columns: 1fr; }
   .fresing img { width: 200px; }
 }
+
+/* who it is for (task 0266) */
+.tagline { font-size: 1.15rem; font-weight: 600; color: var(--charcoal); margin: 0 0 20px; }
+.who-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px 28px; margin: 0 0 28px; }
+.who-grid h3 { margin: 0 0 6px; }
+.who-grid p { margin: 0; color: var(--slate); }
