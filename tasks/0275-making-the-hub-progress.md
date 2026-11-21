@@ -1,8 +1,8 @@
-# 0275 – "Making the Learning hub…" says so clearly: a progress window after Take the test tour
+# 0275 – "Making the Learning hub…" says so clearly: a progress window after Take the test tour; Next goes to the next stop at once
 
 **Who:** worker · **Status:** open – waits for 0260 (same lane; 0260 renames the test tour to Learning hub and touches
 `welcome.py`) · **Branch:** `task/0275-hub-progress`
-**Started by:** lead, 21 Nov 2026 (owner 17:45, screenshot of the welcome window: "When I press Take the test tour it
+**Started by:** lead, 21 Nov 2026 (owner 17:45 + 17:53 – Next in the tour, screenshot of the welcome window: "When I press Take the test tour it
 should tell you clearly that it is making the test tour and to wait for it. Now it is a bit unclear for a new user,
 with only a little status in the bottom left.") · **Model:** Sonnet · effort Medium
 **Area:** Start & learn lane – `blender/welcome.py`, `blender/ops_tour.py` (the make / progress part only:
@@ -35,12 +35,19 @@ ready, they are told and can open it with one click.
 4. **Same window** for every other way the hub is made (Fresing menu, What's new's "make the new models", the left
    panel's button): one code path.
 5. The welcome text: keep the "about N minutes" line and add "(you can keep working while it is made)".
+6. **Next goes there at once** (owner 17:53, screenshot of "→ Next: 2. Painted faces"): today **Next** only picks the
+   next stop (`fresing.tour_pick`) and the user must press **Go** as well. Next = pick + Go in one click (also when the
+   next stop lives in another set's project: it opens it, as Go does; with unsaved changes, Go's own question). The
+   same for a **Back / previous** button if the panel has one. A click on a stop in the list keeps today's behaviour
+   (pick, read, then Go) – say in the report if you think it should go at once too. Tooltip, guide and the tour's
+   real-app test (`ui_test_tour.py`: one click on Next → the next stop is set up, its check passes).
 
 ## Done when
 
 - [ ] Real-app test: Take the test tour → the window is there within 1 s, the bar moves, Hide → the left panel line +
       bottom-left status, Show progress brings it back, done → "ready" notice → Open it now opens the hub
 - [ ] Stop making it and a forced failure tested
+- [ ] Next sets up the next stop in one click (also across sets); real-app test
 - [ ] Guide picture of the window; function list (`changed=`), PC-check line if the tour check reads the texts;
       CHANGELOG; report with the owner's check steps; merged, released
 

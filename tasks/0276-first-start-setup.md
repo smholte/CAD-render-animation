@@ -10,7 +10,8 @@ first time?"; owner's picks 17:50: **full set-up** – **replace Blender's own f
 `blender/first_setup.py` (the window and its steps), `app_template/` (Blender's quick set-up skipped – see 1),
 reads 0271's Settings pages and 0272's `core/locations.py`, starts 0275's progress window and the PC check's Quick
 mode (`pccheck/`, read only); their tests, a real-app test, guide, `docs/COMPANY-USE.md` (what IT can pre-set), CHANGELOG.
-**Not:** new settings – every choice here is one that already exists in the Settings window (0271 / 0272), the set-up
+**Also (owner 17:53):** step 6 offers **Save my set-up as a file…** (0272) for a user who wants to copy it to a
+colleague. **Not:** new settings – every choice here is one that already exists in the Settings window (0271 / 0272), the set-up
 only asks them in order.
 
 ## Goal
@@ -29,8 +30,10 @@ window (language, keys, theme) no longer comes first.
 3. **Your PC** – runs the PC check's **Quick** mode in the background (~20 s on the owner's PC) and shows in plain words:
    graphics card found / not, the render device chosen, a suggested Live preview and render quality; one line when the
    PC is slow ("Big models will be slow on this PC: …").
-4. **Your company and your folders** – "Does your company or department have a Fresing set-up file?" – found by
-   itself (0272: next to the approved-version folder) and shown, or **Browse…** (network or local), or **No**; then
+4. **Your company and your folders** – "Do you have a Fresing set-up file (`.frsetup`) from your company, department or
+   a colleague?" – found by itself (0272: next to the approved-version folder) and shown, **Open set-up file…** / drop
+   it on the window (one file, network or local – owner 17:53), or **No**. With a set-up file: a short **"Different
+   from standard"** list of what it sets (0272), and the steps it fills (2, 4, defaults) shown pre-filled; then
    the user's own STEP models folder and where renders go (default **Renders next to the project**, owner 17:39).
 5. **The Learning hub** – make it now (0275's progress window; the user can go on to step 6 while it is made) or later.
 6. **Done** – **Import your first STEP…** · **Open the Learning hub** (greyed with the progress while it is made) ·
@@ -48,7 +51,7 @@ window (language, keys, theme) no longer comes first.
    What's new (they are set up already) – with one line in What's new "New: a set-up for new users – Fresing > Set up
    again…". Never in background runs, the queue, the PC check, the kit, with `FRESING_NO_WELCOME` or simulated events
    (today's rules).
-3. **IT pre-sets:** a company that put a set-up file (0272) gets steps 4 and (if the file says so) 2 pre-filled; a
+3. **IT pre-sets:** a company that put a `.frsetup` file (0272) gets steps 4 and (if the file says so) 2 pre-filled; a
    set-up file may say `"first_setup": "skip"` so managed PCs start straight in. `COMPANY-USE.md` says so.
 4. **Client view:** the set-up never opens in it.
 
