@@ -4907,7 +4907,7 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "All · 1 … 8 under Make show one section at a time.",
      where="The Workspace row on the left panel", since="0.2.152", changed="0.2.195", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
-stop("make", OUT, HUB_SET, "Make: every output in a window of its own",
+stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
      "Animation and Queue (rest the mouse on one for its name; click Make for the list with names). Click Picture: a "
      "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "

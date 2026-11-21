@@ -316,6 +316,8 @@ def _show_tab() -> None:
 
 
 def redraw(regions=("UI", "WINDOW")) -> None:
+    if "UI" in regions:
+        regions = tuple(regions) + ("TOOLS",)            # task 0260: the left panel is a side panel too
     wm = getattr(bpy.context, "window_manager", None)
     for win in (wm.windows if wm else ()):
         for area in win.screen.areas:
@@ -852,9 +854,23 @@ _BUTTON = {"C": _button_c, "D": _button_d}
 _SECTION = {"5": _section_5, "4": _section_4}
 
 
+def _target_region() -> str:
+    """The region the target's panel is drawn in: "TOOLS" for a panel of the left panel (task 0260), else "UI"."""
+    t = _S["target"] or {}
+    chain = t.get("chain") or [t.get("panel", "")]
+    try:
+        from . import panels
+        return "TOOLS" if chain and chain[-1] in panels.LEFT else "UI"
+    except Exception:  # noqa: BLE001
+        return "UI"
+
+
 def _draw_side() -> None:
     """Side panel (region UI), after Blender drew it: find the markers in its pixels, draw the look."""
     if _S["target"] is None or not _S["target"]["panel"]:
+        return
+    region = bpy.context.region
+    if region is None or region.type != _target_region():     # task 0260: the left panel draws here too
         return
     t0 = time.perf_counter()
     try:
@@ -1161,6 +1177,7 @@ def _add_handlers() -> None:
     if not _S["handles"]:
         sv = bpy.types.SpaceView3D
         _S["handles"] = [(sv.draw_handler_add(_draw_side, (), "UI", "POST_PIXEL"), "UI"),
+                         (sv.draw_handler_add(_draw_side, (), "TOOLS", "POST_PIXEL"), "TOOLS"),     # task 0260
                          (sv.draw_handler_add(_draw_parts, (), "WINDOW", "POST_VIEW"), "WINDOW")]
     for lst, fn in _app_handlers():
         if fn not in lst:
