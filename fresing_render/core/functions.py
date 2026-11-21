@@ -164,10 +164,10 @@ fn(id="usage.declutter", title="Offer to hide what you never use", family="panel
    button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158", changed="0.2.181")
 
 # task 0208: learn as you go
-fn(id="learn.question", title="Learn what you never use: show it in the guide or the test tour, or list it for later",
+fn(id="learn.question", title="Learn what you never use: show it in the guide or the Learning hub, or list it for later",
    family="panel", panel="FRESING_PT_favourites", button="fresing.learn_show", guide="learn-as-you-go",
    tour=("learn",), pccheck=("app.learning",), since="0.2.160")
-fn(id="learn.list", title="My learning list: guide, test tour and done, ticked by itself after use on 3 days",
+fn(id="learn.list", title="My learning list: guide, Learning hub and done, ticked by itself after use on 3 days",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.learn_window", guide="learning-list", tour=("learn",),
    pccheck=("app.learning",), since="0.2.160")
 fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the What's next card", family="panel",
@@ -568,17 +568,17 @@ fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", bu
    guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16")
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
-fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
+fn(id="help.tour", title="Learning hub", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
 fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",
    button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68", changed="0.2.188")
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
    panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app
-fn(id="help.start_here", headline=True, title="Fresing menu: test tour, What's new, guide, checks in one place", family="help",
+fn(id="help.start_here", headline=True, title="Fresing menu: Learning hub, What's new, guide, checks in one place", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.tour_take", guide="start-here", tour=("start_here",),
    pccheck=("app.start_here",), since="0.2.155")
-fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the test tour", family="help", panel="TOPBAR_MT_fresing",
+fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the Learning hub", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",

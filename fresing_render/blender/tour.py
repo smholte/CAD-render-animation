@@ -202,7 +202,7 @@ def results_text(version: str, data: dict, pc: str = "") -> str:
     rows = data.get("stops", {})
     n_ok = sum(1 for s in STOPS if rows.get(s.id, {}).get("state") == OK_STATE)
     n_bad = sum(1 for s in STOPS if rows.get(s.id, {}).get("state") == PROBLEM)
-    out = [f"Fresing Render test tour {version} - {time.strftime('%Y-%m-%d %H:%M')}"]
+    out = [f"Fresing Render Learning hub {version} - {time.strftime('%Y-%m-%d %H:%M')}"]
     if pc:
         out.append(f"PC: {pc}")
     out.append(f"{n_ok} OK, {n_bad} problem, {len(STOPS) - n_ok - n_bad} not looked at, of {len(STOPS)} stops")
@@ -4939,7 +4939,7 @@ stop("panel_back", OUT, HUB_SET, "Fresing panel always back",
      "Move the mouse over the 3D view and press N: the side panel goes away, and a small Fresing button appears at "
      "the right end of the 3D view's header. Click it: the side panel is back on the Fresing tab and the button "
      "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab with Blender's "
-     "toolbar folded. Live preview stays on or off as you left it when you go to another test tour project.",
+     "toolbar folded. Live preview stays on or off as you left it when you go to another Learning hub project.",
      where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150",
      shot="Tour view", check=_check_panel_back, auto=lambda ctx, scene, st: "")
 
@@ -4963,10 +4963,10 @@ def _check_start_here(scene):
 
 
 stop("start_here", OUT, HUB_SET, "Start here: the Fresing menu",
-     "At the top of the window, after Help, there is a menu Fresing: Take the test tour, What's new in this version, "
+     "At the top of the window, after Help, there is a menu Fresing: Open the Learning hub, What's new in this version, "
      "Show the Fresing panel, the demo project, the user guide, the PC check, Check for updates and the Welcome "
      "screen. What's new lists the new functions with Show in guide, and the new and changed test models with a tour "
-     "of only those. In this Test tour panel new stops say \"New\" and changed ones \"Changed\" after an update.",
+     "of only those. In this Learning hub panel new stops say \"New\" and changed ones \"Changed\" after an update.",
      where="The Fresing menu in the top bar (after Help)", since="0.2.155", shot="Tour view",
      check=_check_start_here, auto=lambda ctx, scene, st: "")
 
@@ -5036,7 +5036,7 @@ def _check_learn(scene):
 
 
 stop("learn", OUT, HUB_SET, "Learn as you go",
-     "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the test tour and Add to my "
+     "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the Learning hub and Add to my "
      "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
      "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "
      "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
@@ -5424,7 +5424,7 @@ def open_set(folder: str, version: str, set_id: str) -> bool:
     if bpy.data.filepath and os.path.normcase(os.path.abspath(bpy.data.filepath)) == os.path.normcase(path):
         return False
     if not os.path.isfile(path):
-        raise RuntimeError(f"the tour project '{os.path.basename(path)}' is missing: make the test tour again "
-                           "(Help > Make test tour project)")
+        raise RuntimeError(f"the tour project '{os.path.basename(path)}' is missing: make the Learning hub again "
+                           "(Help > Make the Learning hub)")
     bpy.ops.wm.open_mainfile(filepath=path)
     return True

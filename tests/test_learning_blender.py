@@ -103,10 +103,10 @@ def test_the_guide_opens_the_installed_copy_or_else_the_web_page(usage, monkeypa
 def test_show_me_in_the_test_tour_is_refused_with_a_reason_when_there_is_no_tour_or_no_stop(usage, monkeypatch):
     from fresing_render.blender import learning
     nostop = next(f.id for f in F.FUNCTIONS.values() if not f.tour and L.teachable(f.id))
-    assert "test tour" in learning.show_in_tour(bpy.context, nostop)
+    assert "Learning hub" in learning.show_in_tour(bpy.context, nostop)
     withstop = next(f.id for f in F.FUNCTIONS.values() if f.tour and L.teachable(f.id))
     monkeypatch.setattr(learning, "tour_state", lambda scene: "none")
-    assert "Take the test tour" in learning.show_in_tour(bpy.context, withstop)
+    assert "Open the Learning hub" in learning.show_in_tour(bpy.context, withstop)
     assert bpy.ops.fresing.learn_show(fid=nostop, how="TOUR") == {"CANCELLED"}
 
 

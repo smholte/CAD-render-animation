@@ -20,7 +20,7 @@ import numpy as np
 
 OK, FAILED, SKIPPED, RUNNING = "OK", "FAILED", "skipped", "running"
 MODES = ("quick", "full", "heavy", "tour")
-MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy", "tour": "Test tour"}
+MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy", "tour": "Learning hub"}
 # the PC-check shortcuts in the Tools folder of the install (task 0212; Install.bat and appicon.tools_specs)
 SHORTCUT_TEXT = {"quick": "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test "
                           "your own model too",
@@ -567,8 +567,8 @@ def html_report(run: Run, block: str) -> str:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         + ("" if run.finished else "<meta http-equiv='refresh' content='10'>"),
-        f"<title>Fresing Render {'test tour' if run.mode == 'tour' else 'PC check'}</title><style>{_CSS}</style><script>{_SCRIPT}</script></head><body><main>",
-        f"<h1>Fresing Render {'test tour' if run.mode == 'tour' else 'PC check'} {_e(run.app_version)}</h1>",
+        f"<title>Fresing Render {'Learning hub' if run.mode == 'tour' else 'PC check'}</title><style>{_CSS}</style><script>{_SCRIPT}</script></head><body><main>",
+        f"<h1>Fresing Render {'Learning hub' if run.mode == 'tour' else 'PC check'} {_e(run.app_version)}</h1>",
         f"<div class='sub'>{_e(MODE_TITLES.get(run.mode, run.mode))}{' + your own model' if run.own_model else ''}"
         f" · {_e(run.date)} · {run.seconds:.0f} s · {_e(pc.get('cpu', '?'))}, {_e(pc.get('cores', '?'))} cores · "
         f"{_e(pc.get('gpu', '?'))}, driver {_e(pc.get('driver', '?'))} · Blender {_e(run.blender)}</div>",
@@ -593,7 +593,7 @@ def html_report(run: Run, block: str) -> str:
     pics = [(r, p) for r in run.results for p in r.pictures if p.thumb_png]
     if run.mode == "tour":
         parts += ["<h2>Every stop</h2>", "<p class='sub'>Look at each picture next to its text; tick OK or Problem "
-                  "for the stop in the Test tour panel of the app.</p>", _stop_cards(run)]
+                  "for the stop in the Learning hub panel of the app.</p>", _stop_cards(run)]
         pics = []
     if pics:
         parts.append("<h2>Pictures</h2><div class='pics'>")
