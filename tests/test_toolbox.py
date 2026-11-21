@@ -7,6 +7,7 @@ of toolbox-format v0.1."""
 import json
 import os
 import shutil
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -481,3 +482,20 @@ def test_the_installer_files_are_plain_ascii():
             data = p.read_bytes()
             bad = [i for i, b in enumerate(data) if b > 127]
             assert not bad, f"{p.name}: a non-ASCII byte at {bad[0]}: {data[max(0, bad[0] - 40):bad[0] + 10]!r}"
+
+
+# task 0245: tools/ci_toolbox_w2w3.py – the Windows checks W2 (junctions) and W3 (status.json replaced while read) –
+# for a few seconds here, with symbolic links in place of junctions (Linux never refuses a replace). GitHub's Windows
+# job runs it for 40 s with the installed Blender's own Python (tools/ci_windows_install.ps1, part A).
+W2W3_TOOL = Path(__file__).resolve().parent.parent / "tools" / "ci_toolbox_w2w3.py"
+
+
+def test_w2_w3_pass_and_report_their_numbers(tmp_path):
+    r = subprocess.run([sys.executable, str(W2W3_TOOL), str(tmp_path / "w é"), "--seconds", "3", "--label", "test"],
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    last = [ln for ln in r.stdout.splitlines() if ln.startswith("W2W3 ")][-1]
+    info = json.loads(last[5:])
+    assert info["failed"] == [] and info["label"] == "test"
+    assert info["w3"]["reader"]["reads"] > 0 and info["w3"]["reader"]["not_whole"] == 0
+    assert "W2 a junction in place of a job's file: bad-job" in r.stdout

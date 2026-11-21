@@ -80,7 +80,7 @@ the inbox again against the new checker).
 - Tests: `test_toolbox.py` – "duplicate-key" is no longer refused (new test: the last counts), new refused cases
   "size-too-big", "name-too-long" (each failed before the fix); `test_toolbox_independent.py` – the checker's
   `_times` is gone in 0.1.1 (its `read_doc` checks times), and our `read_doc` is now compared with the checker in
-  reader mode (`strict=False`); `tests/test_toolbox_w2w3.py` runs the W2/W3 tool 3 s on Linux.
+  reader mode (`strict=False`); `test_w2_w3_pass_and_report_their_numbers` in `test_toolbox.py` runs the W2/W3 tool 3 s on Linux.
 - `tools/ci_toolbox_w2w3.py` (plain Python, imports `core` without Blender) + a step in `tools/ci_windows_install.ps1`
   part A, right after `ci_toolbox_windows.py`: the installed Blender's `python.exe` in the foreground and the runner's
   Python 3.11 (`$env:RUNNER_TOOL_CACHE\Python\3.11.*`) at the same time; both results in the job's summary table.
@@ -135,9 +135,11 @@ the inbox again against the new checker).
   than 0.25 s; a hold of 0.5 s outlasts it by design); for a reader that opens, reads and closes no write was refused
   at all. Keeping the write for the next look (what our `Inbox._later` does) always got through.
 
-**Runs:** 4 full, all green – `main` brought 0241 (0.2.184), 0239 (0.2.185) and 0237 (0.2.186) while they ran, so renumbered three times; this task is 0.2.187.
+**Runs:** 5 full – `main` brought 0241 (0.2.184), 0239 (0.2.185) and 0237 (0.2.186) while they ran, so renumbered three times; this task is 0.2.187. The 4th run failed only on "2 tests skipped (1 allowed)" in one pytest group: the new file `tests/test_toolbox_w2w3.py` had shifted the groups so that two tests that are always skipped on GitHub's Linux met in one group; the test moved into `tests/test_toolbox.py` (groups the same as on `main`) and a 5th run.
 
 **Open points:**
 - Tell the ToolBox lead: Blender 5.2.3 runs Python **3.13**, not 3.11 (0.1.1's changelog says "Python 3.11 (Blender)");
   the 3.11 path works too (above).
+- CI: the pytest groups allow 1 skipped test each, and a new test file can regroup two always-skipped tests into one
+  group (here). Worth a look in the Quality lane (which two skip on GitHub's Linux could not be read from the log).
 - Our readers now take a key written twice; the checker still refuses it in what we *write* (we never write one).

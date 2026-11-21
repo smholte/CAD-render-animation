@@ -3,7 +3,7 @@
     <python.exe> tools/ci_toolbox_w2w3.py <work folder> [--seconds 40] [--label "Blender's Python"]
 
 ``tools/ci_windows_install.ps1`` (part A) runs it with the installed Blender's own ``python.exe`` (what the app runs
-on) and, at the same time, with the runner's Python 3.11 when the runner has one. ``tests/test_toolbox_w2w3.py`` runs
+on) and, at the same time, with the runner's Python 3.11 when the runner has one. ``tests/test_toolbox.py`` runs
 it for a few seconds on Linux (symbolic links in place of junctions; Linux never refuses a replace).
 
 W2 – junctions: a directory junction (``mklink /J``) in the inbox whose name is a job id and whose target holds a whole
