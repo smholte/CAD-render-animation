@@ -12,8 +12,9 @@ comes from a fairlead at the front of the gantry, over a head sheave on the trol
 mm, Z up, x towards the bow, the stern (transom) at x = 0, the waterline at z = 0 (draft 2 m). The cable lies in the
 plane y = 0, the lift wire in the plane y = 300. Every part is one solid.
 
-  STERN DECK       the hull x 0..14000, y -3000..3000, z -2000..2500 with bulwarks, rub rails and plating seams
-                   (``make_test_sea.deck_shape``)
+  STERN DECK       the hull with its working deck x 0..14000 at z 2500, y ±3000, a flat bottom at z -2000, bulwarks
+                   and rub rails, and forward of it the bow (7000 long) with a forecastle and a deckhouse
+                   (``make_test_sea.deck_shape``, ``tools/workboat_hull.py``; task 0234)
   HORN, HORN STAND as tools/make_test_sea.py: the cable's middle on an arc of radius 2000 about (500, *, 1200)
   BULWARK STAY (8 x)  as tools/make_test_sea.py, at x = 1500, 4500, 7500, 10500
   GANTRY           two beams (x -5000..14000, y ±1400..±1600, z 6800..7200), four posts (x 2600..2800 and

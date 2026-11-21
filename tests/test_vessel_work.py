@@ -229,10 +229,10 @@ def test_thrusters_found_with_their_kinds(scene):
     assert [(r.kind, r.steer) for r in rows] == [("AZIMUTH", "Azimuth PS: Steer"), ("AZIMUTH", "Azimuth SB: Steer"),
                                                  ("TUNNEL", "")]
     lay = VW.stored_layout(scene)
-    assert lay["sign"] == 1.0 and lay["hl"] == pytest.approx(18.0, abs=0.05)
+    assert lay["sign"] == 1.0 and lay["hl"] == pytest.approx(20.0, abs=0.05)         # 18 before task 0234's bow
     assert [t[0] for t in lay["thrusters"]] == ["AZIMUTH", "AZIMUTH", "TUNNEL"]
-    assert lay["thrusters"][0][1:] == pytest.approx([-16.0, 3.0], abs=0.05)
-    assert lay["thrusters"][2][1:] == pytest.approx([14.0, 0.0], abs=0.05)
+    assert lay["thrusters"][0][1:] == pytest.approx([-18.0, 3.0], abs=0.05)          # (-16, 3 and 14, 0 before)
+    assert lay["thrusters"][2][1:] == pytest.approx([12.0, 0.0], abs=0.05)
     assert all(joints.is_motor(joints.find(scene, r.joint)) for r in rows)
 
 
