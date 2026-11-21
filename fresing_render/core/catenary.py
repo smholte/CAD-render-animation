@@ -22,7 +22,9 @@ cases are kept, never drawn with a wrong length without a word (``kind``):
   lifts off its end. The shape is then the catenary through S and T of length L (not tangent at S):
   sqrt(L² − h²) = 2 a sinh(X / 2a) (a plain bisection on the touching shape gave a wrong length here: task 0075).
 * ``PILED`` – more cable than the flat distance plus the depth: it would pile up on the seabed. It hangs straight
-  down under T and the rest lies snaking on the seabed between S and the TDP, so the length stays L.
+  down under T; on the seabed it lies straight from S along the lay line and carries the extra length in **one
+  bight** next to the touch-down (task 0248, ``bight``), so the length stays L. (Before 0248 it snaked in waves of
+  4 m over the whole way from S to the TDP: a let-go cable wobbled from end to end.)
 * ``STRETCHED`` – L shorter than the straight line from T to S: drawn straight (the length is then wrong; the app
   warns).
 
@@ -68,7 +70,11 @@ BEND_ROUNDS = 80                # rounds of the fixed point on the free bend's t
 FLAT = 0.2                      # a wheel whose plane holds less of "down" than this lies (nearly) flat (as paths_sea.FLAT)
 BED_GAP = 1e-3                  # m: a free bend ends at least this far over the cable's middle on the seabed
 BED_BAND = 2.0                  # m: a free bend ending this near the seabed bends in the catenary's plane at the wheel
-SNAKE = 4.0                     # m: wavelength of cable piled on the seabed (only drawn in the warned case)
+BIGHT_TURN = math.radians(45.0)  # a bight's feet turn this far off the lay line when no bend radius is known
+BIGHT_TURN_MAX = math.radians(140.0)  # … and at most this far (beyond 150° its feet would cross: a loop)
+BIGHT_EASE = 1.5                # a bight bends at this many times the cable's smallest bend radius (not at it)
+BIGHT_ROUNDS = 60               # bisection steps of a bight's turn
+MBR_DIAMETERS = 10.0            # no smallest bend radius given: 10 x the cable's diameter (task 0248)
 _TINY = 1e-9
 
 
@@ -345,26 +351,15 @@ def points(res: dict, lam) -> np.ndarray:
     out[:] = normal
     pile = kind == PILED
     if pile.any():
-        # snaking: the laid part between TDP and S has length laid > the distance between them
-        xs = res["xi"][pile]                               # the flat distance S..TDP
-        total = res["laid"][pile]
-        bb = beyond[pile]
-        pts = np.zeros(bb.shape + (3,))
-        side_all = np.cross(z_up, u[pile])
-        waves = np.maximum(1, np.round(np.maximum(xs, SNAKE) / SNAKE)).astype(np.int64)
-        amps = _snake_amplitudes(np.maximum(xs, 1e-6), total, waves)       # (all piled moments at once: task 0159)
-        t = np.linspace(0.0, 1.0, 2049)
-        for i, (dist, ln) in enumerate(zip(xs, total)):
-            x = t * dist
-            y = amps[i] * np.sin(2.0 * math.pi * waves[i] * t)
-            seg = np.hypot(np.diff(x), np.diff(y))
-            arc = np.concatenate([[0.0], np.cumsum(seg)])
-            arc *= ln / max(arc[-1], 1e-300)
-            q = np.clip(bb[i], 0.0, ln)
-            xi_ = np.interp(q, arc, x)
-            yi_ = np.interp(q, arc, y)
-            pts[i] = tdp[pile][i] + u[pile][i] * xi_[:, None] + side_all[i] * yi_[:, None]
-            pts[i, :, 2] = zb[pile][i]
+        # straight from S along the lay line, the extra length in one bight next to the TDP (task 0248); a bight that
+        # lay there when the hang-off was let go stays where it lay further on
+        b = bight(res)
+        q = np.clip(beyond[pile], 0.0, None)
+        along, side = _laid_at(q, *(b[k][pile][:, None] for k in ("R", "theta", "length", "span", "f_R", "f_theta",
+                                                                    "f_length", "f_span", "f_at")))
+        n = b["side"][pile]
+        pts = tdp[pile][:, None, :] + u[pile][:, None, :] * along[..., None] + n[:, None, :] * side[..., None]
+        pts[..., 2] = zb[pile][:, None]
         hp = hang_pts[pile]
         out[pile] = np.where((lam[pile] <= s[pile][:, None])[..., None], hp, pts)
     lift = kind == LIFTED
@@ -385,32 +380,149 @@ def points(res: dict, lam) -> np.ndarray:
     return out
 
 
-def _snake_amplitude(dist: float, length: float, waves: int) -> float:
-    """The amplitude of a flat sine with ``waves`` waves over ``dist`` whose length is ``length``."""
-    return float(_snake_amplitudes(np.array([dist], float), np.array([length], float), np.array([waves]))[0])
+def _sinc(t):
+    t = np.asarray(t, dtype=float)
+    return np.where(np.abs(t) < 1e-8, 1.0 - t * t / 6.0, np.sin(t) / np.where(np.abs(t) < 1e-8, 1.0, t))
 
 
-def _snake_amplitudes(dist, length, waves) -> np.ndarray:
-    """``_snake_amplitude`` for many moments at once (the same bisection, a row of 2,049 points per moment; in blocks
-    so a long animation stays light): a Build of the demo did 78,400 of these one at a time (task 0159)."""
-    dist, length = np.asarray(dist, dtype=float), np.asarray(length, dtype=float)
-    waves = np.asarray(waves)
-    out = np.zeros(len(dist))
-    t = np.linspace(0.0, 1.0, 2049)
-    for b in range(0, len(dist), 256):
-        d, ln, w = dist[b:b + 256], length[b:b + 256], waves[b:b + 256]
-        x = t[None, :] * d[:, None]
-        dx = np.diff(x, axis=1)
-        wave = np.sin(2.0 * math.pi * w[:, None] * t[None, :])
-        lo, hi = np.zeros(len(d)), np.maximum(ln, d)
-        for _ in range(80):
-            mid = 0.5 * (lo + hi)
-            arc = np.hypot(dx, np.diff(mid[:, None] * wave, axis=1)).sum(axis=1)
-            short = arc < ln
-            lo = np.where(short, mid, lo)
-            hi = np.where(short, hi, mid)
-        out[b:b + 256] = np.where(ln <= d * (1.0 + 1e-12), 0.0, 0.5 * (lo + hi))
+def _theta_for(want_sinc) -> np.ndarray:
+    """θ in [0, π] with sin θ / θ = ``want_sinc`` (0 … 1; it falls monotonically over [0, π])."""
+    want = np.clip(np.asarray(want_sinc, dtype=float), 0.0, 1.0)
+    lo, hi = np.zeros(want.shape), np.full(want.shape, math.pi)
+    for _ in range(BIGHT_ROUNDS):
+        mid = 0.5 * (lo + hi)
+        big = _sinc(mid) > want                          # sinc still too big: turn more
+        lo, hi = np.where(big, mid, lo), np.where(big, hi, mid)
+    return 0.5 * (lo + hi)
+
+
+def _theta_for_radius(excess, r_min) -> np.ndarray:
+    """The largest θ whose bight carrying ``excess`` has the radius ``r_min``: R = e / (4 θ (1 − sinc θ)) falls as θ
+    grows."""
+    e, r = np.asarray(excess, dtype=float), np.asarray(r_min, dtype=float)
+    lo, hi = np.zeros(e.shape), np.full(e.shape, math.pi)
+    for _ in range(BIGHT_ROUNDS):
+        mid = 0.5 * (lo + hi)
+        g = 4.0 * mid * (1.0 - _sinc(mid))
+        wide = e >= r * g                                # R(mid) >= r_min: may turn more
+        lo, hi = np.where(wide, mid, lo), np.where(wide, hi, mid)
+    return lo
+
+
+def bight(res: dict) -> dict:
+    """The bight of a piled cable on the seabed (task 0248): from the TDP along the lay line ``u`` towards S the cable
+    lies in **one smooth curve to one side** and then straight on to S. The curve is four circular arcs of one radius
+    R – off the line by θ, back across by 2θ, onto the line by θ – so it leaves the TDP and meets the straight in line
+    (no kink), with no point of it tighter than R. It carries the extra length e = laid − (S … TDP) over the stretch
+    ``span`` next to the TDP: span = length · sin θ / θ, length = 4 R θ.
+
+    R is ``BIGHT_EASE`` x the cable's smallest bend radius ``res['r_min']``: a small extra length lies in a long, flat
+    curve (θ small), a large one in a compact, rounder bight close to the touch-down (θ up to ``BIGHT_TURN_MAX``, an Ω;
+    beyond that R grows instead – the feet of the Ω would cross). Without a bend radius the turn is ``BIGHT_TURN``.
+    The stretch never reaches past ``res['keep']`` metres from S (the cable that lay there when its hang-off was let
+    go stays where it lay) nor past S: where it would, the bight turns more – it grows sideways, up to a loop (θ = π)
+    – and may then be tighter than ``r_min`` (a warned case, or a let-go whose slide forward could not take up its
+    extra length). Without ``r_min`` / ``keep`` in ``res`` (NaN or missing): none / nothing kept.
+
+    **A bight that lay there when the hang-off was let go** (``res['frozen_span']``, ``res['frozen_extra']``: its
+    span and extra length then, NaN / 0: none) lies where it lay – from ``keep`` metres from S on, towards the TDP –
+    and only the extra length beyond its own goes into the bight next to the TDP (in the stretch between the two).
+    Should there be less extra length than it had (nothing piles up that much), it keeps its span and lies flatter.
+
+    Returns arrays over the moments: ``R``, ``theta``, ``length`` (of the curve), ``span`` (along the line), ``side``
+    (F, 3) the flat unit it bends towards; the kept bight's ``f_R``, ``f_theta``, ``f_length``, ``f_span`` and
+    ``f_at`` (from the TDP along the line to its start); zeros where the cable is not piled."""
+    kind = res["kind"]
+    F = len(kind)
+    pile = kind == PILED
+    out = {k: np.zeros(F) for k in ("R", "theta", "length", "span", "f_R", "f_theta", "f_length", "f_span", "f_at")}
+    u = res["u"]
+    side = np.cross(np.array([0.0, 0.0, 1.0]), u)
+    out["side"] = side / np.maximum(np.linalg.norm(side, axis=1, keepdims=True), 1e-12)
+    if not pile.any():
+        return out
+
+    def per(key, default):
+        v = np.asarray(res.get(key, np.full(F, default)), dtype=float)
+        return np.broadcast_to(v, (F,))[pile]
+
+    xs = np.asarray(res["xi"], dtype=float)[pile]                          # S … TDP along the line
+    e = np.clip(np.asarray(res["laid"], dtype=float)[pile] - xs, 0.0, None)
+    r_min = per("r_min", 0.0)
+    r_min = np.where(np.isfinite(r_min), np.maximum(r_min, 0.0), 0.0)
+    keep = per("keep", np.nan)
+    keep = np.clip(np.where(np.isfinite(keep), keep, 0.0), 0.0, xs)
+    f_span, f_e = per("frozen_span", np.nan), per("frozen_extra", 0.0)
+    frozen = np.isfinite(f_span) & np.isfinite(f_e) & (f_e > 1e-12) & (keep + np.nan_to_num(f_span) <= xs + 1e-9)
+    f_span = np.where(frozen, np.nan_to_num(f_span), 0.0)
+    f_e = np.where(frozen, np.minimum(np.nan_to_num(f_e), e), 0.0)          # (less extra than it had: it lies flatter)
+    f_th = np.where(frozen, _theta_for(f_span / np.maximum(f_span + f_e, 1e-300)), 0.0)
+    f_len = f_span + f_e
+    out["f_R"][pile] = np.where(frozen, f_len / np.maximum(4.0 * f_th, 1e-300), 0.0)
+    out["f_theta"][pile], out["f_length"][pile], out["f_span"][pile] = f_th, f_len, f_span
+    out["f_at"][pile] = np.where(frozen, xs - keep - f_span, 0.0)
+    e = e - f_e                                                             # what the bight next to the TDP carries
+    room = np.clip(xs - keep - f_span, 0.0, xs)                             # the stretch it may use
+    th = np.full(len(xs), BIGHT_TURN)
+    tight = r_min > 0.0
+    if tight.any():
+        th[tight] = np.minimum(_theta_for_radius(e[tight], BIGHT_EASE * r_min[tight]), BIGHT_TURN_MAX)
+    th = np.maximum(th, 1e-6)
+    sc = _sinc(th)
+    span = e * sc / np.maximum(1.0 - sc, 1e-300)
+    cramped = span > room
+    if cramped.any():                                    # no room for it: it turns more (sideways, up to a loop)
+        th[cramped] = np.maximum(_theta_for(room[cramped] / np.maximum(room[cramped] + e[cramped], 1e-300)), th[cramped])
+        span = np.where(cramped, room, span)
+    length = span + e
+    none = e <= 1e-12
+    out["R"][pile] = np.where(none, 0.0, length / np.maximum(4.0 * th, 1e-300))
+    out["theta"][pile] = np.where(none, 0.0, th)
+    out["length"][pile] = np.where(none, 0.0, length)
+    out["span"][pile] = np.where(none, 0.0, span)
     return out
+
+
+def _laid_at(q, R, th, length, span, f_R, f_th, f_length, f_span, f_at):
+    """(along, side) of the cable on the seabed at arc length ``q`` from the TDP (piled moments): the bight next to
+    the TDP, straight, the kept bight (``f_*``, starting ``f_at`` along the line from the TDP), straight to S."""
+    q = np.asarray(q, dtype=float)
+    a1, s1 = _bight_at(np.minimum(q, length), R, th)
+    along = np.where(q > length, span + (q - length), a1)
+    side = np.where(q > length, 0.0, s1)
+    q_f = length + np.maximum(f_at - span, 0.0)              # where the kept bight starts, along the cable
+    has = f_length > 0.0
+    t = q - q_f
+    a2, s2 = _bight_at(np.clip(t, 0.0, f_length), f_R, f_th)
+    in_f = has & (t > 0.0)
+    along = np.where(in_f, f_at + np.where(t > f_length, f_span + (t - f_length), a2), along)
+    side = np.where(in_f & (t <= f_length), s2, side)
+    return along, side
+
+
+def _bight_at(q, R, theta):
+    """(along, side): the point at arc length ``q`` (…, k) along the bight of radius R and turn θ (…, 1), from its
+    start at the TDP: along the line and off it."""
+    q = np.asarray(q, dtype=float)
+    R = np.broadcast_to(np.asarray(R, dtype=float), q.shape)
+    th = np.broadcast_to(np.asarray(theta, dtype=float), q.shape)
+    Rs = np.maximum(R, 1e-300)
+    a1 = R * th                                           # end of the first arc, of the second (3 R θ), total 4 R θ
+    a2 = 3.0 * R * th
+    # first arc: heading 0 -> θ (turning towards the side)
+    t1 = np.minimum(q, a1) / Rs
+    x = R * np.sin(t1)
+    y = R * (1.0 - np.cos(t1))
+    # second arc: heading θ -> −θ
+    t2 = np.clip(q - a1, 0.0, 2.0 * a1) / Rs
+    x = x + R * (np.sin(th) - np.sin(th - t2))
+    y = y + R * (np.cos(th - t2) - np.cos(th))
+    # third arc: heading −θ -> 0
+    t3 = np.clip(q - a2, 0.0, a1) / Rs
+    x = x + R * (np.sin(t3 - th) + np.sin(th))
+    y = y + R * (np.cos(th) - np.cos(t3 - th))
+    flat = R <= 0.0
+    return np.where(flat, q, x), np.where(flat, 0.0, y)
 
 
 # ---------------------------------------------------------------------------

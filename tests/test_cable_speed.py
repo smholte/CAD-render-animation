@@ -152,33 +152,5 @@ def test_hang_off_one_moment_is_faster():
     assert one < 0.5 * arrays, (one, arrays)
 
 
-def _snake_ref(dist: float, length: float, waves: int) -> float:
-    """The one-moment bisection the piled-up snake used before task 0159."""
-    if length <= dist * (1.0 + 1e-12):
-        return 0.0
-    t = np.linspace(0.0, 1.0, 2049)
-
-    def arc(amp):
-        x, y = t * dist, amp * np.sin(2.0 * math.pi * waves * t)
-        return float(np.hypot(np.diff(x), np.diff(y)).sum())
-    lo, hi = 0.0, max(length, dist)
-    for _ in range(80):
-        mid = 0.5 * (lo + hi)
-        if arc(mid) < length:
-            lo = mid
-        else:
-            hi = mid
-    return 0.5 * (lo + hi)
-
-
-def test_snake_amplitudes_of_many_moments_are_the_one_moment_answers():
-    rng = np.random.default_rng(5)
-    n = 300                                             # (more than one block of 256)
-    d = rng.uniform(0.5, 60.0, n)
-    ln = d * rng.uniform(1.0, 1.6, n)
-    ln[:5] = d[:5]                                      # (lying straight: no snake)
-    w = np.maximum(1, np.round(np.maximum(d, C.SNAKE) / C.SNAKE)).astype(int)
-    got = C._snake_amplitudes(d, ln, w)
-    ref = np.array([_snake_ref(float(a), float(b), int(c)) for a, b, c in zip(d, ln, w)])
-    assert np.array_equal(got, ref)
-    assert (got[:5] == 0.0).all() and (got[5:] > 0.0).all()
+# (task 0248: the piled-up snake and its many-moments bisection are gone – a piled cable lies in one bight;
+# tests/test_catenary_bight.py checks many moments against one)

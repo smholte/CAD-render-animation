@@ -1,6 +1,6 @@
 # 0245 – toolbox-format v0.1.1 pinned; Windows checks W2 (junction in an inbox) and W3 (status.json replaced while read)
 
-**Who:** worker · **Status:** done (0.2.190) ·
+**Who:** worker · **Status:** done (0.2.191) ·
 **Branch:** `task/0245-toolbox-format-0.1.1`
 **Started by:** lead, 20 Nov 2026 (lead post: ToolBox's messages of 19 and 20 Nov – v0.1.1 tagged, W2 / W3 asked of us) ·
 **Model:** Opus · effort Medium
@@ -135,7 +135,7 @@ the inbox again against the new checker).
   than 0.25 s; a hold of 0.5 s outlasts it by design); for a reader that opens, reads and closes no write was refused
   at all. Keeping the write for the next look (what our `Inbox._later` does) always got through.
 
-**Runs:** 8 full – `main` brought 0241 (0.2.184), 0239 (0.2.185), 0237 (0.2.186), 0246 (0.2.187), 0247 (0.2.188) and 0230 (0.2.189) while they ran, so renumbered six times; this task is 0.2.190. The 4th run failed only on "2 tests skipped (1 allowed)" in one pytest group: the new file `tests/test_toolbox_w2w3.py` had shifted the groups so that two tests that are always skipped on GitHub's Linux met in one group; the test moved into `tests/test_toolbox.py` (groups the same as on `main`) and a 5th run.
+**Runs:** 9 full – `main` brought 0241 (0.2.184), 0239 (0.2.185), 0237 (0.2.186), 0246 (0.2.187), 0247 (0.2.188), 0230 (0.2.189) and 0248 (0.2.190) while they ran, so renumbered seven times; this task is 0.2.191. The 4th run failed only on "2 tests skipped (1 allowed)" in one pytest group: the new file `tests/test_toolbox_w2w3.py` had shifted the groups so that two tests that are always skipped on GitHub's Linux met in one group; the test moved into `tests/test_toolbox.py` (groups the same as on `main`) and a 5th run.
 
 **Open points:**
 - Tell the ToolBox lead: Blender 5.2.3 runs Python **3.13**, not 3.11 (0.1.1's changelog says "Python 3.11 (Blender)");

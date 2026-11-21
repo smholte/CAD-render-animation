@@ -73,6 +73,7 @@ import numpy as np
 from bpy.app.handlers import persistent
 from mathutils import Matrix, Vector
 
+from ..core import catenary as C
 from ..core import paths as P
 from ..core.words import plural
 from . import build, cable_looks, flex, idprops, joints
@@ -1873,7 +1874,7 @@ def _solve_item(scene, item, rel: np.ndarray, known: bool = True, ref=None, firs
     F, W = rel.shape[0], len(wheels)
     if item.b_kind == "SEA":
         from . import paths_sea as _sea
-        res = _sea.solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale)
+        res = _sea.solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale, first=first)
     else:
         ends = _end_points(scene, item, rel, slots, b_slot, first, let_go)
         on1 = item.b_kind == "WHEEL" and W > 0
@@ -2122,6 +2123,11 @@ TIGHT_TOL = 0.0005                      # m: the payout that keeps a cable tight
 TIGHT_ROUNDS = 4                        # … in at most this many rounds (a start on a spool moves with the payout)
 TIGHT = "fr_cable_tight"                # on a speed joint's motion empty while Build's keys keep it tight: the cable
 LET_GO = "fr_let_go"                    # on a cable item: JSON {which: [frame, sea, place]} – the places let go
+LAY = "fr_let_go_lay"                   # on a cable item: JSON {frame: [slide x, y, z, keep, span, extra]} – how a sea
+#                                         cable let go at that frame lies down (task 0248, ``_lay_down``)
+LAY_BIGHT = 0.04                        # the share of the freed cable left over for one bight (the rest slides)
+LAY_ROUNDS = 3                          # rounds of the slide forward (exact in one when the whole hang-off is let go)
+LAY_HALVES = 10                         # halvings when a slide that far would make it hang from a wheel before
 
 
 def _let_goes(item) -> list:
@@ -2193,6 +2199,131 @@ def _store_let_go(item, which: str, frame: int, sea: bool, v) -> None:
     item[LET_GO] = json.dumps(got)
 
 
+def _stored_lay(item) -> dict:
+    try:
+        got = json.loads(item.get(LAY, "") or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return got if isinstance(got, dict) else {}
+
+
+def _store_lay(item, frame: int, lay) -> None:
+    got = _stored_lay(item)
+    if lay is None:
+        if str(int(frame)) not in got:
+            return
+        del got[str(int(frame))]
+    else:
+        got[str(int(frame))] = [float(x) for x in lay]
+    item[LAY] = json.dumps(got)
+
+
+def _lay_down(scene, item, rel1, slots, f0: int):
+    """[slide x, y, z, keep, span, extra] (task 0248) – how a cable into the sea lies down once what was let go at
+    ``f0`` settles,
+    worked out from that frame's places ``rel1`` (1, K, 4, 4); None when nothing of it settles (Settles in 0).
+
+    ``keep``: the metres from its end S that lay straight on the seabed at ``f0`` (``paths_sea.straight_laid``) – they
+    stay where they lay (``core.catenary.bight`` never reaches into them); ``span`` / ``extra``: the bight it lay in
+    next to the touch-down then (a cable piled up already, a warned case; 0 / 0: none) – it stays where it lay too, and
+    only extra length beyond its own goes into a bight next to the touch-down. ``slide``: when the cable
+    hangs from a wheel let go then, the group settling with it also goes on **forward along the lay line** (seabed
+    coordinates, m), by as much as the cable would otherwise pile up, less ``LAY_BIGHT`` of the freed cable: that rest
+    lies in one gentle bight next to the touch-down (the owner: "it should stay straight – probably not fully straight
+    at the end"). Worked out by solving the moment once as it is (share 0) and once settled (share 1); the excess falls
+    one for one with the slide while everything before the hang-off settles with it, else a few rounds."""
+    from . import paths_sea as _sea
+    if float(getattr(item, "sea_settle", 0.0)) <= 0.0:
+        return None
+    group = [w for w, f in _let_goes(item) if f == f0]
+    wi = _wheel_indices(item)
+    forward = -_sea._flat(item.sea_dir)
+
+    def numbers(share, slide):
+        _STATE["probe"] = (f0, share, slide)
+        try:
+            res = _solve_item(scene, item, rel1, first=f0)
+        finally:
+            _STATE.pop("probe", None)
+        return res.get("sea") or {}
+
+    keep_state = _sea._STATE["sea"].pop(_k(scene, item), None)   # (not steered by the pose solved last: the same
+    try:                                                            # answer from Let go, Build and a re-bake)
+        at = numbers(0.0, None)
+        if not at or "laid" not in at:
+            return None
+        keep = float(at["straight"][0])
+        piled0 = int(at["kind"][0]) == C.PILED
+        span0 = float(at["bight_span"][0]) if piled0 else 0.0
+        extra0 = float(at["excess"][0]) if piled0 else 0.0
+
+        def piles(d):
+            """(it still hangs from what was let go and piles up, metres more than the bight keeps) slid by d."""
+            end = numbers(1.0, d * forward)
+            if not end or "hang" not in end:
+                return False, 0.0
+            h = int(end["hang"][0])
+            if not (0 <= h < len(wi) and str(wi[h]) in group) or int(end["kind"][0]) != C.PILED:
+                return False, 0.0
+            freed = float(end["length"][0]) - keep - span0 - extra0       # (beyond what lay on the seabed)
+            return True, float(end["excess"][0]) - extra0 - LAY_BIGHT * max(freed, 0.0)
+
+        good, more = piles(0.0)
+        lo, hi = 0.0, None                      # slid this far it still piles up / it no longer does
+        d = 0.0
+        for _round in range(LAY_ROUNDS if good else 0):
+            if more <= 1e-4:
+                break
+            d = lo + more                       # (one for one while all before the hang-off settles with it)
+            good, more = piles(d)
+            if not good:
+                hi = d
+                break
+            lo = d
+        if hi is not None:                      # too far (it hangs from a wheel before, or lifts): the most that works
+            for _round in range(LAY_HALVES):
+                mid = 0.5 * (lo + hi)
+                if piles(mid)[0]:
+                    lo = mid
+                else:
+                    hi = mid
+        slide = lo * forward
+    finally:
+        if keep_state is None:
+            _sea._STATE["sea"].pop(_k(scene, item), None)
+        else:
+            _sea._STATE["sea"][_k(scene, item)] = keep_state
+    return [float(slide[0]), float(slide[1]), float(slide[2]), keep, span0, extra0]
+
+
+def let_go_keep(scene, item, h: int, idx, first) -> dict:
+    """For the moments ``idx`` that hang a sea cable from wheel ``h`` (task 0248): what of the cable on the seabed stays
+    where it lay when that wheel was let go – ``keep`` (len(idx),) the metres from its end S that lay straight then,
+    ``frozen_span`` / ``frozen_extra`` the span and extra length of the bight it lay in next to the touch-down then
+    (NaN / 0: none) – for ``core.catenary.bight``. NaN before the let-go, for a wheel not let go, or when nothing is
+    stored."""
+    idx = np.asarray(idx, dtype=np.int64)
+    out = {"keep": np.full(len(idx), np.nan), "frozen_span": np.full(len(idx), np.nan),
+           "frozen_extra": np.zeros(len(idx))}
+    wi = _wheel_indices(item)
+    if not 0 <= int(h) < len(wi):
+        return out
+    f0 = int(item.contacts[wi[int(h)]].let_go_frame)
+    probe = _STATE.get("probe")
+    if f0 < 0 or (probe is not None and probe[0] == f0):    # (``_lay_down`` asks how it lies without them)
+        return out
+    lay = _stored_lay(item).get(str(f0))
+    if not lay or len(lay) < 6:
+        return out
+    frames = np.full(len(idx), int(scene.frame_current)) if first is None else int(first) + idx
+    after = frames >= f0
+    out["keep"][after] = float(lay[3])
+    if float(lay[5]) > 0.0:
+        out["frozen_span"][after] = float(lay[4])
+        out["frozen_extra"][after] = float(lay[5])
+    return out
+
+
 def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
     """``values``: which -> (F, d) places in the cable part's coordinates (an end's point; a wheel's centre + axis),
     changed in place: from its let-go frame on, an end or contact stays where it was at that frame. Along a Build
@@ -2224,16 +2355,22 @@ def _apply_let_go(scene, item, rel, slots, first, values: dict) -> None:
         kept_all[which] = (f0, kept)
     seconds = float(getattr(item, "sea_settle", 0.0)) if sea else 0.0
     fps = scene.render.fps / max(float(scene.render.fps_base), 1e-9)
+    probe = _STATE.get("probe")                 # (frame, share, slide): ``_lay_down`` works out how it lies down
+    lays = _stored_lay(item) if seconds > 0.0 else {}
     for which, (f0, kept) in kept_all.items():
         after = frames >= f0
         n = int(after.sum())
         if seconds > 0.0:
             group = {w: k for w, (f, k) in kept_all.items() if f == f0}
             e = settle_share((frames[after] - f0) / fps, seconds)
+            slide = lays.get(str(f0))
+            slide = None if not slide else np.array(slide[:3], dtype=float)
+            if probe is not None and probe[0] == f0:
+                e, slide = np.full(len(e), float(probe[1])), probe[2]
             bottom = _sea_bottom(scene, item)
             if "a" in group or "b" in group:    # an end with a CPS on it: the CPS lies on the seabed, not in it
                 bottom += _rider_lift(scene, item)
-            place = settle(kept, group, bottom, e)
+            place = settle(kept, group, bottom, e, slide)
             v = values[which]
             v[after] = _from_hold_each(place, hold[after])
         else:
@@ -2300,15 +2437,25 @@ def _rodrigues(v, k, angle):
     return v * np.cos(a) + np.cross(k, v) * np.sin(a) + k * (k @ v) * (1.0 - np.cos(a))
 
 
-def settle(kept, group: dict, bottom: float, share) -> np.ndarray:
+def settle(kept, group: dict, bottom: float, share, slide=None) -> np.ndarray:
     """(n, d): the place ``kept`` (holding frame = the seabed's coordinates, m: a point, or a wheel's centre + axis)
     on its way down to the seabed, at each ``share`` (0 … 1) of the way (task 0125). Everything let go at the same
     moment (``group``: which -> place) moves as one: when a wheel is among them (the quadrant's gutter the cable lies
     round), it is turned flat about its centre and lowered until its circle – the cable's middle – lies at ``bottom``
     (the height of the middle of a cable lying on the seabed), and the ends let go with it go along; without a wheel
-    each end sinks straight down to ``bottom``."""
+    each end sinks straight down to ``bottom``. ``slide`` (3,): where the group goes on along the seabed meanwhile
+    (task 0248: forward along the lay line, so the cable that hung lies down in line) – at the same share: the group
+    goes down and forward together, the cable that hung lies down behind it in line as it goes (a steep cable stays
+    just slack: none is lifted off the seabed, little piles up on the way)."""
     kept = np.asarray(kept, dtype=float)
     share = np.asarray(share, dtype=float)
+    out = _settle(kept, group, bottom, share)
+    if slide is not None:
+        out[:, :3] += share[:, None] * np.asarray(slide, dtype=float)[None, :3]
+    return out
+
+
+def _settle(kept, group: dict, bottom: float, share) -> np.ndarray:
     wheel = next((np.asarray(g, dtype=float) for g in group.values() if len(g) == 6), None)
     if wheel is None:
         out = np.tile(kept, (len(share), 1))
@@ -2373,6 +2520,11 @@ def _refresh_let_go(scene, item, rel, slots, first: int) -> None:
             got = _places_now(scene, item, rel[m0:m0 + 1], slots)
             if which in got:
                 _store_let_go(item, which, f0, sea, got[which])
+    if sea:
+        for f0 in sorted({f for _w, f in _let_goes(item)}):
+            if f0 < first + rel.shape[0]:
+                m0 = max(f0 - first, 0)
+                _store_lay(item, f0, _lay_down(scene, item, rel[m0:m0 + 1], slots, f0))
 
 
 def _which_of(item, which) -> str:
@@ -2404,6 +2556,8 @@ def _drop_let_go_contacts(item) -> None:
     keep = {k: v for k, v in got.items() if k in ("a", "b")}
     if keep != got:
         item[LET_GO] = json.dumps(keep)
+    if item.get(LAY):
+        item[LAY] = "{}"
 
 
 def _set_let_go_frame(item, which: str, frame: int) -> None:
@@ -2452,13 +2606,16 @@ def let_go(scene, item, which, frame=None) -> None:
     item = _cable(scene, name)
     _set_let_go_frame(item, w, frame)
     if rel1 is not None:
-        _store_let_go(item, w, frame, _hold_frame(item, rel1, slots) is not None,
-                      _places_now(scene, item, rel1, slots)[w])
+        sea = _hold_frame(item, rel1, slots) is not None
+        _store_let_go(item, w, frame, sea, _places_now(scene, item, rel1, slots)[w])
+        if sea:
+            _store_lay(item, frame, _lay_down(scene, item, rel1, slots, frame))
     else:
         got = _stored_let_go(item)
         if w in got:
             del got[w]
             item[LET_GO] = json.dumps(got)
+        _store_lay(item, frame, None)
     changed(scene, item)
 
 
@@ -2469,11 +2626,14 @@ def hold(scene, item, which) -> None:
         w = str(int(w))
     if let_go_frame(item, w) < 0:
         return
+    f0 = let_go_frame(item, w)
     _set_let_go_frame(item, w, -1)
     got = _stored_let_go(item)
     if w in got:
         del got[w]
         item[LET_GO] = json.dumps(got)
+    if f0 not in {f for _w, f in _let_goes(item)}:
+        _store_lay(item, f0, None)
     changed(scene, item)
 
 

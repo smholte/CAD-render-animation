@@ -246,13 +246,14 @@ def test_tracks_links_and_pads_move(tmp_path):
 
 
 def test_cable_into_the_sea_and_lift_wire(tmp_path):
-    """test_moving.step: the cable is let go and settles on the seabed (its own lengths along it differ from the
-    chords there: kept in the file), the lift wire is kept tight by its winch."""
+    """test_moving.step: the cable is let go and settles on the seabed, the lift wire is kept tight by its winch. (Task
+    0248: the settled cable lies in one bight, no longer in 4 m waves whose own lengths differed from the chords – the
+    page's lengths along it, from the chords, match the app's: ``w["s"]``.)"""
     sc, _out = fresh("test_moving.step", paths.set_up_moving_model, tmp_path)
     build(sc)
     job, out, doc, binary = export(sc, tmp_path, animation=True)
     specs = tubes_of(job, doc)
-    assert set(specs) == {"CABLE", "LIFT WIRE"} and "slo" in specs["CABLE"]
+    assert set(specs) == {"CABLE", "LIFT WIRE"}
     w = compare_tubes(sc, job, doc, binary, [1, 120, 231, 260, 289])
     assert w["centre"] < 0.002 and w["ring"] < 0.004 and w["s"] < 0.002 and w["pay"] < 0.002, w
 

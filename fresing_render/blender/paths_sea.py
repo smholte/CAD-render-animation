@@ -51,7 +51,9 @@ TAG = "fr_sea"                          # on that empty
 BOX = "fr_sea_box"                      # on a cable item: hang-off and touch-down (world, CAD place) when last set
 SINK = 0.3                              # the cable lying on the seabed sinks this share of its Ø into the silt
 SAG = 0.001                             # m: the drawn catenary lies at most this far inside the true curve
-N_LAID, N_PILED = 2, 64                 # points of the part on the seabed (straight / snaking)
+N_LAID, N_PILED = 2, 64                 # points of the part on the seabed (straight / with a bight, task 0248)
+BIGHT_STEP = math.radians(3.0)          # a point of the bight per 3° it turns
+BIGHT_MIN = 2.0                         # m: the points of the bight cover at least this much of the cable on the seabed
 N_MIN, N_MAX = 16, 600                  # points of the hanging part
 WRAP_SHEAVE = math.pi                   # a sheave lets the cable go at most half round it before it leaves
 SHORT = 1e-4                            # m: an arc this short on the hang-off wheel: the cable just touches it
@@ -580,23 +582,43 @@ def bend_points(turn: float) -> int:
     return int(np.clip(math.ceil(turn / BEND_STEP), 4, 400))
 
 
-def laid_points(piled: float) -> int:
-    """Points for a cable piled up on the seabed (it snakes in waves of ``core.catenary.SNAKE`` m): 16 per wave."""
-    return int(np.clip(math.ceil(max(piled, 0.0) / C.SNAKE) * 16, N_PILED, 4000))
+def laid_points(piled: float, turn: float = 0.0) -> int:
+    """Points for a cable piled up on the seabed: it lies in one bight next to the touch-down (task 0248), ``turn``
+    the most its four arcs turn in all (4 θ, rad) – a point per ``BIGHT_STEP``, at least ``N_PILED``. (``piled``, the
+    length on the seabed, no longer counts: the rest of it lies straight.)"""
+    if piled <= 0.0:
+        return N_LAID
+    return int(np.clip(math.ceil(max(turn, 0.0) / BIGHT_STEP) + 2, N_PILED, 400))
+
+
+def bight_lam(s_h, L, length, n: int) -> np.ndarray:
+    """(F, n) arc lengths from the hang-off for the n points on the seabed (task 0248): all but the last over the bight
+    next to the touch-down (at least ``BIGHT_MIN`` m of it, so they never fall on one place) and the last at the end S
+    – the rest lies straight. ``length`` (F,): how far along the cable its bights reach (0: none, it lies straight –
+    the same rule, so the points do not jump where a moment comes to pile up). Two points (no moment piles): one
+    halfway, one at S, as before."""
+    s_h, L, length = (np.asarray(x, dtype=float) for x in (s_h, L, length))
+    laid = np.maximum(L - s_h, 0.0)
+    if n < 3:
+        return s_h[:, None] + laid[:, None] * (np.arange(1, n + 1) / n)
+    reach = np.minimum(np.maximum(length, BIGHT_MIN), laid)
+    j = np.arange(1, n) / (n - 1)
+    return np.concatenate([s_h[:, None] + reach[:, None] * j, L[:, None]], axis=1)
 
 
 _SEA_KEYS = ("kind", "psi", "a", "layback", "angle", "laid", "suspended", "excess", "steep", "short", "kink", "tdp",
-             "T", "pay", "bottom", "top", "T_part", "tdp_part", "length", "h")
+             "T", "pay", "bottom", "top", "T_part", "tdp_part", "length", "h", "straight", "bight_span")
 
 
-def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale) -> dict:
+def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wraps0, scale, first=None) -> dict:
     """The cable's shape at F moments with its end in the sea: ``core.paths.solve_frames``' result (points in the
     cable part's coordinates) with the hang-off wheel's arc ending where the cable leaves it, the catenary and the
     part on the seabed after it; plus ``sea`` (the numbers per moment, "hang": the wheel it hangs from),
     ``released`` (F, W: the wheels it has left, task 0082) and ``sea_notes`` [(moment, words)].
 
     Every moment has the same points: a moment that hangs from an earlier wheel puts the points of the wheels it has
-    left on its catenary."""
+    left on its catenary. ``first``: the frame of moment 0 (None: the pose shown) – a moment after its hang-off wheel
+    was let go keeps the cable that lay on the seabed then where it lay (task 0248, ``core.catenary.bight``)."""
     F = rel.shape[0]
     W = len(radii)
     if not W:
@@ -611,6 +633,11 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     hang, groups = _hang_offs(scene, item, rel, slots, parts, ar, prev)
     counts = np.asarray(ar.counts, dtype=np.int64)
     hung = {hh: g[2] for hh, g in groups.items()}
+    r_min = min_bend(item)
+    for hh, (idx, _a, hr) in groups.items():            # what the bight on the seabed must keep to (task 0248)
+        hr.update(r_min=np.full(len(idx), r_min))
+        hr.update(_paths().let_go_keep(scene, item, hh, idx, first))
+        hr["bight"] = C.bight(hr)
     # how many points the hanging part needs (one count for all moments)
     good = np.concatenate([hr["a"][(hr["kind"] == C.NORMAL) | (hr["kind"] == C.LIFTED)] for hr in hung.values()])
     a_min = float(good.min()) if len(good) else 10.0
@@ -618,7 +645,13 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     s_max = max(float(hr["suspended"].max(initial=1.0)) for hr in hung.values())
     n_cat = int(np.clip(math.ceil(s_max / step), N_MIN, N_MAX))
     piles = np.concatenate([hr["laid"][hr["kind"] == C.PILED] for hr in hung.values()])
-    n_laid = laid_points(float(piles.max())) if len(piles) else N_LAID
+    turns = np.concatenate([4.0 * (hr["bight"]["theta"] + hr["bight"]["f_theta"]) for hr in hung.values()])
+    # how far along the cable on the seabed its bights reach – the farthest of all moments, so the points on the
+    # seabed spread the same way at every moment and do not slide to and fro along the straight as a bight grows
+    reach = max(float(np.max(np.where(b["f_length"] > 0.0, b["length"] + np.maximum(b["f_at"] - b["span"], 0.0)
+                                      + b["f_length"], b["length"]), initial=0.0))
+                for b in (hr["bight"] for hr in hung.values()))
+    n_laid = laid_points(float(piles.max()), float(turns.max(initial=0.0))) if len(piles) else N_LAID
     n_bend = bend_points(max(float(hr["bend"].max(initial=0.0)) for hr in hung.values()))
     if F == 1:              # a pose shown keeps the points it was drawn with (as many as a built animation had)
         paths = _paths()
@@ -638,8 +671,8 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
         n_arc = int(counts[hh])
         n_hang = int(counts[hh + 1:].sum()) + n_cat         # (the left wheels' points: more on the catenary)
         jc = np.arange(1, n_hang + 1) / n_hang
-        jl = np.arange(1, n_laid + 1) / n_laid
-        lam = np.concatenate([s_h[:, None] * jc, s_h[:, None] + (L - s_h)[:, None] * jl], axis=1)
+        b = hr["bight"]
+        lam = np.concatenate([s_h[:, None] * jc, bight_lam(s_h, L, np.full(len(L), reach), n_laid)], axis=1)
         flat = (L - s_h) < 1e-4                 # nothing on the seabed (lifted off, too short)
         if flat.any():
             lam[flat] = L[flat, None] * (np.arange(1, n_hang + n_laid + 1) / (n_hang + n_laid))
@@ -704,7 +737,7 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
                 "laid": hr["laid"], "suspended": s_h, "excess": hr["excess"], "steep": hr["steep"],
                 "short": hr["short"], "kink": hr["kink"], "tdp": hr["tdp"], "T": hr["T"], "pay": a.pay,
                 "bottom": bottom, "top": top, "T_part": _apply(bed, hr["T"]), "tdp_part": _apply(bed, hr["tdp"]),
-                "length": L, "h": hr["h"]}
+                "length": L, "h": hr["h"], "straight": straight_laid(hr), "bight_span": hr["bight"]["span"]}
         for key in _SEA_KEYS:
             v = np.asarray(part[key])
             if key not in sea:
@@ -715,7 +748,8 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     out.update(points=pts, s=s_all, length=s_all[:, -1].copy(), wrap=wrap, lifted=lifted, ok=ok, bad=bad, held=held,
                problems=problems, released=released, sea=sea, sea_notes=_notes(item, sea, ok))
     _STATE["sea"][_paths()._k(scene, item)] = {k: np.array(v) for k, v in sea.items()}
-    if F == 1 or not item.sea_info:             # what the panel shows before anything is solved after a load
+    probe = _paths()._STATE.get("probe") is not None     # (a moment worked out for a let-go: not the pose shown)
+    if not probe and (F == 1 or not item.sea_info):     # what the panel shows before anything is solved after a load
         info = {"layback": float(sea["layback"][0]), "angle": math.degrees(float(sea["angle"][0])),
                 "bottom": float(sea["bottom"][0]), "top": float(sea["top"][0]), "laid": float(sea["laid"][0]),
                 "hanging": float(sea["suspended"][0]), "kind": int(sea["kind"][0]), "a": float(sea["a"][0]),
@@ -731,6 +765,25 @@ def solve(scene, item, rel, slots, starts, centres, axes, radii, sides, on0, wra
     if F > 1:
         _STATE.get("moment", {}).clear()
     return out
+
+
+def straight_laid(hr: dict) -> np.ndarray:
+    """(F,): the metres from the cable's end S that lie straight on the seabed along the lay line (task 0248): all it
+    has on the seabed when it touches down, up to its bight when it piles up, none when it lifts off or is short."""
+    kind = hr["kind"]
+    b = hr.get("bight") or C.bight(hr)
+    near = np.where(b["f_length"] > 0.0, b["f_at"] + b["f_span"], b["span"])     # (up to a kept bight, if any)
+    return np.where(kind == C.NORMAL, hr["laid"],
+                    np.where(kind == C.PILED, np.maximum(np.asarray(hr["xi"]) - near, 0.0), 0.0))
+
+
+def min_bend(item) -> float:
+    """m: the tightest a cable may bend – its smallest bend (MBR) when it has one, else 10 x its diameter (task 0248:
+    the bight a let-go cable lies in on the seabed is never tighter)."""
+    mbr = float(getattr(item, "mbr", 0.0) or 0.0)
+    if mbr > 0.0:
+        return mbr
+    return C.MBR_DIAMETERS * max(float(getattr(item, "diameter", 0.0) or 0.0), 0.0)
 
 
 def _apply_n(M, p):
