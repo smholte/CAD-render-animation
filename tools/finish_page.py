@@ -21,7 +21,7 @@ sys.path.insert(0, ROOT)
 # my judgement per finish: (recommended?, effort for 0274, web 3D model, verdict text)
 JUDGE = {
     "knurl_diamond": (True, "S", "average (the pattern follows each face's own axis: no shared 0.2 m tile)",
-                      "Looks real at once and is exactly the owner's knob. Seamless round every face (whole number of "
+                      "Looks real at once – the knob of the owner's photo. Seamless round every face (whole number of "
                       "teeth), no UV map. Needs the face data written once per mesh (fast, ~ms)."),
     "knurl_straight": (True, "S", "average", "Same machinery as the diamond knurl; one setting apart."),
     "spun": (True, "S", "average (no anisotropy in the web model)",

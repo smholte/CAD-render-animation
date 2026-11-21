@@ -1,6 +1,6 @@
 # 0270 – Study + look sheet (findings only): new material finishes – knurled, spun, moulded textures, fabric, blasted, tread plate and more
 
-**Who:** worker · **Status:** running · **Branch:** `task/0270-study-finishes` (branch only, never merged;
+**Who:** worker · **Status:** done – study, branch only (page `tasks/0270_page/` for the lead to publish) · **Branch:** `task/0270-study-finishes` (branch only, never merged;
 every push `[skip ci]`)
 **Started by:** lead, 21 Nov 2026 (owner 17:27, with a photo of a headphone render: a diamond-knurled knob, a spun
 aluminium cap with concentric rings, a cross-hatch moulded texture on a curved blue shell, soft matte plastic –
@@ -74,13 +74,13 @@ way). Studio light of the app, one HDRI.
 
 ## Done when
 
-- [ ] Every candidate rendered (Cycles) on the fitting shapes at close-up + product-shot distance, + one far shot of the
+- [x] Every candidate rendered (Cycles) on the fitting shapes at close-up + product-shot distance, + one far shot of the
       plate set; the headphone-like picture with the best picks
-- [ ] Page `tasks/0270_page/index.html`: one card per finish (pictures, real size, cost, settings), a pick tick per card,
+- [x] Page `tasks/0270_page/index.html`: one card per finish (pictures, real size, cost, settings), a pick tick per card,
       a Copy line at the top ("0270 picks: 1, 3, 4, …") – same way as 0168's page; published by the lead
-- [ ] Report: a table (finish · how it is built · direction source · cost · bake · settings · verdict), the ones you
+- [x] Report: a table (finish · how it is built · direction source · cost · bake · settings · verdict), the ones you
       dropped and why, the thumbnail measurement + swatch proposal, a proposed order for 0274
-- [ ] Nothing merged; every push `[skip ci]`
+- [x] Nothing merged; every push `[skip ci]`
 
 ## Not in this task
 
