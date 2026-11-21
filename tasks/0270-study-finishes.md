@@ -131,7 +131,9 @@ then say so and what an image would cost).
   plate set at 4 m and 15 m with the fade and with it switched off (the "off" pictures sparkle).
 
 **The table** (cost = product shot, Cycles CPU, 64 samples, adaptive + denoise, 4-core web machine, pattern vs the same
-material without the pattern; at 960 × 540 for all, COST1920 at 1920 × 1080 for 8):
+material without the pattern; at 960 × 540 for all, At 1920 × 1080 (the brief's size; 130–240 s a picture, so 8 finishes only), the same percentages: knurl +5 % (146 vs
+139 s), spun +8 %, cross-hatch +9 %, tread +11 %, perforated +13 %, carbon +13 %, spangle +38 %, hammertone +69 %
+(236 vs 139 s). The plain product shot itself: 130–140 s. at 1920 × 1080 for 8):
 
 | # | Finish | How it is built | Direction from | Cost (960 × 540) | Web 3D model | Settings | Verdict |
 |---|---|---|---|---|---|---|---|
@@ -155,9 +157,9 @@ material without the pattern; at 960 × 540 for all, COST1920 at 1920 × 1080 fo
 | 18 | VDI 3400 24 / 30 / 36 | fine Voronoi + roughness per class | none | +32…41 % | average | Class | ★ build |
 | 19 | Leather grain 1.6 mm | Voronoi edges, warped | none | +6 % | holds | Grain | ★ build |
 | 20 | Galvanised spangle 9 mm | Voronoi crystals, own roughness/brightness/sheen | none | +28 % | colour + rough | Crystal size | ★ build |
-| 21 | Weld bead + heat tint | line on the parts + bead object | picked seam | −5 % | own bake | Pick seam, Size | own task (L) |
+| 21 | Weld bead + heat tint | line on the parts + bead object | picked seam | 0 % | own bake | Pick seam, Size | own task (L) |
 | 22 | As-cast | Voronoi grain + waviness + blotches | none | +41 % | holds | Al / Fe | ★ build |
-| 23 | Rust (flash / heavy) | noise + AO mask, flakes | none | +94 % / +88 % | colour only | Rust slider | ★ as a slider |
+| 23 | Rust (flash / heavy) | noise + AO mask, flakes | none | +98 % / +78 % | colour only | Rust slider | ★ as a slider |
 | 24 | Honed bore 50° | two helical scratch families inside bores | face axis (k = −1) | +17 % | average | Angle | add-on to turned |
 | 25 | Scraped ways | half-moons, 12 mm checker | part box axes | +11 % | holds | Cell | ★ build |
 | 26 | Rubber grip 3 mm | the knurl at 45°, flat tops | face axis | +7 % | average | Pitch | add-on to 1 |
@@ -165,7 +167,9 @@ material without the pattern; at 960 × 540 for all, COST1920 at 1920 × 1080 fo
 
 \* hex rows do not divide the 0.2 m web tile: a square pitch for the web model, or an own bake.
 
-COST1920
+At 1920 × 1080 (the brief's size; 130–240 s a picture, so 8 finishes only), the same percentages: knurl +5 % (146 vs
+139 s), spun +8 %, cross-hatch +9 %, tread +11 %, perforated +13 %, carbon +13 %, spangle +38 %, hammertone +69 %
+(236 vs 139 s). The plain product shot itself: 130–140 s.
 
 **Why some cost more:** every 3-D Voronoi (blasted, hammertone, VDI, as-cast) and the AO lookup (rust) is evaluated at
 every sample even where the pattern has faded. 0274: switch the grain off below its size (a mix that skips the node
@@ -173,13 +177,15 @@ does not save time in Cycles – use cheaper noise for the sub-millimetre grains
 and rust's AO only with wear's AO (shared). Node counts 11–115 (page). The EEVEE look matches; EEVEE times here are
 software OpenGL on the web machine and say nothing about the owner's RTX 3090.
 
-**Dropped / held back and why:** perlage (reads as scales, niche); weld bead + heat tint (possible – see the picture – but
-it needs a seam picker, a bead that follows the line and model-update care: a task of its own, not a finish); carbon on
+**Dropped / held back and why:** perlage (reads as scales, niche); weld bead + heat tint (it LOOKS right – see the
+picture: rippled bead, straw → purple → blue tint – but it needs a seam picker, a bead that follows the line and
+model-update care: a task of its own, not a finish); carbon on
 curved parts (the box projection breaks the weave at 45°); wrinkle (only up close). Flash / heavy rust is not a
 material but a slider like Wear.
 
 **Thumbnails for 0273:** swatch = the chamfered block with the knurled knob on top and the spun cap leaning in front
-(shows marks, rings, knurl, holes and grain at once). 256 × 256 px, Cycles CPU, 4-core web machine: THUMBS. A
+(shows marks, rings, knurl, holes and grain at once). 256 × 256 px, Cycles CPU, 4-core web machine: 2.4–3.3 s at 16 samples, 3.5–5.4 s at 32 samples (+ denoise; plain 3.5 s,
+knurl 3.9, perforated 4.0, hammertone 5.1, rust 5.4); EEVEE 1.9–3.0 s (software OpenGL here). 32 samples look clean. A
 library of ~70 materials: ~5 min once on this machine, far less on the RTX 3090; make them once per app version and
 ship / cache them (not per project).
 

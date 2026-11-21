@@ -490,13 +490,14 @@ def headset(sc, head, out, times):
     global AZ, EL
     az0, el0 = AZ, EL
     AZ, EL = math.radians(38.0), math.radians(12.0)          # from the front right: the knob's side
-    frame_all(sc, head, 1.02)
+    frame_all(sc, head, 1.45)
     row["headset.png"] = render(sc, os.path.join(out, "headset.png"), 1920, 96)
     knob = next(ob for ob in head if ob.data.name.startswith("KNOB"))
     cup = next(ob for ob in head if ob.data.name.startswith("CUP") and (ob.matrix_world.translation - knob.matrix_world.translation).length < 0.05)
     AZ, EL = math.radians(62.0), math.radians(16.0)
     camera(sc, knob.matrix_world.translation + Vector((-0.006, 0, -0.012)), 0.13)
-    row["headset_close.png"] = render(sc, os.path.join(out, "headset_close.png"), 1920, 96)
+    if not os.environ.get("FR_HEAD_WIDE_ONLY"):
+        row["headset_close.png"] = render(sc, os.path.join(out, "headset_close.png"), 1920, 96)
     AZ, EL = az0, el0
 
 

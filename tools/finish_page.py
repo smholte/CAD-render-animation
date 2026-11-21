@@ -61,8 +61,9 @@ JUDGE = {
     "spangle": (True, "S", "colour + roughness hold, sheen per crystal lost",
                 "Big galvanised parts look much more real; crystals 9 mm."),
     "weld": (False, "L", "own bake of the bead; the tint needs a per-part bake",
-             "Possible: a line kept on each part + a bead object. Needs a 'pick the seam' tool, a bead that follows "
-             "the line, and model-update care: a task of its own, not a finish."),
+             "Looks right (rippled bead, straw → purple → blue tint) from a line kept on each part + a bead object. "
+             "Needs a 'pick the seam' tool, a bead that follows the line and model-update care: a task of its own, "
+             "not a finish. Tick it to ask for that task."),
     "as_cast": (True, "S", "holds", "Castings, housings; cast iron gets a better grain too."),
     "rust": (True, "M", "colour holds, the corner build-up (AO) does not", "As a slider next to Wear (0 … 1), not a "
                                                                           "material: flash rust to heavy."),
