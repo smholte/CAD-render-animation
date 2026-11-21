@@ -13,6 +13,67 @@ test mills (0249 is running in the Test models lane), the tour, the PC check, th
 precheck needs one for a new `core/` file (a `core/` module the app does not import yet ships but does nothing –
 say in the report what the precheck asked).
 
+## Design (worker, 21 Nov 2026 – committed before the code; the record if the session has to be continued)
+
+**Files.** `fresing_render/core/liquid.py` (solver, no Blender, NumPy only, SI inside: m, s, m³; litres and l/min at
+the edges), `fresing_render/core/liquid_pool.py` (helper processes + shared memory, started like the STEP reader's
+helpers), `fresing_render/core/liquid_cache.py` (8-bit cache), `tests/test_liquid.py` (the six tests + API),
+`tests/test_liquid_speed.py` (the 250,000-cell speed test), `tests/test_liquid_pool.py` (helpers, bit for bit),
+`tests/test_liquid_cache.py`; the independent tester's file `tests/test_liquid_independent.py`.
+
+**Grid.** A chart stores its cells with a ring of one "no surface" cell all round (open edges) – so every face the
+solver touches lies between two stored cells. Faces: `qx` (NY, NX-1) between columns, `qy` (NY-1, NX) between rows.
+**Tiles** of 64 × 64 cells; a face belongs to the tile of the cell on its +x / +y side.
+
+**One sub-step on a window.** The kernel works on a window = a run of tiles (core) + 2 cells all round. New depths of the
+core need the scaled fluxes of the core's faces, which need K (the "never more than the cell holds" factor) of the
+core + 1 ring, which needs the unscaled fluxes round those cells, which need depths of core + 2. Only element-wise
+operations (+ − × ÷ sqrt min max, no pow, no sums): **a cell's result is the same bit for bit whichever window or
+helper computes it** – this is what makes results independent of the helper count and the wet-region skipping exact.
+
+**Which tiles are stepped.** Per tile a state from its last computation: *dry* (no cell above the 0.04 mm film, all
+fluxes 0, no wet drain), *active*, *settled* (wet, but over the last frame every depth changed < 1 µm and every speed
+< 1 mm/s, no wet drain). A frame steps the active tiles + every tile next to one (8 neighbours) + tiles where drops,
+pours, a push or the tool land, + every wet tile of a chart whose effective gravity changed. Others are skipped:
+a dry tile would not change at all (exact); a settled tile is held at rest (its fluxes set to 0; faces between a
+stepped and a skipped tile are closed for the frame) – the only approximation the skipping adds. Neighbouring stepped
+tiles of one tile row are merged into one window (fewer NumPy calls).
+
+**Effective gravity** per cell = R₁ᵀ(g − a(p)) with a(p) affine in the cell's place (second differences of the
+carrier's matrices): per chart and frame a 3-vector + a 3 × 3 matrix; the fields are made per window from the cell
+centres (x, y, bed). Pure translation → one number per chart.
+
+**Sub-steps.** n = ceil(T / dt_max) rounded up to an even number (double buffers: depth and fluxes in buffer 0 at every
+frame boundary, so skipped tiles are current in both buffers). dt_max = 0.45 cell / √(g_n h_max).
+
+**Helpers** (`liquid_pool.Pool(n)`): plain-Python processes (`importer.runner.python_executable()` way; Windows:
+CREATE_NO_WINDOW + below-normal priority + a kill-on-close job object; Linux: PDEATHSIG; they stop when the parent
+stops), pickle messages over stdin / stdout as `step_reader`, the chart arrays in `multiprocessing.shared_memory`
+(children attach with `track=False`). Per sub-step the master sends each helper its windows and waits for all (one round
+trip per sub-step); the master computes a share itself. 0 helpers = everything in the master.
+
+**Inputs per frame** (callables of the frame number): `pours(f)` → list of `Pour` (world point + direction, or a chart
+cell area; l/min), `tool(f)` → `Tool` or None (tip, axis, radius, flute length, rpm signed: + = M3), `push(f)` →
+{chart: (ax, ay)} m/s² along the chart's x / y (for the air blast later; a surface stress τ is a = τ / (ρ h)).
+**Out per frame:** `Frame` (depths per chart as float32 copies on request, drops in flight: places, velocities,
+volumes, the bookkeeping in litres: poured, on charts, in flight, drained, floor, thrown by the tool). `velocity(c)`
+gives (u, v) per cell = the face fluxes / depth (for chips later).
+
+**The spinning tool.** Ω = −rpm·2π/60 · â (â from the tip up the shank; M3 = clockwise seen from the spindle). Cells
+whose centre lies within the tool's radius of its axis and whose liquid column overlaps the tool (tip − 0.5 mm …
+tip + flute): a share 1 − e^(−T/τ) (τ = 0.05 s) of the liquid above the film there is thrown off each frame as one drop
+per cell, from the tool's surface a little up the flutes, at v = min(ωR, 6 m/s) along (tangent + 0.25 radial + 0.1 up).
+Ring R … 3R round it: a push in the turning direction, a = 0.5 · min(ωR, 6) · (R / r) / 0.2 s, tapering to 0 at 3R,
+only on cells whose liquid reaches the tool's height.
+
+**Cache** (`liquid_cache`): one file, a JSON head (fingerprint, charts, frames), per frame per chart: a packed wet
+mask + uint8 depth in 0.05 mm steps (≥ 255 steps: an overflow list of uint16), zlib; the drops (float16 places,
+float32 volumes); an index of offsets at the end for random access.
+
+**Subagents.** (1) an independent tester (Sonnet, worktree) writes `tests/test_liquid_independent.py` from the brief
+and the API only, and tries to break it; (2) an independent reviewer (read-only) of `liquid_pool.py` for Windows
+(process start, shared memory, shutdown). The worker writes everything else.
+
 ## Goal
 
 A tested, fast, deterministic liquid solver without Blender that task B can hang on the machine: per surface a grid
