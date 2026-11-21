@@ -1,7 +1,7 @@
 # 0260 – Two panels: the steps on the right, everything else on a new left panel; Make as a folding icon row; the Learning hub with a one-click mode switch
 
-**Who:** worker · **Status:** open – next in the Start & learn lane, before 0253; starts when a code slot is free ·
-**Branch:** `task/0260-left-panel-learning-hub`
+**Who:** worker · **Status:** running (21 Nov) ·
+**Branch:** `claude/peaceful-edison-wjm578` (the web session's branch)
 **Started by:** lead, 21 Nov 2026 (owner 14:44 with four screenshots, picks 14:50) · **Model:** Opus · effort High
 **Area:** Start & learn + Usage lanes –
 - `fresing_render/__init__.py` (`_all_classes()` panel order only), `blender/ui_top.py` (Workspace, What's next, tabs,
