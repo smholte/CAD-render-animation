@@ -1,6 +1,6 @@
 # 0270 – Study + look sheet (findings only): new material finishes – knurled, spun, moulded textures, fabric, blasted, tread plate and more
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0270-study-finishes` (branch only, never merged;
+**Who:** worker · **Status:** running · **Branch:** `task/0270-study-finishes` (branch only, never merged;
 every push `[skip ci]`)
 **Started by:** lead, 21 Nov 2026 (owner 17:27, with a photo of a headphone render: a diamond-knurled knob, a spun
 aluminium cap with concentric rings, a cross-hatch moulded texture on a curved blue shell, soft matte plastic –
