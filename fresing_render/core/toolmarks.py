@@ -45,8 +45,17 @@ A ridge is one period of ``u / (spacing * size)``; ``size`` is the panel's Mark 
 What is drawn (``pattern``, ``profile``, ``shade`` below are the node group's formula in plain Python): across one
 mark the surface is a shallow scallop, so the normal leans from one side to the other (``look(...)["ridge"]`` at
 the cusps) and the roughness changes a little; on a floor the back of the tool adds a faint cross-hatch; and the
-highlight is stretched across the grooves (``across`` is the tangent the material gets). Ridges fade when a mark
-gets smaller than about two pixels (``fade``); the sheen stays.
+highlight is stretched across the grooves (``across`` is the tangent the material gets).
+
+**Any distance (task 0280).** Real marks are often far finer than a pixel (0.05 mm per tooth seen from half a metre:
+a fifth of a pixel). Drawn as they are they turn into moiré – coarse stripes that wander over a wall – or vanish. So
+the marks are drawn at a *level*: level 0 is every mark, level 1 every second one, level 2 every fourth … The level
+is the one that keeps the drawn marks at least ``LOD_PX`` pixels apart on the picture, measured the way the face is
+seen (a wall seen from above is squeezed: ``slant``), and between two levels the two are mixed – every mark of the
+coarser level is a mark of the finer one, so nothing jumps while the camera moves (``level``, ``lod_profile``).
+Marks drawn further apart than ``CAP_FROM`` fade into the plain machined look (``fade``): a shot of the whole machine
+shows the sheen only. Walls (kinds FLANK, RINGS_WALL) are satin: a little rougher and partly diffuse, so they read
+bright grey also where they mirror a dark room (``look(...)["satin"]``, ``satin``).
 """
 
 from __future__ import annotations
@@ -82,25 +91,32 @@ STEP_TILT = 2.5
 #: ``ridge``: how far the surface leans at the edge of one mark (the tangent of the angle; 0.1 = 5.7 degrees);
 #: ``rough``: how much the roughness changes from the middle of a mark to its edge; ``anisotropic``: the sheen
 #: across the marks (the Principled BSDF's Anisotropic, 0 = none); ``hatch``: the share of the trailing edge's
-#: cross-hatch on a floor (kind ARCS), 0 … 1 of the leading edge's marks.
+#: cross-hatch on a floor (kind ARCS), 0 … 1 of the leading edge's marks; ``satin`` (task 0280): how satin a wall
+#: is, 0 … 1 – its roughness grows by ``SATIN_ROUGH`` x satin and its metal by ``SATIN_METAL`` x satin turns diffuse
+#: (a side-milled wall scatters the light; as a mirror it showed the dark room: black walls).
 LOOKS: dict[str, dict] = {
-    "aluminium_machined": dict(ridge=0.10, rough=0.04, anisotropic=0.75, hatch=0.35),     # bright and crisp
-    "steel_machined": dict(ridge=0.06, rough=0.03, anisotropic=0.60, hatch=0.30),         # finer
-    "stainless_brushed": dict(ridge=0.06, rough=0.03, anisotropic=0.65, hatch=0.30),      # = stainless, machined
-    "cast_iron": dict(ridge=0.04, rough=0.05, anisotropic=0.30, hatch=0.20),              # dull, grainy
-    "brass": dict(ridge=0.09, rough=0.035, anisotropic=0.70, hatch=0.35),
-    "bronze": dict(ridge=0.08, rough=0.035, anisotropic=0.65, hatch=0.30),
-    "copper": dict(ridge=0.08, rough=0.04, anisotropic=0.65, hatch=0.30),
-    "zinc_diecast": dict(ridge=0.07, rough=0.04, anisotropic=0.55, hatch=0.30),
-    # plastics: only faint lines, no sheen
-    "pom_white": dict(ridge=0.03, rough=0.02, anisotropic=0.0, hatch=0.15),
-    "pom_black": dict(ridge=0.03, rough=0.02, anisotropic=0.0, hatch=0.15),
-    "plastic_gloss": dict(ridge=0.03, rough=0.02, anisotropic=0.0, hatch=0.15),
-    "plastic_matte": dict(ridge=0.025, rough=0.02, anisotropic=0.0, hatch=0.10),
+    "aluminium_machined": dict(ridge=0.10, rough=0.04, anisotropic=0.75, hatch=0.35, satin=1.0),  # bright, crisp
+    "steel_machined": dict(ridge=0.06, rough=0.03, anisotropic=0.60, hatch=0.30, satin=0.8),      # finer
+    "stainless_brushed": dict(ridge=0.06, rough=0.03, anisotropic=0.65, hatch=0.30, satin=0.8),   # = stainless
+    "cast_iron": dict(ridge=0.04, rough=0.05, anisotropic=0.30, hatch=0.20, satin=0.6),           # dull, grainy
+    "brass": dict(ridge=0.09, rough=0.035, anisotropic=0.70, hatch=0.35, satin=0.8),
+    "bronze": dict(ridge=0.08, rough=0.035, anisotropic=0.65, hatch=0.30, satin=0.8),
+    "copper": dict(ridge=0.08, rough=0.04, anisotropic=0.65, hatch=0.30, satin=0.8),
+    "zinc_diecast": dict(ridge=0.07, rough=0.04, anisotropic=0.55, hatch=0.30, satin=0.8),
+    # plastics: only faint lines, no sheen; not metal, so nothing to make satin
+    "pom_white": dict(ridge=0.03, rough=0.02, anisotropic=0.0, hatch=0.15, satin=0.0),
+    "pom_black": dict(ridge=0.03, rough=0.02, anisotropic=0.0, hatch=0.15, satin=0.0),
+    "plastic_gloss": dict(ridge=0.03, rough=0.02, anisotropic=0.0, hatch=0.15, satin=0.0),
+    "plastic_matte": dict(ridge=0.025, rough=0.02, anisotropic=0.0, hatch=0.10, satin=0.0),
 }
 #: anything else (a cut that looks like the block itself)
-LOOK_DEFAULT = dict(ridge=0.05, rough=0.03, anisotropic=0.40, hatch=0.25)
-LOOK_KEYS = ("ridge", "rough", "anisotropic", "hatch")
+LOOK_DEFAULT = dict(ridge=0.05, rough=0.03, anisotropic=0.40, hatch=0.25, satin=0.6)
+LOOK_KEYS = ("ridge", "rough", "anisotropic", "hatch", "satin")
+#: a wall at satin 1: roughness + this, and this share of its metal turned diffuse (task 0280); any other cut face
+#: (a floor) gets SATIN_FLOOR of that – a floor mirrors the room less dark than a wall, and keeps its crisp arcs
+SATIN_ROUGH, SATIN_METAL, SATIN_FLOOR = 0.15, 0.3, 0.4
+#: the kinds that are walls (cut with the side of the tool, or a hole's wall)
+WALL_KINDS = (2, 5)
 
 
 def look(material_id: str, override: dict | None = None) -> dict:
@@ -118,14 +134,20 @@ def look(material_id: str, override: dict | None = None) -> dict:
 # the formula (the mirror of the node group "FR tool marks", blender/toolmarks.py)
 # ---------------------------------------------------------------------------
 
-#: The ridges fade out when one mark gets smaller than about two pixels (they would only flicker). No shader node
-#: knows the size of a pixel: the node group takes the distance to the camera times this angle per pixel (a
-#: 1920 px wide picture through a lens of about 50 degrees: 0.87 rad / 1920 = 0.00045). A mark below FADE_FROM
-#: pixels shows no ridges, one above FADE_TO all of them; the sheen never fades. (An orthographic view has no
-#: such angle: the fade then still follows the camera's distance.) The angle is an input of the node group
-#: ("Pixel angle"), so a much smaller or bigger picture can set its own: ``pixel_angle``.
+#: No shader node knows the size of a pixel: the node group takes the distance to the camera times this angle per
+#: pixel (a 1920 px wide picture through a lens of about 50 degrees: 0.87 rad / 1920 = 0.00045). (An orthographic
+#: view has no such angle: the levels then still follow the camera's distance.) The angle is an input of the node
+#: group ("Pixel angle"); the app sets it from the scene's camera and picture size: ``pixel_angle``.
 PIXEL_ANGLE = 0.0005
-FADE_FROM, FADE_TO = 1.0, 3.0
+#: The level of detail (task 0280, see the top of this file): the drawn marks are at least LOD_PX pixels apart (and
+#: less than twice that); marks drawn further apart than CAP_FROM (m; or than one mark at the Mark size, when that
+#: is wider) fade out until CAP_TO x that, leaving the plain machined look and the sheen. The deepest level drawn.
+LOD_PX = 5.0
+CAP_FROM, CAP_TO = 3.0 * MM, 2.0
+LEVEL_MAX = 24.0
+#: the line where two depths of a wall meet is drawn at least this many pixels wide (thinner, it flickered); its
+#: lean shrinks by as much as it was widened, so it does not grow louder with distance
+LINE_PX = 1.5
 #: a direction whose part in the face is shorter than this stands on the face: the fallback is used
 TINY = 1e-3
 #: the mean of the ridge profile over one mark (the roughness changes round it, so its mean stays the material's)
@@ -172,6 +194,38 @@ def profile(u, spacing: float, size: float = 1.0):
     x = np.asarray(u, float) / period(spacing, size)
     t = 1.0 - 2.0 * (x - np.floor(x))
     return t * t, t
+
+
+def level(spacing: float, size: float, distance, scale: float = 1.0, angle: float = PIXEL_ANGLE, slant=1.0):
+    """The level of detail the marks are drawn at (0 = every mark, 1 = every second one, a fraction mixes two
+    levels): ``log2(LOD_PX / pixels)`` of one mark, never below 0 (nor above LEVEL_MAX). ``distance``: from the
+    camera (m); ``scale``: the milled object's scale; ``angle``: one pixel's angle; ``slant``: how much shorter a mark
+    looks because the face is seen at a slant, 0 … 1 (``slant``)."""
+    import numpy as np
+    dist = np.asarray(distance, float)
+    px = period(spacing, size) * scale * np.asarray(slant, float) / np.maximum(dist * angle, 1e-12)
+    lev = np.log2(LOD_PX / np.maximum(px, 1e-12))
+    return np.clip(lev, 0.0, LEVEL_MAX)
+
+
+def slant(across_world, incoming):
+    """How much shorter a mark looks on the picture than it is, 0 … 1: ``sqrt(1 - (e . I)^2)`` of the unit
+    direction across the marks ``e`` and the unit direction to the camera ``I`` (both world)."""
+    import numpy as np
+    c = _dot(_unit(across_world), _unit(incoming))
+    return np.sqrt(np.maximum(1.0 - c * c, 0.0))
+
+
+def lod_profile(u, spacing: float, size: float = 1.0, lev=0.0):
+    """``(ridge, tilt)`` of ``profile`` at the level ``lev``: the two levels round it, mixed by its fraction."""
+    import numpy as np
+    lev = np.asarray(lev, float)
+    k = np.floor(lev)
+    b = lev - k
+    p = period(spacing, size) * np.exp2(k)
+    ra, ta = profile(u, p)
+    rb, tb = profile(u, 2.0 * p)
+    return ra + (rb - ra) * b, ta + (tb - ta) * b
 
 
 def _grow(kind, P, o, d, a, radius):
@@ -232,16 +286,17 @@ def pattern(kind, P, o, d, a, radius: float, spacing: float, n=None, size: float
     return u, profile(u, spacing, size)[0], _unit(np.cross(nn, _in_face(G, nn, a)))
 
 
-def hatch(P, o, d, a, radius: float, spacing: float, n=None, size: float = 1.0):
+def hatch(P, o, d, a, radius: float, spacing: float, n=None, size: float = 1.0, lev=0.0):
     """The trailing edge's faint cross-hatch on a floor (kind ARCS): ``(u, ridge, tilt, across)`` of the arcs
-    the back of the tool leaves, ``u = along + sqrt(..)``; ``across`` is zero where it is not known."""
+    the back of the tool leaves, ``u = along + sqrt(..)``, at the level ``lev``; ``across`` is zero where it is not
+    known."""
     import numpy as np
     d, a = np.asarray(d, float), np.asarray(a, float)
     _q, w, along, side, _qa, root, _radial = _frame(P, o, d, a, radius)
     u = along + root
     G = _unit(root[..., None] * d - side[..., None] * w)
     nn = _face_normal(n, a, G.shape)
-    ridge, tilt = profile(u, spacing, size)
+    ridge, tilt = lod_profile(u, spacing, size, lev)
     return u, ridge, tilt, _unit(G - _dot(G, nn)[..., None] * nn)
 
 
@@ -251,36 +306,52 @@ def pixel_angle(width_px: int, lens_mm: float = 50.0, sensor_mm: float = 36.0) -
     return float(sensor_mm) / max(float(lens_mm), 1e-6) / max(int(width_px), 1)
 
 
-def fade(spacing: float, size: float, distance, scale: float = 1.0, angle: float = PIXEL_ANGLE):
-    """How much of the ridges shows at ``distance`` (m) from the camera, 0 … 1 (see PIXEL_ANGLE). ``scale``: the
-    scale of the milled object (the marks are in its own space); ``angle``: the angle one pixel covers."""
+def fade(spacing: float, size: float, distance, scale: float = 1.0, angle: float = PIXEL_ANGLE, slant=1.0):
+    """How much of the ridges shows, 0 … 1: 1 while the drawn marks (``level``) lie at most CAP_FROM apart (or one
+    mark at the Mark size, when that is wider), 0 from CAP_TO times that on – smoothly between. The sheen stays."""
     import numpy as np
-    dist = np.asarray(distance, float)
-    ok = dist > 0
-    px = np.where(ok, period(spacing, size) * scale / np.where(ok, dist, 1.0) / angle, 0.0)
-    x = np.clip((px - FADE_FROM) / (FADE_TO - FADE_FROM), 0.0, 1.0)
-    return x * x * (3.0 - 2.0 * x)
+    lev = level(spacing, size, distance, scale, angle, slant)
+    p = period(spacing, size)
+    lo = max(CAP_FROM, p)
+    x = np.clip((p * np.exp2(lev) - lo) / ((CAP_TO - 1.0) * lo), 0.0, 1.0)
+    return 1.0 - x * x * (3.0 - 2.0 * x)
 
 
-def step_line(height, step: float, size: float = 1.0):
+def step_line(height, step: float, size: float = 1.0, pixel: float = 0.0):
     """The line where two depths of a wall meet, 0 … 1 (1 on the line): ``height`` the shaded point's height above
     the tip of the pass that owns the wall (q . a, m), ``step`` how much deeper that pass went than the one above
     (m; 0: no line). A line lies at every multiple of ``step`` above the tip – not at the floor itself –,
-    ``STEP_WIDTH`` x size wide."""
+    ``STEP_WIDTH`` x size wide, but at least ``LINE_PX`` pixels (``pixel``: one pixel's size on the wall, m; the
+    line then leans less by as much as it was widened)."""
     import numpy as np
     h = np.asarray(height, float)
     if step <= 1e-6:
         return np.zeros_like(h)
+    real = STEP_WIDTH * size
+    width = np.maximum(real, LINE_PX * np.asarray(pixel, float))
     g = h / step
     near = np.abs(g + 0.5 - np.floor(g + 0.5) - 0.5) * step
-    return np.clip(1.0 - near / (0.5 * STEP_WIDTH * size), 0.0, 1.0) * (g > 0.5)
+    return np.clip(1.0 - near / (0.5 * width), 0.0, 1.0) * (g > 0.5) * (real / width)
+
+
+def satin(kind, looks: dict | None = None, roughness: float = 0.2, metallic: float = 1.0):
+    """(roughness, metallic) of a cut face of ``kind`` (no move known, kind 0: the material's own): a wall is satin
+    (``SATIN_ROUGH``, ``SATIN_METAL`` times the look's ``satin``), any other cut face ``SATIN_FLOOR`` of that."""
+    import numpy as np
+    lk = {**LOOK_DEFAULT, **(looks or {})}
+    k = np.rint(np.asarray(kind, float))
+    share = np.where(np.isin(k, WALL_KINDS), 1.0, SATIN_FLOOR) * (k > 0.5) * lk["satin"]
+    return (np.clip(roughness + SATIN_ROUGH * share, 0.0, 1.0), metallic * (1.0 - SATIN_METAL * share))
 
 
 def shade(kind, P, o, d, a, radius: float, spacing: float, n=None, size: float = 1.0, strength: float = 1.0,
-          looks: dict | None = None, roughness: float = 0.2, fade_by=1.0) -> dict:
+          looks: dict | None = None, roughness: float = 0.2, fade_by=1.0, lev=0.0, pixel=0.0,
+          metallic: float = 1.0) -> dict:
     """What the node group gives the material where there are marks: ``normal`` (unit: the face's normal leaning
-    over the marks), ``roughness``, ``tangent`` (= ``across``), ``anisotropic``, ``ridge``. ``looks``: a
-    ``look(...)``; ``roughness``: the material's own; ``fade_by``: a ``fade(...)``."""
+    over the marks), ``roughness``, ``metallic`` (both made satin: ``satin``), ``tangent`` (= ``across``),
+    ``anisotropic``, ``ridge``. ``looks``: a ``look(...)``; ``roughness``, ``metallic``: the material's own;
+    ``fade_by``: a ``fade(...)``; ``lev``: a ``level(...)``; ``pixel``: one pixel's size on the face (m, the
+    step-down line's width)."""
     import numpy as np
     lk = {**LOOK_DEFAULT, **(looks or {})}
     kind = int(round(float(kind)))
@@ -288,7 +359,7 @@ def shade(kind, P, o, d, a, radius: float, spacing: float, n=None, size: float =
     nn = _face_normal(n, a, G.shape)
     e = _in_face(G, nn, a)
     known = (_dot(e, e) > 0.5).astype(float)
-    ridge, tilt = profile(u, spacing, size)
+    ridge, tilt = lod_profile(u, spacing, size, lev)
     amount = float(strength) * np.asarray(fade_by, float) * known
     lean = tilt[..., None] * e
     wave = ridge - RIDGE_MEAN
@@ -296,12 +367,14 @@ def shade(kind, P, o, d, a, radius: float, spacing: float, n=None, size: float =
         P_, o_, a_ = (np.asarray(x, float) for x in (P, o, a))
         up = np.broadcast_to(a_, G.shape)
         up = up - _dot(up, nn)[..., None] * nn                # the axis, in the face
-        lean = FLANK_TILT * lean + (STEP_TILT * step_line(_dot(P_ - o_, a_), float(radius), size))[..., None] * up
+        lean = (FLANK_TILT * lean
+                + (STEP_TILT * step_line(_dot(P_ - o_, a_), float(radius), size, pixel))[..., None] * up)
     if kind == ARCS:
-        _u2, ridge2, tilt2, e2 = hatch(P, o, d, a, radius, spacing, n, size)
+        _u2, ridge2, tilt2, e2 = hatch(P, o, d, a, radius, spacing, n, size, lev)
         lean = lean + lk["hatch"] * tilt2[..., None] * e2
         wave = wave + lk["hatch"] * (ridge2 - RIDGE_MEAN)
+    rough_s, metal_s = satin(kind, lk, roughness, metallic)
     return dict(normal=_unit(nn + (amount * lk["ridge"])[..., None] * lean),
-                roughness=np.clip(roughness + lk["rough"] * amount * wave, 0.0, 1.0),
+                roughness=np.clip(rough_s + lk["rough"] * amount * wave, 0.0, 1.0), metallic=metal_s,
                 tangent=e, anisotropic=np.clip(lk["anisotropic"] * float(strength), 0.0, 1.0) * known,
                 ridge=ridge)

@@ -1730,9 +1730,10 @@ class FRMilling(bpy.types.PropertyGroup):
                     "that follows them. Off: every cut face gets the same plain machined look")
     marks_size: FloatProperty(
         name="Mark size", default=1.0, min=1.0, max=10.0, step=10, precision=1, update=_mill_cut_look_changed,
-        description="How far apart the tool marks are drawn. 1 is real: the feed per tooth of the program, often "
-                    "0.05 to 0.3 mm, so in a shot of the whole machine you only see the sheen. For a close-up, "
-                    "raise it (up to 10 times wider) until the arcs show")
+        description="How far apart the tool marks are drawn. 1 is real up close: the feed per tooth of the "
+                    "program, often 0.05 to 0.3 mm. Further away every 2nd, 4th … mark is drawn, so they stay a few "
+                    "pixels apart and never shimmer; in a shot of the whole machine you see the sheen. Raise it (up "
+                    "to 10 times wider) for bigger marks")
     marks_strength: FloatProperty(
         name="Strength", default=1.0, min=0.0, max=2.0, step=10, precision=2, update=_mill_cut_look_changed,
         description="How deep the tool marks look. 1 is a normal fresh cut; lower for a fine finishing cut, "

@@ -354,8 +354,8 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
     if tm is not None:      # cut faces (task 0061): where the face knows its move, the tool's marks replace the above
         from . import toolmarks
         from ..core import toolmarks as tm_core
-        rough, normal = toolmarks.apply(b, bsdf, {**tm_core.look(material_id), **tm}, rough, normal, plain_rough,
-                                        tangent if spec.get("anisotropic") else None)
+        rough, normal, metallic = toolmarks.apply(b, bsdf, {**tm_core.look(material_id), **tm}, rough, normal,
+                                                  plain_rough, tangent if spec.get("anisotropic") else None, metallic)
 
     bump = spec.get("bump")
     if bump:

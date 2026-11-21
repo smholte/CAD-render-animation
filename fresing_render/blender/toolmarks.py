@@ -8,6 +8,12 @@ it works with "Auto Run Python Scripts" off, in Cycles and EEVEE, and in the ren
 
 Where a face has no move (kind 0) the group passes the material's own look through unchanged.
 
+**Any distance (task 0280):** the marks are drawn at a level of detail – every mark up close, every 2nd, 4th … one
+further away – chosen from the camera's distance, the pixel angle and how slanted the face is seen (Geometry >
+Incoming), so they stay a few pixels apart: no moiré, no shimmer. Two levels are mixed between them. Marks drawn far
+apart fade into the plain look. Walls are satin (rougher, partly diffuse: the group also passes the Metallic), so they
+never mirror a dark room as a black face.
+
 **Which way the sheen goes (measured, Blender 5.2.3, Cycles; a flat metal plane, a small light above it,
 Anisotropic 0.8):** with the Tangent along X the highlight was 16.2 px wide along X and 6.0 px along Y, with the
 Tangent along Y the other way round. Blender stretches the highlight *along* the tangent. A milled or brushed face
@@ -27,7 +33,7 @@ from ..core import toolmarks as core
 
 GROUP = "FR tool marks"
 #: raise when the nodes inside the group change: an older group is built again in place (materials keep their link)
-GROUP_VERSION = 2
+GROUP_VERSION = 3                  # 3: task 0280 – levels of detail, slant, satin walls
 PROP_VERSION = "fr_toolmarks_version"
 #: the name of the group's node in a material
 NODE = "FR tool marks"
@@ -46,7 +52,9 @@ INPUTS = (
     ("Rough change", _F, 0.03, 0.0, 1.0),
     ("Sheen", _F, 0.4, 0.0, 1.0),
     ("Hatch", _F, 0.25, 0.0, 1.0),
-    ("Pixel angle", _F, core.PIXEL_ANGLE, 1e-6, 0.1),      # the ridges fade below about two of these per mark
+    ("Pixel angle", _F, core.PIXEL_ANGLE, 1e-6, 0.1),      # the size of a pixel: picks the level of detail
+    ("Metallic", _F, 1.0, 0.0, 1.0),             # the material's own (task 0280): walls turn partly diffuse
+    ("Satin", _F, core.LOOK_DEFAULT["satin"], 0.0, 1.0),    # core.toolmarks.look()["satin"]
 )
 OUTPUTS = (
     ("Has marks", _F),       # 1 where the face has a move (kind > 0.5), else 0
@@ -56,9 +64,12 @@ OUTPUTS = (
     ("Tangent", _V),         # world space, unit: across the grooves
     ("Anisotropic", _F),
     ("Fade", _F),            # how much of the ridges shows at this distance (core.toolmarks.fade)
+    ("Metallic", _F),        # the material's own; satin on cut faces (core.toolmarks.satin)
+    ("Level", _F),           # the level of detail the marks are drawn at (core.toolmarks.level)
 )
 #: look() key -> input
-LOOK_INPUTS = {"ridge": "Ridge tilt", "rough": "Rough change", "anisotropic": "Sheen", "hatch": "Hatch"}
+LOOK_INPUTS = {"ridge": "Ridge tilt", "rough": "Rough change", "anisotropic": "Sheen", "hatch": "Hatch",
+               "satin": "Satin"}
 
 
 def _interface(nt) -> None:
@@ -115,10 +126,19 @@ def _build(nt) -> None:
     def in_face(vec, x, y):                           # vec without its part along the normal
         return v("SUBTRACT", vec, scaled(N, dot(vec, N, x, y), x + 150, y), x=x + 300, y=y)
 
-    def tilt_of(u, x, y):                             # (tilt, ridge) of core.toolmarks.profile
-        f = m("FRACT", m("DIVIDE", u, period, x=x, y=y), x=x + 150, y=y)
+    def tilt_one(u, p, x, y):                         # (tilt, ridge) of core.toolmarks.profile
+        f = m("FRACT", m("DIVIDE", u, p, x=x, y=y), x=x + 150, y=y)
         t = m("SUBTRACT", 1.0, m("MULTIPLY", f, 2.0, x=x + 300, y=y), x=x + 450, y=y)
         return t, m("MULTIPLY", t, t, x=x + 600, y=y)
+
+    def tilt_of(u, x, y):                             # (tilt, ridge) of core.toolmarks.lod_profile
+        ta, ra = tilt_one(u, p_fine, x, y)
+        tb, rb = tilt_one(u, p_coarse, x, y - 80)
+        mix_t = m("ADD", ta, m("MULTIPLY", m("SUBTRACT", tb, ta, x=x + 750, y=y), blend, x=x + 900, y=y),
+                  x=x + 1050, y=y)
+        mix_r = m("ADD", ra, m("MULTIPLY", m("SUBTRACT", rb, ra, x=x + 750, y=y - 80), blend, x=x + 900, y=y - 80),
+                  x=x + 1050, y=y - 80)
+        return mix_t, mix_r
 
     # ---- what the face knows, and where we are on it (the milled mesh's own space, metres) -----------------
     o, d, a, p = (attribute(name, -200 * i) for i, name in enumerate(core.ATTRS))
@@ -165,8 +185,30 @@ def _build(nt) -> None:
           x=150, y=-2050)
     known = m("GREATER_THAN", dot(e, e, 300, -2200), 0.5, x=450, y=-2200)
 
-    # ---- one mark: the surface is a shallow scallop, so its normal leans from +1 to -1 across it -----------
+    # ---- the level of detail (task 0280): the drawn marks at least core.LOD_PX pixels apart on the picture -----
     period = m("MULTIPLY", m("MAXIMUM", spacing, core.SPACING_MIN, x=-2200, y=-2500), gi["Size"], x=-2050, y=-2500)
+    e_world = transform(e, "VECTOR", "OBJECT", "WORLD", 300, -2400)          # its length = the object's scale
+    scale = v("LENGTH", e_world, x=450, y=-2500)
+    cam = b.node("ShaderNodeCameraData", -300, -3400)
+    pixel = m("MAXIMUM", m("MULTIPLY", cam.outputs["View Distance"], gi["Pixel angle"], x=450, y=-3400), 1e-12,
+              x=600, y=-3400)                                              # one pixel's size there (m, world)
+
+    def slant_of(vec_world, x, y):                    # core.toolmarks.slant: a face seen at a slant squeezes it
+        c = dot(v("NORMALIZE", vec_world, x=x, y=y), geo.outputs["Incoming"], x + 150, y)
+        return m("SQRT", m("MAXIMUM", m("SUBTRACT", 1.0, m("MULTIPLY", c, c, x=x + 300, y=y), x=x + 450, y=y), 0.0,
+                           x=x + 600, y=y), x=x + 750, y=y)
+
+    px = m("DIVIDE", m("MULTIPLY", m("MULTIPLY", period, scale, x=600, y=-2600), slant_of(e_world, 300, -2750),
+                       x=1200, y=-2600), pixel, x=1350, y=-2600)
+    lev = m("MINIMUM", m("MAXIMUM", m("LOGARITHM", m("DIVIDE", core.LOD_PX, m("MAXIMUM", px, 1e-12, x=1500, y=-2600),
+                                                     x=1650, y=-2600), 2.0, x=1800, y=-2600), 0.0, x=1950, y=-2600),
+             core.LEVEL_MAX, x=2100, y=-2600)
+    k_lev = m("FLOOR", lev, x=2250, y=-2600)
+    blend = m("SUBTRACT", lev, k_lev, x=2400, y=-2600)
+    p_fine = m("MULTIPLY", period, m("POWER", 2.0, k_lev, x=2400, y=-2750), x=2550, y=-2750)
+    p_coarse = m("MULTIPLY", p_fine, 2.0, x=2700, y=-2750)
+
+    # ---- one mark: the surface is a shallow scallop, so its normal leans from +1 to -1 across it -----------
     t1, ridge = tilt_of(u, -1200, -1450)
     # the back of the tool leaves arcs the other way round on a floor: a faint cross-hatch
     grow2 = v("SUBTRACT", scaled(d, root, -1350, -2700), scaled(w, side, -1350, -2850), x=-1200, y=-2750)
@@ -180,8 +222,16 @@ def _build(nt) -> None:
     g = m("DIVIDE", qa, m("MAXIMUM", R, 1e-9, x=-1350, y=-3500), x=-1200, y=-3500)
     near = m("MULTIPLY", m("ABSOLUTE", m("SUBTRACT", m("FRACT", m("ADD", g, 0.5, x=-1050, y=-3500), x=-900, y=-3500),
                                          0.5, x=-750, y=-3500), x=-600, y=-3500), R, x=-450, y=-3500)
-    line = m("SUBTRACT", 1.0, m("DIVIDE", near, m("MULTIPLY", gi["Size"], 0.5 * core.STEP_WIDTH, x=-600, y=-3650),
-                                x=-300, y=-3500), x=-150, y=-3500, clamp=True)
+    # at least core.LINE_PX pixels wide (one pixel on the wall: along the axis, seen at a slant), leaning less by as
+    # much as it was widened
+    real = m("MULTIPLY", gi["Size"], core.STEP_WIDTH, x=-750, y=-3650)
+    a_world = transform(in_face(a, -1200, -3800), "VECTOR", "OBJECT", "WORLD", -750, -3800)
+    on_wall = m("DIVIDE", pixel, m("MAXIMUM", m("MULTIPLY", scale, slant_of(a_world, -600, -3950), x=0, y=-3950), 1e-6,
+                                   x=150, y=-3950), x=300, y=-3950)
+    width = m("MAXIMUM", real, m("MULTIPLY", on_wall, core.LINE_PX, x=450, y=-3950), x=600, y=-3800)
+    line = m("MULTIPLY", m("SUBTRACT", 1.0, m("DIVIDE", near, m("MULTIPLY", width, 0.5, x=-600, y=-3650),
+                                            x=-300, y=-3500), x=-150, y=-3500, clamp=True),
+             m("DIVIDE", real, width, x=750, y=-3800), x=0, y=-3650)
     stepped = m("MULTIPLY", m("MULTIPLY", k2, m("GREATER_THAN", R, 1e-6, x=-1200, y=-3700), x=-1050, y=-3700),
                 m("GREATER_THAN", g, 0.5, x=-1050, y=-3850), x=-900, y=-3700)
     step = m("MULTIPLY", m("MULTIPLY", line, stepped, x=0, y=-3500), core.STEP_TILT, x=150, y=-3500)
@@ -192,15 +242,14 @@ def _build(nt) -> None:
              m("MULTIPLY", h, m("SUBTRACT", ridge2, core.RIDGE_MEAN, x=-450, y=-3150), x=-300, y=-3150),
              x=-150, y=-1450)
 
-    # ---- the ridges fade when a mark gets smaller than about two pixels (core.toolmarks.PIXEL_ANGLE) -------
-    e_world = transform(e, "VECTOR", "OBJECT", "WORLD", 300, -2400)          # its length = the object's scale
-    cam = b.node("ShaderNodeCameraData", -300, -3400)
-    pixels = m("DIVIDE", m("MULTIPLY", period, v("LENGTH", e_world, x=450, y=-2500), x=600, y=-2500),
-               m("MULTIPLY", cam.outputs["View Distance"], gi["Pixel angle"], x=450, y=-3400), x=750, y=-2500)
-    mr = b.node("ShaderNodeMapRange", 900, -2500, From_Min=core.FADE_FROM, From_Max=core.FADE_TO, To_Min=0.0,
-                To_Max=1.0)
+    # ---- marks drawn further apart than core.CAP_FROM fade into the plain machined look (core.toolmarks.fade) --
+    drawn = m("MULTIPLY", period, m("POWER", 2.0, lev, x=2400, y=-2900), x=2550, y=-2900)
+    lo = m("MAXIMUM", period, core.CAP_FROM, x=2400, y=-3050)
+    mr = b.node("ShaderNodeMapRange", 2700, -2950, To_Min=1.0, To_Max=0.0)
     mr.interpolation_type = "SMOOTHSTEP"
-    b.put(mr.inputs["Value"], pixels)
+    b.put(mr.inputs["Value"], drawn)
+    b.put(mr.inputs["From Min"], lo)
+    b.put(mr.inputs["From Max"], m("MULTIPLY", lo, core.CAP_TO, x=2550, y=-3050))
     fade = mr.outputs["Result"]
     amount = m("MULTIPLY", m("MULTIPLY", gi["Strength"], fade, x=1050, y=-2400), known, x=1200, y=-2400)
 
@@ -208,9 +257,16 @@ def _build(nt) -> None:
     leaning = v("ADD", N, scaled(lean, m("MULTIPLY", amount, gi["Ridge tilt"], x=1050, y=-1900), 1200, -1900),
                 x=1350, y=-1900)
     normal = v("NORMALIZE", transform(leaning, "NORMAL", "OBJECT", "WORLD", 1350, -1700), x=1500, y=-1700)
-    rough = m("ADD", gi["Marks roughness"],
+    # satin (core.toolmarks.satin): walls a little rougher and partly diffuse, other cut faces a share of that
+    share = m("MULTIPLY", m("MULTIPLY", m("ADD", m("MULTIPLY", m("ADD", k2, k5, x=600, y=-1100), 1.0 - core.SATIN_FLOOR,
+                                                     x=750, y=-1100), core.SATIN_FLOOR, x=900, y=-1100),
+                            has, x=1050, y=-1100), gi["Satin"], x=1200, y=-1100)
+    rough = m("ADD", m("ADD", gi["Marks roughness"], m("MULTIPLY", share, core.SATIN_ROUGH, x=1200, y=-1200),
+                       x=1350, y=-1200),
               m("MULTIPLY", m("MULTIPLY", gi["Rough change"], amount, x=1050, y=-1300), wave, x=1200, y=-1300),
               x=1350, y=-1300, clamp=True)
+    metal = m("MULTIPLY", gi["Metallic"], m("SUBTRACT", 1.0, m("MULTIPLY", share, core.SATIN_METAL, x=1350, y=-1000),
+                                            x=1500, y=-1000), x=1650, y=-1000)
     sheen = m("MULTIPLY", m("MULTIPLY", gi["Sheen"], gi["Strength"], x=1050, y=-900, clamp=True), known,
               x=1200, y=-900)
     b.put(go["Has marks"], has)
@@ -220,6 +276,8 @@ def _build(nt) -> None:
     b.put(go["Tangent"], pick(has, gi["Tangent"], v("NORMALIZE", e_world, x=1350, y=-500), 1500, -300))
     b.put(go["Anisotropic"], b.mix("FLOAT", has, gi["Anisotropic"], sheen, x=1500, y=-500))
     b.put(go["Fade"], fade)
+    b.put(go["Metallic"], metal)
+    b.put(go["Level"], lev)
 
 
 def ensure_group() -> bpy.types.NodeTree:
@@ -248,9 +306,11 @@ def group_node(mat):
     return None
 
 
-def apply(b, bsdf, tm: dict, rough, normal=None, plain_rough=None, tangent=None):
+def apply(b, bsdf, tm: dict, rough, normal=None, plain_rough=None, tangent=None, metallic=None):
     """Put the tool marks into a material that ``materials.build_nodes`` is building; returns the new
-    ``(roughness, normal)`` sockets the builder carries on with. It links the BSDF's Tangent and Anisotropic.
+    ``(roughness, normal)`` sockets the builder carries on with – and ``(roughness, normal, metallic)`` when the
+    material's ``metallic`` (a number or a socket) is given: cut faces are satin. It links the BSDF's Tangent and
+    Anisotropic.
 
     ``b``: the builder's ``_Nodes``; ``tm``: ``dict(size=1.0, strength=1.0, ridge=…, rough=…, anisotropic=…,
     hatch=…, pixel_angle=…)`` (ridge … hatch: ``core.toolmarks.look``; all may be missing); ``rough``, ``normal``,
@@ -285,7 +345,10 @@ def apply(b, bsdf, tm: dict, rough, normal=None, plain_rough=None, tangent=None)
         b.put(ins["Tangent"], tangent)
     b.nt.links.new(g.outputs["Anisotropic"], own)
     b.nt.links.new(g.outputs["Tangent"], bsdf.inputs["Tangent"])
-    return g.outputs["Roughness"], g.outputs["Normal"]
+    if metallic is None:
+        return g.outputs["Roughness"], g.outputs["Normal"]
+    b.put(ins["Metallic"], metallic)
+    return g.outputs["Roughness"], g.outputs["Normal"], g.outputs["Metallic"]
 
 
 def set_inputs(mat, size: float | None = None, strength: float | None = None,

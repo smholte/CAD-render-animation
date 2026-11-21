@@ -378,6 +378,25 @@ def test_wet_sheen_goes_back_exactly(scene):
     assert len(coolant.spans()) == 0 and drawn(scene, 30) == (0, 0)
 
 
+
+def test_an_older_wet_sheen_is_replaced_not_stacked(scene):
+    """Task 0280: the wet sheen got milder (PATCH 2). A material with the older nodes gets the new ones in their
+    place – once – and goes back exactly as before."""
+    blk = ob(scene, STOCK)
+    mat = coolant._materials_of(blk)[0]
+    before = len(mat.node_tree.nodes)
+    scene.fresing.coolant.enabled = True
+    build_program(scene)
+    patched = len(mat.node_tree.nodes)
+    mat[coolant.TAG + "_patch"] = coolant.PATCH - 1           # as a project saved with the older version
+    assert not coolant.is_patched(mat)
+    assert coolant.patch_material(mat, None)
+    assert coolant.is_patched(mat) and len(mat.node_tree.nodes) == patched
+    rough = [n for n in mat.node_tree.nodes if str(n.get(coolant.TAG, "")).startswith("rough:")]
+    assert rough and all(abs(n.inputs["B"].default_value - coolant.WET_ROUGH) < 1e-6 for n in rough)
+    assert coolant.unpatch_material(mat) and len(mat.node_tree.nodes) == before
+
+
 def test_wet_chips_fly_less_far(scene):
     click(ob(scene, TOOL))
     assert bpy.ops.fresing.mill_add_bit() == {"FINISHED"}

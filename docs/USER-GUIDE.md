@@ -2401,6 +2401,9 @@ What you see
 - A **drilled hole** shows rings, on its wall and on its bottom (one ring per turn of the spindle: F / S). So
   does a spot where a tool only went straight down.
 - A ball end mill and a corner radius leave fine lines across each pass, a chamfer mill lines along it.
+- **Walls** and **floors** are bright satin metal: a wall cut with the side of the tool scatters the light, so it
+  never turns into a dark mirror of the room – also in EEVEE, where a pocket's walls used to show black. A floor
+  is a little satin too and keeps its crisp arcs.
 - The **sheen** follows the marks: on a faced top the bright band swirls with the arcs when the camera or the
   light moves. Cut faces no longer show dark patches in reflections. A floor stays flat up to the edge where it
   meets a slope, also where the slope is only a little steeper (the strips a ball end mill leaves).
@@ -2411,9 +2414,12 @@ of their own (not with **Same as the block**):
 
 - **Tool marks**: on by itself, also in projects from an older version. Untick it for the plain machined look
   on every cut face.
-- **Mark size**: **1** is real. Real marks are often only 0.05 to 0.3 mm apart, so in a picture of the whole
-  machine you see the sheen and not the single marks – as on a real part from that distance. For a close-up,
-  raise it (up to **10**) until the arcs show.
+- **Mark size**: **1** is real when you look close. Real marks are often only 0.05 to 0.3 mm apart – finer
+  than a pixel from half a metre. So the app never draws them closer together than a few pixels: further away
+  it draws every second, fourth, eighth … mark, and blends smoothly from one to the next while the camera moves.
+  The arcs and lines stay readable at any distance, without stripes that wander over a wall (moiré) or a sandy
+  shimmer; in a picture of the whole machine they fade into the sheen. You do not need to set anything. Raise
+  Mark size (up to **10**) only when you want bigger marks, also up close.
 - **Strength**: how deep the marks look. **1** is a normal fresh cut; lower for a fine finishing cut, higher
   for a rough one. The material counts too: crisp on aluminium, finer on steel, dull on cast iron, faint on
   plastic.
@@ -2563,8 +2569,8 @@ set up (above) and a **Run G-code program** step; milling and chips are not need
      part it is on.
 3. **Liquid**: **Emulsion** (milky white, see-through – most machines) or **Cutting oil** (clear, slightly
    yellow). **Flow**: low gives thin streams and few drops, full gives thick streams and a lot of splash.
-4. **Wet sheen on block, table and vise**: they get darker and glossier with drops on the sides while coolant
-   flows; **Dries in** (4 s) is how long they stay wet after M9. The parts that get wet are found by themselves
+4. **Wet sheen on block, table and vise**: they get a little darker and a clear, glossy wet film with drops on
+   the sides while coolant flows (milled walls and floors stay bright metal under the film); **Dries in** (4 s) is how long they stay wet after M9. The parts that get wet are found by themselves
    at **Build & play**: the workpiece and the parts round it and under it (not the head).
 5. **Draft**: plain streams without splash and drops, for working in the view; switch it off for the video.
 6. In 6 Animation, the Run G-code program step has a **Coolant** setting:

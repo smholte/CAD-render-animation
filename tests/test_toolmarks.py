@@ -145,25 +145,86 @@ def test_shade_leans_the_normal_and_keeps_the_mean_roughness():
     assert np.allclose(np.linalg.norm(s["normal"], axis=1), 1.0)
     lean = np.arccos(np.clip(s["normal"] @ Z, -1, 1))
     assert 0.8 * lk["ridge"] < lean.max() < 1.5 * lk["ridge"]            # the hatch adds a little
-    assert abs(s["roughness"].mean() - 0.2) < 0.002
+    floor = 0.2 + T.SATIN_ROUGH * T.SATIN_FLOOR * lk["satin"]              # a floor is a little satin (task 0280)
+    assert abs(s["roughness"].mean() - floor) < 0.002
     assert s["roughness"].max() - s["roughness"].min() > 0.5 * lk["rough"]
     assert np.allclose(s["anisotropic"], lk["anisotropic"])
     flat = T.shade(T.ARCS, P, O, X, Z, R, SPACING, looks=lk, strength=0.0)
-    assert np.allclose(flat["normal"], Z) and np.allclose(flat["roughness"], 0.2) and not flat["anisotropic"].any()
+    assert np.allclose(flat["normal"], Z) and np.allclose(flat["roughness"], floor) and not flat["anisotropic"].any()
     far = T.shade(T.ARCS, P, O, X, Z, R, SPACING, looks=lk, fade_by=0.0)      # ridges gone, the sheen stays
     assert np.allclose(far["normal"], Z) and np.allclose(far["anisotropic"], lk["anisotropic"])
     assert T.shade(T.ARCS, P, O, X, Z, R, SPACING, looks=lk, strength=2.0)["anisotropic"].max() <= 1.0
 
 
-def test_ridges_fade_below_two_pixels():
-    assert T.fade(0.4 * MM, 1.0, 2.0) == 0.0                   # 0.4 px per mark
-    assert T.fade(0.4 * MM, 10.0, 0.5) == 1.0                  # 16 px
-    assert 0.4 < T.fade(0.4 * MM, 1.0, 0.4) < 0.6              # 2 px
-    f = T.fade(0.4 * MM, 1.0, np.linspace(0.05, 3.0, 100))
-    assert np.all(np.diff(f) <= 1e-12)                         # further away: never more
-    assert T.fade(0.4 * MM, 1.0, 0.0) == 0.0
+def test_levels_keep_the_drawn_marks_a_few_pixels_apart():
+    """Task 0280: marks finer than a pixel drew moiré. The level of detail draws every 2nd, 4th … mark so that the
+    drawn marks lie LOD_PX … 2 LOD_PX pixels apart on the picture; up close every mark (level 0)."""
+    dist = np.geomspace(0.02, 5.0, 400)
+    lev = T.level(0.4 * MM, 1.0, dist)
+    assert lev[0] == 0.0 and np.all(np.diff(lev) >= 0)                    # further away: never finer
+    px = 0.4 * MM * np.exp2(lev) / (dist * T.PIXEL_ANGLE)                   # the drawn marks on the picture
+    far = lev > 0
+    assert np.allclose(px[far], T.LOD_PX) and np.all(px[~far] >= T.LOD_PX)
+    assert abs(T.level(0.4 * MM, 1.0, 0.5) - math.log2(T.LOD_PX / 1.6)) < 1e-9     # 0.4 mm at 0.5 m: 1.6 px
+    assert T.level(0.4 * MM, 10.0, 0.5) == 0.0                              # Mark size x10: 16 px, every mark
+    # a face seen at a slant looks squeezed: a coarser level
+    assert T.level(0.4 * MM, 1.0, 0.3, slant=0.2) > T.level(0.4 * MM, 1.0, 0.3) + 2.0
+    assert abs(T.slant(X, Z) - 1.0) < 1e-12 and T.slant(X, X) == 0.0 and abs(T.slant(X, X + Z) - 0.5 ** 0.5) < 1e-12
+    assert T.level(0.4 * MM, 1.0, 0.3, slant=0.0) == T.LEVEL_MAX
+    # 4K (a smaller pixel angle) draws finer
+    assert T.level(0.4 * MM, 1.0, 0.5, angle=T.pixel_angle(3840)) < T.level(0.4 * MM, 1.0, 0.5)
     assert abs(T.pixel_angle(1920) - 0.000375) < 1e-9 and T.pixel_angle(3840, 50) < T.PIXEL_ANGLE < T.pixel_angle(960)
-    assert T.fade(0.4 * MM, 1.0, 0.4, angle=T.pixel_angle(3840)) > T.fade(0.4 * MM, 1.0, 0.4)   # 4K shows more
+
+
+def test_two_levels_mix_without_a_jump():
+    """Every mark of a level is a mark of the level below: the profile of level k + 1 equals the mix at k + 1 - 0,
+    so nothing jumps while the camera moves."""
+    u = np.linspace(-3 * MM, 5 * MM, 4001)
+    for k in (0.0, 1.0, 3.0):
+        at = T.lod_profile(u, 0.3 * MM, 1.0, k)
+        assert np.allclose(at[0], T.profile(u, 0.3 * MM * 2 ** k)[0]) and np.allclose(at[1], T.profile(u, 0.3 * MM * 2 ** k)[1])
+        just_below = T.lod_profile(u, 0.3 * MM, 1.0, k - 1e-9) if k else at
+        assert np.abs(just_below[0] - at[0]).max() < 1e-6
+    half = T.lod_profile(u, 0.3 * MM, 1.0, 1.5)
+    assert np.allclose(half[0], 0.5 * (T.profile(u, 0.6 * MM)[0] + T.profile(u, 1.2 * MM)[0]))
+
+
+def test_ridges_fade_when_drawn_far_apart():
+    """Close and mid-way the ridges show in full; drawn further apart than CAP_FROM they fade into the plain
+    machined look (a shot of the whole machine: the sheen only)."""
+    assert T.fade(0.4 * MM, 1.0, 0.1) == 1.0
+    assert T.fade(0.4 * MM, 1.0, 0.5) == 1.0                    # drawn 1.25 mm apart
+    assert T.fade(0.4 * MM, 1.0, 3.0) == 0.0                    # drawn 7.5 mm apart
+    f = T.fade(0.4 * MM, 1.0, np.linspace(0.05, 5.0, 300))
+    assert np.all(np.diff(f) <= 1e-12)                         # further away: never more
+    assert T.fade(0.4 * MM, 1.0, 0.0) == 1.0                   # (at the camera: every mark, level 0)
+    # a wide Mark size shows its marks as long as they are a few pixels apart, then fades within one level
+    assert T.fade(0.4 * MM, 10.0, 0.5) == 1.0 and T.fade(0.4 * MM, 10.0, 4.0) == 0.0
+
+
+def test_walls_are_satin_floors_a_little():
+    """Task 0280: walls mirrored the dark room (black walls). A wall is rougher and partly diffuse, a floor a share
+    of that, a face without a move keeps the material's own."""
+    lk = T.look("aluminium_machined")
+    r, m = T.satin(np.array([T.NONE, T.ARCS, T.FLANK, T.RINGS_WALL, T.RINGS]), lk, 0.2, 1.0)
+    assert np.allclose(r, [0.2, 0.2 + 0.4 * 0.15, 0.35, 0.35, 0.26]) and np.allclose(m, [1.0, 0.88, 0.7, 0.7, 0.88])
+    assert T.satin(T.FLANK, T.look("pom_white"), 0.3, 0.0) == (0.3, 0.0)        # plastic: nothing to make satin
+    P = O + np.linspace(0, 2 * MM, 50)[:, None] * X
+    s = T.shade(T.FLANK, P, O - 0.1 * X, X, Z, 0.0, 0.3 * MM, n=Y, looks=lk, roughness=0.2)
+    assert np.allclose(s["metallic"], 0.7) and abs(s["roughness"].mean() - 0.35) < 0.01
+
+
+def test_the_step_line_is_never_thinner_than_a_pixel_and_a_half():
+    """Far away the line where two depths meet was thinner than a pixel and flickered: it is widened to LINE_PX
+    pixels and leans less by as much, so it does not grow louder."""
+    step = 2 * MM
+    h = np.linspace(1.5 * step, 2.5 * step, 200001)
+    near = T.step_line(h, step, 1.0, pixel=0.0)
+    far = T.step_line(h, step, 1.0, pixel=0.2 * MM)
+    dh = h[1] - h[0]
+    assert abs(near.sum() * dh - 0.5 * T.STEP_WIDTH) < 1e-7                  # its area: half its width
+    assert abs(far.sum() * dh - 0.5 * T.STEP_WIDTH) < 1e-7                   # the same area …
+    assert (far > 0).sum() * dh > 3 * T.STEP_WIDTH and far.max() < near.max()   # … wider and fainter
 
 
 def test_look_for_every_cut_material():
@@ -284,7 +345,7 @@ class Bed:
         self.mat.use_nodes = True
         tw = dict(tweak or {})
         if marks:
-            tw["toolmarks"] = dict(size=size, strength=strength)
+            tw["toolmarks"] = {**tw.get("toolmarks", {}), "size": size, "strength": strength}
         materials.build_nodes(self.mat, material, "", 0.0, tw)
         self.looks = T.look(material)
         me.materials.append(self.mat)
@@ -540,30 +601,76 @@ def test_node_group_in_eevee(tmp_path):
 
 def test_ridges_fade_with_distance_in_the_nodes(scene, tmp_path):
     bed = Bed(size=1.0)                                # 0.4 mm marks
-    bed.probe("Fade")
-    for distance in (0.2, 0.4, 2.0):
-        bed.camera(distance=distance)
+    for distance in (0.2, 0.4, 2.0, 4.0):
+        bed.camera(distance=distance)                  # straight above: no slant
+        bed.probe("Level")
+        got = render(tmp_path / "lev.exr", 16, 16, 4)[:, :, 0]
+        assert np.allclose(got, T.level(SPACING, 1.0, distance), atol=0.02), distance   # (corners a little further)
+        bed.probe("Fade")
         got = render(tmp_path / "fade.exr", 16, 16, 4)[:, :, 0]
         assert np.allclose(got, T.fade(SPACING, 1.0, distance), atol=0.01), distance
     assert toolmarks.set_inputs(bed.mat, pixel_angle=T.pixel_angle(960))          # a small picture: bigger pixels
     got = render(tmp_path / "fade.exr", 16, 16, 4)[:, :, 0]
-    assert np.allclose(got, T.fade(SPACING, 1.0, 2.0, angle=36 / 50 / 960), atol=0.01)
-    bed.camera(distance=0.25)
+    assert np.allclose(got, T.fade(SPACING, 1.0, 4.0, angle=36 / 50 / 960), atol=0.01)
+    bed.camera(distance=1.2)
     got = render(tmp_path / "fade.exr", 16, 16, 4)[:, :, 0]
-    assert 0.2 < got.mean() < 0.8 and np.allclose(got, T.fade(SPACING, 1.0, 0.25, angle=36 / 50 / 960), atol=0.01)
+    assert 0.2 < got.mean() < 0.8 and np.allclose(got, T.fade(SPACING, 1.0, 1.2, angle=36 / 50 / 960), atol=0.02)
     toolmarks.set_inputs(bed.mat, pixel_angle=T.PIXEL_ANGLE)
     bed.ob.matrix_world = PLACE @ Matrix.Scale(3.0, 4)                 # the same mesh three times as big
     bed.centre = np.array(bed.ob.matrix_world @ Vector(O))
     bed.half *= 3
-    bed.camera(distance=1.2)
-    got = render(tmp_path / "fade.exr", 16, 16, 4)[:, :, 0]
-    assert np.allclose(got, T.fade(SPACING, 1.0, 1.2, scale=3.0), atol=0.01)
+    bed.camera(distance=4.0)
+    bed.probe("Level")
+    got = render(tmp_path / "lev.exr", 16, 16, 4)[:, :, 0]
+    assert np.allclose(got, T.level(SPACING, 1.0, 4.0, scale=3.0), atol=0.02)
 
 
-def streak_angles(folder, d=X):
+def test_levels_in_the_nodes_and_a_wall_seen_at_a_slant(scene, tmp_path):
+    """Task 0280: real marks 0.3 mm apart seen from 1.5 m – 0.4 px – are drawn at the level that puts them about
+    LOD_PX pixels apart; the nodes agree with the formula pixel by pixel. Seen at a slant, a coarser level."""
+    bed = Bed(half=0.012, spacing=0.3 * MM, size=1.0)
+    bed.camera(distance=1.5)
+    lev = T.level(bed.spacing, 1.0, 1.5)
+    assert 3.0 < lev < 4.0
+    w = 56
+    P = bed.points(w, w, sub=6)
+    s = T.shade(T.ARCS, P, bed.o, X, Z, R, bed.spacing, size=1.0, looks=bed.looks, lev=lev,
+                fade_by=T.fade(bed.spacing, 1.0, 1.5))
+    assert s["ridge"].std() > 0.2                                   # the picture shows marks (about 9 px apart)
+    bed.probe("Ridge")
+    got = render(tmp_path / "ridge.exr", w, w, 16)[:, :, 0]
+    err = np.abs(got - s["ridge"].mean(axis=2))
+    assert err.mean() < 0.03, err.mean()
+    bed.probe("Normal")
+    got = render(tmp_path / "normal.exr", w, w, 16) * 2 - 1
+    err = np.abs(got - s["normal"].mean(axis=2) @ bed.turn.T)
+    assert err.mean() < 0.005, err.mean()
+    # the camera turned 60 degrees about the picture's y: the marks (across x) look half as wide - one level more
+    m = np.array(bed.cam.matrix_world)
+    turn = np.array(Matrix.Rotation(math.radians(60), 4, Vector(bed.world(bed.ey))))
+    m[:3, :3] = turn[:3, :3] @ m[:3, :3]
+    m[:3, 3] = bed.centre + turn[:3, :3] @ (m[:3, 3] - bed.centre)
+    bed.cam.matrix_world = Matrix(m.tolist())
+    bed.probe("Level")
+    got = render(tmp_path / "lev.exr", 16, 16, 4)[7:9, 7:9, 0]          # the middle: the arcs run across x there
+    assert abs(got.mean() - (lev + 1.0)) < 0.05, (got.mean(), lev)
+
+
+def test_satin_in_the_nodes(scene, tmp_path):
+    """Walls partly diffuse and rougher, floors a share of that, faces without a move the material's own."""
+    for kind, n, metal in ((T.FLANK, Y, 0.7), (T.ARCS, Z, 0.88), (T.NONE, Z, 1.0)):
+        bed = Bed(kind=kind, n=n, o=O - 0.1 * X - 0.0123 * Z if kind == T.FLANK else None)
+        bed.camera()
+        bed.probe("Metallic")
+        got = render(tmp_path / "metal.exr", 8, 8, 4)[:, :, 0]
+        assert np.allclose(got, metal, atol=1e-3), (kind, got.mean())
+        bpy.data.objects.remove(bed.ob)
+
+
+def streak_angles(folder, d=X, satin=None):
     """Two small lamps over a face-milled plane, left and right of the tool's path, seen from far above (no
     ridges, only the sheen): the angle of each bright streak against the picture's x (the feed), in degrees."""
-    bed = Bed(d=d, half=0.03, size=1.0)
+    bed = Bed(d=d, half=0.03, size=1.0, tweak=None if satin is None else {"toolmarks": {"satin": satin}})
     bed.camera(width=1.0, distance=2.0)
     off = 0.6 * R
     for y in (off, -off):
@@ -586,11 +693,17 @@ def streak_angles(folder, d=X):
 
 def test_sheen_follows_the_arcs(scene, tmp_path):
     """The bright streak lies across the grooves. Left of the path (0.6 R) the arcs lean one way, right of it the
-    other: across them is 37 degrees to either side of the feed."""
-    (left, left_long), (right, right_long) = streak_angles(tmp_path)[0]
+    other: across them is 37 degrees to either side of the feed. Measured without the floor's satin (task 0280): its
+    diffuse share adds a round glow round each lamp that blurs the streak's direction – with it the streak still
+    leans the same way and stays long."""
+    (left, left_long), (right, right_long) = streak_angles(tmp_path, satin=0.0)[0]
     expect = math.degrees(math.atan2(0.6, 0.8))
     assert abs(left - expect) < 12 and abs(right + expect) < 12, (left, right, expect)
     assert left_long > 1.5 and right_long > 1.5, (left_long, right_long)             # a streak, not a round spot
+    for ob in list(bpy.data.objects):
+        bpy.data.objects.remove(ob)
+    (left, left_long), (right, right_long) = streak_angles(tmp_path)[0]
+    assert 20 < left < 60 and -60 < right < -20 and min(left_long, right_long) > 1.5, (left, right)
 
 
 def test_the_look_passes_through_where_no_move_is_known(scene, tmp_path):

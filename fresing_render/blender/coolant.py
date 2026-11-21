@@ -43,7 +43,10 @@ MAT_HOSE = "FR coolant hose"
 TAG = "fr_coolant"                    # on everything made here (value: its role)
 WET_ATTR = "fr_coolant_wet"           # on parts that get wet: how wet (0 … 1)
 WET_PROP = "fr_wet"                   # on the root: the wet level now (keyed by the build)
-PATCH = 1                             # version of the wet-sheen nodes put into materials
+PATCH = 2                             # version of the wet-sheen nodes put into materials (2: task 0280, milder)
+#: where wet: the base colour times this, the roughness mixed towards this (task 0280: was 0.58 and 0.12 – a wet
+#: pocket turned into a black mirror with sparkles; the clear wet film on top keeps the gloss)
+WET_DARKEN, WET_ROUGH = 0.8, 0.28
 WET_NODE = "FR coolant wet"
 WET_REACH = 0.15                      # m round the workpiece: parts this close get wet
 MM = 0.001
@@ -314,6 +317,8 @@ def patch_material(mat, r) -> bool:
     the sides. They do nothing for parts without ``fr_coolant_wet``. True when changed."""
     if mat is None or is_patched(mat):
         return False
+    if TAG + "_patch" in mat:                 # an older version of the nodes: out first, then the new ones
+        unpatch_material(mat)
     bsdfs = _principled(mat)
     if not bsdfs:
         return False
@@ -358,7 +363,7 @@ def patch_material(mat, r) -> bool:
             links.new(src, mix.inputs["A"])
         else:
             mix.inputs["A"].default_value = sock.default_value
-        mix.inputs["B"].default_value = (0.58, 0.58, 0.58, 1.0)
+        mix.inputs["B"].default_value = (WET_DARKEN, WET_DARKEN, WET_DARKEN, 1.0)
         links.new(mix.outputs["Result"], sock)
         # roughness: much smoother where wet
         sock = b.inputs["Roughness"]
@@ -370,7 +375,7 @@ def patch_material(mat, r) -> bool:
             links.new(src, rm.inputs["A"])
         else:
             rm.inputs["A"].default_value = sock.default_value
-        rm.inputs["B"].default_value = 0.12
+        rm.inputs["B"].default_value = WET_ROUGH
         links.new(rm.outputs["Result"], sock)
         # a clear film on top
         sock = b.inputs["Coat Weight"]
