@@ -92,10 +92,117 @@ then say so and what an image would cost).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Opus, effort High), 21 Nov 2026. Branch `task/0270-study-finishes`, every push
+`[skip ci]`, nothing merged. (Setting the task to "running" on `main` was refused in this session, so `TASKS.md` on
+`main` still says "open – can start": the lead sets it.)
 
-**What changed:**
+**What changed (branch only):**
+- `tools/finish_shapes.py` – the invented study shapes as ONE STEP (knob Ø20 × 15, domed cap Ø40, cup shell Ø70, block
+  80 × 50 × 40 with chamfers, shaft with a shoulder, plate 300 × 300 × 5, half bushing, way, grip, weld T-joint, a
+  headphone-like set). They come in through the app's own importer (`quality="normal"`): coarse CAD meshes, no UVs.
+- `fresing_render/blender/finishes_proto.py` – 27 finishes as node builders + `prepare_faces` (the face data) +
+  `set_pixel_angle` (the far-away fade). Reads `materials.py` (`_Nodes`, `part_axes`), changes nothing in it.
+- `tools/finish_sheet.py` – stages and renders every finish (close-up, product shot, cost, far set, headset, copies,
+  thumbnails); `tools/finish_page.py` – the pick page `tasks/0270_page/index.html` (+ `img/`, JPG).
 
-**Tested and measured** (name the machine and the model):
+**How the patterns find direction and size without UV maps (the core finding):**
+1. **The CAD face's own axis** – the importer already stores every round face's axis (`fr_axes` + `fr_axis_faces`, cache
+   3; used today only for joint picking). `prepare_faces` turns it into four FACE attributes on the mesh: `fr_fx_o`
+   (point on the axis), `fr_fx_d` (direction), `fr_fx_r` (the face's OWN radius = median distance of its points – the
+   stored radius is the largest on that axis line), `fr_fx_k` (1 round outside, −1 bore, 2 end face on an axis, 0
+   other). End faces find their axis by "mean normal ∥ an axis of the part and the face centred on it"; faces with no
+   axis of their own fall back to the part's round axis. Knurl, straight knurl, spun, faced spiral, honed bore and the
+   rubber grip use it. A whole number of teeth round each face (`round(2πr·cosβ / p)`) → no seam. Cost to write the
+   data: numpy over the mesh, a few ms per part. A shader reads them with an Attribute node (GEOMETRY), Cycles + EEVEE.
+2. **The part's own box axes** – triplanar in object space (`_tri`): exactly one projection on flat faces, a blend of
+   three on curved ones (tread plate, perforated, expanded, carbon, scraped ways, perlage, weave, grille, cross-hatch).
+3. **Nothing** – 3-D noise / Voronoi in object space (blasted, hammertone, wrinkle, anti-skid, VDI, leather, spangle,
+   as-cast, rust).
+4. **A seam the user points at** (weld) – the line kept as OBJECT properties `fr_weld_a/b` on each part it touches (a
+   material reads them per copy) + a bead object.
+- **Copies, turned, mirrored**: the pattern sits the same on every copy (picture on the page). **Scaled** ×1.5: the
+  pattern grows with the part (object space); 0274 can divide by the object's scale if ever needed (Inventor parts are
+  not scaled). **Model update**: the same STEP imported again gives the same face data, number for number (knob, cap,
+  bushing: max difference < 1e-7). 0274 must write the face data where `ensure_axes` runs today (`materials.assign`)
+  and again after a model update.
+- **Far away** (`_lod`): one pixel on the part = distance from the camera × pixel angle (a value node per material, set
+  from the camera; in 0274 a scene property kept up by the camera code, as the tool marks' "Pixel angle" input). A
+  pattern whose period covers < ~2 px fades to its average roughness / colour / open area. Shown on the page: the
+  plate set at 4 m and 15 m with the fade and with it switched off (the "off" pictures sparkle).
+
+**The table** (cost = product shot, Cycles CPU, 64 samples, adaptive + denoise, 4-core web machine, pattern vs the same
+material without the pattern; at 960 × 540 for all, COST1920 at 1920 × 1080 for 8):
+
+| # | Finish | How it is built | Direction from | Cost (960 × 540) | Web 3D model | Settings | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1 | Diamond knurl 0.8 mm 30° | two groove families, pyramids, tips flat; spun rings on the end faces | face axis + own radius | +6 % | average | Pitch, Angle | ★ build |
+| 2 | Straight knurl 1.0 mm | one groove family | face axis | +14 % | average | Pitch | ★ build (same code) |
+| 3 | Spun aluminium | 1-D noise of the distance from the face's axis, anisotropy across the rings | face axis | +3 % | average (no anisotropy) | Strength | ★ build |
+| 4 | Faced spiral 0.25 mm | spiral groove ρ/f + θ/2π | face axis | +5 % | average | Feed | add-on to 3 |
+| 5 | Moulded cross-hatch 0.9 mm | raised 45° grid, triplanar | part box axes | +9 % | 2048 px tile | Pitch, Angle | ★ build |
+| 6 | Woven fabric 0.5 mm | plain weave, sheen | part box axes | +8 % | average colour | Thread size | ★ build |
+| 7 | Plastic mesh grille Ø1.1/1.6 | hex holes (alpha) | part box axes | +52 % | alpha holds | Hole, Pitch | ★ build |
+| 8 | Soft-touch | numbers only + micro grain | none | −3 % | factors | none | ★ build |
+| 9 | Bead-blasted | 3-D Voronoi dimples ~0.1 mm | none | +40 % | average | Coarseness | ★ build |
+| 10 | Shot-blasted Sa 2½ | Voronoi ~0.3 mm + colour | none | +69 % | average | none | ★ build |
+| 11 | Hammertone | Voronoi dents 5 mm + flakes, coat | none | +74 % | holds | Mark size | ★ build |
+| 12 | Wrinkle paint | ridges of a warped noise | none | +4 % | 2048 px | Size | optional |
+| 13 | Anti-skid deck paint | grit (Voronoi) ~1.2 mm | none | +14 % | holds | Grit | ★ build |
+| 14 | Tread plate (lens) | lenses 22 × 6 mm on 25 mm, bump | part box axes | +11 % | holds (8 per tile) | Pitch | ★ build |
+| 15 | Perforated Rv 5-8 / slotted | hex holes (alpha) | part box axes | +15 % | alpha holds* | Hole, Pitch, Round/Slot | ★ build |
+| 16 | Expanded metal 43 × 13.5 | two staggered diamond grids, strand slope | part box axes | +37 % | roughly | Size | ★ build |
+| 17 | Carbon twill 2×2, 2 mm | twill parity, tangent per tow, clear coat | part box axes (dominant) | +11 % | colour + normal | Tow | flat parts only |
+| 18 | VDI 3400 24 / 30 / 36 | fine Voronoi + roughness per class | none | +32…41 % | average | Class | ★ build |
+| 19 | Leather grain 1.6 mm | Voronoi edges, warped | none | +6 % | holds | Grain | ★ build |
+| 20 | Galvanised spangle 9 mm | Voronoi crystals, own roughness/brightness/sheen | none | +28 % | colour + rough | Crystal size | ★ build |
+| 21 | Weld bead + heat tint | line on the parts + bead object | picked seam | −5 % | own bake | Pick seam, Size | own task (L) |
+| 22 | As-cast | Voronoi grain + waviness + blotches | none | +41 % | holds | Al / Fe | ★ build |
+| 23 | Rust (flash / heavy) | noise + AO mask, flakes | none | +94 % / +88 % | colour only | Rust slider | ★ as a slider |
+| 24 | Honed bore 50° | two helical scratch families inside bores | face axis (k = −1) | +17 % | average | Angle | add-on to turned |
+| 25 | Scraped ways | half-moons, 12 mm checker | part box axes | +11 % | holds | Cell | ★ build |
+| 26 | Rubber grip 3 mm | the knurl at 45°, flat tops | face axis | +7 % | average | Pitch | add-on to 1 |
+| 27 | Perlage (extra) | overlapping spots, swirl tangent | part box axes | +9 % | sheen lost | Spot size | drop for now |
+
+\* hex rows do not divide the 0.2 m web tile: a square pitch for the web model, or an own bake.
+
+COST1920
+
+**Why some cost more:** every 3-D Voronoi (blasted, hammertone, VDI, as-cast) and the AO lookup (rust) is evaluated at
+every sample even where the pattern has faded. 0274: switch the grain off below its size (a mix that skips the node
+does not save time in Cycles – use cheaper noise for the sub-millimetre grains, keep Voronoi for hammertone / spangle),
+and rust's AO only with wear's AO (shared). Node counts 11–115 (page). The EEVEE look matches; EEVEE times here are
+software OpenGL on the web machine and say nothing about the owner's RTX 3090.
+
+**Dropped / held back and why:** perlage (reads as scales, niche); weld bead + heat tint (possible – see the picture – but
+it needs a seam picker, a bead that follows the line and model-update care: a task of its own, not a finish); carbon on
+curved parts (the box projection breaks the weave at 45°); wrinkle (only up close). Flash / heavy rust is not a
+material but a slider like Wear.
+
+**Thumbnails for 0273:** swatch = the chamfered block with the knurled knob on top and the spun cap leaning in front
+(shows marks, rings, knurl, holes and grain at once). 256 × 256 px, Cycles CPU, 4-core web machine: THUMBS. A
+library of ~70 materials: ~5 min once on this machine, far less on the RTX 3090; make them once per app version and
+ship / cache them (not per project).
+
+**Proposed order for 0274** (one task, Opus · High for step 1, the rest along its pattern):
+1. Face data (`prepare_faces` → `materials.assign` / model update) + the pixel angle (scene property, camera code) +
+   knurl (diamond, straight, grip) + spun / faced + honed on the turned marks.
+2. Box-axis patterns: tread plate, perforated (round / slotted), expanded metal, grille, scraped ways, cross-hatch,
+   fabric.
+3. Grain patterns (cheap noise below 0.3 mm): bead / shot blasted, VDI classes, leather, as-cast, anti-skid, hammertone,
+   spangle, soft-touch.
+4. Rust as a group slider next to Wear.
+5. Later / own tasks: weld seams (picker + bead), carbon on curved parts, perlage.
+
+**Tested and measured:** all on the 4-core Claude Code web machine, no graphics card, Blender 5.2.3 as a Python module,
+Cycles on the CPU; invented shapes only. Debug passes at 480–640 px, final pictures 960 × 540 at 64 samples (≈ 30–60 s
+each), the far set and the headset at 1920 × 1080. Re-import check: face data identical. No pytest added (prototype).
 
 **Open points / follow-up tasks:**
+- `_face_axis` in the importer knows no spheres: a domed cap or cup gets its axis from the part's box (works for
+  revolved parts, not for a dome on a bigger part). 0274 (or the importer lane): add `GeomAbs_Sphere` (its axis) –
+  needs `CACHE_VERSION` 7.
+- `part_axes` calls a square plate "round" (box test): harmless for these finishes, worth a note in 0274.
+- The grille on a thick part shows its back face through the holes; real holes would need walls (not possible as a
+  material).
+- Tread plate / expanded metal are bump only: plate edges stay flat in silhouette (real raised geometry would need
+  displacement on a fine mesh – not worth it from 0.3 m on).
