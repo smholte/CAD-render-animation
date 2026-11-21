@@ -608,7 +608,9 @@ fresing_render/            the Blender extension (Python package)
   blender_manifest.toml    extension manifest (version, bundled wheels)
 app_template/fresing_render/   app template: layout, units, switches the extension on
 site/                      the landing page https://smholte.github.io/CAD-render-animation/ (task 0047): index.html +
-                           style.css (Fresing palette A, IBM Plex Sans in fonts/), brand/ (Fresing logos), media/ (pictures,
+                           style.css (Fresing palette A, IBM Plex Sans + Mono in fonts/; task 0267: picture / video / 3D
+                           model rows that scroll sideways from media.json, one inline script for their arrows; the page
+                           how-it-works/index.html; tools.json = the header's tool switcher), brand/ (Fresing logos), media/ (pictures,
                            video, media.json: captions + credits), CREDITS.md; render_kit/ (the owner's Windows kit: "Make site
                            pictures.bat" + make_site_pictures.py + models.ini; task 0112: projects.py makes a model that moves
                            from its sheet projects/<model>.json – joints, cylinders, poses, the loop – with the app's own

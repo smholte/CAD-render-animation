@@ -1,0 +1,8 @@
+{
+ "_about": "The Fresing tools the header links to (task 0267). direct: a button of its own; else under 'More tools'. here: this site. The Fresing Viewer gets a direct line when its page exists.",
+ "tools": [
+  {"name": "Fresing Render", "here": true, "direct": true},
+  {"name": "House Planner", "url": "https://smholte.github.io/house-planner/", "direct": false,
+   "note": "Plan a house, see it in 3D"}
+ ]
+}
