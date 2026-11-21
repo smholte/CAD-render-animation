@@ -3550,7 +3550,7 @@ def build_air(b: Build):
 COOLANT_TOUR = AIR_TOUR.replace("M7", "M8").replace("S9000", "S15000")    # task 0257: a fast tool (7.9 m/s)
 
 
-@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.199")
+@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.200")
 def build_coolant(b: Build):
     from mathutils import Vector
 
@@ -4737,7 +4737,7 @@ stop("coolant", MACH, "coolant", "Coolant (flood)",
      "round it, and a fast, fine, flat spray flies off in the turning direction at the jets' height; the block "
      "gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
      animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
-     changed="0.2.199")
+     changed="0.2.200")
 
 
 def _check_setup(scene):
