@@ -273,7 +273,7 @@ def s_after_redo():
     for o in bpy.context.selected_objects:
         o.select_set(False)
     boom = find("BOOM")
-    x, y = to_window(boom.matrix_world @ Vector((1.0, 0, 0.05)))
+    x, y = to_window(boom.matrix_world @ Vector((5.0, 0, 0.25)))
     click(x, y)
     return 0.8
 

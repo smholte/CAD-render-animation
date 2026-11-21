@@ -62,10 +62,11 @@ def test_face_data_and_cards_with_hidden_names(crane, tmp_path):
     rows = np.vstack([t for _r, t in got.values()])
     assert (rows[:, 0] == wf.FLAT).sum() > 200 and (rows[:, 0] == wf.ROUND).sum() > 30
     all_d = sorted({d for ds in diameters(data).values() for d in ds})
-    # the crane's known sizes: bolt holes Ø13, boom pin Ø40 in a Ø40.4 bore, luffing pins Ø20, piston Ø50, rod Ø22
-    for d in (13.0, 20.0, 22.0, 40.0, 40.4, 50.0):
+    # the crane's known sizes (task 0259): bolt holes Ø33, boom pin Ø100 in a Ø100.4 bore, luffing pins Ø70, piston
+    # Ø198, rod Ø110
+    for d in (33.0, 70.0, 110.0, 100.0, 100.4, 198.0):
         assert d in all_d, (d, all_d)
-    # task 0219: the CAD edges – straight ones and round rims, among them the boom pin's Ø40 and the bolt holes' Ø13
+    # task 0219: the CAD edges – straight ones and round rims, among them the boom pin's Ø100 and the bolt holes' Ø33
     edges = wf.read_edges(data)
     assert len(edges) >= 10
     allE = np.vstack(list(edges.values()))
@@ -74,10 +75,10 @@ def test_face_data_and_cards_with_hidden_names(crane, tmp_path):
     for k, et in edges.items():
         for e in et[et[:, 0] == wf.CIRCLE]:
             rims.add(round(float(np.linalg.norm(e[6:9] - e[3:6])) * step_of(data)[k] * 2000, 1))
-    for d in (13.0, 40.0):
+    for d in (33.0, 100.0):
         assert d in rims, (d, sorted(rims))
-    # the boom pin's bore Ø40.4 and the lug round it share one axis line (0122): each keeps its own radius
-    assert any(40.4 in ds and 100.0 in ds for ds in diameters(data).values())
+    # the boom pin's bore Ø100.4 and the boom's round end round it share one axis line (0122): each keeps its own radius
+    assert any(100.4 in ds and 500.0 in ds for ds in diameters(data).values())
     doc, _ = core.read_glb(data)
     names = [build.PROP_NAME]
     cards = [n["extras"]["fr_card"] for n in doc["nodes"] if "fr_card" in n.get("extras", {})]

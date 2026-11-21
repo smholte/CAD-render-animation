@@ -106,7 +106,7 @@ def op(_idname, *args, undo=True, **kw):
 
 
 def tip():
-    return find("BOOM").matrix_world @ Vector((1.5, 0, 0))
+    return find("BOOM").matrix_world @ Vector((7.5, 0, 0))
 
 
 STEPS = []
@@ -507,8 +507,8 @@ def s_stack_first():
 
 @step
 def s_stack_click():
-    # the trolley's top face (150 x 150 x 60 mm box), 30 mm in from a corner: a flat face -> vertical axis
-    pt = find("TROLLEY").matrix_world @ Vector((0.03, 0.03, 0.06))
+    # the trolley's top face (750 x 750 x 300 mm box), 150 mm in from a corner: a flat face -> vertical axis
+    pt = find("TROLLEY").matrix_world @ Vector((0.15, 0.15, 0.3))
     x, y = to_window(pt)
     # the point the click really lands on: the ray through that whole pixel (task 0122: on a face seen at a low angle
     # one pixel spans more than 2 mm, so the ideal 3D point is not where the click lands)

@@ -120,7 +120,7 @@ def vm():
 
 
 def tip():
-    return named("BOOM").matrix_world @ Vector((1.5, 0.0, 0.0))
+    return named("BOOM").matrix_world @ Vector((7.5, 0.0, 0.0))
 
 
 def open_panel():
