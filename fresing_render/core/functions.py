@@ -436,13 +436,13 @@ fn(id="lifting.hook", short="Hook to here", title="Hook to here and the crane us
 
 fn(id="lifting.rig", short="Lift points", title="Rigging: lift points, sling set, shackles, spreader", family="lifting",
    panel="FRESING_PT_lifting_rigging", button="fresing.lifting_points_find", guide="lifting-rigging",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.188", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.189", workspaces=_LIFT)
 fn(id="lifting.hang", short="Hang on the hook", title="Hang the load on the hook: tilt, leg angles and forces, C2–C4",
    family="lifting", panel="FRESING_PT_lifting_rigging", button="fresing.lifting_hang", guide="lifting-hang",
-   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.188", workspaces=_LIFT)
+   tour=("lifting_rig", "lifting_spreader"), pccheck=("lifting.hang",), since="0.2.189", workspaces=_LIFT)
 fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its falls over head and block sheaves, line pull",
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_reeve", guide="lifting-reeve",
-   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.188", workspaces=_LIFT)
+   tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.189", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
@@ -552,8 +552,8 @@ fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", 
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
-fn(id="help.demo", title="Demo project: cable-lay vessel", family="help", panel="TOPBAR_MT_help",
-   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68")
+fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",
+   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68", changed="0.2.188")
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
    panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app

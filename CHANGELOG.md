@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.188 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+## 0.2.189 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
 
 - **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
   lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
@@ -28,6 +28,20 @@ installer of that version was built from.
   efficiency of API RP 9B), against the winch's maximum.
 - Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
   lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+## 0.2.188 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
+
+- **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own
+  deck crane in an offshore wind park of nine turbines and a substation, the park's power cable lying on the seabed
+  right under her. Its video lasts about a minute: she sails in and holds her place on her thrusters, her crane slews
+  outboard and lowers its hook (the wire comes off the drum layer by layer), along her hull and under water at her
+  thrusters, at the seabed where the cable comes down turbine WTG 05, the park from above and at night. It is made in
+  about a minute instead of six. The cable-lay equipment of the old demo is no longer part of the app.
+- **New saved cameras** in the demo: **Deck crane** and **At the seabed** (through the cut-away behind the stern, along
+  the cable to the turbine's foot).
+- **The clash check can leave a whole model out, stored in the project.** The demo's wind park is left out this way
+  (its nine turning rotors would make the check several times as long); the mark stays when you save, reopen or
+  update the model. A demo kit uses it for its own scenery.
+
 ## 0.2.187 – 21 Nov 2026 – Automatic backups (task 0246)
 
 - **Your work is saved every 5 minutes.** While you work, the app saves a backup copy of the open project in a folder

@@ -555,19 +555,24 @@ fresing_render/            the Blender extension (Python package)
                            `core/demo_kits.py` checks / unpacks / lists kit zips (kit.json), the app is `fresing_app` inside
                            a kit; Help > Make demo project…'s list + Add a demo kit… / Remove in ops_demo.py; `PUBLIC`
                            (the app's own demo in the list); test kit tests/data/demo_kit_test (zip in fresing_render/data)
-    demo.py                demo project "Cable-lay vessel" (task 0077): Help > Make demo project; a background Blender
-                           runs the model maker, imports, makes 415 joints (a "Cable travel" slide joint the cable-turned
-                           rollers follow), the handler cylinders, sea + quay scenes, cameras and the animation "What it
-                           can do today" as a list of named **stages** (``@stage``; tasks 0078–0082 add or replace one);
-                           ops_demo.py (Make, Cancel = kill the build's program tree + delete the folder, Open)
+    demo.py                demo project "Vessel in a wind park" (task 0077; task 0247: the ship alone – the cable-lay
+                           equipment is a private demo kit): Help > Make demo project; a background Blender runs the
+                           model maker, imports, makes the ship's 13 joints, the crane's hoist wire on its drum (the hook
+                           follows the wire), sea + quay scenes, cameras and the animation "What it can do today" (~1 min)
+                           as a list of named **stages** (``@stage``); demo_park.py = the park's stages (placed by the
+                           route sheet's ``place``, left out of the clash check by ``clash.NO_CLASH``); ops_demo.py (Make,
+                           Cancel = kill the build's program tree + delete the folder, Open)
   lifting_model/           the built-in cranes of the Lifting lane (task 0191), no Blender: classes.py (12 invented classes
                            AT-40…500 / CC-100…1600 / KB-20…200, their layout, joints and the hook's kinematics), charts.py
                            (SAMPLE charts), equipment.py (the equipment file), common.py + mobile.py, crawler.py, knuckle.py
                            (OpenCascade: the STEP), make.py; the files in data/lifting/<class>/ (tools/make_lifting_cranes.py)
-  demo_model/              the model maker of the demo (tasks 0076, 0084; moved here from tools/ in task 0077), no Blender:
-                           params.py one parameter set, route.py the route maths + positions, geom.py shapes + scene tree +
-                           STEP writer, machines.py, deck.py (the deck machines), layout.py (files, sheets: demo_cable_route.json,
-                           demo_joints.json), make.py = the command line, run as its own program with Blender's Python
+  demo_model/              the model maker of the demo (tasks 0076, 0153, 0166; task 0247: the bare ship), no Blender:
+                           params.py (``ShipParams``, ``ParkParams``), route.py (shared route geometry: lines, arcs, rope
+                           routes), geom.py shapes + scene tree + STEP writer (the library of every test model and
+                           lifting_model/ too – keep it as it is), vessel.py (the ship with her deck crane, a plain deck),
+                           deck.py (the quay), park.py + turbine*.py + substation.py + occ.py (the wind park and the cable
+                           on its seabed), layout.py (files demo_vessel / demo_park / demo_quay.step, sheets
+                           demo_route.json, demo_joints.json), make.py = the command line, run as its own program
   core/updates.py          versions, update listing (index.json), changelog.json, checked downloads (no Blender)
   update_helper.py         installs a downloaded update while Blender is closed, starts the app again
   queue_runner.py          runs queued renders inside a background Blender
@@ -594,16 +599,12 @@ site/                      the landing page https://smholte.github.io/CAD-render
                            site-kit.yml builds it (tools/make_site_projects.py --kit) and puts it on the DRAFT release
                            "site-kit" (on main when the kit or its makers change; by hand)
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
-tools/                     build_release.py, release_tools.py (release job), measure_cables.py (task 0159: what cables,
-                           spools and tracks cost on the made demo – Build by module, playback, live posing, memory),
-                           test-model makers (task 0122: details from
+tools/                     build_release.py, release_tools.py (release job), test-model makers (task 0122: details from
                            model_details.py – chamfers, outlines, ISO bolts/screws/nuts – and machine_parts.py – rails,
                            guide blocks, servo motors, clamps – each part one solid), real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
                            job, ci_groups.py + ci_times.json parallel groups),
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
-                           make_demo_cable_lay.py (tasks 0076, 0084: the invented cable-lay vessel – a thin wrapper of
-                           fresing_render/demo_model/make.py since task 0077; demo_cable_lay_pictures.py renders it)
                            make_site_web_models.py (task 0111): the landing page's moving 3D models (test mill tool
                            changes, Thor) exported with Soft light and put on the page by build_site.py --web-model;
                            make_site_projects.py + site_projects/ (task 0112): the site's moving models from their own
@@ -695,9 +696,9 @@ run; runs on `main` always finish. Since task 0036 the tests run as parallel job
 12 minutes when it runs alone (task 0108, 13 Nov 2026: 12.4 min, run 43476950544; before it 15–20 min, the demo project's clash check alone 13 min; task 0063: 8.8–11.9;
 task 0036: median 12.8; before that 24–50). One run uses up to 18 jobs at once; GitHub's free plan runs at most 20 jobs
 at a time per account (GitHub's documented limit), so runs of several tasks at once queue behind each other: keep jobs
-short and few. **A test longer than ~8 minutes sets the run's length:** split it (by test file, as
-`tests/test_demo_clash.py` does: its clash check runs as windows of frames in 4 processes at once, judged from the
-animation's first frame so it is as strict as one whole check). The first job,
+short and few. **A test longer than ~8 minutes sets the run's length:** split it (by test file; or as the old demo's
+clash check did: windows of frames in 4 processes at once, judged from the animation's first frame so it is as strict
+as one whole check – `tests/clash_windows_child.py`, proved in `tests/test_clash_windows.py`). The first job,
 `precheck`, picks the **mode** of the run (`ci_status.py` prints it):
 
 - **full** – every job below.
@@ -727,7 +728,7 @@ When the precheck fails, nothing else starts. On `main` with a new version, thre
 | --- | --- | --- |
 | Precheck | `tools/ci_precheck.py`: the two version files agree; a branch that raised the version is newer than `main` and every release and has its CHANGELOG heading (else "someone took your version number: merge main and renumber to …"); `MIN_CHECKS` names every real-app test, `MIN_LINES_FULL` ≥ the PC check's Full lines; every test in exactly one group; `TASKS.md` tables parse; picks the mode and the groups | 0.1 min |
 | Linux - test suite 1 … 9 | pytest, the `tests/test_*.py` files split in 9 groups (`PYTEST_GROUPS`, task 0108) balanced by `tools/ci_times.json` – the slowest of each file's last 3 recorded runs (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 7–12 min; `test_air.py` alone in its group (its queued render: 5–11 min, it varies most); `test_demo_clash.py` ~9 min (task 0108) |
-| Linux - make the demo project → Linux - test suite demo 1 … 4 | task 0145: the files that open the made demo project (they import `tests/demo_made.py`: `test_demo_project*.py`, `test_demo_clash.py` + `_b.py` = the clash check's two halves of the windows) run in `DEMO_GROUPS` groups of their own (`tools/ci_groups.py`). One job makes the demo once (`python tests/demo_made.py <dir>`) and hands it on as the run artifact `demo-made`; each demo job unpacks it at the same place and sets `FRESING_DEMO_MADE` (not GitHub's cache: keyed on the app's code it would miss at nearly every push). On a chat machine the first demo file of a pytest session makes it, the others reuse it. A new demo check: a `test_demo_project_<topic>.py` with `from demo_made import made`, not a longer file | make 3.7 min, then each demo group ~6–10 min |
+| Linux - make the demo project → Linux - test suite demo 1 | task 0145: the files that open the made demo project (they import `tests/demo_made.py`: `test_demo_project*.py`; task 0247: one group, ~5 min) run in `DEMO_GROUPS` groups of their own (`tools/ci_groups.py`). One job makes the demo once (`python tests/demo_made.py <dir>`) and hands it on as the run artifact `demo-made`; each demo job unpacks it at the same place and sets `FRESING_DEMO_MADE` (not GitHub's cache: keyed on the app's code it would miss at nearly every push). On a chat machine the first demo file of a pytest session makes it, the others reuse it. A new demo check: a `test_demo_project_<topic>.py` with `from demo_made import made`, not a longer file | make ~1.5 min, the demo group ~5 min (task 0247; the cable-lay demo took 3.7 + 4 x 6–10) |
 | Linux - real app pccheck / pccheck-b / callouts / paths-heavy / tour / tour-b / ui / scenes / motion / machines | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck + pccheck-b = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`) in two halves – `pccheck2` runs `video.labels`, `queue.time_test`, `render.eevee` and `queue.eevee` (+ `import.crane` they need; task 0108), `pccheck` all other Full lines (`tools/ci_pccheck_lines.py`; the precheck fails when they stop adding up to every Full line); machines = milling, cylinder, linkage, waycover, gcode, tourui, doublearm (`ui_test_doublearm.py`, task 0064) … and `paths_test_blender.py` (task 0108); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = the PC check Heavy (scaled down, task 0033); tour + tour-b = the automatic test tour in two halves, every other stop each, both make the tour projects first (`tools/ci_pccheck_lines.py tour1` / `tour2`, task 0108; mode Tour,
 task 0059; its own group since task 0060); the other groups' tests: `GROUPS` in `tools/ci_real_app.py` (`python tools/ci_groups.py` prints every group; task 0108 moved ui2 + faces to motion, rulesets + decals to scenes, paths to machines); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
@@ -785,17 +786,20 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **House Planner is private** (owner, 13 Nov 2026): Fresing Render workers **never attach or clone
   `smholte/house-planner-dev`** – it holds the owner's own house. The House lane works only from the public format
   repository `smholte/house-scene-format`, and its tests use only that repository's made-up sample packages.
-- **The cable-lay vessel's equipment is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → the cut →
-  pictures). **Public stays:** the **ship with its own deck crane** (`demo_model/vessel.py`; plain deck after the cut –
-  carousel well and aft bulwark opening closed), the **wind park** (turbines, substation), the sea, seabed and quay, and
-  the public demo **"Vessel in a wind park"** (owner 20 Nov 17:02: "the windpark and the ship with the crane stays").
+- **The cable-lay vessel's equipment is private** (owner, 19–20 Nov 2026; study 0226, tasks 0228 → 0229 → 0247 the cut
+  → pictures). **Public stays:** the **ship with its own deck crane** (`demo_model/vessel.py`; a plain deck – no
+  carousel well, the bulwark closed all round), the **wind park** (turbines, substation, the cable on the seabed), the
+  sea, seabed and quay, and the public demo **"Vessel in a wind park"** (owner 20 Nov 17:02: "the windpark and the ship
+  with the crane stays").
   **Private:** everything else on or hanging from the ship (carousel, tensioners, chute, A-frame / quadrant, ROV, deck
   machines, wires, the spread's layout) and the **complete cable-lay demo project** – the private repository
   **`smholte/fresing-render-vessel`** keeps the whole project as a self-contained **demo kit** (its own copies of the
   ship, environment, equipment and animations; owner 20 Nov 16:55). The public app knows only "demo kits", never this
-  one. Until the cut is merged the equipment's code is still on `main`: **no new pictures, renders, web pages, guide
-  pictures, tour stops or report pictures of the equipment, and no new equipment parts**. Never copy anything from the
-  private repository into this one – also not as a "test model". The full demo is the owner's private demo for a
+  one. Since the cut (task 0247, 0.2.188) none of the equipment's code, files or pictures is on `main` (the report
+  pictures in `tasks/img/` go with package 4): **never add equipment to the public ship, the public demo, a test model,
+  a tour set, a picture, a web page or a report** (`tests/test_demo_project.py` fails on an equipment word in the
+  demo's files, parts and objects). Never copy anything from the private repository into this one – also not as a
+  "test model". The full demo is the owner's private demo for a
   company, not part of the learning environment. Old task texts and CHANGELOG lines that describe it stay; no history
   rewrite (owner 20 Nov).
 - **Who may attach the private vessel repository:** the lead (to read its runs) and only tasks whose file header says
@@ -1217,7 +1221,7 @@ the release → Delete); the next run on `main` publishes it again.
   checks into files by topic. A saved project may hold absolute paths (its model files, its cache): unpack such a
   hand-over at the same path it was made at.
 - A test that is longer than the others sets the length of every run. Task 0108 split the demo's clash check (13 min on
-  one core) into windows of frames in 4 processes (`tests/test_demo_clash.py`). Each window must take the whole
+  one core) into windows of frames in 4 processes (`tests/clash_windows_child.py`). Each window must take the whole
   check's decisions: start overlaps at the animation's first frame, which parts turn in place (held still) and which
   pairs are checked once per turn. A window that decided these alone from its own frames was still right but three
   times slower (it tested a spoked sheave against its rope at every moment). GitHub's 4-vCPU runner gives about 2x for
@@ -1371,3 +1375,7 @@ the release → Delete); the next run on `main` publishes it again.
   program that was started a second ago): a rename onto that name is refused, a rename of it finds no file (WinError 2;
   the app-icon test made `Fresing Render.exe` again right after taking it out of use, task 0242). `winexe.swap_in` tries
   again for up to 3 s; `take_out` waits up to 0.5 s for the name to go.
+- A behaviour added by code that registers itself (a clash-check hook in `clash.HOOKS`) works only while that code is
+  loaded: a demo kit's stages are loaded only while the kit is built, so its ROV was checked again in the reopened
+  project (task 0228's open point). What a project must keep doing is stored in the project – a custom property on the
+  object (`clash.NO_CLASH` on a model root, task 0247), which a save, a reopen and a model update keep.

@@ -472,7 +472,7 @@ def _logo(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.175")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.188")
 def build_crane(b: Build):
     import bpy
 
@@ -3855,7 +3855,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.188")
+          changed="0.2.189")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4399,7 +4399,7 @@ stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
      "radius), the gross load (6 t + the rigging picked for it + the 0.45 t hook block), the crane use in % with "
      "'Within entered limits' and the hoist line pull on its 4 falls.",
-     where="8 Lifting plan > Hook & capacity", since="0.2.156", changed="0.2.188", check=_check_lifting_hook,
+     where="8 Lifting plan > Hook & capacity", since="0.2.156", changed="0.2.189", check=_check_lifting_hook,
      setup=_lift_rest)
 stop("lifting_rig", MOTION, "lifting", "Lifting: skid on a 4-leg sling",
      "The pump skid hangs on the AT-40's hook on a 4-leg grade 8 chain set (4 m legs, a 4.75 t bow shackle in each "
@@ -4407,13 +4407,13 @@ stop("lifting_rig", MOTION, "lifting", "Lifting: skid on a 4-leg sling",
      "few degrees with the CoG straight under the hook; 8 Lifting plan > Rigging lists each leg's angle and force – "
      "the legs nearest the CoG carry most – and the checks: sling legs (two legs carry, C3) and each shackle (C4). "
      "The hoist rope runs in its 4 falls over 2 head and 2 block sheaves to the winch drum.",
-     where="8 Lifting plan > Rigging", since="0.2.188", check=_check_lifting_rig, setup=_lift_rig)
+     where="8 Lifting plan > Rigging", since="0.2.189", check=_check_lifting_rig, setup=_lift_rig)
 stop("lifting_spreader", MOTION, "lifting", "Lifting: container on a frame",
      "The empty 20 ft container (2.3 t) hangs under the LF-20 lifting frame: two top legs from the hook to the "
      "frame, four short legs straight down to its top corner castings (found by name). Rigging shows the six legs "
      "– the four bottom ones nearly vertical – and the checks: the top legs (C2), the frame's WLL and each bottom leg "
      "and shackle (C4); none red.",
-     where="8 Lifting plan > Rigging", since="0.2.188", check=_check_lifting_spreader, setup=_lift_spreader)
+     where="8 Lifting plan > Rigging", since="0.2.189", check=_check_lifting_spreader, setup=_lift_spreader)
 
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
@@ -4723,7 +4723,7 @@ def _check_demo(scene):
     info = demo.read_summary(folder, __version__)
     _check(info.get("joints", 0) >= demo.MIN_JOINTS,
            f"the demo project has {info.get('joints', 0)} joints, not {demo.MIN_JOINTS}")
-    _check(120.0 <= info.get("seconds", 0) <= 200.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
+    _check(50.0 <= info.get("seconds", 0) <= 80.0, f"its animation lasts {info.get('seconds', 0):.0f} s")
     with open(demo.project_path(folder, __version__), "rb") as fh:
         head = fh.read(7)
     _check(head == b"BLENDER" or head[:4] == b"\x28\xb5\x2f\xfd", "the demo project file is not a Blender file")
@@ -4917,16 +4917,18 @@ stop("make", OUT, HUB_SET, "Make: every output side by side",
      where="Make, above 1 Import; Make in the 3D view's header", since="0.2.152", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
-stop("demo", OUT, HUB_SET, "Demo project: cable-lay vessel",
-     "Help > Make demo project… makes an invented cable-lay vessel in the background (a few minutes on your PC; the "
-     "status bar shows how far). Then Help > Open demo project: the vessel on the open sea, 4 Motion lists 432 joints "
-     "(324 on the vessel, 108 on the quay), 5 Scene & Render has the saved scene 'Loading at the quay' and the saved "
-     "cameras 'Stern thrusters' (under water: two azimuth thrusters, their propellers in nozzles) and 'Hull side' (the "
-     "bow with its name, draft marks and the black boot top), and 6 Animation > 'What it can do today' plays a video "
-     "of about 2 ½ minutes (Build & play) in which the propellers and radars keep turning. This stop only checks that "
-     "the demo is there.",
+stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
+     "Help > Make demo project… makes the demo 'Vessel in a wind park' in the background (a minute or two on your PC; "
+     "the status bar shows how far). Then Help > Open demo project: an invented ship on the open sea in a wind park "
+     "of nine turbines; 4 Motion lists 33 joints (the ship's thrusters, propellers, radars and deck crane, the park's "
+     "turbines), 5 Scene & Render has the saved scene 'At the quay' and the saved cameras 'Stern thrusters' (under "
+     "water: two azimuth thrusters, their propellers in nozzles), 'Hull side' (the bow with its name, draft marks and "
+     "the black boot top), 'Deck crane' and 'At the seabed' (the power cable on the seabed, through the cut-away), and "
+     "6 Animation > 'What it can do today' plays a video of about a minute (Build & play): the ship sails in and holds "
+     "her place, her crane slews and lowers its hook, the rotors turn, night falls. This stop only checks that the "
+     "demo is there.",
      where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
-     auto=lambda ctx, scene, st: "", changed="0.2.120")
+     auto=lambda ctx, scene, st: "", changed="0.2.188")
 
 def _check_panel_back(scene):
     """The header button and its operator (task 0198)."""

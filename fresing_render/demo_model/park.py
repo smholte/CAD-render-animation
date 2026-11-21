@@ -1,16 +1,16 @@
-"""The wind park round the cable-lay vessel (task 0166): nine turbines in three rows, an offshore substation between
-the rows, and the first end of the cable the vessel lays – from turbine A's J-tube over its scour rock down to the
-seabed, where the app's cable (``blender/paths_sea.py``) carries on to the touch-down. Its own file
+"""The wind park round the demo's ship (task 0166): nine turbines in three rows, an offshore substation between the
+rows, and the power cable from turbine A's J-tube over its scour rock down to the seabed and on along it to abeam
+turbine B, where its sealed end lies (task 0247). Its own file
 ``demo_park.step`` (``layout.FILES["park"]``), imported as its own model by the demo (``blender/demo.py``, stage
-``park``) and placed on the moving seabed there.
+``park``) and placed under the ship there.
 
-**Park coordinates** (mm): the origin is where the CAD piece "CABLE FIRST END" meets the seabed lay line (the end
-of the app's laid cable), +x along the lay line towards the vessel (the way it sails), +y to port, z 0 the waterline,
+**Park coordinates** (mm): the origin is where the CAD piece "CABLE FIRST END" meets the seabed lay line, +x along
+the lay line towards the ship (the way it sails), +y to port, z 0 the waterline,
 the seabed at -``ParkParams.water_depth``. The grid's rows run at a small angle to the lay line, so turbine B (the next
-one along A's row) stands ``b_off`` beside it: the vessel passes it and lays the second end down beside it.
+one along A's row) stands ``b_off`` beside the lay line; the cable's sealed end lies abeam it.
 
-Joints (all in the root assembly, names without a prefix): "Park: on to turbine B" (slide along +x; the demo moves the
-park by it between shot 8b and shot 9 – the shots lie a kilometre of laying apart), per turbine "WTG nn: Yaw" (rides on
+Joints (all in the root assembly, names without a prefix): "Park: on to turbine B" (slide along +x: moves the whole park
+along the cable), per turbine "WTG nn: Yaw" (rides on
 it) and "WTG nn: Rotor" (rides on the yaw; a motor; + = clockwise seen from the front). Every rotor faces the wind from
 ``ParkParams.wind_from`` and stands at its own phase.
 """
@@ -27,11 +27,13 @@ from . import substation as sub
 from . import turbine as tb
 from . import turbine_parts as tp
 from .geom import Asm, Part, T
-from .params import ParkParams, Params
+from .params import ParkParams, ShipParams
 
 ROOT = "DEMO WIND PARK"
 SHIFT = "Park: on to turbine B"
 CABLE_PIECE = "CABLE FIRST END"
+SEABED_CABLE = "CABLE ON THE SEABED"   # task 0247: the cable on along the seabed to abeam turbine B …
+CABLE_END = "CABLE END"               # … and its sealed end there (waiting to be pulled into B)
 CLEAR = 30.0                      # mm: the cable piece lies this far over the rock (the rock is a 72-gon: its ridge)
 CABLE_BLACK = (0.04, 0.04, 0.045)
 
@@ -87,7 +89,7 @@ def _fillet_route(name_: str, d: float, pts2, n3, origin, radius: float) -> rt.R
     return r
 
 
-def first_end(p: Params, pp: ParkParams) -> tuple[rt.Route, dict]:
+def first_end(p: ShipParams, pp: ParkParams) -> tuple[rt.Route, dict]:
     """The CAD piece in turbine A's own T frame, before its turn (J-tube ``tb.JTUBE_CABLE`` at its own azimuth): from
     450 mm inside the bell-mouth along its axis, bending onto the rock (``CLEAR`` over its ridge), down its three
     slopes, over the filter layer's edge and onto the seabed, ``join_run`` straight there. Returns (route, numbers)."""
@@ -141,9 +143,9 @@ def _turn_to(az_want: float) -> float:
     return (tp.AZ_JTUBES[tb.JTUBE_CABLE] - az_want) % 360.0
 
 
-def build(p: Params | None = None, pp: ParkParams | None = None, kit: tb.Kit | None = None) -> tuple[Asm, dict]:
+def build(p: ShipParams | None = None, pp: ParkParams | None = None, kit: tb.Kit | None = None) -> tuple[Asm, dict]:
     """(root Asm, info for the route sheet). The route sheet's numbers are in park coordinates (mm)."""
-    p = p or Params()
+    p = p or ShipParams()
     pp = pp or ParkParams()
     kit = kit or tb.Kit()
     route_T, fe = first_end(p, pp)
@@ -182,6 +184,14 @@ def build(p: Params | None = None, pp: ParkParams | None = None, kit: tb.Kit | N
     MA = T(a_xy[0], a_xy[1], 0.0) @ Ra
     piece = Part(CABLE_PIECE, g.route_solid(route_T, p.cable_r), CABLE_BLACK)
     c_piece = park.add(piece, MA, CABLE_PIECE)
+    # task 0247: the cable lies on along the seabed (the lay line, +x) to abeam turbine B, its sealed end there
+    b_t = next(t for t in turbines if t["role"] == "B")
+    x_end = b_t["xy"][0]
+    z_bed = fe["z_end"]
+    park.add(Part(SEABED_CABLE, g.cyl(p.cable_r, x_end, (0.0, 0.0, z_bed), (1.0, 0.0, 0.0)), CABLE_BLACK),
+             np.eye(4), SEABED_CABLE)
+    park.add(Part(CABLE_END, g.cyl(p.cable_r * 1.35, 700.0, (x_end - 100.0, 0.0, z_bed), (1.0, 0.0, 0.0)),
+                  CABLE_BLACK), np.eye(4), CABLE_END)
     # joints: the park's shift, then each turbine's yaw and rotor (riding on it)
     root.joint(SHIFT, "slide", [[c_park]], (0.0, 0.0, -pp.water_depth), (1.0, 0.0, 0.0))
     for t in turbines:
@@ -207,7 +217,6 @@ def build(p: Params | None = None, pp: ParkParams | None = None, kit: tb.Kit | N
         else:
             route.add(rt.Arc((MA @ np.r_[seg.centre, 1.0])[:3], MA[:3, :3] @ seg.normal, q0, seg.angle))
     a_t = next(t for t in turbines if t["role"] == "A")
-    b_t = next(t for t in turbines if t["role"] == "B")
     info = {
         "about": "task 0166: park coordinates (mm): origin = where the first end's CAD piece meets the seabed lay line "
                  "(the end of the app's laid cable), +x along the lay line towards the vessel, z 0 the waterline. "
@@ -222,6 +231,8 @@ def build(p: Params | None = None, pp: ParkParams | None = None, kit: tb.Kit | N
                        "half": list(sub.TOP_HALF), "foot_r": st.info["foot"]},
         "cable_piece": {"route": route.to_dict(), "end": [0.0, 0.0, fe["z_end"]], "clear": CLEAR,
                         "rock_top": fe["rock"], "radius": p.cable_r},
+        "seabed_cable": {"start": [0.0, 0.0, fe["z_end"]], "end": [float(x_end), 0.0, fe["z_end"]],
+                         "radius": p.cable_r},
         "scour_r": tb.scour_radius(), "pile_r": tb.PILE_R, "seabed_z": -pp.water_depth,
         "platform_r": tp.DECK_RO, "rotor_r": tb.HUB_TO_BLADE + tb.BLADE_LENGTH, "hub_height": float(tb.HUB[2]),
     }

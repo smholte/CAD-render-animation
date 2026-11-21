@@ -106,9 +106,9 @@ def _read_result(folder: str) -> dict:
 
 
 class FRESING_OT_demo_make(bpy.types.Operator):
-    """Make the demo project: an invented cable-lay vessel with its joints, cylinders, the open sea, saved cameras
-    and a video of what the app can do today – or the demo of a demo kit you added. Made in the background (a few
-    minutes); you can keep working. Then open it with Help > Open demo project"""
+    """Make the demo project: an invented ship in a wind park with her joints, her deck crane, the open sea, saved
+    cameras and a video of what the app can do today – or the demo of a demo kit you added. Made in the background (a
+    few minutes); you can keep working. Then open it with Help > Open demo project"""
 
     bl_idname = "fresing.demo_make"
     bl_label = "Make demo project…"
@@ -151,8 +151,8 @@ class FRESING_OT_demo_make(bpy.types.Operator):
             op.kit = info.id
         col.separator()
         if info is None and title:
-            col.label(text="An invented cable-lay vessel with its joints, the open sea and a video of what")
-            col.label(text="the app can do.")
+            col.label(text="An invented ship in a wind park: her joints and deck crane, the open sea, the cable")
+            col.label(text="on the seabed and a video of what the app can do.")
         elif info is not None:
             col.label(text=f"{info.title}, kit version {info.kit_version}, made for {info.made_for()}.")
             why = demo_kits.version_message(info, _version())
