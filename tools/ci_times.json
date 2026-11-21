@@ -254,7 +254,9 @@
   "tests/test_winexe.py": 0.0,
   "tests/test_clash_windows.py": 15.0,
   "tests/test_backups_blender.py": 5.0,
-  "tests/test_backups_core.py": 0.5
+  "tests/test_backups_core.py": 0.5,
+  "tests/test_lessons.py": 25.0,
+  "tests/test_lessons_independent.py": 60.0
  },
  "jobs": {
   "Precheck (version, counts, groups; picks the mode)": 0.5,
@@ -1424,6 +1426,12 @@
   ],
   "tests/test_clash_windows.py": [
    15.0
+  ],
+  "tests/test_lessons.py": [
+   25.0
+  ],
+  "tests/test_lessons_independent.py": [
+   60.0
   ]
  }
 }

@@ -74,6 +74,9 @@ class FRESING_PT_favourites(_Panel, bpy.types.Panel):
                 op = row.operator("fresing.learn_show", text="Show me in the test tour")
                 op.fid, op.how = q["fid"], "TOUR"
                 row.enabled = bool(q["tour"])
+                if F.FUNCTIONS[q["fid"]].lesson:              # task 0230: the function's lesson, at its step
+                    op = col.operator("fresing.learn_lesson", text="Show me in a lesson")
+                    op.fid, op.mode = q["fid"], "SHOW"
                 col.operator("fresing.usage_declutter", text="Add to my learning list").choice = "learn"
             row = col.row(align=True)
             if q["can_hide"]:

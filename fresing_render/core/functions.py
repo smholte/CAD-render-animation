@@ -174,10 +174,21 @@ fn(id="learn.next", title="Next to learn: one quiet suggestion a session on the 
    panel="FRESING_PT_next", button="fresing.learn_next", guide="next-to-learn", tour=("learn",),
    pccheck=("app.learning",), since="0.2.160")
 
+# ----- learning: lessons on the sample projects (task 0230) -----
+fn(id="learn.window", short="Learn", headline=True, title="Learn: sample projects to View, Show me or Build it yourself", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.learn_lessons", guide="learn", tour=("lessons",),
+   pccheck=("app.lessons",), since="0.2.189")
+fn(id="learn.show_me", short="Show me", title="Show me: the app does each step of a lesson", family="help", panel="TOPBAR_MT_fresing",
+   button="fresing.learn_start", text="Show me", guide="learn-show-me", tour=("lessons",), pccheck=("app.lessons",),
+   since="0.2.189")
+fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that waits until you did each step", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.learn_start", text="Build it yourself", guide="learn-build",
+   tour=("lessons",), pccheck=("app.lessons",), since="0.2.189")
+
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
-   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), since="0.1.0")
+   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), lesson="crane:1", since="0.1.0")
 fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
@@ -199,7 +210,7 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
 
 # ----- 3 Looks -----
 fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
-   button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), since="0.2.8",
+   button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
    manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94")
@@ -223,10 +234,12 @@ fn(id="looks.schemes", short="Paint schemes", title="Paint schemes & templates",
 # ----- 4 Motion: joints, poses -----
 fn(id="joints.rotate", title="Rotate joint", family="motion", panel="FRESING_PT_motion",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", tour=("joint",),
-   pccheck=("joints.rotate",), since="0.2.0")
+   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0")
+fn(id="joints.slide", title="Slide joint", family="motion", panel="FRESING_PT_motion",
+   button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", lesson="mill:3", since="0.2.0")
 fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel="FRESING_PT_motion",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", tour=("stack",),
-   pccheck=("joints.stack",), since="0.2.10")
+   pccheck=("joints.stack",), lesson="crane:4", since="0.2.10")
 fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_motion",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
@@ -235,7 +248,7 @@ fn(id="joints.couplings", short="Couplings", title="Couplings and motors", famil
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
-   guide="poses", tour=("explode",), pccheck=("states.poses",), since="0.2.18",
+   guide="poses", tour=("explode",), pccheck=("states.poses",), lesson="crane:10", since="0.2.18",
    workspaces=("offshore", "product", "education"),
    manual_estimate=("part", 20, "move each part out along its own direction and key it"))
 
@@ -347,7 +360,9 @@ fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolan
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
    panel="FRESING_PT_milling", button="fresing.mill_add_bit", guide="milling", pccheck=("milling.cut",),
-   since="0.2.19")
+   lesson="mill:4", since="0.2.19")
+fn(id="milling.workpiece", title="Milling: the workpiece", family="milling", panel="FRESING_PT_milling",
+   button="fresing.mill_set_workpiece", guide="milling", tour=("cut_look",), lesson="mill:5", since="0.2.19")
 fn(id="milling.from_cnc", short="Mill with CNC", title="Milling with the CNC machine's tool and workpiece", family="milling",
    panel="FRESING_PT_milling", button="fresing.mill_from_cnc", guide="milling-cnc", tour=("gcode",),
    pccheck=("milling.shows_program",), since="0.2.171")
@@ -359,7 +374,7 @@ fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", fa
    panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
    pccheck=("milling.fast_map",), since="0.2.117", changed="0.2.145")
 fn(id="milling.chips", title="Chips", family="milling", panel="FRESING_PT_milling_chips", prop="chips",
-   guide="chips", tour=("chips",), pccheck=("milling.chips",), since="0.2.22")
+   guide="chips", tour=("chips",), pccheck=("milling.chips",), lesson="mill:7", since="0.2.22")
 fn(id="milling.toolpath", title="Make a toolpath", family="milling", panel="FRESING_PT_milling_toolpath",
    button="fresing.toolpath_make", guide="toolpath", tour=("toolpath",), pccheck=("milling.toolpath",),
    since="0.2.55",
@@ -367,9 +382,9 @@ fn(id="milling.toolpath", title="Make a toolpath", family="milling", panel="FRES
 
 # ----- 5 Scene & Render -----
 fn(id="looks.light_look", title="Light look", family="scene", panel="FRESING_PT_scene", button="fresing.light_look",
-   text="Product studio", guide="light-look", tour=("looks",), pccheck=("scene.looks",), since="0.2.17")
+   text="Product studio", guide="light-look", tour=("looks",), pccheck=("scene.looks",), lesson="crane:2", since="0.2.17")
 fn(id="scene.surroundings", title="Background & surroundings", family="scene", panel="FRESING_PT_scene",
-   prop="background", guide="surroundings", tour=("sea",), pccheck=("scene.sea", "scene.hall"), since="0.2.12")
+   prop="background", guide="surroundings", tour=("sea_cable",), pccheck=("scene.sea", "scene.hall"), since="0.2.12")
 fn(id="scene.light", title="Light", family="scene", panel="FRESING_PT_scene", prop="lighting", guide="light",
    since="0.2.12")
 fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_props", button="fresing.prop_add",
@@ -394,7 +409,7 @@ fn(id="scene.night", short="Night shift", title="Night shift and work lights", f
    button="fresing.work_light_add", guide="weather", tour=("night",), since="0.2.88",
    workspaces=("offshore", "education"))
 fn(id="scene.camera", title="Camera views", family="scene", panel="FRESING_PT_camera", button="fresing.camera_add",
-   text="3/4 hero, high", guide="camera", tour=("blur",), pccheck=("scene.views",), since="0.2.12")
+   text="3/4 hero, high", guide="camera", tour=("blur",), pccheck=("scene.views",), lesson="crane:5", since="0.2.12")
 fn(id="scene.blur", short="Background blur", title="Background blur and sharp spot", family="scene", panel="FRESING_PT_camera",
    button="fresing.focus_pick", guide="camera", tour=("blur",), pccheck=("scene.blur",), since="0.2.17",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
@@ -407,7 +422,7 @@ fn(id="scene.still", title="Render a picture", family="scene", panel="FRESING_PT
 fn(id="scene.shapes", title="Upright 9:16 and square 1:1 pictures", family="scene", panel="FRESING_PT_output",
    prop="out_orientation", guide="image-size", tour=("shapes",), since="0.2.23")
 fn(id="scene.save", title="Saved scenes", family="scene", panel="FRESING_PT_shots", button="fresing.shot_save",
-   guide="saved-scenes", tour=("still",), pccheck=("states.poses",), since="0.2.12")
+   guide="saved-scenes", tour=("still",), pccheck=("states.poses",), lesson="crane:6", since="0.2.12")
 
 # ----- House, web 3D -----
 # ----- 8 Lifting plan (task 0201, Lifting lane L4) -----
@@ -474,11 +489,11 @@ fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a 
 
 # ----- 6 Animation -----
 fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_animation", button="fresing.anim_add",
-   guide="animation", tour=("joint",), since="0.2.10")
+   guide="animation", tour=("joint",), lesson="crane:7", since="0.2.10")
 fn(id="animation.joint_step", title="Move joint step", family="animation", panel="FRESING_PT_animation",
-   button="fresing.block_add", guide="animation", tour=("joint",), since="0.2.10")
+   button="fresing.block_add", guide="animation", tour=("joint",), lesson="crane:8", since="0.2.10")
 fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_animation",
-   button="fresing.anim_build", guide="animation", tour=("joint",), since="0.2.10")
+   button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10")
 fn(id="animation.motor", title="Run motor step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-motor", pccheck=("couplings.motor",), since="0.2.18")
 fn(id="animation.camera_path", short="Camera path", title="Camera rides along, flies a path, watches a part", family="animation",
@@ -503,9 +518,9 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
-   button="fresing.card_add", guide="pictures-music", since="0.2.27")
+   button="fresing.card_add", guide="pictures-music", tour=("finishing",), since="0.2.27")
 fn(id="animation.music", title="Music under a video", family="video", panel="FRESING_PT_music",
-   prop="music_on", guide="pictures-music", pccheck=("video.labels",), since="0.2.27")
+   prop="music_on", guide="pictures-music", tour=("finishing",), pccheck=("video.labels",), since="0.2.27")
 fn(id="animation.labels", short="Labels", title="Labels with lines", family="video", panel="FRESING_PT_labels",
    button="fresing.callout_add", guide="labels", tour=("labels",), pccheck=("video.labels",), since="0.2.27")
 fn(id="animation.brand", title="Brand kit & logo", family="video", panel="FRESING_PT_brand",
@@ -523,7 +538,7 @@ fn(id="animation.product_video", short="Product video", title="One-click product
 
 # ----- 7 Render queue -----
 fn(id="queue.still", title="Render queue: a picture", family="queue", panel="FRESING_PT_queue",
-   button="fresing.queue_add", guide="queue", tour=("queue",), pccheck=("queue.frame_shown",), since="0.2.12")
+   button="fresing.queue_add", guide="queue", tour=("queue",), pccheck=("queue.frame_shown",), lesson="crane:11", since="0.2.12")
 fn(id="queue.video", title="Render queue: a video", family="queue", panel="FRESING_PT_queue",
    button="fresing.queue_add", guide="queue", tour=("queue",), pccheck=("queue.video", "queue.eevee"),
    since="0.2.0")
@@ -602,13 +617,14 @@ def guide_anchors(text: str) -> list:
 
 
 def problems(functions=None, *, anchors=None, stops=None, lines=None, panels=None, folds=None, operators=None,
-             props=None, texts=None, lessons=None, duplicates=None) -> list:
+             props=None, texts=None, lessons=None, lesson_steps=None, duplicates=None) -> list:
     """Plain sentences, one per thing out of step; [] = all fine.
 
     anchors: the guide's anchors; stops: the tour's stop ids; lines: the PC check's Full line ids; panels: the side
     panels' class names; folds: the fold ids; operators: the operator ids; props: the property names the panels draw;
-    texts: the source the button texts must appear in; lessons: {"crane": number of steps}. An argument left None is
-    not checked (``read_repo`` gives them all)."""
+    texts: the source the button texts must appear in; lessons: {"crane": number of steps}; lesson_steps: {"crane":
+    [the function id each step teaches]} (task 0230). An argument left None is not checked (``read_repo`` gives them
+    all)."""
     funcs = FUNCTIONS if functions is None else functions
     items = list(funcs.values()) if isinstance(funcs, dict) else list(funcs)
     out = []
@@ -672,6 +688,16 @@ def problems(functions=None, *, anchors=None, stops=None, lines=None, panels=Non
             name, _, k = f.lesson.partition(":")
             if name not in lessons or not k.isdigit() or not 1 <= int(k) <= lessons[name]:
                 out.append(f"{f.id}: lesson step '{f.lesson}' does not exist")
+            elif lesson_steps is not None and name in lesson_steps and lesson_steps[name][int(k) - 1] != f.id:
+                out.append(f"{f.id}: lesson step '{f.lesson}' teaches '{lesson_steps[name][int(k) - 1]}', not this "
+                           "function: link the step that teaches it (lesson=\"<lesson>:<step>\")")
+    if lesson_steps is not None:
+        ids = {f.id for f in items}
+        for name, fids in lesson_steps.items():
+            for k, fid in enumerate(fids, 1):
+                if fid not in ids:
+                    out.append(f"lesson '{name}' step {k}: the function '{fid}' is not in "
+                               "fresing_render/core/functions.py")
     if stops is not None:
         named = {t for f in items for t in f.tour}
         out += [f"tour stop '{s}' is named by no entry: add it to the tour=() of its function in "
@@ -757,4 +783,27 @@ def read_repo(root: str) -> dict:
                 elif name in ("prop", "prop_search") and len(node.args) >= 2 and _strings(node.args[1]):
                     props.add(_strings(node.args[1]))
     out.update(panels=panels, folds=folds, operators=operators, props=props, texts="\n".join(texts))
+    out["lesson_steps"] = read_lessons(os.path.join(pkg, "blender", "lessons"))
+    out["lessons"] = {k: len(v) for k, v in out["lesson_steps"].items()}
+    return out
+
+
+def read_lessons(folder: str) -> dict:
+    """The lessons in ``blender/lessons/*.py`` without Blender: {lesson id: [the function id of each step]} – read
+    from ``Lesson("<id>", …, [Step("<function id>", …), …])`` (task 0230)."""
+    out = {}
+    for path in sorted(glob.glob(os.path.join(folder, "*.py"))):
+        for node in ast.walk(ast.parse(_src(path))):
+            if not (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "Lesson" and node.args
+                    and _strings(node.args[0])):
+                continue
+            steps = next((a for a in node.args if isinstance(a, ast.List)), None)
+            for k in node.keywords:
+                if k.arg == "steps" and isinstance(k.value, ast.List):
+                    steps = k.value
+            fids = []
+            for st in (steps.elts if steps is not None else []):
+                if isinstance(st, ast.Call) and getattr(st.func, "id", "") == "Step" and st.args:
+                    fids.append(_strings(st.args[0]) or "?")
+            out[_strings(node.args[0])] = fids
     return out
