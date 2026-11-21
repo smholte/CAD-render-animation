@@ -1,7 +1,6 @@
 # 0278 – Live preview and Build & play only on the left panel; Favourites folds like the other sections and remembers it
 
-**Who:** worker · **Status:** open – waits for 0271 (it draws My usage as a Settings tab: `ui_usage.py`, `ops_usage.py`,
-`prefs.py`) · **Branch:** `task/0278-left-panel-only`
+**Who:** worker · **Status:** running · **Branch:** `task/0278-left-panel-only`
 **Started by:** lead, 21 Nov 2026 (owner 20:02, screenshot of 0.2.197 with the crane lesson done: "the live preview under
 5 Scene and Render can be removed because it's now always available on the left menu. The same for Build and play.
 Favourites section on the left should be possible to fold in like other functions; this one remembers its position
@@ -46,6 +45,16 @@ after the app is closed and opened again.
    the same. Report which needed it.
 6. Real-app test on the web machine: fold Favourites, quit, start again → still folded; the crane lesson's Build step
    highlights the left button (open and folded strip).
+7. **"1–7" becomes "1–8" everywhere** (owner 21 Nov 21:42, screenshot of the Fresing menu's **User guide** tooltip:
+   "what each section 1–7 is for" – since 0201 there are eight sections, 8 Lifting plan). Texts users see: the User
+   guide tooltip (`app_template/fresing_render/__init__.py` ~line 145), the "sections 1 to 7 start folded" setting
+   (`prefs.py` ~line 41), the tour text (`tour.py` ~line 5109 – one sentence, text only), the guide
+   (`docs/USER-GUIDE.md`: "sections 1 to 7", "seven sections", the picture alt texts) and the guide pictures
+   `docs/img/sidebar_sections.png` / `panel_top_tabs.png` (they show seven – 0201's open point). Also the docstrings and
+   check names that say 1–7 (`panels.py`, `ui_header.py`, `tools/ui_test_layout.py`, `tools/update_test_blender.py`).
+   Search the whole repository once more (`git grep -n -E "1[–-]7|1 to 7|seven sections"`) and fix any other user-facing
+   one; better still, write the number from `places.SECTIONS` where a text is made in code, so a ninth section
+   needs no hunt.
 
 ## Done when
 
@@ -54,6 +63,7 @@ after the app is closed and opened again.
 - [ ] Lessons, texts, guide and function list point to the left panel's buttons; the crane and mill lessons pass
 - [ ] Favourites folds; its fold (and every other left section's) survives a restart – real-app test
 - [ ] `changed=` on the touched functions and tour stops (`python3 tools/tour_versions.py --record`)
+- [ ] No user-facing "1–7" / "seven sections" left (step 7)
 - [ ] Guide pictures redone (`tools/ui_screens.py`); full suite + GitHub run green
 - [ ] Report below filled in; merged, version, release (CLAUDE.md section 7)
 
