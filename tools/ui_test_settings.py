@@ -83,8 +83,8 @@ def settings_wins():
 
 
 def side_region(win):
-    area = next(a for a in win.screen.areas if a.type == "VIEW_3D")
-    return area, next(r for r in area.regions if r.type == "UI")
+    area = mod("blender.ops_settings").settings_area(win)
+    return area, next(r for r in area.regions if r.type == "TOOLS")      # the page: the toolbar region
 
 
 def crop_window(path, win, name):
@@ -267,15 +267,18 @@ wait_until("the Settings window is open", lambda: len(settings_wins()) == 1, 20)
 @step
 def s_open_tab():
     w = settings_wins()[0]
-    _area, reg = side_region(w)
-    scale = bpy.context.preferences.system.ui_scale or 1.0
-    want = mod("blender.ops_settings").SIZE[0]
-    if abs(reg.width / scale - want) > 8 and S.setdefault("wide_tries", 0) < 40:
+    st = mod("blender.ops_settings")
+    ok, other = st.shows_only_the_page(w)
+    if not ok and S.setdefault("wide_tries", 0) < 40:
         S["wide_tries"] += 1
         return "again"
-    check("its side panel is made as wide as the window", abs(reg.width / scale - want) <= 8,
-          f"{reg.width / scale:.0f} px at UI scale 1, window {w.width} x {w.height}")
-    check("it shows the tab Settings", reg.active_panel_category == "Settings", reg.active_panel_category)
+    check("the window shows only the Settings page: no other tab, no 3D view, no header", ok, other)
+    uis = [r for a in w.screen.areas for r in a.regions if r.type == "UI" and r.width > 1]
+    check("no side panel (so no tab strip) in the window", not uis, [r.width for r in uis])
+    area, reg = side_region(w)
+    log("region overlap:", bpy.context.preferences.system.use_region_overlap)
+    log(f"window {w.width} x {w.height}; page {reg.width} x {reg.height}; regions "
+        + ", ".join(f"{r.type} {r.width}" for r in area.regions))
     check("it opens on General", mod("blender.ui_settings").current() == "general")
     S["tabs"] = list(mod("blender.ui_settings").KEYS)
     S["clicked"] = []
@@ -378,6 +381,8 @@ def s_reopen():
 
 
 wait_until("it opens again", lambda: len(settings_wins()) == 1, 20)
+wait_until("opened again, it shows only the Settings page",
+           lambda: mod("blender.ops_settings").shows_only_the_page(settings_wins()[0])[0], 10)
 
 
 @step

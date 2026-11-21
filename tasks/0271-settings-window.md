@@ -78,11 +78,14 @@ New settings; locations (0272); materials (0273); the side-panel look of study 0
 
 ## Design (worker, 21 Nov 2026)
 
-- **Window:** the output-window pattern of 0260 – `ops_setup.open_window(mark="fr_settings", size=(440, 640))`; the
-  new `size` makes the split piece that big, and once the window was drawn `ui_left.set_side_width` (0260's stored
-  width writer, now also for the side panel: region type UI 4 / align RIGHT 4) widens the copy's side panel to 440 px.
-  If the width is not found for certain the window keeps the 292 px panel (works, labels cut). Places on Windows:
-  `ops_make.place_key` = "settings" in the same places file. `panels.SIDE_MARKS` and `ops_setup.tab_of` know the mark.
+- **Window (as built, after the owner's check of 21 Nov 20:30):** the output-window pattern of 0260 –
+  `ops_setup.open_window(mark="fr_settings", size=(440, 640))` – but the page is drawn in the copy's **toolbar region**
+  (the region of 0260's left panel), not its side panel. `ops_setup._dress` turns the side panel, header, tool header,
+  gizmos and overlays off and the toolbar on; `ops_settings._settle` makes the toolbar as wide as the window once it
+  was drawn (`ui_left.fit_width`: 0260's stored-width writer, scaled by the region's own pixels / stored width);
+  Blender's tool buttons (`VIEW3D_PT_tools_active`, the toolbar's only panel of Blender's) get a `poll` that hides them
+  in this window (`ops_settings.quiet_panels`, registered again). Places on Windows: `ops_make.place_key` = "settings".
+  `panels.SIDE_MARKS` and `ops_setup.tab_of` know the mark.
 - **Pages:** `ui_settings.TABS` (key, title, icon, draw); `LATER` names 0272 / 0273's pages. Last tab =
   `prefs.settings_tab` (hidden, kept in the user's preferences). Drawing only: `prefs.draw_general / draw_side_panel /
   draw_lessons / draw_backups / draw_updates`, `ops_usage.draw_window` (My usage) + `draw_panel_switches` (Side
@@ -96,6 +99,14 @@ New settings; locations (0272); materials (0273); the side-panel look of study 0
 **Chat / date:** Claude Code on the web, 21 Nov 2026 – 0.2.200
 
 **What changed:**
+- **Where the page lives (owner's check 21 Nov 20:30: only the page, no tabs, no view, no headers).** First built in
+  a 3D view's side panel: Blender's tabs Tool / View / Animation stood beside ours. Tried next: a **Text editor's
+  sidebar** (its two Blender panels hidden) – it still drew a tab strip, "Text", and even with our page alone one tab
+  "Misc": Blender 5.2.3 draws a tab strip on every sidebar. Console, Info and Outliner have no sidebar; the Spreadsheet's
+  has a Filters tab made in C. **Picked: the 3D view's toolbar region** (where 0260's left panel lives): it has no tab
+  strip at all, its only Blender panel (the tool buttons) is hidden there, and with header, side panel and overlays off
+  and the region as wide as the window, nothing of the 3D view shows. Left: Blender's two tiny arrows that every hidden
+  header / sidebar gets (top right, right edge).
 - **Fresing Settings** window (`ops_settings.py`, `ui_settings.py`): tabs General · Side panel · Lessons · Backups ·
   Updates · My usage · About (4 + 3 on two rows at 440 px; one row from ~620 px). Ways in: Fresing > Settings…, a gear
   on the left panel (also in its folded strip), Fresing / Help > My usage… (on My usage; the old dialog is gone), and
@@ -114,8 +125,9 @@ New settings; locations (0272); materials (0273); the side-panel look of study 0
 **Tested and measured** (4-core web machine, real Blender 5.2.3 under xvfb):
 - `tools/ui_test_settings.py` (new, 34 checks): each tab clicked with a simulated mouse click, page shown; the window
   stays open after a click in the main window; a second press gives no second window; closed and opened again it is
-  on the last tab; My usage… opens it on My usage; Client view opens it; a workspace change with it open; side panel
-  440 px. `ui_test_usage.py` (31/31) and `ui_test_left.py` (31/31) still pass.
+  on the last tab; My usage… opens it on My usage; Client view opens it; a workspace change with it open; and (the
+  owner's check) **the window shows only the page**: no side panel / tab strip, no header, tool header, overlays or
+  gizmos, no other panel in its region, the page fills the window (458 of 463 px) – at its first and second opening. `ui_test_usage.py` (31/31) and `ui_test_left.py` (31/31) still pass.
 - **The AFK check** (step 4, measured with no input, the idle limit set to 4 s for the test): playing a 60-frame
   animation 9.2 s fired the old marks 1 + 1 times (one project change, one left-panel draw), Live preview (Cycles
   viewport) 9.4 s fired 0 + 1. So on this machine the old code would mostly **not** have counted an idle playback or
@@ -131,7 +143,10 @@ New settings; locations (0272); materials (0273); the side-panel look of study 0
 - Keyboard-only work (no mouse move for over 2 min while typing shortcuts) is not seen as presence: Blender gives an
   add-on no key events without a modal handler. Mouse moves are almost always there.
 - The window's size on Linux/macOS is fixed at 463 x 664 px (UI scale 1); on Windows it reopens where and as big as
-  it was left. A window made wider by hand keeps the 440 px panel with empty view beside it.
+  it was left. A window made wider or narrower by hand keeps its page width until it is opened again (then empty
+  space or a cut page at the right; not tested on Windows).
+- Blender's two tiny arrows of the hidden header and sidebar stay at the window's edges (Blender draws them for any
+  hidden region).
 - The owner's check on his PC (below).
 
 **Owner's check on your PC:**

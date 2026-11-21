@@ -320,7 +320,8 @@ own things in one place, whatever workspace you are in (also in the Client view)
 ### Fresing Settings
 
 **Fresing > Settings…** (or the gear button at the top of the left
-panel) opens one window with all of the app's own settings. Click a tab along its top to change page; the window
+panel) opens one window with all of the app's own settings – a box of its own, with nothing of Blender's in it. Click
+a tab along its top to change page; the window
 opens on the page you had last, also after a restart. Drag it where it suits you – also onto a second screen; it stays
 open while you work in the main window, until you close it with its **X**. Opening it again brings it to the front.
 On Windows it opens where it was and as big as you left it. It also opens in the Client view.

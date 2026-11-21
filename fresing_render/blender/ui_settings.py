@@ -1,7 +1,10 @@
 """The Fresing Settings window's panel (task 0271): a row of tabs along the top, one page of settings under it.
 
 The window itself is ops_settings.py (made like an output window of Make: ``ops_setup.open_window`` with the screen
-mark ``fr_settings``); its side panel shows the tab "Settings", where ``FRESING_PT_settings_window`` draws.
+mark ``fr_settings``); ``FRESING_PT_settings_window`` draws in the window's **toolbar region** – the region of 0260's
+left panel –, made as wide as the window, with the side panel, header, overlays and Blender's tool buttons off there
+(the owner's check of 21 Nov: no tabs, no 3D view, no headers – a side panel always draws a tab strip, even for one
+panel).
 
 **The pages** are ``TABS`` in order: (key, title, icon, draw function). The properties stay where they always were
 (``prefs.FRESING_AP_prefs``, the usage file's switches on the window manager): only their drawing moved here. A later
@@ -14,7 +17,7 @@ from __future__ import annotations
 import bpy
 
 from . import ui
-from .ops_setup import SETTINGS_MARK, SETTINGS_TAB
+from .ops_setup import SETTINGS_MARK
 
 LATER = ("locations", "exports", "materials")     # 0272 puts Locations + Exports after General, 0273 Materials after them
 
@@ -157,11 +160,13 @@ def draw_all(context) -> list:
     return out
 
 
+REGION = "TOOLS"           # the page sits in the 3D view's toolbar region: Blender draws no tab strip there
+
+
 class FRESING_PT_settings_window(bpy.types.Panel):
     """Fresing Settings: the tabs along the top, the open page under them (task 0271)."""
     bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = SETTINGS_TAB
+    bl_region_type = REGION
     bl_label = "Fresing Settings"
     bl_options = {"HIDE_HEADER"}
 

@@ -101,6 +101,25 @@ def set_side_width(area, px: int) -> bool:
     return True
 
 
+def fit_width(area, px: int) -> bool:
+    """Task 0271: make the toolbar region ``px`` real pixels wide. Blender scales a stored width by its own DPI factor
+    (not only the UI scale): the factor is read from the region as it is now (its pixels / its stored width). A
+    region made wider than its area leaves is hidden by Blender ("too small"), so ``px`` must fit."""
+    region = tools_region(area)
+    addr = sizex_address(region)
+    if addr is None:
+        return False
+    stored = ctypes.c_short.from_address(addr).value
+    if stored <= 0:
+        return False
+    ctypes.c_short.from_address(addr).value = int(max(STRIP_WIDTH, min(900, px * stored / region.width)))
+    space = area.spaces.active
+    space.show_region_toolbar = False
+    space.show_region_toolbar = True
+    area.tag_redraw()
+    return True
+
+
 def width(area) -> float:
     """The left panel's width in px at UI scale 1 (0 when it is not shown)."""
     region = tools_region(area)

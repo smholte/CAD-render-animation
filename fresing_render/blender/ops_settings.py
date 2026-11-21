@@ -1,11 +1,13 @@
 """Fresing Settings (task 0271): one window with all of the app's own settings, a row of tabs along its top.
 
 **The window** is made like an output window of Make (task 0260): ``ops_setup.open_window`` copies a piece of the main
-3D view into a window of its own and marks its screen ``fr_settings``; its side panel shows the tab "Settings", where
-``ui_settings.FRESING_PT_settings_window`` draws. It can be dragged anywhere (also onto a second screen) and stays open
-while the user works in the main window. Opening it again brings it to the front (Windows) instead of a second one; on
-Windows it opens where it was last time and as big (``ops_make`` keeps its place under the key "settings"). The last
-tab is kept in the preferences (``prefs.settings_tab``): the window opens on it again, also after a restart.
+3D view into a window of its own and marks its screen ``fr_settings``. Its page is drawn in the **toolbar region** (the
+region of 0260's left panel), not the side panel: a side panel always draws a tab strip – Blender's Tool / View /
+Animation beside ours, and even one tab for a single panel (measured, 21 Nov: "Misc") – which the owner's check of
+21 Nov ruled out. ``ops_setup._dress`` switches the window's side panel, header, gizmos and overlays off and its
+toolbar on; ``_settle`` makes the toolbar as wide as the window (``ui_left.fit_width``), so no view shows beside it;
+Blender's tool buttons, the toolbar's only panel of Blender's, hide in this window (``quiet_panels``: a ``poll``,
+registered again). A Text editor's sidebar was tried first: it too draws its tab strip.
 
 **Ways in:** Fresing > Settings…, the gear on the left panel, Help / Fresing > My usage… (on the tab My usage), and
 Edit > Preferences > Add-ons > Fresing Render > Open Fresing Settings.
@@ -27,7 +29,7 @@ from . import ops_setup, panels, ui_settings
 from .ops_setup import SETTINGS_MARK
 
 KEY = "settings"
-SIZE = (440, 640)              # the window's side panel, px at UI scale 1 (the Set-up and Make windows: ~280 x 560)
+SIZE = (440, 640)              # the window, px at UI scale 1 (the Set-up and Make windows: ~280 x 560)
 
 
 def settings_windows() -> list:
@@ -85,41 +87,144 @@ def open_settings(op, context, tab: str = "") -> set:
 
 
 def _opened(win) -> None:
-    """The window is open: where it was last time (Windows), and its side panel made as wide as the window."""
+    """The window is open: where it was last time (Windows), then its page made as wide as the window."""
     from . import ops_make
     try:
         ops_make._placed(win)
     finally:
         tries = [0]
 
-        def widen():
+        def settle():
             tries[0] += 1
-            return _widen(win, tries[0])
+            return _settle(win, tries[0])
 
-        bpy.app.timers.register(widen, first_interval=0.2)
+        bpy.app.timers.register(settle, first_interval=0.2)
 
 
-def _widen(win, tries: int):
-    """A script cannot set a side panel's width: the copy's panel is as wide as the main view's. Its stored width is
-    written once the window was drawn (``ui_left.set_side_width``, the way the left panel gets its width). Nothing is
-    set on the view before it was drawn (CLAUDE.md, 0221)."""
+def settings_area(win):
+    return next((a for a in win.screen.areas if a.type == "VIEW_3D"), None)
+
+
+def _region(area, kind: str):
+    return next((r for r in area.regions if r.type == kind), None) if area is not None else None
+
+
+def _settle(win, tries: int):
+    """One timer step of tidying the new window: once it was drawn (CLAUDE.md, 0221), its toolbar region – the page –
+    is made as wide as the window (a script cannot set a region's width: ``ui_left.fit_width``)."""
     from . import editors, ui_left
     try:
-        if not any(w == win for w in bpy.context.window_manager.windows):
+        if not any(w == win for w in bpy.context.window_manager.windows) or tries > 80:
             return None
-        area = next((a for a in win.screen.areas if a.type == "VIEW_3D"), None)
-        region = next((r for r in area.regions if r.type == "UI"), None) if area is not None else None
-        if region is None:
+        area = settings_area(win)
+        tools = _region(area, "TOOLS")
+        if area is None:
             return None
-        if region.width <= 1 or not editors.settled():
-            return 0.1 if tries < 50 else None
-        scale = bpy.context.preferences.system.ui_scale or 1.0
-        if abs(region.width / scale - SIZE[0]) > 6 and not ui_left.set_side_width(area, SIZE[0]):
-            print("Fresing Render: the Settings window keeps its side panel's width (its width was not found)")
-        ops_setup.restore_tabs()
+        if tools is None or tools.width <= 1 or not editors.settled():
+            if area.spaces.active.show_region_ui or not area.spaces.active.show_region_toolbar:
+                ops_setup.restore_tabs()             # (dresses the window: side panel off, toolbar on)
+            return 0.1
+        want = area.width - 4                        # real pixels: the page fills the window
+        if abs(tools.width - want) > 6 and not ui_left.fit_width(area, want):
+            print("Fresing Render: the Settings window keeps its page's width (its width was not found)")
     except Exception as exc:  # noqa: BLE001 - the window works at any width
-        print("Fresing Render: the Settings window was not widened:", exc)
+        print("Fresing Render: the Settings window was not tidied:", exc)
     return None
+
+
+def shows_only_the_page(win) -> tuple:
+    """(ok, what else shows) – the owner's rule of 21 Nov: no tabs, no view, no headers, only the page. The page is in
+    the toolbar region (no tab strip there), which fills the window; the side panel, header, tool header, overlays and
+    gizmos are off; no other panel of the toolbar region shows in this window."""
+    area = settings_area(win)
+    if area is None:
+        return False, "no 3D view to draw in"
+    sp = area.spaces.active
+    other = [name for name, on in (("side panel with its tabs", sp.show_region_ui), ("header", sp.show_region_header),
+                                   ("tool header", sp.show_region_tool_header), ("overlays", sp.overlay.show_overlays),
+                                   ("gizmos", sp.show_gizmo)) if on]
+    tools = _region(area, "TOOLS")
+    if not sp.show_region_toolbar or tools is None or tools.width <= 1:
+        other.append("no page")
+    elif area.width - tools.width > 24:
+        other.append(f"{area.width - tools.width} px of 3D view beside the page")
+    shown = []
+    with bpy.context.temp_override(window=win, screen=win.screen, area=area, region=tools):
+        for cls in bpy.types.Panel.__subclasses__():
+            if getattr(cls, "bl_space_type", "") != "VIEW_3D" or getattr(cls, "bl_region_type", "") != "TOOLS":
+                continue
+            if getattr(cls, "bl_parent_id", "") or cls.__name__ == "FRESING_PT_settings_window":
+                continue
+            if not getattr(cls, "is_registered", False):
+                continue
+            try:
+                ok = cls.poll(bpy.context) if hasattr(cls, "poll") else True
+            except Exception:  # noqa: BLE001
+                ok = True
+            if ok:
+                shown.append(cls.__name__)
+    if shown:
+        other.append("panels " + ", ".join(shown))
+    return not other, ", ".join(other)
+
+
+# Blender's own panel of the 3D view's toolbar region (its tool buttons): hidden in the Settings window only
+QUIET_PANELS = ("VIEW3D_PT_tools_active",)
+_QUIET: dict = {}                 # class name -> (class, its own poll or None)
+
+
+def _in_settings(context) -> bool:
+    win = getattr(context, "window", None)
+    try:
+        return bool(win is not None and win.screen.get(SETTINGS_MARK))
+    except (AttributeError, ReferenceError):
+        return False
+
+
+def _hiding_poll(own):
+    def poll(cls, context):
+        if _in_settings(context):
+            return False
+        return own.__func__(cls, context) if own is not None else True
+    return poll
+
+
+def quiet_panels() -> None:
+    """Give Blender's tool buttons a ``poll`` that hides them in the Settings window. A ``poll`` added to a registered
+    class is ignored, so the class is registered again with it (its draw – and quiet.py's swap of it – stays)."""
+    for name in QUIET_PANELS:
+        cls = getattr(bpy.types, name, None)
+        if cls is None or name in _QUIET:
+            continue
+        own = cls.__dict__.get("poll")
+        try:
+            bpy.utils.unregister_class(cls)
+            cls.poll = classmethod(_hiding_poll(own))      # Blender checks it takes (cls, context) only
+            bpy.utils.register_class(cls)
+            _QUIET[name] = (cls, own)
+        except Exception as exc:  # noqa: BLE001 - the window still works, with the tool buttons in it
+            print(f"Fresing Render: {name} not hidden in the Settings window:", exc)
+            try:
+                if own is None and "poll" in cls.__dict__:
+                    del cls.poll
+                if not getattr(cls, "is_registered", True):
+                    bpy.utils.register_class(cls)
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def loud_panels() -> None:
+    for name, (cls, own) in list(_QUIET.items()):
+        try:
+            bpy.utils.unregister_class(cls)
+            if own is None:
+                del cls.poll
+            else:
+                cls.poll = own
+            bpy.utils.register_class(cls)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Fresing Render: {name} not put back:", exc)
+        _QUIET.pop(name, None)
 
 
 class FRESING_OT_settings(bpy.types.Operator):
@@ -253,7 +358,9 @@ CLASSES = (FRESING_OT_settings, FRESING_OT_settings_tab, FRESING_OT_settings_clo
 
 def register() -> None:
     add_keys()
+    quiet_panels()
 
 
 def unregister() -> None:
     remove_keys()
+    loud_panels()

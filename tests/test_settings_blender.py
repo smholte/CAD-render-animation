@@ -227,3 +227,26 @@ def test_the_presence_keys_pass_every_event_on():
         type, mouse_x, mouse_y = "MOUSEMOVE", 3, 4
 
     assert op.invoke(None, bpy.context, Ev()) == {"PASS_THROUGH"}
+
+
+def test_blenders_tool_buttons_hide_only_in_the_settings_window():
+    """The owner's check of 21 Nov: the window shows only the page. Its region (the 3D view's toolbar) has one panel of
+    Blender's, the tool buttons: they get a poll that hides them there and nowhere else."""
+    from fresing_render.blender import ops_settings, ui_settings
+    assert ui_settings.FRESING_PT_settings_window.bl_region_type == "TOOLS"     # a region without a tab strip
+    assert "VIEW3D_PT_tools_active" in ops_settings._QUIET
+    cls = bpy.types.VIEW3D_PT_tools_active
+    assert cls.is_registered and cls.poll(bpy.context)                          # elsewhere: as before
+    assert not ui_settings.FRESING_PT_settings_window.poll(bpy.context)          # the page: only in its window
+
+    class Screen(dict):
+        pass
+
+    class Win:
+        screen = Screen(fr_settings="settings")
+
+    class Ctx:
+        window = Win()
+
+    assert not cls.poll(Ctx())
+    assert ui_settings.FRESING_PT_settings_window.poll(Ctx())

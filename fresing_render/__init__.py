@@ -109,8 +109,10 @@ def _all_classes():
             ordered.append(by_name[sec])
             under(sec)
     ordered += [c for c in tab if c not in ordered]             # a panel core/places.py does not know yet: at the end
+    late = [c for c in rest if c.__name__ == "FRESING_PT_settings_window"]   # task 0271: in the toolbar region too,
+    rest = [c for c in rest if c not in late]                                 # after the left panel's parts
     out = (list(panels.CLASSES) + list(lock.CLASSES) + list(ops_workspace.CLASSES) + rest + left + ordered
-           + list(ui_top.POPOVERS))
+           + list(ui_top.POPOVERS) + late)
     panels.install(out)
     return tuple(out)
 
