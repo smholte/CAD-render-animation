@@ -20,6 +20,8 @@ installer of that version was built from.
   and The app makes the toolpath run on the new machine; the tools are BT40. The PC check's milling lines too.
 - **Fix – chips:** on a machine whose table rides on a saddle, chips that fell past the saddle sometimes fell
   through the fixed parts beside it and on for ever; they now land on those parts (or the floor).
+- **Fix – long finishing programs:** whether a long program is worked out the fast way (as a height map) no longer
+  depends on rounding noise of a few nanometres when its points lie on whole millimetres.
 
 ## 0.2.194 – 21 Nov 2026 – Web 3D page: Film – the motion through the video's camera (task 0252)
 

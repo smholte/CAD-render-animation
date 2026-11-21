@@ -4261,15 +4261,15 @@ def _top_of(scene, stock):
 
 
 @line("milling.fast_map", "Milling: a long finishing program as a height map", "0.2.117",
-      what="The test mill runs a finishing program of 1,300 short moves (a Ø10 ball follows a wavy surface, passes "
-           "0.6 mm apart). "
+      what="The test mill runs a finishing program of 1,500 short moves (a Ø10 ball follows a wavy surface, passes "
+           "0.5 mm apart). "
            "The block is worked out as a height map (Fast 3-axis passes, on by itself) and, for comparison, with an "
            "exact cut per move: both must show the same surface, at the depth the program says. The time and the "
            "number of faces of both")
 def milling_fast_map(ctx):
     from ..blender import machining
     xs = [-30.0 + 1.0 * k for k in range(61)]
-    ys = [-6.0 + 0.6 * k for k in range(21)]
+    ys = [-6.0 + 0.5 * k for k in range(25)]      # (0.6 mm apart was just below the map's density limit, task 0249)
     scene, frames, stock = _finish_scene(ctx, xs, ys)
     machining.sample(scene)
     m = machining.settings(scene)

@@ -128,6 +128,12 @@ ever (metres under the floor). `core/chips.py`: they go over when the next surfa
 surface stops on the floor. New test `test_chips_off_a_cross_table_land_on_the_fixed_parts_beside_its_saddle` (fails
 without the fix).
 
+**Second fix – the height map's density** (`core/machining._MapSide.density`): its 1 mm squares now start 0.37 mm off
+the round millimetres. A program on whole millimetres (the PC check's finishing raster) got 0.78 on the old mill and
+0.70 on the new one only from nanometres of rounding, around the limit 0.75; now 0.747 on both. The PC check's two
+finishing rasters (`milling.fast_map`, Heavy `heavy.milling_finish` scaled down) have passes 0.5 mm apart instead of
+0.6 (density 1.0). New test `test_the_density_does_not_hang_on_rounding_noise`. Found by GitHub's first run.
+
 **Changed test numbers and why:** web 3D: 25 → 44 parts, the chip tray's sheet metal brings 2 pictures (looks still
 shared: rails + spindle one picture); chips: fallen chips lie on covers / bed / tray / floor (was bed 0 / floor −60),
 the riding chips' object moves (−50, 60) mm (the slot's X moves the table), the same-chips check allows 0.1 µm (7 nm
