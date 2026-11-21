@@ -45,7 +45,7 @@ The start window
   (for example 60 % and 70 C); outside them the load above. The expected time counts both.
 - Models: untick the ones you do not want this time. The time next to each is at full load.
   A model whose STEP file is missing is unticked and skipped.
-- Redo 21 Nov (the top row of the list, the only one ticked when the window opens): makes only
+- Redo 21 Nov: Thor side, turbine (the top row of the list, the only one ticked when the window opens): makes only
   the three pictures and clips asked for on 21 Nov - Thor's side picture again (thor_side.jpg,
   same camera, light and background as the first one, from the corrected Thor), the offshore
   turbine's "Whole turbine" picture and its 7.56 rpm clip, both without the cut-away in the sea.

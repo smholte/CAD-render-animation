@@ -128,8 +128,7 @@ re-renders); new models from study 0113.
    the web page"** and click **fresing_site_kit.zip** (the new one, dated today or later).
 2. Right-click the zip > **Extract All...** > **Extract** (into Downloads, next to your earlier kit folders).
 3. Close Fresing Render. Open the new folder **"Fresing site kit"**, double-click **"Make site pictures.bat"**.
-4. In the start window, the top row of the Models list is **"Redo 21 Nov - only Thor side, Whole turbine and the
-   turbine video"** – ticked, all others unticked. If it offers **"Continue the run of …"**, untick that. Click
+4. In the start window, the top row of the Models list is **"Redo 21 Nov: Thor side, turbine"** – ticked, all others unticked. If it offers **"Continue the run of …"**, untick that. Click
    **Start**. Expected: about half an hour (the window shows its own estimate).
 5. When it is done, the **output** folder opens with **site_pictures_<date>.zip** and the contact sheet in your
    browser: you should see three items – Thor upright in the dark studio, the whole turbine at sea without any hole in

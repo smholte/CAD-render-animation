@@ -35,6 +35,8 @@ def test_redo_21_nov_in_models_ini():
     by = {m["id"]: m for m in models}
     (redo,) = general["runs"]
     assert redo["id"] == "Redo 21 Nov" and redo["ticked"] and redo["title"].startswith("Redo 21 Nov")
+    titles = [m.get("title", m["id"]) for m in models] + [redo["title"]]
+    assert len(redo["title"]) <= max(len(t) for t in titles[:-1])     # fits the window's list (its layout check)
     chosen, unknown = kit.pick(models, general)                 # what the window ticks and the console route makes
     assert not unknown
     assert [(m["id"], m["views"], m["video"]) for m in chosen] == [
@@ -178,9 +180,9 @@ def test_stored_camera_crop_and_name_small(tmp_path):
     info = json.loads((out / "send" / "site_pictures.json").read_text(encoding="utf-8"))
     (item,) = info["items"]
     assert item["model"] == "mach" and item["caption"] == "The side" and info["models"]["mach"]["credit"] == "Mach credit"
-    size = subprocess.run(["identify", "-format", "%w %h", str(out / "full" / "mach_side.png")],
-                          capture_output=True, text=True).stdout.split()
-    assert [int(v) for v in size] == [100, 135]          # small: 480 x 270 at Draft (50 %), 1000/2400 of it across
+    head = (out / "full" / "mach_side.png").read_bytes()[16:24]          # the PNG's own width and height
+    size = [int.from_bytes(head[:4], "big"), int.from_bytes(head[4:], "big")]
+    assert size == [100, 135]          # small: 480 x 270 at Draft (50 %), 1000/2400 of it across
     import math
     assert p["at"] == pytest.approx([2.5, -3.0, 1.2], abs=1e-5)
     assert [math.degrees(a) for a in p["turn"]] == pytest.approx([75.0, 0.0, 40.0], abs=1e-3)
