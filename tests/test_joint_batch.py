@@ -128,7 +128,7 @@ def test_a_batch_updates_the_scene_once(tmp_path, monkeypatch):
     calls = []
     real = joints._update
     monkeypatch.setattr(joints, "_update", lambda scene: (calls.append(1), real(scene)))
-    bolt = "ISO 4017 M12 x 40 - 8.8 HDG"
+    bolt = "ISO 4017 M30 x 120 - 8.8 HDG"
     with joints._batch(sc):
         before = len(calls)
         made = []

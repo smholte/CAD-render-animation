@@ -1,7 +1,7 @@
 """Task 0012: couplings (one joint follows another) and motors ("run at 12 rpm").
 
 Every value is checked against a hand-calculated one on the test crane (tests/data):
-* WHEEL: Ø50 mm cylinders along Y inside TROLLEY.ASM (a wheel rolling 100 mm turns 4 rad = 229.18°);
+* WHEEL: Ø250 mm treads along Y inside TROLLEY.ASM (a wheel rolling 100 mm turns 0.8 rad = 45.84°; task 0259);
 * the four ISO 4017 bolts are used as gripper jaws, COVER and TROLLEY.ASM as telescope sections.
 Joint values are internal units: radians and metres.
 """
@@ -20,7 +20,7 @@ CRANE_A = os.path.join(HERE, "data", "test_crane_a.step")
 CRANE_B = os.path.join(HERE, "data", "test_crane_b.step")
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
 TOL = 1e-5                  # 0.01 mm / 0.0006°: matrices and driver results are single precision
-WHEEL_R = 0.025             # m
+WHEEL_R = 0.125             # m: the trolley wheel's tread (task 0259)
 TURN = 2 * math.pi
 
 import fresing_render  # noqa: E402
@@ -96,7 +96,7 @@ def trolley_and_wheels(sc):
 
 def jaws(sc):
     """Two bolts as gripper jaws on one line (X): jaw B follows jaw A the other way (-1)."""
-    a, b = ob(sc, "ISO 4017 M12 x 40 - 8.8 HDG", 0), ob(sc, "ISO 4017 M12 x 40 - 8.8 HDG", 1)
+    a, b = ob(sc, "ISO 4017 M30 x 120 - 8.8 HDG", 0), ob(sc, "ISO 4017 M30 x 120 - 8.8 HDG", 1)
     joints.create(sc, "SLIDE", [a], pos(a), X, name="Jaw A")
     joints.create(sc, "SLIDE", [b], pos(b), X, name="Jaw B")
     joints.set_follows(sc, J(sc, "Jaw B"), "Jaw A", ratio=-1.0)
@@ -124,7 +124,7 @@ def test_rotate_follows_rotate_gear(scene):
 def test_slide_follows_slide_jaws(scene):
     """Gripper jaws: ratio -1, they close towards each other."""
     jaws(scene)
-    a, b = ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 0), ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 1)
+    a, b = ob(scene, "ISO 4017 M30 x 120 - 8.8 HDG", 0), ob(scene, "ISO 4017 M30 x 120 - 8.8 HDG", 1)
     pa, pb = pos(a), pos(b)
     move(scene, "Jaw A", 0.03)
     assert abs(V(scene, "Jaw B") + 0.03) < TOL
@@ -164,9 +164,9 @@ def test_rotate_drives_slide_spindle(scene):
 
 
 def test_slide_drives_rotate_rolling_wheel(scene):
-    """A wheel of Ø50 mm rolls along: 360/(π·50) degrees per mm; 100 mm of travel = 4 rad."""
+    """A wheel of Ø250 mm rolls along: 360/(π·250) degrees per mm; 100 mm of travel = 0.8 rad."""
     trolley_and_wheels(scene)
-    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 50))
+    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 250))
     w = ob(scene, "WHEEL", 0)
     p0 = pos(w)
     move(scene, "Trolley", 0.1)
@@ -185,20 +185,20 @@ def test_offset(scene):
 
 
 def test_chain_of_three(scene):
-    """Motor -> spindle nut -> rolling wheel: 2 turns × 50 mm = 100 mm -> 4 rad."""
+    """Motor -> spindle nut -> rolling wheel: 2 turns × 50 mm = 100 mm -> 0.8 rad."""
     trolley_and_wheels(scene)
     cover = ob(scene, "COVER")
     joints.create(scene, "ROTATE", [cover], pos(cover), X, name="Motor")
     joints.set_motor(scene, J(scene, "Motor"), True)
     joints.set_follows(scene, J(scene, "Trolley"), "Motor", ratio=50.0)
-    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 50))
+    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 250))
     move(scene, "Motor", 2 * TURN)
     assert abs(V(scene, "Trolley") - 0.1) < TOL
-    assert abs(V(scene, "Wheel 1") - 4.0) < 1e-4
+    assert abs(V(scene, "Wheel 1") - 0.8) < 1e-4
     assert joints.driver_of(scene, J(scene, "Wheel 1")).name == "Motor"
     assert [x.name for x in joints.all_followers(scene, J(scene, "Motor"))] == ["Trolley", "Wheel 1"]
     # the same values worked out without Blender (used for limit warnings in animations)
-    assert abs(joints.driven_value(scene, J(scene, "Wheel 1"), {"Motor": TURN}) - 2.0) < 1e-4
+    assert abs(joints.driven_value(scene, J(scene, "Wheel 1"), {"Motor": TURN}) - 0.4) < 1e-4
 
 
 def test_loops_and_itself_refused(scene):
@@ -289,7 +289,7 @@ def test_structure_changes_in_the_cad_pose_with_an_offset(scene):
     jaws(scene)
     J(scene, "Jaw B").couple_offset_dist = 0.01
     move(scene, "Jaw A", 0.02)
-    b = ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 1)
+    b = ob(scene, "ISO 4017 M30 x 120 - 8.8 HDG", 1)
     before = pos(b)
     with joints.cad_pose(scene):
         assert abs(V(scene, "Jaw B")) < 1e-9
@@ -348,7 +348,7 @@ def test_by_itself_again(scene):
 
 def test_save_and_reopen(scene, tmp_path):
     trolley_and_wheels(scene)
-    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 50))
+    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 250))
     joints.set_follows(scene, J(scene, "Wheel 2"), "Wheel 1", ratio=-1.0)
     path = str(tmp_path / "coupled.blend")
     bpy.ops.wm.save_as_mainfile(filepath=path)
@@ -357,7 +357,7 @@ def test_save_and_reopen(scene, tmp_path):
     j1, j2 = J(sc, "Wheel 1"), J(sc, "Wheel 2")
     assert j1.follows == "Trolley" and j2.follows == "Wheel 1" and abs(j2.couple_ratio + 1) < 1e-9
     move(sc, "Trolley", 0.05)
-    assert abs(V(sc, "Wheel 1") - 2.0) < 1e-4 and abs(V(sc, "Wheel 2") + 2.0) < 1e-4
+    assert abs(V(sc, "Wheel 1") - 0.4) < 1e-4 and abs(V(sc, "Wheel 2") + 0.4) < 1e-4
 
 
 def test_drivers_are_simple_expressions(scene):
@@ -393,7 +393,7 @@ def test_model_update_keeps_couplings_and_motor(scene):
     joints.create(scene, "ROTATE", [cover], pos(cover), X, name="Motor")
     joints.set_motor(scene, J(scene, "Motor"), True)
     joints.set_follows(scene, J(scene, "Trolley"), "Motor", ratio=50.0)
-    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 50))
+    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 250))
     joints.set_follows(scene, J(scene, "Wheel 2"), "Wheel 1", ratio=-2.0)
     J(scene, "Wheel 2").couple_offset_angle = 0.5
     move(scene, "Motor", TURN)
@@ -410,7 +410,7 @@ def test_model_update_keeps_couplings_and_motor(scene):
     for n, v in before.items():
         assert abs(V(scene, n) - v) < 1e-4, n
     move(scene, "Motor", 2 * TURN)
-    assert abs(V(scene, "Trolley") - 0.1) < TOL and abs(V(scene, "Wheel 2") - (-8.0 + 0.5)) < 1e-3
+    assert abs(V(scene, "Trolley") - 0.1) < TOL and abs(V(scene, "Wheel 2") - (-1.6 + 0.5)) < 1e-3
     assert joints.couplings_simple(scene)
 
 
@@ -420,7 +420,7 @@ def test_model_update_when_the_leader_is_gone(scene):
     specs = joints.dissolve_all(scene)
     assert specs[1]["follows"] == "Jaw A" and specs[1]["ratio"] == -1.0
     by_uid = {o.get(build.PROP_UID): o for o in scene.objects if o.get(build.PROP_KIND) in build.MODEL_KINDS}
-    del by_uid[ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 0).get(build.PROP_UID)]
+    del by_uid[ob(scene, "ISO 4017 M30 x 120 - 8.8 HDG", 0).get(build.PROP_UID)]
     notes = joints.rebuild_from_specs(scene, specs, by_uid)
     assert [j.name for j in scene.fresing.joints] == ["Jaw B"]
     assert J(scene, "Jaw B").follows == "" and any("moves by itself now" in n for n in notes), notes
@@ -713,7 +713,7 @@ def test_followers_never_lag_a_frame(scene):
     cover = ob(scene, "COVER")
     joints.create(scene, "ROTATE", [cover], pos(cover), X, name="Motor")
     joints.set_follows(scene, J(scene, "Trolley"), "Motor", ratio=50.0, offset_value=0.01)
-    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 50), offset_value=0.2)
+    joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley", ratio=360.0 / (math.pi * 250), offset_value=0.2)
     joints.set_follows(scene, J(scene, "Wheel 2"), "Wheel 1", ratio=-1.0)
     tr, w2 = ob(scene, "TROLLEY.ASM"), ob(scene, "WHEEL", 1)
     move(scene, "Motor", 0.0)                       # trolley at its 10 mm offset, wheels turned by it
@@ -751,11 +751,11 @@ def test_followers_never_lag_a_frame(scene):
 def test_model_update_leader_gone_follower_stays(scene):
     jaws(scene)
     move(scene, "Jaw A", 0.03)
-    b = ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 1)
+    b = ob(scene, "ISO 4017 M30 x 120 - 8.8 HDG", 1)
     before = pos(b)
     specs = joints.dissolve_all(scene)
     by_uid = {o.get(build.PROP_UID): o for o in scene.objects if o.get(build.PROP_KIND) in build.MODEL_KINDS}
-    del by_uid[ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 0).get(build.PROP_UID)]
+    del by_uid[ob(scene, "ISO 4017 M30 x 120 - 8.8 HDG", 0).get(build.PROP_UID)]
     joints.rebuild_from_specs(scene, specs, by_uid)
     update()
     assert abs(V(scene, "Jaw B") + 0.03) < TOL and close(pos(b), before)
@@ -768,7 +768,7 @@ def test_freed_follower_beyond_its_limits_stays(scene):
     jb = J(scene, "Jaw B")
     jb.use_limits, jb.slide_min, jb.slide_max = True, -0.01, 0.01
     move(scene, "Jaw A", 0.03)
-    b = ob(scene, "ISO 4017 M12 x 40 - 8.8 HDG", 1)
+    b = ob(scene, "ISO 4017 M30 x 120 - 8.8 HDG", 1)
     before = pos(b)
     scene.fresing.joints_index = 1
     assert bpy.ops.fresing.joint_follow(mode="FREE") == {"FINISHED"}
