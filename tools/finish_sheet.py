@@ -97,7 +97,7 @@ def weld_set(sc, single):
         bm_me = bpy.data.meshes.new("FR study weld bead")
         import bmesh
         bm = bmesh.new()
-        bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=0.004, radius2=0.004, depth=0.148)
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=0.0045, radius2=0.0045, depth=0.148)
         for v in bm.verts:                      # along x
             v.co.x, v.co.z = v.co.z, v.co.x
         bm.to_mesh(bm_me)
@@ -155,7 +155,7 @@ def stage(sc, fid, single, head, weld):
         x += half
         for ob in obs:
             ob.parent = None
-            ob.matrix_world = M if ob.name != "FR study weld bead" else M @ Matrix.Translation((0, 0.004, 0.008))
+            ob.matrix_world = M if ob.name != "FR study weld bead" else M @ Matrix.Translation((0, 0.0055, 0.0095))
             ob.hide_render = ob.hide_viewport = False
             shown.append(ob)
         placed.append((key, M, size))
@@ -261,6 +261,7 @@ def main(argv=None) -> int:
     ap.add_argument("--thumbs", action="store_true")
     ap.add_argument("--eevee", action="store_true")
     ap.add_argument("--copies", action="store_true")
+    ap.add_argument("--cost-res", type=int, default=1920)
     a = ap.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
     step = os.path.abspath(a.step)
@@ -320,9 +321,10 @@ def main(argv=None) -> int:
                     row["eevee_s"] = f"failed: {exc}"
             if a.cost:
                 frame_all(sc, shown)
-                row["cost_pattern_s"] = render(sc, os.path.join(a.out, f"cost_{tag}.png"), 1920, 64)
+                ck = "" if a.cost_res == 1920 else f"_{a.cost_res}"
+                row["cost_pattern_s" + ck] = render(sc, os.path.join(a.out, f"cost_{tag}{ck}.png"), a.cost_res, 64)
                 fp.build(mat, fid, var, pattern=False)
-                row["cost_plain_s"] = render(sc, os.path.join(a.out, f"cost_{tag}_plain.png"), 1920, 64)
+                row["cost_plain_s" + ck] = render(sc, os.path.join(a.out, f"cost_{tag}{ck}_plain.png"), a.cost_res, 64)
                 fp.build(mat, fid, var)
             print(tag, json.dumps(row), flush=True)
             json.dump(times, open(times_path, "w"), indent=1)

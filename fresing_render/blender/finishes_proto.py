@@ -658,11 +658,11 @@ def leather(b: F, s: dict):
     warp = b.vmath("ADD", b.p(), b.vmath("SCALE", b.ncol(1.0 / c / 3), scale=c * 1.6))
     e = b.vor(warp, 1.0 / c, "DISTANCE_TO_EDGE", 1.0)[0]
     vis = b.lod(c)
-    crease = b.math("SUBTRACT", 1.0, b.smooth(e, 0.0, 0.12))
+    crease = b.math("SUBTRACT", 1.0, b.smooth(e, 0.0, 0.07))
     pores = b.noise3(scale=1.0 / c * 8, detail=2.0)
     h = b.math("MULTIPLY", b.math("SUBTRACT", b.math("SUBTRACT", 1.0, crease), b.math("MULTIPLY", pores, 0.15)), vis)
     rough = b.math("ADD", s["roughness"], b.math("MULTIPLY", crease, 0.1))
-    return dict(roughness=rough, normal=b.bump(h, c * 0.15))
+    return dict(roughness=rough, normal=b.bump(h, c * 0.07))
 
 
 def spangle(b: F, s: dict):
@@ -710,8 +710,8 @@ def rust(b: F, s: dict):
     mask = b.smooth(b.math("ADD", m, b.math("MULTIPLY", b.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.4)),
                     0.75 - 0.4 * a, 0.80 - 0.35 * a)
     flake = b.vor(None, 1.0 / 0.003, "SMOOTH_F1", 1.0)[0]
-    col_r = b.ramp(b.noise3(scale=1.0 / 0.006, detail=4.0), [(0.0, (0.10, 0.03, 0.01)), (0.5, (0.30, 0.10, 0.03)),
-                                                               (1.0, (0.55, 0.25, 0.08))])
+    col_r = b.ramp(b.noise3(scale=1.0 / 0.006, detail=4.0), [(0.0, (0.05, 0.025, 0.015)), (0.45, (0.16, 0.06, 0.025)),
+                                                               (0.8, (0.30, 0.12, 0.04)), (1.0, (0.42, 0.20, 0.07))])
     col = b.mix("RGBA", mask, (*lin(s["color"]), 1), col_r)
     met = b.mix("FLOAT", mask, 1.0, 0.0)
     rough = b.mix("FLOAT", mask, s["roughness"], 0.85)
@@ -826,7 +826,7 @@ def heat_tint(b: F, s: dict):
     t = b.math("MINIMUM", b.math("MAXIMUM", t, 0.0), 1.0)
     foot = b.vmath("ADD", a, b.vmath("SCALE", ab, scale=t))
     dist = b.vmath("LENGTH", b.vmath("SUBTRACT", b.p(), foot))
-    wob = b.math("MULTIPLY", b.noise3(scale=1.0 / 0.006, detail=3.0), 0.004)
+    wob = b.math("MULTIPLY", b.noise3(scale=1.0 / 0.008, detail=3.0), 0.0015)
     dd = b.math("ADD", dist, wob)
     W = s["width"]
     col = b.ramp(b.math("DIVIDE", dd, W), [(0.0, (0.12, 0.12, 0.13)), (0.12, (0.18, 0.22, 0.42)),
@@ -950,7 +950,7 @@ FINISHES: dict[str, dict] = {
                    size="3K twill, tows 2 mm", settings="Tow width, Gloss / Matte clear coat",
                    offer="new: Carbon fibre", source="the part's own box axes (dominant projection, no blend)"),
     "vdi": dict(n=18, label="Spark-eroded texture VDI 3400 (24 / 30 / 36)", fn=vdi, shapes=["block", "cup"],
-                base=dict(color=(0.04, 0.04, 0.045), roughness=0.5, specular=0.45), needs_color=True,
+                base=dict(color=(0.16, 0.16, 0.17), roughness=0.5, specular=0.45), needs_color=True,
                 pat=dict(grain=14000.0), size="VDI 24: Ra 1.6 µm, 30: 3.2 µm, 36: 6.3 µm; craters 0.05-0.15 mm",
                 settings="Class (24 · 27 · 30 · 33 · 36)", offer="Plastic matte (colour)", source="none (3-D Voronoi)",
                 variants={"VDI 24": dict(roughness=0.38, grain=22000.0), "VDI 30": dict(roughness=0.5, grain=14000.0),
@@ -960,8 +960,8 @@ FINISHES: dict[str, dict] = {
                     pat=dict(cell=0.0016, roughness=0.5), size="cells ~1.6 mm", settings="Grain size, colour",
                     offer="Plastic matte / rubber (colour)", source="none (3-D Voronoi)"),
     "spangle": dict(n=20, label="Hot-dip galvanised spangle", fn=spangle, shapes=["plate", "block"],
-                    base=dict(color=(0.70, 0.71, 0.72), metallic=1.0, roughness=0.3),
-                    pat=dict(cell=0.009, color=(0.70, 0.71, 0.72), rough_min=0.15, rough_max=0.45),
+                    base=dict(color=(0.78, 0.79, 0.80), metallic=1.0, roughness=0.35),
+                    pat=dict(cell=0.009, color=(0.78, 0.79, 0.80), rough_min=0.22, rough_max=0.5),
                     size="crystals ~9 mm with feathery grain", settings="Crystal size (small / large / none)",
                     offer="Hot-dip galvanized (a second look of it)", source="none (3-D Voronoi)"),
     "weld": dict(n=21, label="Weld bead + heat tint (stainless)", fn=heat_tint, shapes=["weld"],
