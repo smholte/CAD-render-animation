@@ -3506,10 +3506,10 @@ def build_air(b: Build):
     a.start_shot = _shot(b, "Tour: air blast").name
 
 
-COOLANT_TOUR = AIR_TOUR.replace("M7", "M8")
+COOLANT_TOUR = AIR_TOUR.replace("M7", "M8").replace("S9000", "S15000")    # task 0257: a fast tool (7.9 m/s)
 
 
-@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.195")
+@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.199")
 def build_coolant(b: Build):
     from mathutils import Vector
 
@@ -3544,7 +3544,16 @@ def _check_coolant(scene):
     jets = bpy.data.objects.get(coolant.JETS)
     _check(jets is not None and len(jets.data.vertices) > 0, "no jets at the tool")
     _check(coolant.wet_parts(scene), "no part gets wet")
-    return f"flood {(sp[0, 1] - sp[0, 0]) / scene.render.fps:.1f} s; {len(coolant.wet_parts(scene))} wet parts"
+    # task 0257: the tool turns at 15,000 rpm – its air layer turns part of the jets away
+    from ..core import coolant as core
+    rpm = coolant.rpm_at(coolant.root(), f)
+    _check(rpm == 15000, f"the coolant reads {rpm} rpm, not the program's 15000")
+    _z, radius = coolant._tool_at(scene, coolant.root(), f)
+    v = core.rim_speed(rpm, radius)
+    share = core.deflect_share(v, scene.fresing.coolant.flow)
+    _check(share > 0.1, f"at {v:.1f} m/s the air layer turns away only {share:.0%} of the jets")
+    return (f"flood {(sp[0, 1] - sp[0, 0]) / scene.render.fps:.1f} s; {len(coolant.wet_parts(scene))} wet parts; "
+            f"tool {v:.1f} m/s, {share:.0%} of the jets turned away")
 
 
 def _check_air(scene):
@@ -4664,10 +4673,12 @@ stop("air", MACH, "air", "Air blast",
      check=_check_air, auto="clip", since="0.2.47", changed="0.2.195")
 
 stop("coolant", MACH, "coolant", "Coolant (flood)",
-     "The bit cuts a pocket with flood coolant (M8 … M9): two blue hoses squirt milky coolant at the tool, drops "
-     "fly off it, the block gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
+     "The bit cuts a pocket with flood coolant (M8 … M9) at 15,000 rpm: two blue hoses squirt milky coolant at the "
+     "tool; just before the tool the jets' ends bend round with the turn and break into a fine mist that swirls "
+     "round it, and a fast, fine, flat spray flies off in the turning direction at the jets' height; the block "
+     "gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
      animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
-     changed="0.2.195")
+     changed="0.2.199")
 
 
 def _check_setup(scene):

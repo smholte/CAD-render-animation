@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0257 coolant at the tool</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2rem;border-bottom:2px solid var(--acc);font-size:1.15rem}
+.pics{display:flex;gap:10px;flex-wrap:wrap}figure{margin:0;flex:1 1 300px;max-width:100%}
+video{width:100%;height:auto;border:1px solid var(--line);display:block;background:#000}figcaption,.d{font-size:.85rem;color:var(--mut)}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+</style></head><body><main>
+<h1>Coolant at the spinning tool (task 0257)</h1>
+<div class="card">The test mill's Ø10 mm end mill cuts a 2 mm side step along the block with flood coolant from the two automatic
+hoses, at three spindle speeds. Each clip is 36 frames of the 25 fps video (1.4 s) played at <b>half speed</b>; Cycles on the processor,
+24 samples, no denoising (hence the grain). Left: as the app drew it before; right: now. Judge: does the slow tool look wet and
+drippy, the middle one a flat spray, the fast one a finer, faster spray with the jets' ends bent round?</div>
+<h2>1,000 rpm – rim 0.52 m/s: a film on the tool, shed in streams</h2>
+<p class="d">Drops about 2.4 mm; film share 98 %; jets turned away by the air layer 0 % (flow 0.7).</p>
+<div class="pics"><figure><video src="img/before_1000.mp4" poster="img/before_1000.jpg" controls loop muted playsinline></video><figcaption>Before (0.2.198): the same splash at every speed</figcaption></figure>
+<figure><video src="img/after_1000.mp4" poster="img/after_1000.jpg" controls loop muted playsinline></video><figcaption>After (task 0257)</figcaption></figure></div>
+<h2>6,000 rpm – rim 3.14 m/s: a flat, fast spray</h2>
+<p class="d">Drops about 0.54 mm; film share 0 %; jets turned away by the air layer 0 % (flow 0.7).</p>
+<div class="pics"><figure><video src="img/before_6000.mp4" poster="img/before_6000.jpg" controls loop muted playsinline></video><figcaption>Before (0.2.198): the same splash at every speed</figcaption></figure>
+<figure><video src="img/after_6000.mp4" poster="img/after_6000.jpg" controls loop muted playsinline></video><figcaption>After (task 0257)</figcaption></figure></div>
+<h2>15,000 rpm – rim 7.85 m/s: a flat, fast spray</h2>
+<p class="d">Drops about 0.22 mm; film share 0 %; jets turned away by the air layer 31 % (flow 0.7).</p>
+<div class="pics"><figure><video src="img/before_15000.mp4" poster="img/before_15000.jpg" controls loop muted playsinline></video><figcaption>Before (0.2.198): the same splash at every speed</figcaption></figure>
+<figure><video src="img/after_15000.mp4" poster="img/after_15000.jpg" controls loop muted playsinline></video><figcaption>After (task 0257)</figcaption></figure></div>
+
+<p class="d">Numbers: numbers.json. The rules are in the task's report (tasks/0257-coolant-at-the-spinning-tool.md).</p>
+</main></body></html>
