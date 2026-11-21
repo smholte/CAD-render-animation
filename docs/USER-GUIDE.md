@@ -714,7 +714,10 @@ report ("BOOM is now called MAIN BOOM"). Names the app makes itself – the numb
 matched by their shape and place, never by that number. A group without a name ("Node 5") follows its parts: work
 on it – a Hide or Show step, the eye in 2 Structure, an Assembly sequence – stays on the same parts when another group
 is added or removed, when the new revision moves the group (its parts with names of their own are found by
-name wherever they went), and when only that group is left in the file. Names with letters such as å or ö stay as they are, also when another line of an older OBJ file
+name wherever they went), and when only that group is left in the file. When the group moved and one of its parts
+also changed shape, or its parts have no names either, its parts are found by their shape and the move they share;
+a part that changed keeps its work too, and the report says what happened ("Node 4 moved 100 mm; 1 part changed –
+its work is kept"). Names with letters such as å or ö stay as they are, also when another line of an older OBJ file
 is in Windows' own code page. A change to the files next to the model – the OBJ's material
 file (.mtl), a picture or a glTF's .bin – is noticed too: the model is read again, also by a new import. The file's
 own looks stay in the project when no part shows them (a group with another look), so **From file** always brings
@@ -3385,7 +3388,7 @@ the machine himself, or for your website.
 **File size.** The page holds the model packed (the browser unpacks it as it opens), so the
 page is about as big as the `.glb`, not a third bigger. Pictures are saved as WebP where that is smaller and as
 faithful as JPG (every current browser reads WebP); a part that is in the project twice with the same shape is stored
-once. Pages exported before stay as they were; export again to get the smaller page. Measured on the old demo project (a cable-lay vessel, before version 0.2.186; 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
+once. Pages exported before stay as they were; export again to get the smaller page. Measured on the old demo project (a cable-lay vessel, before version 0.2.187; 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.

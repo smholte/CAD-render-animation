@@ -205,6 +205,7 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
                     progress = True
                 if not progress or t is not None:
                     break
+    _shifted_made_parts(old, new, pairs, take, used_old, used_new, move_tolerance)
     _made_assemblies(old, new, pairs, take, used_old, used_new, move_tolerance)
     return pairs
 
@@ -241,21 +242,232 @@ def _made_assemblies(old, new, pairs, take, used_old, used_new, tol) -> None:
             if not (ro.get("made") or rn.get("made")) or ro["kind"] != rn["kind"]:
                 continue
             votes[(id(ro), id(rn))] = votes.get((id(ro), id(rn)), 0) + 1
-            shifts.setdefault((id(ro), id(rn)), []).append(n["centre"] - o["centre"])
+            shifts.setdefault((id(ro), id(rn)), []).append(
+                (n["centre"] - o["centre"], o.get("shape") == n.get("shape")))
+        only: dict = {}                           # the groups each group's paired parts went to / came from
+        for io, jn in votes:
+            only.setdefault(io, set()).add(jn)
+            only.setdefault(jn, set()).add(io)
         ranked = sorted(votes.items(), key=lambda kv: -kv[1])
         by_id = {id(r): r for r in old + new}
         progress = False
-        for (io, jn), _count in ranked:
+        for (io, jn), count in ranked:
             ro, rn = by_id[io], by_id[jn]
             if id(ro) in used_old or id(rn) in used_new:
                 continue
             moved = rn["pos"] - ro["pos"]
-            if moved.length > tol and not all((d - moved).length <= tol for d in shifts[(io, jn)]):
-                continue                          # not in the same place, and its parts did not move with it
+            if moved.length > tol and not _moved_along(moved, shifts[(io, jn)], tol) \
+                    and not (count >= 2 and only.get(io) == {jn} and only.get(jn) == {io}):
+                continue                          # not in the same place, its parts did not move with it, and
+                #                                   they did not all stay together (task 0237: re-arranged)
             take(ro, rn)
             progress = True
         if not progress:
             return
+
+
+def _moved_along(moved, shifts, tol) -> bool:
+    """Did a group's parts move with the group (task 0237, 0209 row 5)? ``shifts``: (the part's box-middle shift,
+    its shape unchanged). A part whose shape changed has another box middle and does not veto: the parts of
+    unchanged shape vote (all parts when every one changed), and more than half of them must have moved by just as
+    much as the group. A real re-arrangement (most parts elsewhere in the group) still fails."""
+    voters = [d for d, same in shifts if same] or [d for d, _same in shifts]
+    agree = sum(1 for d in voters if (d - moved).length <= tol)
+    return 2 * agree > len(voters)
+
+
+def _shifted_made_parts(old, new, pairs, take, used_old, used_new, tol) -> None:
+    """Parts with no name in the file ("Node 7") inside a group the revision moved (task 0237, 0209 row 5): the
+    name rules and "same shape in the same place" leave them all unpaired. Per pair of groups (an old and a new
+    group not yet paired elsewhere, or already paired with each other), the shift most of their same-shaped unpaired
+    parts share is the group's move: those parts pair by shape at that shift; then a part that is the only one of
+    its shape on both sides (re-arranged inside the group); then a part left over on both sides whose box middle
+    sits where the move puts it, give or take half its change in size, is the same part changed (``changed``)."""
+    rec_of = {r["ob"].name: r for r in old + new if "ob" in r}
+    if not rec_of:
+        return
+
+    def parent(r):
+        p = build.logical_parent(r["ob"]) if "ob" in r else None
+        return rec_of.get(p.name) if p is not None else None
+
+    def loose(recs, used):
+        out: dict = {}
+        for r in recs:
+            if id(r) in used or r["kind"] != "part" or not r.get("made_self") or not r.get("shape"):
+                continue
+            p = parent(r)
+            if p is not None:
+                out.setdefault(id(p), []).append(r)
+        return out
+    by_parent_o, by_parent_n = loose(old, used_old), loose(new, used_new)
+    if not by_parent_o or not by_parent_n:
+        return
+    # where the groups' paired parts went: a group pair is only a candidate when neither sent parts elsewhere
+    went: dict = {}
+    for o, n in pairs:
+        po, pn = parent(o), parent(n)
+        if po is not None and pn is not None:
+            went.setdefault(("o", id(po)), set()).add(id(pn))
+            went.setdefault(("n", id(pn)), set()).add(id(po))
+    paired = {id(o): id(n) for o, n in pairs}
+    paired_n = {id(n): id(o) for o, n in pairs}
+    by_id = {id(r): r for r in old + new}
+
+    def fits(io, jn) -> bool:
+        po, pn = by_id[io], by_id[jn]
+        if po["kind"] != pn["kind"]:
+            return False
+        if io in paired or jn in paired_n:
+            return paired.get(io) == jn
+        return went.get(("o", io), {jn}) == {jn} and went.get(("n", jn), {io}) == {io}
+
+    parents_of_shape: dict = {}                   # only group pairs that share a shape are looked at
+    for jn, ns in by_parent_n.items():
+        for n in ns:
+            parents_of_shape.setdefault(n["shape"], set()).add(jn)
+    ranked = []
+    for io, os_ in by_parent_o.items():
+        for jn in set().union(*(parents_of_shape.get(o["shape"], set()) for o in os_)):
+            if not fits(io, jn):
+                continue
+            ns = by_parent_n[jn]
+            count, shift = _best_shift(os_, ns, tol)
+            if count and 2 * count >= max(len(os_), len(ns)):    # else most of their parts went elsewhere
+                ranked.append((count, io, jn, shift))
+    ranked.sort(key=lambda t: -t[0])
+    done_o: set = set()
+    done_n: set = set()
+    for _count, io, jn, shift in ranked:
+        if io in done_o or jn in done_n:
+            continue
+        done_o.add(io)
+        done_n.add(jn)
+        os_ = [o for o in by_parent_o[io] if id(o) not in used_old]
+        ns = [n for n in by_parent_n[jn] if id(n) not in used_new]
+        trees = _shape_trees(ns)
+        for o in os_:
+            hit = trees.get(o["shape"])
+            if hit is None:
+                continue
+            tree, recs = hit
+            for _co, j, _dist in tree.find_range(o["centre"] + shift, tol):
+                if id(recs[j]) not in used_new:
+                    take(o, recs[j])
+                    break
+        os_ = [o for o in os_ if id(o) not in used_old]
+        ns = [n for n in ns if id(n) not in used_new]
+        # a part re-arranged inside the group: the only one of its shape on both sides is the same part
+        so = _counts(o["shape"] for o in os_)
+        sn = _counts(n["shape"] for n in ns)
+        for o in os_:
+            if so[o["shape"]] == 1 and sn.get(o["shape"]) == 1:
+                take(o, next(n for n in ns if n["shape"] == o["shape"]))
+        os_ = [o for o in os_ if id(o) not in used_old]
+        ns = [n for n in ns if id(n) not in used_new]
+        if not os_ or not ns or len(os_) * len(ns) > 40000:
+            continue
+        cand = []
+        for i, o in enumerate(os_):
+            for j, n in enumerate(ns):
+                off = n["centre"] - o["centre"] - shift
+                grow = [abs(a - b) / 20000.0 for a, b in zip(o["shape"][1:], n["shape"][1:])]   # half, in m
+                if all(abs(off[k]) <= tol + grow[k] for k in range(3)):
+                    cand.append((off.length, i, j))
+        for _dist, i, j in sorted(cand):
+            if id(os_[i]) not in used_old and id(ns[j]) not in used_new:
+                take(os_[i], ns[j])
+                os_[i]["changed"] = True
+
+
+def _shape_trees(recs) -> dict:
+    """{shape: (k-d tree of the box middles, the records)}."""
+    from mathutils.kdtree import KDTree
+    groups: dict = {}
+    for r in recs:
+        groups.setdefault(r["shape"], []).append(r)
+    out = {}
+    for shape, rs in groups.items():
+        tree = KDTree(len(rs))
+        for j, r in enumerate(rs):
+            tree.insert(r["centre"], j)
+        tree.balance()
+        out[shape] = (tree, rs)
+    return out
+
+
+def _best_shift(os_, ns, tol, tries: int = 64) -> tuple:
+    """(how many of ``os_`` have a same-shaped part of ``ns`` at that shift, the shift) for the shift most of them
+    share. The shifts tried come from the rarest shapes first (a bolt of 1,000 says little), at most ``tries``;
+    each is counted with one k-d tree per shape, so 3,000 parts cost milliseconds, not every pair."""
+    trees = _shape_trees(ns)
+    olds: dict = {}
+    for o in os_:
+        if o["shape"] in trees:
+            olds.setdefault(o["shape"], []).append(o)
+    if not olds:
+        return 0, None
+    tried: list = []
+    for shape in sorted(olds, key=lambda k: len(olds[k]) * len(trees[k][1])):
+        for o in olds[shape]:
+            for n in trees[shape][1]:
+                d = n["centre"] - o["centre"]
+                if not any((d - e).length <= tol for e in tried):
+                    tried.append(d)
+                if len(tried) >= tries:
+                    break
+            if len(tried) >= tries:
+                break
+        if len(tried) >= tries:
+            break
+    best = (0, None)
+    for d in tried:
+        count = 0
+        for shape, os_s in olds.items():
+            tree = trees[shape][0]
+            for o in os_s:
+                dist = tree.find(o["centre"] + d)[2]
+                count += dist is not None and dist <= tol
+        if count > best[0]:
+            best = (count, d)
+    return best
+
+
+def _counts(items) -> dict:
+    out: dict = {}
+    for k in items:
+        out[k] = out.get(k, 0) + 1
+    return out
+
+
+def _group_notes(pairs, tol) -> list[str]:
+    """One line per group with a name the mesh reader made that the revision moved (task 0237): "Node 4 moved
+    100 mm; 1 part changed – its work is kept"."""
+    by_parent: dict = {}
+    for o, n in pairs:
+        if o["kind"] != "part" or "ob" not in o:
+            continue
+        po, pn = build.logical_parent(o["ob"]), build.logical_parent(n["ob"])
+        if po is not None and pn is not None:
+            by_parent.setdefault((po.name, pn.name), []).append((o, n))
+    out = []
+    for o, n in pairs:
+        if o["kind"] != "assembly" or not o.get("made_self") or "ob" not in o or "pos" not in n:
+            continue
+        kids = by_parent.get((o["ob"].name, n["ob"].name), [])
+        same = [b["centre"] - a["centre"] for a, b in kids if a.get("shape") == b.get("shape")]
+        if not same:
+            continue
+        same.sort(key=lambda d: d.length)
+        moved = same[len(same) // 2]                       # the median part's move
+        if moved.length <= tol:
+            continue
+        changed = sum(1 for a, b in kids if a.get("shape") != b.get("shape"))
+        line = f"{o['ob'].get(build.PROP_NAME, o['ob'].name)} moved {moved.length * 1000:.0f} mm"
+        if changed:
+            line += f"; {plural(changed, 'part')} changed"
+        out.append(line + " – its work is kept")
+    return out
 
 
 def _made_root(old_recs, new_root, pairs) -> list[tuple[dict, dict]]:
@@ -551,6 +763,7 @@ def _carry_over(context, st) -> dict:
     pairs += _made_root(old_recs, new_root, pairs)
     renamed = [f"{o['ob'].get(build.PROP_NAME, '')} is now called {n['ob'].get(build.PROP_NAME, '')}: same shape "
                "and place, it kept its work" for o, n in pairs if o.get("renamed")]      # task 0117
+    renamed += _group_notes(pairs, 0.005)                                       # task 0237
     mapping = {old_root.get(build.PROP_UID): new_root.get(build.PROP_UID)}
     by_uid_new = joints.PartLookup({old_root.get(build.PROP_UID): new_root})
     for r in old_recs:                       # parts that are gone: their IDs must not hit a new part

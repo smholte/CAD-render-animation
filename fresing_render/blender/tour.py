@@ -472,7 +472,7 @@ def _logo(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.186")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.187")
 def build_crane(b: Build):
     import bpy
 
@@ -4811,7 +4811,7 @@ stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "her place, her crane slews and lowers its hook, the rotors turn, night falls. This stop only checks that the "
      "demo is there.",
      where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
-     auto=lambda ctx, scene, st: "", changed="0.2.186")
+     auto=lambda ctx, scene, st: "", changed="0.2.187")
 
 def _check_panel_back(scene):
     """The header button and its operator (task 0198)."""
