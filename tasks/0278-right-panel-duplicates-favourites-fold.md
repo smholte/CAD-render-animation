@@ -1,6 +1,6 @@
 # 0278 – Live preview and Build & play only on the left panel; Favourites folds like the other sections and remembers it
 
-**Who:** worker · **Status:** open – can start (0271 merged as 0.2.201; before 0272 – both change `prefs.py`) · **Branch:** `task/0278-left-panel-only`
+**Who:** worker · **Status:** running · **Branch:** `task/0278-left-panel-only`
 **Started by:** lead, 21 Nov 2026 (owner 20:02, screenshot of 0.2.197 with the crane lesson done: "the live preview under
 5 Scene and Render can be removed because it's now always available on the left menu. The same for Build and play.
 Favourites section on the left should be possible to fold in like other functions; this one remembers its position
