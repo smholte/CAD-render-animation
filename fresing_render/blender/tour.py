@@ -488,7 +488,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.189")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.194")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1118,7 +1118,7 @@ def offshore_structure(scene) -> dict:
     return made
 
 
-@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.194")
+@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.195")
 def build_marine(b: Build):
     """Task 0234: the marine looks on a monopile in the open sea (study 0224: the pile standing in the real sea with
     the sea cut-away, the waterline from the sea, the whole pile in frame)."""
@@ -2153,7 +2153,7 @@ def _check_served(scene):
 SEA_ANIM = "Cable into the sea"
 
 
-@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.194")
+@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.195")
 def build_sea(b: Build):
     from . import paths, paths_sea
     sc = b.scene
@@ -2246,7 +2246,7 @@ def _check_sea_cable(scene):
 VESSEL_ANIM = "Vessel at work"
 
 
-@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127", changed="0.2.194")
+@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127", changed="0.2.195")
 def build_vessel_work(b: Build):
     """Task 0154: a workboat with two azimuths and a bow thruster sails ahead at 8 knots, then pushes sideways."""
     from mathutils import Matrix, Vector
@@ -2301,7 +2301,7 @@ def _check_vessel_work(scene):
 MOVING_ANIM = "Over the stern"
 
 
-@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.194")
+@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.195")
 def build_moving(b: Build):
     from . import paths
     sc = b.scene
@@ -3561,7 +3561,7 @@ VESSEL_ANIM = "Vessel at sea"
 VESSEL_PROPS = ("PERSON", "IBC")          # (a 20 ft container dwarfs the 2 m test crane)
 
 
-@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.194")
+@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.195")
 def build_vessel(b: Build):
     from mathutils import Vector
 
@@ -4298,7 +4298,7 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      "a light grey concrete mattress lies round the pile on the seabed.",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
            "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
-     check=_check_marine, changed="0.2.194")
+     check=_check_marine, changed="0.2.195")
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
@@ -4311,7 +4311,7 @@ stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
      "fall with the long waves while the boom goes up. The sea, the sky and the camera stay put.",
      where="5 Scene & Render > Vessel motion; Props for scale", since="0.2.65", animation=VESSEL_ANIM,
-     at=0.5, play=True, check=_check_vessel, auto="clip", changed="0.2.194")
+     at=0.5, play=True, check=_check_vessel, auto="clip", changed="0.2.195")
 stop("weather", LOOK, "weather", "Weather: grey North Sea",
      "The crane on the quay in grey North Sea weather: overcast, a strong breeze, drizzle slanting in the wind and "
      "haze in the distance; the crane and the quay look wet (darker, glossy, puddles on flat parts).",
@@ -4453,7 +4453,7 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "horn and the orange CPS set goes over the horn and down the curve on the cable. A label of four lines points "
      "at the touch-down: Lay data, the top tension, the layback and the speed (60 m/min while it pays out).",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
-     check=_check_sea_cable, auto="clip", changed="0.2.194")
+     check=_check_sea_cable, auto="clip", changed="0.2.195")
 stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
      "A blue workboat (a fine bow under a raised forecastle, a white wheelhouse) sails ahead, seen from close by off "
      "its port bow: a white wake trails behind its stern, fading and breaking up; its waves fan out "
@@ -4461,7 +4461,7 @@ stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
      "slows to a stop and pushes sideways: the azimuths under the stern swing round, the wake fades, and white, boiling "
      "jets stream out from the port side – the bow thruster's and the azimuths' – while the propellers turn.",
      where="5 Scene & Render > Vessel at work; 6 Animation: Vessel at work step", animation=VESSEL_ANIM, play=True,
-     since="0.2.127", check=_check_vessel_work, auto="clip", changed="0.2.194")
+     since="0.2.127", check=_check_vessel_work, auto="clip", changed="0.2.195")
 stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
@@ -4472,7 +4472,7 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "travels and the block goes down, and the head sheave turns with it.",
      where="4 Motion > Cables and paths (Winch keeps it tight, Let go here, Into the sea > Settles in)",
      animation=MOVING_ANIM, play=True,
-     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.194")
+     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.195")
 stop("swivel", MOTION, "swivel", "Sheave turns to follow its wire",
      "A yellow deck davit slews 45° one way, 90° back and home again. Its grey wire comes from a fairlead on the deck, "
      "over a sheave under the arm's tip and straight down into the orange hook block. The sheave hangs in a swivel "
@@ -4744,7 +4744,9 @@ def _check_web3d(scene):
     out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_")
     os.makedirs(out_dir, exist_ok=True)
     scene.fresing.web3d.texture_size = "512"
-    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512)
+    from . import web3d_film                             # task 0252: the built camera animation gives the page a Film
+    film = web3d_film.camera(scene) is not None
+    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512, animation=film)
     with open(out["path"], "rb") as fh:
         data = fh.read()
     bad = core.problems(data)
@@ -4759,6 +4761,7 @@ def _check_web3d(scene):
     with open(out["html"], encoding="utf-8") as fh:
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
+    _check(film and len(st.get("films") or []) == 1, "the page has no Film (the camera animation is built)")
     from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø40)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
@@ -4767,7 +4770,8 @@ def _check_web3d(scene):
     _check("fr_tools" in open(out["html"], encoding="utf-8").read() or "partTools" in
            open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
-            f"{len(st['views'])} saved views; faces for measuring in {len(faces)} meshes, "
+            f"{len(st['views'])} saved views; Film {out.get('film_keys', 0)} of {out.get('film_frames', 0)} frames; "
+            f"faces for measuring in {len(faces)} meshes, "
             f"{sum(len(e) for e in edges.values())} edges")
 
 
@@ -4854,8 +4858,12 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "between them; move the pointer close to an edge – it lights up orange – and click it: a straight edge gives its "
      "length, a hole's rim its Ø; two edges: the distance between them; the numbers never cover each other), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
      "faces red; add a second slice, Edit one and drag its arrow or a yellow knob, Delete it with the ×) and Fade the "
-     "rest (click a part: the rest goes see-through).",
-     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d, changed="0.2.175")
+     "rest (click a part: the rest goes see-through). The animation 'Camera rides and flies' is built, so the page "
+     "plays it with a Film button (a film camera) at the end of the play bar: pressed, the page shows the motion through "
+     "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
+     "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
+     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
+     check=_check_web3d, changed="0.2.194")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "

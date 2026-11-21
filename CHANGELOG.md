@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.194 – 21 Nov 2026 – Test tour: the offshore sets in the open sea (task 0234)
+## 0.2.195 – 21 Nov 2026 – Test tour: the offshore sets in the open sea (task 0234)
 
 - **Marine looks** in the test tour now show on a monopile standing in the open sea: its transition piece and platform
   above the water, and through a cut-away the pile right down to its toe 9 m in the seabed – growth below the sea's
@@ -15,6 +15,19 @@ installer of that version was built from.
   bottom, round bilges, a fine bow under a raised forecastle and a deckhouse – and the workboat is seen from close by.
   The app now also reads their bow from the hull, so the wake and the bow wave sit at the right end.
 - Nothing in the app itself changed; open the test tour (Help > Make test tour project) to see the new sets.
+## 0.2.194 – 21 Nov 2026 – Web 3D page: Film – the motion through the video's camera (task 0252)
+
+- **Film on the web page.** A web 3D model of a project whose animation has camera steps (Move to, Cut, Ride along,
+  Fly a path, Keep a part in the middle), exported with **Include animation**, gets a **Film** button at the end of
+  the page's play bar. Pressed, the page plays the motion **seen through the video's camera** – the same shots,
+  camera moves, cuts and zoom as the rendered video – with the page's own light. The time line, Space, the arrow keys
+  and the speed move it along. A drag or zoom leaves the Film while the motion plays on; the button then has an orange
+  ring and one press glides back. A copied link opens the page in the Film. The page still opens in the free view.
+- **Captions, labels, title and end card on the Film.** Three new tick boxes under Include animation (only when the
+  project has a built Animation camera; all off by default): **Film: captions**, **Film: labels** (the part labels
+  with their lines, riding on their parts) and **Film: title and end card**. They show only while the Film is on.
+- The Film costs a few KB (the test crane: 4 KB) and the page draws as fast with it as without.
+
 ## 0.2.193 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
 
 - **Houses from House Planner:** Fresing Render follows the Toolbox format's bug-fix version 0.1.1. A job whose file

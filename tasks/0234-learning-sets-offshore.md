@@ -1,6 +1,6 @@
 # 0234 – Learning sets in the full ocean: marine looks, vessel motion, vessel at work, cable into the sea, cable on a moving part
 
-**Who:** worker · **Status:** done (0.2.194) · **Branch:** `task/0234-learning-sets-offshore`
+**Who:** worker · **Status:** done (0.2.195) · **Branch:** `task/0234-learning-sets-offshore`
 **Started by:** lead, 20 Nov 2026 (study 0224 package B; owner's answers 20 Nov: each set its own fitting environment –
 "to a full ocean") · **Model:** Opus · effort Medium
 **Area:** `blender/tour.py` – **only** the sets `marine`, `vessel`, `vessel_work`, `sea_cable`, `moving_cable` and their
@@ -82,7 +82,7 @@ The cable-lay vessel's equipment and the demo ship's hull (`demo_model/` except 
   on, toe and platform inside the picture. `marine_demo` / `marine_camera` kept for the PC check's `looks.marine`.
   **vessel** – a person and an IBC tank behind the crane (a 20 ft container dwarfed the 2 m test crane), camera fitted
   to crane + props, check: they ride on the vessel. **vessel_work** – camera off the port bow at ~45 m.
-  **sea_cable** – lens 22 (the hull shows). **moving_cable** – new hull only. Stop texts and `changed="0.2.194"`;
+  **sea_cable** – lens 22 (the hull shows). **moving_cable** – new hull only. Stop texts and `changed="0.2.195"`;
   `tour_versions.py --record`.
 - Links: `offshore.thrusters` → vessel_work, `scene.sea_ground` → marine (the stop that opens the ground; sea_cable
   keeps the seabed closed, so the brief's sea_cable link would not show it), `scene.props` → vessel too.

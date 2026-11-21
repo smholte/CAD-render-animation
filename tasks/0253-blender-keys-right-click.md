@@ -1,6 +1,6 @@
 # 0253 – Blender's harmful keys swallowed, F12 / Ctrl+F12 render with the app, a short Fresing right-click menu (0222 package B)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0253-keys-right-click`
+**Who:** worker · **Status:** open – waits for 0260 (same lane, owner 21 Nov 14:44) · **Branch:** `task/0253-keys-right-click`
 **Started by:** lead, 21 Nov 2026 (study 0222 package B; the owner's answers 20 Nov 16:22) · **Model:** Opus · effort Medium
 **Area:** Start & learn lane –
 - `blender/lock.py`: the key list and its keymap code (`_KEYS`, `_add_keys`, `_remove_keys`, `blender_ui`) – the Client
