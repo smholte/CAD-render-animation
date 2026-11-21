@@ -3855,7 +3855,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.186")
+          changed="0.2.187")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4399,7 +4399,7 @@ stop("lifting_hook", MOTION, "lifting", "Lifting: Hook to here, crane use",
      "top, over the CoG. Hook & capacity shows the radius, the hook height, the boom, the chart row (next longer "
      "radius), the gross load (6 t + the rigging picked for it + the 0.45 t hook block), the crane use in % with "
      "'Within entered limits' and the hoist line pull on its 4 falls.",
-     where="8 Lifting plan > Hook & capacity", since="0.2.156", changed="0.2.186", check=_check_lifting_hook,
+     where="8 Lifting plan > Hook & capacity", since="0.2.156", changed="0.2.187", check=_check_lifting_hook,
      setup=_lift_rest)
 stop("lifting_rig", MOTION, "lifting", "Lifting: skid on a 4-leg sling",
      "The pump skid hangs on the AT-40's hook on a 4-leg grade 8 chain set (4 m legs, a 4.75 t bow shackle in each "
@@ -4407,13 +4407,13 @@ stop("lifting_rig", MOTION, "lifting", "Lifting: skid on a 4-leg sling",
      "few degrees with the CoG straight under the hook; 8 Lifting plan > Rigging lists each leg's angle and force – "
      "the legs nearest the CoG carry most – and the checks: sling legs (two legs carry, C3) and each shackle (C4). "
      "The hoist rope runs in its 4 falls over 2 head and 2 block sheaves to the winch drum.",
-     where="8 Lifting plan > Rigging", since="0.2.186", check=_check_lifting_rig, setup=_lift_rig)
+     where="8 Lifting plan > Rigging", since="0.2.187", check=_check_lifting_rig, setup=_lift_rig)
 stop("lifting_spreader", MOTION, "lifting", "Lifting: container on a frame",
      "The empty 20 ft container (2.3 t) hangs under the LF-20 lifting frame: two top legs from the hook to the "
      "frame, four short legs straight down to its top corner castings (found by name). Rigging shows the six legs "
      "– the four bottom ones nearly vertical – and the checks: the top legs (C2), the frame's WLL and each bottom leg "
      "and shackle (C4); none red.",
-     where="8 Lifting plan > Rigging", since="0.2.186", check=_check_lifting_spreader, setup=_lift_spreader)
+     where="8 Lifting plan > Rigging", since="0.2.187", check=_check_lifting_spreader, setup=_lift_spreader)
 
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "

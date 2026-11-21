@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.186 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
+## 0.2.187 – 21 Nov 2026 – Rigging and the hoist rope in its falls (task 0232)
 
 - **Rig the load.** 8 Lifting plan has a new step, **Rigging**: **Find lift points** puts a lift point in every padeye,
   lifting lug or container corner casting of the load (by their names); **Add lift point** lets you click them (a click
@@ -28,6 +28,17 @@ installer of that version was built from.
   efficiency of API RP 9B), against the winch's maximum.
 - Test tour: two new stops in the Lifting set – the pump skid on a 4-leg chain sling, the empty container on the
   lifting frame. PC check: two new lines (hang the skid; the AT-100's 8 falls).
+## 0.2.186 – 21 Nov 2026 – A mesh model update keeps the work on a moved group whose part changed (task 0237)
+
+- **Updating a glTF, OBJ or FBX model no longer loses work** when a group without a name in the file ("Node 4") was
+  moved in the new revision **and** one of its parts changed (for example 20 mm wider). The Hide step, the eye in
+  2 Structure and the joints on that group and its parts stay. Before, the update said "6 parts kept" but the Hide
+  step and the eye were gone – or, when the parts had no names either, "4 kept, 2 new, 2 missing" and the joint was
+  deleted.
+- Parts without a name in a moved group are now found by their shape and the move they share (also when the whole
+  group of 3,000 parts moved: before, all 3,000 came back as new). A part that changed shape keeps its work, and so
+  does a part that only moved to another place inside the group.
+- The update report says what happened: "Node 4 moved 100 mm; 1 part changed – its work is kept".
 ## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
 
 The person who changes the tools now stands at the same spot in front of the machine wherever you place or turn the machine, with a little more room, so their hands no longer go into the cabinet.
