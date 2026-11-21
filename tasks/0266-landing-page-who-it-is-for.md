@@ -1,6 +1,6 @@
 # 0266 – Landing page and README: who Fresing Render is for (engineers, sales, animators) – "it speeds animators up, it does not replace them"
 
-**Who:** worker · **Status:** open – can start (not a code task: site + docs only) · **Branch:**
+**Who:** worker · **Status:** done · **Branch:**
 `task/0266-landing-page-who-it-is-for`
 **Started by:** lead, 21 Nov 2026 (owner 15:54: marketing that also gives animators hope – many fear losing their jobs;
 Fresing Render makes animation easier for animators, lets engineers make renders and animations of their machines and
@@ -84,10 +84,10 @@ welcome texts; the 3D web page.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026.
 
-**What changed:**
+**What changed:** Hero line replaced; new section "Who it is for" (tagline, Engineers / Sales teams / Animators, the four points; nav link) in `site/index.html` + a few styles; README opening; new `docs/DESCRIPTION.md` (25 / 60 / ~120 words, four points); `test_who_it_is_for_section`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine): `tests/test_site.py` 27 passed; page built, no sideways scroll at 1280 and 400 px; screenshots in `tasks/img/0266/`. GitHub docs run green (4 min). 1 run.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** The live-page check after the push to main is noted below if it was done. The Fresing company website will use `docs/DESCRIPTION.md` later.
