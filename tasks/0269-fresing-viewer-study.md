@@ -316,8 +316,19 @@ it found was re-done.
 
 - **Repository:** `smholte/fresing-viewer` agreed – the owner makes it. The later fresing.nl address is decided later.
 - **App mark:** "Fv" – yes (the Fresing lead still checks it against the Brand Specification).
-- **Licence:** the owner asked for the options with their pros and cons (given in the chat: MIT, GPL-3.0, MPL-2.0,
-  own licence / closed) – open.
-- **Browsers:** the owner asked why Firefox cannot send to Fresing Render – explained in the chat (the Toolbox folder
-  needs the File System Access API, Chromium browsers only; ways round it listed) – open.
-- **Unattended make:** the owner asked what it means – explained in the chat (automatic draft / open first / both) – open.
+- **Licence:** **MIT for the Viewer.** The shared 3D-page files of Fresing Render (`fresing_render/web/fr_*.js` – the
+  player the Viewer copies, Proposal A in section 3) are **also offered under MIT** (dual licence "GPL-3.0-or-later or
+  MIT" for those files only); the rest of Fresing Render stays GPL-3.0-or-later. (Options given in the chat: MIT,
+  GPL-3.0, MPL-2.0, own licence / closed.) → V1 marks the files, V2–V6 are MIT; the reader stays LGPL-2.1 as its own file.
+- **Browsers:** full sending through the Toolbox folder in **Chrome / Edge**. **Firefox and Safari** get **"Save for
+  Fresing Render"** (a download, then drag it into Fresing Render; results back the same way by dragging) plus **one
+  plain line** saying why sending is not there (their browsers give a web page no folder on the PC). The ToolBox window
+  (ToolBox step A) later makes the browser not matter. **No local connection** (no network port, as the format says).
+  → V3 (download + the line), V5 (sending).
+- **Unattended make: option C, with one click.** The Viewer's job waits in Fresing Render until the owner presses
+  **"Make now"** once – **never a draft with no click**. Then Fresing Render makes the automatic draft (its sorting
+  rules and the STEP's colours, the Viewer's view as camera) and sends it back; the Viewer shows it marked **"Quick draft
+  – open in Fresing Render to finish"**. To finish: open the same project in Fresing Render, adjust, and send it again
+  with Make > Send to Fresing Viewer (that result is not marked as a draft). → V4 (the `make` action marks its reply:
+  `options.draft = true`), V5 (the mark in the results shelf).
+- **The lead writes the V-tasks** (V1–V6, section 8) with these answers.

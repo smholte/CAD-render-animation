@@ -40,7 +40,7 @@ starts no service (searched in `Install-FresingRender.ps1`).
 
 | # | What | When | Where to | In the code |
 | --- | --- | --- | --- | --- |
-| 1 | **Update check**: reads one small file, `index.json` (the newest version's number, size and checksum), and `changelog.json` | a few seconds after the app starts, if **Edit > Preferences > Add-ons > Fresing Render > "Check for updates at start-up"** is on (it is by default) and Blender's online access is on; also when the user clicks **Check now** / Help > Check for Fresing Render updates | `https://github.com/smholte/CAD-render-animation/releases/latest/download/index.json` (GitHub redirects to its download servers), **or** the address in `fresing_update.json`, **or** a network folder (below) | `core/updates.py` lines 271–278 (`urlopen`), 281 (`fetch_json`), 349 (`check`), 389 (`index_url_from`); `blender/updates.py` 119 (`check_now`), 137 (`check_in_background`), 172 (`_startup_check`); `blender/prefs.py` 28 |
+| 1 | **Update check**: reads one small file, `index.json` (the newest version's number, size and checksum), and `changelog.json` | a few seconds after the app starts, if **Fresing > Settings… > Updates > "Check for updates at start-up"** is on (it is by default) and Blender's online access is on; also when the user clicks **Check now** / Help > Check for Fresing Render updates | `https://github.com/smholte/CAD-render-animation/releases/latest/download/index.json` (GitHub redirects to its download servers), **or** the address in `fresing_update.json`, **or** a network folder (below) | `core/updates.py` lines 271–278 (`urlopen`), 281 (`fetch_json`), 349 (`check`), 389 (`index_url_from`); `blender/updates.py` 119 (`check_now`), 137 (`check_in_background`), 172 (`_startup_check`); `blender/prefs.py` 28 |
 | 2 | **Update download**: the extension zip of the new version, checked against the size and SHA-256 in `index.json` | only when the user clicks **Update now** | the address in `index.json` (a GitHub release file) | `core/updates.py` 311 (`download`); `blender/updates.py` 311 (`start_download`) |
 | 3 | **The same check, once**, inside the self-test and the PC-check line "Update check" | when the user runs them | as 1 | `selftest.py` 238–258; `pccheck/checks.py` 4261 |
 | 4 | **Links that open the web browser** | only when the user clicks one: "What's new" release page, "How to get free 360° photos" | `github.com/smholte/CAD-render-animation` pages | `blender/updates.py` 652; `blender/welcome.py` 501; `blender/ui.py` 38 and 990 |
@@ -84,8 +84,8 @@ contacts nothing except its own update check. The Windows test of every release 
 start after an install. A company that wants no Blender extension traffic at all can also block `extensions.blender.org`
 – the app does not need it.
 
-**Switching the update check off:** untick **Check for updates at start-up** (Edit > Preferences > Add-ons > Fresing
-Render), or switch Blender's online access off (Edit > Preferences > System > Network): then the app contacts no
+**Switching the update check off:** untick **Check for updates at start-up** (Fresing > Settings… > Updates; the same setting as before in Edit >
+Preferences > Add-ons > Fresing Render), or switch Blender's online access off (Edit > Preferences > System > Network): then the app contacts no
 server at all. New versions then come by running the new installer.
 
 ## Holding one approved version

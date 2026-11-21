@@ -67,10 +67,10 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 93, "tour2": 2, "tourui": 15, "layout": 66,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 94, "tour2": 2, "tourui": 15, "layout": 66,
               "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31, "lesson": 40, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 78, "left": 30, "toolbox": 19,
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 78, "left": 30, "settings": 34, "toolbox": 19,
               "clientkeys": 12, "demokits": 23, "drawn": 25, "backups": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
@@ -90,7 +90,7 @@ GROUPS = {
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox"],        # toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
-    "ui": ["ui1", "spool", "layout", "left"],     # spool: task 0080, about 1 minute; left: task 0260
+    "ui": ["ui1", "spool", "layout", "left", "settings"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
     "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake"],   # lifting: 0201; liftingmake: 0204
@@ -179,6 +179,10 @@ TESTS = {
     "start": ("Real app: Start here – the welcome of a new user (three starts, Later, never, Take the test tour), What's "
               "new after an update (functions, the tour of only the new and changed models), the Fresing menu in "
               "every workspace (ui_test_start.py)", "ui_test_start.py", True),
+    "settings": ("Real app: Fresing Settings – Fresing > Settings… opens one window, each tab clicked draws its page, "
+                 "it stays open, opens again on the last tab, My usage… opens it on My usage, the Client view opens it; "
+                 "a played animation with no input adds no time to My usage (ui_test_settings.py)",
+                 "ui_test_settings.py", True),
     "usage": ("Real app: the usage tracker – the favourites bar sorted at a start, a click on a favourite, a click counted "
               "with its panel, the question about an unused panel and Hide, My usage, Back as it came "
               "(ui_test_usage.py)", "ui_test_usage.py", True),
@@ -330,7 +334,7 @@ def main(argv=None) -> int:
             env.update(FRESING_WELCOME_TEST="1")
         if key == "backups":                         # task 0246: backups and the start question with simulated events
             env.update(FRESING_BACKUP_TEST="1")
-        if key == "usage":                           # task 0181: the usage tracker counts although events are simulated
+        if key in ("usage", "settings"):             # task 0181 / 0271: the usage tracker counts although events are simulated
             env.update(FRESING_USAGE_TEST="1")
         if key == "rulesets":                        # its own rule-set library; folds open so it can click in them
             env.update(FRESING_RULE_SETS_DIR=os.path.join(folder, "library", "Rule sets"), FRESING_UI_OPEN_FOLDS="1")

@@ -27,7 +27,7 @@ from bpy.app.handlers import persistent
 from bpy.props import StringProperty
 
 from . import ops_setup, panels, ui, ui_top
-from .ops_setup import OUTPUT_MARK, OUTPUT_TAB
+from .ops_setup import OUTPUT_MARK, OUTPUT_TAB, SETTINGS_MARK
 
 PLACES_FILE = "fresing_make_windows.json"
 WATCH_SECONDS = 2.0           # Windows: how often the places of open output windows are read (to reopen them there)
@@ -87,12 +87,29 @@ def write_places(path: str, places: dict) -> None:
 _PLACES: dict = {}            # what was read last (key -> [left, top, right, bottom])
 
 
+def place_key(win) -> str:
+    """The key a window's place is kept under: the output's key, or "settings" for the Settings window (task 0271)."""
+    try:
+        screen = win.screen
+        if screen.get(SETTINGS_MARK):
+            return "settings"
+        return str(screen.get(OUTPUT_MARK) or "")
+    except (AttributeError, ReferenceError):
+        return ""
+
+
+def placed_windows() -> list:
+    """The windows whose place is kept: the output windows and the Settings window."""
+    wm = getattr(bpy.context, "window_manager", None)
+    return [w for w in (wm.windows if wm is not None else ()) if place_key(w)]
+
+
 def remember(win) -> None:
-    """Keep this output window's place for the next time it opens (Windows only)."""
+    """Keep this output window's (or the Settings window's) place for the next time it opens (Windows only)."""
     from .. import winplace
     if not winplace.available():
         return
-    key = win.screen.get(OUTPUT_MARK)
+    key = place_key(win)
     r = winplace.rect(win, key)
     if not key or r is None or not winplace.usable(r):
         return
@@ -110,7 +127,7 @@ def remember(win) -> None:
 def _watch():
     """Windows: read the places of the open output windows now and then (a window closed with its own X is then
     still reopened where it was)."""
-    wins = output_windows()
+    wins = placed_windows()
     if not wins:
         return None
     for win in wins:
@@ -126,7 +143,7 @@ def _placed(win) -> None:
     from .. import winplace
     if not winplace.available():
         return
-    key = win.screen.get(OUTPUT_MARK)
+    key = place_key(win)
     winplace.find(win, key)                   # the handle, while the window is new and stands where Blender put it
     r = read_places(places_path()).get(key)
     if r is not None:
@@ -137,7 +154,7 @@ def _placed(win) -> None:
 def watch() -> None:
     """Keep reading the places of the open output windows (Windows) – also of those a project brought back."""
     from .. import winplace
-    if winplace.available() and output_windows() and not bpy.app.timers.is_registered(_watch):
+    if winplace.available() and placed_windows() and not bpy.app.timers.is_registered(_watch):
         bpy.app.timers.register(_watch, first_interval=WATCH_SECONDS)
 
 

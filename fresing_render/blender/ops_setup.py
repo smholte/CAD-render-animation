@@ -185,7 +185,12 @@ def _watch_loads() -> None:
 
 def _dress(window) -> None:
     """The Set-up window's 3D view shows the side panel and nothing that costs time or space. Sets only what is
-    not so yet: it runs again whenever the tab is put back."""
+    not so yet: it runs again whenever the tab is put back. The Settings window (task 0271) shows its page in the
+    toolbar region instead (a region without tabs): its side panel is off, the toolbar on."""
+    try:
+        settings = bool(window.screen.get(SETTINGS_MARK))
+    except (AttributeError, ReferenceError):
+        settings = False
     for area in window.screen.areas:
         if area.type != "VIEW_3D":
             continue
@@ -195,7 +200,7 @@ def _dress(window) -> None:
             sp.show_region_header = True            # the tool header can only be switched off while this is on
             sp.show_region_tool_header = False
             sp.show_region_header = False
-        for name, value in (("show_region_ui", True), ("show_region_toolbar", False),
+        for name, value in (("show_region_ui", not settings), ("show_region_toolbar", settings),
                             ("show_region_asset_shelf", False), ("show_region_hud", False),
                             ("show_gizmo", False), ("lock_camera", False)):
             if getattr(sp, name, value) != value:
@@ -214,29 +219,35 @@ def _dress(window) -> None:
 
 OUTPUT_MARK = "fr_output"      # task 0260: an output window of Make (ops_make.py): screen ID property = the output's key
 OUTPUT_TAB = "Make"
+SETTINGS_MARK = "fr_settings"  # task 0271: the Fresing Settings window (ops_settings.py): screen ID property = "settings"
+SETTINGS_TAB = "Settings"
 
 
 def tab_of(window) -> str:
-    """The side-panel tab of an app window: "Set-up" or "Make" ("" for any other window)."""
+    """The side-panel tab of an app window: "Set-up", "Make" or "Settings" ("" for any other window)."""
     try:
         screen = window.screen
+        if screen.get(SETTINGS_MARK):
+            return SETTINGS_TAB
         return TAB if screen.get(MARK) else (OUTPUT_TAB if screen.get(OUTPUT_MARK) else "")
     except (AttributeError, ReferenceError):
         return ""
 
 
 def app_windows() -> list:
-    """Every open Set-up window and output window."""
+    """Every open Set-up window, output window and Settings window."""
     wm = getattr(bpy.context, "window_manager", None)
     return [w for w in wm.windows if tab_of(w)] if wm is not None else []
 
 
 def _show_tab(window) -> bool:
-    """Puts the window's side panel on its tab (Set-up, or Make for an output window); False when the tabs are not
+    """Puts the window's side panel on its tab (Set-up, Make for an output window, Settings); False when the tabs are not
     drawn yet (try again)."""
     ok = True
     tab = tab_of(window) or TAB
     _dress(window)
+    if tab == SETTINGS_TAB:                  # task 0271: its page is in the toolbar region, which has no tabs
+        return True
     for area in window.screen.areas:
         if area.type != "VIEW_3D":
             continue
@@ -418,24 +429,27 @@ def _left_back():
     return None
 
 
-def window_size(area) -> tuple:
+def window_size(area, size=None) -> tuple:
     """(width, height) in px of the piece of ``area`` the window is made from: as wide as the area's side panel
-    (the copy's panel then fills the window), ``HEIGHT`` high."""
+    (the copy's panel then fills the window), ``HEIGHT`` high. ``size`` (px at UI scale 1, task 0271): a window
+    whose side panel is made that wide once it is open (the Settings window)."""
     scale = bpy.context.preferences.system.ui_scale or 1.0
+    if size is not None:
+        return int(size[0] * scale) + EDGE, int(size[1] * scale)
     side = next((r.width for r in area.regions if r.type == "UI"), 0)
     if side < 150 * scale:                          # the side panel is closed: its width cannot be read
         side = int(SIDE * scale)
     return min(side, int(WIDEST * scale)) + EDGE, int(HEIGHT * scale)
 
 
-def open_window(window, area, mark: str = MARK, value=1, done=None) -> None:
+def open_window(window, area, mark: str = MARK, value=1, done=None, size=None) -> None:
     """Starts opening the Set-up window from a piece of ``area`` (a 3D view of ``window``); it is there about a
     quarter of a second later (timers: see the top of this file). Task 0221: while Blender's right-hand column is
     being closed or opened (``editors.busy``, right after a project opened) the 3D view's size is about to change:
     the split waits for it."""
     from . import editors
     if not editors.busy():
-        _open_window(window, area, mark, value, done)
+        _open_window(window, area, mark, value, done, size)
         return
     _STATE["busy"] = True
     gen, tries = _STATE["gen"], [0]
@@ -449,7 +463,7 @@ def open_window(window, area, mark: str = MARK, value=1, done=None) -> None:
             if gen == _STATE["gen"] and any(w == window for w in bpy.context.window_manager.windows):
                 views = [a for a in window.screen.areas if a.type == "VIEW_3D"]     # found again: areas changed
                 if views:
-                    _open_window(window, max(views, key=lambda a: a.width * a.height), mark, value, done)
+                    _open_window(window, max(views, key=lambda a: a.width * a.height), mark, value, done, size)
         except Exception as exc:  # noqa: BLE001
             print("Fresing Render: the Set-up window did not open:", exc)
         return None
@@ -457,9 +471,9 @@ def open_window(window, area, mark: str = MARK, value=1, done=None) -> None:
     bpy.app.timers.register(later, first_interval=0.05)
 
 
-def _open_window(window, area, mark: str = MARK, value=1, done=None) -> None:
+def _open_window(window, area, mark: str = MARK, value=1, done=None, size=None) -> None:
     scale = bpy.context.preferences.system.ui_scale or 1.0
-    w, h = window_size(area)
+    w, h = window_size(area, size)
     _watch_loads()
     _STATE["busy"] = True
     job = {"win": window, "piece": area, "pieces": [], "pair": None, "close": [], "tries": 0,

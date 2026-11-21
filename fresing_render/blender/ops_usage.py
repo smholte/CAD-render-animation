@@ -42,7 +42,7 @@ class FRESING_OT_usage_go(bpy.types.Operator):
         where = F.MENUS.get(f.panel) or _where(f)
         pinned = " Pinned." if f.id in usage.state()["bar"]["pins"] else ""
         return (f"{f.title} – used {plural(n, 'time')}. Click: opens {where} and points at the button."
-                f"{pinned} Pin, unpin or switch the bar off in Fresing > My usage")
+                f"{pinned} Pin or unpin in Fresing > My usage; switch the bar off in Fresing > Settings > Side panel")
 
     def execute(self, context):
         if not _fn_ok(self.fid):
@@ -82,7 +82,7 @@ class FRESING_OT_usage_pin(bpy.types.Operator):
 class FRESING_OT_usage_declutter(bpy.types.Operator):
     """Answers the quiet question about a panel you have not used for a while. Hide: the panel goes out of your side
     panel (in every workspace but Full access; never while a project uses it). Not now: this panel is not asked about
-    again. Don't ask again: no more such questions (switch them back on in Fresing > My usage)"""
+    again. Don't ask again: no more such questions (switch them back on in Fresing > Settings > Side panel)"""
 
     bl_idname = "fresing.usage_declutter"
     bl_label = "Hide unused panel"
@@ -102,7 +102,7 @@ class FRESING_OT_usage_declutter(bpy.types.Operator):
                         "project uses it). Fresing > My usage > Back to the workspace as it came shows it again",
                 "later": "Keeps the panel where it is; it is not asked about again",
                 "learn": "Puts the function on your learning list (Fresing > My learning list…); nothing is hidden",
-                "never": "No more questions about unused panels. Switch them back on in Fresing > My usage"
+                "never": "No more questions about unused panels. Switch them back on in Fresing > Settings > Side panel"
                 }.get(properties.choice, cls.__doc__)
 
     def execute(self, context):
@@ -288,26 +288,26 @@ TOP_ROWS = 10
 
 
 class FRESING_OT_usage_window(bpy.types.Operator):
-    """What you use, counted on this PC only (nothing is sent): your most used functions with a pin each, where your
-    time goes per stage, and the time the app saved you (an estimate, with how it is worked out). Also the switches:
-    Track my usage, the favourites bar, the questions about unused panels"""
+    """Opens Fresing Settings on the tab My usage: what you use, counted on this PC only (nothing is sent) – your most
+    used functions with a pin each, where your time goes per stage, the time the app saved you (an estimate), your
+    profile and clearing your data"""
 
     bl_idname = "fresing.usage_window"
     bl_label = "My usage"
     bl_options = {"INTERNAL"}
 
-    def invoke(self, context, event):
-        usage.save()
-        return context.window_manager.invoke_props_dialog(self, width=560, title="My usage", confirm_text="Close")
-
     def execute(self, context):
-        return {"FINISHED"}
+        usage.save()
+        from . import ops_settings
+        return ops_settings.open_settings(self, context, "usage")
 
-    def draw(self, context):
-        draw_window(self.layout, context)
+
+PRESENCE_LINE = "Counts only while you use the app; away more than 2 min is left out"
 
 
 def draw_window(layout, context) -> None:
+    """The tab My usage of Fresing Settings (task 0271; before: the My usage dialog of task 0181). The switches of the
+    favourites bar and the questions about unused panels are on the tab Side panel (``draw_panel_switches``)."""
     s = usage.state()
     wm = context.window_manager
     col = layout.column(align=True)
@@ -322,12 +322,7 @@ def draw_window(layout, context) -> None:
         sub.label(text="Not counting in this run (a test or a background run)", icon="INFO")
 
     layout.separator()
-    layout.label(text="Favourites bar", icon="SOLO_ON")
-    row = layout.row()
-    row.prop(wm, "fresing_usage_bar")
-    sub = row.row()
-    sub.enabled = s["bar"]["on"]
-    sub.prop(wm, "fresing_usage_bar_size")
+    layout.label(text="Your most used functions", icon="SOLO_ON")
     ranking = core.ranking(s)
     pins = s["bar"]["pins"]
     rows = list(dict.fromkeys(pins + ranking))[:max(TOP_ROWS, len(pins))]
@@ -347,11 +342,13 @@ def draw_window(layout, context) -> None:
                 op = right.operator("fresing.usage_pin", text="", icon="PINNED" if fid in pins else "UNPINNED",
                                     emboss=False)
                 op.fid, op.on = fid, fid not in pins
+        _grey(layout, "A pin keeps a function on the favourites bar (switch the bar on or off: tab Side panel).")
     else:
         _grey(layout, f"Nothing yet: a function used {core.MIN_CLICKS} times or more joins the bar at the next start.")
 
     layout.separator()
-    layout.label(text="Where your time goes (active time; idle over 2 min is left out)", icon="TIME")
+    layout.label(text="Where your time goes (active time)", icon="TIME")
+    _grey(layout, PRESENCE_LINE + ".")
     for _k, title, sec, share in core.stage_rows(s):
         r = layout.row()
         split = r.split(factor=0.36)
@@ -377,18 +374,12 @@ def draw_window(layout, context) -> None:
     _grey(layout, "per use or per part – not a measurement.")
 
     layout.separator()
-    layout.label(text="Unused panels", icon="HIDE_ON")
-    row = layout.row()
-    row.prop(wm, "fresing_usage_declutter")
-    sub = row.row()
-    sub.enabled = s["declutter"]["on"]
-    sub.prop(wm, "fresing_usage_threshold")
-    row = layout.row()
-    row.prop(wm, "fresing_learn_teach")
-    row.prop(wm, "fresing_learn_next")
+    layout.label(text="Learning list", icon="BOOKMARKS")
     row = layout.row()
     row.prop(wm, "fresing_learn_days")
     row.operator("fresing.learn_window", text="My learning list…", icon="BOOKMARKS")
+
+    layout.separator()
     n = len({F.FUNCTIONS[h].panel for h in s["hidden"] if h in F.FUNCTIONS})
     col = layout.column(align=True)
     col.operator("fresing.usage_reset", icon="LOOP_BACK",
@@ -397,6 +388,28 @@ def draw_window(layout, context) -> None:
     row.operator("fresing.usage_export", text="Export profile…", icon="EXPORT")
     row.operator("fresing.usage_import", text="Import profile…", icon="IMPORT")
     col.operator("fresing.usage_clear", icon="TRASH")
+
+
+def draw_panel_switches(layout, context) -> None:
+    """The usage tracker's switches on the tab Side panel of Fresing Settings (task 0271): the favourites bar and the
+    quiet questions (hide / teach an unused panel, what to learn next)."""
+    s = usage.state()
+    wm = context.window_manager
+    layout.label(text="Favourites bar", icon="SOLO_ON")
+    row = layout.row()
+    row.prop(wm, "fresing_usage_bar")
+    sub = row.row()
+    sub.enabled = s["bar"]["on"]
+    sub.prop(wm, "fresing_usage_bar_size")
+    layout.separator()
+    layout.label(text="Unused panels and learning", icon="HIDE_ON")
+    row = layout.row()
+    row.prop(wm, "fresing_usage_declutter")
+    sub = row.row()
+    sub.enabled = s["declutter"]["on"]
+    sub.prop(wm, "fresing_usage_threshold")
+    layout.prop(wm, "fresing_learn_teach")
+    layout.prop(wm, "fresing_learn_next")
 
 
 def _grey(layout, text: str) -> None:

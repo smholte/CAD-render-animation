@@ -155,8 +155,8 @@ button in the view's header brings both panels back.
   way to a calm panel.
 - **The tabs All · 1 … 8** under Make show one section at a time, opened. **All** brings the
   seven back.
-- Want the sections as you left them instead? **Edit > Preferences > Add-ons > Fresing Render >
-  Keep sections as I left them**. There too: **Keep How it works open**.
+- Want the sections as you left them instead? **Fresing > Settings… > Side panel > Keep sections as I left
+  them**. There too: **Keep How it works open**.
 
 <a id="workspaces"></a>
 ### Workspaces: only the functions your work needs
@@ -312,8 +312,39 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **Tools and checks** – **Run the self-test**, **PC check…** and **Open the app folder** (the Tools folder with the
   shortcuts that used to be in the Start menu; [One shortcut](#tools-and-checks)).
 - **Restore a backup…** – the automatic backups of the open project, and Restore ([below](#backups)).
-- **My usage…** – what the app counted about your work, the favourites bar and its switches ([below](#my-usage)).
+- **My usage…** – what the app counted about your work: Fresing Settings on its tab My usage ([below](#my-usage)).
+- **Settings…** – all of the app's own settings in one window ([below](#settings)).
 - **Welcome screen…** – the welcome below, again.
+
+<a id="settings"></a>
+### Fresing Settings
+
+**Fresing > Settings…** (or the gear button at the top of the left
+panel) opens one window with all of the app's own settings – a box of its own, with nothing of Blender's in it. Click
+a tab along its top to change page; the window
+opens on the page you had last, also after a restart. Drag it where it suits you – also onto a second screen; it stays
+open while you work in the main window, until you close it with its **X**. Opening it again brings it to the front.
+On Windows it opens where it was and as big as you left it. It also opens in the Client view.
+
+| Tab | What is there |
+| --- | --- |
+| **General** | The shared library folder, the default template, the default rule set, the workspace for new projects, the highlight while you pick on the model |
+| **Side panel** | Keep sections as I left them, keep How it works open, the favourites bar (on/off, how many buttons), the quiet questions about unused panels (hide, teach, after how many starts) and **Suggest what to learn next** |
+| **Lessons** | How a lesson shows the button, a folded section and a part; its colour; **Play on** |
+| **Backups** | The [automatic backups](#backups): on/off, every how many minutes, how many are kept |
+| **Updates** | The check at start-up, **Check now**, the installed version, the last result |
+| **My usage** | What the app counted about your work ([below](#my-usage)) |
+| **About** | Version, licence, third-party licences, using it in a company ([About](#about-licences)) |
+
+<img class="panel" src="img/settings_general.png" alt="Fresing Settings, tab General: the tabs along the top, the library folder, template, rule set, workspace for new projects">
+<img class="panel" src="img/settings_panel.png" alt="Fresing Settings, tab Side panel: sections, How it works, the favourites bar and the questions about unused panels">
+<img class="panel" src="img/settings_lessons.png" alt="Fresing Settings, tab Lessons: button, folded section, part, colour, Play on">
+<img class="panel" src="img/settings_backups.png" alt="Fresing Settings, tab Backups: the switch and the three numbers">
+<img class="panel" src="img/settings_updates.png" alt="Fresing Settings, tab Updates: check at start-up, Check now, the installed version">
+<img class="panel" src="img/settings_about.png" alt="Fresing Settings, tab About: version, licence and the licence buttons">
+
+**Edit > Preferences > Add-ons > Fresing Render** now only says where the settings are and has a button **Open
+Fresing Settings**. Your settings from before stay as they were.
 
 <a id="blender-editors"></a>
 ### Blender's Outliner and Properties (hidden)
@@ -392,7 +423,7 @@ mark and Ctrl+Z stay as they were. The bottom line of the Fresing tab says **Bac
   stopped before you saved), a small window asks: **Open the backup** or **Cancel** (keeps the saved project; the
   backup stays in Restore a backup…). At the start of the app, work that was never saved (from the last 24 hours) is
   offered the same way. When the welcome or What's new shows, the question waits until it is closed.
-- **Settings:** Edit > Preferences > Add-ons > Fresing Render > **Automatic backups**: the switch (on), **Every
+- **Settings:** Fresing > Settings… > **Backups**: the switch (on), **Every
   (minutes)** 1–60, **Keep the last** 1–50 and **One a day for (days)** 0–60. The box shows how much room this
   project's backups take. A big project (the demo is about 226 MB) takes that much per backup.
 - Open a backup only through **Restore**: a backup keeps the project's own links to its files (cache, pictures), so
@@ -476,7 +507,7 @@ way you are in shows pressed, also after the project is opened again.
 ### Show me
 
 The app points at the button of each step – the button stands out in the side panel (the rest is dimmed, as set in
-**Edit > Preferences > Add-ons > Fresing Render > Lesson highlight**), the parts it works on are shown in the 3D view and
+**Fresing > Settings… > Lessons**), the parts it works on are shown in the 3D view and
 a card beside them says what happens. After a moment the app presses the button itself: a new joint swings out and back
 once so you see what it does. Then it waits for **Next** in the **Lesson** panel on the left panel.
 
@@ -510,13 +541,13 @@ From your [learning list](#learning-list) (**Show me**, **Build**) and from the 
 
 The app counts which of its functions you use – **on your own PC only; nothing is ever sent anywhere** – and uses
 that to keep your side panel short: a favourites bar with your most used buttons, now and then a quiet offer to
-hide a panel you never use, and a small window **My usage** with where your time goes.
+hide a panel you never use, and a page **My usage** in [Fresing Settings](#settings) with where your time goes.
 
 **What is stored, and where.** One small text file, `fresing_usage.json`, in your Blender settings folder (the
 same folder as your preferences; **My usage > Show the file** opens it). It holds: how often you clicked each
 function's button and opened each panel, how many times the app was started, the active time per stage, the
 estimated time saved, your pins and the panels you hid. It holds no part names, no file names and nothing of your
-models. It belongs to your Windows user and stays when the app is updated. **Track my usage** (in My usage) switches
+models. It belongs to your Windows user and stays when the app is updated. **Track my usage** (Settings > My usage) switches
 the counting off; **Clear my usage data** deletes what was counted (your pins, hidden panels and learning list stay unless you tick the list). The test
 runs, the PC check and the render queue never count.
 
@@ -526,7 +557,7 @@ runs, the PC check and the render queue never count.
 <img class="panel" src="img/usage_bar.png" alt="The favourites bar on the left panel, with the question about an unused panel under it">
 
 On the left panel, under the **Learning hub**, the bar shows the functions you use most (6 buttons; 5
-to 8 in My usage). A function joins it once you have used it twice. **The bar is sorted when the app starts and
+to 8 in Settings > Side panel). A function joins it once you have used it twice. **The bar is sorted when the app starts and
 never while you work**, so a button does not move under your mouse.
 
 - **Click a favourite**: its section opens (as with the section tabs; **All** shows every section again) down to
@@ -535,7 +566,7 @@ never while you work**, so a button does not move under your mouse.
 - **Pin** a function so it always stays on the bar: **Fresing > My usage…**, the pin beside it in the list (the
   small gear at the right of the bar opens the same window). A new pin shows at once at the end of the bar; pinned
   buttons have a pin icon and always come first.
-- **Switch the bar off**: untick **Show the favourites bar** in My usage.
+- **Switch the bar off**: untick **Show the favourites bar** in Fresing > Settings… > Side panel.
 
 The bar shows only functions your workspace shows, and only once it has buttons: in a new installation it appears
 after a few starts.
@@ -543,7 +574,7 @@ after a few starts.
 <a id="declutter"></a>
 ### A panel you never use: learn it or hide it
 
-When you have not used a panel in **10 app starts** (a setting in My usage), a quiet question appears at the top of
+When you have not used a panel in **10 app starts** (a setting in Settings > Side panel), a quiet question appears at the top of
 the Fresing tab: *"You haven't used Way covers recently. Maybe you do not know it yet?"* – with what the function does
 in one line, and:
 
@@ -556,7 +587,7 @@ in one line, and:
 - **Hide it** – the panel goes out of your side panel, in every workspace except **Full access**.
 - **Not now** – the panel stays; it is not asked about again.
 - **Don't ask again** – no more questions (switch them back on with **Offer to hide unused panels** and **Offer to
-  teach unused functions** in My usage). With teaching switched off the question only offers to hide, as before.
+  teach unused functions** in Settings > Side panel). With teaching switched off the question only offers to hide, as before.
 
 A panel that **What's new** has just listed is not asked about until 10 app starts have passed: you cannot have used
 what you have not seen yet. A panel you hid shows again by itself when the project starts using it.
@@ -587,7 +618,7 @@ usage.
 guide), **Tour** (its stop in the Learning hub, with the button pointed at), **Done** (tick it yourself; click again to take
 the tick away) and a cross (take it off). **Show me** and **Build** open the function's [lesson](#learn) at its own
 step (greyed while its sample project has no lesson yet). **A function is
-ticked by itself when you use it on 3 different days** (a setting in My usage: *Days of use = learned*); the list says so
+ticked by itself when you use it on 3 different days** (a setting in Settings > My usage: *Days of use = learned*); the list says so
 once: *"You've got the hang of …"*. **Clear my usage data** asks whether to clear the list too; the list only goes in an
 exported profile when you include your usage counts.
 
@@ -598,30 +629,31 @@ Now and then – at most once per start – the **What's next** card has one qui
 work with Machine motion, and have not tried this yet"*, with **Learn** (puts it on your list and opens its guide section)
 and **Not interested** (never suggested again). It picks, by plain rules and without looking at your models: a function
 that your workspace shows, in a kind of work you already use, that you never used, did not hide or turn down, and the open
-project does not use. Switch it off with **Suggest what to learn next** in My usage.
+project does not use. Switch it off with **Suggest what to learn next** in Settings > Side panel.
 
 <a id="my-usage"></a>
 ### My usage
 
-**Fresing > My usage…** (also at the end of the **Help** menu) opens a window:
+**Fresing > My usage…** (also at the end of the **Help** menu) opens [Fresing Settings](#settings) on its tab
+**My usage**:
 
-<img class="panel" src="img/usage_window.png" alt="The My usage window: the switch, the favourites with pins, time per stage as bars, time saved as an estimate">
+<img class="panel" src="img/usage_window.png" alt="Fresing Settings, tab My usage: the switch, the favourites with pins, time per stage as bars, time saved as an estimate">
 
 1. **Track my usage**, **Show the file** – the switch, and the file in its folder.
-2. **Favourites bar** – on/off, how many buttons, and your most used functions with how often you used each and a
-   pin.
+2. **Your most used functions** – how often you used each, and a pin that keeps it on the favourites bar (the bar's
+   switch and size are on the tab **Side panel**).
 3. **Where your time goes** – a bar per stage: Import & structure, Looks, Motion & rigging, Scene & surroundings,
-   Animation, Render & export. Time counts to the stage of the last function you used; when you do nothing for 2
-   minutes (no click, no change in the project) that time is left out. Watching an animation play counts.
+   Animation, Render & export. Time counts to the stage of the last function you used, and **only while you use the
+   app**: a mouse move, a click, the wheel, a button. When none of these comes for 2 minutes, that time is left out –
+   also while the app plays an animation, renders, shows a Live preview or works through the queue by itself.
 4. **Time saved – an estimate** – what the app's automatic functions (sorting parts into material groups, the
    exploded view, model update, cylinders, hoses, cables, way covers, the assembly sequence, the turntable, the
    product video, the clash check, the web 3D model, every paint scheme, the toolpath) saved you, each with how it is
    worked out ("about 5 s per part by hand: pick the part and give it its material"). **This is not a measurement**:
    it is the number of uses counted here times a guess of the manual work – the guesses are in the app's function
    list and can be changed.
-5. **Unused panels** – the questions on/off (hide, teach, suggest what to learn next), after how many starts, days of use
-   that count as learned, **My learning list…** and **Back to the workspace as it came**.
-6. **Export profile… / Import profile… / Clear my usage data**.
+5. **Learning list** – the days of use that count as learned, and **My learning list…**.
+6. **Back to the workspace as it came**, **Export profile… / Import profile… / Clear my usage data**.
 
 <a id="usage-profiles"></a>
 ### Profiles: your side panel as one file
@@ -634,7 +666,7 @@ usage counts**. The project uses the profile from then on.
 **Import profile…** takes such a file (from a colleague, or one a team keeps in the shared library): it is copied
 into your Workspaces folder – replacing your own workspace of the same name –, the project switches to it and your
 favourites bar takes its pins; the panels it hides are added to your own, so **Back to the workspace as it came**
-(My usage) shows them again. Counts in the file are added to yours only when you tick **Add the usage counts in
+(Settings > My usage) shows them again. Counts in the file are added to yours only when you tick **Add the usage counts in
 the file**. An older version of the app opens a profile as a plain workspace.
 
 <a id="start"></a>
@@ -717,8 +749,8 @@ a newer version. When there is one, **Update available** appears at the top of t
 - Versions before 0.2.16 cannot do this yet: run the newest installer once over them
   ([Install](#start)). A version that needs a newer Blender also comes as an installer; the app then
   says so and links to its release page.
-- The check needs internet access to github.com. Switch it off in **Edit > Preferences > Add-ons >
-  Fresing Render > Check for updates at start-up**.
+- The check needs internet access to github.com. Switch it off in **Fresing > Settings… > Updates > Check for
+  updates at start-up**.
 - After an update, run the **PC check** once: it tests every main function of the new version on your PC
   ([The PC check](#pc-check)).
 
@@ -1256,8 +1288,8 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
   stickers on parts ([Logos & stickers](#decals)), for the next project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
   library.
 - The **shared library** is a folder, for example on the network, with a folder `HDRI` (360° photos),
-  a folder `Templates`, a folder `Rule sets` and the folders `Logos` and `Stickers`. Set it once: Edit > Preferences > Add-ons > Fresing
-  Render > **Shared library**. **Default template** there is used for every new import; **Default rule
+  a folder `Templates`, a folder `Rule sets` and the folders `Logos` and `Stickers`. Set it once: Fresing > Settings… > General >
+  **Shared library**. **Default template** there is used for every new import; **Default rule
   set** is the rule set new projects start with.
 
 <a id="motion"></a>
@@ -1286,7 +1318,7 @@ same happens for a cylinder's pins and the double arm's hub and pot hinge. Every
 works the same way (the sharp spot, a label's point, a decal, a trail point, the CNC zero, an air or coolant
 nozzle, a tool-changer pocket): the face lights up, a dot sits where the click lands and a short note says
 what the click does. It is only drawn in the view: never in a render or in the project. Switch it off under
-Edit > Preferences > Add-ons > Fresing Render > "Highlight what is under the mouse when picking".
+Fresing > Settings… > General > "Highlight what is under the mouse when picking".
 
 <img class="small" src="img/view_hover.png" alt="Add rotate joint: the pedestal's bore lit up in magenta with its axis line">
 

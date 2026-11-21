@@ -45,10 +45,10 @@ The app (About box, installer, manifest); the rest of the page's layout (0267 is
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026
 
-**What changed:**
+**What changed:** strip says "open source (GPL-3.0)" with a link to LICENSE on GitHub; both footers (index, how-it-works) link the licence name and add "(GPL-3.0-or-later)". README and docs only say "the GPL" in prose: left.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (name the machine and the model): `tests/test_site.py` 31 passed, site build 0 problems, link present in built pages (web machine). GitHub run green. NOT done: browser pictures at 2560 / 390 px, live-page check after Pages publishes.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** check the live page and the strip at 390 px by eye. First push to main was refused by the permission check; a second try after the owner's go-ahead.

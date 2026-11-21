@@ -604,9 +604,13 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
    since="0.2.184", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
-fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
-   panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158")
+fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
+   family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.201")
+fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings: all of the app's settings in one "
+   "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",), pccheck=("app.settings",),
+   since="0.2.201")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")

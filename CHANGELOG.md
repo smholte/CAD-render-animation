@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.201 – 21 Nov 2026 – Fresing Settings: all settings in one window with tabs (task 0271)
+
+- **Fresing > Settings…** opens one window with all of the app's own settings and a row of tabs along its top:
+  **General** (library folder, default template and rule set, workspace for new projects, the highlight while
+  picking), **Side panel** (sections, How it works, the favourites bar, the questions about unused panels),
+  **Lessons**, **Backups**, **Updates**, **My usage** and **About**. Click a tab to change page; the window opens on
+  the page you had last. Drag it anywhere – also onto a second screen; it stays open until you close it. Also from
+  the gear at the top of the left panel.
+- **My usage** is now a tab of this window: Fresing > My usage… and Help > My usage… open it there. Everything of the
+  old My usage window is still there (the switches of the favourites bar and the questions moved to the tab Side
+  panel).
+- **My usage counts only the time you really use the app**: a mouse move, a click, the wheel or a button. When none
+  of these comes for 2 minutes, that time is left out – also while the app plays an animation, renders, shows a Live
+  preview or works through the queue by itself.
+- Edit > Preferences > Add-ons > Fresing Render now only has a button **Open Fresing Settings**. Your settings from
+  before stay as they were.
+
 ## 0.2.200 – 21 Nov 2026 – Coolant at the spinning tool: the splash follows the spindle speed (task 0257)
 
 - **The splash now depends on how fast the tool turns and how big it is.** Coolant leaves the tool at about the speed

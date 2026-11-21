@@ -542,6 +542,15 @@ fresing_render/            the Blender extension (Python package)
                            list, `prefs.make_open`), the tabs, Set-up window…, 1 … 8. ops_make.py = an **output window**
                            per Make output (`fresing.make_window`, made by `ops_setup.open_window(mark="fr_output")`, tab
                            "Make"); `winplace.py` (Windows, ctypes) brings it to the front and puts it where it was
+    ops_settings.py ui_settings.py  task 0271: **Fresing Settings** – one window (made like an output window, screen mark
+                           ``fr_settings``; the page in the copy's TOOLBAR region – no tab strip there –, made as wide as
+                           the window with ``ui_left.fit_width``; side panel, header, overlays off; Blender's tool buttons
+                           hidden there by a ``poll``, ``ops_settings.quiet_panels``) with tabs along
+                           its top (``ui_settings.TABS``: General, Side panel, Lessons, Backups, Updates, My usage, About;
+                           ``LATER`` = 0272/0273's pages); last tab in ``prefs.settings_tab``; the properties stay in
+                           prefs.py (the Add-ons page only has Open Fresing Settings). ``FRESING_OT_presence`` in the
+                           add-on keymap "Window" (mouse move / click / wheel, PASS_THROUGH) is the usage tracker's only
+                           sign of the user besides clicks and panel openings (``usage.presence``)
     editors.py             task 0221: Blender's right-hand column (Outliner + Properties next to the main 3D view) closed on
                            every load the app tidies, Fresing > Show / Hide Blender's editors, the choice in
                            `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
@@ -1444,6 +1453,16 @@ the release → Delete); the next run on `main` publishes it again.
   only below the carrier's lowest top – a skirt lower than the fixed way covers beside it – so it came in *under* the
   covers and fell for ever. A chip now goes over as soon as the next space's surface is a step below it
   (`_Sim._lands_next`), and a chip under a surface stops on the floor.
+- Closing an app window (``wm.window_close``) and switching the workspace to or from the Client view in the same
+  timer step crashed Blender 5.2.3 (segfault; task 0271's real-app test) – the lock changes the main window's areas
+  while the closed window is still being freed. Give each its own step. Measured there too: playing an animation (9 s)
+  fired ``depsgraph_update_post`` once and a Cycles Live preview not at all – neither is a sign of the user.
+- A sidebar (UI region) always draws a tab strip in Blender 5.2.3 – Blender's Tool / View / Animation beside ours in a 3D
+  view, "Text" in a Text editor, and even ONE tab ("Misc") for a single panel without a category (task 0271). A region
+  without tabs: the 3D view's toolbar region. A region whose stored width (times Blender's DPI factor, not only the UI
+  scale) does not fit its area is hidden as "too small" – it is laid out and its draw runs, but nothing shows: fit it by
+  the measured ratio of its pixels to its stored width (``ui_left.fit_width``). A ``poll`` for one of Blender's own
+  panels must take exactly (cls, context) – no default arguments – and needs the class registered again.
 - A behaviour added by code that registers itself (a clash-check hook in `clash.HOOKS`) works only while that code is
   loaded: a demo kit's stages are loaded only while the kit is built, so its ROV was checked again in the reopened
   project (task 0228's open point). What a project must keep doing is stored in the project – a custom property on the

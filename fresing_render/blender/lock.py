@@ -69,7 +69,8 @@ ALLOWED = {
     "fresing.left_fold", "fresing.hub_mode",     # task 0260: the left panel folds; the Learning hub only opens projects
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
-                    "fresing.make_", "fresing.usage_", "fresing.learn_")     # task 0181: the usage tracker changes nothing in the model
+                    "fresing.make_", "fresing.usage_", "fresing.learn_",
+                    "fresing.settings", "fresing.presence")     # task 0271: Fresing Settings, the presence mark
 
 
 def scene_locked(context) -> bool:
