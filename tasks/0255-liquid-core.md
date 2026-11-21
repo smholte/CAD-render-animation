@@ -26,6 +26,16 @@ wanted as later steps (after B). So keep the API open for them now: **per-cell f
 extra push per cell in** (the air jet's wall jet of `core/air.py` as a tangential force or surface stress), each with
 one test (a constant push moves a pool the expected way; the velocities out agree with flux / depth). Not more.
 
+**The spinning tool (owner 21 Nov 14:01: "the fluid should interact with the milling bit – when it spins fast the coolant
+turns round it and is splashed away").** Also a core input now: per frame **one tool** – a cylinder (axis, tip, radius,
+flute length) with its **spindle speed and direction** (M3 / M4). Liquid in cells under or inside the tool's circle is
+**thrown off as drops**, tangentially at about the tool's surface speed ωr (capped – say the cap; a D10 at 10,000 rpm
+is ~5 m/s) with some outward share, rising a little up the flutes; a ring of cells round it (~1–2 tool radii) gets a
+**swirl push** in the turning direction, weaker further out, so a pool round the tool turns and climbs the pocket's
+walls. A still spindle does nothing. Tests: a pool round a turning tool loses liquid as drops (bookkeeping still
+exact), the drops leave in the turning direction at ~ωr, a pool round it rotates the right way, M4 the other way.
+B hands the tool in from the CNC machine; the look of the jets and spray at the tool is task 0257.
+
 ## Background (study 0251 – read its report: "Recommendation", items 1–5, the table, "Demo-sized projects")
 
 - **Method a, shallow-liquid height field:** signed fluxes on cell faces (virtual pipes, waves at √(gh)), laminar wall
