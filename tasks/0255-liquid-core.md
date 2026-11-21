@@ -1,6 +1,6 @@
 # 0255 – Coolant liquid A: the liquid core (`core/liquid.py`) – shallow-liquid height field, fast enough for a 10-minute program
 
-**Who:** worker · **Status:** open – waits for the owner's OK on method a (0251's page) · **Branch:** `task/0255-liquid-core`
+**Who:** worker · **Status:** open – can start · **Branch:** `task/0255-liquid-core`
 **Started by:** lead, 21 Nov 2026 (study 0251, build task A; owner 20 Nov 23:45–23:50: coolant liquid that collects in
 the cut slots, moves with the machine and runs down a drain – study first, then build) · **Model:** Opus · effort High
 **Area:** Machining lane – **new files only:** `fresing_render/core/liquid.py` (no Blender), its helper-process runner
@@ -19,6 +19,12 @@ A tested, fast, deterministic liquid solver without Blender that task B can hang
 ("chart") of bed heights and liquid depths, stepped through the frames of an animation from the carriers' matrices,
 the pours and the drains – with exact volume bookkeeping, the six stand-alone tests as pytest, and the speed to bake
 the 0249 VMC's 10-minute program in under 10 minutes at Normal on the owner's PC.
+
+**Owner's picks (21 Nov 13:59, 0251's page):** method **a**; settings = one tick "Liquid on the machine" + Detail tied
+to Draft / Normal / Final; **chips carried by the liquid** and **the air blast pushes the liquid out of pockets** – both
+wanted as later steps (after B). So keep the API open for them now: **per-cell flow velocity out** (for chips) and **an
+extra push per cell in** (the air jet's wall jet of `core/air.py` as a tangential force or surface stress), each with
+one test (a constant push moves a pool the expected way; the velocities out agree with flux / depth). Not more.
 
 ## Background (study 0251 – read its report: "Recommendation", items 1–5, the table, "Demo-sized projects")
 
