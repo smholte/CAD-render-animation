@@ -42,6 +42,24 @@ DEFAULT_OPEN: set = set()    # what is open when nothing was changed: sub-panels
 OPEN: set = set()            # what is open now
 _TAB = {"v": "ALL"}          # the section tab: "ALL" or "1" … "8" (a copy of the window manager's, read at every poll)
 _PLAIN = set()               # panels that keep their own (header-less) drawing: the workspace row, the tabs
+LEFT: set = set()            # task 0260: the panels of the left panel (the 3D view's toolbar region, ``ui_left.py``)
+QUICK = "FRESING_PT_left_quick"     # … the one that shows also in the folded strip
+SIDE_MARKS = ("fr_setup", "fr_output")   # a Set-up window's screen, an output window's screen (task 0260)
+
+
+def side_window(win) -> bool:
+    """A window of the app's own (the Set-up window, an output window of Make): no left panel, no steps, never
+    tidied like the main window."""
+    try:
+        screen = win.screen if win is not None else None
+        return bool(screen is not None and any(screen.get(m) for m in SIDE_MARKS))
+    except (AttributeError, ReferenceError):
+        return False
+
+
+def is_left(cls) -> bool:
+    return (getattr(cls, "bl_space_type", "") == "VIEW_3D" and getattr(cls, "bl_region_type", "") == "TOOLS"
+            and bool(getattr(cls, "_fr_left", False)))
 
 
 # ---------------------------------------------------------------------------
@@ -206,8 +224,12 @@ def visible(name: str, context, folds: bool | None = None) -> bool:
         folds = not bpy.app.background
     if folds:
         win = getattr(context, "window", None)
-        if win is not None and win.screen.get("fr_setup"):      # the Set-up window shows its own tab only
+        if side_window(win):                  # the Set-up window and the output windows show their own tab only
             return False
+        if name in LEFT and name != QUICK:    # task 0260: the left panel folded to its strip
+            from . import ui_left
+            if ui_left.strip(context):
+                return False
         sec = section_of(name)
         if sec:
             t = tab_section()
@@ -347,10 +369,13 @@ def install(classes) -> None:
     from . import lock
     panels = [c for c in classes if isinstance(c, type) and issubclass(c, bpy.types.Panel)]
     for cls in panels:
-        if (getattr(cls, "bl_space_type", "") != "VIEW_3D" or getattr(cls, "bl_region_type", "") != "UI"
-                or getattr(cls, "bl_category", "") != CATEGORY):
+        left = is_left(cls)
+        if not left and (getattr(cls, "bl_space_type", "") != "VIEW_3D" or getattr(cls, "bl_region_type", "") != "UI"
+                         or getattr(cls, "bl_category", "") != CATEGORY):
             continue
         name = cls.__name__
+        if left:
+            LEFT.add(name)
         PARENT[name] = getattr(cls, "bl_parent_id", "") or ""
         TITLE[name] = getattr(cls, "bl_label", name)
         if cls.__dict__.get("_fr_installed"):

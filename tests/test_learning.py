@@ -47,7 +47,7 @@ def test_options_name_the_guide_and_the_tour_and_say_why_a_tour_button_is_grey()
     assert o["guide"] == with_tour.guide and o["tour"] == with_tour.tour[0] and not o["why_no_tour"]
     no_tour = next(f for f in F.FUNCTIONS.values() if not f.tour and f.guide and L.teachable(f.id))
     o = L.options(no_tour.id)
-    assert o["tour"] == "" and "test tour" in o["why_no_tour"]
+    assert o["tour"] == "" and "Learning hub" in o["why_no_tour"]
 
 
 def test_the_question_choices_learn_hide_later_never():

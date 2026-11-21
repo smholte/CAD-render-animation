@@ -20,8 +20,8 @@ PIC_GPU = 960
 
 def lines() -> list[Line]:
     from ..blender import tour
-    out = [Line("tour.build", "Make test tour project", "0.2.47", ("tour",), _build, (),
-                f"Builds the {len(tour.SETS)} test tour projects from the test models")]
+    out = [Line("tour.build", "Make the Learning hub", "0.2.47", ("tour",), _build, (),
+                f"Builds the {len(tour.SETS)} Learning hub projects from the test models")]
     for st in tour.STOPS:
         out.append(Line(f"tour.{st.id}", f"{st.number}. {st.title}", st.since, ("tour",),
                         (lambda ctx, st=st: run_stop(ctx, st)), ("tour.build",), st.see))

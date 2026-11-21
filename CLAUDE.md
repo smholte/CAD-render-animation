@@ -532,6 +532,16 @@ fresing_render/            the Blender extension (Python package)
                            on any button of a function (``UI_MT_button_context_menu``), What's new adds the new
                            functions, one "Next to learn" line a session on the What's next card; the use days are
                            counted in ``usage.record``
+    ui_left.py ops_make.py  task 0260: two panels – the **left panel** is the 3D view's toolbar region (TOOLS): Live
+                           preview + Build & play (also in the folded strip), update notice, Workspace, Learning hub
+                           (View | Show me | Build it yourself, `hub_state`, `fresing.hub_mode`), its stops, Lesson,
+                           Favourites, What's next (panels with `LeftPanel`; `panels.LEFT`, `panels.side_window`); its
+                           width is written into Blender's stored region width (`sizex_address`, found and checked by its
+                           neighbours; `set_width`, `ensure` at every load); Blender's tool buttons are swapped out by
+                           `quiet._no_tools` outside Full access. The right panel keeps Make (one row of icons or the
+                           list, `prefs.make_open`), the tabs, Set-up window…, 1 … 8. ops_make.py = an **output window**
+                           per Make output (`fresing.make_window`, made by `ops_setup.open_window(mark="fr_output")`, tab
+                           "Make"); `winplace.py` (Windows, ctypes) brings it to the front and puts it where it was
     editors.py             task 0221: Blender's right-hand column (Outliner + Properties next to the main 3D view) closed on
                            every load the app tidies, Fresing > Show / Hide Blender's editors, the choice in
                            `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
@@ -1386,6 +1396,12 @@ the release → Delete); the next run on `main` publishes it again.
   `stopImmediatePropagation` runs before OrbitControls' own listener on the same element, so the view does not turn and
   no click is counted; tests drag them at their screen points (`partTools.handles()`) in a window wide enough that the
   tool panel (top left) does not cover them.
+- A script cannot set a region's width (`Region.width` is read-only; task 0260). The 3D view's toolbar region keeps
+  its width in `ARegion.sizex` (16 bits, px at UI scale 1): `ui_left.sizex_address` finds it next to the region's own
+  width and height, type 5 (TOOLS) and alignment 3 (LEFT), checks it against the width on screen, and only then writes
+  it; switching `show_region_toolbar` off and on makes Blender take it at once. A panel drawn by a base class
+  (`VIEW3D_PT_tools_active` draws with `ToolSelectPanelHelper.draw`) is found in its draw list by the base's name
+  (`quiet._own`).
 - Windows PowerShell 5.1 reads a `.ps1` without a byte-order mark in the PC's code page: one "–" in a message of the
   uninstaller became "â€“", whose last byte is a typographic quote that ends a PowerShell string, and the whole script
   failed to parse (task 0217). Installer files stay plain ASCII (`tests/test_toolbox.py`

@@ -247,7 +247,7 @@ def _draw_splash(self, context):
             col.label(text=line)
         row = col.row(align=True)
         row.operator_context = "EXEC_DEFAULT"
-        row.operator(FRESING_OT_welcome_answer.bl_idname, text="Take the test tour", icon="VIEW_CAMERA").choice = "TOUR"
+        row.operator(FRESING_OT_welcome_answer.bl_idname, text="Open the Learning hub", icon="VIEW_CAMERA").choice = "TOUR"
         row.operator(FRESING_OT_welcome_answer.bl_idname, text="Later", icon="TIME").choice = "LATER"
         row.operator(FRESING_OT_welcome_answer.bl_idname, text="Don't show this again", icon="CANCEL").choice = "NEVER"
     else:
@@ -273,7 +273,7 @@ def _draw_quick_setup(self, context):
 
 def WELCOME_TEXT(minutes: int) -> list:  # noqa: N802 - a text, called like one
     return ["Photo-realistic pictures and animations of your STEP assemblies.",
-            "The test tour shows every function on small test models, one stop at a time.",
+            "The Learning hub shows every function on small test models, one stop at a time.",
             f"Making it takes about {minutes} minutes on a PC like yours (in the background)."]
 
 
@@ -301,8 +301,8 @@ def take_tour(context) -> None:
 
 
 class FRESING_OT_welcome(bpy.types.Operator):
-    """Show the welcome window again: what the app is and how the test tour shows every function on small test
-    models. Take the test tour makes it (in the background) or opens it"""
+    """Show the welcome window again: what the app is and how the Learning hub shows every function on small test
+    models. Open the Learning hub makes it (in the background) or opens it"""
 
     bl_idname = "fresing.welcome"
     bl_label = "Welcome screen…"
@@ -314,7 +314,7 @@ class FRESING_OT_welcome(bpy.types.Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=560, title="Welcome to Fresing Render",
-                                                          confirm_text="Take the test tour")
+                                                          confirm_text="Open the Learning hub")
 
     def draw(self, context):
         col = self.layout.column()
@@ -346,13 +346,13 @@ class FRESING_OT_welcome_answer(bpy.types.Operator):
     bl_label = "Answer the welcome"
     bl_options = {"INTERNAL"}
 
-    choice: EnumProperty(items=[("TOUR", "Take the test tour", "Make the test tour (or open it) now"),
+    choice: EnumProperty(items=[("TOUR", "Open the Learning hub", "Make the Learning hub (or open it) now"),
                                 ("LATER", "Later", "Ask again at the next start (at most three starts)"),
                                 ("NEVER", "Don't show this again", "The welcome does not show at the start again")])
 
     @classmethod
     def description(cls, context, props):
-        return {"TOUR": "Make the test tour in the background (or open it when it is there): every function on "
+        return {"TOUR": "Make the Learning hub in the background (or open it when it is there): every function on "
                         "small test models, one stop at a time",
                 "LATER": "Close the welcome; it shows again at the next start (at most three starts)",
                 "NEVER": "Close the welcome for good. It stays in the Fresing menu at the top"}.get(
@@ -373,15 +373,15 @@ class FRESING_OT_whats_new(bpy.types.Operator):
     bl_label = "What's new"
 
     at_start: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})
-    which: EnumProperty(name="Test tour", default="NEW", options={"SKIP_SAVE"},
+    which: EnumProperty(name="Learning hub", default="NEW", options={"SKIP_SAVE"},
                         items=[("NEW", "Only the new and changed test models",
                                 "Make a tour of only the new and changed test models: quicker than the whole tour"),
-                               ("WHOLE", "The whole tour", "Make the whole test tour: every function, every model")],
-                        description="Which test tour Make the tour makes")
+                               ("WHOLE", "The whole tour", "Make the whole Learning hub: every function, every model")],
+                        description="Which Learning hub Make the tour makes")
 
     @classmethod
     def description(cls, context, props):
-        return (f"{_menu_text()}: the new and improved functions, and a test tour of only the new and changed test "
+        return (f"{_menu_text()}: the new and improved functions, and a Learning hub of only the new and changed test "
                 "models")
 
     def _since(self) -> str:
@@ -443,13 +443,13 @@ class FRESING_OT_whats_new(bpy.types.Operator):
         if sets:
             from ..core.words import plural
             n_new = sum(1 for _s, k in sets if k == "new")
-            col.label(text=f"Test tour: {plural(n_new, 'new test model')}, {len(sets) - n_new} changed")
+            col.label(text=f"Learning hub: {plural(n_new, 'new test model')}, {len(sets) - n_new} changed")
             for ts, kind in sets:
                 col.label(text=f"{ts.title}  ({'new' if kind == 'new' else 'changed'})",
                           icon="ADD" if kind == "new" else "MODIFIER")
             col.prop(self, "which", expand=True)
         else:
-            col.label(text="No new or changed test models in the test tour this time.")
+            col.label(text="No new or changed test models in the Learning hub this time.")
         if self.at_start:
             col.separator()
             _lines(col, "Cancel = later: What's new stays in the Fresing menu until you open it.", 76, icon="TIME")
@@ -466,7 +466,7 @@ class FRESING_OT_whats_new(bpy.types.Operator):
             with context.temp_override(**kw):
                 bpy.ops.fresing.tour_make("EXEC_DEFAULT", only=only)
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Could not start the test tour: {exc}")
+            self.report({"ERROR"}, f"Could not start the Learning hub: {exc}")
             return {"CANCELLED"}
         return {"FINISHED"}
 

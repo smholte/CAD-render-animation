@@ -11,6 +11,7 @@ from bpy.props import EnumProperty
 
 from ..core import functions
 from . import lesson, ui
+from .ui_left import LeftPanel
 
 
 def _guide(layout, fid: str) -> None:
@@ -23,7 +24,7 @@ def _guide(layout, fid: str) -> None:
             pass
 
 
-class FRESING_PT_lesson(ui._Panel, bpy.types.Panel):
+class FRESING_PT_lesson(LeftPanel, bpy.types.Panel):  # task 0260: on the left panel
     bl_label = "Lesson"
     bl_order = 0
 

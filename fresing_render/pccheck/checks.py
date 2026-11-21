@@ -4916,7 +4916,7 @@ def app_usage(ctx):
 
 
 @line("app.learning", "Learn as you go: the question teaches, the learning list, next to learn", "0.2.160",
-      what="The question about an unused panel offers the guide, the test tour and the learning list beside Hide (and "
+      what="The question about an unused panel offers the guide, the Learning hub and the learning list beside Hide (and "
            "only Hide when teaching is off); a function on the list is ticked by itself after use on 3 days and the "
            "list says so once; the quiet 'next to learn' never offers what was hidden, turned down or is used by the "
            "project; the usage file keeps the list (with an accent in its folder) and an older file without it reads")
@@ -5039,9 +5039,56 @@ def app_lessons(ctx):
             f"{time.time() - t1:.1f} s; nothing left running")
 
 
-@line("tour.make", "Test tour: the projects are made, every stop's Go works", "0.2.47",
-      what="Makes the test tour (a small project per test model) and does Go and the number check of every stop, "
-           "without pictures (the PC check's mode Test tour renders them)")
+@line("panel.two", "Two panels: the work on the right, the rest on the left; Make's windows; the Learning hub switch",
+      "0.2.197",
+      what="The right panel starts with Make (one row of six outputs) and the section tabs, the left panel holds Live "
+           "preview + Build & play, the update notice, Workspace, the Learning hub, Favourites and What's next; each "
+           "output has its own window with a tooltip; on the crane sample the switch goes View -> Show me -> Build it "
+           "yourself. (Run without a window: the left panel's width, the windows on screen and scrolling are checked "
+           "by the real-app test and on your PC.)")
+def panel_two(ctx):
+    import bpy
+
+    from .. import _all_classes
+    from ..blender import lesson, ops_make, panels, ui_left, ui_top
+    classes = _all_classes()
+    left = [c.__name__ for c in classes if panels.is_left(c)]
+    _check(left[:1] == ["FRESING_PT_left_quick"] and left[-1:] == ["FRESING_PT_next"]
+           and {"FRESING_PT_workspace", "FRESING_PT_hub", "FRESING_PT_favourites", "FRESING_PT_update"} <= set(left),
+           f"the left panel holds {left}")
+    right = [c.__name__ for c in classes if getattr(c, "bl_region_type", "") == "UI"
+             and getattr(c, "bl_category", "") == "Fresing"]
+    _check(right[:3] == ["FRESING_PT_make", "FRESING_PT_tabs", "FRESING_PT_import"],
+           f"the right panel starts with {right[:3]}, not Make, the tabs, 1 Import")
+    _check(not set(left) & set(right), "a panel is on both sides")
+    keys = list(ops_make.outputs())
+    _check(len(keys) == 6, f"Make has {len(keys)} outputs, not 6")
+    for key in keys:
+        props = type("P", (), {"key": key})()
+        text = bpy.types.FRESING_OT_make_window.description(bpy.context, props)
+        _check(ops_make.title(key) in text and len(text) > 60, f"the output '{key}' has no proper tooltip: {text!r}")
+    _check(bpy.ops.fresing.make_window.poll() and bpy.ops.fresing.left_fold.poll(), "Make's windows or the fold refused")
+    scene = ctx.fresh(CRANE_A)
+    from ..blender import tour
+    scene[tour.TAG] = "crane"
+    st = ui_left.hub_state(scene)
+    _check(st["in_hub"] and st["mode"] == "VIEW" and st["lesson"], f"the crane sample does not show as View: {st}")
+    del scene[tour.TAG]
+    lesson.start(scene, "crane", "SHOW")
+    try:
+        _check(ui_left.hub_state(scene)["mode"] == "SHOW", "the crane lesson does not show as Show me")
+        _check(bpy.ops.fresing.hub_mode("EXEC_DEFAULT", mode="BUILD") == {"FINISHED"}
+               and ui_left.hub_state(scene)["mode"] == "BUILD" and lesson.state()["mode"] == "BUILD",
+               "the switch did not go from Show me to Build it yourself")
+    finally:
+        lesson.stop(forget=True)
+    _check(not ui_left.hub_state(scene)["in_hub"], "an own project still counts as a Learning hub project")
+    _check(callable(ui_top.draw_make), "Make's drawing is missing")
+
+
+@line("tour.make", "Learning hub: the projects are made, every stop's Go works", "0.2.47",
+      what="Makes the Learning hub (a small project per test model) and does Go and the number check of every stop, "
+           "without pictures (the PC check's mode Learning hub renders them)")
 def tour_make(ctx):
     import bpy
 

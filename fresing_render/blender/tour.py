@@ -202,7 +202,7 @@ def results_text(version: str, data: dict, pc: str = "") -> str:
     rows = data.get("stops", {})
     n_ok = sum(1 for s in STOPS if rows.get(s.id, {}).get("state") == OK_STATE)
     n_bad = sum(1 for s in STOPS if rows.get(s.id, {}).get("state") == PROBLEM)
-    out = [f"Fresing Render test tour {version} - {time.strftime('%Y-%m-%d %H:%M')}"]
+    out = [f"Fresing Render Learning hub {version} - {time.strftime('%Y-%m-%d %H:%M')}"]
     if pc:
         out.append(f"PC: {pc}")
     out.append(f"{n_ok} OK, {n_bad} problem, {len(STOPS) - n_ok - n_bad} not looked at, of {len(STOPS)} stops")
@@ -491,7 +491,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.197")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.198")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -2993,7 +2993,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.171")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.197")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -4696,12 +4696,14 @@ def _setup_first_step(scene):
 
 
 stop("setup", MACH, "gantry", "Set-up window: step by step",
-     "Press Set-up window… (in Make at the top of the Fresing tab, or in 4 Motion > CNC machine): a small window of "
+     "Press Set-up window… (under the section tabs at the top of the Fresing panel, or in 4 Motion > CNC machine): a "
+     "small window of "
      "its own opens with 'Set up a CNC mill', step 1 of 5 – the axes X, Y and Z, already picked on this machine (a "
      "green tick). Next goes through the spindle, the tool and the workpiece, the work zero and the G-code program; "
      "the buttons are the same as in the side panel. Drag the window anywhere, also onto a second screen, and click "
      "parts in the main window while it is open. The drop-down at its top switches to 'Set up a mechanism'.",
-     where="Make > Set-up window…; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.152",
+     where="Set-up window… under the section tabs; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.152",
+     changed="0.2.197",
      animation="G-code", check=_check_setup, setup=_setup_first_step, auto=lambda ctx, scene, st: "")
 
 stop("still", OUT, HUB_SET, "Still picture",
@@ -4870,7 +4872,7 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
      "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
-     check=_check_web3d, changed="0.2.197")
+     check=_check_web3d, changed="0.2.198")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
@@ -5029,19 +5031,22 @@ def _check_make(scene):
 
 
 stop("workspace", OUT, HUB_SET, "Functions in this project",
-     "The top row of the Fresing tab says 'All functions': the workspace. Its small arrow is open here: under "
+     "On the left panel (left of the 3D view) the row under Live preview says 'All functions': the workspace. Its "
+     "small arrow is open here: under "
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
      "Sections 1 to 7 start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
-     "All · 1 … 7 show one section at a time.",
-     where="The Workspace row at the top of the Fresing tab", since="0.2.152", shot="Tour view",
+     "All · 1 … 8 under Make show one section at a time.",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
-stop("make", OUT, HUB_SET, "Make: every output side by side",
-     "Above 1 Import is the Make list: Picture, Product video, Turntable, 3D page, Animation and Queue. Click "
-     "Picture: the settings of 5 Scene & Render > Image size & render open right there, with a blue Render image "
-     "button. The same list is under Make in the header of the 3D view, so it is there whatever the side panel shows.",
-     where="Make, above 1 Import; Make in the 3D view's header", since="0.2.152", shot="Tour view", check=_check_make,
+stop("make", OUT, HUB_SET, "Make: each output in a window",
+     "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
+     "Animation and Queue (rest the mouse on one for its name; click Make for the list with names). Click Picture: a "
+     "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "
+     "Drag it anywhere, click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no "
+     "second window. The same list is under Make in the header of the 3D view.",
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.197", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
@@ -5071,9 +5076,9 @@ def _check_panel_back(scene):
 stop("panel_back", OUT, HUB_SET, "Fresing panel always back",
      "Move the mouse over the 3D view and press N: the side panel goes away, and a small Fresing button appears at "
      "the right end of the 3D view's header. Click it: the side panel is back on the Fresing tab and the button "
-     "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab with Blender's "
-     "toolbar folded. Live preview stays on or off as you left it when you go to another test tour project.",
-     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150",
+     "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab and the left panel "
+     "(Live preview, Workspace, Learning hub …) at the left of the view. Live preview stays on or off as you left it when you go to another Learning hub project.",
+     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150", changed="0.2.197",
      shot="Tour view", check=_check_panel_back, auto=lambda ctx, scene, st: "")
 
 def _check_start_here(scene):
@@ -5096,10 +5101,11 @@ def _check_start_here(scene):
 
 
 stop("start_here", OUT, HUB_SET, "Start here: the Fresing menu",
-     "At the top of the window, after Help, there is a menu Fresing: Take the test tour, What's new in this version, "
+     "At the top of the window, after Help, there is a menu Fresing: Open the Learning hub, What's new in this version, "
      "Show the Fresing panel, the demo project, the user guide, the PC check, Check for updates and the Welcome "
      "screen. What's new lists the new functions with Show in guide, and the new and changed test models with a tour "
-     "of only those. In this Test tour panel new stops say \"New\" and changed ones \"Changed\" after an update.",
+     "of only those. In the Learning hub stops on the left panel new stops say \"New\" and changed ones \"Changed\" "
+     "after an update.",
      where="The Fresing menu in the top bar (after Help)", since="0.2.155", shot="Tour view",
      check=_check_start_here, auto=lambda ctx, scene, st: "")
 
@@ -5133,10 +5139,10 @@ stop("usage", OUT, HUB_SET, "Favourites bar and My usage",
      "Fresing > My usage… (also at the end of Help) opens a window that says what the app counted on this PC – nothing "
      "is sent anywhere: your most used functions with a pin each, where your time goes per stage (bars), and the "
      "time saved, marked as an estimate with how it is worked out. Use a button a few times (for example Render image "
-     "twice): at the next start of the app it is on the favourites bar under the Workspace row; a click on it opens "
+     "twice): at the next start of the app it is on the favourites bar on the left panel; a click on it opens "
      "its section and points at the button. After 10 starts a panel you never used gets one quiet question at the "
      "top: Hide / Not now / Don't ask again.",
-     where="Fresing menu > My usage…; the favourites bar under the Workspace row", since="0.2.158",
+     where="Fresing menu > My usage…; the favourites bar on the left panel", since="0.2.158", changed="0.2.197",
      shot="Tour view", check=_check_usage, auto=lambda ctx, scene, st: "")
 
 def _check_learn(scene):
@@ -5169,13 +5175,13 @@ def _check_learn(scene):
 
 
 stop("learn", OUT, HUB_SET, "Learn as you go",
-     "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the test tour and Add to my "
+     "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the Learning hub and Add to my "
      "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
      "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "
      "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
      "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
-     where="Fresing menu > My learning list…; the question at the top of the Fresing tab; the What's next card",
-     since="0.2.160", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+     where="Fresing menu > My learning list…; the question and the What's next card on the left panel",
+     since="0.2.160", changed="0.2.197", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
 def _check_lessons(scene):
     """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""
@@ -5204,8 +5210,8 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "button glows, a card beside the part says what happens, Next goes on (or tick Play on) – and Build it yourself "
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'.",
-     where="Fresing menu > Learn…; the Lesson panel at the top of the Fresing tab while a lesson runs",
-     since="0.2.189", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
+     since="0.2.189", changed="0.2.197", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 
@@ -5557,7 +5563,7 @@ def open_set(folder: str, version: str, set_id: str) -> bool:
     if bpy.data.filepath and os.path.normcase(os.path.abspath(bpy.data.filepath)) == os.path.normcase(path):
         return False
     if not os.path.isfile(path):
-        raise RuntimeError(f"the tour project '{os.path.basename(path)}' is missing: make the test tour again "
-                           "(Help > Make test tour project)")
+        raise RuntimeError(f"the tour project '{os.path.basename(path)}' is missing: make the Learning hub again "
+                           "(Help > Make the Learning hub)")
     bpy.ops.wm.open_mainfile(filepath=path)
     return True

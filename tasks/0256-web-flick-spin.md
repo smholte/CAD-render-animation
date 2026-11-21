@@ -67,7 +67,7 @@ last flick's direction. No spin for: release after a pause (>80 ms), a second fi
 or a part tool's handle (its capture-phase press never reaches the page). The spin draws only while it turns.
 Player: the Auto-turn label says "or flick the model". Probe (`tools/web_player_probe.js`): the `drag` step takes a
 delay per move and 'Shift' / 'right' / 'wait'. Guide sentence, tour text of stop `web3d` + crane set `changed`,
-function `web.export` `changed`, CHANGELOG 0.2.197. PC check: the page's own `selftest` now flicks (fast spins, press
+function `web.export` `changed`, CHANGELOG 0.2.198. PC check: the page's own `selftest` now flicks (fast spins, press
 stops, slow does not) and line `web3d.player` fails otherwise (no new line, so no `MIN_*` change).
 
 **Tested and measured:** `tests/test_web3d_flick.py` (6 tests, headless Chromium, real mouse events, 24 s on the

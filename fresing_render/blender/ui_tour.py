@@ -10,6 +10,7 @@ import bpy
 
 from ..core.words import plural
 from . import tour, ui
+from .ui_left import LeftPanel
 
 
 def _since() -> str:
@@ -31,8 +32,8 @@ def _state_icon(state: str) -> str:
     return {tour.OK_STATE: "CHECKMARK", tour.PROBLEM: "ERROR"}.get(state, "LAYER_USED")
 
 
-class FRESING_PT_tour(ui._Panel, bpy.types.Panel):
-    bl_label = "Test tour"
+class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
+    bl_label = "Learning hub stops"
     bl_order = 0
 
     @classmethod
@@ -58,7 +59,7 @@ class FRESING_PT_tour(ui._Panel, bpy.types.Panel):
         data = tour.load_results(folder, version)
         rows = data["stops"]
         current = tour.find(data.get("current", "")) or tour.STOPS[0]
-        ui.wrap(layout, context, f"Test tour {version}: pick a stop, press Go, look, then OK or Problem.")
+        ui.wrap(layout, context, f"Learning hub {version}: pick a stop, press Go, look, then OK or Problem.")
         since = _since()
         made = tour.made_sets(folder, version)
         if len(made) < len(tour.SETS):            # task 0199: a tour of only the new and changed test models

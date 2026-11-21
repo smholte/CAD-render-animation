@@ -17,7 +17,7 @@ def _title(fid: str) -> str:
 
 
 class FRESING_OT_learn_show(bpy.types.Operator):
-    """Shows a function you have not used: in the user guide, or in the test tour (its first stop is set up and the
+    """Shows a function you have not used: in the user guide, or in the Learning hub (its first stop is set up and the
     button pointed at). The function is put on your learning list too"""
 
     bl_idname = "fresing.learn_show"
@@ -26,8 +26,8 @@ class FRESING_OT_learn_show(bpy.types.Operator):
 
     fid: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
     how: EnumProperty(items=[("GUIDE", "Show me in the guide", "Opens the user guide at this function's section"),
-                             ("TOUR", "Show me in the test tour",
-                              "Sets up the test tour's stop for this function and points at its button")],
+                             ("TOUR", "Show me in the Learning hub",
+                              "Sets up the Learning hub's stop for this function and points at its button")],
                       options={"SKIP_SAVE"})
 
     @classmethod
@@ -36,7 +36,7 @@ class FRESING_OT_learn_show(bpy.types.Operator):
             return cls.__doc__
         if props.how == "TOUR":
             opts = core.options(props.fid)
-            return ("Sets up the test tour's stop for this function and points at its button. The function goes on "
+            return ("Sets up the Learning hub's stop for this function and points at its button. The function goes on "
                     "your learning list" if opts["tour"] else opts["why_no_tour"])
         return "Opens the user guide at this function's section. The function goes on your learning list"
 
@@ -63,7 +63,7 @@ class FRESING_OT_learn_show(bpy.types.Operator):
 
 
 class FRESING_OT_learn_add(bpy.types.Operator):
-    """Puts this function on your learning list (Fresing > My learning list…): the guide and the test tour are one
+    """Puts this function on your learning list (Fresing > My learning list…): the guide and the Learning hub are one
     click away there, and it is ticked by itself once you use it on a few days"""
 
     bl_idname = "fresing.learn_add"
@@ -264,7 +264,7 @@ class FRESING_OT_learn_start(bpy.types.Operator):
 
 
 class FRESING_OT_learn_view(bpy.types.Operator):
-    """View: opens the test tour's finished project of this sample at its first stop (Go). When the test tour is not
+    """View: opens the Learning hub's finished project of this sample at its first stop (Go). When the Learning hub is not
     made yet, it is made first (in the background, a few minutes)"""
 
     bl_idname = "fresing.learn_view"
@@ -281,7 +281,7 @@ class FRESING_OT_learn_view(bpy.types.Operator):
             return {"CANCELLED"}
         path = tour.set_path(tour.default_folder(), ops_tour._version(), self.set)
         if not os.path.isfile(path):
-            self.report({"INFO"}, "The test tour is made first (a few minutes): then press View again")
+            self.report({"INFO"}, "The Learning hub is made first (a few minutes): then press View again")
             return bpy.ops.fresing.tour_take("EXEC_DEFAULT")
         first = next((st for st in tour.STOPS if st.set == self.set), None)
         if first is not None:
@@ -315,17 +315,25 @@ class FRESING_OT_learn_lessons(bpy.types.Operator):
         return context.window_manager.invoke_props_dialog(self, width=720, title="Learn", confirm_text="Close")
 
     def execute(self, context):
+        CHOSEN["mode"] = ""
         return {"FINISHED"}
+
+    def cancel(self, context):
+        CHOSEN["mode"] = ""
 
     def draw(self, context):
         draw_lessons(self.layout)
 
 
+CHOSEN = {"mode": ""}         # task 0260: the way chosen on the left panel's switch (its buttons show pressed)
+
+
 def draw_lessons(layout) -> None:
     """The Learn window: the sets with a lesson first (three buttons), then every other set with View."""
     from . import lesson, tour
+    chosen = CHOSEN["mode"]
     col = layout.column(align=True)
-    for line in ("Three ways to learn on a sample project. View: the finished project (the test tour).",
+    for line in ("Three ways to learn on a sample project. View: the finished project (the Learning hub).",
                  "Show me: the app does each step while you watch. Build it yourself: you do each step, the app",
                  "points and goes on when it is done. Both start a new project: save your own work first."):
         row = col.row()
@@ -341,10 +349,11 @@ def draw_lessons(layout) -> None:
         split = row.split(factor=0.42, align=True)
         split.label(text=f"{ts.title} ({len(les.steps)} steps)", icon="LIGHT")
         right = split.row(align=True)
-        right.operator("fresing.learn_view", text="View", icon="HIDE_OFF").set = set_id
-        op = right.operator("fresing.learn_start", text="Show me", icon="PLAY")
+        right.operator("fresing.learn_view", text="View", icon="HIDE_OFF", depress=chosen == "VIEW").set = set_id
+        op = right.operator("fresing.learn_start", text="Show me", icon="PLAY", depress=chosen == "SHOW")
         op.lesson, op.mode = set_id, "SHOW"
-        op = right.operator("fresing.learn_start", text="Build it yourself", icon="TOOL_SETTINGS")
+        op = right.operator("fresing.learn_start", text="Build it yourself", icon="TOOL_SETTINGS",
+                            depress=chosen == "BUILD")
         op.lesson, op.mode = set_id, "BUILD"
         sub = box.row()
         sub.active = False
@@ -358,11 +367,11 @@ def draw_lessons(layout) -> None:
             continue
         cell = flow.row(align=True).split(factor=0.76, align=True)
         cell.label(text=_clip(ts.title, 44))
-        cell.operator("fresing.learn_view", text="View", icon="HIDE_OFF").set = set_id
+        cell.operator("fresing.learn_view", text="View", icon="HIDE_OFF", depress=chosen == "VIEW").set = set_id
 
 
 class FRESING_OT_learn_window(bpy.types.Operator):
-    """Your learning list: the functions you wanted to learn, each with its guide section and its test-tour stop.
+    """Your learning list: the functions you wanted to learn, each with its guide section and its Learning hub stop.
     They are ticked by themselves when you use them on a few days. Counted and kept on this PC only"""
 
     bl_idname = "fresing.learn_window"

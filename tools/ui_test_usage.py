@@ -120,7 +120,8 @@ def point_and_wait(name, panel, button, text):
             redraw()
             return "again"
         _w, _a, _r, sb = ui()
-        S["box"] = (sb.x + (box[0] + box[2]) // 2, sb.y + (box[1] + box[3]) // 2)
+        rx, ry = (f.get("region") or (sb.x, sb.y))[:2]      # task 0260: the left panel or the side panel
+        S["box"] = (rx + (box[0] + box[2]) // 2, ry + (box[1] + box[3]) // 2)
         check(f"{name}: the button is on screen", True, f"{box}")
         hl().clear()
         mouse_away()
@@ -197,6 +198,9 @@ def s_shot_bar():
     check("the favourites panel shows", bpy.types.FRESING_PT_favourites.poll(bpy.context))
     _w, _a, _r, sb = ui()
     click(sb.x + sb.width // 2, sb.y + sb.height - 12)     # a first click on the side panel's empty top edge
+    _w, area, _r, _sb = ui()                               # task 0260: the favourites are on the left panel – a first
+    left = next(r for r in area.regions if r.type == "TOOLS")   # click on its empty bottom gives it the focus
+    click(left.x + left.width // 2, left.y + 12)
     return 0.6
 
 
@@ -339,7 +343,7 @@ def s_learn_ask():
 
 
 point_and_wait("learn_guide", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the guide")
-point_and_wait("learn_tour", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the test tour")
+point_and_wait("learn_tour", "FRESING_PT_favourites", "fresing.learn_show", "Show me in the Learning hub")
 point_and_wait("learn_list", "FRESING_PT_favourites", "fresing.usage_declutter", "Add to my learning list")
 
 

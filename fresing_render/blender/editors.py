@@ -154,7 +154,8 @@ def _windows():
     wm = bpy.context.window_manager
     if wm is None or bpy.app.background:
         return []
-    return [w for w in wm.windows if w.screen is not None and not w.screen.get(SETUP_MARK)]
+    from .panels import side_window
+    return [w for w in wm.windows if w.screen is not None and not side_window(w)]   # task 0260: output windows too
 
 
 def column(win) -> list:

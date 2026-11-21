@@ -82,16 +82,18 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 <img class="wide" src="img/app_after_import.png" alt="The Fresing Render window after an import">
 
 - The big area in the middle is the **view**: your model in 3D.
-- On its right edge is the **side panel** with the **Fresing** tab. Hidden? Click the **Fresing** button
-  in the view's header, or move the mouse over the view and press <kbd>N</kbd>.
+- On its right edge is the **side panel** with the **Fresing** tab: the steps of the work. Hidden? Click the
+  **Fresing** button in the view's header, or move the mouse over the view and press <kbd>N</kbd>.
+- On its left edge is the **left panel** ([below](#left-panel)): Live preview, Build & play, your Workspace, the
+  Learning hub, Favourites and What's next.
 - The other areas (the lists top right, the timeline at the bottom) are Blender's own. You rarely need
   them.
 
 <img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the seven sections, folded">
 
 The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work, and an eighth for
-lifting plans, **8 Lifting plan** ([below](#lifting)). Above them are the **Workspace** row, the **What's next**
-card, the section tabs and **Make**.
+lifting plans, **8 Lifting plan** ([below](#lifting)). Above them are only **Make**, the section tabs and (for a CNC
+mill or a mechanism) **Set-up window…** – so the first step is always at the top.
 
 Every section works the same way:
 
@@ -114,6 +116,31 @@ empties a list or a result, **Delete** deletes a file in the library, **Show in 
 in Explorer, **Add** makes a new thing, **Use as** takes the part you clicked, **Back to …** says where
 you go back to.
 
+<a id="left-panel"></a>
+### The left panel
+
+<img class="panel" src="img/left_panel.png" alt="The left panel: Live preview and Build & play, Workspace, Learning hub, Favourites, What's next">
+
+Everything that is not a step of the work sits on the left of the view, top to bottom:
+
+- **Live preview** and **Build & play** – always there, outside every fold. Live preview shows the real render in
+  the view ("Live preview: on" while it is on); Build & play builds the selected animation and plays it (greyed until
+  there is an animation: make one in 6 Animation). Both are the same buttons as in 5 Scene & Render and 6 Animation.
+- **Update available** – only after an update is found ([Updates](#updates)).
+- **Workspace** – which functions this project shows ([below](#workspaces)).
+- **Learning hub** – View, Show me or Build it yourself in one click ([Learning hub](#learning-hub)); in a sample
+  project also its stops, and the Lesson while a lesson runs.
+- **Favourites** – your most used buttons ([below](#favourites)).
+- **What's next** – what to do next in this project ([below](#whats-next)).
+
+**Fold it away:** the small **◀** at the right of the top row folds the left panel to a narrow strip with three icons:
+**▶** (opens it again), Live preview and Build & play – so they stay one click away. The app remembers it for every
+project. Drag the panel's edge to make it wider or narrower; projects open with it as wide as you left it.
+
+In **Full access** (Fresing > Show all of Blender) Blender's own tool buttons come back at the top of the left panel,
+the Fresing parts stay under them. Hidden left panel (Blender's View > Toolbar or <kbd>T</kbd>)? The **Fresing**
+button in the view's header brings both panels back.
+
 <a id="sections"></a>
 ### Sections: folded at the start, tabs, Ctrl+click
 
@@ -126,7 +153,7 @@ you go back to.
 - **Click a title** to open or fold it.
 - **<kbd>Ctrl</kbd>+click a title**: only that one stays open, the others on its level fold. The quick
   way to a calm panel.
-- **The tabs All · 1 … 7** under the Workspace row show one section at a time, opened. **All** brings the
+- **The tabs All · 1 … 8** under Make show one section at a time, opened. **All** brings the
   seven back.
 - Want the sections as you left them instead? **Edit > Preferences > Add-ons > Fresing Render >
   Keep sections as I left them**. There too: **Keep How it works open**.
@@ -218,20 +245,27 @@ no password: it stops accidents, not people.
 <a id="whats-next"></a>
 ### The What's next card
 
-In a new project a small card above the tabs says what to do next (import, sort the parts into groups,
-then the surroundings and **Render image**) with a button that opens that section. It goes away after
-the first render; the **×** hides it for this project.
+In a new project a small card at the bottom of the left panel says what to do next (import, sort the parts into
+groups, then the surroundings and **Render image**) with a button that opens that section. It goes away after the
+first render; the **×** hides it for this project. The small arrow in its title row folds it to that row – it stays
+folded, also in other projects, until you open it again.
 
 <a id="make"></a>
 ### Make: every picture, video and 3D page in one place
 
-<img class="panel" src="img/panel_top_make.png" alt="The Make list: Picture, Product video, Turntable, 3D page, Animation, Queue">
+<img class="panel" src="img/panel_top_make.png" alt="Make: one row with the six outputs as icons, above the section tabs">
 
-**Make**, above 1 Import, lists every kind of output side by side: **Picture**, **Product video**,
-**Turntable**, **3D page** (the web 3D model), **Animation** and **Queue**. Each button opens that
-output's own settings with its Make button – the same settings as in 5 Scene & Render, 6 Animation and
-7 Render queue, nothing is moved. The same list is in the header of the 3D view (**Make**, top of the
-view), so it is there whatever the side panel shows.
+**Make**, at the top of the Fresing panel, is one row: the word **Make** and six icons – **Picture**, **Product
+video**, **Turntable**, **3D page** (the web 3D model), **Animation** and **Queue** (rest the mouse on an icon for its
+name). Click **Make** for the list with names; click it again for the row. The app keeps your choice.
+
+Each icon opens that output's **own window** with its settings and its Make button – the same settings as in
+5 Scene & Render, 6 Animation and 7 Render queue: a change in one shows in the other. Drag the window anywhere, also
+onto a second screen; it stays open while you work in the main window or another output window, until you close it
+(**×** at its top). Pressing the same output again does not open a second one: on Windows it comes to the front, and
+it opens where it was last time. A window left open is saved with the project. The same list is in the header of the
+3D view (**Make**, top of the view): the main button there makes the output at once, the gear beside it opens its
+window.
 
 This guide is in the app under **Help > Fresing Render user guide**, and as the shortcut **User guide** in the
 app's Tools folder (**Fresing > Tools and checks > Open the app folder**).
@@ -247,7 +281,7 @@ Setting up a CNC mill or a mechanism takes a handful of steps in a long panel. T
 them one at a time, in a small window of its own that you can drag anywhere – also onto a second screen –
 while you click parts in the main window.
 
-1. Press **Set-up window…** (in **Make**, in 4 Motion > CNC machine or in 4 Motion > Mechanisms).
+1. Press **Set-up window…** (under the section tabs, in 4 Motion > CNC machine or in 4 Motion > Mechanisms).
 2. Pick what to set up at the top: **Set up a CNC mill** (axes X, Y, Z → spindle → tool and workpiece →
    work zero → G-code program) or **Set up a mechanism** (type → base → moving links → add it).
 3. Do what the step says – its buttons are the same ones as in the side panel, so what you do here shows
@@ -263,8 +297,8 @@ with the window open brings it back. Close the window like any other window.
 At the top of the window, after **File, Edit, Render, Window, Help**, there is a menu **Fresing**. It holds the app's
 own things in one place, whatever workspace you are in (also in the Client view):
 
-- **Take the test tour** – opens the [test tour](#tour) of this version; when it is not made yet, it is made first
-  (in the background: the bottom line of the window shows how far it is, and **Cancel making the test tour** appears
+- **Open the Learning hub** – opens the [Learning hub](#tour) of this version; when it is not made yet, it is made first
+  (in the background: the bottom line of the window shows how far it is, and **Cancel making the Learning hub** appears
   in the menu while it runs).
 - **Learn…** – the sample projects to learn on: View, Show me, Build it yourself ([Learn](#learn)).
 - **What's new in 0.2.…** – what this version brings (see below). A dot after it means you have not opened it yet.
@@ -290,7 +324,7 @@ need them: the Fresing tab has the parts tree and every setting the app uses. Th
 
 - **Fresing > Show Blender's editors** brings both back at the right of the 3D view (Outliner on top, Properties
   below, Blender's usual width). The same entry then says **Hide Blender's editors**.
-- Your choice is kept: every project you open, the test tour and the demo follow it, also after a restart (it is
+- Your choice is kept: every project you open, the Learning hub and the demo follow it, also after a restart (it is
   stored in Blender's settings folder, not in the project).
 - In the **Client view** they are always hidden and the entry is greyed; **Full access** brings back what you chose.
 - Only the Outliner and Properties editor right next to the 3D view are hidden. A layout you split yourself stays.
@@ -314,7 +348,7 @@ are hidden, so the window shows only what you need to look at your model and mak
 - **The tool row** under the header (select-box buttons, Options) is off.
 - **The top bar** has no **Scene** and **View Layer** fields on the right.
 - **The start-up screen** shows the app's own lines: **New project**, **Open…**, **Recover Last Session**, your
-  recent projects, **Take the test tour**, **Demo project** and **User guide**. Blender's templates and web links are
+  recent projects, **Open the Learning hub**, **Demo project** and **User guide**. Blender's templates and web links are
   not shown.
 - **File > New** (and **Ctrl+N**) offers only **New project**: a new project starts exactly like the app does –
   millimetres, Cycles and the app's layout. (Blender's **General** template opened in metres with another render engine.)
@@ -372,10 +406,10 @@ Blender's own auto-save (File > Recover) still works as before.
 ### The welcome (the first starts)
 
 The first time the app starts on a PC (in a new settings folder) the start-up screen shows a short welcome at its
-top: what the app is for, and the test tour, with how long making it takes ("about 3 minutes" – measured on the
+top: what the app is for, and the Learning hub, with how long making it takes ("about 3 minutes" – measured on the
 4-core test machine; once you have made the tour, the time it took on your PC). Three buttons:
 
-- **Take the test tour** – makes the tour in the background and offers to open it when it is ready.
+- **Open the Learning hub** – makes the tour in the background and offers to open it when it is ready.
 - **Later** – asks again at the next start, at most three starts.
 - **Don't show this again** – never again at the start. It stays in **Fresing > Welcome screen…**.
 
@@ -396,7 +430,7 @@ opens it:
    this guide at that function. **All release notes** opens the release page with every change.
 2. **The test models** – "2 new test models, 1 changed", with their names. Pick **Only the new and changed test
    models** (much quicker to make than the whole tour) or **The whole tour**, then **Make the tour**. When it is
-   ready, open it: the Test tour panel marks the new stops "– New" and the changed ones "– Changed", and says
+   ready, open it: the Learning hub panel marks the new stops "– New" and the changed ones "– Changed", and says
    which test models are new or changed since the version you had.
 3. **Cancel** = later: What's new stays in the **Fresing** menu (with a dot) until you open it.
 
@@ -405,10 +439,10 @@ It never shows after going back to an older version or installing the same versi
 <a id="learn"></a>
 ## Learn – lessons on the sample projects
 
-**Fresing > Learn…** opens a window with the app's sample projects (the projects of the [test tour](#tour), each one
+**Fresing > Learn…** opens a window with the app's sample projects (the projects of the [Learning hub](#tour), each one
 small model with its own surroundings). There are three ways to learn on each of them:
 
-- **View** – the finished project: the test tour opens at that sample, its first stop set up (when the test tour is not
+- **View** – the finished project: the Learning hub opens at that sample, its first stop set up (when the Learning hub is not
   made yet, it is made first – a few minutes in the background – then press View again).
 - **Show me** – the app does each step itself while you watch.
 - **Build it yourself** – you do each step; the app shows you where and goes on once the project shows it is done.
@@ -423,13 +457,28 @@ lesson now. The other samples have **View**; their lessons follow with later upd
 Show me and Build it yourself start a **new project** with the sample's plain model, as the import leaves it. Your open
 project is not changed – save it first. The new project is not saved until you save it.
 
+<a id="learning-hub"></a>
+### The Learning hub switch: View · Show me · Build it yourself
+
+<img class="panel" src="img/left_hub.png" alt="The Learning hub on the left panel: View, Show me and Build it yourself, the sample's name">
+
+At the top of the left panel's **Learning hub** three buttons switch between the three ways to learn, in one click. The
+way you are in shows pressed, also after the project is opened again.
+
+- **In a sample project** (one the Learning hub or a lesson opened): **View** opens the finished sample with its stops;
+  **Show me** and **Build it yourself** start its lesson. Between Show me and Build it yourself the lesson switches at
+  once, at the step you are on. Opening another project asks first when this one has unsaved changes. A sample without
+  a lesson shows Show me and Build it yourself greyed: **Lesson coming**.
+- **In your own project** the block has **Open the Learning hub**, and the three buttons open the **Learn** window with
+  that way chosen – pick a sample there.
+
 <a id="learn-show-me"></a>
 ### Show me
 
 The app points at the button of each step – the button stands out in the side panel (the rest is dimmed, as set in
 **Edit > Preferences > Add-ons > Fresing Render > Lesson highlight**), the parts it works on are shown in the 3D view and
 a card beside them says what happens. After a moment the app presses the button itself: a new joint swings out and back
-once so you see what it does. Then it waits for **Next** in the **Lesson** panel at the top of the Fresing tab.
+once so you see what it does. Then it waits for **Next** in the **Lesson** panel on the left panel.
 
 <img class="panel" src="img/lesson_show_me.jpg" alt="Show me points at Add rotate joint: the button is clear in the dimmed side panel, the boom is shown, the card beside it says what happens">
 
@@ -474,9 +523,9 @@ runs, the PC check and the render queue never count.
 <a id="favourites"></a>
 ### The favourites bar
 
-<img class="panel" src="img/usage_bar.png" alt="The favourites bar under the Workspace row, with the question about an unused panel under it">
+<img class="panel" src="img/usage_bar.png" alt="The favourites bar on the left panel, with the question about an unused panel under it">
 
-Under the **Workspace** row, at the top of the Fresing tab, the bar shows the functions you use most (6 buttons; 5
+On the left panel, under the **Learning hub**, the bar shows the functions you use most (6 buttons; 5
 to 8 in My usage). A function joins it once you have used it twice. **The bar is sorted when the app starts and
 never while you work**, so a button does not move under your mouse.
 
@@ -498,10 +547,10 @@ When you have not used a panel in **10 app starts** (a setting in My usage), a q
 the Fresing tab: *"You haven't used Way covers recently. Maybe you do not know it yet?"* – with what the function does
 in one line, and:
 
-<img class="panel" src="img/learn_question.png" alt="The question about an unused panel: Show me in the guide, Show me in the test tour, Add to my learning list, Hide it, Not now, Don't ask again">
+<img class="panel" src="img/learn_question.png" alt="The question about an unused panel: Show me in the guide, Show me in the Learning hub, Add to my learning list, Hide it, Not now, Don't ask again">
 
 - **Show me in the guide** – opens the user guide at that function's section.
-- **Show me in the test tour** – sets up the test tour's stop for it and points at its button (greyed, with the reason,
+- **Show me in the Learning hub** – sets up the Learning hub's stop for it and points at its button (greyed, with the reason,
   when the tour has no stop for it; if the tour is not made yet it says so).
 - **Add to my learning list** – you come back to it later ([the list](#learning-list)).
 - **Hide it** – the panel goes out of your side panel, in every workspace except **Full access**.
@@ -535,7 +584,7 @@ usage.
 
 <img class="panel" src="img/learning_list.png" alt="My learning list: each function with Guide, Tour, Show me and Build, Done and a cross">
  Each line has the function's name and **Guide** (its section in this
-guide), **Tour** (its stop in the test tour, with the button pointed at), **Done** (tick it yourself; click again to take
+guide), **Tour** (its stop in the Learning hub, with the button pointed at), **Done** (tick it yourself; click again to take
 the tick away) and a cross (take it off). **Show me** and **Build** open the function's [lesson](#learn) at its own
 step (greyed while its sample project has no lesson yet). **A function is
 ticked by itself when you use it on 3 different days** (a setting in My usage: *Days of use = learned*); the list says so
@@ -637,7 +686,7 @@ README.txt in the installer folder has the details: company PCs, updates, removi
 ### Updates: one click
 
 New versions come to the app by themselves. A few seconds after the app starts it looks on GitHub for
-a newer version. When there is one, **Update available** appears at the top of the Fresing tab:
+a newer version. When there is one, **Update available** appears at the top of the left panel:
 
 <img class="panel" src="img/panel_update.png" alt="Update available, with Update now">
 
@@ -645,7 +694,7 @@ a newer version. When there is one, **Update available** appears at the top of t
 2. Click **Update now**, then **Update now** again in the small window that asks.
 3. The app downloads the new version (a minute or less), saves your project, closes, installs the
    update and opens again with the same project. Nothing else to do.
-4. At the top of the Fresing tab it says **Updated to …**, with what's new. **Close** hides it.
+4. At the top of the left panel it says **Updated to …**, with what's new. **Close** hides it.
 
 <img class="panel" src="img/panel_update_done.png" alt="Updated to, after the update">
 
@@ -1966,7 +2015,7 @@ the cable lies on the seabed from there – it never kinks at the gutter or curl
 only while the drawn cable touches it: one the cable has lifted off, runs past or no longer reaches stands still for
 those frames (Build & play keys it frame by frame; its coupling is put aside until **Clear keys**).
 
-Try it in the test tour ("A cable on a moving part"): a trolley carries a block with a sheave over the stern, the
+Try it in the Learning hub ("A cable on a moving part"): a trolley carries a block with a sheave over the stern, the
 lift wire stays tight and the cable end is let go near the seabed.
 
 <a id="settle"></a>
@@ -2013,7 +2062,7 @@ so the wire leaves the sheave in the sheave's own plane – live while you pose,
 the animation (one key per frame on the swivel). A coupling the swivel had is put aside while the animation is
 built and comes back with **Clear keys**. A step in 6 Animation that moves the swivel wins (the app says so).
 
-Try it in the test tour ("Sheave turns to follow its wire"): a deck davit slews while its wire runs from a
+Try it in the Learning hub ("Sheave turns to follow its wire"): a deck davit slews while its wire runs from a
 fairlead on the deck over the swivelling sheave at the arm's tip; the head turns so the wire always runs straight
 into the groove.
 
@@ -3343,7 +3392,7 @@ your PC.
 - Fresing Render checks each file before it opens it (its name, its size, and by its content that it really is a house
   or a STEP file). Anything else is refused with a reason, which the sender shows; the panel shows one line about it.
 - Until House Planner can send houses, `tools/toolbox_send.py <file.hpscene>` (in the source repository) sends one the
-  same way. The test tour's stop "A house arrives by itself" uses a Toolbox folder of its own next to the tour.
+  same way. The Learning hub's stop "A house arrives by itself" uses a Toolbox folder of its own next to the tour.
 
 <a id="camera"></a>
 ### Camera
@@ -4718,30 +4767,30 @@ the charts are your own (they differ from the sample's), the SAMPLE mark comes o
 sample.
 
 <a id="tour"></a>
-## Test tour – see every function work
+## Learning hub – see every function work
 
-After an update you want to see quickly that everything still works. The **test tour** is a set of small
+After an update you want to see quickly that everything still works. The **Learning hub** is a set of small
 projects, made from the app's own test models (a crane, a mill, a gantry, a cylinder, a scissor lift, a way
 cover…), with every function already set up: 45 numbered **stops**, from materials and painted faces through
 joints, cylinders, hoses, drag chains and G-code to finished videos and the render queue. You look at each stop and say OK or Problem.
 Since version 0.2.101 the test models look like small real machines – chamfered frames, ribs, rails, motors, real
 bolts and screws – and the crane has a luffing cylinder that follows its boom (the boom stops where the cylinder does).
 
-<img class="panel" src="img/panel_tour.png" alt="The Test tour panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">
+<img class="panel" src="img/panel_tour.png" alt="The Learning hub panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">
 
 **Make it (once per version)**
-1. **Fresing > Take the test tour** (or **Help > Make test tour project…**, then **Make it**). It is made in the
-   background in a few minutes (the bottom line of the window shows "Making the test tour: project 3 of 44 …"); you
+1. **Fresing > Open the Learning hub** (or **Help > Make the Learning hub…**, then **Make it**). It is made in the
+   background in a few minutes (the bottom line of the window shows "Making the Learning hub: project 3 of 44 …"); you
    can keep working.
-2. When it is ready a small window says so: click **Open test tour project**. Later: **Help > Open test tour
-   project**. Save your own project first: changes that are not saved are lost when another project opens.
+2. When it is ready a small window says so: click **Open the Learning hub**. Later: **Fresing > Open the Learning hub**
+   Save your own project first: changes that are not saved are lost when another project opens.
 
 It goes to **Documents\Fresing Render\Test tour**: "Test tour 0.2.47.blend" (the crane, the one you open)
 and a folder "Test tour 0.2.47 files" with the other projects. It is made new for every version, so it always
 shows what this version can do.
 
 **Go through the stops**
-1. The **Test tour** panel is on top of the Fresing tab (only in a tour project). The stops are in four
+1. The **Learning hub stops** are on the left panel, under the Learning hub switch (only in a sample project). The stops are in four
    folds: **Look**, **Motion**, **Machining**, **Pictures and videos**; the numbers in brackets say how many
    you have marked.
 2. Click a stop. Under the list you see what you should see and where the function is in the side panel.
@@ -4759,7 +4808,7 @@ project of the tour, also when you close the app.
 and every stop with OK / PROBLEM / – and your note. It is also saved as "Test tour 0.2.47 results.txt".
 
 **Let it run by itself (10 to 15 minutes).** **More > Run the whole tour by itself** (or **Help > Fresing
-Render PC check…** and pick **Test tour**) makes a fresh tour in the background, goes through every stop, checks
+Render PC check…** and pick **Learning hub**) makes a fresh tour in the background, goes through every stop, checks
 what can be checked with numbers (the boom turned, the rod's eye stays on its pin, the platform is at 1.5 m,
 the tools go to their pockets…) and renders a small picture of each stop, or three frames of its motion. At
 the end "Fresing Render test tour.html" opens in your web browser (it is on the Desktop too): a card per stop
@@ -5068,9 +5117,9 @@ your PC.
 - In the 3D view's header, **View > Sidebar** also shows it again after you dragged the panel shut.
 - A different tab at the top of the window (Modeling, Sculpting …)? Click **Layout**. A view made full
   screen with <kbd>Ctrl</kbd>+<kbd>Space</kbd>: press it again; the Fresing button works there too.
-- The app puts the Fresing tab right by itself every time a project opens (your own, the test tour,
+- The app puts the Fresing tab right by itself every time a project opens (your own, the Learning hub,
   the demo), and folds Blender's toolbar. Your own view of the model stays as you saved it.
-- **Live preview** stays on or off as you last chose it while you go through the test tour and the demo.
+- **Live preview** stays on or off as you last chose it while you go through the Learning hub and the demo.
   A project of your own opens as you saved it.
 - Still missing? Run Install.bat again (it repairs the installation; projects and renders are not
   touched).
