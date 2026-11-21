@@ -31,9 +31,12 @@ decision **0004** ("where do renders go").
 1. **Kinds:** STEP models · Materials · Logos · Stickers · Backgrounds (HDRI) · Templates · Rule sets · Workspaces ·
    Brand kits · Lifting equipment. One list of folders per kind, in order (top = first choice).
 2. **Levels and where they come from:**
-   - **Company / Department = set-up files.** A small JSON file (`fresing-setup.json`) on a network folder, written by
+   - **Company / Department = set-up files.** A small JSON file (`fresing-setup.json`) on a network folder **or on the
+     PC itself** (owner 21 Nov 17:39: organisation / department files are sometimes stored locally – e.g. a folder
+     synced by OneDrive / SharePoint, `C:\ProgramData\…`, or copied by IT), written by
      whoever looks after the app there. It names its level and label ("Company", "Offshore department"), and per kind a
-     list of folders (UNC paths `\\server\share\…`, mapped drives, paths relative to the set-up file). It may also hold
+     list of folders (UNC paths `\\server\share\…`, mapped drives, local paths, paths relative to the set-up file – so a
+     set-up kept in a synced folder works on every PC wherever that folder lands). It may also hold
      **export places** (below) and defaults (default template, rule set, workspace). The user adds set-up files in the
      Locations tab (several: one company + any departments). A set-up file next to the approved-version folder of
      `docs/COMPANY-USE.md` ("Holding one approved version") is picked up by itself – IT sets everyone up by
@@ -44,6 +47,8 @@ decision **0004** ("where do renders go").
    - The old **Shared library** folder becomes, on first start, a "Mine" location for every kind with today's sub-folder
      layout (`HDRI`, `Templates`, `Rule sets`, `Logos`, `Stickers`, `Brand kits`, `Lifting equipment`) – nothing a user
      has today disappears.
+   **Owner's answers 21 Nov 17:39:** set-up files may be local or on the network; same names → both shown with
+   badges (agreed); the default export place stays **Renders next to the project** (agreed – 0004).
 3. **Merging:** lists show every item from every folder, sorted by name, each with its badge (Built-in · Company ·
    department label · Mine). **Same name in two places: both shown**, never one silently hiding the other. A folder that
    cannot be reached (network down, VPN off) shows greyed with one line why, and the app never waits for it on start

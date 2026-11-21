@@ -43,8 +43,19 @@ switches.
    **My usage…** opens the window on the My usage tab (the old dialog goes); Edit > Preferences > Add-ons > Fresing
    Render shows one line and a button **Open Fresing Settings** (the properties stay registered there so old projects,
    scripts and tests keep working).
-4. **Client view:** the window opens; anything that is refused there today stays refused (0213).
-5. **The guide:** one chapter "Settings" with a picture of each tab; the old "Edit > Preferences > Add-ons > Fresing
+4. **My usage's time counts only real presence** (owner 21 Nov 17:39: "does it measure time when I'm AFK?"). Today
+   (`blender/usage.py`, 0181) a gap of more than 2 min (`core.usage.IDLE`) is left out, but the marks that say "the
+   user is here" include **any project change (`depsgraph_update_post`) and any redraw of the favourites bar** – both
+   also happen with nobody at the PC: playback looping, Live preview / a render updating the view, the queue, a re-bake,
+   timers. Lead's reading of the code, **not measured**: an AFK owner with playback or a render running may be counted
+   as working. Check it (play an animation, start a long render, leave a Live preview on – no input for 10 min – and read
+   the stages), then make only **the user's own input** count: a click, a key, mouse movement over an app window,
+   opening a panel, a change the user made. Time while the app renders or plays by itself with no input counts nowhere
+   (or, if you think it is useful, under its own line "Rendering / playing (not your time)" – say which). The trailing
+   up-to-2-min after the last input stays as it is. Add a test with simulated playback and no input; one line on the
+   My usage tab: "Counts only while you use the app; away more than 2 min is left out".
+5. **Client view:** the window opens; anything that is refused there today stays refused (0213).
+6. **The guide:** one chapter "Settings" with a picture of each tab; the old "Edit > Preferences > Add-ons > Fresing
    Render" sentences in the guide and `docs/COMPANY-USE.md` point to the new place.
 
 ## Done when
@@ -53,6 +64,7 @@ switches.
       its last tab after closing and reopening)
 - [ ] My usage lives in the window; Help > My usage… opens that tab; nothing of the old dialog lost (counts, pins,
       export / import, clear)
+- [ ] My usage counts no time while the app plays or renders by itself with no input (test + the owner's check)
 - [ ] Add-ons page shows Open Fresing Settings; old preferences values kept after the update (test with a settings file
       from 0.2.19x)
 - [ ] Function list (`core/functions.py`), PC-check line, guide pictures, CHANGELOG; `since=` on new entries
