@@ -1,6 +1,6 @@
 # 0249 – The small test mill replaced by a larger vertical machining centre (~1000 × 500 × 500 travel) – test mill, toolpath mill, the mill in its own enclosure with sliding doors
 
-**Who:** worker · **Status:** open – waits for 0230 (the `mill` set and `blender/lessons/mill.py`) and 0239
+**Who:** worker · **Status:** running (21 Nov 2026) – waited for 0230 (the `mill` set and `blender/lessons/mill.py`) and 0239
 (`core/tc_person.py`) · **Branch:** `task/0249-larger-test-mill`
 **Started by:** lead, 20 Nov 2026 (owner 23:35, screenshot of stop 54 "A person changes the tool": "this mill is not
 allowed to be in Fresing Render. Replace it with a larger mill. This size gets closer to the one I'm building for

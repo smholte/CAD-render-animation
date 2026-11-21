@@ -191,7 +191,7 @@ joint's value, internal units, linear between keys and beyond the ends), written
 a chain may hold ratio and table steps (the carousel's support rollers follow "Carousel turn" by ratio, it follows the
 cable by table): the drivers then read the top joint and carry the combined table as F-curve keys (simple expression
 `a + 2.0`, keys moved by the same BIAS, LINEAR extrapolation, an additive generator takes BIAS off). `get_value`,
-`driven_value` and `_write_one` use `chain_map`; `chain_affine` is unchanged for ratio chains and returns
+`driven_value` and *(picture removed – private, task 0226)* use `chain_map`; `chain_affine` is unchanged for ratio chains and returns
 (None, 1, 0) when a table is in the chain. Picking another leader or ratio in the panel drops the table.
 
 ### Blender side (`blender/spool.py`, worker; `ops_spool.py`, `ui_spool.py` later)
@@ -267,7 +267,7 @@ code), D panel + real-app test, F guide. Worker: everything else.
   level-wind fairlead and a wire; a carousel (3 full layers + a partial one) with a slewing arm and a guide sheave.
   Tour stop "Drum and carousel spooling", PC-check line `motion.spool`, real-app test `ui_test_spool.py` (43 checks),
   guide section "Drums and carousels" with two pictures, CLAUDE.md (files, three lessons). Stills:
-  `tasks/img/0080_drum_layers.jpg`, `tasks/img/0080_carousel_top_layer.jpg` (Cycles, processor, test model).
+  *(picture removed – private, task 0226)* (Cycles, processor, test model).
 
 **Subagents:** A the maths + 29 tests; C the test model + its test; E the independent tests (46, from the brief; it found
 6 real faults: a model update broke both spools, a typed wound length gave a 140° kink and a mis-set level wind, the

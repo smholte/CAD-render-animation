@@ -82,7 +82,7 @@ Moving cables (0142); the model's own cutaway / section slider (0135).
   second (a note says so; not when the visitor chose the items).
 - **0147 row 11:** a saved view below the water or the floor is shown where it was saved (no clamp, no horizon limit)
   until the visitor drags; then the limit follows the camera up without a jump. The "At the seabed" view of the demo
-  shows the seabed (`tasks/img/0143_demo_at_the_seabed_page.jpg`). The offshore turbine's "Seabed" view of the site is
+  shows the seabed (*(picture removed – private, task 0226)*). The offshore turbine's "Seabed" view of the site is
   the owner's kit page: not re-made here (same code path).
 - PC check line `web3d.under`, function entry `web.under`, guide section "Under the sea on the page", the panel's note
   ("the cutaway of parts"). `tools/web3d_env_shot.js` takes `--eval=` and prints the camera and under-the-sea state.
@@ -95,9 +95,9 @@ Moving cables (0142); the model's own cutaway / section slider (0135).
   model; ground; none on the deck / without surroundings).
 - **Demo** (invented cable-lay vessel, scaled-down build): export with animation 464 s (3,831 frames), page 44 MB, the
   under block ~1 kB, drift in 9 moments. Pictures app (Cycles 16 samples) vs page at 58 s and 64 s of "Into the sea":
-  `tasks/img/0143_demo_into_the_sea_t58.jpg`, `_t64.jpg` – the box, the walls' line, the cable to its touch-down and the
+  *(picture removed – private, task 0226)* – the box, the walls' line, the cable to its touch-down and the
   fade through the walls match; **the page's sand is greyer and darker** (mean RGB at the box's far end: app 105/96/79,
-  page 70/77/76; not the shadow). Under water and the soil pit: `tasks/img/0143_page_under_water_and_soil.jpg`.
+  page 70/77/76; not the shadow). Under water and the soil pit: *(picture removed – private, task 0226)*.
 - **Page cost** (sea cable test page, 480 x 320, pictures a second, 3 runs each in one browser): Phone 3.8 (Under the sea
   on) against 9.6 (a page without it), Balanced 1.5 against 7 looking into the box; looking at the vessel 3.6 / 8 and
   1.9 / 6.6. With Under the sea off the page is as fast as without it. Software drawing only; on a graphics card not

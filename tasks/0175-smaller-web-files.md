@@ -87,7 +87,7 @@ surroundings = project, soft light baked Normal; before = `main` 0.2.141, after 
 Keys: 938 still paths dropped, STEP keys 452,581 → 305; translation keys went up (0.1 mm instead of 1 mm) but take
 fewer bytes. Export 3,304 s → 3,422 s (the marine own-bakes alone ~30 min; the WebP read-back adds seconds).
 Page in headless Chromium (software GL): same picture at two moments, mean difference 0.34 / 255 (picture packing),
-`tasks/img/0175_demo_side.jpg` (before | after | difference × 8); model read 0.15 s + unpacked 0.3–0.5 s; JS heap 364–386
+*(picture removed – private, task 0226)* (before | after | difference × 8); model read 0.15 s + unpacked 0.3–0.5 s; JS heap 364–386
 MB both. Load-until-ready swings 7–15 s for the same page in software GL: not compared.
 Tests: `tests/test_web3d_keys.py` (15: the bound at every frame for 5 kinds of motion, filters vs Blender's library,
 file read back, page packing, WebP, duplicates), `tests/test_web3d_keys_blender.py` (4: the mill with a sliding,

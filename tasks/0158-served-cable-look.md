@@ -59,8 +59,8 @@ Formula (plain Python in `cable_looks`, the nodes and the page's shader draw the
   ±a few mm, more with wear), paint thinner in the grooves and smudged black by wear. `bands()` gives the clean mask.
 
 Code: `blender/cable_looks.py` (formula, nodes, `served_props`), `core/materials_lib.py` (entry 56), `props.py`
-(FRCable settings), `ui_paths.py` (the look's settings), `paths.py` only where the look is written (`_apply_look`,
-`_strip`, `_default_pitch`, `GROUPS`), `spool.py` (copies all look properties), `web3d_drawn.py` +
+(FRCable settings), `ui_paths.py` (the look's settings), `paths.py` only where the look is written (*(picture removed – private, task 0226)*,
+*(picture removed – private, task 0226)*, `GROUPS`), `spool.py` (copies all look properties), `web3d_drawn.py` +
 `core/web3d_tubes.py` + `web/fr_page.js` (the page), `demo.py` (the power cables get SERVED), tour set "served",
 PC-check line `looks.served_cable`, function `cables.served_look`, guide.
 
@@ -80,7 +80,7 @@ PC-check line `looks.served_cable`, function `cables.served_look`, guide.
   `fr_cable_yarn_rgb`, `fr_cable_band_rgb` (Design above); missing ones = the library's.
 - Settings on the cable (`props.py` FRCable: band count/width/gap/colour/paint wear; yarn pitch, lay angle, yarn
   colour, wear; Pitch = band distance), panel `ui_paths.py` (fold "Yarn").
-- `paths.py` only where the look is written (`look_props`, `_apply_look`, `_strip`, `_usual_pitch`, `GROUPS`); no
+- `paths.py` only where the look is written (`look_props`, *(picture removed – private, task 0226)*, `GROUPS`); no
   solver code touched. `spool.py`: the coil copies every look property, and **`follow_look`** (a fix that also
   helps the old looks: switching a cable's look left its drum/carousel coil in the old look until rebuilt).
 - Web page: `look_for_page` / `web3d_drawn.look_of` send the served numbers; `fr_page.js` draws yarn, fibres, dust
@@ -104,8 +104,8 @@ PC-check line `looks.served_cable`, function `cables.served_look`, guide.
   not paint.
 - Close-ups (960x540, Draft = 48 samples, CPU): test carousel power cable 11.6 s with Power cable → 12.9 / 13.1 s with
   Served (+12 %); demo coil 9.8 → 13.4 s (+37 %, the coil fills the picture), demo chute 9.7 → 10.4 s (+7 %).
-  Pictures: `tasks/img/0158_test_power.jpg`, `0158_test_served.jpg`, `0158_demo_coil.jpg`, `0158_demo_chute.jpg`,
-  `0158_demo_chute_power_before.jpg`.
+  Pictures: `tasks/img/0158_test_power.jpg`, `0158_test_served.jpg`, *(picture removed – private, task 0226)*,
+  *(picture removed – private, task 0226)*.
 
 **GitHub runs:** 2 full runs. The first was red in one test: my new page test had no fall-back for GitHub's headless browser, which cannot start there; it now falls back as the older page test does. Then 0148 took 0.2.115, so I renumbered to 0.2.116 and the second run was green (20 min). Subagent: one independent tester (Sonnet) wrote `tests/test_served_cable_independent.py` and found 3 faults, which I fixed myself (listed above).
 

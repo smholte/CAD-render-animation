@@ -207,8 +207,8 @@ something there is missing or wrong for the demo, write it down as an open point
   0 missing.
 - Full clash check on the full-size demo **with** the spinning parts: stopped after 47 min (not done); with them left
   out: 12.5 min, 1,839 moments + 32,870 between, 355,868 narrow tests – the rows it found are the faults above.
-- Pictures (Cycles CPU, 960 × 540, Preview): `tasks/img/0077-overview.png` (the open sea, labels off),
-  `tasks/img/0077-tensioner-xray.png` (shot 5 at the X-ray step). Invented model only.
+- Pictures (Cycles CPU, 960 × 540, Preview): *(picture removed – private, task 0226)* (the open sea, labels off),
+  *(picture removed – private, task 0226)* (shot 5 at the X-ray step). Invented model only.
 - GitHub: **1 full run on the branch, green on the first try** (run 43145128900, 12.3 min; test suite 6 with the new
   test file 12.0 min, paths-heavy with `heavy.demo` 10.5 min – both flagged SLOW against the old times; recording the
   new times in `tools/ci_times.json` would rebalance the groups – left for a later tools push). `main` fast-forwarded to

@@ -49,7 +49,7 @@ The owner's demo export (0.2.105: 1024 px textures, hide names, smaller file, an
    should be, checked at every frame): **16.3 MB**. Pictures as WebP: **15.5 MB**.
 4. The one-file page now stores the model as text (a third bigger). Zipping it inside the page:
    **page 126 MB → 12.8 MB**. Reading the model in the browser went from 2.6 s to 0.8 s and from 325 to 62 MB of memory.
-5. All four were tried on the real page with the demo: the picture is the same (side by side in `tasks/img/0149_anim_keys.jpg`).
+5. All four were tried on the real page with the demo: the picture is the same (side by side in *(picture removed – private, task 0226)*).
 6. Further steps (better packing, shared light layout, lighter hull) should bring it to about 9–11 MB. These are
    expectations, not measurements.
 7. A phone-friendly first view in about 2 MB needs the page to load in two parts. This is a bigger task, for later.
@@ -104,7 +104,7 @@ The 7 heaviest shapes (hull bottom, rim fence, winch drums ×3, cable, coil) hol
 | 2x | (instead of 2) fixed lower rate 10 / 5 keys a second | 16.2 / 15.8 | – | **17 mm / 124°** (fast rollers alias) | measured – rejected |
 | 3 | + Pictures as WebP (`EXT_texture_webp`, look tiles q86, light q92) | **15.5** | 21.6 | mean 0.3–0.4 of 255 on the page | measured, page checked |
 | 4 | + The model gzip-packed inside the page (browser's own `DecompressionStream`) | 15.5 (8.96 gz) | **12.8** | none | measured, page checked; unpacking 0.10–0.13 s |
-| 5 | Better meshopt packing as `gltfpack -cc` does (index codec v1 + vertex-cache order, 12-bit light UVs, quaternion/exponential filters on keys) | −2.7 MB on the same content (16.3 → 13.6) | | gltfpack's own file **breaks the page's baked light** (`tasks/img/0149_gltfpack_light.jpg`): must be done in the app's writer | gain measured, use expected |
+| 5 | Better meshopt packing as `gltfpack -cc` does (index codec v1 + vertex-cache order, 12-bit light UVs, quaternion/exponential filters on keys) | −2.7 MB on the same content (16.3 → 13.6) | | gltfpack's own file **breaks the page's baked light** (*(picture removed – private, task 0226)*): must be done in the app's writer | gain measured, use expected |
 | 6 | Light UVs shared per shape (one unwrap per unique mesh, each copy its rectangle in the atlas) | −1.4 MB expected | | none if done right | bytes measured; today the copies' unwraps differ (only 109 of 790 are a moved/scaled copy) |
 | 7 | Shapes that are exact duplicates stored once (32 shapes, e.g. SHACKLE / SHACKLE.001) | −0.34 MB | | none | bytes measured |
 | 8 | Decimation with an absolute bound (meshoptimizer's simplifier), the 26 shapes over 3,000 triangles | 0.5 mm: −10 % triangles; **2 mm: −21 %** (hull bottom 282 k → 145 k, cable 74 k → 37 k) ≈ −1.7 MB; 5 mm: −34 % | | expected none at 2 mm from more than a metre away; not looked at | triangle counts measured, bytes expected |
@@ -208,8 +208,8 @@ come out a little smaller, since its animation was shorter.
 - `DecompressionStream`: https://developer.mozilla.org/en-US/docs/Web/API/DecompressionStream (not re-read in this
   session: from memory, supported in all current browsers since 2023)
 
-**What changed:** only this report and two pictures (`tasks/img/0149_anim_keys.jpg`: today | reduced keys + 16-bit +
-meshopt | difference ×8, the demo's carousel close up at 1:30, invented demo; `tasks/img/0149_gltfpack_light.jpg`: today |
+**What changed:** only this report and two pictures (*(picture removed – private, task 0226)*: today | reduced keys + 16-bit +
+meshopt | difference ×8, the demo's carousel close up at 1:30, invented demo; *(picture removed – private, task 0226)*: today |
 the same file after gltfpack, where the page's baked light is lost). No app code.
 
 **Tested and measured** (name the machine and the model): see above. Everything was measured on the invented demo vessel

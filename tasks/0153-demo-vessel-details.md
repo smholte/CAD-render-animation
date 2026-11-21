@@ -103,8 +103,8 @@ module plus its wiring; the independent review was skipped: no Windows-only code
   and the second merge (the one main was fast-forwarded to). Demo jobs 7.9 / 9.6 / 9.9 / 12.7 min
   (main's run before: 9.1 / 9.2 / 10.2 / 9.2); "make the demo project" 4.9 min (was 3.7, the arch change of 0159 is in
   it too).
-- Pictures (invented demo only, Cycles 24 samples, the scaled-down demo): `tasks/img/0153_hull_side_before.jpg` /
-  `_after.jpg`, `tasks/img/0153_stern_before.jpg` / `_after.jpg` (under water: the azimuth thrusters in their nozzles,
+- Pictures (invented demo only, Cycles 24 samples, the scaled-down demo): *(picture removed – private, task 0226)* /
+  *(picture removed – private, task 0226)* (under water: the azimuth thrusters in their nozzles,
   growth on the antifouling); the guide's `docs/img/demo_overview.jpg` replaced.
 
 **Open points / follow-up tasks:**
