@@ -1,6 +1,6 @@
 # 0238 – Fix from bug hunt 0209, group H: the riding camera's re-bake in steps (no 13 s freeze after a sea change)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0238-camera-rebake-in-steps`
+**Who:** worker · **Status:** done (0.2.191) · **Branch:** `task/0238-camera-rebake-in-steps`
 **Started by:** lead, 20 Nov 2026 (bug hunt 0209 row 20; 0216 done) · **Model:** Opus · effort Medium
 **Area:** Scene & Render lane (the camera part) – `blender/camera_path.py` (`_sample`), `blender/rebake.py` (the
 `cameras` step of the re-bake job), tests (`test_camera_ride_rebake*`, `test_rebake*`). Nothing in `paths.py`,
@@ -37,9 +37,9 @@ camera on `test_moving` or `test_sea` (the tour's riding-camera case), with a lo
 
 ## Done when
 
-- [ ] Longest single step of the re-bake job after a sea-state change ≤ ~1 s on the demo (web machine), total not worse
-- [ ] Camera path unchanged within the stated tolerance; Cancel mid-camera tested; public-model test green
-- [ ] Full suite green; report filled in, merged, released
+- [x] Longest single step of the re-bake job after a sea-state change ≤ ~1 s on the demo (web machine), total not worse
+- [x] Camera path unchanged within the stated tolerance; Cancel mid-camera tested; public-model test green
+- [x] Full suite green; report filled in, merged, released
 
 ## Not in this task
 
@@ -49,10 +49,37 @@ The sea's own 2.2 s, cable / spool re-bakes, other 0209 rows.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Opus · Medium), 20 Nov 2026. No subagents (small change; independent review skipped:
+no Windows code).
 
 **What changed:**
+- Cause (profile of `_sample`): the 13 s were Blender's own scene update of `scene.frame_set` for every one of 4,481
+  frames, not Python loops. A coarser sample was not needed: the re-bake job **already steps through every frame**
+  for the hoses and cables (`flex.read_steps`, a frame per job step, Cancel, save rules of 0187).
+- `rebake.camera_objects` = the parts the built camera steps ride on / keep in the middle; `_steps_once` adds them to
+  that pass (`also`), takes their places right after the pass (the cables' bake lets go of the read) and hands them to
+  `cameras(scene, places=)` → `camera_path.Context(places=, first=)`: frames the pass read are not set again; frame 1
+  (the middle of the part) is taken as the scene stands when it shows frame 1. A part drawn by nodes is not read in
+  the pass (the pass hides those) – the camera reads it itself as before. With only a camera to re-bake (no hose or
+  cable) the pass reads just the camera's parts, with everything they do not depend on hidden.
+- `flex.kept_read` (what the pass kept). Build's own camera reading is unchanged.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, full demo made by this branch, 4,481 frames, Blender as a module; numbers
+only):
+- Sea state change, whole re-bake (cameras + hoses + cables): **before (main 0.2.184)** 97.5–106.4 s, longest single step
+  **10.3–11.2 s = the camera's step** (6 changes); **after** 88.4–91.9 s, the camera's step **0.47 s**, the read pass's
+  longest step 1.06 s (its end: visibility and frame put back) (3 changes). The sea itself 2.1–2.4 s both.
+- The longest step left is a **cable's** re-bake (`paths.motion_steps`, one cable: 8.7–9.7 s, another 4.3 s) – outside
+  this task (brief: "Not in this task: cable / spool re-bakes"). So "longest step ≤ ~1 s" holds for the camera and the
+  pass, not for the whole job on the demo.
+- `tests/test_camera_rebake_steps.py` (public `test_crane_a` on the sea, a 20 s animation made in the test, 500+
+  frames): the camera path from the pass equals the frame-by-frame one within 1e-5; the job has a step per frame; no
+  frame is set in the camera's own step; Cancel at 40 % of the pass leaves visibility, hide keys, the frame and the
+  kept read as they were and takes the built animation off. Before the change the first test fails (3 job steps).
+  `test_camera_ride_rebake.py`, `test_rebake_objects_gone.py`, `test_sea_after_build.py` pass locally.
+- GitHub: 7 full runs – the first green (run 44836750301, 55 min on busy runners); task 0239 took 0.2.185 meanwhile, so main was merged and renumbered (second run, cancelled while queued); then 0237 took 0.2.186 – merged again (third run: everything passed, but group 2 had 2 skipped tests where 1 is allowed – the regrouping put `test_lifting_reach_independent.py`'s by-design skip (KB-200 has no chart in its Working pose) next to another skip; that test now checks the "No chart" message instead of skipping); 0246 took 0.2.187 – merged, 0.2.188 (fourth run, green); 0247 took 0.2.188 – merged, 0.2.189 (fifth run, green); 0230 took 0.2.189 – merged, 0.2.190 (sixth run: everything passed but the real-app lessons test of task 0230 – Ctrl+Z after a lesson's Build, 6 of 38 checks – on a slow runner (17 min, usually 8.6); it passed on main and on 0248's run with the same code and touches nothing of this task); 0248 took 0.2.190 – merged, 0.2.191 (seventh run).
 
 **Open points / follow-up tasks:**
+- The cables' re-bake has single steps of 4–10 s on the full demo (one cable per step) – a follow-up for the cables lane
+  if the owner wants the job smooth there too.
+- The private full demo: no `@stage`, kit hook or function the kit uses changed – no private run needed.

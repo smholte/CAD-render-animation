@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.191 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
+## 0.2.192 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
 
 - **Houses from House Planner:** Fresing Render follows the Toolbox format's bug-fix version 0.1.1. A job whose file
   says a size no file can have, or names a file Windows cannot hold, is now refused at once with a clear reason
@@ -14,6 +14,16 @@ installer of that version was built from.
   numbers, broken text) can no longer upset the inbox.
 - **Tested on Windows:** GitHub now checks that a folder link (junction) in the inbox is never followed or emptied,
   and that a job finishes right while another program keeps reading its status file.
+## 0.2.191 – 21 Nov 2026 – No long freeze for a riding camera after a sea change (task 0238)
+
+- **The window keeps moving while the camera is worked out again.** After a change of the sea (Calm → Rough, the water
+  level) a camera step that rides on a part was worked out again in one go: on the full demo (4,481 frames) the window
+  stood still for 10–11 s at the end of the progress bar. Now the camera's part is read in the same pass through the
+  frames as the hoses and cables, a frame at a time, with the progress bar moving and Cancel working; its own last step
+  takes about half a second. The whole re-bake on the demo is about 11 s shorter (103 → 91 s on the 4-core test machine).
+  The camera's path is the same as before.
+
+
 ## 0.2.190 – 21 Nov 2026 – A let-go cable lies straight (task 0248)
 
 - **The cable on the seabed stays where it lay.** When you let go a cable into the sea (**Let go here**), the cable

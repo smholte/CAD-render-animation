@@ -74,7 +74,10 @@ def _rotation(m: Matrix) -> Matrix:
 class Context:
     """Where the parts the new camera steps ride or watch are, at every frame they need (read once, at Build)."""
 
-    def __init__(self, scene, anim, blocks, uids: dict, centre: Vector, warnings: list):
+    def __init__(self, scene, anim, blocks, uids: dict, centre: Vector, warnings: list, places: dict | None = None,
+                 first: int = 1):
+        """``places`` (task 0238): world matrices already read in a pass through the frames – name -> (n, 4, 4) from
+        frame ``first`` (the re-bake's pass, ``flex.read_steps``); the frames they hold are not set again."""
         from . import animation
         self.scene = scene
         self.centre = Vector(centre)
@@ -109,13 +112,33 @@ class Context:
                 frames.setdefault(uid, set()).update(span)
         for fs in frames.values():
             fs.add(1)                       # frame 1: the model as it stands at Build (the same in the queue)
-        self._sample(frames)
+        self._sample(frames, places or {}, int(first))
 
-    def _sample(self, frames: dict) -> None:
+    def _sample(self, frames: dict, places: dict, first: int) -> None:
         if not frames:
             return
         from . import clash
         scene = self.scene
+        # task 0238 (bug hunt 0209 row 20): the frames a pass already read are taken from it – on the demo the re-bake
+        # set 4,481 frames here in one call (13 s without a redraw); now its pass reads them a frame per job step
+        frames = {uid: set(fs) for uid, fs in frames.items()}
+        for uid, fs in frames.items():
+            arr = places.get(self.objects[uid].name)
+            if arr is None:
+                continue
+            got = {f for f in fs if 0 <= f - first < len(arr)}
+            self.mats[uid] = {f: Matrix(arr[f - first].tolist()) for f in got}
+            fs -= got
+        need_one = [uid for uid in frames if uid not in self.at_build]
+        if (need_one and scene.frame_current == 1 and not scene.frame_subframe
+                and not any(frames.values())):
+            for uid in need_one:            # (the scene shows frame 1 already: its places as they are)
+                ob = self.objects[uid]
+                self.at_build[uid] = ob.matrix_world.copy()
+                self.middle[uid] = self.at_build[uid].inverted_safe() @ _middle(ob)
+            return
+        for uid in need_one:
+            frames[uid].add(1)
         every = sorted(set().union(*frames.values()))
         keep = (scene.frame_current, scene.frame_subframe)
         needed = set(self.objects.values())
@@ -131,7 +154,7 @@ class Context:
                         if f in fs:
                             ob = self.objects[uid]
                             self.mats.setdefault(uid, {})[f] = ob.matrix_world.copy()
-                            if f == 1:
+                            if f == 1 and uid not in self.at_build:
                                 self.at_build[uid] = ob.matrix_world.copy()
                                 self.middle[uid] = self.at_build[uid].inverted_safe() @ _middle(ob)
         finally:
