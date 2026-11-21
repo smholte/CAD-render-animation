@@ -96,7 +96,7 @@ New settings; locations (0272); materials (0273); the side-panel look of study 0
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 21 Nov 2026 – 0.2.200
+**Chat / date:** Claude Code on the web, 21 Nov 2026 – 0.2.201
 
 **What changed:**
 - **Where the page lives (owner's check 21 Nov 20:30: only the page, no tabs, no view, no headers).** First built in

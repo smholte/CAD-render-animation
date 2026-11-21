@@ -363,7 +363,7 @@ fn(id="cnc.air", title="Air blast", family="cnc", panel="FRESING_PT_cnc", fold="
    button="fresing.cnc_air_nozzle", guide="air-blast", tour=("air",), pccheck=("milling.air",), since="0.2.34")
 fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolant",
    button="fresing.cnc_coolant_nozzle", guide="coolant", tour=("coolant",), pccheck=("milling.coolant",),
-   since="0.2.48")
+   since="0.2.48", changed="0.2.200")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
@@ -606,11 +606,11 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158", changed="0.2.200")
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.201")
 fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings: all of the app's settings in one "
    "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",), pccheck=("app.settings",),
-   since="0.2.200")
+   since="0.2.201")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")

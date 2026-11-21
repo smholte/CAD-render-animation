@@ -28,8 +28,8 @@
   },
   "coolant": {
    "added": "0.2.48",
-   "changed": "0.2.195",
-   "fp": "d6585d40fdf86b5d"
+   "changed": "0.2.200",
+   "fp": "bacdb3941cc0bf0a"
   },
   "copies": {
    "added": "0.2.47",
@@ -38,7 +38,7 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.200",
+   "changed": "0.2.201",
    "fp": "84b3bfb38369682d"
   },
   "crane_setup": {

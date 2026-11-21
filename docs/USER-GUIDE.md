@@ -2540,7 +2540,7 @@ blast; showing a frame in the view 14 ms without and 12 ms with air; one rendere
 <a id="coolant"></a>
 #### Coolant
 
-<img class="wide" src="img/coolant.jpg" alt="The test mill cutting a pocket with flood coolant: two blue hoses squirt milky coolant at the tool, drops fly off it, the block is wet">
+<img class="wide" src="img/coolant.jpg" alt="The test mill cutting a pocket with flood coolant at 15,000 rpm: two blue hoses squirt milky coolant at the tool, the jets' ends bend round with the turn, a fine spray flies off flat, the block is wet">
 
 A milling video with coolant looks like the real machine: when the program says **M8**, milky coolant squirts
 from the nozzles onto the tool, splashes where the tool cuts, the block, the table and the vise get a wet sheen
@@ -2584,6 +2584,24 @@ less. **M7 and the air blast**: Air blast also uses M7 by default. With coolant 
 another code (for example M100), or set **Mist code** to 0 so M7 is only air. The codes are in the fold
 **Codes** (Flood code, Mist code, Off code), for machines with their own numbers.
 
+**The spindle speed and the tool's size set the splash.** Coolant that touches a turning tool leaves it at about the
+speed of the tool's rim (a Ø10 mm tool at 1,000 rpm: 0.5 m/s; at 6,000 rpm: 3.1 m/s; at 15,000 rpm: 7.9 m/s; a Ø50 mm
+face mill at 3,000 rpm: 7.9 m/s), in the turning direction (M3 clockwise seen from above, M4 the other way), in a
+flat band at the height where the jets meet the tool:
+
+- **Slow (rim below about 1 m/s):** the liquid wears the tool as a film that turns with it and runs down the flutes
+  to the tip, and drops off in a few streams of big drops from the flute edges.
+- **Faster:** the drops fly off flat and get finer the faster the tool turns – big drops up to about 2 m/s, a fine
+  spray from about 5 m/s, a mist above about 15 m/s. Fine drops are slowed by the air within a few centimetres; big
+  ones fly further and fall.
+- **Fast (rim above 5 m/s):** a fast tool turns a layer of air with it. It bends the end of each jet round a few
+  mm before the tool and breaks part of it into a fine mist that swirls round the tool, so less reaches the tool and
+  less splashes off it. The faster the tool and the weaker the jet (a low **Flow**), the more is turned away:
+  a Ø10 mm tool with full flow, none at 9,000 rpm, about a quarter at 15,000 rpm, two thirds at 40,000 rpm.
+
+The speed comes from the program's **S** words, read again at every **Build & play**. Projects built with an
+older version show the splash as before until you press Build & play once.
+
 The splash is strongest while the tool cuts and weaker while it moves through the air with coolant on. Wet chips
 leave the tool slower, hardly bounce and stay closer to the cut (on the test mill the pile was about a quarter
 narrower), and they look darker and shinier until the parts dry.
@@ -2594,7 +2612,7 @@ render queue can render frames in any order and a frame always looks the same.
 Measured on the test mill (a pocket with flood, two automatic hoses, 800 × 450, Cycles 64 samples on the processor
 of the 4-core test machine): 42.0 s per picture without coolant, 47.1 s with it (+12 %: the jets, splash and hoses
 about 7 %, the wet sheen about 5 %); EEVEE showed no difference. Working out a frame's coolant in the view takes
-about 3.5 ms.
+about 3.5 ms (with the speed-driven splash of 0.2.200: 3.2–3.6 ms on the 4-core test machine).
 
 Not yet: coolant through the spindle (through the tool), mist or steam in the air, puddles that collect and
 coolant that runs off the table.

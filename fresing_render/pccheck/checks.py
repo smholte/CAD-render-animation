@@ -3847,7 +3847,8 @@ M30
 @line("milling.coolant", "Milling: coolant floods the tool", "0.2.48",
       what="The test mill cuts a pocket with flood coolant (M8 ... M9) from two automatic hoses: jets and splash "
            "while it cuts, the block gets wet and dries after M9, a frame looks the same whatever frame came "
-           "before; the time per frame with and without coolant and a Cycles picture of the flood")
+           "before; the spindle speed sets the splash (task 0257: rim speed, a film on a slow tool, the jets turned "
+           "away at speed); the time per frame with and without coolant and a Cycles picture of the flood")
 def milling_coolant(ctx):
     import bpy
     import numpy as np
@@ -3918,6 +3919,25 @@ def milling_coolant(ctx):
     _check(later < wet, "the block does not dry after M9")
     n_wet = len(coolant.wet_parts(scene))
     _check(n_wet >= 1, "no part gets wet")
+    # task 0257: the spindle's speed (S9000) is read per frame and sets the look
+    from ..core import coolant as core
+    rpm = coolant.rpm_at(root, mid)
+    _check(rpm == 9000, f"the coolant reads {rpm} rpm at the middle of the flood, not the program's 9000")
+    _z, radius = coolant._tool_at(scene, root, mid)
+    v = core.rim_speed(rpm, radius)
+    _check(4.0 < v < 5.5, f"the D10 at 9000 rpm turns at {v:.2f} m/s at its rim, not about 4.7")
+    flow = scene.fresing.coolant.flow
+    on1 = lambda t: np.ones_like(np.asarray(t, float))       # noqa: E731
+    g = np.array([0.0, 0.0, -core.G])
+    slow = core.splash(np.zeros(3), radius, 0.008, 300.0, 25.0, on1, flow, g, rpm=1000)
+    fast = core.splash(np.zeros(3), radius, 0.008, 300.0, 25.0, on1, flow, g, rpm=15000)
+    film = int((np.linalg.norm(slow.drops[:, :2], axis=1) < radius + 1.2 * core.MM).sum())
+    _check(film > 30, f"at 1000 rpm only {film} drops lie on the tool: no film")
+    _check(np.median(fast.sizes) < 0.5 * np.median(slow.sizes), "the fast tool's drops are not finer")
+    share = core.deflect_share(core.rim_speed(15000, radius), flow)
+    _check(share > 0.1 and core.deflect_share(v, flow) == 0.0,
+           f"the air layer turns away {share:.0%} at 15000 rpm (expected some) and "
+           f"{core.deflect_share(v, flow):.0%} at 9000 (expected none)")
     # a picture of the flood: a camera close to the tool
     scene.frame_set(mid)
     cam = bpy.data.cameras.new("PC check coolant")
@@ -3931,7 +3951,8 @@ def milling_coolant(ctx):
     info = _cpu_still(ctx, scene, "coolant", "Flood coolant at the tool (processor, draft)", model_check=False)
     ctx.metric("still with coolant", info["seconds"], "s")
     return (f"{len(j1) // 3} jet points, {len(d1) // 3} drops; wet {wet:.2f} at M9, {later:.2f} at the end; "
-            f"{n_wet} wet parts; {off:.0f} / {on:.0f} ms per frame without / with coolant")
+            f"{n_wet} wet parts; {v:.1f} m/s at the rim, {film} film drops at 1000 rpm, {share:.0%} of the jets "
+            f"turned away at 15000; {off:.0f} / {on:.0f} ms per frame without / with coolant")
 
 
 TOOLS_PROGRAM = """(TWO TOOLS)
@@ -4854,7 +4875,7 @@ def app_licences(ctx):
 
 
 @line("app.settings", "Fresing Settings: one window with tabs; only your own input counts as time in My usage",
-      "0.2.200",
+      "0.2.201",
       what="Every tab of the Settings window draws (General, Side panel, Lessons, Backups, Updates, My usage, About), "
            "the window's buttons are in the Fresing menu, the left panel and the Add-ons page, a tab is kept for the "
            "next opening, and a played animation with no mouse or key adds no time to My usage")
