@@ -397,7 +397,9 @@ def test_queue_render_shows_the_cut(scene, tmp_path):
     last = np.asarray(Image.open(os.path.join(job.output, frames[-1])).convert("RGB"), dtype=np.int16)
     changed = np.abs(first - last).max(axis=2) > 25
     share = changed.mean()
-    assert 0.002 < share < 0.2, share                    # the slot, and only the slot, changed
+    # the slot, and only the slot, changed (task 0280: satin cut faces are nearer the block's own grey: 0.0018 of
+    # the picture differs clearly, 0.0022 before)
+    assert 0.001 < share < 0.2, share
     ys, xs = np.nonzero(changed)
     assert np.ptp(xs) > 3 * np.ptp(ys) / 2, (np.ptp(xs), np.ptp(ys))   # a long slot, seen from the side
 

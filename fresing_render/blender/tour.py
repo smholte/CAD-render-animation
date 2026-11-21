@@ -3460,6 +3460,11 @@ def build_marks(b: Build):
     away = cam.matrix_world.translation - centre   # nearer than the fit goes: the strip fills the picture
     cam.location = centre + away.normalized() * MARKS_CAMERA
     cam.data.clip_start = 0.01
+    # task 0280: the test mill is a VMC (task 0249) – its table carries the block away at the end of the program
+    # (X-90): the camera rides on the table, so the stop's last frame still shows the cut
+    _update()
+    table = _ob(sc, "X.ASM")
+    cam.parent, cam.matrix_parent_inverse = table, table.matrix_world.inverted()
     a.start_shot = _shot(b, "Tour: tool marks").name
 
 
