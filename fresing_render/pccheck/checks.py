@@ -4488,7 +4488,7 @@ def app_editors(ctx):
 
 
 @line("backups.makes_one", "Automatic backups: a copy of the open project, the keep rule, nothing else deleted",
-      "0.2.186",
+      "0.2.187",
       what="Saves a backup copy of the open project into a temporary folder (the project keeps its file name and its "
            "unsaved mark, the save handlers keep out), then runs the keep rule on made-up backups next to other files "
            "and checks that only old backups of that project were deleted")

@@ -913,7 +913,7 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.186")
+@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.187")
 def build_faces(b: Build):
     import bpy
 
@@ -4961,7 +4961,7 @@ stop("backups", OUT, "faces", "Automatic backups",
      "Preferences > Add-ons > Fresing Render the box Automatic backups has the switch, every 5 minutes, keep the last 5 "
      "and one a day for 7 days.",
      where="Fresing menu > Restore a backup…; Edit > Preferences > Add-ons > Fresing Render > Automatic backups",
-     since="0.2.186", shot="Painted faces", check=_check_backups, setup=_backup_setup)
+     since="0.2.187", shot="Painted faces", check=_check_backups, setup=_backup_setup)
 
 # ---------------------------------------------------------------------------
 # every machining stop: the block shows what the program does (task 0223)
