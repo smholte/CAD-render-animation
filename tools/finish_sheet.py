@@ -30,7 +30,7 @@ CLOSE = {"knob": ((0.0, 0.0, 0.0085), 0.055), "cap": ((0.0, 0.0, 0.006), 0.075),
          "block": ((0.0, 0.0, 0.033), 0.10), "shaft": ((0.055, 0.0, 0.011), 0.085), "plate": ((0.0, 0.0, 0.0), 0.16),
          "bushing": ((0.0, 0.0, 0.02), 0.10), "way": ((0.0, 0.0, 0.028), 0.10), "grip": ((0.055, 0.0, 0.015), 0.085),
          "grille": ((0.0, 0.0, 0.0), 0.06), "band": ((0.0, 0.0, 0.09), 0.12), "cushion": ((0.0, 0.0, 0.008), 0.075),
-         "yoke": ((0.0, 0.0, 0.042), 0.09), "weld": ((0.0, 0.004, 0.008), 0.09)}
+         "yoke": ((0.0, 0.0, 0.042), 0.09), "weld": ((0.0, -0.006, 0.009), 0.09)}
 LEAN = {"cap": 40.0, "grille": 50.0, "cushion": 40.0}     # degrees about x, towards the camera
 PART = {"knob": "KNOB", "cap": "CAP", "cup": "CUP", "block": "BLOCK", "shaft": "SHAFT", "plate": "PLATE",
         "bushing": "BUSHING", "way": "WAY", "grip": "GRIP", "grille": "GRILLE", "band": "BAND",
@@ -155,7 +155,7 @@ def stage(sc, fid, single, head, weld):
         x += half
         for ob in obs:
             ob.parent = None
-            ob.matrix_world = M if ob.name != "FR study weld bead" else M @ Matrix.Translation((0, 0.0055, 0.0095))
+            ob.matrix_world = M if ob.name != "FR study weld bead" else M @ Matrix.Translation((0, -0.0055, 0.0095))
             ob.hide_render = ob.hide_viewport = False
             shown.append(ob)
         placed.append((key, M, size))

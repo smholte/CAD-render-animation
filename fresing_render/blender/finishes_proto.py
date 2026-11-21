@@ -707,8 +707,9 @@ def rust(b: F, s: dict):
     ao = b.node("ShaderNodeAmbientOcclusion", Distance=0.02)
     ao.only_local = True
     ao.samples = 4
-    mask = b.smooth(b.math("ADD", m, b.math("MULTIPLY", b.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.4)),
-                    0.75 - 0.4 * a, 0.80 - 0.35 * a)
+    lo = 0.66 - 0.45 * a
+    mask = b.smooth(b.math("ADD", m, b.math("MULTIPLY", b.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.4)), lo, lo + 0.06)
+    mask = b.math("ADD", mask, b.math("MULTIPLY", b.math("SUBTRACT", 1.0, mask), 0.25 * a), clamp=True)   # a thin haze
     flake = b.vor(None, 1.0 / 0.003, "SMOOTH_F1", 1.0)[0]
     col_r = b.ramp(b.noise3(scale=1.0 / 0.006, detail=4.0), [(0.0, (0.05, 0.025, 0.015)), (0.45, (0.16, 0.06, 0.025)),
                                                                (0.8, (0.30, 0.12, 0.04)), (1.0, (0.42, 0.20, 0.07))])
@@ -979,7 +980,7 @@ FINISHES: dict[str, dict] = {
                  base=dict(color=STEEL, metallic=1.0, roughness=0.3), pat=dict(amount=0.35, color=STEEL, roughness=0.3),
                  size="patches 10-40 mm, flakes ~3 mm", settings="a Rust slider 0…1 per group (like Wear)",
                  offer="every bare steel / cast iron (as a slider, not a material)", source="none (3-D noise + AO)",
-                 variants={"flash": dict(amount=0.25), "heavy": dict(amount=1.0)}),
+                 variants={"flash": dict(amount=0.3), "heavy": dict(amount=1.0)}),
     "honed": dict(n=24, label="Honed cross-hatch in a bore", fn=honed, shapes=["bushing"],
                   base=dict(color=STEEL, metallic=1.0, roughness=0.18), pat=dict(angle=50.0, k=2500.0, roughness=0.18),
                   size="scratches ~0.4 mm apart, 50° included angle", settings="Angle", offer="Steel ground / machined, cast iron",
