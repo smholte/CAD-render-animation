@@ -102,8 +102,8 @@ operations with wires and cable (0082).
   winches), `test_user_guide.py` + `test_updates.py` 49: green locally.
 - **Make demo project** (full size, alone on the machine): **134 s** (0077: 148 s) – writing 47 s, import 15 s,
   joints 64 s (419), Build 5 s.
-- Pictures (Cycles CPU, Preview, rendered 1920×1080, stored 960×540): `tasks/img/0091-quadrant-tipped.png` (end of
-  shot 7: handler at 100°, quadrant tipped, 141 s), `tasks/img/0091-lebus-closeup.png` (shot 6, 177 s).
+- Pictures (Cycles CPU, Preview, rendered 1920×1080, stored 960×540): *(picture removed – private, task 0226)* (end of
+  shot 7: handler at 100°, quadrant tipped, 141 s), *(picture removed – private, task 0226)* (shot 6, 177 s).
 - GitHub: **1 full run on the branch, green on the first try** (run 43211497548, 13.8 min). `main` fast-forwarded
   to that commit: run 43213547402 (reuse, 2.4 min) published **v0.2.69**, the Windows update-from-the-release
   check passed, offered to the apps.

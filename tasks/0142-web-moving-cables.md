@@ -132,7 +132,7 @@ texture upload; the rings are built on the graphics card.
   894k of 5.06M moments kept; tubes 16.5 MB); export **179 s → 296 s** (reading every cable and link at every frame).
   Page frame time: in software drawing both pages draw about 3 pictures in 20 s (graphics-bound, 2 M triangles) – no
   difference measurable here; the tubes' own cost is the 2.6 ms above. On the owner's RTX 3090: not measured.
-- Pictures `tasks/img/0142_demo_500.jpg` (carousel), `_1100.jpg` (tensioner), `_2700.jpg` (quadrant): app (Cycles
+- Pictures *(picture removed – private, task 0226)* (carousel), *(picture removed – private, task 0226)* (tensioner), *(picture removed – private, task 0226)* (quadrant): app (Cycles
   draft) beside the page at the same moment (invented demo only).
 - Small models vs the app's evaluated meshes: spool (2 cables, drum rope, carousel coil) centres < 2 mm, ring points
   < 3 mm, s and paid out < 2 mm, also compressed and static; tracks 146 links/pads < 3 mm (1.2 mm worst); cable into

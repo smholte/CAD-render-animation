@@ -148,7 +148,7 @@ IBM Plex Sans, dark translucent panels).
   (`docs/img/web3d_phone.jpg`), panel picture re-made. Function list: `web.view_names`, `web.phone` (anchors
   `web3d-view-names`, `web3d-phone`). Site: test mill and Thor re-made (`make_site_web_models.py all`, ~10 min) –
   their views are now "Iso front-right" and "Iso front-right", "Thor at work" (were View 1, View 2).
-- Pictures: `tasks/img/0179_before_360.png` (before, 21 views at 360 × 780), `0179_phone_upright.png` (pill + list,
+- Pictures: *(picture removed – private, task 0226)* (before, 21 views at 360 × 780), `0179_phone_upright.png` (pill + list,
   test mill with 6 views), `0179_phone_sideways.png` (844 × 390), `0179_laptop.png` (1366 × 768).
 
 **Tested and measured** (4-core web session, headless Chromium with software drawing):

@@ -70,8 +70,8 @@ still pixel for pixel the same.
   `hide_viewport`: a key showed a hidden object again every frame), all put back afterwards.
 - **Posing a cable into the sea** (`core/catenary.py`): a solve of ≤ `SMALL` (8) moments runs its bisections on plain
   numbers instead of 1-element arrays (2,500 tiny NumPy calls per catenary); the seabed snake of a piled-up cable is
-  worked out for all frames at once (`_snake_amplitudes`, bit-identical).
-- **Wound path drawn at once** (`core/spool.polyline`, `_curvature`): all pieces in one go instead of a Python loop per
+  worked out for all frames at once (*(picture removed – private, task 0226)*, bit-identical).
+- **Wound path drawn at once** (`core/spool.polyline`, *(picture removed – private, task 0226)*): all pieces in one go instead of a Python loop per
   piece – the same points to the last bit; the full carousel's whole path 3.0 → 1.1 s.
 - `tools/measure_cables.py`: the measuring tool of this task (Build split by module, playback with and without the
   app's drawings, triangles, memory, a Cycles frame, live posing) – for 0160 and later.
@@ -123,8 +123,8 @@ every coupling as on `main`. `test_spool_core`, `test_spool_independent`, `test_
 `test_catenary`, `test_paths_sea(_independent)`, `test_flex`, `test_paths_moving`, `test_demo_cable_lay`: all passed.
 Runs on GitHub: 3 full runs – 43854279287 red (two cable tests outside the demo groups pinned the old route: the CAD cable's length and the arch's guide-roller check, which found the arch fault above), 43859013414 green on the final code (19 min); then the version as a docs run.
 
-Pictures: `tasks/img/0159_carousel_full.jpg` (shot 3, frame 401, the full carousel, the served look of 0158, the
-camera 1.5 m higher), `0159_carousel_before.jpg` (the same frame on `main` 0.2.114).
+Pictures: *(picture removed – private, task 0226)* (shot 3, frame 401, the full carousel, the served look of 0158, the
+camera 1.5 m higher), *(picture removed – private, task 0226)* (the same frame on `main` 0.2.114).
 
 **Open points / follow-up tasks:**
 - **Tracks are now the biggest playback cost** (~11–19 ms a frame on the demo, 0079's aim was +2 ms): 432 objects

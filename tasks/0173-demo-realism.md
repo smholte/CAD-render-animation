@@ -137,8 +137,8 @@ Split (one owner per file):
    (real speed)".
 6. **Tipping winches spooled** – `paths._bake`: cables kept tight go first and write their payouts; a cable whose
    speed follows one of them, or whose carriers a joint following one of them moves, is then put right **without a
-   second pass through the frames**: the motion empties of the joints involved are read in the same pass (`_plan`),
-   and each place is corrected from the value the pass saw to the written one (`_after_tight`:
+   second pass through the frames**: the motion empties of the joints involved are read in the same pass (*(picture removed – private, task 0226)*),
+   and each place is corrected from the value the pass saw to the written one (*(picture removed – private, task 0226)*:
    W' = M · L(seen)⁻¹ · L(written) · M⁻¹ · W, outermost joint first). A first version read the frames again (+70 s per
    demo Build, ~24 Builds in the demo tests); the correction gives the same shapes as a re-bake to 1e-4 m. The two
    tipping winches got **narrow drums** (240 mm between flanges, was 800; `layout.TIPPING_DRUM_LENGTH`): fleet angle
@@ -190,9 +190,9 @@ its pass-count expectations changed from "one extra pass" to "no extra pass" aft
   `test_tight_followers_independent.py` (~1.5 min) join their groups with the default estimate.
 - 0152 #7 / #8 (pull-in variants): owner decides.
 
-**Stills** (invented content, Cycles CPU, 1280 × 720, 24 samples): `tasks/img/0173_shot8_lay_data_rov.jpg` (shot 8:
-the Lay data box, the ROV beside the touch-down, the caption with "surface lay"), `tasks/img/0173_shot5_caption.jpg`
-(shot 5's caption), `tasks/img/0173_tipping_winch.jpg` (a tipping winch's narrow drum with its wire in layers going
+**Stills** (invented content, Cycles CPU, 1280 × 720, 24 samples): *(picture removed – private, task 0226)* (shot 8:
+the Lay data box, the ROV beside the touch-down, the caption with "surface lay"), *(picture removed – private, task 0226)*
+(shot 5's caption), *(picture removed – private, task 0226)* (a tipping winch's narrow drum with its wire in layers going
 up the swivel post while the D is lowered). No night still: the ROV is hidden in shot 13.
 
 **GitHub runs:** 6 full runs started. Red: suite 2 (my label test left the add-on registered: fixed) and demo 2

@@ -106,7 +106,7 @@ shown here too and no longer needing Weather & time on) · Sideways (DP: push to
   along a wall from a thruster 1 mm from it), all fixed; all 71 pass. Demo project tests (13) pass with the new
   propeller check; tour clash check of the new set: 0 clashes.
 - Pictures (Cycles, processor): `img/0154_test_ahead.jpg`, `img/0154_test_dp.jpg` (test model, 8 kn / sideways 60 %);
-  `img/0154_demo_still.jpg`, `img/0154_demo_ahead.jpg` (6 kn, 1.6 s), `img/0154_demo_dp.jpg` (40 s) – the demo
+  *(picture removed – private, task 0226)* (6 kn, 1.6 s), *(picture removed – private, task 0226)* (40 s) – the demo
   in its scaled-down test form, camera Overview.
 - Cost on the demo (scaled-down form, camera Overview, 640×360): Cycles processor 8 samples **5.6–5.8 s per frame
   without, 6.6–7.0 s with** the vessel's water (+19 %; the sea fills most of that picture). EEVEE (software graphics under xvfb, so only the ratio means anything; the first render of each includes compiling its shaders): 149 s without, 150 s with on the second render (+1 %).

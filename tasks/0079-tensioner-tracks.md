@@ -201,7 +201,7 @@ now, as drawn); ``set_up_test_model(scene) -> dict``; ``summary(scene, item) -> 
   **Per frame (shot 5's frames): 19.9 ms with the 4 tracks running, 11.8 ms off: +8.1 ms** (432 moving parts). Make demo:
   stage `tracks` 1.5 s of 96 s. Test model: +2.3 ms for 146 parts. PC-check line: 6 s, frame change 5.8 ms (171 parts).
 - Real app: guide pictures (panel at the default width, labels fitted after the subagent's report) and the Cycles
-  still of the demo's tensioner `tasks/img/0079_tensioner_tracks.jpg`; the other real-app tests on GitHub.
+  still of the demo's tensioner *(picture removed – private, task 0226)*; the other real-app tests on GitHub.
 - Subagents: (1) test model maker (worktree, Opus) – made `make_test_tracks.py` + the STEP; (2) independent tester
   (worktree, Opus, did not read the bodies of tracks.py) – 46 tests, 7 failed at first: a raw StopIteration when the
   clicked link is a track already (fixed: refused in words), neighbour links 0.2–0.38 mm apart where a link straddles a
@@ -211,7 +211,7 @@ now, as drawn); ``set_up_test_model(scene) -> dict``; ``summary(scene, item) -> 
   cut-off labels in the panel (fixed) and "Runs the other way" showing ticked on a track that ran right (fixed: the
   found direction is a hidden `flip`, the box only turns it round). Re-done after merging: the panel picture.
 - GitHub runs: 2 on the branch. Run 43456458187 red: the new "Speed from" row sat inside the cables panel's
-  `_add_buttons`, where the real-app test marks the place of Add cable, so its mouse click hit the Speed field (fixed:
+  *(picture removed – private, task 0226)*, where the real-app test marks the place of Add cable, so its mouse click hit the Speed field (fixed:
   drawn just above). Run 43462232702 green (24.3 min), after merging main (0106 took 0.2.86: renumbered to 0.2.87,
   PC-check / tour counts +1 each).
 

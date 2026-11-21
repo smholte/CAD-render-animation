@@ -57,10 +57,18 @@ reports beyond the links.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026
 
-**What changed:**
+**What changed:** 65 pictures (about 2 MB less; `tasks/img/` 13 MB -> 11 MB, 122 -> 57 files) deleted from `main`: the 53 listed, plus
+all 5 of 0106 (carousel, tensioners on the deck), 0080's two (drum and carousel), 0109's `presets`, `time_of_day`,
+`wet_snow` (they show the carousel) and 0179's `before_360` (a carousel in the list). Links in 22 old task files now say
+*(picture removed – private, task 0226)*. Private repository: byte copies of all, 4 were missing and were added
+(0080 x2, 0109 x2) to `img/` + `LIST.md` on its branch `claude/intelligent-faraday-15f3zc` (not main).
 
-**Tested and measured** (name the machine and the model):
+**Kept and why:** `0109_sea_before_after`, `0109_sea_horizon` (ship with crane, sea only), `0109_mill_night_fixed`, the
+test-model pictures (`0107_mill_render`, `0154_test_*`, `0158_test_*`), `0148_seabed_shot` (seabed only, no equipment),
+0179's phone/laptop pictures and every other picture of the range (mill, web page, people, props, looks).
 
-**Open points / follow-up tasks:**
+**Tested and measured:** grep of every deleted name over the repository: no hit left. Guide build untouched (no `docs/` change).
+
+**Open points / follow-up tasks:** the history keeps the pictures (by decision). The private branch needs merging by the owner or a private-repo task.
