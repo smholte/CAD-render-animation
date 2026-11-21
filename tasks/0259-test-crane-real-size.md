@@ -1,6 +1,6 @@
 # 0259 – The test crane at real size: a ×5 service crane (boom ~7.5 m, boom pin ~2 m up) everywhere – tour, lessons, PC check, guide and the automatic tests
 
-**Who:** worker · **Status:** open – waits for 0234 (its `marine` and `vessel` sets use the test crane) and 0249 merged (same lane; 0250 after this task) · **Branch:**
+**Who:** worker · **Status:** open – can start (0233, 0234 and 0249 merged; 0250 after this task) · **Branch:**
 `task/0259-test-crane-real-size`
 **Started by:** lead, 21 Nov 2026 (owner 14:13, two screenshots: the test crane beside a 1.75 m person and an IBC on the
 quay looks like a toy – "should not be this small compared to other models. make sure that the scale is realistic."
