@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.186 – 21 Nov 2026 – A let-go cable lies straight (task 0248)
+## 0.2.187 – 21 Nov 2026 – A let-go cable lies straight (task 0248)
 
 - **The cable on the seabed stays where it lay.** When you let go a cable into the sea (**Let go here**), the cable
   that already lies on the seabed no longer turns into a snake of short waves from end to end: it does not move at
@@ -17,6 +17,18 @@ installer of that version was built from.
 - A cable that piles up while laying (the warning "has … m more cable than the water is deep") now lies straight from
   its end and puts the extra cable in one bight next to the touch-down, instead of waves along the whole cable.
 - Build after updating: a cable let go in an older version gets the new lying-down at its next **Build & play**.
+
+## 0.2.186 – 21 Nov 2026 – A mesh model update keeps the work on a moved group whose part changed (task 0237)
+
+- **Updating a glTF, OBJ or FBX model no longer loses work** when a group without a name in the file ("Node 4") was
+  moved in the new revision **and** one of its parts changed (for example 20 mm wider). The Hide step, the eye in
+  2 Structure and the joints on that group and its parts stay. Before, the update said "6 parts kept" but the Hide
+  step and the eye were gone – or, when the parts had no names either, "4 kept, 2 new, 2 missing" and the joint was
+  deleted.
+- Parts without a name in a moved group are now found by their shape and the move they share (also when the whole
+  group of 3,000 parts moved: before, all 3,000 came back as new). A part that changed shape keeps its work, and so
+  does a part that only moved to another place inside the group.
+- The update report says what happened: "Node 4 moved 100 mm; 1 part changed – its work is kept".
 
 ## 0.2.185 – 20 Nov 2026 – The tool-change person stands the same way wherever the machine is (task 0239)
 
