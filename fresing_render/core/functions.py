@@ -543,7 +543,7 @@ fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", 
 fn(id="help.tour", title="Test tour", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.155")
 fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",
-   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68", changed="0.2.187")
+   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68", changed="0.2.188")
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
    panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app
@@ -575,6 +575,10 @@ fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar 
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")
 
+fn(id="help.backups", headline=True, short="Backups", title="Automatic backups every 5 minutes next to the project; "
+   "Fresing > Restore a backup… puts one back", family="help", panel="TOPBAR_MT_fresing", button="fresing.backups_window",
+   guide="backups", tour=("backups",), pccheck=("backups.makes_one",), since="0.2.187",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")

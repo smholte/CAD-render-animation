@@ -276,6 +276,7 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **User guide**, **Check for updates** – the same as in the Help menu (the Help menu keeps them).
 - **Tools and checks** – **Run the self-test**, **PC check…** and **Open the app folder** (the Tools folder with the
   shortcuts that used to be in the Start menu; [One shortcut](#tools-and-checks)).
+- **Restore a backup…** – the automatic backups of the open project, and Restore ([below](#backups)).
 - **My usage…** – what the app counted about your work, the favourites bar and its switches ([below](#my-usage)).
 - **Welcome screen…** – the welcome below, again.
 
@@ -328,6 +329,43 @@ the Fresing tab does the same; leaving it hides everything again.
 - In the **Client view** the entry is greyed (Workspace > Full access unlocks the project first).
 - If you are in Blender's **Edit Mode** (or another mode) when you go back, the header stays Blender's own until you
   are in Object Mode again, so you never lose the menu that gets you out.
+
+<a id="backups"></a>
+### Automatic backups – your work is saved every few minutes
+
+While you work, Fresing Render saves a **backup copy** of the open project every **5 minutes** – only when something
+changed since the last backup or since you saved. Your project itself is not touched: its name, its "not saved yet"
+mark and Ctrl+Z stay as they were. The bottom line of the Fresing tab says **Backup saved 14:35**.
+
+- **Where:** in a folder **Backups** next to the project file, named `<project> backup 2026-11-20 14-35.blend`. A
+  project you never saved gets its backups in **Documents\Fresing Render\Backups\Unsaved projects**. When the folder
+  next to the project cannot be written (a read-only network folder), they go to
+  Documents\Fresing Render\Backups\Projects\<project> … and the app says so once; the same when a colleague has
+  the project open (their backups next to it are theirs: not offered to you, not cleaned by you) or when the path next
+  to the project would be too long for Windows. When OneDrive keeps your Documents folder, it uploads these backups
+  too.
+- **How many:** the **last 5**, plus the **newest one of each of the last 7 days**. Older backups are deleted; the
+  app deletes only files with exactly that name pattern – nothing else in the folder, never the project.
+- **When not:** in the **Client view**, while a render, the render queue, a clash check, a web 3D export, a House bake,
+  a cable re-bake, an import or the animation is running (it tries again half a minute later), and when the disk has
+  less than twice the project's size free (said once).
+- **Fresing > Restore a backup…** lists this project's backups (time, size, **newer than your saved project**).
+  **Restore** first keeps your work as it is now as a backup too, then the chosen backup replaces the project file and
+  opens – nothing is lost. The folder button opens the Backups folder with the file selected. A project that was never
+  saved opens as a new file in Documents\Fresing Render\Recovered projects: save it with **File > Save As**.
+- **A question when you open a project:** when its newest backup is newer than the saved file (Blender or the PC
+  stopped before you saved), a small window asks: **Open the backup** or **Cancel** (keeps the saved project; the
+  backup stays in Restore a backup…). At the start of the app, work that was never saved (from the last 24 hours) is
+  offered the same way. When the welcome or What's new shows, the question waits until it is closed.
+- **Settings:** Edit > Preferences > Add-ons > Fresing Render > **Automatic backups**: the switch (on), **Every
+  (minutes)** 1–60, **Keep the last** 1–50 and **One a day for (days)** 0–60. The box shows how much room this
+  project's backups take. A big project (the demo is about 226 MB) takes that much per backup.
+- Open a backup only through **Restore**: a backup keeps the project's own links to its files (cache, pictures), so
+  opened straight from the Backups folder it may miss them.
+
+<img class="panel" src="img/backups_window.png" alt="Fresing > Restore a backup…: this project's backups with their time and size, Restore and a folder button">
+
+Blender's own auto-save (File > Recover) still works as before.
 
 <a id="welcome"></a>
 ### The welcome (the first starts)
@@ -3388,7 +3426,7 @@ the machine himself, or for your website.
 **File size.** The page holds the model packed (the browser unpacks it as it opens), so the
 page is about as big as the `.glb`, not a third bigger. Pictures are saved as WebP where that is smaller and as
 faithful as JPG (every current browser reads WebP); a part that is in the project twice with the same shape is stored
-once. Pages exported before stay as they were; export again to get the smaller page. Measured on the old demo project (a cable-lay vessel, before version 0.2.187; 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
+once. Pages exported before stay as they were; export again to get the smaller page. Measured on the old demo project (a cable-lay vessel, before version 0.2.188; 2:32 of animation, Texture 1024, sea, soft light baked): the `.glb` went from 73 to 50 MB and the page from 98 to 42 MB, with the same picture and motion; the browser unpacks it in about half a second.
 
 The page is **one file**: e-mail it or put it on a website. It also opens without internet. The customer needs a
 browser of the last few years (Edge, Chrome, Firefox or Safari), also on a phone.

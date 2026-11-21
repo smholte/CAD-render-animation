@@ -169,6 +169,9 @@ def _before_load(_dummy=None):
 
 @persistent
 def _after_save(_dummy=None):
+    from . import backups
+    if backups.saving():                    # task 0246: an automatic backup leaves the "in use" file alone
+        return
     path = bpy.data.filepath
     if not path or bpy.app.background:      # unsaved project (e.g. a copy for the render queue)
         return

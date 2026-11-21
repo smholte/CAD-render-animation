@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.187 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
+## 0.2.188 – 21 Nov 2026 – The demo is now "Vessel in a wind park" (task 0247)
 
 - **A new demo project: "Vessel in a wind park".** Help > Make demo project… now makes an invented ship with her own
   deck crane in an offshore wind park of nine turbines and a substation, the park's power cable lying on the seabed
@@ -18,6 +18,25 @@ installer of that version was built from.
 - **The clash check can leave a whole model out, stored in the project.** The demo's wind park is left out this way
   (its nine turning rotors would make the check several times as long); the mark stays when you save, reopen or
   update the model. A demo kit uses it for its own scenery.
+
+## 0.2.187 – 21 Nov 2026 – Automatic backups (task 0246)
+
+- **Your work is saved every 5 minutes.** While you work, the app saves a backup copy of the open project in a folder
+  **Backups** next to it – only when something changed. Your project itself stays as it is (its name, the "not saved"
+  mark and Ctrl+Z). The Fresing tab says "Backup saved 14:35". A project you never saved gets its backups in
+  Documents\Fresing Render\Backups\Unsaved projects.
+- **The last 5 and one a day for 7 days** are kept; older backups are deleted (only files with the backup name pattern
+  of that project – nothing else).
+- **Fresing > Restore a backup…** lists them with time and size. **Restore** first keeps your work as it is now as a
+  backup too, then opens the chosen one in the project's place.
+- **A question when you open a project** whose backup is newer than the saved file (Blender or the PC stopped before
+  you saved): Open the backup, or keep the saved project. At the start, unsaved work from the last 24 hours is offered
+  the same way.
+- No backups in the Client view, nor while a render, the render queue, a clash check, web 3D export, House bake, cable
+  re-bake, import or the animation runs (tried again half a minute later). A colleague's backups of a shared project
+  are never offered to you. Settings: Edit > Preferences > Add-ons > Fresing Render > **Automatic backups** (on/off,
+  every 1–60 min, keep the last 1–50, one a day for 0–60 days).
+- Measured on the 4-core test machine: one backup of the demo project (246 MB) takes 1.3 s; a small project 0.02 s.
 
 ## 0.2.186 – 21 Nov 2026 – A mesh model update keeps the work on a moved group whose part changed (task 0237)
 
