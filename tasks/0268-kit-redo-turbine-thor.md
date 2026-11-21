@@ -1,6 +1,6 @@
 # 0268 – Render kit: the turbine still and video without the sea cut-away, Thor's side picture with the corrected model (same camera, light and background), the dropped shots taken out
 
-**Who:** worker → owner (renders on his PC) · **Status:** running · **Branch:** `claude/cool-ramanujan-lzs9ul`
+**Who:** worker → owner (renders on his PC) · **Status:** done · **Branch:** `claude/cool-ramanujan-lzs9ul`
 **Started by:** lead, 21 Nov 2026 (owner 16:41: "these need to be redone without the cutout in the ocean: the whole
 turbine picture and the offshore turbine video"; "thor_side.jpg needs to be redone with the updated Thor model – I like
 the light and position and everything, only in the original model some parts were placed in the wrong position, so keep
@@ -53,11 +53,11 @@ tasks/0112's Background). The shots the owner dropped are no longer made.
 
 ## Done when
 
-- [ ] Seabed view and the two onshore views no longer made; the cut-away off in the Whole turbine still and the video
-- [ ] Thor side shot reproduces today's camera, light, background and size from the corrected model (overlay proof)
-- [ ] "Redo 21 Nov" short run in the kit window
-- [ ] Tests added / updated; full suite passes; kit on the draft release
-- [ ] Report below filled in, with the owner's steps
+- [x] Seabed view and the two onshore views no longer made; the cut-away off in the Whole turbine still and the video
+- [x] Thor side shot reproduces today's camera, light, background and size from the corrected model (overlay proof)
+- [x] "Redo 21 Nov" short run in the kit window
+- [x] Tests added / updated; full suite passes; kit on the draft release
+- [x] Report below filled in, with the owner's steps
 
 ## Not in this task
 
@@ -113,7 +113,11 @@ re-renders); new models from study 0113.
 - New `tests/test_render_kit_redo.py` (14 tests: the shipped choice, run choices and rows, plain problems, the window
   rows + a continued run, a real-Blender run with a stored camera, a crop and own name); `test_render_kit.py`,
   `test_site_turbine.py`, `test_site_turbine_standin.py` (Seabed in the stand-in, left out by the converter) pass
-  locally; the owner's STEP sheet check passes. GitHub: see below.
+  locally; the owner's STEP sheet check passes.
+- GitHub: 6 full runs. Run 1 red from this task (ImageMagick missing on the runners, an old test wanting views on
+  every model, the Redo row's title too long for the window's layout check at 100–200 %) – fixed; run 2 green;
+  runs 3–6 after merging main (two releases came in meanwhile): one green, one cancelled (suite 8, none of this
+  task's files, over GitHub's 40-min limit on a slow runner), green on the final merge (44947898800).
 
 **Open points / follow-up tasks:**
 - The kit zip goes onto the draft release `site-kit` by `site-kit.yml` after the merge (it runs on a push to `main`
