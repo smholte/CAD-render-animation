@@ -4800,7 +4800,7 @@ stop("make", OUT, HUB_SET, "Make: every output side by side",
      where="Make, above 1 Import; Make in the 3D view's header", since="0.2.152", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
-stop("demo", OUT, HUB_SET, "Demo project: Vessel in a wind park",
+stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "Help > Make demo project… makes the demo 'Vessel in a wind park' in the background (a minute or two on your PC; "
      "the status bar shows how far). Then Help > Open demo project: an invented ship on the open sea in a wind park "
      "of nine turbines; 4 Motion lists 33 joints (the ship's thrusters, propellers, radars and deck crane, the park's "
