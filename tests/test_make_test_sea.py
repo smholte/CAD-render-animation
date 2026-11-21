@@ -19,7 +19,7 @@ N = maker.NUMBERS
 def test_the_shipped_copy_is_the_test_data():
     with open(os.path.join(ROOT, "fresing_render", "data", "test_sea.step"), "rb") as a, open(STEP, "rb") as b:
         assert a.read() == b.read(), "copy tests/data/test_sea.step to fresing_render/data/"
-    assert os.path.getsize(STEP) < 400 * 1024
+    assert os.path.getsize(STEP) < 500 * 1024           # 400 before task 0234 (its hull: ~85 KB)
 
 
 def test_the_maker_checks_itself():
