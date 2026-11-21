@@ -38,7 +38,8 @@
                                raised: 0, speed: 1, duration: 0, animated: false, auto: false, quality: 'AUTO',
                                warned: '', gpu: '', cap: 60, items: [], on: {}, views: [], turn: false,
                                turning: false, sunLive: false, sunHour: 13, sunWhy: '', listeners: [],
-                               beforeDraw: [] };   // task 0135: the part tools' work before each picture
+                               beforeDraw: [],     // task 0135: the part tools' work before each picture
+                               afterDraw: [] };    // task 0252: the Film's labels, drawn over each picture
   // what the visitor chose last time on this page (fr_player.js writes it; the link's own choices come first)
   var PREF_KEY = 'fresing-player:' + (location.pathname || document.title);
   var PREF = {};
@@ -73,7 +74,8 @@
                                      paused: page.paused, duration: page.duration, views: page.views.length,
                                      items: page.items, fps: Math.round(page.fps * 10) / 10, raised: page.raised,
                                      lowered: page.lowered, frames: page.frames,
-                                     under: page.underState ? page.underState() : null });
+                                     under: page.underState ? page.underState() : null,
+                                     film: page.filmState ? page.filmState() : null });
   }
   page.mark = mark;
   window.addEventListener('error', function (e) { page.errors.push(String(e.message || e)); mark(); });
@@ -1461,6 +1463,17 @@
       });
       page.animated = !!ST.animated && page.duration > 0;
     }
+    // task 0252: the glTF node of each object (the Film's labels ride on their part's node)
+    page.nodes = {};
+    var assoc = gltf.parser && gltf.parser.associations;
+    if (assoc) root.traverse(function (o) {
+      var a = assoc.get(o);
+      if (a && a.nodes !== undefined && !(a.nodes in page.nodes)) page.nodes[a.nodes] = o;
+    });
+    if (FILM) {                       // a film whose camera moves round a machine that stands still plays too
+      page.duration = Math.max(page.duration, FILM.duration);
+      page.animated = !!ST.animated && page.duration > 0;
+    }
   }
 
   // ---------------------------------------------------------------- controls and the first view
@@ -1471,6 +1484,7 @@
   controls.target.copy(centre);
   controls.minDistance = R * 0.05;
   controls.maxDistance = hasSea ? Math.min(12000, R * 60) : R * 30;
+  var MAX_DIST = controls.maxDistance;      // task 0252: a Film shot from further away lifts it (see setFilm)
   var HORIZON = Math.PI * 0.497;
   if (hasSea) controls.maxPolarAngle = HORIZON;
   // task 0143: the camera may dive (Camera under water); 0147 row 11: a saved view below the water or the floor is
@@ -1483,7 +1497,7 @@
   }
   function limitPolar() {
     if (!hasSea) return;                  // the plain page never had a limit
-    if (diveOn() || onView) { controls.maxPolarAngle = Math.PI; return; }
+    if (diveOn() || onView || filmOn) { controls.maxPolarAngle = Math.PI; return; }
     // back to the horizon, never with a jump: the limit follows the camera up from where it is
     controls.maxPolarAngle = Math.max(HORIZON, Math.min(controls.maxPolarAngle, polarNow() + 1e-6));
   }
@@ -1544,6 +1558,28 @@
     return { name: String(v.name || 'View ' + (k + 1)), eye: b2t(v.eye), target: b2t(v.target),
              vfov: +v.vfov || FOV, hfov: +v.hfov || 0 };
   });
+  // task 0252: the Film's data (below: how it plays)
+  var FILM = (function () {
+    var f = Array.isArray(ST.films) ? ST.films[0] : null;
+    if (!f || !Array.isArray(f.k) || !f.k.length || !(+f.fps > 0) || !(+f.n > 1)) return null;
+    try {
+      var m = f.k.length, keys = new Float64Array(m), pos = new Float64Array(3 * m), quat = new Float64Array(4 * m);
+      var vf = new Float64Array(m), a = 0, p = [0, 0, 0], q = [0, 0, 0, 0], v = 0, ps = +f.ps, c, i;
+      for (i = 0; i < m; i++) {
+        a += f.k[i]; keys[i] = a;
+        for (c = 0; c < 3; c++) { p[c] += f.p[3 * i + c]; pos[3 * i + c] = p[c] * ps; }
+        var n2 = 0;
+        for (c = 0; c < 4; c++) { q[c] += f.q[4 * i + c]; n2 += q[c] * q[c]; }
+        var n = Math.sqrt(n2) || 1;
+        for (c = 0; c < 4; c++) quat[4 * i + c] = q[c] / n;
+        v += f.v[i]; vf[i] = v * 0.001;
+      }
+      var cuts = {};
+      (f.cut || []).forEach(function (k) { cuts[k] = true; });
+      return { name: String(f.name || 'Film'), keys: keys, pos: pos, quat: quat, vfov: vf, cuts: cuts, fps: +f.fps,
+               n: +f.n, aspect: +f.aspect || 16 / 9, duration: (+f.n - 1) / +f.fps, src: f };
+    } catch (e) { page.errors.push('film: ' + (e && e.message || e)); return null; }
+  })();
   function viewFov(v) {
     var f = v.vfov;
     if (v.hfov) f = Math.max(f, 2 * Math.atan(Math.tan(v.hfov * Math.PI / 360) / Math.max(camera.aspect, 0.2)) * 180 / Math.PI);
@@ -1552,17 +1588,18 @@
   page.goView = function (k) {
     var v = page.views[k];
     if (!v) return;
+    if (filmOn) page.setFilm(false);       // task 0252: a saved view leaves the Film
     onView = true;
     limitPolar();
     flyTo({ pos: v.eye.clone(), target: v.target.clone(), fov: viewFov(v) });
     changed('view');
   };
-  page.resetView = function () { onView = false; moved = false; flyTo(homeView()); };
+  page.resetView = function () { if (filmOn) page.setFilm(false); onView = false; moved = false; flyTo(homeView()); };
   // task 0179: the start view framed again when the free area changed (the player's controls laid out, the phone
   // turned) – only while the visitor has not moved the camera and no saved view is shown
   var moved = false;
   page.refit = function () {
-    if (!page.ready || moved || onView || fly) return false;
+    if (!page.ready || moved || onView || fly || filmOn) return false;
     firstView();
     wake();
     return true;
@@ -1573,6 +1610,7 @@
   };
   page.setCamera = function (pos, target) {   // tests, the PC check: a camera place (three's coordinates), as a drag
     fly = null; onView = false; moved = true;
+    if (filmOn) page.setFilm(false);
     camera.position.fromArray(pos); controls.target.fromArray(target);
     limitPolar(); controls.update(); wake();
   };
@@ -1580,6 +1618,143 @@
     return { pos: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov, flying: !!fly,
              onView: onView, under: underNow, dive: diveOn(), maxPolar: controls.maxPolarAngle };
   };
+
+  // ---------------------------------------------------------------- task 0252: Film – the video's camera
+  // ST.films[0] (core/web3d_film.py): kept frames ``k``, places ``p`` (steps of ``ps`` m), turns ``q`` (steps of
+  // 1e-5), vertical fields of view ``v`` (steps of 0.001°), each written as the step from the kept frame before;
+  // ``cut``: frames that jump from the frame before (held, never blended). The page's world (three's), the
+  // render's frame ``aspect``. Played from the motion's own time, so the slider, ← →, speed and pause move it too.
+  var filmOn = false, filmLeft = false, filmGlide = null, card = null;
+  var filmNow = { pos: new T.Vector3(), quat: new T.Quaternion(), vfov: FOV, fov: FOV };
+  var qTmp = [0, 0, 0, 0], fwdTmp = new T.Vector3();
+  function filmCards() { return FILM && FILM.src.cards || null; }
+  function filmAt(t, out) {                // core.web3d_film.sample
+    var F = FILM, K = F.keys, m = K.length, i = 0, w = 0;
+    var x = Math.min(Math.max(t, 0), F.duration) * F.fps;
+    if (m > 1) {
+      var lo = 0, hi = m - 1;              // the last kept frame at or before x
+      while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (K[mid] <= x) lo = mid; else hi = mid - 1; }
+      i = Math.min(lo, m - 2);
+      w = Math.min(Math.max((x - K[i]) / Math.max(K[i + 1] - K[i], 1e-9), 0), 1);
+      if (F.cuts[K[i + 1]] && x < K[i + 1]) w = 0;                 // a cut: the shot before holds until it
+    }
+    var j = Math.min(i + 1, m - 1);
+    out.pos.set(F.pos[3 * i] * (1 - w) + F.pos[3 * j] * w, F.pos[3 * i + 1] * (1 - w) + F.pos[3 * j + 1] * w,
+                F.pos[3 * i + 2] * (1 - w) + F.pos[3 * j + 2] * w);
+    T.Quaternion.slerpFlat(qTmp, 0, F.quat, 4 * i, F.quat, 4 * j, w);
+    out.quat.fromArray(qTmp).normalize();
+    out.vfov = F.vfov[i] * (1 - w) + F.vfov[j] * w;
+    return out;
+  }
+  function filmFov(vfov) {                 // the render's frame fitted into the free area, like a saved view
+    var h = 2 * Math.atan(Math.tan(vfov * Math.PI / 360) * FILM.aspect);
+    var f = Math.max(vfov, 2 * Math.atan(Math.tan(h / 2) / Math.max(camera.aspect, 0.05)) * 180 / Math.PI);
+    return T.MathUtils.clamp(f, 0.5, 170);
+  }
+  function filmTime(t) {
+    var tt = ST.animated ? t : 0;
+    if (page.duration > 0) tt = tt % page.duration;
+    return tt;
+  }
+  function filmPose(t, now) {              // the camera on the film's place (or gliding into it)
+    filmAt(filmTime(t), filmNow);
+    filmNow.fov = filmFov(filmNow.vfov);
+    var pos = filmNow.pos, quat = filmNow.quat, fov = filmNow.fov;
+    if (filmGlide) {
+      var k = T.MathUtils.clamp((now - filmGlide.t0) / filmGlide.ms, 0, 1), e = k * k * (3 - 2 * k);
+      camera.position.lerpVectors(filmGlide.pos, pos, e);
+      camera.quaternion.slerpQuaternions(filmGlide.quat, quat, e);
+      camera.fov = filmGlide.fov + (fov - filmGlide.fov) * e;
+      if (k >= 1) filmGlide = null;
+    } else {
+      camera.position.copy(pos);
+      camera.quaternion.copy(quat);
+      camera.fov = fov;
+    }
+    camera.updateProjectionMatrix();
+    // the point the camera turns about when the visitor drags out of the film: as far ahead as the model's middle
+    fwdTmp.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    var d = Math.max(fwdTmp.dot(centre.clone().sub(camera.position)), R * 0.3);
+    controls.target.copy(camera.position).addScaledVector(fwdTmp, d);
+  }
+  function startCard(kind) {
+    var C = filmCards();
+    if (C && C[kind] && C[kind].s > 0) { card = { kind: kind, left: +C[kind].s, all: +C[kind].s }; changed('card'); }
+  }
+  // the motion's clock (tick): with the Film's title / end card it waits while a card shows, and at the film's end
+  // shows the end card, then the title card, then plays from the start
+  function advance(d) {
+    var D = page.duration;
+    if (card) {
+      card.left -= d;
+      if (card.left > 0) return;
+      var was = card.kind;
+      card = null;
+      changed('card');
+      if (was === 'end' && D > 0) { elapsed = Math.round(elapsed / D) * D; startCard('title'); }
+      return;
+    }
+    var before = elapsed;
+    elapsed += d;
+    var C = filmOn && filmCards();
+    if (C && D > 0 && Math.floor(elapsed / D) > Math.floor(before / D)) {
+      var b = Math.floor(elapsed / D) * D;
+      if (C.end) { elapsed = b - 1e-6; startCard('end'); } else { elapsed = b; startCard('title'); }
+    }
+  }
+  page.film = FILM ? { name: FILM.name, duration: FILM.duration, src: FILM.src } : null;
+  page.filmOn = function () { return filmOn; };
+  page.filmCard = function () {
+    return card ? { kind: card.kind, left: card.left, all: card.all, k: 1 - card.left / Math.max(card.all, 1e-9) } : null;
+  };
+  page.setFilm = function (on, glide) {
+    if (!FILM || !page.animated) return false;
+    on = !!on;
+    if (on === filmOn) return filmOn;
+    if (on) {
+      fly = null; onView = false; moved = true;
+      filmGlide = glide ? { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov,
+                            t0: performance.now(), ms: 600 } : null;
+      filmOn = true;
+      filmLeft = false;
+      controls.maxDistance = Infinity;     // the orbit limit would pull a far shot in at every picture
+      stopTurn();
+      if (filmTime(elapsed) < 0.05 && !card) startCard('title');      // the Film from the start: its title card
+    } else {
+      filmOn = false;
+      filmLeft = true;                     // the button shows it can take you back
+      filmGlide = null;
+      // a far shot: the visitor turns from where the camera is, never snapped in to the orbit limit
+      controls.maxDistance = Math.max(MAX_DIST, camera.position.distanceTo(controls.target) * 1.001);
+      if (card) {                          // left during the end card: the next press starts at the film's start
+        if (card.kind === 'end' && page.duration > 0) elapsed = Math.round(elapsed / page.duration) * page.duration;
+        card = null;
+        changed('card');
+      }
+    }
+    limitPolar();
+    wake();
+    changed('film');
+    return filmOn;
+  };
+  page.filmFrame = function () {         // the render's frame on the screen (CSS px), as the Film shows it now
+    var w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight, f = freeOf(w, h);
+    var v = filmNow.vfov * Math.PI / 360, s = Math.tan(v) / Math.tan(camera.fov * Math.PI / 360);
+    var fh = f.h * s, fw = fh * (FILM ? FILM.aspect : 1);
+    return { left: f.l + (f.w - fw) / 2, top: f.t + (f.h - fh) / 2, width: fw, height: fh };
+  };
+  page.filmState = function () {         // tests, the PC check: the Film now (three's world)
+    if (!FILM) return null;
+    return { on: filmOn, left: filmLeft, gliding: !!filmGlide, card: page.filmCard(), time: filmTime(elapsed),
+             pos: filmNow.pos.toArray(), quat: filmNow.quat.toArray(), vfov: filmNow.vfov, fov: filmNow.fov,
+             camPos: camera.position.toArray(), camQuat: camera.quaternion.toArray(), camFov: camera.fov,
+             keys: FILM.keys.length, frames: FILM.n };
+  };
+  page.filmAt = function (t) {           // tests: what the film shows at a time of the motion
+    var o = filmAt(t, { pos: new T.Vector3(), quat: new T.Quaternion(), vfov: 0 });
+    return { pos: o.pos.toArray(), quat: o.quat.toArray(), vfov: o.vfov };
+  };
+  controls.addEventListener('start', function () { if (filmOn) page.setFilm(false); });   // a drag or zoom leaves it
 
   // the view as a link: camera, moment and menu choices in the address (task 0134)
   page.viewLink = function () {
@@ -1591,6 +1766,7 @@
     if (moving() || page.paused || page.animated) p.push('time=' + elapsed.toFixed(2));
     if (page.paused) p.push('paused=1');
     if (page.speed !== 1) p.push('speed=' + page.speed);
+    if (filmOn) p.push('film=1');
     if (!auto) p.push('quality=' + level, 'auto=0');
     var off_ = page.items.filter(function (n) { return on[n] === false && !pageOff[n]; });
     if (off_.length) p.push('off=' + off_.join(','));
@@ -1862,7 +2038,11 @@
   var sp = parseFloat(Q.get('speed'));
   if (sp === 0.5 || sp === 1 || sp === 2) page.speed = sp;
   else if (PREF.speed === 0.5 || PREF.speed === 2) page.speed = PREF.speed;
-  page.setTime = function (s) { elapsed = Math.max(0, +s || 0); page.time = elapsed; chain = false; wake(); changed('time'); };
+  page.setTime = function (s) {
+    elapsed = Math.max(0, +s || 0); page.time = elapsed; chain = false;
+    if (card) { card = null; changed('card'); }          // task 0252: moving the time line skips the Film's cards
+    wake(); changed('time');
+  };
   page.setSpeed = function (v) { page.speed = v === 0.5 || v === 2 ? v : 1; changed('speed'); };
   // the two ends of the hull at the waterline: spray where one dips into a wave (which end is the bow depends on how
   // the model was drawn)
@@ -1933,13 +2113,14 @@
   function draw() {
     var t = frozen != null ? frozen : elapsed;
     page.time = elapsed;
+    if (filmOn) filmPose(t, performance.now());          // task 0252: the camera follows the video's camera
     var tScene = ST.time.start + t;
     var dist = camera.position.distanceTo(controls.target);
     camera.near = T.MathUtils.clamp(dist * 0.01, 0.002, 20);
     camera.updateProjectionMatrix();
     limitPolar();
-    if (onView) {
-      // a saved view stays where it was saved (0147 row 11), also below the water or the floor
+    if (onView || filmOn) {
+      // a saved view stays where it was saved (0147 row 11), also below the water or the floor; the Film too
     } else if (diveOn()) {                 // task 0143: under the water, never into the seabed
       var tb = bottomAt(controls.target.x, controls.target.z);
       if (controls.target.y < tb) { camera.position.y += tb - controls.target.y; controls.target.y = tb; }
@@ -2023,6 +2204,9 @@
       try { page.beforeDraw[bd](t); } catch (e) { page.errors.push('tools: ' + (e && e.message || e)); }
     }
     renderer.render(scene, camera);
+    for (var ad = 0; ad < page.afterDraw.length; ad++) {        // task 0252: the Film's labels over the picture
+      try { page.afterDraw[ad](t); } catch (e) { page.errors.push('film: ' + (e && e.message || e)); }
+    }
     page.frames++;
     if (probes.length) probe();
     if (page.frames < 4 || page.frames % 60 === 0) mark();
@@ -2106,14 +2290,14 @@
   function tick(now) {
     scheduled = false;
     if (document.hidden) { chain = false; return; }        // visibilitychange wakes it again
-    var run = moving() || page.turning || !!fly || (probes.length > 0 && page.frames < (maxFrames || 4));
+    var run = moving() || page.turning || !!fly || !!filmGlide || (probes.length > 0 && page.frames < (maxFrames || 4));
     // at most page.cap pictures a second (a 165 Hz screen asked for 165)
     if (lastDraw && now - lastDraw < 1000 / page.cap - 2) {
       if (run || dirty || chain) { scheduled = true; requestAnimationFrame(tick); }
       return;
     }
     var dt = chain ? Math.min((now - lastDraw) / 1000, 0.1) : 0;
-    if (moving()) elapsed += dt * page.speed;
+    if (moving()) advance(dt * page.speed);
     if (fly) stepFly(now);
     var moved = controls.update(dt > 0 ? dt : null);       // damping after a drag, auto-turn
     if (!(dirty || run || moved)) { chain = false; idle(); return; }
@@ -2145,6 +2329,7 @@
     setLevel(level);
     applyItems(true);
     firstView();
+    if (Q.get('film') === '1') page.setFilm(true, false);    // task 0252: a link to the Film
     var sh = parseFloat(Q.get('sun'));
     if (page.sunLive && isFinite(sh)) page.setSunHour(sh, true);
     page.time = elapsed;

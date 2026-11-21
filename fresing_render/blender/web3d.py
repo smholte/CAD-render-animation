@@ -1085,7 +1085,8 @@ class Job:
                  animation: bool = False, page: bool = True, compress: bool | None = None,
                  surroundings: dict | None = None, light: str = "LIVE", light_quality: str = "NORMAL",
                  light_texels: float = 0.0, light_samples: int = 0, marine_detail: str = "NORMAL",
-                 faces: bool = True, view_names: str = "CAMERA"):
+                 faces: bool = True, view_names: str = "CAMERA", film_captions: bool = False,
+                 film_labels: bool = False, film_cards: bool = False):
         from . import lightbake
         self.scene = scene
         self.marine_detail = marine_detail if marine_detail in core.MARINE_DETAILS else "NORMAL"
@@ -1121,6 +1122,10 @@ class Job:
         self._tubes_done = False
         self._rested = False                   # task 0189: the parts are read at rest (vessel motion muted)
         self._sea_kept = False                 # task 0189: a sea cable on a page with vessel motion (no switch)
+        # task 0252: the Film's extras on the page (the export's tick boxes), and the film read with the motion
+        self.film_want = {"captions": bool(film_captions), "labels": bool(film_labels), "cards": bool(film_cards)}
+        self._film = None
+        self._film_block = None
 
     # -- names
     def _name(self, ob, k: int, what: str = "Part") -> str:
@@ -1668,6 +1673,9 @@ class Job:
         from . import web3d_drawn
         rigid = {j: self._drawn.items[ob.name] for j, ob in enumerate(obs)
                  if self._drawn.kind(ob) == web3d_drawn.RIGID}
+        from . import web3d_film                # task 0252: the video's Animation camera, read on the same frames
+        if web3d_film.camera(scene) is not None:
+            self._film = web3d_film.Film(scene, self._nodes, self._drawn.place, **self.film_want)
         from . import web3d_env
         bed = [] if self.surroundings is not None and web3d_env.seabed_object(scene) is not None else None
         try:
@@ -1684,6 +1692,8 @@ class Job:
                         continue
                     mats[i, j] = np.array(ob.matrix_world)
                 self._drawn.read(bpy.context.evaluated_depsgraph_get(), now)
+                if self._film is not None:
+                    self._film.read(f)
                 if i % 10 == 0:
                     self.text = f"Reading the motion: frame {f} of {frames[-1]}"
                     yield 0.9 + 0.08 * i / len(frames)
@@ -1704,8 +1714,12 @@ class Job:
         blink = ~shown.all(axis=0)
         moving = np.where((np.abs(mats - mats[:1]).max(axis=(0, 2, 3)) > 1e-6) | blink)[0]
         tubes = self._tubes(times)
+        if self._film is not None:
+            mn, mx = self._film_bounds()
+            self._film_block = self._film.block(fps, float(np.linalg.norm(np.subtract(mx, mn))))
+            self._film = None
         if not len(moving):
-            return tubes
+            return tubes or self._film_block is not None
         tracks = []
         kept = 0
         dropped = 0
@@ -1742,6 +1756,13 @@ class Job:
         self.result["motion_keys"] = (kept, len(moving) * len(frames))
         self.gltf.animation(scene.fresing.anim_baked or "Animation", times, tracks)
         return True
+
+    def _film_bounds(self):
+        """The model's box (Blender world) for the film's tolerances: the page's box, else the parts' own."""
+        if getattr(self, "_bounds", None):
+            return self._bounds
+        mn, mx = build.world_bounds([ob for ob, _n in self._nodes])
+        return [float(v) for v in mn], [float(v) for v in mx]
 
     def _reach(self, ob) -> float:
         """How far the part reaches from its own origin (m): a turn by an angle moves its far end that much more."""
@@ -1832,6 +1853,12 @@ class Job:
             if self.surroundings is None:
                 st["plain"] = True
             st["views"] = views(self.scene, numbered=self.view_names == "NUMBERED")
+            if self._film_block is not None and animated:      # task 0252: the Film button and its camera
+                from ..core import web3d_film
+                st["films"] = [self._film_block]
+                self.result["film_bytes"] = web3d_film.size_bytes(self._film_block)
+                self.result["film_keys"] = len(self._film_block["k"])
+                self.result["film_frames"] = self._film_block["n"]
             text = env.page_html(title, data, st, pictures, note="Made with Fresing Render", animated=animated)
             if self.surroundings is not None:
                 # what the surroundings add: the same page in its plain form, without pictures
@@ -1854,6 +1881,8 @@ class Job:
                                                  compressed=self.gltf.compress))
         if self.surroundings is not None and self.page:
             self.result["text"] += " · " + core.surroundings_line(extra)
+        if self.result.get("film_bytes"):               # task 0252
+            self.result["text"] += f" · Film: the video's camera, {self.result['film_bytes'] / 1000:.0f} KB"
         if self._lit is not None:
             from . import lightbake
             lit = self._lit

@@ -3638,6 +3638,21 @@ class FRWeb3D(bpy.types.PropertyGroup):
         description="Puts the motion of the built animation into the file: the page plays it in a loop. Cables, "
                     "wire ropes, hoses, the rope on drums and carousels and track links move too, with their looks. "
                     "Milling, chips and coolant stay as at the frame shown. Makes the export slower")
+    # task 0252: the Film button plays the video's Animation camera; these add what the video shows over it
+    film_captions: BoolProperty(
+        name="Film: captions", default=False,
+        description="Shows the video's captions (the labelled steps, tool changes) over the page's Film, with the "
+                    "same words at the same moments as in the video. Only while the visitor watches the Film. Off: "
+                    "nothing of them is in the file")
+    film_labels: BoolProperty(
+        name="Film: labels", default=False,
+        description="Shows the video's part labels with their lines over the page's Film; each line ends on its part "
+                    "as it moves and a label shows when it shows in the video. Only while the visitor watches the "
+                    "Film. Off: nothing of them is in the file")
+    film_cards: BoolProperty(
+        name="Film: title and end card", default=False,
+        description="Shows the video's title card before the Film starts and its end card (logo, contact line) after "
+                    "it ends, for their seconds. Moving the time line skips them. Off: nothing of them is in the file")
     measure_faces: BoolProperty(
         name="Faces for measuring", default=True,
         description="Puts the flat and round faces of the parts and their straight and round edges into the file, "

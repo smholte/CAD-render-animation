@@ -488,7 +488,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.189")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.194")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -4618,7 +4618,9 @@ def _check_web3d(scene):
     out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_")
     os.makedirs(out_dir, exist_ok=True)
     scene.fresing.web3d.texture_size = "512"
-    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512)
+    from . import web3d_film                             # task 0252: the built camera animation gives the page a Film
+    film = web3d_film.camera(scene) is not None
+    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512, animation=film)
     with open(out["path"], "rb") as fh:
         data = fh.read()
     bad = core.problems(data)
@@ -4633,6 +4635,7 @@ def _check_web3d(scene):
     with open(out["html"], encoding="utf-8") as fh:
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
+    _check(film and len(st.get("films") or []) == 1, "the page has no Film (the camera animation is built)")
     from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø40)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
@@ -4641,7 +4644,8 @@ def _check_web3d(scene):
     _check("fr_tools" in open(out["html"], encoding="utf-8").read() or "partTools" in
            open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
-            f"{len(st['views'])} saved views; faces for measuring in {len(faces)} meshes, "
+            f"{len(st['views'])} saved views; Film {out.get('film_keys', 0)} of {out.get('film_frames', 0)} frames; "
+            f"faces for measuring in {len(faces)} meshes, "
             f"{sum(len(e) for e in edges.values())} edges")
 
 
@@ -4728,8 +4732,12 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "between them; move the pointer close to an edge – it lights up orange – and click it: a straight edge gives its "
      "length, a hole's rim its Ø; two edges: the distance between them; the numbers never cover each other), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
      "faces red; add a second slice, Edit one and drag its arrow or a yellow knob, Delete it with the ×) and Fade the "
-     "rest (click a part: the rest goes see-through).",
-     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d, changed="0.2.175")
+     "rest (click a part: the rest goes see-through). The animation 'Camera rides and flies' is built, so the page "
+     "plays it with a Film button (a film camera) at the end of the play bar: pressed, the page shows the motion through "
+     "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
+     "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
+     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
+     check=_check_web3d, changed="0.2.194")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "

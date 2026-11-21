@@ -7,7 +7,7 @@ import os
 import bpy
 
 from ..core import web3d as core
-from . import animation, ui, vessel_motion, web3d, web3d_env
+from . import animation, ui, vessel_motion, web3d, web3d_env, web3d_film
 from .ui import BIG, MEDIUM, _has_model, _Panel, big, big_row, gap, header_status, hint, split_props, wrap
 
 
@@ -54,6 +54,14 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         sub = col.row()
         sub.enabled = animation.has_keys(scene)
         sub.prop(w, "animation", text="Include animation")
+        if web3d_film.camera(scene) is not None:  # task 0252: the page's Film button and what it shows over it
+            sub = col.column(align=True)
+            sub.enabled = w.animation
+            sub.prop(w, "film_captions", text="Film: captions")
+            sub.prop(w, "film_labels", text="Film: labels")
+            sub.prop(w, "film_cards", text="Film: title and end card")
+            wrap(col, context, "The page gets a Film button: the motion seen through the video's camera"
+                 + ("" if w.animation else " (tick Include animation)") + ".", icon="SEQUENCE")
         gap(layout)
         draw_surroundings(context, layout, w)
         draw_light(context, layout, w)
@@ -105,6 +113,8 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
 PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
     ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),
     ("PLAY", "Motion: Space plays and pauses, a time line to drag, speed ½× 1× 2×"),
+    ("SEQUENCE", "Film: the motion seen through the video's camera (only with Include animation and a built "
+                 "Animation camera); a drag leaves it, Film takes you back"),
     ("CAMERA_DATA", "Saved views: one per camera of the project, by its name or numbered (View names); "
                     "a phone held upright shows one ‹ name › control and a list of all"),
     ("FULLSCREEN_ENTER", "Fullscreen (F), Reset view (R), Screenshot (S), Copy link to this view (L), keys (?)"),

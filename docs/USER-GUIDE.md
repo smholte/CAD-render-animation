@@ -3550,6 +3550,8 @@ title and these controls:
   **remembers** these choices for the next visit on that PC; **Reset** goes back to the page's own.
 - **Playback** (a page with an animation): **Space** plays and pauses, the time line can be dragged to any moment
   (also on a phone), speed **½×, 1×, 2×**, the arrow keys jump two seconds.
+- **Film** (a page whose animation has a built Animation camera): the motion seen through the video's camera – see
+  [Film](#web3d-film).
 - **Saved views**: one per camera of the project, named as **View names** says (keys **1 … 9**); the view flies
   there. On a PC, a tablet and a phone held sideways they are **one row of buttons** that never wraps: when they do
   not fit, the row scrolls sideways (its edges fade) and **All views** at its end opens the list of all of them. On a
@@ -3566,6 +3568,35 @@ title and these controls:
 - A **loading bar** shows how many MB of the model have come in.
 - **Part tools** on the left: Part info, Measure, Slice, Fade the rest – see
   [below](#web3d-tools).
+
+<a id="web3d-film"></a>
+#### Film: the motion seen through the video's camera
+
+A page from a project whose animation has a built **Animation camera** (Camera steps in 6 Animation: Move to, Cut,
+Orbit, Ride along, Fly a path, Keep a part in the middle) and that was exported with **Include animation** gets a
+**Film** button (a film camera) at the end of the play bar. The page still opens in the free view.
+
+- **Film** plays the motion **seen through the video's camera**: the same shots, camera moves, cuts and zoom as the
+  rendered video, with the page's own light (live or baked). At a cut the camera jumps, as in the video. The
+  render's frame is fitted into the free part of the screen, like a saved view.
+- The time line, **Space**, the arrow keys and the speed move the Film with the motion.
+- A **drag or zoom** (or a saved view, Reset view) **leaves the Film; the motion plays on**. The Film button then has
+  an orange ring: one press glides back into the video's camera at the moment that is playing.
+- **Copy link** (L) while the Film is on gives an address that opens the page in the Film (`film=1`) at that moment.
+
+Three tick boxes under **Include animation** (only when the project has an Animation camera; all **off** by default
+– off, nothing of them is in the file) add what the video shows over its picture, **only while the Film is on**:
+
+- **Film: captions** – the video's captions (the labelled steps, tool changes) at the bottom, with the same words at
+  the same moments.
+- **Film: labels** – the video's part labels with their lines; each line ends on its part as it moves, a label shows
+  when it shows in the video, the boxes are placed by the video's rule (beside the machine, never on each other).
+- **Film: title and end card** – the video's title card before the Film starts and its end card (logo, contact line)
+  after it ends, for their seconds; at the end of the Film comes the end card, then the title card, then it plays
+  again. Moving the time line skips a card.
+
+Not on the page: the depth of field (blur) and motion blur, the music, the watermark, picture cards, and the brand
+kit's own font (the page uses its own). The turntable's and the product video's cameras are not Films (yet).
 
 <a id="web3d-phone"></a>
 <img src="img/web3d_phone.jpg" alt="The page on a phone held upright: the saved views as one control, and the list of all views" width="540">
