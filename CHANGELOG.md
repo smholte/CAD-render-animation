@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.204 – 21 Nov 2026 – Tool marks look good everywhere, without setting anything (task 0280)
+
+- **Tool marks at any distance.** Real marks are often far finer than a pixel, so outside a close-up they used to
+  turn into wandering stripes on walls (moiré), a sandy shimmer, or vanished from floors. Now the app never draws them
+  closer together than a few pixels: further away it draws every second, fourth, eighth … mark and blends smoothly
+  from one to the next while the camera moves. The arcs on floors and the lines on walls are readable in every shot
+  of a part, in EEVEE and Cycles, in the view and in the final render; in a shot of the whole machine they fade into
+  the sheen. **Mark size** still works on top, for bigger marks.
+- **Bright satin walls.** Milled walls and floors are satin aluminium now: a wall no longer turns into a black
+  mirror of the room (EEVEE showed pocket walls black, Cycles dark blue). The line where two depths meet is a clean
+  line from any distance.
+- **Coolant:** the wet sheen keeps cut metal bright – a clear, glossy film over it – instead of turning a wet pocket
+  into a dark mirror with sparkles.
+- Learning hub stop 60 (Tool marks) shows the cut again at its last frame (the camera rides on the table), and the
+  Machining stops show the new look.
+
 ## 0.2.203 – 21 Nov 2026 – The test crane at real size (task 0259)
 
 - **The test crane is now a service crane at real size**, five times bigger than before: a base of 5 × 3 m, a boom of

@@ -363,7 +363,7 @@ fn(id="cnc.air", title="Air blast", family="cnc", panel="FRESING_PT_cnc", fold="
    button="fresing.cnc_air_nozzle", guide="air-blast", tour=("air",), pccheck=("milling.air",), since="0.2.34")
 fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolant",
    button="fresing.cnc_coolant_nozzle", guide="coolant", tour=("coolant",), pccheck=("milling.coolant",),
-   since="0.2.48", changed="0.2.200")
+   since="0.2.48", changed="0.2.204")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
@@ -377,7 +377,7 @@ fn(id="milling.from_cnc", short="Mill with CNC", title="Milling with the CNC mac
 fn(id="milling.cut_look", title="Cut faces and raw stock", family="milling", panel="FRESING_PT_milling",
    prop="cut_look", guide="milling", tour=("cut_look",), pccheck=("milling.cut_look",), since="0.2.43")
 fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel="FRESING_PT_milling", prop="marks",
-   guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73")
+   guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73", changed="0.2.204")
 fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", family="milling",
    panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
    pccheck=("milling.fast_map",), since="0.2.117", changed="0.2.145")
