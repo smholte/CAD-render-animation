@@ -1,6 +1,6 @@
 # 0271 – Fresing Settings: one window with tabs along the top (My usage becomes one of them)
 
-**Who:** worker · **Status:** running · **Branch:**
+**Who:** worker · **Status:** done (0.2.201) · **Branch:**
 `claude/kind-ramanujan-ad52mb`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "there should be a Fresing settings menu – also My usage would be a
 part of this; you should be able to select between the different settings pages on the top of the menu") ·
@@ -134,10 +134,12 @@ New settings; locations (0272); materials (0273); the side-panel look of study 0
   Live preview either – the lead's worry was not confirmed for those two; what does fire changes by itself is the
   app's own timer work (queue, re-bake, a render job), which the pytest simulates. Now: 0 presence marks and 0 s
   added in both cases; mouse moves every ~0.2 s for 3 s added 2.3 s. A render (F12) was not measured.
-- pytest: `test_settings_blender.py` (12, incl. 10 min of frame changes + project changes with no input → 0 s), and
+- pytest: `test_settings_blender.py` (13, incl. 10 min of frame changes + project changes with no input → 0 s), and
   the files of the touched areas (398 + fixes). Test tour (`test_tour.py`): see below.
 
-**Runs on GitHub:** (filled in below)
+**Runs on GitHub:** 4 full runs. 1: precheck – 0.2.199 taken meanwhile (task 0233); 2: on 0.2.200, superseded by the
+owner's check (window rebuilt); 3: precheck – 0.2.200 taken by task 0257; 4: green (run 44943801272, 34 min – several
+groups slow while other tasks' runs shared GitHub's jobs). Then merge main (documents and site only) + this report.
 
 **Open points / follow-up tasks:**
 - Keyboard-only work (no mouse move for over 2 min while typing shortcuts) is not seen as presence: Blender gives an
