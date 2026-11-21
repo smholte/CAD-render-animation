@@ -8,7 +8,7 @@ from __future__ import annotations
 import liquid_scenes as S
 from fresing_render.core import liquid_pool as LP
 
-BOX_MS = 300.0          # ms per frame on average (4-core web machine with 3 helpers: ~70; one process: ~110)
+BOX_MS = 300.0          # ms per frame on average (4-core web machine, first 12 s: 3 helpers ~90, one process ~170)
 
 
 def test_the_speed_scene_stays_within_its_time_box():
