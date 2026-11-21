@@ -222,7 +222,7 @@ MILL = lesson(Lesson(
              more="Linear: the bit moves at one speed, as a machine does when it cuts.",
              parts=(BIT,), do=_steps, done=lambda sc: _joint_steps(sc) >= 2),
         Step("animation.build", "Build and play",
-             "Build & play: the bit plunges, cuts the slot, the chips fly and the block shows its cut.",
+             "Build & play (top left): the bit plunges, cuts the slot, the chips fly and the block shows its cut.",
              do=_build, done=lambda sc: bool(sc.fresing.anim_baked)),
         Step("queue.still", "A picture of the cut",
              "At the end of the time line: Current view in 7 Render queue adds a picture of the cut; Start queue "

@@ -159,14 +159,14 @@ fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one 
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158", changed="0.2.197")
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.204")      # task 0278: folds, kept over a restart
 fn(id="usage.declutter", title="Offer to hide what you never use", family="panel", panel="FRESING_PT_favourites",
    button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158", changed="0.2.197")
 
 # task 0260: two panels – the left panel, the Learning hub's switch
 fn(id="panel.left", headline=True, title="The left panel: Live preview, Build & play, Workspace, Learning hub, Favourites, "
    "What's next – the steps alone on the right", family="panel", panel="FRESING_PT_left_quick", button="fresing.left_fold",
-   guide="left-panel", pccheck=("panel.two",), since="0.2.197")
+   guide="left-panel", pccheck=("panel.two", "panel.folds"), since="0.2.197", changed="0.2.204")
 fn(id="learn.hub", short="Learning hub", title="Learning hub: View, Show me or Build it yourself in one click", family="help",
    panel="FRESING_PT_hub", button="fresing.hub_mode", guide="learning-hub", pccheck=("panel.two",), since="0.2.197")
 
@@ -363,7 +363,7 @@ fn(id="cnc.air", title="Air blast", family="cnc", panel="FRESING_PT_cnc", fold="
    button="fresing.cnc_air_nozzle", guide="air-blast", tour=("air",), pccheck=("milling.air",), since="0.2.34")
 fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolant",
    button="fresing.cnc_coolant_nozzle", guide="coolant", tour=("coolant",), pccheck=("milling.coolant",),
-   since="0.2.48", changed="0.2.204")
+   since="0.2.48", changed="0.2.205")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
@@ -377,7 +377,7 @@ fn(id="milling.from_cnc", short="Mill with CNC", title="Milling with the CNC mac
 fn(id="milling.cut_look", title="Cut faces and raw stock", family="milling", panel="FRESING_PT_milling",
    prop="cut_look", guide="milling", tour=("cut_look",), pccheck=("milling.cut_look",), since="0.2.43")
 fn(id="milling.marks", title="Tool marks on cut faces", family="milling", panel="FRESING_PT_milling", prop="marks",
-   guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73", changed="0.2.204")
+   guide="tool-marks", tour=("marks",), pccheck=("milling.marks",), since="0.2.73", changed="0.2.205")
 fn(id="milling.fast_map", title="Fast 3-axis: long programs as a height map", family="milling",
    panel="FRESING_PT_milling", prop="fast_map", guide="milling-fast", tour=("toolpath",),
    pccheck=("milling.fast_map",), since="0.2.117", changed="0.2.145")
@@ -513,8 +513,9 @@ fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_
    guide="animation", tour=("joint",), lesson="crane:7", since="0.2.10")
 fn(id="animation.joint_step", title="Move joint step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="animation", tour=("joint",), lesson="crane:8", since="0.2.10")
-fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_animation",
-   button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10")
+fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_left_quick",
+   button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10",
+   changed="0.2.204")     # task 0278: only on the left panel (top left; its strip too)
 fn(id="animation.motor", title="Run motor step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-motor", pccheck=("couplings.motor",), since="0.2.18")
 fn(id="animation.camera_path", short="Camera path", title="Camera rides along, flies a path, watches a part", family="animation",

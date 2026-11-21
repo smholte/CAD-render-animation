@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.204 – 21 Nov 2026 – Tool marks look good everywhere, without setting anything (task 0280)
+## 0.2.205 – 21 Nov 2026 – Tool marks look good everywhere, without setting anything (task 0280)
 
 - **Tool marks at any distance.** Real marks are often far finer than a pixel, so outside a close-up they used to
   turn into wandering stripes on walls (moiré), a sandy shimmer, or vanished from floors. Now the app never draws them
@@ -21,6 +21,22 @@ installer of that version was built from.
 - Learning hub stop 60 (Tool marks) shows the cut again at its last frame (the camera rides on the table), and the
   Machining stops show the new look.
 
+## 0.2.204 – 21 Nov 2026 – Live preview and Build & play once, top left; the left panel's folds are kept (task 0278)
+
+- **Live preview** and **Build & play** are now only on the left panel (top left, also in its folded strip). They are
+  gone from 5 Scene & Render and 6 Animation, so the right panel is shorter. 6 Animation still says **Built · Space
+  plays it again**, with the **X** beside it that clears the built animation (its tooltip says so). Hints, the
+  lessons and the user guide now say "Build & play (top left)"; the crane and milling lessons point at the button
+  on the left – also at its icon when the left panel is folded to its strip.
+- **Favourites folds** with the small arrow in its title row, like Learning hub, Lesson and What's next; the gear
+  stays on the right. Folded, its title row says **1 question** when a question about an unused panel is waiting.
+- **Every part of the left panel keeps its fold** – Workspace, Learning hub, its stops, Lesson, Favourites, What's
+  next and the left panel's own fold to the strip: closed and opened again, in another project and after an update,
+  they are as you left them. (Before, they opened again at every start.)
+- Texts that said "sections 1–7" now say **1–8** (8 Lifting plan): the User guide's tooltip, the setting "Keep
+  sections as I left them", the Learning hub and the guide; the guide's picture of the sections shows all eight.
+- The section tabs **All · 1 … 8** have short tooltips: a number shows only its section's name ("Import", "Lifting
+  plan"), All shows "All sections". How the tabs work is in the user guide.
 ## 0.2.203 – 21 Nov 2026 – The test crane at real size (task 0259)
 
 - **The test crane is now a service crane at real size**, five times bigger than before: a base of 5 × 3 m, a boom of

@@ -5221,6 +5221,58 @@ def panel_two(ctx):
     _check(callable(ui_top.draw_make), "Make's drawing is missing")
 
 
+@line("panel.folds", "Left panel: Live preview and Build & play once, top left; every section keeps its fold", "0.2.204",
+      what="Live preview and Build & play are only on the left panel (not in 5 Scene & Render or 6 Animation); "
+           "Favourites folds with its arrow like Learning hub, Lesson and Workspace, and every fold (with the left "
+           "panel's own and What's next) is written to a small file in the settings folder and read back as after a "
+           "restart. (Checked with a file of its own: your own folds are not changed.)")
+def panel_folds(ctx):
+    import inspect
+
+    import bpy
+
+    from ..blender import panels, ui, ui_left, ui_motion
+    from ..core import functions as F
+    out = inspect.getsource(panels.body_of(ui.FRESING_PT_output))
+    anim = inspect.getsource(panels.body_of(ui_motion.FRESING_PT_animation))
+    _check("fresing.preview" not in out, "5 Scene & Render still draws Live preview")
+    _check("fresing.anim_build" not in anim, "6 Animation still draws Build & play")
+    _check(F.FUNCTIONS["animation.build"].panel == "FRESING_PT_left_quick", "Build & play is not listed on the left")
+    _check("FRESING_PT_favourites" in panels.LEFT and "FRESING_PT_favourites" not in panels._PLAIN,
+           "Favourites has no title row with a fold arrow")
+    env = ui_left.STORE_ENV
+    old_env = os.environ.get(env)
+    os.environ[env] = os.path.join(ctx.work, "left folds", ui_left.STORE)
+    names = ("FRESING_PT_favourites", "FRESING_PT_hub", "FRESING_PT_lesson", "FRESING_PT_workspace")
+    kept_open = set(panels.OPEN)
+    try:
+        before = {n: panels.is_open(n) for n in names}
+        for n in names:
+            _check(bpy.ops.fresing.panel_toggle("EXEC_DEFAULT", name=n) == {"FINISHED"}, f"{n} did not fold")
+        want = {n: not before[n] for n in names}
+        _check(ui_left.store().get("open") == want, f"the folds were not written: {ui_left.store()}")
+        panels.OPEN.clear()                              # as a new start: nothing in memory, only the file
+        panels.OPEN.update(panels.DEFAULT_OPEN)
+        panels._LEFT_DONE.clear()
+        got = {n: panels.is_open(n) for n in names}
+        _check(got == want, f"after a restart the folds are {got}, not {want}")
+        ui_left.store_set(folded=True, width=260, next_folded=True)
+        ui_left._SYNCED.clear()
+        _check(ui_left.folded() and ui_left.next_folded(), "the left panel's own fold / What's next not read back")
+    finally:
+        p = ui_left._prefs()
+        if p is not None:
+            p.left_folded, p.next_folded = False, False
+        ui_left._SYNCED.clear()
+        if old_env is None:
+            os.environ.pop(env, None)
+        else:
+            os.environ[env] = old_env
+        panels.OPEN.clear()
+        panels.OPEN.update(kept_open)
+        panels._LEFT_DONE.clear()
+
+
 @line("tour.make", "Learning hub: the projects are made, every stop's Go works", "0.2.47",
       what="Makes the Learning hub (a small project per test model) and does Go and the number check of every stop, "
            "without pictures (the PC check's mode Learning hub renders them)")

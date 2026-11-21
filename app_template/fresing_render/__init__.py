@@ -141,7 +141,7 @@ def open_path(path: str) -> None:
 
 
 class FRESING_OT_user_guide(bpy.types.Operator):
-    """Open the user guide in your web browser: what each section 1–7 is for and how to work through it,
+    """Open the user guide in your web browser: what each section 1–8 is for and how to work through it,
     step by step, with pictures. Works without internet"""
 
     bl_idname = "fresing.user_guide"

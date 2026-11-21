@@ -166,7 +166,7 @@ def _on_load(_dummy=None):
 # ---------------------------------------------------------------------------
 
 class FRESING_OT_show_panel(bpy.types.Operator):
-    """Shows the Fresing side panel again (all the steps 1–7) when it is hidden or another tab is open.
+    """Shows the Fresing side panel again (all the steps 1–8) when it is hidden or another tab is open.
     Same as View > Sidebar, then the Fresing tab"""
 
     bl_idname = "fresing.show_panel"

@@ -213,8 +213,8 @@ def use_button(row, idname: str, name: str) -> None:
 
 def primary(layout, idname: str, text: str, icon: str, scale: float = BIG):
     """The ONE main button of a section: big and blue, so it is found at a glance (Import STEP…, Sort parts into
-    groups, Render image, Build & play, Start queue; the Make button of a Make popover). A sub-panel's main
-    button is ``big()``."""
+    groups, Render image, Start queue; the Make button of a Make popover – Build & play is on the left panel since
+    task 0278). A sub-panel's main button is ``big()``."""
     row = big_row(layout, scale)
     return row.operator(idname, text=text, icon=icon, depress=True)
 
@@ -1228,13 +1228,6 @@ class FRESING_PT_props(_Panel, bpy.types.Panel):
                     body.prop(s, "props_far")
 
 
-def _viewport_rendered(context) -> bool:
-    for area in getattr(context.screen, "areas", []) if context.screen else []:
-        if area.type == "VIEW_3D":
-            return area.spaces.active.shading.type == "RENDERED"
-    return False
-
-
 class FRESING_PT_output(_Panel, bpy.types.Panel):
     bl_label = "Image size & render"
     bl_parent_id = "FRESING_PT_scene"
@@ -1271,11 +1264,7 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
         col.prop(s, "quality", text="Quality")
         layout.label(text=f"{size.width} × {size.height} px  ({size.megapixels:.1f} MP)", icon="IMAGE_DATA")
 
-        gap(layout)
-        row = layout.row(align=True)
-        live = _viewport_rendered(context)
-        row.operator("fresing.preview", text="Live preview: on" if live else "Live preview",
-                     icon="SHADING_RENDERED", depress=live)
+        gap(layout)                         # task 0278: Live preview is on the left panel only (top left)
         primary(layout, "fresing.render", "Render image", "RENDER_STILL")
         if s.last_render and os.path.exists(s.last_render):
             box = layout.box()

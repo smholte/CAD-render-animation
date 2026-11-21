@@ -22,7 +22,7 @@ It is free software under **GPL-3.0-or-later** (see "The licence in plain words"
 | --- | --- |
 | Blender 5.2.3 LTS, portable (downloaded from `download.blender.org`, SHA-256 checked) | `%LOCALAPPDATA%\FresingRender\blender-5.2.3-windows-x64\` |
 | the Fresing Render extension and app layout | inside that Blender folder, `portable\` (settings, extension, app template) |
-| the app's settings and small files | `…\portable\config\` – among them `fresing_update.json` (an update address, only if set), `fresing_usage.json` (counts, see below), `fresing_start.json` (what has been shown) |
+| the app's settings and small files | `…\portable\config\` – among them `fresing_update.json` (an update address, only if set), `fresing_usage.json` (counts, see below), `fresing_start.json` (what has been shown), `fresing_left.json` (how you left the left panel's folds) |
 | the in-app update's log | `…\portable\config\fresing_update\update.log` |
 | shortcuts | Desktop and Start menu: Fresing Render only; `%LOCALAPPDATA%\FresingRender\Tools` (self test, PC checks, safe start, user guide) |
 | `Fresing Render.exe` | next to `blender.exe`: Blender's own program under the app's name and icon (made by the app; not signed, see below) |

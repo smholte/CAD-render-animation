@@ -53,7 +53,7 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
         c = clash.settings(scene)
         st = clash.state(scene)
         rt = clash.runtime(scene)
-        steps(layout, context, ["Build the animation above (Build & play)",
+        steps(layout, context, ["Build the animation: Build & play (top left)",
                                 "Check for clashes: parts that run into each other are listed",
                                 "Click a row: the view goes there and shows both parts red"],
               key="fr_how_clash", used=bool(st["built"] or c.checked))

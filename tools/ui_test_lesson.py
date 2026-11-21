@@ -138,6 +138,9 @@ def found_button():
     box = f.get("button") if f else None
     if box is None:
         return None
+    reg = f.get("region")                        # task 0278: the region it was drawn in (Build & play: the left panel)
+    if reg:
+        return reg[0] + (box[0] + box[2]) // 2, reg[1] + (box[1] + box[3]) // 2
     _w, _a, _r, sb = ui()
     return sb.x + (box[0] + box[2]) // 2, sb.y + (box[1] + box[3]) // 2
 

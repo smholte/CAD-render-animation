@@ -1179,7 +1179,8 @@ class FRESING_OT_anim_fit_camera(bpy.types.Operator):
 
 
 class FRESING_OT_anim_clear(bpy.types.Operator):
-    """Remove the animation keys and put the model back as it was before building"""
+    """Stops the built animation and clears it: the model goes back as it was before Build & play, and the joints
+    can be moved by hand again. Build & play (top left) builds it again"""
 
     bl_idname = "fresing.anim_clear"
     bl_label = "Stop animation"

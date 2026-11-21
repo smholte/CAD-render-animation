@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.203")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.204")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -3430,7 +3430,7 @@ M30
 """
 
 
-@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.204")
+@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.205")
 def build_marks(b: Build):
     from mathutils import Vector
 
@@ -4674,7 +4674,7 @@ stop("operator", MACH, "operator", "A person changes the tool",
      "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine. Each "
      "tool cuts a shallow strip into the block.",
      where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
-           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.204", animation=OPERATOR_ANIM,
+           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.205", animation=OPERATOR_ANIM,
      at=0.45, play=True,
      check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
@@ -4682,7 +4682,7 @@ stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "toolpath is drawn as a thin tube; the tool's tip follows it and cuts the block where the program goes into it: "
      "a 2 mm slot with an arc and two drilled holes, their faces with tool marks.",
      where="4 Motion > CNC machine; 6 Animation (Run G-code program); 4 Motion > Milling",
-     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.204")
+     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.205")
 stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      "The tool runs 2 mm zigzag steps above the block: first blended (G64) – it slows at each corner but keeps going –, "
      "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
@@ -4694,7 +4694,7 @@ stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "from the tool list, each in a BT40 holder, changed with M6 and measured with G43. No tool goes into the block "
      "where the program does not cut (the end mill is 28 mm longer than the face mill). An M6 without G43 for the "
      "new tool would get a line in the Build result and a row in the clash check.",
-     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.204")
+     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.205")
 stop("hand", MACH, "tools", "Tool change by hand (BT40)",
      "At a tool change a gloved hand takes the tool out by its BT40 holder and puts the next one in; for a longer "
      "tool the spindle first rises by the difference, then comes down to the program.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
@@ -4705,7 +4705,7 @@ stop("marks", MACH, "marks", "Tool marks on cut faces",
      "a level line where the second depth starts; the drilled hole shows rings. Look in "
      "rendered view and orbit: the sheen swirls with the arcs. The marks are drawn 7 times further apart than real "
      "(Mark size) so they show.",
-     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", changed="0.2.204", animation=MARKS_ANIM,
+     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", changed="0.2.205", animation=MARKS_ANIM,
      at=1.0,
      check=_check_marks)
 stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
@@ -4719,31 +4719,31 @@ stop("doublearm", MACH, "doublearm", "Double-arm tool change",
      "into the pot the new one came from; no tool ever jumps or hangs in the air. Each tool cuts the block where "
      "the program goes into it: two shallow strips and a short plunge.",
      where="4 Motion > CNC machine > Tool changes (Double-arm)", animation="Double-arm changer", play=True,
-     since="0.2.51", changed="0.2.204", check=_check_doublearm, auto="clip")
+     since="0.2.51", changed="0.2.205", check=_check_doublearm, auto="clip")
 stop("rotary4", MACH, "rotary4", "4th axis: the bar turns",
      "A rotary table turns a round bar while the tool cuts a slot wrapped once round it, then mills a flat on top, "
      "turns the bar half round and mills the same flat underneath. The orange toolpath lies on the bar and turns "
      "with it.", where="4 Motion > CNC machine > Rotary axes (4th / 5th axis)", animation="4th axis", play=True,
-     since="0.2.52", changed="0.2.204", check=_check_rotary4, auto="clip")
+     since="0.2.52", changed="0.2.205", check=_check_rotary4, auto="clip")
 stop("rotary5", MACH, "rotary5", "5th axis: tilt and turn (TCP)",
      "The trunnion tilts the block 30° and the tool mills a pocket on its side, the table turns half round for the "
      "second pocket, then a groove is cut while the table turns 90°. With Tool follows the part the tool tip stays "
      "on the block's path the whole time.", where="4 Motion > CNC machine > Rotary axes (Kinematics: Tool follows "
-     "the part)", animation="5th axis", play=True, since="0.2.52", changed="0.2.204", check=_check_rotary5, auto="clip")
+     "the part)", animation="5th axis", play=True, since="0.2.52", changed="0.2.205", check=_check_rotary5, auto="clip")
 stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
      "The app made the program itself: the flat end mill T1 roughs the block level by level (zigzag, then once round "
      "the walls, ramping in), the ball end mill T2 finishes in lines across. The block turns into the part with its "
      "pocket, rounded boss and dome; the stock under the overhanging cap and in the hole stays.",
      where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.55",
-     changed="0.2.204",
+     changed="0.2.205",
      check=_check_toolpath, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table, the clamps and the block.",
-     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.204")
+     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.205")
 stop("air", MACH, "air", "Air blast",
      "The bit cuts a pocket with air on (M7 … M9): chips are blown away from the cut; at the end the part is "
      "blown clean.", where="4 Motion > CNC machine > Air blast", animation="Pocket with air", at=0.6, play=True,
-     check=_check_air, auto="clip", since="0.2.47", changed="0.2.204")
+     check=_check_air, auto="clip", since="0.2.47", changed="0.2.205")
 
 stop("coolant", MACH, "coolant", "Coolant (flood)",
      "The bit cuts a pocket with flood coolant (M8 … M9) at 15,000 rpm: two blue hoses squirt milky coolant at the "
@@ -4751,7 +4751,7 @@ stop("coolant", MACH, "coolant", "Coolant (flood)",
      "round it, and a fast, fine, flat spray flies off in the turning direction at the jets' height; the block "
      "gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
      animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
-     changed="0.2.204")
+     changed="0.2.205")
 
 
 def _check_setup(scene):
@@ -5120,7 +5120,7 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
-     "Sections 1 to 7 start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
+     f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
      where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")

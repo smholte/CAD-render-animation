@@ -197,7 +197,7 @@ CRANE = lesson(Lesson(
              more="Steps that overlap in time play together: add a Trolley step at 0 s and both move at once.",
              parts=("BOOM.ASM",), do=_step, done=_has_joint_step),
         Step("animation.build", "Build and play",
-             "Build & play turns the steps into the time line and plays them: the boom goes up.",
+             "Build & play (top left) turns the steps into the time line and plays them: the boom goes up.",
              more="Build again after a change to the steps. Space plays and stops the animation in the view.",
              do=_build, done=lambda sc: bool(sc.fresing.anim_baked)),
         Step("poses.explode", "An exploded view",

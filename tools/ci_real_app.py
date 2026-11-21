@@ -70,7 +70,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 95, "tour2": 2, "tourui": 15, "layout": 66,
               "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31, "lesson": 40, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 78, "left": 30, "settings": 34, "toolbox": 19,
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 78, "left": 42, "settings": 34, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 23, "drawn": 25, "backups": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 

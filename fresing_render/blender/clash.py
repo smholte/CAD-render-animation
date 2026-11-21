@@ -813,7 +813,7 @@ class Check:
         from . import machining
         scene = self.scene
         if not is_built(scene):
-            raise ClashError("Press Build & play first (6 Animation)")
+            raise ClashError("Press Build & play first (top left)")
         # the build this check reads: a Build while it runs (it lets clicks through) makes the result belong to no
         # build, and ``save`` drops it (task 0072, 0068 row 12)
         self.signature = build_signature(scene)

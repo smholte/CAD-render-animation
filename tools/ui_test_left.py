@@ -5,7 +5,10 @@ it; it keeps its width when projects open (an old one saved with a narrow toolba
 Client view; it scrolls. On the right Make is one row of icons (or the labelled list); each output opens a window of
 its own that stays open when the main window is clicked, a second press gives no second window, Close closes it. The
 Learning hub switch: outside a hub project it opens the Learn window; in a hub project (the crane) Show me opens the
-lesson, Build it yourself switches the same lesson at once. Screenshots: left + right panel at the screen's size.
+lesson, Build it yourself switches the same lesson at once. Task 0278: the crane lesson's Build & play step points at
+the left panel's button (open, and the strip's icon when folded); Favourites, Learning hub and Workspace fold with
+their arrows and keep it through a real restart (a second app, ``ui_test_left_restart.py``, in the same settings
+folder). Screenshots: left + right panel at the screen's size.
 
 Install the extension and the app template first (see ui_test_app.py), then run:
     xvfb-run -a -s "-screen 0 1920x1080x24" blender --app-template fresing_render --enable-event-simulate \\
@@ -405,9 +408,127 @@ def s_hub_build():
 @step
 def s_hub_shot():
     guide_crop(shot("08_hub_lesson"), "left_hub", 400)
+    les = mod("blender.lesson")
+    S["build_at"] = next(i for i, st in enumerate(les.LESSONS["crane"].steps) if st.function == "animation.build")
     with override():
+        les.start(bpy.context.scene, "crane", "BUILD", at=S["build_at"])      # task 0278: the Build & play step
+    redraw()
+    return 1.0
+
+
+def _left_target():
+    h = mod("blender.highlight")
+    t = h._S["target"] or {}
+    return t.get("panel") == "FRESING_PT_left_quick" and t.get("button") == "fresing.anim_build" \
+        and bool(h.found().get("button"))
+
+
+wait_until("the crane lesson's Build step points at Build & play on the left panel", _left_target, 30)
+
+
+@step
+def s_lesson_strip():
+    check("the lesson waits at its Build & play step",
+          mod("blender.lesson").state()["step"] == S["build_at"], str(mod("blender.lesson").state()))
+    shot("09_lesson_build_left")
+    with override():
+        bpy.ops.fresing.left_fold("EXEC_DEFAULT")
+    mod("blender.highlight")._S["seen"] = {}            # what the next redraw of the strip sees
+    redraw()
+    return 1.0
+
+
+wait_until("folded to the strip: the lesson points at the strip's Build & play icon",
+           lambda: mod("blender.ui_left").folded() and _left_target(), 20)
+
+
+@step
+def s_lesson_unfold():
+    shot("10_lesson_build_strip")
+    with override():
+        bpy.ops.fresing.left_fold("EXEC_DEFAULT")
         bpy.ops.fresing.lesson_stop("EXEC_DEFAULT")
-    return 0.5
+    return 0.8
+
+
+# ----- task 0278: Favourites folds, and every left section keeps its fold after a restart -----
+
+LEFT_FOLDS = ("FRESING_PT_favourites", "FRESING_PT_hub", "FRESING_PT_workspace")
+
+
+@step
+def s_fav_pin():
+    us = mod("blender.usage")
+    S["pinned"] = "scene.still" not in us.state()["bar"]["pins"]
+    if S["pinned"]:
+        us.pin("scene.still", True)
+    panels = mod("blender.panels")
+    S["was_open"] = {n: panels.is_open(n) for n in LEFT_FOLDS}
+    with override():
+        check("the favourites bar shows (a pin)", bpy.types.FRESING_PT_favourites.poll(bpy.context))
+    redraw()
+    return 0.8
+
+
+@step
+def s_fav_fold():
+    guide_crop(shot("11_favourites_open"), "usage_bar", 330)
+    panels = mod("blender.panels")
+    with override():
+        for n in LEFT_FOLDS:                      # as the arrow in each title row: fold what is open, open the rest
+            bpy.ops.fresing.panel_toggle("EXEC_DEFAULT", name=n)
+        bpy.ops.fresing.next_fold("EXEC_DEFAULT")        # What's next: its own arrow (task 0260), kept the same way
+    S["want"] = {n: not S["was_open"][n] for n in LEFT_FOLDS}
+    S["next_folded"] = mod("blender.ui_left").next_folded()
+    check("Favourites folds with its arrow", panels.is_open("FRESING_PT_favourites") == S["want"][
+        "FRESING_PT_favourites"] and not S["want"]["FRESING_PT_favourites"], str(S["want"]))
+    kept = mod("blender.ui_left").store()
+    check("the folds are written to the user's settings file", kept.get("open") == S["want"]
+          and kept.get("next_folded") == S["next_folded"], str(kept))
+    redraw()
+    return 0.8
+
+
+@step
+def s_restart():
+    shot("12_favourites_folded")
+    out = os.path.join(TMP, "restart.json")
+    env = dict(os.environ, FR_LEFT_RESTART_OUT=out, UITEST_OUT=os.path.join(OUT, "restart"))
+    child = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui_test_left_restart.py")
+    t = time.time()
+    try:
+        subprocess.run([bpy.app.binary_path, "--app-template", "fresing_render", "--enable-event-simulate",
+                        "-p", "0", "0", "1280", "900", "--python", child], env=env, timeout=240, check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        log("the restarted app did not finish in 240 s")
+    import json
+    try:
+        got = json.load(open(out, encoding="utf-8"))
+    except (OSError, ValueError):
+        got = {}
+    log(f"restarted app ({time.time() - t:.0f} s):", got)
+    for n in LEFT_FOLDS:
+        check(f"after a restart {n[11:]} is {'open' if S['want'][n] else 'folded'} as left",
+              n in got.get("open", {}) and got["open"][n] == S["want"][n], str(got.get("open")))
+    check("after a restart What's next is as left", got.get("next_folded") == S["next_folded"],
+          f"{got.get('next_folded')}, left {S['next_folded']}")
+    check("after a restart the Favourites header still shows (the pin)", got.get("favourites_poll") is True,
+          str(got.get("favourites_poll")))
+    return 0.3
+
+
+@step
+def s_fav_back():
+    """Put everything back: the next real-app test in this settings folder starts as before (CLAUDE.md 8)."""
+    with override():
+        for n in LEFT_FOLDS:
+            bpy.ops.fresing.panel_toggle("EXEC_DEFAULT", name=n)
+        bpy.ops.fresing.next_fold("EXEC_DEFAULT")
+    if S.get("pinned"):
+        mod("blender.usage").pin("scene.still", False)
+    mod("blender.ui_left").store_set(open={})
+    return 0.3
 
 
 @step

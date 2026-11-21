@@ -154,7 +154,7 @@ class FRESING_PT_milling(_Panel, bpy.types.Panel):
             if m.enabled and machining.is_set_up(scene) and rt.get("status"):
                 wrap(layout, context, rt["status"], icon="INFO")
             elif m.enabled and m.bits and m.workpiece is not None and not scene.fresing.anim_baked:
-                wrap(layout, context, f"Press Build & play in {where('animation')}: the bits cut while it plays",
+                wrap(layout, context, "Press Build & play (top left): the bits cut while it plays",
                      icon="INFO")
             gap(layout)
             row = layout.row(align=True)

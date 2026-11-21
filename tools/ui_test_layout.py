@@ -76,9 +76,9 @@ def layout_ok(tag):
           f"{left.width(area):.0f} px")
     check(tag + ": Fresing tab", ui_region(area).active_panel_category == "Fresing",
           ui_region(area).active_panel_category)
-    # task 0062: every project opens calm – sections 1 to 7 folded, Blender's own workspace tabs hidden
+    # task 0062: every project opens calm – sections 1 to 8 folded, Blender's own workspace tabs hidden
     panels, lock = mod("blender.panels"), mod("blender.lock")
-    check(tag + ": sections 1-7 folded, Blender's tabs hidden",
+    check(tag + ": sections 1-8 folded, Blender's tabs hidden",
           not any(panels.is_open(s) for s in panels.SECTIONS) and lock.tabs_hidden(), str(sorted(panels.OPEN)))
     panels.open_all()                     # so the next project that opens has something to fold
     column_ok(tag, False)

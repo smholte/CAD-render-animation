@@ -742,6 +742,8 @@ def _draw_camera_step(context, box, b) -> None:
         _pick_row(box, context, b.aim_name, "Pick the part to keep in the middle", "fresing.aim_target")
 
 
+BUILD_HINT = "Not built yet: Build & play is at the top left."     # task 0278: on the left panel only
+
 _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAMERA", "SHOW": "HIDE_OFF",
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
               "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL",
@@ -1116,13 +1118,14 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                     col.prop(b, "cam_blend", text="Blend in (s)")
             col.prop(b, "name", text="Label")
 
-        # -- check it: the section's one blue button, the X that stops the animation beside it
+        # -- check it: Build & play is on the left panel (task 0278: once, top left); here the state and the X
         gap(layout)
-        row = layout.row(align=True)
-        primary(row, "fresing.anim_build", "Build & play", "PLAY").play = True
-        big(row, "fresing.anim_clear", "", "CANCEL", BIG)
         if s.anim_baked:
-            layout.label(text="Built · Space plays it again", icon="CHECKMARK")
+            row = layout.row(align=True)
+            row.label(text="Built · Space plays it again", icon="CHECKMARK")
+            row.operator("fresing.anim_clear", text="", icon="X")       # its tooltip says what it clears
+        else:
+            hint(layout, context, BUILD_HINT)
         layout.operator("fresing.anim_fit_camera", text="Fit camera to the whole motion", icon="FULLSCREEN_ENTER")
 
         # -- the video

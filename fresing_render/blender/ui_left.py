@@ -17,12 +17,15 @@ written here directly: it is found next to the region's own width and height (tw
 (TOOLS) and alignment 3 (LEFT), and the stored width must agree with the width on screen – nothing is written unless
 all of that matches (``sizex_address``). Switching the toolbar off and on makes Blender take it at once. A width the
 user dragged is kept; the app only widens a region that is still a strip while the panel is meant to be open, and
-narrows it to the strip when he folds it (``fresing.left_fold``; the choice is kept per user in the preferences).
+narrows it to the strip when the user folds it (``fresing.left_fold``; the choice is kept per user: task 0278's file
+``<config>/fresing_left.json``, with every left section's fold).
 """
 
 from __future__ import annotations
 
 import ctypes
+import json
+import os
 
 import bpy
 from bpy.props import EnumProperty
@@ -145,7 +148,86 @@ def set_width(area, px: int) -> bool:
 
 def _prefs():
     from . import prefs
-    return prefs.get()
+    p = prefs.get()
+    if p is not None and not _SYNCED:
+        _SYNCED.append(True)
+        _from_store(p)
+    return p
+
+
+# ---------------------------------------------------------------------------
+# task 0278: what the user chose for the left panel, kept over a restart
+# ---------------------------------------------------------------------------
+# Blender does not keep an extension's own preferences over a restart while the app template is on (measured in
+# 5.2.3: a value saved with Save Preferences reads back as its default at the next start with --app-template, and
+# as saved without it). So the left panel's folds live in one small file in Blender's settings folder, as the
+# editors' choice does (``editors.py``): {"open": {panel: bool}, "folded": bool, "width": int, "next_folded": bool}.
+# The preferences' ``left_folded`` / ``left_width`` / ``next_folded`` stay what the code reads; they are filled from
+# the file at the first look after the start and the file is written whenever the user changes one.
+
+STORE = "fresing_left.json"
+STORE_ENV = "FRESING_LEFT_STORE"           # tests: another file (also in a background Blender)
+_SYNCED: list = []
+
+
+def store_path() -> str:
+    return os.environ.get(STORE_ENV) or os.path.join(bpy.utils.user_resource("CONFIG"), STORE)
+
+
+def _usable() -> bool:
+    return bool(os.environ.get(STORE_ENV)) or not bpy.app.background
+
+
+def store() -> dict:
+    """The saved choices; a missing or broken file gives {}."""
+    if not _usable():
+        return {}
+    try:
+        with open(store_path(), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    if isinstance(data.get("open"), dict):
+        out["open"] = {str(k): bool(v) for k, v in data["open"].items() if isinstance(v, bool)}
+    for key in ("folded", "next_folded"):
+        if isinstance(data.get(key), bool):
+            out[key] = data[key]
+    if isinstance(data.get("width"), int) and not isinstance(data.get("width"), bool):
+        out["width"] = data["width"]
+    return out
+
+
+def store_set(**changes) -> None:
+    """Write these choices (the rest of the file stays); a temporary file first, so a crash never leaves half."""
+    if not _usable():
+        return
+    data = store()
+    data.update(changes)
+    path = store_path()
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=1, sort_keys=True)
+        os.replace(tmp, path)
+    except OSError as exc:
+        print("Fresing Render: could not save the left panel's folds:", exc)
+
+
+def _from_store(p) -> None:
+    data = store()
+    try:
+        if "folded" in data and p.left_folded != data["folded"]:
+            p.left_folded = data["folded"]
+        if "width" in data and p.left_width != data["width"]:
+            p.left_width = max(120, min(600, data["width"]))
+        if "next_folded" in data and p.next_folded != data["next_folded"]:
+            p.next_folded = data["next_folded"]
+    except Exception as exc:  # noqa: BLE001 - never stop the panel from drawing
+        print("Fresing Render: the left panel's folds not read:", exc)
 
 
 def folded() -> bool:
@@ -276,6 +358,7 @@ class FRESING_OT_left_fold(bpy.types.Operator):
             if w >= STRIP_BELOW:
                 p.left_width = int(round(w))
         p.left_folded = fold
+        store_set(folded=fold, width=int(p.left_width))      # task 0278: kept over a restart
         done = False
         for area in areas:
             area.spaces.active.show_region_toolbar = True
@@ -436,6 +519,7 @@ class FRESING_OT_next_fold(bpy.types.Operator):
         if p is None:
             return {"CANCELLED"}
         p.next_folded = not p.next_folded
+        store_set(next_folded=bool(p.next_folded))           # task 0278: kept over a restart
         panels.redraw()
         return {"FINISHED"}
 
