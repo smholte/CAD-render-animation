@@ -1,6 +1,6 @@
 # 0233 – Learning sets in their own environments: the workshop and studio sets (framing, links, fitting surroundings)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0233-learning-sets-workshop`
+**Who:** worker · **Status:** done · **Branch:** `task/0233-learning-sets-workshop`
 **Started by:** lead, 20 Nov 2026 (study 0224 package D, widened by the owner's answers 20 Nov: the tour is the users'
 learning environment; **each set its own environment that fits the project and shows off its functions – from plain, to
 see-through, to a full ocean or a factory**) · **Model:** Sonnet · effort Medium
@@ -65,10 +65,39 @@ the Lifting sets, `tracks`, `spool`, the offshore sets, `house`, `operator`; les
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026 (Sonnet · Medium). Branch: the session's own branch, merged to `main` as 0.2.194.
 
-**What changed:**
+**What changed:** (`blender/tour.py`, `core/functions.py` links only; no app code, no test model)
 
-**Tested and measured** (name the machine and the model):
+| Set | Surroundings | Why |
+| --- | --- | --- |
+| looks (Materials) | clean light studio | product look; camera now close on the worn base and trolley (Wear shows) |
+| cutaway (Slice), sequence, productvideo, sequenceframe | clean light studio (product light, light-grey background, floor stays "Shadow only") | a visible floor showed its far edge in a turning camera, so it is left out |
+| cylinder, hoses, chains, clash, update, swivel, mesh | Clean factory hall | machines in a workshop |
+| linkage, waycover, waycover2, copies | Assembly hall | longer machines / two cranes side by side |
+| cables | Warehouse | rope, drum and sheaves among pallets and racking |
+| served | Clean factory hall | coil close-up |
+| props | Warehouse | the real-size line-up (container, pallet, IBC …) |
+| people | Quayside + a 20 ft container behind them | study: desk-size crane beside life-size people; the crane is now the small thing at the left |
+| weather | stays Quayside | already outdoors |
+
+Framing faults of study 0224: `materials` closer on the worn group; `mechanism` camera keeps the raised 1.5 m platform
+in frame; `night` floodlights at strength 4 (was 1, almost black); `weather_step` now shows 0.6 of the video (dusk coming,
+rain starting) not the dark end; `sequence` camera a little closer (the column of parts is 1 m tall, so it stays small –
+see open points). Links: Couplings → `cables`, Poses → `update`, Props: detail by distance → `props`. `changed=` 0.2.194
+on 21 sets and 6 stops, `tour_versions.py --record`, stop texts updated (materials, props, people, weather_step, night).
+Subagents: none.
+
+**Tested and measured** (web machine, 4 cores, no graphics card): `tests/test_tour.py` 103 passed (all stops' Go + check);
+`tests/test_tour_clash.py` for the 21 sets: 49 passed, 0 clashes; `test_functions`, `test_site` pass; precheck green.
+Whole tour build (all 48 sets, `tour.build_all`): 237 s before, 196 s after (the first run was alone but noisier; the added
+surroundings cost +1–2 s per set, the most `people` +1.8 s and `crane` noise) – well inside +30 %. 400 px pictures of
+every changed stop and a before / after sheet (JPEG): `tasks/img/0233/` (test models only). GitHub runs: see below.
 
 **Open points / follow-up tasks:**
+- `sequence`: the model is still smallish at the start (a 1 m column of parts in a 16:9 frame); a camera that follows the
+  parts would need a camera move in the animation – not done here.
+- `night`: no floodlit spot in the frame (masts are 8 m high; the crane is 1 m); brightness only.
+- `tracks` link for Couplings left to 0229 (a second naming of the stop broke `test_a_stop_line_or_section_nobody_names_is_caught`,
+  which uses `tracks` as its example; change that test when adding the link).
+- Not looked at on a graphics card; the owner should check the quay and halls on his PC.
