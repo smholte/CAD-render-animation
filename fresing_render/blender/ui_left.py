@@ -33,6 +33,8 @@ OPEN_WIDTH = 240             # px at UI scale 1: the left panel's width when not
 STRIP_WIDTH = 34             # … folded to its strip (one icon wide)
 STRIP_BELOW = 110            # narrower than this, the panel draws as the strip
 RGN_TOOLS, RGN_LEFT = 5, 3   # Blender 5.2.3: ``eRegion_Type`` RGN_TYPE_TOOLS, ``RGN_ALIGN_LEFT``
+RGN_UI, RGN_RIGHT = 4, 4     # … RGN_TYPE_UI (the side panel), RGN_ALIGN_RIGHT (task 0271: the Settings window)
+_KINDS = {"TOOLS": (RGN_TOOLS, RGN_LEFT), "UI": (RGN_UI, RGN_RIGHT)}
 SCAN = 320                   # bytes of the region looked through for its stored width
 
 QUICK = panels.QUICK
@@ -62,10 +64,11 @@ def tools_region(area):
 
 
 def sizex_address(region) -> int | None:
-    """The address of the width Blender keeps for this (shown) toolbar region, or None when it cannot be found for
-    certain. See the top of this file."""
-    if region is None or region.type != "TOOLS" or region.width <= 1 or region.height <= 1:
+    """The address of the width Blender keeps for this (shown) toolbar region – or side panel (task 0271) –, or None
+    when it cannot be found for certain. See the top of this file."""
+    if region is None or region.type not in _KINDS or region.width <= 1 or region.height <= 1:
         return None
+    rtype, align = _KINDS[region.type]
     base = region.as_pointer()
     if not base:
         return None
@@ -76,11 +79,45 @@ def sizex_address(region) -> int | None:
 
     found = []
     for off in range(0, SCAN - 16, 2):
-        if short(off) == w and short(off + 2) == h and short(off + 8) == RGN_TOOLS and short(off + 10) == RGN_LEFT:
+        if short(off) == w and short(off + 2) == h and short(off + 8) == rtype and short(off + 10) == align:
             stored = short(off + 14)
             if stored > 0 and abs(stored * scale - w) <= 8:
                 found.append(base + off + 14)
     return found[0] if len(found) == 1 else None
+
+
+def set_side_width(area, px: int) -> bool:
+    """Task 0271: give a 3D view's side panel this width (px at UI scale 1), as ``set_width`` does for the toolbar.
+    False when its stored width cannot be found for certain (it then keeps its width)."""
+    region = next((r for r in area.regions if r.type == "UI"), None)
+    addr = sizex_address(region)
+    if addr is None:
+        return False
+    ctypes.c_short.from_address(addr).value = int(max(160, min(900, px)))
+    space = area.spaces.active
+    space.show_region_ui = False             # Blender takes the new width when the region is laid out again
+    space.show_region_ui = True
+    area.tag_redraw()
+    return True
+
+
+def fit_width(area, px: int) -> bool:
+    """Task 0271: make the toolbar region ``px`` real pixels wide. Blender scales a stored width by its own DPI factor
+    (not only the UI scale): the factor is read from the region as it is now (its pixels / its stored width). A
+    region made wider than its area leaves is hidden by Blender ("too small"), so ``px`` must fit."""
+    region = tools_region(area)
+    addr = sizex_address(region)
+    if addr is None:
+        return False
+    stored = ctypes.c_short.from_address(addr).value
+    if stored <= 0:
+        return False
+    ctypes.c_short.from_address(addr).value = int(max(STRIP_WIDTH, min(900, px * stored / region.width)))
+    space = area.spaces.active
+    space.show_region_toolbar = False
+    space.show_region_toolbar = True
+    area.tag_redraw()
+    return True
 
 
 def width(area) -> float:
@@ -196,6 +233,7 @@ class FRESING_PT_left_quick(LeftPanel, bpy.types.Panel):
             sub = col.column(align=True)
             sub.enabled = anim
             sub.operator("fresing.anim_build", text="", icon="PLAY").play = True
+            col.operator("fresing.settings", text="", icon="PREFERENCES")     # task 0271
             return
         row = layout.row(align=True)
         row.scale_y = 1.2
@@ -204,6 +242,7 @@ class FRESING_PT_left_quick(LeftPanel, bpy.types.Panel):
         sub = row.row(align=True)
         sub.enabled = anim
         sub.operator("fresing.anim_build", text="Build & play", icon="PLAY").play = True
+        row.operator("fresing.settings", text="", icon="PREFERENCES")         # task 0271: Fresing Settings
         row.operator("fresing.left_fold", text="", icon="TRIA_LEFT")
 
 

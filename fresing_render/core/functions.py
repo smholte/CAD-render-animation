@@ -607,16 +607,20 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "
    "access; F12 / Ctrl+F12 render with the app", family="help", panel="VIEW3D_HT_header", button="fresing.key_render",
-   guide="keys-and-right-click", tour=("keys",), pccheck=("app.keys",), since="0.2.201",
+   guide="keys-and-right-click", tour=("keys",), pccheck=("app.keys",), since="0.2.202",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-click on a part: a short Fresing menu "
    "(zoom to it, show in the tree, hide, show only, label here, add joint here)", family="help",
    panel="VIEW3D_HT_header", button="fresing.view_menu", guide="keys-and-right-click", tour=("keys",),
-   pccheck=("app.keys",), since="0.2.201")
+   pccheck=("app.keys",), since="0.2.202")
 
-fn(id="usage.my_usage", title="My usage: what you use, time per stage, time saved (estimate)", family="help",
-   panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158")
+fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
+   family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.201")
+fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings: all of the app's settings in one "
+   "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",), pccheck=("app.settings",),
+   since="0.2.201")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")

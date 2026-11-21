@@ -95,6 +95,7 @@ OTHER = {
     "FRESING_PT_left_quick": "Live preview and Build & play",     # task 0260: the left panel
     "FRESING_PT_hub": "Learning hub",
     "FRESING_PT_make_window": "Make",                               # … an output window of Make
+    "FRESING_PT_settings_window": "Fresing Settings",               # task 0271: the Settings window
 }
 
 

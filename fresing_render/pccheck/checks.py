@@ -4765,7 +4765,7 @@ def app_quiet(ctx):
 
 
 @line("app.keys", "Blender's keys: Delete, Shift+D, Ctrl+J … do nothing outside Full access and say how to get them; F12 / "
-      "Ctrl+F12 render with the app; right-click on a part opens a short Fresing menu", "0.2.201",
+      "Ctrl+F12 render with the app; right-click on a part opens a short Fresing menu", "0.2.202",
       what="Checks the list of swallowed keys (and that H, A, G, Ctrl+Z stay Blender's), that they are swallowed in "
            "every workspace but Full access and come back in Full access, that a swallowed key changes nothing in the "
            "project, the Client view's own message, F12 / Ctrl+F12 bound to the app's render, and the right-click "
@@ -4952,6 +4952,37 @@ def app_licences(ctx):
     _check(not on or os.path.isfile(ext_sync.state_path()),
            f"Blender's extension repository syncs at start: {', '.join(on)}")
     return None
+
+
+@line("app.settings", "Fresing Settings: one window with tabs; only your own input counts as time in My usage",
+      "0.2.201",
+      what="Every tab of the Settings window draws (General, Side panel, Lessons, Backups, Updates, My usage, About), "
+           "the window's buttons are in the Fresing menu, the left panel and the Add-ons page, a tab is kept for the "
+           "next opening, and a played animation with no mouse or key adds no time to My usage")
+def app_settings(ctx):
+    import bpy
+
+    from ..blender import ops_settings, prefs, ui_settings, ui_topbar, usage
+    from ..core import usage as core
+    _check("fresing.settings" in ui_topbar.entries(), "Settings… is not in the Fresing menu")
+    for idname in ("fresing.settings", "fresing.settings_tab", "fresing.settings_close", "fresing.presence"):
+        _check(ui_topbar._has(idname), f"the operator {idname} is missing")
+    drawn = ui_settings.draw_all(bpy.context)
+    _check(drawn == list(ui_settings.KEYS), f"only these tabs draw: {', '.join(drawn)}")
+    p = prefs.get()
+    _check(p is not None, "the add-on's preferences are missing")
+    was = p.settings_tab
+    try:
+        _check(ops_settings.set_tab("usage") and ui_settings.current() == "usage", "the tab My usage is not kept")
+    finally:
+        p.settings_tab = was
+    s = core.fresh()
+    clock = core.Clock()
+    clock.tick(s, now=0.0, stage="render")              # a click, then 10 minutes of playback with no input
+    clock.tick(s, now=600.0)
+    _check(s["stages"].get("render", 0.0) == 0.0, f"10 min away counted {s['stages'].get('render')} s")
+    _check(usage._on_change.__code__.co_names.count("activity") == 0, "a change of the project still counts as you")
+    return f"{len(drawn)} tabs draw; 10 min of playback with no input: 0 s counted"
 
 
 @line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.158",

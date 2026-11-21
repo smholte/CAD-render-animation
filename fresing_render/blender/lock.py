@@ -81,7 +81,8 @@ ALLOWED = {
     "fresing.ctx_hide", "fresing.ctx_only", "fresing.ctx_show_all",   # (in the Client view they hide in the view only)
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
-                    "fresing.make_", "fresing.usage_", "fresing.learn_")     # task 0181: the usage tracker changes nothing in the model
+                    "fresing.make_", "fresing.usage_", "fresing.learn_",
+                    "fresing.settings", "fresing.presence")     # task 0271: Fresing Settings, the presence mark
 
 
 def scene_locked(context) -> bool:
