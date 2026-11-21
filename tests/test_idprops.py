@@ -95,7 +95,7 @@ def test_queue_makes_the_mp4_after_the_count_changed(addon, tmp_path):
     s = sc.fresing
     s.out_folder = str(tmp_path)
     child.set_up(sc)
-    for name in ("X.ASM", "COLUMN", "FINISHED PART"):
+    for name in ("Z.ASM", "COLUMN", "FINISHED PART"):
         logic.set_hidden(child.ob(sc, name), True)
     child.anim(sc, 0.08, "Mill")
     first = machining.sample(sc)

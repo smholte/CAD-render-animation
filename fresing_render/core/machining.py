@@ -1174,6 +1174,9 @@ THIN_OF_SIDES = 2.0 / 3.0         # the map's thinning: this x how far the exact
 #                                   the round one (with that the two are at most 0.03 mm apart up to a Ø10 bit)
 
 
+GRID_OFF = 0.37                 # of a square: where density's 1 mm squares start (off round numbers)
+
+
 class _MapSide:
     """The height-map part of a timeline: which moves it takes, the map, and how its tiles are joined with the
     solids the booleans made.
@@ -1271,7 +1274,9 @@ class _MapSide:
             return math.inf
         f = (np.arange(total) - np.repeat(np.cumsum(n) - n, n)) / np.repeat(n, n)
         p = np.repeat(a, n, axis=0) + f[:, None] * np.repeat(b - a, n, axis=0)
-        cells = np.unique(np.floor(p / MM).astype(np.int64), axis=0)
+        # (the squares a little off the round millimetres CAM programs use: on them, rounding noise of a few nm – a
+        # table that carries the block, task 0249 – decided the square a point is in, and the answer moved by 10 %)
+        cells = np.unique(np.floor(p / MM + GRID_OFF).astype(np.int64), axis=0)
         return len(a) / max(1, len(cells))
 
     @staticmethod

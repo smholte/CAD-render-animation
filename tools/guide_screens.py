@@ -65,7 +65,7 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
       "panels", the AT-40 beside the test crane, the boom as the load, the hook above it); task 0232: Rigging with the
       boom on a 2-leg sling, hung (panel_8_lifting_rigging).
   people   the example built and rendered at the handshake (people_meet.jpg; Cycles on the processor, as "render").
-  operator   the test mill in its cabinet: the operator takes the tool out of the spindle (toolchange_person.jpg) and
+  operator   the test mill in its enclosure: the operator takes the tool out of the spindle (toolchange_person.jpg) and
       lays it on the trolley (toolchange_person_trolley.jpg), task 0156; Cycles on the processor, as "render".
   house_panel   5 Scene & Render > House from House Planner (panel_5_house; as "panels", the made-up sample house
       imported and one moment baked, task 0114).

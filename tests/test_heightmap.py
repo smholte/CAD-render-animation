@@ -523,3 +523,13 @@ def test_a_tile_that_is_no_closed_solid_keeps_its_column(any_density, monkeypatc
         assert extra.get("map_tiles_plain") == 1 and not extra.get("map_tiles_box")
         assert inside_fast == pytest.approx(inside_good, rel=2e-3)
     assert not good.stats.extra.get("map_tiles_plain") and not good.stats.extra.get("map_tiles_box")
+
+
+def test_the_density_does_not_hang_on_rounding_noise():
+    """Task 0249: a raster on whole millimetres, read once exactly and once a few nanometres off (a table that carries
+    the block): the same density – the squares are not on the round numbers."""
+    xs, ys = np.arange(-30, 31) * M.MM, np.arange(21) * 0.6 * M.MM
+    a = np.array([(x, y) for y in ys for x in xs[:-1]])
+    b = a + np.array((M.MM, 0.0))
+    for noise in (1e-9, -1e-9, 7e-9):
+        assert M._MapSide.density(a + noise, b + noise) == M._MapSide.density(a, b)

@@ -62,6 +62,8 @@ GRIP_BELOW = 0.085           # m: the fist's middle below the spindle's gauge li
 ELBOW = {"l": np.array((-0.1, 0.2, -1.0)), "r": np.array((-0.5, 0.3, -1.0))}   # elbows down, a little out and back
 LET_GO = 0.7                 # s: a hand that lets go of a door it cannot follow goes back to the side in this time
 EXACT = ("reach", "grip", "release", "set", "take", "insert", "clamp")   # moves whose end must be exactly on the aim
+LEAN_MAX = 65.0              # degrees the person leans in at most (task 0249: 55 kept it 4 cm short of a VMC's
+                             # spindle; the head and chest stay clear of the machine whatever the lean)
 ENTRY_LEFT = 0.3             # m: the same for the left hand at the button (12 cm lower: the arm never folds up)
 ENTRY = 0.3                  # m: a hand goes in and out of the machine through a point this far in front of the
                              # holder, at the holder's height (no straight line from the hip through the table)
@@ -138,7 +140,9 @@ class Floor:
         self._free: dict = {}
 
     # -- filling ------------------------------------------------------------------------------------------------
-    def _mark(self, pts) -> None:
+    def _mark(self, pts, lean: bool = True) -> None:
+        """``lean`` False: the points take only the walking map, not the slices the head and chest keep off when the
+        person leans in (a door's closed place: it is open while the person leans in, task 0249)."""
         p = np.asarray(pts, float).reshape(-1, 3)
         if not len(p):
             return
@@ -154,8 +158,9 @@ class Floor:
                 ok = (ij[:, 0] >= 0) & (ij[:, 1] >= 0) & (ij[:, 0] < self.shape[0]) & (ij[:, 1] < self.shape[1])
                 band = ok & (h >= BAND[0]) & (h <= BAND[1])
                 self.occ[ij[band, 0], ij[band, 1]] = True
-                sl = ok & (k >= 0) & (k < SLABS)
-                self.slab[k[sl], ij[sl, 0], ij[sl, 1]] = True
+                if lean:
+                    sl = ok & (k >= 0) & (k < SLABS)
+                    self.slab[k[sl], ij[sl, 0], ij[sl, 1]] = True
         self._free.clear()
 
     def add_points(self, pts) -> None:
@@ -171,8 +176,9 @@ class Floor:
         X, Y, Z = np.meshgrid(np.clip(xs, lo[0], hi[0]), np.clip(ys, lo[1], hi[1]), np.clip(zs, lo[2], hi[2]))
         self._mark(np.column_stack((X.ravel(), Y.ravel(), Z.ravel())))
 
-    def add_triangles(self, tris) -> None:
-        """Triangles (n, 3, 3) of a surface: their points in the band take their cells (sampled finer than a cell)."""
+    def add_triangles(self, tris, lean: bool = True) -> None:
+        """Triangles (n, 3, 3) of a surface: their points in the band take their cells (sampled finer than a cell).
+        ``lean``: as ``_mark``."""
         t = np.asarray(tris, float).reshape(-1, 3, 3)
         if not len(t):
             return
@@ -190,7 +196,7 @@ class Floor:
             a = (ii[keep] / k)[None, :, None]
             b = (jj[keep] / k)[None, :, None]
             pts = sel[:, 0:1] * (1 - a - b) + sel[:, 1:2] * a + sel[:, 2:3] * b
-            self._mark(pts.reshape(-1, 3))
+            self._mark(pts.reshape(-1, 3), lean)
 
     # -- reading -----------------------------------------------------------------------------------------------
     def ij(self, xy) -> tuple:
@@ -860,11 +866,11 @@ class Operator:
         p0 = bent(0.0)
         if reaches(p0):
             return 0.0, yaw, f, lft
-        lo, hi = 0.0, 55.0
+        lo, hi = 0.0, LEAN_MAX
         if not (reaches(bent(hi)) and clear(bent(hi))):
             # it cannot reach without its head or chest in something: lean only as far as stays clear
             a_ok = 0.0
-            for a in np.arange(2.0, 55.01, 2.0):
+            for a in np.arange(2.0, LEAN_MAX + 0.01, 2.0):
                 p = bent(a)
                 if not clear(p):
                     break

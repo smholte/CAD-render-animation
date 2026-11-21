@@ -621,7 +621,10 @@ site/                      the landing page https://smholte.github.io/CAD-render
 installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
 tools/                     build_release.py, release_tools.py (release job), test-model makers (task 0122: details from
                            model_details.py – chamfers, outlines, ISO bolts/screws/nuts – and machine_parts.py – rails,
-                           guide blocks, servo motors, clamps – each part one solid), real-app tests,
+                           guide blocks, servo motors, clamps; task 0249: rails/blocks in any direction, way-cover
+                           sections, sliding doors, a BT40 holder – each part one solid; the test mill is a VMC since
+                           task 0249: make_test_mill.py (+ _cabinet = in its enclosure, + toolpath), its Y way covers set
+                           up by blender/waycover.set_up_test_mill), real-app tests,
                            screenshot tool, ci_*.py / ci_windows_install.ps1 (automatic tests; ci_precheck.py first
                            job, ci_groups.py + ci_times.json parallel groups),
                            ci_update_test.py + update_test_blender.py (in-app update), requirements-dev.txt;
@@ -1411,6 +1414,16 @@ the release → Delete); the next run on `main` publishes it again.
   refused for as long as it is held (22–36 refusals in 40 s with a reader holding it 0.5 s, the longest 0.3–0.5 s; a
   reader that opens, reads and closes caused none): a retry of 5 x 50 ms is too short for such a reader – keep the
   write and do it at the next look (`Inbox._later`).
+- A person at a machine (task 0249, `core/tc_person.py`) stands its `WORK_ROOM` (0.25 m) off the frontmost thing in
+  front of it – a door handle – and reaches ~0.52 m (1.75 m tall) plus its lean: the spindle can be at most ~0.7 m
+  from where it stands. A VMC's doors must clear its table at the front end of Y, so they stand 0.4–0.5 m in front of
+  the spindle: the test mill's Y travel reaches 140 mm past the table's front edge, the lean goes to 65°, and the floor
+  map keeps a door's closed place only for walking (it is open while the person leans in). A smaller `WORK_ROOM` let
+  the belly touch the closed doors. Measure a new machine with the 1.65 m person too (it reaches 4 cm less).
+- Chips (task 0249): a cross table's saddle is the chips' *carrier*; a chip off its footprint went over to world space
+  only below the carrier's lowest top – a skirt lower than the fixed way covers beside it – so it came in *under* the
+  covers and fell for ever. A chip now goes over as soon as the next space's surface is a step below it
+  (`_Sim._lands_next`), and a chip under a surface stops on the floor.
 - A behaviour added by code that registers itself (a clash-check hook in `clash.HOOKS`) works only while that code is
   loaded: a demo kit's stages are loaded only while the kit is built, so its ROV was checked again in the reopened
   project (task 0228's open point). What a project must keep doing is stored in the project – a custom property on the

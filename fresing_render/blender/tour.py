@@ -323,13 +323,16 @@ def _joint_step(a, joint: str, start: float, seconds: float, to: float, slide: b
     return blk
 
 
-def _xyz(scene, names=(("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))):
+def _xyz(scene, names=(("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))):
+    """The three slide axes; on the test mill (task 0249: a VMC) also its two Y way covers, so the saddle never runs
+    into them (``waycover.set_up_test_mill``)."""
     from mathutils import Vector
 
-    from . import joints
+    from . import joints, waycover
     for name, asm, d in names:
         o = _ob(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    waycover.set_up_test_mill(scene)
 
 
 GANTRY_AXES = (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1)))
@@ -1118,7 +1121,7 @@ def offshore_structure(scene) -> dict:
     return made
 
 
-@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.195")
+@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.196")
 def build_marine(b: Build):
     """Task 0234: the marine looks on a monopile in the open sea (study 0224: the pile standing in the real sea with
     the sea cut-away, the waterline from the sea, the whole pile in frame)."""
@@ -1225,7 +1228,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.189")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -2153,7 +2156,7 @@ def _check_served(scene):
 SEA_ANIM = "Cable into the sea"
 
 
-@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.195")
+@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.196")
 def build_sea(b: Build):
     from . import paths, paths_sea
     sc = b.scene
@@ -2246,7 +2249,7 @@ def _check_sea_cable(scene):
 VESSEL_ANIM = "Vessel at work"
 
 
-@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127", changed="0.2.195")
+@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127", changed="0.2.196")
 def build_vessel_work(b: Build):
     """Task 0154: a workboat with two azimuths and a bow thruster sails ahead at 8 knots, then pushes sideways."""
     from mathutils import Matrix, Vector
@@ -2301,7 +2304,7 @@ def _check_vessel_work(scene):
 MOVING_ANIM = "Over the stern"
 
 
-@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.195")
+@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.196")
 def build_moving(b: Build):
     from . import paths
     sc = b.scene
@@ -3170,7 +3173,7 @@ def build_rotary5(b: Build):
     a.start_shot = _shot(b, "Tour: 5th axis").name
 
 
-@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.101")
+@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.195")
 def build_toolpath(b: Build):
     from mathutils import Vector
 
@@ -3240,7 +3243,7 @@ def _check_rotary5(scene):
 # the cuts lie in the finished part's pocket (x -50..50, y -30..30, 10 deep): elsewhere the block is the finished part
 # up to its top, and a cut there goes into it; the face pass starts at X-10 so the ball mill hanging 120 mm beside the
 # spindle stays off the block (the clash check says so since task 0029 keeps every key of a fast program)
-TOOLS_TOUR = """(THREE TOOLS: FACE MILL, END MILL, CHAMFER MILL - BT30)
+TOOLS_TOUR = """(THREE TOOLS: FACE MILL, END MILL, CHAMFER MILL - BT40)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
 S6000 M3
@@ -3267,7 +3270,7 @@ M30
 """
 
 
-@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.101")
+@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_tools(b: Build):
     import bpy
     from mathutils import Vector
@@ -3284,12 +3287,12 @@ def build_tools(b: Build):
     _pick("bit", tool)
     _pick("workpiece", stock)
     face = tools.add_row(sc, "FACE", 1)
-    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT30", 0.045
+    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT40", 0.045
     face.lead_angle = 1.5707963
     end = tools.add_row(sc, "FLAT", 2)
-    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT30", 0.06
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT40", 0.06
     vee = tools.add_row(sc, "VEE", 3)
-    vee.diameter, vee.length, vee.holder, vee.holder_length = 0.01, 0.09, "BT30", 0.06
+    vee.diameter, vee.length, vee.holder, vee.holder_length = 0.01, 0.09, "BT40", 0.06
     a = _animation(b, "Three tools")
     _gcode_step(a, _program(b, "Tour three tools.ngc", TOOLS_TOUR), sc, gcode_speed="FIT", gcode_fit=14.0,
                 gcode_tc_time=1.0, gcode_hand=True)
@@ -3313,8 +3316,8 @@ def _check_tools(scene):
     from . import gcode, tools
     lift = gcode.length_offsets(scene, gcode.Machine(scene), [1, 2, 3], 1)
     _check(len(tools.rows(scene)) >= 3, "the tool list has fewer than 3 tools")
-    _check(all(r.holder == "BT30" for r in tools.rows(scene) if r.number in (1, 2, 3)), "not all three are BT30")
-    return "T1 face mill, T2 end mill, T3 chamfer mill (BT30); length offsets " + ", ".join(
+    _check(all(r.holder == "BT40" for r in tools.rows(scene) if r.number in (1, 2, 3)), "not all three are BT40")
+    return "T1 face mill, T2 end mill, T3 chamfer mill (BT40); length offsets " + ", ".join(
         f"T{k} {v * 1000:+.0f} mm" for k, v in sorted(lift.items()))
 
 
@@ -3341,7 +3344,7 @@ def _check_hand(scene):
 MARKS_FEED, MARKS_SPEED = 900.0, 3000.0          # the face mill: 900 mm/min at 3000 rpm = 0.30 mm per turn
 MARKS_SIZE = 7.0                                 # Mark size of the set: the arcs show in a close-up
 MARKS_CAMERA = 0.125                             # m from the camera to the middle of the faced strip
-MARKS_TOUR = f"""(TOOL MARKS: FACE MILL, END MILL, DRILL - BT30)
+MARKS_TOUR = f"""(TOOL MARKS: FACE MILL, END MILL, DRILL - BT40)
 G21 G90 G94 G17 G54
 T1 M6 G43 H1
 S{MARKS_SPEED:g} M3
@@ -3377,7 +3380,7 @@ M30
 """
 
 
-@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.101")
+@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.195")
 def build_marks(b: Build):
     from mathutils import Vector
 
@@ -3398,12 +3401,12 @@ def build_marks(b: Build):
     m = machining.settings(sc)
     m.marks, m.marks_size, m.marks_strength = True, MARKS_SIZE, 1.0
     face = tools.add_row(sc, "FACE", 1)
-    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT30", 0.045
+    face.diameter, face.length, face.holder, face.holder_length = 0.05, 0.085, "BT40", 0.045
     face.lead_angle = 1.5707963
     end = tools.add_row(sc, "FLAT", 2)
-    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT30", 0.06
+    end.diameter, end.length, end.holder, end.holder_length = 0.01, 0.098, "BT40", 0.06
     drill = tools.add_row(sc, "DRILL", 3)
-    drill.diameter, drill.length, drill.holder, drill.holder_length = 0.0085, 0.09, "BT30", 0.06
+    drill.diameter, drill.length, drill.holder, drill.holder_length = 0.0085, 0.09, "BT40", 0.06
     a = _animation(b, MARKS_ANIM)
     _gcode_step(a, _program(b, "Tour tool marks.ngc", MARKS_TOUR), sc, gcode_speed="FIT", gcode_fit=10.0,
                 gcode_tc_time=0.6, gcode_path=False)
@@ -3478,7 +3481,7 @@ M30
 """
 
 
-@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.101")
+@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_air(b: Build):
     import bpy
     from mathutils import Vector
@@ -3506,7 +3509,7 @@ def build_air(b: Build):
 COOLANT_TOUR = AIR_TOUR.replace("M7", "M8")
 
 
-@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.101")
+@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.195")
 def build_coolant(b: Build):
     from mathutils import Vector
 
@@ -3561,7 +3564,7 @@ VESSEL_ANIM = "Vessel at sea"
 VESSEL_PROPS = ("PERSON", "IBC")          # (a 20 ft container dwarfs the 2 m test crane)
 
 
-@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.195")
+@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.196")
 def build_vessel(b: Build):
     from mathutils import Vector
 
@@ -3658,10 +3661,10 @@ PEOPLE_ANIM = "Two people meet"
 OPERATOR_ANIM = "A person changes the tool"
 
 
-@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.171")
+@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.195")
 def build_operator(b: Build):
-    """The test mill on its cabinet (tools/make_test_mill_cabinet.py): one manual change from T1 to T2 done by the
-    operator, who walks up, opens the sliding door, swaps the tools over the trolley, closes the door and walks
+    """The test mill in its enclosure (tools/make_test_mill_cabinet.py; task 0249: the larger VMC): one manual change
+    from T1 to T2 done by the operator, who walks up, opens the sliding doors, swaps the tools over the trolley, closes the door and walks
     away (task 0156; the set-up is shared with the PC check: ``tc_person.set_up_test_model``)."""
     from . import cameras, tc_person
     sc = b.scene
@@ -4290,7 +4293,7 @@ stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",
-     animation="Mill a slot", at=1.0, check=_check_cut_look, since="0.2.47")
+     animation="Mill a slot", at=1.0, check=_check_cut_look, since="0.2.47", changed="0.2.195")
 stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      "A yellow monopile stands in the open sea, seen through a cut-away down to its toe 9 m in the seabed: dark "
      "green-brown growth with a ragged top just below the waterline, a greenish splash zone with thin rust streaks "
@@ -4298,7 +4301,7 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      "a light grey concrete mattress lies round the pile on the seabed.",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
            "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
-     check=_check_marine, changed="0.2.195")
+     check=_check_marine, changed="0.2.196")
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
@@ -4311,7 +4314,7 @@ stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
      "fall with the long waves while the boom goes up. The sea, the sky and the camera stay put.",
      where="5 Scene & Render > Vessel motion; Props for scale", since="0.2.65", animation=VESSEL_ANIM,
-     at=0.5, play=True, check=_check_vessel, auto="clip", changed="0.2.195")
+     at=0.5, play=True, check=_check_vessel, auto="clip", changed="0.2.196")
 stop("weather", LOOK, "weather", "Weather: grey North Sea",
      "The crane on the quay in grey North Sea weather: overcast, a strong breeze, drizzle slanting in the wind and "
      "haze in the distance; the crane and the quay look wet (darker, glossy, puddles on flat parts).",
@@ -4453,7 +4456,7 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "horn and the orange CPS set goes over the horn and down the curve on the cable. A label of four lines points "
      "at the touch-down: Lay data, the top tension, the layback and the speed (60 m/min while it pays out).",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
-     check=_check_sea_cable, auto="clip", changed="0.2.195")
+     check=_check_sea_cable, auto="clip", changed="0.2.196")
 stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
      "A blue workboat (a fine bow under a raised forecastle, a white wheelhouse) sails ahead, seen from close by off "
      "its port bow: a white wake trails behind its stern, fading and breaking up; its waves fan out "
@@ -4461,7 +4464,7 @@ stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
      "slows to a stop and pushes sideways: the azimuths under the stern swing round, the wake fades, and white, boiling "
      "jets stream out from the port side – the bow thruster's and the azimuths' – while the propellers turn.",
      where="5 Scene & Render > Vessel at work; 6 Animation: Vessel at work step", animation=VESSEL_ANIM, play=True,
-     since="0.2.127", check=_check_vessel_work, auto="clip", changed="0.2.195")
+     since="0.2.127", check=_check_vessel_work, auto="clip", changed="0.2.196")
 stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
@@ -4472,7 +4475,7 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "travels and the block goes down, and the head sheave turns with it.",
      where="4 Motion > Cables and paths (Winch keeps it tight, Let go here, Into the sea > Settles in)",
      animation=MOVING_ANIM, play=True,
-     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.195")
+     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.196")
 stop("swivel", MOTION, "swivel", "Sheave turns to follow its wire",
      "A yellow deck davit slews 45° one way, 90° back and home again. Its grey wire comes from a fairlead on the deck, "
      "over a sheave under the arm's tip and straight down into the orange hook block. The sheave hangs in a swivel "
@@ -4582,13 +4585,14 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
      at=0.55, play=True, check=_check_people, auto="clip")
 stop("operator", MACH, "operator", "A person changes the tool",
-     "On the test mill in its cabinet the operator walks up before the tool change, opens the sliding door with "
-     "the handle, presses the release button with the left hand and takes the end mill out by its BT30 holder, lays "
-     "it on the tool trolley, takes the ball mill, puts it in, closes the door and walks away after the program. "
+     "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
+     "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "
+     "with the left hand and takes the end mill out by its BT40 holder, lays it on the tool trolley, takes the ball "
+     "mill, puts it in, closes the doors and walks away after the program. "
      "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine. Each "
      "tool cuts a shallow strip into the block.",
      where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
-           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.171", animation=OPERATOR_ANIM,
+           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.195", animation=OPERATOR_ANIM,
      at=0.45, play=True,
      check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
@@ -4605,21 +4609,22 @@ stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      animation=ACCEL_ANIM, play=True, since="0.2.83", check=_check_accel, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
-     "from the tool list, each in a BT30 holder, changed with M6 and measured with G43. No tool goes into the block "
+     "from the tool list, each in a BT40 holder, changed with M6 and measured with G43. No tool goes into the block "
      "where the program does not cut (the end mill is 28 mm longer than the face mill). An M6 without G43 for the "
      "new tool would get a line in the Build result and a row in the clash check.",
-     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.76")
-stop("hand", MACH, "tools", "Tool change by hand (BT30)",
-     "At a tool change a gloved hand takes the tool out by its BT30 holder and puts the next one in; for a longer "
+     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.195")
+stop("hand", MACH, "tools", "Tool change by hand (BT40)",
+     "At a tool change a gloved hand takes the tool out by its BT40 holder and puts the next one in; for a longer "
      "tool the spindle first rises by the difference, then comes down to the program.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
-     at=-1.0, check=_check_hand, since="0.2.47", changed="0.2.76")
+     at=-1.0, check=_check_hand, since="0.2.47", changed="0.2.195")
 stop("marks", MACH, "marks", "Tool marks on cut faces",
      "A close-up of the milled aluminium block. The faced strip shows the wide arcs of the Ø50 face mill, bulging the "
      "way it went; the pocket's floor shows the finer arcs of the Ø10 end mill; its walls show fine upright lines and "
      "a level line where the second depth starts; the drilled hole shows rings. Look in "
      "rendered view and orbit: the sheen swirls with the arcs. The marks are drawn 7 times further apart than real "
      "(Mark size) so they show.",
-     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", animation=MARKS_ANIM, at=1.0,
+     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", changed="0.2.195", animation=MARKS_ANIM,
+     at=1.0,
      check=_check_marks)
 stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
      "The tools stand in their pockets from the first frame; at each change the carousel turns the shortest way, "
@@ -4648,19 +4653,21 @@ stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
      "the walls, ramping in), the ball end mill T2 finishes in lines across. The block turns into the part with its "
      "pocket, rounded boss and dome; the stock under the overhanging cap and in the hole stays.",
      where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.55",
+     changed="0.2.195",
      check=_check_toolpath, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table, the clamps and the block.",
-     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.101")
+     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.195")
 stop("air", MACH, "air", "Air blast",
      "The bit cuts a pocket with air on (M7 … M9): chips are blown away from the cut; at the end the part is "
      "blown clean.", where="4 Motion > CNC machine > Air blast", animation="Pocket with air", at=0.6, play=True,
-     check=_check_air, auto="clip", since="0.2.47")
+     check=_check_air, auto="clip", since="0.2.47", changed="0.2.195")
 
 stop("coolant", MACH, "coolant", "Coolant (flood)",
      "The bit cuts a pocket with flood coolant (M8 … M9): two blue hoses squirt milky coolant at the tool, drops "
      "fly off it, the block gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
-     animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48")
+     animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
+     changed="0.2.195")
 
 
 def _check_setup(scene):

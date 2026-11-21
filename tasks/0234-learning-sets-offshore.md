@@ -1,6 +1,6 @@
 # 0234 – Learning sets in the full ocean: marine looks, vessel motion, vessel at work, cable into the sea, cable on a moving part
 
-**Who:** worker · **Status:** done (0.2.195) · **Branch:** `task/0234-learning-sets-offshore`
+**Who:** worker · **Status:** done (0.2.196) · **Branch:** `task/0234-learning-sets-offshore`
 **Started by:** lead, 20 Nov 2026 (study 0224 package B; owner's answers 20 Nov: each set its own fitting environment –
 "to a full ocean") · **Model:** Opus · effort Medium
 **Area:** `blender/tour.py` – **only** the sets `marine`, `vessel`, `vessel_work`, `sea_cable`, `moving_cable` and their
@@ -82,7 +82,7 @@ The cable-lay vessel's equipment and the demo ship's hull (`demo_model/` except 
   on, toe and platform inside the picture. `marine_demo` / `marine_camera` kept for the PC check's `looks.marine`.
   **vessel** – a person and an IBC tank behind the crane (a 20 ft container dwarfed the 2 m test crane), camera fitted
   to crane + props, check: they ride on the vessel. **vessel_work** – camera off the port bow at ~45 m.
-  **sea_cable** – lens 22 (the hull shows). **moving_cable** – new hull only. Stop texts and `changed="0.2.195"`;
+  **sea_cable** – lens 22 (the hull shows). **moving_cable** – new hull only. Stop texts and `changed="0.2.196"`;
   `tour_versions.py --record`.
 - Links: `offshore.thrusters` → vessel_work, `scene.sea_ground` → marine (the stop that opens the ground; sea_cable
   keeps the seabed closed, so the brief's sea_cable link would not show it), `scene.props` → vessel too.
@@ -95,7 +95,7 @@ The cable-lay vessel's equipment and the demo ship's hull (`demo_model/` except 
 488 passed. `test_tour.py` + `test_functions.py`: 129 passed. `test_tour_clash.py` for the five sets: 0 clashes. Maker
 and hull tests 21 passed. Precheck passed. Build times before → after (s): marine 16.0* → 3.8, vessel 4.7 → 5.2,
 vessel_work 7.5 → 8.2, sea_cable 4.6 → 5.7, moving_cable 8.8 → 8.7 (*first set of the run, includes start-up).
-Pictures (400 px, Cycles 12 samples, after and `_before`): `tasks/img/0234/`. Runs: see below.
+Pictures (400 px, Cycles 12 samples, after and `_before`): `tasks/img/0234/`. GitHub: 4 full runs – the first green after re-running one job (the PC check's `updates.check` timed out on the update server), then `main` moved three times (0252 took 0.2.194, 0255 brought code, 0249 took 0.2.195): renumbered to 0.2.196.
 
 **Open points / follow-up tasks:**
 - The PC check's `looks.marine` still uses the plain shapes (`marine_demo`); it could use `offshore_structure`.

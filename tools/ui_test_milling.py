@@ -202,7 +202,7 @@ def s_wait():
         return "wait"
     sc = bpy.context.scene
     joints = mod("blender.joints")
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = find(asm)
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     mod("blender.logic").set_hidden(find("FINISHED PART"), True)     # same place as the stock

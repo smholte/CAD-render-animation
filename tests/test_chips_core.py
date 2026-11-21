@@ -229,6 +229,32 @@ def test_chips_that_fall_off_the_table_land_where_the_table_is_now():
     assert len(ids) > 0 and np.allclose(pa, pb)
 
 
+def test_chips_off_a_cross_table_land_on_the_fixed_parts_beside_its_saddle():
+    """Task 0249 (the test mill became a VMC): the table rides on a saddle (the carrier). The saddle is narrow (top
+    -100 mm) with a low skirt round it (-300 mm: its lowest top); beside it lie fixed way covers (top -200 mm). A chip
+    that falls past the saddle lands on the covers. Before the fix it went over to world space only below the skirt -
+    under the covers' roof - and fell for ever (metres below the floor)."""
+    sim = scene([slot_bits(depth=15.0)])
+    car = C.grid_for((-0.4, -0.4), (0.4, 0.4), 2 * MM)
+    xs, ys = car.centres()
+    X, Y = np.meshgrid(xs, ys)
+    car.h[(abs(X) < 0.12) & (abs(Y) < 0.12)] = -0.10
+    car.h[(abs(X) < 0.12) & (abs(Y) >= 0.12) & (abs(Y) < 0.124)] = -0.30
+    st = C.grid_for((-1, -1), (1, 1), 5 * MM)
+    xs, ys = st.centres()
+    X, Y = np.meshgrid(xs, ys)
+    st.h[(abs(Y) > 0.125) & (abs(Y) < 0.6) & (abs(X) < 0.6)] = -0.20
+    sim.static, sim.floor_z = st, -0.9
+    sim.carrier, sim.carry_c = car, np.tile(np.eye(4), (FRAMES, 1, 1))
+    sim.carry = np.tile(np.eye(4), (FRAMES, 1, 1))
+    b = C.simulate(sim)
+    world = b.at(FRAMES)[1]["pos"]
+    assert len(world) > 5
+    assert (world[:, 2] >= -0.9 - 1e-6).all(), world[:, 2].min()
+    on_cover = np.abs(world[:, 2] + 0.20) < 2 * MM
+    assert on_cover.sum() > 0.5 * len(world)
+
+
 def test_too_many_chips_fade_oldest_first():
     sim = scene([slot_bits(depth=25.0, length=150.0, frames=(1, 20, 90, 95), family="BRASS")], amount="FEW")
     b = C.simulate(sim)

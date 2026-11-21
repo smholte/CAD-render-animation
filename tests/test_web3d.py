@@ -67,7 +67,7 @@ def test_export_writes_a_valid_glb_and_one_file_page(mill_export):
     assert core.problems(data) == []
     s = core.summary(data)
     parts = mill_export["parts"]
-    assert s["parts"] == len(parts) == 25                    # the test mill (task 0122: rails, motors, clamps …)
+    assert s["parts"] == len(parts) == 44                    # the test mill (task 0249: the VMC, its covers, tray …)
     assert s["triangles"] == sum(len(p.data.polygons) for p in parts)
     assert s["size"] < 5_000_000                             # the target for the test mill
     page = path.with_suffix(".html")
@@ -100,7 +100,7 @@ def test_hidden_names_and_y_up(mill_export):
     doc, _ = _doc(mill_export["data"])
     names = [n["name"] for n in doc["nodes"] if "name" in n]
     assert names[0] == "Model" and doc["nodes"][0]["rotation"] == pytest.approx(list(core.Z_UP_TO_Y_UP))
-    assert names[1:] == [f"Part {k}" for k in range(1, 26)]
+    assert names[1:] == [f"Part {k}" for k in range(1, 45)]
     assert all(m["name"].startswith("Mesh ") for m in doc["meshes"])
     assert all(m["name"].startswith("Look ") for m in doc["materials"])
     for p in mill_export["parts"]:
@@ -134,8 +134,10 @@ def test_looks_are_baked_to_seamless_textures(mill_export):
     assert not any("normalTexture" in m for m in paint)
     steel = [m for m in doc["materials"] if m["pbrMetallicRoughness"].get("metallicFactor") == 1.0]
     assert steel and all("metallicRoughnessTexture" in m["pbrMetallicRoughness"] for m in steel)
-    # one picture per look source: the two ground-steel groups share theirs
-    assert len(doc["images"]) < len(steel) + 1
+    # one picture per look source: the two ground-steel groups (rails, spindle) share theirs; the chip tray's sheet
+    # metal (task 0249) has a roughness and a bump picture of its own; no picture is left unused
+    used = {t["extensions"]["EXT_texture_webp"]["source"] if "extensions" in t else t["source"] for t in doc["textures"]}
+    assert len(doc["images"]) == len(used) <= len(steel) + 2
     # UVs only on meshes whose looks have a picture (half the file of a painted machine is UVs otherwise)
     for mesh in doc["meshes"]:
         textured = any(web3d._textured(doc["materials"][p["material"]]) for p in mesh["primitives"])
@@ -152,7 +154,7 @@ def test_blender_reads_the_file_back(mill_export, tmp_path):
             bpy.context.window.scene = sc
         bpy.ops.import_scene.gltf(filepath=str(mill_export["path"]))
     obs = [o for o in sc.objects if o.type == "MESH"]
-    assert len(obs) == 25
+    assert len(obs) == 44
     assert sum(len(o.data.polygons) for o in obs) == core.summary(mill_export["data"])["triangles"]
     imgs = {n.image.name for o in obs for s in o.material_slots if s.material
             for n in s.material.node_tree.nodes if n.type == "TEX_IMAGE" and n.image}

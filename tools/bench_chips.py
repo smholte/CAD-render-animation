@@ -97,7 +97,7 @@ def mill_scene(amount: str, heavy: bool = False, material: str = "AUTO"):
 
     def ob(name):
         return next(o for o in sc.objects if o.get(build.PROP_NAME) == name)
-    for name, asm, d in (("Y", "TABLE.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = ob(asm)
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     for o, nm in ((ob("END MILL D10"), "bit"), (ob("STOCK 200x200x40"), "wp")):
