@@ -1,6 +1,6 @@
 # 0255 – Coolant liquid A: the liquid core (`core/liquid.py`) – shallow-liquid height field, fast enough for a 10-minute program
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0255-liquid-core`
+**Who:** worker · **Status:** running · **Branch:** `task/0255-liquid-core`
 **Started by:** lead, 21 Nov 2026 (study 0251, build task A; owner 20 Nov 23:45–23:50: coolant liquid that collects in
 the cut slots, moves with the machine and runs down a drain – study first, then build) · **Model:** Opus · effort High
 **Area:** Machining lane – **new files only:** `fresing_render/core/liquid.py` (no Blender), its helper-process runner
