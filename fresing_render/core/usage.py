@@ -369,7 +369,7 @@ def declutter_candidate(state: dict, shown: set, used: set, hidden_panels: set =
                         children=None, titles=None) -> str:
     """The panel to ask about now ('' = none). ``shown``: the function ids the project's workspace shows; ``used``: the
     ids the open project uses; ``children``: {panel: its sub-panels}; ``titles``: the panels the side panel has (others,
-    and the seven sections, are never asked about). A panel qualifies when tracking has seen at least ``threshold``
+    and the eight sections, are never asked about). A panel qualifies when tracking has seen at least ``threshold``
     sessions, it was not used in the last ``threshold`` of them, all its functions show and none is used by the project,
     and it was not asked about before."""
     funcs = F.FUNCTIONS if funcs is None else funcs

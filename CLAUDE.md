@@ -378,7 +378,7 @@ fresing_render/            the Blender extension (Python package)
                            per frame by machining.sample), the air frames each G-code step writes at Build
                            (cnc["fr_air"]), "Show air" cone; settings in 4 Motion > CNC machine > Air blast
     ops_*.py               operators (ops_surroundings.py: props, put on floor; ops_scene.py: light looks, sharp
-                           spot, turntable);  ui.py ui_motion.py  side panel (1-7)
+                           spot, turntable);  ui.py ui_motion.py  side panel (1-8)
     panels.py              task 0062: every panel of the Fresing tab draws its own title row (registered `HIDE_HEADER`;
                            `install()` runs over the classes before they are registered and puts a `draw` and a `poll`
                            round each: a panel file only says `draw_header`, `draw_header_preset`, `draw`). The open set
@@ -1465,3 +1465,11 @@ the release → Delete); the next run on `main` publishes it again.
   loaded: a demo kit's stages are loaded only while the kit is built, so its ROV was checked again in the reopened
   project (task 0228's open point). What a project must keep doing is stored in the project – a custom property on the
   object (`clash.NO_CLASH` on a model root, task 0247), which a save, a reopen and a model update keep.
+- **Blender 5.2.3 does not keep an extension's own preferences over a restart while the app template is on** (task
+  0278, measured: a value saved with Save Preferences read back as its default at the next start with
+  `--app-template fresing_render`, and as saved without it – Blender takes a template's add-on list, with each
+  add-on's preferences, from its defaults when the template folder has no `userpref.blend` of its own). Every
+  `FRESING_AP_prefs` setting is affected, not only the left panel's (0260's `left_folded` too). A per-user choice that
+  must survive a restart goes into a small file in `bpy.utils.user_resource("CONFIG")` (`fresing_layout.json`,
+  `fresing_usage.json`, `fresing_left.json` = the left panel's folds, `ui_left.store`). Test a restart for real: a
+  second app in the same settings folder (`tools/ui_test_left_restart.py`, started by `ui_test_left.py`).

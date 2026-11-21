@@ -668,7 +668,7 @@ if MODE == "panels":
                                                          "FRESING_PT_import", "FRESING_PT_structure",
                                                          "FRESING_PT_looks", "FRESING_PT_motion",
                                                          "FRESING_PT_scene", "FRESING_PT_animation",
-                                                         "FRESING_PT_queue")]),
+                                                         "FRESING_PT_queue", "FRESING_PT_lifting")]),   # 0278: 8
         ("panel_3_cutaway", [("FRESING_PT_cutaway", False, True)]),     # last: its cut joint (task 0086)
     ]
 

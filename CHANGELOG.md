@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.202 – 21 Nov 2026 – Live preview and Build & play once, top left; the left panel's folds are kept (task 0278)
+
+- **Live preview** and **Build & play** are now only on the left panel (top left, also in its folded strip). They are
+  gone from 5 Scene & Render and 6 Animation, so the right panel is shorter. 6 Animation still says **Built · Space
+  plays it again**, with the **X** beside it that clears the built animation (its tooltip says so). Hints, the
+  lessons and the user guide now say "Build & play (top left)"; the crane and milling lessons point at the button
+  on the left – also at its icon when the left panel is folded to its strip.
+- **Favourites folds** with the small arrow in its title row, like Learning hub, Lesson and What's next; the gear
+  stays on the right. Folded, its title row says **1 question** when a question about an unused panel is waiting.
+- **Every part of the left panel keeps its fold** – Workspace, Learning hub, its stops, Lesson, Favourites, What's
+  next and the left panel's own fold to the strip: closed and opened again, in another project and after an update,
+  they are as you left them. (Before, they opened again at every start.)
+- Texts that said "sections 1–7" now say **1–8** (8 Lifting plan): the User guide's tooltip, the setting "Keep
+  sections as I left them", the Learning hub and the guide; the guide's picture of the sections shows all eight.
+
 ## 0.2.201 – 21 Nov 2026 – Fresing Settings: all settings in one window with tabs (task 0271)
 
 - **Fresing > Settings…** opens one window with all of the app's own settings and a row of tabs along its top:

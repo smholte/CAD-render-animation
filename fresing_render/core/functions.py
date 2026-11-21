@@ -159,14 +159,14 @@ fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one 
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158", changed="0.2.197")
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.202")      # task 0278: folds, kept over a restart
 fn(id="usage.declutter", title="Offer to hide what you never use", family="panel", panel="FRESING_PT_favourites",
    button="fresing.usage_declutter", guide="declutter", tour=("usage",), pccheck=("app.usage",), since="0.2.158", changed="0.2.197")
 
 # task 0260: two panels – the left panel, the Learning hub's switch
 fn(id="panel.left", headline=True, title="The left panel: Live preview, Build & play, Workspace, Learning hub, Favourites, "
    "What's next – the steps alone on the right", family="panel", panel="FRESING_PT_left_quick", button="fresing.left_fold",
-   guide="left-panel", pccheck=("panel.two",), since="0.2.197")
+   guide="left-panel", pccheck=("panel.two", "panel.folds"), since="0.2.197", changed="0.2.202")
 fn(id="learn.hub", short="Learning hub", title="Learning hub: View, Show me or Build it yourself in one click", family="help",
    panel="FRESING_PT_hub", button="fresing.hub_mode", guide="learning-hub", pccheck=("panel.two",), since="0.2.197")
 
@@ -513,8 +513,9 @@ fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_
    guide="animation", tour=("joint",), lesson="crane:7", since="0.2.10")
 fn(id="animation.joint_step", title="Move joint step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="animation", tour=("joint",), lesson="crane:8", since="0.2.10")
-fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_animation",
-   button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10")
+fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_left_quick",
+   button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10",
+   changed="0.2.202")     # task 0278: only on the left panel (top left; its strip too)
 fn(id="animation.motor", title="Run motor step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-motor", pccheck=("couplings.motor",), since="0.2.18")
 fn(id="animation.camera_path", short="Camera path", title="Camera rides along, flies a path, watches a part", family="animation",

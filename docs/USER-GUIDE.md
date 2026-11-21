@@ -67,7 +67,7 @@ Good examples
 
 Fresing Render makes photo-realistic pictures and videos of large STEP assemblies – machines with
 thousands of parts – without any 3D modelling. It is built on Blender, but you only need its
-**Fresing** tab: work through the sections 1 to 7 from top to bottom.
+**Fresing** tab: work through the sections 1 to 8 from top to bottom.
 
 <img class="wide" src="img/render_crane.jpg" alt="A render of the small test crane">
 
@@ -89,18 +89,18 @@ thousands of parts – without any 3D modelling. It is built on Blender, but you
 - The other areas (the lists top right, the timeline at the bottom) are Blender's own. You rarely need
   them.
 
-<img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the seven sections, folded">
+<img class="panel" src="img/sidebar_sections.png" alt="The top of the Fresing tab and the eight sections, folded">
 
-The side panel has seven sections, **1 Import** to **7 Render queue**, in the order you work, and an eighth for
-lifting plans, **8 Lifting plan** ([below](#lifting)). Above them are only **Make**, the section tabs and (for a CNC
+The side panel has eight sections, **1 Import** to **7 Render queue** in the order you work, and **8 Lifting
+plan** for lifting plans ([below](#lifting)). Above them are only **Make**, the section tabs and (for a CNC
 mill or a mechanism) **Set-up window…** – so the first step is always at the top.
 
 Every section works the same way:
 
 - Work from top to bottom: what you choose comes before the button that uses it.
 - Each section has **one blue button**: the one thing the section is for (**Import STEP…**, **Sort parts
-  into groups**, **Render image**, **Build & play**, **Start queue**). The main button of a sub-panel is
-  big and grey.
+  into groups**, **Render image**, **Start queue**). **Live preview** and **Build & play** are on the left panel
+  (top left), once. The main button of a sub-panel is big and grey.
 - The steps of a panel stand apart, with a little space between them. A grey text is a hint; a red text
   is a problem.
 - A numbered how-to is in a fold **How it works**. It is open the first time and folds away by itself
@@ -125,7 +125,8 @@ Everything that is not a step of the work sits on the left of the view, top to b
 
 - **Live preview** and **Build & play** – always there, outside every fold. Live preview shows the real render in
   the view ("Live preview: on" while it is on); Build & play builds the selected animation and plays it (greyed until
-  there is an animation: make one in 6 Animation). Both are the same buttons as in 5 Scene & Render and 6 Animation.
+  there is an animation: make one in 6 Animation). They are only here: 5 Scene & Render and 6 Animation do not
+  repeat them.
 - **Update available** – only after an update is found ([Updates](#updates)).
 - **Workspace** – which functions this project shows ([below](#workspaces)).
 - **Learning hub** – View, Show me or Build it yourself in one click ([Learning hub](#learning-hub)); in a sample
@@ -137,6 +138,11 @@ Everything that is not a step of the work sits on the left of the view, top to b
 **▶** (opens it again), Live preview and Build & play – so they stay one click away. The app remembers it for every
 project. Drag the panel's edge to make it wider or narrower; projects open with it as wide as you left it.
 
+**Fold a part of it:** Workspace, Learning hub, its stops, Lesson, Favourites and What's next each have a small arrow
+in their title row. Folded, only the title row shows (Favourites then says **1 question** when it has a question for
+you). The app remembers each one for you: closed and opened again, in another project and after an update, they are
+as you left them.
+
 In **Full access** (Fresing > Show all of Blender) Blender's own tool buttons come back at the top of the left panel,
 the Fresing parts stay under them. Hidden left panel (Blender's View > Toolbar or <kbd>T</kbd>)? The **Fresing**
 button in the view's header brings both panels back.
@@ -144,17 +150,17 @@ button in the view's header brings both panels back.
 <a id="sections"></a>
 ### Sections: folded at the start, tabs, Ctrl+click
 
-<img class="panel" src="img/panel_top_tabs.png" alt="The section tabs All, 1 to 7">
+<img class="panel" src="img/panel_top_tabs.png" alt="The section tabs All, 1 to 8">
 
-- **Every time the app starts or a project opens, sections 1 to 7 are folded.** Each title row still
+- **Every time the app starts or a project opens, sections 1 to 8 are folded.** Each title row still
   shows the section's state on the right: the model, the number of parts, unsorted parts (in red),
   joints, the surroundings, the animations, the queue. So does every sub-panel ("2 cuts", "3 decals",
   "1920 × 1080").
 - **Click a title** to open or fold it.
 - **<kbd>Ctrl</kbd>+click a title**: only that one stays open, the others on its level fold. The quick
   way to a calm panel.
-- **The tabs All · 1 … 8** under Make show one section at a time, opened. **All** brings the
-  seven back.
+- **The tabs All · 1 … 8** under Make show one section at a time, opened. **All** brings them
+  all back.
 - Want the sections as you left them instead? **Fresing > Settings… > Side panel > Keep sections as I left
   them**. There too: **Keep How it works open**.
 
@@ -554,7 +560,7 @@ runs, the PC check and the render queue never count.
 <a id="favourites"></a>
 ### The favourites bar
 
-<img class="panel" src="img/usage_bar.png" alt="The favourites bar on the left panel, with the question about an unused panel under it">
+<img class="panel" src="img/usage_bar.png" alt="The left panel with the favourites bar: its title row with the fold arrow, the star and the gear">
 
 On the left panel, under the **Learning hub**, the bar shows the functions you use most (6 buttons; 5
 to 8 in Settings > Side panel). A function joins it once you have used it twice. **The bar is sorted when the app starts and
@@ -564,12 +570,13 @@ never while you work**, so a button does not move under your mouse.
   its panel, and its button is pointed at for a few seconds. A menu function (PC check, Check for updates) runs
   straight away.
 - **Pin** a function so it always stays on the bar: **Fresing > My usage…**, the pin beside it in the list (the
-  small gear at the right of the bar opens the same window). A new pin shows at once at the end of the bar; pinned
+  small gear at the right of its title row opens the same window). A new pin shows at once at the end of the bar; pinned
   buttons have a pin icon and always come first.
 - **Switch the bar off**: untick **Show the favourites bar** in Fresing > Settings… > Side panel.
 
 The bar shows only functions your workspace shows, and only once it has buttons: in a new installation it appears
-after a few starts.
+after a few starts. The arrow in its title row folds it; it stays folded or open, also after a restart. Folded, its
+title row says **1 question** when a question below is waiting.
 
 <a id="declutter"></a>
 ### A panel you never use: learn it or hide it
@@ -985,7 +992,7 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
    or turned steel, chrome, hydraulic chrome rod, cast iron, galvanised, rubber, POM, RAL paint…). Or choose a **Material** yourself and, for paints and
    plastics, a **Colour**: a RAL code (RAL 5010) or a hex code (#13447C). The magnifier picks from the
    RAL list.
-3. The view shows the new colour at once (the real material in **Live preview**, 5 Scene & Render).
+3. The view shows the new colour at once (the real material in **Live preview**, top left).
 4. **Wear** (slider under the material, 0 = new): how used the parts look. Sharp edges turn lighter or
    bare metal in places and corners get a little dirt. 0 is right for marketing pictures; 0.2–0.4 looks
    "in service". The edges show in Cycles renders; Fast preview (EEVEE) shows only the dirt in corners.
@@ -3510,8 +3517,8 @@ warnings ("Build put back from the start scene 'Overview': Vessel speed 6 kn →
    **Orientation**. The line under it shows the size in pixels.
 3. **Quality**: **Draft** (quick check, half size), **Preview**, **Final** (clean) or **Best** (very
    clean, slow).
-4. **Live preview** shows real materials and light in the view; click again to switch it off. Use it
-   to judge light and colours before you render.
+4. **Live preview** (top left, on the [left panel](#left-panel)) shows real materials and light in the view; click
+   again to switch it off. Use it to judge light and colours before you render.
 5. **Render image**. A render window shows the picture building up; it is saved by itself. **Open**
    and **Show in folder** appear under the button.
 
@@ -4028,8 +4035,9 @@ Measured on the 4-core cloud test machine (test gantry): a program of 20,000 lin
 about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, toolpath included; reading
 60,000 lines takes under a second.
 
-6. **Build & play** plays the animation in the view; <kbd>Space</kbd> plays it again. ⊗ next to it
-   takes the animation off the model, so the joints can be moved by hand again.
+6. **Build & play** (top left, on the [left panel](#left-panel)) builds the animation and plays it in the view;
+   <kbd>Space</kbd> plays it again. Here the section says **Built · Space plays it again**, and the **X** beside it takes the
+   animation off the model, so the joints can be moved by hand again (before it is built: "Not built yet").
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
 
 <a id="camera-path"></a>

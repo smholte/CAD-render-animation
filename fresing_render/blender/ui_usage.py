@@ -1,8 +1,9 @@
 """The favourites bar and the quiet declutter question at the top of the Fresing tab (task 0181).
 
-Order on the tab: update notice, test tour · Workspace · **Favourites** · What's next · tabs · Make · 1 … 7 (the bar
-sits under the workspace switcher it belongs to; ``fresing_render._all_classes`` puts it there). The bar shows only
-when it has buttons (a function used ``core.usage.MIN_CLICKS`` times, or a pin) or a question is waiting.
+Since task 0260 on the left panel: Live preview · Build & play, Workspace, Learning hub, **Favourites**, What's next
+(``fresing_render._all_classes`` puts it there); since task 0278 it folds like the other left sections, kept per
+user. The bar shows only when it has buttons (a function used ``core.usage.MIN_CLICKS`` times, or a pin) or a question
+is waiting.
 """
 
 from __future__ import annotations
@@ -10,32 +11,37 @@ from __future__ import annotations
 import bpy
 
 from ..core import functions as F
-from . import learning, ui, usage
+from . import learning, panels, ui, usage
 from .ui import wrap
 from .ui_left import LeftPanel
+
+QUESTION = "1 question"          # task 0278: on the folded Favourites header while the declutter question waits
 
 
 class FRESING_PT_favourites(LeftPanel, bpy.types.Panel):  # task 0260: on the left panel
     bl_label = "Favourites"
     bl_order = 0
-    bl_options = {"HIDE_HEADER"}
+    # task 0278: the app's title row with the fold arrow, like Learning hub and Lesson; the fold is kept per user
 
     @classmethod
     def poll(cls, context):
         return bool(usage.prompt() or usage.bar(context.scene))
+
+    def draw_header(self, context):
+        self.layout.label(icon="SOLO_ON")
+
+    def draw_header_preset(self, context):
+        row = self.layout.row(align=True)
+        row.alignment = "RIGHT"
+        if usage.prompt() and not panels.is_open("FRESING_PT_favourites"):
+            row.label(text=QUESTION, icon="LIGHT")           # folded: the waiting question still shows
+        row.operator("fresing.usage_window", text="", icon="PREFERENCES", emboss=False)
 
     def draw(self, context):
         layout = self.layout
         fids = usage.bar(context.scene)
         pins = usage.state()["bar"]["pins"]
         if fids:
-            row = layout.row(align=True)
-            left = row.row(align=True)
-            left.alignment = "LEFT"
-            left.label(text="Favourites", icon="SOLO_ON")
-            right = row.row(align=True)
-            right.alignment = "RIGHT"
-            right.operator("fresing.usage_window", text="", icon="PREFERENCES", emboss=False)
             col = layout.column(align=True)
             for i, fid in enumerate(fids):
                 if i % 2 == 0:

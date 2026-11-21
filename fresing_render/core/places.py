@@ -109,7 +109,7 @@ def section_of(panel: str) -> str:
 
 
 def number_of(panel: str) -> int:
-    """1 … 7 for a panel of a section, 0 for the others."""
+    """1 … 8 for a panel of a section, 0 for the others."""
     sec = section_of(panel)
     return list(SECTIONS).index(sec) + 1 if sec else 0
 

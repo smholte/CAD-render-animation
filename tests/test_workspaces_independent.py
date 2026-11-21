@@ -634,7 +634,7 @@ def test_a_ticked_family_can_be_reached_when_the_family_of_its_section_is_off():
 
 @FINDING(reason="FINDING 10: in the Client view the tabs 2, 3, 4 and 6 lead to an empty side "
                                        "panel: the tab row offers a section the workspace hides (ui_top."
-                                       "FRESING_PT_tabs draws all seven; panels.FRESING_OT_panel_tab takes any)")
+                                       "FRESING_PT_tabs draws all eight; panels.FRESING_OT_panel_tab takes any)")
 def test_no_tab_leads_to_an_empty_panel():
     workspaces, panels, lock = _mods()
     sc = _new(CRANE)

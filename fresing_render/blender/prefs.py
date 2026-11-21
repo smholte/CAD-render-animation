@@ -7,6 +7,8 @@ import os
 import bpy
 from bpy.props import BoolProperty, EnumProperty, FloatVectorProperty, IntProperty, StringProperty
 
+from ..core import places
+
 ADDON_ID = __package__.rsplit(".", 1)[0]
 
 
@@ -38,7 +40,7 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
                     "(with everything it uses shown). Pick it in the Fresing tab: Workspace > Use for new projects")
     keep_sections: BoolProperty(
         name="Keep sections as I left them", default=False,
-        description="Off: sections 1 to 7 start folded every time the app starts or a project opens, so the side "
+        description=f"Off: sections 1 to {len(places.SECTIONS)} start folded every time the app starts or a project opens, so the side "
                     "panel is calm and each title shows its state. On: a project opens with the sections and "
                     "sub-panels that were open when it was saved")
     keep_howto: BoolProperty(
@@ -103,7 +105,8 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
 
     left_folded: BoolProperty(
         name="Left panel folded", default=False, options={"HIDDEN"},
-        description="The left panel is folded to its narrow strip (Live preview, Build & play, the unfold button)")
+        description="The left panel is folded to its narrow strip (Live preview, Build & play, Fresing Settings, the unfold "
+                    "button)")
     left_width: IntProperty(
         name="Left panel width", default=240, min=120, max=600, options={"HIDDEN"},
         description="How wide the left panel opens again after it was folded (pixels at UI scale 1)")
@@ -116,7 +119,7 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
 
     live_preview: BoolProperty(
         name="Live preview was on", default=False, options={"HIDDEN"},
-        description="Remembers the last choice of the Live preview button (5 Scene & Render), so the Learning hub and "
+        description="Remembers the last choice of the Live preview button (top left), so the Learning hub and "
                     "the demo project open with it on or off as you left it")
 
     settings_tab: StringProperty(

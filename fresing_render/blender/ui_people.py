@@ -67,7 +67,7 @@ class FRESING_PT_people(_Panel, bpy.types.Panel):
         steps(layout, context, ["Add a person: click on the floor where it stands",
                                 "Draw its path: click the points it walks through",
                                 "Add its steps: walk, stop, carry, greet, talk …",
-                                "Press Build & play above"],
+                                "Press Build & play (top left)"],
               key="fr_how_people", used=bool(everyone))
         gap(layout)
         big(layout, "fresing.person_add", "Add person", "ADD")

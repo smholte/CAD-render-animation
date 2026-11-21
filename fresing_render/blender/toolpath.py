@@ -215,7 +215,7 @@ def write(scene, res: core.Result, path: str = "") -> tuple:
     gcode.forget()
     gcode.step_changed(scene, b)
     if scene.fresing.anim_baked:
-        scene.fresing.last_message = "The toolpath changed: press Build & play in 6 Animation"
+        scene.fresing.last_message = "The toolpath changed: press Build & play (top left)"
     return a, b, path
 
 

@@ -1,7 +1,7 @@
 """The side panel's own headers, what is open, the section tabs, and who shows (task 0062).
 
 Blender keeps a panel's open / closed state per panel name and gives an add-on no way to set it. The owner wants
-sections 1–7 folded at every start, a section tab that opens its section, and (later) lessons that open the fold they
+sections 1–8 folded at every start, a section tab that opens its section, and (later) lessons that open the fold they
 point into. So every panel of the Fresing tab is registered **without Blender's header** (``HIDE_HEADER``) and draws
 its own title row, and the open set is the app's:
 
@@ -86,11 +86,48 @@ def tab_section() -> str:
 
 
 def is_open(name: str) -> bool:
+    if not _LEFT_DONE and name in LEFT:                # the first look after the app started: the user's folds
+        apply_left()
     return _ALL_OPEN or name in OPEN or (name in places.SECTIONS and name == tab_section())
 
 
 def set_open(name: str, on: bool = True) -> None:
     (OPEN.add if on else OPEN.discard)(name)
+
+
+# task 0278: the sections of the left panel keep the fold the user gave them – per user, in a small file in Blender's
+# settings folder (``ui_left.STORE``: Blender does not keep an extension's own preferences over a restart while the app
+# template is on), so a restart, another project and an update keep it. Only the user's own click
+# (``FRESING_OT_panel_toggle``) is remembered; a lesson, a test or a picture that opens a panel is not.
+
+def left_saved() -> dict:
+    """The folds the user gave the left panel's sections: {panel name: open}."""
+    from . import ui_left
+    return ui_left.store().get("open", {})
+
+
+def remember_left(name: str, on: bool) -> None:
+    if name not in LEFT:
+        return
+    from . import ui_left
+    opened = dict(left_saved())
+    opened[name] = bool(on)
+    ui_left.store_set(open=opened)
+
+
+_LEFT_DONE: list = []          # not empty once the user's folds were put back since the app started
+
+
+def apply_left() -> None:
+    """Put the left panel's sections as the user left them (after the open set was reset)."""
+    from . import ui_left
+    if not ui_left._usable():                # a background Blender (queue, PC check): nothing of the user's
+        return
+    if not _LEFT_DONE:
+        _LEFT_DONE.append(True)
+    for name, on in left_saved().items():
+        if name in LEFT:
+            (OPEN.add if on else OPEN.discard)(name)
 
 
 def open_to(name: str) -> None:
@@ -109,9 +146,10 @@ def open_all() -> None:
 
 
 def fold_sections() -> None:
-    """The calm start: sections 1–7 folded, sub-panels as their class says."""
+    """The calm start: sections 1–8 folded, sub-panels as their class says."""
     OPEN.clear()
     OPEN.update(DEFAULT_OPEN)
+    apply_left()
     redraw()
 
 
@@ -195,6 +233,7 @@ def on_load(scene) -> None:
     else:
         OPEN.clear()
         OPEN.update(DEFAULT_OPEN)
+    apply_left()
     _TAB["v"] = "ALL"
     wm = getattr(bpy.context, "window_manager", None)
     if wm is not None and hasattr(wm, "fresing_tab") and wm.fresing_tab != "ALL":
@@ -406,6 +445,7 @@ def install(classes) -> None:
             usage.wrap(cls)
     if not OPEN:
         OPEN.update(DEFAULT_OPEN)
+        apply_left()
 
 
 # ---------------------------------------------------------------------------
@@ -441,6 +481,8 @@ class FRESING_OT_panel_toggle(bpy.types.Operator):
                 pass
         else:
             set_open(self.name, self.name not in OPEN)
+        if self.name in LEFT:                          # task 0278: a left section keeps its fold after a restart
+            remember_left(self.name, self.name in OPEN)
         if self.name in OPEN:
             try:
                 from . import usage
@@ -452,7 +494,7 @@ class FRESING_OT_panel_toggle(bpy.types.Operator):
 
 
 class FRESING_OT_panel_tab(bpy.types.Operator):
-    """Shows one section of the side panel at a time, opened – or all seven again"""
+    """Shows one section of the side panel at a time, opened – or all of them again"""
 
     bl_idname = "fresing.panel_tab"
     bl_label = "Section"
@@ -501,7 +543,7 @@ CLASSES = (FRESING_OT_panel_toggle, FRESING_OT_panel_tab)
 def register() -> None:
     bpy.types.WindowManager.fresing_tab = EnumProperty(
         name="Section", items=_tab_items(), default="ALL", update=_tab_changed, options={"SKIP_SAVE"},
-        description="Which section of the side panel shows: all seven, or one at a time")
+        description=f"Which section of the side panel shows: all {len(places.SECTIONS)}, or one at a time")
     bpy.types.WindowManager.fresing_fold_open = bpy.props.BoolProperty(
         name="Open", default=True, options={"SKIP_SAVE"},
         description="A fold a lesson points into is open while the lesson is there")

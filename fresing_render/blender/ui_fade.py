@@ -79,7 +79,7 @@ class FRESING_PT_trails(_Panel, bpy.types.Panel):
         s = scene.fresing
         steps(layout, context, ["Select the part whose path you want to see (a hook, a tool, a carriage)",
                                 "Add a trail line (+), pick its point and colour",
-                                "Press Build & play above: the line draws the path"],
+                                "Press Build & play (top left): the line draws the path"],
               key="fr_how_trails", used=bool(s.trails))
         gap(layout)
         row = layout.row()
@@ -114,7 +114,7 @@ class FRESING_PT_trails(_Panel, bpy.types.Panel):
         gap(box)
         built = s.anim_baked
         if t.obj is None:
-            wrap(box, context, "Press Build & play (above) to draw it", icon="INFO", inset=12)
+            wrap(box, context, "Press Build & play (top left) to draw it", icon="INFO", inset=12)
         elif built and (not t.animation or t.animation == built):
             wrap(box, context, f"Drawn at the last Build ({plural(t.count, 'point')})", icon="CHECKMARK", inset=12)
         elif t.animation and animation.active(scene) is not None and t.animation != built:
