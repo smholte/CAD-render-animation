@@ -1,6 +1,6 @@
 # 0234 – Learning sets in the full ocean: marine looks, vessel motion, vessel at work, cable into the sea, cable on a moving part
 
-**Who:** worker · **Status:** open · **Branch:** `task/0234-learning-sets-offshore`
+**Who:** worker · **Status:** running · **Branch:** `task/0234-learning-sets-offshore`
 **Started by:** lead, 20 Nov 2026 (study 0224 package B; owner's answers 20 Nov: each set its own fitting environment –
 "to a full ocean") · **Model:** Opus · effort Medium
 **Area:** `blender/tour.py` – **only** the sets `marine`, `vessel`, `vessel_work`, `sea_cable`, `moving_cable` and their
