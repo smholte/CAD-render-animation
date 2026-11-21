@@ -99,6 +99,27 @@ within ~1 mm / 0.05° of Blender's Animation camera, a cut jumps), CHANGELOG, CL
 
 ---
 
+## Design (worker, 21 Nov 2026)
+
+- **Data in the page's settings, not in the glTF:** `ST.films = [ {name, kind "ANIMATION", fps, n, aspect, ps, k, p, q,
+  v, cut, captions?, labels?, cards?} ]` – a list, so the turntable's / product video's cameras can follow. In three's
+  world (Blender (x, y, z) -> (x, z, -y)), because the glTF's root rides in the page's vessel group while the video's
+  camera lives in the world.
+- **Read in `Job._motion`'s own pass** (same frames, same fps): `blender/web3d_film.Film.read` – `matrix_world` and
+  the vertical fov from `calc_matrix_camera` (exact for every sensor fit; an ortho camera as the angle at the model).
+- **`core/web3d_film.encode`:** runs split at the cuts (the Cut steps' frames + big single-frame jumps found in the
+  numbers); per run only the frames a straight blend (place, fov) / `slerpFlat` (turn) cannot give, checked with the
+  stored numbers at every frame: 0.25 mm per metre of the model (min 0.25 mm), 0.02°, fov 0.02°; whole numbers as
+  steps from the kept frame before. `sample` = what `fr_page.js` `filmAt` plays (a cut holds the shot before).
+- **Page:** Film = the camera set in `draw()` from the motion's own time (after OrbitControls' update), like a saved
+  view for the under-water / floor clamps; the controls' `start` (drag, zoom), a saved view, Reset and `setCamera`
+  leave it; `setFilm(true, glide)` glides 0.6 s back. Cards: the motion's clock (`advance`) waits while a card shows;
+  at the Film's end the end card, then the title card, then from the start; `setTime` skips a card.
+- **Overlays (`fr_player.js`):** captions (DOM, the video's place 0.09 / size 0.05 of the render's frame), cards (DOM,
+  the video's lines), labels on a 2D canvas after each picture (`page.afterDraw`): the label's point in its part's glTF
+  node (`gltf.parser.associations`), the boxes by a port of `core/callouts.place_labels` with the model's box as the
+  outline.
+
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:**

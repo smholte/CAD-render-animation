@@ -556,7 +556,13 @@ fresing_render/            the Blender extension (Python package)
                            48 px look first drops inputs that are one number), decals on their own UVs; the bake scene
                            is a COPY of a Cycles scene (switching an engine froze the real app); ops_web3d.py (Export…,
                            progress, Cancel), ui_web3d.py (5 Scene & Render > Web 3D model); viewer: fresing_render/web/
-                           (model-viewer 4.4.0, Apache-2.0); site: "Turn it yourself" -> model/index.html
+                           (model-viewer 4.4.0, Apache-2.0); site: "Turn it yourself" -> model/index.html.
+                           web3d_film.py (task 0252): the **Film** – the built Animation camera read in `Job._motion`'s
+                           pass through the frames (place, turn, fov from `calc_matrix_camera`), the video's cuts, and
+                           with the export's tick boxes its captions, labels (point in its part's glTF node) and title /
+                           end card -> the page's `ST.films[0]`; core/web3d_film.py = pose in three's world, thinning
+                           between cuts, delta-int JSON, `sample` = what fr_page.js plays; the Film button and the
+                           overlays in fr_player.js; `set_up_test` (crane: ride, path, cut, aim) for tests + PC check
     demo.py                task 0228: **demo kits** – `build_project(kit=…)` sets the app's own stages aside and runs only
                            the kit's maker (stage `kit_model`, `core/demo_kit_run.py`) and the stages its module registers;
                            `core/demo_kits.py` checks / unpacks / lists kit zips (kit.json), the app is `fresing_app` inside

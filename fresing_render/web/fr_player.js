@@ -120,6 +120,20 @@
     '#fr-playbar .fr-speed { display: flex; flex: none; }',
     '#fr-playbar .fr-speed .fr-btn { padding: 0 4px; min-width: 34px; }',
     '#fr-playbar .fr-speed .fr-btn[aria-pressed="true"] { background: rgba(255,255,255,.22); }',
+    // task 0252: the Film button; lit (orange) when the visitor left the Film and one press takes them back
+    '#fr-playbar .fr-film { width: 40px; padding: 0; flex: none; }',
+    '#fr-playbar .fr-film.fr-back { color: #F2A900; box-shadow: inset 0 0 0 2px #F2A900; }',
+    '#fr-playbar .fr-film[aria-pressed="true"] { background: #2F6A1B; color: #F4F6F8; box-shadow: none; }',
+    '#fr-film-labels { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }',
+    '#fr-film-cap { position: absolute; z-index: 1; pointer-events: none; display: none; text-align: center;',
+    '  transform: translate(-50%, 50%); color: #fff; background: rgba(0,0,0,.45); border-radius: 4px;',
+    '  text-shadow: 0 1px 3px rgba(0,0,0,.6); font-family: ' + FONT + '; line-height: 1.2; padding: .15em .4em;',
+    '  overflow-wrap: anywhere; box-sizing: border-box; }',
+    '#fr-film-card { position: absolute; inset: 0; z-index: 1; pointer-events: none; display: none; overflow: hidden;',
+    '  font-family: ' + FONT + '; text-align: center; }',
+    '#fr-film-card div { position: absolute; left: 7.5%; right: 7.5%; transform: translateY(50%); line-height: 1.15;',
+    '  overflow-wrap: anywhere; }',
+    '#fr-film-card img { position: absolute; object-fit: contain; }',
     // the list of all views: a sheet from the bottom (a phone), a panel above the stack (wide)
     '#fr-vback { position: fixed; inset: 0; z-index: 7; background: rgba(0,0,0,.28); display: none; }',
     '#fr-vlist { position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; display: none; flex-direction: column;',
@@ -222,7 +236,8 @@
     left: '<path d="M15 5l-7 7 7 7"/>',
     right: '<path d="M9 5l7 7-7 7"/>',
     list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
-    close: '<path d="M6 6l12 12M18 6L6 18"/>'
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
+    film: '<rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3"/>'
   };
   function svg(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[name] + '</svg>'; }
   function el(tag, attrs, html) {
@@ -710,7 +725,7 @@
   if (noteLine) bottom.appendChild(noteLine);
   play.style.display = 'none';
   viewsBox.style.display = 'none';
-  var playBtn, slider, timeEl, speedBtns = {}, dragging = false, wasPaused = false;
+  var playBtn, slider, timeEl, speedBtns = {}, dragging = false, wasPaused = false, filmBtn = null;
   function fmt(s) {
     s = Math.max(0, s);
     return Math.floor(s / 60) + ':' + ('0' + (s % 60).toFixed(1)).slice(-4);
@@ -742,6 +757,12 @@
       speedBtns[s[0]].setAttribute('aria-label', 'Speed ' + s[0]);
     });
     play.appendChild(sp);
+    if (page.film) {                          // task 0252: the motion seen through the video's camera
+      filmBtn = button('film', "Play the video's camera moves", '', function () {
+        page.setFilm(!page.filmOn(), true);
+      }, play);
+      filmBtn.classList.add('fr-film');
+    }
     refreshPlay();
   }
   function refreshPlay() {
@@ -754,6 +775,17 @@
     playBtn.setAttribute('aria-label', page.paused ? 'Play' : 'Pause');
     playBtn.setAttribute('aria-pressed', page.paused ? 'false' : 'true');
     for (var s in speedBtns) speedBtns[s].setAttribute('aria-pressed', +s === page.speed ? 'true' : 'false');
+    refreshFilm();
+  }
+  function refreshFilm() {
+    if (!filmBtn) return;
+    var st = page.filmState(), on = !!(st && st.on);
+    filmBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    filmBtn.classList.toggle('fr-back', !on && !!(st && st.left));
+    var label = on ? 'Film: on – drag to look around' : st && st.left ? 'Back to the Film (the video\'s camera)'
+      : "Play the video's camera moves";
+    filmBtn.setAttribute('aria-label', label);
+    filmBtn.title = label;
   }
 
   // ---- the views control (task 0179): one row that never wraps, or one pill ‹ name › on a phone held upright
@@ -978,6 +1010,7 @@
     if (mode === 'pill') [].forEach.call(viewsBox.children, function (b) { add('views: ' + b.getAttribute('aria-label'), b); });
     else if (scroller) { add('views row', scroller); add('views: All views', allBtn); }
     add('play bar', play.style.display === 'none' ? null : play);
+    if (filmBtn) items.push({ name: 'play: Film', r: filmBtn.getBoundingClientRect(), inner: true });
     add('note', noteLine);
     add('message', toastEl);
     add('hint', hint);
@@ -990,16 +1023,245 @@
       if (r.left < sa.l - 0.5 || r.top < sa.t - 0.5 || r.right > W - sa.r + 0.5 || r.bottom > H - sa.b + 0.5) outside.push(a.name);
       for (var j = i + 1; j < items.length; j++) {
         var s = items[j].r;
+        if ((a.inner && items[j].name === 'play bar') || (items[j].inner && a.name === 'play bar')) continue;
         if (Math.min(r.right, s.right) - Math.max(r.left, s.left) > 0.5 && Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top) > 0.5) {
           overlaps.push([a.name, items[j].name]);
         }
       }
     });
-    var small = items.filter(function (a) { return /^(tools|parts|views):/.test(a.name) && (a.r.width < 39.5 || a.r.height < 39.5); })
+    var small = items.filter(function (a) { return /^(tools|parts|views|play):/.test(a.name) && (a.r.width < 39.5 || a.r.height < 39.5); })
       .map(function (a) { return a.name; });
     return { size: [W, H], safe: sa, items: items.map(function (a) { return a.name; }), overlaps: overlaps,
              outside: outside, small: small, mode: mode, tools: page.toolsShown, free: page.freeArea ? page.freeArea() : null };
   };
+
+  // ---------------------------------------------------------------- task 0252: what the Film shows over the model
+  // The video's captions, part labels and title / end card (the export's tick boxes): only while the Film is on.
+  // Placed in the render's frame (page.filmFrame), sized as the video sizes them for its picture height.
+  var F = page.film && page.film.src, header0 = document.querySelector('header');
+  var capEl = null, cardEl = null, lblCanvas = null, lblCtx = null;
+  function before(e) { document.body.insertBefore(e, header0 || document.body.firstChild); }
+  if (F && F.captions) { capEl = el('div', { id: 'fr-film-cap', 'aria-live': 'polite' }); before(capEl); }
+  if (F && F.cards) { cardEl = el('div', { id: 'fr-film-card' }); before(cardEl); }
+  if (F && F.labels && F.labels.items && F.labels.items.length) {
+    lblCanvas = el('canvas', { id: 'fr-film-labels' });
+    before(lblCanvas);
+    lblCtx = lblCanvas.getContext('2d');
+    page.afterDraw.push(drawLabels);
+  }
+  function fade(t, a, b, s) {               // 0 … 1: in over s from a, out over s to b (the video's fades)
+    if (t < a || t > b) return 0;
+    s = Math.max(0, Math.min(s, (b - a) / 2));
+    return s <= 1e-9 ? 1 : Math.max(0, Math.min(1, (t - a) / s, (b - t) / s));
+  }
+  function filmT() { var st = page.filmState(); return st ? st.time : 0; }
+  var shownCard = '';
+  function filmOverlays() {
+    var on = page.film && page.filmOn(), card = on && page.filmCard ? page.filmCard() : null;
+    if (cardEl) {
+      var kind = card ? card.kind : '';
+      if (kind !== shownCard) { fillCard(kind); shownCard = kind; }
+      if (card) {
+        var t = card.all - card.left;
+        cardEl.style.display = 'block';
+        // the title card fades into the film at its end, the end card in from the film at its start (0.4 s)
+        cardEl.style.opacity = String(Math.max(0, Math.min(1, (kind === 'title' ? card.left : t) / 0.4)));
+      } else cardEl.style.display = 'none';
+    }
+    if (capEl) {
+      var tt = filmT(), cur = null, al = 0;
+      if (on && !card) {
+        for (var i = 0; i < F.captions.length; i++) {
+          var c = F.captions[i], x = fade(tt, c.a, c.b, 0.3);
+          if (x > 0) { cur = c; al = x; break; }
+        }
+      }
+      if (cur) {
+        var fr = page.filmFrame();
+        if (capEl.textContent !== cur.text) capEl.textContent = cur.text;
+        capEl.style.display = 'block';
+        capEl.style.left = (fr.left + fr.width / 2) + 'px';
+        capEl.style.bottom = (window.innerHeight - fr.top - fr.height + 0.09 * fr.height) + 'px';
+        capEl.style.fontSize = Math.max(10, 0.05 * fr.height) + 'px';
+        capEl.style.maxWidth = (0.9 * fr.width) + 'px';
+        capEl.style.opacity = String(al);
+      } else capEl.style.display = 'none';
+    }
+    if (lblCanvas && !(on && !card)) clearLabels();
+  }
+  function fillCard(kind) {
+    cardEl.innerHTML = '';
+    if (!kind) return;
+    var C = F.cards, fr = page.filmFrame ? page.filmFrame() : { height: window.innerHeight };
+    var H = window.innerHeight, W = window.innerWidth;
+    cardEl.style.background = C.bg || '#1A2027';
+    cardEl.style.color = C.fg || '#FFFFFF';
+    var line = function (text, size, y) {   // y: 0 … 1 from the bottom of the screen, size: of the screen's height
+      if (!text) return;
+      var d = el('div', { text: text });
+      d.style.bottom = (y * 100) + '%';
+      d.style.fontSize = Math.max(11, size * Math.min(H, fr.height || H)) + 'px';
+      cardEl.appendChild(d);
+    };
+    if (kind === 'title') {
+      line(C.title.title, 0.09, 0.56);
+      line(C.title.sub, 0.045, 0.40);
+    } else if (kind === 'end') {
+      var logo = C.end.logo;
+      if (logo) {
+        var img = el('img', { src: logo, alt: '' });
+        img.style.left = (W * 0.325) + 'px'; img.style.width = (W * 0.35) + 'px';
+        img.style.bottom = '50%'; img.style.height = '35%';
+        cardEl.appendChild(img);
+      }
+      line(C.end.text, 0.04, logo ? 0.34 : 0.5);
+    }
+  }
+  page.filmOverlays = function () {         // tests: what the Film shows over the model now
+    var lab = page.filmLabels || [];
+    return { caption: capEl && capEl.style.display !== 'none' ? capEl.textContent : '',
+             card: cardEl && cardEl.style.display !== 'none' ? shownCard : '',
+             cardText: cardEl && cardEl.style.display !== 'none' ? cardEl.textContent : '',
+             labels: lab };
+  };
+
+  // labels: the video's rule (core/callouts.place_labels) in the render's frame, y from the bottom
+  function clearLabels() {
+    if (lblCtx && lblCanvas.dataset.drawn === '1') {
+      lblCtx.clearRect(0, 0, lblCanvas.width, lblCanvas.height);
+      lblCanvas.dataset.drawn = '0';
+    }
+    page.filmLabels = [];
+  }
+  function placeLabels(anchors, sizes, W, H, outline) {
+    var short = Math.min(W, H), gap = 0.012 * short, margin = 0.02 * short, taken = [], out = [];
+    var o = outline || [W * 0.25, H * 0.2, W * 0.75, H * 0.8];
+    var area = function (a, b) {
+      var dx = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), dy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      return Math.max(0, dx) * Math.max(0, dy);
+    };
+    var ob = { x: o[0], y: o[1], w: o[2] - o[0], h: o[3] - o[1] };
+    for (var n = 0; n < anchors.length; n++) {
+      var ax = anchors[n][0], ay = anchors[n][1], w = sizes[n][0], h = sizes[n][1], best = null;
+      var sx = { L: o[0] - gap - w, R: o[2] + gap }, sy = { T: o[3] + gap, B: o[1] - gap - h }, slide = h + gap;
+      ['L', 'R', 'T', 'B'].forEach(function (side) {
+        for (var k = 0; k < 12; k++) {
+          (k === 0 ? [1] : [1, -1]).forEach(function (sign) {
+            var off = sign * k * slide, x, y;
+            if (side in sx) { x = sx[side]; y = ay - h / 2 + off; } else { x = ax - w / 2 + off; y = sy[side]; }
+            x = Math.min(Math.max(x, margin), Math.max(margin, W - margin - w));
+            y = Math.min(Math.max(y, margin), Math.max(margin, H - margin - h));
+            var b = { x: x, y: y, w: w, h: h }, ov = 0;
+            taken.forEach(function (t) { ov += area(b, t); });
+            var m2 = margin / 2, inside = b.x >= m2 - 1e-6 && b.y >= m2 - 1e-6 && b.x + w <= W - m2 + 1e-6 && b.y + h <= H - m2 + 1e-6;
+            var dx = Math.max(b.x - ax, 0, ax - (b.x + w)), dy = Math.max(b.y - ay, 0, ay - (b.y + h));
+            var score = Math.hypot(dx, dy) + (area(b, ob) > 0 ? 0.35 * short : 0) + (inside ? 0 : 1e9) + (ov > 0 ? 1e7 : 0);
+            var c = [ov > 0 ? 1 : 0, ov, score];
+            if (!best || c[0] < best.c[0] || (c[0] === best.c[0] && (c[1] < best.c[1] || (c[1] === best.c[1] && c[2] < best.c[2])))) best = { c: c, b: b };
+          });
+        }
+      });
+      taken.push(best.b);
+      out.push(best.b);
+    }
+    return out;
+  }
+  var v3 = null, corners = null;
+  function drawLabels() {
+    var three = page.three, T = three && three.T;
+    if (!T || !page.filmOn() || page.filmCard()) { clearLabels(); return; }
+    var dpr = window.devicePixelRatio || 1, cw = window.innerWidth, ch = window.innerHeight;
+    if (lblCanvas.width !== Math.round(cw * dpr) || lblCanvas.height !== Math.round(ch * dpr)) {
+      lblCanvas.width = Math.round(cw * dpr); lblCanvas.height = Math.round(ch * dpr);
+    }
+    var ctx = lblCtx, cam = three.camera, L = F.labels, fr = page.filmFrame(), t = filmT();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    lblCanvas.dataset.drawn = '1';
+    v3 = v3 || new T.Vector3();
+    var W = fr.width, H = fr.height;
+    var toFrame = function (v) {            // a three world point -> the frame's pixels (y from the bottom) or null
+      v3.copy(v).applyMatrix4(cam.matrixWorldInverse);
+      if (v3.z > -1e-6) return null;        // behind the camera
+      v3.applyMatrix4(cam.projectionMatrix);
+      var sx = (v3.x + 1) / 2 * cw, sy = (1 - v3.y) / 2 * ch;
+      return [sx - fr.left, fr.top + fr.height - sy];
+    };
+    if (!corners) {                         // the model's box (Blender world) in three's world
+      var mn = page.settings.model.min, mx = page.settings.model.max;
+      corners = [];
+      for (var c = 0; c < 8; c++) {
+        var x = c & 1 ? mx[0] : mn[0], y = c & 2 ? mx[1] : mn[1], z = c & 4 ? mx[2] : mn[2];
+        corners.push(new T.Vector3(x, z, -y));
+      }
+    }
+    var ox0 = 1e9, oy0 = 1e9, ox1 = -1e9, oy1 = -1e9, any = false;
+    corners.forEach(function (p) {
+      var q = toFrame(p);
+      if (q) { any = true; ox0 = Math.min(ox0, q[0]); ox1 = Math.max(ox1, q[0]); oy0 = Math.min(oy0, q[1]); oy1 = Math.max(oy1, q[1]); }
+    });
+    var px = Math.max(8, Math.round(H * (L.size || 0.036))), todo = [];
+    var font = px + 'px ' + FONT;
+    ctx.font = font;
+    var wp = new T.Vector3(), s3 = new T.Vector3();
+    L.items.forEach(function (it) {
+      var ob = page.nodes && page.nodes[it.node];
+      if (!ob) return;
+      ob.updateWorldMatrix(true, false);
+      s3.setFromMatrixScale(ob.matrixWorld);
+      if (Math.min(s3.x, s3.y, s3.z) < 1e-6) return;          // hidden by the motion (scale 0)
+      var vis = true;
+      for (var o = ob; o; o = o.parent) if (o.visible === false) { vis = false; break; }
+      if (!vis) return;
+      var al = it.w ? fade(t, it.w[0], it.w[1], 0.3) : 1;
+      if (al <= 0.001) return;
+      wp.set(it.at[0], it.at[1], it.at[2]).applyMatrix4(ob.matrixWorld);
+      var a = toFrame(wp);
+      if (!a || a[0] < 0 || a[0] > W || a[1] < 0 || a[1] > H) return;     // out of the picture, as in the video
+      var text = it.text;
+      if (text == null && it.texts) {
+        text = it.texts[0][1];
+        for (var k = 0; k < it.texts.length && it.texts[k][0] <= t + 1e-6; k++) text = it.texts[k][1];
+      }
+      var rows = String(text || '').split('\n'), tw = 0;
+      rows.forEach(function (r) { tw = Math.max(tw, ctx.measureText(r || ' ').width); });
+      var th = rows.length > 1 ? px * (1 + 1.25 * (rows.length - 1)) : px, pad = 0.45 * px;
+      todo.push({ text: text, rows: rows, a: a, al: al, size: [tw + 2 * pad, th + 2 * pad * 0.8] });
+    });
+    var boxes = placeLabels(todo.map(function (d) { return d.a; }), todo.map(function (d) { return d.size; }), W, H,
+                            any ? [ox0, oy0, ox1, oy1] : null);
+    var X = function (x) { return fr.left + x; }, Y = function (y) { return fr.top + H - y; };
+    var lw = Math.max(1.5, H * 0.0028);
+    page.filmLabels = [];
+    [true, false].forEach(function (edge) {                 // the dark edge first, then the line and its dot
+      todo.forEach(function (d, i) {
+        var b = boxes[i];
+        ctx.globalAlpha = d.al;
+        ctx.strokeStyle = ctx.fillStyle = edge ? (L.box || '#1A2027') : (L.fg || '#FFFFFF');
+        ctx.lineWidth = edge ? lw * 2.2 : lw;
+        ctx.beginPath(); ctx.moveTo(X(d.a[0]), Y(d.a[1])); ctx.lineTo(X(b.x + b.w / 2), Y(b.y + b.h / 2)); ctx.stroke();
+        ctx.beginPath(); ctx.arc(X(d.a[0]), Y(d.a[1]), edge ? lw * 2.6 : lw * 1.7, 0, 2 * Math.PI); ctx.fill();
+      });
+    });
+    todo.forEach(function (d, i) {
+      var b = boxes[i];
+      ctx.globalAlpha = d.al * 0.88;
+      ctx.fillStyle = L.box || '#1A2027';
+      ctx.fillRect(X(b.x), Y(b.y + b.h), b.w, b.h);
+      ctx.globalAlpha = d.al;
+      ctx.fillStyle = L.fg || '#FFFFFF';
+      ctx.textBaseline = 'middle';
+      var multi = d.rows.length > 1;
+      ctx.textAlign = multi ? 'left' : 'center';
+      d.rows.forEach(function (r, k) {
+        var y = b.y + b.h / 2 + (multi ? ((d.rows.length - 1) / 2 - k) * 1.25 * px : 0);
+        ctx.fillText(r, multi ? X(b.x + 0.45 * px) : X(b.x + b.w / 2), Y(y));
+      });
+      page.filmLabels.push({ text: d.text, anchor: [X(d.a[0]), Y(d.a[1])], box: [X(b.x), Y(b.y + b.h), b.w, b.h],
+                             alpha: d.al });
+    });
+    ctx.globalAlpha = 1;
+  }
 
   // ---------------------------------------------------------------- keys
   window.addEventListener('keydown', function (e) {
@@ -1033,7 +1295,8 @@
 
   // ---------------------------------------------------------------- follow the page
   page.listeners.push(function (what) {
-    if (what === 'time' || what === 'paused' || what === 'speed') refreshPlay();
+    if (what === 'time' || what === 'paused' || what === 'speed' || what === 'film') refreshPlay();
+    if (what === 'film' || what === 'card' || what === 'time') filmOverlays();
     else if (what === 'ready') { buildBottom(); showWarn(); layout(); showHint(); }
     else if (what === 'warned') showWarn();
     if (what !== 'time' || page.frames % 20 === 0) refreshMenu();
