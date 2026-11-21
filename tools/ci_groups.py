@@ -41,6 +41,10 @@ DEMO_GROUPS = 4                                    # task 0145: the demo's check
 DEMO_MARK = "demo_made"                            # a test file that opens the shared made demo imports this module
 NEW_FILE_SECS = 30.0
 SELFTEST = "packaged self-test"
+# Task 0248: test files that skip one test on GitHub's runners by design (each pytest group allows ONE skip,
+# ``ci_pytest_summary.py --max-skipped 1``): Blender's meshopt bridge is not there; a crane class without a chart at
+# its working pose. Never two of them in one group (a new test file shifted the split and put both in group 2).
+SKIPS_ON_GITHUB = {"tests/test_web3d_keys.py", "tests/test_lifting_reach_independent.py"}
 
 
 def load_times(path: str = TIMES) -> dict:
@@ -82,7 +86,10 @@ def pytest_groups(files: list[str], secs: dict[str, float], n: int = PYTEST_GROU
     cost.setdefault(SELFTEST, 100.0)
     items = sorted(list(files) + ([SELFTEST] if selftest else []), key=lambda f: (-float(cost.get(f, NEW_FILE_SECS)), f))
     for f in items:
-        g = min(groups, key=lambda g: (g["secs"], g["name"]))
+        pool = groups
+        if f in SKIPS_ON_GITHUB:                # (into a group without another one, while there is one)
+            pool = [g for g in groups if not SKIPS_ON_GITHUB.intersection(g["files"])] or groups
+        g = min(pool, key=lambda g: (g["secs"], g["name"]))
         if f == SELFTEST:
             g["selftest"] = True
         else:
