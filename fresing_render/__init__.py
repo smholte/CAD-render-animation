@@ -15,7 +15,7 @@ def _classes():
     from .blender import (ops_callouts, ops_clash, ops_coolant, ops_cylinders, ops_decals, ops_doublearm, ops_fade, ops_gcode,
                           ops_import, ops_linkages, ops_machining, ops_main, ops_motion, ops_panels, ops_waycover,
                           ops_demo, ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
-                          ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_header, ui_topbar, welcome, editors, quiet, ui_machining, ui_motion, ui_tour, ui_video,
+                          ui_clash, ui_coolant, ui_decals, ui_fade, ui_gcode, ui_header, ui_topbar, welcome, editors, quiet, context_menu, ui_machining, ui_motion, ui_tour, ui_video,
                           ui_section, ui_waycover, updates)
     from .blender import ops_section                # task 0086: 3 Looks > Slice
     from .blender import ops_queue_schemes          # task 0074: 7 Render queue > Every paint scheme
@@ -59,7 +59,7 @@ def _classes():
     looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
-    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
@@ -158,6 +158,8 @@ def register():
     welcome.register_handlers()              # task 0199: the welcome and What's new at the start
     from .blender import quiet
     quiet.register()                         # task 0241: the quiet window, decided at the start
+    from .blender import context_menu
+    context_menu.register()                  # task 0253: the right-click menu (switched with the quiet window)
     from .blender import ops_usage
     ops_usage.register()                     # task 0181: counting, the session, My usage in the Help menu
     from .blender import about
@@ -277,6 +279,8 @@ def unregister():
     from .blender import editors
     editors.unregister_handlers()
     welcome.unregister_handlers()
+    from .blender import context_menu
+    context_menu.unregister()                # task 0253: Blender's own right-click menu back
     from .blender import quiet
     quiet.unregister()                       # task 0241: Blender's own drawing back
     from .blender import ops_usage

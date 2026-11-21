@@ -388,7 +388,9 @@ fresing_render/            the Blender extension (Python package)
     workspaces.py lock.py  task 0062: the project's workspace (`ws_name`, `ws_data`, `ws_ticks`), what a project uses
                            (`in_use`), switching, own-workspace files; lock.py = the Client view's lock (operators
                            refused except `ALLOWED`, objects unclickable + locked and put back, keys swallowed, Outliner
-                           replaced) and Blender's own workspace tabs hidden outside Full access
+                           replaced) and Blender's own workspace tabs hidden outside Full access; task 0253: Blender's
+                           harmful keys outside Full access (`BLENDER_KEYS` -> `fresing.blender_key`, poll `keys_quiet`),
+                           F12 / Ctrl+F12 = the app's render (`APP_KEYS`, `fresing.key_render`), all keys in `_add_keys`
     ui_top.py ops_workspace.py  the top of the Fresing tab: Workspace switcher + family ticks, What's next card,
                            section tabs, Make (each output's own settings panel as a popover; also in the 3D view's
                            header)
@@ -553,6 +555,12 @@ fresing_render/            the Blender extension (Python package)
                            with Fresing's lines, File > New / Ctrl+N = New project; switched by `lock.blender_ui`; only
                            Blender's own entry of a class's `draw._draw_funcs` is swapped (`swap`), so appended items stay;
                            Fresing > Show all of Blender / Back to the Fresing window (`fresing.blender_all`, scene["fr_ws_before_all"])
+    context_menu.py        task 0253: the right-click menu in the 3D view outside Full access – ``fresing.view_menu`` (right
+                           mouse / Menu key, lock.APP_KEYS) picks the part under the mouse (``HIT``), selects it as a left
+                           click would and opens Blender's object menu with its own draw swapped (``quiet.swap``) for
+                           ``_draw``: Zoom to it, Show in 2 Structure, Hide, Show only this, Show all, Add a label here,
+                           Add joint here… (``fresing.ctx_*``); Client view: viewing entries only, hides in the view only
+                           (``CV_HIDE``, shown again when the lock goes off)
     welcome.py ui_topbar.py  task 0199: the welcome of a new user and What's new after an update (the start file
                            `<config>/fresing_start.json`, logic in core/start.py; in Blender's splash, else a window
                            once the project is open; never with FRESING_NO_WELCOME or simulated events) and the

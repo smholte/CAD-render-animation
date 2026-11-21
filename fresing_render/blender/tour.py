@@ -509,7 +509,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.198")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.201")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -5178,6 +5178,33 @@ stop("start_here", OUT, HUB_SET, "Start here: the Fresing menu",
      "after an update.",
      where="The Fresing menu in the top bar (after Help)", since="0.2.155", shot="Tour view",
      check=_check_start_here, auto=lambda ctx, scene, st: "")
+
+def _check_keys(scene):
+    """Task 0253: Blender's keys swallowed outside Full access, F12 bound to the app, the right-click menu's entries."""
+    import bpy
+
+    from . import context_menu, lock
+    _check(hasattr(bpy.ops.fresing, "blender_key") and hasattr(bpy.ops.fresing, "view_menu"),
+           "the operators of the keys and the right-click menu are missing")
+    _check(lock.keys_quiet(), "the tour project is in Full access: Blender's keys are not swallowed")
+    _check(bpy.ops.fresing.blender_key.poll() and bpy.ops.fresing.key_render.poll(),
+           "Blender's keys are not swallowed here")
+    part = next((o for o in scene.objects if o.get("fr_name") == "BOOM"), None)
+    _check(part is not None, "the boom is missing")
+    target = context_menu.target_of(scene, part)
+    return f"{len(lock.BLENDER_KEYS)} Blender keys swallowed; right-click on the boom: menu for {target.get('fr_name')}"
+
+
+stop("keys", OUT, HUB_SET, "Keys and the right-click menu",
+     "Click the boom, then press Delete, X, Shift+D or Ctrl+J: nothing happens to the crane, and the status bar at the "
+     "bottom says \"That is a Blender key – Fresing > Show all of Blender gives you Blender's keys\". H still hides the "
+     "boom, Alt+H shows it again. Right-click on the boom: a short menu – Zoom to it, Show in 2 Structure, Hide, Show "
+     "only this, Add a label here, Add joint here… – try Zoom to it and Show only this (Show all brings the crane back). "
+     "Right-click on empty space: Zoom to all, Show all. F12 renders a picture with the app (as Render image). Fresing > "
+     "Show all of Blender: Delete deletes again and the right-click shows Blender's own menu; Back to the Fresing "
+     "window takes them away again.",
+     where="The 3D view (keys and right-click); Fresing > Show all of Blender", since="0.2.201", shot="Tour view",
+     check=_check_keys, auto=lambda ctx, scene, st: "")
 
 def _check_usage(scene):
     """The usage tracker (task 0181): its panel, buttons and menu lines, and its rules on a made-up state (the
