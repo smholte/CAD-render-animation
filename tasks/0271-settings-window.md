@@ -76,12 +76,75 @@ New settings; locations (0272); materials (0273); the side-panel look of study 0
 
 ---
 
+## Design (worker, 21 Nov 2026)
+
+- **Window:** the output-window pattern of 0260 – `ops_setup.open_window(mark="fr_settings", size=(440, 640))`; the
+  new `size` makes the split piece that big, and once the window was drawn `ui_left.set_side_width` (0260's stored
+  width writer, now also for the side panel: region type UI 4 / align RIGHT 4) widens the copy's side panel to 440 px.
+  If the width is not found for certain the window keeps the 292 px panel (works, labels cut). Places on Windows:
+  `ops_make.place_key` = "settings" in the same places file. `panels.SIDE_MARKS` and `ops_setup.tab_of` know the mark.
+- **Pages:** `ui_settings.TABS` (key, title, icon, draw); `LATER` names 0272 / 0273's pages. Last tab =
+  `prefs.settings_tab` (hidden, kept in the user's preferences). Drawing only: `prefs.draw_general / draw_side_panel /
+  draw_lessons / draw_backups / draw_updates`, `ops_usage.draw_window` (My usage) + `draw_panel_switches` (Side
+  panel), `about.draw_about`.
+- **Presence:** `ops_settings.FRESING_OT_presence` in the add-on keymap "Window" (MOUSEMOVE, clicks, wheel; returns
+  PASS_THROUGH) → `usage.presence` (a move counts only when the mouse is somewhere else; at most once a second). The
+  old marks (`depsgraph_update_post`, the favourites bar's draw) are gone.
+
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026 – 0.2.200
 
 **What changed:**
+- **Fresing Settings** window (`ops_settings.py`, `ui_settings.py`): tabs General · Side panel · Lessons · Backups ·
+  Updates · My usage · About (4 + 3 on two rows at 440 px; one row from ~620 px). Ways in: Fresing > Settings…, a gear
+  on the left panel (also in its folded strip), Fresing / Help > My usage… (on My usage; the old dialog is gone), and
+  Edit > Preferences > Add-ons > Fresing Render (one line + **Open Fresing Settings**; every property is still
+  registered there with the same name and default – `tests/test_settings_blender.py` holds the 0.2.198 list).
+- Split I chose: the favourites bar's switch / size and the three question switches went to **Side panel**; My usage
+  keeps tracking, the counts with pins, time per stage, time saved, the learning list's days + My learning list…,
+  Back as it came, export / import, clear. About keeps its own window too (Fresing > About…).
+- **Presence:** only the user's own input counts (above). Time while the app plays or renders by itself counts
+  **nowhere** (no extra "not your time" line). My usage says "Counts only while you use the app; away more than 2 min
+  is left out".
+- Function `help.settings` (since 0.2.199), `usage.my_usage` changed; PC-check line `app.settings`; tour stop
+  `settings` (crane set changed); guide chapter "Fresing Settings" with 6 pictures + the My usage picture; the guide's
+  and `docs/COMPANY-USE.md`'s "Edit > Preferences > Add-ons" sentences point to the window.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, real Blender 5.2.3 under xvfb):
+- `tools/ui_test_settings.py` (new, 34 checks): each tab clicked with a simulated mouse click, page shown; the window
+  stays open after a click in the main window; a second press gives no second window; closed and opened again it is
+  on the last tab; My usage… opens it on My usage; Client view opens it; a workspace change with it open; side panel
+  440 px. `ui_test_usage.py` (31/31) and `ui_test_left.py` (31/31) still pass.
+- **The AFK check** (step 4, measured with no input, the idle limit set to 4 s for the test): playing a 60-frame
+  animation 9.2 s fired the old marks 1 + 1 times (one project change, one left-panel draw), Live preview (Cycles
+  viewport) 9.4 s fired 0 + 1. So on this machine the old code would mostly **not** have counted an idle playback or
+  Live preview either – the lead's worry was not confirmed for those two; what does fire changes by itself is the
+  app's own timer work (queue, re-bake, a render job), which the pytest simulates. Now: 0 presence marks and 0 s
+  added in both cases; mouse moves every ~0.2 s for 3 s added 2.3 s. A render (F12) was not measured.
+- pytest: `test_settings_blender.py` (12, incl. 10 min of frame changes + project changes with no input → 0 s), and
+  the files of the touched areas (398 + fixes). Test tour (`test_tour.py`): see below.
+
+**Runs on GitHub:** (filled in below)
 
 **Open points / follow-up tasks:**
+- Keyboard-only work (no mouse move for over 2 min while typing shortcuts) is not seen as presence: Blender gives an
+  add-on no key events without a modal handler. Mouse moves are almost always there.
+- The window's size on Linux/macOS is fixed at 463 x 664 px (UI scale 1); on Windows it reopens where and as big as
+  it was left. A window made wider by hand keeps the 440 px panel with empty view beside it.
+- The owner's check on his PC (below).
+
+**Owner's check on your PC:**
+1. Install the update (Update now), start Fresing Render.
+2. Click the menu **Fresing** (top bar, after Help) > **Settings…** – a window "Fresing Settings" opens with seven
+   tabs at its top.
+3. Click each tab: General, Side panel, Lessons, Backups, Updates, My usage, About – each shows its page.
+4. Drag the window to your second screen, click in the main window: it stays open. Click **Lessons**, close it with
+   the **X** at its top right, then click the **gear** at the top of the left panel: it opens again on Lessons, where
+   you left it.
+5. **Help > My usage…**: the same window, on My usage. Note the time next to **Render & export** (or the stage you
+   used last).
+6. Build & play an animation, then leave mouse and keyboard alone for 10 minutes. Come back, open My usage again: the
+   stage's time has grown by at most 2 minutes.
+7. **Edit > Preferences > Add-ons**, open Fresing Render: one line and the button **Open Fresing Settings**; your
+   earlier settings (e.g. Backups' numbers) are unchanged in the window.

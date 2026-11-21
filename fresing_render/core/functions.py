@@ -251,9 +251,9 @@ fn(id="joints.hover", title="Hover highlight when picking an axis", family="moti
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
 fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_motion",
-   button="fresing.joint_follow", guide="couplings", pccheck=("couplings.motor",), since="0.2.18")
+   button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
-   guide="poses", pccheck=("states.poses",), since="0.2.12")
+   guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
    guide="poses", tour=("explode",), pccheck=("states.poses",), lesson="crane:10", since="0.2.18",
    workspaces=("offshore", "product", "education"),
@@ -401,7 +401,7 @@ fn(id="scene.props", title="Props for scale", family="scene", panel="FRESING_PT_
 fn(id="animation.people", title="People walk, carry and meet", family="animation", panel="FRESING_PT_people",
    button="fresing.person_add", guide="people", tour=("people",), pccheck=("people.walk",), since="0.2.128")
 fn(id="scene.props_detail", title="Props: detail by distance", family="scene", panel="FRESING_PT_props",
-   prop="props_detail", guide="props-detail", since="0.2.124",
+   prop="props_detail", guide="props-detail", tour=("props",), since="0.2.124",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="scene.sea_ground", title="Sea cut-away shows the ground", family="scene", panel="FRESING_PT_scene",
    prop="sea_cut_ground", guide="sea-ground", tour=("marine",), pccheck=("scene.sea_ground",), since="0.2.115",
@@ -606,11 +606,11 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
-   pccheck=("app.usage",), since="0.2.158", changed="0.2.199")
+   pccheck=("app.usage",), since="0.2.158", changed="0.2.200")
 fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings: all of the app's settings in one "
    "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",), pccheck=("app.settings",),
-   since="0.2.199")
+   since="0.2.200")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")

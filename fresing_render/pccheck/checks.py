@@ -4854,7 +4854,7 @@ def app_licences(ctx):
 
 
 @line("app.settings", "Fresing Settings: one window with tabs; only your own input counts as time in My usage",
-      "0.2.199",
+      "0.2.200",
       what="Every tab of the Settings window draws (General, Side panel, Lessons, Backups, Updates, My usage, About), "
            "the window's buttons are in the Fresing menu, the left panel and the Add-ons page, a tab is kept for the "
            "next opening, and a played animation with no mouse or key adds no time to My usage")
