@@ -1,6 +1,6 @@
 # 0280 – Tool marks look as good as Learning-hub stop 60 everywhere, with no set-up
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0280-tool-marks-always-good`
+**Who:** worker · **Status:** running · **Branch:** `task/0280-tool-marks-always-good`
 **Started by:** lead, 21 Nov 2026 (owner 22:00, four screenshots of 0.2.197 – the coolant set's pockets, a close-up of
 a pocket wall, a slot with its path lines, and stop **60. Tool marks on cut faces**: "cutting textures needs some
 refining, it can look really good like on 60 in the Learning hub, but others less. This needs to be really good
