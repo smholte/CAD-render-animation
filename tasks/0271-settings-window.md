@@ -1,7 +1,7 @@
 # 0271 – Fresing Settings: one window with tabs along the top (My usage becomes one of them)
 
-**Who:** worker · **Status:** open – waits for 0260 (same window pattern, same menus) · **Branch:**
-`task/0271-settings-window`
+**Who:** worker · **Status:** running · **Branch:**
+`claude/kind-ramanujan-ad52mb`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "there should be a Fresing settings menu – also My usage would be a
 part of this; you should be able to select between the different settings pages on the top of the menu") ·
 **Model:** Opus · effort Medium
