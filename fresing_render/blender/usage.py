@@ -441,6 +441,9 @@ def _on_load(_dummy=None):
 
 @persistent
 def _on_save(_dummy=None):
+    from . import backups
+    if backups.saving():                 # task 0246: an automatic backup
+        return
     save()
 
 
