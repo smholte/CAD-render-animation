@@ -71,7 +71,9 @@ def shot(name):
 def layout_ok(tag):
     _w, area, sp = view()
     check(tag + ": side panel shown", sp.show_region_ui)
-    check(tag + ": toolbar folded", not sp.show_region_toolbar)
+    left = mod("blender.ui_left")                    # task 0260: the toolbar region holds the left panel
+    check(tag + ": left panel shown, readable", sp.show_region_toolbar and left.width(area) >= 180,
+          f"{left.width(area):.0f} px")
     check(tag + ": Fresing tab", ui_region(area).active_panel_category == "Fresing",
           ui_region(area).active_panel_category)
     # task 0062: every project opens calm – sections 1 to 7 folded, Blender's own workspace tabs hidden
@@ -109,10 +111,11 @@ def save_as(name, mark=None):
 
 
 def messy_view(distance=7.77, clip_end=20000.0):
-    """The view of a project saved the way a background Blender (or a user) leaves it: panel hidden, toolbar shown."""
+    """The view of a project saved the way a background Blender (or a user) leaves it: panel hidden, toolbar hidden
+    (task 0260: the toolbar region is the left panel – it must come back)."""
     _w, area, sp = view()
     sp.show_region_ui = False
-    sp.show_region_toolbar = True
+    sp.show_region_toolbar = False
     sp.shading.type = "MATERIAL"
     sp.clip_end = clip_end
     sp.region_3d.view_distance = distance

@@ -44,7 +44,7 @@ class TOPBAR_MT_fresing(bpy.types.Menu):
             layout.label(text=text, icon="TIME")
             _op(layout, "fresing.tour_cancel", icon="CANCEL")
         else:
-            _op(layout, "fresing.tour_take", text="Take the test tour", icon="VIEW_CAMERA")
+            _op(layout, "fresing.tour_take", text="Open the Learning hub", icon="VIEW_CAMERA")
         _op(layout, "fresing.learn_lessons", text="Learn…", icon="LIGHT")    # task 0230: View / Show me / Build
         state = welcome.load()
         pending = welcome.core.whats_new_pending(state)

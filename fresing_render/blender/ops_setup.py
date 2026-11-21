@@ -69,6 +69,11 @@ def setup_windows() -> list:
     return [w for w in wm.windows if is_setup_window(w)] if wm is not None else []
 
 
+def busy() -> bool:
+    """A window (Set-up or output) is being opened."""
+    return bool(_STATE["busy"])
+
+
 def main_view(context=None) -> tuple:
     """(window, area, region) of the 3D view the user works in: the window the button was pressed in when that is
     not a Set-up window, else the first other window with a 3D view; its biggest 3D view. (None, None, None)
@@ -77,7 +82,7 @@ def main_view(context=None) -> tuple:
     wm = getattr(context, "window_manager", None)
     if wm is None:
         return None, None, None
-    wins = [w for w in wm.windows if not is_setup_window(w)]
+    wins = [w for w in wm.windows if not tab_of(w)]
     cur = getattr(context, "window", None)
     wins.sort(key=lambda w: w != cur)
     for win in wins:
@@ -207,9 +212,30 @@ def _dress(window) -> None:
             rv.view_distance = 1.0
 
 
+OUTPUT_MARK = "fr_output"      # task 0260: an output window of Make (ops_make.py): screen ID property = the output's key
+OUTPUT_TAB = "Make"
+
+
+def tab_of(window) -> str:
+    """The side-panel tab of an app window: "Set-up" or "Make" ("" for any other window)."""
+    try:
+        screen = window.screen
+        return TAB if screen.get(MARK) else (OUTPUT_TAB if screen.get(OUTPUT_MARK) else "")
+    except (AttributeError, ReferenceError):
+        return ""
+
+
+def app_windows() -> list:
+    """Every open Set-up window and output window."""
+    wm = getattr(bpy.context, "window_manager", None)
+    return [w for w in wm.windows if tab_of(w)] if wm is not None else []
+
+
 def _show_tab(window) -> bool:
-    """Puts the window's side panel on the Set-up tab; False when the tabs are not drawn yet (try again)."""
+    """Puts the window's side panel on its tab (Set-up, or Make for an output window); False when the tabs are not
+    drawn yet (try again)."""
     ok = True
+    tab = tab_of(window) or TAB
     _dress(window)
     for area in window.screen.areas:
         if area.type != "VIEW_3D":
@@ -218,8 +244,8 @@ def _show_tab(window) -> bool:
             if region.type != "UI":
                 continue
             try:
-                if region.active_panel_category != TAB:
-                    region.active_panel_category = TAB
+                if region.active_panel_category != tab:
+                    region.active_panel_category = tab
             except (AttributeError, TypeError, ValueError):
                 ok = False
         area.tag_redraw()
@@ -236,7 +262,7 @@ def restore_tabs() -> None:
     def later():
         tries[0] += 1
         try:
-            waiting = [w for w in setup_windows() if not _show_tab(w)]
+            waiting = [w for w in app_windows() if not _show_tab(w)]
         except ReferenceError:
             return None
         return 0.25 if waiting and tries[0] < 60 else None       # a new window's first drawing can take seconds
@@ -304,6 +330,13 @@ def _take(job) -> None:
         other = b if piece == a else a
         job["close"] = [piece] + ([other] if job["close"] else [])
     job["piece"] = piece
+    if direction == "VERTICAL" and job.get("restore"):
+        # task 0260: the main view (the other half) gets its left panel back; it was drawn since the split
+        # (``_settled``), so setting it is safe (CLAUDE.md, 0221)
+        other = b if piece == a else a
+        if other.type == "VIEW_3D":
+            other.spaces.active.show_region_toolbar = True
+        job["restore"] = False
 
 
 def _finish(job) -> None:
@@ -318,10 +351,16 @@ def _finish(job) -> None:
     if not new:
         print("Fresing Render: the Set-up window did not open (Blender made no window)")
         return
-    new[0].screen[MARK] = 1
+    new[0].screen[job.get("mark", MARK)] = job.get("value", 1)
     _dress(new[0])
     restore_tabs()
     redraw_all()
+    done = job.get("done")
+    if done is not None:                     # task 0260: an output window is placed where it was last time
+        try:
+            done(new[0])
+        except Exception as exc:  # noqa: BLE001
+            print("Fresing Render: the window opened, not placed:", exc)
 
 
 def _close(job) -> None:
@@ -364,7 +403,18 @@ def _run(job):
             _close(job)
         except Exception:  # noqa: BLE001
             pass
+        if job.get("restore"):            # the left panel back on the main view, once it was drawn again
+            bpy.app.timers.register(_left_back, first_interval=0.5)
     _STATE["busy"] = False
+    return None
+
+
+def _left_back():
+    try:
+        from . import ui_header
+        ui_header.put_layout_right()
+    except Exception:  # noqa: BLE001
+        pass
     return None
 
 
@@ -378,14 +428,14 @@ def window_size(area) -> tuple:
     return min(side, int(WIDEST * scale)) + EDGE, int(HEIGHT * scale)
 
 
-def open_window(window, area) -> None:
+def open_window(window, area, mark: str = MARK, value=1, done=None) -> None:
     """Starts opening the Set-up window from a piece of ``area`` (a 3D view of ``window``); it is there about a
     quarter of a second later (timers: see the top of this file). Task 0221: while Blender's right-hand column is
     being closed or opened (``editors.busy``, right after a project opened) the 3D view's size is about to change:
     the split waits for it."""
     from . import editors
     if not editors.busy():
-        _open_window(window, area)
+        _open_window(window, area, mark, value, done)
         return
     _STATE["busy"] = True
     gen, tries = _STATE["gen"], [0]
@@ -399,7 +449,7 @@ def open_window(window, area) -> None:
             if gen == _STATE["gen"] and any(w == window for w in bpy.context.window_manager.windows):
                 views = [a for a in window.screen.areas if a.type == "VIEW_3D"]     # found again: areas changed
                 if views:
-                    _open_window(window, max(views, key=lambda a: a.width * a.height))
+                    _open_window(window, max(views, key=lambda a: a.width * a.height), mark, value, done)
         except Exception as exc:  # noqa: BLE001
             print("Fresing Render: the Set-up window did not open:", exc)
         return None
@@ -407,20 +457,32 @@ def open_window(window, area) -> None:
     bpy.app.timers.register(later, first_interval=0.05)
 
 
-def _open_window(window, area) -> None:
+def _open_window(window, area, mark: str = MARK, value=1, done=None) -> None:
     scale = bpy.context.preferences.system.ui_scale or 1.0
     w, h = window_size(area)
     _watch_loads()
     _STATE["busy"] = True
     job = {"win": window, "piece": area, "pieces": [], "pair": None, "close": [], "tries": 0,
            "todo": ["VERTICAL", "HORIZONTAL"], "w": w, "h": h, "keep": int(KEEP * scale),
-           "smallest": int(SMALLEST * scale), "gen": _STATE["gen"]}
+           "smallest": int(SMALLEST * scale), "gen": _STATE["gen"], "mark": mark, "value": value, "done": done}
+    space = area.spaces.active if area.type == "VIEW_3D" else None
+    if space is not None and space.show_region_toolbar:
+        # task 0260: the toolbar region holds the app's left panel. A split copies it into the piece, and Blender
+        # then keeps the side panel squeezed beside it (measured: 27 px of a 297 px piece, also after hiding it
+        # later) – so it is off while the view is split and back on the main view after the first split
+        space.show_region_toolbar = False
+        job["restore"] = True
     try:
         _split(job, job["todo"].pop(0))
         bpy.app.timers.register(lambda: _run(job), first_interval=0.1 if job["pair"] else 0.0)
     except Exception:
         _STATE["busy"] = False
+        if job.get("restore"):
+            space.show_region_toolbar = True
         raise
+    if not job["pair"] and job.get("restore"):      # no split was made: nothing to wait for
+        space.show_region_toolbar = True
+        job["restore"] = False
 
 
 # ---------------------------------------------------------------------------------------------------------------

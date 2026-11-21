@@ -81,7 +81,7 @@ PLACES = {
 # panels of the Fresing tab that are no section and no sub-panel of one (above 1 Import, or their own tab / popover)
 OTHER = {
     "FRESING_PT_update": "Update available",
-    "FRESING_PT_tour": "Test tour",
+    "FRESING_PT_tour": "Learning hub stops",
     "FRESING_PT_lesson": "Lesson",
     "FRESING_PT_workspace": "Workspace",
     "FRESING_PT_favourites": "Favourites",
@@ -92,6 +92,9 @@ OTHER = {
     "FRESING_PT_make_anim": "Animation video",
     "FRESING_PT_make_product": "Product video",
     "FRESING_PT_setup": "Set-up",
+    "FRESING_PT_left_quick": "Live preview and Build & play",     # task 0260: the left panel
+    "FRESING_PT_hub": "Learning hub",
+    "FRESING_PT_make_window": "Make",                               # … an output window of Make
 }
 
 

@@ -32,6 +32,8 @@ import json
 
 import bpy
 
+from .panels import side_window
+
 ON = [False]                  # the quiet window is drawn
 KEEP = "fr_ws_before_all"     # per scene: the workspace Show all of Blender came from (JSON of the three fields)
 DRAWN = {"header": 0, "header_blender": 0, "splash": 0, "file_new": 0}   # draws counted (tests, the PC check)
@@ -60,9 +62,13 @@ def draw_funcs(cls) -> list:
 
 def _own(cls, funcs):
     """Blender's own ``draw`` of this class inside its draw list (the add-ons' functions have other names)."""
-    want = cls.__name__ + ".draw"
-    return next((i for i, f in enumerate(funcs) if getattr(f, "__qualname__", "") == want
-                 or getattr(f, "__qualname__", "").endswith("." + want)), -1)
+    wants = [k.__name__ + ".draw" for k in cls.__mro__ if "draw" in k.__dict__ and k.__name__ != "_GenericUI"]
+    for want in wants or [cls.__name__ + ".draw"]:      # task 0260: a panel may draw with its base class's draw
+        i = next((i for i, f in enumerate(funcs) if getattr(f, "__qualname__", "") == want
+                  or getattr(f, "__qualname__", "").endswith("." + want)), -1)
+        if i >= 0:
+            return i
+    return -1
 
 
 def swap(cls, quiet_fn) -> bool:
@@ -217,7 +223,7 @@ def _splash(self, context):
     col1.operator("wm.recover_last_session", icon="RECOVER_LAST")
     col1.separator()
     if _has("fresing.tour_take"):                    # the same operator as Fresing > Take the test tour
-        col1.operator("fresing.tour_take", text="Take the test tour", icon="VIEW_CAMERA")
+        col1.operator("fresing.tour_take", text="Open the Learning hub", icon="VIEW_CAMERA")
     if _has(ops_demo.FRESING_OT_demo_make.bl_idname):    # the same operator as Help > Make demo project…
         col1.operator(ops_demo.FRESING_OT_demo_make.bl_idname, text="Demo project", icon="MOD_OCEAN")
     if _has("fresing.user_guide"):
@@ -243,13 +249,25 @@ def _splash(self, context):
 def _classes():
     t = bpy.types
     return ((getattr(t, "VIEW3D_HT_header", None), _header), (getattr(t, "WM_MT_splash", None), _splash),
-            (getattr(t, "TOPBAR_MT_file_new", None), _file_new))
+            (getattr(t, "TOPBAR_MT_file_new", None), _file_new),
+            (getattr(t, "VIEW3D_PT_tools_active", None), _no_tools))      # task 0260: the left panel without Blender's tools
+
+
+def _no_tools(self, context):
+    """Task 0260: Blender's tool buttons are not drawn in the 3D view's toolbar region outside Full access – the region
+    holds the app's left panel (``ui_left.py``); Full access (Show all of Blender) brings the tools back above it.
+    Another mode than Object Mode: Blender's own (as the header)."""
+    if context.mode != "OBJECT":
+        orig = blender_draw(bpy.types.VIEW3D_PT_tools_active)
+        if orig is not None:
+            return orig(self, context)
+    return None
 
 
 def _views(include_setup: bool = False):
     wm = bpy.context.window_manager
     for win in (wm.windows if wm is not None else ()):
-        if win.screen is None or (win.screen.get("fr_setup") and not include_setup):
+        if win.screen is None or (side_window(win) and not include_setup):
             continue
         for area in win.screen.areas:
             if area.type == "VIEW_3D":

@@ -69,7 +69,7 @@ def test_results_text_has_every_stop_with_its_mark_and_note():
     data = {"stops": {"joint": {"state": "OK", "note": ""}, "cylinder": {"state": "PROBLEM", "note": "rod jumps"}}}
     text = tour.results_text("0.2.99", data, pc="Test CPU, 4 cores, 16 GB; GPU (OPTIX): RTX")
     lines = text.splitlines()
-    assert lines[0].startswith("Fresing Render test tour 0.2.99 - ")
+    assert lines[0].startswith("Fresing Render Learning hub 0.2.99 - ")
     assert lines[1] == "PC: Test CPU, 4 cores, 16 GB; GPU (OPTIX): RTX"
     assert lines[2] == f"1 OK, 1 problem, {len(tour.STOPS) - 2} not looked at, of {len(tour.STOPS)} stops"
     j, c = tour.find("joint"), tour.find("cylinder")
@@ -80,7 +80,7 @@ def test_results_text_has_every_stop_with_its_mark_and_note():
 
 def test_tour_is_a_pc_check_mode_with_its_own_lines_and_report():
     from fresing_render.pccheck import tour as auto
-    assert "tour" in core.MODES and core.MODE_TITLES["tour"] == "Test tour"
+    assert "tour" in core.MODES and core.MODE_TITLES["tour"] == "Learning hub"
     assert core.parse_args(["tour"])["mode"] == "tour"
     lines = auto.lines()
     assert lines[0].id == "tour.build" and len(lines) == len(tour.STOPS) + 1
@@ -91,7 +91,7 @@ def test_tour_is_a_pc_check_mode_with_its_own_lines_and_report():
                                pictures=[core.Picture("joint", "frames", thumb_png=b"\x89PNG")])]
     run.finished = True
     page = core.html_report(run, "block")
-    assert "<title>Fresing Render test tour</title>" in page and "You should see:</b> The boom turns" in page
+    assert "<title>Fresing Render Learning hub</title>" in page and "You should see:</b> The boom turns" in page
     assert "class='card stop'" in page and "data:image/png;base64," in page
 
 
@@ -205,9 +205,9 @@ def test_automatic_run_renders_a_picture_per_stop(built, tmp_path, monkeypatch):
     assert by["tour.cylinder"].pictures[0].width > core.THUMB_WIDTH          # three frames side by side
     assert "MP4" in by["tour.queue"].note                                     # small frames: job["scale"] (queue.py)
     page = (desk / runner.TOUR_REPORT_NAME).read_text(encoding="utf-8")
-    assert "Fresing Render test tour" in page and page.count("class='card stop'") == 5
+    assert "Fresing Render Learning hub" in page and page.count("class='card stop'") == 5
     block = (tmp_path / "hist" / "last_run.txt").read_text(encoding="utf-8")
-    assert block.startswith("Fresing Render PC check") and "Test tour" in block.splitlines()[0]
+    assert block.startswith("Fresing Render PC check") and "Learning hub" in block.splitlines()[0]
 
 
 def test_three_tools_cuts_nothing_outside_the_program(built):

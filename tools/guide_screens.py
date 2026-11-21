@@ -664,8 +664,7 @@ if MODE == "panels":
         ("panel_top_tabs", [("FRESING_PT_tabs", False, True)]),
         ("panel_top_make", [("FRESING_PT_make", False, True)]),
         # the whole side panel with every section closed: the headers show the state of each
-        ("sidebar_sections", [(n, True, False) for n in ("FRESING_PT_workspace", "FRESING_PT_next",
-                                                         "FRESING_PT_tabs", "FRESING_PT_make",
+        ("sidebar_sections", [(n, True, False) for n in ("FRESING_PT_make", "FRESING_PT_tabs",      # task 0260
                                                          "FRESING_PT_import", "FRESING_PT_structure",
                                                          "FRESING_PT_looks", "FRESING_PT_motion",
                                                          "FRESING_PT_scene", "FRESING_PT_animation",

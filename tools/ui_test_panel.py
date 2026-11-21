@@ -185,7 +185,7 @@ def s_start():
 def s_imported():
     if bpy.context.scene.fresing.model_count == 0:
         return "wait"
-    watch(["FRESING_PT_" + n for n in SECTIONS + ("find", "cutaway", "cnc", "cables", "make", "camera")])
+    watch(["FRESING_PT_" + n for n in SECTIONS + ("find", "cutaway", "cnc", "cables", "camera")])
     redraw()
     return 1.0
 
@@ -194,7 +194,15 @@ def s_imported():
 def s_folded():
     check("after the import every section is still folded: no section body is drawn",
           all(drawn(s) == 0 for s in SECTIONS), str({s: drawn(s) for s in SECTIONS}))
-    check("the Make list above 1 Import is drawn", drawn("make") > 0)
+    win = bpy.context.window_manager.windows[0]                 # task 0260: Make draws its own row (a plain panel)
+    area = next(a for a in win.screen.areas if a.type == "VIEW_3D")
+    region = next(r for r in area.regions if r.type == "UI")
+    with bpy.context.temp_override(window=win, area=area, region=region):
+        shown = bpy.types.FRESING_PT_make.poll(bpy.context)
+    order = [c.__name__ for c in importlib.import_module(mod("blender").__name__.rpartition(".")[0])._all_classes()
+             if getattr(c, "bl_category", "") == "Fresing"]
+    check("the Make row above 1 Import is shown", shown and order.index("FRESING_PT_make") < order.index(
+        "FRESING_PT_import"), str(order[:3]))
     shot("1_folded")
     with override():
         bpy.ops.fresing.panel_toggle("EXEC_DEFAULT", True, name="FRESING_PT_looks")

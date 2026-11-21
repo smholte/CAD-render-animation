@@ -1,6 +1,6 @@
 # 0260 – Two panels: the steps on the right, everything else on a new left panel; Make as a folding icon row; the Learning hub with a one-click mode switch
 
-**Who:** worker · **Status:** running (21 Nov) ·
+**Who:** worker · **Status:** done (0.2.197, 21 Nov) ·
 **Branch:** `claude/peaceful-edison-wjm578` (the web session's branch)
 **Started by:** lead, 21 Nov 2026 (owner 14:44 with four screenshots, picks 14:50) · **Model:** Opus · effort High
 **Area:** Start & learn + Usage lanes –
@@ -136,14 +136,119 @@ and say so** – the lead then asks the owner.
 - Owner's aim: the app as simple as possible for users who do not know Blender, Blender's tools easy to reach for those
   who do. Every button gets a tooltip.
 
+## Design (worker, 21 Nov – step 1 done)
+
+**Step 1 – the left side: Blender's own toolbar region (TOOLS) of the 3D view, widened.** Measured in the real
+Blender 5.2.3 under xvfb at 1920 x 1080 (web machine, 4 cores): a panel with `bl_region_type = "TOOLS"` draws below
+Blender's tool buttons; Blender's tool buttons go away when `VIEW3D_PT_tools_active`'s own draw is swapped for an
+empty one (`quiet.swap`, as 0241 does for the header), so outside Full access the region holds only Fresing's panels
+and in Full access the tools come back above them. A script cannot set a region's width (`Region.width` is
+read-only), so the app writes the region's stored width (`ARegion.sizex`, a 16-bit number) itself: it is found by
+its neighbours (the region's own width and height as two 16-bit numbers, then region type 5 = TOOLS and alignment
+3 = LEFT – nothing is written unless all four match) and the toolbar is switched off and on to take it: 58 -> 250 px
+at once, 250 -> 31 px for the folded strip. The width is saved with the project like Blender's own; a user's drag
+is kept (the app widens only a region narrower than it reads). Overlap off: a solid panel. The region scrolls like
+Blender's toolbar. The fallback (an area of its own) is not needed. Not measurable here: a second monitor (the
+left panel belongs to the 3D view of each window, nothing depends on the monitor) and Windows (the same struct on
+64-bit Windows; the search refuses to write when the pattern is not found, then the panel keeps Blender's width).
+
+**Files and what goes between them**
+- `blender/ui_left.py` (new, worker): `LeftPanel` mixin (VIEW_3D / TOOLS, `_fr_left = True`), the width
+  (`sizex_address(region)`, `set_width(area, px)`, `ensure(area)` called by `ui_header.put_layout_right`,
+  `strip(context)` = region narrower than `STRIP_BELOW`), `FRESING_PT_left_quick` (Live preview + Build & play + the
+  fold button; icons only in the strip), `FRESING_PT_hub` (Learning hub: the switch View | Show me | Build it
+  yourself, Open the Learning hub), operators `fresing.left_fold`, `fresing.hub_mode`.
+- `blender/ops_make.py` (new, worker): output windows – `fresing.make_window(key)`, `fresing.make_close`,
+  `fresing.make_fold`; `FRESING_PT_make_window` (side panel tab "Make" of a window whose screen has
+  `fr_output = <key>`). The window is made with the Set-up window's machinery (`ops_setup.open_window(..., mark=,
+  value=, tab=)`).
+- `winplace.py` (new, worker; Windows only, ctypes): find a Blender window's HWND by its place and size, raise it,
+  read / set its rectangle – the output window comes to the front and opens where it was. Independent review.
+- `panels.py`: left panels get the app's title row and poll like the right ones (`LEFT`); `side_window(win)` = a
+  Set-up or output window (no left panel, not tidied).
+- Moved to the left (region only, same class names): `updates.FRESING_PT_update`, `ui_top.FRESING_PT_workspace`,
+  `ui_usage.FRESING_PT_favourites`, `ui_tour.FRESING_PT_tour`, `ui_lesson.FRESING_PT_lesson`, `ui_top.FRESING_PT_next`.
+- Preferences (per user): `left_folded`, `left_width`, `next_folded`, `make_open`.
+- The rename "Test tour" -> "Learning hub" in user-visible strings: a subagent (worktree), every file except
+  `ui_left.py`, `ops_make.py`, `ui_top.py`, `ui_tour.py`, `ui_usage.py`, `panels.py`, `__init__.py`, `lock.py`,
+  `ops_setup.py`, `ui_header.py`, `quiet.py`, `editors.py`, `prefs.py` (the worker's).
+
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 21 Nov 2026.
 
 **What changed:**
+- **Right panel** = Make · tabs All 1 … 8 (+ hint) · Set-up window… · 1 … 8. At 1920 × 1080 with the crane imported the
+  first step (1 Import) now starts about 244 px from the top of the window instead of about 610 px (screenshots: `tasks/img/0260_before_after_1920.jpg`, `…_2560.jpg`).
+- **Left panel** (new, `ui_left.py`) in the 3D view's toolbar region: Live preview + Build & play + fold (always, also
+  in the strip) · update notice · Workspace · **Learning hub** (switch, Open the Learning hub, Learn…) · its stops (in a
+  sample project) · Lesson (while one runs) · Favourites · What's next. 240 px wide by default (px at UI scale 1),
+  the user's drag is kept; folds to a 34 px strip (▶, Live preview, Build & play) and back; Blender's tool buttons only
+  in Full access (above the app's parts). Panels moved by region only, class names kept.
+- **Make**: one row "Make" + 6 icons (folded, default) or the labelled 2 × 3 list (click "Make"; kept per user). Each
+  output opens its **own window** (`ops_make.py`, built with the Set-up window's machinery: `ops_setup.open_window` got
+  `mark` / `value` / `done`), tab "Make", the same settings bodies as 5 / 6 / 7; a second press opens no second window;
+  × closes it. Windows only (`winplace.py`): the window comes to the front on a second press and reopens where it was
+  (places in `<config>/fresing_make_windows.json`). The 3D view header's Make list: the gear opens the same window.
+- **Learning hub**: the switch View | Show me | Build it yourself (`fresing.hub_mode`): in a sample project View opens
+  the finished sample, Show me / Build it yourself its lesson (save question first), Show me <-> Build switches the
+  running lesson at once; greyed with "Lesson coming" without a lesson; outside a sample project it opens the Learn
+  window with that way pressed. Stored in the project (the lesson's own mode key): survives a reopen.
+- **"Test tour" -> "Learning hub"** in every user-visible text (a subagent, 20 files: menus, welcome, tooltips,
+  messages, PC-check titles, function titles, guide, stop texts). Kept on purpose: internal names (`tour.py`,
+  `fresing.tour_*`, `FRESING_PT_tour`, `TOUR`), and every name on disk that old projects and results depend on (the
+  folder `Documents\Fresing Render\Test tour`, `Test tour <version>.blend` / `results.json` / `results.txt`, the log
+  file, the PC check's work folder) and the "TEST TOUR" watermark / decal text inside the sample models.
+- **What's next / Next to learn**: a fold arrow (open for a new user, kept folded per user; × as before).
+- `anim_build` says "Make an animation first in 6 Animation" when greyed. Function list: new `panel.left`,
+  `learn.hub`; `changed=` on 18 entries whose place or name changed. Guide: "How the app is laid out", new sections
+  The left panel and The Learning hub switch, Make, What's next, Set-up window, favourites / update notice places;
+  pictures `left_panel.png`, `left_hub.png` (new), `panel_top_make.png`, `panel_top_tabs.png`,
+  `sidebar_sections.png`. PC-check line `panel.two`. Tour: texts of the stops setup, workspace, make, panel_back,
+  usage, learn, lessons, start_here (sets crane and gantry `changed`). CLAUDE.md section 3 + a lesson learned.
 
-**Tested and measured** (name the machine and the model):
+**Step 1 (the left side)** – see Design: the toolbar region works; the fallback was not needed.
+
+**Tested and measured** (web machine, 4 cores, no graphics card, Blender 5.2.3 under xvfb; test crane only):
+- `tools/ui_test_left.py` (new, group "ui"): 31 / 31 – width 240 px at the start, after Full access and back, in the
+  Client view and after opening a project saved with Blender's 40 px toolbar; strip 34 px and back to 240; Blender's
+  tools hidden / back / hidden; the left panel scrolls (a 90-line test panel: view moved 246 px on 6 wheel steps);
+  Picture window open in 1.7 s, still open after a click in the main window, tab "Make", no left panel in it, no second
+  window on a second press, 3D page opens a second window, Close closes both; Learning hub: own project = not a hub
+  project, crane sample = View with a lesson, Show me opens the crane lesson (5.3 s), Build it yourself switches it.
+  The output window measured 297 × 581 px.
+- pytest locally: test_workspaces_independent, places, functions, quiet, editors, learning_blender, usage_blender (144
+  passed); the subagent ran functions, user_guide, tour, learning, learning_blender, places (180 passed).
+- Before / after screenshots: `tasks/img/0260_before_after_1920.jpg`, `tasks/img/0260_before_after_2560.jpg` (top =
+  0.2.194, bottom = this task).
+- Not measurable here: a second monitor (nothing in the code depends on the monitor), Windows (the same region search;
+  `winplace.py` – front and place – only runs there), the window title (Blender gives a script no way to set it: the
+  window shows the output's name at its top).
+
+**Subagents:** a Sonnet subagent did the rename in its own worktree (merged without conflicts). An independent
+reviewer read `winplace.py`, the region-width write and `quiet._no_tools`: nothing can crash Blender or harm memory
+(it measured `ARegion` = 320 bytes on 5.2.3, `winx` at byte 184, the scan stays inside it; Windows x64 has the same
+layout). Its findings in `winplace.py` were fixed after it: several ways Blender may count y on two monitors of
+different heights (`bottoms`), the handle kept per output (a minimised window, two windows opened at the same spot),
+a place is used only when the title bar lands on a monitor (not a window hanging 7 px on screen), move first and size
+after (a monitor with other scaling made it grow), places watched again after a project opens; `tests/test_winplace.py`
+for the plain-number parts. Also: outside Object Mode Blender's tool buttons show (as its header does).
 
 **Open points / follow-up tasks:**
+- **GitHub runs:** 7 pushes with a full run. Real failures found and fixed: the Set-up window's side panel squeezed to
+  27 px by the left panel in the copied piece (now split with the left panel off for a moment); the old side-panel
+  test's Make check (wrapping a plain panel's draw crashed Blender – the test checks Make's poll and place now); the
+  usage test's clicks (the lesson highlight now also finds buttons on the left panel); a stop title over 32
+  characters; the What's new test before the version was raised. Twice the version was taken meanwhile (0249: 0.2.195,
+  0234: 0.2.196): merged and renumbered to 0.2.197. One run's PC check ran out of its 15 min on a slow runner (all its
+  jobs were 1.5–2 x slower; the next runs were green).
+- Release: https://github.com/smholte/CAD-render-animation/releases/tag/v0.2.197
+- Not done (say so to the owner): the output window's title bar cannot be set from a script (it shows Blender's
+  title; the output's name is at the top of its panel). "Make" is white because its title is a plain button now
+  (the side-panel look of study 0244 comes after and must cover both panels).
+- Kept internal names: `tour.py`, `fresing.tour_*`, `FRESING_PT_tour`, and the files on disk ("Test tour" folder and
+  result files, the PC check's work folder) so old tours and results still open.
+- Owner on his PC: drag an output window to the second monitor, close it with its own ×, press the icon again – it
+  should come back there and to the front; fold / unfold the left panel; Full access shows Blender's tools on the left.

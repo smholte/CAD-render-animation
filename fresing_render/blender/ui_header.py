@@ -14,6 +14,8 @@ from __future__ import annotations
 import bpy
 from bpy.app.handlers import persistent
 
+from .panels import side_window
+
 TAB = "Fresing"
 
 
@@ -26,7 +28,7 @@ def _view_areas():
     "Set-up" and must keep it when a project opens."""
     wm = bpy.context.window_manager
     for win in wm.windows:
-        if win.screen.get("fr_setup"):
+        if side_window(win):           # task 0260: the output windows of Make too
             continue
         for area in win.screen.areas:
             if area.type == "VIEW_3D":
@@ -55,6 +57,8 @@ def show_panel(area) -> bool:
     """Show the side panel of a 3D view and open its Fresing tab. False when the tab could not be chosen yet."""
     space = area.spaces.active
     space.show_region_ui = True
+    if not space.show_region_toolbar:         # task 0260: the left panel comes back with it
+        space.show_region_toolbar = True
     region = _ui_region(area)
     ok = False
     if region is not None:
@@ -113,14 +117,15 @@ def _restore_preview() -> None:
 # ---------------------------------------------------------------------------
 
 def put_layout_right() -> bool:
-    """Side panel shown on the Fresing tab, toolbar folded, in every 3D view. True when every tab was set."""
+    """Side panel shown on the Fresing tab and the left panel at its width (task 0260; before it: the toolbar folded),
+    in every 3D view. True when every tab was set."""
     from . import editors
     if not editors.settled():             # task 0221: an area was just closed beside it – after the next draw
         return False
+    from . import ui_left
     done = True
     for _win, area in _view_areas():
-        space = area.spaces.active
-        space.show_region_toolbar = False
+        done = ui_left.ensure(area) and done      # task 0260: the left panel (the toolbar region) shown, its width
         done = show_panel(area) and done
     return done
 
@@ -181,7 +186,7 @@ class FRESING_OT_show_panel(bpy.types.Operator):
 
 def _draw_header(self, context):
     area = context.area
-    if area is None or area.type != "VIEW_3D" or panel_visible(area):
+    if area is None or area.type != "VIEW_3D" or (panel_visible(area) and area.spaces.active.show_region_toolbar):
         return
     self.layout.operator("fresing.show_panel", text="Fresing", icon="PREFERENCES")
 
