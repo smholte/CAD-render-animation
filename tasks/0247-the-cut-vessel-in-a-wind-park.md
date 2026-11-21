@@ -210,7 +210,11 @@ it is) and the sheet drive kind "carousel" in `make_joints`; the guide inside ca
   (62 min in a busy queue) but 0.2.186 had gone to 0237 meanwhile; run 3 replaced when 0.2.187 went to 0246; run 4
   green (42 min), `main` fast-forwarded (with 0246's report merged: a docs run).
 - GitHub (private, the owner's minutes): one proof run by hand on the branch with the public branch (6.1 min, green);
-  then the merge to `main` with `[skip ci]` and one by-hand release run for kit 2 (below).
+  then the merge to `main` with `[skip ci]` and one by-hand release run: **kit-2** released (6.1 min, on v0.2.188).
+- `main`'s run (docs mode, the branch's green commit found): release **v0.2.188** published, the Windows update check
+  green, offered to the apps. Its **landing page** job failed at "Publish" ("No artifacts named github-pages"), also
+  after a re-run and a by-hand start of the Landing page workflow – the same failure as task 0239's `main` run, so a
+  GitHub Pages problem, not this change: the site still shows the older guide (lead: a follow-up).
 
 **Owner steps** (after the update to 0.2.188):
 1. **Help > Make demo project…** → pick **Vessel in a wind park** → **Make it**. About a minute later the small window
