@@ -613,7 +613,7 @@
     tb.checked = !!page.turn;
     tb.addEventListener('change', function () { page.setTurn(tb.checked); save(); });
     lt.appendChild(tb);
-    lt.appendChild(document.createTextNode('Auto-turn (after 8 s without a touch)'));
+    lt.appendChild(document.createTextNode('Auto-turn (after 8 s without a touch, or flick the model)'));
     menu.appendChild(lt);
     menu.appendChild(el('h3', { text: 'Sun / time of day' }));
     var sunBox = el('div', page.sunLive ? {} : { 'class': 'fr-grey' });
@@ -1328,9 +1328,18 @@
       r.help = !!page.helpOpen && page.helpKeys > 5;
       key('Escape');
       r.link = /orbit=/.test(page.viewLink());
+      var turn0 = page.turn;                           // task 0256: a flick spins it, a slow drag does not, a press stops it
+      page.setTurn(false);
+      var fast = page.flickFrom([{ t: 0, dx: 0 }, { t: 30, dx: 25 }, { t: 60, dx: 25 }], 10);
+      var spun = page.turning && page.spinning() && page.spinning().speed > 0;
+      page.input();
+      var stopped = !page.turning && !page.spinning();
+      var slow = page.flickFrom([{ t: 0, dx: 0 }, { t: 50, dx: 1 }, { t: 100, dx: 1 }], 10);
+      r.flick = !!(fast && spun && stopped && !slow && !page.turning);
+      page.setTurn(turn0);
       var lc = page.layoutCheck();                     // task 0179: no two controls on top of each other
       r.overlaps = lc.overlaps.length;
-      r.ok = r.menu && r.help && r.link && r.space !== false && r.overlaps === 0;
+      r.ok = r.menu && r.help && r.link && r.space !== false && r.overlaps === 0 && r.flick;
       root.dataset.frSelftest = JSON.stringify(r);
     };
     // at once when the page is ready (a browser without a window may stop soon after: no timer to wait for)

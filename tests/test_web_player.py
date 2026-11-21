@@ -254,7 +254,7 @@ def test_sun_is_greyed_with_baked_light_and_auto_turn_waits(tmp_path):
                        {"key": "Escape"},
                        {"eval": "frPage.setTurn(true)"}, {"wait": 4000}, {"eval": "frPage.turning"},
                        {"wait": 5000}, {"eval": "frPage.turning"}, {"frames": 1000},
-                       {"drag": [400, 300, 450, 300]}, {"eval": "frPage.turning"}], query="soft=0", size="480x360")
+                       {"drag": [400, 300, 450, 300, 80]}, {"eval": "frPage.turning"}], query="soft=0", size="480x360")
     o = out["out"]
     assert out["state"]["sunLive"] is False and o[1] is True and "Light is baked into this model" in o[2]
     assert o[6] is False and o[8] is True and o[9] > 5                          # starts after ~8 s, then draws
