@@ -491,7 +491,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.194")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.196")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -4731,7 +4731,7 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "This stop saves the crane as a web 3D model next to the tour. Press Open page in 5 Scene & Render > Web 3D "
      "model: your web browser shows the crane on a light background with its colours and shine; drag to turn it, "
      "scroll to zoom. The page is one file and also works without internet. On the right: the gear opens the "
-     "settings (quality, live pictures a second, your graphics card's name, auto-turn, sun), then Fullscreen, Reset "
+     "settings (quality, live pictures a second, your graphics card's name, auto-turn, sun; give the crane a quick flick with the mouse and let go: it keeps turning), then Fullscreen, Reset "
      "view, Screenshot, Copy link, keys (?) and the eye that hides every control; bottom left one button per saved "
      "camera. A still crane draws nothing while you do not touch it. A red bar at the top only when the browser "
      "draws without the graphics card. On the left the part tools: Part info (click a part: a card with its group, "
@@ -4744,7 +4744,7 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
      "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
-     check=_check_web3d, changed="0.2.194")
+     check=_check_web3d, changed="0.2.196")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "

@@ -56,10 +56,26 @@ Spin about other axes, inertia for pan or zoom, the model-viewer page, Film.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker (Claude Code on the web), 21 Nov 2026
 
-**What changed:**
+**What changed:** `fr_page.js`: a one-pointer drag is followed (pointer samples); at release the turn speed about the
+vertical over the last 0.1 s (2π per canvas height, as OrbitControls) is compared with `FLICK_MIN` = 120°/s
+(`FLICK_MAX` π rad/s = half a turn a second; `FLICK_EASE` 2 s). A faster one sets `controls.autoRotate` going at that
+speed, in that direction; it eases (squared) to ±one turn a minute (Auto-turn on: keeps turning) or to 0 (off: stops).
+Any press, wheel, saved view, Film, part tool or the Auto-turn box stops it (`stopTurn`); the later 8 s auto-turn keeps the
+last flick's direction. No spin for: release after a pause (>80 ms), a second finger, right button, Shift / Ctrl, a Film,
+or a part tool's handle (its capture-phase press never reaches the page). The spin draws only while it turns.
+Player: the Auto-turn label says "or flick the model". Probe (`tools/web_player_probe.js`): the `drag` step takes a
+delay per move and 'Shift' / 'right' / 'wait'. Guide sentence, tour text of stop `web3d` + crane set `changed`,
+function `web.export` `changed`, CHANGELOG 0.2.196. PC check: the page's own `selftest` now flicks (fast spins, press
+stops, slow does not) and line `web3d.player` fails otherwise (no new line, so no `MIN_*` change).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** `tests/test_web3d_flick.py` (6 tests, headless Chromium, real mouse events, 24 s on the
+web machine): fast drag right/left, eases to ±1 (on) / stops (off), slow / held / Shift / right-button / vertical drag and
+two fingers do not, a tap stops it. `tests/test_web_player.py` all pass (its old fast "drag stops auto-turn" step was
+itself a flick now: it takes 80 ms per move). Threshold: 120°/s – a deliberate quick drag of ~250 px/s on a 900 px
+canvas is ~100°/s; a flick is well above that. Not measured on a phone (finger) – only the same code path.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** The model-viewer page (Surroundings None) has no auto-turn today; I would give it
+neither (it has its own camera controls). The threshold is one constant (`FLICK_MIN`) if the owner finds it too eager or
+too shy. Runs: see TASKS.md / commit messages.

@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.196 – 21 Nov 2026 – Web 3D page: flick the model and it keeps turning (task 0256)
+
+- **Flick to spin.** On the web 3D page, drag the model quickly sideways and let go while it is still moving (mouse or
+  one finger): it keeps turning that way, then slows down to the slow auto-turn (one turn a minute, still in your
+  direction) – or to a stop when Auto-turn is off, like a turntable you gave a push. A slow drag still stops where you
+  let go; a touch, a key, a saved view, the Film or a part tool stops the spin. The Auto-turn line in the settings
+  says so.
+
 ## 0.2.195 – 21 Nov 2026 – A larger test mill: a vertical machining centre (task 0249)
 
 - **New test mill.** The small test mill is gone. In its place is an invented **vertical machining centre**: travels

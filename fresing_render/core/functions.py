@@ -472,7 +472,7 @@ fn(id="house.toolbox", short="House alone", title="A house from House Planner by
    panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
    pccheck=("house.toolbox",), since="0.2.173")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
-   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77",
+   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.196",
    manual_estimate=("use", 7200, "bake the materials, export a glTF and build a viewer page"))
 fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", panel="FRESING_PT_web3d",
    prop="env_mode", guide="web3d-surroundings", tour=("web3d_env",), pccheck=("web3d.surroundings",),

@@ -1909,7 +1909,20 @@
   // ---------------------------------------------------------------- auto-turn: after ~8 s without input
   var lastInput = performance.now(), turnTimer = null;
   page.turn = Q.has('turn') ? Q.get('turn') === '1' : !!PREF.turn;
+  // task 0256: a quick flick sets the model spinning. The turn speed about the vertical over the drag's last 0.1 s
+  // (OrbitControls turns 2*pi per canvas height of drag) must reach FLICK_MIN when the pointer is let go; the spin
+  // starts at that speed (at most FLICK_MAX), eases over FLICK_EASE s to the auto-turn speed (Auto-turn on: it keeps
+  // turning, in the flick's direction) or to a stop (off). A pinch, a pan, a right button, Shift / Ctrl and a second
+  // finger never count; a part tool's handle takes the press first (capture phase) and the page never sees it.
+  var FLICK_MIN = 2 * Math.PI / 3;     // 120 degrees a second
+  var FLICK_MAX = Math.PI;             // half a turn a second
+  var FLICK_EASE = 2;                  // seconds back to the auto-turn speed
+  var FLICK_AT = 2 * Math.PI / 60;     // controls.autoRotateSpeed 1 = one turn a minute (radians a second)
+  var spin = null;
+  page.flick = { min: FLICK_MIN, max: FLICK_MAX, ease: FLICK_EASE };
+  page.spinning = function () { return spin ? { speed: controls.autoRotateSpeed * FLICK_AT, to: spin.to * FLICK_AT } : null; };
   function stopTurn() {
+    spin = null;
     if (page.turning) { page.turning = false; controls.autoRotate = false; changed('turn'); }
   }
   function armTurn() {
@@ -1923,7 +1936,57 @@
   }
   function input() { lastInput = performance.now(); stopTurn(); armTurn(); }
   page.input = input;
-  page.setTurn = function (v) { page.turn = !!v; if (!v) stopTurn(); armTurn(); changed('turn'); };
+  page.setTurn = function (v) {
+    page.turn = !!v;
+    if (spin) spin.to = v ? (controls.autoRotateSpeed < 0 ? -1 : 1) : 0;     // a spin in progress ends the new way
+    else if (!v) stopTurn();
+    armTurn(); changed('turn');
+  };
+  // the flick: the last samples of a one-pointer drag
+  var drag = null, downs = {};
+  // samples = [{t (ms), dx (px since the sample before)}], gap = ms between the last move and the release
+  function flickFrom(s, gap) {
+    var n = s.length;
+    if (n < 2 || gap > 80) return false;                                   // stopped before it was let go
+    var k = n - 1;
+    while (k > 0 && s[n - 1].t - s[k - 1].t <= 100) k--;                   // the samples of the last 0.1 s
+    if (k >= n - 1) return false;
+    var dx = 0;
+    for (var i = k + 1; i < n; i++) dx += s[i].dx;
+    var span = Math.max(0.04, (s[n - 1].t - s[k].t) / 1000);
+    var v = 2 * Math.PI * dx / Math.max(canvas.clientHeight, 50) / span;   // rad/s, + = as dragging to the right
+    if (Math.abs(v) < FLICK_MIN || filmOn) return false;
+    v = Math.sign(v) * Math.min(Math.abs(v), FLICK_MAX);
+    controls.autoRotateSpeed = v / FLICK_AT;
+    controls.autoRotate = true;
+    page.turning = true;
+    spin = { to: page.turn ? Math.sign(v) : 0, from: v / FLICK_AT, t: 0 };
+    lastInput = performance.now();
+    wake(); changed('turn');
+    return true;
+  }
+  page.flickFrom = flickFrom;
+  function flickEnd(e) {
+    var d = drag; drag = null;
+    delete downs[e.pointerId];
+    if (!d || d.id !== e.pointerId || d.bad || e.type === 'pointercancel' || Object.keys(downs).length) return;
+    var n = d.samples.length;
+    flickFrom(d.samples, n ? e.timeStamp - d.samples[n - 1].t : 1e9);
+  }
+  canvas.addEventListener('pointerdown', function (e) {
+    downs[e.pointerId] = true;
+    if (Object.keys(downs).length === 1 && e.isPrimary !== false && (e.pointerType !== 'mouse' || e.button === 0) &&
+        !e.shiftKey && !e.ctrlKey && !e.metaKey) drag = { id: e.pointerId, x: e.clientX, samples: [], bad: false };
+    else if (drag) drag.bad = true;
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag.samples.push({ t: e.timeStamp, dx: e.clientX - drag.x });
+    drag.x = e.clientX;
+    if (drag.samples.length > 40) drag.samples.shift();
+  });
+  canvas.addEventListener('pointerup', flickEnd);
+  canvas.addEventListener('pointercancel', flickEnd);
   canvas.addEventListener('pointerdown', input);
   canvas.addEventListener('wheel', input, { passive: true });
 
@@ -2299,6 +2362,15 @@
     var dt = chain ? Math.min((now - lastDraw) / 1000, 0.1) : 0;
     if (moving()) advance(dt * page.speed);
     if (fly) stepFly(now);
+    if (spin && dt > 0) {                                  // task 0256: the flick eases to the auto-turn speed / a stop
+      spin.t += dt;
+      var kk = Math.min(1, spin.t / FLICK_EASE), rest = (1 - kk) * (1 - kk);
+      controls.autoRotateSpeed = spin.to + (spin.from - spin.to) * rest;
+      if (kk >= 1) {
+        spin = null;
+        if (!page.turn) { page.turning = false; controls.autoRotate = false; changed('turn'); }
+      }
+    }
     var moved = controls.update(dt > 0 ? dt : null);       // damping after a drag, auto-turn
     if (!(dirty || run || moved)) { chain = false; idle(); return; }
     dirty = false;

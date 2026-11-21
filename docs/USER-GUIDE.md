@@ -3547,7 +3547,7 @@ title and these controls:
 - **Gear** (or **M**): the settings. Switch the surroundings items the page holds on and off (sea, vessel motion,
   sky, haze, rain and spray, sun shadows, under the sea, camera under water); **Quality** Auto, Phone, Balanced or Best (picking one switches Auto off);
   how many pictures a second the page draws right now; the **graphics card** the browser uses; **Auto-turn** (the
-  machine turns slowly after 8 s without a touch and stops at the first one); **Sun / time of day** – a slider that
+  machine turns slowly after 8 s without a touch and stops at the first one; a quick **flick** – drag fast to the side and let go while still moving – sets it spinning that way, easing down to the slow turn, or to a stop when Auto-turn is off); **Sun / time of day** – a slider that
   moves the live sun from morning to evening (greyed with baked light: "Light is baked into this model"). The page
   **remembers** these choices for the next visit on that PC; **Reset** goes back to the page's own.
 - **Playback** (a page with an animation): **Space** plays and pauses, the time line can be dragged to any moment

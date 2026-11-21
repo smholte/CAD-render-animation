@@ -2965,6 +2965,8 @@ def _player_check(page_path: str, ctx) -> str:
         r = dict(got["selftest"], tools=got.get("tools"))
         _check(r.get("menu"), "the page's settings menu did not open")
         _check(r.get("help") and r.get("link"), "the page's keys help or its link to the view does not work")
+        _check(r.get("flick"), "a quick flick did not set the page's model spinning (or a slow drag did, or a press "
+                               "did not stop it)")
         found.append(r)
     _check(found[1].get("space") is True, "Space did not pause and play the page's motion")
     tools = found[0].get("tools") or {}                 # task 0135: the part tools on the exported page
@@ -2974,7 +2976,7 @@ def _player_check(page_path: str, ctx) -> str:
     warned = found[0].get("warned")
     _check(bool(warned), "the page did not say it draws without the graphics card (a browser without a window "
                          "has none)")
-    return (f"player: menu, keys help, link, Space pause, 'no graphics card' bar ({warned}); part tools: card, measure, "
+    return (f"player: menu, keys help, link, Space pause, flick spin, 'no graphics card' bar ({warned}); part tools: card, measure, "
             f"fade, {tools.get('slices', 0)} slices, {tools.get('edges', 0)} edges, labels apart in "
             f"{os.path.basename(browser)}")
 
