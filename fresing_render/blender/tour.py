@@ -300,6 +300,24 @@ def _look(look: str = "PRODUCT") -> None:
     _check(res == {"FINISHED"}, f"light look {look} returned {res}")
 
 
+def _surround(b: Build, kind: str) -> None:
+    """Task 0233: the set's own surroundings (a hall, the quay, the warehouse), simple detail, made round the model
+    as it stands now: call it after the set-up, before the camera is placed."""
+    b.s.env_detail = "SIMPLE"
+    b.s.background = kind
+    _update()
+
+
+def _studio(b: Build) -> None:
+    """Task 0233: a clean studio for the looks and the product videos: the product light, a soft light-grey
+    background; the floor stays "Shadow only", so the machine stands on an endless light ground with its shadow."""
+    s = b.s
+    _look("PRODUCT")
+    s.background = "COLOR"
+    s.background_color = (0.88, 0.89, 0.9)
+    _update()
+
+
 def _animation(b: Build, name: str, shot: str = "", fps: str = "25"):
     a = b.s.animations.add()
     a.name, a.tail, a.fps = name, 0.0, fps
@@ -900,11 +918,11 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.101")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.199")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
-    _look("PRODUCT")
+    _studio(b)
     picks = (("Welded frames", "paint_gloss", "RAL 1003", 0.6), ("Colour #333333", "cast_iron_painted", "", 0.6),
              ("Shafts", "steel_ground", "", 0.0), ("Hydraulic", "aluminium_anodized_black", "", 0.0),
              ("Chrome rods", "chrome_rod", "", 0.0),
@@ -918,7 +936,13 @@ def build_materials(b: Build):
                     g.color = col
                 g.wear = wear
     logic.refresh_group_materials(sc)
-    _camera(b, "ISO", "Tour view", lens=60.0)
+    # task 0233: the camera on the worn parts (their sharp edges and corners show Wear only close up)
+    from . import build
+    import numpy as np
+    worn = [ob for g in s.groups if g.wear > 0.5 for ob in logic.parts_in_group(sc, g.name)]
+    mn, mx = build.world_bounds(worn)
+    pts = np.array([(x, y, z) for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], mx[2])])
+    _camera(b, "ISO", "Tour view", lens=60.0, points=pts)
     _shot(b, "@materials")
 
 
@@ -1190,11 +1214,11 @@ def _check_marine(scene):
             f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
 
 
-@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.170")
+@tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.199")
 def build_cutaway(b: Build):
     from mathutils import Vector
     sc = b.scene
-    _look("PRODUCT")
+    _studio(b)
     ped = _ob(sc, "PEDESTAL")
     centre = sum((ped.matrix_world @ Vector(c) for c in ped.bound_box), Vector()) / 8.0
     _close_camera(b, centre + Vector((0.1, 0.0, 0.05)), 0.55, "Tour cutaway")
@@ -1277,7 +1301,7 @@ def _check_chips(scene):
     return f"{n} chips"
 
 
-@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.101")
+@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.199")
 def build_cylinder(b: Build):
     from mathutils import Vector
 
@@ -1306,6 +1330,7 @@ def build_cylinder(b: Build):
                          (Vector((0.8, y, 0.45)), along_y, _ob(sc, "ARM.ROD.PIN")),
                          name=f"Follower {barrel.split('.')[0].lower()}", stages=[at_y(stage, y)] if stage else ())
     _update()
+    _surround(b, "FACTORY")
     _camera(b, "FRONT", "Tour view")
     shot = _shot(b, "Tour: cylinder")
     a = _animation(b, "Stroke out", shot.name)
@@ -1349,7 +1374,7 @@ def _check_cylinder(scene):
 LIFT_ROD_PIN = (0.75 * math.cos(math.radians(15.0)), -0.08, 0.1 + 0.75 * math.sin(math.radians(15.0)))
 
 
-@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.172")
+@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.199")
 def build_linkage(b: Build):
     from mathutils import Vector
 
@@ -1374,7 +1399,13 @@ def build_linkage(b: Build):
                      (Vector((0.45, -0.08, 0.1)), along_y, _ob(sc, "LIFT.BASE.CYL.PIN")),
                      (Vector(LIFT_ROD_PIN), along_y, _ob(sc, "LIFT.CYL.PIN")), name="Lift cylinder")
     _update()
-    _camera(b, "FRONT", "Tour view")
+    _surround(b, "ASSEMBLY")
+    from . import build
+    import numpy as np
+    mn, mx = build.world_bounds([o for o in sc.objects if o.get(build.PROP_NAME)])
+    top = max(float(mx[2]), 1.65)             # task 0233: the scissor platform rises to 1.5 m: keep it in the frame
+    pts = np.array([(x, y, z) for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], top)])
+    _camera(b, "FRONT", "Tour view", points=pts)
     shot = _shot(b, "Tour: mechanisms")
     a = _animation(b, "Lift and crank", shot.name)
     blk = a.blocks.add()
@@ -1422,7 +1453,7 @@ def _check_linkage(scene):
     return f"platform at 1.5 m, four-bar rocker swings {swing * 1000:.0f} mm"
 
 
-@tour_set("waycover", "Way cover", "test_waycover_b.step", added="0.2.47", changed="0.2.101")
+@tour_set("waycover", "Way cover", "test_waycover_b.step", added="0.2.47", changed="0.2.199")
 def build_waycover(b: Build):
     from mathutils import Vector
 
@@ -1441,6 +1472,7 @@ def build_waycover(b: Build):
         waycover.add_section(sc, [_ob(sc, n) for n in g])
     built, problems = waycover.make(sc)
     _check(built == 5 and not problems, f"the way cover was not made: {problems}")
+    _surround(b, "ASSEMBLY")
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: way cover")
     a = _animation(b, "X axis out and back", shot.name)
@@ -1448,12 +1480,13 @@ def build_waycover(b: Build):
     _joint_step(a, "X axis", 2.5, 2.0, 0.0, slide=True)
 
 
-@tour_set("waycover2", "Two way covers", "test_waycover_c.step", added="0.2.61", changed="0.2.101")
+@tour_set("waycover2", "Two way covers", "test_waycover_c.step", added="0.2.61", changed="0.2.199")
 def build_waycover_two(b: Build):
     from . import waycover
     sc = b.scene
     _look("PRODUCT")
     waycover.set_up_test_model(sc, carriage=True)
+    _surround(b, "ASSEMBLY")
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: two way covers")
     a = _animation(b, "Carriage across and back", shot.name)
@@ -1522,7 +1555,7 @@ def hoses_motion(a) -> None:
     _joint_step(a, "Slide", 2.5, 1.5, -0.10, slide=True, label="Slide back 220 mm")
 
 
-@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78")
+@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78", changed="0.2.199")
 def build_hoses(b: Build):
     from . import flex
     sc = b.scene
@@ -1530,6 +1563,7 @@ def build_hoses(b: Build):
     made = flex.set_up_test_hoses(sc)
     _check(len(made["items"]) == 4, f"only {len(made['items'])} of the 4 hoses were made")
     _update()
+    _surround(b, "FACTORY")
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: hoses")
     hoses_motion(_animation(b, HOSES_ANIM, shot.name))
@@ -1593,7 +1627,7 @@ def _check_hoses(scene):
     return f"4 hoses, ends on their fittings to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
 
 
-@tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78")
+@tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78", changed="0.2.199")
 def build_chains(b: Build):
     from . import flex, gcode
     sc = b.scene
@@ -1605,6 +1639,7 @@ def build_chains(b: Build):
     gcode.use_workpiece(sc, _ob(sc, "STOCK 300x200x30"))
     _check(gcode.problem(sc) == "", f"the CNC set-up is not ready: {gcode.problem(sc)}")
     _update()
+    _surround(b, "FACTORY")
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: drag chains")
     a = _animation(b, CHAINS_ANIM, shot.name)
@@ -1627,7 +1662,7 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.199")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
@@ -1636,6 +1671,7 @@ def build_cables(b: Build):
     _check(len(made["contacts"]) == 6, f"only {len(made['contacts'])} of the 6 things the rope touches were found")
     _check(made["animation"] == CABLE_ANIM, f"the animation is called '{made['animation']}'")
     _update()
+    _surround(b, "WAREHOUSE")
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: cable")
     a = sc.fresing.animations[made["animation"]]
@@ -2112,13 +2148,14 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.139")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.199")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
     made = served_demo(sc)
     _check(made["animation"] == SPOOL_ANIM, f"the animation is called '{made['animation']}'")
     _update()
+    _surround(b, "FACTORY")
     served_camera(sc, "Tour served cable")
     shot = _shot(b, "Tour: served cable")
     a = sc.fresing.animations[made["animation"]]
@@ -2380,7 +2417,7 @@ def _check_moving_cable(scene):
 SWIVEL_ANIM = "Davit slews"
 
 
-@tour_set("swivel", "A sheave on a swivel", "test_swivel.step", added="0.2.138")
+@tour_set("swivel", "A sheave on a swivel", "test_swivel.step", added="0.2.138", changed="0.2.199")
 def build_swivel(b: Build):
     from . import paths, paths_swivel
     sc = b.scene
@@ -2390,6 +2427,7 @@ def build_swivel(b: Build):
     it = paths.find(sc, made["cable"])
     _check(it is not None and not it.problem, f"'{made['cable']}': {it.problem if it is not None else 'missing'}")
     _update()
+    _surround(b, "FACTORY")
     _camera(b, "ISO", "Tour view", lens=35.0)
     shot = _shot(b, "Tour: swivel")
     a = sc.fresing.animations[made["animation"]]
@@ -2574,7 +2612,7 @@ def _check_full_spools(scene, sps) -> str:
             f"layers), one cable to {worst * 1000:.2f} mm")
 
 
-@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.101")
+@tour_set("copies", "Two copies", "test_crane_a.step", "test_crane_a.step", added="0.2.47", changed="0.2.199")
 def build_copies(b: Build):
     from mathutils import Vector
 
@@ -2587,6 +2625,7 @@ def build_copies(b: Build):
     cover = next(o for o in sc.objects if o.get(build.PROP_NAME) == "COVER" and build.model_root_of(o) == second)
     logic.set_hidden(cover, True)
     states.save_visibility(sc, "Second crane without cover")
+    _surround(b, "ASSEMBLY")
     _camera(b, "ISO", "Tour view")
     _shot(b, "@copies")
 
@@ -2604,7 +2643,7 @@ def _check_copies(scene):
     return "two cranes kept apart"
 
 
-@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.101")
+@tour_set("update", "Model update", "test_crane_a.step", added="0.2.47", changed="0.2.199")
 def build_update(b: Build):
     import bpy
 
@@ -2621,6 +2660,7 @@ def build_update(b: Build):
                                       update_root=root.name)
     _check(res == {"FINISHED"}, f"the model update returned {res}: {s.last_message}")
     _update()
+    _surround(b, "FACTORY")
     _camera(b, "ISO", "Tour view")
     _shot(b, "@update")
 
@@ -2701,10 +2741,11 @@ def clash_arms(scene, a, seconds: float = 1.0) -> None:
         _joint_step(a, name, k * seconds, seconds, math.radians(deg))
 
 
-@tour_set("clash", "Clash check", "test_clash.step", added="0.2.53")
+@tour_set("clash", "Clash check", "test_clash.step", added="0.2.53", changed="0.2.199")
 def build_clash(b: Build):
     sc = b.scene
     _look("PRODUCT")
+    _surround(b, "FACTORY")
     _camera(b, "ISO", "Tour view")
     shot = _shot(b, "Tour: clash check")
     clash_arms(sc, _animation(b, "Arms meet", shot.name))
@@ -2791,10 +2832,10 @@ def check_sequence(scene, a=None) -> str:
     return f"12 parts out (least {least * 1000:.0f} mm), 5 fasteners first, back within {worst * 1000:.4f} mm"
 
 
-@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.101")
+@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.199")
 def build_sequence(b: Build):
     sc = b.scene
-    _look("PRODUCT")
+    _studio(b)
     _camera(b, "ISO", "Tour view", points=_tall_view_points(sc))
     shot = _shot(b, "Tour: assembly sequence")
     a = _animation(b, SEQUENCE_ANIM, shot.name)
@@ -2822,13 +2863,13 @@ def check_product_video(scene) -> str:
     return f"{len(a.blocks)} steps, {len(close)} close-up, {animation.length_seconds(a):.0f} s without the cards"
 
 
-@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.102")
+@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.199")
 def build_productvideo(b: Build):
     from mathutils import Vector
 
     from . import build as bld, joints, product_video
     sc = b.scene
-    _look("PRODUCT")
+    _studio(b)
     u = _ob(sc, SEQUENCE_UNIT)
     j = joints.create(sc, "ROTATE", [u], Vector((0.3, 0.0, 0.0)), Vector((0, 0, 1)), name="Turn unit")
     j.use_limits, j.rot_min, j.rot_max = True, -0.6, 0.6
@@ -2947,11 +2988,11 @@ def check_back_to_cad(scene) -> str:
     return f"carriage {before * 1000:.0f} mm -> {mid * 1000:.0f} mm -> 0, gripper -> 0"
 
 
-@tour_set("sequenceframe", "Round a frame, back to CAD", "test_sequence_frame.step", added="0.2.102")
+@tour_set("sequenceframe", "Round a frame, back to CAD", "test_sequence_frame.step", added="0.2.102", changed="0.2.199")
 def build_sequenceframe(b: Build):
     from . import states
     sc = b.scene
-    _look("PRODUCT")
+    _studio(b)
     pts = __import__("numpy").array([(x, y, z) for x in (-0.2, 0.2) for y in (-0.2, 0.35) for z in (0.0, 0.25)])
     _camera(b, "ISO", "Tour view", points=pts)
     shot = _shot(b, "Tour: round a frame")
@@ -2976,7 +3017,7 @@ def build_sequenceframe(b: Build):
 def _tall_view_points(scene):
     """The unit and the column of parts above it when it is taken apart (about 0.9 m high)."""
     import numpy as np
-    return np.array([(x, y, z) for x in (-0.2, 0.2) for y in (-0.2, 0.2) for z in (0.0, TALL)])
+    return np.array([(x, y, z) for x in (-0.15, 0.15) for y in (-0.15, 0.15) for z in (0.0, 0.95 * TALL)])
 
 
 def _gantry(b: Build, tools_too: bool = False):
@@ -3648,10 +3689,11 @@ WEATHER_ANIM = "Weather changes"
 # ----- props for scale in detail (task 0155) -----
 
 
-@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124")
+@tour_set("props", "Props for scale and people", "test_crane_a.step", added="0.2.124", changed="0.2.199")
 def build_props(b: Build):
     from . import cameras, props_scale
     _look("PRODUCT")
+    _surround(b, "WAREHOUSE")                  # task 0233: real-size things belong in a warehouse (or on a quay)
     obs = props_scale.line_up(b.scene)
     cameras.add_camera(b.scene, "ISO", 50.0, "Tour props", points=props_scale.corners(obs))
     _shot(b, "@props")
@@ -3691,12 +3733,26 @@ def _check_operator(scene):
     return tc_person.check_test_model(scene)
 
 
-@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128")
+@tour_set("people", "People walk and meet", "test_crane_a.step", added="0.2.128", changed="0.2.199")
 def build_people(b: Build):
-    from . import cameras, people
+    import numpy as np
+
+    from . import cameras, people, props_scale
+    from . import surroundings as sur
     _look("PRODUCT")
-    anna, ben, box = people.set_up_example(b.scene)
-    cameras.add_camera(b.scene, "ISO", 50.0, "Tour people", points=people.example_corners(b.scene))
+    _surround(b, "QUAY")                       # task 0233: people on the quay round a real-size container, not beside
+    anna, ben, box = people.set_up_example(b.scene)         # a desk-size crane
+    pts = people.example_corners(b.scene)
+    mn, mx = pts.min(0), pts.max(0)
+    cont = sur.add_prop(b.scene, "CONTAINER")
+    cont.rotation_euler.z = math.radians(90.0)
+    _update()
+    cb = props_scale.corners([cont])
+    cont.location = (cont.location.x + (mx[0] + 3.0 - cb[:, 0].min()),
+                     cont.location.y + ((mn[1] + mx[1]) / 2 - (cb[:, 1].min() + cb[:, 1].max()) / 2), cont.location.z)
+    _update()
+    pts = np.vstack([pts, props_scale.corners([cont])])
+    cameras.add_camera(b.scene, "ISO", 50.0, "Tour people", points=pts)
     a = _animation(b, PEOPLE_ANIM)
     a.start_shot = _shot(b, "@people").name
 
@@ -3706,7 +3762,7 @@ def _check_people(scene):
     return people.check_example(scene)
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.125")
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.199")
 def build_weather(b: Build):
     from . import weather
     sc, s = b.scene, b.s
@@ -3720,6 +3776,7 @@ def build_weather(b: Build):
     _update()
     _shot(b, "@weather")
     weather.use_preset(sc, "NIGHT_SHIFT")
+    s.weather.flood_strength = 4.0               # task 0233: at 400 px the picture was almost black
     _update()
     _shot(b, "@night")
     weather.use_preset(sc, "CLEAR_DAY")
@@ -3854,7 +3911,7 @@ def mesh_ring_click(scene):
     return ob, o, d, desc
 
 
-@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99")
+@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.199")
 def build_mesh(b: Build):
     """The invented mesh crane (a glTF file: no CAD faces) imported; its 48-sided slewing ring clicked for a joint
     that turns the turret, as a user does it."""
@@ -3865,6 +3922,7 @@ def build_mesh(b: Build):
     _ring, o, d, _desc = mesh_ring_click(sc)
     joints.create(sc, "ROTATE", [_ob(sc, "TURRET")], o, d, name="Slew", base=_ob(sc, "BASE"))
     _update()
+    _surround(b, "FACTORY")
     _camera(b, "ISO", "Tour view")
     _shot(b, "@mesh_import")
     a = _animation(b, MESH_ANIM, shot=shot_name(find("mesh_import")))
@@ -4285,8 +4343,8 @@ stop("materials", LOOK, "looks", "Ready-made materials and Wear",
      "The crane in eight ready-made materials: yellow gloss paint on boom and pedestal, painted cast iron on base "
      "and trolley (both with Wear: in a rendered picture their sharp edges look worn and corners a little dirty), "
      "ground steel pins, a black anodised cylinder barrel with a chrome rod, rubber wheels, blue anodised cover, "
-     "zinc flake bolts.",
-     where="3 Looks: the material groups, Ready-made material…, Wear", check=_check_materials, since="0.2.47", changed="0.2.101")
+     "zinc flake bolts. The camera is close on the worn base and trolley, where Wear shows.",
+     where="3 Looks: the material groups, Ready-made material…, Wear", check=_check_materials, since="0.2.47", changed="0.2.199")
 stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
@@ -4330,9 +4388,10 @@ stop("weather", LOOK, "weather", "Weather: grey North Sea",
      where="5 Scene & Render > Weather & time", since="0.2.88", check=_check_weather)
 stop("weather_step", LOOK, "weather", "Weather changes in a video",
      "A Weather & time step: a clear late morning turns into a wet dusk over four seconds – the sun sinks and "
-     "turns orange, clouds come in, the rain starts and the crane gets wet.",
-     where="6 Animation > Weather & time step", since="0.2.88", animation=WEATHER_ANIM, at=1.0, play=True,
-     check=_check_weather, auto="clip")
+     "turns orange, clouds come in, the rain starts and the crane gets wet. Go shows it about halfway: the light is "
+     "already lower and the rain is just starting.",
+     where="6 Animation > Weather & time step", since="0.2.88", animation=WEATHER_ANIM, at=0.6, play=True,
+     check=_check_weather, auto="clip", changed="0.2.199")
 stop("start_scene", LOOK, "weather", "Save into start scene",
      "Weather & time shows a box under its tick: \"Build puts back the start scene 'Clear day': Weather Grey North Sea "
      "→ Clear Day …\" with the button Save into start scene. Clicking it would keep the grey weather at Build (leave it "
@@ -4340,15 +4399,15 @@ stop("start_scene", LOOK, "weather", "Save into start scene",
      since="0.2.125", shot="Weather: grey North Sea", check=_check_start_scene)
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
-     "on the quay.", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night)
+     "on the quay (turned up to 4 for the picture).", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night, changed="0.2.199")
 stop("props", LOOK, "props", "Props for scale and people",
-     "Beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
+     "In a warehouse, beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
      "offshore coverall with reflective bands and gloves, one with both hands forward in office clothes and a "
      "yellow vest – then a container with ribbed walls, a pallet of taped boxes, a red and white barrier, an IBC "
      "tank in its cage, a rack of four gas bottles and a red tool trolley. Faces, fingers and shoe soles show close "
      "up; nothing floats or sinks into the floor.",
      where="5 Scene & Render > Props for scale (click a person for its pose and clothes)", since="0.2.124",
-     check=_check_props)
+     check=_check_props, changed="0.2.199")
 stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks, since="0.2.47")
@@ -4385,7 +4444,7 @@ stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
      "slides back and forth.", where="4 Motion > Mechanisms", animation="Lift and crank", play=True,
-     check=_check_linkage, auto="clip", since="0.2.47", changed="0.2.172")
+     check=_check_linkage, auto="clip", since="0.2.47", changed="0.2.199")
 stop("waycover", MOTION, "waycover", "Way cover follows the axis",
      "The carriage slides 500 mm along X on its rails and back; the five folded-sheet cover sections telescope out "
      "and in with it, each by its own share, over the rails and the ball screw.", where="4 Motion > Way covers", animation="X axis out and back", play=True,
@@ -4588,11 +4647,11 @@ stop("backtocad", MOTION, "sequenceframe", "Back to CAD step",
      auto="clip")
 
 stop("people", MOTION, "people", "People walk, carry and meet",
-     "Beside the crane Anna (orange coverall) walks in carrying a red toolbox, her feet stepping without sliding. "
+     "On the quay beside a 20 ft container (the crane is the small thing at the left) Anna (orange coverall) walks in carrying a red toolbox, her feet stepping without sliding. "
      "She stops by Ben, bends and puts the box on the floor; they turn to each other, shake hands and talk – "
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
-     at=0.55, play=True, check=_check_people, auto="clip")
+     at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.199")
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
      "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "
