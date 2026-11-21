@@ -44,6 +44,7 @@ BODY_OF = {"TOWER": FIXED, "NACELLE": YAW, "DOOR": DOOR, "DAVIT": DAVIT}
 RATED_RPM = S.value("rated_rpm")
 LOOP_THIRDS = 4                   # the loop turns the rotor 4/3 of a turn: 10.6 s at rated speed (seamless: 3 blades)
 YAW_SWING = 4.0                   # degrees the nacelle yaws and back during the loop
+DROPPED = ("Seabed",)            # task 0268: cameras of turbine_parts.cameras the site no longer uses
 
 
 def _hidden_notes(variant: str) -> list[dict]:
@@ -556,12 +557,13 @@ def convert(step: str, out_dir: str, write_step: bool = True, variant: str = "of
         "joints": js, "cylinders": [], "hide": _hidden_notes(variant),
         "poses": poses, "start_pose": "Running", "animation": loop,
         "check_animation": check_animation(poses, js),
-        "decals": tp.anchors(fit, variant), "cameras": tp.cameras(fit, variant),
+        # task 0268 (owner 21 Nov): no "Seabed" camera and no cut-away box in the sea - the stills and the video show
+        # the sea whole (the cut-away of task 0148 was made for that view only)
+        "decals": tp.anchors(fit, variant), "cameras": [c for c in tp.cameras(fit, variant) if c["name"] not in DROPPED],
         # the water over the pile's tip (the model's lowest point) = water depth + the pile's embedment; the app's
-        # seabed lies the water depth under the water, the cut-away cuts it (task 0148: "Seabed" looks into the ground)
+        # seabed lies the water depth under the water (unseen: no cut-away)
         "scene": ({"water_level_m": round(-(fit["seabed_z"]) / 1000.0 + S.value("embedment_m"), 3),
-                   "sea_depth_m": round(-(fit["seabed_z"]) / 1000.0, 3),
-                   "cutaway": {"centre_m": [0.0, 0.0], "length_m": 90.0, "width_m": 90.0, "ground": True}}
+                   "sea_depth_m": round(-(fit["seabed_z"]) / 1000.0, 3)}
                   if variant == "offshore"
                   else {"floor_offset_m": round(_lowest(parts, sheet_hidden) / 1000.0, 4)}),
         "notes": notes,

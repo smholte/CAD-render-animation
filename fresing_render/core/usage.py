@@ -70,7 +70,7 @@ BY_PROP = {
 ALSO = {"fresing.apply_rules": "looks.materials"}
 # Buttons that are not a use of anything: opening and folding is counted as a panel opening; the tracker's own buttons
 # and the test tour's would count themselves.
-NOT_COUNTED = {"fresing.panel_toggle", "fresing.panel_tab", "fresing.usage_go", "fresing.usage_pin",
+NOT_COUNTED = {"fresing.presence", "fresing.panel_toggle", "fresing.panel_tab", "fresing.usage_go", "fresing.usage_pin",
                "fresing.usage_window", "fresing.usage_set", "fresing.usage_clear", "fresing.usage_reset",
                "fresing.usage_declutter", "fresing.usage_export", "fresing.usage_import", "fresing.usage_folder",
                "fresing.learn_show", "fresing.learn_add", "fresing.learn_add_new", "fresing.learn_done",

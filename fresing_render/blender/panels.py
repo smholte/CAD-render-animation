@@ -44,7 +44,7 @@ _TAB = {"v": "ALL"}          # the section tab: "ALL" or "1" … "8" (a copy of 
 _PLAIN = set()               # panels that keep their own (header-less) drawing: the workspace row, the tabs
 LEFT: set = set()            # task 0260: the panels of the left panel (the 3D view's toolbar region, ``ui_left.py``)
 QUICK = "FRESING_PT_left_quick"     # … the one that shows also in the folded strip
-SIDE_MARKS = ("fr_setup", "fr_output")   # a Set-up window's screen, an output window's screen (task 0260)
+SIDE_MARKS = ("fr_setup", "fr_output", "fr_settings")   # Set-up, output windows (task 0260), Settings (task 0271)
 
 
 def side_window(win) -> bool:

@@ -117,27 +117,33 @@ class FRESING_OT_about(bpy.types.Operator):
         return {"FINISHED"}
 
     def draw(self, context):
-        layout = self.layout
-        icon = _logo()
-        if icon:
-            layout.template_icon(icon_value=icon, scale=3.0)
-        col = layout.column()
-        col.label(text="Fresing Render")
-        for line in core.lines(welcome.version(), bpy.app.version_string):
-            welcome._lines(col, line, 72)
-        layout.separator()
-        row = layout.row(align=True)
-        row.operator("fresing.about_open", text="Licence", icon="TEXT").which = "LICENCE"
-        row.operator("fresing.about_open", text="Third-party licences", icon="TEXT").which = "NOTICES"
-        row = layout.row(align=True)
-        row.operator("fresing.about_open", text="Using it in a company", icon="HOME").which = "COMPANY"
-        row.operator("fresing.about_open", text="Licence texts folder", icon="FILE_FOLDER").which = "TEXTS"
-        gone = core.missing(package_dir())
-        if gone:
-            box = layout.box()
-            box.alert = True
-            welcome._lines(box, "Missing in this install: " + ", ".join(gone) + ". Update or reinstall.", 72,
-                           icon="ERROR")
+        draw_about(self.layout)
+
+
+def draw_about(layout, width: int = 72) -> None:
+    """The About content (task 0206): the About window and the tab About of Fresing Settings (task 0271); ``width``:
+    characters per line."""
+    icon = _logo()
+    if icon:
+        layout.template_icon(icon_value=icon, scale=3.0)
+    col = layout.column()
+    col.label(text="Fresing Render")
+    for line in core.lines(welcome.version(), bpy.app.version_string):
+        welcome._lines(col, line, width)
+    layout.separator()
+    narrow = width < 50
+    row = layout.column(align=True) if narrow else layout.row(align=True)
+    row.operator("fresing.about_open", text="Licence", icon="TEXT").which = "LICENCE"
+    row.operator("fresing.about_open", text="Third-party licences", icon="TEXT").which = "NOTICES"
+    row = layout.column(align=True) if narrow else layout.row(align=True)
+    row.operator("fresing.about_open", text="Using it in a company", icon="HOME").which = "COMPANY"
+    row.operator("fresing.about_open", text="Licence texts folder", icon="FILE_FOLDER").which = "TEXTS"
+    gone = core.missing(package_dir())
+    if gone:
+        box = layout.box()
+        box.alert = True
+        welcome._lines(box, "Missing in this install: " + ", ".join(gone) + ". Update or reinstall.", width,
+                       icon="ERROR")
 
 
 def _draw_about_help(self, context):

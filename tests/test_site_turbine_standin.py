@@ -104,7 +104,9 @@ def _mini_parts() -> types.ModuleType:
             return [{"name": "Work boat", "eye": [17000.0, -17000.0, g + 2500.0], "target": [0.0, -4000.0, g + 26000.0],
                      "lens": 24.0},
                     {"name": "Whole turbine", "eye": [300000.0, -420000.0, g + 40000.0],
-                     "target": [0.0, hub[1], g + 135000.0], "lens": 35.0}]
+                     "target": [0.0, hub[1], g + 135000.0], "lens": 35.0},
+                    {"name": "Seabed", "eye": [30000.0, 10000.0, g - 42000.0], "target": [0.0, 0.0, g - 52000.0],
+                     "lens": 18.0}]                       # task 0268: the converter leaves this one out
         return [{"name": "From the field", "eye": [35000.0, -60000.0, 1700.0], "target": [0.0, -4000.0, 60000.0],
                  "lens": 20.0}]
 
@@ -611,7 +613,8 @@ def test_sheet_numbers_and_notes(converted, variant):
     assert sheet["frame"]["z_shift_mm"] == SHIFT[variant]
     if variant == "offshore":
         assert sheet["scene"]["water_level_m"] == 75.0           # over the pile's tip: 30 m water + 45 m of pile
-        assert sheet["scene"]["sea_depth_m"] == 30.0 and sheet["scene"]["cutaway"]["ground"] is True
+        assert sheet["scene"]["sea_depth_m"] == 30.0 and "cutaway" not in sheet["scene"]      # task 0268: no cut-away
+        assert "Seabed" not in {c["name"] for c in sheet["cameras"]}
     else:
         assert sheet["scene"] == {"floor_offset_m": -0.4}        # the slab reaches 0.4 m into the ground: ground z 0
     hidden = {h["part"] for h in sheet["hide"]}

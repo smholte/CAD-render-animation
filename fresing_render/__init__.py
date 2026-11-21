@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.200"
+__version__ = "0.2.201"
 
 _modules = []
 
@@ -43,6 +43,7 @@ def _classes():
     from .blender import apptools                 # task 0212: Fresing > Tools and checks
     from .blender import ops_backups              # task 0246: Fresing > Restore a backup…, the start question
     from .blender import ui_left, ops_make        # task 0260: the left panel, the output windows of Make
+    from .blender import ops_settings, ui_settings  # task 0271: the Fresing Settings window
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -69,7 +70,7 @@ def _classes():
             + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ops_lifting_rig.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
-            + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES)
+            + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES)
 
 
 def _all_classes():
@@ -108,8 +109,10 @@ def _all_classes():
             ordered.append(by_name[sec])
             under(sec)
     ordered += [c for c in tab if c not in ordered]             # a panel core/places.py does not know yet: at the end
+    late = [c for c in rest if c.__name__ == "FRESING_PT_settings_window"]   # task 0271: in the toolbar region too,
+    rest = [c for c in rest if c not in late]                                 # after the left panel's parts
     out = (list(panels.CLASSES) + list(lock.CLASSES) + list(ops_workspace.CLASSES) + rest + left + ordered
-           + list(ui_top.POPOVERS))
+           + list(ui_top.POPOVERS) + late)
     panels.install(out)
     return tuple(out)
 
@@ -160,6 +163,8 @@ def register():
     quiet.register()                         # task 0241: the quiet window, decided at the start
     from .blender import ops_usage
     ops_usage.register()                     # task 0181: counting, the session, My usage in the Help menu
+    from .blender import ops_settings
+    ops_settings.register()                  # task 0271: the presence marks in the keymap (only real input counts)
     from .blender import about
     about.register()                         # task 0206: About Fresing Render in the Help menu
     project_lock.register()
@@ -279,6 +284,8 @@ def unregister():
     welcome.unregister_handlers()
     from .blender import quiet
     quiet.unregister()                       # task 0241: Blender's own drawing back
+    from .blender import ops_settings
+    ops_settings.unregister()
     from .blender import ops_usage
     ops_usage.unregister()
     from .blender import about
