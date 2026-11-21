@@ -14,7 +14,7 @@ from mathutils import Matrix, Vector  # noqa: E402
 HERE = os.path.dirname(__file__)
 CRANE_A = os.path.join(HERE, "data", "test_crane_a.step")
 CRANE_B = os.path.join(HERE, "data", "test_crane_b.step")
-PIVOT = Vector((0.1, 0.3, 0.4))
+PIVOT = Vector((0.5, 1.5, 2.4))           # the boom pin (task 0259: the crane at real size)
 
 import fresing_render  # noqa: E402
 from fresing_render.blender import animation, build, joints, logic, project_lock, queue, states  # noqa: E402
@@ -47,9 +47,9 @@ def ob(sc, name, n=0):
 
 def boom_joint(sc):
     pin = ob(sc, "BOOM.PIN")
-    hit = PIVOT + Vector((0, 0, 0.02))
+    hit = PIVOT + Vector((0, 0, 0.05))
     origin, direction, desc = joints.axis_from_hit(pin, 0, hit, Vector((0, 0, 1)))
-    assert "Ø40.0" in desc
+    assert "Ø100.0" in desc
     return joints.create(sc, "ROTATE", [ob(sc, "BOOM.ASM")], origin, direction, ref=pin)
 
 
@@ -58,7 +58,7 @@ def update(sc):
 
 
 def tip(sc):
-    return ob(sc, "BOOM").matrix_world @ Vector((1.5, 0, 0))
+    return ob(sc, "BOOM").matrix_world @ Vector((7.5, 0, 0))
 
 
 def close(a, b, tol=1e-4):
@@ -71,13 +71,13 @@ def close(a, b, tol=1e-4):
 def test_axes_stored_and_picked(scene):
     pin = ob(scene, "BOOM.PIN")
     assert len(pin.data["fr_axes"]) == 7
-    origin, direction, _desc = joints.axis_from_hit(pin, 0, PIVOT + Vector((0.05, 0, 0.02)), Vector((0, 0, 1)))
+    origin, direction, _desc = joints.axis_from_hit(pin, 0, PIVOT + Vector((0.25, 0, 0.05)), Vector((0, 0, 1)))
     assert close(origin, PIVOT + Vector((0, 0, 0))), origin
     assert abs(abs(direction.y) - 1) < 1e-6
     # a flat face gives the face normal through the click
     base = ob(scene, "BASE")
-    o2, d2, desc2 = joints.axis_from_hit(base, 0, Vector((0.5, 0.3, 0.1)), Vector((0, 0, 1)))
-    assert "flat" in desc2 and close(d2, (0, 0, 1)) and close(o2, (0.5, 0.3, 0.1))
+    o2, d2, desc2 = joints.axis_from_hit(base, 0, Vector((2.5, 1.5, 0.5)), Vector((0, 0, 1)))
+    assert "flat" in desc2 and close(d2, (0, 0, 1)) and close(o2, (2.5, 1.5, 0.5))
 
 
 def test_rotate_joint_moves_boom_and_keeps_structure(scene):
@@ -86,11 +86,11 @@ def test_rotate_joint_moves_boom_and_keeps_structure(scene):
     assert boom_asm.parent is j.motion and build.logical_parent(boom_asm) is build.model_roots(scene)[0]
     assert j.base is build.model_roots(scene)[0]
     start = tip(scene).copy()
-    assert close(start, (1.6, 0.3, 0.4))
+    assert close(start, (8.0, 1.5, 2.4))
     sign = 1 if joints.axis_world(j)[1].y > 0 else -1
     joints.set_value(j, math.radians(30))
     update(scene)
-    expected = PIVOT + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ Vector((1.5, 0, 0))
+    expected = PIVOT + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ Vector((7.5, 0, 0))
     assert close(tip(scene), expected), (tip(scene), expected)
     # the structure list and click-selection still follow the CAD tree
     logic.rebuild_tree(scene)
@@ -126,9 +126,9 @@ def test_chain_trolley_rides_on_boom(scene):
     assert jt.frame.parent is ob(scene, "BOOM.ASM")
     sign = 1 if joints.axis_world(jb)[1].y > 0 else -1
     joints.set_value(jb, math.radians(30))
-    joints.set_value(jt, 0.2)
+    joints.set_value(jt, 1.0)
     update(scene)
-    expected = PIVOT + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ (cad - PIVOT + Vector((0.2, 0, 0)))
+    expected = PIVOT + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ (cad - PIVOT + Vector((1.0, 0, 0)))
     assert close(trolley.matrix_world.translation, expected), (trolley.matrix_world.translation, expected)
     # a joint cannot sit on what it moves
     with pytest.raises(RuntimeError):
@@ -137,9 +137,9 @@ def test_chain_trolley_rides_on_boom(scene):
     before = ob(scene, "TROLLEY").matrix_world.copy()
     joints.flip(scene, jt)
     update(scene)
-    assert abs(joints.get_value(jt) - 0.2) < 1e-9
+    assert abs(joints.get_value(jt) - 1.0) < 1e-9
     after_flip = ob(scene, "TROLLEY").matrix_world.translation
-    expected_flip = PIVOT + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ (cad - PIVOT + Vector((-0.2, 0, 0)))
+    expected_flip = PIVOT + Matrix.Rotation(sign * math.radians(30), 3, "Y") @ (cad - PIVOT + Vector((-1.0, 0, 0)))
     assert close(after_flip, expected_flip), (after_flip, expected_flip)
     _ = before
 
@@ -148,13 +148,13 @@ def test_pose_roundtrip_and_reset(scene):
     j = boom_joint(scene)
     cover = ob(scene, "COVER")
     joints.set_value(j, math.radians(20))
-    cover.matrix_basis = Matrix.Translation((0, 0, 0.3)) @ cover.matrix_basis
+    cover.matrix_basis = Matrix.Translation((0, 0, 1.5)) @ cover.matrix_basis
     update(scene)
     want_tip, want_cover = tip(scene).copy(), cover.matrix_world.translation.copy()
     states.save_pose(scene, "Up")
     states.reset_pose(scene)
     update(scene)
-    assert close(tip(scene), (1.6, 0.3, 0.4)) and cover.matrix_world.translation.z < want_cover.z - 0.25
+    assert close(tip(scene), (8.0, 1.5, 2.4)) and cover.matrix_world.translation.z < want_cover.z - 1.25
     assert states.apply_pose(scene, "Up")
     update(scene)
     assert close(tip(scene), want_tip) and close(cover.matrix_world.translation, want_cover)
@@ -275,7 +275,7 @@ def test_saved_file_keeps_working(scene, tmp_path):
     j = sc.fresing.joints[name]
     joints.set_value(j, math.radians(30))
     update(sc)
-    assert not close(tip(sc), (1.6, 0.3, 0.4))
+    assert not close(tip(sc), (8.0, 1.5, 2.4))
 
 
 def test_update_model_keeps_work(scene):
@@ -287,13 +287,13 @@ def test_update_model_keeps_work(scene):
     jb.use_limits = True
     jb.rot_max = math.radians(70)
     joints.set_value(jb, math.radians(20))
-    joints.set_value(jt, 0.1)
+    joints.set_value(jt, 0.5)
     cover = ob(scene, "COVER")
     cover["fr_group_manual"] = "Covers"
     bolts = sorted((o for o in build.iter_parts(scene) if o[build.PROP_NAME].startswith("ISO 4017")),
                    key=lambda o: (round(o.matrix_world.translation.x, 3), round(o.matrix_world.translation.y, 3)))
-    far = bolts[-1]                                   # the bolt at (950, 550)
-    assert close(far.matrix_world.translation, (0.95, 0.55, 0.1))
+    far = bolts[-1]                                   # the bolt at (4750, 2750)
+    assert close(far.matrix_world.translation, (4.75, 2.75, 0.5))
     logic.set_hidden(far, True)
     logic.exclude([ob(scene, "WHEEL", 0)])
     states.save_pose(scene, "Work")
@@ -307,7 +307,7 @@ def test_update_model_keeps_work(scene):
     assert len(build.model_roots(scene)) == 1
     assert len(s.joints) == 2 and all(joints.is_valid(x) for x in s.joints)
     jb, jt = s.joints[jb.name], s.joints[jt.name]
-    assert abs(math.degrees(joints.get_value(jb)) - 20) < 1e-6 and abs(joints.get_value(jt) - 0.1) < 1e-9
+    assert abs(math.degrees(joints.get_value(jb)) - 20) < 1e-6 and abs(joints.get_value(jt) - 0.5) < 1e-9
     assert jb.use_limits and abs(math.degrees(jb.rot_max) - 70) < 1e-6
     assert jt.frame.parent is ob(scene, "BOOM.ASM")
     assert close(tip(scene), tip_before)
@@ -316,10 +316,10 @@ def test_update_model_keeps_work(scene):
     new_bolts = [o for o in build.iter_parts(scene) if o[build.PROP_NAME].startswith("ISO 4017")]
     assert len(new_bolts) == 3
     hidden = [o for o in new_bolts if logic.is_hidden(o)]
-    assert len(hidden) == 1 and close(hidden[0].matrix_world.translation, (0.95, 0.55, 0.1))
+    assert len(hidden) == 1 and close(hidden[0].matrix_world.translation, (4.75, 2.75, 0.5))
     assert sum(1 for o in scene.objects if o.get(build.PROP_NAME) == "WHEEL" and o.get(build.PROP_EXCLUDED)) == 1
     assert [x.text for x in s.report_new] == ["BOOM.LAMP"]
-    assert [x.text for x in s.report_missing] == ["ISO 4017 M12 x 40 - 8.8 HDG"]
+    assert [x.text for x in s.report_missing] == ["ISO 4017 M30 x 120 - 8.8 HDG"]
     # saved states point at the new parts
     states.reset_pose(scene)
     states.show_all(scene)
@@ -548,8 +548,8 @@ def test_update_keeps_joints_of_other_models(scene):
 def test_gone_part_does_not_hit_a_new_one(scene):
     bolts = sorted((o for o in build.iter_parts(scene) if o[build.PROP_NAME].startswith("ISO 4017")),
                    key=lambda o: (round(o.matrix_world.translation.x, 3), round(o.matrix_world.translation.y, 3)))
-    gone = bolts[0]                                      # (50, 50): not in revision B
-    assert close(gone.matrix_world.translation, (0.05, 0.05, 0.1))
+    gone = bolts[0]                                      # (250, 250): not in revision B
+    assert close(gone.matrix_world.translation, (0.25, 0.25, 0.5))
     logic.set_hidden(gone, True)
     states.save_visibility(scene, "V")
     root = build.model_roots(scene)[0]
@@ -568,7 +568,7 @@ def test_project_from_before_phase2(scene):
     joints.set_value(j, math.radians(30))
     joints.remove(scene, j)
     update(scene)
-    assert close(tip(scene), (1.6, 0.3, 0.4))
+    assert close(tip(scene), (8.0, 1.5, 2.4))
 
 
 def test_renames_follow(scene):

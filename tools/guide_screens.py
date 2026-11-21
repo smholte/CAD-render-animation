@@ -185,17 +185,17 @@ def add_decals():
     text.ink_color = (1.0, 1.0, 1.0)
     dec.fit(text)
     f, c, n = face_facing(ob("BASE"), (0, -1, 0))
-    plate = dec.add(ob("BASE"), f, (0.62, c[1], c[2]), n, "STICKER", sticker="TYPE_PLATE")
+    plate = dec.add(ob("BASE"), f, (3.1, c[1], c[2]), n, "STICKER", sticker="TYPE_PLATE")
     plate.plate_company, plate.plate_type, plate.plate_serial = "FRESING", "Test crane TC-1", "SN 0001"
-    plate.plate_weight = "350 kg"
-    plate.width = 0.16
+    plate.plate_weight = "8500 kg"
+    plate.width = 0.3
     f, c, n = face_facing(ob("PEDESTAL"), (0, -1, 0))
-    warn = dec.add(ob("PEDESTAL"), f, (c[0], c[1], c[2] + 0.04), n, "STICKER", sticker="WARN_LOAD")
-    warn.width = 0.1
+    warn = dec.add(ob("PEDESTAL"), f, (c[0], c[1], c[2] + 0.2), n, "STICKER", sticker="WARN_LOAD")
+    warn.width = 0.3
     f, c, n = face_facing(ob("TROLLEY"), (0, -1, 0))
     ce = dec.add(ob("TROLLEY"), f, c, n, "STICKER", sticker="CE")
     ce.ink_color = (1.0, 1.0, 1.0)                    # white on the black trolley
-    ce.width = 0.07
+    ce.width = 0.2
     return plate
 
 
@@ -413,7 +413,7 @@ def build_state():
     j1.use_limits = True
     j1.rot_min, j1.rot_max = math.radians(-5), math.radians(35)   # the luffing cylinder's stroke (task 0122)
     mod("blender.tour").luff_cylinder(sc)                         # it follows the boom
-    joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((0.7, 0.3, 0.45)), Vector((1, 0, 0)), name="Trolley",
+    joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((3.5, 1.5, 2.65)), Vector((1, 0, 0)), name="Trolley",
                   base=ob("BOOM.ASM"))                    # "Sits on": the trolley rides on the boom
     s.joints_index = 0
     joints.set_value(j1, math.radians(20))
@@ -932,6 +932,45 @@ elif MODE == "window":
         return 1.0
 
     @step
+    def w_right_click():
+        """Task 0253: a right-click on the boom opens the short Fresing menu (view_right_click.png)."""
+        from bpy_extras import view3d_utils
+        from mathutils import Vector
+        win, area, region, sb = areas()
+        select_only()
+        _QUIET["before_rc"] = grab_screen()
+        b = ob("BOOM")
+        box = [b.matrix_world @ Vector(c) for c in b.bound_box]
+        co = view3d_utils.location_3d_to_region_2d(region, region.data, sum(box, Vector()) / 8)
+        x, y = int(region.x + co.x), int(region.y + co.y)
+        win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+        win.event_simulate(type="RIGHTMOUSE", value="PRESS", x=x, y=y)
+        win.event_simulate(type="RIGHTMOUSE", value="RELEASE", x=x, y=y)
+        return 0.6                                    # before a tooltip shows
+
+    @step
+    def w_shot_right_click():
+        import numpy as np
+        im = grab_screen()
+        diff = np.abs(im.astype(int) - _QUIET["before_rc"].astype(int)).max(axis=2) > 40
+        h, w = im.shape[:2]
+        win, area, region, sb = areas()
+        keep = np.zeros_like(diff)                    # only the 3D view itself (the left panel and timeline redraw)
+        top = win.height - (region.y + region.height)
+        keep[top + 90:top + region.height - 20, region.x + 20:region.x + region.width - 20] = True
+        diff &= keep
+        rows, cols = np.nonzero(diff.any(axis=1))[0], np.nonzero(diff.any(axis=0))[0]
+        if len(rows) and len(cols):                   # the menu and the selected boom, with some of the view round it
+            pad = 40
+            save_png(im[max(0, rows[0] - pad):min(h, rows[-1] + pad), max(0, cols[0] - pad):min(w, cols[-1] + pad)],
+                     "view_right_click")
+        else:
+            log("no right-click menu found on the screen")
+        win.event_simulate(type="ESC", value="PRESS", x=area.x + 30, y=area.y + 30)
+        win.event_simulate(type="ESC", value="RELEASE", x=area.x + 30, y=area.y + 30)
+        return 1.0
+
+    @step
     def w_joints():
         sc = bpy.context.scene
         sc.fresing.show_joints = True
@@ -983,13 +1022,13 @@ elif MODE == "hover":
             res = bpy.ops.fresing.joint_pick_axis("INVOKE_DEFAULT", mode="NEW", kind="ROTATE",
                                                   movers=ob("BOOM.ASM").name)
         log("pick", res)
-        # a spot on the far wall of the front lug's bore (axis x 0.1, z 0.4, along Y, Ø40.4)
-        y0 = 0.22                     # the front cheek's outer face (task 0122: the pedestal's foot reaches further)
+        # a spot on the far wall of the front cheek's bore (axis x 0.5, z 2.4, along Y, Ø100.4; task 0259)
+        y0 = 1.145                    # the front cheek's outer face
         view = region.data.view_rotation @ Vector((0, 0, -1))
         r = Vector((view.x, 0, view.z)).normalized()
         best = None
-        for dy in (0.004, 0.008, 0.012, 0.016):
-            p = Vector((0.1, y0 + dy, 0.4)) + r * 0.0195
+        for dy in (0.02, 0.04, 0.06):
+            p = Vector((0.5, y0 + dy, 2.4)) + r * 0.0495
             co = view3d_utils.location_3d_to_region_2d(region, region.data, p)
             if co is None:
                 continue
@@ -1003,7 +1042,7 @@ elif MODE == "hover":
                 break
         if best is None:
             w = ob("WHEEL")
-            best = tuple(int(v) for v in to_window_xy(region, w.matrix_world.translation + Vector((0, 0, 0.024))))
+            best = tuple(int(v) for v in to_window_xy(region, w.matrix_world.translation + Vector((0, 0, 0.12))))
         _HOVER_SPOT[:] = [best]
         win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=best[0], y=best[1])
         return 1.5
@@ -1027,7 +1066,7 @@ elif MODE == "hover":
         # a flat face too (the top of the front lug): only for checking, not in the guide
         ped = ob("PEDESTAL")
         bb = [ped.matrix_world @ Vector(c) for c in ped.bound_box]
-        top_pt = Vector((0.1, min(c.y for c in bb) + 0.01, max(c.z for c in bb)))
+        top_pt = Vector((0.5, min(c.y for c in bb) + 0.05, max(c.z for c in bb)))
         fx, fy = (int(v) for v in to_window_xy(region, top_pt))
         _HOVER_SPOT.append((fx, fy))
         win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=fx, y=fy)
@@ -2024,7 +2063,7 @@ def render_crane(with_decals: bool = False, with_cut: bool = False):
     joints = mod("blender.joints")
     pin, origin, direction = boom_axis()
     j = joints.create(sc, "ROTATE", [ob("BOOM.ASM")], origin, direction, ref=pin, name="Boom luff")
-    joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((0.7, 0.3, 0.45)), Vector((1, 0, 0)), name="Trolley",
+    joints.create(sc, "SLIDE", [ob("TROLLEY.ASM")], Vector((3.5, 1.5, 2.65)), Vector((1, 0, 0)), name="Trolley",
                   base=ob("BOOM.ASM"))
     mod("blender.tour").luff_cylinder(sc)               # the luffing cylinder follows the boom (task 0122)
     joints.set_value(j, math.radians(18))

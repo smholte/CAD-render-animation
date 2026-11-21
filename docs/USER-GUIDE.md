@@ -396,6 +396,42 @@ the Fresing tab does the same; leaving it hides everything again.
 - If you are in Blender's **Edit Mode** (or another mode) when you go back, the header stays Blender's own until you
   are in Object Mode again, so you never lose the menu that gets you out.
 
+<a id="keys-and-right-click"></a>
+### Keys and the right-click menu
+
+Blender has a key for almost everything, and a few of them delete or change your model in one press. Outside
+**Full access** those keys do nothing to the project; the status bar at the bottom says *"That is a Blender key –
+Fresing > Show all of Blender gives you Blender's keys"*:
+
+- **Delete, X** (also with Shift), **Shift+D**, **Alt+D** (copies), **Ctrl+J** (join), **Ctrl+P**, **Alt+P** (parent),
+  **Ctrl+A** (apply), **M**, **Shift+M** (collections), **Shift+A** (add), **Ctrl+H**, **Ctrl+0 … Ctrl+5**, **Tab**,
+  **Ctrl+Tab** (Edit Mode and the other modes), **Ctrl+Page Up / Page Down** (Blender's workspaces) and **I**,
+  **Alt+I**, **K** (keyframes – they would mix with the keys Build makes).
+- **These stay:** **H** hides the selected part, **Alt+H** shows everything again, **A** selects all, **Home** and the
+  number pad move the view, **Z** and **Ctrl+Space** for the shading and a bigger view, **Space** plays, **Ctrl+Z**
+  undoes, **F3** searches, **N** shows or hides the side panel, **Ctrl+S** saves, **Ctrl+O** opens.
+- **F12** renders a picture with the app – the same as the blue **Render image** button. **Ctrl+F12** renders the
+  animation picked in 6 Animation in the background, as Make's **Render animation** does.
+
+**Right-click on a part** in the 3D view: the part becomes the selected one (as a left click makes it – with the pick
+mode "Subassembly", its subassembly) and a short menu opens:
+
+<img src="img/view_right_click.png" alt="A right-click on the boom: Zoom to it, Show in 2 Structure, Hide, Show only this, Add a label here, Add joint here">
+
+- **Zoom to it** – the view fills with that part (the camera does not move).
+- **Show in 2 Structure** – the side panel opens 2 Structure at the part's row.
+- **Hide**, **Show only this** – as the buttons in 2 Structure; **Show all** appears when something is hidden.
+- **Add a label here** – a label that points at the spot you right-clicked; type its words in 6 Animation > Labels.
+- **Add joint here…** – Add joint starts with this part: click its pivot (a hole, a shaft or a flat face) next.
+
+**Right-click on empty space:** **Zoom to all** and **Show all**. In the **Client view** the menu has only Zoom, Show in
+2 Structure, Hide, Show only this and Show all – and its Hide only hides in the view: renders, the built animation and
+the project stay as they are, and leaving the Client view shows those parts again.
+
+**Blender's keys and menu back:** **Fresing > Show all of Blender** (or Workspace > Full access) gives every key and
+Blender's own right-click menu back at once; **Back to the Fresing window** takes them away again. If you moved one of
+these actions to another key in Blender's Preferences, that key is not swallowed: only the keys above are.
+
 <a id="backups"></a>
 ### Automatic backups – your work is saved every few minutes
 
@@ -1311,7 +1347,7 @@ A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a
 **Before you click, the face lights up.** While the app waits for that click, the face under the mouse
 turns magenta – the whole hole, shaft or flat face, as one piece – with the axis it would give: a line
 through a hole's or shaft's centre, or an arrow standing on a flat face. Next to the mouse (and at the
-bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø40.4 mm – axis through its
+bottom of the window) it says what it is, for example "PEDESTAL: Hole Ø100.4 mm – axis through its
 centre". So you see whether you are on the hole or on the face next to it before you click. The floor and
 empty space do not light up ("Not a part"); a spot this click would refuse turns red and says why. The
 same happens for a cylinder's pins and the double arm's hub and pot hinge. Every other click on the model
@@ -3739,7 +3775,7 @@ the pointer lights up.
 
 - **Part info** (I): click a part – a small card at it says what it is: the text of its **label** (5 Scene & Render >
   Labels) if it has one, else its **name**. With **Hide part names** on, the card shows the part's **material group**
-  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 40.0 mm**.
+  (Steel, Bolts …) instead, never a part name. Below it: the clicked face – **Flat face** or **Round face Ø 100.0 mm**.
   A label's live numbers ({speed}, {top} … of a cable into the sea) are filled in as at the frame shown on a still
   page; on a page with the animation the lines that hold one are left out (the card cannot follow them while it plays).
 - **Measure** (D): click two faces. **Faces** (the default) measures what was clicked:

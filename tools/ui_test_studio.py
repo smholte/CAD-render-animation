@@ -352,7 +352,7 @@ def s_after_sharp_spot():
         p = marker.matrix_world.translation
         fwd = cam.matrix_world.to_3x3() @ Vector((0, 0, -1))
         dist = (p - cam.matrix_world.translation).dot(fwd)
-        ok = abs(cam.data.dof.focus_distance - dist) < 1e-3 and (p - STATE["tip"]).length < 0.2
+        ok = abs(cam.data.dof.focus_distance - dist) < 1e-3 and (p - STATE["tip"]).length < 1.0
     check("a click on the boom makes it the sharp spot", ok,
           (cams.focus_label(cam), round(cam.data.dof.focus_distance, 3)))
     before = cam.data.dof.aperture_fstop
