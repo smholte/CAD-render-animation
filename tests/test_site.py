@@ -512,6 +512,15 @@ def test_built_on_blender_section(built):
         assert f'media/{media["feature"]["file"]}' in sec
 
 
+def test_who_it_is_for_section(built):
+    """Task 0266: the page says who it is for, incl. the message to animators."""
+    _out, _version, page = built
+    sec = page[page.index('<section id="who"'):page.index("</section>", page.index('<section id="who"'))]
+    for word in ("Engineers", "Sales teams", "Animators", "not to replace them", "Your real machine"):
+        assert word in sec, word
+    assert 'href="#who"' in page
+
+
 def test_how_its_done_links_to_the_guide(built, tmp_path, monkeypatch):
     """Task 0124: every picture, video and 3D model names its functions in media.json; the page shows "How it's done"
     links to their guide sections; an id the function list does not have is refused."""
