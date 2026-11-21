@@ -1,6 +1,6 @@
 # 0253 – Blender's harmful keys swallowed, F12 / Ctrl+F12 render with the app, a short Fresing right-click menu (0222 package B)
 
-**Who:** worker · **Status:** open – waits for 0260 (same lane, owner 21 Nov 14:44) · **Branch:** `task/0253-keys-right-click`
+**Who:** worker · **Status:** done (0.2.202) · **Branch:** `task/0253-keys-right-click`
 **Started by:** lead, 21 Nov 2026 (study 0222 package B; the owner's answers 20 Nov 16:22) · **Model:** Opus · effort Medium
 **Area:** Start & learn lane –
 - `blender/lock.py`: the key list and its keymap code (`_KEYS`, `_add_keys`, `_remove_keys`, `blender_ui`) – the Client
@@ -144,4 +144,4 @@ Variants) – next in this lane. The timeline header (package D, later). Other t
 - Keys in the timeline / dope sheet (X deletes keyframes there) are not swallowed: package D (the timeline header).
 - No lesson step: the right-click menu and the keys are not a step of the crane or mill lesson.
 
-**GitHub runs:** 
+**GitHub runs:** 2 full runs – the branch (run 44948342797, green, 35.5 min while other tasks' runs shared GitHub's jobs) and once more after merging main, which had brought task 0268's site-kit code. No failures.
