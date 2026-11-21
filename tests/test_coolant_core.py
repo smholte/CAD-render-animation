@@ -151,12 +151,13 @@ def test_the_liquid_depends_only_on_the_frame():
 
 def test_splash_stays_near_the_tool_and_above_the_part():
     g = np.array([0, 0, -9.81])
-    f = c.splash(np.zeros(3), 0.005, 0.008, 123.0, FPS, lambda t: np.ones_like(t), 1.0, g)
-    d = np.linalg.norm(f.drops[:, :2], axis=1)
-    assert len(f.drops) > 100
-    assert d.min() >= 0.004 and np.percentile(d, 95) < 0.12
-    assert f.drops[:, 2].min() > -0.0006
-    assert f.sizes.max() < 1 * MM
+    for rpm in (None, 1000, 6000, 15000):
+        f = c.splash(np.zeros(3), 0.005, 0.008, 123.0, FPS, lambda t: np.ones_like(t), 1.0, g, rpm=rpm)
+        d = np.linalg.norm(f.drops, axis=1)
+        assert len(f.drops) > 100
+        assert np.linalg.norm(f.drops[:, :2], axis=1).min() >= 0.004 and d.max() < c.FAR
+        assert f.drops[:, 2].min() > -0.0006
+        assert f.sizes.max() <= 0.7 * c.DROP_MAX
 
 
 def test_more_splash_while_cutting():
@@ -187,3 +188,171 @@ def test_hash_is_repeatable():
     assert np.array_equal(a, c.hash01(np.arange(10), 3, 1))
     assert not np.array_equal(a, c.hash01(np.arange(10), 4, 1))
     assert (a >= 0).all() and (a < 1).all()
+
+
+# ---------------------------------------------------------------------------
+# task 0257: the spinning tool
+# ---------------------------------------------------------------------------
+
+G = np.array([0, 0, -9.81])
+
+
+def _first_flight(rpm, radius=0.005, T=300.0, flow=1.0):
+    """The drops thrown off the tool, and where each was a moment earlier and later (its velocity)."""
+    on = lambda t: np.ones_like(np.asarray(t, float))       # noqa: E731
+    f = c.splash(np.zeros(3), radius, 0.008, T, FPS, on, flow, G, rpm=rpm)
+    return f
+
+
+def test_rim_speed_and_the_looks_it_gives():
+    assert abs(c.rim_speed(10000, 0.005) - 5.236) < 1e-3          # D10 at 10,000 rpm
+    assert abs(c.rim_speed(-3000, 0.025) - 7.854) < 1e-3          # D50 at 3,000 rpm, M4
+    assert abs(c.rim_speed(1000, 0.005) - 0.524) < 1e-3
+    assert [c.regime(v) for v in (0.5, 1.5, 5.0, 20.0)] == ["film", "streams", "spray", "mist"]
+
+
+def test_drops_get_finer_the_faster_the_tool_turns():
+    d = [float(c.drop_diameter(c.rim_speed(n, 0.005), 0.005)) for n in (1000, 3000, 6000, 15000, 60000)]
+    assert d == sorted(d, reverse=True)
+    assert d[0] == c.DROP_MAX and d[-1] == c.DROP_MIN                 # streams' beads … mist
+    assert 0.45 * MM < d[2] < 0.65 * MM and 0.18 * MM < d[3] < 0.26 * MM
+    # and the drawn drops follow it
+    big = np.median(_first_flight(3000).sizes)
+    fine = np.median(_first_flight(15000).sizes)
+    assert fine < 0.6 * big and fine >= c.DRAWN_MIN               # (drawn at least a pixel wide in a close-up)
+
+
+def test_fine_drops_are_slowed_by_the_air_sooner():
+    assert c.drag_time(0.1 * MM, 20.0) < 0.01 < c.drag_time(0.5 * MM, 3.0)
+    # a drop with no time to slow flies straight on; the air holds it back later
+    p = c._fly(np.zeros((1, 3)), np.array([[5.0, 0.0, 0.0]]), np.array([0.001]), np.zeros(3), np.array([0.05]))
+    assert abs(p[0, 0] - 0.005) < 1e-4
+    p = c._fly(np.zeros((1, 3)), np.array([[5.0, 0.0, 0.0]]), np.array([1.0]), np.zeros(3), np.array([0.05]))
+    assert abs(p[0, 0] - 0.25) < 1e-3                               # v0 * tau at most
+
+
+def _speeds(rpm, radius=0.005):
+    """How fast the thrown drops leave the tool: their speed between two moments very close together."""
+    on = lambda t: np.ones_like(np.asarray(t, float))       # noqa: E731
+    out = []
+    for T in (200.0, 260.0, 330.0):
+        a = c.splash(np.zeros(3), radius, 0.008, T, FPS, on, 1.0, G, rpm=rpm, floor=-1.0)
+        b = c.splash(np.zeros(3), radius, 0.008, T + 0.0025, FPS, on, 1.0, G, rpm=rpm, floor=-1.0)
+        n = min(len(a.drops), len(b.drops))
+        v = np.linalg.norm(b.drops[:n] - a.drops[:n], axis=1) / (0.0025 / FPS)
+        just = np.linalg.norm(a.drops[:n, :2], axis=1) < radius + 6 * MM        # just thrown: not slowed yet
+        out.append(v[(v < 100) & just])
+    return np.concatenate(out)
+
+
+def test_the_splash_leaves_at_the_rim_speed():
+    for rpm, radius in ((6000, 0.005), (15000, 0.005), (3000, 0.025)):
+        v = c.rim_speed(rpm, radius)
+        sp = _speeds(rpm, radius)
+        # just thrown drops fly at 0.85 … 1.15 x the rim speed; the air slows the others down
+        assert 0.8 * v < np.percentile(sp, 95) < 1.2 * v, (rpm, radius, np.percentile(sp, 95), v)
+    # a bigger tool at the same rpm throws faster
+    assert np.percentile(_speeds(3000, 0.025), 95) > 3 * np.percentile(_speeds(3000, 0.005), 95)
+    # capped where the picture stops reading
+    assert np.percentile(_speeds(30000, 0.025), 99) < 1.05 * c.SPLASH_CAP
+
+
+def test_the_splash_is_a_flat_band_where_the_jets_meet_the_tool():
+    on = lambda t: np.ones_like(np.asarray(t, float))       # noqa: E731
+    for rpm in (6000, 15000):
+        f = c.splash(np.zeros(3), 0.005, 0.015, 300.0, FPS, on, 1.0, G, rpm=rpm, band=0.006)
+        near = np.linalg.norm(f.drops[:, :2], axis=1) < 0.02
+        z = f.drops[near, 2]
+        assert len(z) > 20
+        assert 0.004 < np.median(z) < 0.008 and z.max() < 0.0095              # around 6 mm, not up the tool
+
+
+def test_m3_and_m4_throw_the_other_way():
+    for rpm, sign in ((6000, 1.0), (-6000, -1.0)):
+        on = lambda t: np.ones_like(np.asarray(t, float))       # noqa: E731
+        a = c.splash(np.zeros(3), 0.005, 0.008, 300.0, FPS, on, 1.0, G, rpm=rpm, floor=-1.0)
+        b = c.splash(np.zeros(3), 0.005, 0.008, 300.0025, FPS, on, 1.0, G, rpm=rpm, floor=-1.0)
+        n = min(len(a.drops), len(b.drops))
+        v = b.drops[:n] - a.drops[:n]
+        p = a.drops[:n]
+        ok = np.linalg.norm(v, axis=1) < 0.01
+        # turning about +Z: z component of p x v; M3 is clockwise seen from above (negative)
+        lz = p[ok, 0] * v[ok, 1] - p[ok, 1] * v[ok, 0]
+        assert np.mean(np.sign(lz) == -sign) > 0.9
+
+
+def test_a_slow_tool_wears_a_film_and_sheds_streams():
+    on = lambda t: np.ones_like(np.asarray(t, float))       # noqa: E731
+    assert c.film_share(0.4) == 1.0 and c.film_share(c.FILM_V) == 0.5 and c.film_share(2.0) == 0.0
+    slow = c.splash(np.zeros(3), 0.005, 0.008, 300.0, FPS, on, 1.0, G, rpm=600)
+    fast = c.splash(np.zeros(3), 0.005, 0.008, 300.0, FPS, on, 1.0, G, rpm=6000)
+    r_slow = np.linalg.norm(slow.drops[:, :2], axis=1)
+    r_fast = np.linalg.norm(fast.drops[:, :2], axis=1)
+    on_tool = (r_slow < 0.0062)
+    assert on_tool.sum() > 60 and (r_fast < 0.0062).sum() < 0.2 * len(r_fast)
+    # the film covers the tool from the jets' height down to the tip, all round
+    film = slow.drops[on_tool]
+    assert film[:, 2].min() < 0.001 and film[:, 2].max() > 0.004
+    ang = np.arctan2(film[:, 1], film[:, 0])
+    assert np.histogram(ang, 6, (-np.pi, np.pi))[0].min() > 0
+    # it turns with the tool: a film drop is at another angle a moment later, at the same radius
+    later = c.splash(np.zeros(3), 0.005, 0.008, 300.0 + 0.1 * FPS, FPS, on, 1.0, G, rpm=600)
+    assert not np.array_equal(slow.drops[on_tool][:5], later.drops[:5])
+    # the shed drops leave from FLUTES points on the tool's rim (streams), not all round
+    off = slow.drops[(r_slow > 0.0062) & (r_slow < 0.012)]
+    ang = np.arctan2(off[:, 1], off[:, 0])
+    hist = np.histogram(ang, 36, (-np.pi, np.pi))[0]
+    assert (hist == 0).sum() >= 12                                 # gaps between the streams
+    assert np.median(slow.sizes[~on_tool]) > 2 * np.median(fast.sizes)
+
+
+def test_the_air_layer_deflects_the_jet_at_speed():
+    assert c.deflect_share(c.rim_speed(9000, 0.005), 1.0) == 0.0           # 4.7 m/s: all of it reaches the tool
+    a = c.deflect_share(c.rim_speed(15000, 0.005), 1.0)
+    b = c.deflect_share(c.rim_speed(40000, 0.005), 1.0)
+    assert 0.2 < a < 0.3 and 0.6 < b < 0.7
+    assert c.deflect_share(c.rim_speed(15000, 0.005), 0.3) > a           # a weaker jet is deflected more
+    assert c.deflect_share(1000.0, 1.0) == c.DEFLECT_MAX
+    noz = c.auto_nozzles(2, 0.04, 0.05, np.array([0, 0, c.AIM_UP]))
+    tgt = np.array([0, 0, c.AIM_UP])
+    plain = c.jet(noz[0], tgt, 100.0, FPS, 1.0, G, deflect=0.0)
+    bent = c.jet(noz[0], tgt, 100.0, FPS, 1.0, G, deflect=0.5, spin=1.0, tool_r=0.005, rim_v=12.0)
+    back = c.jet(noz[0], tgt, 100.0, FPS, 1.0, G, deflect=0.5, spin=-1.0, tool_r=0.005, rim_v=12.0)
+    shift = np.linalg.norm(bent.verts - plain.verts, axis=1)
+    # the nozzle end stays, the end at the tool swings away a few mm, the other way for M4
+    assert shift[:20].max() < 1e-9 and 1 * MM < shift.max() < 6 * MM
+    assert np.linalg.norm(bent.verts - back.verts, axis=1).max() > 2 * MM
+    # and the atomised share swirls round the tool as fine mist
+    assert len(bent.drops) > len(plain.drops) + 60
+    mist = bent.drops[len(plain.drops):]
+    r = np.linalg.norm(mist[:, :2] - tgt[:2], axis=1)
+    assert r.min() > 0.005 and r.max() < 0.03
+    assert bent.sizes[len(plain.drops):].max() <= 1.2 * c.DRAWN_MIN + 1e-12
+
+
+def test_less_splashes_when_the_air_layer_takes_part_of_the_jets():
+    sp = fr([(0.0, 40.0, c.FLOOD)])
+    cut = [(0.0, 1000.0)]
+    noz = c.auto_nozzles(2, 0.04, 0.05, np.array([0, 0, c.AIM_UP]))
+    on = lambda t: np.ones_like(np.asarray(t, float))       # noqa: E731
+    n = {}
+    for d in (0.0, 0.6):
+        f = c.splash(np.zeros(3), 0.005, 0.008, 300.0, FPS, on, 1.0, G, rpm=30000, deflect=d, floor=-1.0)
+        n[d] = len(f.drops)
+    assert n[0.6] < 0.55 * n[0.0]
+    whole = c.liquid_at(300.0, FPS, sp, cut, noz, np.array([0, 0, c.AIM_UP]), np.zeros(3), 0.005, 1.0, G, rpm=30000)
+    assert len(whole.drops) > 0
+
+
+def test_same_frame_same_drops_at_any_speed():
+    sp = fr([(0.0, 40.0, c.FLOOD)])
+    cut = [(0.0, 1000.0)]
+    noz = c.auto_nozzles(2, 0.04, 0.05, np.array([0, 0, c.AIM_UP]))
+    for rpm in (600, 6000, 20000, -6000):
+        args = (sp, cut, noz, np.array([0, 0, c.AIM_UP]), np.zeros(3), 0.005, 0.8, G)
+        a = c.liquid_at(222.0, FPS, *args, rpm=rpm)
+        c.liquid_at(17.0, FPS, *args, rpm=rpm)
+        b = c.liquid_at(222.0, FPS, *args, rpm=rpm)
+        assert np.array_equal(a.drops, b.drops) and np.array_equal(a.verts, b.verts) and len(a.drops) > 50
+        d = c.liquid_at(222.0, FPS, *args, rpm=rpm, draft=True)
+        assert len(d.drops) == 0 and len(d.verts) > 0              # draft: the jets only, as before

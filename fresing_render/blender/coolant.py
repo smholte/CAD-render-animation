@@ -6,7 +6,9 @@
   the coolant draws hangs under it, so it goes wherever the head goes.
 * **The build** (``prepare`` before the steps, ``record`` per G-code step) writes on that empty: the coolant spans
   (``fr_spans``: start, end, kind in frames), the cutting spans (``fr_cut``), the tip height and radius of every tool
-  (``fr_tools``), gravity in its own space; and the keys of the wet level (``fr_wet``, read by the wet sheen).
+  (``fr_tools``), the spindle's speed (``fr_rpm``: frame, signed rpm – task 0257: it sets the splash, the film on a
+  slow tool and how much of the jets a fast tool's air layer turns away), gravity in its own space; and the keys of
+  the wet level (``fr_wet``, read by the wet sheen).
 * **Every frame** (a frame handler, also in the queue's background renders) draws the liquid for that frame from the
   frame number alone (``core/coolant.py``): the jets (mesh "FR coolant jets"), the drops (points "FR coolant drops",
   instanced as little spheres by Geometry Nodes) and, for "Automatic" nozzles, the hoses ("FR coolant hoses"),
@@ -577,7 +579,7 @@ def prepare(scene) -> None:
     """Before a build: no coolant until the steps say so; the objects made (or removed) as set."""
     r = root()
     if r is not None:
-        for k in ("fr_spans", "fr_cut", "fr_tools"):
+        for k in ("fr_spans", "fr_cut", "fr_tools", "fr_rpm"):
             if k in r:
                 del r[k]
     if not is_on(scene):
@@ -595,6 +597,7 @@ def prepare(scene) -> None:
     store_array(r, "fr_spans", np.zeros(0))
     store_array(r, "fr_cut", np.zeros(0))
     store_array(r, "fr_tools", np.zeros(0))
+    store_array(r, "fr_rpm", np.zeros(0))
     g = space_matrix(scene).to_3x3().inverted_safe() @ Vector((0.0, 0.0, -core.G))
     r["fr_g"] = list(g)
 
@@ -680,6 +683,10 @@ def record(scene, sch, b, mach, f0: float, fps: float, offsets: dict) -> None:
     cut = [(f0 + a * fps, f0 + z * fps) for a, z in core.cutting_spans(sch.pieces, top)]
     old = np.array(r["fr_cut"], dtype=np.float64).reshape(-1)
     store_array(r, "fr_cut", np.concatenate([old, np.array(cut, dtype=np.float64).reshape(-1)]))
+    # the spindle's speed (task 0257): (frame, signed rpm) where it changes; stopped after the step
+    keys = [(f0 + a * fps, float(rpm)) for a, rpm in sch.spindle_keys()] + [(f0 + sch.program_end * fps, 0.0)]
+    old = np.array(r.get("fr_rpm", ()), dtype=np.float64).reshape(-1)
+    store_array(r, "fr_rpm", np.concatenate([old, np.array(keys, dtype=np.float64).reshape(-1)]))
     # the tools: tip height in the coolant space (a longer tool reaches further down) and radius
     tools = {int(t): (z, rad) for t, z, rad in np.array(r["fr_tools"], dtype=np.float64).reshape(-1, 3)}
     copies = gcode.copies(scene)
@@ -765,7 +772,7 @@ def clear(scene) -> None:
     """'Clear keys': no coolant any more (the hoses stay)."""
     r = root()
     if r is not None:
-        for k in ("fr_spans", "fr_cut", "fr_tools"):
+        for k in ("fr_spans", "fr_cut", "fr_tools", "fr_rpm"):
             if k in r:
                 del r[k]
         if WET_PROP in r:
@@ -897,6 +904,19 @@ def _tool_at(scene, r, T: float) -> tuple:
     return tools.get(n, tools.get(0, (0.0, 3 * MM)))
 
 
+def rpm_at(r, T: float) -> float | None:
+    """The spindle's signed rpm at frame ``T`` from the build's keys (``fr_rpm``); None for a build made before
+    task 0257 (the splash then looks as at core.LEGACY_V)."""
+    if r is None or "fr_rpm" not in r:
+        return None
+    k = np.array(r["fr_rpm"], dtype=np.float64).reshape(-1, 2)
+    if not len(k):
+        return None
+    k = k[np.argsort(k[:, 0], kind="stable")]
+    j = int(np.searchsorted(k[:, 0], T + 1e-6, side="right")) - 1
+    return float(k[j, 1]) if j >= 0 else 0.0
+
+
 def _nozzles(scene, r, aim) -> list:
     s = settings(scene)
     if s.source == "AUTO":
@@ -1002,7 +1022,7 @@ def refresh(scene, T: float | None = None) -> bool:
     g = np.array(r.get("fr_g", (0.0, 0.0, -core.G)), dtype=np.float64)
     noz = _nozzles(scene, r, aim)
     fr = core.liquid_at(T, fps, sp, cut, noz, aim, tip, radius, s.flow, g, draft=s.draft,
-                        reach=min(15 * MM, 2 * radius + 4 * MM))
+                        reach=min(15 * MM, 2 * radius + 4 * MM), rpm=rpm_at(r, T))
     mat = liquid_material(s.liquid)
     jets = _child(scene, JETS, "jets", r)
     _write_mesh(jets.data, fr.verts, fr.faces)

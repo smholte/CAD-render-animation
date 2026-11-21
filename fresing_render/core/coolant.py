@@ -14,8 +14,13 @@ How it works
   new numbers from a hash of (drop, cycle). So frame 50 is the same whether frame 10 or 90 was shown before it.
   - **jets**: a liquid stream from each nozzle to the tool – a tube that sags a little under gravity, ripples along
     its length and spreads, breaking up into drops near the tool;
-  - **splash**: drops thrown off the turning tool where the jet meets it, more while it cuts than in the air; they
-    fly, fall and vanish where they meet the part;
+  - **splash** (task 0257): drops thrown off the turning tool where the jets meet it, more while it cuts than in the
+    air. They leave in a flat band at the jets' height, tangentially at about the tool's rim speed v = ω·r (capped at
+    ``SPLASH_CAP``), with drops that get finer the faster it turns (``drop_diameter``: a spinning-disc rule) and slow
+    down in the air by their size (``drag_time``); below ``FILM_V`` the liquid wears the tool as a turning film that
+    runs down the flutes and sheds in a few streams from the flute edges (``film_share``); above ``AIR_V`` the air
+    layer turning with the tool bends the end of each jet and atomises part of it (``deflect_share``), so less
+    splashes off the tool and a fine mist swirls round it. ``regime`` names the look for a speed;
   - **mist** (M7): no solid stream, a fine cone of tiny drops from each nozzle.
 * **Nozzles**: "Automatic" makes 2-4 flexible hoses (Loc-Line look) on a ring round the spindle nose, each bent so
   its nozzle points at the tool; after a tool change they bend again to the new tool's length (``auto_nozzles``,
@@ -49,6 +54,24 @@ AIM_UP = 4 * MM             # the jets aim this far above the tool's tip (at the
 HOSE_R = 4.2 * MM           # Loc-Line 1/4": a segment's ball is about Ø 8.4 mm
 HOSE_SEG = 9.5 * MM         # … and a segment this long
 RING_GAP = 8 * MM           # the nozzle ring sits this far outside the spindle nose
+
+# The tool's speed (task 0257). Rim speed v = |rpm| * 2 pi / 60 * tool radius, m/s.
+FILM_V = 1.0                # below this the liquid wears the tool as a turning film (half film, half splash here)
+STREAM_V = 2.0              # below this the splash leaves as big drops / streams
+SPRAY_V = 5.0               # a fine spray from here
+MIST_V = 15.0               # mist-like above this
+AIR_V = 5.0                 # the air layer turning with the tool deflects part of each jet above this rim speed
+DEFLECT_MAX = 0.85          # never more than this share of a jet deflected
+SPLASH_CAP = 25.0           # m/s: the fastest splash drawn (a D50 at 10,000 rpm: 26 m/s; faster reads as nothing)
+LEGACY_V = 3.0              # rim speed when the build stored no spindle speed (projects built before 0.2.200)
+SIGMA = 0.04                # N/m: surface tension of a coolant emulsion (water 0.072, cutting oil ~0.03)
+RHO = 1000.0                # kg/m3: the liquid
+RHO_AIR, MU_AIR = 1.2, 1.8e-5
+DROP_MIN, DROP_MAX = 0.08 * MM, 2.4 * MM    # drop diameters drawn (mist … a stream's beads)
+FLUTES = 3                  # streams a slow tool sheds (one per flute edge)
+HELIX = math.radians(30)    # the flutes' helix angle: a film running down a flute turns with it
+FAR = 0.35                  # m: drops further than this from the tool are out of the picture
+DRAWN_MIN = 0.09 * MM       # the smallest drop radius drawn (finer ones vanish below a pixel in a close-up)
 
 # The liquid's look: colour (linear), how see-through, IOR, roughness, how milky (sub-surface weight)
 @dataclass(frozen=True)
@@ -472,12 +495,104 @@ def _jet_path(o, d, target, g, speed: float, n: int) -> tuple:
     return pts, s, L
 
 
+# ---------------------------------------------------------------------------
+# the tool's speed (task 0257)
+# ---------------------------------------------------------------------------
+
+def rim_speed(rpm: float, radius: float) -> float:
+    """m/s at the tool's rim: |rpm| * 2 pi / 60 * radius."""
+    return abs(float(rpm)) * 2.0 * math.pi / 60.0 * float(radius)
+
+
+def regime(v: float) -> str:
+    """The look at rim speed ``v`` (m/s): 'film' (wears the tool, sheds streams), 'streams' (big drops), 'spray',
+    'mist' (mist-like spray)."""
+    if v < FILM_V:
+        return "film"
+    if v < STREAM_V:
+        return "streams"
+    if v < MIST_V:
+        return "spray"
+    return "mist"
+
+
+def drop_diameter(v, radius: float, sigma: float = SIGMA):
+    """Typical drop diameter (m) thrown off a tool of ``radius`` at rim speed ``v``: the spinning-disc rule
+    d = 3.8 * sqrt(sigma * r / rho) / v (Walton & Prewett), between DROP_MIN and DROP_MAX. A D10: 2.4 mm (capped) at
+    1,000 rpm, 0.55 mm at 6,000, 0.22 mm at 15,000."""
+    v = np.maximum(np.asarray(v, float), 1e-3)
+    d = 3.8 * math.sqrt(sigma * max(float(radius), 1e-4) / RHO) / v
+    return np.clip(d, DROP_MIN, DROP_MAX)
+
+
+def drag_time(d, v):
+    """s: how quickly a drop of diameter ``d`` flying at ``v`` is slowed by the air (its velocity relaxes towards
+    falling with e^(-t/tau)): Stokes with the Schiller-Naumann correction at its start speed. Fine mist stops within
+    centimetres, big drops fly on."""
+    d = np.asarray(d, float)
+    re = RHO_AIR * np.asarray(v, float) * d / MU_AIR
+    return RHO * d * d / (18.0 * MU_AIR * (1.0 + 0.15 * re ** 0.687))
+
+
+def film_share(v: float) -> float:
+    """Share of the liquid that wears the tool as a turning film: 1 below 0.5 m/s, 0 above 1.5 m/s (half at
+    FILM_V)."""
+    return float(np.clip((FILM_V + 0.5 - v) / 1.0, 0.0, 1.0))
+
+
+def deflect_share(v: float, flow: float) -> float:
+    """Share of each jet the air layer turning with the tool deflects and atomises before it reaches the tool:
+    (v - AIR_V) / (v - AIR_V + 2 * jet speed), 0 below AIR_V, at most DEFLECT_MAX. A faster jet (more flow) gets
+    through better. A D10 with full flood: 0 at 9,000 rpm, 26 % at 15,000, 67 % at 40,000."""
+    x = float(v) - AIR_V
+    if x <= 0:
+        return 0.0
+    return float(min(DEFLECT_MAX, x / (x + 2.0 * jet_speed(flow))))
+
+
+def _fly(p0, v0, age, g, tau):
+    """Where a drop is ``age`` s after it left ``p0`` at ``v0``, slowed by the air (relaxation time ``tau``) and
+    pulled by ``g``: v(t) = g tau + (v0 - g tau) e^(-t/tau)."""
+    g = np.asarray(g, float)[None, :]
+    tau = np.asarray(tau, float)[:, None]
+    a = np.asarray(age, float)[:, None]
+    e = 1.0 - np.exp(-a / tau)
+    return p0 + g * tau * a + (v0 - g * tau) * tau * e
+
+
+def _tangent(radial: np.ndarray, spin: float) -> np.ndarray:
+    """The turning direction at a point ``radial`` (unit, horizontal) from the axis: M3 (spin +1) is clockwise seen
+    from above."""
+    return np.stack([radial[..., 1], -radial[..., 0], np.zeros(radial.shape[:-1])], axis=-1) * spin
+
+
+def _bend(s, s_hit: float, share: float, tool_r: float) -> np.ndarray:
+    """How far (m) the jet is pushed along the turning direction at distance ``s`` along it: nothing before the bend
+    zone (3 + 6 * share mm before the tool), growing as a square to share * (2 + 3 * r/5 mm) at the tool."""
+    if share <= 0:
+        return np.zeros_like(np.asarray(s, float))
+    lb = (3.0 + 6.0 * share) * MM
+    u = np.clip((np.asarray(s, float) - (s_hit - lb)) / lb, 0.0, 1.2)      # (it stops at the tool)
+    return share * (2.0 * MM + 0.6 * tool_r) * u * u
+
+
 def jet(nz: Nozzle, target, T: float, fps: float, flow: float, g, seed: int = 0, draft: bool = False,
-        sides: int = 10) -> Frame:
-    """One flood stream at frame ``T``: a rippling tube from the nozzle to the tool, drops where it breaks up."""
+        sides: int = 10, deflect: float = 0.0, spin: float = 1.0, tool_r: float = 5 * MM, rim_v: float = 0.0) -> Frame:
+    """One flood stream at frame ``T``: a rippling tube from the nozzle to the tool, drops where it breaks up.
+    ``deflect`` (task 0257, ``deflect_share``): the share the air layer turning with the tool bends away – the jet's
+    end swings in the turning direction (``spin``) and thins, and a fine mist of that share swirls round the tool
+    (radius ``tool_r``, rim speed ``rim_v``, its axis through ``target``, vertical)."""
     speed = jet_speed(flow)
     r0 = jet_radius(flow)
     pts, s, L = _jet_path(nz.o, nz.d, target, g, speed, 24 if draft else 48)
+    target = np.asarray(target, float)
+    rin = np.asarray(nz.o, float) - target
+    rin[2] = 0.0
+    rl = float(np.linalg.norm(rin))
+    rin = rin / rl if rl > 1e-9 else np.array([1.0, 0.0, 0.0])
+    tang = _tangent(rin, spin)
+    hz = math.hypot(float(nz.d[0]), float(nz.d[1]))
+    s_hit = max(L - tool_r / max(hz, 0.2), 0.5 * L)        # where the stream meets the tool's rim
     t = T / fps
     u = s / L
     if draft:
@@ -488,6 +603,11 @@ def jet(nz: Nozzle, target, T: float, fps: float, flow: float, g, seed: int = 0,
         rad = r0 * (1.0 + 0.35 * u) * (1.0 + 0.12 * np.sin(ph) + 0.05 * np.sin(2.3 * ph + 1.1))
         # the stream thins where it starts to break up, just before the tool
         rad *= 1.0 - 0.35 * np.clip((u - 0.8) / 0.2, 0.0, 1.0)
+    if deflect > 0:
+        bend = _bend(s, s_hit, deflect, tool_r)
+        pts = pts + bend[:, None] * tang[None, :]
+        lb = (3.0 + 6.0 * deflect) * MM
+        rad = rad * (1.0 - 0.6 * deflect * np.clip((s - (s_hit - lb)) / lb, 0.0, 1.0))
     verts, faces = _tube(pts, rad, sides)
     if draft:
         return Frame(verts, faces, np.zeros((0, 3)), np.zeros(0))
@@ -505,7 +625,31 @@ def jet(nz: Nozzle, target, T: float, fps: float, flow: float, g, seed: int = 0,
     side -= (side @ nz.d)[:, None] * nz.d[None, :]
     p += side * (r0 * 3.0 * frac)[:, None]
     size = r0 * (0.35 + 0.45 * hash01(i, k, 5)) * (1.0 - 0.3 * frac)
+    if deflect > 0:
+        a, b = _atomised(target, rin, tool_r, T, fps, flow, deflect, spin, seed, rim_v)
+        p, size = np.concatenate([p, a]), np.concatenate([size, b])
     return Frame(verts, faces, p, size)
+
+
+def _atomised(target, rin, tool_r: float, T: float, fps: float, flow: float, share: float, spin: float,
+              seed: int, rim_v: float) -> tuple:
+    """The fine mist a deflected jet leaves (task 0257): drops born where the jet meets the air layer, carried round
+    the tool by it at half the rim speed of the layer, drifting outwards and up or down a little. Returns (points,
+    sizes)."""
+    n = int(400 * share * (0.5 + 0.5 * flow))
+    if n <= 0:
+        return np.zeros((0, 3)), np.zeros(0)
+    i = np.arange(n) + 9000 * (seed + 1)
+    life = 0.05 + 0.12 * hash01(i, 0, 11)
+    k, age = _cycle(T / fps, life, hash01(i, 0, 12))
+    a0 = math.atan2(float(rin[1]), float(rin[0])) + 0.25 * (hash01(i, k, 13) - 0.5)
+    r = tool_r + (1.0 + 2.5 * hash01(i, k, 14)) * MM + (0.03 + 0.12 * hash01(i, k, 15)) * age
+    omega = 0.5 * max(float(rim_v), AIR_V) / r                      # the layer turns at about half the rim speed
+    a = a0 - spin * omega * age                                       # M3: clockwise from above
+    z = (hash01(i, k, 16) - 0.5) * 3.0 * MM + (hash01(i, k, 17) - 0.5) * 0.05 * age
+    p = np.asarray(target, float)[None, :] + np.stack([r * np.cos(a), r * np.sin(a), z], axis=1)
+    size = DRAWN_MIN * (0.8 + 0.4 * hash01(i, k, 18))
+    return p, size
 
 
 def mist(nz: Nozzle, target, T: float, fps: float, flow: float, seed: int = 0, draft: bool = False) -> Frame:
@@ -533,39 +677,96 @@ def mist(nz: Nozzle, target, T: float, fps: float, flow: float, seed: int = 0, d
 
 
 def splash(tip, radius: float, reach: float, T: float, fps: float, level_at, flow: float, g, spin: float = 1.0,
-           floor: float | None = None, n_max: int = 700, draft: bool = False) -> Frame:
-    """Drops thrown off the turning tool at frame ``T``. ``tip``: the tool's tip (coolant space), ``radius``: its
-    radius, ``reach``: how far up the flutes the jets wet it. ``level_at(times in frames)`` -> 0 … 1 splash at those
-    moments (a drop is only there if it was thrown while coolant flowed). Drops end where they fall below ``floor``
-    (the part's top; default: a little below the tip)."""
+           floor: float | None = None, n_max: int = 700, draft: bool = False, rpm: float | None = None,
+           band: float = AIM_UP, deflect: float = 0.0) -> Frame:
+    """Drops thrown off the turning tool at frame ``T`` (task 0257). ``tip``: the tool's tip (coolant space),
+    ``radius``: its radius, ``reach``: how far up the flutes the liquid wets it, ``rpm``: the spindle's speed (signed,
+    + = M3; None: a rim speed of LEGACY_V), ``band``: the height above the tip where the jets meet the tool,
+    ``deflect``: the share of the jets the air layer took away (less reaches the tool). ``level_at(times in frames)``
+    -> 0 … 1 splash at those moments (a drop is only there if it was thrown while coolant flowed). Drops end where
+    they fall below ``floor`` (the part's top; default: a little below the tip) or fly out of the picture.
+
+    The drops leave in a flat band at ``band`` at about the rim speed (``rim_speed``, at most SPLASH_CAP), mostly in
+    the turning direction with an outward share, as big as ``drop_diameter`` says, slowed by the air
+    (``drag_time``). Below FILM_V a share (``film_share``) wears the tool as a film turning with it and running down
+    the flutes, and sheds from FLUTES points on the flute edges that turn with the tool: streams."""
+    empty = Frame(np.zeros((0, 3)), [], np.zeros((0, 3)), np.zeros(0))
     if draft or n_max <= 0 or flow <= 0:
-        return Frame(np.zeros((0, 3)), [], np.zeros((0, 3)), np.zeros(0))
-    n = int(n_max * (0.35 + 0.65 * flow))
-    i = np.arange(n)
+        return empty
+    if rpm is None:
+        v = LEGACY_V
+        omega = v / max(radius, 1e-4)
+    else:
+        v = rim_speed(rpm, radius)
+        omega = abs(float(rpm)) * 2.0 * math.pi / 60.0
+        if abs(rpm) > 1e-9:
+            spin = 1.0 if rpm > 0 else -1.0
+    fs = film_share(v)
+    tip = np.asarray(tip, float)
     t = T / fps
-    life = 0.05 + 0.13 * hash01(i, 0, 1)                 # s each drop flies (then a new one from the tool)
+    reach = max(float(reach), band)
+    out = [_film(tip, radius, reach, band, T, fps, level_at, flow, spin, omega, fs)] if fs > 0 else []
+    # thrown drops: a fast tool throws more, finer ones
+    n = int(n_max * (0.35 + 0.65 * flow) * (1.0 + float(np.clip((v - STREAM_V) / 6.0, 0.0, 1.0))))
+    i = np.arange(n)
+    # s each drop flies (then a new one from the tool); fast drops are out of the picture sooner, so the tool throws
+    # them more often: as many show near the tool at any speed
+    life = (0.06 + 0.2 * hash01(i, 0, 1)) / (1.0 + v / 2.0)
     k, age = _cycle(t, life, hash01(i, 0, 2))
     born = (t - age) * fps
-    keep = hash01(i, k, 3) < np.asarray(level_at(born), float)
-    if not keep.any():
+    keep = hash01(i, k, 3) < np.asarray(level_at(born), float) * (1.0 - deflect)
+    if keep.any():
+        i, k, age = i[keep], k[keep], age[keep]
+        shed = hash01(i, k, 9) < fs
+        a = 2 * math.pi * hash01(i, k, 4)
+        if shed.any():                                   # a slow tool sheds from its flute edges, turning with it
+            q = np.floor(hash01(i, k, 10) * FLUTES)
+            a_shed = 2 * math.pi * q / FLUTES - spin * omega * (t - age) + 0.12 * (hash01(i, k, 11) - 0.5)
+            a = np.where(shed, a_shed, a)
+        radial = np.stack([np.cos(a), np.sin(a), np.zeros_like(a)], axis=1)
+        tang = _tangent(radial, spin)
+        bw = 2.0 * jet_radius(flow) + 1.0 * MM            # the band's height: about the jets' width
+        h = np.where(shed, reach * hash01(i, k, 5), band + (hash01(i, k, 5) - 0.5) * bw)
+        p0 = tip[None, :] + radial * (radius * 1.02) + np.array([0.0, 0.0, 1.0])[None, :] * h[:, None]
+        sp = np.minimum(v * (0.85 + 0.3 * hash01(i, k, 6)), SPLASH_CAP)
+        sp = np.where(shed, v * (1.0 + 0.15 * hash01(i, k, 6)) + 0.05, sp)
+        out_share = 0.15 + 0.2 * hash01(i, k, 7)
+        vz = 0.12 * (hash01(i, k, 12) - 0.45)            # flat: a little up or down, not a cloud
+        d = (tang + out_share[:, None] * radial + vz[:, None] * np.array([0.0, 0.0, 1.0])[None, :])
+        d /= np.linalg.norm(d, axis=1, keepdims=True)
+        vel = d * sp[:, None]
+        dia = drop_diameter(v, radius) * (0.6 + 0.8 * hash01(i, k, 8) ** 2)
+        dia = np.where(shed, DROP_MAX * (0.35 + 0.25 * hash01(i, k, 8)), dia)
+        p = _fly(p0, vel, age, g, drag_time(dia, sp))
+        fl = tip[2] - 0.5 * MM if floor is None else floor
+        ok = (p[:, 2] > fl) & (np.linalg.norm(p - tip[None, :], axis=1) < FAR)
+        out.append(Frame(np.zeros((0, 3)), [], p[ok], np.maximum(0.5 * dia, DRAWN_MIN)[ok]))
+    return combine(out) if out else empty
+
+
+def _film(tip, radius: float, reach: float, band: float, T: float, fps: float, level_at, flow: float, spin: float,
+          omega: float, share: float) -> Frame:
+    """The film on a slow tool (task 0257): beads on the tool's surface that turn with it and run down the flutes
+    from the jets' height to the tip (turning with the flutes' helix as they go), a few rings of them."""
+    n = int(160 * share * (0.5 + 0.5 * flow))
+    if n <= 0:
         return Frame(np.zeros((0, 3)), [], np.zeros((0, 3)), np.zeros(0))
-    i, k, age = i[keep], k[keep], age[keep]
-    tip = np.asarray(tip, float)
-    a = 2 * math.pi * hash01(i, k, 4)
-    h = reach * hash01(i, k, 5) ** 1.5
-    radial = np.stack([np.cos(a), np.sin(a), np.zeros_like(a)], axis=1)
-    tang = np.stack([np.sin(a), -np.cos(a), np.zeros_like(a)], axis=1) * spin      # M3: clockwise from above
-    p0 = tip[None, :] + radial * (radius * 1.02) + np.array([0.0, 0.0, 1.0])[None, :] * h[:, None]
-    sp = (0.25 + 0.9 * hash01(i, k, 6) ** 2) * (0.6 + 0.6 * flow)
-    up = 0.15 + 0.6 * hash01(i, k, 7)
-    v = (0.75 * tang + 0.55 * radial + up[:, None] * np.array([0.0, 0.0, 1.0])[None, :])
-    v /= np.linalg.norm(v, axis=1, keepdims=True)
-    v *= sp[:, None]
-    p = p0 + v * age[:, None] + 0.5 * np.asarray(g, float)[None, :] * (age ** 2)[:, None]
-    fl = tip[2] - 0.5 * MM if floor is None else floor
-    up_ok = p[:, 2] > fl
-    size = (0.12 + 0.33 * hash01(i, k, 8) ** 2) * MM * (0.7 + 0.6 * flow)
-    return Frame(np.zeros((0, 3)), [], p[up_ok], size[up_ok])
+    i = np.arange(n) + 20000
+    t = T / fps
+    top = min(reach, band + 1.5 * MM)
+    vdown = 0.012 + 0.02 * hash01(i, 0, 21)               # m/s down the flute
+    per = top / vdown
+    k, age = _cycle(t, per, hash01(i, 0, 22))
+    keep = hash01(i, k, 23) < np.asarray(level_at((t - age) * fps), float)
+    i, k, age, vdown = i[keep], k[keep], age[keep], vdown[keep]
+    z = top - vdown * age
+    q = np.floor(hash01(i, k, 24) * FLUTES)
+    a = (2 * math.pi * q / FLUTES + 0.9 * hash01(i, k, 25) - spin * omega * t
+         - spin * (top - z) * math.tan(HELIX) / max(radius, 1e-4))
+    size = (0.2 + 0.15 * hash01(i, k, 26)) * MM * (0.7 + 0.3 * flow)
+    r = radius * 1.01 + 0.5 * size
+    p = np.asarray(tip, float)[None, :] + np.stack([r * np.cos(a), r * np.sin(a), z], axis=1)
+    return Frame(np.zeros((0, 3)), [], p, size)
 
 
 def combine(frames) -> Frame:
@@ -585,14 +786,22 @@ def combine(frames) -> Frame:
 
 
 def liquid_at(T: float, fps: float, sp, cut, nozzles: list, target, tip, radius: float, flow: float, g,
-              spin: float = 1.0, draft: bool = False, reach: float = 8 * MM) -> Frame:
-    """Everything liquid at frame ``T``: the jets (flood) or mist from every nozzle, and the splash at the tool."""
+              spin: float = 1.0, draft: bool = False, reach: float = 8 * MM, rpm: float | None = None) -> Frame:
+    """Everything liquid at frame ``T``: the jets (flood) or mist from every nozzle, and the splash at the tool.
+    ``rpm``: the spindle's speed at ``T`` (signed, + = M3; task 0257) – it sets the splash, the film and how much of
+    the jets the air layer turns away (None: as at a rim speed of LEGACY_V)."""
     kind = int(flow_at([T], sp)[0])
+    v = LEGACY_V if rpm is None else rim_speed(rpm, radius)
+    if rpm is not None and abs(rpm) > 1e-9:
+        spin = 1.0 if rpm > 0 else -1.0
+    deflect = deflect_share(v, flow) if kind == FLOOD else 0.0
+    band = float(np.asarray(target, float)[2] - np.asarray(tip, float)[2])
     parts = []
     if kind == FLOOD:
-        parts += [jet(nz, target, T, fps, flow, g, seed=k, draft=draft) for k, nz in enumerate(nozzles)]
+        parts += [jet(nz, target, T, fps, flow, g, seed=k, draft=draft, deflect=deflect, spin=spin, tool_r=radius,
+                      rim_v=v) for k, nz in enumerate(nozzles)]
     elif kind == MIST:
         parts += [mist(nz, target, T, fps, flow, seed=k, draft=draft) for k, nz in enumerate(nozzles)]
     parts.append(splash(tip, radius, reach, T, fps, lambda tt: splash_level(tt, sp, cut), flow, g, spin,
-                        draft=draft))
+                        draft=draft, rpm=rpm, band=band, deflect=deflect))
     return combine(parts)

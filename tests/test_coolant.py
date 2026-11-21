@@ -190,6 +190,38 @@ def test_frames_are_the_same_whatever_came_before(scene):
     assert len(b10) > 0
 
 
+def test_the_spindle_speed_sets_the_splash(scene):
+    """Task 0257: the build stores the spindle's speed per frame; a slow tool wears a film, a fast one bends the
+    jets and throws a fine spray; M4 throws the other way."""
+    scene.fresing.coolant.enabled = True
+    seen = {}
+    for rpm, m in ((1000, "M3"), (15000, "M3"), (15000, "M4")):
+        _a, _b, _frames = build_program(scene, POCKET.replace("S9000 M3", f"S{rpm} {m}"))
+        r = coolant.root()
+        sp = coolant.spans()
+        f = int((sp[0, 0] + sp[0, 1]) / 2)
+        want = rpm if m == "M3" else -rpm
+        assert coolant.rpm_at(r, f) == want and coolant.rpm_at(r, 0.0) in (0.0, want)
+        assert coolant.rpm_at(r, 10 ** 6) == 0.0                     # stopped after the program
+        scene.frame_set(f)
+        me = bpy.data.objects[coolant.DROPS].data
+        pos = np.empty(len(me.vertices) * 3)
+        me.vertices.foreach_get("co", pos)
+        size = np.empty(len(me.vertices))
+        me.attributes["fr_size"].data.foreach_get("value", size)
+        jets = bpy.data.objects[coolant.JETS].data
+        jv = np.empty(len(jets.vertices) * 3)
+        jets.vertices.foreach_get("co", jv)
+        seen[(rpm, m)] = (pos.reshape(-1, 3), size, jv.reshape(-1, 3))
+    slow, fast, m4 = seen[(1000, "M3")], seen[(15000, "M3")], seen[(15000, "M4")]
+    # the drops are in the coolant space (origin at the tip): the slow tool has a film of beads on it
+    tool_r = 5 * MM
+    on_tool = lambda p: (np.linalg.norm(p[:, :2], axis=1) < tool_r + 1.2 * MM).sum()   # noqa: E731
+    assert on_tool(slow[0]) > 40 and np.median(slow[1]) > 2 * np.median(fast[1])
+    # the fast tool's air layer bends the jets' ends: the jets differ between M3 and M4, the slow ones would not
+    assert len(fast[2]) == len(m4[2]) and np.abs(fast[2] - m4[2]).max() > 1 * MM
+
+
 def test_switched_off_leaves_nothing(scene):
     scene.fresing.coolant.enabled = True
     build_program(scene)
