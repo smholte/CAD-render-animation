@@ -642,7 +642,9 @@ site/                      the landing page https://smholte.github.io/CAD-render
                            pictures.bat" + make_site_pictures.py + models.ini; task 0112: projects.py makes a model that moves
                            from its sheet projects/<model>.json – joints, cylinders, poses, the loop – with the app's own
                            functions; video = turntable | product | animation, weather per model, the expected time, start
-                           later, one result zip site_pictures_<date>.zip). tools/build_site.py builds it into dist/site
+                           later, one result zip site_pictures_<date>.zip; task 0268: a section with `jobs =` is a run
+                           choice – a start-window row that makes only the stills / clips it names, e.g. [Redo 21 Nov] –,
+                           a camera stored exactly (`camera_at`, `camera_turn`), `crop`, `names`, `views = none`). tools/build_site.py builds it into dist/site
                            (--take <zip or folder>: the kit's result in); .github/workflows/pages.yml publishes it (after
                            each release, on site-only pushes to main, by hand). The kit itself: .github/workflows/
                            site-kit.yml builds it (tools/make_site_projects.py --kit) and puts it on the DRAFT release

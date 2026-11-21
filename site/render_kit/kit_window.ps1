@@ -440,7 +440,9 @@ function Build-StartWindow($Est) {
         if (-not $m.found) { $note = "file not found: skipped" }
         $item = New-Object System.Windows.Forms.ListViewItem([string]$m.title)
         [void]$item.SubItems.Add($note)
-        $item.Checked = [bool]$m.found
+        $tick = $true                                     # task 0268: a run choice ticked by models.ini, the rest not
+        if ($m.PSObject.Properties.Name -contains "ticked") { $tick = [bool]$m.ticked }
+        $item.Checked = ([bool]$m.found -and $tick)
         [void]$list.Items.Add($item)
         [void]$u.ids.Add([string]$m.id)
     }

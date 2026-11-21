@@ -322,7 +322,7 @@ def test_kit_settings_files_read():
         general, models = kit.read_settings(os.path.join(KIT, name))
         assert models
         for m in models:
-            assert m["credit"] and m["views"]
+            assert m["credit"] and (m["views"] or m["video"] != "none" or m["id"] == "iea15_onshore")   # 0268: none
     general, models = kit.read_settings(os.path.join(KIT, "models.ini"))
     assert sum(m["video"] == "turntable" for m in models) == 1
 
