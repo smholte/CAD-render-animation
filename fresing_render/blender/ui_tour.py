@@ -10,6 +10,7 @@ import bpy
 
 from ..core.words import plural
 from . import tour, ui
+from .ui_left import LeftPanel
 
 
 def _since() -> str:
@@ -31,7 +32,7 @@ def _state_icon(state: str) -> str:
     return {tour.OK_STATE: "CHECKMARK", tour.PROBLEM: "ERROR"}.get(state, "LAYER_USED")
 
 
-class FRESING_PT_tour(ui._Panel, bpy.types.Panel):
+class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
     bl_label = "Test tour"
     bl_order = 0
 

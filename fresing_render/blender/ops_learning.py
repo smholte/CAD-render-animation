@@ -315,15 +315,23 @@ class FRESING_OT_learn_lessons(bpy.types.Operator):
         return context.window_manager.invoke_props_dialog(self, width=720, title="Learn", confirm_text="Close")
 
     def execute(self, context):
+        CHOSEN["mode"] = ""
         return {"FINISHED"}
+
+    def cancel(self, context):
+        CHOSEN["mode"] = ""
 
     def draw(self, context):
         draw_lessons(self.layout)
 
 
+CHOSEN = {"mode": ""}         # task 0260: the way chosen on the left panel's switch (its buttons show pressed)
+
+
 def draw_lessons(layout) -> None:
     """The Learn window: the sets with a lesson first (three buttons), then every other set with View."""
     from . import lesson, tour
+    chosen = CHOSEN["mode"]
     col = layout.column(align=True)
     for line in ("Three ways to learn on a sample project. View: the finished project (the test tour).",
                  "Show me: the app does each step while you watch. Build it yourself: you do each step, the app",
@@ -341,10 +349,11 @@ def draw_lessons(layout) -> None:
         split = row.split(factor=0.42, align=True)
         split.label(text=f"{ts.title} ({len(les.steps)} steps)", icon="LIGHT")
         right = split.row(align=True)
-        right.operator("fresing.learn_view", text="View", icon="HIDE_OFF").set = set_id
-        op = right.operator("fresing.learn_start", text="Show me", icon="PLAY")
+        right.operator("fresing.learn_view", text="View", icon="HIDE_OFF", depress=chosen == "VIEW").set = set_id
+        op = right.operator("fresing.learn_start", text="Show me", icon="PLAY", depress=chosen == "SHOW")
         op.lesson, op.mode = set_id, "SHOW"
-        op = right.operator("fresing.learn_start", text="Build it yourself", icon="TOOL_SETTINGS")
+        op = right.operator("fresing.learn_start", text="Build it yourself", icon="TOOL_SETTINGS",
+                            depress=chosen == "BUILD")
         op.lesson, op.mode = set_id, "BUILD"
         sub = box.row()
         sub.active = False
@@ -358,7 +367,7 @@ def draw_lessons(layout) -> None:
             continue
         cell = flow.row(align=True).split(factor=0.76, align=True)
         cell.label(text=_clip(ts.title, 44))
-        cell.operator("fresing.learn_view", text="View", icon="HIDE_OFF").set = set_id
+        cell.operator("fresing.learn_view", text="View", icon="HIDE_OFF", depress=chosen == "VIEW").set = set_id
 
 
 class FRESING_OT_learn_window(bpy.types.Operator):

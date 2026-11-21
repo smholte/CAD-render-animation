@@ -158,8 +158,9 @@ def _reach(name) -> bool:
 
 def _tab_panels() -> list:
     return sorted(n for n in dir(bpy.types) if n.startswith("FRESING_PT_")
-                  and getattr(getattr(bpy.types, n), "bl_region_type", "") == "UI"
-                  and getattr(getattr(bpy.types, n), "bl_category", "") == "Fresing")
+                  and ((getattr(getattr(bpy.types, n), "bl_region_type", "") == "UI"
+                        and getattr(getattr(bpy.types, n), "bl_category", "") == "Fresing")
+                       or getattr(getattr(bpy.types, n), "_fr_left", False)))     # task 0260: the left panel too
 
 
 def _operators() -> dict:
@@ -406,7 +407,8 @@ def test_every_panel_of_the_tab_has_a_place_and_every_function_a_panel():
     assert [p for p in named if not hasattr(bpy.types, p)] == []
     # a panel no function names can never be hidden: only the notices on top may be like that (task 0230: + the Lesson
     # panel, shown only while a lesson runs or a project offers to go on with one)
-    assert sorted(n for n in tab if n not in named) == ["FRESING_PT_lesson", "FRESING_PT_tour", "FRESING_PT_update"]
+    assert sorted(n for n in tab if n not in named) == ["FRESING_PT_left_quick", "FRESING_PT_lesson", "FRESING_PT_tour",
+                                                         "FRESING_PT_update"]     # task 0260: the left row repeats Live preview and Build & play
 
 
 def test_where_gives_a_text_for_every_panel():
@@ -1287,7 +1289,7 @@ def test_nothing_on_the_allow_list_edits_the_model_by_its_name():
     saved views, turntable, render; plus help, updates, the panel itself)."""
     workspaces, panels, lock = _mods()
     allowed = sorted(i for i in _operators() if lock.allowed(i))
-    assert len(allowed) < 103         # task 0230: + Learn…, its View / Show me / Build (a new project, never the locked one) and the lesson's Stop, More, mode (6); task 0217: + the Toolbox status line and Not now (2); task 0213: + camera, saved scene, paint schemes (4); task 0208: + the learning buttons (8); task 0181: + the usage tracker's 9 buttons (they change nothing in the model)
+    assert len(allowed) < 109         # task 0260: + fold the left panel, the Learning hub's switch, What's next's fold, the output windows' open / close / Make's fold (6); task 0230: + Learn…, its View / Show me / Build (a new project, never the locked one) and the lesson's Stop, More, mode (6); task 0217: + the Toolbox status line and Not now (2); task 0213: + camera, saved scene, paint schemes (4); task 0208: + the learning buttons (8); task 0181: + the usage tracker's 9 buttons (they change nothing in the model)
     edits = ("_add", "_remove", "_delete", "_clear", "_save", "_set", "_move", "_assign", "_apply_", "explode",
              "exclude", "hide_", "joint", "pose", "group", "rule", "scheme", "decal", "bake", "build")
     ok = {"fresing.queue_add", "fresing.queue_remove", "fresing.report_clear", "fresing.workspace_save",

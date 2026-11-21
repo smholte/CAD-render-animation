@@ -256,8 +256,8 @@ def s_new_project_ok():
     _w, area, _r = view()
     sp = area.spaces.active
     ui = next(r for r in area.regions if r.type == "UI")
-    check("New project: the app's layout (side panel on the Fresing tab, toolbar folded)",
-          sp.show_region_ui and not sp.show_region_toolbar and ui.active_panel_category == "Fresing",
+    check("New project: the app's layout (side panel on the Fresing tab, the left panel shown)",
+          sp.show_region_ui and sp.show_region_toolbar and ui.active_panel_category == "Fresing",
           ui.active_panel_category)
     quiet_ok("New project")
     workspace("Product design & R&D")                          # the workspace Show all of Blender comes from

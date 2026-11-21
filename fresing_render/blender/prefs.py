@@ -101,6 +101,19 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         description="Also keeps the newest backup of each of these last days (today counts as one). 0: only the "
                     "last backups above")
 
+    left_folded: BoolProperty(
+        name="Left panel folded", default=False, options={"HIDDEN"},
+        description="The left panel is folded to its narrow strip (Live preview, Build & play, the unfold button)")
+    left_width: IntProperty(
+        name="Left panel width", default=240, min=120, max=600, options={"HIDDEN"},
+        description="How wide the left panel opens again after it was folded (pixels at UI scale 1)")
+    next_folded: BoolProperty(
+        name="What's next folded", default=False, options={"HIDDEN"},
+        description="What's next and Next to learn on the left panel are folded to their title row")
+    make_open: BoolProperty(
+        name="Make list open", default=False, options={"HIDDEN"},
+        description="Make at the top of the Fresing panel shows the labelled list instead of the row of icons")
+
     live_preview: BoolProperty(
         name="Live preview was on", default=False, options={"HIDDEN"},
         description="Remembers the last choice of the Live preview button (5 Scene & Render), so the test tour and "

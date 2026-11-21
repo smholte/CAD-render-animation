@@ -1,11 +1,13 @@
 """The top of the Fresing tab (task 0062): Workspace switcher with the function families, the What's next card,
 the section tabs, and Make – every way to make a picture, a video or a 3D page side by side.
 
-Order on the tab: update notice, test tour (their own files) · Workspace · What's next · tabs · Make · 1 … 8.
+Task 0260: on the right only Make (a row of icons, or the labelled list) · tabs · Set-up window… · 1 … 8; the
+Workspace switcher and What's next sit on the left panel (``ui_left.py``).
 
 **Make** does not move anything: each button opens the app's own settings panel of that output (5 Scene & Render >
-Image size & render, Turntable video, Web 3D model; 6 Animation; 7 Render queue) as a popover with its own Make
-button, so no section is renumbered. The same list sits in the 3D view's header ("Make"), reachable whatever the
+Image size & render, Turntable video, Web 3D model; 6 Animation; 7 Render queue) in a window of its own with its own
+Make button (task 0260, ``ops_make.py``; the popover classes below draw the same bodies there), so no section is
+renumbered. The same list sits in the 3D view's header ("Make"), reachable whatever the
 side panel shows.
 """
 
@@ -19,6 +21,7 @@ from ..core import workspaces as W
 from ..core.words import plural
 from . import panels, ui, workspaces
 from .ui import _Panel, big_row, header_status, hint, wrap
+from .ui_left import LeftPanel
 
 
 # =============================================================================
@@ -26,7 +29,7 @@ from .ui import _Panel, big_row, header_status, hint, wrap
 # =============================================================================
 
 
-class FRESING_PT_workspace(_Panel, bpy.types.Panel):
+class FRESING_PT_workspace(LeftPanel, bpy.types.Panel):   # task 0260: on the left panel
     bl_label = "Workspace"
     bl_order = 0
     bl_options = {"HIDE_HEADER"}
@@ -167,7 +170,7 @@ def _toolbox_here(context) -> bool:
         return False
 
 
-class FRESING_PT_next(_Panel, bpy.types.Panel):
+class FRESING_PT_next(LeftPanel, bpy.types.Panel):        # task 0260: on the left panel
     bl_label = "What's next"
     bl_order = 0
     bl_options = {"HIDE_HEADER"}
@@ -186,10 +189,20 @@ class FRESING_PT_next(_Panel, bpy.types.Panel):
             if not (_show_step(context.scene.fresing) or _learn_line(context)):
                 return
         box = self.layout.box()
-        row = box.row()
-        row.label(text="What's next", icon="LIGHT")
+        row = box.row(align=True)
+        from . import ui_left
+        opened = not ui_left.next_folded()        # task 0260: a fold arrow, open for a new user, kept per user
+        left = row.row(align=True)
+        left.alignment = "LEFT"
+        left.operator("fresing.next_fold", text="", icon="DOWNARROW_HLT" if opened else "RIGHTARROW", emboss=False)
+        left.operator("fresing.next_fold", text="What's next", icon="LIGHT", emboss=False)
         if _show_step(context.scene.fresing):
-            row.operator("fresing.next_hide", text="", icon="X", emboss=False)
+            right = row.row(align=True)
+            right.alignment = "RIGHT"
+            right.operator("fresing.next_hide", text="", icon="X", emboss=False)
+        if not opened:
+            return
+        if _show_step(context.scene.fresing):
             text, panel, button = next_step(context.scene)
             wrap(box, context, text, inset=14)
             if panel and not panels.is_open(panel):
@@ -236,6 +249,10 @@ class FRESING_PT_tabs(_Panel, bpy.types.Panel):
         p = prefs.get()
         if p is not None and not p.knows_ctrl_click:
             hint(layout, context, "Ctrl+click a title: only that one stays open.")
+        if hasattr(bpy.types, "FRESING_OT_setup_window") and context.scene.fresing.model_count > 0 and (
+                workspaces.shows(context.scene, "cnc.machine")
+                or workspaces.shows(context.scene, "machines.mechanism")):
+            layout.operator("fresing.setup_window", text="Set-up window…", icon="WINDOW").kind = ""
 
 
 # =============================================================================
@@ -260,39 +277,65 @@ def _outputs(scene):
     return [o for o in OUTPUTS if workspaces.shows(scene, o[4])]
 
 
-def draw_make(layout, context) -> None:
+MAKE_LINES = {
+    "still": "a picture of the model from the active camera, at the size and quality you choose",
+    "product": "a short video made from the project: turntable, motion and the parts coming apart",
+    "turn": "the model turning once round the camera's centre, as a video",
+    "web": "one web page with the model in 3D that anyone can turn in a browser",
+    "anim": "the selected animation of 6 Animation, rendered as a video",
+    "queue": "every picture and video waiting in the render queue, made one after the other",
+}
+
+
+def draw_make(layout, context, labelled: bool = True) -> None:
+    """The outputs: a labelled list (2 x 3) or icons only; each button opens that output's own window."""
+    outs = _outputs(context.scene)
+    if not labelled:
+        row = layout.row(align=True)
+        row.scale_y = 1.2
+        for key, _text, icon, *_rest in outs:
+            row.operator("fresing.make_window", text="", icon=icon).key = key
+        return
     grid = layout.grid_flow(columns=2, even_columns=True, even_rows=True, align=True)
-    for _key, text, icon, panel, _fid, _op, _t in _outputs(context.scene):
+    for key, text, icon, *_rest in outs:
         col = grid.column(align=True)
         col.scale_y = 1.35
-        col.popover(panel=panel, text=text, icon=icon)
+        col.operator("fresing.make_window", text=text, icon=icon).key = key
+
+
+def make_open() -> bool:
+    from . import prefs
+    p = prefs.get()
+    return bool(p is not None and p.make_open)
 
 
 class FRESING_PT_make(_Panel, bpy.types.Panel):
+    """Task 0260: one row – "Make" and the six outputs as icons (folded, the default) – or the labelled list. Each
+    opens the output's own window (ops_make.py) that can be dragged anywhere and stays open."""
     bl_label = "Make"
     bl_order = 0
+    bl_options = {"HIDE_HEADER"}
 
     @classmethod
     def poll(cls, context):
         return context.scene.fresing.model_count > 0
 
-    def draw_header(self, context):
-        self.layout.label(icon="RENDER_RESULT")
-
-    def draw_header_preset(self, context):
-        n = len(context.scene.fresing.queue)
-        if n:
-            header_status(self.layout, f"{n} queued")
-
     def draw(self, context):
         layout = self.layout
-        draw_make(layout, context)
-        hint(layout, context, "Each button opens that output's settings with its own Make button.")
-        if hasattr(bpy.types, "FRESING_OT_setup_window") and (
-                workspaces.shows(context.scene, "cnc.machine")
-                or workspaces.shows(context.scene, "machines.mechanism")):
-            ui.gap(layout)
-            layout.operator("fresing.setup_window", text="Set-up window…", icon="WINDOW").kind = ""
+        opened = make_open()
+        box = layout.box()
+        row = box.row(align=True)
+        left = row.row(align=True)
+        left.alignment = "LEFT"
+        left.operator("fresing.make_fold", text="Make", icon="DOWNARROW_HLT" if opened else "RIGHTARROW",
+                      emboss=False)
+        n = len(context.scene.fresing.queue)
+        if not opened:
+            draw_make(row, context, labelled=False)
+        elif n:
+            header_status(row, f"{n} queued")
+        if opened:
+            draw_make(box, context)
 
 
 class _Popover:
@@ -352,26 +395,30 @@ class FRESING_PT_make_anim(bpy.types.Panel):
     bl_ui_units_x = POPOVER_UNITS
 
     def draw(self, context):
-        layout = self.layout
-        s = context.scene.fresing
         with ui.popover_width(POPOVER_UNITS):
-            if not len(s.animations):
-                wrap(layout, context, f"No animation yet: make one in {places.where('animation')} (Add animation, "
-                                      "then its steps).", icon="INFO")
-                return
-            a = s.animations[min(s.animations_index, len(s.animations) - 1)]
-            layout.label(text=f"Animation: {a.name}", icon="RENDER_ANIMATION")
-            col = ui.split_props(layout)
-            col.prop(a, "out_resolution", text="Size")
-            col.prop(a, "out_format", text="Shape")
-            col.prop(a, "quality", text="Quality")
-            col.prop(a, "video", text="File")
-            ui.gap(layout)
-            op = layout.operator("fresing.queue_add", text="Time test (2 frames)", icon="SORTTIME")
-            op.kind, op.name, op.start = "TEST", a.name, True
-            op = ui.primary(layout, "fresing.queue_add", "Render animation", "RENDER_ANIMATION", ui.MEDIUM)
-            op.kind, op.name, op.start = "ANIMATION", a.name, True
-            hint(layout, context, f"The steps, cameras and finishing are in {places.where('animation')}.")
+            draw_anim(self.layout, context)
+
+
+def draw_anim(layout, context) -> None:
+    """The selected animation as a video (the Make list's Animation, task 0260: also its own window)."""
+    s = context.scene.fresing
+    if not len(s.animations):
+        wrap(layout, context, f"No animation yet: make one in {places.where('animation')} (Add animation, "
+                              "then its steps).", icon="INFO")
+        return
+    a = s.animations[min(s.animations_index, len(s.animations) - 1)]
+    layout.label(text=f"Animation: {a.name}", icon="RENDER_ANIMATION")
+    col = ui.split_props(layout)
+    col.prop(a, "out_resolution", text="Size")
+    col.prop(a, "out_format", text="Shape")
+    col.prop(a, "quality", text="Quality")
+    col.prop(a, "video", text="File")
+    ui.gap(layout)
+    op = layout.operator("fresing.queue_add", text="Time test (2 frames)", icon="SORTTIME")
+    op.kind, op.name, op.start = "TEST", a.name, True
+    op = ui.primary(layout, "fresing.queue_add", "Render animation", "RENDER_ANIMATION", ui.MEDIUM)
+    op.kind, op.name, op.start = "ANIMATION", a.name, True
+    hint(layout, context, f"The steps, cameras and finishing are in {places.where('animation')}.")
 
 
 class FRESING_PT_make_header(bpy.types.Panel):
@@ -392,9 +439,9 @@ class FRESING_PT_make_header(bpy.types.Panel):
             if op:
                 row.operator(op, text=text, icon=icon)
             else:
-                row.popover(panel=panel, text=text, icon=icon)
+                row.operator("fresing.make_window", text=text, icon=icon).key = _key
                 continue
-            row.popover(panel=panel, text="", icon="PREFERENCES")
+            row.operator("fresing.make_window", text="", icon="PREFERENCES").key = _key
 
 
 def _draw_view_header(self, context):
@@ -404,7 +451,9 @@ def _draw_view_header(self, context):
     self.layout.popover(panel="FRESING_PT_make_header", text="Make", icon="RENDER_RESULT")
 
 
-TOP = (FRESING_PT_workspace, FRESING_PT_next, FRESING_PT_tabs, FRESING_PT_make)        # before 1 Import, in this order
+TOP = (FRESING_PT_make, FRESING_PT_tabs)                 # task 0260: the right panel's top, before 1 Import
+LEFT = (FRESING_PT_workspace,)                           # … and on the left panel (ui_left.py has the order)
+LEFT_END = (FRESING_PT_next,)
 POPOVERS = (FRESING_PT_make_still, FRESING_PT_make_turn, FRESING_PT_make_web, FRESING_PT_make_queue,
             FRESING_PT_make_product, FRESING_PT_make_anim, FRESING_PT_make_header)
 CLASSES = TOP + POPOVERS

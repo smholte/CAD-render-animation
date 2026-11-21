@@ -70,7 +70,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 93, "tour2": 2, "tourui": 15, "layout": 66,
               "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31, "lesson": 40, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 78, "toolbox": 19,
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 78, "left": 30, "toolbox": 19,
               "clientkeys": 12, "demokits": 23, "drawn": 25, "backups": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
@@ -90,7 +90,7 @@ GROUPS = {
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox"],        # toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
-    "ui": ["ui1", "spool", "layout"],             # spool: task 0080, about 1 minute
+    "ui": ["ui1", "spool", "layout", "left"],     # spool: task 0080, about 1 minute; left: task 0260
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
     "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake"],   # lifting: 0201; liftingmake: 0204
@@ -208,6 +208,10 @@ TESTS = {
                 "ui_test_backups.py", True),
     "setup": ("Real app: the Set-up window – opens with its tab, Next / Back, a click in the main window, save and "
               "open, close (ui_test_setup.py)", "ui_test_setup.py", True),
+    "left": ("Real app: two panels – the left panel at a readable width without Blender's tools, its order, fold to the "
+             "strip and back, Full access and back, the Client view, scrolling, an old project saved narrow; Make's "
+             "output windows open, stay open on a click elsewhere, no second one, close; the Learning hub switch "
+             "(ui_test_left.py)", "ui_test_left.py", True),
 }
 
 
