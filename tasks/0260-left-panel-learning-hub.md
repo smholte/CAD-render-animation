@@ -1,6 +1,6 @@
 # 0260 – Two panels: the steps on the right, everything else on a new left panel; Make as a folding icon row; the Learning hub with a one-click mode switch
 
-**Who:** worker · **Status:** running (21 Nov) ·
+**Who:** worker · **Status:** done (0.2.197, 21 Nov) ·
 **Branch:** `claude/peaceful-edison-wjm578` (the web session's branch)
 **Started by:** lead, 21 Nov 2026 (owner 14:44 with four screenshots, picks 14:50) · **Model:** Opus · effort High
 **Area:** Start & learn + Usage lanes –
@@ -181,7 +181,7 @@ left panel belongs to the 3D view of each window, nothing depends on the monitor
 
 **What changed:**
 - **Right panel** = Make · tabs All 1 … 8 (+ hint) · Set-up window… · 1 … 8. At 1920 × 1080 with the crane imported the
-  first step (1 Import) now starts about 244 px from the top of the window instead of about 610 px (screenshots below).
+  first step (1 Import) now starts about 244 px from the top of the window instead of about 610 px (screenshots: `tasks/img/0260_before_after_1920.jpg`, `…_2560.jpg`).
 - **Left panel** (new, `ui_left.py`) in the 3D view's toolbar region: Live preview + Build & play + fold (always, also
   in the strip) · update notice · Workspace · **Learning hub** (switch, Open the Learning hub, Learn…) · its stops (in a
   sample project) · Lesson (while one runs) · Favourites · What's next. 240 px wide by default (px at UI scale 1),
@@ -237,5 +237,18 @@ after (a monitor with other scaling made it grow), places watched again after a 
 for the plain-number parts. Also: outside Object Mode Blender's tool buttons show (as its header does).
 
 **Open points / follow-up tasks:**
+- **GitHub runs:** 7 pushes with a full run. Real failures found and fixed: the Set-up window's side panel squeezed to
+  27 px by the left panel in the copied piece (now split with the left panel off for a moment); the old side-panel
+  test's Make check (wrapping a plain panel's draw crashed Blender – the test checks Make's poll and place now); the
+  usage test's clicks (the lesson highlight now also finds buttons on the left panel); a stop title over 32
+  characters; the What's new test before the version was raised. Twice the version was taken meanwhile (0249: 0.2.195,
+  0234: 0.2.196): merged and renumbered to 0.2.197. One run's PC check ran out of its 15 min on a slow runner (all its
+  jobs were 1.5–2 x slower; the next runs were green).
+- Release: https://github.com/smholte/CAD-render-animation/releases/tag/v0.2.197
+- Not done (say so to the owner): the output window's title bar cannot be set from a script (it shows Blender's
+  title; the output's name is at the top of its panel). "Make" is white because its title is a plain button now
+  (the side-panel look of study 0244 comes after and must cover both panels).
+- Kept internal names: `tour.py`, `fresing.tour_*`, `FRESING_PT_tour`, and the files on disk ("Test tour" folder and
+  result files, the PC check's work folder) so old tours and results still open.
 - Owner on his PC: drag an output window to the second monitor, close it with its own ×, press the icon again – it
   should come back there and to the front; fold / unfold the left panel; Full access shows Blender's tools on the left.
