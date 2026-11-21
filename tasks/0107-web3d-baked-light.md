@@ -188,7 +188,7 @@ padded; a NumPy blur inside each chart when that is not there. Bake margin (Cycl
 - A baked choice always writes the **three.js page** of 0106. With Surroundings **None** it runs in a plain form: no
   sea, vessel motion, haze or rain; today's plain background; the project's light (sky or studio/photo picture).
   Live only + None stays the model-viewer page, byte for byte.
-- Shader (`onBeforeCompile` on the model's materials that have an occlusion map with `texCoord 1` or `_fr_light`):
+- Shader (`onBeforeCompile` on the model's materials that have an occlusion map with `texCoord 1` or *(picture removed – private, task 0226)*):
   F = decode(texel); baked light = F × (the page's own sky light on an up-facing surface, `getIBLIrradiance(up)`
   × environment intensity) [+ the page's sun on an up-facing surface for `ALL`]. It **replaces** the environment's matte
   light on that surface; reflections stay and are dimmed by min(1, luminance F) in corners. `SOFT`: the live sun with
@@ -270,8 +270,8 @@ as floats – the format decides). Ask the Web 3D lane (a task) for any change t
   (measured with the compositor denoiser, since replaced by the NumPy smoothing).
   **RTX 3090: an estimate, not measured** – the panel assumes 20 × these 4 cores (Normal demo ≈ 20–30 s); the owner
   measures it. Page load (headless, software GL): demo vessel 2.9–3.2 s, same as without baked light.
-- Pictures (invented models only): `tasks/img/0107_mill_render_soft_all.jpg`, `0107_vessel_render_soft_all.jpg`
-  (Cycles render from the page's first view | Soft | Everything) and `0107_vessel_close_soft_all.jpg` (coil close-up,
+- Pictures (invented models only): `tasks/img/0107_mill_render_soft_all.jpg`, *(picture removed – private, task 0226)*
+  (Cycles render from the page's first view | Soft | Everything) and *(picture removed – private, task 0226)* (coil close-up,
   Soft | Everything). Everything baked is close to the render's balance; Soft is darker on the deck in the sun
   because the page's live sun is weaker than Cycles' (0106's calibration).
 - Other viewers: Blender's glTF importer reads the lit file (second UV set present, test); others not checked here.

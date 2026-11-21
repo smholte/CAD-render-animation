@@ -384,8 +384,8 @@ blur of moving shapes (study #6), the web 3D export of cables (0099 leaves app-m
 - **Demo project:** stage `cable` (after `joints`): the vessel's `CABLE` on its path on "Cable travel" – 218 rollers
   (all with their own joints from the sheet, none changed), 12 bends, 2 chutes, Ø 200, 188.06 m; shot 4 is now real
   time: a Run motor step at 10 m/min. The clash test no longer leaves the cable out by hand. Stills:
-  `tasks/img/0078_cable_on_rollers.jpg`, `tasks/img/0078_cable_round_a_bend.jpg` (Cycles, processor).
-- **Test model** `test_paths_a.step` / `_b` (`tools/make_test_paths.py`: winch drum, luffing A-frame with two grooved
+  *(picture removed – private, task 0226)* (Cycles, processor).
+- **Test model** `test_paths_a.step` / *(picture removed – private, task 0226)* (`tools/make_test_paths.py`: winch drum, luffing A-frame with two grooved
   sheaves, V-roller cradle, chute, wire rope Ø 24; invented). Tour stop "Cable over sheaves and rollers" (set
   `cables`), PC-check line `motion.paths`, guide chapter "Cables and paths" with four pictures, CLAUDE.md (files, five
   lessons, two subagent rules).

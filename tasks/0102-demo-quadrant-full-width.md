@@ -132,8 +132,8 @@ winches' drums); the cable into the sea (0081); the quadrant's lowering and tipp
   0.5 mm off the CAD cable). 17 passed. `test_demo_cable_lay.py` 43 passed; `test_paths_core.py` demo tests updated
   (10 arcs, 195 rollers) and pass.
 - **Make demo project** (full form, this machine): **74 s, was 77 s** (main before this task, same machine).
-- Pictures (Cycles CPU, 24 samples, 1280×720 stored 960×540): `tasks/img/0102-d-between-open-tensioners.png` (from aft,
-  both tensioners open, the D between them), `tasks/img/0102-u-from-above.png` (the U from above, at rest).
+- Pictures (Cycles CPU, 24 samples, 1280×720 stored 960×540): *(picture removed – private, task 0226)* (from aft,
+  both tensioners open, the D between them), *(picture removed – private, task 0226)* (the U from above, at rest).
 - The clear band: between the two cable lines nothing of an open tensioner at any height from the cable's up; the D's
   own room is 8.62 m wide, from 30 mm under the cable's centre to 1.79 m over its rail top (tipping eyes), 0.30 m
   over the cable at its edges.

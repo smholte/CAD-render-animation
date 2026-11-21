@@ -3,8 +3,8 @@
  "sets": {
   "air": {
    "added": "0.2.47",
-   "changed": "0.2.101",
-   "fp": "ff4902c98cb39662"
+   "changed": "0.2.195",
+   "fp": "e83bb6a0113adc6c"
   },
   "atc": {
    "added": "0.2.47",
@@ -28,8 +28,8 @@
   },
   "coolant": {
    "added": "0.2.48",
-   "changed": "0.2.101",
-   "fp": "5c52653f82f802f8"
+   "changed": "0.2.195",
+   "fp": "d6585d40fdf86b5d"
   },
   "copies": {
    "added": "0.2.47",
@@ -38,8 +38,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.189",
-   "fp": "10e1c2300d2574fc"
+   "changed": "0.2.194",
+   "fp": "1f910984452594a1"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -118,8 +118,8 @@
   },
   "marks": {
    "added": "0.2.73",
-   "changed": "0.2.101",
-   "fp": "a37429cd13f8013f"
+   "changed": "0.2.195",
+   "fp": "24bf63aed91378e4"
   },
   "mesh": {
    "added": "0.2.99",
@@ -128,8 +128,8 @@
   },
   "mill": {
    "added": "0.2.47",
-   "changed": "0.2.189",
-   "fp": "93df25aae714a629"
+   "changed": "0.2.195",
+   "fp": "e15c075e9c1db116"
   },
   "moving_cable": {
    "added": "0.2.95",
@@ -138,8 +138,8 @@
   },
   "operator": {
    "added": "0.2.132",
-   "changed": "0.2.171",
-   "fp": "6d40601a826857e3"
+   "changed": "0.2.195",
+   "fp": "aff4ff1384a0a716"
   },
   "people": {
    "added": "0.2.128",
@@ -198,13 +198,13 @@
   },
   "toolpath": {
    "added": "0.2.55",
-   "changed": "0.2.101",
-   "fp": "60d734a450b1a328"
+   "changed": "0.2.195",
+   "fp": "0e15fe4d23ec297a"
   },
   "tools": {
    "added": "0.2.47",
-   "changed": "0.2.101",
-   "fp": "26e0177949dab9a3"
+   "changed": "0.2.195",
+   "fp": "846eee55c80f57ef"
   },
   "tracks": {
    "added": "0.2.87",

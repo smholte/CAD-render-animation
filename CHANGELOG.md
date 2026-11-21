@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.194 – 21 Nov 2026 – A larger test mill: a vertical machining centre (task 0249)
+## 0.2.195 – 21 Nov 2026 – A larger test mill: a vertical machining centre (task 0249)
 
 - **New test mill.** The small test mill is gone. In its place is an invented **vertical machining centre**: travels
   X 1000 × Y 500 × Z 500 mm, a 1200 × 500 table with three 18 mm T-slots, a BT40 spindle, a column with ribs,
@@ -20,6 +20,19 @@ installer of that version was built from.
   and The app makes the toolpath run on the new machine; the tools are BT40. The PC check's milling lines too.
 - **Fix – chips:** on a machine whose table rides on a saddle, chips that fell past the saddle sometimes fell
   through the fixed parts beside it and on for ever; they now land on those parts (or the floor).
+
+## 0.2.194 – 21 Nov 2026 – Web 3D page: Film – the motion through the video's camera (task 0252)
+
+- **Film on the web page.** A web 3D model of a project whose animation has camera steps (Move to, Cut, Ride along,
+  Fly a path, Keep a part in the middle), exported with **Include animation**, gets a **Film** button at the end of
+  the page's play bar. Pressed, the page plays the motion **seen through the video's camera** – the same shots,
+  camera moves, cuts and zoom as the rendered video – with the page's own light. The time line, Space, the arrow keys
+  and the speed move it along. A drag or zoom leaves the Film while the motion plays on; the button then has an orange
+  ring and one press glides back. A copied link opens the page in the Film. The page still opens in the free view.
+- **Captions, labels, title and end card on the Film.** Three new tick boxes under Include animation (only when the
+  project has a built Animation camera; all off by default): **Film: captions**, **Film: labels** (the part labels
+  with their lines, riding on their parts) and **Film: title and end card**. They show only while the Film is on.
+- The Film costs a few KB (the test crane: 4 KB) and the page draws as fast with it as without.
 
 ## 0.2.193 – 21 Nov 2026 – Toolbox: the newest format fixes (task 0245)
 

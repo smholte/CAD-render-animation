@@ -150,8 +150,8 @@ parts lane (0058, Fable day).
   `test_user_guide.py` + `test_updates.py` 49 passed.
 - **Make demo project** (full size, alone on the machine): **90 s** (0091: 134 s; 0093's fast joints) – writing 54 s,
   import 20 s, joints 2.5 s (422), wires 3.8 s, Build 6.4 s. Scaled form 81–92 s.
-- Pictures (Cycles CPU, 24 samples, rendered 1280×720, stored 960×540): `tasks/img/0095-ar-wire-side.png`,
-  `0095-tipping-wires-astern.png`, `0095-deck-engine-winches.png`.
+- Pictures (Cycles CPU, 24 samples, rendered 1280×720, stored 960×540): *(picture removed – private, task 0226)*,
+  *(picture removed – private, task 0226)*.
 - GitHub: **1 full run on the branch, green on the first try** (run 43233484802, 12.2 min). `main` fast-forwarded to
   that commit: run 43235683405 (reuse, 2.5 min) published **v0.2.71**, the Windows update-from-the-release check
   passed, offered to the apps. Its landing-page job failed on a GitHub API error ("fetching artifact metadata

@@ -491,7 +491,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.189")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.194")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1127,7 +1127,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.194")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -3069,7 +3069,7 @@ def build_rotary5(b: Build):
     a.start_shot = _shot(b, "Tour: 5th axis").name
 
 
-@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.194")
+@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.195")
 def build_toolpath(b: Build):
     from mathutils import Vector
 
@@ -3166,7 +3166,7 @@ M30
 """
 
 
-@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.194")
+@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_tools(b: Build):
     import bpy
     from mathutils import Vector
@@ -3276,7 +3276,7 @@ M30
 """
 
 
-@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.194")
+@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.195")
 def build_marks(b: Build):
     from mathutils import Vector
 
@@ -3377,7 +3377,7 @@ M30
 """
 
 
-@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.194")
+@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.195")
 def build_air(b: Build):
     import bpy
     from mathutils import Vector
@@ -3405,7 +3405,7 @@ def build_air(b: Build):
 COOLANT_TOUR = AIR_TOUR.replace("M7", "M8")
 
 
-@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.194")
+@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.195")
 def build_coolant(b: Build):
     from mathutils import Vector
 
@@ -3539,7 +3539,7 @@ PEOPLE_ANIM = "Two people meet"
 OPERATOR_ANIM = "A person changes the tool"
 
 
-@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.194")
+@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.195")
 def build_operator(b: Build):
     """The test mill in its enclosure (tools/make_test_mill_cabinet.py; task 0249: the larger VMC): one manual change
     from T1 to T2 done by the operator, who walks up, opens the sliding doors, swaps the tools over the trolley, closes the door and walks
@@ -4171,7 +4171,7 @@ stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",
-     animation="Mill a slot", at=1.0, check=_check_cut_look, since="0.2.47", changed="0.2.194")
+     animation="Mill a slot", at=1.0, check=_check_cut_look, since="0.2.47", changed="0.2.195")
 stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      "A yellow pile standing in water: dark green-brown growth with a ragged top just below the waterline, a "
      "greenish splash zone with thin rust streaks above it, clean yellow higher up. The grey wall behind has faint "
@@ -4466,7 +4466,7 @@ stop("operator", MACH, "operator", "A person changes the tool",
      "The hands stay on the holder and the handle; the feet do not slide; nobody walks through the machine. Each "
      "tool cuts a shallow strip into the block.",
      where="6 Animation > Run G-code program > Lines, tool changes … (Changed by: Person); 4 Motion > CNC machine > "
-           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.194", animation=OPERATOR_ANIM,
+           "Tool changes > Person at the machine", since="0.2.132", changed="0.2.195", animation=OPERATOR_ANIM,
      at=0.45, play=True,
      check=_check_operator, auto="clip")
 stop("gcode", MACH, "gantry", "G-code program runs the machine",
@@ -4486,18 +4486,18 @@ stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "from the tool list, each in a BT40 holder, changed with M6 and measured with G43. No tool goes into the block "
      "where the program does not cut (the end mill is 28 mm longer than the face mill). An M6 without G43 for the "
      "new tool would get a line in the Build result and a row in the clash check.",
-     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.194")
+     where="4 Motion > CNC machine > Tools", animation="Three tools", at=1.0, check=_check_tools, auto="clip", since="0.2.47", changed="0.2.195")
 stop("hand", MACH, "tools", "Tool change by hand (BT40)",
      "At a tool change a gloved hand takes the tool out by its BT40 holder and puts the next one in; for a longer "
      "tool the spindle first rises by the difference, then comes down to the program.", where="4 Motion > CNC machine > Tool changes (Manual, Show hand)", animation="Three tools",
-     at=-1.0, check=_check_hand, since="0.2.47", changed="0.2.194")
+     at=-1.0, check=_check_hand, since="0.2.47", changed="0.2.195")
 stop("marks", MACH, "marks", "Tool marks on cut faces",
      "A close-up of the milled aluminium block. The faced strip shows the wide arcs of the Ø50 face mill, bulging the "
      "way it went; the pocket's floor shows the finer arcs of the Ø10 end mill; its walls show fine upright lines and "
      "a level line where the second depth starts; the drilled hole shows rings. Look in "
      "rendered view and orbit: the sheen swirls with the arcs. The marks are drawn 7 times further apart than real "
      "(Mark size) so they show.",
-     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", changed="0.2.194", animation=MARKS_ANIM,
+     where="4 Motion > Milling (Tool marks, Mark size, Strength)", since="0.2.73", changed="0.2.195", animation=MARKS_ANIM,
      at=1.0,
      check=_check_marks)
 stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
@@ -4527,21 +4527,21 @@ stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
      "the walls, ramping in), the ball end mill T2 finishes in lines across. The block turns into the part with its "
      "pocket, rounded boss and dome; the stock under the overhanging cap and in the hole stays.",
      where="4 Motion > Milling > Make a toolpath", animation="Toolpath", at=0.75, play=True, since="0.2.55",
-     changed="0.2.194",
+     changed="0.2.195",
      check=_check_toolpath, auto="clip")
 stop("chips", MACH, "mill", "Chips fly",
      "While the bit cuts the slot, aluminium-coloured chips fly out and land on the table, the clamps and the block.",
-     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.194")
+     where="4 Motion > Milling > Chips", animation="Mill a slot", play=True, check=_check_chips, auto="clip", since="0.2.47", changed="0.2.195")
 stop("air", MACH, "air", "Air blast",
      "The bit cuts a pocket with air on (M7 … M9): chips are blown away from the cut; at the end the part is "
      "blown clean.", where="4 Motion > CNC machine > Air blast", animation="Pocket with air", at=0.6, play=True,
-     check=_check_air, auto="clip", since="0.2.47", changed="0.2.194")
+     check=_check_air, auto="clip", since="0.2.47", changed="0.2.195")
 
 stop("coolant", MACH, "coolant", "Coolant (flood)",
      "The bit cuts a pocket with flood coolant (M8 … M9): two blue hoses squirt milky coolant at the tool, drops "
      "fly off it, the block gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
      animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
-     changed="0.2.194")
+     changed="0.2.195")
 
 
 def _check_setup(scene):
@@ -4625,7 +4625,9 @@ def _check_web3d(scene):
     out_dir = files_dir(folder, version) if folder else tempfile.mkdtemp(prefix="fr_tour_web3d_")
     os.makedirs(out_dir, exist_ok=True)
     scene.fresing.web3d.texture_size = "512"
-    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512)
+    from . import web3d_film                             # task 0252: the built camera animation gives the page a Film
+    film = web3d_film.camera(scene) is not None
+    out = web3d.export(scene, os.path.join(out_dir, "Crane web 3D.glb"), size=512, animation=film)
     with open(out["path"], "rb") as fh:
         data = fh.read()
     bad = core.problems(data)
@@ -4640,6 +4642,7 @@ def _check_web3d(scene):
     with open(out["html"], encoding="utf-8") as fh:
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
+    _check(film and len(st.get("films") or []) == 1, "the page has no Film (the camera animation is built)")
     from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø40)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
@@ -4648,7 +4651,8 @@ def _check_web3d(scene):
     _check("fr_tools" in open(out["html"], encoding="utf-8").read() or "partTools" in
            open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
-            f"{len(st['views'])} saved views; faces for measuring in {len(faces)} meshes, "
+            f"{len(st['views'])} saved views; Film {out.get('film_keys', 0)} of {out.get('film_frames', 0)} frames; "
+            f"faces for measuring in {len(faces)} meshes, "
             f"{sum(len(e) for e in edges.values())} edges")
 
 
@@ -4735,8 +4739,12 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "between them; move the pointer close to an edge – it lights up orange – and click it: a straight edge gives its "
      "length, a hole's rim its Ø; two edges: the distance between them; the numbers never cover each other), Slice (C: Add slice, then click a face or X / Y / Z – the near side of the crane is cut away, the cut "
      "faces red; add a second slice, Edit one and drag its arrow or a yellow knob, Delete it with the ×) and Fade the "
-     "rest (click a part: the rest goes see-through).",
-     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", check=_check_web3d, changed="0.2.175")
+     "rest (click a part: the rest goes see-through). The animation 'Camera rides and flies' is built, so the page "
+     "plays it with a Film button (a film camera) at the end of the play bar: pressed, the page shows the motion through "
+     "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
+     "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
+     where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
+     check=_check_web3d, changed="0.2.194")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
