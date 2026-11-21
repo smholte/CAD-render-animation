@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.196 – 21 Nov 2026 – Two panels: the steps on the right, everything else on the left; Make in its own windows; the Learning hub (task 0260)
+## 0.2.197 – 21 Nov 2026 – Two panels: the steps on the right, everything else on the left; Make in its own windows; the Learning hub (task 0260)
 
 - **The Fresing panel on the right shows only the work.** At its top: **Make**, the section tabs and (for a CNC mill or a
   mechanism) **Set-up window…** – then 1 Import to 8 Lifting plan. The first step is always at the top.
@@ -22,6 +22,16 @@ installer of that version was built from.
   Your old test tour folder and results keep working.
 - **What's next** can be folded with a small arrow; it stays folded until you open it again.
 
+## 0.2.196 – 21 Nov 2026 – Test tour: the offshore sets in the open sea (task 0234)
+
+- **Marine looks** in the test tour now show on a monopile standing in the open sea: its transition piece and platform
+  above the water, and through a cut-away the pile right down to its toe 9 m in the seabed – growth below the sea's
+  own waterline, the splash zone above it, run-down streaks, a concrete mattress on the seabed.
+- **Vessel motion**: a person and an IBC tank stand on the deck beside the crane and roll with it.
+- **Vessel at work, Cable into the sea, A cable on a moving part**: the test boats have real hull shapes – a flat
+  bottom, round bilges, a fine bow under a raised forecastle and a deckhouse – and the workboat is seen from close by.
+  The app now also reads their bow from the hull, so the wake and the bow wave sit at the right end.
+- Nothing in the app itself changed; open the test tour (Help > Make test tour project) to see the new sets.
 ## 0.2.195 – 21 Nov 2026 – A larger test mill: a vertical machining centre (task 0249)
 
 - **New test mill.** The small test mill is gone. In its place is an invented **vertical machining centre**: travels

@@ -5038,7 +5038,7 @@ def app_lessons(ctx):
 
 
 @line("panel.two", "Two panels: the work on the right, the rest on the left; Make's windows; the Learning hub switch",
-      "0.2.196",
+      "0.2.197",
       what="The right panel starts with Make (one row of six outputs) and the section tabs, the left panel holds Live "
            "preview + Build & play, the update notice, Workspace, the Learning hub, Favourites and What's next; each "
            "output has its own window with a tooltip; on the crane sample the switch goes View -> Show me -> Build it "

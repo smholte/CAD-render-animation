@@ -491,7 +491,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.196")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.197")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1067,26 +1067,127 @@ def marine_camera(scene, water: float = MARINE_WATER, name: str = "Marine looks"
     return cam
 
 
-@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.101")
+# task 0234: the marine set stands a monopile with its transition piece in the open sea (12 m deep, 9 m of the pile in
+# the seabed), the cut-away round it with the ground open: the pile is seen from its toe to the platform
+OFFSHORE_DEPTH, OFFSHORE_EMBED = 12.0, 9.0      # water depth, the pile's length in the seabed (m)
+OFFSHORE_TOP = 18.0                             # the transition piece's platform over the water (m)
+OFFSHORE_PARTS = {           # name: (material id, colour, radius, z from, z to (m over the water), x, y) - cylinders
+    "MONOPILE": ("paint_marine_growth", "RAL 1023", 2.5, -OFFSHORE_DEPTH - OFFSHORE_EMBED, 3.0, 0.0, 0.0),
+    "TRANSITION PIECE": ("paint_marine_streaks", "RAL 1023", 2.75, 2.0, OFFSHORE_TOP, 0.0, 0.0),
+    "BOAT LANDING PS": ("paint_marine_growth", "RAL 1023", 0.2, -3.0, 9.0, -3.25, 0.75),
+    "BOAT LANDING SB": ("paint_marine_growth", "RAL 1023", 0.2, -3.0, 9.0, -3.25, -0.75),
+    "PLATFORM": ("paint_marine_streaks", "RAL 7035", 5.0, OFFSHORE_TOP, OFFSHORE_TOP + 0.4, 0.0, 0.0),
+}
+OFFSHORE_MATTRESS = ("SCOUR MATTRESS", 7.0, 0.35)   # a concrete mattress round the pile on the seabed: half size, height
+
+
+def offshore_structure(scene) -> dict:
+    """Task 0234: a monopile and its transition piece (with a platform and a boat landing) and a concrete scour
+    mattress, made as parts of the model so the sea is built round them (the test crane's own parts are left out);
+    the water's surface at world z 0. Returns {part name: object}."""
+    import bmesh
+    import bpy
+
+    from . import build, logic, materials
+    root = build.model_roots(scene)[0]
+    logic.exclude([ob for ob in root.children if ob.get(build.PROP_KIND) in ("part", "assembly")])
+    made = {}
+
+    def part(name, bm, mat_id, colour):
+        me = bpy.data.meshes.new(f"Offshore {name}")
+        bm.to_mesh(me)
+        bm.free()
+        ob = bpy.data.objects.new(f"Offshore {name}", me)
+        scene.collection.objects.link(ob)
+        ob.parent = root
+        ob.matrix_parent_inverse = root.matrix_world.inverted()
+        ob[build.PROP_KIND], ob[build.PROP_NAME], ob[build.PROP_UID] = "part", name, f"offshore {name.lower()}"
+        materials.assign(ob, materials.ensure_material(f"Offshore: {name.title()}", mat_id, colour))
+        for poly in me.polygons:
+            poly.use_smooth = len(poly.vertices) == 4
+        made[name] = ob
+    for name, (mat_id, colour, r, z0, z1, x, y) in OFFSHORE_PARTS.items():
+        bm = bmesh.new()
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=48 if r > 1.0 else 16, radius1=r, radius2=r, depth=z1 - z0)
+        bmesh.ops.translate(bm, vec=(x, y, (z0 + z1) / 2), verts=bm.verts)
+        part(name, bm, mat_id, colour)
+    name, half, h = OFFSHORE_MATTRESS
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.scale(bm, vec=(2 * half, 2 * half, h), verts=bm.verts)
+    bmesh.ops.translate(bm, vec=(0.0, 0.0, -OFFSHORE_DEPTH + h / 2 - 0.05), verts=bm.verts)
+    part(name, bm, "concrete", "")
+    _update()
+    return made
+
+
+@tour_set("marine", "Marine looks", "test_crane_a.step", added="0.2.94", changed="0.2.196")
 def build_marine(b: Build):
+    """Task 0234: the marine looks on a monopile in the open sea (study 0224: the pile standing in the real sea with
+    the sea cut-away, the waterline from the sea, the whole pile in frame)."""
+    import numpy as np
+    from mathutils import Vector
+
+    from . import build, marine_looks
+    sc, s = b.scene, b.s
     _look("PRODUCT")
-    marine_demo(b.scene)
-    marine_camera(b.scene, name="Tour marine")
+    offshore_structure(sc)
+    low = float(build.world_bounds(list(build.iter_parts(sc)))[0][2])
+    s.background, s.env_detail, s.sea_state = "SEA", "SIMPLE", "CALM"
+    s.sea_depth, s.sea_clarity = OFFSHORE_DEPTH, 12.0
+    s.water_level = float(-low)                    # the water's surface at world z 0
+    s.sea_cut_auto = False                         # the box from the pile's axis towards the camera (-x): the
+    s.sea_cut_length, s.sea_cut_width = 36.0, 30.0  # pile stands in its far wall, its front seen down to the toe
+    from . import surroundings
+    mn, mx = surroundings._model_box(sc)
+    s.sea_cut_start = float(mn[0])
+    s.sea_cut_side = -float(mn[1] + mx[1]) / 2.0
+    s.sea_cutaway = True                           # (the ground goes on by itself: the pile reaches into the seabed)
+    _update()
+    marine_looks.sync(sc)
+    eye, at = Vector((-52.0, -24.0, 38.0)), Vector((0.0, 0.0, -3.0))
+    cam = _camera(b, "ISO", "Tour marine", lens=24.0)
+    cam.matrix_world = Matrix_look(eye, at)
+    cam.data.clip_end = 2000.0
     _shot(b, "@marine")
 
 
-def _check_marine(scene):
-    import bpy
+def Matrix_look(eye, at):
+    """A camera matrix at ``eye`` looking at ``at`` (up: +z)."""
+    from mathutils import Matrix
+    return Matrix.Translation(eye) @ (at - eye).to_track_quat("-Z", "Y").to_matrix().to_4x4()
 
-    from . import marine_looks
-    want = {"paint_marine_growth", "paint_marine_streaks", "concrete"}
-    shown = {ob.active_material.get("fr_material") for ob in bpy.data.objects
-             if ob.name.startswith("Marine ") and ob.type == "MESH" and ob.active_material is not None}
-    _check(want <= shown, f"missing looks: {', '.join(sorted(want - shown))}")
-    pile = bpy.data.objects.get("Marine pile")
-    _check(marine_looks.nodes_of(pile.active_material), "the pile's material has no marine growth")
-    _check(abs(marine_looks.waterline(scene) - MARINE_WATER) < 1e-6, "the waterline moved")
-    return f"{len(want)} marine looks, waterline {MARINE_WATER:.1f} m"
+
+def _check_marine(scene):
+    """The monopile's growth below the sea's waterline and the transition piece's streaks, the concrete mattress on
+    the seabed, the ground open in the cut-away, the whole pile (toe to platform) inside the picture."""
+    import bpy
+    from bpy_extras.object_utils import world_to_camera_view
+    from mathutils import Vector
+
+    from . import marine_looks, surroundings
+    want = {"MONOPILE": "paint_marine_growth", "TRANSITION PIECE": "paint_marine_streaks",
+            OFFSHORE_MATTRESS[0]: "concrete"}
+    got = {n: bpy.data.objects.get(f"Offshore {n}") for n in want}
+    _check(all(got.values()), f"missing: {', '.join(n for n, o in got.items() if o is None)}")
+    for n, mat in want.items():
+        _check(got[n].active_material is not None and got[n].active_material.get("fr_material") == mat,
+               f"the {n.lower()} is not {mat}")
+    _check(marine_looks.nodes_of(got["MONOPILE"].active_material), "the monopile's material has no marine growth")
+    water = marine_looks.waterline(scene)
+    sea = surroundings.waterline(scene)
+    _check(sea is not None and abs(water - sea) < 1e-3, f"the growth's waterline {water:.2f} m is not the sea's")
+    _check(abs(water) < 0.05, f"the sea's surface is at {water:.2f} m, not at the pile's 0")
+    s = scene.fresing
+    _check(s.sea_cutaway and s.sea_cut_ground, "the cut-away or its ground is off")
+    cam = scene.camera
+    ends = {"toe": Vector((0.0, 0.0, water - OFFSHORE_DEPTH - OFFSHORE_EMBED)),
+            "platform": Vector((0.0, 0.0, water + OFFSHORE_TOP + 0.4))}
+    for n, p in ends.items():
+        v = world_to_camera_view(scene, cam, p)
+        _check(0.02 < v.x < 0.98 and 0.02 < v.y < 0.98 and v.z > 0, f"the pile's {n} is outside the picture")
+    return (f"growth below the waterline at {water:+.2f} m (the sea's), streaks, concrete; the pile from its toe "
+            f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
 
 
 @tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.170")
@@ -2055,7 +2156,7 @@ def _check_served(scene):
 SEA_ANIM = "Cable into the sea"
 
 
-@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.141")
+@tour_set("sea_cable", "Cable into the sea", "test_sea.step", added="0.2.91", changed="0.2.196")
 def build_sea(b: Build):
     from . import paths, paths_sea
     sc = b.scene
@@ -2076,6 +2177,7 @@ def build_sea(b: Build):
     add_lay_label(sc, paths.find(sc, made["cable"]))       # task 0173: the cable's live numbers in a label
     cam = _camera(b, "ISO", "Tour view", lens=30.0)
     cam.matrix_world = paths_sea.view_matrix(sc, paths.find(sc, made["cable"]))
+    cam.data.lens = 22.0                    # task 0234: wider, so the hull shows with the cable
     shot = _shot(b, "Tour: into the sea")
     a = s.animations[made["animation"]]
     a.start_shot = shot.name
@@ -2147,7 +2249,7 @@ def _check_sea_cable(scene):
 VESSEL_ANIM = "Vessel at work"
 
 
-@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127")
+@tour_set("vessel_work", "Vessel at work", "test_thrusters.step", added="0.2.127", changed="0.2.196")
 def build_vessel_work(b: Build):
     """Task 0154: a workboat with two azimuths and a bow thruster sails ahead at 8 knots, then pushes sideways."""
     from mathutils import Matrix, Vector
@@ -2158,7 +2260,9 @@ def build_vessel_work(b: Build):
     vessel_work.set_up_test_model(sc)
     _update()
     cam = _camera(b, "ISO", "Tour view", lens=28.0)
-    at, look = Vector((-45.0, -50.0, 40.0)), Vector((5.0, 0.0, -3.0))
+    root = next(o for o in sc.objects if o.get("fr_uid") == "TEST.THRUSTERS#1")      # task 0234: from the port
+    w = root.matrix_world                                                            # bow, closer: the hull, its
+    at, look = w @ Vector((54.0, 30.0, 13.0)), w @ Vector((16.0, 2.0, -0.5))        # wake and the jets to port
     cam.matrix_world = Matrix.Translation(at) @ (look - at).to_track_quat("-Z", "Y").to_matrix().to_4x4()
     cam.data.clip_end = 5000.0
     shot = _shot(b, "Tour: vessel at work")
@@ -2200,7 +2304,7 @@ def _check_vessel_work(scene):
 MOVING_ANIM = "Over the stern"
 
 
-@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.103")
+@tour_set("moving_cable", "A cable on a moving part", "test_moving.step", added="0.2.95", changed="0.2.196")
 def build_moving(b: Build):
     from . import paths
     sc = b.scene
@@ -2889,7 +2993,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.196")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.197")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -3457,7 +3561,10 @@ def _check_air(scene):
 VESSEL_ANIM = "Vessel at sea"
 
 
-@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.101")
+VESSEL_PROPS = ("PERSON", "IBC")          # (a 20 ft container dwarfs the 2 m test crane)
+
+
+@tour_set("vessel", "Vessel motion", "test_crane_a.step", added="0.2.65", changed="0.2.196")
 def build_vessel(b: Build):
     from mathutils import Vector
 
@@ -3472,9 +3579,19 @@ def build_vessel(b: Build):
     s.background = "DECK"
     s.sea_state = "CALM"
     s.vessel.heading = "BEAM"
+    _update()
+    import numpy as np
+
+    from . import build, props_scale, surroundings  # task 0234: a person and a tank on the deck give the scale
+    props = [surroundings.add_prop(sc, kind) for kind in VESSEL_PROPS]
+    mn, mx = build.world_bounds(list(build.iter_parts(sc)))
+    for ob, (dx, dy) in zip(props, ((-0.2, 1.0), (1.2, 1.6))):      # behind the crane, seen from the camera
+        ob.location.x, ob.location.y = float(mx[0]) + dx, float(mx[1]) + dy
+    _update()
+    crane = np.array([(x, y, z) for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], mx[2])], float)
+    _camera(b, "ISO", "Tour deck", lens=24.0, points=np.vstack([crane, props_scale.corners(props)]))
     s.vessel.enabled = True
     _update()
-    _camera(b, "ISO", "Tour deck", lens=24.0)
     a = _animation(b, VESSEL_ANIM)
     _joint_step(a, "Boom", 1.0, 6.0, math.radians(20), label="Boom up at sea")
     a.start_shot = _shot(b, "@vessel").name
@@ -3506,7 +3623,12 @@ def _check_vessel(scene):
     scene.frame_set(max(2, scene.frame_end // 2))
     moved = (base.matrix_world.translation - a.translation).length
     _check(moved > 0.01, f"the crane's base moved only {moved * 1000:.0f} mm")
-    return vessel_motion.words(scene)
+    from . import surroundings
+    props = sorted(p.get(surroundings.PROP_TAG) for p in surroundings.props(scene))
+    _check(props == sorted(VESSEL_PROPS), f"the deck's props are {props}, not a person and an IBC tank")
+    for p in surroundings.props(scene):
+        _check(p.constraints.get(vessel_motion.CON) is not None, f"the {p.name} does not ride on the vessel")
+    return vessel_motion.words(scene) + "; a person and an IBC tank ride on the deck"
 
 
 # ----- weather and time of day (task 0109) -----
@@ -4173,11 +4295,13 @@ stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",
      animation="Mill a slot", at=1.0, check=_check_cut_look, since="0.2.47", changed="0.2.195")
 stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
-     "A yellow pile standing in water: dark green-brown growth with a ragged top just below the waterline, a "
-     "greenish splash zone with thin rust streaks above it, clean yellow higher up. The grey wall behind has faint "
-     "run-down streaks; the block in front is light grey concrete.",
+     "A yellow monopile stands in the open sea, seen through a cut-away down to its toe 9 m in the seabed: dark "
+     "green-brown growth with a ragged top just below the waterline, a greenish splash zone with thin rust streaks "
+     "above it; the transition piece above it is clean yellow with faint run-down streaks under its grey platform, and "
+     "a light grey concrete mattress lies round the pile on the seabed.",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
-           "streaks; Concrete)", since="0.2.94", check=_check_marine)
+           "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
+     check=_check_marine, changed="0.2.196")
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
@@ -4186,10 +4310,11 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
      since="0.2.116", check=_check_served, auto="clip", changed="0.2.123")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
-     "The crane stands on the vessel deck in a calm beam sea: deck, containers and crane roll gently (about ±1.5°, "
-     "once in 11 s), pitch a little and rise and fall with the long waves while the boom goes up. The sea, the sky "
-     "and the camera stay put.", where="5 Scene & Render > Vessel motion", since="0.2.65", animation=VESSEL_ANIM,
-     at=0.5, play=True, check=_check_vessel, auto="clip")
+     "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
+     "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
+     "fall with the long waves while the boom goes up. The sea, the sky and the camera stay put.",
+     where="5 Scene & Render > Vessel motion; Props for scale", since="0.2.65", animation=VESSEL_ANIM,
+     at=0.5, play=True, check=_check_vessel, auto="clip", changed="0.2.196")
 stop("weather", LOOK, "weather", "Weather: grey North Sea",
      "The crane on the quay in grey North Sea weather: overcast, a strong breeze, drizzle slanting in the wind and "
      "haze in the distance; the crane and the quay look wet (darker, glossy, puddles on flat parts).",
@@ -4331,14 +4456,15 @@ stop("sea_cable", MOTION, "sea_cable", "Cable into the sea",
      "horn and the orange CPS set goes over the horn and down the curve on the cable. A label of four lines points "
      "at the touch-down: Lay data, the top tension, the layback and the speed (60 m/min while it pays out).",
      where="4 Motion > Cables and paths > Into the sea", animation=SEA_ANIM, play=True, since="0.2.91",
-     check=_check_sea_cable, auto="clip", changed="0.2.141")
+     check=_check_sea_cable, auto="clip", changed="0.2.196")
 stop("vessel_work", MOTION, "vessel_work", "Vessel at work: wake and jets",
-     "A blue workboat sails ahead: a white wake trails behind its stern, fading and breaking up; its waves fan out "
+     "A blue workboat (a fine bow under a raised forecastle, a white wheelhouse) sails ahead, seen from close by off "
+     "its port bow: a white wake trails behind its stern, fading and breaking up; its waves fan out "
      "behind the bow in a wedge each side (about 20° to the track) and white water rolls off the bow. After 3 s it "
      "slows to a stop and pushes sideways: the azimuths under the stern swing round, the wake fades, and white, boiling "
      "jets stream out from the port side – the bow thruster's and the azimuths' – while the propellers turn.",
      where="5 Scene & Render > Vessel at work; 6 Animation: Vessel at work step", animation=VESSEL_ANIM, play=True,
-     since="0.2.127", check=_check_vessel_work, auto="clip")
+     since="0.2.127", check=_check_vessel_work, auto="clip", changed="0.2.196")
 stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "A trolley carries a block with a sheave aft along the gantry, over the stern; the hanger tilts and the block is "
      "lowered. The black cable end, clamped on the block, goes round the sheave and over the horn into the sea: "
@@ -4349,7 +4475,7 @@ stop("moving_cable", MOTION, "moving_cable", "A cable on a moving part",
      "travels and the block goes down, and the head sheave turns with it.",
      where="4 Motion > Cables and paths (Winch keeps it tight, Let go here, Into the sea > Settles in)",
      animation=MOVING_ANIM, play=True,
-     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.103")
+     since="0.2.95", check=_check_moving_cable, auto="clip", changed="0.2.196")
 stop("swivel", MOTION, "swivel", "Sheave turns to follow its wire",
      "A yellow deck davit slews 45° one way, 90° back and home again. Its grey wire comes from a fairlead on the deck, "
      "over a sheave under the arm's tip and straight down into the orange hook block. The sheave hangs in a swivel "
@@ -4577,7 +4703,7 @@ stop("setup", MACH, "gantry", "Set-up window: step by step",
      "the buttons are the same as in the side panel. Drag the window anywhere, also onto a second screen, and click "
      "parts in the main window while it is open. The drop-down at its top switches to 'Set up a mechanism'.",
      where="Set-up window… under the section tabs; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.152",
-     changed="0.2.196",
+     changed="0.2.197",
      animation="G-code", check=_check_setup, setup=_setup_first_step, auto=lambda ctx, scene, st: "")
 
 stop("still", OUT, HUB_SET, "Still picture",
@@ -4912,7 +5038,7 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
      "Sections 1 to 7 start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.196", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
@@ -4920,7 +5046,7 @@ stop("make", OUT, HUB_SET, "Make: each output in a window",
      "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "
      "Drag it anywhere, click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no "
      "second window. The same list is under Make in the header of the 3D view.",
-     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.196", shot="Tour view", check=_check_make,
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.197", shot="Tour view", check=_check_make,
      auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
@@ -4952,7 +5078,7 @@ stop("panel_back", OUT, HUB_SET, "Fresing panel always back",
      "the right end of the 3D view's header. Click it: the side panel is back on the Fresing tab and the button "
      "disappears. Opening any project (this tour, the demo, your own) always shows the Fresing tab and the left panel "
      "(Live preview, Workspace, Learning hub …) at the left of the view. Live preview stays on or off as you left it when you go to another Learning hub project.",
-     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150", changed="0.2.196",
+     where="The 3D view's header (right end) while the side panel is hidden", since="0.2.150", changed="0.2.197",
      shot="Tour view", check=_check_panel_back, auto=lambda ctx, scene, st: "")
 
 def _check_start_here(scene):
@@ -5016,7 +5142,7 @@ stop("usage", OUT, HUB_SET, "Favourites bar and My usage",
      "twice): at the next start of the app it is on the favourites bar on the left panel; a click on it opens "
      "its section and points at the button. After 10 starts a panel you never used gets one quiet question at the "
      "top: Hide / Not now / Don't ask again.",
-     where="Fresing menu > My usage…; the favourites bar on the left panel", since="0.2.158", changed="0.2.196",
+     where="Fresing menu > My usage…; the favourites bar on the left panel", since="0.2.158", changed="0.2.197",
      shot="Tour view", check=_check_usage, auto=lambda ctx, scene, st: "")
 
 def _check_learn(scene):
@@ -5055,7 +5181,7 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
      "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
      where="Fresing menu > My learning list…; the question and the What's next card on the left panel",
-     since="0.2.160", changed="0.2.196", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+     since="0.2.160", changed="0.2.197", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
 def _check_lessons(scene):
     """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""
@@ -5085,7 +5211,7 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.196", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.197", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 

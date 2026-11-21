@@ -1,6 +1,6 @@
 # 0267 – Landing page redo: picture and video rows, "Turn it yourself" row, "Who it is for" as a band + numbered cards, a lighter fresing.nl-style overhaul, a "How it works" page, a tool switcher
 
-**Who:** worker · **Status:** open · **Branch:** `task/0267-landing-page-redo`
+**Who:** worker · **Status:** running · **Branch:** `task/0267-landing-page-redo`
 **Started by:** lead, 21 Nov 2026 (owner 16:41–17:09: "I want to redo the page"; picks from the lead's mock-ups: layout
 H's dark band with D's numbered cards, full text kept; the rest of the page "a little overhaul, but I like the lighter
 look for this website, so not as much dark as fresing.nl"; "How it works" as its own page now; the Fresing Viewer page
