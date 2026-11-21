@@ -63,13 +63,13 @@ crane lesson, the PC check, most guide pictures).
 
 ## Done when
 
-- [ ] `make_test_crane.py` makes the ×5 crane (A and B, Inventor names, plain); both copies of each STEP updated
-- [ ] Every test, tour stop, lesson step and PC-check line green with it; numbers that changed listed with the reason
-- [ ] Every tour set with the crane framed again, 0 clashes, `changed=` + the record
-- [ ] Guide pictures of the crane made again; guide and stop texts with the new sizes
-- [ ] Import triangles / times before–after in the report; tests' total time within about +15 %
-- [ ] A line-up picture: the new crane beside a 1.75 m person and the IBC (test models only) in `tasks/img/0259/`
-- [ ] Report filled in, merged, released
+- [x] `make_test_crane.py` makes the ×5 crane (A and B, Inventor names, plain); both copies of each STEP updated
+- [x] Every test, tour stop, lesson step and PC-check line green with it; numbers that changed listed with the reason
+- [x] Every tour set with the crane framed again, 0 clashes, `changed=` + the record
+- [x] Guide pictures of the crane made again; guide and stop texts with the new sizes
+- [x] Import triangles / times before–after in the report; tests' total time within about +15 %
+- [x] A line-up picture: the new crane beside a 1.75 m person and the IBC (test models only) in `tasks/img/0259/`
+- [x] Report filled in, merged, released
 
 ## Not in this task
 
@@ -110,10 +110,53 @@ Same names, tree, colours, part count (13 unique, 20 placed) and joints. `tour.C
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 21 Nov 2026 · released as 0.2.202
 
 **What changed:**
+- `tools/make_test_crane.py`: the crane x 5 (design table above). Final pin height **2.4 m** (pedestal 400 mm taller than
+  pure x 5), boom underside **2.15 m** in the CAD pose. Real parts: anchor bolts `ISO 4017 M30 x 120 - 8.8 HDG` (holes
+  Ø33), foot screws `ISO 4762 M24 x 60 - 12.9` (flange 60 mm), boom pin Ø100 (bores Ø100.4), cylinder pins Ø70,
+  cylinder bore Ø200 / rod Ø110 / piston Ø198 (same stroke share, same −1.5° … 37.6°), cheeks 80 mm, gussets 25 mm,
+  cover 12 mm (rev. B lifts it 50 mm). Same 13 unique / 20 placed parts, names, tree, colours; A, B, `--inventor-names`,
+  `--plain` all write. **No part lies inside another any more**: the first crane's barrel end cap and rod end reached
+  into the forks' plates (4,049 and 885 mm³; seen with an OpenCascade common of every pair) – the neck is thinner than
+  the fork's gap, the end cap starts beyond the plates, the rod end is gone. `model_details.METRIC` got M30.
+- `tests/data/` + `fresing_render/data/` `test_crane_a.step`, `test_crane_b.step` (byte copies).
+  **Left as they were (old projects):** `test_crane_inv_a.step`, `test_crane_inv_c.step`, `test_crane_plain.step`.
+- Tour: `CRANE_PIVOT`, `CRANE_PIN_R`, `CRANE_BOOM`, `TROLLEY_RUN` (0.35 → 1.75 m), `LUFF_ROD_EYE`, `LUFF_PIN_HALF`,
+  `CUT_FROM` (0.2 → 1.0 m), the cutaway camera, the second copy 4.5 m over (1.5 m between the bases), the trail 40 mm
+  thick, the people stop's and web 3D stop's texts; `changed="0.2.202"` on the 10 crane sets, the people and web3d
+  stops; record made. Crane lesson: the trolley's Show me wiggle 1.75 m. PC check: `_tip`, joints.rotate / stack,
+  looks.cutaway camera, model.update_safe pivot.
+- Tests (numbers "old x 5", z "x 5 + 0.4" from the pedestal up; lines changed for another reason):
+  test_phase2, test_hover (Ø100 / Ø100.4 texts, ray spots), test_couplings (wheel tread Ø250: ratio 360/(π·250),
+  0.8 rad per 100 mm instead of 4 rad; bolt name), test_stacked_joints, test_model_update, test_joint_batch,
+  test_web3d_faces_blender (diameters 33 / 70 / 100 / 100.4 / 110 / 198; the boom's round end Ø500).
+  Real-app tests: ui_test_app (pin spot, view centre, boom-up height 4.9 m), ui_test_app2 (trolley top 150 mm in,
+  **small-part size 45 → 150 mm**: the crane's smallest parts are now the M24 screws), ui_test_studio (sharp spot within
+  1 m of the click, was 0.2 m), ui_test_surroundings, ui_test_vessel, paths_test_blender, ui_screens, guide_screens
+  (hover spot, decals 0.3 / 0.3 / 0.2 m wide, type plate "8500 kg").
+- Guide: pictures render_crane, looks, decals, cutaway, people_meet, app_after_import, view_joints, view_hover made
+  again; "Hole Ø100.4 mm", "Round face Ø 100.0 mm".
+- Line-up picture `tasks/img/0259/crane_lineup.jpg` (the crane, a 1.75 m person, the IBC; Cycles, processor).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (web machine, 4 cores):
+- Import of test_crane_a.step, before → after: Draft 6,098 → 5,890 triangles, Normal 9,448 → 9,374; 0.45–0.56 s each
+  (no change). The facets cap did not blow up: the new parts are mostly flat.
+- Locally: the 87 test files that read the crane, test_tour.py, test_lessons.py, test_tour_clash.py for the 10 crane
+  sets (0 clashes) – green after the fixes; every crane stop's Go + check (37 stops) with a small picture each.
+  `test_web3d_env_blender.py::test_page_opens_in_a_browser` fails on the web machine with the old crane too (the
+  page's auto-quality step-down under load) – green on GitHub.
+- Lifting example (AT-40, the boom as the 1.2 t load): radius 6.79 → 9.93 m, crane use 9 % → 16 %; still within
+  limits, nothing changed in the Lifting tests.
+- GitHub: every pytest group green on run 44949567994; that run's PC check job stopped at line 105/108 at its 15-minute
+  box on a slow runner (every line 1.5x its time on main's run 44930151601, also lines without the crane: House
+  29 → 44 s, milling 12 → 20 s); two real-app checks fixed afterwards (small parts, sharp spot).
+- Runs: 5 for code (two cancelled by my own pushes, one diagnostic with the old numbers), the release run below.
 
 **Open points / follow-up tasks:**
+- The test crane's detail is as before (the cranes' "more detail" redo is later).
+- The people stop no longer shows the crane at all (the camera frames people + container); the stop says so.
+- `view_joints.png` is close on the crane: the boom tip leaves the picture at the top right (as before, in proportion).
+- The PC check (Full, first part) on Linux is near its 15-minute box on a slow runner – not from this task, but worth
+  splitting a line to the other half if it happens again.
