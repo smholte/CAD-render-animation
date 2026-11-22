@@ -1,6 +1,6 @@
 # 0283 – Every Fresing setting is kept over a restart (the app's own settings file)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0283-settings-file`
+**Who:** worker · **Status:** running · **Branch:** `task/0283-settings-file`
 **Started by:** lead, 23 Nov 2026 (0278's finding: Blender 5.2.3 does **not** keep the extension's preferences over a
 restart while the app template is on – a value saved with Save Preferences reads back as its default with
 `--app-template fresing_render`. So every Fresing setting in `prefs.py` (keep sections, lesson look, backups, Live
