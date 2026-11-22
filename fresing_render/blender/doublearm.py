@@ -905,10 +905,11 @@ def set_up_test_model(scene, b, tip: bool = True, spindle: bool = True, arm: boo
     """The imported test model as a mill with a double-arm changer, step ``b`` running its program: X/Y/Z, the spindle
     (a motor), the magazine, the tool list (T1 in the spindle, T2 in pot 2, T3 drawn in pot 5, BT40), the arm and the
     pots (``tip``: tipping pots, else pockets clicked and filled), the changer's times for its arm and magazine."""
-    from . import toolchange, tools
+    from . import toolchange, tools, waycover
     for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _named(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    waycover.set_up_test_mill(scene)                # the larger mill's Y way covers follow Y (task 0250)
     t1 = _named(scene, "TOOL T1 BT40 FLAT D10")
     if spindle:
         j = joints.create(scene, "ROTATE", [t1], Vector(TEST_GAUGE), Vector((0, 0, 1)), name="Spindle")

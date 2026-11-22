@@ -487,10 +487,11 @@ def set_up_test_model(scene, b, five: bool = False, milling: bool = True) -> Non
     trunnion, the head moves along Z), the spindle (a motor turning the tool and its holder), A (and C), the tool list
     (T1 the part in the spindle), the work zero on top of the workpiece in its middle; 4 axes Plain, 5 axes TCP.
     ``milling``: the tool cuts the workpiece."""
-    from . import gcode, machining, tools
+    from . import gcode, machining, tools, waycover
     for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _named(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    waycover.set_up_test_mill(scene)                # the larger mill's Y way covers follow Y
     tool = _named(scene, "TOOL T1 FLAT D6")
     j = joints.create(scene, "ROTATE", [tool, _named(scene, "TOOL HOLDER BT40")], Vector(TEST_TIP_5 if five else TEST_TIP_4),
                       Vector((0, 0, 1)), name="Spindle", ref=tool)

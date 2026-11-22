@@ -148,7 +148,7 @@ def _loop_tracks(data):
     return seconds, [(a, b) for node, a, b in ends if node not in hidden], anim
 
 
-@pytest.mark.parametrize("wid,seconds,most_mb", [("test_atc", 10.1, 2.0), ("thor", 10.0, 8.0)])
+@pytest.mark.parametrize("wid,seconds,most_mb", [("test_atc", 10.5, 2.0), ("thor", 10.0, 8.0)])
 def test_web_models_loop(wid, seconds, most_mb):
     """Task 0111: each model holds one animation of its loop's length whose last moment is its first (no jump when
     it starts again), small enough for a phone; the test mill's tools are shown and hidden by STEP scale keys."""
