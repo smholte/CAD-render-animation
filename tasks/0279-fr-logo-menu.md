@@ -39,23 +39,35 @@ user this reads as "this is Blender", not as Fresing Render.
 
 ## Checks (tick in the report)
 
-- [ ] Real-app test (xvfb): the top bar's first item is the Fr mark in Full access, another workspace and the Client
+- [x] Real-app test (xvfb): the top bar's first item is the Fr mark in Full access, another workspace and the Client
       view; its menu opens with About Fresing Render…, Fresing Settings…, Blender ▸; the Blender submenu shows
       Blender's own items; the extension turned off → Blender's logo is back.
-- [ ] Every new menu line has a tooltip; the guide's top-bar picture and text, PC-check line, tour stop and function
+- [x] Every new menu line has a tooltip; the guide's top-bar picture and text, PC-check line, tour stop and function
       list entry (`since=`) updated.
 - [ ] Owner's check on his PC (below).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 22 Nov 2026 – 0.2.206
 
-**What changed:**
+**What changed:** `ui_topbar.py` swaps only Blender's own entry in `TOPBAR_MT_editor_menus`' draw list for one that runs
+Blender's draw through a layout whose `TOPBAR_MT_blender` line becomes the Fr mark's menu (`TOPBAR_MT_fresing_mark`,
+icon from `brand/fresing-render-mark_reversed_128px.png`, made from the site's reversed mark). File … Help and the
+Fresing menu stay Blender's / as they were; both drawings (Full access and lock.py's) go through it, lock.py untouched.
+Menu: About Fresing Render…, Fresing Settings…, line, Blender ▸ (Blender's `TOPBAR_MT_blender` itself). Unregister puts
+Blender's draw back and redraws the top bar. Guide section "The Fr mark in the top bar" (`fr-mark`), function
+`help.fr_mark`, PC-check line `app.fr_mark`, tour stop `fr_mark` (crane set), CHANGELOG. `tools/ci_groups.py`:
+`test_web3d_film_blender.py` joins `SKIPS_ON_GITHUB` (the first run put it in one group with `test_web3d_keys.py`: 2 skips).
 
-**Tested and measured:**
+**Tested and measured:** `tests/test_fr_mark.py` (5); `ui_test_quiet.py` 90/90 on the web machine: the mark drawn with its
+picture and its green seen in screenshots (19 px) in the quiet window, Full access and the Client view; its menu drawn;
+turned off → Blender's logo (0 green px), on again → the mark. PC-check line OK (bpy module). No new guide picture.
 
-**Runs on GitHub:**
+**Runs on GitHub:** 2 – the first red only on group 9's skip count (two by-design skips in one group), the second after
+the group fix.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** a screenshot of the open menu was not caught by the test (its drawing was).
 
-**Owner's check on your PC:**
+**Owner's check on your PC:** after the update: 1. Start Fresing Render. 2. Far left of the top bar: the green-white
+"Fr", no Blender logo. 3. Click it: About Fresing Render…, Fresing Settings…, Blender. 4. Point at Blender: Blender's
+own menu. 5. Workspace Full access, then Client view: the Fr mark stays.
