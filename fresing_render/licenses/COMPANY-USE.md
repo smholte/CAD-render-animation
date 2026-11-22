@@ -22,7 +22,7 @@ It is free software under **GPL-3.0-or-later** (see "The licence in plain words"
 | --- | --- |
 | Blender 5.2.3 LTS, portable (downloaded from `download.blender.org`, SHA-256 checked) | `%LOCALAPPDATA%\FresingRender\blender-5.2.3-windows-x64\` |
 | the Fresing Render extension and app layout | inside that Blender folder, `portable\` (settings, extension, app template) |
-| the app's settings and small files | `…\portable\config\` – among them `fresing_update.json` (an update address, only if set), `fresing_usage.json` (counts, see below), `fresing_start.json` (what has been shown), `fresing_left.json` (how you left the left panel's folds) |
+| the app's settings and small files | `…\portable\config\` – among them `fresing_update.json` (an update address, only if set), `fresing_usage.json` (counts, see below), `fresing_start.json` (what has been shown), `fresing_left.json` (how you left the left panel's folds), `fresing_settings.json` (every setting of Fresing > Settings…, see below) |
 | the in-app update's log | `…\portable\config\fresing_update\update.log` |
 | shortcuts | Desktop and Start menu: Fresing Render only; `%LOCALAPPDATA%\FresingRender\Tools` (self test, PC checks, safe start, user guide) |
 | `Fresing Render.exe` | next to `blender.exe`: Blender's own program under the app's name and icon (made by the app; not signed, see below) |
@@ -33,6 +33,23 @@ folder next to the saved project (or `Pictures\Fresing Render`); a **cache** of 
 folder (`…\cache\`, so the same file opens fast the next time); the **self-test and PC-check reports** on the Desktop;
 the **logs** named above. `Uninstall.bat` removes the install folder; projects and renders are not touched. The installer writes no registry keys and
 starts no service (searched in `Install-FresingRender.ps1`).
+
+## The user's settings (one file)
+
+Everything a user sets in **Fresing > Settings…** (library folder, default template, rule set and workspace, the
+lesson look, backups, update checks …) is kept in **one file**, `…\portable\config\fresing_settings.json`
+(task 0283; Blender itself forgets an add-on's preferences while the app's layout is on). It is plain JSON:
+`{"format": "fresing-settings", "version": 1, "settings": {…}}`, holding only the settings that differ from the
+app's defaults – an empty `settings` means "all defaults". The app reads it at start and writes it within a second
+of a change (a temporary file, then a rename). An update – **Update now** or the installer over an older install –
+leaves it as it is; `Uninstall.bat` removes it with the install folder, like the other files in `config\`.
+
+**To give every PC the same settings:** set them once on one PC, then copy that file into `…\portable\config\` of
+the others (with the app closed). Paths in it (the library folder, the default template) must exist on each PC – a
+network share works. A file that cannot be read is not used: the app starts with the defaults, keeps the file as
+`fresing_settings.broken-<date>-<time>.json` and shows one line in Settings > General. A file from a newer version
+of the app is read for what this version knows; the rest is kept. (A set-up file for whole departments, with
+locations and more, follows with task 0272.)
 
 ## Your files stay on your PC
 

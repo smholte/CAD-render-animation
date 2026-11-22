@@ -3,6 +3,8 @@ tab is clicked and draws its page; the window stays open when the main window is
 after closing and opening again; Help / Fresing > My usage… opens it on My usage; it opens in the Client view. My usage
 counts only the user's own input: a played animation with no mouse or key adds nothing (and the old marks – a change of
 the project – are counted while it plays, to show what was counted before), a real mouse move marks presence.
+Task 0283: one setting of each tab changed, the app started again (``ui_test_settings_restart.py``, same settings
+folder, app template): every value is back; a damaged settings file: the app starts with the defaults and one note.
 Guide pictures of each tab when GUIDE_OUT is set.
 
 Install the extension and the app template first (see ui_test_app.py), then run (FRESING_USAGE_TEST=1 so the usage
@@ -445,6 +447,106 @@ def s_client_back():
 
 
 wait_until("Close closes it", lambda: not settings_wins(), 10)
+
+
+# ----- task 0283: one setting of each tab changed, the app started again, every value back; a damaged file -----
+KEPT = {
+    "hover_highlight": False,                 # General
+    "default_rule_set": "Offshore",           # General
+    "keep_sections": True,                    # Side panel
+    "lesson_part": "1",                       # Lessons
+    "lesson_colour": [0.9, 0.1, 0.4],         # Lessons
+    "backup_minutes": 12,                     # Backups
+    "check_updates": False,                   # Updates
+    "settings_tab": "backups",                # the window's last tab
+}
+
+
+def restart(name):
+    """The app started again in this settings folder with the app template; what it started with."""
+    import json
+    out = os.path.join(TMP, name + ".json")
+    env = dict(os.environ, FR_SETTINGS_RESTART_OUT=out, FR_SETTINGS_NAMES=json.dumps(sorted(KEPT)),
+               UITEST_OUT=os.path.join(OUT, name))
+    child = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui_test_settings_restart.py")
+    t = time.time()
+    try:
+        subprocess.run([bpy.app.binary_path, "--app-template", "fresing_render", "--enable-event-simulate",
+                        "-p", "0", "0", "1280", "900", "--python", child], env=env, timeout=240, check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        log(f"the restarted app ({name}) did not finish in 240 s")
+    try:
+        got = json.load(open(out, encoding="utf-8"))
+    except (OSError, ValueError):
+        got = {}
+    log(f"restarted app ({name}, {time.time() - t:.0f} s):", got)
+    return got
+
+
+@step
+def s_keep_change():
+    p = mod("blender.prefs").get()
+    S["was"] = {n: (list(getattr(p, n)) if n == "lesson_colour" else getattr(p, n)) for n in KEPT}
+    for n, v in KEPT.items():
+        setattr(p, n, v)
+    return 2.5                                         # the settings timer writes within a second
+
+
+@step
+def s_keep_written():
+    import json
+    store = mod("blender.settings_store")
+    try:
+        data = json.load(open(store.path(), encoding="utf-8"))["settings"]
+    except (OSError, ValueError, KeyError) as exc:
+        data = {"error": str(exc)}
+    ok = all(n in data and (data[n] == v if n != "lesson_colour" else
+                            all(abs(a - b) < 1e-4 for a, b in zip(data[n], v))) for n, v in KEPT.items())
+    check("a change is written to the settings file by itself (no Save Preferences)", ok, str(data))
+    return 0.3
+
+
+@step
+def s_keep_restart():
+    got = restart("restart")
+    check("the restarted app runs with the app template", got.get("template") == "fresing_render", got.get("template"))
+    values = got.get("values", {})
+    for n, v in KEPT.items():
+        g = values.get(n)
+        ok = (g == v) if n != "lesson_colour" else (isinstance(g, list) and all(abs(a - b) < 1e-3 for a, b in zip(g, v)))
+        check(f"after a restart {n} is as chosen", ok, f"{g}, chosen {v}")
+    check("after a restart no note about the settings file", got.get("notes") == [], str(got.get("notes")))
+    return 0.3
+
+
+@step
+def s_keep_damaged():
+    store = mod("blender.settings_store")
+    with open(store.path(), "w", encoding="utf-8") as fh:
+        fh.write('{"format": "fresing-settings", "version": 1, "settings": {"keep_sections": tr')
+    got = restart("damaged")
+    check("a damaged settings file: the app starts all the same", got.get("started") is True, str(got))
+    values = got.get("values", {})
+    check("a damaged settings file: the defaults are used", values.get("keep_sections") is False
+          and values.get("backup_minutes") == 5 and values.get("hover_highlight") is True, str(values))
+    notes = got.get("notes") or []
+    check("a damaged settings file: one plain note", len(notes) == 1 and "damaged" in notes[0], str(notes))
+    folder = os.path.dirname(store.path())
+    copies = [f for f in os.listdir(folder) if f.startswith("fresing_settings.broken-")]
+    check("a damaged settings file: a copy is kept", len(copies) == 1, str(copies))
+    for f in copies:
+        os.remove(os.path.join(folder, f))
+    return 0.3
+
+
+@step
+def s_keep_back():
+    """Put the settings back: the next real-app test in this settings folder starts as before (CLAUDE.md 8)."""
+    p = mod("blender.prefs").get()
+    for n, v in S.get("was", {}).items():
+        setattr(p, n, v)
+    return 2.5
 
 
 @step

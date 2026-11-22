@@ -4988,6 +4988,56 @@ def app_settings(ctx):
     return f"{len(drawn)} tabs draw; 10 min of playback with no input: 0 s counted"
 
 
+@line("settings.kept", "Settings kept over a restart: the app's own settings file", "0.2.206",
+      what="Changes a setting of each tab of the Settings window, starts the settings as at a new start (Blender's "
+           "own preferences forgotten) and reads them back from the app's settings file (in a folder with an accent); "
+           "a damaged file gives the defaults, one note and a copy of the damaged file")
+def settings_kept(ctx):
+    from ..blender import prefs, settings_store
+    from ..core import settings_file as sf
+    p = prefs.get()
+    _check(p is not None, "the add-on's preferences are missing")
+    spec = settings_store.spec()
+    was = {n: settings_store.current_one(p, n, k) for n, k in spec.items()}
+    chosen = {"hover_highlight": False, "keep_sections": True, "lesson_part": "1", "lesson_colour": (0.9, 0.1, 0.4),
+              "backup_minutes": 12, "check_updates": False}
+    env = settings_store.ENV
+    old_env = os.environ.get(env)
+    os.environ[env] = os.path.join(ctx.work, "settings é", sf.FILE_NAME)
+    try:
+        settings_store.forget()
+        _check(settings_store.load(), "the settings file was not started")
+        for n, v in chosen.items():
+            setattr(p, n, v)
+        _check(settings_store.save(), "a change was not written to the settings file")
+        for n, k in spec.items():                     # a new start: Blender gives the defaults
+            setattr(p, n, k.default)
+        settings_store.forget()
+        settings_store.load()
+        got = {n: settings_store.current_one(p, n, spec[n]) for n in chosen}
+        _check(all(sf.same(got[n], v) for n, v in chosen.items()), f"after a restart the settings are {got}")
+        with open(settings_store.path(), "w", encoding="utf-8") as fh:
+            fh.write('{"format": "fresing-settings", "settings": {')
+        settings_store.forget()
+        settings_store.load()
+        _check(p.keep_sections is False and p.backup_minutes == 5, "a damaged file did not give the defaults")
+        _check(len(settings_store.notes()) == 1, f"a damaged file gave the notes {settings_store.notes()}")
+        copies = [f for f in os.listdir(os.path.dirname(settings_store.path())) if ".broken-" in f]
+        _check(len(copies) == 1, f"the damaged file was not kept aside: {copies}")
+    finally:
+        for n, v in was.items():
+            try:
+                setattr(p, n, v)
+            except Exception:  # noqa: BLE001
+                pass
+        if old_env is None:
+            os.environ.pop(env, None)
+        else:
+            os.environ[env] = old_env
+        settings_store.forget()
+    return f"{len(chosen)} settings kept over a restart; {len(spec)} settings in the file; a damaged file: defaults"
+
+
 @line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.158",
       what="Counts clicks into a usage file of its own (never yours; with an accent in its folder), checks every "
            "Fresing button counts, the bar is sorted at a start only, a panel is offered for hiding after 10 starts "
