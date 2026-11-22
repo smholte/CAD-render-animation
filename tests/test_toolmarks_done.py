@@ -423,7 +423,7 @@ def build_toolpath(folder):
 
 def build_rotary(folder):
     """Task 0066's 4-axis test model with its own program: a slot wrapped once round the bar while it turns, then
-    a flat 3 deep at A0 and one at A180 (the bar is Ø50 along X, its axis at z 150 mm in its own space)."""
+    a flat 3 deep at A0 and one at A180 (the bar is Ø50 along X, its axis at z 210 mm, task 0250)."""
     from fresing_render.blender import rotary
     sc = fresh(folder, os.path.join(DATA, "test_4axis.step"))
     path = os.path.join(str(folder), "prog.ngc")

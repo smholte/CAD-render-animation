@@ -1586,7 +1586,7 @@ def motion_toolchange(ctx):
 
 
 @line("motion.doublearm", "Double-arm tool changer: grip, pull, half turn, push", "0.2.51",
-      what="The test mill with a double-arm changer and a 12-pot magazine changes three BT30 tools: the pot tips "
+      what="The test mill with a double-arm changer and a 24-pot side magazine changes three BT40 tools: the pot tips "
            "down, the arm grips both tools, pulls, turns 180° and pushes; every hand-over within 0.01 mm, the old "
            "tool in the pot the new one came from; rendered at the half turn")
 def motion_doublearm(ctx):
@@ -1658,8 +1658,8 @@ def motion_doublearm(ctx):
     mid = (t["swap"][0] + t["swap"][1]) / 2
     fr = 1 + mid * fps
     scene.frame_set(int(fr), subframe=fr - int(fr))
-    centre = Vector((-0.13, 0.0, 0.24))
-    pts = np.array([tuple(centre + Vector(d)) for d in ((-0.2, -0.16, -0.12), (0.2, 0.16, 0.1))])
+    centre = Vector((-0.23, 0.0, 0.5))                      # the arm's hub, the tools pulled down (task 0250)
+    pts = np.array([tuple(centre + Vector(d)) for d in ((-0.3, -0.26, -0.16), (0.3, 0.26, 0.14))])
     cam = cameras.add_camera(scene, "ISO", 50.0, "PC check arm", points=pts)
     scene.camera = cam
     _small_output(scene.fresing, 480, 360)
@@ -1675,7 +1675,7 @@ def _rotary_why(scene, home, me) -> str:
     and the A axis were; the machine's processors."""
     import numpy as np
 
-    from ..blender import joints, machining
+    from ..blender import joints, machining, rotary
     out = []
     try:
         m = np.array(home, dtype=float)
@@ -1685,7 +1685,7 @@ def _rotary_why(scene, home, me) -> str:
                 out.append("path: no samples")
                 continue
             w = o @ m[:3, :3].T + m[:3, 3]
-            r = np.hypot(w[:, 1], w[:, 2] - 0.15) / 0.001
+            r = np.hypot(w[:, 1], w[:, 2] - rotary.TEST_A_4[2]) / 0.001
             out.append(f"path: {len(o)} samples, the tip comes {r.min():.2f} mm near the bar's axis")
     except Exception as exc:                    # (the reason is wanted even if this goes wrong)
         out.append(f"path not read: {exc}")
@@ -1772,7 +1772,7 @@ def milling_rotary(ctx):
 
     def radius(x, ang):
         d = Vector((0.0, -math.sin(math.radians(ang)), math.cos(math.radians(ang))))
-        start = Vector((x * 0.001, 0.0, 0.15)) + d * 0.06
+        start = Vector((x * 0.001, 0.0, rotary.TEST_A_4[2])) + d * 0.06
         hit = bvh.ray_cast(start, -d)[0]
         return 60.0 - ((hit - start).length / 0.001) if hit is not None else 0.0
     got = [radius(-90.0 + 80.0 * th / 360.0, th) for th in (90.0, 270.0)] + [radius(35.0, 0.0), radius(35.0, 180.0)]
@@ -1781,7 +1781,7 @@ def milling_rotary(ctx):
     _check(err < 0.05, "the cuts on the bar are not where the program puts them: radius "
            + ", ".join(f"{g:.2f}" for g in got) + " mm (should be 23, 23, 22, 22) " + _rotary_why(scene, home, me))
     scene.frame_set(int(end * 0.3))
-    pts = [(-0.12, -0.03, 0.12), (0.12, 0.03, 0.2)]
+    pts = [(-0.12, -0.03, 0.18), (0.12, 0.03, 0.26)]         # round the bar (its axis at z 0.21, task 0250)
     import numpy as np
     cam = cameras.add_camera(scene, "ISO", 50.0, "PC check rotary", points=np.array(pts))
     scene.camera = cam

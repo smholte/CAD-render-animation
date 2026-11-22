@@ -367,12 +367,12 @@ def test_model_update_keeps_the_double_arm(atc_scene, tmp_path):
     def tagged():
         return sorted(j.name for j in sc.fresing.joints if doublearm.app_joint(j))
     before = tagged()
-    assert len(before) == 14
+    assert len(before) == 2 + doublearm.TEST_POTS          # the arm's two joints and one per pot
     root = next(r for r in build.model_roots(sc))
     assert bpy.ops.fresing.import_step(filepath=ATC_MODEL, quality="draft", update_root=root.name) == {"FINISHED"}
     assert tagged() == before
     c = sc.fresing.cnc
-    c.pocket_count = 11                                     # one pocket fewer, then Remove arm: nothing left behind
+    c.pocket_count = doublearm.TEST_POTS - 1                # one pocket fewer, then Remove arm: nothing left behind
     doublearm.remove_pots(sc)
     doublearm.remove_arm(sc)
     assert tagged() == []
@@ -454,8 +454,8 @@ def test_wrong_pot_click_keeps_the_pockets(atc_scene, tmp_path):
     arm_set_up(sc, tmp_path)
     c = sc.fresing.cnc
     pots = [(p.number, p.tip_joint) for p in c.pockets]
-    assert len(pots) == 12
-    c.pocket_count = 13                                     # one more than the magazine has: no pot found
+    assert len(pots) == doublearm.TEST_POTS
+    c.pocket_count = doublearm.TEST_POTS + 1                # one more than the magazine has: no pot found
     why = doublearm.make_pots(sc, doublearm.test_station_pot(sc), Vector(doublearm.TEST_HINGE[0]),
                               Vector(doublearm.TEST_HINGE[1]))
     assert why.startswith("No pot found")

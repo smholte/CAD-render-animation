@@ -843,7 +843,7 @@ def spindle_holds(sch) -> list[tuple[float, float, float]]:
 
 TEST_MODEL = "test_atc.step"
 TEST_PROGRAM = """%
-(DOUBLE-ARM TEST: THREE BT30 TOOLS, TN BEFORE EVERY M6)
+(DOUBLE-ARM TEST: THREE BT40 TOOLS, TN BEFORE EVERY M6)
 (T1 D=10. CR=0. - flat end mill)
 (T2 D=8. CR=4. - ball end mill)
 (T3 D=6. CR=0. TAPER=118deg - drill)
@@ -876,8 +876,15 @@ G0 X0 Y0 Z20
 M30
 %
 """
-TEST_HUB = ((-0.13, 0.0, 0.3), (0.0, 0.0, 1.0))           # the arm's hub: a point on its axis, the axis
-TEST_HINGE = ((-0.31, 0.0, 0.35), (0.0, 1.0, 0.0))        # the station pot's hinge
+# task 0250: the larger test mill (a VMC, BT40) with a 24-pot side magazine; tools/make_test_atc.py has the sizes
+TEST_HUB = ((-0.23, 0.0, 0.58), (0.0, 0.0, 1.0))          # the arm's hub: a point on its axis, the axis
+TEST_HINGE = ((-0.52, 0.0, 0.64), (0.0, 1.0, 0.0))        # the station pot's hinge
+TEST_GAUGE = (0.0, 0.0, 0.58)                              # the spindle's gauge line in the CAD pose (the change position)
+TEST_MAGAZINE = (-0.88, 0.0, 0.6)                          # a point on the magazine's axis
+TEST_MOUTH = (-0.46, 0.0, 0.7)                             # the station pot's mouth, not tipped
+TEST_POTS = 24
+TEST_TIMES = {"arm_grip_time": 0.35, "arm_stroke_time": 0.3, "arm_swap_time": 0.6, "pot_tip_time": 0.5,
+              "pocket_time": 0.25}                         # s: the bigger arm (460 mm, stroke 95) and the 24-pot disc
 
 
 def _named(scene, name):
@@ -891,22 +898,22 @@ def test_station_pot(scene):
     """The pot towards the arm (the change station) on the test model."""
     pots = [o for o in scene.objects if o.get(build.PROP_NAME) == "POT"]
     return min(pots, key=lambda o: (o.matrix_world @ (sum((Vector(b) for b in o.bound_box), Vector()) / 8)
-                                    - Vector((-0.28, 0.0, 0.4))).length)
+                                    - Vector((-0.51, 0.0, 0.68))).length)
 
 
 def set_up_test_model(scene, b, tip: bool = True, spindle: bool = True, arm: bool = True) -> None:
     """The imported test model as a mill with a double-arm changer, step ``b`` running its program: X/Y/Z, the spindle
-    (a motor), the magazine, the tool list (T1 in the spindle, T2 in pot 2, T3 drawn in pot 5, BT30), the arm and the
-    pots (``tip``: tipping pots, else pockets clicked and filled)."""
+    (a motor), the magazine, the tool list (T1 in the spindle, T2 in pot 2, T3 drawn in pot 5, BT40), the arm and the
+    pots (``tip``: tipping pots, else pockets clicked and filled), the changer's times for its arm and magazine."""
     from . import toolchange, tools
     for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _named(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
-    t1 = _named(scene, "TOOL T1 BT30 FLAT D10")
+    t1 = _named(scene, "TOOL T1 BT40 FLAT D10")
     if spindle:
-        j = joints.create(scene, "ROTATE", [t1], Vector((0, 0, 0.3)), Vector((0, 0, 1)), name="Spindle")
+        j = joints.create(scene, "ROTATE", [t1], Vector(TEST_GAUGE), Vector((0, 0, 1)), name="Spindle")
         joints.set_motor(scene, j, True)
-    joints.create(scene, "ROTATE", [_named(scene, "MAGAZINE.ASM")], Vector((-0.46, 0, 0.35)), Vector((0, 0, 1)),
+    joints.create(scene, "ROTATE", [_named(scene, "MAGAZINE.ASM")], Vector(TEST_MAGAZINE), Vector((0, 0, 1)),
                   name="Magazine")
     gcode.use_tool(scene, t1)
     gcode.use_workpiece(scene, _named(scene, "STOCK 160x120x30"))
@@ -926,14 +933,16 @@ def set_up_test_model(scene, b, tip: bool = True, spindle: bool = True, arm: boo
     if not all(rows.values()):
         raise RuntimeError("Tools from the program did not add T1 … T3")
     tools.use_part(scene, rows[1], t1)
-    tools.use_part(scene, rows[2], _named(scene, "TOOL T2 BT30 BALL D8"))
+    tools.use_part(scene, rows[2], _named(scene, "TOOL T2 BT40 BALL D8"))
     for n, stick in ((1, 40), (2, 35), (3, 50)):
-        rows[n].holder = "BT30"
+        rows[n].holder = "BT40"
         rows[n].length = stick * MM
     rows[3].pocket = 5
     c.carousel_joint = "Magazine"
-    c.pocket_count = 12
+    c.pocket_count = TEST_POTS
     c.station = 1
+    for name, value in TEST_TIMES.items():
+        setattr(c, name, value)
     if not arm:
         return
     part = _named(scene, "CHANGER ARM")
@@ -943,7 +952,7 @@ def set_up_test_model(scene, b, tip: bool = True, spindle: bool = True, arm: boo
     if tip:
         why = make_pots(scene, test_station_pot(scene), Vector(TEST_HINGE[0]), Vector(TEST_HINGE[1]))
     else:
-        toolchange.add_pocket(scene, test_station_pot(scene), Vector((-0.26, 0.0, 0.4)))
+        toolchange.add_pocket(scene, test_station_pot(scene), Vector(TEST_MOUTH))
         why = toolchange.fill_carousel(scene)
     if why:
         raise RuntimeError(why)

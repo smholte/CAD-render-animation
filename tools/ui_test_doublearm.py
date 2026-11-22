@@ -1,5 +1,5 @@
-"""Real-app test, double-arm tool changer (task 0064): on the test mill with an arm and a 12-pot magazine
-(tools/make_test_atc.py), pick 'Double-arm', click the arm's hub and the station pot's hinge in the view, press Check
+"""Real-app test, double-arm tool changer (task 0064): on the test mill with an arm and a 24-pot side magazine
+(tools/make_test_atc.py; task 0250: the larger mill, BT40), pick 'Double-arm', click the arm's hub and the station pot's hinge in the view, press Check
 (it plays one change in the view and says everything fits), build the animation: at the first change the arm holds
 the old and the new tool at its half turn, and every hand-over (spindle -> arm, pot -> arm, arm -> spindle, arm -> pot)
 is within 0.01 mm; save and open again.
@@ -139,6 +139,17 @@ def front_view(at, distance=0.5):
     redraw()
 
 
+def view_along(at, direction, distance=0.5):
+    """An orthographic view of ``at`` looking along ``direction`` (world), +Z up."""
+    win, area, region, sb = ui()
+    r3d = area.spaces.active.region_3d
+    r3d.view_perspective = "ORTHO"
+    r3d.view_rotation = Vector(direction).normalized().to_track_quat("-Z", "Y")
+    r3d.view_location = Vector(at)
+    r3d.view_distance = distance
+    redraw()
+
+
 def world(o):
     """World matrix from the (evaluated) parent's: a hidden object is not evaluated."""
     return o.parent.matrix_world @ o.matrix_parent_inverse @ o.matrix_basis
@@ -210,7 +221,7 @@ def s_wait():
     area.spaces.active.shading.type = "SOLID"
     open_panel()
     sc.fresing.cnc.changer = "ARM"                        # the 'Double-arm' button
-    front_view((-0.2, 0.0, 0.32), 0.45)
+    front_view((-0.3, 0.0, 0.6), 0.8)
     return 1.0
 
 
@@ -228,7 +239,7 @@ def s_hub_start():
 
 @step
 def s_hub_click():
-    x, y = to_window((-0.13, -0.03, 0.325))                # the hub's round side, above the arm's bar
+    x, y = to_window((-0.23, -0.039, 0.62))                # the hub's round side, above the arm's bar
     log("hub click at", x, y)
     click(x, y)
     return 1.5
@@ -245,13 +256,15 @@ def s_hub_done():
           (c.arm_turn, c.arm_slide))
     if turn is not None:
         o, d = mod("blender.joints").axis_world(turn)
-        check("the arm turns about the hub's axis (vertical, x = -130)", abs(d.z) > 0.9999
-              and abs(o.x + 0.13) < 1e-4 and abs(o.y) < 1e-4, (tuple(o), tuple(d)))
+        check("the arm turns about the hub's axis (vertical, x = -230)", abs(d.z) > 0.9999
+              and abs(o.x + 0.23) < 1e-4 and abs(o.y) < 1e-4, (tuple(o), tuple(d)))
     check("the grip angle is read from the claws: 90°", abs(math.degrees(c.arm_grip) - 90.0) < 0.05,
           math.degrees(c.arm_grip))
-    check("the stroke is set for BT30: 76 mm", abs(c.arm_stroke - 0.076) < 1e-6, c.arm_stroke)
+    check("the stroke is set for BT40: 95 mm", abs(c.arm_stroke - 0.095) < 1e-6, c.arm_stroke)
     c.pot_tip = True                                      # the 'Pots tip down' box
-    front_view((-0.31, 0.0, 0.35), 0.25)
+    # the hinge pin's front end, seen from the spindle's side at an angle: straight from the front the next pot
+    # (15° on) stands in front of it
+    view_along((-0.52, -0.034, 0.64), (-0.6, 0.8, 0.0), 0.25)
     with override():
         r = bpy.ops.fresing.cnc_arm_hinge("INVOKE_DEFAULT")
     check("'Click the hinge' waits for a click", r == {"RUNNING_MODAL"}, r)
@@ -260,7 +273,7 @@ def s_hub_done():
 
 @step
 def s_hinge_click():
-    x, y = to_window((-0.31, -0.02, 0.3535))              # the station pot's hinge pin, its front end
+    x, y = to_window((-0.52, -0.034, 0.643))              # the station pot's hinge pin, its front end
     log("hinge click at", x, y)
     click(x, y)
     return 2.0
@@ -273,14 +286,14 @@ def s_hinge_done():
     c = sc.fresing.cnc
     tc = mod("blender.toolchange")
     tips = [p.tip_joint for p in c.pockets if p.tip_joint]
-    check("a click on the hinge makes 12 pots, each with its tip joint", len(c.pockets) == 12 and len(tips) == 12,
+    check("a click on the hinge makes 24 pots, each with its tip joint", len(c.pockets) == 24 and len(tips) == 24,
           (len(c.pockets), len(tips)))
     check("the set-up has no problems", not tc.problems(sc), tc.problems(sc)[:2])
     r = op("fresing.cnc_arm_check")
     lines = mod("blender.doublearm").LAST_CHECK
     check("Check: everything fits (claw and pot on the axes, stroke)", r == {"FINISHED"} and lines
           and all(ok for ok, _t in lines), [t for _ok, t in lines][:4])
-    front_view((-0.15, 0.0, 0.27), 0.6)
+    front_view((-0.25, 0.0, 0.5), 0.9)
     STATE["turn"] = c.arm_turn
     with override():
         r = bpy.ops.fresing.cnc_arm_check("INVOKE_DEFAULT")
@@ -345,7 +358,7 @@ def s_handovers():
     tj = sc.fresing.joints[rows[x.new_pocket].tip_joint]
     check("at the half turn the arm holds T1 and T2; pot 2 is tipped down", on_arm == [1, 2]
           and abs(abs(mod("blender.joints").get_value(tj)) - math.pi / 2) < 1e-4, on_arm)
-    front_view((-0.13, 0.0, 0.22), 0.6)
+    front_view((-0.23, 0.0, 0.45), 0.8)
     shot("half_turn")
     path = os.path.join(OUT, "double arm é.blend")
     r = op("wm.save_as_mainfile", filepath=path)
@@ -371,8 +384,9 @@ def s_reopened():
     t = x.arm_times()
     at_time(sc, a, (t["swap"][0] + t["swap"][1]) / 2)
     on_arm = sorted(o["fr_cnc_carry"] for o in bpy.data.objects if o.get("fr_cnc_carry") and not o.hide_render)
-    check("opened again: the arm, 12 pots and the half turn as before", STATE.get("reopened") == {"FINISHED"}
-          and dbl.arm_joints(sc)[1] is not None and len(c.pockets) == 12 and on_arm == [1, 2], on_arm)
+    check("opened again: the arm, 24 pots and the half turn as before", STATE.get("reopened") == {"FINISHED"}
+          and dbl.arm_joints(sc)[1] is not None and len(c.pockets) == 24 and on_arm == [1, 2],
+          repr((STATE.get("reopened"), len(c.pockets), on_arm)))
     return 0.5
 
 

@@ -126,7 +126,7 @@ def pot():
                 g.cyl(ri, 8.0, (mouth - 7.0, my, POT_Z), (1, 0, 0)))
     hx = mx + HINGE_R
     block = g.box(hx - 20.0, my - 20.0, HINGE_Z, 40.0, 40.0, POT_Z - ro - HINGE_Z + 2.0)
-    pin = g.cyl(8.0, 56.0, (hx, my - 28.0, HINGE_Z), (0, 1, 0))
+    pin = g.cyl(8.0, 68.0, (hx, my - 34.0, HINGE_Z), (0, 1, 0))     # its ends 2 mm out of the clevis: clickable
     return g.fuse(sleeve, lip, block, pin)
 
 

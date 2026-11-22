@@ -26,8 +26,9 @@ TEST.5AXIS
         C.ASM               turns about the vertical line x = 0, y = 0 (rides on A)
           ROTARY TABLE      Ø250, z 230..260, four radial T-slots
           BLOCK 60x60x40    the workpiece: x, y -30..30, z 260..300
-  Z.ASM                     moves along Z (in the CAD pose HEAD_UP = 320 above the test mill's)
-    TOOL HOLDER BT40, TOOL T1 FLAT D6   as in make_test_4axis.py; the tool's tip at (0, 0, 350), 50 above the block
+  Z.ASM                     moves along Z (in the CAD pose HEAD_UP = 330 above the test mill's)
+    TOOL HOLDER BT40, TOOL T1 FLAT D6   as in make_test_4axis.py but 50 out of the holder; the tool's tip at
+                            (0, 0, 350), 50 above the block
 
 Nothing touches in the CAD pose, with A tilted -60..60° (to -120..120° with the head at the top of Z), C turned, the
 table at every corner of X and Y and the head anywhere in Z above the tool reaching the table or the A motor (checked
@@ -43,11 +44,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_test_mill as mill  # noqa: E402
 from machine_parts import (ALU, BLUE, DARK, GREY, bearing_cap, chamfer, chamfered_rect, g,  # noqa: E402
                            servo_motor, write)
-from make_test_4axis import BT40_GAUGE, STICK, TOP, Doc, head_parts, screws  # noqa: E402
+from make_test_4axis import BT40_GAUGE, TOP, Doc, head_parts, screws  # noqa: E402
 
 A_Z = TOP + 230.0                   # 260: the A axis (the rotary table's top)
 TIP_Z = A_Z + 40.0 + 50.0           # 350: the tool's tip, 50 above the block
-HEAD_UP = TIP_Z + STICK + BT40_GAUGE - mill.NOSE    # 320
+STICK_5 = 50.0                      # the end mill 50 out of its holder (10 more than on the 4th-axis mill: room over the
+                                    # tilted block, and the two test tools' tips differ - tests/test_rotary.py)
+HEAD_UP = TIP_Z + STICK_5 + BT40_GAUGE - mill.NOSE   # 330
 TABLE_R = 125.0
 SUP = (232.0, 285.0, 70.0)          # a support's inner and outer face (x), its round top's radius
 SHAFT_R = 45.0
@@ -104,7 +107,7 @@ def model():
     caps = [(cap, g.Frame((x, 0, A_Z), (0, 1, 0), (s, 0, 0))) for x, s in ((x1, 1.0), (-x1, -1.0))]
     on_table = [left, right, *caps, (motor, g.Frame((x1 + 30.0, 0, A_Z), (0, 1, 0), (1, 0, 0))),
                 *screws(d, (-303.0, 303.0)), a_asm]
-    return mill.machine("TEST.5AXIS", None, None, mill.STOCK, head_parts(d, TIP_Z), clamps=False,
+    return mill.machine("TEST.5AXIS", None, None, mill.STOCK, head_parts(d, TIP_Z, STICK_5), clamps=False,
                         extra_table=on_table, head_up=HEAD_UP)
 
 

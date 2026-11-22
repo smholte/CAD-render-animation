@@ -67,12 +67,12 @@ class Doc:
         write(root, path)
 
 
-def head_parts(d, tip_z: float):
-    """The tool T1 (flat Ø6, 40 out of its holder, tip at (0, 0, tip_z)) and its BT40 collet holder, in Z.ASM's own
-    coordinates (the nose at mill.NOSE; Z.ASM is raised by ``tip_z + 100 - mill.NOSE``)."""
-    dz = mill.NOSE - (tip_z + STICK + BT40_GAUGE)
-    tool = d.part("TOOL T1 FLAT D6", g.cyl(3.0, STICK, (0, 0, tip_z + dz)), STEEL)
-    holder = d.part("TOOL HOLDER BT40", bt40_collet_holder(STICK, STICK + BT40_GAUGE), (0.62, 0.63, 0.66))
+def head_parts(d, tip_z: float, stick: float = STICK):
+    """The tool T1 (flat Ø6, ``stick`` out of its holder, tip at (0, 0, tip_z)) and its BT40 collet holder, in Z.ASM's
+    own coordinates (the nose at mill.NOSE; Z.ASM is raised by ``tip_z + stick + 60 - mill.NOSE``)."""
+    dz = mill.NOSE - (tip_z + stick + BT40_GAUGE)
+    tool = d.part("TOOL T1 FLAT D6", g.cyl(3.0, stick, (0, 0, tip_z + dz)), STEEL)
+    holder = d.part("TOOL HOLDER BT40", bt40_collet_holder(stick, stick + BT40_GAUGE), (0.62, 0.63, 0.66))
     return [tool, (holder, (0.0, 0.0, tip_z + dz))]
 
 

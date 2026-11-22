@@ -1,11 +1,11 @@
 """Task 0064: the double-arm tool changer in Blender, on the test mill with an arm and a magazine
 (tools/make_test_atc.py).
 
-The spindle's gauge line is at (0, 0, 300) mm in the CAD pose (the change position); the arm turns about x = -130,
-y = 0 and its claws reach x = 0 and x = -260 at +90°; the magazine (12 pots, one every 30° counter-clockwise, pot 1
-towards the arm) turns about x = -460, y = 0; a pot tips down 90° about its hinge, the station pot's mouth then at
-(-260, 0, 300). T1 (BT30 flat Ø10, gauge length 85) is in the spindle, T2 (BT30 ball Ø8, gauge length 80) in pot 2,
-T3 (BT30 drill Ø6, drawn from its sizes) in pot 5.
+Task 0250: the larger test mill (a VMC, BT40). The spindle's gauge line is at (0, 0, 580) mm in the CAD pose (the
+change position); the arm turns about x = -230, y = 0 and its claws reach x = 0 and x = -460 at +90°; the side
+magazine (24 pots, one every 15° counter-clockwise, pot 1 towards the arm) turns about x = -880, y = 0; a pot tips
+down 90° about its hinge, the station pot's mouth then at (-460, 0, 580). T1 (BT40 flat Ø10, gauge length 100) is in
+the spindle, T2 (BT40 ball Ø8, gauge length 95) in pot 2, T3 (BT40 drill Ø6, drawn from its sizes) in pot 5.
 
 The check of every hand-over: at the moment a tool goes from one holder to the next, the two copies' world matrices
 (evaluated by Blender at that sub-frame) agree within 0.01 mm everywhere on the tool.
@@ -28,7 +28,7 @@ HERE = os.path.dirname(__file__)
 ATC = os.path.join(HERE, "data", "test_atc.step")
 MM = 0.001
 FPS = 25
-T1, T2 = "TOOL T1 BT30 FLAT D10", "TOOL T2 BT30 BALL D8"
+T1, T2 = "TOOL T1 BT40 FLAT D10", "TOOL T2 BT40 BALL D8"
 
 PROGRAM = doublearm.TEST_PROGRAM
 
@@ -47,7 +47,7 @@ def ob(sc, name):
 
 
 def set_up(sc, tmp_path, tip=True, spindle=True, program=PROGRAM, **kw):
-    """The machine, the arm, the magazine with 12 pots, the tools and a program step (doublearm.set_up_test_model)."""
+    """The machine, the arm, the magazine with 24 pots, the tools and a program step (doublearm.set_up_test_model)."""
     path = tmp_path / "atc.ngc"
     path.write_text(program)
     a = sc.fresing.animations.add()
@@ -128,9 +128,9 @@ def test_set_up_reads_the_arm_and_the_pots(scene, tmp_path):
     slide, turn = doublearm.arm_joints(scene)
     assert slide is not None and turn is not None
     assert math.degrees(c.arm_grip) == pytest.approx(90.0, abs=0.05)
-    assert c.arm_stroke == pytest.approx(76 * MM)
-    assert len(c.pockets) == 12 and all(p.tip_joint for p in c.pockets)
-    assert len({p.obj.name for p in c.pockets}) == 12
+    assert c.arm_stroke == pytest.approx(95 * MM)          # BT40: taper 65.4 + pull stud 25 + 5
+    assert len(c.pockets) == 24 and all(p.tip_joint for p in c.pockets)
+    assert len({p.obj.name for p in c.pockets}) == 24
     # the arm and pot joints are never taken for an axis or the spindle
     gcode.find_axes(scene)
     assert (c.x_joint, c.y_joint, c.z_joint, c.spindle_joint) == ("X", "Y", "Z", "Spindle")
@@ -276,6 +276,26 @@ def test_save_reopen_and_queue_keys(scene, tmp_path):
             assert fc.driver.type != "SCRIPTED" or fc.driver.is_simple_expression
 
 
+def test_reopened_mid_change_keeps_the_work_zero(scene, tmp_path):
+    """Task 0250: a project saved while the arm holds the tool (the spindle's own tool part hidden) and opened again:
+    Blender has not worked out the hidden tool, its matrix_world read as the origin and the work zero came out
+    480 mm off on the larger test mill - the program's timing, and so every change, moved."""
+    a, b = set_up(scene, tmp_path)
+    animation.bake(scene, a)
+    sch = schedule(scene, a, b)
+    g54 = gcode.Machine(scene).g54
+    x = next(c for c in sch.changes if c.kind == "arm")
+    at(scene, a, b, sum(x.arm_times()["swap"]) / 2)
+    assert ob(scene, T1).hide_viewport                  # the arm holds T1: its CAD part is hidden
+    path = str(tmp_path / "mid change.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    a, b = sc.fresing.animations["Program"], sc.fresing.animations["Program"].blocks[0]
+    assert gcode.Machine(sc).g54 == pytest.approx(g54, abs=1e-3)          # mm (float32 places)
+    assert schedule(sc, a, b).duration == pytest.approx(sch.duration, abs=1e-4)
+
+
 def test_old_atc_project_unchanged(scene, tmp_path):
     """A carousel ATC (0.2.45) on the same model plays as before: no arm keys, tools stay in their own pockets."""
     a, b = set_up(scene, tmp_path, tip=False)
@@ -295,7 +315,7 @@ def test_remove_the_arm_removes_every_joint_it_made(scene, tmp_path):
     c.pockets.remove(3)                                # a pocket removed: its pot's joint stays until the arm goes
     assert bpy.ops.fresing.cnc_arm_remove() == {"FINISHED"}
     assert not [j for j in scene.fresing.joints if doublearm.app_joint(j)]
-    assert len(scene.fresing.joints) == n_before - 14      # the arm's two joints and twelve pots
+    assert len(scene.fresing.joints) == n_before - 26      # the arm's two joints and 24 pots
     assert doublearm.arm_joints(scene) == (None, None)
     arm = ob(scene, "CHANGER ARM")
     assert arm.parent is ob(scene, "ARM.ASM")            # back under its CAD parent
