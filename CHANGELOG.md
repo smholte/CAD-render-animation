@@ -5,14 +5,13 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-<<<<<<< HEAD
-## 0.2.206 – 22 Nov 2026 – Learning hub: one group open at a time, lesson buttons on top (task 0281)
+## 0.2.207 – 22 Nov 2026 – Learning hub: one group open at a time, lesson buttons on top (task 0281)
 
 - **One group of stops at a time.** In the Learning hub's list of stops, opening a group (Look, Motion, Machining,
   Pictures and videos) closes the other one. Picking a stop in another group opens that group.
 - **Lesson buttons at the top.** In the Lesson panel **Back**, **Next** (or **Do it for me**) and **Play on** now sit
   above the step's text, so they stay in the same place from step to step.
-=======
+
 ## 0.2.206 – 22 Nov 2026 – Your settings are kept over a restart (task 0283)
 
 - **Every setting in Fresing > Settings… now stays as you set it** – also after closing the app, after a restart of
@@ -26,7 +25,6 @@ installer of that version was built from.
   settings, keeps a copy of the damaged file and says so in one red line on Settings > General.
 - For IT: the file is `fresing_settings.json` in the app's settings folder; copy it to other PCs to give them the same
   settings ("Using it in a company" in Help > About).
->>>>>>> origin/main
 
 ## 0.2.205 – 21 Nov 2026 – Tool marks look good everywhere, without setting anything (task 0280)
 

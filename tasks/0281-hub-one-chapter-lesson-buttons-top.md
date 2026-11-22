@@ -35,7 +35,7 @@ and `prefs.py` (0278), what the hub or a lesson contains.
 
 **What changed:** `ui_tour.py`: the stop groups are own rows with an arrow (operator `fresing.tour_chapter`, in `lock.ALLOWED`);
 one open at a time, the picked stop's group opens when it changes (state `CHAPTER`). `ui_lesson.py`: Back | Next / Do it for
-me and Play on come right under the lesson name, the step box below. Guide text, CHANGELOG 0.2.206. No tour set changed,
+me and Play on come right under the lesson name, the step box below. Guide text, CHANGELOG 0.2.207. No tour set changed,
 so no `changed=`. Guide pictures not redone (layout only; the owner can ask).
 
 **Tested and measured** (4-core web machine, bpy module): `tests/test_tour.py`, `test_lessons.py`, `test_start.py` pass
