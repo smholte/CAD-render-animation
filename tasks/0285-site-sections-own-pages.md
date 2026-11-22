@@ -21,10 +21,19 @@ the app, not the render kit.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 22 Nov 2026
 
-**What changed:**
+**What changed:** Every top-bar button is now a page of its own: `who/`, `what/` (with "Built on Blender"), `model/` (Turn it
+yourself, as before), `how-it-works/`, `install/` (download, 3 steps, What's new), `guide/`. The start page keeps the hero,
+the short facts, the picture / video / 3D rows, four "Find out more" cards linking to the pages, Made by Fresing and the
+credits. The new pages share `site/layout.html` (same bar, tool switcher, fonts, colours, footer with the GPL line; the open
+page's button is highlighted); their text is in `site/pages/*.html`. **The top bar's look is unchanged** (only its links went
+from `#section` to pages) – the House Planner lead needs to hear nothing new; More tools still links to House Planner.
+Files: `site/`, `tools/build_site.py`, `tests/test_site.py`. No app code, no version bump.
 
-**Tested:**
+**Tested:** `pytest tests/test_site.py` 33 passed (new: every menu button is its own page with the same bar and footer;
+a broken link on a new page is found); `build_site.py` check 0 problems (no broken links, no script on new pages). Pictures
+of all five pages at 2560 and 390 px in `tasks/img/0285/` (no sideways scroll at either width, measured in Chromium).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** none. The footer of the new pages links to the credits on the start page instead of
+repeating the list.

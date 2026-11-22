@@ -141,6 +141,8 @@ def register():
             # source would show a sentence broken in the middle
             cls.__doc__ = " ".join(cls.__doc__.split())
         bpy.utils.register_class(cls)
+    from .blender import settings_store
+    settings_store.register()                # task 0283: every setting read from the app's own file, kept on change
     handlers.register()
     from .blender import lock, ui_top, workspaces
     from .blender import highlight
@@ -233,6 +235,8 @@ def unregister():
     from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
     from .blender import ops_house, toolbox_inbox
     toolbox_inbox.unregister()
+    from .blender import settings_store
+    settings_store.unregister()              # task 0283: the last change written
     ops_house.unregister_menu()
     from .blender import ops_import
     ops_import.unregister_menu()

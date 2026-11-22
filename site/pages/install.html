@@ -1,0 +1,39 @@
+<section class="page-head">
+  <div class="wrap">
+    <p class="label">// Download</p>
+    <h1>Download Fresing Render</h1>
+    <p class="lead-light">Free for Windows 10 and 11. No admin rights needed.</p>
+  </div>
+</section>
+
+<section class="get">
+  <div class="wrap">
+    <a class="download cut" href="{{download_url}}">
+      <span class="download-main">Download for Windows</span>
+      <span class="download-sub">Version {{version}} · {{date}} · {{size}}</span>
+    </a>
+    <p class="needs">Windows 10 or 11 · NVIDIA graphics card recommended · No admin rights needed · Free</p>
+  </div>
+</section>
+
+<section class="install">
+  <div class="wrap two">
+    <div>
+      <h2>Install in 3 steps</h2>
+      <ol class="steps">
+        <li><a href="{{download_url}}">Download</a> <b>{{asset_name}}</b>.</li>
+        <li>Unzip it: right-click the file, <b>Extract All…</b>, then <b>Extract</b>.</li>
+        <li>Double-click <b>Install.bat</b> in the unzipped folder. If Windows says "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>. When it is done, start <b>Fresing Render</b> from the Desktop.</li>
+      </ol>
+      <p class="small">The installer downloads Blender {{blender}} (about 400 MB) and keeps it separate from any other Blender on your PC.</p>
+      <p class="buttons"><a class="button" href="{{base}}guide/">User guide</a> <a class="button ghost" href="{{base}}how-it-works/">How it works</a> <a class="button ghost" href="{{releases_url}}">All releases</a></p>
+    </div>
+    <div class="news">
+      <h2>What's new in {{version}}</h2>
+      <p class="news-title">{{news_title}}</p>
+      <div class="news-text">
+{{whats_new}}
+      </div>
+    </div>
+  </div>
+</section>
