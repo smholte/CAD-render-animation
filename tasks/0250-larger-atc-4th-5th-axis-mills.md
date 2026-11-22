@@ -1,6 +1,6 @@
 # 0250 – The double-arm ATC mill and the 4th- / 5th-axis mills rebuilt on 0249's larger VMC
 
-**Who:** worker · **Status:** open – waits for 0249 · **Branch:** `task/0250-larger-atc-rotary-mills`
+**Who:** worker · **Status:** running (22 Nov 2026, Claude Code on the web) · **Branch:** `task/0250-larger-atc-rotary-mills`
 **Started by:** lead, 20 Nov 2026 (owner 23:35 / 23:40 – all small mills replaced, see 0249) ·
 **Model:** Opus · effort High
 **Area:** Test models lane – `tools/make_test_atc.py`, `tools/make_test_4axis.py`, `tools/make_test_5axis.py`,
