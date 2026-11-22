@@ -65,7 +65,12 @@ FORBIDDEN_MODELS = ("fresing_400", "fresing400", "f400")   # not public (owner, 
 COPY_DIRS = ("brand", "fonts")
 TOOLS_JSON = os.path.join(SITE, "tools.json")       # task 0267: the tool switcher in the header
 HOW_PAGE = os.path.join("how-it-works", "index.html")   # task 0267: the "How it works" page (template and built)
-PAGES = ("index.html", HOW_PAGE)
+SUB_PAGES = {                               # task 0285: a page of its own per menu button: folder -> (title, description)
+    "who": ("Who it is for", "Who Fresing Render is for: engineers, sales teams and animators."),
+    "what": ("What it does", "What Fresing Render does: STEP import, materials, motion, CNC milling, surroundings, videos."),
+    "install": ("Download and install", "Download Fresing Render for Windows and install it in three steps."),
+}
+PAGES = ("index.html", HOW_PAGE) + tuple(os.path.join(k, "index.html") for k in SUB_PAGES)
 
 sys.path.insert(0, ROOT)
 from fresing_render.core import functions  # noqa: E402
@@ -249,13 +254,14 @@ ROW_SCRIPT = """<script>
 </script>"""
 
 
-def feature_html(media: dict) -> str:
+def feature_html(media: dict, base: str = "") -> str:
     """The picture next to "Built on Blender" (media.json "feature")."""
     f = media.get("feature") or {}
     if not f:
         return ""
-    cap = f'\n      <figcaption>{_esc(f["caption"])}{how_html(f)}</figcaption>' if f.get("caption") else ""
-    return (f'<a href="media/{_esc(f["file"])}"><img src="media/{_esc(f["file"])}" alt="{_esc(f.get("caption", ""))}" '
+    cap = (f'\n      <figcaption>{_esc(f["caption"])}{how_html(f, base + "guide/")}</figcaption>'
+           if f.get("caption") else "")
+    return (f'<a href="{base}media/{_esc(f["file"])}"><img src="{base}media/{_esc(f["file"])}" alt="{_esc(f.get("caption", ""))}" '
             f'loading="lazy" width="1000" height="1350"></a>{cap}')
 
 
@@ -474,11 +480,12 @@ def tools_html(tools: list[dict], base: str = "") -> str:
 
 
 def nav_html(media: dict, base: str = "", here: str = "") -> str:
-    """The top menu; ``base`` = the way back to the landing page from a sub-page ('../')."""
-    links = [("#who", "Who it is for"), ("#what", "What it does")]
+    """The top menu (task 0285: every button is a page of its own); ``base`` = the way back to the landing page
+    from a sub-page ('../'), ``here`` = the open page's folder ('who/')."""
+    links = [("who/", "Who it is for"), ("what/", "What it does")]
     if web_models(media):
-        links.append(("#turn", "Turn it"))
-    links += [("how-it-works/", "How it works"), ("#install", "Install"), ("guide/", "User guide")]
+        links.append(("model/", "Turn it"))
+    links += [("how-it-works/", "How it works"), ("install/", "Install"), ("guide/", "User guide")]
     out = []
     for href, text in links:
         cur = ' aria-current="page"' if href == here else ""
@@ -592,9 +599,24 @@ def build(out: str = DEFAULT_OUT, version: str = "", size: int = 0, guide: bool 
         "pictures": how_pictures_html(media),
         "credits": credits_html(media, [p["model"] for p in how_pictures(media) if p.get("model")]),
     }))
+    layout = open(os.path.join(SITE, "layout.html"), encoding="utf-8").read()
+    subs = {}
+    for key, (title, desc) in SUB_PAGES.items():
+        content = fill(open(os.path.join(SITE, "pages", key + ".html"), encoding="utf-8").read(), dict(common, **{
+            "base": "../", "news_title": _esc(entry["title"][:1].upper() + entry["title"][1:]),
+            "whats_new": md_to_html(entry["text"]), "feature": feature_html(media, "../"),
+        }))
+        subs[key] = fill(layout, dict(common, **{
+            "base": "../", "title": _esc(title), "description": _esc(desc), "content": content,
+            "nav": nav_html(media, "../", key + "/"), "tools": tools_html(tools, "../"),
+        }))
     if os.path.isdir(out):
         shutil.rmtree(out)
     os.makedirs(os.path.join(out, "media"))
+    for key, text in subs.items():
+        os.makedirs(os.path.join(out, key))
+        with open(os.path.join(out, key, "index.html"), "w", encoding="utf-8") as fh:
+            fh.write(text)
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as fh:
         fh.write(page)
     os.makedirs(os.path.join(out, os.path.dirname(HOW_PAGE)))
