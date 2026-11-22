@@ -137,8 +137,21 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
 
 
 def draw_general(layout, p) -> None:
-    """Settings > General (task 0271): template, rule set, workspace for new projects, hover, library folder."""
+    """Settings > General (task 0271): template, rule set, workspace for new projects, hover, library folder.
+    Task 0283: a line that the settings are kept by themselves, and a note when the settings file was damaged."""
     col = layout.column()
+    try:
+        from . import settings_store
+        for note in settings_store.notes():
+            row = col.row()
+            row.alert = True
+            row.label(text=note, icon="ERROR")
+    except Exception:  # noqa: BLE001 - never break the settings page
+        pass
+    hint = col.row()
+    hint.active = False
+    hint.label(text="Your settings are kept for you: nothing to save", icon="CHECKMARK")
+    col.separator()
     col.prop(p, "library_path")
     sub = col.row()
     sub.active = False

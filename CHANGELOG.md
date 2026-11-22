@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.206 – 22 Nov 2026 – Your settings are kept over a restart (task 0283)
+
+- **Every setting in Fresing > Settings… now stays as you set it** – also after closing the app, after a restart of
+  the PC and after an update. Until now Blender forgot them at every start while the app was open in its own layout,
+  so the library folder, default template, lesson look, backups, update check and the rest went back to their
+  defaults. Choices the app remembers by itself (Live preview on or off, the tab the Settings window opens on, Play
+  on) are kept too.
+- **Nothing to save:** a change is written within a second to the app's own settings file. Settings > General says
+  so at its top.
+- **A damaged settings file** (a PC that crashed while writing it) no longer matters: the app starts with the default
+  settings, keeps a copy of the damaged file and says so in one red line on Settings > General.
+- For IT: the file is `fresing_settings.json` in the app's settings folder; copy it to other PCs to give them the same
+  settings ("Using it in a company" in Help > About).
+
 ## 0.2.205 – 21 Nov 2026 – Tool marks look good everywhere, without setting anything (task 0280)
 
 - **Tool marks at any distance.** Real marks are often far finer than a pixel, so outside a close-up they used to

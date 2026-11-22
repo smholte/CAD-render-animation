@@ -123,7 +123,37 @@ def project_checks():
     check("the change was saved before the update", MARKER in bpy.data.objects)
 
 
+SETTINGS_MARK = {"backup_minutes": 17, "lesson_button": "D"}     # task 0283: chosen before Update now, kept after it
+
+
+def settings_file() -> str:
+    return os.path.join(bpy.utils.user_resource("CONFIG"), "fresing_settings.json")
+
+
+def write_settings_mark() -> None:
+    """Task 0283: the user's settings as the app keeps them (its own file); an update must leave them."""
+    path = settings_file()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"format": "fresing-settings", "version": 1, "settings": SETTINGS_MARK}, fh)
+
+
+def settings_checks(mod) -> None:
+    try:
+        with open(settings_file(), encoding="utf-8") as fh:
+            kept = json.load(fh).get("settings", {})
+    except (OSError, ValueError) as exc:
+        kept = {"error": str(exc)}
+    check("after the update: the settings file is still there", all(kept.get(k) == v for k, v in SETTINGS_MARK.items()),
+          kept)
+    if not bpy.app.background:
+        prefs = importlib.import_module(mod.__name__ + ".blender.prefs").get()
+        got = {k: getattr(prefs, k, None) for k in SETTINGS_MARK}
+        check("after the update: the settings chosen before it are in use", got == SETTINGS_MARK, got)
+
+
 def before_checks(mod) -> bool:
+    write_settings_mark()
     upd = importlib.import_module(mod.__name__ + ".blender.updates")
     check("old version installed", mod.__version__ == OLD or not OLD, mod.__version__)
     check("installed as an extension", upd.extension_repo() != "", upd.extension_repo())
@@ -241,6 +271,7 @@ def run_after():
     check("what's new after the update", any(c.get("version") == EXPECT for c in st.get("changes", [])),
           [c.get("version") for c in st.get("changes", [])])
     check("status file shown once (removed)", not os.path.exists(upd.status_path()))
+    settings_checks(mod)
     if not bpy.app.background:
         check("panel 'Updated to …' shown", upd.FRESING_PT_update.poll(bpy.context) and upd.notice_kind() == "status")
         check("started with the app template", bpy.context.preferences.app_template == "fresing_render",

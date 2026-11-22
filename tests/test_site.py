@@ -37,8 +37,9 @@ def test_page_has_version_date_and_download(built):
     url = f"https://github.com/smholte/CAD-render-animation/releases/download/v{version}/FresingRender-{version}-windows.zip"
     assert f'href="{url}"' in page
     assert f"Version {version} · {entry['date']} · 52 MB" in page
-    assert f"What's new in {version}" in page
     assert "{{" not in page
+    install = open(os.path.join(out, "install", "index.html"), encoding="utf-8").read()
+    assert f'href="{url}"' in install and f"What's new in {version}" in install and "{{" not in install
 
 
 def test_page_checks_pass(built):
@@ -53,6 +54,7 @@ def test_every_picture_video_and_guide_exists(built):
     assert len(media["pictures"]) >= 3
     model_pages = "".join(open(os.path.join(out, "model", w["id"], "index.html"), encoding="utf-8").read()
                           for w in build_site.web_models(media))
+    page += open(os.path.join(out, "what", "index.html"), encoding="utf-8").read().replace("../media/", "media/")
     for f in build_site.media_files(media):
         if f.endswith(build_site.PAGE_SUFFIX):                    # an export's own page: model/<id>/index.html
             assert os.path.getsize(os.path.join(build_site.MEDIA, f)) > 1000, f
@@ -82,7 +84,7 @@ def test_turn_it_yourself(built, tmp_path):
     items = build_site.web_models(media)
     assert [w["id"] for w in items] == ["test_atc", "thor"]
     assert "web_model" not in media                                        # converted to the list
-    assert 'id="turn"' in page and 'href="#turn"' in page
+    assert 'id="turn"' in page and 'href="model/"' in page
     assert "<script src" not in page.lower()                               # the models load only when opened
     assert not re.search(r'(src|href)="[^"]*\.(glb|page\.html)"', page)
     turn = page[page.index('<section id="turn"'):page.index("</section>", page.index('<section id="turn"'))]
@@ -504,33 +506,66 @@ def test_kit_colour_lines(tmp_path):
 
 
 def test_built_on_blender_section(built):
-    """The page says what it is built on and that the installer sets Blender up as a standalone app."""
-    _out, _version, page = built
+    """The What it does page says what it is built on and that the installer sets Blender up as a standalone app."""
+    out, _version, _page = built
+    page = open(os.path.join(out, "what", "index.html"), encoding="utf-8").read()
     sec = page[page.index('<section id="blender"'):page.index("</section>", page.index('<section id="blender"'))]
     assert "Built on Blender" in sec and 'href="https://www.blender.org"' in sec
     assert f"Blender {build_site.blender_version()} LTS" in sec and "standalone app" in sec
     assert "not made or endorsed by the Blender Foundation" in sec
     media = build_site.load_media()
     if media.get("feature"):
-        assert f'media/{media["feature"]["file"]}' in sec
+        assert f'../media/{media["feature"]["file"]}' in sec
 
 
 def test_who_it_is_for_section(built):
-    """Tasks 0266, 0267: who it is for – a dark band with the line, three numbered cards under it; the long animator
-    paragraph is on the "How it works" page."""
+    """Tasks 0266, 0285: who it is for – its own page: a dark band with the line, three numbered cards under it;
+    the long animator paragraph is on the "How it works" page."""
     out, _version, page = built
-    sec = page[page.index('<section id="who"'):page.index("</section>", page.index('<section id="who"'))]
-    band = sec[sec.index('class="band"'):sec.index("</div>", sec.index('class="band"'))]
-    assert "// Who it is for" in band and "Built to speed animators up – not to replace them." in band
-    assert 'href="how-it-works/"' in band
-    cards = re.findall(r"<li><p class=\"label\">(\d\d) · ([^<]+)</p><h3>([^<]+)</h3>", sec)
+    who = open(os.path.join(out, "who", "index.html"), encoding="utf-8").read()
+    band = who[who.index('class="band"'):who.index("</div>", who.index('class="band"'))]
+    assert "Built to speed animators up – not to replace them." in band
+    assert 'href="../how-it-works/"' in band
+    cards = re.findall(r"<li><p class=\"label\">(\d\d) · ([^<]+)</p><h3>([^<]+)</h3>", who)
     assert cards == [("01", "Engineers", "Render it yourself"), ("02", "Sales teams", "Show it before it exists"),
                      ("03", "Animators", "Start from a working scene")]
-    assert "Nothing is guessed" in sec and "with all of" in sec
-    assert 'href="#who"' in page
+    assert "Nothing is guessed" in who and "with all of" in who
+    assert "Built to speed animators up" not in page
     how = open(os.path.join(out, "how-it-works", "index.html"), encoding="utf-8").read()
     assert "Many animators worry about what AI means for their work" in how
     assert "Many animators worry" not in page
+
+
+def test_every_menu_button_is_a_page_of_its_own(built):
+    """Task 0285: no menu button jumps down the start page; every page has the same bar (tools + menu), its own
+    button marked, the footer with the licence line, and no script; the start page links to each page."""
+    out, _version, page = built
+    media = build_site.load_media()
+    menu = re.findall(r'<a href="([^"#]+)"[^>]*>([^<]+)</a>', page[page.index("<nav"):page.index("</nav>")])
+    assert [h for h, _ in menu] == ["who/", "what/", "model/", "how-it-works/", "install/", "guide/"][:len(menu)]
+    assert "#" not in page[page.index("<nav"):page.index("</nav>")]
+    for key in ("who", "what", "install"):
+        assert f'href="{key}/"' in page.split("</header>")[1]            # the start page links to it
+    for rel, folder in (("who", "who/"), ("what", "what/"), ("install", "install/"), ("how-it-works", "how-it-works/")):
+        p = open(os.path.join(out, rel, "index.html"), encoding="utf-8").read()
+        bar = p[p.index('<header class="bar">'):p.index("</header>")]
+        assert build_site.tools_html(build_site.load_tools(), "../") in bar
+        assert f'<a href="../{folder}" aria-current="page">' in bar and bar.count("aria-current") == 2   # + the tool
+        assert "GPL-3.0-or-later" in p and "<script" not in p.lower() and "{{" not in p
+    assert build_site.nav_html(media, "../", "who/").count("aria-current") == 1
+    for key in build_site.SUB_PAGES:
+        assert os.path.join(key, "index.html") in build_site.PAGES
+
+
+def test_a_broken_link_on_a_new_page_is_found(built, tmp_path):
+    import shutil
+    out, _version, _page = built
+    bad = str(tmp_path / "bad")
+    shutil.copytree(out, bad)
+    p = os.path.join(bad, "what", "index.html")
+    text = open(p, encoding="utf-8").read()
+    open(p, "w", encoding="utf-8").write(text.replace("</main>", '<a href="../nowhere/">x</a></main>'))
+    assert any("what/index.html" in x and "nowhere" in x for x in build_site.check(bad))
 
 
 GONE = ("iea15_offshore_seabed.jpg", "iea15_onshore_from_the_field.jpg", "iea15_onshore_at_the_door.jpg")
@@ -542,6 +577,7 @@ def test_rows_from_media_json(built):
     scrolling strip with ‹ › buttons the script shows; the three weak turbine pictures are gone, the "redo" files stay
     until their new versions come."""
     out, _version, page = built
+    page += open(os.path.join(out, "what", "index.html"), encoding="utf-8").read().replace("../media/", "media/")
     media = build_site.load_media()
     pictures, videos = build_site.split_media(media)
     assert pictures and videos and len(pictures) + len(videos) == len(media["pictures"])
@@ -634,6 +670,7 @@ def test_how_its_done_links_to_the_guide(built, tmp_path, monkeypatch):
     links to their guide sections; an id the function list does not have is refused."""
     from fresing_render.core import functions
     out, _version, page = built
+    page += open(os.path.join(out, "what", "index.html"), encoding="utf-8").read().replace("../", "")   # the feature picture
     media = build_site.load_media()
     items = [media["hero"], media["feature"]] + media["pictures"] + build_site.web_models(media)
     guide = open(os.path.join(out, "guide", "index.html"), encoding="utf-8").read()
