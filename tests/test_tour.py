@@ -276,5 +276,6 @@ def test_one_chapter_open_at_a_time(built):
 def test_lesson_buttons_come_before_the_step_text():
     import inspect
     from fresing_render.blender import ui_lesson
-    src = inspect.getsource(ui_lesson.FRESING_PT_lesson.draw)
+    src = inspect.getsource(ui_lesson)          # the class's draw may be wrapped by panels.install
+    src = src[src.index("class FRESING_PT_lesson"):src.index("class FRESING_OT_lesson_next")]
     assert src.index("lesson_back") < src.index("lesson_play_on") < src.index("st.say")

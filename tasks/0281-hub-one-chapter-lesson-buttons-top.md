@@ -31,12 +31,17 @@ and `prefs.py` (0278), what the hub or a lesson contains.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 22 Nov 2026
 
-**What changed:**
+**What changed:** `ui_tour.py`: the stop groups are own rows with an arrow (operator `fresing.tour_chapter`, in `lock.ALLOWED`);
+one open at a time, the picked stop's group opens when it changes (state `CHAPTER`). `ui_lesson.py`: Back | Next / Do it for
+me and Play on come right under the lesson name, the step box below. Guide text, CHANGELOG 0.2.206. No tour set changed,
+so no `changed=`. Guide pictures not redone (layout only; the owner can ask).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, bpy module): `tests/test_tour.py`, `test_lessons.py`, `test_start.py` pass
+(two new tests: chapter state, button order in the draw source). No new real-app test of the drawn layout; lessons' highlight
+untouched (Back / Next operators unchanged).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** a real-app layout test and new guide pictures if wanted.
 
-**Owner's check on your PC:**
+**Owner's check on your PC:** open the Learning hub, click Machining while Look is open: Look closes. Start a lesson: Back / Next / Play on are above the step text.
