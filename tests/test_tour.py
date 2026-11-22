@@ -253,3 +253,28 @@ def test_three_tools_cuts_nothing_outside_the_program(built):
     assert lo[2] >= -6.05, lo                         # the end mill's slot is the deepest cut
     probe = mf.Manifold.cube((6.0, 6.0, 30.0)).translate((17.0, -3.0, -31.05))   # X17..23 Y-3..3, below Z-1.05
     assert (gone ^ probe).volume() < 1e-3
+
+
+def test_one_chapter_open_at_a_time(built):
+    """Task 0281: opening a chapter closes the other; a pick in another chapter opens that one only."""
+    bpy, folder, _out = built
+    from fresing_render.blender import ui_tour
+    tour.open_set(folder, "9.9.9", tour.HUB_SET)
+    first = tour.STOPS[0]
+    other = next(g for g in tour.GROUPS if g != first.group)
+    assert bpy.ops.fresing.tour_pick(stop=first.id) == {"FINISHED"}
+    assert ui_tour.open_chapter(first.group) == first.group
+    assert bpy.ops.fresing.tour_chapter(group=other) == {"FINISHED"}
+    assert ui_tour.open_chapter(first.group) == other          # only one open
+    assert bpy.ops.fresing.tour_chapter(group=other) == {"FINISHED"}
+    assert ui_tour.open_chapter(first.group) == ""             # clicking the open one closes it
+    second = next(s for s in tour.STOPS if s.group == other)
+    assert ui_tour.open_chapter(second.group) == other         # a pick in another chapter opens that one
+    assert ui_tour.open_chapter(first.group) == first.group
+
+
+def test_lesson_buttons_come_before_the_step_text():
+    import inspect
+    from fresing_render.blender import ui_lesson
+    src = inspect.getsource(ui_lesson.FRESING_PT_lesson.draw)
+    assert src.index("lesson_back") < src.index("lesson_play_on") < src.index("st.say")
