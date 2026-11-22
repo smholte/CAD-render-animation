@@ -1,6 +1,6 @@
 # 0280 – Tool marks look as good as Learning-hub stop 60 everywhere, with no set-up
 
-**Who:** worker · **Status:** running · **Branch:** `task/0280-tool-marks-always-good`
+**Who:** worker · **Status:** done (0.2.205) · **Branch:** `task/0280-tool-marks-always-good`
 **Started by:** lead, 21 Nov 2026 (owner 22:00, four screenshots of 0.2.197 – the coolant set's pockets, a close-up of
 a pocket wall, a slot with its path lines, and stop **60. Tool marks on cut faces**: "cutting textures needs some
 refining, it can look really good like on 60 in the Learning hub, but others less. This needs to be really good
@@ -43,11 +43,11 @@ aluminium. The other sets don't:
 
 ## Done when
 
-- [ ] Report says why stop 60 looked right and the others didn't
-- [ ] No moiré, no black walls, no sand noise, floor arcs visible – in every set above, defaults only (picture sheet)
-- [ ] `core/toolmarks.py` and its tests still mirror the material; render-compare tests updated
-- [ ] Tour stop 60 and the Machining stops' `changed=` (`python3 tools/tour_versions.py --record`); guide pictures
-- [ ] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
+- [x] Report says why stop 60 looked right and the others didn't
+- [x] No moiré, no black walls, no sand noise, floor arcs visible – in every set above, defaults only (picture sheet)
+- [x] `core/toolmarks.py` and its tests still mirror the material; render-compare tests updated
+- [x] Tour stop 60 and the Machining stops' `changed=` (`python3 tools/tour_versions.py --record`); guide pictures
+- [x] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
 
 ## Report (filled in by the chat that did the task)
 
@@ -102,7 +102,7 @@ aluminium. The other sets don't:
   0.18 % of the picture differs by > 25 levels (was ≥ 0.2 %); lower bound now 0.1 %.
 - Picture sheet: 12 sets × 8 views before and after. No black walls left in any set, no speckle in the coolant set,
   floor arcs and wall lines visible in every close-up and mid view, no moiré seen.
-- GitHub: run 1 (code only) red on that queue test; run 2 after merging main + version: see below.
+- GitHub: 3 full runs. Run 1 (code only) red on the queue test above; run 2 green (44960347677); task 0278 took 0.2.204 meanwhile, so main was merged once more and renumbered: run 3 green (44962616395), main fast-forwarded to it.
 
 **Open points / follow-up tasks:**
 - The marks' level is set from the render camera's picture size (`Pixel angle`); in the 3D view with another zoom /
