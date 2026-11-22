@@ -4957,6 +4957,61 @@ def app_licences(ctx):
     return None
 
 
+@line("app.fr_mark", "The Fr mark stands at the left of the top bar in place of Blender's logo; its menu has About "
+      "Fresing Render…, Fresing Settings… and Blender", "0.2.206",
+      what="Checks that the top bar draws the Fr mark (with its picture) as its first item and File, Edit, Render, "
+           "Window, Help, Fresing after it, that its menu has its three lines, and that switching the app's part off "
+           "gives Blender's logo back")
+def app_fr_mark(ctx):
+    import bpy
+
+    from ..blender import ui_topbar
+
+    class _Rec:
+        def __init__(self):
+            self.menus = []
+            self.operator_context = ""
+
+        def menu(self, menu, **kw):
+            self.menus.append((menu, kw))
+
+        def operator(self, *a, **kw):
+            pass
+
+        def separator(self, *a, **kw):
+            pass
+
+    class _Area:
+        show_menus = True
+
+    class _Ctx:
+        area = _Area()
+
+    def top():
+        rec = _Rec()
+        holder = type("M", (), {"layout": rec})()
+        for f in bpy.types.TOPBAR_MT_editor_menus._dyn_ui_initialize():
+            f(holder, _Ctx())
+        return [m for m, _kw in rec.menus], rec.menus
+
+    _check(ui_topbar.mark_shown(), "Blender's logo is still drawn at the left of the top bar")
+    names, menus = top()
+    _check(names[:1] == [ui_topbar.MARK_MENU], f"the top bar's first item is {names[:1]}")
+    _check(names[1:7] == ["TOPBAR_MT_file", "TOPBAR_MT_edit", "TOPBAR_MT_render", "TOPBAR_MT_window",
+                          "TOPBAR_MT_help", ui_topbar.MENU], f"the top bar's menus after the mark: {names[1:]}")
+    _check(bpy.app.background or ui_topbar.mark_icon() > 0, "the Fr mark's picture did not load")
+    _check(ui_topbar.mark_entries() == ["fresing.about", "fresing.settings", "TOPBAR_MT_blender"],
+           f"the Fr menu's lines: {ui_topbar.mark_entries()}")
+    ui_topbar.unregister_handlers()
+    try:
+        off, _m = top()
+        _check(off[:1] == ["TOPBAR_MT_blender"], "switched off, Blender's logo did not come back")
+    finally:
+        ui_topbar.register_handlers()
+    _check(ui_topbar.mark_shown(), "the Fr mark did not come back")
+    return "Fr mark first; its menu: About, Settings, Blender"
+
+
 @line("app.settings", "Fresing Settings: one window with tabs; only your own input counts as time in My usage",
       "0.2.201",
       what="Every tab of the Settings window draws (General, Side panel, Lessons, Backups, Updates, My usage, About), "

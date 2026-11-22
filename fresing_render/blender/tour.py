@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.204")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.206")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -5277,6 +5277,25 @@ stop("settings", OUT, HUB_SET, "Fresing Settings",
      "stays open.",
      where="Fresing menu > Settings…; the gear on the left panel", since="0.2.201",
      shot="Tour view", check=_check_settings, auto=lambda ctx, scene, st: "")
+
+def _check_fr_mark(scene):
+    """Task 0279: the Fr mark in place of Blender's logo, its menu's lines."""
+    from . import ui_topbar
+    _check(ui_topbar.mark_shown(), "Blender's logo is still drawn at the left of the top bar")
+    e = ui_topbar.mark_entries()
+    _check(e == ["fresing.about", "fresing.settings", "TOPBAR_MT_blender"], f"the Fr menu's lines: {e}")
+    for idname in e[:2]:
+        _check(ui_topbar._has(idname), f"the operator {idname} is missing")
+    return "Fr mark; menu: About Fresing Render…, Fresing Settings…, Blender"
+
+
+stop("fr_mark", OUT, HUB_SET, "The Fr mark in the top bar",
+     "At the far left of the top bar stands the green and white Fr mark (no Blender logo). Click it: a short menu "
+     "with About Fresing Render…, Fresing Settings… and, under a line, Blender with Blender's own menu (Splash Screen, "
+     "About Blender …). Switch the workspace (Full access, the Client view): the Fr mark stays.",
+     where="the top bar, far left", since="0.2.206",
+     shot="Tour view", check=_check_fr_mark, auto=lambda ctx, scene, st: "")
+
 
 def _check_learn(scene):
     """Learn as you go (task 0208): its buttons, the menu line, and its rules on a made-up user (the user's own usage

@@ -5,6 +5,13 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.206 – 22 Nov 2026 – The Fr mark in the top bar (task 0279)
+
+- **The Fr mark instead of Blender's logo.** At the far left of the top bar stands the green and white Fr mark, in
+  every workspace. Click it: **About Fresing Render…**, **Fresing Settings…** and, under a line, **Blender** with
+  Blender's own menu (Splash Screen, About Blender …). The Fresing menu after Help stays as it was. Switching the
+  extension off gives Blender's logo back.
+
 ## 0.2.205 – 21 Nov 2026 – Tool marks look good everywhere, without setting anything (task 0280)
 
 - **Tool marks at any distance.** Real marks are often far finer than a pixel, so outside a close-up they used to

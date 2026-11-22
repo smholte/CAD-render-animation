@@ -75,6 +75,7 @@ ALWAYS = ("import", "looks", "scene", "help", "panel")
 MENUS = {
     "TOPBAR_MT_help": "Help menu",
     "TOPBAR_MT_fresing": "Fresing menu (top bar)",
+    "TOPBAR_MT_fresing_mark": "Fr mark (top bar, far left)",
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
 }
@@ -622,6 +623,9 @@ fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings:
    "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",), pccheck=("app.settings",),
    since="0.2.201")
+fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
+   "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
+   guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.206")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")

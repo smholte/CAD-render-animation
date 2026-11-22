@@ -71,6 +71,25 @@ def shot(name):
     return path
 
 
+def mark_ok(tag):
+    """Task 0279: the Fr mark is drawn at the left of the top bar (a fresh drawing, with its picture) and shows green."""
+    import numpy as np
+    t = mod("blender.ui_topbar")
+    n = STATE.get("mark_n", 0)
+    check(tag + ": the Fr mark drawn in place of Blender's logo", t.mark_shown() and t.DRAWN["mark"] > n
+          and t.DRAWN["icon"] > 0, str(t.DRAWN))
+    STATE["mark_n"] = t.DRAWN["mark"]
+    path = shot("mark_" + tag.replace(" ", "_").replace(">", ""))
+    img = bpy.data.images.load(path, check_existing=False)
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    bpy.data.images.remove(img)
+    px = px.reshape(h, w, 4)[h - 30:h, 0:44, :3]          # the top bar (a global area) at the window's top left
+    green = int(((px[:, :, 1] > px[:, :, 0] + 0.12) & (px[:, :, 1] > px[:, :, 2] + 0.12)).sum())
+    check(tag + ": the mark's green shows at the top bar's left", green >= 6, f"{green} green px")
+
+
 def redraw():
     for win in bpy.context.window_manager.windows:
         for area in win.screen.areas:
@@ -176,6 +195,7 @@ def s_start():
     for cls_name, fn in DUMMIES:
         getattr(bpy.types, cls_name).append(fn)
     quiet_ok("app start")
+    redraw()
     STATE["order"] = lists_ok("app start")
     q = mod("blender.quiet")
     check("the splash at the start is the quiet one", q.DRAWN["splash"] > 0, str(q.DRAWN))
@@ -190,6 +210,7 @@ def s_start():
 def s_drawn():
     q = mod("blender.quiet")
     check("the quiet header is drawn", q.DRAWN["header"] > 0, str(q.DRAWN))
+    mark_ok("quiet window")
     STATE["quiet_px"] = header_empty_px(shot("01_quiet_header"))
     log("empty header px (quiet):", STATE["quiet_px"])
     STATE["fn"] = q.DRAWN["file_new"]
@@ -289,6 +310,7 @@ def s_all_shown():
 
 @step
 def s_full_px():
+    mark_ok("Full access")
     STATE["full_px"] = header_empty_px(shot("04_full_header"))
     freed = STATE["quiet_px"][0] - STATE["full_px"][0]
     log(f"header width freed: {freed} px of {STATE['full_px'][1]} px (window {win0().width} px)")
@@ -347,6 +369,7 @@ def s_repeat_ok():
 def s_client():
     q = mod("blender.quiet")
     quiet_ok("Client view")
+    mark_ok("Client view")
     check("Client view: Show all of Blender is greyed", not bpy.ops.fresing.blender_all.poll())
     check("... and its tooltip says why", "Client view" in q.FRESING_OT_blender_all.description(
         bpy.context, None))
@@ -433,6 +456,55 @@ def s_header_after_open():
     redraw()
     STATE["n"] = n
     return 0.5
+
+
+@step
+def s_mark_menu():
+    t = mod("blender.ui_topbar")
+    check("the Fr mark's menu: About Fresing Render…, Fresing Settings…, Blender",
+          t.mark_entries() == ["fresing.about", "fresing.settings", "TOPBAR_MT_blender"], str(t.mark_entries()))
+    with override():
+        bpy.ops.wm.call_menu(name=t.MARK_MENU)
+    return 0.8
+
+
+@step
+def s_mark_menu_open():
+    check("the Fr mark's menu opens (drawn)", mod("blender.ui_topbar").DRAWN["menu"] > 0,
+          str(mod("blender.ui_topbar").DRAWN))
+    shot("mark_menu")
+    win, area, _r = view()
+    win.event_simulate(type="ESC", value="PRESS", x=area.x + 30, y=area.y + 30)
+    win.event_simulate(type="ESC", value="RELEASE", x=area.x + 30, y=area.y + 30)
+    t = mod("blender.ui_topbar")
+    t.unregister_handlers()                                    # the extension's part off: Blender's logo back
+    check("turned off: Blender's own top-bar draw is back", not t.mark_shown()
+          and any(getattr(f, "__qualname__", "") == "TOPBAR_MT_editor_menus.draw"
+                  for f in bpy.types.TOPBAR_MT_editor_menus._dyn_ui_initialize()))
+    STATE["mark_off"] = t.DRAWN["mark"]
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=12, y=win.height - 12)   # over the top bar: it redraws
+    return 0.6
+
+
+@step
+def s_mark_off():
+    t = mod("blender.ui_topbar")
+    check("... and nothing draws the Fr mark any more", t.DRAWN["mark"] == STATE["mark_off"], str(t.DRAWN))
+    win, area, _r = view()
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=area.x + 200, y=area.y + 200)
+    import numpy as np
+    path = shot("mark_off")
+    img = bpy.data.images.load(path, check_existing=False)
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    bpy.data.images.remove(img)
+    px = px.reshape(h, w, 4)[h - 30:h, 0:44, :3]
+    green = int(((px[:, :, 1] > px[:, :, 0] + 0.12) & (px[:, :, 1] > px[:, :, 2] + 0.12)).sum())
+    check("... and the top bar's left shows no green (Blender's logo)", green < 3, f"{green} green px")
+    t.register_handlers()
+    check("on again: the Fr mark is back", t.mark_shown())
+    return 0.3
 
 
 @step
