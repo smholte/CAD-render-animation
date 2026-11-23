@@ -626,11 +626,11 @@ fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings:
 fn(id="settings.locations", short="Locations", title="Locations: folders for STEP models, logos, materials, rule "
    "sets, templates … of your company, your department and your own, each item with its badge; one set-up file "
    "(.frsetup) brings a company's folders and settings", family="help", panel="TOPBAR_MT_fresing",
-   button="fresing.loc_setup_add", guide="locations", tour=("locations",), pccheck=("settings.locations",),
+   button="fresing.settings", guide="locations", tour=("locations",), pccheck=("settings.locations",),
    since="0.2.210")
 fn(id="settings.exports", short="Export places", title="Export places: where pictures, videos and 3D pages go – next "
    "to the project, Pictures, a company share –, the default, and also a copy to a second place", family="help",
-   panel="TOPBAR_MT_fresing", button="fresing.loc_place_default", guide="export-places", tour=("locations",),
+   panel="TOPBAR_MT_fresing", button="fresing.settings", guide="export-places", tour=("locations",),
    pccheck=("settings.locations",), since="0.2.210")
 
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
