@@ -79,7 +79,7 @@ def gantry_changes(sc, tmp_path, kind, text=PROGRAM_T3):
     c = sc.fresing.cnc
     if kind == "ATC":
         car = ob(sc, "CAROUSEL.ASM")
-        joints.create(sc, "ROTATE", [car], Vector((500 * MM, 0, 0)), Vector((0, 0, 1)), name="Carousel")
+        joints.create(sc, "ROTATE", [car], Vector((1250 * MM, 0, 0)), Vector((0, 0, 1)), name="Carousel")
         rows[1].pocket = 7
         c.changer = "ATC"
         c.carousel_joint = "Carousel"

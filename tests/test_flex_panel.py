@@ -26,7 +26,7 @@ from fresing_render.blender import build, flex, logic, ops_flex, ui_flex  # noqa
 from test_blender import FakeLayout  # noqa: E402
 
 HOSES = ("HYDRAULIC HOSE ARM", "HYDRAULIC HOSE CYL A", "HYDRAULIC HOSE CYL B")
-CHAIN_LINKS = {"CHAIN X.ASM": 18, "CHAIN Y.ASM": 16, "CHAIN Z.ASM": 13}
+CHAIN_LINKS = {"CHAIN X.ASM": 24, "CHAIN Y.ASM": 21, "CHAIN Z.ASM": 17}   # task 0262
 OPS = ("flex_add_hose", "flex_add_chain", "flex_find", "flex_remove", "flex_fit", "flex_set_end",
        "flex_swap_ends", "flex_select")
 
@@ -201,9 +201,9 @@ def test_a_click_that_selects_the_subassembly_adds_the_clicked_part_only(hoses, 
     sc = strip(T.load(folder, T.CHAINS))
     link = T.links_of(sc, "CHAIN X.ASM")[5]
     click(sc, link)
-    assert len(ops_flex.selected_parts(bpy.context)) > 18 and ops_flex.clicked(bpy.context) == link
+    assert len(ops_flex.selected_parts(bpy.context)) > 24 and ops_flex.clicked(bpy.context) == link
     assert bpy.ops.fresing.flex_add_chain() == {"FINISHED"}
-    assert names(sc) == ["CHAIN X.ASM"] and len(flex.items(sc)[0].links) == 18
+    assert names(sc) == ["CHAIN X.ASM"] and len(flex.items(sc)[0].links) == 24
     assert said(sc) == "1 drag chain added: move a joint and it follows"
 
 
@@ -246,12 +246,12 @@ def test_add_drag_chain_from_one_link_all_links_or_one_solid(chains):
     pick(sc, [T.links_of(sc, "CHAIN Z.ASM")[3]])                     # one link: the whole row
     assert bpy.ops.fresing.flex_add_chain() == {"FINISHED"}
     z = flex.find(sc, "CHAIN Z.ASM")
-    assert z.kind == "CHAIN" and len(z.links) == 13 and not z.made_links
+    assert z.kind == "CHAIN" and len(z.links) == 17 and not z.made_links
     assert bpy.ops.fresing.flex_add_chain() == {"CANCELLED"} and "already follows the motion" in said(sc)
 
     pick(sc, T.links_of(sc, "CHAIN Y.ASM"))                          # all its links, selected by hand
     assert bpy.ops.fresing.flex_add_chain() == {"FINISHED"}
-    assert len(flex.find(sc, "CHAIN Y.ASM").links) == 16
+    assert len(flex.find(sc, "CHAIN Y.ASM").links) == 21
 
     pick(sc, T.links_of(sc, "CHAIN X.ASM")[:3])                      # three parts are no chain
     assert bpy.ops.fresing.flex_add_chain() == {"CANCELLED"}
@@ -262,11 +262,11 @@ def test_add_drag_chain_from_one_link_all_links_or_one_solid(chains):
         o[build.PROP_NAME] = "LK-2650-B"
     assert not any(kind == "CHAIN" for _o, kind in flex.candidates(sc))
     one = T.links_of(sc, "CHAIN X.ASM")[9]
-    assert len(ops_flex.row_of(sc, one)) == 18
+    assert len(ops_flex.row_of(sc, one)) == 24
     pick(sc, [one])
     assert bpy.ops.fresing.flex_add_chain() == {"FINISHED"}
     x = flex.find(sc, "CHAIN X.ASM")
-    assert len(x.links) == 18 and T.ob(sc, "CHAIN BRACKET X FIXED") == x.a_part
+    assert len(x.links) == 24 and T.ob(sc, "CHAIN BRACKET X FIXED") == x.a_part
 
     band = T.u_band_part(sc)                                         # a chain drawn as one solid: the app draws links
     pick(sc, [band])
@@ -279,7 +279,7 @@ def test_add_drag_chain_from_one_link_all_links_or_one_solid(chains):
     assert bpy.ops.fresing.flex_add_chain() == {"CANCELLED"}
     assert "'BED': No bend found" in said(sc) and len(names(sc)) == 4
 
-    for axis, value in (("X", 0.12), ("Y", -0.08), ("Z", 0.05)):     # the axes move: every moving end stays on
+    for axis, value in (("X", 0.3), ("Y", -0.2), ("Z", 0.12)):     # the axes move: every moving end stays on
         T.set_joint(sc, axis, value)
     T.update()
     for name in CHAIN_LINKS:
@@ -328,8 +328,8 @@ def test_find_selects_and_find_and_add_all_adds(hoses, folder):
     flex.set_up_test_chains(sc)
     strip(sc)
     assert bpy.ops.fresing.flex_find() == {"FINISHED"}
-    assert len(bpy.context.selected_objects) == 47
-    assert said(sc) == "47 chain links found and selected: press Add drag chain"
+    assert len(bpy.context.selected_objects) == 62
+    assert said(sc) == "62 chain links found and selected: press Add drag chain"
     assert bpy.ops.fresing.flex_add_hose() == {"CANCELLED"}          # the wrong button says which is the right one
     assert said(sc) == "These parts are the links of a drag chain: press Add drag chain" and names(sc) == []
     assert bpy.ops.fresing.flex_add_chain() == {"FINISHED"}          # every row of links is one chain
@@ -538,7 +538,7 @@ def test_the_panel_draws_empty_and_with_hoses_and_chains(hoses, folder):
     choose(sc, "CHAIN Y.ASM")
     texts, head, rows = draw_panel()
     assert head == ["3"] and rows == []
-    assert [ui_flex.short_status(sc, x)[0] for x in flex.items(sc)] == ["18 links", "16 links", "13 links"]
+    assert [ui_flex.short_status(sc, x)[0] for x in flex.items(sc)] == ["24 links", "21 links", "17 links"]
     joined = " ".join(texts)                                         # (a long line is drawn on two)
     assert "Fixed end on: CHAIN BRACKET Y FIXED" in joined and "Moving end on: CHAIN BRACKET Y MOVING" in joined
     assert "Width" not in texts and "Link length" in texts           # the links are the CAD ones: no size to set
