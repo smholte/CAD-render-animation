@@ -493,8 +493,8 @@ def set_up_test_model(scene, b, five: bool = False, milling: bool = True) -> Non
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     waycover.set_up_test_mill(scene)                # the larger mill's Y way covers follow Y
     tool = _named(scene, "TOOL T1 FLAT D6")
-    j = joints.create(scene, "ROTATE", [tool, _named(scene, "TOOL HOLDER BT40")], Vector(TEST_TIP_5 if five else TEST_TIP_4),
-                      Vector((0, 0, 1)), name="Spindle", ref=tool)
+    j = joints.create(scene, "ROTATE", [tool, _named(scene, "TOOL HOLDER BT40")],
+                      Vector(TEST_TIP_5 if five else TEST_TIP_4), Vector((0, 0, 1)), name="Spindle", ref=tool)
     joints.set_motor(scene, j, True)
     if five:
         joints.create(scene, "ROTATE", [_named(scene, "A.ASM")], Vector(TEST_A_5), Vector((1, 0, 0)),

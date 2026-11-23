@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.207 – 22 Nov 2026 – The double-arm, 4th- and 5th-axis test mills are the larger machine too (task 0250)
+
+- **Double-arm tool changer (test tour stop "Double-arm tool change"):** the test mill with the arm is now the larger
+  vertical machining centre of 0.2.195 (travel 1000 x 500 x 500 mm, BT40). Its tools sit in a **24-pot magazine
+  beside the column**; the arm is longer (460 mm between its claws, 95 mm pull-out stroke for BT40) and a change takes
+  about 1.9 s, as on such a machine. Three BT40 tools, random pots, every hand-over within 0.01 mm, as before.
+- **4th axis:** a rotary table (faceplate Ø220) and a tailstock stand on the larger mill's table; the bar, the wrapped
+  slot and the flats are as before. **5th axis:** a trunnion with a Ø250 rotary table on the same table; the tool still
+  follows the part (TCP).
+- The landing page's 3D model "Turn it yourself" shows the new mill with its side magazine (2.4 MB, loop 10.5 s).
+- Fix: a project saved in the middle of a double-arm tool change and opened again worked out the CNC machine's work
+  zero from where the hidden spindle tool had last been drawn – on the larger mill 480 mm off, so the program's timing
+  and every change moved. The app now works out a hidden tool's place from the part it hangs on.
+- The user guide's pictures of the arm and the rotary axes are made again; the test tour's three stops have new
+  views.
+
 ## 0.2.206 – 22 Nov 2026 – Your settings are kept over a restart (task 0283)
 
 - **Every setting in Fresing > Settings… now stays as you set it** – also after closing the app, after a restart of

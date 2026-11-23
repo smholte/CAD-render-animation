@@ -63,8 +63,8 @@
   },
   "doublearm": {
    "added": "0.2.51",
-   "changed": "0.2.171",
-   "fp": "a53e3f075a2a6ea8"
+   "changed": "0.2.207",
+   "fp": "ade0c50f47197496"
   },
   "faces": {
    "added": "0.2.47",
@@ -158,13 +158,13 @@
   },
   "rotary4": {
    "added": "0.2.52",
-   "changed": "0.2.101",
-   "fp": "75138935973ca427"
+   "changed": "0.2.207",
+   "fp": "391ce654cec85578"
   },
   "rotary5": {
    "added": "0.2.52",
-   "changed": "0.2.101",
-   "fp": "d07b61a3b3d07413"
+   "changed": "0.2.207",
+   "fp": "6cbbbce193a1fe25"
   },
   "sea_cable": {
    "added": "0.2.91",

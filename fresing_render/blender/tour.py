@@ -3159,7 +3159,7 @@ def _check_atc(scene):
     return "4 changes, every tool to its own pocket"
 
 
-@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.171")
+@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.207")
 def build_doublearm(b: Build):
     from mathutils import Vector
 
@@ -3191,7 +3191,7 @@ def _check_doublearm(scene):
     return f"3 changes, random pots; arm {t['back'][1] - t['grip'][0]:.1f} s per change"
 
 
-@tour_set("rotary4", "4th axis - rotary table", "test_4axis.step", added="0.2.52", changed="0.2.101")
+@tour_set("rotary4", "4th axis - rotary table", "test_4axis.step", added="0.2.52", changed="0.2.207")
 def build_rotary4(b: Build):
     from mathutils import Vector
 
@@ -3207,7 +3207,7 @@ def build_rotary4(b: Build):
     a.start_shot = _shot(b, "Tour: 4th axis").name
 
 
-@tour_set("rotary5", "5th axis - trunnion", "test_5axis.step", added="0.2.52", changed="0.2.101")
+@tour_set("rotary5", "5th axis - trunnion", "test_5axis.step", added="0.2.52", changed="0.2.207")
 def build_rotary5(b: Build):
     from mathutils import Vector
 
@@ -4719,17 +4719,17 @@ stop("doublearm", MACH, "doublearm", "Double-arm tool change",
      "old tool goes into the pot the new one came from; no tool ever jumps or hangs in the air. Each tool cuts the "
      "block where the program goes into it: two shallow strips and a short plunge.",
      where="4 Motion > CNC machine > Tool changes (Double-arm)", animation="Double-arm changer", play=True,
-     since="0.2.51", changed="0.2.205", check=_check_doublearm, auto="clip")
+     since="0.2.51", changed="0.2.207", check=_check_doublearm, auto="clip")
 stop("rotary4", MACH, "rotary4", "4th axis: the bar turns",
      "A rotary table turns a round bar while the tool cuts a slot wrapped once round it, then mills a flat on top, "
      "turns the bar half round and mills the same flat underneath. The orange toolpath lies on the bar and turns "
      "with it.", where="4 Motion > CNC machine > Rotary axes (4th / 5th axis)", animation="4th axis", play=True,
-     since="0.2.52", changed="0.2.205", check=_check_rotary4, auto="clip")
+     since="0.2.52", changed="0.2.207", check=_check_rotary4, auto="clip")
 stop("rotary5", MACH, "rotary5", "5th axis: tilt and turn (TCP)",
      "The trunnion tilts the block 30° and the tool mills a pocket on its side, the table turns half round for the "
      "second pocket, then a groove is cut while the table turns 90°. With Tool follows the part the tool tip stays "
      "on the block's path the whole time.", where="4 Motion > CNC machine > Rotary axes (Kinematics: Tool follows "
-     "the part)", animation="5th axis", play=True, since="0.2.52", changed="0.2.205", check=_check_rotary5, auto="clip")
+     "the part)", animation="5th axis", play=True, since="0.2.52", changed="0.2.207", check=_check_rotary5, auto="clip")
 stop("toolpath", MACH, "toolpath", "Make a toolpath: rough + finish",
      "The app made the program itself: the flat end mill T1 roughs the block level by level (zigzag, then once round "
      "the walls, ramping in), the ball end mill T2 finishes in lines across. The block turns into the part with its "
