@@ -1,0 +1,123 @@
+{
+ "test_crane_a": {
+  "import_s": 0.62,
+  "subject_ms": 0.26
+ },
+ "place_ms": {
+  "orbit_LOW": 2.3,
+  "orbit_EYE": 2.74,
+  "orbit_HIGH": 2.76,
+  "crane_up": 2.33,
+  "hero_24": 1.74,
+  "hero_50": 1.79,
+  "slide": 1.5,
+  "top_down": 2.21,
+  "fly_over": 1.27,
+  "edit_path": 1.76,
+  "follow": 0.42,
+  "push_in": 2.16,
+  "push_0.5": 1.25,
+  "push_0.95": 2.7,
+  "pull_out": 1.78,
+  "orbit_mill": 2.97,
+  "focus_pull": 1.12,
+  "slide_walk": 3.36
+ },
+ "clips": {
+  "crane_orbit_low": {
+   "frames": 80,
+   "key_ms": 3.7,
+   "render_s": 21.9
+  },
+  "crane_orbit_eye": {
+   "frames": 80,
+   "key_ms": 4.5,
+   "render_s": 26.7
+  },
+  "crane_orbit_high": {
+   "frames": 80,
+   "key_ms": 4.2,
+   "render_s": 22.3
+  },
+  "crane_crane_up": {
+   "frames": 80,
+   "key_ms": 6.1,
+   "render_s": 19.1
+  },
+  "crane_hero_24": {
+   "frames": 80,
+   "key_ms": 4.0,
+   "render_s": 17.7
+  },
+  "crane_hero_50": {
+   "frames": 80,
+   "key_ms": 4.0,
+   "render_s": 18.5
+  },
+  "crane_slide": {
+   "frames": 80,
+   "key_ms": 3.8,
+   "render_s": 21.7
+  },
+  "crane_top_down": {
+   "frames": 80,
+   "key_ms": 4.0,
+   "render_s": 18.8
+  },
+  "crane_fly_over": {
+   "frames": 80,
+   "key_ms": 3.5,
+   "render_s": 20.4
+  },
+  "crane_fly_over_edited": {
+   "frames": 80,
+   "key_ms": 4.0,
+   "render_s": 19.8
+  },
+  "crane_follow": {
+   "frames": 80,
+   "key_ms": 3.1,
+   "render_s": 20.1
+  },
+  "crane_push_in_handheld": {
+   "frames": 80,
+   "key_ms": 5.5,
+   "render_s": 19.4
+  },
+  "mill_push_in_50": {
+   "frames": 80,
+   "key_ms": 2.9,
+   "render_s": 21.8
+  },
+  "mill_push_in_95": {
+   "frames": 80,
+   "key_ms": 4.7,
+   "render_s": 23.4
+  },
+  "mill_pull_out": {
+   "frames": 80,
+   "key_ms": 4.0,
+   "render_s": 21.8
+  },
+  "mill_orbit_360": {
+   "frames": 80,
+   "key_ms": 4.6,
+   "render_s": 22.7
+  },
+  "mill_focus_pull": {
+   "frames": 80,
+   "key_ms": 3.7,
+   "render_s": 390.6,
+   "engine": "CYCLES 24 samples"
+  },
+  "mill_slide_walk": {
+   "frames": 80,
+   "key_ms": 11.0,
+   "render_s": 21.9
+  }
+ },
+ "test_mill": {
+  "import_s": 0.79,
+  "subject_ms": 0.44
+ }
+}

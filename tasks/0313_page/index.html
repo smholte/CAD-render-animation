@@ -1,0 +1,298 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0313 camera operator</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708;--pan:#2b2d31;--panfg:#d9dce1;--blue:#4772b3}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc);font-size:1.2rem}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.item{display:flex;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.pick{flex:0 0 72px;font-size:1.05rem}.pick input{width:20px;height:20px}.star{color:var(--acc)}
+.body{flex:1;min-width:0}h3{margin:0 0 6px;font-size:1rem}.tag{font-weight:normal;color:var(--mut);font-size:.85rem}
+.why{color:var(--mut);font-size:.92rem;margin:4px 0}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-top:8px}
+figure{margin:0;max-width:100%}figure img,figure video{max-width:100%;height:auto;border:1px solid var(--line);display:block;background:#9ea3a8}
+figcaption,.d{font-size:.85rem;color:var(--mut)}
+.tbl{overflow-x:auto}table{border-collapse:collapse;font-size:.92rem;min-width:520px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+td.n{text-align:right;white-space:nowrap}
+ul.opts{margin:4px 0 0;padding-left:20px}
+.mock{background:var(--pan);color:var(--panfg);font:13px/1.35 system-ui,sans-serif;border-radius:6px;padding:8px;width:300px;flex:0 0 auto}
+.mock .row{display:flex;gap:6px;align-items:center;margin:4px 0}.mock .lab{flex:0 0 92px;color:#aeb3bb;text-align:right}
+.mock .fld{flex:1;background:#545454;border-radius:4px;padding:2px 6px;min-height:18px}
+.mock .sl{flex:1;background:#545454;border-radius:4px;position:relative;height:20px;overflow:hidden}
+.mock .sl i{position:absolute;left:0;top:0;bottom:0;background:#4772b3}.mock .sl b{position:relative;padding:0 6px;font-weight:normal}
+.mock .hd{font-weight:600;border-bottom:1px solid #444;padding-bottom:4px;margin-bottom:6px;display:flex;justify-content:space-between}
+.mock .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px 0}
+.mock .tile{background:#3d4046;border-radius:4px;text-align:center;padding:4px 2px;font-size:11px}.mock .tile.on{background:var(--blue);color:#fff}
+.mock .seg{display:flex;flex:1;gap:1px}.mock .seg span{flex:1;background:#545454;text-align:center;padding:2px 0}.mock .seg span.on{background:var(--blue);color:#fff}
+.mock .btn{background:#545454;border-radius:4px;text-align:center;padding:3px 6px;flex:1}.mock .btn.blue{background:var(--blue);color:#fff}
+.mock .hint{color:#8d939c;font-size:12px;margin:2px 0 2px 4px}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:0;word-break:break-word}#bar button{font:inherit;padding:6px 16px;cursor:pointer}
+@media(max-width:640px){.item{flex-direction:column}.pick{flex:none}.mock{width:100%}}
+</style></head><body><main>
+<h1>A camera operator: ready-made camera moves (study 0313)</h1>
+<div class="card"><b>In short.</b> A machine film needs about <b>ten camera moves</b>; six of them carry most videos (orbit, push in /
+pull out, crane up, hero arc, slide past, top-down to side). The prototype on this page makes each of them <b>round the model or a
+picked part in about 1–6 ms</b>, with <b>2–4 options</b> in plain words, and writes the camera's keys in about 5 ms – on the 2,992-part
+PC-check machine too (section 7). So "pick a move – it plays at once" is possible without a Build.<br><br>
+The key idea: <b>every move is the same three things</b> – points the camera flies through, where it looks, and the lens. A ready-made
+move only <i>places</i> those points; dragging one of them in the view turns it into a free path, as today's <i>Fly a path</i>. One editor
+serves every move, and Build keeps baking plain keys (scripts off, render queue, saved projects work as today).<br><br>
+Below: the moves as clips (test crane, test mill; Workbench, the look of the 3D view), two moves with their options side by side, a path
+edited, a drawn mock-up of the step, the speed, and <b>9 build tasks</b> to tick. You can also untick moves you do not want.
+★ = recommended. The example (CinemaOperator) could not be opened from the web machine; its features come from the lead's notes, ideas
+only, no outside code.</div>
+
+<h2>1 · What the app has today</h2>
+<div class="tbl"><table>
+<tr><th>Where</th><th>What it does</th><th>What a machine film still misses</th></tr>
+<tr><td>6 Animation, Camera step: <b>Cut to / Move to</b> a saved camera</td><td>Jumps or flies (straight line, eased) to a camera saved in 5 Scene &amp; Render</td><td>The user must first place and save each camera by hand</td></tr>
+<tr><td>Camera step: <b>Orbit</b></td><td>Turns round the model's middle by an angle, from wherever the camera is</td><td>No height, distance or "round a part"; only the angle</td></tr>
+<tr><td>Camera step: <b>Ride along</b> (0087)</td><td>Rides on a moving part (Keep level)</td><td>No lag: a swinging hook shakes the picture; offset only from a saved camera</td></tr>
+<tr><td>Camera step: <b>Fly a path</b> (0087)</td><td>Smooth curve through points from saved cameras or "Add this view"; looks ahead / at the model / at a part</td><td>Points can only be added from the view, not dragged in it; no ready-made shapes</td></tr>
+<tr><td>Camera step: <b>Watch part</b></td><td>Stays put and turns to keep a part in the middle</td><td>–</td></tr>
+<tr><td>5 Scene &amp; Render: <b>Turntable</b>, views (ISO, Front …), blur + sharp spot</td><td>One click: a 360° orbit animation; a sharp spot on a picked part</td><td>The sharp spot cannot move during a step (no focus pull)</td></tr>
+<tr><td>Product video (0101)</td><td>Picks close-up spots and makes cameras for them</td><td>The moves between them are Move to / Orbit only</td></tr>
+</table></div>
+<p class="d">Every change to a camera step is seen only after <b>Build &amp; play</b> (it builds the whole animation). Study 0305 (task D) puts the
+steps as bars on the time line; the moves below fit in there as bars on the camera row.</p>
+
+<h2>2 · The short list of moves (ranked, with their options)</h2>
+<p class="d">Each clip: 4 s, made by <code>tasks/0313_proto/clips.py</code> with the moves of <code>moves.py</code>, placed by the move itself
+(nothing set by hand), Workbench 480 × 270 at 20 frames/s. Tick the moves you want in the first build (the Copy line at the bottom carries them).</p>
+
+<section class="item"><label class="pick"><input type="checkbox" value="orbit" checked> <b>1</b> <span class="star">★</span></label>
+<div class="body"><h3>Orbit <span class="tag">round the whole model or a picked part</span></h3>
+<ul class="opts"><li><b>How far round:</b> 90° / 180° / 360° (any angle)</li><li><b>Height:</b> Low · Eye · High</li>
+<li><b>Way:</b> left / right</li><li><b>Distance:</b> Tight · Normal · Roomy (always fitted: the model never leaves the picture)</li></ul>
+<p class="why">The machine film's bread and butter; today's Turntable is Orbit 360. Steady distance: the camera keeps one distance all the way round
+(fitted where the model is widest), so a long model is small when seen end-on – a "keep it filling the picture" switch is possible (the
+distance then breathes).</p>
+<div class="pics"><figure><video src="clips/crane_orbit_eye.mp4" poster="clips/crane_orbit_eye.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test crane, 120°, Eye, Normal.</figcaption></figure>
+<figure><video src="clips/mill_orbit_360.mp4" poster="clips/mill_orbit_360.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test mill, 360°, High.</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="push" checked> <b>2</b> <span class="star">★</span></label>
+<div class="body"><h3>Push in / Pull out (reveal) <span class="tag">from the whole machine to a part, or back</span></h3>
+<ul class="opts"><li><b>To:</b> a part you click (the tool, the trolley, a type plate)</li><li><b>How close:</b> slider, 0 … 100 % of the way to a close-up</li>
+<li><b>Direction:</b> in (push) / out (reveal)</li><li><b>Speed:</b> even, or slow at the end</li></ul>
+<p class="why">Says "look here" – the second most used move. The look slides from the model's middle to the part's, so the part arrives in the
+middle of the picture.</p>
+<div class="pics"><figure><video src="clips/mill_pull_out.mp4" poster="clips/mill_pull_out.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test mill: pull out from the spindle (a reveal).</figcaption></figure>
+<figure><video src="clips/crane_push_in_handheld.mp4" poster="clips/crane_push_in_handheld.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test crane: push in to the trolley, with Handheld shake and the framing guides (thirds + centre) the view would show – they never render.</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="crane" checked> <b>3</b> <span class="star">★</span></label>
+<div class="body"><h3>Crane up / down <span class="tag">rises from near the floor to above the machine, still looking at it</span></h3>
+<ul class="opts"><li><b>Up or down</b></li><li><b>How high:</b> slider (half … 1.5 × the machine's height above its top)</li><li><b>With a push in:</b> none … a little</li></ul>
+<p class="why">Shows how big a machine is and how it stands on its floor; a classic opening or end shot.</p>
+<div class="pics"><figure><video src="clips/crane_crane_up.mp4" poster="clips/crane_crane_up.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test crane: crane up.</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="hero" checked> <b>4</b> <span class="star">★</span></label>
+<div class="body"><h3>Hero arc <span class="tag">low and close with a wide lens, a slow arc: the machine towers over you</span></h3>
+<ul class="opts"><li><b>How low:</b> slider</li><li><b>How far round:</b> 30° … 120°</li><li><b>Lens:</b> Wide (24 mm) · Normal (50 mm)</li></ul>
+<p class="why">The "sales" shot – what product films open with. Options side by side in section 3. Seen in the clips: at the arc's end the boom points at the camera and leaves the picture; the build should fit each point of the arc, not the whole arc once.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="slide" checked> <b>5</b> <span class="star">★</span></label>
+<div class="body"><h3>Slide past <span class="tag">a straight dolly track along the side</span></h3>
+<ul class="opts"><li><b>Length:</b> share of the machine's length</li><li><b>Height:</b> Low · Eye · High</li>
+<li><b>Look:</b> at the middle (parts in front slide past the ones behind) · straight ahead</li></ul>
+<p class="why">Good for long machines (a production line, a cable-lay deck, a gantry). With Walk shake it looks like a person walking past.</p>
+<div class="pics"><figure><video src="clips/crane_slide.mp4" poster="clips/crane_slide.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test crane: slide past, looking at the middle.</figcaption></figure>
+<figure><video src="clips/mill_slide_walk.mp4" poster="clips/mill_slide_walk.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test mill: slide past with Walk shake (a person walking along the machine).</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="topdown" checked> <b>6</b> <span class="star">★</span></label>
+<div class="body"><h3>Top-down to side <span class="tag">from a plan view straight above, swinging down to a side view</span></h3>
+<ul class="opts"><li><b>Ends at:</b> Front · Side · ISO</li><li><b>Distance:</b> Tight · Normal · Roomy</li><li><b>Way:</b> down (plan → side) / up (side → plan)</li></ul>
+<p class="why">Explains a layout: first where everything is, then what it looks like.</p>
+<div class="pics"><figure><video src="clips/crane_top_down.mp4" poster="clips/crane_top_down.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test crane: top-down to side.</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="follow" checked> <b>7</b> <span class="star">★</span></label>
+<div class="body"><h3>Follow a moving part <span class="tag">a chase camera: today's Ride along, kept level, with a soft lag</span></h3>
+<ul class="opts"><li><b>Part:</b> click it</li><li><b>From:</b> ISO · Side · Above</li><li><b>Distance:</b> slider</li><li><b>Smooth:</b> stiff · soft (lag 0 … 1 s: a swinging hook does not shake the picture)</li></ul>
+<p class="why">The trolley, the hook, a carriage, the tool. The path is the part's own: nothing to edit.</p>
+<div class="pics"><figure><video src="clips/crane_follow.mp4" poster="clips/crane_follow.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test crane: the camera follows the trolley as it runs out along the boom (lag 0.4 s).</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="focus" checked> <b>8</b> <span class="star">★</span></label>
+<div class="body"><h3>Focus pull <span class="tag">the sharp spot moves from one part to another</span></h3>
+<ul class="opts"><li><b>From / to:</b> click two parts</li><li><b>When:</b> slider (share of the step)</li><li><b>Blur:</b> Little · Strong (today's levels)</li><li><b>Lens:</b> Long (85 mm) by default</li></ul>
+<p class="why">Draws the eye from the tool to the workpiece, from a type plate to the machine. Uses the app's sharp spot; the camera barely moves.</p>
+<div class="pics"><figure><video src="clips/mill_focus_pull.mp4" poster="clips/mill_focus_pull.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test mill: sharp on the tool and the stock, then on the column behind (Cycles, the Strong blur). Framed close on the near part, so the far one lies well behind – framed on both, the change was hard to see.</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="flyover"> <b>9</b></label>
+<div class="body"><h3>Fly-over <span class="tag">comes in on one side, over the top, out the other side</span></h3>
+<ul class="opts"><li><b>Height</b> over the top</li><li><b>Along / across</b> the machine</li><li><b>Look:</b> at the middle · ahead (a drone)</li></ul>
+<p class="why">Good for big layouts (a deck, a park, a hall); less for one machine. Edited in section 4.</p>
+<div class="pics"><figure><video src="clips/crane_fly_over.mp4" poster="clips/crane_fly_over.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Test crane: fly-over along the boom.</figcaption></figure></div></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="flythrough"> <b>10</b></label>
+<div class="body"><h3>Fly-through a drawn path <span class="tag">today's Fly a path, with points clicked on the model</span></h3>
+<ul class="opts"><li><b>Points:</b> click on the model or the floor (the point goes a set height above what you click)</li><li><b>Look:</b> ahead · at the model · at a part</li><li><b>Speed</b> even, ramp up and down</li></ul>
+<p class="why">Through a hall, along a cable route, into an enclosure. Exists today except drawing by clicking; task C adds dragging.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="shake" checked> <b>11</b> <span class="star">★</span></label>
+<div class="body"><h3>Shake, on any move <span class="tag">a layer, not a move of its own</span></h3>
+<ul class="opts"><li><b>Kind:</b> Handheld · Walk · Vehicle (a boat or truck)</li><li><b>Strength:</b> slider</li><li><b>Seed:</b> another take of the same shake</li></ul>
+<p class="why">A little Handheld makes a computer camera look filmed; Vehicle for a camera on the vessel. Worked out as a sum of a few slow waves
+with a seed: the same at every Build, baked to plain keys. Clips above: crane push-in (Handheld), mill slide (Walk).</p></div></section>
+
+<p class="d">Left out on purpose: roll (a turning horizon looks wrong for machines; it can be an option of Fly-over later), dolly zoom ("vertigo"),
+two camera tracks A/B with cuts (Cut to a saved camera does it today).</p>
+
+<h2>3 · Options side by side</h2>
+<h3>Orbit: the three heights (120°, Normal)</h3>
+<div class="pics"><figure style="max-width:350px"><video src="clips/crane_orbit_low.mp4" poster="clips/crane_orbit_low.jpg" width="340" autoplay muted loop playsinline></video><figcaption>Low (6°)</figcaption></figure>
+<figure style="max-width:350px"><video src="clips/crane_orbit_eye.mp4" poster="clips/crane_orbit_eye.jpg" width="340" autoplay muted loop playsinline></video><figcaption>Eye (18°)</figcaption></figure>
+<figure style="max-width:350px"><video src="clips/crane_orbit_high.mp4" poster="clips/crane_orbit_high.jpg" width="340" autoplay muted loop playsinline></video><figcaption>High (38°)</figcaption></figure></div>
+<h3>Hero arc: Wide 24 mm or Normal 50 mm (both fitted by the move)</h3>
+<div class="pics"><figure style="max-width:490px"><video src="clips/crane_hero_24.mp4" poster="clips/crane_hero_24.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Wide 24 mm: close, the boom towers.</figcaption></figure>
+<figure style="max-width:490px"><video src="clips/crane_hero_50.mp4" poster="clips/crane_hero_50.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Normal 50 mm: further away, flatter.</figcaption></figure></div>
+<h3>Push in: How close 50 % or 95 % (to the stock on the table)</h3>
+<div class="pics"><figure style="max-width:490px"><video src="clips/mill_push_in_50.mp4" poster="clips/mill_push_in_50.jpg" width="480" autoplay muted loop playsinline></video><figcaption>50 %</figcaption></figure>
+<figure style="max-width:490px"><video src="clips/mill_push_in_95.mp4" poster="clips/mill_push_in_95.jpg" width="480" autoplay muted loop playsinline></video><figcaption>95 %</figcaption></figure></div>
+
+<h2>4 · A path edited</h2>
+<p>The fly-over's path as it is placed (red: the curve, blue balls: its points), then two points pulled out to the side and one point added and
+lowered (green). The move keeps its look and speed; only the way changes. Placing and the edit each took about 1 ms.</p>
+<div class="pics"><figure style="max-width:490px"><img src="clips/path_before.jpg" alt="fly-over path as placed" width="480"><figcaption>As placed: 4 points.</figcaption></figure>
+<figure style="max-width:490px"><img src="clips/path_after.jpg" alt="the same path after dragging" width="480"><figcaption>Edited: 2 dragged, 1 added.</figcaption></figure>
+<figure style="max-width:490px"><video src="clips/crane_fly_over.mp4" poster="clips/crane_fly_over.jpg" width="480" autoplay muted loop playsinline></video><figcaption>Before</figcaption></figure>
+<figure style="max-width:490px"><video src="clips/crane_fly_over_edited.mp4" poster="clips/crane_fly_over_edited.jpg" width="480" autoplay muted loop playsinline></video><figcaption>After: it now swings past the boom's side.</figcaption></figure></div>
+<p class="d">Found on the way: a smooth curve through an orbit's points strays from the circle at its two ends (2 % of the radius with 12
+points per turn, 0.2 % in between) because the curve guesses its end direction. An untouched orbit should stay an exact arc, and the
+path's ends should take the move's own direction (build task A).</p>
+
+<h2>5 · How it works, fast</h2>
+<div class="pics"><div class="mock" aria-label="mock-up of a Camera move step">
+<div class="hd"><span>▾ Camera move</span><span style="color:#aeb3bb">Orbit · 4.0 s</span></div>
+<div class="grid"><div class="tile on">⟳<br>Orbit</div><div class="tile">➜<br>Push in</div><div class="tile">⇡<br>Crane</div><div class="tile">◠<br>Hero</div>
+<div class="tile">⇄<br>Slide</div><div class="tile">⤵<br>Top-down</div><div class="tile">◎<br>Follow</div><div class="tile">◐<br>Focus</div></div>
+<div class="row"><span class="lab">Around</span><span class="seg"><span class="on">The model</span><span>A part…</span></span></div>
+<div class="row"><span class="lab">How far round</span><span class="sl"><i style="width:33%"></i><b>120°</b></span></div>
+<div class="row"><span class="lab">Height</span><span class="seg"><span>Low</span><span class="on">Eye</span><span>High</span></span></div>
+<div class="row"><span class="lab">Way</span><span class="seg"><span class="on">Left</span><span>Right</span></span></div>
+<div class="row"><span class="lab">Distance</span><span class="seg"><span>Tight</span><span class="on">Normal</span><span>Roomy</span></span></div>
+<div class="row"><span class="lab">Duration</span><span class="sl"><i style="width:20%"></i><b>4.0 s</b></span></div>
+<div class="row"><span class="lab">▸ More</span><span class="hint" style="margin:0">lens, look, shake, speed, path points</span></div>
+<div class="row"><span class="btn blue">▶ Preview</span><span class="btn">Edit path</span><span class="btn">⊞ Guides</span></div>
+<div class="hint">Drag a point in the view to change the way. Back to Orbit puts it back.</div>
+</div>
+<div class="body" style="min-width:260px;flex:1">
+<ol>
+<li><b>Pick a move</b> (one click on a picture tile; on hover it plays as a small loop). It is placed round the model at once – or round the
+part you click when Around is "A part" – and <b>plays in the view through the camera</b> (Preview on by default).</li>
+<li><b>Options as sliders and three-way buttons</b> – each change re-places the move and keys only this step's camera (about 5 ms), the
+view keeps playing.</li>
+<li><b>Edit path</b> shows the points in the view: drag one, click <b>+</b> between two to add, right-click to remove. The move becomes
+"Orbit (edited)" with a <i>Back to Orbit</i>.</li>
+<li><b>More</b> (folded): Look (at the model · a part · ahead · held), Lens (Wide 24 · Normal 50 · Long 85 · Tele 135, a zoom between
+points), Shake (kind, strength, seed), Speed (even / slow start and end / ramp), Blend in from the last step.</li>
+<li><b>Guides</b> = Blender's own camera composition guides (thirds, centre, golden, safe areas): only in the view, never in a render.</li>
+</ol>
+<p><b>One move = one Camera step.</b> Build bakes keys as today (plain keys: scripts off, queue, saved projects). <b>Chaining:</b> the next
+move starts where this one ended (glide in, as today's Blend in), or <i>Cut</i>, or <i>Join into one path</i> (the two moves' points become
+one Fly a path). On 0305's time line (task D) each move is a bar on the camera row; drag its ends to retime.</p>
+<p class="d">The mock-up is drawn for this page (HTML), not a screenshot of the app.</p></div></div>
+
+<h2>6 · Who uses what, and where it lives</h2>
+<div class="tbl"><table>
+<tr><th>Who</th><th>Does</th><th>Needs</th></tr>
+<tr><td><b>Sales person</b></td><td>Picks "Orbit", or "Hero arc" then "Push in" to the type plate, renders</td><td>The tiles, Preview, the defaults right first time. No path, no lens.</td></tr>
+<tr><td><b>Engineer</b></td><td>Changes How far, Height, Around a part, drags a point past a column, adds Follow on the carriage</td><td>Sliders, Edit path, Around a part, Follow</td></tr>
+<tr><td><b>Animator</b> (Full access)</td><td>Takes the moves as a start and polishes them in Blender's graph editor</td><td>"Hand over as keys": keys on the move's points (Bezier, few keys) instead of a key per frame, the step then off</td></tr>
+</table></div>
+<p><b>Where:</b> the move is a <b>Camera step in 6 Animation</b> (the step's kind "Camera move" with the tiles; the old modes Cut to / Move to /
+Ride / Fly a path / Watch stay under the same step). A one-move video does not need an animation made by hand: the <b>Video</b> output window
+(Make, task 0308) gets a row "Camera: [tile]" that makes a one-step animation with that move and renders it. <b>5 Scene &amp; Render &gt;
+Cameras</b> keeps the still views; its Turntable becomes "Orbit 360" behind the same code. The product video (0101) uses Hero arc and Push in
+between its close-ups (task G).</p>
+
+<h2>7 · Speed (point D)</h2>
+<p class="d">Web machine (4 cores, no graphics card), Blender 5.2.3 as a Python module, draft import. <code>tasks/0313_proto/speed.py</code>;
+numbers in <code>speed.json</code>. A move = placing it round the model and working out 5 s at 25 frames/s (125 frames). No viewport
+frame rate here (no graphics card): "frame step" is what Blender spends on a frame besides drawing, with only the camera keyed.</p>
+<div class="tbl"><table>
+<tr><th>Model</th><th>Parts</th><th>Triangles</th><th>Corner points of the model</th><th>Place a move (6 moves)</th><th>Key 125 frames</th><th>Frame step</th><th>Today: Build with one Fly a path step</th></tr>
+<tr><td>Test crane</td><td class="n">20</td><td class="n">7,046</td><td class="n">0.2 ms</td><td class="n">1.3–2.9 ms</td><td class="n">5.3 ms</td><td class="n">0.03 ms</td><td class="n">0.01 s</td></tr>
+<tr><td>Test mill</td><td class="n">44</td><td class="n">7,753</td><td class="n">0.4 ms</td><td class="n">1.2–2.5 ms</td><td class="n">4.9 ms</td><td class="n">0.04 ms</td><td class="n">0.01 s</td></tr>
+<tr><td>PC check Heavy (invented, 39 × 55 m)</td><td class="n">2,992</td><td class="n">3,782,496</td><td class="n">40 ms</td><td class="n">1.3–5.5 ms</td><td class="n">5.5 ms</td><td class="n">4.4 ms</td><td class="n">0.52 s</td></tr>
+</table></div>
+<p><b>Yes, instant</b> – with one catch: reading the model's corner points (one box per part, in Python) costs 40 ms on 2,992 parts. Read them
+once when the step is opened (and after a Build), not at every slider move; then a slider move costs about 5–10 ms (place + key) on every
+model tried. A part picked as the subject costs 0.01 ms. Playing the preview adds 4.4 ms a frame on the big model – far below one frame
+at 25 frames/s (40 ms); the drawing itself depends on the graphics card (the owner's RTX 3090: not measured here). Today's Build is not slow
+either (0.5 s on the big model), but it builds the whole animation – with milling, cables or the demo it takes seconds to minutes, so the
+preview should key only the camera (task B).</p>
+<p class="d">Clips: Workbench 480 × 270, about 0.25–0.3 s a frame here (the focus pull: Cycles, 24 samples, 4.9 s a frame).</p>
+
+<h2>8 · Build tasks</h2>
+<p class="d">All in the Scene &amp; Render lane (<code>animation.py</code>'s camera part, <code>camera_path.py</code>, <code>cameras.py</code>, a new
+<code>core/camera_moves.py</code>) plus the Camera step's box in 6 Animation (<code>ui_motion.py</code>) and <code>props.py</code> – shared files,
+so <b>after 0299</b> (weather round 2, same lane) and one at a time. Sizes: S ≈ a day of a worker, L ≈ several sessions.</p>
+
+<section class="item"><label class="pick"><input type="checkbox" value="A" checked> <b>A</b> <span class="star">★</span></label>
+<div class="body"><h3>Camera move step with the six first moves <span class="tag">work L · Opus · High · after 0299</span></h3>
+<p>A new Camera step kind "Camera move": tiles for Orbit, Push in / Pull out, Crane up / down, Hero arc, Slide past, Top-down to side (the
+moves you ticked above), their options (section 2), Around the model / a part. <code>core/camera_moves.py</code> places them (from
+<code>moves.py</code>, fitted with the rule of <code>cameras.fit</code>); Build bakes them through <code>camera_path.plan</code> like Fly a path.
+An untouched orbit stays an exact arc; the path's ends take the move's own direction. Function list, guide, PC-check line, tour stop, lesson
+step (crane), as the rules ask.</p>
+<p class="why">Measured: placing 1–6 ms on every model tried. Gain: a sales person makes a moving shot in two clicks instead of placing cameras.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="B" checked> <b>B</b> <span class="star">★</span></label>
+<div class="body"><h3>Instant preview and framing guides <span class="tag">work M · Opus · Medium · with or right after A</span></h3>
+<p>Picking a move or moving a slider keys only that step's camera (no whole Build) and plays it in the view through the camera, looping the
+step; the rest of the animation as last built. Guides switch Blender's camera composition guides (thirds, centre, safe areas). Tiles play a
+small loop on hover (a picture per move made once, shipped with the app).</p>
+<p class="why">Measured: keying 125 frames ~5 ms; a frame step with only the camera keyed 0.03–4.4 ms (section 7). Gain: "fast", the owner's word.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="C" checked> <b>C</b> <span class="star">★</span></label>
+<div class="body"><h3>Drag the path in the view <span class="tag">work L · Opus · High · after A</span></h3>
+<p>Edit path: the path and its points drawn in the view (a draw handler, nothing in the project, as the hover of 0088); drag a point (in the
+view's plane, Shift = up/down), + between two to add, right-click to remove, Esc back. The move becomes "(edited)" and keeps its look and
+speed; Back to the move. Also for today's Fly a path; points clicked on the model or the floor (move 10).</p>
+<p class="why">Measured: an edit re-placed in ~1 ms. Gain: the owner's "paths to be edited".</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="D" checked> <b>D</b> <span class="star">★</span></label>
+<div class="body"><h3>Follow, Focus pull and Shake <span class="tag">work M · Opus · Medium · after A</span></h3>
+<p>Follow = Ride along made from options (from ISO / Side / Above, distance, smooth = a lag, kept level); Focus pull = the sharp spot keyed
+from one picked part to another during the step (the app's blur levels); Shake = a layer on any camera step (Handheld / Walk / Vehicle,
+strength, seed), baked to keys.</p>
+<p class="why">Gain: the three moves that make a film look filmed. Shake on the vessel demo with Vehicle.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="E" checked> <b>E</b> <span class="star">★</span></label>
+<div class="body"><h3>Lens presets and zoom <span class="tag">work S · Sonnet · Medium · with D</span></h3>
+<p>Lens per move: Wide 24 · Normal 50 · Long 85 · Tele 135 (mm, the full-frame words people know), and a zoom between a move's points
+(even in the field of view, as Move to does). The move re-fits its distance when the lens changes.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="F"> <b>F</b></label>
+<div class="body"><h3>Chain moves on the time line <span class="tag">work M · Opus · Medium · after 0305 task D (steps as bars)</span></h3>
+<p>Next move: glide in / cut / join into one path; "Fit the moves to the animation's length", "Space evenly"; camera bars on the time line
+dragged to retime.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="G" checked> <b>G</b> <span class="star">★</span></label>
+<div class="body"><h3>One-move video from Make, and the product video uses the moves <span class="tag">work S–M · Sonnet · Medium · after A and 0308</span></h3>
+<p>The Video output window gets "Camera: [tile]" (a one-step animation with that move, then Render); Turntable = Orbit 360 behind the same
+code; the product video moves between its close-ups with Hero arc and Push in.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="H"> <b>H</b></label>
+<div class="body"><h3>Hand over as keys (animators) <span class="tag">work S · Sonnet · Medium · after A</span></h3>
+<p>Full access: "Hand over as keys" writes a key per path point (Bezier) instead of one per frame, switches the step off and names the
+action, so Blender's graph editor can take over.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="I"> <b>I</b></label>
+<div class="body"><h3>Fly-over and drawn fly-through <span class="tag">work M · Opus · Medium · after C</span></h3>
+<p>Moves 9 and 10: Fly-over (height, along / across, look) and a path drawn by clicking on the model or the floor.</p></div></section>
+
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+<p class="d">Clips and pictures: tasks/0313_page/clips (MP4 + poster each); timings: timings.json and speed.json next to this page; the scripts
+that made them: tasks/0313_proto/ (moves.py = the moves, no Blender; clips.py; speed.py) on the branch task/0313-study-camera-operator.</p>
+</main><script>
+function upd(){var m=[],t=[];[].forEach.call(document.querySelectorAll('.pick input:checked'),function(e){(e.value.length>1?m:t).push(e.value)});
+document.getElementById('line').textContent='0313 pick: '+(t.join(' ')||'none')+' · moves: '+(m.join(' ')||'none');}
+document.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=function(){var t=document.getElementById('line').textContent,b=this;
+function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove()}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb)}else fb()}catch(e){fb()}
+b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};
+</script></body></html>
