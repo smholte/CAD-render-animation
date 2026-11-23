@@ -1,6 +1,6 @@
 # 0305 – Study + mock-ups (findings only): the animation panel and exploded views – what to make easier and better
 
-**Who:** worker · **Status:** running · **Branch:** `task/0305-study-animation-exploded` (branch only, never
+**Who:** worker · **Status:** done 23 Nov (findings; waits for the owner's picks) · **Branch:** `task/0305-study-animation-exploded` (branch only, never
 merged; every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Look into improvements to the animations UI." –
 "Exploded views improvements.") · **Model:** Opus · effort High
