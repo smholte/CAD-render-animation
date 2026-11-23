@@ -213,7 +213,7 @@ fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide
 fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
    "can move (right-click); a line in the status bar when it cannot move", family="import",
    panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
-   since="0.2.215")
+   since="0.2.216")
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))

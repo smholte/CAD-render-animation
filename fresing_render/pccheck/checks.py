@@ -4848,7 +4848,7 @@ def app_keys(ctx):
 
 
 @line("structure.move", "Move and turn with G / R: what is locked in place says so, Unlock so it can move, the move "
-      "stays", "0.2.215",
+      "stays", "0.2.216",
       what="On the test crane: G / R / S bound to the app's check; the fresh import is locked in place and G says how "
            "to unlock it; the right-click menu's Unlock so it can move; a move then stays; after Build G says the "
            "animation is built and where to stop it; S never scales a part")
