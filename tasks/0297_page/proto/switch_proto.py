@@ -257,6 +257,8 @@ def s_start():
 
 @step
 def s_import():
+    if os.environ.get("P297_NOMODEL"):
+        return 0.1
     with ov():
         bpy.ops.fresing.import_step(filepath=CRANE, quality="normal")
     return 1.0
@@ -264,7 +266,7 @@ def s_import():
 
 @step
 def s_wait():
-    if bpy.context.scene.fresing.model_count == 0:
+    if bpy.context.scene.fresing.model_count == 0 and not os.environ.get("P297_NOMODEL"):
         return "wait"
     return 2.0
 
@@ -379,6 +381,8 @@ def _measure_steps():
         for _k in range(3):
             out += [_measure_switch, lambda: (_collect(), 0.5)[1]]
             out += [_measure_switch, lambda: (_collect(), 0.5)[1]]
+    if os.environ.get("P297_QUICK"):
+        return out
     out.append(lambda: (_draw_cost("fresing window"), 0.5)[1])
     def to_blender():
         with ov():
@@ -459,9 +463,33 @@ def _clip_steps():
     return out
 
 
+def _bar_steps():
+    """The whole top bar in both states, look B (where the button sits, what is next to it)."""
+    w = win()
+    tag = str(w.width)
+
+    def bar(name):
+        def f():
+            sc = bpy.context.preferences.system.ui_scale
+            shot(name, f"{w.width}x{int(30 * sc) + 2}+0+0")
+            return 0.3
+        return f
+
+    def look_b():
+        S["look"] = "B"
+        redraw()
+        return 1.0
+
+    def switch():
+        with ov():
+            bpy.ops.fresing.blender_all()
+        return 1.5
+    return [look_b, bar(f"bar_{tag}_fresing.png"), switch, bar(f"bar_{tag}_blender.png"), switch]
+
+
 @step
 def s_plan():
-    STEPS.extend(_measure_steps() if MODE == "measure" else _clip_steps())
+    STEPS.extend({"measure": _measure_steps, "bars": _bar_steps}.get(MODE, _clip_steps)())
     STEPS.append(s_quit)
     return 0.5
 

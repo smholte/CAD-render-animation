@@ -1,0 +1,264 @@
+{
+ "switches": [
+  {
+   "look": "A",
+   "op_ms": 2.847242999905575,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "A",
+   "op_ms": 1.964064000048893,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "A",
+   "op_ms": 1.6612299999678726,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "A",
+   "op_ms": 1.4476059999424251,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "A",
+   "op_ms": 1.954567999973733,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "A",
+   "op_ms": 1.540635000083057,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.708226999994622,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.5147589999742195,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.7733890000499741,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.4145959999041224,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.5002919999460573,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.6488579999531794,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "C",
+   "op_ms": 1.5524699999787117,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "C",
+   "op_ms": 1.5339640000320287,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "C",
+   "op_ms": 2.3178909999614916,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "C",
+   "op_ms": 1.483677000010175,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "C",
+   "op_ms": 1.5362090000508033,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "C",
+   "op_ms": 1.5634869999985312,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "D",
+   "op_ms": 1.6286449999824981,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "D",
+   "op_ms": 1.4958089999481672,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "D",
+   "op_ms": 1.6409470000553483,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "D",
+   "op_ms": 1.754080000068825,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "D",
+   "op_ms": 1.7052199999625373,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "D",
+   "op_ms": 1.7947530000128609,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  }
+ ],
+ "slot_py_ms": [
+  0.5806640000400876,
+  0.6447590000107084,
+  0.523072000078173,
+  0.5961429999388201,
+  0.6355019999091382,
+  0.7056779999174978,
+  0.5055540000284964,
+  0.5545820000634194,
+  0.8224730000847558
+ ],
+ "op_ms": [
+  1.528796999991755,
+  1.0830899999518806,
+  0.9215719999247085,
+  0.6957630000670179,
+  1.1903629999778786,
+  0.7286649999969086,
+  0.8912000000691478,
+  0.6790219999857072,
+  0.912158999994972,
+  0.7079080000949034,
+  0.835780999977942,
+  0.8071720000089044,
+  0.8168210000576437,
+  0.7581080000136353,
+  1.2315260000832495,
+  0.7072429999652741,
+  0.8906750000505781,
+  0.7684619999963616,
+  0.8560080000279413,
+  0.7287610000048517,
+  0.8606549999967683,
+  0.9194749999323903,
+  0.8919519999608383,
+  0.9357829999316891
+ ],
+ "draw_cost": {
+  "fresing window": {
+   "window_ms": 202.03,
+   "view3d_region_ms": 0.01
+  },
+  "full Blender": {
+   "window_ms": 219.63,
+   "view3d_region_ms": 0.01
+  }
+ },
+ "play": {
+  "play_none_window": {
+   "fps": 3.3,
+   "frames": 14,
+   "p95_frame_ms": 331.4
+  },
+  "play_B_window": {
+   "fps": 3.3,
+   "frames": 14,
+   "p95_frame_ms": 377.9
+  },
+  "play_C_window": {
+   "fps": 3.3,
+   "frames": 13,
+   "p95_frame_ms": 342.8
+  }
+ },
+ "window": [
+  2560,
+  1440
+ ]
+}

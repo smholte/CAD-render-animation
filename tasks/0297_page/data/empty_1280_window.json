@@ -1,0 +1,68 @@
+{
+ "switches": [
+  {
+   "look": "B",
+   "op_ms": 2.5991899999553425,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.379235000058543,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "B",
+   "op_ms": 2.5504889999865554,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.4142469999569585,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.5244200000097408,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "blender"
+  },
+  {
+   "look": "B",
+   "op_ms": 1.6663549999975658,
+   "first_draw_ms": -1,
+   "topbar_draws_in_anim": 0,
+   "last_draw_ms": -1,
+   "to": "fresing"
+  }
+ ],
+ "area_seen": true,
+ "slot_py_ms": [
+  0.6809830000520378
+ ],
+ "op_ms": [
+  1.3510010001027695,
+  0.6784370000332274,
+  1.2844350000023042,
+  0.6342909999830226,
+  0.7542969999576599,
+  0.8032540000613153
+ ],
+ "window": [
+  1280,
+  720
+ ]
+}
