@@ -1,6 +1,6 @@
 # 0272 – Locations: several folders per kind (company, department, mine) + export places
 
-**Who:** worker · **Status:** running · **Branch:** `task/0272-locations`
+**Who:** worker · **Status:** done (0.2.210) · **Branch:** `task/0272-locations`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "for organisation and user set-ups you should be able to refer to
 different file locations from one of the settings pages, such as decals location, render export. For places where you
 take information from, such as STEP models, decals, materials, you should be able to select multiple file locations –
@@ -123,22 +123,22 @@ decision **0004** ("where do renders go").
 
 ## Done when
 
-- [ ] The `.frsetup` file: save, add (copy / link), update by id with the change list, Different from standard; tests
+- [x] The `.frsetup` file: save, add (copy / link), update by id with the change list, Different from standard; tests
       incl. a renamed newer file, an older file, a damaged zip, a zip with a path outside its folder
-- [ ] `core/locations.py` with tests (merge, same names, read-only, unreachable folder, relative paths, the set-up
+- [x] `core/locations.py` with tests (merge, same names, read-only, unreachable folder, relative paths, the set-up
       file's checks with plain-word errors)
-- [ ] Update from the previous version: no folder set → ready-made folders made and on; a folder set → kept as Mine
-- [ ] Update test: an older version's settings with no library folder → after the update the ready-made folder is
+- [x] Update from the previous version: no folder set → ready-made folders made and on; a folder set → kept as Mine
+- [x] Update test: an older version's settings with no library folder → after the update the ready-made folder is
       there and on; with one set → that one is Mine
-- [ ] With a set-up file installed first: Mine folders made but off, the note shown once, switch on per kind works
-- [ ] A fresh user (no settings) makes a crane, adds a logo and saves a rule set without setting any folder; no
+- [x] With a set-up file installed first: Mine folders made but off, the note shown once, switch on per kind works
+- [x] A fresh user (no settings) makes a crane, adds a logo and saves a rule set without setting any folder; no
       "No library folder" message left (`git grep`)
-- [ ] Every listed reader goes through it; a test proves no reader still builds its own library path
-- [ ] Locations and Exports tabs; real-app test: two set-up files + a Mine folder, a decal and a rule set from each
+- [x] Every listed reader goes through it; a test proves no reader still builds its own library path
+- [x] Locations and Exports tabs; real-app test: two set-up files + a Mine folder, a decal and a rule set from each
       shown with badges; an unreachable folder does not slow the start (number in the report)
-- [ ] Every output goes to the chosen place; "also a copy" works for a still, a video and the queue
-- [ ] 0004 closed in TASKS.md with the owner's default; guide + COMPANY-USE; function list, PC-check line, CHANGELOG
-- [ ] Independent review of the Windows parts; report with the owner's check steps; merged, released
+- [x] Every output goes to the chosen place; "also a copy" works for a still, a video and the queue
+- [x] 0004 closed in TASKS.md with the owner's default; guide + COMPANY-USE; function list, PC-check line, CHANGELOG
+- [x] Independent review of the Windows parts; report with the owner's check steps; merged, released
 
 ## Not in this task
 
@@ -148,10 +148,80 @@ The material picker and own materials (0273); syncing or copying libraries betwe
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 23 Nov 2026 · branch `task/0272-locations` · version 0.2.210
 
 **What changed:**
+- New `core/locations.py` (no Blender): 10 kinds, levels Company / Department / Mine, the `.frsetup` set-up file (zip:
+  `setup.json` with a fixed id + version, settings, locations, export places, first-start choices, optional content per
+  kind), plain-word refusals (not a zip / damaged, no setup.json, not Fresing, newer format – what is left out named,
+  unknown kind, a path outside its folder, Windows names: `:`, CON/NUL/COM1, trailing dot/space, capitals-only
+  duplicates, file > 200 MB / all > 1 GB), the change list (`changes`), merging with badges (same names kept,
+  "name (badge)" keys), `Reach` (folders looked at in helper threads – the PC's own folders and `\\server` ones in
+  separate pools –, never waited for), export places + `place_folder`, `copy_output`, the migration, "different from
+  standard".
+- New `blender/locations.py`: state in `<config>/fresing_locations.json`, set-ups kept as a copy + unpacked content in
+  `<config>/fresing_setups/` (linked ones re-read when they change), IT's set-up in the approved version's folder picked
+  up (address decided from its text, never `isdir` on the main thread), the readers' API, `output_dir` (THE folder of
+  every output), `copy_also`. New `ops_locations.py` (24 classes: add/update/remove/save/edit set-ups, own folders on
+  off up down add remove, export places, default, also a copy, Save to, Back to standard, a FileHandler for dropping a
+  `.frsetup`, STEP folders panel in Import's file browser), `ui_locations.py` (the two tabs, the Save to row).
+- **Where the ready-made folder is:** `Documents\Fresing Render\Library\<kind>` (Documents asked from Windows, so a
+  OneDrive-moved Documents is followed, as `rule_sets.documents_dir`). Folders a user already had without a library
+  (`Documents\Fresing Render\Rule sets`, `Workspaces`, `Logos`, `Stickers`, `Brand kits`) are added as Mine too when
+  they hold files – nothing a user had disappears.
+- Readers switched (read side only): rule sets, workspaces (save asks **Save in**), decals' logos/stickers, brand kits,
+  lifting equipment (Make a crane, own cranes), templates, 360° photos, Import STEP's start folder. Outputs: render
+  still, the queue (job carries `also_dir`, `queue_runner` copies), web 3D export, Open render folder – all through
+  `render.default_output_dir(scene)`. Old `Own folder` (`out_folder`) still wins; new scene setting `out_place`.
+- `prefs.library_path` hidden, read once by the migration; no "No library folder" message left; texts that sent the
+  user to "Preferences" for a library now name Fresing Settings > Locations.
+- Settings window: tabs Locations, Exports after General (`ui_settings.LATER` = materials only). Client view: the new
+  buttons are NOT on its allow list (kept the list short; the window still opens and shows).
+- PC check line `settings.locations` (MIN_LINES_FULL 123); tour stop `locations` in the crane set (MIN_LINES_TOUR 97);
+  function entries `settings.locations`, `settings.exports`; guide chapters Locations + Exports (+ every old "shared
+  library" mention), pictures settings_locations/exports (and the other Settings tabs made again); COMPANY-USE "Set up
+  locations for everyone" with an example and network table row 6; CHANGELOG.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Linux):
+- `tests/test_locations.py` 27, `tests/test_locations_blender.py` 14, `tests/test_locations_independent.py` 56 cases
+  (independent tester), `test_rule_sets.py`, `test_workspaces_independent.py` (3 old tests rewritten for the new
+  folders: an unreachable share = no folder to save into, nothing made on it), about, ci_tools, functions, updates,
+  user guide, lifting library/make: all pass.
+- Real app: new `ui_test_locations.py` 17/17 (two set-ups + Mine, badges, update by id, Save to + also a copy),
+  `ui_test_settings.py` 52/52 (9 tabs clicked), `ui_test_panel.py` and `ui_test_lifting_make.py` (moved from
+  `library_path` to `locations.set_mine_root`) pass. PC check line OK (0.1 s).
+- **Unreachable folder:** the start's reading (load + logo list) with an own folder on a server whose look takes 20 s:
+  **53 ms** (real app), 54 ms in the PC check line (5 s server).
+- Update test: `update_test_blender.py` gains two checks (GUI phase): no library folder before → ready-made folders made
+  and on; a library folder before → it is Mine for every kind (the second case by running the start's load again).
+- GitHub: 3 runs of the branch. Run 1 (45161708629): 2 jobs could not reach github.com (checkout), and 3 real faults –
+  the new functions' buttons were refused in the Client view, 0271's tab-order test, the left panel's order test saw
+  the file browser's STEP panel; a lesson undo check failed on a slow runner (passes locally, 38/38). Run 2
+  (45165592422): all green but two jobs hung in GitHub's apt install; re-run of those two: green. `main` fast-forwarded
+  (reuse run): release 0.2.210 published, the old-version update check on Windows green, offered to the apps.
+
+**Subagents:** one independent reviewer + tester (Opus, worktree): reviewed the Windows parts and wrote
+`tests/test_locations_independent.py`; it found 15 faults (zip names with `:`/device names/trailing dots, capitals-only
+duplicates, PowerShell backslash folder entries, unpack deleting the old content first, Thumbs.db packed, `X:Logos`,
+reserved project names, `os.access` saying yes on Windows, state `.tmp` left behind, 4 dead folders blocking the local
+ones, `isdir` on the update address on the main thread, set-ups read again every 10 s, copied set-ups resolving
+relative folders against the copy, own `file:` parsing). All 15 fixed by the worker; their xfail marks removed.
 
 **Open points / follow-up tasks:**
+- Writable / listing calls (`os.access` probe, `os.listdir` of a list) still run on the main thread for folders the
+  helper thread found reachable (cached 30 s); a share that dies inside that window can still stall one redraw.
+- AUTO mode links only `\\server` paths; a mapped drive (`X:`) is copied (Windows' drive type not asked).
+- Not tested on Windows by hand: dropping a `.frsetup` on the window (Blender's FileHandler), the STEP folders panel in
+  the file browser, Explorer buttons. Owner's check steps below.
+- The full cable-lay demo kit is not affected (no kit `uses` name changed).
+
+**Owner's check (on your PC, after Update now):**
+1. Fresing > Settings… → tab **Locations**: under Folders each kind shows "(1)"; open **Logos**: one folder
+   `…\Documents\Fresing Render\Library\Logos`, badge Mine.
+2. 8 Lifting plan > Equipment > **Make a crane…** → Make: no "No library folder" message; the crane is in your list.
+3. Locations → **Save as a set-up file…** → name "Test", tick Logos under "Pack the content of" → Save on the Desktop.
+4. Put a PNG in the Logos folder (Show in folder button) → 5 Scene & Render > Logos & stickers > Picture list: it shows
+   with "· Mine".
+5. Tab **Exports**: tick **Also save a copy to**, pick Pictures… → 5 Scene & Render > Render image: the picture is
+   saved next to the project AND in Pictures\Fresing Render\<project>.
+
