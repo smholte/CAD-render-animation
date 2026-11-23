@@ -454,8 +454,10 @@ class FRESING_OT_remove(bpy.types.Operator):
 
     def _objs(self, context) -> list:
         if self.names:
-            return [bpy.data.objects[n] for n in self.names.split("\n") if n in bpy.data.objects]
-        return remove.chosen(context.scene, list(context.selected_objects))
+            objs = [bpy.data.objects[n] for n in self.names.split("\n") if n in bpy.data.objects]
+        else:
+            objs = list(context.selected_objects)
+        return remove.chosen(context.scene, objs)
 
     def invoke(self, context, event):
         objs = self._objs(context)

@@ -449,6 +449,8 @@ class FRESING_UL_tree(bpy.types.UIList):
         sub.alignment = "RIGHT"
         if tag:
             sub.label(text=tag)
+        sub = sub.row(align=True)
+        sub.scale_x = 0.8                     # task 0292: three icons (lock, eye, arrow) in the room of two and a half
         # task 0292: a lock in every row – closed = locked in place, open = free to move; greyed when a subassembly
         # above is locked (it still moves with that one)
         locked = all(ob.lock_location) and all(ob.lock_rotation)

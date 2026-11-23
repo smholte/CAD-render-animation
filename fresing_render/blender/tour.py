@@ -4730,6 +4730,74 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
      at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.203")
+# ---------------------------------------------------------------------------
+# task 0292: Place and Remove
+# ---------------------------------------------------------------------------
+
+@tour_set("place", "Place and remove", "test_crane_a.step", added="0.2.219", changed="0.2.219")
+def build_place(b: Build):
+    """The crane with the crane lesson's joints, cylinder and animation, placed 1 m along X and turned a quarter turn
+    with 2 Structure > Place; its trolley removed with Remove… (the trolley's joint went with it)."""
+    import math
+
+    from mathutils import Matrix
+
+    from . import lesson, ops_place, place, remove
+    sc = b.scene
+    lesson.run(sc, "crane")
+    _studio(b)
+    root = _ob(sc, "TEST.CRANE")
+    ops_place.set_lock(root, False)
+    place.move(sc, [root], Matrix.Translation((1.0, 0.0, 0.0)) @ Matrix.Rotation(math.radians(90.0), 4, "Z"))
+    remove.remove(sc, [_ob(sc, "TROLLEY.ASM")])
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@place")
+
+
+def _place_setup(scene):
+    from . import panels
+    try:
+        panels.open_to("FRESING_PT_place")
+    except Exception:  # noqa: BLE001 - the stop still opens
+        pass
+
+
+def _check_place(scene):
+    from . import place
+    root = _ob(scene, "TEST.CRANE")
+    x, y, z, rx, ry, rz = place.numbers(scene, root, "MODEL")
+    _check(abs(x - 1000.0) < 0.5 and abs(y) < 0.5 and abs(z) < 0.5, f"the crane is {x:.0f}, {y:.0f}, {z:.0f} mm from "
+           "where it was imported, not 1000, 0, 0")
+    _check(abs(rz - 90.0) < 0.05, f"the crane is turned {rz:.1f}°, not 90°")
+    _check(place.is_placed(root), "the crane does not count as placed")
+    return f"moved {x:.0f} mm, turned {rz:.0f}°"
+
+
+def _check_remove(scene):
+    from . import build, joints
+    s = scene.fresing
+    left = [o for o in scene.objects if o.get(build.PROP_NAME) in ("TROLLEY.ASM", "TROLLEY", "WHEEL")]
+    _check(not left, f"the trolley is still there: {[o.name for o in left]}")
+    _check([j.name for j in s.joints] == ["Boom"], f"the joints are {[j.name for j in s.joints]}, not only Boom")
+    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 1, "the boom's joint or the cylinder broke")
+    n = sum(1 for o in build.iter_parts(scene))
+    _check(n == 17, f"{n} parts left, not 17")
+    return f"{n} parts left, joints {[j.name for j in s.joints]}"
+
+
+stop("place", MOTION, "place", "Place: crane moved and turned",
+     "The crane stands 1 m to the side of where it was imported and turned a quarter turn. 2 Structure > Place, with "
+     "the crane selected, shows Model axes X 1000, Y 0, Z 0 and Turn Z 90 (World: where it stands). Its joints and "
+     "cylinder moved with it: the boom still luffs about its pin.",
+     where=places.where("FRESING_PT_place"), since="0.2.219", select=("TEST.CRANE",), check=_check_place,
+     setup=_place_setup)
+stop("remove", MOTION, "place", "Remove: the trolley is gone",
+     "The crane has no trolley: it was removed with Remove… (the window listed 3 parts, 1 joint). The trolley's "
+     "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
+     where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: crane moved and "
+     "turned", select=("TEST.CRANE",), check=_check_remove)
+
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
      "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "
@@ -5497,74 +5565,6 @@ stop("backups", OUT, "faces", "Automatic backups",
      "and one a day for 7 days.",
      where="Fresing menu > Restore a backup…; Edit > Preferences > Add-ons > Fresing Render > Automatic backups",
      since="0.2.187", changed="0.2.217", shot="Painted faces", check=_check_backups, setup=_backup_setup)
-
-# ---------------------------------------------------------------------------
-# task 0292: Place and Remove
-# ---------------------------------------------------------------------------
-
-@tour_set("place", "Place and remove", "test_crane_a.step", added="0.2.219", changed="0.2.219")
-def build_place(b: Build):
-    """The crane with the crane lesson's joints, cylinder and animation, placed 1 m along X and turned a quarter turn
-    with 2 Structure > Place; its trolley removed with Remove… (the trolley's joint went with it)."""
-    import math
-
-    from mathutils import Matrix
-
-    from . import lesson, ops_place, place, remove
-    sc = b.scene
-    lesson.run(sc, "crane")
-    _studio(b)
-    root = _ob(sc, "TEST.CRANE")
-    ops_place.set_lock(root, False)
-    place.move(sc, [root], Matrix.Translation((1.0, 0.0, 0.0)) @ Matrix.Rotation(math.radians(90.0), 4, "Z"))
-    remove.remove(sc, [_ob(sc, "TROLLEY.ASM")])
-    _update()
-    _camera(b, "ISO", "Tour view")
-    _shot(b, "@place")
-
-
-def _place_setup(scene):
-    from . import panels
-    try:
-        panels.open_to("FRESING_PT_place")
-    except Exception:  # noqa: BLE001 - the stop still opens
-        pass
-
-
-def _check_place(scene):
-    from . import place
-    root = _ob(scene, "TEST.CRANE")
-    x, y, z, rx, ry, rz = place.numbers(scene, root, "MODEL")
-    _check(abs(x - 1000.0) < 0.5 and abs(y) < 0.5 and abs(z) < 0.5, f"the crane is {x:.0f}, {y:.0f}, {z:.0f} mm from "
-           "where it was imported, not 1000, 0, 0")
-    _check(abs(rz - 90.0) < 0.05, f"the crane is turned {rz:.1f}°, not 90°")
-    _check(place.is_placed(root), "the crane does not count as placed")
-    return f"moved {x:.0f} mm, turned {rz:.0f}°"
-
-
-def _check_remove(scene):
-    from . import build, joints
-    s = scene.fresing
-    left = [o for o in scene.objects if o.get(build.PROP_NAME) in ("TROLLEY.ASM", "TROLLEY", "WHEEL")]
-    _check(not left, f"the trolley is still there: {[o.name for o in left]}")
-    _check([j.name for j in s.joints] == ["Boom"], f"the joints are {[j.name for j in s.joints]}, not only Boom")
-    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 1, "the boom's joint or the cylinder broke")
-    n = sum(1 for o in build.iter_parts(scene))
-    _check(n == 17, f"{n} parts left, not 17")
-    return f"{n} parts left, joints {[j.name for j in s.joints]}"
-
-
-stop("place", MOTION, "place", "Place: the crane moved and turned",
-     "The crane stands 1 m to the side of where it was imported and turned a quarter turn. 2 Structure > Place, with "
-     "the crane selected, shows Model axes X 1000, Y 0, Z 0 and Turn Z 90 (World: where it stands). Its joints and "
-     "cylinder moved with it: the boom still luffs about its pin.",
-     where=places.where("FRESING_PT_place"), since="0.2.219", select=("TEST.CRANE",), check=_check_place,
-     setup=_place_setup)
-stop("remove", MOTION, "place", "Remove: the trolley is gone",
-     "The crane has no trolley: it was removed with Remove… (the window listed 3 parts, 1 joint). The trolley's "
-     "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
-     where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: the crane "
-     "moved and turned", select=("TEST.CRANE",), check=_check_remove)
 
 # ---------------------------------------------------------------------------
 # every machining stop: the block shows what the program does (task 0223)

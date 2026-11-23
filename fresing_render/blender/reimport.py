@@ -585,6 +585,7 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     scene = context.scene
     if old_root.get("fr_lifting"):               # task 0214 (0209 row 4): a crane is rigged from its equipment file
         raise UpdateFailed("this is a crane of the lifting plan: Remove it in 8 Lifting plan and place it again")
+    removed = old_root.get("fr_removed", "")   # task 0292: parts Remove took out of this model
     before = {"objects": _names(bpy.data.objects), "meshes": _names(bpy.data.meshes),
               "collections": _names(bpy.data.collections)}
     build.ensure_bases(scene)
@@ -614,6 +615,11 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     for n in vessel_motion.after_model_update(scene, st.mapping or {}):   # the new model moves with the vessel
         scene.fresing.report_notes.add().text = n
         out["notes"].append(n)
+    if removed:                                  # task 0292: what Remove took out stays out
+        from . import remove
+        for n in remove.after_update(scene, removed, out.get("root")):
+            scene.fresing.report_notes.add().text = n
+            out["notes"].append(n)
     return out
 
 

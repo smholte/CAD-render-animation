@@ -647,7 +647,8 @@ def field_get(index: int) -> float:
     if ob is None:
         return 0.0
     try:
-        return float(numbers(scene, ob, _space(scene))[index])
+        v = round(float(numbers(scene, ob, _space(scene))[index]), 4)       # no "-0.000002" from float32 matrices
+        return 0.0 if v == 0.0 else v
     except (ValueError, ReferenceError):
         return 0.0
 
@@ -685,10 +686,10 @@ def state(scene) -> str:
         return "locked"
     ob = target(bpy.context)
     if ob is None:
-        return "nothing selected"
+        return "none selected"
     if locked(ob):
-        return "locked in place"
-    return "placed" if is_placed(ob) else "on its CAD place" if not is_root(ob) else "as imported"
+        return "locked"
+    return "placed" if is_placed(ob) else "CAD place" if not is_root(ob) else "as imported"
 
 
 CLASSES = (FRESING_OT_move_key, FRESING_OT_ctx_unlock)

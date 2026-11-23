@@ -22,6 +22,8 @@ back as it was (one step: the operator's).
 
 from __future__ import annotations
 
+import json
+
 import bpy
 
 from ..core import place as core
@@ -29,6 +31,7 @@ from ..core.words import plural
 from . import build, logic
 
 LAST: dict = {}                    # the last remove's result (tests, the PC check)
+REMOVED = "fr_removed"             # on a model root: the part IDs removed from it (JSON list; a model update keeps them out)
 
 
 def _uid(ob) -> str:
@@ -106,6 +109,14 @@ def plan(scene, objs) -> dict:
         elif inside:
             loses.append(f"Joint '{j.name}' keeps moving {plural(len(mem) - len(inside), 'other part')} "
                          f"({plural(len(inside), 'part')} of it {'goes' if len(inside) == 1 else 'go'})")
+    for j in s.joints:                       # what it sits on goes, it stays: it will sit on its CAD parent
+        if j.name in j_gone or not joints.members(j) or j.frame is None:
+            continue
+        below = joints.rides_on(scene, j)
+        if below is not None and below.name in j_gone:
+            loses.append(f"Joint '{j.name}' rode on '{below.name}', which goes: it will sit on its CAD parent")
+        elif below is None and j.frame.parent is not None and j.frame.parent.name in names:
+            loses.append(f"Joint '{j.name}': the part it sits on goes – it will sit on its CAD parent")
     out["joints"], out["_joints"] = len(j_gone), j_gone
 
     def all_gone(objs_) -> bool:
@@ -114,7 +125,11 @@ def plan(scene, objs) -> dict:
     def any_gone(objs_) -> bool:
         return any(o.name in names for o in objs_)
 
-    cyl = [c.name for c in s.cylinders if all_gone(_refs(c.barrel)) or all_gone(_refs(c.rod))]
+    def carrier_gone(e) -> bool:
+        return e is not None and e.parent is not None and e.parent.name in names
+
+    cyl = [c.name for c in s.cylinders if all_gone(_refs(c.barrel)) or all_gone(_refs(c.rod))
+           or carrier_gone(c.pin) or carrier_gone(c.frame)]
     for c in s.cylinders:
         if c.name not in cyl and (any_gone(_refs(c.barrel)) or any_gone(_refs(c.rod))):
             loses.append(f"Cylinder '{c.name}' loses some of its parts")
@@ -127,6 +142,21 @@ def plan(scene, objs) -> dict:
         if secs and all(n in j_gone for n in secs):
             covers.append(i)
     out["way_covers"], out["_covers"] = len(covers), covers
+    for i, w in enumerate(getattr(s, "waycovers", ())):
+        if i in covers:
+            continue
+        refs = [getattr(p_, "obj", None) for sec in getattr(w, "sections", ()) for p_ in getattr(sec, "parts", ())]
+        refs += [getattr(p_, "obj", None) for p_ in getattr(w, "parts", ())]
+        if any(o is not None and o.name in names for o in refs):
+            loses.append(f"Way cover '{w.name}' loses some of its parts")
+    cuts = []
+    for i, cut in enumerate(getattr(s, "cuts", ())):
+        tu = [t.uid for t in cut.targets if t.uid]
+        if (cut.root_uid and cut.root_uid in uids) or (tu and all(u in uids for u in tu)):
+            cuts.append(cut.key)
+        elif any(u in uids for u in tu):
+            loses.append(f"Slice '{cut.name}' no longer cuts what goes")
+    out["_cuts"] = cuts
 
     def by_uid(coll, *fields) -> list:
         idx = []
@@ -144,10 +174,21 @@ def plan(scene, objs) -> dict:
                 getattr(it, "a_uid", "") in uids or getattr(it, "b_uid", "") in uids):
             out["_flex"].append(i)
     out["hoses"] = len(out["_flex"])
+    for i, it in enumerate(s.flex):
+        if i not in out["_flex"] and (getattr(it, "a_uid", "") in uids or getattr(it, "b_uid", "") in uids):
+            loses.append(f"Hose '{it.name}': the part one of its ends sits on goes – that end stays where it is")
     out["_cables"] = by_uid(s.cables, "part_uid")
     out["cables"] = len(out["_cables"])
+    for i, it in enumerate(s.cables):
+        n = sum(1 for c in it.contacts if c.part_uid in uids or c.carrier_uid in uids)
+        if i not in out["_cables"] and n:
+            loses.append(f"Cable '{it.name}' no longer runs over {plural(n, 'part')} that "
+                         f"{'goes' if n == 1 else 'go'}")
     out["_spools"] = by_uid(s.spools, "part_uid")
     out["spools"] = len(out["_spools"])
+    for i, it in enumerate(s.spools):
+        if i not in out["_spools"] and getattr(it, "coil_uid", "") in uids:
+            loses.append(f"Drum '{it.name}' loses the coil drawn on it in CAD (the app draws the rope)")
     tracks = []
     for i, t in enumerate(s.tracks):
         used = {getattr(t, "chain_uid", "")} | {getattr(w, "part_uid", "") for w in getattr(t, "wheels", ())}
@@ -191,6 +232,8 @@ def _step_goes(blk, j_gone, cyl, mech, uids) -> bool:
 def lines(p: dict) -> list:
     """The window's lines (``core.place.summary``) and what stays."""
     out = core.summary(p)
+    if int(p.get("models", 0) or 0) < len(p.get("names", ()) or ()):
+        out.append("A model update keeps them removed (they stay in the STEP file)")
     out.append("Saved poses and scenes keep working. The import stays: 1 Import > Imported models brings a model "
                "back. Ctrl+Z undoes it")
     return out
@@ -202,6 +245,30 @@ def lines(p: dict) -> list:
 
 def _take_off_items(scene, p: dict) -> None:
     """Step 1: what lives on a part that goes, by its own Remove (highest index first: the lists shift)."""
+    from . import cylinders, linkages, section
+    s = scene.fresing
+    for name in p.get("_cylinders", ()):          # cylinders, mechanisms (with their own drive joint), slices
+        c = s.cylinders.get(name) if hasattr(s.cylinders, "get") else None
+        c = c or next((x for x in s.cylinders if x.name == name), None)
+        if c is not None:
+            try:
+                cylinders.remove(scene, c)
+            except Exception as exc:  # noqa: BLE001
+                print(f"Fresing Render: Remove: cylinder {name} not taken off:", exc)
+    for name in p.get("_mechanisms", ()):
+        m = next((x for x in s.mechanisms if x.name == name), None)
+        if m is not None:
+            try:
+                linkages.remove(scene, m)
+            except Exception as exc:  # noqa: BLE001
+                print(f"Fresing Render: Remove: mechanism {name} not taken off:", exc)
+    for key in p.get("_cuts", ()):
+        cut = section.find(scene, key)
+        if cut is not None:
+            try:
+                section.remove(scene, cut)
+            except Exception as exc:  # noqa: BLE001
+                print(f"Fresing Render: Remove: slice {key} not taken off:", exc)
     from . import flex, paths, spool, tracks, trails
     for module, key in ((flex, "_flex"), (paths, "_cables"), (spool, "_spools"), (tracks, "_tracks"),
                         (trails, "_trails")):
@@ -281,6 +348,10 @@ def remove(scene, objs) -> dict:
             notes += reimport._put_together(scene, st, by_uid, mapping)
             reimport._repoint(scene, {o.name: None for o in goners}, notes)
             states.remap_uids(scene, mapping)
+            _mark_gone(scene, mapping)
+            if root.name not in gone_names:             # a model update keeps them removed (``after_update``)
+                was = json.loads(root.get(REMOVED, "[]") or "[]")
+                root[REMOVED] = json.dumps(sorted(set(was) | {_uid(o) for o in goners if _uid(o)}))
             meshes = {o.data for o in goners if o.type == "MESH" and o.data is not None}
             others = [o for o in bpy.data.objects if o.parent is not None and o.parent in set(goners)
                       and o not in set(goners) and o.get(build.PROP_KIND) == "decal"]
@@ -305,6 +376,46 @@ def remove(scene, objs) -> dict:
     LAST.clear()
     LAST.update(p)
     return p
+
+
+def _mark_gone(scene, mapping: dict) -> None:
+    """Part IDs that other settings keep and the hooks do not change: "gone:" too (a drum's coil, a slice's target)."""
+    gone = {k: v for k, v in mapping.items() if str(v).startswith("gone:")}
+    s = scene.fresing
+    for sp in s.spools:
+        if getattr(sp, "coil_uid", "") in gone:
+            sp.coil_uid = gone[sp.coil_uid]
+    for cut in getattr(s, "cuts", ()):
+        for t in cut.targets:
+            if t.uid in gone:
+                t.uid = gone[t.uid]
+
+
+def after_update(scene, removed: str, root) -> list:
+    """A model update (reimport.py) of a model that had subassemblies or parts removed: they are in the STEP file
+    again, so they are removed again. Returns notes."""
+    try:
+        uids = set(json.loads(removed or "[]"))
+    except ValueError:
+        return []
+    if not uids or root is None:
+        return []
+    root[REMOVED] = json.dumps(sorted(uids))
+    objs = [o for o in scene.objects if o.get(build.PROP_KIND) in build.MODEL_KINDS and _uid(o) in uids]
+    if not objs:
+        return []
+    p = remove(scene, objs)
+    s = scene.fresing                            # not "new" in the update's report: they stay removed
+    gone = set(p.get("gone_uids", ()))
+    dropped = 0
+    for i in reversed(range(len(s.report_new))):
+        if s.report_new[i].uid in gone:
+            s.report_new.remove(i)
+            dropped += 1
+    if dropped:
+        import re
+        s.report_title = re.sub(r"(\d+) new", lambda m: f"{max(0, int(m.group(1)) - dropped)} new", s.report_title)
+    return [f"{plural(p['parts'], 'part')} you removed before stayed removed (Remove…)"]
 
 
 def _tidy(scene) -> None:

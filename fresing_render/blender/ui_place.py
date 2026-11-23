@@ -62,13 +62,13 @@ def draw_place(layout, context, window: bool = False) -> None:
     col.label(text="Turn (°)")
     for i, p in enumerate(("rx", "ry", "rz")):
         _axis_row(col, st, p, 3 + i, not is_locked)
-    grid = layout.grid_flow(columns=2, even_columns=True, align=True)
-    grid.label(text="Step")
-    grid.label(text="Snap")
-    grid.prop(st, "step_move", text="")
-    grid.prop(st, "snap_move", text="")
-    grid.prop(st, "step_turn", text="")
-    grid.prop(st, "snap_turn", text="")
+    for label, a, b in (("Step", "step_move", "step_turn"), ("Snap", "snap_move", "snap_turn")):
+        row = layout.row(align=True)
+        split = row.split(factor=0.25, align=True)
+        split.label(text=label)
+        sub = split.row(align=True)
+        sub.prop(st, a, text="")
+        sub.prop(st, b, text="")
     gap(layout)
     row = layout.row(align=True)
     row.enabled = not is_locked
@@ -76,7 +76,7 @@ def draw_place(layout, context, window: bool = False) -> None:
     row.operator("fresing.place_mouse", text="Move with mouse", icon="ORIENTATION_VIEW").mode = "MOVE"
     row.operator("fresing.place_mouse", text="Turn with mouse", icon="ORIENTATION_GIMBAL").mode = "TURN"
     if not window:
-        layout.prop(st, "arrows", icon="EMPTY_ARROWS")
+        layout.prop(st, "arrows")
     gap(layout)
     col = layout.column(align=True)
     col.enabled = not is_locked
@@ -129,13 +129,10 @@ def place_open() -> bool:
 
 
 def _wanted(context) -> bool:
-    from . import animation
     scene = getattr(context, "scene", None)
     if scene is None or getattr(scene, "fresing", None) is None or context.mode != "OBJECT":
         return False
     if not scene.fresing.place.arrows or not place_open():
-        return False
-    if animation.has_keys(scene):
         return False
     ob = place.target(context)
     return ob is not None and not place.refused(context)

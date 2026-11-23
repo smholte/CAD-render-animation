@@ -72,7 +72,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 42, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "backups": 23, "forms": 29,
-              "move": 14, "importagain": 18}
+              "move": 14, "importagain": 18, "place": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -87,7 +87,7 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
     "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move"],   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
-    "callouts": ["callouts", "importagain"],      # importagain: task 0289 (~0.5 min)
+    "callouts": ["callouts", "importagain", "place"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms"],   # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
@@ -218,6 +218,11 @@ TESTS = {
              "status bar says how to unlock it; the right-click menu's Unlock so it can move; then G, X, 100, Enter, G "
              "with the mouse and R, Z, 30, Enter move and turn it and it stays; after Build the message, after Stop it "
              "moves again (ui_test_move.py)", "ui_test_move.py", True),
+    "place": ("Real app: Place and Remove – the boom's lock opened, Place open shows the arrows and rings, a + step moves "
+              "the boom and its joint and Ctrl+Z puts both back, Move with mouse X 100 Enter moves it 100 mm and it "
+              "stays; Delete opens the Remove window (nothing gone yet), Remove takes the crane with its joints and "
+              "cylinder, Ctrl+Z brings everything back; the Client view swallows Delete (ui_test_place.py)",
+              "ui_test_place.py", True),
     "lesson": ("Real app: lessons – Fresing > Learn…, Build it yourself on the crane by clicking where the highlight "
                "points and Do it for me, a step done another way, Show me from the learning list at its step, Back, "
                "saved half-way and going on, nothing left after Stop (ui_test_lesson.py)", "ui_test_lesson.py", True),
