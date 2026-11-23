@@ -1,6 +1,6 @@
 # 0316 – Update now: choose to save or not (also for a project that was never saved)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0316-update-without-saving`
+**Who:** worker · **Status:** running · **Branch:** `task/0316-update-without-saving`
 **Started by:** lead, 23 Nov 2026 22:41 (owner, with a screenshot of the error "This project has never been saved:
 save it first (File > Save As…), then press Update now": "what if I don't want to save the project – allow me to
 bypass and update and not save")
