@@ -149,6 +149,30 @@ function Check-AppsEntry([string]$when, [string]$expectVersion) {
     $script:Summary += "| Installed apps entry ($when) | $(if (-not $bad) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
 }
 
+# Task 0296: Windows' graphics preference "High performance" for the app's programs (the installer writes it, the
+# uninstaller removes it). The runner has no graphics card: the value is only written, never used here.
+function Gpu-Prefs {
+    $k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Software\Microsoft\DirectX\UserGpuPreferences")
+    $out = @{}
+    if ($k) {
+        try { foreach ($n in $k.GetValueNames()) { if ($n.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) { $out[$n] = [string]$k.GetValue($n) } } }
+        finally { $k.Close() }
+    }
+    return $out
+}
+function Check-GpuPref([string]$when) {
+    $prefs = Gpu-Prefs
+    $bad = @()
+    $blender = @($prefs.Keys | Where-Object { $_ -like "*\blender.exe" })
+    if (-not $blender) { $bad += "no graphics preference for blender.exe" }
+    foreach ($n in $prefs.Keys) {
+        if ($prefs[$n] -notmatch "(^|;)GpuPreference=2;") { $bad += "$([IO.Path]::GetFileName($n)): '$($prefs[$n])'" }
+        Write-Host "   ($when) graphics preference: $n = $($prefs[$n])"
+    }
+    foreach ($b in $bad) { Problem "Graphics preference ($when): $b" }
+    $script:Summary += "| Graphics preference High performance ($when) | $(if (-not $bad) { '✅ ' + $prefs.Count + ' program(s)' } else { '❌ ' + ($bad -join '; ') }) | |"
+}
+
 function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Arguments = "") {   # measured: 3-21 s
     # The .bat ends with "pause": an empty file as keyboard input ends the pause at once.
     $empty = Join-Path $WorkDir "no_keyboard.txt"
@@ -258,6 +282,7 @@ if ($Uninstall) {
     if (-not (Test-Path -LiteralPath $project)) { Problem "Uninstall removed a project in Documents" }
     Remove-Item -LiteralPath $project -Force -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $AppsKey) { Problem "Uninstall left the entry in Installed apps" }
+    if ((Gpu-Prefs).Count) { Problem "Uninstall left Windows' graphics preference of the app's programs" }
     if ($r.Text -notmatch "projects" ) { Problem "Uninstall did not say that projects are kept" }
     if (Test-Path -LiteralPath $InstallDir) { Problem "Uninstall left $InstallDir behind" }
     if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk")) { Problem "Uninstall left the Desktop shortcut" }
@@ -601,6 +626,7 @@ if ($Uninstall) {
 
         Note "Settings > Apps > Installed apps (Install.bat)"
         Check-AppsEntry "after Install.bat" $Expected
+        Check-GpuPref "after Install.bat"
 
         Note "Fresing icon on the shortcuts (Install.bat)"
         Check-Links "after Install.bat"

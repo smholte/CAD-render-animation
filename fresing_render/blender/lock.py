@@ -69,6 +69,7 @@ ALLOWED = {
     "fresing.tour_take", "fresing.tour_cancel",                  # task 0199: the Fresing menu – they only open or
     "fresing.welcome", "fresing.welcome_answer", "fresing.whats_new", "fresing.whats_new_guide",   # show something
     "fresing.release_notes", "fresing.about", "fresing.about_open",   # task 0206: only opens a window / a file
+    "fresing.gpu_notice", "fresing.gpu_how", "fresing.gpu_open_settings", "fresing.gpu_use_card",   # task 0296
     "fresing.self_test", "fresing.open_app_folder",              # task 0212: a check in its own window, a folder
     "fresing.client_locked",
     "fresing.blender_editors",                   # task 0221: its own poll greys it in the Client view, with the reason
