@@ -1,0 +1,107 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0297 Blender switch</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc)}
+figure{margin:10px 0}figure img{max-width:100%;height:auto;border:1px solid var(--line);display:block;image-rendering:auto}
+figcaption{font-size:.85rem;color:var(--mut)}.scroll{overflow-x:auto}.scroll img{max-width:none}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:.88rem}th,td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+.d{color:var(--mut);font-size:.85rem}label{display:block;margin:4px 0}.star{color:var(--acc)}.warn{color:var(--warn)}
+.looks{display:grid;grid-template-columns:1fr;gap:14px}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:240px;word-break:break-word}button{font:inherit;padding:8px 18px;background:var(--acc);color:#fff;border:0;border-radius:6px;cursor:pointer}
+</style></head><body><main>
+<h1>0297 – A Blender / Fresing Render switch at the top right</h1>
+<p>All pictures and clips are the <b>real app</b> (0.2.212 code, Blender 5.2.3) on the 4-core web test machine
+<b>without a graphics card</b> (virtual screen, UI scale 100 %), with the <b>test crane</b>. Nothing here is in the app
+yet: it is a prototype on its own branch. Pick at the bottom, press <b>Copy</b> and paste the line to the lead.</p>
+
+<div class="card"><b>In short.</b> The button fits at the far right of the top bar in every workspace and in full
+Blender, at 1920 and 2560 px. The switch itself takes about <b>1.5 ms</b>. A slide costs nothing you can measure in
+the switch, only a few extra redraws of the top bar for 0.15 s. <b>Recommended: B, the two-part pill</b> (★). It shows
+both sides, so it reads as a switch, and if a frame is skipped it still lands right. Whether the slide looks smooth
+can only be judged <b>on your PC</b>: this machine draws a 2560 px window in about 0.2 s, so no in-between frames show
+here.</div>
+
+<h2>1 · Where it sits</h2>
+<p>At the top bar's right end, after everything Blender puts there. In the Fresing workspaces the right end is empty
+today. In full Blender, Scene and View Layer come back and the switch sits after them.</p>
+<div class="scroll">
+<figure><img src="img/bar_2560_fresing.png" alt="2560 Fresing"><figcaption>2560 px, a Fresing workspace (pill B)</figcaption></figure>
+<figure><img src="img/bar_2560_blender.png" alt="2560 Blender"><figcaption>2560 px, full Blender: workspace tabs, Scene, View Layer, then the switch</figcaption></figure>
+<figure><img src="img/bar_1920_fresing.png" alt="1920 Fresing"><figcaption>1920 px, a Fresing workspace</figcaption></figure>
+<figure><img src="img/bar_1920_blender.png" alt="1920 Blender"><figcaption>1920 px, full Blender: still about 100 px free between the tabs' + and Scene</figcaption></figure>
+</div>
+<p class="d">Width used: 12 UI units = 240 px at 100 % (both halves wide enough for "Fr Fresing Render"). A plain button
+(A) can be narrower.</p>
+
+<h2>2 · The four looks</h2>
+<p>Each clip: the button at rest, the click, the change, at rest again; first Fresing → Blender, then back. "Real
+speed" is the 150 ms slide as it should look on a fast PC. "Slow" is the same frames about 7 × slower, so you can
+see what happens. The frames are drawn by the real top bar at fixed steps of the slide, then put together. This
+machine is too slow to film the slide live.</p>
+<div class="looks">
+<figure><img src="clips/look_A_real.gif" alt="A"><figcaption><b>A · Plain button</b>: it names where it takes
+you ("Blender", or "Fr Fresing Render" in full Blender) and the text swaps at once. No animation, no added cost.</figcaption></figure>
+<figure><img src="clips/look_B_real.gif" alt="B real"><img src="clips/look_B_slow.gif" alt="B slow"><figcaption>
+<b>B · Two-part pill ★</b> "Fr Fresing Render | Blender": the blue half is where you are and slides to the other side
+(real speed, then slow).</figcaption></figure>
+<figure><img src="clips/look_C_real.gif" alt="C real"><img src="clips/look_C_slow.gif" alt="C slow"><figcaption>
+<b>C · Label slides</b>: the old word loses its letters to the left, the new one comes in from the right. Blender's
+buttons cannot cut text cleanly or slide it up / down, so the button itself shrinks and grows: it looks jumpy.</figcaption></figure>
+<figure><img src="clips/look_D_real.gif" alt="D real"><img src="clips/look_D_slow.gif" alt="D slow"><figcaption>
+<b>D · "Fade"</b>: Blender's buttons have no see-through setting, only normal or greyed out. The closest is old word
+greyed → new word greyed → new word: a blink, not a fade.</figcaption></figure>
+</div>
+<figure><img src="img/steps_BCD.png" alt="steps"><figcaption>Every step of B, C and D side by side (Fresing → Blender).</figcaption></figure>
+
+<h2>3 · What was measured (web test machine, no graphics card)</h2>
+<div class="scroll"><table>
+<tr><th>What</th><th>Measured</th><th>Where</th></tr>
+<tr><td>The switch itself (Show all of Blender and back, <code>fresing.blender_all</code>)</td><td><b>1.3–2.1 ms</b> (22 of 24 clicks; two at 3.5 and 4.3 ms)</td><td>2560 × 1440, test crane, all looks</td></tr>
+<tr><td>Top bar drawn again after the click</td><td>~2 ms after the click</td><td>same</td></tr>
+<tr><td>The button's own drawing (Python) per redraw</td><td>0.5 ms (max 0.9)</td><td>same, 77 redraws</td></tr>
+<tr><td>Redraw of the whole window</td><td>202–220 ms (software drawing, no graphics card)</td><td>2560 × 1440, test crane</td></tr>
+<tr><td>Top-bar frames during a 150 ms slide</td><td><b>2</b> (start, and the end only 280–350 ms after the click): the slide does not show</td><td>2560 × 1440, test crane</td></tr>
+<tr><td>Top-bar frames during a 150 ms slide</td><td><b>3–4</b>, at rest after 150–220 ms</td><td>1280 × 720, empty scene</td></tr>
+<tr><td>Same, asking a redraw of the whole window instead of only the top bar</td><td><b>0</b> frames in 350 ms</td><td>both sizes</td></tr>
+<tr><td>A playing animation, with and without the slide running non-stop</td><td>3.3–3.4 frames/s both ways: no difference this machine can show</td><td>2560 × 1440, test crane</td></tr>
+</table></div>
+<p class="d">On a PC with a graphics card a window redraw usually takes a few ms. That is an <b>expectation, not a
+measurement</b>: at 60 Hz the slide would then show about 9 frames, and while it runs the top bar is drawn 9 extra
+times in 0.15 s. The build task adds a PC-check line that measures exactly this on your PC.</p>
+
+<h2>4 · Blender's logo</h2>
+<p class="warn">Not checked yet: blender.org cannot be reached from the test machine, so the Blender Foundation's logo
+rules were not read at their source. Until the lead checks them (blender.org/about/logo), the prototype uses
+<b>words and the Fr mark only</b>: "Blender" without the logo.</p>
+
+<h2>5 · Your pick</h2>
+<p><b>Look</b></p>
+<label><input type="radio" name="look" value="B" checked> B – two-part pill, the blue half slides <span class="star">★</span></label>
+<label><input type="radio" name="look" value="A"> A – plain button, text swaps at once</label>
+<label><input type="radio" name="look" value="C"> C – label slides</label>
+<label><input type="radio" name="look" value="D"> D – greyed blink ("fade")</label>
+<p><b>Slide time</b> (B, C, D)</p>
+<label><input type="radio" name="time" value="150" checked> 150 ms <span class="star">★</span></label>
+<label><input type="radio" name="time" value="100"> 100 ms (quicker)</label>
+<label><input type="radio" name="time" value="250"> 250 ms (easier to see)</label>
+<p><b>Blender's logo on the button</b></p>
+<label><input type="radio" name="logo" value="words" checked> Words and the Fr mark only <span class="star">★</span></label>
+<label><input type="radio" name="logo" value="logo"> Blender's logo next to "Blender", if its rules allow it</label>
+<p><b>Anything else</b></p>
+<input id="note" type="text" style="width:100%;font:inherit;padding:6px" placeholder="optional note">
+<div style="height:70px"></div>
+</main>
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+<script>
+function v(n){var e=document.querySelector('input[name="'+n+'"]:checked');return e?e.value:''}
+function upd(){var t='0297 pick: look '+v('look')+' · slide '+v('time')+' ms · logo '+v('logo');var n=document.getElementById('note').value.trim();if(n)t+=' · note: '+n;document.getElementById('line').textContent=t;return t}
+document.querySelectorAll('input').forEach(function(e){e.addEventListener('input',upd);e.addEventListener('change',upd)});upd();
+document.getElementById('copy').onclick=function(){var t=upd(),b=this;function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(a)}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb)}else fb()}catch(e){fb()}
+b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};
+</script></body></html>

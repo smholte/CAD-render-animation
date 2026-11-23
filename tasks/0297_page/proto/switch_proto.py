@@ -468,6 +468,12 @@ def _bar_steps():
     w = win()
     tag = str(w.width)
 
+    def wiggle():
+        for x in range(200, w.width - 10, 150):            # mouse over the top bar: Blender redraws it
+            w.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=w.height - 12)
+        w.event_simulate(type="MOUSEMOVE", value="NOTHING", x=w.width // 2, y=w.height // 2)
+        return 1.0
+
     def bar(name):
         def f():
             sc = bpy.context.preferences.system.ui_scale
@@ -484,7 +490,7 @@ def _bar_steps():
         with ov():
             bpy.ops.fresing.blender_all()
         return 1.5
-    return [look_b, bar(f"bar_{tag}_fresing.png"), switch, bar(f"bar_{tag}_blender.png"), switch]
+    return [look_b, wiggle, bar(f"bar_{tag}_fresing.png"), switch, wiggle, bar(f"bar_{tag}_blender.png"), switch]
 
 
 @step
