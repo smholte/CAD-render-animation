@@ -2832,7 +2832,7 @@ turning part, and the toolpath is drawn on the part and turns with it.
 relative to the part: a rotary table therefore turns the other way. When your post counts the other way, tick
 Reverse.
 
-<img src="img/view_rotary.png" alt="The 4-axis test mill: the bar turns between chuck and tailstock, a slot wrapped round it, the toolpath lying on the bar">
+<img src="img/view_rotary.png" alt="The 4-axis test mill: on its table the bar turns between chuck and tailstock, a slot wrapped round it, the toolpath lying on the bar">
 
 **What the program may use**: A, B, C on G0, G1, G2, G3 (on an arc the rotary axis turns evenly along the arc),
 G28 / G30, G53, G92 and G10 L2 / L20 with A, B, C, and G93 (inverse time: F = 1 / minutes for the whole line) and back
@@ -3082,7 +3082,7 @@ spindle's gauge line (the tool in the spindle's **Gauge length**, else its lengt
 
 **Double-arm**
 
-<img class="panel" src="img/panel_4_toolchange_arm.png" alt="Tool changes set to Double-arm: the arm made from its hub, grip angle 90°, stroke 76 mm, the magazine with 12 tipping pots, and Check saying everything fits">
+<img class="panel" src="img/panel_4_toolchange_arm.png" alt="Tool changes set to Double-arm: the arm made from its hub, grip angle 90°, stroke 95 mm, the magazine with 24 tipping pots, and Check saying everything fits">
 
 The tools stand in **pots** of a magazine beside the spindle; a swinging **arm** with a claw at each end swaps them.
 At each M6:
@@ -3104,7 +3104,7 @@ Set it up – the app makes every joint it needs:
 2. Press **Click the arm's hub** and click a round face of the arm's hub (if the arm is several parts, select its
    subassembly first). The app makes the arm's turn and its pull-out stroke (two joints, "Changer arm turn" and
    "Changer arm stroke") and reads the **Grip angle** from the arm's round claws. **Pull-out stroke** is set for the
-   spindle tool's holder (76 mm for BT30). **Rest angle** 0° means the arm rests as in the CAD model. **Read from
+   spindle tool's holder (76 mm for BT30, 95 mm for BT40). **Rest angle** 0° means the arm rests as in the CAD model. **Read from
    the model** reads both again; type a value when the arm should turn the other way.
 3. Pots that lie down and tip at the station: tick **Pots tip down**, press **Click the hinge** and click the hinge
    (its pin or bore) of the pot under the arm's second claw. The app puts a pot in every place round the magazine
@@ -3116,12 +3116,13 @@ Set it up – the app makes every joint it needs:
    (more than 0.1 mm off: change the grip angle or the change position), the station pot not under the second
    claw, a stroke too short for the holder's taper and pull stud.
 
-<img src="img/view_toolchange_arm.png" alt="The test mill: the arm at its half turn, holding the old tool and the new one under the spindle and the tipped pot">
+<img src="img/view_toolchange_arm.png" alt="The test mill: the arm at its half turn, holding the old tool and the new one between the spindle and the tipped pot of the 24-pot side magazine">
 
 **Times (as on the machine)** (a fold): **Grip** (turning onto the tools, and back), **Pull out** (and push in),
-**Half turn**, **Pot tips**, **Turn per pot**. At **ATC speed** 1 a BT30 tool-to-tool change takes about 1.6 s;
-**ATC speed** in the program step makes it faster or slower in the video. Every tool is held by the spindle, the
-arm or a pot at every frame: at each hand-over the two meet within 0.01 mm, so nothing jumps.
+**Half turn**, **Pot tips**, **Turn per pot**. At **ATC speed** 1 a change with the default times takes about 1.6 s
+(the test mill's longer BT40 arm is set to about 1.9 s); **ATC speed** in the program step makes it faster or slower
+in the video. Every tool is held by the spindle, the arm or a pot at every frame: at each hand-over the two meet
+within 0.01 mm, so nothing jumps.
 
 **Timing**: the step's length includes every change. With **Fit into** the changes may take at most half of the
 seconds: when they would take more they are all shortened by the same factor (each turn at least 0.2 s, the hand

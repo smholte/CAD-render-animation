@@ -47,7 +47,7 @@ M30
 %
 """
 THOR_HIDE = re.compile(r"(Screw|Nut)\d*$")     # Thor's fasteners: left out of the web model (size)
-ATC_SPEED = 1.25            # the changer a little quicker than its defaults: the loop is about 10 s
+ATC_SPEED = 1.25            # the changer a little quicker than its own times: the loop is about 10.5 s
 
 
 def _app():
@@ -124,8 +124,8 @@ def make_thor(work: str, log=print, cache: str = ""):
 
 MODELS = {
     "test_atc": {"make": make_test_atc, "order": 1,
-                 "caption": "An invented test mill: the double-arm changer swaps tools from its 12-pot magazine, "
-                            "four changes in a loop"},
+                 "caption": "An invented test mill: the double-arm changer swaps tools from its 24-pot side "
+                            "magazine, four changes in a loop"},
     "thor": {"make": make_thor, "order": 2,
              "caption": "The open-source Thor robot arm: six joints and its gripper at work, in a loop"},
 }
