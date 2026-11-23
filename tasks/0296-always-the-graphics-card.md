@@ -123,7 +123,7 @@ Install.bat and that Uninstall removes them (`Check-GpuPref`).
 - GitHub runs: run 1 (0.2.217, run 45265461041) all green except one test – the Client view's allow-list count and
   an operator name containing "_set" (renamed `fresing.gpu_windows_page`); both Windows install jobs green there
   (installer writes the preference, uninstall removes it, self-test OK). Then main took 0.2.217 (0282), 0.2.218 went to
-  0289: merged main, renumbered to 0.2.219, the two pop-ups named in 0282's `form_window.POPUPS`; run 2 (45270914159) green; main then brought 0289 (0.2.218, code): merged again, run 3.
+  0289: merged main, renumbered to 0.2.219, the two pop-ups named in 0282's `form_window.POPUPS`; run 2 (45270914159) green; main then brought 0289 (0.2.218, code): merged again, run 3 (45276014813) failed one test outside this task – `test_kit_window` found another test's `models/b.step` in a sibling temp folder (the kit looks in an older kit next to it); the test now keeps its kit in a folder of its own; run 4.
 
 **Open points / follow-up tasks:**
 - Whether Windows' preference moves an **OpenGL** window on an AMD desktop (iGPU + card) is not proven anywhere – only
