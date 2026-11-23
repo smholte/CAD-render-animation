@@ -1,6 +1,6 @@
 # 0315 – A stress test assembly of ~10,000 parts and a "Stress" run that measures where the app slows down or breaks
 
-**Who:** worker · **Status:** open – waits for 0296 (same PC-check files) · **Branch:** `task/0315-stress-model`
+**Who:** worker · **Status:** open – can start (0296 done, 0.2.217) · **Branch:** `task/0315-stress-model`
 **Started by:** lead, 23 Nov 2026 (owner 21:29: "Could we also add a larger test assembly? with 10k parts or so (not
 used normally but used for more stress tests)") · **Model:** Opus · effort High
 **Area:** new `tools/make_test_stress.py` (the maker; Test models lane, new file only), new

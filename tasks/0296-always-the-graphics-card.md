@@ -1,6 +1,6 @@
 # 0296 – Always the graphics card: NVIDIA, AMD or Intel Arc before built-in graphics; a calm notice with a guide when not
 
-**Who:** worker · **Status:** running · **Branch:** `task/0296-always-the-graphics-card`
+**Who:** worker · **Status:** done (0.2.217) · **Branch:** `task/0296-always-the-graphics-card`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: someone tested the app on a Windows 11 PC with an AMD
 graphics card and the app used the processor's built-in graphics; on a second PC of the owner's (Intel Core i7-12700,
 NVIDIA RTX A2000) and on his own (Ryzen 9 9900X, RTX 3090) it chose the card. "Fresing Render should rather always
@@ -61,23 +61,82 @@ port** makes Windows draw everything on the built-in graphics – the cable belo
 
 ## Done when
 
-- [ ] Pure-Python tests of the rules with made-up adapter lists: Intel built-in + NVIDIA, AMD built-in + AMD card, Intel
+- [x] Pure-Python tests of the rules with made-up adapter lists: Intel built-in + NVIDIA, AMD built-in + AMD card, Intel
       built-in + Intel Arc, AMD APU only, a laptop with Optimus, no GPU at all, a GPU change between starts
-- [ ] The Windows code reviewed by an independent helper that did not write it (CLAUDE.md 6); installer files plain
+- [x] The Windows code reviewed by an independent helper that did not write it (CLAUDE.md 6); installer files plain
       ASCII; GitHub's Windows install green (no GPU there: the notice never shows, the lines say "skipped")
-- [ ] Guide section "Graphics card", function entry, PC check line `pc.gpu`, self-test line; report; merged, version,
+- [x] Guide section "Graphics card", function entry, PC check line `pc.gpu`, self-test line; report; merged, version,
       release
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker, Claude Code on the web, 23 Nov 2026. Released as 0.2.217.
 
 **What changed:**
+- **Measured first:** Blender 5.2.3's `blender.exe` (Windows zip, read on Linux with `pefile`) exports
+  `NvOptimusEnablement = 1` (GHOST, since 2013) but **no** `AmdPowerXpressRequestHighPerformance` – the AMD driver is
+  never asked for the card, which fits the tester's AMD PC (NVIDIA PCs chose the card). `Fresing Render.exe` is a
+  byte copy, so it has the same export. Blender 5.2 draws with OpenGL by default (Vulkan only from 5.3, from source).
+- **Cycles (`render.setup_gpu`)** now reads every backend's devices once per start and follows
+  `core/gpu_choice.render_plan`: only graphics cards when there is one (HIP lists a Ryzen's built-in Radeon next to
+  the card and Cycles ticks both – checked in Cycles' source), else what there is (as before). The text says what was
+  left out: "GPU (HIP): AMD Radeon RX 6700 XT (built-in AMD Radeon Graphics left out)".
+- **The window:** `HKCU\Software\Microsoft\DirectX\UserGpuPreferences`, value = the program's full path,
+  `GpuPreference=2;` for `blender.exe` and `Fresing Render.exe` – written by the installer (step 4b), Update now
+  (`update_helper.set_gpu_preference`, only an Install.bat folder) and the app's start (`wingpu.ensure`, once per
+  program); removed by the uninstaller (values under the install folder). Only where the user has not chosen; other
+  keys in the value (`SwapEffectUpgradeEnable=1;`) kept. **Not documented by Microsoft**: the format is from
+  Microsoft's own tools on GitHub (HOBL, Accera) and 3D Slicer's installer (OpenGL, tested there on an NVIDIA laptop).
+  No primary source says AMD's OpenGL driver on a desktop with Ryzen iGPU + Radeon honours it – hence the notice and
+  the guide's monitor-cable step.
+- `wingpu.py` (new): DXGI adapters through ctypes (name, vendor, own memory, software flag, monitors plugged in,
+  Windows' high-performance order). `core/gpu_choice.py` (new, no Blender): card / built-in / software from the names
+  (Intel Arc A/B vs. Core Ultra's "Arc Graphics", Radeon RX/Pro vs. "Radeon(TM) Graphics", 780M, Vega 11 …), memory as
+  fallback; the window state; the preference text; the notice's rules; the steps of Show me how.
+- `blender/gpu_choice.py` (new): the start check (timer, persistent), the record in `<config>/fresing_gpu.json` (the
+  background self-test / PC check read what the last start saw), the notice (Use the graphics card · Show me how ·
+  Cancel = not now · Don't ask again; once per start; never with the welcome / What's new, in the background, tests
+  or the PC check; asks again when the set of GPUs changes), a slow-view sampler (3 frames in a row over 2 s),
+  Settings > General > **Graphics** (draws / renders / Windows' preference / **Render on** list / Look for devices).
+- Self-test line "Graphics card used", PC check line `pc.gpu` (Quick + Full), the report's header names "renders on"
+  and "window drawn by". Guide section "Graphics card" (Troubleshooting), function `settings.graphics`.
+- **Item 6, Live preview black after sleep:** not fixed in code. Blender's tracker has only near cases (T65207, #58774:
+  "only a restart helps", left as driver issues); in 5.2's Cycles source the viewport session is made new only when
+  the view leaves Rendered shading – which the owner already tried without help. No safe restart-free fix found; the
+  guide's line under Render problems (restart) stays. No Windows machine with a GPU here to try more.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no GPU): `tests/test_gpu_choice.py` (59: the seven PCs of the brief –
+Intel + NVIDIA, AMD + AMD card, Intel + Arc, AMD APU only, Optimus laptop, no GPU, a GPU change –, names, the
+preference text, the state file), `tests/test_gpu_choice_blender.py` (12: a made-up Cycles on the tester's PC – only
+the card ticked –, the device picked in Settings, the Settings line, the check line, a made-up registry, Update now,
+once-per-program). Real app `settings` 52/52 (the start check ran: "drawn by llvmpipe (software)"). PC check lines
+`app.start` + `pc.gpu` in bpy: skipped "no graphics card" as expected. GitHub: Windows install checks the values after
+Install.bat and that Uninstall removes them (`Check-GpuPref`).
+- **Subagents:** a research agent (sources for the registry value, the exports, Blender's backend and Cycles' HIP /
+  oneAPI device lists, sleep bug reports – only GitHub was reachable, vendor pages from search snippets); an
+  **independent reviewer** of the Windows code (no crash path found; four behaviour points fixed: a later "Let Windows
+  decide" now kept, Update now only for the app's own install, one bad adapter no longer empties the list, the start
+  check survives an early project load). Not fixed (Windows never writes such text): PowerShell and Python differ on
+  malformed values (duplicate keys, lower case).
+- GitHub runs: see below.
 
 **Open points / follow-up tasks:**
+- Whether Windows' preference moves an **OpenGL** window on an AMD desktop (iGPU + card) is not proven anywhere – only
+  the tester's PC can say. If it does not: the monitor cable, or switching off the iGPU in the BIOS, or adding the AMD
+  export to `Fresing Render.exe` (a PE export-table edit in `winexe.py`; AMD documents it for switchable laptops only).
+- A re-install (Install.bat) sets High performance again even if the user chose "Let Windows decide" afterwards.
+- No tour stop (the notice is suppressed in tests; Settings' stop shows the page).
 
 **Owner's check on your PC (and the tester's):**
+1. Update now (or Install.bat) to 0.2.217, start Fresing Render.
+2. Tester's PC (Ryzen 7700X + RX 6700 XT): close and start the app **once more** (Windows' setting counts from the
+   next start). Expected: no notice. If the notice "running on your processor's built-in graphics" shows: press
+   **Use the graphics card**, start again; still there: **Show me how** – first check the monitor cable is in the
+   graphics card (the lower ports on the back), not the motherboard.
+3. **Fresing > Settings > General > Graphics:** "Draws the window: AMD Radeon RX 6700 XT (graphics card)". Press
+   **Look for devices**: "Renders (Cycles): graphics card (HIP): AMD Radeon RX 6700 XT (built-in … left out)".
+4. Help > PC check (Quick): the line "Graphics card used" is OK; the report's top says "renders on …" and "window
+   drawn by …". Send the text block.
+5. Your RTX 3090 PC: the same lines should name the RTX 3090 (OptiX); no notice.
