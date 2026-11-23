@@ -1,6 +1,6 @@
 # 0279 – The Fr mark replaces Blender's logo at the left of the top bar, with its own menu
 
-**Who:** worker · **Status:** open – waits for 0271 (it changes `ui_topbar.py`, the Fresing menu gets Settings…) ·
+**Who:** worker · **Status:** done (0.2.209) ·
 **Branch:** `task/0279-fr-logo-menu`
 **Started by:** lead, 21 Nov 2026 (owner 20:49, screenshot of the main window: "under the Fr logo there is a blender
 logo" – the window's title bar shows the Fr app icon, the top bar's first item is still Blender's logo menu; owner's
@@ -48,7 +48,7 @@ user this reads as "this is Blender", not as Fresing Render.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 22 Nov 2026 – 0.2.206
+**Chat / date:** Claude Code on the web, 22–23 Nov 2026 – 0.2.209
 
 **What changed:** `ui_topbar.py` swaps only Blender's own entry in `TOPBAR_MT_editor_menus`' draw list for one that runs
 Blender's draw through a layout whose `TOPBAR_MT_blender` line becomes the Fr mark's menu (`TOPBAR_MT_fresing_mark`,
@@ -63,7 +63,7 @@ Blender's draw back and redraws the top bar. Guide section "The Fr mark in the t
 picture and its green seen in screenshots (19 px) in the quiet window, Full access and the Client view; its menu drawn;
 turned off → Blender's logo (0 green px), on again → the mark. PC-check line OK (bpy module). No new guide picture.
 
-**Runs on GitHub:** 2 – the first red only on group 9's skip count (two by-design skips in one group), the second after
+**Runs on GitHub:** 5 – two red (two by-design skips in one pytest group; the first PC-check half past 15 min twice, queue.video moved to the second half), the rest version clashes (0.2.206–0.2.208 taken meanwhile).
 the group fix.
 
 **Open points / follow-up tasks:** a screenshot of the open menu was not caught by the test (its drawing was).
