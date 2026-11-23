@@ -1310,7 +1310,7 @@ def _check_chips(scene):
     return f"{n} chips"
 
 
-@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.199")
+@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.211")
 def build_cylinder(b: Build):
     from mathutils import Vector
 
@@ -1564,7 +1564,7 @@ def hoses_motion(a) -> None:
     _joint_step(a, "Slide", 2.5, 1.5, -0.30, slide=True, label="Slide back 660 mm")
 
 
-@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78", changed="0.2.199")
+@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78", changed="0.2.211")
 def build_hoses(b: Build):
     from . import flex
     sc = b.scene
@@ -1866,7 +1866,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.182")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.211")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -3925,7 +3925,7 @@ def mesh_ring_click(scene):
     return ob, o, d, desc
 
 
-@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.199")
+@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.211")
 def build_mesh(b: Build):
     """The invented mesh crane (a glTF file: no CAD faces) imported; its 48-sided slewing ring clicked for a joint
     that turns the turret, as a user does it."""
@@ -4453,7 +4453,7 @@ stop("explode", MOTION, HUB_SET, "Exploded view",
 stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
      "The rod comes out of the cylinder 450 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
-     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.101")
+     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.211")
 stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
@@ -4471,7 +4471,7 @@ stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
 stop("hoses", MOTION, "hoses", "Hoses and a cable follow the arm",
      "The arm goes up and down and the slide travels: the three hydraulic hoses and the hanging cable bend along, "
      "their ends stay on the fittings and none gets longer or shorter.", where="4 Motion > Hoses and drag chains",
-     animation=HOSES_ANIM, play=True, since="0.2.78", check=_check_hoses, auto="clip")
+     animation=HOSES_ANIM, play=True, since="0.2.78", changed="0.2.211", check=_check_hoses, auto="clip")
 stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "A short G-code program moves X, Y and Z: each axis' drag chain rolls over its bend, link by link, and its "
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
@@ -4486,7 +4486,7 @@ stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
      "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
      "fittings, and keeps its length.", where="4 Motion > Hoses and drag chains > Draw hose", animation=DRAWN_ANIM,
-     play=True, since="0.2.180", check=check_drawn_hose, auto="clip")
+     play=True, since="0.2.180", changed="0.2.211", check=check_drawn_hose, auto="clip")
 stop("drawn_chain", MOTION, "flex_drawn", "A drawn drag chain",
      "Left: the gantry's X chain was drawn with two clicks on its brackets; the app draws its links. X travels out "
      "and back: the chain rolls over its bend, link by link, and its moving end stays on its bracket.",
@@ -4507,7 +4507,7 @@ stop("flex_kinds", MOTION, "flex_drawn", "Hose and cable kinds and sizes",
      "a steel-braided hose (a woven steel look), a blue pneumatic tube, a black spiral sleeve over a hose, a grey "
      "machine cable and a black power cable. The drawn rope on the right is a galvanised 16 mm wire rope (duller than bright steel).",
      where="4 Motion > Hoses and drag chains > Kind · Colour · Size", shot="Tour: drawn hose, chain and cable",
-     since="0.2.182", check=check_flex_kinds)
+     since="0.2.182", changed="0.2.211", check=check_flex_kinds)
 stop("chain_types", MOTION, "flex_drawn", "Drag chain types",
      "The drawn chain on the gantry is a closed chain now: lids top and bottom, a closed tube. Its Type can be "
      "open, closed, half-open (a lid on the outside of the bend) or steel; each rolls with X as before.",
@@ -4577,7 +4577,7 @@ stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "texture, the other parts the file's colours. The 48-sided slewing ring was clicked like a round CAD face: the "
      "joint 'Slew' turns the turret (cab, boom) 120° about the ring's centre, without wobble. 1 Import shows the "
      "file and its credit line.", where="File > Import > Mesh model (glTF, OBJ, FBX); 1 Import; 4 Motion > Add "
-     "joint", since="0.2.99", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
+     "joint", since="0.2.99", changed="0.2.211", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
 
 stop("lifting_place", MOTION, "lifting", "Lifting: a crane placed",
      "On a quayside yard – an IBC on its pallet, a pump skid and a 20 ft container – stands the built-in AT-40 sample "
