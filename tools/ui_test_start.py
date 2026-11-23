@@ -323,14 +323,17 @@ def s_about_open():
         files.open_path = real
     with override():
         bpy.ops.fresing.about("INVOKE_DEFAULT")
-    return 0.8
+    return 2.0
 
 
 @step
 def s_about_shot():
     shot("06b_about", crop=None)
-    key("RET")                                   # Close
-    return 0.5
+    fw = mod("blender.form_window")
+    wins = fw.windows("fresing.about")
+    check("About opens in a window of its own (task 0282)", len(wins) == 1, str(len(wins)))
+    fw.close("fresing.about")                    # Close
+    return 1.0
 
 
 @step

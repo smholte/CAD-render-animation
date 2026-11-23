@@ -1,6 +1,6 @@
 # 0313 – Study + prototype (findings only): a camera operator – ready-made camera moves with a few options each, paths to edit, quick to use
 
-**Who:** worker · **Status:** running · **Branch:** `task/0313-study-camera-operator` (branch only, never
+**Who:** worker · **Status:** done 23 Nov – findings only (report + page on the branch) · **Branch:** `task/0313-study-camera-operator` (branch only, never
 merged; every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "a camera operator, a few preset camera movements, each having a few
 options to adjust and paths to be edited … keep it easy to use and fast." Example: https://superhivemarket.com/products/cinemaoperator)

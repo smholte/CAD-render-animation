@@ -40,8 +40,9 @@ class FRESING_OT_backups_window(bpy.types.Operator):
         return doc
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=640, title="Restore a backup",
-                                                          confirm_text="Close")
+        from . import form_window
+        return form_window.open(self, context, width=660, height=480, title="Restore a backup", confirm=None,
+                                icon="FILE_BACKUP")
 
     def draw(self, context):
         col = self.layout.column()

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.217 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
+## 0.2.218 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
 
 - **A STEP or mesh file dropped on the view now comes in exactly like Import STEP…**: the side panel opens on
   1 Import (also when it was hidden or another section's tab was chosen), the Detail and Up axis you chose there are
@@ -19,6 +19,20 @@ installer of that version was built from.
   have; joints, cylinders, poses, saved scenes and labels keep working, a built animation is taken off (Build again
   gives the same motion, turned). One Ctrl+Z undoes it; a model update keeps the axis.
 - New PC-check lines `import.drop`, `import.again`, `import.up_axis` and a test-tour stop "Import again and Up axis".
+## 0.2.217 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
+
+- **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,
+  Save scene, the rule-set Copy / New / Rename, Make demo project, the PC check's choices, Learn…, My learning list,
+  Restore a backup, About and others (the user guide has the list). The window **stays open** while you click in the
+  main window, can be **dragged onto another screen**, and opens again **as big as you left it** (on Windows also
+  **where** you left it). Two different windows can be open at once; pressing the button again brings its window to
+  the front with what you typed.
+- Its button at the bottom (**Make**, **Save**, **Start** …) works with the project **as it is when you press it**;
+  when it cannot (no name, no model, a job running), the window stays and says why in red. **Cancel**, the **X** or
+  **Esc** over the window close it; **Return** there is its button. Undo works as before.
+- Short yes / no questions ("Remove this?", "Switch rule set?") stay small popups. The Client view refuses the same
+  functions as before. Window sizes and places are kept in the app's settings file.
+
 ## 0.2.216 – 23 Nov 2026 – Moving parts with G / R: it moves, or it says why not (task 0307)
 
 - **Why G / R did nothing:** after an import every subassembly is *Locked in place*. G / R showed their numbers, and on

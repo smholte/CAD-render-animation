@@ -82,7 +82,9 @@ def open_settings(op, context, tab: str = "") -> set:
         op.report({"WARNING"}, "The 3D view fills the whole window: go back to the normal layout first "
                                "(Ctrl+Space), then open Fresing Settings again")
         return {"CANCELLED"}
-    ops_setup.open_window(win, area, mark=SETTINGS_MARK, value=KEY, done=_opened, size=SIZE)
+    from . import ops_make
+    size = ops_make.kept_size(KEY) or SIZE            # task 0282: the size it had last time
+    ops_setup.open_window(win, area, mark=SETTINGS_MARK, value=KEY, done=_opened, size=size)
     return {"FINISHED"}
 
 
@@ -133,7 +135,8 @@ def _settle(win, tries: int):
 
 
 def shows_only_the_page(win) -> tuple:
-    """(ok, what else shows) – the owner's rule of 21 Nov: no tabs, no view, no headers, only the page. The page is in
+    """(ok, what else shows) – the owner's rule of 21 Nov (Settings; task 0282: every function window too): no tabs,
+    no view, no headers, only the page. The page is in
     the toolbar region (no tab strip there), which fills the window; the side panel, header, tool header, overlays and
     gizmos are off; no other panel of the toolbar region shows in this window."""
     area = settings_area(win)
@@ -153,7 +156,7 @@ def shows_only_the_page(win) -> tuple:
         for cls in bpy.types.Panel.__subclasses__():
             if getattr(cls, "bl_space_type", "") != "VIEW_3D" or getattr(cls, "bl_region_type", "") != "TOOLS":
                 continue
-            if getattr(cls, "bl_parent_id", "") or cls.__name__ == "FRESING_PT_settings_window":
+            if getattr(cls, "bl_parent_id", "") or cls.__name__ in PAGES:
                 continue
             if not getattr(cls, "is_registered", False):
                 continue
@@ -168,17 +171,16 @@ def shows_only_the_page(win) -> tuple:
     return not other, ", ".join(other)
 
 
+PAGES = ("FRESING_PT_settings_window", "FRESING_PT_form_window")     # the pages of the page windows (0271, 0282)
+
 # Blender's own panel of the 3D view's toolbar region (its tool buttons): hidden in the Settings window only
 QUIET_PANELS = ("VIEW3D_PT_tools_active",)
 _QUIET: dict = {}                 # class name -> (class, its own poll or None)
 
 
 def _in_settings(context) -> bool:
-    win = getattr(context, "window", None)
-    try:
-        return bool(win is not None and win.screen.get(SETTINGS_MARK))
-    except (AttributeError, ReferenceError):
-        return False
+    """In Fresing Settings or a function window (task 0282): only the page shows there."""
+    return ops_setup.is_page_window(getattr(context, "window", None))
 
 
 def _hiding_poll(own):

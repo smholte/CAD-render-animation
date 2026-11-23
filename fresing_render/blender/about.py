@@ -110,8 +110,9 @@ class FRESING_OT_about(bpy.types.Operator):
     bl_options = {"INTERNAL"}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=520, title="About Fresing Render",
-                                                          confirm_text="Close")
+        from . import form_window
+        return form_window.open(self, context, width=540, height=520, title="About Fresing Render", confirm=None,
+                                icon="INFO")
 
     def execute(self, context):
         return {"FINISHED"}

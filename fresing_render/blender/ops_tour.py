@@ -73,7 +73,9 @@ class FRESING_OT_tour_make(bpy.types.Operator):
             self.report({"WARNING"}, "The Learning hub is being made: wait for it")
             return {"CANCELLED"}
         self.folder = self.folder or tour.default_folder()
-        return context.window_manager.invoke_props_dialog(self, width=460, confirm_text="Make it")
+        from . import form_window
+        return form_window.open(self, context, width=480, height=260, title="Make the Learning hub",
+                                confirm="Make it", icon="HELP")
 
     def draw(self, context):
         col = self.layout.column()
@@ -405,7 +407,9 @@ class FRESING_OT_tour_note(bpy.types.Operator):
     def invoke(self, context, event):
         folder, version = tour.tour_of_file(context.scene)
         self.note = tour.load_results(folder, version)["stops"].get(self.stop, {}).get("note", "") if folder else ""
-        return context.window_manager.invoke_props_dialog(self, width=500, confirm_text="Save note")
+        from . import form_window
+        return form_window.open(self, context, width=520, height=170, title="Note for this stop",
+                                confirm="Save note", icon="TEXT")
 
     def draw(self, context):
         st = tour.find(self.stop)

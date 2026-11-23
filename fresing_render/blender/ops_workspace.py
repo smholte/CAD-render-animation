@@ -191,8 +191,9 @@ class FRESING_OT_workspace_save(bpy.types.Operator):
     def invoke(self, context, event):
         cur = workspaces.name_of(context.scene)
         self.name = cur if workspaces.is_own(cur) else ""
-        return context.window_manager.invoke_props_dialog(self, width=420, title="Save as my own workspace",
-                                                          confirm_text="Save")
+        from . import form_window
+        return form_window.open(self, context, width=440, height=280, title="Save as my own workspace",
+                                confirm="Save", icon="WORKSPACE")
 
     def draw(self, context):
         layout = self.layout
@@ -238,8 +239,9 @@ class FRESING_OT_workspace_rename(bpy.types.Operator):
 
     def invoke(self, context, event):
         self.name = workspaces.name_of(context.scene)
-        return context.window_manager.invoke_props_dialog(self, width=380, title="Rename my workspace",
-                                                          confirm_text="Rename")
+        from . import form_window
+        return form_window.open(self, context, width=400, height=150, title="Rename my workspace",
+                                confirm="Rename", icon="GREASEPENCIL")
 
     def execute(self, context):
         old = workspaces.name_of(context.scene)

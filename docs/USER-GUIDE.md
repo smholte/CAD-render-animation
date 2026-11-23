@@ -377,6 +377,44 @@ again and they are kept as before. Where the file is, and how IT can give the sa
 **Edit > Preferences > Add-ons > Fresing Render** now only says where the settings are and has a button **Open
 Fresing Settings**. Your settings from before stay as they were.
 
+<a id="function-windows"></a>
+### Function windows: forms that stay open
+
+A function that asks you for a few things first – **Make a crane…**, **Save as my own workspace…**, **Save pose…**,
+**Save scene…**, **Copy… / New, empty…** rule set, **Make demo project…**, **Learn…**, **My learning list…**,
+**Restore a backup…**, **About**, the **PC check**'s choices and the others in the table below – opens them in a
+**window of its own**, like [Fresing Settings](#settings):
+
+- It **stays open** while you click in the main window: select a part, turn the view, look something up – your
+  values stay in it.
+- **Drag it anywhere**, also onto a second screen. Next time it opens **as big as you left it** (on Windows also
+  **where** you left it).
+- Its button at the bottom (**Make**, **Save**, **Start** …) does what it is for **with what is in the project at that
+  moment** – the part selected then, the model as it is then – and the window closes. When it cannot (no name typed, no
+  model, a job still running, the Client view), the window stays open and says why in red.
+- **Cancel**, the **X** or **Esc** with the mouse over the window closes it; **Return** there is its button.
+- Press the function's button again while its window is open: the window comes to the front, with what you typed.
+  Two different function windows can be open at once.
+- Opening another project closes them (their values belonged to the project before).
+
+<img class="panel" src="img/form_workspace_save.png" alt="The window Save as my own workspace: Name, Note, where it goes, Cancel and Save">
+
+A short question that needs one click – "Remove this?", "Switch to rule set …?", "Clear my usage data?", the question
+about a newer backup when a project opens – stays a small popup that closes when you click elsewhere.
+
+| Opens in a window | Where |
+| --- | --- |
+| Make a crane… · Box… | 8 Lifting plan > Equipment · 8 Lifting plan > Load |
+| Save pose (+) · Save visibility set (+) · Save scene (+) | 4 Motion > Poses & exploded views · 2 Structure > Visibility sets · the saved scenes' list |
+| New group (+) · Save paint scheme (+) | 3 Looks |
+| Copy… (Save as new rule set) · New, empty… · Rename | 3 Looks > Rule set |
+| Details (of a program) · Go to line … | 4 Motion > CNC machine |
+| Save as my own workspace… · Rename my workspace | Workspace (left panel) |
+| Export profile | Fresing > Settings… > My usage |
+| Make the Learning hub… · Note… | Fresing menu · a stop of the Learning hub |
+| Learn… · My learning list… · Restore a backup… · About Fresing Render | Fresing menu |
+| Make demo project… · Fresing Render PC check… | Help menu |
+
 <a id="locations"></a>
 ### Locations: the folders the app reads from
 
@@ -394,7 +432,7 @@ Every list in the app – logos and stickers, rule sets, templates, 360° photos
 equipment – shows the items of **all** these folders together, sorted by name, each with its badge
 (**Acme · Company**, **Acme · Mine**). The same name in two folders shows twice: nothing hides anything.
 **Saving** something new (a rule set, a workspace, a crane) goes into the first folder you can write to, your own
-first; when you can write into more than one, the dialog asks **Save in**.
+first; when you can write into more than one, the window asks **Save in**.
 
 **Fresing Settings > Locations** shows, from the top:
 
@@ -749,7 +787,7 @@ usage.
 <a id="learning-list"></a>
 ### My learning list
 
-**Fresing > My learning list…** opens the list.
+**Fresing > My learning list…** opens the list in a [window of its own](#function-windows).
 
 <img class="panel" src="img/learning_list.png" alt="My learning list: each function with Guide, Tour, Show me and Build, Done and a cross">
  Each line has the function's name and **Guide** (its section in this
@@ -5003,7 +5041,8 @@ numbers, and lands in your library like any other item.
 
 1. In **8 Lifting plan > Equipment** click **Make a crane…** (under the library list).
 2. **Type**: mobile telescopic crane, crawler crane or knuckle-boom crane. **Start from**: the built-in class nearest
-   your crane – its numbers fill the dialog.
+   your crane – its numbers fill the window (a [window of its own](#function-windows): it stays open while you look
+   at the model).
 3. Change only the numbers you care about, in the folds: **Crane** (rated capacity or lifting moment, the charts'
    wind speed), **Boom** (sections, retracted and fully out lengths, section sizes, boom angles; a crawler's chart
    boom lengths typed as a list like `24, 30, 36`, and an optional luffing jib), **Carrier** / **Tracks** /
@@ -5018,7 +5057,7 @@ numbers, and lands in your library like any other item.
    steps that do not rise, an odd number of falls, tracks too short for the upper's tail, axles that do not fit
    between the outrigger boxes, no luffing cylinder that fits the angle range, no configuration that stays stable.
 5. Give it a **Name** (a name already in your library is refused unless you tick **Replace**) and click **Make**.
-   The dialog closes; the crane is drawn in the background (a few seconds: about 2 s for a mobile crane, 3 s for a
+   The window closes; the crane is drawn in the background (a few seconds: about 2 s for a mobile crane, 3 s for a
    crawler on a 4-core PC). Equipment shows the progress with **Cancel** – Cancel writes nothing. You can keep working.
 6. When it is ready, a small window offers **Place … now…** (the usual placing with the mouse) and **Enter the chart
    of your real crane…**; the same two buttons stay under Equipment. The new crane is in the list under **Your own

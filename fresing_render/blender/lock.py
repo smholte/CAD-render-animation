@@ -82,7 +82,9 @@ ALLOWED = {
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_",
-                    "fresing.settings", "fresing.presence")     # task 0271: Fresing Settings, the presence mark
+                    "fresing.settings", "fresing.presence",     # task 0271: Fresing Settings, the presence mark
+                    "fresing.form_")                            # task 0282: a function window's OK / Close (OK runs
+#                                                                 the function's own poll: refused stays refused)
 
 
 def scene_locked(context) -> bool:

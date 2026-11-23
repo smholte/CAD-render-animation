@@ -104,6 +104,14 @@ def screenshot(name):
         pass
 
 
+S0 = {}
+def _fs():
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import form_shots
+    return form_shots
+
+
 STEPS = []
 
 
@@ -127,16 +135,19 @@ def s_dialog():
     check("Make list: the app's own demo first, no kit yet", items == [ops_demo.PUBLIC_ID], str(items))
     with override():
         r = bpy.ops.fresing.demo_make("INVOKE_DEFAULT", folder=DEMO)
-    check("Make demo project… opens its window", r == {"RUNNING_MODAL"}, str(r))
-    return 1.0
+    check("Make demo project… opens its window", r in ({"FINISHED"}, {"RUNNING_MODAL"}), str(r))   # task 0282
+    return 1.5
 
 
 @step
 def s_dialog_shot():
+    if not _fs().ready_one(mod("blender.form_window").windows("fresing.demo_make")) \
+            and time.time() - S0.setdefault("t", time.time()) < 15:
+        return "wait"                                            # task 0282: the window opens a moment later
+    S0.clear()
     screenshot("make_window_app_demo.png")
-    win, _area, region = view()
-    win.event_simulate(type="ESC", value="PRESS", x=region.x + 300, y=region.y + 300)
-    win.event_simulate(type="ESC", value="RELEASE", x=region.x + 300, y=region.y + 300)
+    check("… in a window of its own (task 0282)", mod("blender.form_window").is_open("fresing.demo_make"))
+    mod("blender.form_window").close("fresing.demo_make")        # task 0282: a window now, not a dialog
     return 0.8
 
 
@@ -154,15 +165,18 @@ def s_add():
           items == [(ops_demo.PUBLIC_ID, "Vessel in a wind park"), ("test-kit", "Test kit box (kit 1)")], str(items))
     with override():
         r = bpy.ops.fresing.demo_make("INVOKE_DEFAULT", folder=DEMO, which="test-kit")
-    return 1.0
+    return 1.5
 
 
 @step
 def s_kit_shot():
+    if not _fs().ready_one(mod("blender.form_window").windows("fresing.demo_make")) \
+            and time.time() - S0.setdefault("t", time.time()) < 15:
+        return "wait"                                            # task 0282: the window opens a moment later
+    S0.clear()
     screenshot("make_window_kit.png")
-    win, _area, region = view()
-    win.event_simulate(type="ESC", value="PRESS", x=region.x + 300, y=region.y + 300)
-    win.event_simulate(type="ESC", value="RELEASE", x=region.x + 300, y=region.y + 300)
+    check("… in a window of its own (task 0282)", mod("blender.form_window").is_open("fresing.demo_make"))
+    mod("blender.form_window").close("fresing.demo_make")        # task 0282: a window now, not a dialog
     return 0.8
 
 

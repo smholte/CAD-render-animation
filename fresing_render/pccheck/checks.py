@@ -244,7 +244,7 @@ def _copy_crane(ctx, name: str) -> str:
     return path
 
 
-@line("import.drop", "A dropped STEP file comes in as with Import STEP…", "0.2.217",
+@line("import.drop", "A dropped STEP file comes in as with Import STEP…", "0.2.218",
       what="A file dropped on the view: 1 Import opens, the panel's Detail and Up axis are used, the same message")
 def import_drop(ctx):
     import bpy
@@ -271,7 +271,7 @@ def import_drop(ctx):
     return "1 Import open, Draft, Y up"
 
 
-@line("import.again", "Imported models: Import again, Remove from cache", "0.2.217",
+@line("import.again", "Imported models: Import again, Remove from cache", "0.2.218",
       what="A model in the import cache imported again without reading the file, then removed from the cache")
 def import_again(ctx):
     import bpy
@@ -294,7 +294,7 @@ def import_again(ctx):
     return f"{import_cache.size_text(e.size)} stored, again in {time.time() - t0:.1f} s"
 
 
-@line("import.up_axis", "Up axis changed after the import", "0.2.217",
+@line("import.up_axis", "Up axis changed after the import", "0.2.218",
       what="The crane turned to Y up and back after its import: a joint and a built animation give the same motion")
 def import_up_axis(ctx):
     import bpy
@@ -5199,6 +5199,40 @@ def app_settings(ctx):
     _check(s["stages"].get("render", 0.0) == 0.0, f"10 min away counted {s['stages'].get('render')} s")
     _check(usage._on_change.__code__.co_names.count("activity") == 0, "a change of the project still counts as you")
     return f"{len(drawn)} tabs draw; 10 min of playback with no input: 0 s counted"
+
+
+@line("app.windows", "Function windows: Make a crane and the other forms in a window of their own", "0.2.217",
+      what="Every function that opens a form (Make a crane, Save as my own workspace, Restore a backup, the PC check, "
+           "Learn … 23 of them) has its values as the window's own, draws its form there, and its Make runs the "
+           "function with those values – a refused one says why and the window stays; window sizes and places are "
+           "kept in the settings file")
+def app_windows(ctx):
+    import bpy
+
+    from ..blender import form_window as fw
+    from ..blender import ops_make, ui_settings
+    bad = []
+    for idname in fw.WINDOWS:
+        cls = fw.op_class(idname)
+        if cls is None:
+            bad.append(f"{idname} missing")
+            continue
+        fw.make_group(cls)
+        fw._FORMS.setdefault(idname, {"cls": cls, "title": "", "confirm": "OK", "icon": "WINDOW",
+                                      "extra": {"_told": []}, "error": ""})
+        try:
+            if not fw.draw_form(ui_settings._Any(), bpy.context, idname):
+                bad.append(f"{idname} has no values")
+        except Exception as exc:  # noqa: BLE001 - the line names every form that does not draw
+            bad.append(f"{idname}: {exc}"[:120])
+    _check(not bad, "these windows do not draw: " + "; ".join(bad))
+    fw.data("fresing.gcode_go_line").line = 7
+    res, why = fw.run("fresing.gcode_go_line")                 # no CNC machine here: refused, with a reason
+    _check(res == {"CANCELLED"} and bool(why), f"a refused Make gave {res} '{why}'")
+    places, sizes = ops_make.parse(ops_make.dump({"settings": [1, 2, 300, 400]}, {"form:fresing.pose_save": [340, 150]}))
+    _check(places == {"settings": [1, 2, 300, 400]} and sizes == {"form:fresing.pose_save": [340, 150]},
+           "window sizes and places are not read back as written")
+    return f"{len(fw.WINDOWS)} function windows draw their forms; a refused Make says why"
 
 
 @line("settings.kept", "Settings kept over a restart: the app's own settings file", "0.2.206",

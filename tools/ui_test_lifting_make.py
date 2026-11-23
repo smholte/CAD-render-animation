@@ -13,12 +13,16 @@ Screenshots and ui_test_lifting_make.log go to $UITEST_OUT (default ~/fresing_ui
 
 import importlib
 import os
+import sys
 import subprocess
 import tempfile
 import time
 import traceback
 
 import bpy
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import form_shots  # noqa: E402
 
 OUT = os.environ.get("UITEST_OUT", os.path.join(os.path.expanduser("~"), "fresing_ui_test_lifting_make"))
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tests", "data")
@@ -126,6 +130,10 @@ def dialog_shot(name, mouse, size=(506, 678)):
     return out
 
 
+def fw():
+    return mod("blender.form_window")
+
+
 def made_items():
     lib = os.path.join(LIB_ROOT, "Lifting equipment")
     return sorted(os.listdir(lib)) if os.path.isdir(lib) else []
@@ -181,8 +189,16 @@ def s_open_dialog():
     m.name = "My AT-40 with 3 sections"
     m.replace = False
     res = invoke("fresing.lifting_make")
-    check("Make a crane… opens a dialog", res in ({"RUNNING_MODAL"}, {"INTERFACE"}), str(res))
-    return 1.5
+    check("Make a crane… opens its window (task 0282)", res == {"FINISHED"}, str(res))
+    S["t_win"] = time.time()
+    return 0.5
+
+
+@step
+def s_window_ready():
+    if not form_shots.ready_one(fw().windows("fresing.lifting_make")) and time.time() - S["t_win"] < 15:
+        return "wait"
+    return 1.0
 
 
 @step
@@ -190,13 +206,33 @@ def s_dialog_drawn():
     m = mod("blender.ui_lifting_make").settings(bpy.context)
     probs = mod("blender.ui_lifting_make").problems_of(m)
     check("the dialog's line says Fits for 3 sections and 26 m", probs == [], str([p.rule for p in probs]))
-    out = dialog_shot("make_dialog", S["centre"])
+    wins = fw().windows("fresing.lifting_make")
+    check("… a window of its own (task 0282)", len(wins) == 1, str(len(wins)))
+    full = os.path.join(OUT, "_full.png")
+    subprocess.run(["import", "-window", "root", full], check=False)
+    out = os.path.join(OUT, "make_dialog.png")
+    if wins:
+        form_shots.crop(full, wins[0], out)
     if GUIDE_SHOT:
         subprocess.run(["cp", out, GUIDE_SHOT], check=False)
     S["t_make"] = time.time()
     S["ticks"] = []
-    press("RET")                                      # Make (the dialog's OK)
+    if wins:
+        form_shots.key(wins[0], "RET")                # Make: Return over the window (its Make button)
     return 0.2
+
+
+@step
+def s_make_started():
+    """Return reaches the new window a moment later (xvfb): wait for Make to start before timing it."""
+    started = O().running() is not None or O().STATE.get("made") or O().STATE.get("error")
+    if not started and time.time() - S["t_make"] < 10.0:
+        return "wait"
+    log(f"Make started {time.time() - S['t_make']:.1f} s after Return")
+    check("Return over the window starts Make", bool(started))
+    S["t_make"] = time.time()
+    S["ticks"] = []
+    return 0.0
 
 
 @step
@@ -212,6 +248,8 @@ def s_making():
     check("the app keeps running while the crane is made (timer steps < 1.5 s)", gaps and max(gaps) < 1.5,
           f"{len(gaps)} steps, longest {max(gaps) if gaps else 0:.2f} s, made in {S['seconds']:.1f} s")
     check("Make finished without an error", not O().STATE.get("error"), O().STATE.get("message", ""))
+    check("the window closed when Make started", not fw().windows("fresing.lifting_make"),
+          str([fw().key_of(w) for w in bpy.context.window_manager.windows]))
     return 1.0
 
 
@@ -287,14 +325,24 @@ def s_cancel_start():
     m.name = "Cancelled crawler"
     S["before"] = made_items()
     res = invoke("fresing.lifting_make")
-    check("the dialog opens again", res in ({"RUNNING_MODAL"}, {"INTERFACE"}), str(res))
-    return 1.0
+    check("the window opens again", res == {"FINISHED"}, str(res))
+    return 2.5
 
 
 @step
 def s_cancel_make():
-    press("RET")
-    return 0.4
+    wins = fw().windows("fresing.lifting_make")
+    if wins:
+        form_shots.key(wins[0], "RET")
+    S["t_make"] = time.time()
+    return 0.2
+
+
+@step
+def s_cancel_started():
+    if O().running() is None and time.time() - S["t_make"] < 10.0:
+        return "wait"
+    return 0.2
 
 
 @step

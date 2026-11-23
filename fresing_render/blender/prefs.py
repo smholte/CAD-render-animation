@@ -127,6 +127,11 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         name="Settings tab", default="general", options={"HIDDEN"},
         description="The tab the Fresing Settings window opened on last time (it opens there again)")
 
+    window_places: StringProperty(
+        name="Window places", default="", options={"HIDDEN"},
+        description="Where the app's own windows were and how big (Make, Fresing Settings, the function windows), "
+                    "so each opens there again (task 0282: kept in the settings file)")
+
     def draw(self, context):
         """Task 0271: the settings live in the Fresing Settings window; this page only points there (the
         properties stay here, so old projects, scripts and saved preferences keep working)."""

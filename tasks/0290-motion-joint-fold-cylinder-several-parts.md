@@ -8,7 +8,8 @@ Medium
 **Area:** Motion lane – `blender/ui_motion.py` (the joint buttons of 4 Motion), `blender/ops_cylinders.py`,
 `blender/cylinders.py` (reads the picked parts), the Set-up window's cylinder steps (`ui_setup.py` / `ops_setup.py`, only
 those steps), `core/places.py` / `core/functions.py` if the fold is a new sub-panel; lessons that point at these
-buttons (`blender/lessons/crane.py`); tests, guide + pictures, CHANGELOG.
+buttons (`blender/lessons/crane.py`); the selected joint's box in `ui_motion.py` (point 3); tests, guide + pictures,
+CHANGELOG.
 **Not:** joints' own code (`joints.py`), `ops_motion.py` beyond the buttons' place (0282 just changed its dialogs),
 linkages, way covers.
 
@@ -24,7 +25,17 @@ linkages, way covers.
    × to drop one, **Clear** empties it; Shift / Ctrl + click in the view and in 2 Structure select several (say in the
    tooltip). The same in the Set-up window's cylinder steps. The cylinder's axis and travel (`core/cylinders.py`, read
    from the parts) use all picked parts. A part may not be in two items (as today).
-3. Test model: a cylinder whose barrel is 3 parts in 2 subassemblies and whose rod is 2 parts (a tour set or a test
+3. **The panel stays still** (owner 23 Nov 22:05, two screenshots of a follower slide joint "Jaw-2 slide" that rides on
+   "Forearm rotate", 200 mm per turn, offset 5 mm, limits 0–1000 mm): when the follower goes outside its limits, the red
+   "Beyond its limits now: check the ratio, or the limits" (`ui_motion.py`, the `if j.follows:` branch under the value
+   row) appears as two lines and pushes Limits, Moves by itself / Follows a joint, Joint, mm per turn and Offset down –
+   so the field the user is dragging jumps away. Put the warning **next to the distance / angle** on the value row (a
+   short red "⚠ Beyond limits", the longer text as its tooltip; check it is not cut off at the default side-panel width,
+   or shorten it). Then go through the rest of `ui_motion.py` (4 Motion, 6 Animation, 7 Render queue) for other lines
+   that come and go while the user drags a value or plays, and keep those boxes still the same way (CLAUDE.md 6, "The
+   panel stays still"). Other files' cases: list them in the report, don't change them. A real-app test drags the leader
+   past the follower's limit and checks that the rows under the value row keep their place.
+4. Test model: a cylinder whose barrel is 3 parts in 2 subassemblies and whose rod is 2 parts (a tour set or a test
    of its own); Pins again and Remove still work.
 
 ## Done when

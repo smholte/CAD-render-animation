@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.217"
+__version__ = "0.2.218"
 
 _modules = []
 
@@ -45,6 +45,7 @@ def _classes():
     from .blender import ui_left, ops_make        # task 0260: the left panel, the output windows of Make
     from .blender import ops_settings, ui_settings  # task 0271: the Fresing Settings window
     from .blender import ops_locations              # task 0272: Locations, Exports, Save to, set-up files
+    from .blender import form_window                # task 0282: function windows (forms that stay open)
     from .blender import place                      # task 0307: G / R / S say why something cannot move
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
@@ -73,7 +74,7 @@ def _classes():
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
-            + ops_locations.CLASSES)
+            + ops_locations.CLASSES + form_window.CLASSES)
 
 
 def _all_classes():
@@ -112,7 +113,8 @@ def _all_classes():
             ordered.append(by_name[sec])
             under(sec)
     ordered += [c for c in tab if c not in ordered]             # a panel core/places.py does not know yet: at the end
-    late = [c for c in rest if c.__name__ == "FRESING_PT_settings_window"]   # task 0271: in the toolbar region too,
+    late = [c for c in rest if c.__name__ in ("FRESING_PT_settings_window",   # task 0271: in the toolbar region too,
+                                              "FRESING_PT_form_window")]      # (task 0282: a function window's page)
     rest = [c for c in rest if c not in late]                                 # after the left panel's parts
     out = (list(panels.CLASSES) + list(lock.CLASSES) + list(ops_workspace.CLASSES) + rest + left + ordered
            + list(ui_top.POPOVERS) + late)
@@ -174,6 +176,8 @@ def register():
     ops_usage.register()                     # task 0181: counting, the session, My usage in the Help menu
     from .blender import ops_settings
     ops_settings.register()                  # task 0271: the presence marks in the keymap (only real input counts)
+    from .blender import form_window
+    form_window.register()                   # task 0282: Esc / Return in a function window, close them at a load
     from .blender import about
     about.register()                         # task 0206: About Fresing Render in the Help menu
     project_lock.register()
@@ -299,6 +303,8 @@ def unregister():
     context_menu.unregister()                # task 0253: Blender's own right-click menu back
     from .blender import quiet
     quiet.unregister()                       # task 0241: Blender's own drawing back
+    from .blender import form_window
+    form_window.unregister()                 # task 0282: (after the classes go, its property groups go)
     from .blender import ops_settings
     ops_settings.unregister()
     from .blender import ops_usage

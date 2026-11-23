@@ -216,13 +216,34 @@ def s_after_busy():
     win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=win.width // 2, y=win.height // 2)
     with override():
         bpy.ops.fresing.backups_window("INVOKE_DEFAULT")
-    return 1.5
+    return 2.0
+
+
+@step
+def s_window_wait():
+    """Task 0282: the window opens, then its page is widened to fill it: wait for both before the picture."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import form_shots
+    STATE.setdefault("t_win", time.time())
+    if not form_shots.ready_one(mod("blender.form_window").windows("fresing.backups_window")) \
+            and time.time() - STATE["t_win"] < 15:
+        return "again"
+    return 1.0
 
 
 @step
 def s_window_shot():
-    shot("restore_window")                                 # the guide's picture (docs/img/backups_window.png)
-    esc()
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import form_shots
+    fw = mod("blender.form_window")
+    wins = fw.windows("fresing.backups_window")
+    check("Restore a backup… opens in a window of its own (task 0282)", len(wins) == 1, str(len(wins)))
+    shot("restore_window")
+    if wins:                                               # the guide's picture (docs/img/backups_window.png)
+        form_shots.crop(os.path.join(OUT, "restore_window.png"), wins[0], os.path.join(OUT, "backups_window.png"))
+    fw.close("fresing.backups_window")
     return 1.0
 
 
@@ -318,6 +339,8 @@ def driver():
         log("ERROR in", fn.__name__, traceback.format_exc())
         check(fn.__name__, False, "exception")
         r = 0.5
+    if r == "again":                    # task 0282: a step that waits for something
+        return 0.2
     _i[0] += 1
     return r
 
