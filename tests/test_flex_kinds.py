@@ -296,8 +296,8 @@ def test_chain_types_build_roll_and_change_the_link(folder):
     flex.remove(sc, flex.index_of(sc, cad))
     rows = [o for o in build.iter_parts(sc) if build.logical_parent(o) == named(sc, "CHAIN X.ASM")]
     logic.exclude(rows, True)
-    a = click(sc, (-0.04, -1, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED")
-    b = click(sc, (-0.01, -1, 0.44), (0, 1, 0), "CHAIN BRACKET X MOVING")
+    a = click(sc, (-0.07, -1, 0.661), (0, 1, 0), "CHAIN BRACKET X FIXED")
+    b = click(sc, (-0.01, -1, 0.83), (0, 1, 0), "CHAIN BRACKET X MOVING")
     logic.exclude(rows, False)
     ch, notes = flex.draw_chain(sc, a, b, replace=rows[0])
     assert ch.made_links and ch.chain_kind == "NONE"
@@ -316,7 +316,7 @@ def test_chain_types_build_roll_and_change_the_link(folder):
         bpy.context.view_layer.update()
         link = bpy.data.objects[ch["link_name"]]
         assert link.get("fr_flex_link") == kid
-        for x in (-0.15, 0.0, 0.15):                                             # it rolls with its axis
+        for x in (-0.375, 0.0, 0.375):                                             # it rolls with its axis
             joints.set_value(joints.find(sc, "X"), x)
             bpy.context.view_layer.update()
             flex.refresh(sc)

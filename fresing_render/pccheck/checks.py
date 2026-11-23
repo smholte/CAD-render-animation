@@ -1658,12 +1658,12 @@ def motion_toolchange(ctx):
     # the tool changer: 8 pockets round the carousel, T1 in pocket 7, T2 and T3 in their CAD places
     animation.clear_keys(scene)
     car = _ob(scene, "CAROUSEL.ASM")
-    joints.create(scene, "ROTATE", [car], Vector((0.5, 0, 0)), Vector((0, 0, 1)), name="Carousel")
+    joints.create(scene, "ROTATE", [car], Vector((1.25, 0, 0)), Vector((0, 0, 1)), name="Carousel")
     cnc = scene.fresing.cnc
     cnc.changer = "ATC"
     cnc.carousel_joint = "Carousel"
     rows[1].pocket = 7
-    station = Vector((0.56, 0, 0.14))
+    station = Vector((1.40, 0, 0.35))
     toolchange.add_pocket(scene, _ob(scene, "CAROUSEL DISC"), station)
     cnc.pocket_count = 8
     why = toolchange.fill_carousel(scene)
@@ -1915,8 +1915,8 @@ def _ob_v(scene, name):
 
 
 @line("machining.waycover", "Way covers follow a machine axis", "0.2.28", modes=(F,),
-      what="Five cover sections follow a 500 mm slide axis: 100, 200, 300, 400, 500 mm (drawn at 200 mm: on their "
-           "CAD place there, 60 ... 300 mm at 500 mm); the 5-section "
+      what="Five cover sections follow a 1000 mm slide axis: 200, 400, 600, 800, 1000 mm (drawn at 400 mm: on their "
+           "CAD place there, 120 ... 600 mm at 1000 mm); the 5-section "
            "way-cover model with its housing counting: 105 mm steps")
 def machining_waycover(ctx):
     from mathutils import Vector
@@ -1930,36 +1930,36 @@ def machining_waycover(ctx):
     names = [["COVER.1.PLATE", "COVER.1.FLANGE"], ["COVER.2"], ["COVER.3.PLATE", "COVER.3.FLANGE"], ["COVER.4"],
              ["COVER.5"]]
     rest = [min_x(_ob(scene, g[0])) for g in names]
-    axis = joints.create(scene, "SLIDE", [_ob(scene, "CARRIAGE")], Vector((0.1, 0.15, 0.1)), Vector((1, 0, 0)),
+    axis = joints.create(scene, "SLIDE", [_ob(scene, "CARRIAGE")], Vector((0.2, 0.3, 0.2)), Vector((1, 0, 0)),
                          name="X axis")
     axis.use_limits = True
-    axis.slide_min, axis.slide_max = 0.0, 0.5
+    axis.slide_min, axis.slide_max = 0.0, waycover.TEST_TRAVEL
     c = waycover.settings(scene)
-    c.axis, c.total = "X axis", 0.5
+    c.axis, c.total = "X axis", waycover.TEST_TRAVEL
     for g in names:
         waycover.add_section(scene, [_ob(scene, n) for n in g])
     built, problems = waycover.make(scene)
     _check(built == 5 and not problems, f"the way cover was not made: {problems}")
-    joints.set_value(joints.find(scene, "X axis"), 0.5)
+    joints.set_value(joints.find(scene, "X axis"), 1.0)
     _update()
     _update()
     got = [(min_x(_ob(scene, g[0])) - r) * 1000.0 for g, r in zip(names, rest)]
     for k, mm in enumerate(got, start=1):
-        _check(abs(mm - 100.0 * k) < 0.05, f"section {k} moved {mm:.2f} mm, not {100 * k} mm")
+        _check(abs(mm - 200.0 * k) < 0.05, f"section {k} moved {mm:.2f} mm, not {200 * k} mm")
     _check(joints.couplings_simple(scene), "the cover couplings need Python scripts (they must not)")
-    # "Drawn at" (task 0090): drawn with the axis at 200 mm, the sections stand on their CAD place there
-    c.drawn_at = 0.2
-    joints.set_value(joints.find(scene, "X axis"), 0.2)
+    # "Drawn at" (task 0090): drawn with the axis at 400 mm, the sections stand on their CAD place there
+    c.drawn_at = 0.4
+    joints.set_value(joints.find(scene, "X axis"), 0.4)
     _update()
     _update()
     off = max(abs(min_x(_ob(scene, g[0])) - r) * 1000.0 for g, r in zip(names, rest))
-    _check(off < 0.05, f"drawn at 200 mm, a section is {off:.2f} mm off its CAD place at 200 mm")
-    joints.set_value(joints.find(scene, "X axis"), 0.5)
+    _check(off < 0.05, f"drawn at 400 mm, a section is {off:.2f} mm off its CAD place at 400 mm")
+    joints.set_value(joints.find(scene, "X axis"), 1.0)
     _update()
     _update()
     got_d = [(min_x(_ob(scene, g[0])) - r) * 1000.0 for g, r in zip(names, rest)]
     for k, mm in enumerate(got_d, start=1):
-        _check(abs(mm - 60.0 * k) < 0.05, f"drawn at 200 mm, section {k} moved {mm:.2f} mm at 500 mm, not {60 * k}")
+        _check(abs(mm - 120.0 * k) < 0.05, f"drawn at 400 mm, section {k} moved {mm:.2f} mm at 1000 mm, not {120 * k}")
     # the 5-section way-cover model: the housing counts as the first section, 420 mm in 4 steps of 105 mm
     scene = ctx.fresh(WAYCOVER_OWNER)
     plate = _ob_v(scene, "Mounting plate")
@@ -1986,7 +1986,7 @@ def machining_waycover(ctx):
 
 
 @line("machining.waycover_two", "Two way covers on one axis", "0.2.61", modes=(F,),
-      what="A cover each side of the carriage on one 500 mm axis, the plate next to the carriage bolted to it (the "
+      what="A cover each side of the carriage on one 1000 mm axis, the plate next to the carriage bolted to it (the "
            "carriage section): the left cover opens and the right one closes, section k by k/5 of the axis; a Build "
            "gives no warning")
 def machining_waycover_two(ctx):
@@ -2004,7 +2004,7 @@ def machining_waycover_two(ctx):
            "the two covers were not made")
     _check(all(c.sections[4].carriage for c in covers), "the sections next to the carriage are not carriage sections")
     worst = 0.0
-    for axis in (0.5, 0.2):
+    for axis in (1.0, 0.4):
         joints.set_value(joints.find(scene, "X axis"), axis)
         _update()
         _update()

@@ -169,8 +169,8 @@ def s_wait():
     r3d = area.spaces.active.region_3d
     r3d.view_perspective = "ORTHO"
     r3d.view_rotation = Quaternion((math.cos(math.radians(45)), math.sin(math.radians(45)), 0, 0))     # front
-    r3d.view_location = Vector((0.5, 0.0, 0.1))
-    r3d.view_distance = 2.5
+    r3d.view_location = Vector((1.0, 0.0, 0.2))          # task 0262: the model x 2
+    r3d.view_distance = 5.0
     area.spaces.active.shading.type = "SOLID"
     open_panel()
     redraw()
@@ -181,15 +181,15 @@ def s_wait():
 def s_axis():
     sc = bpy.context.scene
     joints = mod("blender.joints")
-    j = joints.create(sc, "SLIDE", [named("CARRIAGE")], Vector((0.1, 0.15, 0.1)), Vector((1, 0, 0)), name="X axis")
+    j = joints.create(sc, "SLIDE", [named("CARRIAGE")], Vector((0.2, 0.3, 0.2)), Vector((1, 0, 0)), name="X axis")
     j.use_limits = True
-    j.slide_min, j.slide_max = 0.0, 0.5
+    j.slide_min, j.slide_max = 0.0, 1.0
     r = op("fresing.waycover_cover_add")
     check("Add way cover: one cover in the list", r == {"FINISHED"} and len(sc.fresing.waycovers) == 1)
     cover().axis = "X axis"
     check("the axis is picked and accepted", mod("blender.waycover").axis_problem(sc) == "")
     r = op("fresing.waycover_read_total")
-    check("Read from the axis: 500 mm", r == {"FINISHED"} and abs(cover().total - 0.5) < 1e-5, f"{cover().total}")
+    check("Read from the axis: 1000 mm", r == {"FINISHED"} and abs(cover().total - 1.0) < 1e-5, f"{cover().total}")
     return 0.5
 
 
@@ -219,9 +219,9 @@ def s_make():
     STATE["rest"] = rest
     r = op("fresing.waycover_make")
     check("Make it", r == {"FINISHED"} and all(mod("blender.waycover").is_made(sc, s) for s in cover().sections))
-    check("the state line", mod("blender.waycover").status(sc) == "5 sections · 100 mm each · follows 'X axis'",
+    check("the state line", mod("blender.waycover").status(sc) == "5 sections · 200 mm each · follows 'X axis'",
           mod("blender.waycover").status(sc))
-    mod("blender.joints").set_value(sc.fresing.joints.get("X axis"), 0.5)
+    mod("blender.joints").set_value(sc.fresing.joints.get("X axis"), 1.0)
     bpy.context.view_layer.update()
     wiggle()
     return 1.0
@@ -231,7 +231,7 @@ def s_make():
 def s_follow():
     rest = STATE["rest"]
     got = [(min_x(named(SECTIONS[k][0])) - rest[k]) * 1000 for k in range(5)]
-    check("axis 500 mm: sections at 100, 200, 300, 400, 500 mm", all(abs(g - 100 * (k + 1)) < 0.05 for k, g in enumerate(got)),
+    check("axis 1000 mm: sections at 200, 400, 600, 800, 1000 mm", all(abs(g - 200 * (k + 1)) < 0.05 for k, g in enumerate(got)),
           ", ".join(f"{g:.2f}" for g in got))
     c = cover()
     c.flip = True
@@ -244,7 +244,7 @@ def s_follow():
 def s_flip():
     rest = STATE["rest"]
     got = [(min_x(named(SECTIONS[k][0])) - rest[k]) * 1000 for k in range(5)]
-    check("Flip: the covers open the other way", all(abs(g + 100 * (k + 1)) < 0.05 for k, g in enumerate(got)),
+    check("Flip: the covers open the other way", all(abs(g + 200 * (k + 1)) < 0.05 for k, g in enumerate(got)),
           ", ".join(f"{g:.2f}" for g in got))
     cover().flip = False
     c = cover()
@@ -252,8 +252,8 @@ def s_flip():
     r = op("fresing.waycover_remove")
     bpy.context.view_layer.update()
     got1 = (min_x(named("COVER.1.PLATE")) - rest[0]) * 1000
-    check("Remove section: four sections share the travel (125 mm for the first)", r == {"FINISHED"}
-          and len(c.sections) == 4 and abs(got1 - 125) < 0.05, f"{got1:.2f}")
+    check("Remove section: four sections share the travel (250 mm for the first)", r == {"FINISHED"}
+          and len(c.sections) == 4 and abs(got1 - 250) < 0.05, f"{got1:.2f}")
     check("the removed section's part is back in CAD", abs(min_x(named("COVER.2")) - rest[1]) < 2e-5)
     sc = bpy.context.scene
     r1 = op("fresing.waycover_cover_add")

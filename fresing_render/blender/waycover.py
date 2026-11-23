@@ -622,10 +622,11 @@ def after_joints_rebuilt(scene, mapping=None, by_uid=None) -> list[str]:
 
 
 TEST_MODEL = "test_waycover_c.step"        # a cover each side of the carriage (tools/make_test_waycover.py --both-sides)
+TEST_TRAVEL = 1.0                          # m: its X axis (task 0262: x 2, the test VMC's X travel)
 
 
 def set_up_test_model(scene, carriage: bool = True) -> list:
-    """The two-cover test model as the owner would set it up: an X axis of 500 mm on the carriage, 'X left' and
+    """The two-cover test model as the owner would set it up: an X axis of 1000 mm on the carriage, 'X left' and
     'X right' with five sections each. ``carriage``: the sections next to the carriage are bolted to it (members of
     the axis) and are each cover's carriage section. Returns the two covers."""
     from mathutils import Vector
@@ -637,7 +638,7 @@ def set_up_test_model(scene, carriage: bool = True) -> list:
     j = joints.create(scene, "SLIDE", members, members[0].matrix_world.translation, Vector((1, 0, 0)),
                       name="X axis")
     j.use_limits = True
-    j.slide_min, j.slide_max = 0.0, 0.5
+    j.slide_min, j.slide_max = 0.0, TEST_TRAVEL
     for side, name in (("L", "X left"), ("R", "X right")):
         c = add_cover(scene, name)
         c.axis = "X axis"

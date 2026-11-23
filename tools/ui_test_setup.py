@@ -240,6 +240,11 @@ def s_joints():
         joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
     with override():
         bpy.ops.view3d.view_all()
+    # task 0262: the router is 2.6 m long on a 0.9 m stand – framed whole, its 300 mm block is a few pixels: look at
+    # the block and the tool above it
+    area = view()[1]
+    area.spaces.active.region_3d.view_location = Vector((0.0, 0.0, 0.1))
+    area.spaces.active.region_3d.view_distance = 1.6
     return 1.5
 
 

@@ -237,7 +237,7 @@ def s_wait():
     r3d = area.spaces.active.region_3d
     r3d.view_perspective = "ORTHO"                      # from the front
     r3d.view_rotation = Quaternion((math.cos(math.pi / 4), math.sin(math.pi / 4), 0, 0))
-    r3d.view_location = Vector((0.1, 0.0, 0.07))
+    r3d.view_location = Vector((0.1, 0.0, 0.13))          # task 0262: the tool hangs 215 mm above the stock
     r3d.view_distance = 0.9
     area.spaces.active.shading.type = "SOLID"
     open_panel()
@@ -333,7 +333,7 @@ def s_zero_clicked():
           [t.number for t in c.tools])
     c.tools_index = next(i for i, t in enumerate(c.tools) if t.number == 2)
     win, area, region, sb = ui()
-    area.spaces.active.region_3d.view_location = Vector((0.56, 0.0, 0.12))     # the carousel in the middle
+    area.spaces.active.region_3d.view_location = Vector((1.40, 0.0, 0.33))     # the carousel in the middle
     redraw()
     return 0.8
 
@@ -359,7 +359,7 @@ def s_tool_part():
     STATE["tools_row"] = c.tools_index
     next(t for t in c.tools if t.number == 1).obj = find(T1)
     win, area, region, sb = ui()
-    area.spaces.active.region_3d.view_location = Vector((0.1, 0.0, 0.07))
+    area.spaces.active.region_3d.view_location = Vector((0.1, 0.0, 0.13))
     # for the user guide picture: only the CNC machine panel (a top-level copy, folds open)
     for n in [n for n in dir(bpy.types) if n.startswith("FRESING_PT_")]:
         cls = getattr(bpy.types, n)
@@ -492,13 +492,13 @@ def s_atc_start():
     """Task 0041: the machine gets a tool changer; 'Click pockets' waits for clicks on the carousel."""
     sc = bpy.context.scene
     joints = mod("blender.joints")
-    joints.create(sc, "ROTATE", [find("CAROUSEL.ASM")], Vector((0.5, 0, 0)), Vector((0, 0, 1)), name="Carousel")
+    joints.create(sc, "ROTATE", [find("CAROUSEL.ASM")], Vector((1.25, 0, 0)), Vector((0, 0, 1)), name="Carousel")
     c = sc.fresing.cnc
     c.changer = "ATC"
     c.carousel_joint = "Carousel"
     r3d = ui()[2].data                                     # the carousel in the middle of the view (no animation)
-    r3d.view_location = Vector((0.5, 0.0, 0.15))
-    r3d.view_distance = 1.2
+    r3d.view_location = Vector((1.25, 0.0, 0.36))
+    r3d.view_distance = 2.0
     r3d.view_rotation = Euler((math.radians(50.0), 0.0, 0.0)).to_quaternion()   # from the front, 40° down onto it
     redraw()
     with override():
@@ -509,7 +509,7 @@ def s_atc_start():
 
 @step
 def s_atc_click():
-    x, y = to_window((0.545, 0.0, 0.14))                    # on the carousel's top (z 140, task 0067), beside T2
+    x, y = to_window((1.3625, 0.0, 0.35))                   # on the carousel's top (z 350, task 0262), beside T2
     log("pocket click at", x, y)
     click(x, y)
     return 1.0
@@ -531,7 +531,7 @@ def s_atc_fill():
     p = c.pockets[0] if len(c.pockets) == 1 else None
     pos = tc.pocket_world(p)[0] if p is not None else None
     check("a click on the carousel makes pocket 1 on it", p is not None and p.number == 1
-          and p.obj is find("CAROUSEL DISC") and 0.1395 < pos.z < 0.1505, (len(c.pockets), tuple(pos) if pos else None))
+          and p.obj is find("CAROUSEL DISC") and 0.3495 < pos.z < 0.3605, (len(c.pockets), tuple(pos) if pos else None))
     station = pos.copy() if pos is not None else Vector()
     c.pocket_count = 8
     r = op("fresing.cnc_fill_carousel")
