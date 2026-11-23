@@ -1,0 +1,3 @@
+out/frames/
+out/*.npy
+__pycache__/

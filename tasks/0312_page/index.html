@@ -1,0 +1,182 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0312 vessels on the sea</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc);font-size:1.2rem}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.item{display:flex;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.pick{flex:0 0 64px;font-size:1.1rem}.pick input{width:20px;height:20px}.star{color:var(--acc)}
+.body{flex:1;min-width:0}h3{margin:0 0 6px;font-size:1rem}.tag{font-weight:normal;color:var(--mut);font-size:.85rem}
+.why{color:var(--mut);font-size:.92rem;margin:4px 0}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-top:8px}
+figure{margin:0;max-width:100%}figure img,figure video{max-width:100%;height:auto;border:1px solid var(--line);display:block}
+figcaption,.d{font-size:.85rem;color:var(--mut)}
+.tbl{overflow-x:auto}table{border-collapse:collapse;font-size:.92rem;min-width:520px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+td.n{text-align:right;white-space:nowrap}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:0;word-break:break-word}#bar button{font:inherit;padding:6px 16px;cursor:pointer}
+</style></head><body><main>
+<h1>Vessels on the sea (study 0312)</h1>
+<div class="card"><b>In short.</b> Today the app has <b>one</b> vessel that never really moves: it rocks in place, and "sailing ahead" is the
+water sliding past it. Everything you asked for fits on top of the sea we already have, and a first try of each part works on the web
+machine: <b>nine vessel kinds</b> that can be put on your own hull (the waterline is measured from the model in about 1 s), a vessel
+<b>driven with the keyboard</b> and turned into an <b>editable path</b> (80 s of driving → 19 points to drag and 15 speed keys, at most
+0.8 m off what was driven), a drawn path that each vessel drives <b>the way it can</b> (a tug stays within 16 m, a supply ship cuts the
+corners by 62 m – the app must show that), <b>things that float and get hit</b> (a container, a buoy, a pallet, a person – the
+draught of a pallet, a person and a container right within 2 %, a 40 t container sinks), <b>waves that feel the bottom and break on a beach</b>, and the <b>camera half under
+water</b> with the waterline across the picture and the clarity you set. Below: pictures and short clips of the prototype, what it
+measured, and <b>10 build tasks</b> to tick. ★ = recommended. The example product was looked at only through the lead's notes (its site
+cannot be reached from the web machine); no outside code.</div>
+
+<h2>1 · Prototype pictures and clips</h2>
+<p class="d">Blender 5.2.3 (as a Python module) with Cycles on the processor, web machine (4 cores, no graphics card). The sea here is the
+prototype's own grid moved by the app's own waves (<code>core/sea.py</code>, Beaufort 4, Hs 1.0 m) – not the app's sea mesh and shader.
+Vessels, container and buoy are invented boxes at real size. Clips: 640 × 360, 12 frames a second.</p>
+<div class="pics">
+<figure style="max-width:540px"><img src="img/vessels.jpg" alt="tug, crew transfer vessel and a container on the sea" width="540"><figcaption>A tug on a drawn line at 7 kn glances a floating 20 ft container (10 t inside) aside; behind it a crew transfer vessel driven with the keys in a turn – its wake follows the curve it drove.</figcaption></figure>
+<figure style="max-width:540px"><video src="img/vessels.mp4" controls muted loop playsinline width="540"></video><figcaption>The same, 10 s.</figcaption></figure>
+<figure style="max-width:540px"><img src="img/beach.jpg" alt="waves breaking on a beach" width="540"><figcaption>Beaufort 5 waves on a plain beach (slope 1:25): they shorten, steepen and break in lines of foam; wet sand where the water reaches.</figcaption></figure>
+<figure style="max-width:540px"><video src="img/beach.mp4" controls muted loop playsinline width="540"></video><figcaption>The same, 8 s.</figcaption></figure>
+</div>
+<div class="pics">
+<figure style="max-width:350px"><img src="img/under_4m.jpg" alt="half under water, clarity 4 m" width="350"><figcaption>Clarity 4 m (murky North Sea).</figcaption></figure>
+<figure style="max-width:350px"><img src="img/under_12m.jpg" alt="half under water, clarity 12 m" width="350"><figcaption>Clarity 12 m.</figcaption></figure>
+<figure style="max-width:350px"><img src="img/under_30m.jpg" alt="half under water, clarity 30 m" width="350"><figcaption>Clarity 30 m: the monopile shows under water.</figcaption></figure>
+<figure style="max-width:540px"><video src="img/under.mp4" controls muted loop playsinline width="540"></video><figcaption>The camera dips under the surface next to a crew transfer vessel at a monopile.</figcaption></figure>
+</div>
+<p class="d">What the pictures do <b>not</b> show yet (open points): light shafts and moving light patterns under water, spray at the bow,
+the water running up the sand, bubbles. The foam texture and the water colour are the prototype's, not tuned to the app's sea.</p>
+
+<h2>2 · Where we stand today (A)</h2>
+<div class="tbl"><table>
+<tr><th>What</th><th>Today</th><th>What it cannot do</th></tr>
+<tr><td>The sea (0109)</td><td>28 travelling waves from a wind spectrum, deep water, one place for all formulas; a fine sea mesh round the model, coarse rings to the horizon</td><td>No depth: waves do not slow, grow or break near a shore. The fine area stays round the model – a vessel that sails 700 m away leaves it.</td></tr>
+<tr><td>Vessel motion (0085)</td><td>Heave, pitch, roll of <b>one</b> vessel at the scene's middle, as sine curves Blender plays itself (scripts off)</td><td>A vessel that travels or turns: the waves it meets change all the time, sine curves no longer fit – it must be worked out at Build. Only one rig.</td></tr>
+<tr><td>Vessel at work (0154)</td><td>Still / Ahead / DP / Turn: propellers, steer joints, a straight wake and Kelvin wedge drawn in the water shader, thruster jets</td><td>The vessel does not move – the water and the seabed slide past. No curved wake. One vessel, at most 6 thrusters.</td></tr>
+<tr><td>Floating things</td><td>Deck objects ride with the vessel (Child Of)</td><td>Nothing else floats; nothing drifts; nothing can be hit (the clash check reports, it does not push).</td></tr>
+<tr><td>Paths</td><td>Camera paths (0087: a smooth curve through points, even speed), people's walk paths (0157)</td><td>No vessel paths, no driving, no recorder.</td></tr>
+<tr><td>Under water</td><td>Seabed, the cut-away box and its clarity (0081, 0148); the web page's camera can dive (0143)</td><td>In the app's own renders a camera under the surface sees no water (the sea is a surface, not a body of water).</td></tr>
+</table></div>
+
+<h2>3 · What the prototype measured</h2>
+<h3>Vessel kinds put on a hull (B)</h3>
+<div class="tbl"><table>
+<tr><th>Kind</th><th>Length × beam (m)</th><th>Speed (kn)</th><th>Turns</th><th>Roll period</th><th>Waterline measured on the invented hull</th></tr>
+<tr><td>RIB / fast rescue boat</td><td class="n">9 × 3.2</td><td class="n">40</td><td>3 lengths</td><td class="n">2.5 s</td><td>draught 0.32 m, block 0.50</td></tr>
+<tr><td>Crew transfer vessel (catamaran)</td><td class="n">26 × 9.5</td><td class="n">26</td><td>3.5 lengths, spins 12°/s</td><td class="n">3.5 s</td><td>draught 1.37 m, block 0.36</td></tr>
+<tr><td>Harbour tug (ASD)</td><td class="n">32 × 12.5</td><td class="n">13</td><td>1.6 lengths, spins 15°/s, sideways 3 kn</td><td class="n">7 s</td><td>draught 2.88 m, block 0.68</td></tr>
+<tr><td>Multicat / workboat</td><td class="n">26 × 12</td><td class="n">10</td><td>2.5 lengths</td><td class="n">6 s</td><td>draught 2.19 m</td></tr>
+<tr><td>Platform supply vessel (DP2)</td><td class="n">85 × 19</td><td class="n">14</td><td>3.5 lengths</td><td class="n">10 s</td><td>draught 5.35 m, block 0.72</td></tr>
+<tr><td>Cable-lay / construction (the public ship's class)</td><td class="n">124 × 28</td><td class="n">12</td><td>4 lengths</td><td class="n">11 s (as today)</td><td>draught 6.14 m</td></tr>
+<tr><td>Barge under tow</td><td class="n">90 × 27</td><td class="n">(towed)</td><td>–</td><td class="n">8 s</td><td>draught 2.41 m</td></tr>
+<tr><td>Jack-up in transit</td><td class="n">130 × 50</td><td class="n">9</td><td>4 lengths</td><td class="n">12 s</td><td>draught 4.21 m</td></tr>
+<tr><td>Yacht for scale</td><td class="n">12 × 4</td><td class="n">8</td><td>3 lengths</td><td class="n">3.5 s</td><td>draught 0.42 m (no keel fin)</td></tr>
+</table></div>
+<p class="d">Typical numbers for invented vessels – the user changes them. The waterline is found from the hull's shape and the preset's weight
+(0.8–1.8 s per hull in plain Python; Blender's own ray casting will be faster). The roll period <b>cannot</b> be read from a CAD model (it needs
+the centre of gravity), so it comes from the preset; a rule of thumb (IMO) only warns: it gave a believable centre of gravity for the tug and the
+supply vessel (88–94 % of the depth) and none for catamarans, barges, jack-ups and small boats – the rule is not made for them.</p>
+
+<h3>Driving and paths (C)</h3>
+<div class="pics">
+<figure style="max-width:100%"><img src="img/drive_path.png" alt="driven track, path points and speed keys" width="900"><figcaption>80 s driven with the keys → 19 path points and 15 speed keys (at most 0.82 m, on average 0.17 m off the driven track); 0.6 s to make.</figcaption></figure>
+<figure style="max-width:100%"><img src="img/follow.png" alt="one drawn path, three vessels" width="780"><figcaption>One drawn path: the tug follows it within 16 m (it spins), the crew transfer vessel within 26 m at 20 kn, the 85 m supply vessel slows to 2.5 kn and still cuts the corners by up to 62 m. The app must show the line the vessel will really drive next to the line you drew.</figcaption></figure>
+</div>
+<p class="d">The vessel model costs 0.1 ms per second of driving – driving live is limited by how fast the 3D view draws the sea, not by the vessel
+(not measured on a graphics card). Keys in the prototype: Up/Down = throttle lever (stays where set), Left/Right = helm while held,
+Q/E = slide sideways, A/D = turn on the spot, Space = stop and hold, Shift = fine. A crew transfer vessel pushing its bow fender onto a
+turbine's boat landing: its bow goes up and down 0.4 m at Beaufort 3, 1.5 m at Beaufort 4 and 2.7 m at Beaufort 5 (the sea alone, no vessel
+response) – the app could warn when a push-on would slip.</p>
+
+<h3>Anything floats and can be hit (E)</h3>
+<div class="pics"><figure style="max-width:100%"><img src="img/floaters.png" alt="tug through floating things" width="900"><figcaption>A tug at 7 kn through a container, a buoy and a pallet that drift with a 0.2 m/s current and a 6 m/s wind: the container is glanced aside at 0.6 m/s and turned; the pallet is caught and pushed by the bow.</figcaption></figure></div>
+<div class="tbl"><table>
+<tr><th>Thing</th><th>Floats?</th><th>Draught by formula</th><th>Draught solved</th></tr>
+<tr><td>20 ft container, empty (2.3 t)</td><td>yes</td><td class="n">0.15 m</td><td class="n">0.15 m</td></tr>
+<tr><td>20 ft container, 10 t inside</td><td>yes</td><td class="n">0.81 m</td><td class="n">0.80 m</td></tr>
+<tr><td>20 ft container, 30 t inside</td><td>yes, barely</td><td class="n">2.13 m</td><td class="n">2.21 m (still bobbing)</td></tr>
+<tr><td>20 ft container, 40 t</td><td>sinks</td><td>–</td><td>on the bottom</td></tr>
+<tr><td>Wooden pallet (25 kg)</td><td>yes</td><td class="n">0.025 m</td><td class="n">0.025 m</td></tr>
+<tr><td>Person in a life jacket (lying, as a box)</td><td>yes</td><td class="n">0.11 m</td><td class="n">0.11 m</td></tr>
+</table></div>
+<p class="d">Worked out at Build, a step at a time, and keyed: plays and renders with scripts off. 0.6 ms per floating thing per step (60 steps a
+second) in this first form – 20 things for a 30 s video ≈ 20 s of Build; working on all things at once will be faster (expected, not measured).
+Blender's own rigid bodies were not used: they cannot float (no buoyancy), and forces added from Python cannot reach their in-between steps.</p>
+
+<h3>Waves on a beach (D)</h3>
+<div class="pics"><figure style="max-width:100%"><img src="img/shore.png" alt="wave height towards the beach" width="760"><figcaption>Each wave of the sea slows and shortens in shallow water, turns towards the beach and grows; at about 0.78 × the depth it breaks. Beaufort 3: a 24 m surf zone, breaking in 0.8 m of water; Beaufort 5: 93 m, breaking in 3.1 m.</figcaption></figure></div>
+<p class="d">The sea stays "one place": every wave keeps its own sine, only two small tables along the distance from the beach are added per wave (10 ms
+to make). A plain straight beach first; a curved coast or 0311's own terrain needs the waves traced once over the depth map (later step).</p>
+
+<h2>4 · Who uses it (G)</h2>
+<ul>
+<li><b>Sales person:</b> Add vessel → "Tug" → <i>Drive</i> (keys) or a ready route (pass by, approach a turbine and push on, tow the barge,
+circle the model) → Build &amp; play.</li>
+<li><b>Engineer:</b> Add vessel → pick the hull in the model → the kind → the waterline is shown and can be moved → thrusters as in 0154 →
+"Save as my / department / company vessel" (the folders of Settings &gt; Locations; a set-up file carries them to colleagues).</li>
+<li><b>Animator:</b> drags path points on the water, edits the speed and "crab" keys (sideways, spin) in the steps, re-drives a stretch.</li>
+</ul>
+
+<h2>5 · Build tasks – tick what you want</h2>
+
+<section class="item"><label class="pick"><input type="checkbox" value="A" checked> <b>A</b> <span class="star" title="recommended">★</span></label>
+<div class="body"><h3>Vessel kinds on your own hull <span class="tag">Sea lane · Opus · Medium · new files + Locations kind</span></h3>
+<p>The nine kinds above; Add vessel picks the hull, measures the waterline, shows draught, length and beam; every number adjustable with
+"typical" in its tooltip; Save as my / department / company vessel (0272's Locations, a new kind "Vessels").</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="B" checked> <b>B</b> <span class="star">★</span></label>
+<div class="body"><h3>Vessels that really travel – several at once <span class="tag">Sea lane · Opus · High · after A</span></h3>
+<p>Each vessel moves over the water along its path; its heave, pitch and roll worked out at Build from the waves it meets there (today's sine
+curves stay for a vessel that lies still); the wake and Kelvin waves follow the curve it drove; the fine part of the sea follows the camera.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="C" checked> <b>C</b> <span class="star">★</span></label>
+<div class="body"><h3>Drive it yourself + a path you can edit <span class="tag">Sea lane + Vehicles lane (one shared tool with 0306) · Opus · High · after B</span></h3>
+<p>Drive on the live sea with the keys; the drive is recorded, smoothed into path points + speed keys + sideways/spin keys; a drawn path is
+driven the way the vessel can, with the real line shown next to the drawn one and a note where it cannot keep up.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="D"> <b>D</b></label>
+<div class="body"><h3>Ready manoeuvres <span class="tag">Sea lane · Opus · Medium · after C</span></h3>
+<p>Approach a turbine and push on (with a warning when the bow would slip), hold position on DP, turn on the spot, tow a barge on a hanging
+tow wire (the cables' own sag maths), pass by the model.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="E" checked> <b>E</b> <span class="star">★</span></label>
+<div class="body"><h3>Anything floats and can be hit <span class="tag">Sea lane · Opus · High · after B</span></h3>
+<p>"Float" on any part or prop: size from the part, weight or how full; drifts with current and wind, rocks in the waves and in passing
+vessels' waves, sinks when too heavy; hit by vessels and by each other; worked out at Build and keyed.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="F" checked> <b>F</b> <span class="star">★</span></label>
+<div class="body"><h3>Waves that break on a beach <span class="tag">Sea lane · Opus · High · with 0311's beach</span></h3>
+<p>The sea feels the depth: waves shorten, turn and grow towards the shore and break in lines of foam; wet sand; the water running up the
+sand. A straight beach first; 0311's terrain next.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="G" checked> <b>G</b> <span class="star">★</span></label>
+<div class="body"><h3>The camera under water <span class="tag">Sea lane · Opus · High · independent of B–F</span></h3>
+<p>A body of water round the camera when it goes under; the split picture at the waterline (a lens dome); the clarity of 5 Scene &amp; Render
+(the same number as the cut-away); light shafts and moving light on the seabed; specks and bubbles.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="H"> <b>H</b></label>
+<div class="body"><h3>Spray where the hull slams <span class="tag">Sea lane · Opus · Medium · after B</span></h3>
+<p>White spray thrown at the bow when it meets a crest fast (a crew transfer vessel at speed, a tug in a head sea), baked at Build.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="I"> <b>I</b></label>
+<div class="body"><h3>Game controller <span class="tag">Vehicles lane · Opus · Medium · Windows only, test on your PC</span></h3>
+<p>Blender cannot read a game controller itself; Windows can (an Xbox-type pad through Windows' own XInput). Shared with 0306's cars.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="J"> <b>J</b></label>
+<div class="body"><h3>On the web page <span class="tag">Web 3D lane · later</span></h3>
+<p>Travelling vessels, floating things and the beach in the web 3D model (the page already dives under water).</p></div></section>
+
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+</main>
+<script>
+function upd(){var v=[].slice.call(document.querySelectorAll('.pick input:checked')).map(function(e){return e.value});
+document.getElementById('line').textContent='0312 pick: '+(v.join(' ')||'none');}
+document.querySelectorAll('.pick input').forEach(function(e){e.addEventListener('change',upd)});upd();
+document.getElementById('copy').onclick=function(){var t=document.getElementById('line').textContent,b=this;
+function done(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)}
+if(navigator.clipboard){navigator.clipboard.writeText(t).then(done,function(){prompt('Copy this line:',t)})}else{prompt('Copy this line:',t)}};
+</script>
+</body></html>

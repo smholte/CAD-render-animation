@@ -1,0 +1,100 @@
+{
+ "sea": {
+  "bft": 4.0,
+  "hs": 0.997870758494032
+ },
+ "still": [
+  {
+   "what": "container 20 ft empty",
+   "floats": true,
+   "tilt_deg": 0.0,
+   "formula_draught": 0.15175447972626133,
+   "solved_draught": 0.1535763678303601,
+   "z_after_40s": 1.1414236321696398
+  },
+  {
+   "what": "container 20 ft, 10 t inside",
+   "floats": true,
+   "tilt_deg": 0.0,
+   "formula_draught": 0.8115565654926149,
+   "solved_draught": 0.7991438221669243,
+   "z_after_40s": -0.1491438221669243
+  },
+  {
+   "what": "container 20 ft, 30 t inside",
+   "floats": true,
+   "tilt_deg": 0.0,
+   "formula_draught": 2.131160737025322,
+   "solved_draught": 2.2138916540866322,
+   "z_after_40s": -1.4688916540866321
+  },
+  {
+   "what": "container 20 ft, 40 t (sinks)",
+   "floats": false,
+   "tilt_deg": 0.0,
+   "formula_draught": null,
+   "solved_draught": null,
+   "z_after_40s": -40.00045935244902
+  },
+  {
+   "what": "pallet 1.2 x 0.8 (wood, 25 kg)",
+   "floats": true,
+   "tilt_deg": 0.0,
+   "formula_draught": 0.02540650406504065,
+   "solved_draught": 0.025416893364845677,
+   "z_after_40s": 0.04658310663515432
+  },
+  {
+   "what": "person in a life jacket (lying, as a box)",
+   "floats": true,
+   "tilt_deg": 0.0,
+   "formula_draught": 0.10530391018195896,
+   "solved_draught": 0.10622181274190617,
+   "z_after_40s": -0.011221812741906177
+  }
+ ],
+ "scene": {
+  "seconds": 60,
+  "steps": 3600,
+  "floaters": 3,
+  "ms_per_frame_30fps": 3.4914443805555115,
+  "ms_per_floater_step": 0.5819073967592518,
+  "hits": [
+   [
+    45.68,
+    "container",
+    0.63
+   ],
+   [
+    52.78,
+    "pallet",
+    3.0
+   ],
+   [
+    52.85,
+    "pallet",
+    0.45
+   ],
+   [
+    52.87,
+    "pallet",
+    0.22
+   ],
+   [
+    52.88,
+    "pallet",
+    0.26
+   ],
+   [
+    52.9,
+    "pallet",
+    0.25
+   ]
+  ],
+  "n_hits": 431,
+  "container_moved_m": 23.79584750280082,
+  "container_heave_m": 1.3496230384166767,
+  "container_roll_deg": 28.87889369707069,
+  "pallet_drift_m": 52.45609943443562
+ }
+}

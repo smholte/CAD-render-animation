@@ -1,0 +1,43 @@
+{
+ "drive": {
+  "samples": 2401,
+  "seconds": 80.0,
+  "sim_ms_per_s": 0.09752969999965444,
+  "path_points": 19,
+  "speed_keys": 15,
+  "crab_keys": 6,
+  "max_off_m": 0.8193025944731585,
+  "mean_off_m": 0.17021094202424206,
+  "smooth_ms": 561.7337099999986,
+  "top_knots": 24.043132457598084,
+  "length_m": 727.2576323974122
+ },
+ "follow": {
+  "TUG": {
+   "seconds": 198.56666666671683,
+   "notes": [
+    "followed in 199 s, cross-track off the path: mean 4.4 m, max 16.1 m"
+   ],
+   "ms": 150.5026080000107,
+   "r_min": 25.6
+  },
+  "PSV": {
+   "seconds": 296.00000000005946,
+   "notes": [
+    "54 % of the path bends tighter than R 149 m (its turning circle at speed): slowed to 2.5 kn there and turned with its thrusters",
+    "followed in 296 s, cross-track off the path: mean 21.1 m, max 61.6 m"
+   ],
+   "ms": 214.8698419999846,
+   "r_min": 148.75
+  },
+  "CTV": {
+   "seconds": 113.16666666666153,
+   "notes": [
+    "2 % of the path bends tighter than R 46 m (its turning circle at speed): slowed to 11.6 kn there and turned with its thrusters",
+    "followed in 113 s, cross-track off the path: mean 7.4 m, max 26.4 m"
+   ],
+   "ms": 87.86792500006868,
+   "r_min": 45.5
+  }
+ }
+}
