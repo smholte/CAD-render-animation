@@ -313,6 +313,11 @@ fresing_render/            the Blender extension (Python package)
                            tracks, forklift load centre, offshore DAF, upending – each a `Result` with inputs, formula,
                            status ok / amber / red / not_checked; load charts: lookup, validation, units; `Limits`
                            75 % / 90 % / 90 %; the plan's words, never "safe"; SI inside: kg, m, N, Pa)
+                           locations.py (task 0272: the kinds of folders the app reads – STEP models … lifting
+                           equipment –, levels Company / Department / Mine, the set-up file ``.frsetup`` (a zip:
+                           setup.json + content per kind; checks with plain-word refusals, Windows names included),
+                           merging with badges (same names kept), ``Reach`` = folders looked at in helper threads, never
+                           waited for, export places, the migration of the old Shared library, "different from standard")
                            usage.py (task 0181: the usage tracker's rules – the file ``<config>/fresing_usage.json``,
                            a click counts for ONE function (``BY_PROP`` kind, the panel it was in, ``ALSO``), active
                            time per stage with 2 min idle left out (``Clock``), the bar sorted at a start only + pins,
@@ -544,6 +549,12 @@ fresing_render/            the Blender extension (Python package)
                            list, `prefs.make_open`), the tabs, Set-up window…, 1 … 8. ops_make.py = an **output window**
                            per Make output (`fresing.make_window`, made by `ops_setup.open_window(mark="fr_output")`, tab
                            "Make"); `winplace.py` (Windows, ctypes) brings it to the front and puts it where it was
+    locations.py ops_locations.py ui_locations.py  task 0272: the user's folders per kind, set-ups (copied / linked,
+                           updated by id), export places in ``<config>/fresing_locations.json`` (+ ``fresing_setups/``);
+                           the readers ask ``folders/paths/items/save_choices`` (rule sets, workspaces, decals, brand
+                           kits, lifting, templates, HDRI, STEP) and every output ``render.default_output_dir(scene)``;
+                           Settings > Locations / Exports, Save to, the .frsetup file handler, STEP folders in Import's
+                           file browser. ``library_path`` is read only once, by the migration
     ops_settings.py ui_settings.py  task 0271: **Fresing Settings** – one window (made like an output window, screen mark
                            ``fr_settings``; the page in the copy's TOOLBAR region – no tab strip there –, made as wide as
                            the window with ``ui_left.fit_width``; side panel, header, overlays off; Blender's tool buttons
@@ -1483,3 +1494,6 @@ the release → Delete); the next run on `main` publishes it again.
   must survive a restart goes into a small file in `bpy.utils.user_resource("CONFIG")` (`fresing_layout.json`,
   `fresing_usage.json`, `fresing_left.json` = the left panel's folds, `ui_left.store`). Test a restart for real: a
   second app in the same settings folder (`tools/ui_test_left_restart.py`, started by `ui_test_left.py`).
+- `os.access(folder, os.W_OK)` on Windows says yes to every folder (it reads only a FILE's read-only flag, never a
+  share's or NTFS rights): a read-only company share counted as writable (task 0272, found by its independent
+  reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.
