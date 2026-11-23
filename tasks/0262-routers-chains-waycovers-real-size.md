@@ -130,6 +130,10 @@ tests over their own 1000 mm; the single-cover tests keep a 500 mm axis – the 
   `test_machining_fixes.py`'s carousel joint, which had passed anyway). Run 45242732869 green (renumbered to 0.2.215:
   0.2.214 had gone to task 0265). GitHub's runners were about twice as slow as usual today (pytest groups 13–31 min
   against 10–14), so its times say nothing about these models.
+- `main` fast-forwarded (docs run 45249049139): released v0.2.215, the Windows update-from-release check and "Offer the
+  release" green. Its landing-page job failed on GitHub's side ("Fetching artifact metadata failed"); a re-run of the job
+  cannot work (two "github-pages" artifacts in one run), so the Landing page workflow was started by hand: run
+  45250295464 green.
 
 **Open points / follow-up tasks:**
 - `view_flex_chains.jpg` shows the whole router: the real-size chains are now small in the picture; a closer camera
