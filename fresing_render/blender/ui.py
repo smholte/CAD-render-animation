@@ -398,6 +398,19 @@ def _draw_imported(layout, context) -> None:
 # =============================================================================
 
 
+def _parent_locked(data, item) -> bool:
+    """Is a subassembly above this tree row locked in place (task 0292: its lock is drawn greyed)?"""
+    i = item.parent_index
+    seen = 0
+    while 0 <= i < len(data.tree) and seen < 64:
+        p = data.tree[i]
+        if p.obj is not None and p.obj.get(build.PROP_LOCKED, True) and all(p.obj.lock_location):
+            return True
+        i = p.parent_index
+        seen += 1
+    return False
+
+
 class FRESING_UL_tree(bpy.types.UIList):
     """Explorer-like tree: open/close per assembly, identical parts as one row, colour dot per part."""
 
@@ -436,8 +449,13 @@ class FRESING_UL_tree(bpy.types.UIList):
         sub.alignment = "RIGHT"
         if tag:
             sub.label(text=tag)
-        if not item.is_part and not ob.get(build.PROP_LOCKED, True):
-            sub.label(text="", icon="UNLOCKED")
+        # task 0292: a lock in every row – closed = locked in place, open = free to move; greyed when a subassembly
+        # above is locked (it still moves with that one)
+        locked = all(ob.lock_location) and all(ob.lock_rotation)
+        lk = sub.row(align=True)
+        lk.active = not _parent_locked(data, item)
+        op = lk.operator("fresing.tree_row", text="", icon="LOCKED" if locked else "UNLOCKED", emboss=False)
+        op.index, op.action = index, "LOCK"
         hidden = ob.get("fr_hidden", False)
         op = sub.operator("fresing.tree_row", text="", icon="HIDE_ON" if hidden else "HIDE_OFF", emboss=False)
         op.index, op.action = index, "HIDE"
@@ -500,6 +518,9 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
                 locked = it.obj.get(build.PROP_LOCKED, True)
                 row.operator("fresing.toggle_lock", text="Locked in place" if locked else "Unlocked: can be moved",
                              icon="LOCKED" if locked else "UNLOCKED", depress=not locked).name = it.obj.name
+            row = box.row(align=True)                   # task 0292: Remove… (a window lists what goes first)
+            row.operator_context = "INVOKE_DEFAULT"
+            row.operator("fresing.remove", text="Remove…", icon="TRASH").names = "" if it.is_part else it.obj.name
 
         if s.isolated:
             box = layout.box()

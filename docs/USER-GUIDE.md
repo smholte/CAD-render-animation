@@ -538,10 +538,12 @@ Blender has a key for almost everything, and a few of them delete or change your
 **Full access** those keys do nothing to the project; the status bar at the bottom says *"That is a Blender key –
 Fresing > Show all of Blender gives you Blender's keys"*:
 
-- **Delete, X** (also with Shift), **Shift+D**, **Alt+D** (copies), **Ctrl+J** (join), **Ctrl+P**, **Alt+P** (parent),
+- **Shift+D**, **Alt+D** (copies), **Ctrl+J** (join), **Ctrl+P**, **Alt+P** (parent),
   **Ctrl+A** (apply), **M**, **Shift+M** (collections), **Shift+A** (add), **Ctrl+H**, **Ctrl+0 … Ctrl+5**, **Tab**,
   **Ctrl+Tab** (Edit Mode and the other modes), **Ctrl+Page Up / Page Down** (Blender's workspaces) and **I**,
   **Alt+I**, **K** (keyframes – they would mix with the keys Build makes).
+- **Delete** and **X** (also with Shift) open the app's **Remove** window for what is selected: it lists what goes,
+  and nothing is lost until you click Remove ([Remove](#remove-model)).
 - **These stay:** **G** / **R** move and turn what is selected ([Moving and turning parts](#moving-parts)), **H** hides the selected part, **Alt+H** shows everything again, **A** selects all, **Home** and the
   number pad move the view, **Z** and **Ctrl+Space** for the shading and a bigger view, **Space** plays, **Ctrl+Z**
   undoes, **F3** searches, **N** shows or hides the side panel, **Ctrl+S** saves, **Ctrl+O** opens.
@@ -560,9 +562,11 @@ mode "Subassembly", its subassembly) and a short menu opens:
 - **Add joint here…** – Add joint starts with this part: click its pivot (a hole, a shaft or a flat face) next.
 - **Unlock so it can move** – unlocks the part's subassembly, so **G** moves it and **R** turns it
   ([Moving and turning parts](#moving-parts)); once unlocked the entry reads **Lock in place**.
+- **Move / turn…** – [Place](#place) in a window of its own: X / Y / Z, turns, steps, Put on the floor.
+- **Remove…** – the window that lists what goes with it ([Remove](#remove-model)).
 
 **Right-click on empty space:** **Zoom to all** and **Show all**. In the **Client view** the menu has only Zoom, Show in
-2 Structure, Hide, Show only this and Show all – and its Hide only hides in the view: renders, the built animation and
+2 Structure, Hide, Show only this and Show all (no Move / turn…, no Remove…) – and its Hide only hides in the view: renders, the built animation and
 the project stay as they are, and leaving the Client view shows those parts again.
 
 **Blender's keys and menu back:** **Fresing > Show all of Blender** (or Workspace > Full access) gives every key and
@@ -1159,8 +1163,9 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
 After an import every subassembly is **Locked in place**: it moves only with the subassembly it is in, so a
 stray key cannot pull the model apart. Unlock what you want to move first.
 
-1. **Right-click** the part in the 3D view and click **Unlock so it can move** (or select its row in 2 Structure
-   and click **Locked in place**). This unlocks the subassembly the part is in.
+1. **Right-click** the part in the 3D view and click **Unlock so it can move** (or click the **lock** at the end of
+   its row in 2 Structure: closed = locked in place, open = free to move; greyed when a subassembly above it is
+   locked – it still moves with that one). This unlocks the subassembly the part is in.
 2. **Click** the part: its subassembly is selected. To move the **whole model**, select the top row of the tree in
    2 Structure (and unlock that one).
 3. With the mouse over the 3D view press **G** to move or **R** to turn.
@@ -1177,9 +1182,61 @@ When it cannot move, the status bar at the bottom says why at once and nothing s
 - In the **Client view** nothing can be selected or moved.
 
 Good to know: **Go to pose** puts subassemblies back where that pose had them – save the pose again after a move
-(4 Motion > Poses & exploded views). A part with a joint keeps moving with its joint.
+(4 Motion > Poses & exploded views). To move something **for good** (it stays through poses and Build), use
+[Place](#place) instead. A part with a joint keeps moving with its joint.
 Clicking twice on the same spot selects the next part behind it (Blender's own): click once, or on empty space
 first.
+
+<a id="place"></a>
+### Move, turn and remove: Place
+
+<img class="panel" src="img/panel_2_place.png" alt="Place">
+
+**2 Structure > Place** moves and turns a model, a subassembly or parts **by numbers** and keeps them there. The same
+panel opens in a window of its own from the right-click menu: **Move / turn…**.
+
+1. Select what you want to place: click it in the view, or click its row in 2 Structure. The name shows at the top
+   of Place. A closed lock beside it means **Locked in place**: click the lock to free it.
+2. Choose **World** (positions and turns in the world's X / Y / Z) or **Model axes** (how far it is from where the
+   CAD file has it, along the model's own axes – 0 means on its CAD place).
+3. Type a number in **Position (mm)** or **Turn (°)**, or click **–** / **+** to step it (the **Step** row under the
+   fields: 10 or 100 mm, 15 or 90°). A turn turns it about the middle of its box.
+4. **Snap** rounds what you type or drag (1 / 10 / 100 mm, 5 / 15 / 45°). Off keeps the exact number.
+5. Or move it with the mouse: **Move with mouse** / **Turn with mouse** (X / Y / Z keeps to that axis, type a number,
+   click to place, Esc cancels), or drag the **arrows and rings** that show on it while Place is open (switch them
+   off with **Arrows and rings**).
+6. **Put on the floor** moves it straight down (or up) until its lowest point sits on the floor (the surroundings'
+   floor, else height 0). **Back to the CAD place** puts a subassembly or part back where the CAD file has it;
+   for a whole model the button is **Back to where it was imported**.
+
+What a Place move does:
+
+- **It stays.** Build & play, poses, Reset pose, saved scenes and a model update keep the new place (a move with **G**
+  / **R** by hand is a pose's move: Go to pose and Reset pose put it back).
+- **A whole model** moves with everything on it: joints, cylinders, mechanisms, hoses, cables, labels and cameras
+  that ride on its parts.
+- **A subassembly with a joint** (the boom on its pin): when you move everything the joint moves, the joint's axis
+  goes with it. When the joint also moves other parts, only what you chose moves and the axis stays.
+- **A built animation** is taken off first – Build again afterwards.
+- In the **Client view** nothing can be moved.
+
+<a id="remove-model"></a>
+### Remove a model, subassembly or parts
+
+**Remove…** – at the bottom of Place, in the selected row's box in 2 Structure, in the right-click menu, and outside
+Full access the **Delete** and **X** keys – opens a window that lists what goes with it:
+
+- the parts, its joints, cylinders, mechanisms and way covers, hoses and drag chains, cables, drums, tracks, labels,
+  logos and stickers on it, and animation steps that only move it;
+- what only loses something: a joint that keeps moving other parts, a camera step that looked at it.
+
+Click **Remove** to take it all out of the project, or **Close** to keep it. **Ctrl+Z** brings everything back in one
+step. Saved poses and scenes keep working. The import stays: **1 Import > Imported models** brings a removed model
+back.
+
+**Remove or Clean-up?** Remove takes things out of the project for good (only Ctrl+Z brings them back). **Clean-up**
+(below) only takes parts out of the view and the renders – the joints and everything else stay, and **Restore all**
+brings them back at any time.
 
 <a id="cleanup"></a>
 ### Clean-up

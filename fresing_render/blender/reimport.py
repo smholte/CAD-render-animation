@@ -790,6 +790,9 @@ def _carry_over(context, st) -> dict:
             ob_new[build.BOUNDS_CAD] = True      # rider): lost, the sea and the cameras measured another model (0192)
         if "fr_tree_open" in ob_old:             # open/closed rows in 2 Structure
             ob_new["fr_tree_open"] = ob_old["fr_tree_open"]
+        if ob_new is not new_root:
+            from . import place                  # task 0292: a placed part stays placed in the new revision
+            place.carry_over(ob_old, ob_new)
         d = deltas.get(ob_old.get(build.PROP_UID))
         if d is not None and ob_new is not new_root:
             ob_new.matrix_basis = build.rest_basis(ob_new) @ d

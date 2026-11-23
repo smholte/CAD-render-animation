@@ -14,6 +14,7 @@ from ..core import studio
 from ..core import surroundings as env
 from ..core import vessel_motion as vessel_core
 from ..core import weather as weather_core
+from ..core import place as _place_core
 
 # Blender keeps only references to enum item strings: the list lives in a module global
 BACKGROUND_ITEMS = env.enum_items()
@@ -4251,6 +4252,59 @@ class FRCraneSetup(bpy.types.PropertyGroup):
     message: StringProperty(default="")
 
 
+# ---- Place (task 0292): 2 Structure > Place – the fields show and move what is selected ----
+
+def _place_get(i):
+    def get(self):
+        from . import place
+        return place.field_get(i)
+    return get
+
+
+def _place_set(i):
+    def set_(self, value):
+        from . import place
+        place.field_set(i, value)
+    return set_
+
+
+_PLACE_TIP = ("Where it is, in mm (World: its origin; Model axes: how far from where the CAD file has it, along the "
+              "model's own axes). Type a number or drag: it moves there and stays (Build, poses and model updates "
+              "keep it). Snap rounds it")
+_TURN_TIP = ("How it is turned, in degrees (World: about the world's axes; Model axes: from where the CAD file has "
+             "it, about the model's own axes). Type a number or drag: it turns about the middle of its box and stays. "
+             "Snap rounds it")
+
+
+def _snap_items(table):
+    return [(k, label, f"Snap to {label}" if k != "OFF" else "No snap: values stay as typed or dragged")
+            for k, label, _v in table]
+
+
+def _step_items(table, what):
+    return [(k, label, f"The – and + buttons {what} by {label}") for k, label, _v in table]
+
+
+class FRPlaceSettings(bpy.types.PropertyGroup):
+    space: EnumProperty(name="Measured", default="WORLD", items=[
+        ("WORLD", "World", "Positions and turns in the world's X / Y / Z (Z up)"),
+        ("MODEL", "Model axes", "How far it is from where the CAD file has it, along and about the model's own axes "
+                                "(0 = on its CAD place; a model: from where it was imported)")])
+    x: FloatProperty(name="X", get=_place_get(0), set=_place_set(0), precision=1, step=100, description=_PLACE_TIP)
+    y: FloatProperty(name="Y", get=_place_get(1), set=_place_set(1), precision=1, step=100, description=_PLACE_TIP)
+    z: FloatProperty(name="Z", get=_place_get(2), set=_place_set(2), precision=1, step=100, description=_PLACE_TIP)
+    rx: FloatProperty(name="X", get=_place_get(3), set=_place_set(3), precision=1, step=100, description=_TURN_TIP)
+    ry: FloatProperty(name="Y", get=_place_get(4), set=_place_set(4), precision=1, step=100, description=_TURN_TIP)
+    rz: FloatProperty(name="Z", get=_place_get(5), set=_place_set(5), precision=1, step=100, description=_TURN_TIP)
+    step_move: EnumProperty(name="Step", default="10", items=_step_items(_place_core.STEP_MOVE, "move it"))
+    step_turn: EnumProperty(name="Step", default="15", items=_step_items(_place_core.STEP_TURN, "turn it"))
+    snap_move: EnumProperty(name="Snap", default="OFF", items=_snap_items(_place_core.SNAP_MOVE))
+    snap_turn: EnumProperty(name="Snap", default="OFF", items=_snap_items(_place_core.SNAP_TURN))
+    arrows: BoolProperty(name="Arrows and rings", default=True,
+                         description="Shows arrows (move) and rings (turn) on what is selected while Place is open: "
+                                     "drag one to move it along or turn it about that axis. Snap applies")
+
+
 class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- import ----
     import_quality: EnumProperty(
@@ -4744,6 +4798,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     waycover: PointerProperty(type=FRWayCover)           # one cover per project (0.2.28 …): moved into the list on load
     waycovers: CollectionProperty(type=FRWayCover)       # task 0035: several covers (one each side, several axes)
     waycovers_index: IntProperty(default=0)
+    place: PointerProperty(type=FRPlaceSettings)         # task 0292: 2 Structure > Place
     # ---- clash check (task 0065) ----
     clash: PointerProperty(type=FRClash)
     # ---- the app makes the toolpath (task 0029) ----
@@ -4839,7 +4894,7 @@ CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTree
            FRHouse, FRPersonAction, FRPersonSettings,
            FRLiftCrane, FRLiftPoint, FRLiftDensity, FRLiftLoad, FRLifting,
            FRCraneAxis, FRCraneGroup, FRCraneRow, FRCraneChart, FRCraneProblem, FRCraneSetup,
-           FRSceneSettings)
+           FRPlaceSettings, FRSceneSettings)
 
 
 def register():

@@ -64,6 +64,36 @@ animating the scene, move xyz and rotate.") · **Model:** Opus · effort High
 - [ ] Real-app test; PC check lines `place.move`, `place.remove`; tour stop; function entries + guide anchors; guide
       pictures; tooltips; full suite + GitHub run green; report; merged, version, release
 
+## Design (worker, 23 Nov 2026)
+
+**Files:** `core/place.py` (snap, steps, the Remove window's words), `blender/place.py` (0307's G / R check + Place:
+`move`, `back_to_cad`, `carry_over`, the fields' get / set, `numbers`, `delta_for`, `step_delta`, `put_on_floor`),
+`blender/remove.py` (`plan`, `lines`, `remove`), `blender/ops_place.py` (operators), `blender/ui_place.py` (the
+sub-panel 2 Structure > Place, `draw_place`, the gizmo group `FRESING_GGT_place`); `props.py` `FRPlaceSettings`
+(`scene.fresing.place`); hooks: `reimport.py` (`place.carry_over` in step 4), `joints.SPEC_TAGS` (+ `fr_place_frame`),
+`lock.py` (Delete / X → `fresing.remove_key`), `context_menu.py` (Move / turn…, Remove…), `ui.py` (lock per tree row,
+Remove… in the row box), `ops_panels.py` (`tree_row` action LOCK), `tree.py` (part count).
+
+**Place rules.** Three places of a subassembly / part: *file place* (`fr_file_basis`, stored at its first Place),
+*CAD place* (`fr_cad_basis`) and a *free move* (`fr_rest_basis` vs the object's matrix: G / R, exploded views).
+**Place moves the CAD place** (and the rest place with it): Build, poses, Reset pose, saved scenes and a model update
+keep it; a G / R move stays a pose's free move. A model = its root's matrix (root never a free move; its rest basis =
+the import place → "Back to where it was imported"). A joint's member: when the move takes everything the joint
+moves, the joint's frame moves along (its old basis on the motion empty, `fr_place_frame`), else the part moves alone
+in the motion's coordinates and the axis stays. For a carried part `cad @ rest⁻¹` stays the fixed CAD-parent ↔ motion
+relation; after a frame moves the CAD places are worked out again in the CAD pose (`_rederive`). Locked → refused (as
+G); built animation → taken off ("Build again"); Client view → refused.
+Fields: World = origin and world turn; Model axes = offset from the file place along / about the model's axes. Turns
+about the middle of the box. Snap rounds typed / dragged / mouse values; steps are exact.
+
+**Remove.** `plan` counts what goes (parts with a shape, joints whose members all go, cylinders whose barrel or rod
+all go, mechanisms with a link that goes, way covers whose section joints all go, hoses / cables / spools / tracks /
+trails on a part that goes, labels, decal objects, steps that only move what goes) and what only loses something.
+`remove`: (1) those items off by their own Remove; (2) the steps off; (3) per affected model `reimport._take_apart`,
+the objects that go out of the scene (kept alive in a collection in no scene), `reimport._put_together` with every
+gone uid → "gone:", `_repoint` (labels, sharp spots), `states.remap_uids`, then the objects deleted; tidy as a model
+update does. One undo step (the operator's). Import cache untouched.
+
 ---
 
 ## Report (filled in by the chat that did the task)

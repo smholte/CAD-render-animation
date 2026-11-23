@@ -151,6 +151,11 @@
    "changed": "0.2.203",
    "fp": "920a8336f62183c4"
   },
+  "place": {
+   "added": "0.2.219",
+   "changed": "0.2.219",
+   "fp": "04327341d8a804e9"
+  },
   "productvideo": {
    "added": "0.2.81",
    "changed": "0.2.213",

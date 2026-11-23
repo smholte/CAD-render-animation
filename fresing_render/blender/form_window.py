@@ -53,6 +53,7 @@ WINDOWS = (
     "fresing.rule_set_save_as", "fresing.rule_set_new_empty", "fresing.rule_set_rename", "fresing.tour_make",
     "fresing.tour_note", "fresing.usage_export", "fresing.workspace_save", "fresing.workspace_rename",
     "fresing.pc_check",
+    "fresing.place_window", "fresing.remove",       # task 0292: Move / turn…, Remove…
 )
 # … and the ones that stay small popups: a yes / no question or a short message that needs one click (a click
 # elsewhere is "no"), a search list, or a file that belongs to another task (``tests/test_form_window.py`` checks

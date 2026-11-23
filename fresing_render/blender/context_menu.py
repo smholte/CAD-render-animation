@@ -39,9 +39,10 @@ ON = [False]                 # Blender's menu drawing is swapped for ours
 
 # what the menu shows (tests, the guide, the PC check)
 ON_PART = ("Zoom to it", "Show in 2 Structure", "Hide", "Show only this", "Show all", "Add a label here",
-           "Add joint here…", "Unlock so it can move")          # the last: "Lock in place" once unlocked (task 0307)
+           "Add joint here…", "Unlock so it can move",          # "Lock in place" once unlocked (task 0307)
+           "Move / turn…", "Remove…")                            # task 0292
 ON_EMPTY = ("Zoom to all", "Show all")
-CLIENT_DROPS = ("Add a label here", "Add joint here…", "Unlock so it can move")
+CLIENT_DROPS = ("Add a label here", "Add joint here…", "Unlock so it can move", "Move / turn…", "Remove…")
 
 
 def _quiet() -> bool:
@@ -161,6 +162,10 @@ def _draw(self, context):
     text = place.menu_text(ob)
     layout.operator("fresing.ctx_unlock", text=text, icon="UNLOCKED" if text.startswith("Unlock") else "LOCKED"
                     ).part = ob.name
+    layout.operator_context = "INVOKE_DEFAULT"     # task 0292: Place in a window of its own, Remove… (lists what goes)
+    layout.operator("fresing.place_window", text="Move / turn…", icon="OBJECT_ORIGIN")
+    layout.separator()
+    layout.operator("fresing.remove", text="Remove…", icon="TRASH")
     return None
 
 
