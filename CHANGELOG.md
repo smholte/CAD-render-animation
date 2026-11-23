@@ -5,6 +5,27 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.219 – 23 Nov 2026 – Place: move and turn by numbers; Remove a model, subassembly or parts; a lock in every tree row (task 0292)
+
+- **2 Structure > Place** (new): select a model, a subassembly or parts and type where it goes – X / Y / Z in mm and
+  turns in degrees, measured in the **World** or along the **Model axes** (then 0 means "where the CAD file has it").
+  **–** / **+** step it by 10 or 100 mm, 15 or 90°; **Snap** rounds to 1 / 10 / 100 mm or 5 / 15 / 45°. **Move with
+  mouse** / **Turn with mouse** (X / Y / Z keeps to an axis, type a number, click to place), and **arrows and rings**
+  on what is selected while Place is open. **Put on the floor** and **Back to the CAD place** (a model: **Back to where
+  it was imported**). The right-click menu's **Move / turn…** opens the same in a window of its own.
+- **A Place move stays**: Build & play, poses, Reset pose, saved scenes and a model update keep it. A whole model moves
+  with its joints, cylinders, hoses, cables and labels. A subassembly a joint moves (the boom on its pin) takes the
+  joint's axis along.
+- **Remove…** (new) – in Place, in the selected row's box of 2 Structure, in the right-click menu, and the **Delete**
+  and **X** keys outside Full access: a window lists what goes with it (parts, joints, cylinders, mechanisms, hoses,
+  cables, labels, stickers, animation steps that only move it) and what only loses something; **Remove** takes it out
+  in one step, **Ctrl+Z** brings it all back. The import stays (1 Import > Imported models), and a model update keeps
+  removed parts out. **Clean-up** stays what it was: it only hides parts and Restore all brings them back.
+- **A lock in every 2 Structure row**, next to the eye and the arrow: closed = locked in place, open = free to move;
+  one click switches it (greyed when a subassembly above it is locked – it still moves with that one).
+- The part count of a model's box now counts like 2 Structure's header (parts without a shape in the CAD file were
+  counted in the box only: 564 vs 562).
+
 ## 0.2.218 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
 
 - **A STEP or mesh file dropped on the view now comes in exactly like Import STEP…**: the side panel opens on
