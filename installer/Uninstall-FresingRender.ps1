@@ -22,6 +22,14 @@ function Finish([int]$code) {
     exit $code
 }
 
+# Never run from inside the folder that is removed (the temp copy would hold it too)
+try { Set-Location -LiteralPath ([IO.Path]::GetTempPath()) } catch { }
+# Only an install made by Install.bat is removed (a wrong -InstallDir must never delete another folder)
+if (-not (Test-Path -LiteralPath (Join-Path $InstallDir "installed.txt"))) {
+    Write-Host "No Fresing Render installation found in $InstallDir (installed.txt is missing). Nothing was removed." -ForegroundColor Yellow
+    Finish 1
+}
+
 # Inside the folder it removes: run a copy from %TEMP% (a running script's folder cannot be deleted from under it)
 $me = $MyInvocation.MyCommand.Path
 if (-not $FromTemp -and $me -and $me.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) {
@@ -80,6 +88,11 @@ if (Test-Path -LiteralPath $InstallDir) {
     Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 if (Test-Path -LiteralPath $InstallDir) {
+    # the uninstaller itself may be gone by now: put it back, so Uninstall in Settings still works for the second try
+    if ($FromTemp -and $me) {
+        $back = Join-Path $InstallDir "Tools"
+        try { New-Item -ItemType Directory -Force -Path $back | Out-Null; Copy-Item -LiteralPath $me -Destination (Join-Path $back "Uninstall-FresingRender.ps1") -Force } catch { }
+    }
     Write-Host "Some files in $InstallDir could not be removed (in use?). Restart the PC and run Uninstall again." -ForegroundColor Yellow
     Finish 1
 }

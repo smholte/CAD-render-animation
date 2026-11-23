@@ -439,33 +439,37 @@ if (-not $ok) { Write-Host "   (the shortcuts keep their icon; the app sets thei
 # One per-user key (no admin rights). Its Uninstall runs the uninstaller kept in the Tools folder; a copy of that file
 # ships inside the extension too, so Update now and the app's start keep it and the entry right (core/installed_apps.py).
 Step "Adding Fresing Render to Windows' Installed apps"
-$UninstallDst = Join-Path $Tools "Uninstall-FresingRender.ps1"
-$UninstallSrc = Join-Path $Here "Uninstall-FresingRender.ps1"
-if (Test-Path -LiteralPath $UninstallSrc) { Copy-Item -LiteralPath $UninstallSrc -Destination $UninstallDst -Force }
-if (Test-Path -LiteralPath $UninstallDst) {
-    $sizeKb = [int][math]::Max(1, [math]::Round(((Get-ChildItem -LiteralPath $InstallDir -Recurse -File -Force -ErrorAction SilentlyContinue |
-        Measure-Object -Property Length -Sum).Sum) / 1KB))
-    $uninstallCmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallDst`" -InstallDir `"$InstallDir`""
-    $AppsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender"
-    $oldDate = ""
-    if (Test-Path -LiteralPath $AppsKey) { $oldDate = [string](Get-ItemProperty -LiteralPath $AppsKey).InstallDate }
-    New-Item -Path $AppsKey -Force | Out-Null
-    $values = [ordered]@{
-        DisplayName = "Fresing Render"; DisplayVersion = "$ver"; Publisher = "Fresing"
-        DisplayIcon = $(if (Test-Path -LiteralPath $IconFile) { $IconFile } else { $BlenderExe })
-        InstallLocation = $InstallDir
-        InstallDate = $(if ($oldDate) { $oldDate } else { (Get-Date).ToString("yyyyMMdd") })
-        URLInfoAbout = "https://github.com/smholte/CAD-render-animation"
-        HelpLink = "https://smholte.github.io/CAD-render-animation/"
-        UninstallString = "$uninstallCmd -Pause"
-        QuietUninstallString = $uninstallCmd
+try {
+    $UninstallDst = Join-Path $Tools "Uninstall-FresingRender.ps1"
+    $UninstallSrc = Join-Path $Here "Uninstall-FresingRender.ps1"
+    if (Test-Path -LiteralPath $UninstallSrc) { Copy-Item -LiteralPath $UninstallSrc -Destination $UninstallDst -Force }
+    if (Test-Path -LiteralPath $UninstallDst) {
+        $sizeKb = [int][math]::Max(1, [math]::Round(((Get-ChildItem -LiteralPath $InstallDir -Recurse -File -Force -ErrorAction SilentlyContinue |
+            Measure-Object -Property Length -Sum).Sum) / 1KB))
+        $uninstallCmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallDst`" -InstallDir `"$InstallDir`""
+        $AppsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender"
+        $oldDate = ""
+        if (Test-Path -LiteralPath $AppsKey) { $oldDate = [string](Get-ItemProperty -LiteralPath $AppsKey).InstallDate }
+        New-Item -Path $AppsKey -Force | Out-Null
+        $values = [ordered]@{
+            DisplayName = "Fresing Render"; DisplayVersion = "$ver"; Publisher = "Fresing"
+            DisplayIcon = $(if (Test-Path -LiteralPath $IconFile) { $IconFile } else { $BlenderExe })
+            InstallLocation = $InstallDir
+            InstallDate = $(if ($oldDate) { $oldDate } else { (Get-Date).ToString("yyyyMMdd") })
+            URLInfoAbout = "https://github.com/smholte/CAD-render-animation"
+            HelpLink = "https://smholte.github.io/CAD-render-animation/"
+            UninstallString = "$uninstallCmd -Pause"
+            QuietUninstallString = $uninstallCmd
+        }
+        foreach ($k in $values.Keys) { New-ItemProperty -LiteralPath $AppsKey -Name $k -Value $values[$k] -PropertyType String -Force | Out-Null }
+        foreach ($k in "NoModify", "NoRepair") { New-ItemProperty -LiteralPath $AppsKey -Name $k -Value 1 -PropertyType DWord -Force | Out-Null }
+        New-ItemProperty -LiteralPath $AppsKey -Name "EstimatedSize" -Value $sizeKb -PropertyType DWord -Force | Out-Null
+        Write-Host "   Installed apps: Fresing Render $ver ($sizeKb KB)"
+    } else {
+        Write-Host "   (Uninstall-FresingRender.ps1 is not next to the installer - no entry in Installed apps)" -ForegroundColor Yellow
     }
-    foreach ($k in $values.Keys) { New-ItemProperty -LiteralPath $AppsKey -Name $k -Value $values[$k] -PropertyType String -Force | Out-Null }
-    foreach ($k in "NoModify", "NoRepair") { New-ItemProperty -LiteralPath $AppsKey -Name $k -Value 1 -PropertyType DWord -Force | Out-Null }
-    New-ItemProperty -LiteralPath $AppsKey -Name "EstimatedSize" -Value $sizeKb -PropertyType DWord -Force | Out-Null
-    Write-Host "   Installed apps: Fresing Render $ver ($sizeKb KB)"
-} else {
-    Write-Host "   (Uninstall-FresingRender.ps1 is not next to the installer - no entry in Installed apps)" -ForegroundColor Yellow
+} catch {
+    Write-Host "   (could not add the entry to Installed apps: $($_.Exception.Message); the app tries again at its start)" -ForegroundColor Yellow
 }
 
 Set-Content -LiteralPath (Join-Path $InstallDir "installed.txt") -Value "Fresing Render $ver installed $(Get-Date -Format s)`r`nBlender $BlenderVersion`r`nUpdates from: $UpdateFrom"

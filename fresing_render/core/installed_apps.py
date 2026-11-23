@@ -156,6 +156,8 @@ def ensure(folder: str, version: str, icon: str = "", registry=None, source: str
     current = reg.read()
     size = folder_size_kb(folder) if needs_size(current, folder, version) else int((current or {}).get("EstimatedSize") or 0)
     todo = changes(current, wanted(folder, version, icon, size))
+    if not icon:
+        todo.pop("DisplayIcon", None)                  # never wipe a good icon with nothing
     if todo:
         reg.write(todo)
         done.append("Installed apps entry: " + ("made" if not current else "updated (" + ", ".join(sorted(todo)) + ")"))
