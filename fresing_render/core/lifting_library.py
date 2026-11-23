@@ -573,7 +573,7 @@ def write_item(item_or_data, library: str, *, builtin_folder: str | None = BUILT
     else:
         data = item_or_data
     if not library:
-        raise LibraryError("No library folder: set the library folder in the app's preferences first.")
+        raise LibraryError("No folder for lifting equipment you can save into: add one in Fresing Settings > Locations.")
     data = dict(data)
     data["format"] = FORMAT
     v = _version(data.get("format_version")) if data.get("format_version") is not None else (0, 0)

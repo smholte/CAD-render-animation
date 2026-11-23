@@ -24,6 +24,10 @@ def _redraw(context) -> None:
 def _done(scene, out: dict) -> str:
     web3d.remember(scene, out)
     msg = f"Web 3D model saved: {os.path.basename(out['path'])} ({out['text']})"
+    from . import locations
+    copies = [locations.copy_also(scene, out.get(k, "")) for k in ("path", "html")]      # task 0272
+    if any(copies):
+        msg += f"; a copy went to {locations.also_name()}"
     scene.fresing.last_message = msg
     return msg
 

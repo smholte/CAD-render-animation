@@ -408,25 +408,33 @@ def test_library_missing_the_project_uses_its_own_copy(scene, lib, tmp_path):
 
 
 def test_unreachable_shared_library(scene, lib, monkeypatch, tmp_path):
+    """Task 0272: the only Rule sets folder is on a server that does not answer: nothing to save into, nothing
+    listed, the project keeps its own copy (and nothing is made on the dead share)."""
+    from fresing_render.blender import locations
     s = scene.fresing
     assert bpy.ops.fresing.rule_set_save_as(name="Fresing") == {"FINISHED"}
     monkeypatch.delenv(rule_sets.ENV_FOLDER)
-
-    class Prefs:
-        library_path = str(tmp_path / "offline share")
-        default_rule_set = "Fresing"
-        default_template = ""
-    from fresing_render.blender import prefs
-    monkeypatch.setattr(prefs, "get", lambda: Prefs)
-    rule_sets.forget_scan()
-    path, shared, problem = rule_sets.folder()
-    assert shared and "cannot be reached" in problem and path.endswith("Rule sets")
-    assert rule_sets.kind(s) == "project" and rule_sets.library() == {}
-    s.groups[0].material = "paint_gloss"
-    with pytest.raises(OSError):
-        rule_sets.save_to_library(scene)
-    sc2 = _new_project()                                        # default set not reachable: Standard
-    assert sc2.fresing.rule_set == "Standard"
+    monkeypatch.setenv(locations.ENV, str(tmp_path / "loc" / "fresing_locations.json"))
+    locations.forget()
+    try:
+        share = tmp_path / "offline share"
+        locations.set_mine_root(str(share))
+        p = locations._prefs()
+        if p is not None:
+            monkeypatch.setattr(p, "default_rule_set", "Fresing")
+        locations.wait_reach()
+        rule_sets.forget_scan()
+        path, shared, problem = rule_sets.folder()
+        assert path == "" and "No folder for rule sets" in problem and "Fresing Settings > Locations" in problem
+        assert rule_sets.kind(s) == "project" and rule_sets.library() == {}
+        s.groups[0].material = "paint_gloss"
+        with pytest.raises(OSError):
+            rule_sets.save_to_library(scene)
+        assert not share.exists()
+        sc2 = _new_project()                                    # default set not reachable: Standard
+        assert sc2.fresing.rule_set == "Standard"
+    finally:
+        locations.forget()
 
 
 def test_old_project_opens_unchanged_as_a_rule_set_of_its_own(scene, lib, tmp_path):
@@ -693,29 +701,37 @@ def test_save_warns_before_replacing_a_newer_library_version(scene, lib):
 
 
 def test_shared_folder_is_checked_at_most_every_few_seconds(monkeypatch, tmp_path):
-    """Review 0015: the panel asked the (network) folder at every redraw; an unreachable server froze it."""
-    from fresing_render.blender import prefs
+    """Review 0015: the panel asked the (network) folder at every redraw; an unreachable server froze it. Task 0272:
+    a folder is looked at in a helper thread, at most every ``REACH.ttl`` seconds."""
+    from fresing_render.blender import locations
     share = tmp_path / "share"
     share.mkdir()
-
-    class Prefs:
-        library_path = str(share)
-        default_rule_set = "Standard"
-        default_template = ""
     monkeypatch.delenv(rule_sets.ENV_FOLDER, raising=False)
-    monkeypatch.setattr(prefs, "get", lambda: Prefs)
-    rule_sets.forget_scan()
-    asked = []
-    real = os.path.isdir
-    monkeypatch.setattr(os.path, "isdir", lambda p: (asked.append(p), real(p))[1])
-    for _ in range(50):
-        assert rule_sets.folder()[2] == ""
-    assert asked.count(str(share)) == 1
-    share.rmdir()                                               # the server goes away
-    assert rule_sets.folder()[2] == ""                          # not asked again yet
-    assert "cannot be reached" in rule_sets.folder(fresh=True)[2]
-    with pytest.raises(OSError):
-        rule_sets.new_empty("X")                                # saving always asks the folder itself
+    monkeypatch.setenv(locations.ENV, str(tmp_path / "loc" / "fresing_locations.json"))
+    locations.forget()
+    try:
+        locations.set_mine_root(str(share))
+        (share / "Rule sets").mkdir()
+        locations.wait_reach()
+        rule_sets.forget_scan()
+        asked = []
+        real = os.path.isdir
+        monkeypatch.setattr(os.path, "isdir", lambda p: (asked.append(p), real(p))[1])
+        for _ in range(50):
+            assert rule_sets.folder()[2] == ""
+        assert asked.count(str(share / "Rule sets")) <= 1
+        (share / "Rule sets").rmdir()                               # the server goes away
+        share.rmdir()
+        assert rule_sets.folder()[2] == ""                          # not asked again yet
+        locations.REACH.forget()                                    # the next look (Look again, or after ttl)
+        locations._WRITABLE.clear()
+        locations.wait_reach()
+        assert "No folder for rule sets" in rule_sets.folder(fresh=True)[2]
+        with pytest.raises(OSError):
+            rule_sets.new_empty("X")
+        assert not share.exists()                                   # nothing made on a dead share
+    finally:
+        locations.forget()
     rule_sets.forget_scan()
     assert hasattr(rule_sets.documents_dir, "cache_info")      # Documents: asked from Windows once
 

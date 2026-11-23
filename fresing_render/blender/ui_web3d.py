@@ -39,6 +39,8 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         rt = web3d.runtime(scene)
         hint(layout, context, "One 3D file of the machine as it is shown now, with its looks, and a page that shows "
                               "it in any web browser: drag to turn, scroll to zoom.")
+        from . import ui_locations
+        ui_locations.draw_save_to(layout, context, scene)            # task 0272
         gap(layout)
         col = split_props(layout)
         row = col.row(align=True)

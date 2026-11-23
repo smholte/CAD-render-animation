@@ -1,4 +1,4 @@
-"""Add-on preferences: where the shared library lives, rule sets, update checks."""
+"""Add-on preferences: default template, rule set and workspace, update checks, … (the folders: locations.py)."""
 
 from __future__ import annotations
 
@@ -16,9 +16,10 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
     bl_idname = ADDON_ID
 
     library_path: StringProperty(
-        name="Shared library", subtype="DIR_PATH",
-        description="Folder with backgrounds (HDRI), templates, rule sets, logos and stickers, e.g. on the network. "
-                    "A local copy also works")
+        name="Shared library (before 0272)", subtype="DIR_PATH", options={"HIDDEN"},
+        description="The one library folder of versions before task 0272. At the first start of a newer version it "
+                    "becomes your own (Mine) folder for every kind in Fresing Settings > Locations; it is not used "
+                    "after that")
     default_template: StringProperty(
         name="Default template", subtype="FILE_PATH",
         description="Template (.json) applied to every new import: rules, groups, paint schemes, background")
@@ -152,10 +153,9 @@ def draw_general(layout, p) -> None:
     hint.active = False
     hint.label(text="Your settings are kept for you: nothing to save", icon="CHECKMARK")
     col.separator()
-    col.prop(p, "library_path")
-    sub = col.row()
-    sub.active = False
-    sub.label(text="Holds the folders HDRI, Templates, Rule sets, Logos, Stickers, Workspaces")
+    row = col.row()
+    row.label(text="Folders for models, logos, rule sets …:", icon="FILE_FOLDER")
+    row.operator("fresing.settings_tab", text="Locations").tab = "locations"
     col.separator()
     col.prop(p, "default_template")
     row = col.row(align=True)
@@ -252,12 +252,12 @@ def default_template_path() -> str:
 
 
 def library_dir(sub: str = "") -> str:
-    p = get()
-    if p and p.library_path:
-        path = os.path.join(bpy.path.abspath(p.library_path), sub)
-        if os.path.isdir(path):
-            return path
-    return ""
+    """The first readable folder of a kind, named by its old sub-folder ("Templates", "HDRI" …) – task 0272: through
+    Fresing Settings > Locations; kept for older callers."""
+    from ..core import locations as L
+    from . import locations
+    k = L.BY_SUB.get(sub.casefold()) if sub else None
+    return locations.first_path(k.key) if k else ""
 
 
 CLASSES = (FRESING_AP_prefs,)

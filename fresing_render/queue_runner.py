@@ -109,6 +109,13 @@ def main() -> int:
             bpy.ops.wm.open_mainfile(filepath=q["blend"], load_ui=False)
             res = queue.run_job(bpy.context.scene, job, progress, should_stop)
             out, msg = res if isinstance(res, tuple) else (res, "Saved " + os.path.basename(res))
+            if job.get("also_dir") and job.get("kind") != "TEST" and out and os.path.exists(out):
+                try:                                 # task 0272: "Also save a copy to" another export place
+                    _loc = importlib.import_module(package + ".core.locations")
+                    _loc.copy_output(out, job["also_dir"])
+                    msg += " (and a copy)"
+                except Exception as exc:  # noqa: BLE001 - the output itself is saved
+                    msg += f" (the copy failed: {exc})"
             st.update(status="DONE", progress=100.0, message=msg, output=out)
             note_done(job["id"], out, msg)
         except queue.Stopped:

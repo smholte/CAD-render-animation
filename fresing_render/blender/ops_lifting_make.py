@@ -39,20 +39,12 @@ def _ok(context) -> bool:
 
 
 def make_library() -> str:
-    """The library folder "Lifting equipment" Make writes into: made when the library folder is set but has no such
-    sub-folder yet; '' when no library folder is set."""
-    lib = lifting.user_folder()
+    """The "Lifting equipment" folder Make writes into: the first one you can write to, Mine first (task 0272: made
+    when it is not there yet); '' only when every such folder is switched off or read-only."""
+    lib = lifting.user_folder(make=True)
     if lib:
-        return lib
-    from . import prefs
-    p = prefs.get()
-    root = bpy.path.abspath(p.library_path) if p and p.library_path else ""
-    if not root or not os.path.isdir(root):
-        return ""
-    path = os.path.join(root, "Lifting equipment")
-    os.makedirs(path, exist_ok=True)
-    lifting.library(force=True)
-    return path
+        lifting.library(force=True)
+    return lib
 
 
 def cancel_all() -> None:
@@ -162,7 +154,8 @@ class FRESING_OT_lifting_make(bpy.types.Operator):
     def execute(self, context):
         m = U.settings(context)
         if not make_library():
-            self.report({"ERROR"}, "No library folder: set the library folder in Preferences first")
+            from . import locations
+            self.report({"ERROR"}, locations.no_folder_text("lifting"))
             return {"CANCELLED"}
         try:
             job = start(context, U.spec_of(m), m.replace)

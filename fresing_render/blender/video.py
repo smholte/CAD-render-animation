@@ -692,20 +692,36 @@ ENV_FOLDER = "FRESING_BRAND_KITS_DIR"        # tests: use this folder instead of
 
 
 def kit_folder() -> tuple[str, bool, str]:
-    """(folder, shared, problem): the "Brand kits" folder, whether it is in the shared library, and why it
-    cannot be used right now ('' = fine). Same place logic as the rule sets."""
+    """(folder, shared, problem): where a brand kit is saved – the first Brand kits folder you can write to, Mine
+    first (task 0272: Fresing Settings > Locations) –, whether it is a shared one, and why nothing can be saved
+    ('' = fine)."""
     override = os.environ.get(ENV_FOLDER)
     if override:
         return override, True, ""
-    from . import prefs, rule_sets
-    p = prefs.get()
-    lib = bpy.path.abspath(p.library_path) if p is not None and p.library_path else ""
-    if not lib:
-        return os.path.join(rule_sets.documents_dir(), "Fresing Render", brand.FOLDER), False, ""
-    path = os.path.join(lib, brand.FOLDER)
-    if not os.path.isdir(lib):
-        return path, True, f"The shared library cannot be reached ({lib})"
-    return path, True, ""
+    from ..core import locations as L
+    from . import locations
+    ch = locations.save_choices("brand_kits")
+    if not ch:
+        return "", False, locations.no_folder_text("brand_kits")
+    path = ch[0][0]                           # brand.save_kit makes it when a kit is saved
+    return path, not any(L.same_path(path, f["path"]) for f in locations.mine_list("brand_kits")), ""
+
+
+def kit_folders() -> list:
+    """[(folder, badge)] of every Brand kits folder that can be read now (Company, Department, Mine)."""
+    override = os.environ.get(ENV_FOLDER)
+    if override:
+        return [(override, "Mine")]
+    from . import locations
+    return [(loc.path, loc.badge) for loc in locations.folders("brand_kits") if loc.reach]
+
+
+def all_kits() -> list:
+    """[(kit, folder, badge)]: the kit that comes with the app first, then every folder's kits (same names kept)."""
+    out = [(brand.shipped_kit(), "", "Built-in")]
+    for folder, badge in kit_folders():
+        out += [(k, folder, badge) for k in brand.list_kits(folder) if not brand.is_shipped(k.name)]
+    return out
 
 
 def kit_from_settings(s) -> brand.BrandKit:

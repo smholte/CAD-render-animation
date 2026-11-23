@@ -11,7 +11,7 @@ from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from ..core import rule_sets as RS
 from ..core.words import plural
-from . import rule_sets
+from . import locations, rule_sets
 
 # Blender keeps only references to enum item strings: they live in module globals.
 _ITEMS: dict[str, list] = {"all": [], "default": [], "library": [], "editable": []}
@@ -219,6 +219,9 @@ class FRESING_OT_rule_set_save_as(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     name: StringProperty(name="Name", description="Name of the new rule set, e.g. your company or client")
+    where: EnumProperty(name="Save in", items=locations.where_items("rule_sets"),
+                        description="The folder the new rule set goes into: your own folders first, then the "
+                                    "company's or department's folders you may write to (Fresing Settings > Locations)")
 
     def invoke(self, context, event):
         s = context.scene.fresing
@@ -238,13 +241,15 @@ class FRESING_OT_rule_set_save_as(bpy.types.Operator):
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "name")
-        path, shared, _problem = rule_sets.folder()
-        where = "the shared library" if shared else "this PC"
-        _dialog_lines(layout, [f"Saved in {where}: {path}"], width=56)
+        if len(locations.save_choices("rule_sets")) > 1:
+            layout.prop(self, "where")
+        else:
+            path, _shared, problem = rule_sets.folder()
+            _dialog_lines(layout, [problem or f"Saved in {path}"], width=56)
 
     def execute(self, context):
         try:
-            path = rule_sets.save_as(context.scene, self.name)
+            path = rule_sets.save_as(context.scene, self.name, where=locations.where_value(self.where))
         except (OSError, ValueError) as exc:
             return _report_error(self, exc)
         self.report({"INFO"}, f"Rule set saved: {path}")
@@ -386,8 +391,8 @@ class FRESING_OT_rule_set_default(bpy.types.Operator):
 
 
 class FRESING_OT_rule_set_folder(bpy.types.Operator):
-    """Opens the folder with the rule-set files in Explorer: one .json file per rule set, shared with
-    colleagues when it is in the shared library"""
+    """Opens the folder where new rule sets go, in Explorer: one .json file per rule set, shared with colleagues
+    when it is a shared folder (Fresing Settings > Locations)"""
 
     bl_idname = "fresing.rule_set_folder"
     bl_label = "Show rule-set folder"

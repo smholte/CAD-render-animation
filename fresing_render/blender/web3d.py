@@ -173,8 +173,7 @@ def can_export(scene) -> str:
 
 def default_path(scene) -> str:
     from . import render
-    s = scene.fresing
-    folder = bpy.path.abspath(s.out_folder) if s.out_folder else render.default_output_dir()
+    folder = render.default_output_dir(scene)
     stem = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
     if not stem:
         roots = build.model_roots(scene)

@@ -1254,6 +1254,8 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
         op = row.operator("fresing.queue_add", text="All scenes", icon="DOCUMENTS")
         op.kind = "ALL_SHOTS"
         wrap(layout, context, f"Animations: Render animation in {where('animation')}", icon="INFO")
+        from . import ui_locations
+        ui_locations.draw_save_to(layout, context, scene)            # task 0272
         _draw_every_scheme(layout, context, scene)
         gap(layout)
         row = layout.row()

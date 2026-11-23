@@ -208,7 +208,8 @@ def _draw_library(layout, context, L):
     row.operator("fresing.lifting_library", text="Refresh", icon="FILE_REFRESH")
     row.operator_menu_enum("fresing.crane_setup", "kind", text="Set up a crane…", icon="PREFERENCES")  # task 0203
     if not lifting.user_folder():
-        hint(layout, context, "Your own equipment: a folder 'Lifting equipment' in your library folder (Preferences).")
+        hint(layout, context, "Your own equipment: switch on or add a Lifting equipment folder in Fresing Settings > "
+                              "Locations.")
     if picked is not None:
         gap(layout)
         icon = _icon_of(picked.picture or "")

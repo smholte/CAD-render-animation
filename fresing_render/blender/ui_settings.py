@@ -19,7 +19,7 @@ import bpy
 from . import ui
 from .ops_setup import SETTINGS_MARK
 
-LATER = ("locations", "exports", "materials")     # 0272 puts Locations + Exports after General, 0273 Materials after them
+LATER = ("materials",)     # 0273 puts Materials after Locations + Exports (task 0272)
 
 
 def _prefs():
@@ -37,6 +37,16 @@ def draw_general(layout, context) -> None:
     if p is None:
         return _no_prefs(layout)
     prefs.draw_general(layout, p)
+
+
+def draw_locations(layout, context) -> None:
+    from . import ui_locations
+    ui_locations.draw_locations(layout, context)
+
+
+def draw_exports(layout, context) -> None:
+    from . import ui_locations
+    ui_locations.draw_exports(layout, context)
 
 
 def draw_side_panel(layout, context) -> None:
@@ -86,6 +96,8 @@ def draw_about(layout, context) -> None:
 
 TABS = (
     ("general", "General", "PREFERENCES", draw_general),
+    ("locations", "Locations", "FILE_FOLDER", draw_locations),       # task 0272
+    ("exports", "Exports", "EXPORT", draw_exports),                  # task 0272
     ("panel", "Side panel", "MENU_PANEL", draw_side_panel),
     ("lessons", "Lessons", "LIGHT", draw_lessons),
     ("backups", "Backups", "FILE_BACKUP", draw_backups),
@@ -145,6 +157,9 @@ class _Any:
 
     def __setattr__(self, name, value):
         pass
+
+    def __iter__(self):                    # ``header, body = layout.panel(...)`` (the folds of Locations)
+        return iter((self, self))
 
 
 def draw_all(context) -> list:

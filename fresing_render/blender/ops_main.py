@@ -650,7 +650,7 @@ class FRESING_OT_template_import(bpy.types.Operator, ImportHelper):
 
 
 class FRESING_OT_template_from_library(bpy.types.Operator):
-    """Load a template from the shared library (Preferences > Add-ons > Fresing Render)"""
+    """Load a template from your template folders (Company, Department, Mine – Fresing Settings > Locations)"""
 
     bl_idname = "fresing.template_from_library"
     bl_label = "Template from library"
@@ -658,14 +658,9 @@ class FRESING_OT_template_from_library(bpy.types.Operator):
 
     def _items(self, context):
         def scan():
-            from . import prefs
-            folder = prefs.library_dir("Templates")
-            found = []
-            if folder:
-                for f in sorted(os.listdir(folder)):
-                    if f.lower().endswith(".json"):
-                        found.append((os.path.join(folder, f), os.path.splitext(f)[0], ""))
-            return found or [("NONE", "No templates in the library", "")]
+            from . import locations
+            found = [(p, f"{name}  ·  {loc.badge}", p) for _k, name, p, loc in locations.items("templates", (".json",))]
+            return found or [("NONE", "No templates in your template folders", "")]
         _DYNAMIC_ITEMS["templates"] = _cached_scan("templates", scan)
         return _DYNAMIC_ITEMS["templates"]
 
@@ -677,7 +672,8 @@ class FRESING_OT_template_from_library(bpy.types.Operator):
 
     def execute(self, context):
         if self.path == "NONE":
-            self.report({"WARNING"}, "Set the shared library folder in the add-on preferences")
+            self.report({"WARNING"}, "No templates found: put .json templates in a Templates folder of Fresing "
+                                     "Settings > Locations")
             return {"CANCELLED"}
         try:
             t = Template.load(self.path)
@@ -735,21 +731,15 @@ class FRESING_OT_pick_ral(bpy.types.Operator):
 
 
 def _library_hdris():
-    from . import prefs
-    folder = prefs.library_dir("HDRI")
-    found = []
-    if folder:
-        for dirpath, _dirs, files in os.walk(folder):
-            for f in sorted(files):
-                if f.lower().endswith((".exr", ".hdr")):
-                    full = os.path.join(dirpath, f)
-                    found.append((full, os.path.splitext(os.path.relpath(full, folder))[0].replace(os.sep, " / ")))
-    return found
+    """(file, label) of every 360° photo in the Backgrounds folders (Company, Department, Mine; task 0272)."""
+    from . import locations
+    return [(p, f"{name}  ·  {loc.badge}") for _k, name, p, loc in
+            locations.items("backgrounds", (".exr", ".hdr"), walk=True)]
 
 
 class FRESING_OT_pick_hdri(bpy.types.Operator):
-    """Lists the 360° photos in the shared library: type to search, click one to use it.
-    The library folder is set once in Edit > Preferences > Add-ons > Fresing Render"""
+    """Lists the 360° photos in your Backgrounds folders: type to search, click one to use it.
+    The folders are set in Fresing Settings > Locations"""
 
     bl_idname = "fresing.pick_hdri"
     bl_label = "360° photo from library"
@@ -758,7 +748,7 @@ class FRESING_OT_pick_hdri(bpy.types.Operator):
     def _items(self, context):
         def scan():
             found = [(p, label, p) for p, label in _library_hdris()]
-            return found or [("NONE", "No library set (Preferences > Fresing Render)", "")]
+            return found or [("NONE", "No 360° photos in your Backgrounds folders (Fresing Settings > Locations)", "")]
         _DYNAMIC_ITEMS["hdri"] = _cached_scan("hdri", scan)
         return _DYNAMIC_ITEMS["hdri"]
 
@@ -772,7 +762,8 @@ class FRESING_OT_pick_hdri(bpy.types.Operator):
 
     def execute(self, context):
         if self.path == "NONE":
-            self.report({"WARNING"}, "Set the shared library folder in the add-on preferences")
+            self.report({"WARNING"}, "No 360° photos found: put .exr / .hdr files in a Backgrounds folder of "
+                                     "Fresing Settings > Locations")
             return {"CANCELLED"}
         s = context.scene.fresing
         if self.target == "LIGHT":
@@ -1024,6 +1015,9 @@ class FRESING_OT_render(bpy.types.Operator):
             return {"CANCELLED"}
         s.last_message = f"Saved {self._final}"
         s.last_render = self._final
+        from . import locations
+        if locations.copy_also(scene, self._final):          # task 0272: "Also save a copy to"
+            s.last_message += " (and a copy to " + locations.also_name() + ")"
         self.report({"INFO"}, s.last_message)
         return {"FINISHED"}
 
@@ -1036,7 +1030,7 @@ class FRESING_OT_open_folder(bpy.types.Operator):
 
     def execute(self, context):
         s = context.scene.fresing
-        folder = bpy.path.abspath(s.out_folder) if s.out_folder else render.default_output_dir()
+        folder = render.default_output_dir(context.scene)
         os.makedirs(folder, exist_ok=True)
         if sys.platform == "win32":
             os.startfile(folder)  # noqa: S606 - opening a folder for the user

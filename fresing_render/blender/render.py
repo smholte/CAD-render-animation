@@ -153,10 +153,16 @@ def apply_motion_settings(scene) -> None:
     _set(c, "adaptive_threshold", round(min(0.1, c.adaptive_threshold * MOTION_THRESHOLD_FACTOR), 4))
 
 
-def default_output_dir() -> str:
-    if bpy.data.filepath:
-        return bpy.path.abspath("//Renders")
-    return os.path.join(pictures_dir(), "Fresing Render")
+def default_output_dir(scene=None) -> str:
+    """THE folder outputs go to (task 0272): the project's own folder when one was typed in, else its export place
+    (Fresing Settings > Exports; the standard is 'Renders' next to the project, Pictures\\Fresing Render before it
+    is saved). Every output asks here – no output builds its own path."""
+    from . import locations
+    return locations.output_dir(scene if scene is not None else bpy.context.scene)
+
+
+def output_dir(scene) -> str:
+    return default_output_dir(scene)
 
 
 def _safe(text: str) -> str:
@@ -164,7 +170,7 @@ def _safe(text: str) -> str:
 
 
 def output_path(scene, s, suffix: str = "") -> str:
-    folder = bpy.path.abspath(s.out_folder) if s.out_folder else default_output_dir()
+    folder = default_output_dir(scene)
     os.makedirs(folder, exist_ok=True)
     stem = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
     if not stem:

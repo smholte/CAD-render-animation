@@ -228,15 +228,16 @@ def loud_panels() -> None:
 
 
 class FRESING_OT_settings(bpy.types.Operator):
-    """Opens Fresing Settings: all of the app's own settings in one window, with a tab for each page (General, Side
-    panel, Lessons, Backups, Updates, My usage, About). Drag it anywhere; it stays open until you close it"""
+    """Opens Fresing Settings: all of the app's own settings in one window, with a tab for each page (General,
+    Locations, Exports, Side panel, Lessons, Backups, Updates, My usage, About). Drag it anywhere; it stays open until you close it"""
 
     bl_idname = "fresing.settings"
     bl_label = "Fresing Settings"
     bl_options = set()         # (not REGISTER: no "adjust last operation" box for a window button)
 
     tab: StringProperty(name="Tab", default="", options={"SKIP_SAVE"},
-                        description="The page to open on (general, panel, lessons, backups, updates, usage, about). "
+                        description="The page to open on (general, locations, exports, panel, lessons, backups, "
+                                    "updates, usage, about). "
                                     "Empty: the page you had open last")
 
     def execute(self, context):
@@ -251,17 +252,22 @@ class FRESING_OT_settings_tab(bpy.types.Operator):
     bl_options = {"INTERNAL"}
 
     tab: StringProperty(name="Page", default="general", options={"SKIP_SAVE"},
-                        description="The page to show (general, panel, lessons, backups, updates, usage, about)")
+                        description="The page to show (general, locations, exports, panel, lessons, backups, updates, "
+                                    "usage, about)")
 
     @classmethod
     def description(cls, context, properties):
         entry = ui_settings.tab(getattr(properties, "tab", "") or "")
         if entry is None:
             return " ".join(cls.__doc__.split())
-        return {"general": "General: the library folder, default template and rule set, the workspace for new "
+        return {"general": "General: the default template and rule set, the workspace for new "
                            "projects, the highlight while picking",
                 "panel": "Side panel: how sections and How it works open, the favourites bar, the questions "
                          "about unused panels and what to learn next",
+                "locations": "Locations: the folders the app reads from (models, logos, materials, rule sets …) – "
+                             "Company, Department and your own –, set-up files",
+                "exports": "Exports: where pictures, videos and 3D pages go – the default place, also a copy to "
+                           "another place",
                 "lessons": "Lessons: how a lesson points at a button, a section and a part; its colour; Play on",
                 "backups": "Backups: automatic backups of the open project – on or off, how often, how many",
                 "updates": "Updates: the check at start-up, Check now, the installed version",

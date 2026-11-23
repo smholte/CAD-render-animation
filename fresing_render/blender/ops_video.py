@@ -10,7 +10,7 @@ from . import video
 
 
 class FRESING_OT_brand_save(bpy.types.Operator):
-    """Saves this brand kit (logo, colours, font, contact line) in the shared library under the name above.
+    """Saves this brand kit (logo, colours, font, contact line) in your Brand kits folder under the name above.
     Other projects and colleagues can then load it with 'Load a kit'. An older kit of the same name is replaced"""
     bl_idname = "fresing.brand_save"
     bl_label = "Save kit"
@@ -50,9 +50,11 @@ class FRESING_OT_brand_load(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     name: StringProperty(options={"HIDDEN"})
+    folder: StringProperty(options={"HIDDEN"})
 
     def execute(self, context):
         folder, _shared, problem = video.kit_folder()
+        folder = self.folder or folder
         kit = brand.shipped_kit() if brand.is_shipped(self.name) else brand.load_kit(folder, self.name)
         if kit is None:
             self.report({"ERROR"}, problem or f"Brand kit '{self.name}' cannot be read")
@@ -89,18 +91,17 @@ class FRESING_OT_brand_delete(bpy.types.Operator):
 
 class FRESING_MT_brand_kits(bpy.types.Menu):
     bl_label = "Load a kit"
-    bl_description = "The Fresing kit that comes with the app and the brand kits in the shared library. Pick one to fill in the logo, colours, font and contact line"
+    bl_description = ("The Fresing kit that comes with the app and the brand kits in your Brand kits folders (Company, "
+                      "Department, Mine). Pick one to fill in the logo, colours, font and contact line")
 
     def draw(self, context):
         layout = self.layout
-        folder, _shared, problem = video.kit_folder()
-        kits = brand.all_kits(folder)
-        if problem:
-            layout.label(text=problem, icon="ERROR")
-        elif len(kits) == 1:
+        kits = video.all_kits()
+        if len(kits) == 1:
             layout.label(text="No kits of your own yet: fill in a kit and press Save kit", icon="INFO")
-        for kit in kits:
-            layout.operator("fresing.brand_load", text=kit.name, icon="BOOKMARKS").name = kit.name
+        for kit, folder, badge in kits:
+            op = layout.operator("fresing.brand_load", text=f"{kit.name}  ·  {badge}", icon="BOOKMARKS")
+            op.name, op.folder = kit.name, folder
 
 
 CLASSES = (FRESING_OT_brand_save, FRESING_OT_brand_load, FRESING_OT_brand_delete, FRESING_MT_brand_kits)

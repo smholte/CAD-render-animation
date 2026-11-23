@@ -163,7 +163,7 @@ def main(report_path: str | None = None) -> bool:
     check("CAD material names and part types", _cad_materials)
 
     def _rule_sets():
-        """The rule-set folder (shared library, or Documents on this PC) can be written and read."""
+        """The rule-set folder new rule sets go to (Fresing Settings > Locations) can be written and read."""
         import tempfile
         from .blender import rule_sets as project_rule_sets
         from .core import rule_sets as RS
@@ -181,7 +181,7 @@ def main(report_path: str | None = None) -> bool:
         finally:
             os.remove(tmp)
         n = len(RS.scan(path))
-        return f"{'shared library' if shared else 'this PC'}: {path} ({n} rule set{'s' if n != 1 else ''})"
+        return f"{'shared folder' if shared else 'your own folder'}: {path} ({n} rule set{'s' if n != 1 else ''})"
 
     check("Rule sets folder", _rule_sets)
 

@@ -17,6 +17,7 @@ import bpy
 from bpy.app.handlers import persistent
 
 from ..core import functions as F
+from ..core import locations as L
 from ..core import workspaces as W
 from ..core.words import plural
 
@@ -31,49 +32,58 @@ SCAN_SECONDS = 15.0                          # a network folder is read at most 
 # the open project uses (usage.apply_personal works that out and puts the tuple here)
 PERSONAL: dict = {"hide": ()}
 
-_FOLDER: dict = {"key": None, "time": 0.0, "ok": True}
 _SCAN: dict = {"key": None, "time": 0.0, "found": {}, "gen": 0}
 
 
 def folder(fresh: bool = False) -> tuple:
-    """(folder, shared, problem): the "Workspaces" folder, whether it is in the shared library, and why it cannot
-    be used right now ('' = fine). As for rule sets: without a shared library it is Documents/Fresing Render."""
+    """(folder, shared, problem): where an own workspace is saved – the first Workspaces folder you can write to,
+    Mine first (task 0272: Fresing Settings > Locations) –, whether it is a Company / Department folder, and why
+    nothing can be saved now ('' = fine)."""
     override = os.environ.get(ENV_FOLDER)
     if override:
         return override, True, ""
-    from . import prefs, rule_sets
-    p = prefs.get()
-    lib = bpy.path.abspath(p.library_path) if p is not None and p.library_path else ""
-    if not lib:
-        return os.path.join(rule_sets.documents_dir(), "Fresing Render", W.FOLDER), False, ""
-    now = time.monotonic()
-    if fresh or _FOLDER["key"] != lib or now - _FOLDER["time"] > SCAN_SECONDS:
-        _FOLDER.update(key=lib, time=now, ok=os.path.isdir(lib))
-    path = os.path.join(lib, W.FOLDER)
-    if not _FOLDER["ok"]:
-        return path, True, f"The shared library cannot be reached ({lib})"
-    return path, True, ""
+    from . import locations
+    ch = locations.save_choices("workspaces")
+    if not ch:
+        return "", False, locations.no_folder_text("workspaces")
+    path = ch[0][0]                           # made when something is saved (``_writable_folder``)
+    shared = not any(L.same_path(path, f["path"]) for f in locations.mine_list("workspaces"))
+    return path, shared, ""
+
+
+def folders() -> list:
+    override = os.environ.get(ENV_FOLDER)
+    if override:
+        return [override]
+    from . import locations
+    return locations.paths("workspaces")
 
 
 def library(force: bool = False) -> dict:
-    """{name: (file, Workspace)} of the own workspaces (read again at most every few seconds)."""
-    path, _shared, problem = folder(fresh=force)
-    if problem:
-        return {}
+    """{name: (file, Workspace)} of the own workspaces of every Workspaces folder (Company, Department, Mine),
+    merged; the same name twice: the second as "name (badge)" (read again at most every few seconds)."""
+    from . import locations
+    paths = folders()
+    key = (tuple(paths), locations.generation())
     now = time.monotonic()
-    if force or _SCAN["key"] != path or now - _SCAN["time"] > SCAN_SECONDS:
-        found = W.scan(path)
-        if force or _SCAN["key"] != path or {k: v[1].to_json() for k, v in found.items()} != \
+    if force or _SCAN["key"] != key or now - _SCAN["time"] > SCAN_SECONDS:
+        rows = []
+        for path in paths:
+            badge = locations.badge_of(os.path.join(path, "x"), "workspaces") or "Mine"
+            for name, (f, ws) in W.scan(path).items():
+                rows.append((name, badge, f, ws))
+        keys = L.unique_keys([(n, b) for n, b, _f, _w in rows])
+        found = {k: (f, ws) for k, (_n, _b, f, ws) in zip(keys, rows)}
+        if force or _SCAN["key"] != key or {k: v[1].to_json() for k, v in found.items()} != \
                 {k: v[1].to_json() for k, v in _SCAN["found"].items()}:
             _SCAN["gen"] += 1
             _hidden.cache_clear()
-        _SCAN.update(key=path, time=now, found=found)
+        _SCAN.update(key=key, time=now, found=found)
     return _SCAN["found"]
 
 
 def forget_scan() -> None:
     _SCAN["key"] = None
-    _FOLDER["key"] = None
     _hidden.cache_clear()
 
 
@@ -458,14 +468,39 @@ def on_load(scene) -> None:
 # own workspaces
 # ---------------------------------------------------------------------------
 
-def _writable_folder() -> str:
+def _writable_folder(name: str = "", where: str = "") -> str:
+    """Where to write: the folder of own workspace ``name`` when it can be written, else the save folder."""
+    if where and not os.environ.get(ENV_FOLDER) and L.writable(where):     # the dialog's "Save in"
+        os.makedirs(where, exist_ok=True)
+        from . import locations
+        locations.made(where)
+        return where
+    if name:
+        hit = library().get(name)
+        if hit is not None and L.writable(os.path.dirname(hit[0])):
+            return os.path.dirname(hit[0])
     path, _shared, problem = folder(fresh=True)
     if problem:
         raise OSError(problem)
+    os.makedirs(path, exist_ok=True)
+    from . import locations
+    locations.made(path)
     return path
 
 
-def save_own(scene, name: str, note: str = "") -> str:
+def _folder_of(name: str) -> tuple:
+    """(folder, the name inside the file) of an own workspace to rename or delete; OSError when its folder is one
+    you cannot change."""
+    hit = library(force=True).get(name)
+    if hit is None:
+        raise FileNotFoundError(f"'{name}' is not one of your workspaces")
+    here = os.path.dirname(hit[0])
+    if not L.writable(here):
+        raise OSError(f"'{name}' is in a shared folder you cannot change")
+    return here, hit[1].name
+
+
+def save_own(scene, name: str, note: str = "", where: str = "") -> str:
     """Save what shows now as an own workspace (a new one, or over an own one of that name); the project uses it
     from now on. Returns the file."""
     name = W.clean_name(name)
@@ -473,7 +508,7 @@ def save_own(scene, name: str, note: str = "") -> str:
     if problem:
         raise ValueError(problem)
     ws = W.make_own(name, current(scene), ticks(scene), note)
-    path = W.save_in(_writable_folder(), ws)
+    path = W.save_in(_writable_folder(where=where, name=name), ws)
     forget_scan()
     library(force=True)
     s = _settings(scene)
@@ -486,7 +521,8 @@ def save_own(scene, name: str, note: str = "") -> str:
 def rename_own(scene, old: str, new: str) -> str:
     """Rename an own workspace's file; this project follows when it uses it."""
     new = W.clean_name(new)
-    path = W.rename_in(_writable_folder(), old, new)
+    here, inner = _folder_of(old)
+    path = W.rename_in(here, inner, new)
     forget_scan()
     library(force=True)
     s = _settings(scene)
@@ -502,7 +538,8 @@ def rename_own(scene, old: str, new: str) -> str:
 
 def delete_own(scene, name: str) -> None:
     """Delete an own workspace's file. A project that uses it keeps its copy until it picks another workspace."""
-    W.delete_in(_writable_folder(), name)
+    here, inner = _folder_of(name)
+    W.delete_in(here, inner)
     forget_scan()
     library(force=True)
     _redraw()

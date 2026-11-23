@@ -12,7 +12,7 @@ from bpy.props import BoolProperty, EnumProperty, StringProperty
 from ..core import functions as F
 from ..core import workspaces as W
 from ..core.words import plural
-from . import panels, workspaces
+from . import locations, panels, workspaces
 
 _ITEMS: list = []            # Blender needs the strings of a dynamic enum kept alive
 
@@ -174,9 +174,9 @@ class FRESING_OT_workspace_all(bpy.types.Operator):
 
 
 class FRESING_OT_workspace_save(bpy.types.Operator):
-    """Saves what the side panel shows now as a workspace of your own: one file in the library folder
-    "Workspaces". A colleague gets it by copying that file into his own library folder. Saving under the name
-    of one of your own workspaces replaces it"""
+    """Saves what the side panel shows now as a workspace of your own: one file in a Workspaces folder (Fresing
+    Settings > Locations). A colleague gets it by copying that file into their own folder, or through a shared
+    folder. Saving under the name of one of your own workspaces replaces it"""
 
     bl_idname = "fresing.workspace_save"
     bl_label = "Save as my own workspace"
@@ -184,6 +184,9 @@ class FRESING_OT_workspace_save(bpy.types.Operator):
 
     name: StringProperty(name="Name", description="The name of your workspace, for example \"Offshore cranes\"")
     note: StringProperty(name="Note", description="A line that says what this workspace is for (optional)")
+    where: EnumProperty(name="Save in", items=locations.where_items("workspaces"),
+                        description="The folder the workspace goes into: your own folders first, then the company's "
+                                    "or department's folders you may write to (Fresing Settings > Locations)")
 
     def invoke(self, context, event):
         cur = workspaces.name_of(context.scene)
@@ -201,13 +204,15 @@ class FRESING_OT_workspace_save(bpy.types.Operator):
         elif name and W.key_of(name):
             _lines(layout, f"'{name}' is the name of a built-in workspace: yours will be used instead of it.",
                    icon="INFO")
-        path, shared, problem = workspaces.folder()
-        _lines(layout, problem or ("It goes into the shared library: " if shared else "It goes into: ") + path,
-               icon="ERROR" if problem else "FILE_FOLDER")
+        if len(locations.save_choices("workspaces")) > 1:
+            layout.prop(self, "where")
+        else:
+            path, _shared, problem = workspaces.folder()
+            _lines(layout, problem or "It goes into: " + path, icon="ERROR" if problem else "FILE_FOLDER")
 
     def execute(self, context):
         try:
-            path = workspaces.save_own(context.scene, self.name, self.note)
+            path = workspaces.save_own(context.scene, self.name, self.note, where=locations.where_value(self.where))
         except (ValueError, OSError) as exc:
             return _report_error(self, exc)
         self.report({"INFO"}, f"Workspace '{W.clean_name(self.name)}' saved: {os.path.basename(path)}")
@@ -215,7 +220,7 @@ class FRESING_OT_workspace_save(bpy.types.Operator):
 
 
 class FRESING_OT_workspace_rename(bpy.types.Operator):
-    """Gives your own workspace another name (its file in the library folder is renamed). Other projects that
+    """Gives your own workspace another name (its file in your Workspaces folder is renamed). Other projects that
     use it keep their own copy under the old name"""
 
     bl_idname = "fresing.workspace_rename"
@@ -247,7 +252,7 @@ class FRESING_OT_workspace_rename(bpy.types.Operator):
 
 
 class FRESING_OT_workspace_delete(bpy.types.Operator):
-    """Deletes the file of your own workspace from the library folder. This project keeps showing what it
+    """Deletes the file of your own workspace from your Workspaces folder. This project keeps showing what it
     shows now until you pick another workspace; other projects that use it keep their own copy"""
 
     bl_idname = "fresing.workspace_delete"
@@ -265,7 +270,7 @@ class FRESING_OT_workspace_delete(bpy.types.Operator):
         name = workspaces.name_of(context.scene)
         return context.window_manager.invoke_confirm(
             self, event, title=f"Delete the workspace '{name}'?",
-            message="Its file is deleted from the library folder. Projects keep their own copy.",
+            message="Its file is deleted from your Workspaces folder. Projects keep their own copy.",
             confirm_text="Delete", icon="WARNING")
 
     def execute(self, context):
@@ -274,20 +279,20 @@ class FRESING_OT_workspace_delete(bpy.types.Operator):
             workspaces.delete_own(context.scene, name)
         except OSError as exc:
             return _report_error(self, exc)
-        self.report({"INFO"}, f"Workspace '{name}' deleted from the library folder")
+        self.report({"INFO"}, f"Workspace '{name}' deleted from your Workspaces folder")
         return {"FINISHED"}
 
 
 class FRESING_OT_workspace_refresh(bpy.types.Operator):
-    """Reads the library folder "Workspaces" again: a workspace file a colleague sent you shows up in the
-    list after you copied it there"""
+    """Reads your Workspaces folders again (Fresing Settings > Locations): a workspace file a colleague sent you
+    shows up in the list after you copied it there"""
 
     bl_idname = "fresing.workspace_refresh"
     bl_label = "Refresh"
 
     def execute(self, context):
         found = workspaces.library(force=True)
-        self.report({"INFO"}, f"{plural(len(found), 'workspace')} of your own in the library folder")
+        self.report({"INFO"}, f"{plural(len(found), 'workspace')} of your own in your Workspaces folders")
         panels.redraw()
         return {"FINISHED"}
 

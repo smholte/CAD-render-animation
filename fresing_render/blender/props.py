@@ -4394,11 +4394,11 @@ class FRSceneSettings(bpy.types.PropertyGroup):
         name="Weather", default="SUN", update=_world_changed, items=studio.WEATHER_ITEMS,
         description="Sun or overcast, wherever the sky gives the light (Sky, the sea, the deck, the quay)")
     hdri_path: StringProperty(name="360° photo", subtype="FILE_PATH", update=_world_changed,
-                              description="The 360° photo (.hdr or .exr). The library button picks one from the "
-                                          "shared library; the folder button any file on your PC")
+                              description="The 360° photo (.hdr or .exr). The library button picks one from your "
+                                          "Backgrounds folders; the folder button any file on your PC")
     light_hdri_path: StringProperty(name="Light from", subtype="FILE_PATH", update=_world_changed,
                                     description="The 360° photo that gives the light (it is not seen). The library "
-                                                "button picks one from the shared library")
+                                                "button picks one from your Backgrounds folders")
     light_rotation: FloatProperty(name="Rotate light", default=0.0, min=-360, max=360, update=_world_changed,
                                   description="Turns the light, the sun or the 360° photo around the machine "
                                               "(degrees). Drag it and watch the shadows in Live preview")
@@ -4609,9 +4609,12 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                               description="Width of the picture in pixels")
     out_custom_h: IntProperty(name="Height", default=1080, min=16, max=16384, update=_output_changed,
                               description="Height of the picture in pixels")
-    out_folder: StringProperty(name="Folder", subtype="DIR_PATH",
-                               description="Where renders are saved. Empty: a folder 'Renders' next to the saved "
-                                           "project")
+    out_folder: StringProperty(name="Own folder", subtype="DIR_PATH",
+                               description="A folder of this project's own for its pictures, videos and 3D pages: it "
+                                           "wins over Save to. Empty: Save to decides (Fresing Settings > Exports)")
+    out_place: StringProperty(name="Save to", default="",
+                              description="The export place this project's pictures, videos and 3D pages go to "
+                                          "(Fresing Settings > Exports). Empty: your default place")
     out_file_type: EnumProperty(name="File", default="PNG",
                                 description="File type of the saved picture",
                                 items=[("PNG", "PNG", "Best quality, keeps a transparent background"),

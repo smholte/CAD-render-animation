@@ -24,6 +24,7 @@ import time
 
 import bpy
 
+from ..core import locations as L
 from ..core import rule_sets as RS
 from ..core import rules as R
 from ..core.words import plural, verb
@@ -69,48 +70,57 @@ def documents_dir() -> str:
     return os.path.join(os.path.expanduser("~"), "Documents")
 
 
-_FOLDER: dict = {"key": None, "time": 0.0, "ok": True}
 
 
 def folder(fresh: bool = False) -> tuple[str, bool, str]:
-    """(folder, shared, problem): the "Rule sets" folder, whether it is in the shared library, and
-    why it cannot be used right now ('' = fine). Whether the shared library can be reached is
-    checked at most every few seconds (an unreachable server can take seconds to answer, and the
-    panel asks at every redraw); ``fresh``: check now (before saving, renaming, deleting)."""
+    """(folder, shared, problem): where a new rule set is saved – the first Rule sets folder you can write to,
+    Mine first (task 0272: Fresing Settings > Locations) –, whether it is a Company / Department folder, and why
+    nothing can be saved right now ('' = fine). Folders on a server are looked at in the background, never waited
+    for (``locations.REACH``)."""
     override = os.environ.get(ENV_FOLDER)
     if override:
         return override, True, ""
-    from . import prefs
-    p = prefs.get()
-    lib = bpy.path.abspath(p.library_path) if p is not None and p.library_path else ""
-    if not lib:
-        return os.path.join(documents_dir(), "Fresing Render", RS.FOLDER), False, ""
-    now = time.monotonic()
-    if fresh or _FOLDER["key"] != lib or now - _FOLDER["time"] > SCAN_SECONDS:
-        _FOLDER.update(key=lib, time=now, ok=os.path.isdir(lib))
-    path = os.path.join(lib, RS.FOLDER)
-    if not _FOLDER["ok"]:
-        return path, True, f"The shared library cannot be reached ({lib})"
-    return path, True, ""
+    from . import locations
+    ch = locations.save_choices("rule_sets")
+    if not ch:
+        return "", False, locations.no_folder_text("rule_sets")
+    path = ch[0][0]                           # made when something is saved (``_writable_folder``), not on redraw
+    shared = not any(L.same_path(path, f["path"]) for f in locations.mine_list("rule_sets"))
+    return path, shared, ""
+
+
+def folders() -> list:
+    """Every Rule sets folder that can be read now (Company, Department, Mine)."""
+    override = os.environ.get(ENV_FOLDER)
+    if override:
+        return [override]
+    from . import locations
+    return locations.paths("rule_sets")
 
 
 _SCAN: dict = {"key": None, "time": 0.0, "found": {}}
 
 
 def library(force: bool = False) -> dict[str, tuple[str, RS.RuleSet]]:
-    """{name: (file, rule set)} in the rule-set folder (read again at most every few seconds)."""
-    path, _shared, problem = folder(fresh=force)
-    if problem:
-        return {}
+    """{name: (file, rule set)} of every Rule sets folder, merged (read again at most every few seconds). The same
+    name in two folders is listed twice: the second as "name (badge)" (task 0272)."""
+    from . import locations
+    paths = folders()
+    key = (tuple(paths), locations.generation())
     now = time.monotonic()
-    if force or _SCAN["key"] != path or now - _SCAN["time"] > SCAN_SECONDS:
-        _SCAN.update(key=path, time=now, found=RS.scan(path))
+    if force or _SCAN["key"] != key or now - _SCAN["time"] > SCAN_SECONDS:
+        found = []
+        for path in paths:
+            loc_badge = locations.badge_of(os.path.join(path, "x"), "rule_sets") or "Mine"
+            for name, (f, rs) in RS.scan(path).items():
+                found.append((name, loc_badge, f, rs))
+        keys = L.unique_keys([(n, b) for n, b, _f, _r in found])
+        _SCAN.update(key=key, time=now, found={k: (f, rs) for k, (_n, _b, f, rs) in zip(keys, found)})
     return _SCAN["found"]
 
 
 def forget_scan() -> None:
     _SCAN["key"] = None
-    _FOLDER["key"] = None
 
 
 def find(name: str) -> RS.RuleSet | None:
@@ -376,11 +386,39 @@ def switch(scene, rs: RS.RuleSet, saved: RS.RuleSet | None = None) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _writable_folder() -> str:
+def _writable_folder(name: str = "", where: str = "") -> str:
+    """Where to write: the folder that holds rule set ``name`` when you can write there, else the save folder."""
+    if where and not os.environ.get(ENV_FOLDER) and L.writable(where):     # the dialog's "Save in"
+        os.makedirs(where, exist_ok=True)
+        from . import locations
+        locations.made(where)
+        return where
+    if name:
+        hit = library().get(name)
+        if hit is not None:
+            here = os.path.dirname(hit[0])
+            if L.writable(here):
+                return here
     path, _shared, problem = folder(fresh=True)
     if problem:
         raise OSError(problem)
+    os.makedirs(path, exist_ok=True)
+    from . import locations
+    locations.made(path)
     return path
+
+
+def _folder_of(name: str) -> str:
+    """The folder of a rule set to rename or delete; OSError when it lies in a folder you cannot change."""
+    hit = library(force=True).get(name)
+    if hit is None:
+        raise FileNotFoundError(f"'{name}' is not in the library")
+    here = os.path.dirname(hit[0])
+    if not L.writable(here):
+        from . import locations
+        raise OSError(f"'{name}' is in a {locations.badge_of(hit[0], 'rule_sets') or 'shared'} folder you cannot "
+                      "change: save it as a new rule set in your own folder instead")
+    return here
 
 
 def save_question(s) -> tuple[str, bool]:
@@ -402,13 +440,13 @@ def save_to_library(scene) -> str:
     if s.rule_set == RS.STANDARD:
         raise ValueError("Standard is built in and cannot be changed: save it as a new rule set")
     rs = current(s)
-    path = RS.save_in(_writable_folder(), rs)
+    path = RS.save_in(_writable_folder(s.rule_set), rs)
     forget_scan()
     set_saved(s, rs)
     return path
 
 
-def save_as(scene, name: str, note: str = "") -> str:
+def save_as(scene, name: str, note: str = "", where: str = "") -> str:
     """Save the project's rule set as it is now under a new name; the project uses it from now on."""
     s = scene.fresing
     name = RS.clean_name(name)
@@ -419,7 +457,7 @@ def save_as(scene, name: str, note: str = "") -> str:
     old = rs.name
     rs.name = name
     rs.note = note or (f"Based on '{old}'" if old else "")
-    path = RS.save_in(_writable_folder(), rs)
+    path = RS.save_in(_writable_folder(where=where), rs)
     forget_scan()
     set_saved(s, rs)
     return path
@@ -446,7 +484,7 @@ def rename(scene, old: str, new: str) -> str:
     if old == RS.STANDARD:
         raise ValueError("Standard is built in and cannot be renamed")
     if old in library(force=True):
-        RS.rename_in(_writable_folder(), old, new)
+        RS.rename_in(_folder_of(old), library()[old][1].name, new)
         forget_scan()
     elif old != s.rule_set:
         raise FileNotFoundError(f"'{old}' is not in the library")
@@ -462,5 +500,5 @@ def rename(scene, old: str, new: str) -> str:
 
 def delete(name: str) -> None:
     """Delete a rule set file from the library. Projects that use it keep their own copy."""
-    RS.delete_in(_writable_folder(), name)
+    RS.delete_in(_folder_of(name), library()[name][1].name)
     forget_scan()

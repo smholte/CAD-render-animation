@@ -183,7 +183,8 @@ class FRESING_PT_decals(_Panel, bpy.types.Panel):
         body = fold(layout, "fr_decals_library", "Library of logos and stickers", "ASSET_MANAGER")
         if body is not None:
             hint(body, context, "Put your logos and stickers as PNG files in these folders: they show in the "
-                                "list next to Picture. Set the shared library folder in the Preferences.")
+                                "list next to Picture, with the company's and department's ones (Fresing Settings > "
+                                "Locations).")
             col = body.column(align=True)
             for which in ("Logos", "Stickers"):                 # one folder per row: nothing cut off
                 row = col.split(factor=0.36, align=True)

@@ -419,7 +419,7 @@ class FRESING_OT_decal_library(bpy.types.Operator):
 
 
 class FRESING_OT_decal_open_library(bpy.types.Operator):
-    """Shows the library folder for logos in Explorer (made when it is not there yet)"""
+    """Shows your own folder for logos in Explorer (made when it is not there yet)"""
 
     bl_idname = "fresing.decal_open_library"
     bl_label = "Show in folder"
@@ -430,15 +430,18 @@ class FRESING_OT_decal_open_library(bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         if properties.which == "Stickers":
-            return ("Shows the library folder for stickers in Explorer (made when it is not there yet). "
+            return ("Shows your own folder for stickers in Explorer (made when it is not there yet). "
                     "Put your own stickers in it as PNG files: they show in the list next to Picture")
-        return ("Shows the library folder for logos in Explorer (made when it is not there yet). Put your "
+        return ("Shows your own folder for logos in Explorer (made when it is not there yet). Put your "
                 "company logos in it as PNG files with a see-through background: they show in the list next to "
                 "Picture")
 
     def execute(self, context):
-        folder = next((f for f in decals.library_folders() if os.path.basename(f) == self.which),
-                      decals.library_folders()[0])
+        from . import locations
+        folder = locations.save_folder("stickers" if self.which == "Stickers" else "logos")
+        if not folder:
+            self.report({"ERROR"}, locations.no_folder_text("stickers" if self.which == "Stickers" else "logos"))
+            return {"CANCELLED"}
         try:
             os.makedirs(folder, exist_ok=True)
             files.open_path(folder)

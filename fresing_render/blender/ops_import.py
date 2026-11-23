@@ -137,6 +137,11 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
             self.quality = root.get("fr_quality", self.quality)
             if src:
                 self.filepath = src            # the file browser opens on the current file
+        elif not self.filepath:                # task 0272: opens in the first STEP models folder (all on its left)
+            from . import locations
+            first = locations.first_path("step")
+            if first:
+                self.filepath = os.path.join(first, "")
         return ImportHelper.invoke(self, context, event)
 
     def _path(self) -> str:

@@ -44,6 +44,7 @@ def _classes():
     from .blender import ops_backups              # task 0246: Fresing > Restore a backup…, the start question
     from .blender import ui_left, ops_make        # task 0260: the left panel, the output windows of Make
     from .blender import ops_settings, ui_settings  # task 0271: the Fresing Settings window
+    from .blender import ops_locations              # task 0272: Locations, Exports, Save to, set-up files
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -70,7 +71,8 @@ def _classes():
             + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ops_lifting_rig.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
-            + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES)
+            + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
+            + ops_locations.CLASSES)
 
 
 def _all_classes():
@@ -143,6 +145,8 @@ def register():
         bpy.utils.register_class(cls)
     from .blender import settings_store
     settings_store.register()                # task 0283: every setting read from the app's own file, kept on change
+    from .blender import locations
+    locations.register()                     # task 0272: the folders per kind, set-ups, export places (after the settings)
     handlers.register()
     from .blender import lock, ui_top, workspaces
     from .blender import highlight
@@ -237,6 +241,8 @@ def unregister():
     toolbox_inbox.unregister()
     from .blender import settings_store
     settings_store.unregister()              # task 0283: the last change written
+    from .blender import locations
+    locations.unregister()
     ops_house.unregister_menu()
     from .blender import ops_import
     ops_import.unregister_menu()

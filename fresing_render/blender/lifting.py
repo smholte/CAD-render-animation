@@ -81,19 +81,35 @@ _RIG: dict = {}                  # path -> (mtime, Rig or ReachError text)
 _CHARTS: dict = {}               # path -> (mtime, charts)
 
 
-def user_folder() -> str:
-    from . import prefs
+def user_folder(make: bool = False) -> str:
+    """Where your own equipment is saved: the first Lifting equipment folder you can write to, Mine first (task 0272:
+    Fresing Settings > Locations; a ready-made one is there from the first start). '' when there is none."""
+    from . import locations
     try:
-        return prefs.library_dir("Lifting equipment")
+        return locations.save_folder("lifting", make=make)
     except Exception:  # noqa: BLE001
         return ""
 
 
+def user_folders() -> list:
+    """Every Lifting equipment folder that can be read now (Company, Department, Mine)."""
+    from . import locations
+    try:
+        return locations.paths("lifting")
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def library(force: bool = False) -> list:
-    """Every item: the user's own first, then the built-ins (``list_items``), read once until Refresh."""
-    folder = user_folder()
-    if force or _LIB["items"] is None or _LIB["folder"] != folder:
-        _LIB.update(items=LL.list_items(folder or None), folder=folder, at=time.time())
+    """Every item: the user's own folders' first (Company, Department, Mine, in order), then the built-ins
+    (``list_items``), read once until Refresh or a change of the folders."""
+    folders = tuple(user_folders())
+    if force or _LIB["items"] is None or _LIB["folder"] != folders:
+        items = []
+        for f in folders:
+            items += LL.list_items(f, builtin_folder=None)
+        items += LL.list_items(None)
+        _LIB.update(items=items, folder=folders, at=time.time())
     return _LIB["items"]
 
 

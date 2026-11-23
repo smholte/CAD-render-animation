@@ -179,7 +179,7 @@ def _profiles_folder() -> str:
 
 class FRESING_OT_usage_export(bpy.types.Operator):
     """Saves your side panel as a profile: this project's workspace with your favourites bar and the panels you hid,
-    as one file in the library folder "Workspaces". A colleague or a team uses it with Import profile. Your usage
+    as one file in your Workspaces folder. A colleague or a team uses it with Import profile. Your usage
     counts go in only when you tick it"""
 
     bl_idname = "fresing.usage_export"

@@ -299,7 +299,7 @@ def _pid_alive_os(pid: int) -> bool:
 
 
 def queue_root() -> str:
-    return os.path.join(render.default_output_dir(), "_queue")
+    return os.path.join(render.default_output_dir(bpy.context.scene), "_queue")
 
 
 PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -316,8 +316,7 @@ def runner_command(queue_dir: str) -> list[str]:
 
 
 def _out_dir(scene) -> str:
-    s = scene.fresing
-    return bpy.path.abspath(s.out_folder) if s.out_folder else render.default_output_dir()
+    return render.default_output_dir(scene)
 
 
 def new_queue_dir(root: str) -> str:
@@ -363,6 +362,8 @@ def start(context, only=None) -> str:
         src = roots[0].get(build.PROP_SOURCE, "") if roots else ""
         stem = os.path.splitext(os.path.basename(src))[0] or "project"
     blend = os.path.join(qdir, f"{render._safe(stem)}.blend")
+    from . import locations
+    also = locations.also_dir(scene)             # task 0272: "Also save a copy to" – the runner copies each output
     jobs = []
     for j in waiting:
         j.status = "WAITING"
@@ -370,7 +371,7 @@ def start(context, only=None) -> str:
         j.message = "Waiting"
         jobs.append({"id": j.job_id, "kind": j.kind, "shot": j.shot, "animation": j.animation,
                      "camera": j.camera, "quality": j.quality, "out_dir": out_dir, "label": j.label,
-                     "watermark": bool(j.watermark), "scheme": j.scheme})
+                     "watermark": bool(j.watermark), "scheme": j.scheme, "also_dir": also})
     s.queue_dir = qdir
     undo = _absolute_paths(scene)                # '//…' would point next to the copy (bug hunt row 18)
     try:

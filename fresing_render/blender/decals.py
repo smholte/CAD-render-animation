@@ -1194,24 +1194,26 @@ def summary(scene) -> str:
     return plural(n, "decal") if n else ""
 
 
-def library_folders() -> list[str]:
-    """Folders with logos and stickers: in the shared library, else under Documents\\Fresing Render."""
-    from . import prefs, rule_sets
-    p = prefs.get()
-    lib = bpy.path.abspath(p.library_path) if p is not None and p.library_path else ""
-    base = lib if lib and os.path.isdir(lib) else os.path.join(rule_sets.documents_dir(), "Fresing Render")
-    return [os.path.join(base, sub) for sub in LIBRARY_FOLDERS]
+def library_folders(which: str = "") -> list[str]:
+    """Folders with logos and stickers (task 0272: every Logos / Stickers folder of Fresing Settings > Locations –
+    Company, Department, Mine – that can be reached now); ``which`` "Logos" or "Stickers" for one kind only."""
+    from . import locations
+    kinds = {"Logos": "logos", "Stickers": "stickers"}
+    out = []
+    for sub, key in kinds.items():
+        if which and which != sub:
+            continue
+        out += locations.paths(key)
+    return out
 
 
 def library_pictures() -> list[tuple[str, str]]:
-    """(label, file) of every picture in the library folders."""
+    """(label, file) of every picture in the logo and sticker folders, merged and sorted by name; each label says
+    the kind and where it comes from ("Logos: Fresing  ·  Company"), the same name twice shows twice."""
+    from . import locations
     out = []
-    for folder in library_folders():
-        if not os.path.isdir(folder):
-            continue
-        sub = os.path.basename(folder)
-        for name in sorted(os.listdir(folder), key=str.lower):
-            if name.lower().endswith(PICTURE_TYPES):
-                out.append((f"{sub}: {os.path.splitext(name)[0]}", os.path.join(folder, name)))
+    for sub, key in (("Logos", "logos"), ("Stickers", "stickers")):
+        for _key, name, path, loc in locations.items(key, PICTURE_TYPES):
+            out.append((f"{sub}: {name}  ·  {loc.badge}", path))
     return out
 

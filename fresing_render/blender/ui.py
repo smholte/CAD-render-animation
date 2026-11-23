@@ -621,9 +621,9 @@ def draw_rule_set(layout, context) -> None:
         split = body.split(factor=0.4, align=True)
         split.label(text="New projects")
         split.operator_menu_enum("fresing.rule_set_default", "name", text=rule_sets.default_name(), icon="FILTER")
-        path, shared, _problem = rule_sets.folder()
-        where = "Kept in the shared library" if shared else "Kept on this PC (no shared library set)"
-        info = wrap(body, context, f"{where}: {path}", icon="FILE_FOLDER")
+        path, _shared, problem = rule_sets.folder()
+        info = wrap(body, context, problem or f"New ones go to: {path} (more folders: Fresing Settings > Locations)",
+                    icon="FILE_FOLDER")
         info.active = False
         body.operator("fresing.rule_set_folder", text="Show in folder", icon="FILE_FOLDER")
     gap(layout)
@@ -1278,10 +1278,12 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
         if body:
             col = split_props(body)
             col.prop(s, "out_file_type", text="File")
-            col.prop(s, "out_folder", text="Folder")
+            from . import ui_locations
+            ui_locations.draw_save_to(body, context, context.scene)
+            col = split_props(body)
+            col.prop(s, "out_folder", text="Own folder")
             col.prop(s, "use_gpu", text="Graphics card")
-            hint(body, context, "Empty folder: 'Renders' next to the saved project "
-                                "(Pictures\\Fresing Render before it is saved).")
+            hint(body, context, "Save to: the export places of Fresing Settings > Exports. An own folder wins over it.")
             body.operator("fresing.open_folder", text="Show in folder", icon="FILE_FOLDER")
 
 

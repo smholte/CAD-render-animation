@@ -44,7 +44,7 @@ def name_problem(library: str, name: str, replace: bool = False) -> str:
     except LL.LibraryError as exc:
         return str(exc)
     if not library:
-        return "No library folder: set the library folder in Preferences first."
+        return "No folder for lifting equipment you can save into: add one in Fresing Settings > Locations."
     if os.path.exists(os.path.join(library, stem)) and not replace:
         return f"'{name}' is already in your library: tick Replace or give another name."
     return ""

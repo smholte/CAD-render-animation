@@ -1136,34 +1136,44 @@ def test_a_folder_that_cannot_be_written_says_so_and_changes_nothing(tmp_path):
         workspaces.forget_scan()
 
 
-def test_the_shared_library_of_the_preferences_and_the_test_folder(tmp_path):
+def test_the_shared_library_of_the_preferences_and_the_test_folder(tmp_path, monkeypatch):
+    """Task 0272: the Workspaces folders come from Fresing Settings > Locations – a fresh user's ready-made folder
+    under Documents\\Fresing Render\\Library; a folder on a dead share is never saved into (nothing made there);
+    once it is back it is used; the test folder wins over all of it."""
+    from fresing_render.blender import locations
     workspaces, panels, lock = _mods()
-    p = _prefs()
     sc = _new(CRANE)
     env = os.environ.pop("FRESING_WORKSPACES_DIR")
+    monkeypatch.setenv(locations.ENV, str(tmp_path / "loc" / "fresing_locations.json"))
+    monkeypatch.setattr(locations, "documents", lambda: str(tmp_path / "Docs"))
+    locations.forget()
     try:
         workspaces.forget_scan()
         path, shared, problem = workspaces.folder(fresh=True)
-        assert not shared and not problem and path.endswith(os.path.join("Fresing Render", "Workspaces"))
+        assert not shared and not problem and path.endswith(os.path.join("Fresing Render", "Library", "Workspaces"))
         lib = tmp_path / "shared library"
-        p.library_path = str(lib)
+        locations.set_mine_root(str(lib / "deeper"))
+        locations.wait_reach()
         path, shared, problem = workspaces.folder(fresh=True)
-        assert shared and "cannot be reached" in problem and path == str(lib / "Workspaces")
+        assert path == "" and "No folder for workspaces" in problem
         assert workspaces.library(force=True) == {} and len(workspaces.names()) == len(BUILT_IN)
-        with pytest.raises(RuntimeError, match="cannot be reached"):
+        with pytest.raises(RuntimeError, match="No folder for workspaces"):
             bpy.ops.fresing.workspace_save(name="Lib one")
         assert not lib.exists() and sc.fresing.ws_name == "All functions"          # nothing made on a dead share
-        lib.mkdir()
-        assert workspaces.folder(fresh=True) == (str(lib / "Workspaces"), True, "")
+        (lib / "deeper").mkdir(parents=True)
+        locations.REACH.forget()
+        locations._WRITABLE.clear()
+        locations.wait_reach()
+        assert workspaces.folder(fresh=True) == (str(lib / "deeper" / "Workspaces"), False, "")
         assert bpy.ops.fresing.workspace_save(name="Lib one") == {"FINISHED"}
-        assert os.listdir(lib / "Workspaces") == ["Lib one.json"] and workspaces.is_own("Lib one")
-        os.environ["FRESING_WORKSPACES_DIR"] = env           # the test folder wins over the preferences
+        assert os.listdir(lib / "deeper" / "Workspaces") == ["Lib one.json"] and workspaces.is_own("Lib one")
+        os.environ["FRESING_WORKSPACES_DIR"] = env           # the test folder wins over the locations
         workspaces.forget_scan()
         assert workspaces.folder()[0] == env and not workspaces.is_own("Lib one")
         assert workspaces.current(sc).name == "Lib one"      # the project keeps its copy without the file
     finally:
         os.environ["FRESING_WORKSPACES_DIR"] = env
-        p.library_path = ""
+        locations.forget()
         workspaces.forget_scan()
 
 

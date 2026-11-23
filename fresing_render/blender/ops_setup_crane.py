@@ -679,7 +679,8 @@ class FRESING_OT_crane_save(bpy.types.Operator):
     bl_options = {"REGISTER"}
 
     library: StringProperty(default="", options={"SKIP_SAVE", "HIDDEN"},
-                            description="The library folder (empty: Preferences' library folder)")
+                            description="The folder to save into (empty: your first Lifting equipment folder, Fresing Settings > "
+                                        "Locations)")
 
     @classmethod
     def poll(cls, context):

@@ -376,8 +376,8 @@ def save(scene, library: str) -> str:
     from . import lifting
     from ..core import lifting_reach as LR
     if not library:
-        raise RigError("No library folder: set the library folder in Preferences first (Lifting equipment goes into "
-                       "it).", "save")
+        raise RigError("No folder for lifting equipment you can save into: switch one on or add one in Fresing "
+                       "Settings > Locations.", "save")
     data = build(scene)
     bad = data.pop("_problems", [])
     if bad:
@@ -392,7 +392,7 @@ def save(scene, library: str) -> str:
     folder = os.path.join(library, name)
     for b in (LL.BUILTIN_DIR,):
         if os.path.normcase(os.path.abspath(folder)).startswith(os.path.normcase(os.path.abspath(b))):
-            raise RigError("The built-in equipment cannot be changed: pick your own library folder.", "save")
+            raise RigError("The built-in equipment cannot be changed: save it as your own (Fresing Settings > Locations has your folders).", "save")
     if not os.path.isfile(src):
         raise RigError(f"The crane's STEP is gone ({src}): it is copied next to the file.", "model")
     data["rig"]["step"] = name + os.path.splitext(src)[1].lower()

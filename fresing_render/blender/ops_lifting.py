@@ -103,7 +103,7 @@ class FRESING_OT_lifting_understand(bpy.types.Operator):
 
 
 class FRESING_OT_lifting_library(bpy.types.Operator):
-    """Reads the lifting equipment library again (the built-in samples and your own items in the library folder
+    """Reads the lifting equipment library again (the built-in samples and your own items in your Lifting equipment folders
     'Lifting equipment')"""
     bl_idname = "fresing.lifting_library"
     bl_label = "Refresh the library"
