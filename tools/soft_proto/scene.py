@@ -88,7 +88,7 @@ def build(variant="soft", helix=1.0):
     paint = material("paint", (0.12, 0.31, 0.47), 0.45)
     spring_m = material("spring", (0.75, 0.55, 0.18), 0.3, 1.0)
     rubber = material("rubber", (0.03, 0.03, 0.03), 0.65)
-    bed = mesh_object("Bed", shapes.box(1.30, 0.30, 0.02, 0.45, 0, -0.02), coll, paint)
+    bed = mesh_object("Bed", shapes.box(1.00, 0.30, 0.02, 0.35, 0, -0.02), coll, paint)
     out = {"bed": bed}
     soft = variant == "soft"
 
@@ -160,7 +160,7 @@ def build(variant="soft", helix=1.0):
                            "Pitch": 1.0, "Wire": 1.0, "Shortest": 0.03})
 
     # 4 · tyre on a wheel rolling along x; the axle goes up and down (a load bouncing)
-    x = 1.0
+    x = 1.6
     hub = bpy.data.objects.new("Axle", None)
     coll.objects.link(hub)
     hub.location = (x, 0, 0.3)

@@ -122,8 +122,8 @@ def tyre(r_out=0.30, width=0.20, r_rim=0.20, seg=96):
     vendor model is not – closed here by the rim face."""
     w = width / 2
     sh = 0.035
-    prof = [(0, -w * 0.9), (r_rim, -w * 0.9), (r_out - sh, -w), (r_out, -w + sh), (r_out, w - sh), (r_out - sh, w),
-            (r_rim, w * 0.9), (0, w * 0.9)]
+    prof = [(0, -w * 0.7), (r_rim, -w * 0.7), (r_rim, -w * 0.9), (r_out - sh, -w), (r_out, -w + sh), (r_out, w - sh),
+            (r_out - sh, w), (r_rim, w * 0.9), (r_rim, w * 0.7), (0, w * 0.7)]     # the inner face hidden in the rim
     # finer along the tread and the walls so the flat and the bulge have points to move (an import would not)
     fine = []
     for (r0, z0), (r1, z1) in zip(prof[:-1], prof[1:]):
