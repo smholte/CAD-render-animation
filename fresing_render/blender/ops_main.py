@@ -67,8 +67,8 @@ class FRESING_OT_select_subassembly(bpy.types.Operator):
 
 
 class FRESING_OT_toggle_lock(bpy.types.Operator):
-    """Locked: it moves only with the subassembly it is in. Unlocked: it can be moved on its own. Click to
-    switch"""
+    """Locked: it moves only with the subassembly it is in. Unlocked: G moves it and R turns it on its own (the
+    right-click menu's Unlock so it can move does the same). Click to switch"""
 
     bl_idname = "fresing.toggle_lock"
     bl_label = "Lock / unlock subassembly"
