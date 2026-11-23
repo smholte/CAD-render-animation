@@ -153,15 +153,20 @@ arrays in 0.3 s) and **Through the camera**.
 
 Grass at eye height (960 × 540, 32 samples; 16,139 clumps × 16 = 258,224 blades in view after culling and thinning):
 none 41.9 s / 181 MB render memory / 1,335 MB Blender peak; **copies** 42.9 s / 190 MB / 1,434 MB; **merged** (1.55 M
-triangles) 39.9 s / 362 MB / 2,068 MB. GRASS1M_LINE
+triangles) 39.9 s / 362 MB / 2,068 MB. **A million blades** (density × 4, 64,538 clumps = 1,032,608 blades in view): copies 50.2 s / **218 MB** / 1,461 MB;
+merged (6.2 M triangles) 36.1 s / **890 MB** / 3,032 MB. Merged renders faster on the processor, but takes 4 × the render
+memory – the limit on a graphics card.
 
 Culling and light versions (640 × 360, 16 samples): whole site – culling + light 11.6 s / 160 MB, no culling 11.6 s / 160 MB
 (52 instead of 42 trees), no light versions 11.7 s / 172 MB. Crane close-up – culling + light 6.3 s / 164 MB with 7,772
 grass clumps; no culling 6.9 s / 210 MB with 88,085 clumps (1.4 M blades); no light versions 6.5 s / 176 MB.
 
-FRAME4K_LINE
+**4K frame:** the whole site at 3840 × 2160, 128 samples (the app's "preview"), processor: **23 min 28 s**, render memory
+602 MB, Blender peak 5.1 GB. On the 3090 expect minutes (not measured). Clips: orbit 640 × 360, 16 samples: 7.5 s a frame.
 
-WEB_LINE
+**3D page** (.glb sizes): terrain on a 1 m grid 3.7 MB, **2 m grid 735 kB**, 4 m grid 187 kB; 43 light trees as GPU copies
+(mesh stored once) 133 kB. The ground would be baked to a picture by 0099's baker (~1–2 MB expected); no grass blades on the
+page.
 
 Live preview (Cycles in the 3D view) was not measured: no graphics card here; EEVEE in software took 33 s for one 640 × 360
 picture of a cube. The plants follow the scene camera, not the 3D view, so turning the view never re-places them.

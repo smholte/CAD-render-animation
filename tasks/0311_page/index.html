@@ -62,7 +62,7 @@ above while the shot camera (orange: its view) turns: only the trees, bushes and
 </div>
 
 <h2>2 · The maker (design)</h2>
-<figure><img src="img/mockup.png" alt="the maker window" width="1060"><figcaption>Design sketch: its own window (like the
+<figure><img src="img/mockup.jpg" alt="the maker window" width="1060"><figcaption>Design sketch: its own window (like the
 output windows), tabs along the top, <b>Simple | More</b>, the 3D view with the brush, the Map view, presets to start from. Painting gravel.</figcaption></figure>
 <div class="tbl"><table>
 <tr><th>Part</th><th>How it works (tried in the prototype unless it says "design")</th></tr>
@@ -111,7 +111,8 @@ brush: all strokes 1.8–2.0 s (11.7 s on the whole grid each time)</td></tr>
 <tr><td>none</td><td class="n">–</td><td class="n">41.9 s</td><td class="n">181 MB</td><td class="n">1,335 MB</td></tr>
 <tr><td>copies of one clump</td><td class="n">258,224</td><td class="n">42.9 s</td><td class="n">190 MB</td><td class="n">1,434 MB</td></tr>
 <tr><td>merged into one mesh</td><td class="n">258,224 (1.55 M triangles)</td><td class="n">39.9 s</td><td class="n">362 MB</td><td class="n">2,068 MB</td></tr>
-<!--GRASS1M-->
+<tr><td><b>copies</b>, density × 4</td><td class="n"><b>1,032,608</b></td><td class="n">50.2 s</td><td class="n"><b>218 MB</b></td><td class="n">1,461 MB</td></tr>
+<tr><td><b>merged</b>, density × 4</td><td class="n">1,032,608 (6.2 M triangles)</td><td class="n">36.1 s</td><td class="n"><b>890 MB</b></td><td class="n">3,032 MB</td></tr>
 </table></div>
 <h3 style="margin-top:14px">Culling and light versions (640 × 360, 16 samples)</h3>
 <div class="tbl"><table>
@@ -123,10 +124,14 @@ brush: all strokes 1.8–2.0 s (11.7 s on the whole grid each time)</td></tr>
 <tr><td>crane close-up</td><td>no culling</td><td>52 / 35 / 44 / 18 + 88,085 grass clumps (1.4 M blades)</td><td class="n">6.9 s</td><td class="n">210 MB</td></tr>
 <tr><td>crane close-up</td><td>no light versions</td><td>31 / 24 / 37 / 18 + 7,772</td><td class="n">6.5 s</td><td class="n">176 MB</td></tr>
 </table></div>
-<!--FRAME4K-->
+<h3 style="margin-top:14px">A 4K frame</h3>
+<p>The whole site (the first picture's view) at <b>3840 × 2160, 128 samples</b> (the app's "preview"), processor only: <b>23 min 28 s</b>,
+render memory 602 MB, Blender's peak 5.1 GB. On the 3090 Cycles is usually many times faster than on 4 processor cores: expect
+minutes, not tens of minutes – an expectation, not measured. <a href="img/frame4k_overview.jpg">The picture (scaled down)</a>.</p>
 <ol>
-<li><b>Copies, never merged.</b> Merged grass doubled the render memory and used 630 MB more in Blender as a whole, for no speed. On the
-24 GB card a million copied blades is small; merged it would be the first thing to run out. Expected, not measured.</li>
+<li><b>Copies, never merged.</b> A million blades as copies: 218 MB render memory; merged: 890 MB and 1.6 GB more in Blender as a
+whole. Merged rendered faster on the processor (36 s instead of 50 s), but memory is what limits a big scene on a graphics card – on the
+3090's 24 GB the copies leave room for far more (expected, not measured).</li>
 <li><b>Culling pays where the camera sees a part of the site</b> (close-ups, eye-height shots): 11 × less grass. Seen from far away, where the
 camera sees everything, it changes nothing. <b>Snag:</b> what is culled casts no shadow into the picture and shows in no reflection; trees
 just outside the frame on the sun's side need a margin. The prototype uses 8 m for trees; the build task keeps everything within about 30 m.</li>
@@ -141,7 +146,17 @@ view never places them again. Moving the camera does: 0.11–0.14 s, and then Cy
 <li><b>Animations with a moving camera</b> place the plants again every frame (0.1–0.3 s a frame here, small next to the render). Option:
 cull by the whole camera path once.</li>
 </ol>
-<!--WEB-->
+<h3>What can go on the 3D page</h3>
+<div class="tbl"><table>
+<tr><th>Part</th><th>Size of the .glb</th></tr>
+<tr><td>Terrain on a 1 m grid (68,121 points)</td><td class="n">3.7 MB</td></tr>
+<tr><td>Terrain on a 2 m grid (17,161 points) ★</td><td class="n">735 kB</td></tr>
+<tr><td>Terrain on a 4 m grid (4,356 points)</td><td class="n">187 kB</td></tr>
+<tr><td>43 trees, light version (2,465 triangles each) as GPU copies – the mesh is stored once</td><td class="n">133 kB</td></tr>
+</table></div>
+<p class="d">Not counted: the ground baked to a picture (0099's baker; a 2048 px JPEG over 260 m is 13 cm a pixel, about 1–2 MB –
+expected). Grass blades stay off the page; the baked ground shows them. The page needs three.js's InstancedMesh for the copies (a
+Web 3D task).</p>
 
 <h2>4 · Ground materials: made by the app or scanned photos (point D)</h2>
 <p class="d">The same flat field (grass, a painted gravel strip with a natural edge), the same two views, 960 × 540, 64 samples. Scanned:
