@@ -576,7 +576,9 @@ once so you see what it does. Then it waits for **Next** in the **Lesson** panel
 
 <img class="panel" src="img/lesson_show_me.jpg" alt="Show me points at Add rotate joint: the button is clear in the dimmed side panel, the boom is shown, the card beside it says what happens">
 
-- **Play on** (under the buttons) lets the lesson go on by itself after a short pause. The app remembers it for your
+- **Back**, **Next** and **Play on** sit at the top of the Lesson panel, above the step's text, and stay in the same
+  place from step to step: you can click **Next** again and again without moving the mouse.
+- **Play on** lets the lesson go on by itself after a short pause. The app remembers it for your
   next lessons.
 - **More …** shows a longer text about the step; **This in the user guide** opens its section here.
 - **Back** takes the last step back (the same as **Ctrl+Z**) and shows it again.
@@ -4897,6 +4899,9 @@ cover…), with every function already set up: 45 numbered **stops**, from mater
 joints, cylinders, hoses, drag chains and G-code to finished videos and the render queue. You look at each stop and say OK or Problem.
 Since version 0.2.101 the test models look like small real machines – chamfered frames, ribs, rails, motors, real
 bolts and screws – and the crane has a luffing cylinder that follows its boom (the boom stops where the cylinder does).
+
+Only one group of stops is open at a time: opening a group closes the other, and picking a stop in another group
+opens that group.
 
 <img class="panel" src="img/panel_tour.png" alt="The Learning hub panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">
 

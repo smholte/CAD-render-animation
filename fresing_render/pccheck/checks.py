@@ -4958,7 +4958,7 @@ def app_licences(ctx):
 
 
 @line("app.fr_mark", "The Fr mark stands at the left of the top bar in place of Blender's logo; its menu has About "
-      "Fresing Render…, Fresing Settings… and Blender", "0.2.208",
+      "Fresing Render…, Fresing Settings… and Blender", "0.2.209",
       what="Checks that the top bar draws the Fr mark (with its picture) as its first item and File, Edit, Render, "
            "Window, Help, Fresing after it, that its menu has its three lines, and that switching the app's part off "
            "gives Blender's logo back")

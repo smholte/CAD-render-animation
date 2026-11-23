@@ -28,6 +28,20 @@ def stop_mark(st, since: str) -> str:
     return {"new": "New", "changed": "Changed"}.get(start.mark(st.since, st.changed, since, __version__), "")
 
 
+# task 0281: one chapter open at a time. ``open`` = the chapter the user opened or closed by hand (None: follow the
+# picked stop's chapter); ``seen`` = the picked stop's chapter at the last draw, so a pick or Go into another chapter
+# opens that one and closes the rest.
+CHAPTER = {"open": None, "seen": None}
+
+
+def open_chapter(current_group: str) -> str:
+    """The one chapter shown open ('' = none)."""
+    if CHAPTER["seen"] != current_group:
+        CHAPTER["seen"] = current_group
+        CHAPTER["open"] = None
+    return current_group if CHAPTER["open"] is None else CHAPTER["open"]
+
+
 def _state_icon(state: str) -> str:
     return {tour.OK_STATE: "CHECKMARK", tour.PROBLEM: "ERROR"}.get(state, "LAYER_USED")
 
@@ -76,10 +90,14 @@ class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
         for group in tour.GROUPS:
             stops = [s for s in tour.STOPS if s.group == group]
             n_ok = sum(1 for s in stops if rows.get(s.id, {}).get("state"))
-            body = ui.fold(layout, f"fresing_tour_{group.lower()}", f"{tour.GROUP_TITLES[group]}  ({n_ok}/{len(stops)})",
-                           closed=current.group != group)
-            if body is None:
+            is_open = open_chapter(current.group) == group
+            head = layout.row(align=True)
+            head.alignment = "LEFT"
+            head.operator("fresing.tour_chapter", emboss=False, text=f"{tour.GROUP_TITLES[group]}  ({n_ok}/{len(stops)})",
+                          icon="DISCLOSURE_TRI_DOWN" if is_open else "DISCLOSURE_TRI_RIGHT").group = group
+            if not is_open:
                 continue
+            body = layout
             col = body.column(align=True)
             for s in stops:
                 row = col.row(align=True)
@@ -127,4 +145,21 @@ class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
             body.operator("fresing.tour_make", text="Make the tour again…", icon="FILE_REFRESH")
 
 
-CLASSES = (FRESING_PT_tour,)
+class FRESING_OT_tour_chapter(bpy.types.Operator):
+    """Opens this chapter of the Learning hub stops and closes the other one, or closes it again"""
+
+    bl_idname = "fresing.tour_chapter"
+    bl_label = "Open or close a chapter"
+    bl_options = {"INTERNAL"}
+
+    group: bpy.props.StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+
+    def execute(self, context):
+        shown = CHAPTER["open"] if CHAPTER["open"] is not None else CHAPTER["seen"]
+        CHAPTER["open"] = "" if shown == self.group else self.group
+        from . import panels
+        panels.redraw()
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_PT_tour, FRESING_OT_tour_chapter)

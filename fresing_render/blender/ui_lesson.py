@@ -63,19 +63,7 @@ class FRESING_PT_lesson(LeftPanel, bpy.types.Panel):  # task 0260: on the left p
                     icon="CHECKMARK")
             layout.operator("fresing.lesson_stop", text="Close the lesson", icon="X")
             return
-        box = layout.box()
         done = lesson._S["phase"] == "done"
-        box.label(text=st.title, icon="CHECKMARK" if done else "RIGHTARROW")
-        ui.wrap(box, context, st.say)
-        if st.more:
-            box.operator("fresing.lesson_more", text="Less" if lesson._S["more"] else "More …", emboss=False,
-                         icon="DISCLOSURE_TRI_DOWN" if lesson._S["more"] else "DISCLOSURE_TRI_RIGHT")
-            if lesson._S["more"]:
-                ui.wrap(box, context, st.more)
-        if lesson._S["failed"]:
-            ui.wrap(box, context, "Did not work: " + lesson._S["failed"], icon="ERROR", alert=True)
-        _guide(box, st.function)
-        ui.gap(layout)
         row = ui.big_row(layout, ui.MEDIUM)
         row.operator("fresing.lesson_back", text="Back", icon="TRIA_LEFT")
         if lesson._S["mode"] == "BUILD" and not done:
@@ -90,6 +78,18 @@ class FRESING_PT_lesson(LeftPanel, bpy.types.Panel):  # task 0260: on the left p
                     layout.prop(p, "lesson_play_on")
             except Exception:  # noqa: BLE001
                 pass
+        ui.gap(layout)
+        box = layout.box()
+        box.label(text=st.title, icon="CHECKMARK" if done else "RIGHTARROW")
+        ui.wrap(box, context, st.say)
+        if st.more:
+            box.operator("fresing.lesson_more", text="Less" if lesson._S["more"] else "More …", emboss=False,
+                         icon="DISCLOSURE_TRI_DOWN" if lesson._S["more"] else "DISCLOSURE_TRI_RIGHT")
+            if lesson._S["more"]:
+                ui.wrap(box, context, st.more)
+        if lesson._S["failed"]:
+            ui.wrap(box, context, "Did not work: " + lesson._S["failed"], icon="ERROR", alert=True)
+        _guide(box, st.function)
         ui.gap(layout)
         col = layout.column(align=True)
         other = "BUILD" if lesson._S["mode"] == "SHOW" else "SHOW"

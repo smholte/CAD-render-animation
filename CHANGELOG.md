@@ -5,12 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.208 – 23 Nov 2026 – The Fr mark in the top bar (task 0279)
+## 0.2.209 – 23 Nov 2026 – The Fr mark in the top bar (task 0279)
 
 - **The Fr mark instead of Blender's logo.** At the far left of the top bar stands the green and white Fr mark, in
   every workspace. Click it: **About Fresing Render…**, **Fresing Settings…** and, under a line, **Blender** with
   Blender's own menu (Splash Screen, About Blender …). The Fresing menu after Help stays as it was. Switching the
   extension off gives Blender's logo back.
+## 0.2.208 – 22 Nov 2026 – Learning hub: one group open at a time, lesson buttons on top (task 0281)
+
+- **One group of stops at a time.** In the Learning hub's list of stops, opening a group (Look, Motion, Machining,
+  Pictures and videos) closes the other one. Picking a stop in another group opens that group.
+- **Lesson buttons at the top.** In the Lesson panel **Back**, **Next** (or **Do it for me**) and **Play on** now sit
+  above the step's text, so they stay in the same place from step to step.
+
 ## 0.2.207 – 22 Nov 2026 – The double-arm, 4th- and 5th-axis test mills are the larger machine too (task 0250)
 
 - **Double-arm tool changer (test tour stop "Double-arm tool change"):** the test mill with the arm is now the larger
