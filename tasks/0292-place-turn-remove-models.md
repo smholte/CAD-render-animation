@@ -1,6 +1,6 @@
 # 0292 – Place, turn and remove: move a model, subassembly or parts by X / Y / Z and angles; Remove… with a confirm window
 
-**Who:** worker · **Status:** waits – after 0307 (same lane: why G / R moves jump back today) · **Branch:**
+**Who:** worker · **Status:** open – can start after 0282 is merged (0307 done, 0.2.216 – read its report and `blender/place.py` first; Place uses 0282's `form_window`) · **Branch:**
 `task/0292-place-turn-remove`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "How to delete an assembly? Only with using cleanup or
 also with delete button?" – "How to move around object/assemblies in the scene? I want to move around parts before
