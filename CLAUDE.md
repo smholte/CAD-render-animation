@@ -1529,8 +1529,9 @@ the release → Delete); the next run on `main` publishes it again.
 - `os.access(folder, os.W_OK)` on Windows says yes to every folder (it reads only a FILE's read-only flag, never a
   share's or NTFS rights): a read-only company share counted as writable (task 0272, found by its independent
   reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.
-- A branch's last commit that changes only `TASKS.md` / `tasks/` (the report + a merge of a documents-only `main`) is
-  judged by ITS OWN change: pushed to `main` it starts no run, even though the push brings the task's code – no release
-  (task 0289). A merge counts the same way (its change against its first parent: a merge of the lead's task files is
-  "task list only" too). Put the report into a commit that also touches a document (CHANGELOG, guide) or the version,
-  or make the NEWEST commit of the push a documents change (a docs run, then the release jobs).
+- `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
+  report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
+  run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs
+  mode and published the release while `ci_status.py` said no run). Check the push's runs on GitHub
+  (`gh api "repos/smholte/CAD-render-animation/actions/runs?branch=main&per_page=5"`) before pushing anything to
+  "start" one.
