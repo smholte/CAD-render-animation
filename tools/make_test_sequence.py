@@ -15,7 +15,7 @@ TEST.SEQUENCE
                           (Ø56, up to z 119); centre hole Ø26, 4 holes Ø8.4 at radius 50
     PULLEY                two-groove V-belt pulley Ø64, z 125 … 145, bore Ø25 with its key in the shaft's keyway (clear
                           of the bolt heads seen from above)
-    ISO 4032 M24          hex nut 36 across flats, bore Ø25, z 145 … 160
+    SKF KM 5 Locknut M25x1.5  shaft lock nut KM5: Ø38, 7 high, bore Ø25, 4 slots 5 x 2 in the rim, z 145 … 152
     ISO 4762 M8x30        4 x: socket head Ø13 z 115 … 123 with its hex socket, shank Ø8 z 85 … 115, at radius 50,
                           45° + k 90°
 
@@ -120,9 +120,13 @@ def pulley():
 
 
 def nut():
-    """ISO 4032 M24: 36 across flats, 15 high (z 145 … 160), the top edges chamfered."""
-    hexa = chamfer(hex_prism(36.0, 15.0, 145.0), 1.5, lambda p: abs(p[2] - 160.0) < 1e-6)
-    return g.cut(hexa, g.cyl(12.5, 17.0, (0, 0, 144.0)))
+    """Shaft lock nut KM5 (task 0264): M25 x 1.5, Ø38, 7 high (z 145 … 152), bore Ø25, four slots 5 wide and 2 deep
+    in the rim (90° apart), the top edge chamfered."""
+    body = g.revolve([(12.5, 145.0), (19.0, 145.0), (19.0, 152.0), (12.5, 152.0)])
+    body = chamfer(body, 1.0, lambda p: abs(p[2] - 152.0) < 1e-6 and p[0] ** 2 + p[1] ** 2 > 18.0 ** 2)
+    for bx in (g.box(-20.0, -2.5, 150.0, 40.0, 5.0, 3.0), g.box(-2.5, -20.0, 150.0, 5.0, 40.0, 3.0)):
+        body = g.cut(body, g.cut(bx, g.cyl(17.0, 4.0, (0, 0, 149.5))))     # the two bars' ends = four rim slots
+    return body
 
 
 def bolt():
@@ -257,7 +261,7 @@ def build(path: str) -> None:
     place(unit, part(shaft(), "SHAFT", steel))
     place(unit, part(cover(), "COVER", blue))
     place(unit, part(pulley(), "PULLEY", orange))
-    place(unit, part(nut(), "ISO 4032 M24", dark))
+    place(unit, part(nut(), "SKF KM 5 Locknut M25x1.5", dark))
     b = part(bolt(), "ISO 4762 M8x30", dark)
     for a in BOLT_ANGLES:
         t = gp_Trsf()

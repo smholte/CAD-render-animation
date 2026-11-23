@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.213 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
+## 0.2.214 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
 
 - **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,
   Save scene, the rule-set Copy / New / Rename, Make demo project, the PC check's choices, Learn…, My learning list,
@@ -18,6 +18,14 @@ installer of that version was built from.
   **Esc** over the window close it; **Return** there is its button. Undo works as before.
 - Short yes / no questions ("Remove this?", "Switch rule set?") stay small popups. The Client view refuses the same
   functions as before. Window sizes and places are kept in the app's settings file.
+
+## 0.2.213 – 23 Nov 2026 – Test models at real size: the scissor lift table and the bearing unit (task 0264)
+
+- **The scissor lift table is 0.80 m wide.** Two scissor pairs stand side by side, joined by cross tubes, with a wide
+  roller and long pins across the width; platform and base are 1.30 × 0.80 m. Lift height, arm lengths and the
+  mechanism's numbers are unchanged. It is in the Mechanisms test set.
+- **The bearing unit's nut is a shaft lock nut** (KM 5, M25 × 1.5, Ø38, 7 high, four slots in the rim) instead of an
+  M24 hex nut. It is in the Assembly sequence and Product video test sets.
 
 ## 0.2.212 – 23 Nov 2026 – "Making the Learning hub" says so clearly; Next goes to the next stop at once (task 0275)
 

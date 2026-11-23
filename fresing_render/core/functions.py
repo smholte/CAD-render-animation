@@ -627,7 +627,7 @@ fn(id="help.windows", headline=True, short="Function windows", title="Function w
    "workspace, the PC check and the other forms open in a window of their own that stays open while you work, can go "
    "onto another screen and opens again where it was", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_lessons", guide="function-windows", tour=("lessons",), pccheck=("app.windows",),
-   since="0.2.213")
+   since="0.2.214")
 fn(id="settings.locations", short="Locations", title="Locations: folders for STEP models, logos, materials, rule "
    "sets, templates … of your company, your department and your own, each item with its badge; one set-up file "
    "(.frsetup) brings a company's folders and settings", family="help", panel="TOPBAR_MT_fresing",
