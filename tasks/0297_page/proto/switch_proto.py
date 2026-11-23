@@ -102,6 +102,11 @@ def redraw():
     if REDRAW == "window":
         win = bpy.context.window_manager.windows[0]
         win.screen.show_statusbar = win.screen.show_statusbar
+    elif REDRAW == "region" and S.get("region") is not None:
+        try:
+            S["region"].tag_redraw()
+        except ReferenceError:
+            S["region"] = None
     elif S["area"] is not None:
         try:
             S["area"].tag_redraw()
@@ -137,6 +142,8 @@ def _draw_slot(self, context):
     if context.region is None or context.region.alignment != "RIGHT":
         return                           # the top bar is two regions; an appended draw runs in both
     S["area"] = context.area
+    S["region"] = context.region
+    RESULT["area_seen"] = context.area is not None
     S["draws"].append(time.perf_counter())
     t0 = time.perf_counter()
     row = self.layout.row(align=True)
@@ -361,7 +368,7 @@ def _play(seconds, loop_look):
 
 def _measure_steps():
     out = []
-    for look in ("A", "B", "C", "D"):
+    for look in (("B",) if os.environ.get("P297_QUICK") else ("A", "B", "C", "D")):
         def setlook(look=look):
             S["look"] = look
             if shown() != "fresing":
@@ -379,7 +386,7 @@ def _measure_steps():
         return 1.0
     out += [to_blender, lambda: (_draw_cost("full Blender"), 0.5)[1], to_blender]
     bpy.app.handlers.frame_change_post.append(_frame_post)
-    for look in (None, "B", None, "C"):
+    for look in ((None, "B") if os.environ.get("P297_QUICK") else (None, "B", None, "C")):
         go, stop = _play(4.0, look)
         out += [go, stop]
     return out
