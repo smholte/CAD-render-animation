@@ -1383,7 +1383,7 @@ def _check_cylinder(scene):
 LIFT_ROD_PIN = (0.75 * math.cos(math.radians(15.0)), -0.08, 0.1 + 0.75 * math.sin(math.radians(15.0)))
 
 
-@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.199")
+@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.213")
 def build_linkage(b: Build):
     from mathutils import Vector
 
@@ -1462,7 +1462,7 @@ def _check_linkage(scene):
     return f"platform at 1.5 m, four-bar rocker swings {swing * 1000:.0f} mm"
 
 
-@tour_set("waycover", "Way cover", "test_waycover_b.step", added="0.2.47", changed="0.2.213")
+@tour_set("waycover", "Way cover", "test_waycover_b.step", added="0.2.47", changed="0.2.214")
 def build_waycover(b: Build):
     from mathutils import Vector
 
@@ -1489,7 +1489,7 @@ def build_waycover(b: Build):
     _joint_step(a, "X axis", 2.5, 2.0, 0.0, slide=True)
 
 
-@tour_set("waycover2", "Two way covers", "test_waycover_c.step", added="0.2.61", changed="0.2.213")
+@tour_set("waycover2", "Two way covers", "test_waycover_c.step", added="0.2.61", changed="0.2.214")
 def build_waycover_two(b: Build):
     from . import waycover
     sc = b.scene
@@ -1636,7 +1636,7 @@ def _check_hoses(scene):
     return f"4 hoses, ends on their fittings to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
 
 
-@tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78", changed="0.2.213")
+@tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78", changed="0.2.214")
 def build_chains(b: Build):
     from . import flex, gcode
     sc = b.scene
@@ -1867,7 +1867,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.213")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.214")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -2844,7 +2844,7 @@ def check_sequence(scene, a=None) -> str:
     return f"12 parts out (least {least * 1000:.0f} mm), 5 fasteners first, back within {worst * 1000:.4f} mm"
 
 
-@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.199")
+@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.213")
 def build_sequence(b: Build):
     sc = b.scene
     _studio(b)
@@ -2875,7 +2875,7 @@ def check_product_video(scene) -> str:
     return f"{len(a.blocks)} steps, {len(close)} close-up, {animation.length_seconds(a):.0f} s without the cards"
 
 
-@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.199")
+@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.213")
 def build_productvideo(b: Build):
     from mathutils import Vector
 
@@ -3046,7 +3046,7 @@ def _gantry(b: Build, tools_too: bool = False):
     return tool
 
 
-@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.213")
+@tour_set("gantry", "CNC gantry", "test_gantry.step", added="0.2.47", changed="0.2.214")
 def build_gantry(b: Build):
     from . import gcode, tools
     sc = b.scene
@@ -3108,7 +3108,7 @@ M30
 """
 
 
-@tour_set("atc", "Tool changer", "test_gantry.step", added="0.2.47", changed="0.2.213")
+@tour_set("atc", "Tool changer", "test_gantry.step", added="0.2.47", changed="0.2.214")
 def build_atc(b: Build):
     from mathutils import Vector
 
@@ -4465,12 +4465,12 @@ stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
 stop("waycover", MOTION, "waycover", "Way cover follows the axis",
      "The carriage slides 1000 mm along X on its rails and back; the five folded-sheet cover sections telescope out "
      "and in with it, each by its own share, over the rails and the ball screw.", where="4 Motion > Way covers", animation="X axis out and back", play=True,
-     check=_check_waycover, auto="clip", since="0.2.47", changed="0.2.213")
+     check=_check_waycover, auto="clip", since="0.2.47", changed="0.2.214")
 stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
      "A cover on each side of the carriage: as it slides 1000 mm to the right the left cover opens and the right one "
      "closes, every section by its own share; the plates next to the carriage ride on it. And back.",
      where="4 Motion > Way covers", animation="Carriage across and back", play=True,
-     check=_check_waycover_two, auto="clip", since="0.2.61", changed="0.2.213")
+     check=_check_waycover_two, auto="clip", since="0.2.61", changed="0.2.214")
 stop("hoses", MOTION, "hoses", "Hoses and a cable follow the arm",
      "The arm goes up and down and the slide travels: the three hydraulic hoses and the hanging cable bend along, "
      "their ends stay on the fittings and none gets longer or shorter.", where="4 Motion > Hoses and drag chains",
@@ -4478,7 +4478,7 @@ stop("hoses", MOTION, "hoses", "Hoses and a cable follow the arm",
 stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "A short G-code program moves X, Y and Z: each axis' drag chain rolls over its bend, link by link, and its "
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
-     since="0.2.78", changed="0.2.213", check=_check_chains, auto="clip")
+     since="0.2.78", changed="0.2.214", check=_check_chains, auto="clip")
 stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "The wire rope comes off the winch drum, goes over the two sheaves of the A-frame, through the V rollers and "
      "over the chute at 10 m/min: its strands run along, and the drum, both sheaves and both rollers turn with it. "
@@ -4494,7 +4494,7 @@ stop("drawn_chain", MOTION, "flex_drawn", "A drawn drag chain",
      "Left: the gantry's X chain was drawn with two clicks on its brackets; the app draws its links. X travels out "
      "and back: the chain rolls over its bend, link by link, and its moving end stays on its bracket.",
      where="4 Motion > Hoses and drag chains > Draw drag chain", animation=DRAWN_ANIM, play=True, at=0.5,
-     since="0.2.180", changed="0.2.213", check=check_drawn_chain, auto="clip")
+     since="0.2.180", changed="0.2.214", check=check_drawn_chain, auto="clip")
 stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
@@ -4504,7 +4504,7 @@ stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 24 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
      where="4 Motion > Hoses and drag chains > Replaces selected CAD part", shot="Tour: drawn hose, chain and cable",
-     since="0.2.180", changed="0.2.213", check=check_drawn_replace)
+     since="0.2.180", changed="0.2.214", check=check_drawn_replace)
 stop("flex_kinds", MOTION, "flex_drawn", "Hose and cable kinds and sizes",
      "Behind the arm on the base, six drawn arches in three rows, one per kind: a black hydraulic hose with a white printed line, "
      "a steel-braided hose (a woven steel look), a blue pneumatic tube, a black spiral sleeve over a hose, a grey "
@@ -4515,7 +4515,7 @@ stop("chain_types", MOTION, "flex_drawn", "Drag chain types",
      "The drawn chain on the gantry is a closed chain now: lids top and bottom, a closed tube. Its Type can be "
      "open, closed, half-open (a lid on the outside of the bend) or steel; each rolls with X as before.",
      where="4 Motion > Hoses and drag chains > Type", animation=DRAWN_ANIM, play=True, at=0.5,
-     since="0.2.182", changed="0.2.213", check=check_chain_types, auto="clip")
+     since="0.2.182", changed="0.2.214", check=check_chain_types, auto="clip")
 stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "Left, the winch: the wire comes off the drum wrap by wrap and the level wind goes along with it, so the wire "
      "runs straight to its sheave. Right, the carousel: its top layer gets smaller turn by turn (paid out "
@@ -4685,13 +4685,13 @@ stop("gcode", MACH, "gantry", "G-code program runs the machine",
      "toolpath is drawn as a thin tube; the tool's tip follows it and cuts the block where the program goes into it: "
      "a 2 mm slot with an arc and two drilled holes, their faces with tool marks.",
      where="4 Motion > CNC machine; 6 Animation (Run G-code program); 4 Motion > Milling",
-     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.213")
+     animation="G-code", play=True, check=_check_gcode, auto="clip", since="0.2.47", changed="0.2.214")
 stop("accel", MACH, "gantry", "Acceleration: slow short moves",
      "The tool runs 2 mm zigzag steps above the block: first blended (G64) – it slows at each corner but keeps going –, "
      "then the same steps back with exact stops (G61) – it stops at every corner –, then one long line where it speeds "
      "up, runs and slows down. 6 Animation shows the step's time with and without acceleration (with is clearly "
      "longer).", where="4 Motion > CNC machine > Machine (Speed up and slow down); 6 Animation (Run G-code program)",
-     animation=ACCEL_ANIM, play=True, since="0.2.83", changed="0.2.213", check=_check_accel, auto="clip")
+     animation=ACCEL_ANIM, play=True, since="0.2.83", changed="0.2.214", check=_check_accel, auto="clip")
 stop("tools", MACH, "tools", "Three tools with M6 and G43",
      "A Ø50 face mill faces a strip, a Ø10 end mill cuts a slot, a chamfer mill runs along its edge: three tools "
      "from the tool list, each in a BT40 holder, changed with M6 and measured with G43. No tool goes into the block "
@@ -4715,7 +4715,7 @@ stop("atc", MACH, "atc", "Tool changer: 8-pocket carousel",
      "The tools stand in their pockets from the first frame; at each change the carousel turns the shortest way, "
      "the right pocket comes to the spindle and the old tool goes back to its own pocket.",
      where="4 Motion > CNC machine > Tool changes (Tool changer)", animation="Tool changer", play=True,
-     check=_check_atc, auto="clip", since="0.2.47", changed="0.2.213")
+     check=_check_atc, auto="clip", since="0.2.47", changed="0.2.214")
 stop("doublearm", MACH, "doublearm", "Double-arm tool change",
      "Three BT40 tools: at each Tn the 24-pot side magazine turns the next tool's pot to the arm and tips it down; "
      "at M6 the head goes up, the arm turns onto both tools, pulls them out, turns half round and pushes them in. The "
@@ -4790,7 +4790,7 @@ stop("setup", MACH, "gantry", "Set-up window: step by step",
      "the buttons are the same as in the side panel. Drag the window anywhere, also onto a second screen, and click "
      "parts in the main window while it is open. The drop-down at its top switches to 'Set up a mechanism'.",
      where="Set-up window… under the section tabs; 4 Motion > CNC machine; 4 Motion > Mechanisms", since="0.2.152",
-     changed="0.2.213",
+     changed="0.2.214",
      animation="G-code", check=_check_setup, setup=_setup_first_step, auto=lambda ctx, scene, st: "")
 
 stop("still", OUT, HUB_SET, "Still picture",
