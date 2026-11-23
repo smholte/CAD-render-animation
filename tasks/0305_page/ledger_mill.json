@@ -1,0 +1,167 @@
+{
+ "walk": "mill",
+ "rows": [
+  {
+   "walk": "mill",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "mill",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "mill",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "mill",
+   "where": "section tabs",
+   "what": "6 (open 6 Animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation",
+   "what": "+ (new animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Run G-code program",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Run G-code program",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "Program file: folder button, pick the file, Accept",
+   "kind": "pick"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "Program file: folder button, pick the file, Accept",
+   "kind": "pick"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "Program file: folder button, pick the file, Accept",
+   "kind": "pick"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "Tools from the program",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "4 Motion > CNC machine > Tool changes",
+   "what": "T1 row: Use selected part (the tool in the spindle)",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "4 Motion > CNC machine > Tool changes",
+   "what": "T1 row: Use selected part (the tool in the spindle)",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "section tabs",
+   "what": "4 then 6 again (to and back)",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "section tabs",
+   "what": "4 then 6 again (to and back)",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "mode Aim (keep the tool in the middle)",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "3D view",
+   "what": "click the tool",
+   "kind": "view"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "Keep in the middle: Use selected",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "Start (type 0)",
+   "kind": "type"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > step",
+   "what": "Duration (type the program's length)",
+   "kind": "type"
+  },
+  {
+   "walk": "mill",
+   "where": "left panel",
+   "what": "Build & play",
+   "kind": "click"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > Video",
+   "what": "scroll down to Render animation",
+   "kind": "scroll"
+  },
+  {
+   "walk": "mill",
+   "where": "6 Animation > Video",
+   "what": "Render animation",
+   "kind": "click"
+  }
+ ],
+ "notes": [
+  "Tools from the program sits in the step, but saying which part is T1 is in 4 Motion > CNC machine: the user leaves 6 Animation for it (open section 4, its fold, then come back).",
+  "To follow the tool for the whole program the user must read the G-code step's length off its row and type it into the camera step: there is no 'as long as the step above' or 'for the whole animation'."
+ ],
+ "result": {
+  "build": "{'FINISHED'}",
+  "build_s": 0.1,
+  "seconds": 19.1,
+  "frames": 478
+ },
+ "clicks": 22,
+ "typed": 2
+}

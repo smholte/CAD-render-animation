@@ -1,0 +1,167 @@
+{
+ "walk": "crane",
+ "rows": [
+  {
+   "walk": "crane",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "crane",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "crane",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "crane",
+   "where": "section tabs",
+   "what": "6 (open 6 Animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation",
+   "what": "+ (new animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation",
+   "what": "name the animation",
+   "kind": "type"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Move joint",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Move joint",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "Joint: open the search list, pick the boom",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "Joint: open the search list, pick the boom",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "To (type an angle)",
+   "kind": "type"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Move joint",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Move joint",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "To (type a distance)",
+   "kind": "type"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "Duration (type 4 s)",
+   "kind": "type"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "mode Ride",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "3D view",
+   "what": "click the trolley",
+   "kind": "view"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "Use selected",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "Start (type 0)",
+   "kind": "type"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > step",
+   "what": "Duration (type 6 s)",
+   "kind": "type"
+  },
+  {
+   "walk": "crane",
+   "where": "left panel",
+   "what": "Build & play",
+   "kind": "click"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Video",
+   "what": "scroll down to Render animation",
+   "kind": "scroll"
+  },
+  {
+   "walk": "crane",
+   "where": "6 Animation > Video",
+   "what": "Render animation",
+   "kind": "click"
+  }
+ ],
+ "notes": [
+  "The first Move joint step came with 'Trolley' (the joint selected in 4 Motion's list), not the boom the user wanted: changed by its search list.",
+  "The Camera step starts when the last step ends (6 s): to ride along the whole lift its Start must be typed back to 0 \u2013 nothing says that steps that should play together need the same Start, except the list's title 'overlaps play together'."
+ ],
+ "result": {
+  "build": "{'FINISHED'}",
+  "build_s": 0.0,
+  "seconds": 7.0,
+  "frames": 176
+ },
+ "clicks": 18,
+ "typed": 6
+}

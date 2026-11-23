@@ -1,0 +1,368 @@
+{
+ "walk": "product",
+ "rows": [
+  {
+   "walk": "product",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "product",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "product",
+   "where": "1 Import",
+   "what": "Import STEP\u2026, pick the file, Import",
+   "kind": "pick"
+  },
+  {
+   "walk": "product",
+   "where": "section tabs",
+   "what": "6 (open 6 Animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Make a product video",
+   "what": "open the fold to see the length",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation",
+   "what": "Make a product video",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "section tabs",
+   "what": "4 (open 4 Motion)",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "4 Motion",
+   "what": "open the fold Poses & exploded views",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "3D view",
+   "what": "click the spindle unit (whole subassembly picked)",
+   "kind": "view"
+  },
+  {
+   "walk": "product",
+   "where": "4 Motion > Poses & exploded views",
+   "what": "Distance (drag or type)",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "4 Motion > Poses & exploded views",
+   "what": "Explode",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "4 Motion > Poses & exploded views",
+   "what": "+ (save pose) and name it",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "4 Motion > Poses & exploded views",
+   "what": "+ (save pose) and name it",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "4 Motion",
+   "what": "Everything back to CAD position (scroll up to the main panel)",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "4 Motion",
+   "what": "Everything back to CAD position (scroll up to the main panel)",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "section tabs",
+   "what": "6 (open 6 Animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation",
+   "what": "+ (new animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "mode Orbit",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Turn (type 360)",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Duration (type 20)",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Go to pose",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Go to pose",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Pose: open the search list, pick Exploded",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Pose: open the search list, pick Exploded",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Start (type 4)",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Back to CAD",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Back to CAD",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Start (type 12)",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "left panel",
+   "what": "Build & play",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation",
+   "what": "+ (new animation)",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Camera",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "mode Orbit, Turn 360, Duration 20",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "mode Orbit, Turn 360, Duration 20",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "mode Orbit, Turn 360, Duration 20",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Assembly sequence",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Assembly sequence",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "3D view",
+   "what": "click the spindle unit",
+   "kind": "view"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Use selected",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Start (type 3)",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Assembly sequence",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > Steps",
+   "what": "+ (Add step) -> Assembly sequence",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Put together",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "3D view + step",
+   "what": "click the unit again, Use selected",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "3D view + step",
+   "what": "click the unit again, Use selected",
+   "kind": "click"
+  },
+  {
+   "walk": "product",
+   "where": "6 Animation > step",
+   "what": "Start (type the end of take-apart + hold)",
+   "kind": "type"
+  },
+  {
+   "walk": "product",
+   "where": "left panel",
+   "what": "Build & play",
+   "kind": "click"
+  }
+ ],
+ "notes": [
+  "The product video's shortest length is 'About 30 s': a 20 s video cannot be asked for; the steps it makes have to be shortened by hand afterwards.",
+  "Explode moves the pieces at once and cannot be tried again with another distance: a second Explode moves them further from where they now are (it explodes the exploded state). The user must press Everything back to CAD position (in 4 Motion's main panel, above) first \u2013 a different fold.",
+  "To hold the exploded view the user works out the gap between the two steps' times by hand (pose ends 7 s, back starts 12 s); nothing shows the steps on a time line, so the 'hold' is invisible.",
+  "Go to pose moves every piece at once along a straight line; for one-after-another the user needs the other step kind (Assembly sequence), which has its own exploded places (not the pose) \u2013 two ways to explode with different settings, nothing links them.",
+  "Put together has to be told the same subassembly again (Use selected), and its own Direction / Order: nothing copies them from the Take apart step. A 'Take apart, hold, put back' preset would be 1 step."
+ ],
+ "result": {
+  "product_video_make_s": 0.0,
+  "product_video_seconds": 55.0,
+  "product_video_steps": [
+   [
+    "CAMERA",
+    0.0,
+    22.0
+   ],
+   [
+    "CAMERA",
+    22.0,
+    2.0
+   ],
+   [
+    "SEQUENCE",
+    22.0,
+    15.2
+   ],
+   [
+    "SEQUENCE",
+    38.8,
+    15.2
+   ]
+  ],
+  "build": "{'FINISHED'}",
+  "build_s": 0.1,
+  "seconds": 21.0,
+  "frames": 526,
+  "by_hand": {
+   "product_video_make_s": 0.0,
+   "product_video_seconds": 55.0,
+   "product_video_steps": [
+    [
+     "CAMERA",
+     0.0,
+     22.0
+    ],
+    [
+     "CAMERA",
+     22.0,
+     2.0
+    ],
+    [
+     "SEQUENCE",
+     22.0,
+     15.2
+    ],
+    [
+     "SEQUENCE",
+     38.8,
+     15.2
+    ]
+   ],
+   "build": "{'FINISHED'}",
+   "build_s": 0.0,
+   "seconds": 21.0,
+   "frames": 526
+  }
+ },
+ "clicks": 37,
+ "typed": 12
+}

@@ -1,0 +1,268 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0305 animation and exploded views</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc);font-size:1.2rem}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.item{display:flex;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.pick{flex:0 0 64px;font-size:1.1rem}.pick input{width:20px;height:20px}.star{color:var(--acc)}
+.body{flex:1;min-width:0}h3{margin:0 0 6px;font-size:1rem}.tag{font-weight:normal;color:var(--mut);font-size:.85rem}
+.why{color:var(--mut);font-size:.92rem;margin:4px 0}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-top:8px}
+figure{margin:0;max-width:100%}figure img{max-width:100%;height:auto;border:1px solid var(--line);display:block}
+figcaption,.d{font-size:.85rem;color:var(--mut)}
+.wide img{width:100%}
+.tbl{overflow-x:auto}table{border-collapse:collapse;font-size:.92rem;min-width:520px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+td.n{text-align:right;white-space:nowrap}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:0;word-break:break-word}#bar button{font:inherit;padding:6px 16px;cursor:pointer}
+</style></head><body><main>
+<h1>The animation panel and exploded views (study 0305)</h1>
+<div class="card"><b>In short.</b> Three animations were made the way a new user makes them, in the real app (crane lift with a riding
+camera, a mill program video, a 20 s product animation with an exploded view): <b>22, 22 and 25 actions</b> after the import, with
+<b>2–7 numbers typed</b> that the user has to work out by hand (start times so steps play together, a length copied from another step).
+The two biggest snags: steps can only be timed by typing start times (nothing shows them on a time line), and an exploded view has
+<b>three separate homes</b> (a pose, a saved scene, the Assembly sequence step) with different settings. Below: what was measured,
+what other programs do, mock-ups drawn in the app itself, and <b>12 build tasks</b> to tick. ★ = recommended.<br><br><b>Point E (realistic exploded views, owner 23 Nov 20:41):</b> a first try finds each part's free way out from the CAD shapes – on the spindle unit every part leaves through the housing's open end in 5 rounds, every bolt head first – and does it for a 2,992-part machine in <b>9 s</b>. What it cannot do alone: parts that only come out together (a cylinder's rod in its barrel), and a machine inside an enclosure (nothing has a way out until the enclosure goes). Section 2 and tasks I–L.</div>
+
+<h2>1 · Used as a new user (measured)</h2>
+<p class="d">Real Blender 5.2.3 with the installed app 0.2.214, web machine (4 cores, no graphics card), screen 1600 px wide, the side
+panel at Blender's default width (292 px), UI scale 1.0. Test models <code>test_crane_a</code>, <code>test_gantry</code>,
+<code>test_sequence</code>. What 4 Motion must give first (joints, the CNC machine) was set up as the lessons and the PC check do; every
+action after that was done the way its button does it and written down (<code>ledger_*.json</code> next to this page). Not simulated mouse
+clicks: a "menu" is counted as 2 clicks (open, pick), a field as 1 typed value.</p>
+<div class="tbl"><table>
+<tr><th>Walk</th><th>Actions</th><th>Typed</th><th>Section changes</th><th>Clicks in the view</th><th>Scroll to Render</th><th>Video</th></tr>
+<tr><td>Crane lift: boom up, trolley out, camera rides on the trolley</td><td class="n">22</td><td class="n">6</td><td class="n">1</td><td class="n">1</td><td>yes: ~1,250 px down</td><td class="n">7.0 s</td></tr>
+<tr><td>Mill program video: G-code step, camera keeps the tool in the middle</td><td class="n">22</td><td class="n">2</td><td class="n">3</td><td class="n">1</td><td>yes: ~1,540 px down while the G-code step is open</td><td class="n">19.1 s</td></tr>
+<tr><td>Product: one-click product video</td><td class="n">3</td><td class="n">0</td><td class="n">1</td><td class="n">0</td><td>–</td><td class="n">55 s (20 s cannot be asked)</td></tr>
+<tr><td>Product: Explode → pose → orbit, Go to pose, hold, Back to CAD</td><td class="n">25</td><td class="n">7</td><td class="n">2</td><td class="n">1</td><td>–</td><td class="n">21.0 s</td></tr>
+<tr><td>Product: orbit + Assembly sequence take apart, hold, put together</td><td class="n">18</td><td class="n">5</td><td class="n">0</td><td class="n">1</td><td>–</td><td class="n">21.0 s</td></tr>
+</table></div>
+<p class="d">Build &amp; play took 0.0–0.1 s on all three sets (small models). "Scroll to Render": where the Render animation button lies below the top
+of the side panel with only 6 Animation open; task 0200 measured a visible side panel of about 1,000 px on a 1920 × 1200 screen.</p>
+
+<h3>What the user had to know that no panel says</h3>
+<ol>
+<li><b>Steps that play together need the same Start, typed.</b> A new step starts when the last one ends. The riding camera (crane), the
+camera on the tool (mill) and the turn around the model (product) all had their Start typed back to 0 – the only clue is the list's title
+"Steps (overlaps play together)".</li>
+<li><b>A length copied by hand.</b> To follow the tool for the whole program the user reads the G-code step's 18.1 s off its row and types it
+into the camera step. There is no "as long as the step above" or "the whole animation"; when the program changes, the camera stops early.</li>
+<li><b>The "hold" is invisible.</b> Exploded – hold 5 s – back is two steps whose times the user works out (pose ends at 7 s, Back to CAD
+starts at 12 s). Nothing shows the gap.</li>
+<li><b>A new Move joint step takes the joint selected in 4 Motion</b>, not the one the user means: the crane's first step came with the
+trolley and was changed in its search list.</li>
+<li><b>Explode cannot be tried again.</b> A second Explode moves the pieces further from where they now are (it explodes the exploded
+state). To try another distance the user must find <i>Everything back to CAD position</i>, which sits in 4 Motion's main panel, above the
+fold, and press Explode again.</li>
+<li><b>"Outwards" barely explodes a stack.</b> The spindle unit's pieces sit on one axis, so moving them away from the centre gives a short,
+overlapping spread (picture below) – the user would want "along the shaft".</li>
+<li><b>Three homes for an exploded view.</b> The panel says "+ above saves it as a pose"; the crane lesson saves its exploded view as a saved
+<i>scene</i>; the Assembly sequence step has its own exploded places and its own direction, distance and order. Go to pose moves all pieces
+at once; for one-after-another the user needs the other step kind – and its Put together step must be told the subassembly, direction and
+order again.</li>
+<li><b>Which part is T1</b> is said in 4 Motion &gt; CNC machine, not in the G-code step that asks for it ("T2 (line 12) is not in the tool
+list"): the user leaves 6 Animation and comes back (3 section changes).</li>
+<li><b>Render animation is at the bottom</b>, below the Video box; with a step open it is 1.2–1.6 screens down. Build &amp; play is at the top
+left since 0278, so the two main buttons of the same job are far apart.</li>
+<li><b>Trail lines need an animation.</b> They are drawn at Build along a part's motion; a still exploded picture cannot show where the parts
+came from.</li>
+<li><b>The product video's shortest length is "About 30 s"</b>; asked "About 60 s" it made 55 s (4 steps). A 20 s video means shortening its
+steps by hand.</li>
+</ol>
+<div class="pics">
+<figure style="max-width:230px"><img src="img/before_crane_panel.jpg" alt="6 Animation after the crane walk" width="210"><figcaption>Today: 6 Animation after the crane walk (3 steps). The red line: where a 1920 × 1200 screen ends.</figcaption></figure>
+<figure style="max-width:230px"><img src="img/before_mill_step.jpg" alt="the G-code step's settings" width="210"><figcaption>Today: 6 Animation with the G-code step open (1,348 px of the section alone).</figcaption></figure>
+<figure style="max-width:230px"><img src="img/before_product_panel.jpg" alt="Assembly sequence step" width="210"><figcaption>Today: the Put together step – every setting again.</figcaption></figure>
+<figure style="max-width:230px"><img src="img/before_explode_panel.jpg" alt="Poses and exploded views" width="210"><figcaption>Today: 4 Motion &gt; Poses &amp; exploded views.</figcaption></figure>
+<figure style="max-width:230px"><img src="img/before_exploded_view.jpg" alt="today's explode" width="360"><figcaption>Today's Explode on the spindle unit (Subassemblies, Outwards, 0.8): a short, overlapping spread.</figcaption></figure>
+</div>
+
+<h2>2 · Realistic exploded views: each part's own way out (point E)</h2>
+<p class="d">Measured with a prototype (<code>tasks/0305_proto/freeways.py</code>, Blender 5.2.3 as a Python module, web machine, one core):
+for every part, which ways out are free while the others stand – both ends of its own round axis (read by the importer, its largest radius
+first), then the six world axes – tested with the Assembly sequence's own rays (48 points per part, 0.1 mm inside it) against the parts whose
+box the part sweeps. Then the parts are taken out in <b>rounds</b>: in each round every part with a free way leaves (screws and nuts in a
+round of their own first); the biggest part stays. Numbers: <code>freeways.json</code>.</p>
+<div class="tbl"><table>
+<tr><th>Model</th><th>Parts</th><th>Triangles</th><th>Time</th><th>Rounds</th><th>Stuck</th><th>Screws with a head found / left head first</th><th>Stays</th></tr>
+<tr><td>Spindle unit (test_sequence)</td><td class="n">13</td><td class="n">7,178</td><td class="n">0.02 s</td><td class="n">5</td><td class="n">0</td><td>4 / 4 (the locknut has no head: off its thread)</td><td>base plate</td></tr>
+<tr><td>Frame (test_sequence_frame)</td><td class="n">9</td><td class="n">1,284</td><td class="n">0.02 s</td><td class="n">2</td><td class="n">0</td><td>2 / 2</td><td>base plate</td></tr>
+<tr><td>Crane (test_crane_a)</td><td class="n">20</td><td class="n">7,046</td><td class="n">0.04 s</td><td class="n">4</td><td class="n">2</td><td>8 / 8</td><td>base</td></tr>
+<tr><td>Tool changer (test_atc)</td><td class="n">100</td><td class="n">34,623</td><td class="n">0.16 s</td><td class="n">5</td><td class="n">3</td><td>4 / 4</td><td>bed</td></tr>
+<tr><td>Mill in its enclosure (test_mill_cabinet)</td><td class="n">51</td><td class="n">9,755</td><td class="n">0.11 s</td><td class="n">8</td><td class="n">25</td><td>4 / – (inside, stuck)</td><td>enclosure</td></tr>
+<tr><td>PC check's invented machine (Heavy)</td><td class="n">2,992</td><td class="n">3,782,496</td><td class="n">16.9 s (ways 7.7 + rounds 9.1)</td><td class="n">4</td><td class="n">100</td><td>968 plain cylinders, no heads</td><td>a housing</td></tr>
+</table></div>
+<p class="d">The 2,992 parts needed 15,724 ray tests; 78 million box checks (NumPy) threw out every other pair. On a 24-core PC the
+rounds could run in helper processes like the STEP reader; an expectation, not measured.</p>
+<h3>What it shows</h3>
+<ol>
+<li><b>Along its own axis works.</b> Spindle unit: bolts and the locknut first (round 1), then pulley, cover with shaft, the upper bearing,
+the spacer with the lower bearing – all through the open end of the housing (+Z), none sideways. Without "the biggest part stays" the
+housing slid off downwards in round 1 and the bearings then left sideways: a realistic view needs one part that <b>stays</b>.</li>
+<li><b>Bolts head first.</b> The head is the end of the round axis whose points lie furthest from the axis: found on 22 of the 24
+fasteners of the five small models (the 2 others are the locknut and a split pin – no head of that kind, correct), and every one that
+left went head first (18 of 18; the mill's 4 sit inside the closed enclosure). The pitch comes from the name: M8 = 1.25 mm a turn (ISO coarse; "M12 x 1.5" names its own), so the bolt of the unit turns
+about 9 times over its 12 mm of thread – show 3 turns, then the straight move. The fastener names are read already (task 0030); the pitch
+table is new.</li>
+<li><b>Parts that only come out together.</b> The crane's cylinder rod sits in its barrel: neither has a way out alone (the rod's piston
+is inside the barrel). Such a "stuck" pair leaves as one piece, or the user says "leaves together with".</li>
+<li><b>An enclosure blocks everything.</b> With the mill's enclosure as the part that stays, 25 of 51 parts are stuck: nothing inside
+can leave through a closed cabinet. Here the right view is a <b>service view</b> (only the parts of one job come out, the doors open or
+the cabinet hidden), or the bed stays instead of the cabinet.</li>
+<li><b>Overlapping parts.</b> The invented Heavy machine has parts placed through each other (made for load, not for fit): 100 stuck.
+Real CAD rarely has that, but a part pressed a few tenths into another (an interference fit drawn as overlap) will be stuck too – the
+app must say which part blocks which, not just fail.</li>
+<li><b>Not tested yet:</b> a part that must turn or move in two steps to come out (a bayonet, a circlip groove, a part behind a lip),
+parts snapped over each other, and a long thin part threaded through a hole at an angle. The rays test straight moves only.</li>
+</ol>
+<div class="pics">
+<figure><img src="img/mock_ways.jpg" alt="the ways out found" width="480"><figcaption>The ways out found on the spindle unit (drawn over the housing for the parts inside it): the number is the round, blue rings = unscrews first.</figcaption></figure>
+<figure><img src="img/mock_kind.png" alt="Take apart mock-up" width="300"><figcaption><b>I, J, K, L</b> – Take apart (mock-up): the kind of exploded view, screws and nuts, the part that stays, what was found, and where to correct it.</figcaption></figure>
+</div>
+<h3>Kinds of exploded view to offer</h3>
+<div class="tbl"><table>
+<tr><th>Kind</th><th>What it is for</th></tr>
+<tr><td><b>Realistic take-apart</b></td><td>a service or assembly film: each part the way it really comes out, screws unscrewed, in the order nothing blocks</td></tr>
+<tr><td>Straight along one axis</td><td>today's Take apart: quick and tidy for a stack (a spindle, a gearbox on its shaft)</td></tr>
+<tr><td>Spread for a picture</td><td>a catalogue or offer picture: outwards with even gaps, every part visible at once, no order</td></tr>
+<tr><td>By assembly level</td><td>a big machine: whole subassemblies move away first, then each one comes apart on its own</td></tr>
+<tr><td>Service view</td><td>a manual: only the parts of one job come out (filter, belt, spindle); the rest stays, a cabinet opens or hides</td></tr>
+</table></div>
+
+<h2>3 · What users know from other programs</h2>
+<p class="d">From the programs' own help pages (search results only – the help sites could not be opened from the web machine) and general knowledge;
+"(memory)" = not checked at a source.</p>
+<div class="tbl"><table>
+<tr><th>Program</th><th>Ideas that make it easy</th><th>What confuses people</th></tr>
+<tr><td>KeyShot</td><td>Animation Wizard in 3 steps; every animation is a bar on a timeline (part bars green), drag to move; Translation / Rotation / Fade; right-click a bar → <b>Mirror</b> to put an explode back together</td><td>one bar per part per move: hundreds of bars on a big assembly; an "explode" is a script, not built in</td></tr>
+<tr><td>Inventor Presentations</td><td><b>Auto Explode</b> with one distance, then tweak single parts; tweaks are actions on a <b>storyboard</b>; <b>trail lines</b> on each tweak, hide one; <b>snapshot views</b> → drawing view with balloons and parts list</td><td>snapshots linked to a storyboard ("Update" icon); many small actions</td></tr>
+<tr><td>SolidWorks Composer</td><td>keyframe timeline; explode lines from neutral to exploded place; callouts that show the <b>BOM number</b>, a BOM table of the parts with callouts, callouts snap to tidy lines; linear / spherical / cylindrical explode (memory)</td><td>many workshops and keyframes; Digger and callout settings</td></tr>
+<tr><td>Fusion (Animation)</td><td><b>Auto Explode: One Level / All Levels</b>; a copy of a storyboard <b>reversed</b> = the assembly; drawing <b>from the animation</b></td><td>"home" position and storyboard reset are easy to lose</td></tr>
+<tr><td>SolidWorks exploded views</td><td><b>auto-space</b> a row of parts evenly as you drag; <b>radial</b> explode round an axis; <b>smart explode lines</b> drawn by themselves</td><td>regular, radial and chain steps are three kinds of step</td></tr>
+<tr><td>Onshape</td><td>explode steps you can reorder; a <b>rollback bar</b> shows the model after each step; type a distance or drag the triad</td><td>–</td></tr>
+<tr><td>Blender's own timeline</td><td>scrub the frame; keys you can drag</td><td>timeline, dope sheet, graph editor, NLA, key types: no idea of a "step"</td></tr>
+</table></div>
+<p><b>What fits "as simple as possible":</b> steps as bars on one time line (not keys, not one bar per part); "start with the one above";
+explode in one move with one distance, by level, from the CAD places, put back by mirroring; trail lines by themselves; numbers and a parts
+list from the exploded view. Not: keyframes, per-part bars, storyboards linked to snapshots.</p>
+
+<h2>4 · Mock-ups (drawn in the app with its own panel code; the buttons do nothing)</h2>
+<div class="pics">
+<figure><img src="img/mock_anim.png" alt="6 Animation mock-up" width="300"><figcaption><b>A, D, E</b> – Build &amp; play and Render video on top; each step with its bar; <b>Starts</b> / <b>Lasts</b> instead of typed times; Hold apart; scrub one step.</figcaption></figure>
+<figure><img src="img/mock_add.png" alt="Add a step mock-up" width="300"><figcaption><b>B</b> – the + of the steps: ready-made steps first, the model's joints and poses as buttons (no search list).</figcaption></figure>
+<figure><img src="img/mock_explode.png" alt="Exploded view mock-up" width="300"><figcaption><b>C</b> – Exploded view: Along the stack (found), Even gaps, one Gap slider that always starts from the CAD places, Back, Save as pose, and what to make from it.</figcaption></figure>
+<figure><img src="img/mock_balloons.png" alt="Numbered picture mock-up" width="300"><figcaption><b>F</b> – picture with numbers and a parts list.</figcaption></figure>
+</div>
+<figure class="wide" style="margin-top:12px"><img src="img/mock_timeline.png" alt="time line with step bars"><figcaption><b>D</b> – the same steps as bars on Blender's own time line at the bottom (drawn over the real built animation: turn 0–20 s, take apart 3–9.5 s, hold, put back 12.5–19 s). A bar is dragged to move the step, its ends to change its length.</figcaption></figure>
+<div class="pics" style="margin-top:12px">
+<figure><img src="img/mock_numbers.jpg" alt="exploded with numbers and parts list" width="640"><figcaption><b>F + G</b> – the app's own exploded places (an Assembly sequence step along +Z, at the hold), one number per kind of part, a parts list (8 positions, 12 parts), dashed trail lines from each part's CAD place.</figcaption></figure>
+<figure><img src="img/mock_trails.jpg" alt="exploded with trail lines" width="380"><figcaption><b>G</b> – trail lines alone on a still exploded view.</figcaption></figure>
+</div>
+
+<h2>5 · Build tasks – tick what to build</h2>
+<p class="d">Gain = the three walks again with the change (an expectation, counted from the mock-ups, not measured). Work: S ≈ half a day of a worker
+chat, M ≈ a day, L ≈ two or more. All in the <b>Motion lane</b> (6 Animation, poses, sequence) except F (Scene &amp; Render lane: labels).</p>
+
+<section class="item"><label class="pick"><input type="checkbox" value="A" checked> <b>A</b> <span class="star" title="recommended">★</span></label>
+<div class="body"><h3>Steps that start together and last the whole animation <span class="tag">work S–M · Opus · Medium · first</span></h3>
+<p>Each step gets <b>Starts</b>: after the one above (as today) / with the one above / at a time, and <b>Lasts</b>: its own time / the whole
+animation / as long as the one above. Times follow by themselves when a step changes (the camera keeps riding when the program gets longer).
+Build &amp; play and <b>Render video</b> on top of 6 Animation (Video settings fold under it). A new Move joint step takes the first joint
+no step moves yet. Old projects: every step "at a time", nothing moves.</p>
+<p class="why">Gain: typed numbers crane 6 → 4, mill 2 → 0, product 7 → 2; no scrolling to Render (was 1,250–1,540 px down).</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="B" checked> <b>B</b> <span class="star">★</span></label>
+<div class="body"><h3>Ready-made steps in the + <span class="tag">work M · Opus · Medium · after A</span></h3>
+<p>The + of the steps opens a small panel: <b>Take apart · hold · put back</b> (one step with a Hold, the same subassembly and settings both
+ways), <b>Exploded view · hold · back</b> (a pose), <b>Turn around for the whole animation</b>, <b>Fly through the saved cameras</b>,
+<b>Run the G-code program with the camera on the tool</b>; then the model's joints and poses as buttons (no search list).</p>
+<p class="why">Gain: actions crane 22 → ~19, mill 22 → ~11, product (sequence) 18 → ~10. The mill also needs H's "click T1 here".</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="C" checked> <b>C</b> <span class="star">★</span></label>
+<div class="body"><h3>Exploded view, round 2 <span class="tag">work M–L · Opus · High</span></h3>
+<p>One <b>Gap</b> slider that moves the pieces while dragging, always from their CAD places (no "explode the exploded"), <b>Back</b> beside it,
+<b>Save as pose</b> in one click. Pieces: <b>one level</b> / <b>every part</b>. Direction: <b>along the stack</b> (pieces on one axis leave along
+it – found from their round faces, as joints are – the others outwards), outwards, along X / Y / Z, <b>along a part's axis</b> (click a round
+face), <b>around an axis</b> (radial). Spacing: even gaps / by size. Screws and nuts out along their own axis first (the sequence already
+knows fasteners). <b>One exploded state:</b> an Assembly sequence step can take apart <i>to</i> a pose, so "all at once" and "one after
+another" end in the same picture; the lesson and the panel both save a pose.</p>
+<p class="why">Gain: product (pose) 25 → ~11 actions with B; the stack explodes along its shaft instead of the short spread above.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="D" checked> <b>D</b> <span class="star">★</span></label>
+<div class="body"><h3>Steps as bars on the time line <span class="tag">work L · Opus · High · after A</span></h3>
+<p>Blender's time line at the bottom shows one bar per step (colour by kind, a camera lane and a model lane); drag a bar to move it, its
+ends to change its length, click it to select the step in the list; holds show as grey gaps. A drag takes the built animation off and
+builds again when it is cheap (Build took 0.0–0.1 s on the test sets; big models: measured in the task).</p>
+<p class="why">Gain: the whole video at a glance – the snag behind items 1–3 above. Risk: a modal drag in Blender's time line needs care
+(undo, Client view lock).</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="E"> <b>E</b></label>
+<div class="body"><h3>Scrub one step without Build <span class="tag">work M · Opus · Medium</span></h3>
+<p>The Assembly sequence step's Preview slider for every step kind ("Scrub this step"); let go and the model is back. Or, simpler, build by
+itself after each change while the last Build took under a second, so Blender's own time line scrubs.</p>
+<p class="why">Gain: medium – Build is already fast on small models; worth it on big ones. Can be folded into D.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="F" checked> <b>F</b> <span class="star">★</span></label>
+<div class="body"><h3>Picture with numbers and a parts list <span class="tag">work L · Opus · High · Scene &amp; Render lane (labels)</span></h3>
+<p>Make &gt; <b>Numbered picture</b>: from a pose (the exploded view) and a saved camera, one number per kind of part (or per part) with a
+leader line, placed by the labels' own box placing (task 0025), and a parts list (Pos, Name, Qty, Material) right or below; the list also
+saved as an Excel / CSV file. The numbers stay with their parts when the camera moves.</p>
+<p class="why">Gain: manuals, spare-part sheets and quotes straight from the render; no other step of the app gives this today.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="G"> <b>G</b></label>
+<div class="body"><h3>Trail lines on a still exploded view, exploded turntable <span class="tag">work M · Opus · Medium · after C</span></h3>
+<p>A tick in Exploded view: dashed lines from each piece's CAD place to its exploded place, in pictures and videos (today trail lines only
+follow an animation). "Exploded turntable video" makes the turntable with the pose on.</p>
+<p class="why">Gain: the classic exploded-drawing look; small once C exists.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="H" checked> <b>H</b> <span class="star">★</span></label>
+<div class="body"><h3>Small fixes <span class="tag">work S · Sonnet · Medium · any time</span></h3>
+<p>Product video "About 20 s"; the G-code step asks "Which part is T1? Click it" itself (no trip to 4 Motion); "Start from" says
+"Start scene" and offers the saved scene the user just made; the explode hint and the crane lesson agree (pose).</p>
+<p class="why">Gain: the mill walk's 3 section changes → 1.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="I" checked> <b>I</b> <span class="star">★</span></label>
+<div class="body"><h3>Realistic take-apart: each part's own way out and the order <span class="tag">work L · Opus · High · Motion lane (sequence.py, core/sequence.py) · after C</span></h3>
+<p>A new kind in the Assembly sequence step. Each part's free ways from the shapes (its round axis first, then the axes), the part that
+<b>stays</b> (the biggest, or one the user clicks), the order in rounds from what blocks what (screws and nuts first, then what they
+held, inner parts out through the free opening), per subassembly and between subassemblies. Parts that are stuck alone but free together
+leave as one piece; the step says which part blocks which. In helper processes for big models.</p>
+<p class="why">Measured with the prototype: right on the spindle unit, frame, crane bolts, tool changer; 2,992 parts in 17 s on one core.
+Gain: the owner's "parts come out the way they really do".</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="J" checked> <b>J</b> <span class="star">★</span></label>
+<div class="body"><h3>Screws and nuts unscrew <span class="tag">work M · Opus · Medium · Motion lane · with or after I</span></h3>
+<p>Bolts, screws, studs and nuts turn about their own axis while they move out by the pitch (ISO coarse from the size, a fine pitch when the
+name gives one), head first; a nut off its thread first, then its washer. Choice: 3 turns then straight out (default) / all the way /
+straight out. Put together = the same backwards (screwed in).</p>
+<p class="why">Head found on every screw of the test models; the turning is a rotation key per part, cheap.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="K"> <b>K</b></label>
+<div class="body"><h3>Kinds of exploded view in one place <span class="tag">work M · Opus · Medium · Motion lane · after C and I</span></h3>
+<p>One "Kind" choice for both the still exploded view (C) and the take-apart step: realistic, straight along one axis, spread for a
+picture, by assembly level, service view (pick the parts of the job; the rest stays, a cabinet opens or hides). The table above.</p>
+<p class="why">Gain: one way to explode instead of three homes; the service view is what a manual needs.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="L" checked> <b>L</b> <span class="star">★</span></label>
+<div class="body"><h3>Correct the app in two clicks <span class="tag">work S–M · Sonnet/Opus · Medium · Motion lane + context_menu.py · with I</span></h3>
+<p>Right-click a part in the view (the menu of task 0253): <b>Its way out…</b> (the free ways as arrows; click one, or click a round face),
+<b>Keep in place</b>, <b>Leaves together with…</b> (click the other part). Stored per part in the project, kept by a model update.</p>
+<p class="why">Gain: the stuck cylinder and the enclosure cases above, fixed by the user without settings.</p></div></section>
+
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+<p class="d">Pictures: tasks/0305_page/img; counts: ledger_crane.json, ledger_mill.json, ledger_product.json; the scripts that made them:
+tasks/0305_proto/ on the branch task/0305-study-animation-exploded.</p>
+</main><script>
+function upd(){var v=[].slice.call(document.querySelectorAll('.pick input:checked')).map(function(e){return e.value});
+document.getElementById('line').textContent='0305 pick: '+(v.join(' ')||'none');}
+document.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=function(){var t=document.getElementById('line').textContent,b=this;
+function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove()}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb)}else fb()}catch(e){fb()}
+b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};
+</script></body></html>

@@ -1,0 +1,2669 @@
+{
+ "test_sequence": {
+  "summary": {
+   "model": "test_sequence.step",
+   "sub": "TEST.SEQUENCE",
+   "parts": 13,
+   "triangles": 7178,
+   "import_s": 0.8,
+   "free_ways_s": 0.01,
+   "layers_s": 0.01,
+   "pair_tests": 212,
+   "box_skipped": 1061,
+   "layers": 5,
+   "stuck": [],
+   "free_alone_none": 7,
+   "base": "BASE PLATE",
+   "fasteners": 5,
+   "head_found": 4,
+   "leaves_head_first": 4,
+   "stuck_n": 0
+  },
+  "rows": [
+   {
+    "part": "ISO 4762 M8x30",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M8x30",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M8x30",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M8x30",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "SKF KM 5 Locknut M25x1.5",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "PULLEY",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1240
+   },
+   {
+    "part": "COVER",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 2,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1036
+   },
+   {
+    "part": "SHAFT",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 2,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 230
+   },
+   {
+    "part": "SPACER",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 4,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 360
+   },
+   {
+    "part": "BEARING 6205",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 536
+   },
+   {
+    "part": "BEARING 6205",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 4,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 536
+   },
+   {
+    "part": "HOUSING",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 2056
+   },
+   {
+    "part": "BASE PLATE",
+    "fastener": false,
+    "free_alone": [
+     "+Z",
+     "-Z",
+     "+X",
+     "-X",
+     "+Y",
+     "-Y"
+    ],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 476
+   }
+  ]
+ },
+ "test_sequence_frame": {
+  "summary": {
+   "model": "test_sequence_frame.step",
+   "sub": "TEST.SEQUENCE.FRAME",
+   "parts": 9,
+   "triangles": 1284,
+   "import_s": 0.8,
+   "free_ways_s": 0.01,
+   "layers_s": 0.01,
+   "pair_tests": 178,
+   "box_skipped": 312,
+   "layers": 2,
+   "stuck": [],
+   "free_alone_none": 2,
+   "base": "BASE PLATE",
+   "fasteners": 3,
+   "head_found": 2,
+   "leaves_head_first": 2,
+   "stuck_n": 0
+  },
+  "rows": [
+   {
+    "part": "SPLIT PIN",
+    "fastener": true,
+    "free_alone": [
+     "+Y",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "+Y",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 44
+   },
+   {
+    "part": "GRIPPER BLOCK",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-X",
+     "+Y",
+     "-Y",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 20
+   },
+   {
+    "part": "CARRIAGE",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "+Y",
+     "-Y",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 20
+   },
+   {
+    "part": "ISO 4762 M8x25",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M8x25",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "COVER",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 228
+   },
+   {
+    "part": "RAIL BLOCK",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 228
+   },
+   {
+    "part": "PORTAL FRAME",
+    "fastener": false,
+    "free_alone": [
+     "+Y",
+     "-Y",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "BASE PLATE",
+    "fastener": false,
+    "free_alone": [
+     "+Z",
+     "-Z",
+     "+X",
+     "-X",
+     "+Y",
+     "-Y"
+    ],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 476
+   }
+  ]
+ },
+ "test_crane_a": {
+  "summary": {
+   "model": "test_crane_a.step",
+   "sub": "TEST.CRANE",
+   "parts": 20,
+   "triangles": 7046,
+   "import_s": 0.8,
+   "free_ways_s": 0.02,
+   "layers_s": 0.02,
+   "pair_tests": 233,
+   "box_skipped": 3123,
+   "layers": 4,
+   "stuck": [
+    "HYDRAULIC CYLINDER.ROD",
+    "HYDRAULIC CYLINDER.BARREL"
+   ],
+   "free_alone_none": 5,
+   "base": "BASE",
+   "fasteners": 8,
+   "head_found": 8,
+   "leaves_head_first": 8,
+   "stuck_n": 2
+  },
+  "rows": [
+   {
+    "part": "ISO 4017 M30 x 120 - 8.8 HDG",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 80
+   },
+   {
+    "part": "ISO 4017 M30 x 120 - 8.8 HDG",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 80
+   },
+   {
+    "part": "ISO 4017 M30 x 120 - 8.8 HDG",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 80
+   },
+   {
+    "part": "ISO 4017 M30 x 120 - 8.8 HDG",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 80
+   },
+   {
+    "part": "PEDESTAL.LUFF.PIN",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "-X",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 236
+   },
+   {
+    "part": "HYDRAULIC CYLINDER.ROD",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.93,
+     0.0,
+     0.367
+    ],
+    "tris": 418
+   },
+   {
+    "part": "HYDRAULIC CYLINDER.BARREL",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.93,
+     0.0,
+     0.367
+    ],
+    "tris": 1072
+   },
+   {
+    "part": "COVER",
+    "fastener": false,
+    "free_alone": [
+     "+Y",
+     "-Y",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 160
+   },
+   {
+    "part": "WHEEL",
+    "fastener": false,
+    "free_alone": [
+     "-Y",
+     "+X",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 508
+   },
+   {
+    "part": "WHEEL",
+    "fastener": false,
+    "free_alone": [
+     "-Y",
+     "-X",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 508
+   },
+   {
+    "part": "TROLLEY",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-X",
+     "+Y",
+     "-Y",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "tris": 684
+   },
+   {
+    "part": "BOOM.LUFF.PIN",
+    "fastener": false,
+    "free_alone": [
+     "+X"
+    ],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 236
+   },
+   {
+    "part": "BOOM.PIN",
+    "fastener": false,
+    "free_alone": [
+     "+Y",
+     "-Y",
+     "+X",
+     "-X",
+     "+Z"
+    ],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 100
+   },
+   {
+    "part": "BOOM",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 2,
+    "way": "+X",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 712
+   },
+   {
+    "part": "ISO 4762 M24 x 60 - 12.9",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 136
+   },
+   {
+    "part": "ISO 4762 M24 x 60 - 12.9",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 136
+   },
+   {
+    "part": "ISO 4762 M24 x 60 - 12.9",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 136
+   },
+   {
+    "part": "ISO 4762 M24 x 60 - 12.9",
+    "fastener": true,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 136
+   },
+   {
+    "part": "PEDESTAL",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 2,
+    "way": "-X",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 1072
+   },
+   {
+    "part": "BASE",
+    "fastener": false,
+    "free_alone": [
+     "-Z"
+    ],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 476
+   }
+  ]
+ },
+ "test_mill_cabinet": {
+  "summary": {
+   "model": "test_mill_cabinet.step",
+   "sub": "TEST.MILL.ENCLOSED",
+   "parts": 51,
+   "triangles": 9755,
+   "import_s": 0.8,
+   "free_ways_s": 0.03,
+   "layers_s": 0.08,
+   "pair_tests": 1559,
+   "box_skipped": 66585,
+   "layers": 8,
+   "stuck": [
+    "RELEASE BUTTON",
+    "BALL MILL D6",
+    "SPINDLE HOUSING",
+    "SPINDLE",
+    "ISO 4762 M12 x 30 - 12.9",
+    "ISO 4762 M12 x 30 - 12.9",
+    "ISO 4762 M12 x 30 - 12.9",
+    "ISO 4762 M12 x 30 - 12.9",
+    "EDGE CLAMP",
+    "EDGE CLAMP",
+    "EDGE CLAMP",
+    "EDGE CLAMP",
+    "FINISHED PART",
+    "STOCK 200x200x40",
+    "SERVO MOTOR X",
+    "LINEAR RAIL X",
+    "LINEAR RAIL X",
+    "TABLE",
+    "WAY COVER Y FRONT 2",
+    "WAY COVER Y FRONT 1",
+    "WAY COVER Y FRONT 0",
+    "COOLANT TANK",
+    "COOLANT DRAIN",
+    "CHIP TRAY",
+    "WORK LIGHT"
+   ],
+   "free_alone_none": 46,
+   "base": "ENCLOSURE",
+   "fasteners": 4,
+   "head_found": 4,
+   "leaves_head_first": 0,
+   "stuck_n": 25
+  },
+  "rows": [
+   {
+    "part": "RELEASE BUTTON",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 124
+   },
+   {
+    "part": "BALL MILL D6",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 687
+   },
+   {
+    "part": "END MILL D10 BT40",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1002
+   },
+   {
+    "part": "SPINDLE MOTOR",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1272
+   },
+   {
+    "part": "SPINDLE HOUSING",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1030
+   },
+   {
+    "part": "SPINDLE",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 168
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "FINISHED PART",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 276
+   },
+   {
+    "part": "STOCK 200x200x40",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 12
+   },
+   {
+    "part": "SERVO MOTOR X",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "tris": 228
+   },
+   {
+    "part": "LINEAR RAIL X",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL X",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "TABLE",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 164
+   },
+   {
+    "part": "WAY COVER Y BACK 5",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 6",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "SADDLE",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 428
+   },
+   {
+    "part": "WAY COVER Y BACK 4",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 2,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 3",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 2",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 4,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 1",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 5,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 0",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 6,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 5",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 2,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 4",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 3",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 4,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 2",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 1",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 0",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "COOLANT TANK",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 44
+   },
+   {
+    "part": "COOLANT DRAIN",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 508
+   },
+   {
+    "part": "CHIP TRAY",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 224
+   },
+   {
+    "part": "SERVO MOTOR Z",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "-Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 224
+   },
+   {
+    "part": "SERVO MOTOR Y",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Z",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 224
+   },
+   {
+    "part": "LINEAR RAIL Z",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 7,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL Z",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 7,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL Y",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL Y",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "COLUMN",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 2,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 172
+   },
+   {
+    "part": "BED",
+    "fastener": false,
+    "free_alone": [
+     "-Z"
+    ],
+    "layer": 0,
+    "way": "-Z",
+    "round_axis": null,
+    "tris": 236
+   },
+   {
+    "part": "WORK LIGHT",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 76
+   },
+   {
+    "part": "CONTROL PANEL",
+    "fastener": false,
+    "free_alone": [
+     "+Z",
+     "-Z",
+     "+X",
+     "-X",
+     "+Y",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 252
+   },
+   {
+    "part": "SLIDING DOOR RIGHT",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 268
+   },
+   {
+    "part": "SLIDING DOOR",
+    "fastener": false,
+    "free_alone": [
+     "-X",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "-X",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 268
+   },
+   {
+    "part": "DOOR RAIL",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-X",
+     "-Y",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 12
+   },
+   {
+    "part": "ENCLOSURE",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 100
+   }
+  ]
+ },
+ "test_atc": {
+  "summary": {
+   "model": "test_atc.step",
+   "sub": "TEST.ATC",
+   "parts": 100,
+   "triangles": 34623,
+   "import_s": 0.8,
+   "free_ways_s": 0.07,
+   "layers_s": 0.09,
+   "pair_tests": 3061,
+   "box_skipped": 125341,
+   "layers": 5,
+   "stuck": [
+    "COOLANT TANK",
+    "COOLANT DRAIN",
+    "SERVO MOTOR Y"
+   ],
+   "free_alone_none": 60,
+   "base": "BED",
+   "fasteners": 4,
+   "head_found": 4,
+   "leaves_head_first": 4,
+   "stuck_n": 3
+  },
+  "rows": [
+   {
+    "part": "TOOL T2 BT40 BALL D8",
+    "fastener": false,
+    "free_alone": [
+     "axis-",
+     "+X",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis-",
+    "round_axis": [
+     -0.966,
+     -0.259,
+     0.0
+    ],
+    "tris": 1673
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     0.966,
+     -0.259,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     0.866,
+     -0.5,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     0.707,
+     -0.707,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     0.5,
+     -0.866,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     0.259,
+     -0.966,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "-Y",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "-Y",
+    "round_axis": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     -0.259,
+     -0.966,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     -0.5,
+     -0.866,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     -0.707,
+     -0.707,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "axis+",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "axis+",
+    "round_axis": [
+     -0.866,
+     -0.5,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     -0.966,
+     -0.259,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     -1.0,
+     -0.0,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     -0.966,
+     0.259,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     -0.866,
+     0.5,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     -0.707,
+     0.707,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     -0.5,
+     0.866,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     -0.259,
+     0.966,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.259,
+     0.966,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.5,
+     0.866,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.707,
+     0.707,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.866,
+     0.5,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.966,
+     0.259,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "POT",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "tris": 688
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.259,
+     0.966,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     0.5,
+     0.866,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     0.707,
+     0.707,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.866,
+     0.5,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.966,
+     0.259,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.966,
+     -0.259,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": [
+     0.866,
+     -0.5,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-X",
+    "round_axis": [
+     0.707,
+     -0.707,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.5,
+     -0.866,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.259,
+     -0.966,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.259,
+     -0.966,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.5,
+     -0.866,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.707,
+     -0.707,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.866,
+     -0.5,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.966,
+     -0.259,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "-X",
+    "round_axis": [
+     -1.0,
+     0.0,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.966,
+     0.259,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.866,
+     0.5,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     -0.707,
+     0.707,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     -0.5,
+     0.866,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     -0.259,
+     0.966,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "HINGE CLEVIS",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 244
+   },
+   {
+    "part": "MAGAZINE DISC",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 4,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1432
+   },
+   {
+    "part": "CHANGER ARM",
+    "fastener": false,
+    "free_alone": [
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "-Y",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 446
+   },
+   {
+    "part": "MAGAZINE MOTOR",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 232
+   },
+   {
+    "part": "MAGAZINE GUARD",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 284
+   },
+   {
+    "part": "MAGAZINE POST",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 248
+   },
+   {
+    "part": "MAGAZINE BEAM",
+    "fastener": false,
+    "free_alone": [
+     "-X",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "-X",
+    "round_axis": null,
+    "tris": 44
+   },
+   {
+    "part": "MAGAZINE STAND",
+    "fastener": false,
+    "free_alone": [
+     "-X",
+     "+Y",
+     "+Z",
+     "-Z"
+    ],
+    "layer": 0,
+    "way": "-X",
+    "round_axis": null,
+    "tris": 76
+   },
+   {
+    "part": "ATC MOTOR",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 232
+   },
+   {
+    "part": "ATC HOUSING",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": null,
+    "tris": 84
+   },
+   {
+    "part": "TOOL T1 BT40 FLAT D10",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1066
+   },
+   {
+    "part": "SPINDLE MOTOR",
+    "fastener": false,
+    "free_alone": [
+     "+Z",
+     "+X",
+     "-X",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 1272
+   },
+   {
+    "part": "SPINDLE HOUSING",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 778
+   },
+   {
+    "part": "SPINDLE",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 168
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": 2,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": 2,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": 2,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "ISO 4762 M12 x 30 - 12.9",
+    "fastener": true,
+    "free_alone": [],
+    "layer": 2,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 116
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "EDGE CLAMP",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 3,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 152
+   },
+   {
+    "part": "STOCK 160x120x30",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-X",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 12
+   },
+   {
+    "part": "SERVO MOTOR X",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+X",
+    "round_axis": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "tris": 228
+   },
+   {
+    "part": "LINEAR RAIL X",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-X",
+     "+Y"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL X",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "-X",
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "TABLE",
+    "fastener": false,
+    "free_alone": [
+     "-X"
+    ],
+    "layer": 0,
+    "way": "-X",
+    "round_axis": null,
+    "tris": 164
+   },
+   {
+    "part": "WAY COVER Y BACK 5",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 6",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "SADDLE",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 428
+   },
+   {
+    "part": "WAY COVER Y BACK 4",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 3",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 2",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 1",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y BACK 0",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 5",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 4",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 3",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 2",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 1",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "-Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "WAY COVER Y FRONT 0",
+    "fastener": false,
+    "free_alone": [
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+Z",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "COOLANT TANK",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 44
+   },
+   {
+    "part": "COOLANT DRAIN",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 508
+   },
+   {
+    "part": "CHIP TRAY",
+    "fastener": false,
+    "free_alone": [
+     "-Y"
+    ],
+    "layer": 0,
+    "way": "-Y",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 224
+   },
+   {
+    "part": "SERVO MOTOR Z",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Z",
+    "round_axis": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "tris": 224
+   },
+   {
+    "part": "SERVO MOTOR Y",
+    "fastener": false,
+    "free_alone": [],
+    "layer": null,
+    "way": null,
+    "round_axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "tris": 224
+   },
+   {
+    "part": "LINEAR RAIL Z",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL Z",
+    "fastener": false,
+    "free_alone": [
+     "-X",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "-X",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL Y",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "LINEAR RAIL Y",
+    "fastener": false,
+    "free_alone": [],
+    "layer": 1,
+    "way": "+Y",
+    "round_axis": null,
+    "tris": 36
+   },
+   {
+    "part": "COLUMN",
+    "fastener": false,
+    "free_alone": [
+     "+X",
+     "+Y",
+     "+Z"
+    ],
+    "layer": 0,
+    "way": "+X",
+    "round_axis": null,
+    "tris": 172
+   },
+   {
+    "part": "BED",
+    "fastener": false,
+    "free_alone": [
+     "+Y",
+     "-Z"
+    ],
+    "layer": null,
+    "way": null,
+    "round_axis": null,
+    "tris": 236
+   }
+  ]
+ },
+ "heavy": {
+  "summary": {
+   "model": "heavy3000.step",
+   "sub": "HEAVY.MACHINE",
+   "parts": 2992,
+   "triangles": 3782496,
+   "import_s": 3.2,
+   "free_ways_s": 7.71,
+   "layers_s": 9.14,
+   "pair_tests": 15724,
+   "box_skipped": 78051355,
+   "layers": 4,
+   "stuck": [
+    "BEARING 0157",
+    "BRACKET 0101",
+    "GEAR 0133",
+    "FLANGE 0126",
+    "ISO 4017 M12 x 30 - 8.8",
+    "..."
+   ],
+   "free_alone_none": 165,
+   "base": "HOUSING 0312",
+   "fasteners": 968,
+   "head_found": 0,
+   "leaves_head_first": 0,
+   "stuck_n": 100
+  },
+  "rows": []
+ }
+}
