@@ -433,8 +433,8 @@ def s_wait():
     with J._batch(sc):
         J.create(sc, "ROTATE", [named("DRUM.ASM")], at(0, 0, 450), way(0, 1, 0), name="Drum turn")
         J.create(sc, "SLIDE", [named("LEVEL WIND.ASM")], at(800, 0, 300), way(0, 1, 0), name="Level wind")
-        J.create(sc, "ROTATE", [named("CAROUSEL.ASM")], at(3000, 0, 0), way(0, 0, 1), name="Carousel turn")
-        J.create(sc, "ROTATE", [named("ARM.ASM")], at(4300, 0, 0), way(0, 0, 1), name="Arm slew")
+        J.create(sc, "ROTATE", [named("CAROUSEL.ASM")], at(4000, 0, 0), way(0, 0, 1), name="Carousel turn")
+        J.create(sc, "ROTATE", [named("ARM.ASM")], at(6600, 0, 0), way(0, 0, 1), name="Arm slew")
     update()
     for cname, part, look in (("Wire", "WIRE ROPE", "ROPE"), ("Power cable", "POWER CABLE", "POWER")):
         item = P.add_cable(sc, cname)
@@ -606,7 +606,7 @@ def s_followed():
     STATE["mark"] = "add"
     sc.fresing.last_message = ""
     sc.fresing.cables_index = [c.name for c in sc.fresing.cables].index("Power cable")
-    view(np.array(named("TURNTABLE").matrix_world.translation) + np.array((0.0, 0.0, 0.3)), 3.0)
+    view(np.array(named("TURNTABLE").matrix_world.translation) + np.array((0.0, 0.0, 0.3)), 6.0)
     redraw()
     wiggle()
     return 1.0
@@ -667,7 +667,7 @@ def s_carousel_added():
           and sp.coil == named("CABLE COIL") and not sp.problem, said())
     if sp is None or sp.kind != "CAROUSEL":
         return 0.5
-    check("read from the coil: turns from r 340 to 840 mm", abs(sp.r_in - 0.34) < 2e-3 and abs(sp.r_out - 0.84) < 2e-3,
+    check("read from the coil: turns from r 680 to 1680 mm", abs(sp.r_in - 0.68) < 2e-3 and abs(sp.r_out - 1.68) < 2e-3,
           f"{sp.r_in * 1000:.1f} .. {sp.r_out * 1000:.1f} mm")
     arc, deg = carousel_turns(sc)
     check("1 m of cable paid out: the carousel turns about 1 m / r of the turn it comes off", abs(arc - 1.0) < 0.06,
@@ -727,7 +727,7 @@ def s_redone():
     STATE["car_deg"] = carousel_turns(sc)[1]                 # (with the arm swinging the turn is a little less)
     STATE["mark"] = "top"
     sc.fresing.last_message = ""
-    view(np.array(named("TURNTABLE").matrix_world.translation) + np.array((0.0, 0.0, 0.3)), 3.0)
+    view(np.array(named("TURNTABLE").matrix_world.translation) + np.array((0.0, 0.0, 0.3)), 6.0)
     redraw()
     wiggle()
     return 1.0

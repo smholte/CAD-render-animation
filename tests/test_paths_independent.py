@@ -631,10 +631,10 @@ def test_the_test_models_rope_at_every_luff_is_the_makers_route(luff):
     """The winch model's rope, laid by its maker's own maths (``Route``: an independent source), with the A-frame
     luffed: it starts on the drum and ends on the chute's circle (both ends on a wheel)."""
     n = maker.numbers_at(luff)
-    order = ["WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "CHUTE"]
+    order = ["WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "CHUTE"]
     wheels = [P.Wheel(np.array(n["contacts"][k]["axis_point"]) * MM, np.array(n["contacts"][k]["axis_direction"]),
                       n["contacts"][k]["seat_radius"] * MM, n["contacts"][k]["side"]) for k in order]
-    start = np.array(n["contacts"]["WINCH DRUM"]["tangent_in"]) * MM
+    start = np.array(n["contacts"]["WIRE ON DRUM"]["tangent_in"]) * MM
     end = np.array(n["contacts"]["CHUTE"]["tangent_out"]) * MM
     for held in HELD:
         path = P.solve(start, wheels, end, start_on_wheel=True, end_on_wheel=True, held=held)
@@ -737,7 +737,7 @@ def test_a_luffing_frame_moves_the_rope_smoothly():
         frames.append([(np.array([c[0], 0.0, c[1]]) * MM, Y) for _n, c, _r, _s in ws[:3]])
     radii = [w[2] * MM for w in maker.wheels(0.0)[:3]]
     start = np.array([maker.NUMBERS["rope"]["start"]]) .reshape(3) * MM
-    end = np.array([2.7, 0.0, 0.65])
+    end = np.array([6.75, 0.0, 1.745])                  # the top of the chute (task 0263: real size; was 2.7, 0.65)
     out, centres, _ = frames_of(frames, radii, [-1, 1, -1], start, end, start_on_wheel=True, counts=[40, 50, 40], held=True)
     assert out["ok"].all() and out["held"].all() and not out["problems"]
     moved = np.linalg.norm(np.diff(out["points"], axis=0), axis=2).max(axis=1)
@@ -749,7 +749,7 @@ def test_a_luffing_frame_moves_the_rope_smoothly():
     # the ends of the range are the maker's own numbers
     for f, luff in ((0, -15.0), (count - 1, 15.0)):
         n = maker.numbers_at(luff)["contacts"]
-        assert np.degrees(out["wrap"][f, :2]) == pytest.approx([n["WINCH DRUM"]["wrap"], n["SHEAVE 1"]["wrap"]], abs=2e-4)
+        assert np.degrees(out["wrap"][f, :2]) == pytest.approx([n["WIRE ON DRUM"]["wrap"], n["SHEAVE 1"]["wrap"]], abs=2e-4)
 
 
 def test_a_wheel_tilting_through_parallel_moves_the_cable_smoothly():
@@ -1601,19 +1601,20 @@ def test_the_test_models_wire_rope_read_from_cad(model):
     drum, sheave 1, sheave 2 - wraps on the parts, with the maker's radii, wraps and sides -, the two V rollers
     it only rests on, the chute (a wrap on a part that is not round: it does not turn); it starts on the drum.
 
-    The rope's middle is read here with ``flex_fit.tube_centreline`` in one go: ``paths.centreline`` reads a
-    cable this long (585 radii) in pieces and today loses part of it where the rope turns more than a quarter
-    turn after a seam (the review has the numbers)."""
+    The rope's middle was read here with ``flex_fit.tube_centreline`` in one go, because ``paths.centreline`` (pieces)
+    lost part of a rope turning more than a quarter turn after a seam (fixed in task 0078). Task 0263: the rope is
+    14.7 m now (1,227 radii); one ``tube_centreline`` stops at 1,024 cuts (14 mm apart, the drum's start then lands
+    0.28° off): it is read as the app reads a cable, in pieces, a point every radius."""
     n = maker.NUMBERS
     uid = n["rope"]["uid"]
     verts, tris = model.mesh(model.part(uid))
-    tube = flex_fit.tube_centreline(verts, tris, int(round(n["rope"]["length"] / n["rope_radius"])) + 1)
+    tube = P.centreline(verts, tris)
     assert tube.ok and tube.radius == pytest.approx(0.012, abs=0.05 * MM)
     rounds = model.rounds(leave_out=uid)
     assert len(rounds) >= 16
     rd = P.read_cable(tube.points, tube.radius, rounds)
     assert rd.ok, rd.problem
-    names = ["WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER 1", "V ROLLER 2", "CHUTE"]
+    names = ["WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER 1", "V ROLLER 2", "CHUTE"]
     want = [n["contacts"][k]["uid"] if k in n["contacts"] else maker.UID[k] for k in names]
     assert [c.key for c in rd.contacts] == want
     assert [c.kind for c in rd.contacts] == ["WRAP", "WRAP", "WRAP", "TOUCH", "TOUCH", "WRAP"]

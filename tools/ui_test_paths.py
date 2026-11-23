@@ -35,7 +35,7 @@ LOG = open(os.path.join(OUT, "ui_test_paths.log"), "w")
 RESULTS = []
 STATE = {"mark": False}
 MM = 0.001
-ORDER = ["WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER", "V ROLLER", "CHUTE"]
+ORDER = ["WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER", "V ROLLER", "CHUTE"]   # (task 0263: off the wire on the drum)
 LUFF_FRAME = 76                                 # 3.0 s at 25 fps: the A-frame is at +12 degrees
 END_FRAME = 151                                 # 6.0 s: one metre of rope has run
 
@@ -220,7 +220,7 @@ def spot_on(part):
     dg = bpy.context.evaluated_depsgraph_get()
     me, mw = part.data, part.matrix_world
     best = None
-    for poly in list(me.polygons)[::max(1, len(me.polygons) // 300)]:
+    for poly in list(me.polygons)[::max(1, len(me.polygons) // 2000)]:
         p = mw @ poly.center
         co = view3d_utils.location_3d_to_region_2d(region, rv3d, p)
         if co is None or not (120 < co.x < min(region.width, sb.x - region.x) - 60 and 80 < co.y < region.height - 120):
@@ -361,7 +361,7 @@ def s_wait():
     sc = bpy.context.scene
     if sc.fresing.model_count == 0:
         return "wait"
-    view((2.0, 0.0, 0.7), 1.6)                              # close on the level run of the rope (24 mm thick)
+    view((5.25, 0.0, 1.75), 1.6)                            # close on the level run of the rope (24 mm thick)
     open_panel()
     check("the rope model: no cable in the list, the panel is there", len(sc.fresing.cables) == 0
           and mod("blender.ui_paths").FRESING_PT_cables.poll(bpy.context)
@@ -428,7 +428,7 @@ def s_added():
     if it is None:
         return 0.5
     check("the message says what was found", said().startswith("Cable 'WIRE ROPE': 3 sheaves, 2 rollers, 1 chute; "
-                                                              "Ø 24 mm, 7.02 m"), said())
+                                                              "Ø 24 mm, 14.84 m"), said())
     J = joints()
     turning = [c for c in it.contacts if c.kind in ("SHEAVE", "ROLLER")]
     check("named a rope: steel wire rope look; its speed joint is made; the five round parts follow it",
@@ -582,7 +582,7 @@ def s_picked():
     check("Flip side: the rope goes over SHEAVE 2 instead of under it", r == {"FINISHED"} and it.contacts[2].side == 1
           and math.degrees(it.contacts[2].wrap) > 180.0 and longer > 0.2 and P.status(sc, it)[1] == "OK"
           and on_path() < 0.1 * MM, f"{math.degrees(it.contacts[2].wrap):.0f} degrees, {longer * 1000:.0f} mm longer")
-    view((1.6, 0.0, 0.9), 4.2)
+    view((4.0, 0.0, 2.3), 10.5)                             # the whole machine (task 0263: x 2.5)
     wiggle()
     return 1.0
 
@@ -639,7 +639,7 @@ def s_wait_again():
     sc = bpy.context.scene
     if sc.fresing.model_count == 0:
         return "wait"
-    view((2.0, 0.0, 0.7), 1.6)                              # close on the level run of the rope again
+    view((5.25, 0.0, 1.75), 1.6)                              # close on the level run of the rope again
     with override():
         for o in bpy.context.selected_objects:
             o.select_set(False)
@@ -679,7 +679,7 @@ def s_add_picked():
           and cable().part == named("WIRE ROPE") and not mod("blender.hover").active(), f"{contacts()} | {said()}")
     while len(sc.fresing.cables):                           # the set-up below makes its own cable
         P.remove(sc, 0)
-    view((1.6, 0.0, 0.9), 4.2)
+    view((4.0, 0.0, 2.3), 10.5)
     made = P.set_up_test_model(sc)                          # the joint "Luff", the cable, the animation
     it = cable()
     check("the luffing frame: the joint Luff, the cable 'Wire rope' and its animation are made",
@@ -759,9 +759,10 @@ def s_remove():
     r = op("fresing.cable_remove") if can("fresing.cable_remove") else None
     bpy.context.view_layer.update()
     e = rope.evaluated_get(bpy.context.evaluated_depsgraph_get())
-    check("Remove: the list is empty, the rope shows its CAD shape again, only the joint Luff is left",
+    check("Remove: the list is empty, the rope shows its CAD shape again, only the joints Luff and Drum turn are left",
           r == {"FINISHED"} and len(sc.fresing.cables) == 0 and rope.modifiers.get(paths().MOD) is None
-          and len(e.data.vertices) == len(rope.data.vertices) and [j.name for j in sc.fresing.joints] == ["Luff"],
+          and len(e.data.vertices) == len(rope.data.vertices)
+          and [j.name for j in sc.fresing.joints] == ["Luff", "Drum turn"],             # (task 0263: the set-up's own)
           f"{said()} | joints {[j.name for j in sc.fresing.joints]}")
     return 0.5
 

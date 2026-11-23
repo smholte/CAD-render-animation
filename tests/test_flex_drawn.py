@@ -375,10 +375,10 @@ def test_a_cable_route_drawn_over_three_sheaves_from_the_drum_runs_like_the_cad_
     rope = named(sc, "WIRE ROPE")
     logic.exclude([rope], True)
     update()
-    start = click(sc, (0.0, 0.0, 0.45), (1, 0, 0), "WINCH DRUM")
-    hits = []
-    for name, o, d in (("SHEAVE 1", (1.9104, 0.0, 3.0), (0, 0, -1)), ("SHEAVE 2", (1.5, 0.0, 0.5), (0, 0, 1)),
-                       ("CHUTE", (2.7, 0.0, 1.5), (0, 0, -1))):
+    start = click(sc, (0.0, 0.0, 0.6), (1, 0, 0), "WIRE ON DRUM")
+    hits = []                       # (task 0263: the A-frame and base x 2.5 – as tour.drawn_cable_setup clicks)
+    for name, o, d in (("SHEAVE 1", (4.776, 0.0, 6.0), (0, 0, -1)), ("SHEAVE 2", (3.75, 0.0, 1.0), (0, 0, 1)),
+                       ("CHUTE", (6.75, 0.0, 2.5), (0, 0, -1))):
         ob, _i, loc, _n = hover.cast(sc, bpy.context.evaluated_depsgraph_get(), Vector(o), Vector(d))
         assert ob.get(build.PROP_NAME) == name
         hits.append((ob, np.array(loc), False))
@@ -386,7 +386,7 @@ def test_a_cable_route_drawn_over_three_sheaves_from_the_drum_runs_like_the_cad_
     item, notes = paths.draw_cable(sc, start, hits, None, name="Drawn rope", diameter=0.024, replace=rope)
     assert item.drawn and drawn.is_drawn(item.part) and paths.broken(sc, item) == ""
     kinds = [(c.part.get(build.PROP_NAME), c.kind) for c in item.contacts]
-    assert kinds == [("WINCH DRUM", "SHEAVE"), ("SHEAVE 1", "SHEAVE"), ("SHEAVE 2", "SHEAVE"), ("V ROLLER", "ROLLER"),
+    assert kinds == [("WIRE ON DRUM", "SHEAVE"), ("SHEAVE 1", "SHEAVE"), ("SHEAVE 2", "SHEAVE"), ("V ROLLER", "ROLLER"),
                      ("V ROLLER", "ROLLER"), ("CHUTE", "CHUTE")]                     # as the CAD rope reads
     assert rope.get(build.PROP_EXCLUDED) and rope.name not in {o.name for o in clash.objects(sc)}
     assert item.diameter == pytest.approx(0.024, abs=2e-4)
@@ -404,7 +404,7 @@ def test_a_cable_route_drawn_over_three_sheaves_from_the_drum_runs_like_the_cad_
     assert abs(joints.get_value(j1)) == pytest.approx(1.0 / 0.25, rel=0.01)
     joints.set_value(lead, 0.0)
     # luffed, the route is laid anew and still has its six contacts
-    luff = joints.create(sc, "ROTATE", [named(sc, "A-FRAME.ASM")], Vector((1.5, 0.0, 0.73)), Vector((0, 1, 0)),
+    luff = joints.create(sc, "ROTATE", [named(sc, "A-FRAME.ASM")], Vector((3.75, 0.0, 1.825)), Vector((0, 1, 0)),
                          name="Luff")
     joints.set_value(joints.find(sc, luff.name), math.radians(10))
     update()
@@ -417,7 +417,7 @@ def test_a_cable_route_drawn_over_three_sheaves_from_the_drum_runs_like_the_cad_
 
 def test_a_cable_route_without_wheels_or_with_the_same_place_is_refused(folder):
     sc = load(folder, PATHS_A)
-    start = click(sc, (0.5, 0.33, 1.0), (0, 0, -1), "BASE FRAME")     # a rail's top: no drum
+    start = click(sc, (1.25, 0.825, 1.0), (0, 0, -1), "BASE FRAME")   # a rail's top: no drum
     with pytest.raises(paths.PathError):
         paths.draw_cable(sc, start, [], None)                             # no wheel and no end
     with pytest.raises(paths.PathError):

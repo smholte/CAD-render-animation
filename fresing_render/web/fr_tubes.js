@@ -117,10 +117,10 @@
     if (a.trim) {
       var tr = channel(a.trim_t || null, a.trim, 2, t, [0, 0]), lo = tr[0], hi = tr[1];
       if (a.trim_n0) channel(a.trim_t || null, a.trim_n0, 3, t, n0);
-      var eps = 1e-6 * Math.max(1, Math.abs(lo), Math.abs(hi));   // as core.web3d_tubes.CUT_EPS
+      var eps = 1e-6 * Math.max(1, Math.abs(lo), Math.abs(hi));   // as core.web3d_tubes.CUT_EPS (the start only)
       for (i = 0; i < n; i++) {
         var prev = s[i > 0 ? i - 1 : 0];
-        if (s[i] < lo - eps || prev > hi + eps) continue;
+        if (s[i] < lo - eps || prev > hi) continue;                   // the end strictly, as the app (task 0263)
         if (s[i] > hi) {
           j = i > 0 ? i - 1 : 0;
           var ln = s[i] - s[j], ww = ln <= 1e-9 ? 0 : Math.min(1, Math.max(0, (hi - s[j]) / ln));

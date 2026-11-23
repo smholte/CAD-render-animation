@@ -4,8 +4,12 @@
                                                       fresing_render/data/)
     python tools/make_test_paths.py numbers           prints the rope's numbers as drawn and luffed -15° / +15°
 
-A small winch spread: a wire rope comes off a drum, goes over a sheave at the top of a luffing A-frame, back down
+A winch spread: a wire rope comes off a drum, goes over a sheave at the top of a luffing A-frame, back down
 under a second sheave at its foot, level through a V-roller cradle and over a chute at the end of the base.
+Task 0263 (real size): the base frame and the A-frame are the first model's layout x 2.5 (``K``: an A-frame about
+5 m tall); the winch (drum, its bearing blocks), the sheaves, their pins, the V rollers, the chute and the Ø24 rope keep
+their size – the rope's route is longer, the sheaves sit higher. SHEAVE 2 stays 100 above the luff axis (luffing
+lowers it by 100 (1 - cos luff): at 250 the rope would sink 1.7 mm into the V rollers at ±15°).
 All sizes in mm, angles in degrees, Z up. Every part is one solid. Everything the rope does lies in the plane
 y = 0 (the model is symmetric about it, the two V rollers apart): below, a point "(x, z)" lies in that plane.
 The same numbers are in the code for tests to use: ``NUMBERS`` (a dict, as drawn), ``numbers_at(luff)`` (the same
@@ -13,78 +17,87 @@ with the A-frame luffed and the rope laid anew), ``centreline(luff, step)`` (the
 ``Route(luff)`` (its arcs and straight runs), ``PARTS``, ``ASSEMBLIES``, ``UID``.
 
 ======================================================================================================================
-TEST.PATHS                                             17 parts (revision B: 18), 14 different shapes (B: 15)
+TEST.PATHS                                             18 parts (revision B: 19), 15 different shapes (B: 16)
 ======================================================================================================================
-  BASE FRAME               two rails (x 0..3150, y ±280..±380, z 0..100), cross members between them, a deck at
-                           x 2300..3150 and the two hinge towers (y ±195..±365, a fork of two lugs on each with a
-                           bore Ø51 on the luff axis), all one solid; its top is z = 100
-  WINCH DRUM               about Y through (450, 450): plain barrel Ø400 (y -200..200) between two flanges Ø600
-                           (20 thick), a shaft stub Ø80 either side out to y = ±340
-  BEARING BLOCK (2 x)      pedestals at y = ±290 (80 wide) with a bore Ø81 the drum's shaft turns in
-  A-FRAME.ASM              turns about the LUFF AXIS: point (1500, 0, 730), direction +Y. As drawn it leans 20°
+  BASE FRAME               two rails (x 0..7875, y ±700..±950, z 0..250), cross members between them, a deck at
+                           x 5750..7875 and the two hinge towers (y ±487.5..±912.5, a fork of two lugs 75 thick on
+                           each with a bore Ø126 on the luff axis), all one solid; its top is z = 250
+  WINCH DRUM               about Y through (1125, 600): plain barrel Ø400 (y -150..150) between two flanges Ø600
+                           (20 thick), a shaft stub Ø80 either side out to y = ±340 (task 0263: 300 between the
+                           flanges, was 400 – the fleet angle to SHEAVE 1 stays under 1.5°: 138 / 5425 → 1.46°)
+  WIRE ON DRUM             task 0263: the wire wound on the drum, one revolved solid about the drum's axis: two
+                           full layers of Ø24 wire (rope-middle radii 212 and 232.785 = 212 + 24 x cos 30°, the
+                           second in the valleys of the first, as the app models a drum), r 200..244.785,
+                           y -150..150. Round all the way: the rope lying on it reads as a wheel
+  BEARING BLOCK (2 x)      pedestals at y = ±290 (80 wide) on the drum's cross member, with a bore Ø81 the drum's
+                           shaft turns in
+  A-FRAME.ASM              turns about the LUFF AXIS: point (3750, 0, 1825), direction +Y. As drawn it leans 20°
                            from the vertical towards +X. Its own coordinates: origin on the luff axis, z along the
                            legs, x square to them (front); placed with a turn of 20° about +Y.
-    A-FRAME                two legs (y ±230..±330, 120 thick, from 70 below the luff axis to 1280 above it along
-                           the legs), a top cross beam behind the legs (800..900 along the legs), a lower cross
-                           beam in front of them (310..410) and two cheek plates (y ±40..±60) from the lower beam
-                           back to SHEAVE 2's pin: one solid
-    HINGE PIN (2 x)        Ø50 x 190 along Y on the luff axis, one through each leg's foot and its tower's fork
-                           (y = ±185..±375): pick one to find the luff axis
-    SHEAVE PIN 1           Ø50 along Y through both legs, 1200 from the luff axis along the legs
-    SHEAVE 1               on SHEAVE PIN 1 (bore Ø51), groove in the plane y = 0; as drawn about (1910.424, 1857.631)
+    A-FRAME                two legs (y ±575..±825, 300 thick, from 175 below the luff axis to 3200 above it along
+                           the legs), a top cross beam (2000..2250 along the legs, the back half of the legs: the
+                           rope runs either side of it), a lower cross beam in front of them (775..1025) and two
+                           cheek plates (y ±40..±60, 120 deep) from the lower beam back to SHEAVE 2's pin: one solid
+    HINGE PIN (2 x)        Ø125 x 475 along Y on the luff axis, one through each leg's foot and its tower's fork
+                           (y = ±462.5..±937.5): pick one to find the luff axis
+    SHEAVE PIN 1           Ø50 along Y through both legs, 3000 from the luff axis along the legs
+    SHEAVE 1               on SHEAVE PIN 1 (bore Ø51), groove in the plane y = 0; as drawn about (4776.060, 4644.078)
     SHEAVE PIN 2           Ø40 along Y through the two cheeks
     SHEAVE 2               on SHEAVE PIN 2 (bore Ø41); in A-FRAME.ASM at x = -34.202, z = 93.969: as drawn 100
-                           straight above the luff axis, about (1500, 830)
+                           straight above the luff axis, about (3750, 1925)
   V CRADLE.ASM
     CRADLE STAND           a plate on the deck and, for each roller, a yoke (two cheeks with a bore Ø31, a bar
                            under the roller) on a web down to the plate: one solid
     V ROLLER (2 x)         plain cylinder Ø120 x 220 with a stub Ø30 x 25 at each end; its own z is its axis, its
                            origin the point of its axis nearest the rope (40 from its low end). The two stand one
-                           behind the other along the rope (x = 2400 and x = 2540), 40° from the horizontal,
+                           behind the other along the rope (x = 6000 and x = 6350), 40° from the horizontal,
                            square to the rope: seen along the rope they make a V the rope lies in.
   CHUTE                    a quarter-round trough: a U section (round bottom of radius 20, walls 10 thick) bent
                            round the bend axis, 65° of a circle (from 7.5° before the top to 57.5° past it):
                            clearly not round all the way
   CHUTE STAND              a pedestal on a foot plate; its top is a row of flats whose corners touch the chute's
                            underside (no round face: the chute, not its stand, has the bend axis)
-  WIRE ROPE                Ø24, one solid: a round bar swept along the arcs and straight runs below
-  GUARD                    revision B only: a plate (x 40..60, y -250..250, z 100..820) on the base behind the drum
+  WIRE ROPE                Ø24, one solid: a round bar swept along the arcs and straight runs below; it comes off
+                           the wire on the drum, lying on its outer face (its middle at r 256.785; the app's layer 3
+                           lies at 253.569, in the valleys)
+  GUARD                    revision B only: a plate (x 700..720, y -950..950, z 250..950) on the rails behind the
+                           drum
 
 Colours: BASE FRAME, BEARING BLOCK, CRADLE STAND, CHUTE STAND grey (0.3, 0.3, 0.3); A-FRAME yellow (0.976, 0.659, 0);
 WINCH DRUM, SHEAVE 1, SHEAVE 2, V ROLLER, CHUTE steel grey (0.55, 0.57, 0.6); the pins (0.85, 0.86, 0.88); WIRE ROPE
-dark grey (0.13, 0.13, 0.14); GUARD orange (0.9, 0.35, 0.05).
+and WIRE ON DRUM dark grey (0.13, 0.13, 0.14); GUARD orange (0.9, 0.35, 0.05).
 
 What the rope lies on. "Surface" is the radius from the axis to the surface under the rope, "seat" the radius to
 the rope's middle (surface + 12). Side = sign(((p - c) x t) . axis) for a point p of the rope on the wheel, the
 wheel's centre c, the rope's direction t (start -> end) and the axis direction listed: +1 = the rope goes round
 turning about +Y (from +Z towards +X: over the top towards +X), -1 the other way.
 
-  WINCH DRUM   axis (450, 0, 450), direction +Y     barrel 200, seat 212            side -1   (under the drum)
-  SHEAVE 1     axis (1910.424, 0, 1857.631), +Y     groove bottom 238, seat 250     side +1   (over the top)
-  SHEAVE 2     axis (1500, 0, 830), +Y              groove bottom 168, seat 180     side -1   (underneath)
-  CHUTE        axis (2700, 0, 50), +Y               trough bottom 588, seat 600     side +1   (over the top);
+  WIRE ON DRUM axis (1125, 0, 600), direction +Y    wire 244.785, seat 256.785      side -1   (under the drum)
+  SHEAVE 1     axis (4776.060, 0, 4644.078), +Y     groove bottom 238, seat 250     side +1   (over the top)
+  SHEAVE 2     axis (3750, 0, 1925), +Y             groove bottom 168, seat 180     side -1   (underneath)
+  CHUTE        axis (6750, 0, 1145), +Y             trough bottom 588, seat 600     side +1   (over the top);
                                                     does not turn
   The sheaves' groove: a round bottom of radius 13 (its middle 1 above the rope's), 70° up either side, straight
   flanks from there (20° from the sheave's plane), flanges 28 above the groove's bottom (SHEAVE 1 Ø532, SHEAVE 2
   Ø392 over the flanges); rims 56 wide, hubs 70. The rope touches a sheave along its groove's bottom only.
 
-  V ROLLER 1   axis through (2400,  46.281, 594.845), direction (0,  0.766044, 0.642788)   surface 60, seat 72
-               the rope touches it at (2400,  7.713, 640.807); the rope's middle there (2400, 0, 650)
-  V ROLLER 2   axis through (2540, -46.281, 594.845), direction (0, -0.766044, 0.642788)   surface 60, seat 72
-               the rope touches it at (2540, -7.713, 640.807); the rope's middle there (2540, 0, 650)
+  V ROLLER 1   axis through (6000,  46.281, 1689.845), direction (0,  0.766044, 0.642788)   surface 60, seat 72
+               the rope touches it at (6000,  7.713, 1735.807); the rope's middle there (6000, 0, 1745)
+  V ROLLER 2   axis through (6350, -46.281, 1689.845), direction (0, -0.766044, 0.642788)   surface 60, seat 72
+               the rope touches it at (6350, -7.713, 1735.807); the rope's middle there (6350, 0, 1745)
   (the points given on the axes are those nearest the rope; the rope runs straight on over the rollers: no bend)
 
-The rope's middle as drawn, from its start to its free end (length 7022.212):
+The rope's middle as drawn, from its start to its free end (length 14841.509):
 
-  start        (238, 450): on the drum, at its -X side (180° round it from +X), going down
-  WINCH DRUM   arc of 147.111° (544.326)      (238, 450)           -> (628.022, 334.882)
-  straight     1975.049 at +57.111°           (628.022, 334.882)   -> (1700.493, 1993.384)
-  SHEAVE 1     arc of 191.749° (836.664)      (1700.493, 1993.384) -> (2088.314, 1681.975)
-  straight     1019.595 at -134.638°          (2088.314, 1681.975) -> (1371.919, 956.473)
-  SHEAVE 2     arc of 134.638° (422.978)      (1371.919, 956.473)  -> (1500, 650)
-  straight     1200 at 0° (level, z = 650)    (1500, 650)          -> (2700, 650)      through the V-cradle
-  CHUTE        arc of 50° (523.599)           (2700, 650)          -> (3159.627, 435.673)
-  straight     500 at -50° (the free end)     (3159.627, 435.673)  -> end (3481.020, 52.650)
+  start        (868.215, 600): on the wire on the drum, at its -X side (180° round it from +X), going down
+  WIRE ON DRUM arc of 143.261° (642.058)      (868.215, 600)       -> (1330.779, 446.399)
+  straight     5424.756 at +53.261°           (1330.779, 446.399)  -> (4575.719, 4793.621)
+  SHEAVE 1     arc of 172.444° (752.428)      (4575.719, 4793.621) -> (4994.327, 4522.178)
+  straight     2874.245 at -119.183°          (4994.327, 4522.178) -> (3592.848, 2012.768)
+  SHEAVE 2     arc of 119.183° (374.424)      (3592.848, 2012.768) -> (3750, 1745)
+  straight     3000 at 0° (level, z = 1745)   (3750, 1745)         -> (6750, 1745)     through the V-cradle
+  CHUTE        arc of 50° (523.599)           (6750, 1745)         -> (7209.627, 1530.673)
+  straight     1250 at -50° (the free end)    (7209.627, 1530.673) -> end (8013.111, 573.117)
   (directions: degrees from +X towards +Z. Every arc meets its runs without a kink.)
 
 Luffing. A joint about the luff axis, direction +Y: + leans the A-frame further forward (towards +X and down),
@@ -93,17 +106,18 @@ ride on the frame, so the run between them stays as it is in the frame; the rope
 of its arc on the chute stay where they are; the rest is laid anew (``Route(luff)``, ``numbers_at(luff)``):
 
   luff   length     wrap on DRUM / SHEAVE 1 / SHEAVE 2 / CHUTE     SHEAVE 1 about          SHEAVE 2 about
-  -15°   6849.652   156.232 / 185.870 / 119.798 / 50.159           (1604.587, 1925.434)    (1474.118, 826.593)
-    0°   7022.212   147.111 / 191.749 / 134.638 / 50.000           (1910.424, 1857.631)    (1500, 830)
-  +15°   7162.170   138.417 / 198.055 / 149.805 / 50.166           (2188.292, 1712.982)    (1525.882, 826.593)
+  -15°   14483.249  151.282 / 165.465 / 104.247 / 50.065           (4011.467, 4813.584)    (3724.118, 1921.593)
+    0°   14841.509  143.261 / 172.444 / 119.183 / 50.000           (4776.060, 4644.078)    (3750, 1925)
+  +15°   15107.289  135.381 / 179.564 / 134.249 / 50.066           (5470.729, 4282.456)    (3775.882, 1921.593)
 
   SHEAVE 2 sits straight above the luff axis as drawn, so luffing moves it level at first: the run from it to the
-  chute stays within 0.17° of level, and at the V rollers it comes down by at most 0.67 mm (V ROLLER 1) and
-  0.36 mm (V ROLLER 2) at ±15° (0.30 / 0.16 at ±10°, 0.07 / 0.04 at ±5°): the rope stays on the rollers.
+  chute stays within 0.07° of level, and at the V rollers it comes down by at most 0.66 mm (V ROLLER 1) and
+  0.35 mm (V ROLLER 2) at ±15°: the rope stays on the rollers.
 
 Checked before the file is written (``check``): every part is one valid solid; as drawn no part lies in another;
-the rope touches the drum, both sheaves, both V rollers and the chute (gap 0) and is 10 mm and more from every
-other part (10: the chute's stand, through the chute's wall; then the cradle stand 46, the A-frame 114); at seven
+the rope touches the wire on the drum, both sheaves, both V rollers and the chute (gap 0) and is 10 mm and more
+from every
+other part (10: the chute's stand, through the chute's wall; then the cradle stand 46, the A-frame 78); at seven
 angles over the luff range the bodies that move against each other (base with stands, chute and blocks – A-frame
 with its pins – each sheave – the drum – each roller) are never nearer than the bores' 0.5 mm (radius; everywhere
 else 5 mm and more) and the rope laid anew still touches drum, sheaves and chute and is clear of everything else.
@@ -113,7 +127,12 @@ check gives 0 rows.
 Revision B: GUARD added, the parts placed in another order (under the root and in A-FRAME.ASM; two of the same
 part keep theirs, so every part keeps its ID); the rope and everything it touches are where they were.
 
-The files are small because the curves on the surfaces are left out (A: 292 KB). Needs OpenCascade (OCP), as the
+The files are small because the curves on the surfaces are left out (A: 306 KB).
+
+In the app (``blender/paths.set_up_test_model``, task 0263): the joint "Drum turn" turns WINCH DRUM and WIRE ON DRUM
+together, and the drum is a winch drum (4 Motion > Drums and carousels): the rope starts on it and winds off and on
+it layer by layer. ``NUMBERS["winch"]`` has the drum's numbers and an estimate of the wire on it from its turns
+(38.968 m; with the app's two climbs of a quarter turn 39.70 m). Needs OpenCascade (OCP), as the
 other tools/make_test_*.py; it uses nothing else of the repository.
 """
 
@@ -163,24 +182,37 @@ FLANGE = 28.0                       # the sheaves' flanges stand this far above 
 GROOVE_HALF = 70.0                  # the groove's arc reaches this far up either side of its bottom (degrees)
 LEAN = 20.0                         # the A-frame as drawn: from the vertical, towards +X
 LUFF = 15.0                         # the luff range either way the model is made for
-HINGE = (1500.0, 730.0)             # the luff axis (x, z); along Y
-LEG = 1200.0                        # hinge -> SHEAVE 1, along the legs
-S2_UP = 100.0                       # SHEAVE 2: straight above the hinge as drawn, this far
-DRUM = (450.0, 450.0)
-DRUM_BARREL_R, DRUM_FLANGE_R, DRUM_HALF = 200.0, 300.0, 200.0
+K = 2.5                             # task 0263: the layout (base frame, A-frame) x 2.5; the rope parts keep their size
+BASE_TOP = 250.0                    # the base frame's top (z)
+HINGE = (1500.0 * K, 730.0 * K)     # the luff axis (x, z); along Y
+LEG = 1200.0 * K                    # hinge -> SHEAVE 1, along the legs
+S2_UP = 100.0                       # SHEAVE 2: straight above the hinge as drawn, this far (not x 2.5: luffing
+                                    # lowers it by S2_UP (1 - cos luff), and the rope must stay on the V rollers)
+DRUM = (450.0 * K, BASE_TOP + 350.0)                  # the deck winch keeps its size and its height over the base
+DRUM_BARREL_R, DRUM_FLANGE_R, DRUM_HALF = 200.0, 300.0, 150.0    # task 0263: 300 between the flanges (was 400): the
+#   fleet angle to SHEAVE 1, 5.4 m off, stays under 1.5° (138 mm off the rope's plane: 1.46°)
+DRUM_SHAFT_END = 340.0              # the shaft stubs reach y = ±340, through the bearing blocks
 DRUM_START = 180.0                  # where the rope starts on the drum: this angle round it (from +X towards +Z)
 S1_BOTTOM, S2_BOTTOM = 238.0, 168.0  # groove-bottom radius of SHEAVE 1 and SHEAVE 2
 ROLLER_R, ROLLER_LEN, ROLLER_LOW = 60.0, 220.0, 40.0   # V ROLLER; its low end is ROLLER_LOW below the rope's touch
-ROLLER_X = (2400.0, 2540.0)         # the two rollers stand one behind the other along the rope
+ROLLER_X = (2400.0 * K, 2540.0 * K)  # the two rollers stand one behind the other along the rope
 V_ANGLE = 40.0                      # their axes from the horizontal
-CHUTE_X = 2700.0                    # the chute's bend axis is straight below this point of the level run
+CHUTE_X = 2700.0 * K                # the chute's bend axis is straight below this point of the level run
 CHUTE_BOTTOM = 588.0                # bend axis -> the trough's bottom
 CHUTE_TROUGH_R = 20.0               # the trough's section: a round bottom of this radius
 CHUTE_SECTOR = (-7.5, 57.5)         # the chute, in degrees from straight up towards +X
 CHUTE_WRAP = 50.0                   # the rope leaves it after this much
-FREE = 500.0                        # the rope's free end: straight on
+FREE = 500.0 * K                    # the rope's free end: straight on
 
-DRUM_SEAT = DRUM_BARREL_R + ROPE_R
+# task 0263: the winch holds wire – WIRE ON DRUM, two full layers stacked as the app's drum model has them (each
+# layer's rope middle 2 x ROPE_R x cos 30° out from the one below, in the valleys), one revolved solid: its outer face
+# r 244.785 is round all the way, so the rope lying on it reads as a wheel. The rope's middle on it: 256.785 (the app's
+# layer 3 is at 253.569, in the valleys: the CAD rope lies 3.2 mm higher, on the solid's face)
+WOUND_FULL = 2
+LAYER_STEP = 2.0 * ROPE_R * math.cos(math.radians(30.0))
+LAYER_R = [DRUM_BARREL_R + ROPE_R + k * LAYER_STEP for k in range(WOUND_FULL + 1)]
+WIRE_OUTER = LAYER_R[WOUND_FULL - 1] + ROPE_R
+DRUM_SEAT = WIRE_OUTER + ROPE_R
 S1_SEAT, S2_SEAT = S1_BOTTOM + ROPE_R, S2_BOTTOM + ROPE_R
 CHUTE_SEAT = CHUTE_BOTTOM + ROPE_R
 Z_LINE = HINGE[1] + S2_UP - S2_SEAT                     # the level run through the V-cradle
@@ -212,7 +244,7 @@ S2_LOCAL = (-S2_UP * math.sin(math.radians(LEAN)), S2_UP * math.cos(math.radians
 def wheels(luff=0.0):
     """The four circles the rope bends round: (name, centre (x, z), radius to the rope's middle, side). Side +1:
     the rope goes round turning about +Y (from +Z towards +X: over the top towards +X), -1 about -Y."""
-    return [("WINCH DRUM", np.array(DRUM), DRUM_SEAT, -1),
+    return [("WIRE ON DRUM", np.array(DRUM), DRUM_SEAT, -1),
             ("SHEAVE 1", frame_point(*S1_LOCAL, luff), S1_SEAT, 1),
             ("SHEAVE 2", frame_point(*S2_LOCAL, luff), S2_SEAT, -1),
             ("CHUTE", np.array(CHUTE), CHUTE_SEAT, 1)]
@@ -315,11 +347,12 @@ def roller_axis(k):
     return foot, np.array([0.0, sign * c, s]), touch
 
 
-SURFACE = {"WINCH DRUM": DRUM_BARREL_R, "SHEAVE 1": S1_BOTTOM, "SHEAVE 2": S2_BOTTOM, "CHUTE": CHUTE_BOTTOM}
+SURFACE = {"WIRE ON DRUM": WIRE_OUTER, "SHEAVE 1": S1_BOTTOM, "SHEAVE 2": S2_BOTTOM, "CHUTE": CHUTE_BOTTOM}
 UID = {"WINCH DRUM": "TEST.PATHS#1/WINCH DRUM#1", "SHEAVE 1": "TEST.PATHS#1/A-FRAME.ASM#1/SHEAVE 1#1",
        "SHEAVE 2": "TEST.PATHS#1/A-FRAME.ASM#1/SHEAVE 2#1", "CHUTE": "TEST.PATHS#1/CHUTE#1",
        "V ROLLER 1": "TEST.PATHS#1/V CRADLE.ASM#1/V ROLLER#1", "V ROLLER 2": "TEST.PATHS#1/V CRADLE.ASM#1/V ROLLER#2",
-       "WIRE ROPE": "TEST.PATHS#1/WIRE ROPE#1", "A-FRAME.ASM": "TEST.PATHS#1/A-FRAME.ASM#1"}
+       "WIRE ROPE": "TEST.PATHS#1/WIRE ROPE#1", "A-FRAME.ASM": "TEST.PATHS#1/A-FRAME.ASM#1",
+       "WIRE ON DRUM": "TEST.PATHS#1/WIRE ON DRUM#1"}
 
 
 def roller_gap(luff=0.0):
@@ -341,6 +374,27 @@ def centreline(luff=0.0, step=1.0):
     return np.c_[p[:, 0], np.zeros(len(p)), p[:, 1]]
 
 
+def winch_numbers():
+    """Task 0263: the winch drum and the wire wound on it (mm). ``wound_estimate``: an ESTIMATE from the turns only –
+    a layer is (width - d) / pitch turns of a helix (10.849 between flanges 300 apart, at the pitch the app takes for
+    a drum without a groove, 1.06 d = 25.44), layer 3 (at the app's radius) from the flange to the rope's middle at
+    y = 0 (5.425 turns); the app's own model adds a climb of a quarter turn between layers."""
+    d = 2.0 * ROPE_R
+    pitch = 1.06 * d
+    turns = (2.0 * DRUM_HALF - d) / pitch
+    turns3 = (0.0 - (-DRUM_HALF + ROPE_R)) / pitch
+
+    def helix(r, n):
+        return n * math.hypot(2.0 * math.pi * r, pitch)
+    layers = [helix(LAYER_R[0], turns), helix(LAYER_R[1], turns), helix(LAYER_R[2], turns3)]
+    return {"uid": UID["WINCH DRUM"], "wire_uid": UID["WIRE ON DRUM"], "axis_point": (DRUM[0], 0.0, DRUM[1]),
+            "axis_direction": (0.0, 1.0, 0.0), "barrel_radius": DRUM_BARREL_R, "flange_radius": DRUM_FLANGE_R,
+            "flange_inner": (-DRUM_HALF, DRUM_HALF), "d": d, "pitch": pitch, "r1": LAYER_R[0],
+            "layer_radii": [round(r, 4) for r in LAYER_R], "full_layers": WOUND_FULL, "turns_per_layer": turns,
+            "turns_layer3": turns3, "wire_outer": WIRE_OUTER, "rope_seat": DRUM_SEAT,
+            "wound_estimate": {"layers": [round(v, 3) for v in layers], "total": round(sum(layers), 3)}}
+
+
 def numbers_at(luff=0.0):
     """Everything the tests need as a dict, in mm and degrees, with the A-frame luffed ``luff`` degrees (the rope
     laid anew over the moved sheaves; its start on the drum and the end of the chute's arc stay)."""
@@ -357,6 +411,7 @@ def numbers_at(luff=0.0):
         "rope": {"uid": UID["WIRE ROPE"], "start": p3(route.start), "end": p3(route.end),
                  "length": round(route.length, 4), "free": FREE, "segments": []},
         "contacts": {}, "rollers": [],
+        "winch": winch_numbers(),
     }
     for seg in route.segments:
         out["rope"]["segments"].append({"kind": seg.kind, "on": getattr(seg, "name", ""), "start": p3(seg.start),
@@ -384,7 +439,7 @@ def numbers_at(luff=0.0):
 NUMBERS = numbers_at(0.0)
 PARTS = ["BASE FRAME", "WINCH DRUM", "BEARING BLOCK", "BEARING BLOCK", "A-FRAME", "HINGE PIN", "HINGE PIN",
          "SHEAVE PIN 1", "SHEAVE 1", "SHEAVE PIN 2", "SHEAVE 2", "CRADLE STAND", "V ROLLER", "V ROLLER", "CHUTE",
-         "CHUTE STAND", "WIRE ROPE"]                    # revision B: and GUARD
+         "CHUTE STAND", "WIRE ROPE", "WIRE ON DRUM"]    # revision B: and GUARD
 ASSEMBLIES = ["TEST.PATHS", "A-FRAME.ASM", "V CRADLE.ASM"]
 
 
@@ -651,19 +706,20 @@ def write_step(root, path):
 # TEST.PATHS
 # =====================================================================================================================
 
-BASE_END = 3150.0                   # the base frame: x 0 .. BASE_END
-RAIL_Y = (280.0, 380.0)             # the two rails: this far either side of the middle
-LEG_Y = (230.0, 330.0)              # the A-frame's legs
-LEG_HALF = 60.0                     # … their half thickness square to the frame
-HINGE_PIN_R, S1_PIN_R, S2_PIN_R, DRUM_SHAFT_R, STUB_R = 25.0, 25.0, 20.0, 40.0, 15.0
+BASE_END = 3150.0 * K                  # the base frame: x 0 .. BASE_END
+RAIL_Y = (280.0 * K, 380.0 * K)          # the two rails: this far either side of the middle
+LEG_Y = (230.0 * K, 330.0 * K)          # the A-frame's legs
+LEG_HALF = 60.0 * K                  # … their half thickness square to the frame
+HINGE_PIN_R, S1_PIN_R, S2_PIN_R, DRUM_SHAFT_R, STUB_R = 25.0 * K, 25.0, 20.0, 40.0, 15.0
 BORE = 0.5                          # a bore something turns in is this much wider (radius) than its pin
-BEAM_TOP = ((-160.0, -60.0), (800.0, 900.0))       # the top cross beam (v, u): behind the legs
-BEAM_LOW = ((60.0, 160.0), (310.0, 410.0))         # the lower cross beam: in front of the legs
+BEAM_TOP = ((-300.0, 0.0), (800.0 * K, 900.0 * K))  # the top cross beam (v, u): the back half of the legs (task
+                                                    # 0263: between the two rope runs over the whole luff range)
+BEAM_LOW = ((60.0 * K, 160.0 * K), (310.0 * K, 410.0 * K))       # the lower cross beam: in front of the legs
 CHEEK_Y = (40.0, 60.0)              # the two plates that carry SHEAVE 2 from the lower cross beam
 BLOCK_Y = (250.0, 330.0)            # the drum's bearing blocks
-TOWER_Y = (195.0, 365.0)            # the hinge towers; their lugs are 30 thick, 5 from the legs
+TOWER_Y = (195.0 * K, 365.0 * K)          # the hinge towers; their lugs are 30 thick, 5 from the legs
 CHUTE_STAND_AT = (-3.0, 3.5, 10.0, 16.5, 23.0, 29.5, 36.0)     # where the stand's top touches the chute
-GUARD = (40.0, -250.0, 100.0, 60.0, 250.0, 820.0)              # revision B: a plate behind the drum
+GUARD = (700.0, -RAIL_Y[1], BASE_TOP, 720.0, RAIL_Y[1], 950.0)  # revision B: a plate behind the drum, on the rails
 
 
 def a_frame_matrix(luff=0.0):
@@ -674,39 +730,50 @@ def a_frame_matrix(luff=0.0):
 def base_frame():
     hx, hz = HINGE
     dx = DRUM[0]
-    parts = [box(0, s * RAIL_Y[0], 0, BASE_END, s * RAIL_Y[1], 100) for s in (1, -1)]
-    for x0, x1 in ((0, 100), (dx - 100, dx + 100), (950, 1050), (hx - 100, hx + 100), (2300, BASE_END)):
-        parts.append(box(x0, -RAIL_Y[1], 0, x1, RAIL_Y[1], 100))
+    w = 100.0 * K                                       # the cross members' width
+    parts = [box(0, s * RAIL_Y[0], 0, BASE_END, s * RAIL_Y[1], BASE_TOP) for s in (1, -1)]
+    for x0, x1 in ((0, w), (dx - w, dx + w), (1000.0 * K - w / 2, 1000.0 * K + w / 2), (hx - w, hx + w),
+                   (2300.0 * K, BASE_END)):
+        parts.append(box(x0, -RAIL_Y[1], 0, x1, RAIL_Y[1], BASE_TOP))
     bores = []
     for s in (1, -1):                                   # a tower either side, a fork of two lugs on each
-        parts.append(box(hx - 80, s * TOWER_Y[0], 100, hx + 80, s * TOWER_Y[1], hz - 110))
-        parts.append(box(hx - 60, s * TOWER_Y[0], hz - 110, hx + 60, s * (TOWER_Y[0] + 30), hz + 60))
-        parts.append(box(hx - 60, s * (TOWER_Y[1] - 30), hz - 110, hx + 60, s * TOWER_Y[1], hz + 60))
-        bores.append(cyl(HINGE_PIN_R + BORE, (hx, s * (TOWER_Y[0] - 10), hz), (hx, s * (TOWER_Y[1] + 10), hz)))
+        parts.append(box(hx - 80 * K, s * TOWER_Y[0], BASE_TOP, hx + 80 * K, s * TOWER_Y[1], hz - 110 * K))
+        parts.append(box(hx - 60 * K, s * TOWER_Y[0], hz - 110 * K, hx + 60 * K, s * (TOWER_Y[0] + 30 * K),
+                         hz + 60 * K))
+        parts.append(box(hx - 60 * K, s * (TOWER_Y[1] - 30 * K), hz - 110 * K, hx + 60 * K, s * TOWER_Y[1],
+                         hz + 60 * K))
+        bores.append(cyl(HINGE_PIN_R + BORE, (hx, s * (TOWER_Y[0] - 25), hz), (hx, s * (TOWER_Y[1] + 25), hz)))
     return cut(fuse(*parts), *bores)
 
 
 def bearing_block():
     """Built round the drum's axis (its origin on it): a pedestal with a bore."""
-    down = DRUM[1] - 100.0
+    down = DRUM[1] - BASE_TOP
     return cut(box(-80, -40, -down, 80, 40, 90), cyl(DRUM_SHAFT_R + BORE, (0, -50, 0), (0, 50, 0)))
 
 
 def winch_drum():
     r, f, h = DRUM_BARREL_R, DRUM_FLANGE_R, DRUM_HALF
-    return revolve_y([(0, -h - 140), (DRUM_SHAFT_R, -h - 140), (DRUM_SHAFT_R, -h - 20), (f, -h - 20), (f, -h),
-                      (r, -h), (r, h), (f, h), (f, h + 20), (DRUM_SHAFT_R, h + 20), (DRUM_SHAFT_R, h + 140),
-                      (0, h + 140)])
+    e = DRUM_SHAFT_END
+    return revolve_y([(0, -e), (DRUM_SHAFT_R, -e), (DRUM_SHAFT_R, -h - 20), (f, -h - 20), (f, -h),
+                      (r, -h), (r, h), (f, h), (f, h + 20), (DRUM_SHAFT_R, h + 20), (DRUM_SHAFT_R, e), (0, e)])
+
+
+def wire_on_drum():
+    """The wound wire, about the drum's axis (+Y through its origin): from the barrel (r 200) to WIRE_OUTER (layers 1
+    and 2) between the flanges; one revolved solid."""
+    h = DRUM_HALF
+    return revolve_y([(DRUM_BARREL_R, -h), (DRUM_BARREL_R, h), (WIRE_OUTER, h), (WIRE_OUTER, -h)])
 
 
 def a_frame():
     """In A-FRAME.ASM's coordinates: x = v (front), z = u (along the legs), the luff axis is its Y axis."""
     (tv0, tv1), (tu0, tu1) = BEAM_TOP
     (lv0, lv1), (lu0, lu1) = BEAM_LOW
-    parts = [box(-LEG_HALF, s * LEG_Y[0], -70, LEG_HALF, s * LEG_Y[1], LEG + 80) for s in (1, -1)]
+    parts = [box(-LEG_HALF, s * LEG_Y[0], -70 * K, LEG_HALF, s * LEG_Y[1], LEG + 80 * K) for s in (1, -1)]
     parts.append(box(tv0, -LEG_Y[1], tu0, tv1, LEG_Y[1], tu1))
     parts.append(box(lv0, -LEG_Y[1], lu0, lv1, LEG_Y[1], lu1))
-    # the cheeks: from the middle of the lower cross beam to 45 past SHEAVE 2's pin
+    # the cheeks: from the middle of the lower cross beam to 60 past SHEAVE 2's pin, 120 deep
     sv, su = S2_LOCAL
     bv, bu = 0.5 * (lv0 + lv1), 0.5 * (lu0 + lu1)
     along = np.array([sv - bv, su - bu])
@@ -714,8 +781,9 @@ def a_frame():
     along /= reach
     m = frame((bv, 0.0, bu), (along[0], 0.0, along[1]), np.cross((along[0], 0.0, along[1]), (0.0, 1.0, 0.0)))
     for s in (1, -1):
-        parts.append(xform(box(0, s * CHEEK_Y[0], -40, reach + 45, s * CHEEK_Y[1], 40), m))
-    bores = [cyl(HINGE_PIN_R, (0, -400, 0), (0, 400, 0)), cyl(S1_PIN_R, (0, -400, LEG), (0, 400, LEG)),
+        parts.append(xform(box(0, s * CHEEK_Y[0], -60, reach + 60, s * CHEEK_Y[1], 60), m))
+    far = LEG_Y[1] + 100.0
+    bores = [cyl(HINGE_PIN_R, (0, -far, 0), (0, far, 0)), cyl(S1_PIN_R, (0, -far, LEG), (0, far, LEG)),
              cyl(S2_PIN_R, (sv, -100, su), (sv, 100, su))]
     return cut(fuse(*parts), *bores)
 
@@ -738,15 +806,15 @@ def cradle_stand():
     lo, hi = -ROLLER_LOW, ROLLER_LEN - ROLLER_LOW
     outline = [(lo - 20, 35), (lo - 5, 35), (lo - 5, -75), (hi + 5, -75), (hi + 5, 35), (hi + 20, 35),
                (hi + 20, -100)]                         # (along the roller, square to it towards the rope)
-    parts = [box(ROLLER_X[0] - 60, -280, 100, ROLLER_X[1] + 60, 280, 130)]
+    parts = [box(ROLLER_X[0] - 60, -280, BASE_TOP, ROLLER_X[1] + 60, 280, BASE_TOP + 30)]
     bores = []
     for k in (0, 1):
         foot, direction, _touch = roller_axis(k)
         normal = np.array([0.0, -direction[2] * np.sign(direction[1]), abs(direction[1])])
         pts = [foot + t * direction + n * normal for t, n in outline]
-        pts.append(np.array([0.0, pts[-1][1], 100.0]))
+        pts.append(np.array([0.0, pts[-1][1], BASE_TOP]))
         low = foot + (lo - 20) * direction - 100 * normal
-        pts += [np.array([0.0, low[1], 100.0]), low]
+        pts += [np.array([0.0, low[1], BASE_TOP]), low]
         parts.append(prism([(ROLLER_X[k] - 40, q[1], q[2]) for q in pts], (80.0, 0.0, 0.0)))
         bores.append(cyl(STUB_R + BORE, foot + (lo - 30) * direction, foot + (hi + 30) * direction))
     return cut(fuse(*parts), *bores)
@@ -772,8 +840,9 @@ def chute_stand():
     under = CHUTE_BOTTOM - 10.0
     pts = [(CHUTE[0] + under * math.sin(math.radians(a)), -25.0, CHUTE[1] + under * math.cos(math.radians(a)))
            for a in CHUTE_STAND_AT]
-    pts = [(pts[0][0], -25.0, 100.0)] + pts + [(pts[-1][0], -25.0, 100.0)]
-    return fuse(prism(pts, (0.0, 50.0, 0.0)), box(pts[0][0] - 20, -120, 100, pts[-1][0] + 20, 120, 120))
+    pts = [(pts[0][0], -25.0, BASE_TOP)] + pts + [(pts[-1][0], -25.0, BASE_TOP)]
+    return fuse(prism(pts, (0.0, 50.0, 0.0)), box(pts[0][0] - 20, -120, BASE_TOP, pts[-1][0] + 20, 120,
+                                                  BASE_TOP + 20))
 
 
 def model(revision="A"):
@@ -787,7 +856,7 @@ def model(revision="A"):
     top.append((block, T(DRUM[0], y, DRUM[1])))
     top.append((block, T(DRUM[0], -y, DRUM[1])))
 
-    pin = Part("HINGE PIN", cyl(HINGE_PIN_R, (0, -95, 0), (0, 95, 0)), CHROME)
+    pin = Part("HINGE PIN", cyl(HINGE_PIN_R, (0, -95 * K, 0), (0, 95 * K, 0)), CHROME)
     y = 0.5 * (LEG_Y[0] + LEG_Y[1])
     s1, s2 = T(S1_LOCAL[0], 0.0, S1_LOCAL[1]), T(S2_LOCAL[0], 0.0, S2_LOCAL[1])
     inside = [(Part("A-FRAME", a_frame(), YELLOW), None), (pin, T(0.0, y, 0.0)), (pin, T(0.0, -y, 0.0)),
@@ -812,10 +881,11 @@ def model(revision="A"):
     top.append((Part("CHUTE", chute(), STEEL), None))
     top.append((Part("CHUTE STAND", chute_stand(), GREY), None))
     top.append((Part("WIRE ROPE", rope_solid(Route()), ROPE_GREY), None))
+    top.append((Part("WIRE ON DRUM", wire_on_drum(), ROPE_GREY), T(DRUM[0], 0.0, DRUM[1])))
     if revision == "B":
         # one more part, and the parts placed in another order (two of the same keep theirs: the same IDs)
         top.append((Part("GUARD", box(*GUARD), ORANGE), None))
-        top = [top[i] for i in (9, 8, 6, 5, 0, 7, 2, 3, 4, 1)]
+        top = [top[i] for i in (10, 8, 6, 5, 0, 9, 7, 2, 3, 4, 1)]
     for node, m in top:
         root.add(node, m)
     return root
@@ -825,13 +895,16 @@ def model(revision="A"):
 # checks
 # ---------------------------------------------------------------------------------------------------------------------
 
-ROPE_TOUCHES = ("WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER", "CHUTE")
+ROPE_TOUCHES = ("WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER", "CHUTE")
+OVERLAPS = set()                    # pairs drawn into each other on purpose: none
 
 
 def body_of(name, path):
     """The rigid body a part belongs to when the A-frame luffs and everything round turns."""
     if name in ("WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "WIRE ROPE"):
         return name
+    if name == "WIRE ON DRUM":
+        return "WINCH DRUM"
     if name == "V ROLLER":
         return None                                     # each roller is a body of its own (see check)
     return "A-FRAME" if "A-FRAME.ASM" in path else "BASE"
@@ -849,7 +922,7 @@ def check(root, say=print):
             d = gap(sa, sb)
             if d < 1e-6:
                 v = volume(BRepAlgoAPI_Common(sa, sb).Shape())
-                assert v < 1e-3, (na, "lies inside", nb, v)
+                assert v < 1e-3 or frozenset((na, nb)) in OVERLAPS, (na, "lies inside", nb, v)
             if "WIRE ROPE" in (na, nb):
                 other = nb if na == "WIRE ROPE" else na
                 if other in ROPE_TOUCHES:

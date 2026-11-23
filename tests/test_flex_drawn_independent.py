@@ -611,12 +611,12 @@ def winch(folder):
 
 def sheave(sc, n):
     if n == 1:
-        return hit(sc, (1.9104, 0.0, 3.0), (0, 0, -1), "SHEAVE 1")
-    return hit(sc, (1.5, 0.0, 0.5), (0, 0, 1), "SHEAVE 2")
+        return hit(sc, (4.776, 0.0, 6.0), (0, 0, -1), "SHEAVE 1")      # (task 0263: the model's layout x 2.5)
+    return hit(sc, (3.75, 0.0, 1.0), (0, 0, 1), "SHEAVE 2")
 
 
 def drum(sc):
-    return click(sc, (0.0, 0.0, 0.45), (1, 0, 0), "WINCH DRUM")
+    return click(sc, (0.0, 0.0, 0.6), (1, 0, 0), "WIRE ON DRUM")
 
 
 def contact_side(item, name):
@@ -641,7 +641,13 @@ def test_a_cable_with_the_same_sheave_clicked_twice_goes_round_its_other_side(wi
 
 
 def deck(sc, y=0.0):
-    return click(sc, (2.33, y, 1.0), (0, 0, -1), "BASE FRAME")                   # the deck's top, before the cradle
+    return click(sc, (5.825, y, 1.0), (0, 0, -1), "BASE FRAME")                  # the deck's top, before the cradle
+
+
+def in_chute_circle(sc):
+    """A spot inside the chute's circle: the side of its stand 0.245 m below the chute's axis (task 0263: the deck,
+    0.9 m below it, is no longer inside its 0.6 m circle)."""
+    return click(sc, (6.75, 1.0, 0.9), (0, -1, 0), "CHUTE STAND")
 
 
 def test_a_cable_ending_on_a_flat_face_ends_there_and_follows_a_luff(winch):
@@ -654,7 +660,7 @@ def test_a_cable_ending_on_a_flat_face_ends_there_and_follows_a_luff(winch):
     line = paths.shape_now(sc, item)
     assert len(line) and np.all(np.isfinite(line))
     assert min(np.linalg.norm(line[0] - want), np.linalg.norm(line[-1] - want)) < 0.002
-    luff = joints.create(sc, "ROTATE", [named(sc, "A-FRAME.ASM")], Vector((1.5, 0.0, 0.73)), Vector((0, 1, 0)),
+    luff = joints.create(sc, "ROTATE", [named(sc, "A-FRAME.ASM")], Vector((3.75, 0.0, 1.825)), Vector((0, 1, 0)),
                          name="Luff")
     set_joint(sc, luff.name, math.radians(-8))
     item = paths.find(sc, "To the deck")
@@ -677,11 +683,11 @@ def test_a_cable_ending_a_little_beside_the_sheave_plane(winch):
 def test_refused_cable_routes_leave_nothing_behind(winch):
     sc = winch
     before = snapshot(sc)
-    rail_end = click(sc, (2.0, 0.33, 1.0), (0, 0, -1), "BASE FRAME")
-    rail = hit(sc, (1.0, 0.33, 1.0), (0, 0, -1), "BASE FRAME")
-    chute = hit(sc, (2.7, 0.0, 1.5), (0, 0, -1), "CHUTE")
+    rail_end = click(sc, (5.0, 0.825, 1.0), (0, 0, -1), "BASE FRAME")
+    rail = hit(sc, (2.5, 0.825, 1.0), (0, 0, -1), "BASE FRAME")
+    chute = hit(sc, (6.75, 0.0, 2.5), (0, 0, -1), "CHUTE")
     for wheels, e in (([rail], rail_end),                                         # a flat rail as a wheel
-                      ([sheave(sc, 1), sheave(sc, 2), chute], deck(sc))):          # the end inside the chute's circle
+                      ([sheave(sc, 1), sheave(sc, 2), chute], in_chute_circle(sc))):   # the end inside its circle
         with pytest.raises(paths.PathError):
             paths.draw_cable(sc, drum(sc), wheels, e, replace=named(sc, "WIRE ROPE"))
         assert snapshot(sc) == before
@@ -706,9 +712,9 @@ def test_refused_cable_routes_leave_nothing_behind(winch):
 def test_the_cable_picker_takes_a_click_on_a_flat_rail_top_as_the_end(winch):
     sc = winch
     dg = bpy.context.evaluated_depsgraph_get()
-    d_ob, d_i, d_loc, d_n = hover.cast(sc, dg, Vector((0.0, 0.0, 0.45)), Vector((1, 0, 0)))
-    s_ob, s_i, s_loc, s_n = hover.cast(sc, dg, Vector((1.9104, 0.0, 3.0)), Vector((0, 0, -1)))
-    r_ob, r_i, r_loc, r_n = hover.cast(sc, dg, Vector((1.0, 0.33, 1.0)), Vector((0, 0, -1)))
+    d_ob, d_i, d_loc, d_n = hover.cast(sc, dg, Vector((0.0, 0.0, 0.6)), Vector((1, 0, 0)))
+    s_ob, s_i, s_loc, s_n = hover.cast(sc, dg, Vector((4.776, 0.0, 6.0)), Vector((0, 0, -1)))
+    r_ob, r_i, r_loc, r_n = hover.cast(sc, dg, Vector((2.5, 0.825, 1.0)), Vector((0, 0, -1)))
     assert r_ob.get(build.PROP_NAME) == "BASE FRAME"
     assert drawn.spot(r_ob, r_i, r_loc, r_n)["round"] is False                    # the hover calls it flat
     fake = types.SimpleNamespace(_clicks=[(d_ob.name, d_i, tuple(d_loc), tuple(d_n)),

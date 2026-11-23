@@ -4,7 +4,7 @@
                                                   fresing_render/data/)
     python tools/make_test_spool.py numbers       prints the numbers below, worked out
 
-Two small machines side by side: a winch whose wire rope comes off a spiral-grooved drum over a fairlead sheave on a
+Two machines side by side: a winch whose wire rope comes off a spiral-grooved drum over a fairlead sheave on a
 level-wind carriage down to a weight, and a carousel whose power cable comes off the top layer of a stored coil, round
 a guide sheave on a slewing arm, up to a clamp. All sizes in mm, angles in degrees, Z up. Every part is one solid.
 The same numbers are in the code for tests and the app's set-up: ``NUMBERS`` (a dict), ``centreline(which, step)``
@@ -60,41 +60,44 @@ TEST.SPOOL                                                    35 parts, 25 diffe
                            motor boss on its outer face
   HYDRAULIC MOTOR          flanged to the gearbox's outer face, axis along Y through (0, *, 250), y -625..-425
 
-2. The carousel (axis vertical through (3000, 0))
-  CAROUSEL BASE            a fixed plinth: cylinder r 900 about the carousel axis, z 0..100, on a foot ring r 950
-                           (z 0..20) with a step r 920 (z 20..35)
-  CAROUSEL.ASM             origin (3000, 0, 0); turns about +Z through it (paying out: clockwise seen from above)
-    TURNTABLE              disc r 1000, z 100..140
-    INNER CORE             tube r 270..300, z 140..520
-    RIM FENCE              tube r 970..1000, z 140..250 (task 0174: below the guide sheave's rim, z 260, so the arm
+2. The carousel (axis vertical through (4000, 0)). Task 0263 (real size): the first model's carousel x 2 in plan about
+   its own axis (``KC``: Ø4.0 m, a core Ø1.28 m – 17 cable diameters to the inner layer's middle), its arm x 2 long, the
+   axis moved from x 3000 to 4000 (1 m clear of the winch as before); heights, the Ø40 cable, its layers, the GUIDE
+   SHEAVE, the pins and the clamp keep their size. The winch (part 1) is as it was.
+  CAROUSEL BASE            a fixed plinth: cylinder r 1800 about the carousel axis, z 0..100, on a foot ring r 1900
+                           (z 0..20) with a step r 1840 (z 20..35)
+  CAROUSEL.ASM             origin (4000, 0, 0); turns about +Z through it (paying out: clockwise seen from above)
+    TURNTABLE              disc r 2000, z 100..140
+    INNER CORE             tube r 600..640, z 140..520
+    RIM FENCE              tube r 1940..2000, z 140..250 (task 0174: below the guide sheave's rim, z 260, so the arm
                            swings its guide out over the rim when the carousel is emptied)
-    CABLE COIL             the stored cable (Ø40) as one revolved solid: rope-middle radii 340..840 (12.5 turns a
-                           layer, 40 apart); layers 1-3 full: r 320..860, z 140..260 (layer 1 laid from the core out,
+    CABLE COIL             the stored cable (Ø40) as one revolved solid: rope-middle radii 680..1680 (25 turns a
+                           layer, 40 apart); layers 1-3 full: r 660..1700, z 140..260 (layer 1 laid from the core out,
                            2 back in, 3 out again); layer 4 (z 260..300), laid from the rim inwards, still covers
-                           rope-middle radii 600..840: r 580..860 – except the quarter turn the POWER CABLE draws
-                           (r 575..620, from +X to +Y) and a notch under the guide sheave (carousel x 570..632,
+                           rope-middle radii 1200..1680: r 1180..1700 – except the quarter turn the POWER CABLE draws
+                           (r 1175..1220, from +X to +Y) and a notch under the guide sheave (carousel x 1170..1232,
                            y -115..115, z 260..305), so the CAD cable and the guide sheave are not drawn through it
-  SLEW POST                fixed column: cylinder r 100 about the vertical through (4300, 0), z 0..1000, on a foot
+  SLEW POST                fixed column: cylinder r 100 about the vertical through (6600, 0), z 0..1000, on a foot
                            flange r 200 (z 0..30) with four gussets and four ISO 4017 M16 x 30 bolts (r 160)
-  ARM.ASM                  origin (4300, 0, 0); slews about +Z through it (the ARM PIVOT)
-    ARM                    a boss r 100 (z 1000.5..1140) on the post, a beam (x 3540..4400, y -200..50,
-                           z 1060..1140) reaching over x = 3600 and a hanger of two cheeks (x 3540..3560 and
-                           3640..3660, y -40..40, z 390..1060) with a bore Ø30 on the GUIDE PIN's axis: one solid
-    GUIDE PIN              Ø30 along X, x 3530..3670, at (y 0, z 430)
+  ARM.ASM                  origin (6600, 0, 0); slews about +Z through it (the ARM PIVOT)
+    ARM                    a boss r 100 (z 1000.5..1140) on the post, a beam (x 5140..6700, y -200..50,
+                           z 1060..1140) reaching over x = 5200 and a hanger of two cheeks (x 5140..5160 and
+                           5240..5260, y -40..40, z 390..1060) with a bore Ø30 on the GUIDE PIN's axis: one solid
+    GUIDE PIN              Ø30 along X, x 5130..5270, at (y 0, z 430)
     GUIDE SHEAVE           on GUIDE PIN (bore Ø31): rope-middle radius 150 (round groove of radius 20.5, its bottom
                            at r 130, walls flaring from its widest out to 48 wide at the rim r 170), 50 wide
-                           (x 3575..3625), hub r 40; centre (3600, 0, 430), axis X. Its rim reaches down to z 260,
-                           the top of layer 3. The cable comes onto it straight off the coil (no free span), so where
-                           it still curves round the carousel axis (5..12° before the leave point) it lies up to
-                           2.2 mm into the rim's inner lip: a guide 50 wide cannot hold a Ø40 cable bending sideways.
-    CABLE CLAMP            a block x 3560..3640, y -190..-110, z 1000..1060 under the arm's beam
-  POWER CABLE              Ø40, one solid: a quarter turn on the coil (radius 600, z 280, about the carousel axis,
-                           clockwise seen from above) from (3000, 600, 280) to the LEAVE POINT (3600, 0, 280), there
-                           heading -Y; 90° up round the guide sheave (about -X) to (3600, -150, 430), heading +Z;
-                           straight 570 up to the clamp's underside (3600, -150, 1000).   Length 1748.097.
+                           (x 5175..5225), hub r 40; centre (5200, 0, 430), axis X. Its rim reaches down to z 260,
+                           the top of layer 3. The cable comes onto it straight off the coil (no free span); it bends
+                           round the carousel axis at r 1200 now and touches the rim's inner lip without lying in it
+                           (at r 600 it lay 2.2 mm in).
+    CABLE CLAMP            a block x 5160..5240, y -190..-110, z 1000..1060 under the arm's beam
+  POWER CABLE              Ø40, one solid: a quarter turn on the coil (radius 1200, z 280, about the carousel axis,
+                           clockwise seen from above) from (4000, 1200, 280) to the LEAVE POINT (5200, 0, 280), there
+                           heading -Y; 90° up round the guide sheave (about -X) to (5200, -150, 430), heading +Z;
+                           straight 570 up to the clamp's underside (5200, -150, 1000).   Length 2690.575.
                            Paying out turns the carousel about -Z (clockwise seen from above).
 
-  DECK PLATE               under both machines: x -700..4700, y -1200..1200, z -30..0, corners chamfered, a plating
+  DECK PLATE               under both machines: x -700..7000, y -2400..2400, z -30..0, corners chamfered, a plating
                            seam (8 wide, 3 deep) across at x = 1600
   ISO 4017 M16 x 30 - 8.8 HDG (10 x)   the bearing blocks', the gearbox's and the slew post's hold-down bolts (head on
                            the foot, the shank through a hole 1 mm wider down to what the foot stands on)
@@ -117,18 +120,19 @@ Wound at the start (``wound_estimate``; an ESTIMATE: helix or spiral turns only 
 climbs between layers):
   drum       layer 1, 2: 17.925 turns x sqrt((2 pi r)^2 + 21.2^2) at r 160 / 177.321; layer 3: 8.962 turns at
              194.641 (y -190 -> 0, ends at the leave point): 18023.708 + 19974.006 + 10962.187 = 48959.901 mm
-  carousel   layers 1-3: 12.5 turns of an Archimedean spiral r 340 <-> 840 (its true length 46341.370 each);
-             layer 4: 6 turns, r 840 -> 600 (27144.432, ends at the leave point): 166168.543 mm
+  carousel   layers 1-3: 25 turns of an Archimedean spiral r 680 <-> 1680 (its true length 185356.846 each);
+             layer 4: 12 turns, r 1680 -> 1200 (108574.513, ends at the leave point): 664645.050 mm
+             (task 0263: 4.0 x the first carousel's 166168.543 – twice the turns at twice the radius)
 
 Checked before the file is written (``check``): every part is one valid solid; no part lies in another except
-WIRE ON DRUM in WINCH DRUM (7 mm: the groove's lands), WIRE ROPE in WIRE ON DRUM (2.68: the valley of layer 2) and
-POWER CABLE in GUIDE SHEAVE (2.2: the rim's lip, above); the two ropes touch what they lie on (WIRE ROPE: WIRE ON
+WIRE ON DRUM in WINCH DRUM (7 mm: the groove's lands) and WIRE ROPE in WIRE ON DRUM (2.68: the valley of layer 2);
+the two ropes touch what they lie on (WIRE ROPE: WIRE ON
 DRUM, FAIRLEAD SHEAVE, WEIGHT; POWER CABLE: CABLE COIL, GUIDE SHEAVE, CABLE CLAMP) and are 10 mm and more from every
 other part (WIRE ROPE: 27.7 from the drum's lands; POWER CABLE: 60 from the arm); parts that move against each other
 are 0.5 mm apart (bores, the carriage over its rail, the arm over its post) except the turntable on its plinth and
 the guide sheave's rim on the coil's layer 3 (they touch).
 
-Writing the file takes about 11 s (the spiral groove 2-3 s, the check 6 s); 896 KB (a test keeps it under 1 MB); the
+Writing the file takes about 13 s (the spiral groove 2-3 s, the check 6 s); 895 KB (a test keeps it under 1 MB); the
 importer reads it in about 1.6 s.
 
 Needs OpenCascade (OCP) and fresing_render/demo_model/geom.py (shapes, the scene tree, the STEP writer; no Blender).
@@ -199,6 +203,7 @@ PED_X = 140.0                                   # the bearing pedestals: x -140.
 BLOCK_BOLTS_X = (105.0, -105.0)                 # the bearing blocks' bolts (their feet: x -130..130, 30 thick)
 GEARBOX_BOLTS = [(168.0, -372.5), (-168.0, -372.5)]
 MOTOR_Z = 250.0
+DECK_X, DECK_HALF_Y = (-700.0, 7000.0), 2400.0      # the deck plate under both (task 0263: was -700..4700, ±1200)
 POST_BOLTS = [(160.0 * math.cos(math.radians(a)), 160.0 * math.sin(math.radians(a))) for a in (0, 90, 180, 270)]
 
 
@@ -212,30 +217,32 @@ def _groove_start():
 GROOVE_START = _groove_start()
 
 # --- the carousel ----------------------------------------------------------------------------------------------------
-CAR_C = np.array([3000.0, 0.0, 0.0])            # on the carousel axis; the axis is +Z
+KC = 2.0                                        # task 0263: the carousel x 2 in plan (heights, cable, guide kept)
+CAR_C = np.array([4000.0, 0.0, 0.0])            # on the carousel axis; the axis is +Z (task 0263: was 3000)
 CABLE_D = 40.0
-R_IN, R_OUT = 340.0, 840.0                      # rope-middle radii of a layer
+R_IN, R_OUT = 340.0 * KC, 840.0 * KC            # rope-middle radii of a layer (680 = 17 cable diameters)
 A_BOT = 140.0                                   # the turntable's top: the coil's underside
 COIL_FULL = 3                                   # full layers
-COIL_TURNS = (R_OUT - R_IN) / CABLE_D           # 12.5 turns a layer
-TOP_FROM = 600.0                                # the top layer still covers rope-middle radii TOP_FROM..R_OUT
+COIL_TURNS = (R_OUT - R_IN) / CABLE_D           # 25 turns a layer
+TOP_FROM = 600.0 * KC                           # the top layer still covers rope-middle radii TOP_FROM..R_OUT
 LEAVE_R = TOP_FROM
 COIL_TOP_Z = A_BOT + (COIL_FULL + 0.5) * CABLE_D                # 280: the top layer's rope middles
-C_LEAVE = CAR_C + np.array([LEAVE_R, 0.0, COIL_TOP_Z])          # (3600, 0, 280)
-C_START = CAR_C + np.array([0.0, LEAVE_R, COIL_TOP_Z])          # (3000, 600, 280)
-GUIDE_C = np.array([3600.0, 0.0, 430.0])        # the guide sheave; axis X
+C_LEAVE = CAR_C + np.array([LEAVE_R, 0.0, COIL_TOP_Z])          # (5200, 0, 280)
+C_START = CAR_C + np.array([0.0, LEAVE_R, COIL_TOP_Z])          # (4000, 1200, 280)
+GUIDE_C = C_LEAVE + np.array([0.0, 0.0, 150.0])  # the guide sheave (5200, 0, 430); axis X
 GUIDE_SEAT, GUIDE_BOTTOM, GUIDE_RIM, GUIDE_HALF = 150.0, 130.0, 170.0, 25.0
 GUIDE_GROOVE = 20.5
 GUIDE_LIP = 24.0                                # the guide's groove flares to 48 wide at its rim (cable Ø40)
-CLAMP_BOX = (3560.0, -190.0, 1000.0, 3640.0, -110.0, 1060.0)
-CABLE_END = np.array([3600.0, -150.0, 1000.0])
-PIVOT = np.array([4300.0, 0.0, 0.0])            # the arm slews about +Z through it
+CLAMP_BOX = (GUIDE_C[0] - 40.0, -190.0, 1000.0, GUIDE_C[0] + 40.0, -110.0, 1060.0)
+CABLE_END = np.array([GUIDE_C[0], -150.0, 1000.0])
+PIVOT = CAR_C + np.array([1300.0 * KC, 0.0, 0.0])  # the arm slews about +Z through it (6600, 0, 0)
 POST_R, POST_TOP = 100.0, 1000.0
-PLINTH_R = 900.0
-TURNTABLE = (1000.0, 100.0, 140.0)              # radius, z from, z to
-CORE = (270.0, 300.0, 140.0, 520.0)             # r in, r out, z from, z to
-RIM = (970.0, 1000.0, 140.0, 250.0)             # (task 0174: was 420 – the guide sheave hit it over the rim)
-SHEAVE_NOTCH = (570.0, -115.0, 260.0, 632.0, 115.0, 305.0)     # the coil's notch under the guide sheave (carousel x, y)
+PLINTH_R = 900.0 * KC
+TURNTABLE = (1000.0 * KC, 100.0, 140.0)         # radius, z from, z to
+CORE = (600.0, 640.0, 140.0, 520.0)             # r in, r out, z from, z to (Ø1280; 20 inside the coil)
+RIM = (970.0 * KC, 1000.0 * KC, 140.0, 250.0)   # (task 0174: was 420 high – the guide sheave hit it over the rim)
+SHEAVE_NOTCH = (TOP_FROM - 30.0, -115.0, 260.0, TOP_FROM + 32.0, 115.0, 305.0)   # the coil's notch under the guide
+                                                                                    # sheave (carousel x, y)
 
 
 # =====================================================================================================================
@@ -534,13 +541,14 @@ def hydraulic_motor():
 
 
 def deck_plate():
-    plate = G.polygon_prism(_crect(-700.0, -1200.0, 5400.0, 2400.0, 100.0), 30.0, G.T(0.0, 0.0, -30.0))
-    return G.cut(plate, box(1596.0, -1201.0, -3.0, 1604.0, 1201.0, 1.0))
+    x0, x1, h = DECK_X[0], DECK_X[1], DECK_HALF_Y
+    plate = G.polygon_prism(_crect(x0, -h, x1 - x0, 2.0 * h, 100.0), 30.0, G.T(0.0, 0.0, -30.0))
+    return G.cut(plate, box(1596.0, -h - 1.0, -3.0, 1604.0, h + 1.0, 1.0))
 
 
 def carousel_base():
-    return G.fuse(G.cyl(PLINTH_R, TURNTABLE[1], tuple(CAR_C)), G.cyl(950.0, 20.0, tuple(CAR_C)),
-                  G.cyl(920.0, 15.0, tuple(CAR_C + np.array([0.0, 0.0, 20.0]))))
+    return G.fuse(G.cyl(PLINTH_R, TURNTABLE[1], tuple(CAR_C)), G.cyl(PLINTH_R + 100.0, 20.0, tuple(CAR_C)),
+                  G.cyl(PLINTH_R + 40.0, 15.0, tuple(CAR_C + np.array([0.0, 0.0, 20.0]))))
 
 
 def slew_post():
@@ -692,8 +700,9 @@ def write_step(root, path):
 # checks
 # ---------------------------------------------------------------------------------------------------------------------
 
-OVERLAPS = {frozenset(("WINCH DRUM", "WIRE ON DRUM")): 7.0, frozenset(("WIRE ON DRUM", "WIRE ROPE")): 2.68,
-            frozenset(("GUIDE SHEAVE", "POWER CABLE")): 2.2}     # the pairs drawn into each other, how deep (mm)
+OVERLAPS = {frozenset(("WINCH DRUM", "WIRE ON DRUM")): 7.0, frozenset(("WIRE ON DRUM", "WIRE ROPE")): 2.68}
+# the pairs drawn into each other, how deep (mm). (Task 0263: the POWER CABLE no longer lies in the GUIDE SHEAVE's lip –
+# it bends round the carousel at r 1200 now, not 600.)
 TOUCHES = {"WIRE ROPE": ("WIRE ON DRUM", "FAIRLEAD SHEAVE", "WEIGHT"),
            "POWER CABLE": ("CABLE COIL", "GUIDE SHEAVE", "CABLE CLAMP")}
 

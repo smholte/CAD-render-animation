@@ -1671,13 +1671,14 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.199")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.220")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
     _look("PRODUCT")
-    made = paths.set_up_test_model(sc)
-    _check(len(made["contacts"]) == 6, f"only {len(made['contacts'])} of the 6 things the rope touches were found")
+    made = paths.set_up_test_model(sc, winch=True)
+    # task 0263: the rope starts on the winch drum's wire (a drum of Drums and carousels), then 5 things it touches
+    _check(len(made["contacts"]) == 5, f"only {len(made['contacts'])} of the 5 things the rope touches were found")
     _check(made["animation"] == CABLE_ANIM, f"the animation is called '{made['animation']}'")
     _update()
     _surround(b, "WAREHOUSE")
@@ -1689,17 +1690,23 @@ def build_cables(b: Build):
 
 
 def _check_cables(scene):
-    """Along the built animation: the rope lies on every wheel it bends round, the drum, sheaves and rollers have
-    turned exactly as far as the rope ran, and the rope follows the luffing A-frame."""
+    """Along the built animation: the rope lies on every wheel it bends round, the sheaves and rollers have turned
+    exactly as far as the rope ran, the winch drum as far as that on its layer (task 0263: it winds the wire off
+    layer by layer), and the rope follows the luffing A-frame."""
     import numpy as np
 
-    from . import joints, paths
+    from . import joints, paths, spool
     its = list(paths.items(scene))
     _check(len(its) == 1, "the cable is missing")
     it = its[0]
     _check(paths.status(scene, it)[1] == "OK", f"the cable says: {paths.status(scene, it)[0]}")
     cab = joints.find(scene, it.joint)
     _check(cab is not None, "the cable's speed joint is missing")
+    sp = spool.of_cable(scene, it)
+    _check(sp is not None and not sp.problem, "the rope does not start on the winch drum"
+           if sp is None else f"the winch drum says: {sp.problem}")
+    drum = joints.find(scene, sp.joint)
+    drum0 = None
     off = slip = moved = pay = 0.0
     first = None
     for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 15)) | {scene.frame_end}):
@@ -1712,6 +1719,7 @@ def _check_cables(scene):
             rad = np.linalg.norm(d - np.outer(d @ ax, ax), axis=1)
             off = max(off, abs(float(rad.min()) - float(w.radius)))
         pay = joints.get_value(cab)
+        drum0 = joints.get_value(drum) if drum0 is None else drum0
         for c in it.contacts:
             if c.kind in paths.TURNING and c.turns and c.joint:
                 j = joints.find(scene, c.joint)
@@ -1723,13 +1731,17 @@ def _check_cables(scene):
         elif pts.shape == first.shape:
             moved = max(moved, float(np.abs(pts - first).max()))
     turning = sum(1 for c in it.contacts if c.kind in paths.TURNING and c.turns and c.joint)
+    turned = abs(joints.get_value(drum) - drum0)
     _check(pay > 0.9, f"only {pay:.2f} m of rope ran: the cable speed does not move it")
     _check(off < 5e-4, f"the rope is {off * 1000:.2f} mm off a sheave")
     _check(slip < 1e-3, f"a sheave or roller is {slip * 1000:.2f} mm behind the rope")
     _check(moved > 0.05, f"the rope moved only {moved * 1000:.0f} mm: it does not follow the A-frame")
-    _check(turning == 5, f"{turning} of the 5 turning parts turn")
+    _check(turning == 4, f"{turning} of the 4 turning sheaves and rollers turn")
+    # the drum: the rope comes off its 3rd layer (rope middle r 0.2536 m; on the 2nd 0.2328): pay / r radians
+    _check(pay / 0.2536 - 0.05 < turned < pay / 0.2328 + 0.05,
+           f"the winch drum turned {math.degrees(turned):.0f}° for {pay:.2f} m of rope")
     return (f"{len(it.contacts)} contacts, {pay:.2f} m of rope ran, the rope on its sheaves to {off * 1000:.2f} mm, "
-            f"{turning} parts turning with it to {slip * 1000:.3f} mm")
+            f"{turning} parts turning with it to {slip * 1000:.3f} mm, the winch drum {math.degrees(turned):.0f}°")
 
 
 # ---------------------------------------------------------------------------
@@ -1739,7 +1751,7 @@ def _check_cables(scene):
 DRAWN_ANIM = "Drawn hose, chain and cable"
 DRAWN_CHAINS_AT = (0.0, -1.5, 0.9)              # the gantry beside the hoses model (m; task 0261: the arm x 3; task
                                                 # 0262: the router x 2.5, its stand on the hoses model's floor)
-DRAWN_PATHS_AT = (0.0, 1.9, 0.0)                # the cable model on the other side
+DRAWN_PATHS_AT = (0.0, 2.5, 0.0)                # the cable model on the other side (task 0263: its base 1.9 m wide)
 DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE = "Hose 1", "Drag chain 1", "Drawn rope"
 #: task 0243: drawn hoses on the base's top behind the arm, past the rail's end (free of the CAD hoses and cable there), one
 #: per kind, in three rows of two: each an arch between two ends 300 mm apart along X, looking up
@@ -1814,20 +1826,24 @@ def drawn_chain_setup(scene, root) -> str:
 
 def drawn_cable_setup(scene, root) -> str:
     """On the cable model (test_paths_a.step, at ``root``): the joint "A-frame luff" and a cable route drawn by
-    clicking – the winch drum, SHEAVE 1, SHEAVE 2, the CHUTE, a free end –, replacing the CAD rope."""
+    clicking – the wire on the winch drum (task 0263; "Drum turn" turns the drum with it), SHEAVE 1, SHEAVE 2, the
+    CHUTE, a free end –, replacing the CAD rope."""
     from mathutils import Vector
 
     from . import joints, paths
     rope = _ob(scene, "WIRE ROPE")
-    start = _drawn_click(scene, root, (0.0, 0.0, 0.45), (1, 0, 0), "WINCH DRUM", (rope,))
-    wheels = []
-    for name, o, d in (("SHEAVE 1", (1.9104, 0.0, 3.0), (0, 0, -1)), ("SHEAVE 2", (1.5, 0.0, 0.5), (0, 0, 1)),
-                       ("CHUTE", (2.7, 0.0, 1.5), (0, 0, -1))):
+    m = root.matrix_world
+    # task 0263: the winch holds wire – the drum and the wire on it turn together; the route starts on the wire
+    joints.create(scene, "ROTATE", [_ob(scene, "WINCH DRUM"), _ob(scene, "WIRE ON DRUM")], m @ Vector((1.125, 0.0, 0.6)),
+                  (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="Drum turn")
+    start = _drawn_click(scene, root, (0.0, 0.0, 0.6), (1, 0, 0), "WIRE ON DRUM", (rope,))
+    wheels = []                 # (task 0263: A-frame and base x 2.5 – above SHEAVE 1, below SHEAVE 2, above the chute)
+    for name, o, d in (("SHEAVE 1", (4.776, 0.0, 6.0), (0, 0, -1)), ("SHEAVE 2", (3.75, 0.0, 1.0), (0, 0, 1)),
+                       ("CHUTE", (6.75, 0.0, 2.5), (0, 0, -1))):
         sp = _drawn_click(scene, root, o, d, name, (rope,))
         wheels.append((sp["part"], sp["hit"], False))
     item, _notes = paths.draw_cable(scene, start, wheels, None, name=DRAWN_CABLE, diameter=0.024, replace=rope)
-    m = root.matrix_world
-    luff = joints.create(scene, "ROTATE", [_ob(scene, "A-FRAME.ASM")], m @ Vector((1.5, 0.0, 0.73)),
+    luff = joints.create(scene, "ROTATE", [_ob(scene, "A-FRAME.ASM")], m @ Vector((3.75, 0.0, 1.825)),
                          (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="A-frame luff")
     luff.rot_min, luff.rot_max, luff.use_limits = -0.26, 0.26, True
     return item.name
@@ -1867,7 +1883,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.215")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.220")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -2105,7 +2121,7 @@ def check_drawn_replace(scene) -> str:
 SPOOL_ANIM = "Spooling"
 
 
-@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.139")
+@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.220")
 def build_spool(b: Build):
     from . import spool
     sc = b.scene
@@ -2158,7 +2174,7 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.199")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.220")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -2570,7 +2586,8 @@ def _check_spool(scene):
     _check(drum[six, 0] > 5.9 and car[six, 0] > 5.9, "the cables did not pay out 6 m")
     _check(abs(drum[six, 1]) > 30.0, f"the drum turned only {math.degrees(abs(drum[six, 1])):.0f}°")
     _check(np.ptp(drum[:six + 1, 2]) > 0.1, "the level wind did not go along the drum")
-    _check(abs(car[six, 1]) > 6.0, f"the carousel turned only {math.degrees(abs(car[six, 1])):.0f}°")
+    # 6 m off the top layer from r 1.20 outwards: 6 / 1.24 … 6 / 1.20 = 4.8 … 5.0 rad (task 0263: the carousel x 2)
+    _check(abs(car[six, 1]) > 4.5, f"the carousel turned only {math.degrees(abs(car[six, 1])):.0f}°")
     _check(np.ptp(car[:six + 1, 2]) > 0.05, "the arm did not swing out with the layer")
     _check(off < 5e-4, f"a cable leaves its spool {off * 1000:.2f} mm off the circle of its layer")
     full = _check_full_spools(scene, sps)
@@ -4392,7 +4409,7 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      "round the whole cable as one spiral, once round per metre, with ragged edges, the paint thinner in the grooves. "
      "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
-     since="0.2.116", check=_check_served, auto="clip", changed="0.2.123")
+     since="0.2.116", check=_check_served, auto="clip", changed="0.2.220")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
@@ -4480,11 +4497,12 @@ stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
      since="0.2.78", changed="0.2.215", check=_check_chains, auto="clip")
 stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
-     "The wire rope comes off the winch drum, goes over the two sheaves of the A-frame, through the V rollers and "
-     "over the chute at 10 m/min: its strands run along, and the drum, both sheaves and both rollers turn with it. "
-     "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
+     "The winch drum is full of wire rope, layer on layer. The rope comes off it, goes over the two sheaves of the "
+     "A-frame, through the V rollers and over the chute at 10 m/min: its strands run along, the drum turns and its "
+     "top layer gets shorter wrap by wrap, and both sheaves and both rollers turn with it. Meanwhile the A-frame "
+     "leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
-     auto="clip")
+     auto="clip", changed="0.2.220")
 stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
      "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
@@ -4499,7 +4517,7 @@ stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
      where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
-     since="0.2.180", check=check_drawn_cable, auto="clip")
+     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.220")
 stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 24 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
@@ -4524,7 +4542,7 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "anchor; the carousel pays its cable all out (every layer cable, one after the other, down to its core) and "
      "winds it back in. No grey sleeve or ring under the top layer.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
-     auto="clip", changed="0.2.139")
+     auto="clip", changed="0.2.220")
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "

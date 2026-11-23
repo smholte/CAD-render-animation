@@ -1939,6 +1939,8 @@ you see it move. (A hose that hangs and bends is the other panel: **Hoses and dr
 
 <img class="wide" src="img/view_cables_rope.jpg" alt="The test machine: a wire rope from the winch drum over two sheaves on an A-frame, two V rollers and a chute">
 
+<img class="wide" src="img/view_cables_winch.jpg" alt="Close up: the winch drum full of wire rope, layer on layer between its flanges, the rope coming off its top layer">
+
 **Add a cable**
 
 1. Click the cable or the wire rope in the 3D view. It is the solid that is drawn along the route in the CAD

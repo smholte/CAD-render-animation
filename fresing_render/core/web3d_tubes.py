@@ -537,12 +537,16 @@ def trimmed(p, s, lo: float, hi: float):
     point is dropped when it lies before lo or when its piece starts past hi; a kept point past hi is moved back
     along its piece onto hi (the rope ends exactly there, and starts at a point of the wound path). (points,
     lengths): none or one point when the spool holds nothing or a cut inside one piece (the app then draws nothing
-    either)."""
+    either). A start this close (``CUT_EPS``, relative) to a point of the path keeps that point (the cut is blended
+    between kept moments and lands a hair past it); the end is compared as the tree does, strictly."""
     p = np.asarray(p, np.float64)
     s = np.asarray(s, np.float64)
     prev = np.concatenate([s[:1], s[:-1]])
     eps = CUT_EPS * max(1.0, abs(lo), abs(hi))                 # (a cut on a point of the path keeps that point)
-    keep = ~((s < lo - eps) | (prev > hi + eps))
+    # task 0263: no margin at the end. The tree drops a point whose piece starts past End (float32, strict); with a
+    # margin, a point one float32 step past End (the 664 m carousel's leave point at its first frame: 0.06 mm) kept
+    # the point after it too, folded onto the cut: one ring more than the app
+    keep = ~((s < lo - eps) | (prev > hi))
     idx = np.where(keep)[0]
     pts = p[idx].copy()
     ss = s[idx].copy()

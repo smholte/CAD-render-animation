@@ -4750,11 +4750,13 @@ def unregister() -> None:
 TEST_ANIMATION = "Cable over sheaves"
 
 
-def set_up_test_model(scene) -> dict:
+def set_up_test_model(scene, winch: bool = False) -> dict:
     """The set-up of the cable paths test model (test_paths_a.step, tools/make_test_paths.py), already imported:
-    the rotate joint "Luff" on the A-frame (-15° … +15°, + leans it forward), the cable "Wire rope" read from
-    the part WIRE ROPE (steel wire rope look), and the animation "Cable over sheaves" – the cable runs at
-    10 m/min for 6 s while the A-frame luffs to +12° and back. Not built. Returns the names of what was made."""
+    the rotate joint "Luff" on the A-frame (-15° … +15°, + leans it forward), the rotate joint "Drum turn" that turns
+    the winch drum with the wire wound on it (task 0263), the cable "Wire rope" read from the part WIRE ROPE (steel
+    wire rope look), and the animation "Cable over sheaves" – the cable runs at 10 m/min for 6 s while the A-frame
+    luffs to +12° and back. ``winch``: the drum is also a winch drum (4 Motion > Drums and carousels, ``TEST_DRUM``):
+    the wire winds off and on it layer by layer. Not built. Returns the names of what was made."""
     def named(name):
         for ob in scene.objects:
             if ob.get(build.PROP_NAME) == name:
@@ -4764,11 +4766,15 @@ def set_up_test_model(scene) -> dict:
     frame = named("A-FRAME.ASM")
     root = build.model_root_of(frame) or frame
     m = root.matrix_world
-    luff = joints.create(scene, "ROTATE", [frame], m @ Vector((1.5, 0.0, 0.73)),
+    luff = joints.create(scene, "ROTATE", [frame], m @ Vector((3.75, 0.0, 1.825)),
                          (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="Luff")
     luff.rot_min, luff.rot_max = math.radians(-15.0), math.radians(15.0)
     luff.use_limits = True
     luff_name = luff.name
+    # task 0263: the winch holds wire (WIRE ON DRUM): the drum and its wire turn together, and the drum is a spool
+    drum = joints.create(scene, "ROTATE", [named("WINCH DRUM"), named("WIRE ON DRUM")], m @ Vector((1.125, 0.0, 0.6)),
+                         (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="Drum turn")
+    drum_name = drum.name
     bpy.context.view_layer.update()
     item = add_cable(scene, "Wire rope")
     name = item.name
@@ -4776,6 +4782,9 @@ def set_up_test_model(scene) -> dict:
         item.look = "ROPE"
     item["look_was"] = "ROPE"
     notes = read_cad(scene, item, named("WIRE ROPE"))
+    if winch:
+        from . import spool as _spool_mod
+        _spool_mod.add(scene, "DRUM", named("WINCH DRUM"), name, name=TEST_DRUM, coil=named("WIRE ON DRUM"))
     item = find(scene, name)
     a = scene.fresing.animations.add()
     a.name, a.tail, a.fps = TEST_ANIMATION, 0.0, "25"
@@ -4788,10 +4797,11 @@ def set_up_test_model(scene) -> dict:
         b.use_from = True
         b.to_angle = math.radians(to)
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
-    return {"joints": [luff_name, item.joint], "cable": name, "animation": TEST_ANIMATION,
-            "contacts": [c.name for c in item.contacts], "notes": notes}
+    return {"joints": [luff_name, drum_name, item.joint], "cable": name, "animation": TEST_ANIMATION,
+            "contacts": [c.name for c in item.contacts], "notes": notes, "spool": TEST_DRUM if winch else ""}
 
 
+TEST_DRUM = "Winch drum"                # task 0263: the cable paths test model's drum (``set_up_test_model``)
 MOVING_ANIMATION = "Over the stern"
 MOVING_CABLE, MOVING_WIRE = "Cable end", "Lift wire"
 MOVING_LET_GO = 9.2                     # s: the cable end and the sheave are let go (the block lies near the seabed)
