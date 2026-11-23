@@ -1,6 +1,6 @@
 # 0312 – Study + prototype (findings only): vessels on the sea – presets, driving and paths, anything floats and can be hit, waves that break on a beach, the camera under water
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0312-study-vessels-on-the-sea` (branch only, never
+**Who:** worker · **Status:** running 23 Nov · **Branch:** `task/0312-study-vessels-on-the-sea` (branch only, never
 merged; every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "the same for the boats / ships as we told earlier for cars, driving
 simulation but with ocean waves, and the path creation … this also adds water vessel interaction physics; waves that
