@@ -3,7 +3,7 @@
 **Who:** worker · **Status:** open – can start after 0282 is merged · **Branch:** `task/0290-joint-fold-cylinder-parts`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "In the 4. motions section the menu with rotate joint
 and add slide joint should be a folded up menu like the rest." – "Setup of cylinders, when choosing the different
-parts, you should be able to select multiple parts/assemblies per item (barrel, rod …)") · **Model:** Sonnet · effort
+parts, you should be able to select multiple parts/assemblies per item (barrel, rod …)") · **Model:** Opus · effort
 Medium
 **Area:** Motion lane – `blender/ui_motion.py` (the joint buttons of 4 Motion), `blender/ops_cylinders.py`,
 `blender/cylinders.py` (reads the picked parts), the Set-up window's cylinder steps (`ui_setup.py` / `ops_setup.py`, only
@@ -35,7 +35,15 @@ linkages, way covers.
    that come and go while the user drags a value or plays, and keep those boxes still the same way (CLAUDE.md 6, "The
    panel stays still"). Other files' cases: list them in the report, don't change them. A real-app test drags the leader
    past the follower's limit and checks that the rows under the value row keep their place.
-4. Test model: a cylinder whose barrel is 3 parts in 2 subassemblies and whose rod is 2 parts (a tour set or a test
+4. **Show what a joint moves** (owner 23 Nov 22:24, screenshot: a truck with two wheel joints "Roda rotate" / "Roda rotate
+   2" – selecting one in the list showed nothing in the view): clicking a joint in 4 Motion's list (and a mechanism in
+   its list) **shows that joint's arrow** (even with "Show joint arrows in the view" off: the selected one only) and
+   **highlights the parts it moves** in the view – a clear outline / tint like the lesson highlight (0133), not a
+   selection that a following click or G would act on; riders of a stack in a lighter shade; hidden parts are not
+   unhidden (say "n parts hidden" in the box). Clicking elsewhere or another joint clears it; never in renders, the
+   web export or the PC check's timings. Also give the list rows a real tooltip (Blender shows "joints_index – Select
+   List Item." today) if Blender allows it; if not, say so in the report.
+5. Test model: a cylinder whose barrel is 3 parts in 2 subassemblies and whose rod is 2 parts (a tour set or a test
    of its own); Pins again and Remove still work.
 
 ## Done when
