@@ -1,6 +1,6 @@
 # 0289 – Import: a dropped file shows in 1 Import like the button; "Imported models" fold with Import again; Up axis changeable after import
 
-**Who:** worker · **Status:** running · **Branch:** `task/0289-import-drop-cache-up-axis`
+**Who:** worker · **Status:** done (0.2.218) · **Branch:** `task/0289-import-drop-cache-up-axis`
 **Started by:** lead, 23 Nov 2026 (owner's list "List of changes to Fresing render", 23 Nov 19:39, three points:
 "When drag and dropping a file into the Fresing window, the import menu doesn't show that, but it should. It should
 show the same as when you normally import from the import button." – "When in 1. import I want there to be a fold menu
@@ -45,7 +45,7 @@ menu (0292), `CACHE_VERSION` (unless the cache really changes – then bump it, 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Opus · Medium), 23 Nov 2026. Version 0.2.216.
+**Chat / date:** Claude Code on the web (Opus · Medium), 23 Nov 2026. Version 0.2.218.
 
 **What changed:**
 - **Drop = button.** Why a drop differed: the FileHandler's invoke went straight to execute and nothing opened or
@@ -85,6 +85,11 @@ per triangle) – the guide's "1 M triangles ≈ 40 MB" is that ratio, not a mea
   FileHandler does. The owner's check below covers the real drop.
 - The cache has no size limit of its own (as before); the fold shows the total.
 - Cameras do not turn with a model when the project holds two or more models (they may look at the other one).
+
+**GitHub runs:** 4 full runs. 1: `test_workspaces` – the Client view listed Up axis, which it locks (fixed: the
+function's workspaces leave the Client view out). 2: the lessons real-app test failed once at "undo after Build"
+(passed on runs 1, 3 and 4; not touched by this task). 3: GitHub's runner could not install its packages (apt) before
+any test; and 0.2.216 / 0.2.217 were taken by 0307 / 0282 meanwhile (renumbered twice). 4: green.
 
 **Owner's check on your PC:**
 1. Start Fresing Render, close the start window. Leave every section folded.
