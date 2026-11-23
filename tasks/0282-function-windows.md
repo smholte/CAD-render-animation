@@ -1,6 +1,6 @@
 # 0282 – Function dialogs become windows: they stay open when you click elsewhere and can be dragged to another screen
 
-**Who:** worker · **Status:** running (23 Nov 2026, batch A + B) · **Branch:** `task/0282-function-windows`
+**Who:** worker · **Status:** done (0.2.217) · **Branch:** `task/0282-function-windows`
 **Started by:** lead, 21 Nov 2026 (owner 22:39, screenshot of **Make a crane** (type, Start from AT-40, folds Crane /
 Boom / Carrier / …, Name, Make / Cancel): "when a function menu like Make a crane or other functions are open they
 should stay open when you click off the menu and be able to drag to another screen") · **Model:** Opus · effort High
@@ -33,10 +33,10 @@ test, guide pictures, CHANGELOG.
 
 ## Done when
 
-- [ ] Inventory table in the report; every form-type dialog in batch A is a window; batch B listed
-- [ ] Shared helper with tests; real-app test as in 5; Windows second-monitor check in the owner's steps
-- [ ] Every converted function: tooltip unchanged, guide picture redone, tour stop `changed=`, PC-check line
-- [ ] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
+- [x] Inventory table in the report; every form-type dialog in batch A is a window; batch B listed (done too)
+- [x] Shared helper with tests; real-app test as in 5; Windows second-monitor check in the owner's steps
+- [x] Every converted function: tooltip unchanged, guide picture redone, tour stop `changed=`, PC-check line
+- [x] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
 
 ## Report (filled in by the chat that did the task)
 
@@ -111,6 +111,14 @@ neither list):
 - PC check line `app.windows` (Full) OK locally (bpy module).
 - Guide pictures redone from the real app: `dialog_8_make_crane.png`, `backups_window.png`, `learning_list.png`,
   `learn_window.png`, new `form_workspace_save.png`.
+
+**GitHub runs:** 6 full runs. Red twice for real (an independent test caps the Client view's allow list – +3 for the
+window's buttons; the left-panel order test had to leave the window's page out) and once at the PC check's 15-minute
+limit (its first half had been at 15.0 min – the turntable line moved to the second half, as 0217 / 0279 did). Three
+renumberings: 0264, 0265, 0262 and 0307 took 0.2.213–0.2.216 while the runs went. Released as **0.2.217**
+(run 45267937288: publish, Windows update check, offered to the apps; the landing-page job failed on GitHub's artifact
+fetch and was re-run).
+**Subagents:** none; no Windows-only code was written (the window places use 0260's reviewed `winplace.py` unchanged).
 
 **Open points / follow-up tasks:**
 - **Place on Windows only.** Blender has no way to move a window on Linux; on Windows the window opens where it was

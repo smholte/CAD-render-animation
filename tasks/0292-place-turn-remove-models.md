@@ -1,13 +1,13 @@
 # 0292 – Place, turn and remove: move a model, subassembly or parts by X / Y / Z and angles; Remove… with a confirm window
 
-**Who:** worker · **Status:** open – can start after 0282 is merged (0307 done, 0.2.216 – read its report and `blender/place.py` first; Place uses 0282's `form_window`) · **Branch:**
+**Who:** worker · **Status:** open – can start (0282 done, 0.2.217; 0307 done, 0.2.216 – read its report and `blender/place.py` first; Place uses 0282's `form_window`; start after 0289 has merged 0.2.218, point 3 changes the tree row in `ui.py`) · **Branch:**
 `task/0292-place-turn-remove`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "How to delete an assembly? Only with using cleanup or
 also with delete button?" – "How to move around object/assemblies in the scene? I want to move around parts before
 animating the scene, move xyz and rotate.") · **Model:** Opus · effort High
 **Area:** new **Place lane**: new files `core/place.py` (numbers, snaps, no Blender), `blender/place.py`,
 `blender/ops_place.py`, `blender/ui_place.py` (a sub-panel of 2 Structure) and their tests; additive:
-`context_menu.py` (right-click entries), `lock.py` (Delete / X outside Full access → the app's Remove window),
+`context_menu.py` (right-click entries), the 2 Structure tree row (`ui.py` `FRESING_UL_tree`, point 3 only), `lock.py` (Delete / X outside Full access → the app's Remove window),
 `props.py`, `core/places.py`, `core/functions.py`; guide, tour, PC check, CHANGELOG.
 **Not:** the 1 Import panel (0289 runs beside this), `joints.py` / `cylinders.py` internals (call them), copy and paste
 (0293, next in this lane), Clean-up's behaviour (it stays).
@@ -43,7 +43,15 @@ animating the scene, move xyz and rotate.") · **Model:** Opus · effort High
    hoses / cables, labels, decals, steps that only move it; steps that also move other things lose only its part;
    saved scenes keep working. **Remove / Cancel**; one undo step; the import cache stays (0289's Imported models can
    bring it back). Also for a subassembly or selected parts (same window; say what happens to a joint whose parts go).
-3. The guide gets "Move, turn and remove" and says the difference with Clean-up; the right-click menu's entries;
+3. **A lock in every tree row** (owner 23 Nov 22:24, screenshot of 2 Structure on a truck model of his): next to the eye
+   and the arrow at the end of each row of the 2 Structure tree, a **lock** – closed = Locked in place, open = free to
+   move; one click toggles it for that subassembly or part (the same as the box's Locked in place button and the
+   right-click entry, one undo step, tooltip says what it means and that a locked part still moves with its
+   subassembly and with joints). Rows inside a locked subassembly show it greyed. No cut-off names at the default
+   side-panel width (shorten the ×8 count column if needed). Also check one number in the same screenshot: the header
+   said **562 parts**, the selected model's box **564 parts** – find why (hidden / cleaned-up parts, instances?) and make
+   them agree or say what each counts in the tooltip.
+4. The guide gets "Move, turn and remove" and says the difference with Clean-up; the right-click menu's entries;
    Settings > Keys (0295) will list the keys later.
 
 ## Done when
