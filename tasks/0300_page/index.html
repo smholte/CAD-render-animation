@@ -1,0 +1,240 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0300 soft and springy parts</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc);font-size:1.2rem}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.item{display:flex;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.pick{flex:0 0 64px;font-size:1.1rem}.pick input{width:20px;height:20px}.star{color:var(--acc)}
+.body{flex:1;min-width:0}h3{margin:0 0 6px;font-size:1rem}.tag{font-weight:normal;color:var(--mut);font-size:.85rem}
+.why{color:var(--mut);font-size:.92rem;margin:4px 0}
+.pics{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-top:8px}
+figure{margin:0;max-width:100%}figure img,figure video{max-width:100%;height:auto;border:1px solid var(--line);display:block}
+figcaption,.d{font-size:.85rem;color:var(--mut)}
+.tbl{overflow-x:auto}table{border-collapse:collapse;font-size:.92rem;min-width:520px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+td.n{text-align:right;white-space:nowrap}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:0;word-break:break-word}#bar button{font:inherit;padding:6px 16px;cursor:pointer}
+/* the Set-up window mock-up: Blender's dark panel */
+.steps{display:flex;gap:10px;flex-wrap:wrap}
+.bw{flex:1 1 230px;max-width:260px;background:#2b2b2b;color:#ddd;border:1px solid #111;border-radius:6px;font:13px/1.35 system-ui,sans-serif;padding:0 0 8px}
+.bw .t{background:#3d3d3d;padding:5px 8px;border-radius:6px 6px 0 0;font-weight:600}
+.bw .nums{display:flex;gap:4px;padding:6px 8px}.bw .nums span{flex:1;text-align:center;background:#444;border-radius:3px;padding:1px 0}
+.bw .nums .on{background:#4772b3;color:#fff}.bw .nums .ok{background:#3a5a2c}
+.bw .b{padding:2px 8px}.bw .h{color:#9a9a9a;font-size:12px}
+.bw .btn{display:block;background:#545454;border-radius:4px;text-align:center;padding:4px;margin:5px 0}
+.bw .blue{background:#4772b3;color:#fff}.bw .row{display:flex;justify-content:space-between;gap:6px;padding:1px 0}
+.bw .row b{font-weight:normal;color:#fff}.bw .tick{color:#5dbd38}.bw .warn{color:#e8a33c}
+.bw .list div{background:#363636;margin:2px 0;padding:2px 6px;border-radius:3px}.bw .list .sel{background:#4772b3;color:#fff}
+</style></head><body><main>
+<h1>Soft and springy parts (study 0300)</h1>
+<div class="card"><b>In short.</b> Springs that compress, rubber that squeezes, bellows that fold and tyres that flatten all work in
+Blender <b>on the part's own CAD mesh</b>, with Geometry Nodes that read the two parts it sits between – <b>no drivers, no Python while
+playing or rendering</b> (checked in the real Blender 5.2.3 with scripts switched off), so the render queue and old PCs need nothing new.
+A spring is read from its mesh alone – outer Ø, wire Ø, free length and turns came out <b>exact</b> on four invented springs (closed end
+turns within 0.1 turn) – and stays a round wire while it compresses (<b>0.04 mm</b> off on a 4 mm wire at 37 % shorter; a plain stretch
+flattens the wire by 0.9 mm). Cost on the 4-core web machine: <b>0.15–0.26 ms per part per frame</b>, rubber 0.06–0.08 ms when its mesh is
+made a little finer at import. Set-up fits the existing <b>Set-up window</b> in 4 steps: pick the part (found by its name) → the two parts
+(found because they touch) → Check (the numbers read, a squeeze test) → Done. Below: clips, numbers, the mock-up and <b>8 build tasks</b> to
+tick. ★ = recommended. Gas springs and dampers need no new shape work: they are <b>cylinders</b> the app already has.</div>
+
+<h2>1 · Clips: today (left) and the prototype (right)</h2>
+<p class="d">An invented test model with four stations, made by <code>tools/soft_proto/scene.py</code>; each moved by a keyed part (the app's
+joint stands in). Cycles on the processor, 400 × 300 each half, every 2nd frame at 12 frames/s. "Today" is how the app shows the same
+motion now: the parts are rigid, so the moving part goes through them.</p>
+<div class="pics">
+<figure style="max-width:520px"><video src="spring.mp4" controls loop muted playsinline width="520"></video><figcaption><b>Coil spring</b>
+between two plates: the top plate comes down 30 mm and back. The closed end turns keep their place, the 8 free turns share the travel.</figcaption></figure>
+<figure style="max-width:520px"><video src="buffer.mp4" controls loop muted playsinline width="520"></video><figcaption><b>Rubber buffer</b>
+(Ø30 × 25 mm) hit by a stop on a carriage: squeezed 34 %, it bulges to Ø40 in the middle; its volume stays the same (100.3 %).</figcaption></figure>
+<figure style="max-width:520px"><video src="bellows.mp4" controls loop muted playsinline width="520"></video><figcaption><b>Bellows</b> on a
+cylinder rod: the cuffs stay on the barrel and the rod's eye, the 10 folds close (120 → 80 mm) and open (150 mm).</figcaption></figure>
+<figure style="max-width:520px"><video src="tyre.mp4" controls loop muted playsinline width="520"></video><figcaption><b>Tyre</b> rolling
+while the load on its axle goes up and down: a flat on the ground (155–300 mm long) and the walls bulge out, whatever the wheel's turn.</figcaption></figure>
+<figure style="max-width:520px"><img src="wire_cmp.jpg" alt="plain stretch versus following the wire" width="520"><figcaption>The spring at
+50 mm (free 80): <b>left</b> a plain stretch along the axis – the wire turns into a flat ribbon; <b>right</b> each point moves with the wire's
+centre line – the wire stays round. Bellows want the left one (their folds do get flatter).</figcaption></figure>
+</div>
+
+<h2>2 · What each kind needs</h2>
+<div class="tbl"><table>
+<tr><th>Kind</th><th>How it moves</th><th>Read from the CAD</th><th>Prototype</th></tr>
+<tr><td>Compression spring</td><td>shorter / longer between its seats; closed end turns keep their size, free turns share the travel; never shorter than solid (all turns touching)</td><td>axis, outer Ø, wire Ø, free length, turns, end turns, pitch, hand – from the mesh alone</td><td>✔ clip 1</td></tr>
+<tr><td>Extension spring</td><td>longer only; the coils (closed at rest) open, hooks stay</td><td>as above; all coils closed = extension spring, the hooks are the ends</td><td>same deformer, not tried</td></tr>
+<tr><td>Torsion spring</td><td>the legs turn; the coil winds up a little (each turn turns a share of the leg's angle)</td><td>axis, turns, the two legs and the parts they lie on</td><td>– (a twist deformer, task G)</td></tr>
+<tr><td>Gas spring, damper, shock absorber</td><td>two rigid parts sliding in each other between two eyes</td><td>barrel, rod, the two pins</td><td>none needed: the app's <b>cylinder</b> in Follow mode does it today</td></tr>
+<tr><td>Rubber buffer, bump stop, mount</td><td>squeezed when the other part touches it, the volume kept by a bulge (largest half-way, none at the faces held)</td><td>axis, height, which face stands</td><td>✔ clip 2</td></tr>
+<tr><td>Bellows, folding boot</td><td>the folds close and open between two cuffs</td><td>axis, length, the cuffs (the plain ends)</td><td>✔ clip 3</td></tr>
+<tr><td>Gaiter that bends, rubber bush that twists (silentbloc)</td><td>between two parts that turn against each other: each point follows the one part, the other or a share of both</td><td>the two parts, inner and outer sleeve</td><td>– (task G)</td></tr>
+<tr><td>Tyre on the ground</td><td>flat where it meets the ground, walls bulge; turns with the wheel</td><td>axle, outer radius, width</td><td>✔ clip 4 (flat ground; terrain with study 0306)</td></tr>
+<tr><td>Seal, O-ring</td><td>squeezed already in the CAD; nothing moves</td><td>–</td><td>not needed</td></tr>
+</table></div>
+
+<h2>3 · How in Blender, and what it costs (measured)</h2>
+<p class="d">Blender 5.2.3 as a Python module on the web machine (4 cores, no graphics card), 100 copies of one part sharing one mesh (as
+the app's copies of a part do), 48 frames stepped, the same scene without the deformers subtracted. Numbers: <code>numbers.json</code>;
+script: <code>tools/soft_proto/measure.py</code>.</p>
+<div class="tbl"><table>
+<tr><th>Part</th><th>Triangles</th><th>ms per part per frame</th><th>100 parts: ms per frame</th></tr>
+<tr><td>Coil spring (Geometry Nodes, following the wire)</td><td class="n">15,392</td><td class="n">0.26</td><td class="n">26</td></tr>
+<tr><td>Bellows</td><td class="n">1,840</td><td class="n">0.17</td><td class="n">17</td></tr>
+<tr><td>Tyre</td><td class="n">5,952</td><td class="n">0.15</td><td class="n">16</td></tr>
+<tr><td>Rubber buffer, the import's mesh made finer in the nodes every frame (level 3)</td><td class="n">288 → 27,648</td><td class="n">1.36</td><td class="n">136</td></tr>
+<tr><td>Rubber buffer, made finer in the nodes (level 2)</td><td class="n">288 → 6,912</td><td class="n">0.53</td><td class="n">53</td></tr>
+<tr><td>Rubber buffer, <b>meshed finer at import</b> (12 rows up the side)</td><td class="n">1,344</td><td class="n">0.06–0.08</td><td class="n">6–8</td></tr>
+<tr><td>Rubber buffer, the import's mesh as it is</td><td class="n">288</td><td class="n">0.06</td><td>– its side is one strip: it cannot bulge (it turns into a cone)</td></tr>
+<tr><td>Spring as a shape key + a driver (the other way)</td><td class="n">15,392</td><td class="n">0.03</td><td class="n">3</td></tr>
+</table></div>
+<p class="d">All four kinds at once, 50 of each (200 soft parts, the rubber refined in the nodes): 102 ms a frame instead of 0.3. A machine with
+40 springs and 20 buffers meshed finer at import: about 12 ms a frame here (counted from the rows, not measured as one scene). On a 24-core PC
+the parts are worked out side by side; less is expected but not measured. In a render the deformers add next to nothing to the picture's
+seconds.</p>
+<h3>What was tried and why the Geometry Nodes way</h3>
+<ol>
+<li><b>Geometry Nodes on the part itself</b> (the prototype): the modifier reads the two parts with <i>Object Info</i>, so whatever moves
+them (a joint, a cylinder, a mechanism, vessel motion) moves the spring. The part keeps its material, selection, copies and decals' parent.
+Every point's new place is a straight-line function of the seats' places for springs and bellows: <b>one glTF morph target is exact</b>
+(0.000007 mm) – the web 3D model can carry it. Rubber needs 2–3 targets (one: 2.2 mm off on 25 mm, two: 0.6 mm).</li>
+<li><b>Shape key + driver</b>: 8× cheaper, but a shape key lives on the <b>mesh</b>, and the app's copies of a part share one mesh: all
+four springs of a machine would squeeze together. It also needs a driver per spring that knows which joint moves the seat (a cylinder,
+a mechanism, vessel motion all differ). Not chosen.</li>
+<li><b>A plain stretch</b> (scale along the axis, Blender's Simple Deform) flattens a spring's wire (picture above) and squashes the end turns.
+Right for bellows only.</li>
+<li><b>Blender's soft body or cloth</b>: not tried – they need a bake after every change, take seconds a frame and wobble; a machine's
+spring does not need physics, it needs its two ends. (Expectation, not measured.)</li>
+</ol>
+<h3>Rubber: a mesh to bend</h3>
+<p>An import cuts a round part's side into strips from bottom to top: there is no point half-way up to bulge. Refining in the nodes every
+frame costs 0.5–1.4 ms per part. Cheaper: the importer meshes parts of the kinds <i>Rubber parts</i> and <i>Bellows</i> finer along their
+height (the facets are already chosen per part size since task 0074) – then 0.06–0.08 ms. The squeezed shape's light needs new normals
+(smooth by angle, 30°); the spring keeps the import's normals (its wire stays round).</p>
+
+<h3>What the rest of the app does with a soft part</h3>
+<div class="tbl"><table>
+<tr><th>Function</th><th>Today with a deformer on (read from the code)</th><th>What a build task does</th></tr>
+<tr><td>Clash check</td><td>reads the part's <b>CAD mesh</b> and rigid places: a compressed spring would "clash" with its own top plate</td><td>leaves soft parts out (as hoses are, <code>clash.HOOKS</code>), and adds its own row instead: "spring squeezed solid at 3.2 s (needs 44 mm, gets 41)"</td></tr>
+<tr><td>Web 3D model</td><td>exports places of parts only (translation / rotation): the spring would stay at its CAD shape</td><td>one morph target per spring / bellows (exact), 2–3 per rubber part (task F)</td></tr>
+<tr><td>Model update</td><td>the modifier stays on the object, the new mesh comes in; the numbers read (axis, turns …) are the old part's</td><td>read the spring again from the new mesh, keep the two parts by their IDs (as hoses do, <code>flex.after_model_update</code>)</td></tr>
+<tr><td>Render queue, scripts off</td><td>works: real Blender 5.2.3, <code>--disable-autoexec</code>, frame 40: spring 50.0 mm, buffer 16.5 mm, bellows 80.0 mm (as in the app)</td><td>nothing</td></tr>
+<tr><td>Copies of one part</td><td>each copy has its own modifier, the mesh stays shared</td><td>"also set up the other 3 copies" in Done</td></tr>
+<tr><td>Decals on a spring</td><td>the decal does not bend with it</td><td>nothing (rare)</td></tr>
+</table></div>
+
+<h2>4 · Reading a spring from its mesh (measured)</h2>
+<p class="d">Four invented springs, each turned 40° and moved away from the origin (as an import places them); closed end turns, not ground.
+<code>tools/soft_proto/read.py</code>: the axis is the line the points keep the steadiest distance from; the wire's outside edge is followed
+round to count turns and find where the closed end turns stop.</p>
+<div class="tbl"><table>
+<tr><th>Made: outer Ø / wire / free / turns / end turns / pitch</th><th>Read</th><th>Time</th></tr>
+<tr><td>40 / 4 / 80 mm / 10 / 1 / 8.5</td><td>40.0 / 4.0 / 80.0 / 10.00 / 0.99 / 8.50</td><td class="n">0.75 s</td></tr>
+<tr><td>30 / 3 / 60 mm / 7 / 0.75 / 9.55</td><td>30.0 / 3.0 / 60.0 / 6.99 / 0.71 / 9.53</td><td class="n">0.88 s</td></tr>
+<tr><td>120 / 12 / 300 mm / 6.5 / 1 / 58.67</td><td>120.0 / 12.0 / 300.0 / 6.50 / 0.90 / 57.77</td><td class="n">1.08 s</td></tr>
+<tr><td>20 / 1.5 / 50 mm / 12.25 / 1.5 / 4.76</td><td>20.0 / 1.5 / 50.0 / 12.25 / 1.52 / 4.76</td><td class="n">0.69 s</td></tr>
+</table></div>
+<p class="d">Solid length = (turns + 1) × wire: 44.0 mm for the first spring, read 44.0. Not tried yet: ground ends (a flat cut on the end
+turns), springs with a changing diameter (conical, barrel), die springs with a rectangular wire, a spring drawn already squeezed or
+overlapping its plates in the CAD (the reader must then be told the free length), springs from the owner's own models.</p>
+
+<h2>5 · Set-up in a few clicks (mock-up)</h2>
+<p class="d">A new kind in the existing <b>Set-up window</b> (task 0062: one step at a time, Back / Next, a green tick on a step already done),
+"Spring or rubber part". Drawn here, not in the app. The app finds most of it by itself: the part by its kind (the importer already sorts
+<i>Springs</i>, <i>Rubber parts</i>, <i>Gas springs &amp; shock absorbers</i>, <i>Seals</i> in English, Dutch and German), the two parts by
+touching it at its two ends, everything else from the mesh.</p>
+<div class="steps">
+<div class="bw"><div class="t">Set-up · Spring or rubber part</div><div class="nums"><span class="on">1</span><span>2</span><span>3</span><span>4</span></div>
+<div class="b"><b>Which part?</b><div class="h">Found by name – or click one in the view.</div>
+<div class="list"><div class="sel">Compression spring ×4</div><div>Rubber buffer ×2</div><div>Bellows</div><div>Gas spring ×2 → a cylinder</div></div>
+<span class="btn">Pick in the view</span><span class="btn blue">Next</span></div></div>
+<div class="bw"><div class="t">Set-up · Spring or rubber part</div><div class="nums"><span class="ok">✓</span><span class="on">2</span><span>3</span><span>4</span></div>
+<div class="b"><b>Between which parts?</b><div class="h">Found where it touches.</div>
+<div class="row">Bottom<b>Spring base</b></div><span class="btn">Change…</span>
+<div class="row">Top<b>Spring top</b></div><span class="btn">Change…</span>
+<div class="h">The top moves with joint "Press" – fine.</div><span class="btn blue">Next</span></div></div>
+<div class="bw"><div class="t">Set-up · Spring or rubber part</div><div class="nums"><span class="ok">✓</span><span class="ok">✓</span><span class="on">3</span><span>4</span></div>
+<div class="b"><b>Check</b><div class="row">Kind<b>Compression spring</b></div><div class="row">Outer Ø / wire<b>40 / 4 mm</b></div>
+<div class="row">Turns<b>10 (1 closed each end)</b></div><div class="row">Free / solid<b>80 / 44 mm</b></div>
+<div class="row">In the animation<b>50 … 80 mm</b></div><div class="tick">✓ never squeezed solid</div>
+<span class="btn">Squeeze test ▸</span><span class="btn blue">Next</span></div></div>
+<div class="bw"><div class="t">Set-up · Spring or rubber part</div><div class="nums"><span class="ok">✓</span><span class="ok">✓</span><span class="ok">✓</span><span class="on">4</span></div>
+<div class="b"><b>Done</b><div class="h">The spring now follows its two parts – in the view, the animation and renders.</div>
+<div class="row">☑ Also the 3 other copies</div><div class="row">☐ Leave it out of the clash check</div>
+<div class="warn">Rubber: bulges by its own volume</div><span class="btn blue">Done</span></div></div>
+</div>
+<p class="d">Even quicker: <b>Find springs and rubber</b> (one button in 4 Motion) lists every part of those kinds whose two ends touch two
+different parts, with ticks; <b>Set up all ticked</b> runs the four steps by itself and shows only the ones it could not finish. A right-click
+on a part (the menu of task 0253): <b>Make it springy…</b> opens the window at step 2.</p>
+
+<h2>6 · Build tasks – tick what to build</h2>
+<p class="d">Work: S ≈ half a day of a worker chat, M ≈ a day, L ≈ two or more. All in the <b>Motion lane</b> (4 Motion) except E
+(Vehicles lane, with 0306) and F (Web 3D). Each adds its PC-check line, test-tour stop, guide section and function entry, as the rules
+say.</p>
+
+<section class="item"><label class="pick"><input type="checkbox" value="A" checked> <b>A</b> <span class="star" title="recommended">★</span></label>
+<div class="body"><h3>Springs and bellows that follow their two parts <span class="tag">work M–L · Opus · High · first</span></h3>
+<p>The spring reader and the deformer of this study made real: compression and extension springs (the wire stays round, closed end turns
+keep their size, never shorter than solid), bellows and folding boots (cuffs found as the plain ends). Stored per part in the project with
+the two parts' IDs; a model update reads the spring again; copies set up together. The Set-up window kind of section 5, Find springs and
+rubber. The clash check leaves soft parts out and says when a spring goes solid or a bellows is pulled past its length.</p>
+<p class="why">Gain: every spring and bellows of a machine moves right with a few clicks; 0.17–0.26 ms per part a frame on the web
+machine.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="B" checked> <b>B</b> <span class="star">★</span></label>
+<div class="body"><h3>Rubber that squeezes <span class="tag">work M · Opus · Medium · after A (same window)</span></h3>
+<p>Buffers, bump stops, mounts, rubber feet: squeezed once the other part touches, the volume kept by a bulge. The importer meshes parts of
+the kinds Rubber parts and Bellows finer along their height (so no refining every frame). How much it bulges: one setting (Soft / Firm).</p>
+<p class="why">Gain: stops and buffers look like rubber instead of a part being cut through; 0.06–0.08 ms a part.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="C" checked> <b>C</b> <span class="star">★</span></label>
+<div class="body"><h3>Gas springs and dampers in one click <span class="tag">work S · Sonnet · Medium · with A's window</span></h3>
+<p>A part of the kind Gas springs &amp; shock absorbers (or a barrel + rod pair found inside it) offers <b>Make it a cylinder</b>: the app's
+cylinder in Follow mode, both pins found from the eyes. A coil-over (spring round a damper) = C + A, the spring's seats on the barrel and
+the rod.</p>
+<p class="why">Gain: the most common "springy" part of a machine works today already – it only has to be found and set up for the user.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="D"> <b>D</b></label>
+<div class="body"><h3>Right-click: Make it springy… <span class="tag">work S · Sonnet · Medium · after A, context_menu.py</span></h3>
+<p>The 3D view's right-click menu (task 0253) offers "Make it springy…" on a part of a soft kind and on any part picked; the Set-up window
+opens at step 2 with that part.</p>
+<p class="why">Gain: one click less than the window; small.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="E"> <b>E</b></label>
+<div class="body"><h3>Tyres on the ground <span class="tag">work M · Opus · High · Vehicles lane, after 0306's picks</span></h3>
+<p>The tyre deformer of clip 4: a flat where it meets the ground, walls bulging by the load; on uneven terrain it looks down at the ground's
+mesh (study 0306 / 0311 make the terrain). Comes with the vehicle set-up rather than alone.</p>
+<p class="why">Gain: a vehicle that stands and drives with weight on its tyres; 0.15 ms a tyre.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="F" checked> <b>F</b> <span class="star">★</span></label>
+<div class="body"><h3>Soft parts in the web 3D model <span class="tag">work M · Opus · Medium · after A, web3d.py</span></h3>
+<p>Each spring and bellows becomes one glTF morph target whose weight follows the animation (exact); rubber gets 2–3. Without this task
+the web model shows them at their CAD shape while their parts move.</p>
+<p class="why">Gain: the web model and the video agree; needed once a machine with springs goes on the site.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="G"> <b>G</b></label>
+<div class="body"><h3>Torsion springs, gaiters that bend, rubber bushes that twist <span class="tag">work M–L · Opus · High · after A</span></h3>
+<p>A second deformer: every point follows one part, the other or a share of both (by its place along the part or between the sleeves) –
+torsion legs, a CV boot on a turning shaft, a silentbloc in an arm's eye. Not prototyped in this study.</p>
+<p class="why">Gain: the rest of the rubber in a vehicle or a hinge; less common in the owner's machines.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="H"> <b>H</b></label>
+<div class="body"><h3>Springs that push back <span class="tag">work L · Opus · High · after A, with the Motion lane</span></h3>
+<p>Today a joint moves and the spring follows. The other way round – a spring that holds a part up until something pushes it, a tensioner
+arm pressed by its spring, a part that bounces – needs a spring rate (N/mm, read from a catalogue name or typed) and a small solver at Build.
+Only if the owner's animations need it.</p>
+<p class="why">Gain: real behaviour (a tensioner that keeps a belt tight); a bigger step than the look.</p></div></section>
+
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+<p class="d">Clips and pictures: this folder; numbers: numbers.json; scripts: tools/soft_proto/ (shapes.py the test model's shapes,
+read.py the spring reader, nodes.py the three deformers, scene.py the test scene, measure.py, render.py) on the branch
+task/0300-study-soft-parts.</p>
+</main><script>
+function upd(){var v=[].slice.call(document.querySelectorAll('.pick input:checked')).map(function(e){return e.value});
+document.getElementById('line').textContent='0300 pick: '+(v.join(' ')||'none');}
+document.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=function(){var t=document.getElementById('line').textContent,b=this;
+function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove()}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb)}else fb()}catch(e){fb()}
+b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};
+</script></body></html>

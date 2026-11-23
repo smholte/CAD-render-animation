@@ -1,0 +1,265 @@
+{
+ "reading": [
+  {
+   "made": {
+    "od": 40.0,
+    "wire": 4.0,
+    "free": 80.0,
+    "turns": 10.0,
+    "dead": 1.0,
+    "pitch": 8.5
+   },
+   "read": {
+    "od": 40.0,
+    "wire": 4.0,
+    "free": 80.0,
+    "turns": 10.0,
+    "dead": 0.99,
+    "pitch": 8.5
+   },
+   "triangles": 15392,
+   "seconds": 0.75
+  },
+  {
+   "made": {
+    "od": 30.0,
+    "wire": 3.0,
+    "free": 60.0,
+    "turns": 7,
+    "dead": 0.75,
+    "pitch": 9.55
+   },
+   "read": {
+    "od": 30.0,
+    "wire": 3.0,
+    "free": 60.0,
+    "turns": 6.99,
+    "dead": 0.71,
+    "pitch": 9.53
+   },
+   "triangles": 10784,
+   "seconds": 0.88
+  },
+  {
+   "made": {
+    "od": 120.0,
+    "wire": 12.0,
+    "free": 300.0,
+    "turns": 6.5,
+    "dead": 1,
+    "pitch": 58.67
+   },
+   "read": {
+    "od": 120.0,
+    "wire": 12.0,
+    "free": 299.99,
+    "turns": 6.5,
+    "dead": 0.9,
+    "pitch": 57.77
+   },
+   "triangles": 10016,
+   "seconds": 1.08
+  },
+  {
+   "made": {
+    "od": 20.0,
+    "wire": 1.5,
+    "free": 50.0,
+    "turns": 12.25,
+    "dead": 1.5,
+    "pitch": 4.76
+   },
+   "read": {
+    "od": 20.0,
+    "wire": 1.5,
+    "free": 50.0,
+    "turns": 12.25,
+    "dead": 1.52,
+    "pitch": 4.76
+   },
+   "triangles": 18848,
+   "seconds": 0.69
+  }
+ ],
+ "accuracy": {
+  "spring_helix": [
+   {
+    "frame": 1,
+    "length_mm": 80.0,
+    "off_round_max_mm": 0.003,
+    "off_round_mean_mm": 0.001
+   },
+   {
+    "frame": 20,
+    "length_mm": 65.58,
+    "off_round_max_mm": 0.023,
+    "off_round_mean_mm": 0.005
+   },
+   {
+    "frame": 40,
+    "length_mm": 50.0,
+    "off_round_max_mm": 0.044,
+    "off_round_mean_mm": 0.01
+   }
+  ],
+  "spring_plain_stretch": [
+   {
+    "frame": 1,
+    "length_mm": 80.0,
+    "off_round_max_mm": 0.003,
+    "off_round_mean_mm": 0.001
+   },
+   {
+    "frame": 20,
+    "length_mm": 65.58,
+    "off_round_max_mm": 0.441,
+    "off_round_mean_mm": 0.166
+   },
+   {
+    "frame": 40,
+    "length_mm": 50.0,
+    "off_round_max_mm": 0.917,
+    "off_round_mean_mm": 0.332
+   }
+  ],
+  "spring_morph_error_mm": 7.450580596923828e-06,
+  "buffer": [
+   {
+    "squeeze_pct": 0.0,
+    "volume_pct": 100.0,
+    "widest_mm": 30.0
+   },
+   {
+    "squeeze_pct": 2.0,
+    "volume_pct": 100.02,
+    "widest_mm": 30.45
+   },
+   {
+    "squeeze_pct": 18.0,
+    "volume_pct": 100.13,
+    "widest_mm": 34.62
+   },
+   {
+    "squeeze_pct": 34.0,
+    "volume_pct": 100.26,
+    "widest_mm": 40.17
+   },
+   {
+    "squeeze_pct": 50.0,
+    "volume_pct": 100.4,
+    "widest_mm": 48.08
+   }
+  ],
+  "buffer_one_morph_error_mm": 2.203060779720545,
+  "buffer_two_morphs_error_mm": 0.591040588915348,
+  "tyre": [
+   {
+    "frame": 1,
+    "axle_mm": 290.0,
+    "lowest_mm": -0.0,
+    "flat_length_mm": 155.3,
+    "width_mm": 206.3
+   },
+   {
+    "frame": 30,
+    "axle_mm": 265.0,
+    "lowest_mm": -0.0,
+    "flat_length_mm": 265.3,
+    "width_mm": 242.0
+   },
+   {
+    "frame": 70,
+    "axle_mm": 255.0,
+    "lowest_mm": -0.0,
+    "flat_length_mm": 299.9,
+    "width_mm": 254.0
+   }
+  ],
+  "bellows": [
+   {
+    "frame": 1,
+    "length_mm": 120.0
+   },
+   {
+    "frame": 40,
+    "length_mm": 80.0
+   },
+   {
+    "frame": 80,
+    "length_mm": 150.0
+   }
+  ]
+ },
+ "cost_each": {
+  "spring": {
+   "rigid": 0.05,
+   "soft": 26.34,
+   "tris_import": 15392,
+   "ms_per_part_frame": 0.2629
+  },
+  "buffer": {
+   "rigid": 0.05,
+   "soft": 135.65,
+   "tris_import": 288,
+   "ms_per_part_frame": 1.356
+  },
+  "bellows": {
+   "rigid": 0.06,
+   "soft": 17.13,
+   "tris_import": 1840,
+   "ms_per_part_frame": 0.1708
+  },
+  "tyre": {
+   "rigid": 0.26,
+   "soft": 15.57,
+   "tris_import": 5952,
+   "ms_per_part_frame": 0.1531
+  }
+ },
+ "cost_mix_50_each": {
+  "rigid": {
+   "all": 0.25
+  },
+  "soft": {
+   "all": 101.77
+  },
+  "objects_each_kind": 50,
+  "threads": 4
+ },
+ "buffer_variants": [
+  {
+   "how": "import mesh as it is, no refining",
+   "triangles_drawn": 288,
+   "widest_mm_at_34pct": 34.31,
+   "ms_per_part_frame": 0.0579
+  },
+  {
+   "how": "refined in the nodes, level 2",
+   "triangles_drawn": 6912,
+   "widest_mm_at_34pct": 40.15,
+   "ms_per_part_frame": 0.5283
+  },
+  {
+   "how": "refined in the nodes, level 3",
+   "triangles_drawn": 27648,
+   "widest_mm_at_34pct": 40.17,
+   "ms_per_part_frame": 1.376
+  },
+  {
+   "how": "finer import (12 rows), normals by angle",
+   "triangles_drawn": 1344,
+   "widest_mm_at_34pct": 40.2,
+   "ms_per_part_frame": 0.0831
+  },
+  {
+   "how": "finer import (12 rows), import normals kept",
+   "triangles_drawn": 1344,
+   "widest_mm_at_34pct": 40.2,
+   "ms_per_part_frame": 0.0555
+  }
+ ],
+ "spring_shape_key": {
+  "ms_per_frame_100_springs": 2.73,
+  "simple_expression": true
+ }
+}
