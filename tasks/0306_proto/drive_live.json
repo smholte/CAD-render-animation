@@ -1,0 +1,66 @@
+{
+ "ticks": 68,
+ "mean_ms": 168.36,
+ "median_ms": 166.97,
+ "p95_ms": 182.51,
+ "max_ms": 186.57,
+ "rate_hz": 5.9,
+ "events": [
+  [
+   0.6666,
+   "W",
+   "PRESS",
+   false
+  ],
+  [
+   4.2251,
+   "A",
+   "PRESS",
+   false
+  ],
+  [
+   5.7395,
+   "A",
+   "RELEASE",
+   false
+  ],
+  [
+   7.2663,
+   "W",
+   "RELEASE",
+   false
+  ],
+  [
+   7.2665,
+   "D",
+   "PRESS",
+   false
+  ],
+  [
+   8.2638,
+   "D",
+   "RELEASE",
+   false
+  ],
+  [
+   8.264,
+   "S",
+   "PRESS",
+   false
+  ],
+  [
+   11.2881,
+   "S",
+   "RELEASE",
+   false
+  ]
+ ],
+ "end": [
+  52.67270456163491,
+  35.0223338078862,
+  0.3831937153090313
+ ],
+ "samples": 70,
+ "ground_triangles": 352000,
+ "done": true
+}

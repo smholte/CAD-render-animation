@@ -1,0 +1,31 @@
+{
+ "import_s": 3.42,
+ "ground_triangles": 352000,
+ "ray_cast_us_per_ray": 20.7,
+ "grid_us_per_point": 0.142,
+ "ray_vs_grid_max_mm": 23.0,
+ "strip_100m_x_8m_rays": 320000,
+ "strip_100m_x_8m_s_by_rays": 6.6,
+ "ride_total_s": 0.85,
+ "ride_parts_s": {
+  "path + speed": 0.006,
+  "wheels on the ground": 0.349,
+  "ride (1 ms steps)": 0.492
+ },
+ "frames": 666,
+ "pitch_deg": [
+  -2.38,
+  2.27
+ ],
+ "roll_deg": [
+  -2.75,
+  3.89
+ ],
+ "travel_mm": [
+  -92,
+  106
+ ],
+ "airborne_frames": 1,
+ "mechanism_ms_per_frame": 0.0,
+ "keys_ms_per_frame_all_parts": 5.61
+}

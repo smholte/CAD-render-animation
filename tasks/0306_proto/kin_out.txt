@@ -1,0 +1,3 @@
+DOUBLE_WISHBONE: 37 rows in 16 ms; arm -14.5 .. +12.2 deg; camber +0.68 .. -2.23 deg; wheel moves sideways / fore-aft -16.6 .. -9.2 mm over the travel
+MACPHERSON: 37 rows in 332 ms; arm -14.1 .. +12.5 deg; camber +2.07 .. -0.75 deg; wheel moves sideways / fore-aft -11.3 .. -4.6 mm over the travel
+TRAILING_ARM: 37 rows in 6 ms; arm +13.0 .. -11.4 deg; camber +0.00 .. +0.00 deg; wheel moves sideways / fore-aft +20.5 .. +1.0 mm over the travel

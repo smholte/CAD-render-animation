@@ -85,8 +85,16 @@ class Driver:
         return mid / (1.0 + (abs(v) / 9.0) ** 2)
 
     def tick(self, inp: Inputs, dt: float) -> None:
+        """Move on by ``dt`` (the real time since the last tick). A slow redraw (a big model: 5–10 ticks a second)
+        is cut into steps of at most 20 ms, so the drive keeps real time; a hitch over 0.5 s is not caught up."""
+        dt = min(max(dt, 0.0), 0.5)
+        k = max(1, int(math.ceil(dt / 0.02)))
+        for _ in range(k):
+            self._step(inp, dt / k)
+        self.samples.append((self.t, self.x, self.y, self.heading, self.v, self.steer))
+
+    def _step(self, inp: Inputs, dt: float) -> None:
         veh = self.veh
-        dt = min(max(dt, 0.0), 0.1)              # a stalled frame (redraw hitch): never a jump
         # speed
         if self.reverse:
             acc = -veh.a_acc * 0.6 * inp.brake + veh.a_brake * inp.throttle
@@ -129,7 +137,6 @@ class Driver:
         self.x += self.v * math.cos(self.heading) * dt
         self.y += self.v * math.sin(self.heading) * dt
         self.t += dt
-        self.samples.append((self.t, self.x, self.y, self.heading, self.v, self.steer))
 
     def array(self) -> np.ndarray:
         return np.array(self.samples, float)

@@ -1,0 +1,6 @@
+Test car: 20 m circle at 28 km/h (lateral 0.31 g): roll +1.26 deg, steer inner/outer 8.4/7.8 deg
+   full lock: inner 35.5 deg, outer 26.9 deg, rear-axle-middle radius 4.80 m
+Test truck: 20 m circle at 22 km/h (lateral 0.18 g): roll +4.46 deg, steer inner/outer 14.2/12.9 deg
+   full lock: inner 40.1 deg, outer 31.8 deg, rear-axle-middle radius 6.72 m
+Test car: a 5-spoke rim looks still at 41 km/h at 25 fps; looks to turn backwards from 20 km/h
+Test truck: a 5-spoke rim looks still at 59 km/h at 25 fps; looks to turn backwards from 29 km/h
