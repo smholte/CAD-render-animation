@@ -1,6 +1,6 @@
 # 0272 – Locations: several folders per kind (company, department, mine) + export places
 
-**Who:** worker · **Status:** open – after 0278 (both change `prefs.py`; 0271 done) · **Branch:** `task/0272-locations`
+**Who:** worker · **Status:** running · **Branch:** `task/0272-locations`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "for organisation and user set-ups you should be able to refer to
 different file locations from one of the settings pages, such as decals location, render export. For places where you
 take information from, such as STEP models, decals, materials, you should be able to select multiple file locations –
