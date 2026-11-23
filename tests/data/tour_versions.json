@@ -8,8 +8,8 @@
   },
   "atc": {
    "added": "0.2.47",
-   "changed": "0.2.101",
-   "fp": "6052f51c4854073e"
+   "changed": "0.2.215",
+   "fp": "7830f99c30017193"
   },
   "cables": {
    "added": "0.2.80",
@@ -18,8 +18,8 @@
   },
   "chains": {
    "added": "0.2.78",
-   "changed": "0.2.199",
-   "fp": "63cf59ab26102218"
+   "changed": "0.2.215",
+   "fp": "be0e2c89b4bc0c7c"
   },
   "clash": {
    "added": "0.2.53",
@@ -38,7 +38,7 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.215",
+   "changed": "0.2.216",
    "fp": "4ae97be97acdedfe"
   },
   "crane_setup": {
@@ -68,18 +68,18 @@
   },
   "faces": {
    "added": "0.2.47",
-   "changed": "0.2.215",
+   "changed": "0.2.216",
    "fp": "fec01e7a7e9895cf"
   },
   "flex_drawn": {
    "added": "0.2.180",
-   "changed": "0.2.211",
-   "fp": "98b30fc72edf6ed7"
+   "changed": "0.2.215",
+   "fp": "41cf7b9081c21f84"
   },
   "gantry": {
    "added": "0.2.47",
-   "changed": "0.2.197",
-   "fp": "b81ac8a2b0b24a49"
+   "changed": "0.2.215",
+   "fp": "a6d02dbac6e5d927"
   },
   "hoses": {
    "added": "0.2.78",
@@ -98,7 +98,7 @@
   },
   "lifting_make": {
    "added": "0.2.159",
-   "changed": "0.2.215",
+   "changed": "0.2.216",
    "fp": "22cdc7e6f4e0c753"
   },
   "linkage": {
@@ -228,13 +228,13 @@
   },
   "waycover": {
    "added": "0.2.47",
-   "changed": "0.2.199",
-   "fp": "2088f15c2fa5f2bf"
+   "changed": "0.2.215",
+   "fp": "a653b6742ea2aea9"
   },
   "waycover2": {
    "added": "0.2.61",
-   "changed": "0.2.199",
-   "fp": "81259c34f8bf1e98"
+   "changed": "0.2.215",
+   "fp": "f9a45e9696fea60b"
   },
   "weather": {
    "added": "0.2.88",

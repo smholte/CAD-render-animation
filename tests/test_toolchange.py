@@ -1,10 +1,11 @@
 """Task 0041: tool changes in Blender, on the test gantry (tools/make_test_gantry.py, see tests/test_gcode.py).
 
-The carousel beside the bed turns about x = 500, y = 0; its disc's underside is at z = 140. T2 (ball Ø4, 30 long)
-hangs from it with its tip at (560, 0, 110), T3 (drill Ø5, 40 long) at (500, 60, 100). T1 (flat Ø6, 30 long) is in
-the spindle with its tip at (0, 0, 80); the spindle's nose (its gauge line) is at z = 110.
+The carousel beside the bed turns about x = 1250, y = 0; its disc's top is at z = 350 (task 0262: the router x 2.5,
+the tools at their real size). T2 (ball Ø4, 30 long) hangs from it with its tip at (1400, 0, 320), T3 (drill Ø5,
+40 long) at (1250, 150, 310). T1 (flat Ø6, 30 long) is in the spindle with its tip at (0, 0, 245); the spindle's nose
+(its gauge line) is at z = 275.
 
-The ATC here: 8 pockets round the carousel from pocket 1 at (560, 0, 140), counter-clockwise (pocket 3 is T3's place);
+The ATC here: 8 pockets round the carousel from pocket 1 at (1400, 0, 350), counter-clockwise (pocket 3 is T3's place);
 T1 stands in pocket 7, T2 and T3 in their CAD places (pockets 1 and 3), T4 (drawn) in pocket 4.
 """
 
@@ -25,7 +26,7 @@ from test_gcode import MM, T1, addon, click, ob, program, scene, set_up, step  #
 T2, T3 = "TOOL T2 BALL D4", "TOOL T3 DRILL D5"
 DISC = "CAROUSEL DISC"
 FPS = 25
-STATION = Vector((560 * MM, 0, 140 * MM))
+STATION = Vector((1400 * MM, 0, 350 * MM))
 
 PROGRAM = """(T1 D=6. CR=0. - flat end mill)
 (T2 D=4. CR=2. - ball end mill)
@@ -255,7 +256,7 @@ def test_caption_at_tool_changes(scene, tmp_path):
 def atc(sc, tmp_path, **kw):
     set_up(sc)
     car = ob(sc, "CAROUSEL.ASM")
-    joints.create(sc, "ROTATE", [car], Vector((500 * MM, 0, 0)), Vector((0, 0, 1)), name="Carousel")
+    joints.create(sc, "ROTATE", [car], Vector((1250 * MM, 0, 0)), Vector((0, 0, 1)), name="Carousel")
     a, b = step(sc, program(tmp_path, PROGRAM), **kw)
     a.fps = str(FPS)
     rows = tools(sc)
@@ -279,22 +280,22 @@ def test_pockets_round_the_carousel(scene, tmp_path):
     c = scene.fresing.cnc
     assert [p.number for p in c.pockets] == list(range(1, 9))
     w3 = toolchange.pocket_world(pocket(scene, 3))[0]
-    assert (w3 - Vector((500 * MM, 60 * MM, 140 * MM))).length < 1e-6       # counter-clockwise: T3's place
+    assert (w3 - Vector((1250 * MM, 150 * MM, 350 * MM))).length < 1e-6       # counter-clockwise: T3's place
     markers = [o for o in bpy.data.objects if o.get(gcode.TAG) == toolchange.POCKET_TAG]
     assert len(markers) == 8 and all(m.parent is ob(scene, DISC) for m in markers)
     assert toolchange.tool_pockets(scene, [1, 2, 3, 4]) == {1: 7, 2: 1, 3: 3, 4: 4}
     c.pockets_reverse = True
     assert toolchange.fill_carousel(scene) == ""
     w3 = toolchange.pocket_world(pocket(scene, 3))[0]
-    assert (w3 - Vector((500 * MM, -60 * MM, 140 * MM))).length < 1e-6
+    assert (w3 - Vector((1250 * MM, -150 * MM, 350 * MM))).length < 1e-6
     # the carousel turned: pockets go with it, the stations stay
     j = scene.fresing.joints["Carousel"]
     joints.set_value(j, math.radians(90))
     bpy.context.view_layer.update()
     w1 = toolchange.pocket_world(pocket(scene, 1))[0]
-    assert (w1 - Vector((500 * MM, 60 * MM, 140 * MM))).length < 1e-6
+    assert (w1 - Vector((1250 * MM, 150 * MM, 350 * MM))).length < 1e-6
     st, values, _notes = toolchange.stations(scene, gcode.Machine(scene))
-    assert st[1] == pytest.approx((560.0, 0.0, 30.0), abs=1e-3)          # (Blender's float32 matrices)
+    assert st[1] == pytest.approx((1400.0, 0.0, 75.0), abs=1e-3)          # (Blender's float32 matrices)
     assert math.remainder(values[1], TC.TURN) == pytest.approx(0.0, abs=1e-6)
     assert math.remainder(values[3], TC.TURN) == pytest.approx(math.radians(90), abs=1e-6)   # clockwise now
 
@@ -332,7 +333,7 @@ def test_atc_every_change_frame_by_frame(scene, tmp_path):
             got = toolchange.pocket_world(pocket(scene, pk))[0]
             assert (got - STATION).length < 0.01 * MM, (c.tool, pk, got)
             m = mach.machine_of([joints.get_value(j) for j in mach.joints])
-            assert m == pytest.approx((560.0, 0.0, 30.0), abs=0.01)     # tool lengths: 0 in the pocket
+            assert m == pytest.approx((1400.0, 0.0, 75.0), abs=0.01)     # tool lengths: 0 in the pocket
         # just after the drop: the old tool is back in its own pocket, the spindle is empty
         at(scene, frame(a, b, c.drop) + 0.5)
         assert shown(shown_in_pocket[c.old]) and not shown(shown_in_spindle[c.old])
@@ -345,7 +346,7 @@ def test_atc_every_change_frame_by_frame(scene, tmp_path):
     # T3 went back to the pocket it came from: where the CAD put it, turned with the carousel
     at(scene, frame(a, b, changes[2].drop) + 0.5)
     v = joints.get_value(scene.fresing.joints["Carousel"])
-    want = Vector((500 * MM, 0, 100 * MM)) + Matrix.Rotation(v, 3, "Z") @ Vector((0, 60 * MM, 0))
+    want = Vector((1250 * MM, 0, 310 * MM)) + Matrix.Rotation(v, 3, "Z") @ Vector((0, 150 * MM, 0))
     assert (tip_world(scene, T3) - want).length < 1e-6
 
 
@@ -467,16 +468,16 @@ def test_rack_head_goes_to_each_pocket(scene, tmp_path):
     c.changer = "ATC"
     disc = ob(scene, DISC)
     toolchange.add_pocket(scene, disc, STATION)                    # 1: T2's place
-    toolchange.add_pocket(scene, disc, Vector((500 * MM, 60 * MM, 140 * MM)), 3)    # T3's place
-    toolchange.add_pocket(scene, disc, Vector((440 * MM, 0, 140 * MM)), 7)
-    toolchange.add_pocket(scene, disc, Vector((500 * MM, -60 * MM, 140 * MM)), 8)
+    toolchange.add_pocket(scene, disc, Vector((1250 * MM, 150 * MM, 350 * MM)), 3)    # T3's place
+    toolchange.add_pocket(scene, disc, Vector((1100 * MM, 0, 350 * MM)), 7)
+    toolchange.add_pocket(scene, disc, Vector((1250 * MM, -150 * MM, 350 * MM)), 8)
     sch = schedule(scene, a, b)
     ch = [x for x in sch.changes if x.length > 0]
     assert [(x.old_pocket, x.new_pocket) for x in ch] == [(7, 1), (1, 3), (3, 8), (8, 7)]
     assert not any(x.turns() for x in ch)
-    k = ch[1]                                            # T2 into pocket 1 at x 560, T3 from pocket 3 at y 60
-    assert k.point_at(k.drop, None) == pytest.approx((560.0, 0.0, 30.0), abs=1e-3)
-    assert k.point_at(k.swap, None) == pytest.approx((500.0, 60.0, 30.0), abs=1e-3)
+    k = ch[1]                                            # T2 into pocket 1 at x 1400, T3 from pocket 3 at y 150
+    assert k.point_at(k.drop, None) == pytest.approx((1400.0, 0.0, 75.0), abs=1e-3)
+    assert k.point_at(k.swap, None) == pytest.approx((1250.0, 150.0, 75.0), abs=1e-3)
 
 
 def test_bench_tool_on_atc_is_put_in_by_hand(scene, tmp_path):
@@ -564,7 +565,7 @@ def test_longer_tool_never_dives_after_a_manual_change(scene, tmp_path, mode):
     a.fps = str(FPS)
     c = scene.fresing.cnc
     c.change_mode = mode
-    c.change_pos = (100 * MM, 50 * MM, -40 * MM)            # 5 mm above the program's Z5 (the zero is 50 mm lower)
+    c.change_pos = (100 * MM, 50 * MM, -205 * MM)           # 5 mm above the program's Z5 (the zero is 215 mm lower)
     r = animation.bake(scene, a)
     assert not [w for w in r["warnings"] if "G43" in w], r["warnings"]
     sch = schedule(scene, a, b)

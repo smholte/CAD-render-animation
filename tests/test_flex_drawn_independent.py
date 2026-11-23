@@ -527,13 +527,13 @@ def chains(folder):
 def test_chain_brackets_on_one_part_or_on_one_line_are_refused_and_nothing_stays(chains):
     sc = chains
     before = snapshot(sc)
-    a = click(sc, (-0.04, -1, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED")
+    a = click(sc, (-0.07, -1, 0.661), (0, 1, 0), "CHAIN BRACKET X FIXED")
     with pytest.raises(flex.FlexError):
         flex.draw_chain(sc, a, dict(a))
     with pytest.raises(flex.FlexError):                                            # same part, another point
-        flex.draw_chain(sc, a, click(sc, (-0.03, -1, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED"))
-    beam = click(sc, (-0.2, -1, 0.2), (0, 1, 0), "BEAM")                          # front faces at one height,
-    carriage = click(sc, (0.04, -1, 0.2), (0, 1, 0), "CARRIAGE")                  # one line along the travel
+        flex.draw_chain(sc, a, click(sc, (-0.06, -1, 0.661), (0, 1, 0), "CHAIN BRACKET X FIXED"))
+    beam = click(sc, (-0.5, -1, 0.6), (0, 1, 0), "BEAM")                          # front faces at one height,
+    carriage = click(sc, (0.04, -1, 0.6), (0, 1, 0), "CARRIAGE")                  # one line along the travel
     with pytest.raises(flex.FlexError):
         flex.draw_chain(sc, beam, carriage)
     assert snapshot(sc) == before
@@ -543,19 +543,19 @@ def test_a_chain_drawn_before_the_axis_has_its_joint_says_so_and_draws(folder):
     sc = load(folder, CHAINS)                                                     # no joints made yet
     logic.exclude([o for o in build.iter_parts(sc) if build.logical_parent(o) == named(sc, "CHAIN X.ASM")], True)
     update()
-    a = click(sc, (-0.04, -1, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED")       # the brackets of the X chain,
-    b = click(sc, (-0.01, -1, 0.44), (0, 1, 0), "CHAIN BRACKET X MOVING")       # clicked as the author's test does
+    a = click(sc, (-0.07, -1, 0.661), (0, 1, 0), "CHAIN BRACKET X FIXED")       # the brackets of the X chain,
+    b = click(sc, (-0.01, -1, 0.83), (0, 1, 0), "CHAIN BRACKET X MOVING")       # clicked as the author's test does
     item, notes = flex.draw_chain(sc, a, b)
     assert notes and "slide joint" in notes[0]                                    # the note the code has for this
-    assert item.radius == pytest.approx(0.5 * (0.44 - 0.271), abs=0.002)
+    assert item.radius == pytest.approx(0.5 * (0.83 - 0.661), abs=0.002)
     pins = flex.pins_now(sc, item)
     assert len(pins) and np.all(np.isfinite(pins))
 
 
 def test_flip_and_swap_twice_give_the_chain_back(chains):
     sc = chains
-    a = click(sc, (-0.04, -1, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED")
-    b = click(sc, (-0.01, -1, 0.44), (0, 1, 0), "CHAIN BRACKET X MOVING")
+    a = click(sc, (-0.07, -1, 0.661), (0, 1, 0), "CHAIN BRACKET X FIXED")
+    b = click(sc, (-0.01, -1, 0.83), (0, 1, 0), "CHAIN BRACKET X MOVING")
     item, _n = flex.draw_chain(sc, a, b)
     set_joint(sc, "X", 0.07)
     pins0 = flex.pins_now(sc, item).copy()
@@ -572,8 +572,8 @@ def test_flip_and_swap_twice_give_the_chain_back(chains):
 
 def test_build_of_a_drawn_chain_and_its_moving_bracket_dragged_too_far(chains):
     sc = chains
-    a = click(sc, (-0.04, -1, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED")
-    b = click(sc, (-0.01, -1, 0.44), (0, 1, 0), "CHAIN BRACKET X MOVING")
+    a = click(sc, (-0.07, -1, 0.661), (0, 1, 0), "CHAIN BRACKET X FIXED")
+    b = click(sc, (-0.01, -1, 0.83), (0, 1, 0), "CHAIN BRACKET X MOVING")
     item, _n = flex.draw_chain(sc, a, b)
     anim = sc.fresing.animations.add()
     anim.name, anim.tail, anim.fps = "Run X", 0.0, "25"

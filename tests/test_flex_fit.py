@@ -762,12 +762,12 @@ HOSE_PARTS = ["BASE", "POST", "BASE.BRACKET", "BASE.PIN", "VALVE BLOCK", "FITTIN
               "PISTON", "ROD", "ROD.EYE", "SLIDE CARRIAGE", "SLIDE GLAND"] + sorted(HOSES)
 HOSE_ASSEMBLIES = ["TEST.FLEX.HOSES", "ARM.ASM", "CYL.ASM", "CYL.BARREL", "CYL.ROD", "SLIDE.ASM"]
 # name: (links, pin 0, last pin, the fixed run's direction, the assembly it sits in) – mm
-CHAINS = {
-    "CHAIN X": (18, (-28.74, 70, 272), (-20, 70, 432), (1, 0, 0), "Y.ASM"),
-    "CHAIN Y": (16, (600, 98.74, -8), (440, 90, -8), (0, -1, 0), "TEST.FLEX.GANTRY"),
-    "CHAIN Z": (13, (-222, -8, 221.26), (-62, -8, 190), (0, 0, 1), "X.ASM"),
+CHAINS = {                                  # task 0262: the router x 2.5, the links keep their size
+    "CHAIN X": (24, (-58.74, 175, 662), (-50, 175, 822), (1, 0, 0), "Y.ASM"),
+    "CHAIN Y": (21, (1225, 168.74, -68), (1065, 200, -68), (0, -1, 0), "TEST.FLEX.GANTRY"),
+    "CHAIN Z": (17, (-260, 15, 511.26), (-100, 15, 480), (0, 0, 1), "X.ASM"),
 }
-CHAIN_PARTS = ["BED", "STOCK 300x200x30", "CHAIN TRAY Y", "CHAIN BRACKET Y FIXED", "GANTRY SIDE L", "GANTRY SIDE R",
+CHAIN_PARTS = ["BED", "MACHINE STAND", "STOCK 300x200x30", "CHAIN TRAY Y", "CHAIN BRACKET Y FIXED", "GANTRY SIDE L", "GANTRY SIDE R",
                "BEAM", "CHAIN BRACKET X FIXED", "CHAIN BRACKET Y MOVING", "CARRIAGE", "CHAIN BRACKET X MOVING",
                "CHAIN BRACKET Z FIXED", "SPINDLE", "TOOL T1 FLAT D6", "CHAIN BRACKET Z MOVING"]
 CHAIN_ASSEMBLIES = ["TEST.FLEX.GANTRY", "Y.ASM", "X.ASM", "Z.ASM", "CHAIN X.ASM", "CHAIN Y.ASM", "CHAIN Z.ASM"]
@@ -894,8 +894,8 @@ def test_chains_model_through_the_importer(tmp_path):
     info, arrays = _read(CHAINS_A, tmp_path)
     nodes = info["nodes"]
     names = [n["name"] for n in nodes]
-    assert sorted(names) == sorted(CHAIN_PARTS + CHAIN_ASSEMBLIES + ["CHAIN LINK"] * 47)
-    assert info["stats"]["placed_parts"] == 62 and info["stats"]["unique_parts"] == 16
+    assert sorted(names) == sorted(CHAIN_PARTS + CHAIN_ASSEMBLIES + ["CHAIN LINK"] * 62)
+    assert info["stats"]["placed_parts"] == 78 and info["stats"]["unique_parts"] == 17
     links = [i for i, n in enumerate(nodes) if n["name"] == "CHAIN LINK"]
     assert len({nodes[i]["mesh"] for i in links}) == 1, "every link is the same mesh"
     for n in nodes:
@@ -976,13 +976,13 @@ def test_models_in_the_app(tmp_path):
         bpy.context.view_layer.update()
         obs = list(build.iter_parts(scene))
         links = [ob for ob in obs if ob[build.PROP_NAME] == "CHAIN LINK"]
-        assert len(obs) == 62 and len(links) == 47 and len({ob.data.name for ob in links}) == 1
+        assert len(obs) == 78 and len(links) == 62 and len({ob.data.name for ob in links}) == 1
         assert sorted(ob[build.PROP_NAME] for ob in obs if ob not in links) == sorted(CHAIN_PARTS)
         assert all(ob.get(build.PROP_COLOR) for ob in obs)
         by_chain = {}
         for ob in links:
             by_chain.setdefault(ob.parent[build.PROP_NAME], []).append(ob)
-        assert {k: len(v) for k, v in by_chain.items()} == {"CHAIN X.ASM": 18, "CHAIN Y.ASM": 16, "CHAIN Z.ASM": 13}
+        assert {k: len(v) for k, v in by_chain.items()} == {"CHAIN X.ASM": 24, "CHAIN Y.ASM": 21, "CHAIN Z.ASM": 17}
         for name, (_count, first, last, _along, asm) in CHAINS.items():
             mine = by_chain[f"{name}.ASM"]
             assert mine[0].parent.parent[build.PROP_NAME] == asm

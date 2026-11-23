@@ -1688,7 +1688,7 @@ and coolant stay off the guide ways. Here the sections follow the axis by themse
 every move of the axis – by hand, in a pose, in a Move joint or Run motor step, from a G-code program – opens
 and closes the covers.
 
-<img class="panel" src="img/panel_4_waycover.png" alt="Way covers: two covers on the X axis, five sections each, the last one on the carriage"> <img class="wide" src="img/view_waycover.png" alt="The test machine with a way cover on each side of the carriage, the carriage 300 mm along">
+<img class="panel" src="img/panel_4_waycover.png" alt="Way covers: two covers on the X axis, five sections each, the last one on the carriage"> <img class="wide" src="img/view_waycover.png" alt="The test machine with a way cover on each side of the carriage, the carriage 600 mm along">
 
 **Set it up**
 
@@ -5394,4 +5394,7 @@ your PC.
   sees.
 - "Add a camera first": click a view under **Camera** in 5 Scene & Render.
 - Too dark or too light: **Exposure** and **Brightness** in 5 Scene & Render, or another **Light look**.
+- **Live preview is black, but Render image works** – most often after the PC woke from sleep with the app
+  still open: the graphics driver lost its link with the live view. Close the app and start it again
+  (your automatic backups keep your work); Live preview then works again.
 - A job in the queue failed: click it to read its message, and **Open log**.
