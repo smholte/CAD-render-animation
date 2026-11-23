@@ -214,7 +214,8 @@ fn(id="import.again", short="Import again", title="Imported models: import again
    tour=("import_again",), pccheck=("import.again",), since="0.2.216")
 fn(id="import.up_axis", short="Up axis", title="Change a model's up axis after the import", family="import",
    panel="FRESING_PT_import", button="fresing.model_up_axis", guide="up-axis-after-import",
-   tour=("import_again",), pccheck=("import.up_axis",), since="0.2.216")
+   tour=("import_again",), pccheck=("import.up_axis",), since="0.2.216",
+   workspaces=_WORK + ("lifting",))                 # the Client view never changes a model
 fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide and lock parts", family="import",
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
