@@ -145,6 +145,9 @@ def found_button():
     box = f.get("button") if f else None
     if box is None:
         return None
+    reg = f.get("region")
+    if reg and reg[0] == ui()[3].x and (box[1] < 40 or box[3] > reg[3] - 40):
+        return None                              # at the side panel's edge the lesson still scrolls it in: wait
     reg = f.get("region")                        # task 0278: the region it was drawn in (Build & play: the left panel)
     if reg:
         return reg[0] + (box[0] + box[2]) // 2, reg[1] + (box[1] + box[3]) // 2

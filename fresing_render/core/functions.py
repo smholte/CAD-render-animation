@@ -267,7 +267,7 @@ fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel
 fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
-fn(id="joints.cad_position", title="Everything back to CAD position", family="motion", panel="FRESING_PT_motion",
+fn(id="joints.cad_position", short="Back to CAD", title="Everything back to CAD position", family="motion", panel="FRESING_PT_motion",
    button="fresing.pose_reset", guide="motion", since="0.2.5")
 fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18",
