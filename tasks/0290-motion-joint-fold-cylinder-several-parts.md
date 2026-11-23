@@ -1,6 +1,6 @@
 # 0290 – 4 Motion: Add rotate / slide joint in a fold like the rest; cylinders take several parts or subassemblies per item
 
-**Who:** worker · **Status:** open – can start after 0282 is merged · **Branch:** `task/0290-joint-fold-cylinder-parts`
+**Who:** worker · **Status:** running (23 Nov) · **Branch:** `claude/inspiring-shannon-h7b896` (the web session's branch)
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "In the 4. motions section the menu with rotate joint
 and add slide joint should be a folded up menu like the rest." – "Setup of cylinders, when choosing the different
 parts, you should be able to select multiple parts/assemblies per item (barrel, rod …)") · **Model:** Opus · effort
