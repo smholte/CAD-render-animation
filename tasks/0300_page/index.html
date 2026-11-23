@@ -36,7 +36,7 @@ Blender <b>on the part's own CAD mesh</b>, with Geometry Nodes that read the two
 playing or rendering</b> (checked in the real Blender 5.2.3 with scripts switched off), so the render queue and old PCs need nothing new.
 A spring is read from its mesh alone – outer Ø, wire Ø, free length and turns came out <b>exact</b> on four invented springs (closed end
 turns within 0.1 turn) – and stays a round wire while it compresses (<b>0.04 mm</b> off on a 4 mm wire at 37 % shorter; a plain stretch
-flattens the wire by 0.9 mm). Cost on the 4-core web machine: <b>0.15–0.26 ms per part per frame</b>, rubber 0.06–0.08 ms when its mesh is
+flattens the wire by 0.9 mm). Cost on the 4-core web machine: <b>0.13–0.26 ms per part per frame</b>, rubber 0.05–0.08 ms when its mesh is
 made a little finer at import. Set-up fits the existing <b>Set-up window</b> in 4 steps: pick the part (found by its name) → the two parts
 (found because they touch) → Check (the numbers read, a squeeze test) → Done. Below: clips, numbers, the mock-up and <b>8 build tasks</b> to
 tick. ★ = recommended. Gas springs and dampers need no new shape work: they are <b>cylinders</b> the app already has.</div>
@@ -74,21 +74,21 @@ centre line – the wire stays round. Bellows want the left one (their folds do 
 </table></div>
 
 <h2>3 · How in Blender, and what it costs (measured)</h2>
-<p class="d">Blender 5.2.3 as a Python module on the web machine (4 cores, no graphics card), 100 copies of one part sharing one mesh (as
+<p class="d">Blender 5.2.3 as a Python module on the web machine (4 cores, no graphics card; two runs, their range), 100 copies of one part sharing one mesh (as
 the app's copies of a part do), 48 frames stepped, the same scene without the deformers subtracted. Numbers: <code>numbers.json</code>;
 script: <code>tools/soft_proto/measure.py</code>.</p>
 <div class="tbl"><table>
 <tr><th>Part</th><th>Triangles</th><th>ms per part per frame</th><th>100 parts: ms per frame</th></tr>
-<tr><td>Coil spring (Geometry Nodes, following the wire)</td><td class="n">15,392</td><td class="n">0.26</td><td class="n">26</td></tr>
-<tr><td>Bellows</td><td class="n">1,840</td><td class="n">0.17</td><td class="n">17</td></tr>
-<tr><td>Tyre</td><td class="n">5,952</td><td class="n">0.15</td><td class="n">16</td></tr>
-<tr><td>Rubber buffer, the import's mesh made finer in the nodes every frame (level 3)</td><td class="n">288 → 27,648</td><td class="n">1.36</td><td class="n">136</td></tr>
-<tr><td>Rubber buffer, made finer in the nodes (level 2)</td><td class="n">288 → 6,912</td><td class="n">0.53</td><td class="n">53</td></tr>
-<tr><td>Rubber buffer, <b>meshed finer at import</b> (12 rows up the side)</td><td class="n">1,344</td><td class="n">0.06–0.08</td><td class="n">6–8</td></tr>
+<tr><td>Coil spring (Geometry Nodes, following the wire)</td><td class="n">15,392</td><td class="n">0.22–0.26</td><td class="n">22–26</td></tr>
+<tr><td>Bellows</td><td class="n">1,840</td><td class="n">0.13–0.17</td><td class="n">13–17</td></tr>
+<tr><td>Tyre</td><td class="n">5,952–8,256</td><td class="n">0.15–0.20</td><td class="n">15–20</td></tr>
+<tr><td>Rubber buffer, the import's mesh made finer in the nodes every frame (level 3)</td><td class="n">288 → 27,648</td><td class="n">1.28–1.38</td><td class="n">128–138</td></tr>
+<tr><td>Rubber buffer, made finer in the nodes (level 2)</td><td class="n">288 → 6,912</td><td class="n">0.49–0.53</td><td class="n">49–53</td></tr>
+<tr><td>Rubber buffer, <b>meshed finer at import</b> (12 rows up the side)</td><td class="n">1,344</td><td class="n">0.05–0.08</td><td class="n">5–8</td></tr>
 <tr><td>Rubber buffer, the import's mesh as it is</td><td class="n">288</td><td class="n">0.06</td><td>– its side is one strip: it cannot bulge (it turns into a cone)</td></tr>
-<tr><td>Spring as a shape key + a driver (the other way)</td><td class="n">15,392</td><td class="n">0.03</td><td class="n">3</td></tr>
+<tr><td>Spring as a shape key + a driver (the other way)</td><td class="n">15,392</td><td class="n">0.02–0.03</td><td class="n">2–3</td></tr>
 </table></div>
-<p class="d">All four kinds at once, 50 of each (200 soft parts, the rubber refined in the nodes): 102 ms a frame instead of 0.3. A machine with
+<p class="d">All four kinds at once, 50 of each (200 soft parts, the rubber refined in the nodes): 90–102 ms a frame instead of 0.2–0.3. A machine with
 40 springs and 20 buffers meshed finer at import: about 12 ms a frame here (counted from the rows, not measured as one scene). On a 24-core PC
 the parts are worked out side by side; less is expected but not measured. In a render the deformers add next to nothing to the picture's
 seconds.</p>
@@ -98,7 +98,7 @@ seconds.</p>
 them (a joint, a cylinder, a mechanism, vessel motion) moves the spring. The part keeps its material, selection, copies and decals' parent.
 Every point's new place is a straight-line function of the seats' places for springs and bellows: <b>one glTF morph target is exact</b>
 (0.000007 mm) – the web 3D model can carry it. Rubber needs 2–3 targets (one: 2.2 mm off on 25 mm, two: 0.6 mm).</li>
-<li><b>Shape key + driver</b>: 8× cheaper, but a shape key lives on the <b>mesh</b>, and the app's copies of a part share one mesh: all
+<li><b>Shape key + driver</b>: about 10× cheaper, but a shape key lives on the <b>mesh</b>, and the app's copies of a part share one mesh: all
 four springs of a machine would squeeze together. It also needs a driver per spring that knows which joint moves the seat (a cylinder,
 a mechanism, vessel motion all differ). Not chosen.</li>
 <li><b>A plain stretch</b> (scale along the axis, Blender's Simple Deform) flattens a spring's wire (picture above) and squashes the end turns.
@@ -109,7 +109,7 @@ spring does not need physics, it needs its two ends. (Expectation, not measured.
 <h3>Rubber: a mesh to bend</h3>
 <p>An import cuts a round part's side into strips from bottom to top: there is no point half-way up to bulge. Refining in the nodes every
 frame costs 0.5–1.4 ms per part. Cheaper: the importer meshes parts of the kinds <i>Rubber parts</i> and <i>Bellows</i> finer along their
-height (the facets are already chosen per part size since task 0074) – then 0.06–0.08 ms. The squeezed shape's light needs new normals
+height (the facets are already chosen per part size since task 0074) – then 0.05–0.08 ms. The squeezed shape's light needs new normals
 (smooth by angle, 30°); the spring keeps the import's normals (its wire stays round).</p>
 
 <h3>What the rest of the app does with a soft part</h3>
@@ -178,14 +178,14 @@ say.</p>
 keep their size, never shorter than solid), bellows and folding boots (cuffs found as the plain ends). Stored per part in the project with
 the two parts' IDs; a model update reads the spring again; copies set up together. The Set-up window kind of section 5, Find springs and
 rubber. The clash check leaves soft parts out and says when a spring goes solid or a bellows is pulled past its length.</p>
-<p class="why">Gain: every spring and bellows of a machine moves right with a few clicks; 0.17–0.26 ms per part a frame on the web
+<p class="why">Gain: every spring and bellows of a machine moves right with a few clicks; 0.13–0.26 ms per part a frame on the web
 machine.</p></div></section>
 
 <section class="item"><label class="pick"><input type="checkbox" value="B" checked> <b>B</b> <span class="star">★</span></label>
 <div class="body"><h3>Rubber that squeezes <span class="tag">work M · Opus · Medium · after A (same window)</span></h3>
 <p>Buffers, bump stops, mounts, rubber feet: squeezed once the other part touches, the volume kept by a bulge. The importer meshes parts of
 the kinds Rubber parts and Bellows finer along their height (so no refining every frame). How much it bulges: one setting (Soft / Firm).</p>
-<p class="why">Gain: stops and buffers look like rubber instead of a part being cut through; 0.06–0.08 ms a part.</p></div></section>
+<p class="why">Gain: stops and buffers look like rubber instead of a part being cut through; 0.05–0.08 ms a part.</p></div></section>
 
 <section class="item"><label class="pick"><input type="checkbox" value="C" checked> <b>C</b> <span class="star">★</span></label>
 <div class="body"><h3>Gas springs and dampers in one click <span class="tag">work S · Sonnet · Medium · with A's window</span></h3>
@@ -204,7 +204,7 @@ opens at step 2 with that part.</p>
 <div class="body"><h3>Tyres on the ground <span class="tag">work M · Opus · High · Vehicles lane, after 0306's picks</span></h3>
 <p>The tyre deformer of clip 4: a flat where it meets the ground, walls bulging by the load; on uneven terrain it looks down at the ground's
 mesh (study 0306 / 0311 make the terrain). Comes with the vehicle set-up rather than alone.</p>
-<p class="why">Gain: a vehicle that stands and drives with weight on its tyres; 0.15 ms a tyre.</p></div></section>
+<p class="why">Gain: a vehicle that stands and drives with weight on its tyres; 0.15–0.20 ms a tyre.</p></div></section>
 
 <section class="item"><label class="pick"><input type="checkbox" value="F" checked> <b>F</b> <span class="star">★</span></label>
 <div class="body"><h3>Soft parts in the web 3D model <span class="tag">work M · Opus · Medium · after A, web3d.py</span></h3>

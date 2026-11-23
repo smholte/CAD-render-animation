@@ -18,7 +18,7 @@
     "pitch": 8.5
    },
    "triangles": 15392,
-   "seconds": 0.75
+   "seconds": 0.73
   },
   {
    "made": {
@@ -38,7 +38,7 @@
     "pitch": 9.53
    },
    "triangles": 10784,
-   "seconds": 0.88
+   "seconds": 0.83
   },
   {
    "made": {
@@ -58,7 +58,7 @@
     "pitch": 57.77
    },
    "triangles": 10016,
-   "seconds": 1.08
+   "seconds": 0.93
   },
   {
    "made": {
@@ -78,7 +78,7 @@
     "pitch": 4.76
    },
    "triangles": 18848,
-   "seconds": 0.69
+   "seconds": 0.54
   }
  ],
  "accuracy": {
@@ -193,35 +193,35 @@
  "cost_each": {
   "spring": {
    "rigid": 0.05,
-   "soft": 26.34,
+   "soft": 22.2,
    "tris_import": 15392,
-   "ms_per_part_frame": 0.2629
+   "ms_per_part_frame": 0.2215
   },
   "buffer": {
    "rigid": 0.05,
-   "soft": 135.65,
+   "soft": 130.93,
    "tris_import": 288,
-   "ms_per_part_frame": 1.356
+   "ms_per_part_frame": 1.3088
   },
   "bellows": {
    "rigid": 0.06,
-   "soft": 17.13,
+   "soft": 13.4,
    "tris_import": 1840,
-   "ms_per_part_frame": 0.1708
+   "ms_per_part_frame": 0.1334
   },
   "tyre": {
-   "rigid": 0.26,
-   "soft": 15.57,
-   "tris_import": 5952,
-   "ms_per_part_frame": 0.1531
+   "rigid": 0.19,
+   "soft": 20.4,
+   "tris_import": 8256,
+   "ms_per_part_frame": 0.2021
   }
  },
  "cost_mix_50_each": {
   "rigid": {
-   "all": 0.25
+   "all": 0.24
   },
   "soft": {
-   "all": 101.77
+   "all": 90.43
   },
   "objects_each_kind": 50,
   "threads": 4
@@ -231,35 +231,35 @@
    "how": "import mesh as it is, no refining",
    "triangles_drawn": 288,
    "widest_mm_at_34pct": 34.31,
-   "ms_per_part_frame": 0.0579
+   "ms_per_part_frame": 0.0552
   },
   {
    "how": "refined in the nodes, level 2",
    "triangles_drawn": 6912,
    "widest_mm_at_34pct": 40.15,
-   "ms_per_part_frame": 0.5283
+   "ms_per_part_frame": 0.487
   },
   {
    "how": "refined in the nodes, level 3",
    "triangles_drawn": 27648,
    "widest_mm_at_34pct": 40.17,
-   "ms_per_part_frame": 1.376
+   "ms_per_part_frame": 1.281
   },
   {
    "how": "finer import (12 rows), normals by angle",
    "triangles_drawn": 1344,
    "widest_mm_at_34pct": 40.2,
-   "ms_per_part_frame": 0.0831
+   "ms_per_part_frame": 0.0714
   },
   {
    "how": "finer import (12 rows), import normals kept",
    "triangles_drawn": 1344,
    "widest_mm_at_34pct": 40.2,
-   "ms_per_part_frame": 0.0555
+   "ms_per_part_frame": 0.0475
   }
  ],
  "spring_shape_key": {
-  "ms_per_frame_100_springs": 2.73,
+  "ms_per_frame_100_springs": 2.44,
   "simple_expression": true
  }
 }

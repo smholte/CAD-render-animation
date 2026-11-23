@@ -56,9 +56,10 @@ E. **Page:** a clip per kind, the cost, the set-up flow as a mock-up, ranked bui
 3. **Spring reader** (mesh only, 4 invented springs turned 40° and moved): outer Ø, wire Ø, free length exact; turns
    10.00 / 6.99 / 6.50 / 12.25 (made 10 / 7 / 6.5 / 12.25); end turns within 0.1; 0.7–1.1 s each (NumPy, one core).
    Not tried: ground ends, conical springs, rectangular wire, a spring drawn squeezed in the CAD, the owner's own models.
-4. **Cost** (4-core web machine, 100 copies sharing one mesh, 48 frames): spring 0.26 ms per part per frame (15,392
-   triangles), bellows 0.17, tyre 0.15; rubber refined in the nodes 0.53 (level 2) / 1.36 (level 3), rubber meshed finer at
-   import 0.06–0.08. 200 soft parts of all kinds: 102 ms a frame (0.3 without). Shape key + driver: 0.03 ms but a shape key
+4. **Cost** (4-core web machine, 100 copies sharing one mesh, 48 frames; range of two runs): spring 0.22–0.26 ms per part
+   per frame (15,392 triangles), bellows 0.13–0.17, tyre 0.15–0.20; rubber refined in the nodes 0.49–0.53 (level 2) /
+   1.28–1.38 (level 3), rubber meshed finer at import 0.05–0.08. 200 soft parts of all kinds: 90–102 ms a frame (0.2–0.3
+   without). Shape key + driver: 0.02–0.03 ms but a shape key
    is on the shared mesh (all copies would squeeze together) – not chosen.
 5. **Rubber:** volume kept 100.0–100.4 % up to 50 % squeeze (Ø30 → Ø48 at 50 %); the import's mesh has no points half-way up
    a round side, so the importer should mesh rubber / bellows kinds finer (the bulge otherwise becomes a cone).
