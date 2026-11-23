@@ -1,0 +1,236 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0311 surroundings maker</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc);font-size:1.2rem}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.item{display:flex;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.pick{flex:0 0 40px;font-size:1.1rem}.pick input{width:20px;height:20px}.star{color:var(--acc)}
+.body{flex:1;min-width:0}h3{margin:0 0 6px;font-size:1rem}.tag{font-weight:normal;color:var(--mut);font-size:.85rem}
+.why{color:var(--mut);font-size:.92rem;margin:4px 0}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-top:8px}
+figure{margin:0;max-width:100%}figure img,figure video{max-width:100%;height:auto;border:1px solid var(--line);display:block}
+figcaption,.d{font-size:.85rem;color:var(--mut)}
+.tbl{overflow-x:auto}table{border-collapse:collapse;font-size:.92rem;min-width:520px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+td.n{text-align:right;white-space:nowrap}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:0;word-break:break-word}#bar button{font:inherit;padding:6px 16px;cursor:pointer}
+</style></head><body><main>
+<h1>A surroundings maker and new ready-made backgrounds (study 0311)</h1>
+<div class="card"><b>In short.</b> A working prototype made a whole building site around the Lifting lane's AT-100 crane in about
+<b>3 seconds</b>. It has hills, a flat pad for the crane, painted gravel / sand / mud / rock / concrete, a road cut into the slope, a pond that
+fills its own hollow and puts sand on its shore, three buildings from a few settings, and trees, bushes, rocks and grass placed by painting.
+Plants follow the ground by themselves: no grass on the road, nothing on the crane's pad or under water.
+<br><br>Three findings decide the design. <b>Copies, not merged meshes</b>: grass as copies of one clump costs 9 MB more render
+memory than no grass; the same grass merged into one mesh costs 181 MB more. <b>Make only what the scene camera sees</b>: on the crane
+close-up that is 7,772 grass clumps instead of 88,085. <b>Brushes must not re-place the plants at every dab</b>: today that costs
+0.12–0.16 s a dab. Re-place them only when the brush is lifted.
+<br><br>Procedural ground (the app's own, no pictures) against scanned ground (free ambientCG photos): the scan looks more real close up
+(gravel) and rendered <b>twice as fast</b> on the processor, but used <b>about 100 MB more</b> memory and repeats at a distance.
+Recommendation: the app's own ground by default, photo ground as an option from the asset library (0286).
+<br><br><b>Phase 1</b> (quick, before the maker): six new one-click backgrounds built the way today's are – Building site, Onshore wind farm,
+Industrial yard, Road &amp; crossroads, Harbour basin, Meadow. Then the maker in 6 build tasks, then 4 more. Tick what you want at the bottom. ★ = recommended.</div>
+<p class="d">Measured on the web machine: 4 cores, no graphics card, Blender 5.2.3 as a Python module, Cycles on the processor. Everything
+said about your RTX 3090 is an expectation, not a measurement. Code: <code>tools/surroundings_proto/</code> on this task's branch.</p>
+
+<h2>1 · The prototype</h2>
+<div class="pics">
+<figure class="wide"><img src="img/final_overview.jpg" alt="the building site" width="1060"><figcaption>The finished site: the AT-100
+in its Working pose on a flat gravel pad, a road (asphalt, kerbs, markings) cut into the slope, a hall, a three-floor office, a workshop
+with a saw-tooth roof, site huts (the app's own containers), the pond, trees and conifers painted along the back, bushes and rocks.
+1600 × 900, 96 samples: 3 min 58 s.</figcaption></figure>
+<figure style="max-width:530px"><img src="img/final_crane.jpg" alt="at the crane" width="520"><figcaption>At the crane: road, gravel
+pad, grass verge.</figcaption></figure>
+<figure style="max-width:530px"><img src="img/final_ground.jpg" alt="at ground level" width="520"><figcaption>Eye height: painted
+mud, gravel and grass with grass blades (16 per clump), the site huts.</figcaption></figure>
+<figure style="max-width:530px"><img src="img/final_pond.jpg" alt="the pond" width="520"><figcaption>The pond: the water fills the
+hollow up to its level, sand above the water line and mud under it are painted by the water itself.</figcaption></figure>
+<figure style="max-width:530px"><img src="img/map.png" alt="the map" width="520"><figcaption>The same terrain as the maker's
+<b>Map</b> view would show it, made from the same arrays in 0.3 s: layer colours, height lines every metre, painted plants, the pad.</figcaption></figure>
+</div>
+<h3 style="margin-top:14px">Clips</h3>
+<div class="pics">
+<figure style="max-width:540px"><video src="img/clip_stages.mp4" controls muted loop playsinline width="530"></video><figcaption>The maker
+step by step: flat → hills → pad → paint → road → buildings → pond → trees → grass.</figcaption></figure>
+<figure style="max-width:540px"><video src="img/clip_orbit.mp4" controls muted loop playsinline width="530"></video><figcaption>The camera
+goes round the crane; the plants are made again for each frame's view.</figcaption></figure>
+<figure style="max-width:400px"><video src="img/clip_cull.mp4" controls muted loop playsinline width="390"></video><figcaption>Seen from
+above while the shot camera (orange: its view) turns: only the trees, bushes and rocks it can see exist.</figcaption></figure>
+</div>
+
+<h2>2 · The maker (design)</h2>
+<figure><img src="img/mockup.png" alt="the maker window" width="1060"><figcaption>Design sketch: its own window (like the
+output windows), tabs along the top, <b>Simple | More</b>, the 3D view with the brush, the Map view, presets to start from. Painting gravel.</figcaption></figure>
+<div class="tbl"><table>
+<tr><th>Part</th><th>How it works (tried in the prototype unless it says "design")</th></tr>
+<tr><td>Terrain</td><td>One height grid (0.5 m; 260 × 260 m = 271,441 points). Brushes Raise, Lower, Smooth, Flatten; Hills; Import a
+height-map picture, GeoTIFF or mesh (design). The machine's pad stays flat at the floor and free, and blends into the hills. Brushes are the
+app's own tool, not Blender's Sculpt mode: no mode switch for a sales person, the Client view's lock stays simple, and the same strokes give
+the same ground in tests. Pen pressure comes with Blender's mouse events.</td></tr>
+<tr><td>Paint layers</td><td>Grass, gravel, sand, asphalt, concrete, rock, mud, snow. The weights always add up to 1: painting gravel makes the
+others give way, and Erase means back to grass. The brush edge is broken up by noise, and once more in the material, so no round stamps show.
+The layers are stored with the terrain mesh, so they are saved and undone like the rest; one material reads them, with no pictures.</td></tr>
+<tr><td>Scatter</td><td>One Geometry Nodes tree for every kind. Painted density × what the ground allows: grass only on grass, trees not on
+asphalt, nothing on the pad, under water or on the road. Each plant is a copy. Each kind has a detailed version near the camera and a light
+one beyond 30–70 m. Nothing is made outside the scene camera's view, and grass thins out between 15 and 45 m. Turning the 3D view with the
+mouse costs nothing; only moving the scene camera places the plants again. Grass, trees, bushes and rocks are <b>made by the app</b>: real
+size, two versions from one seed, no licence question. Scanned rocks and the user's own plants come later through the asset library (0286).</td></tr>
+<tr><td>Buildings</td><td>Hall, office, house, warehouse (design), site hut (the app's containers); width, depth, floors, roof (pitched, flat,
+saw-tooth), windows, colour. <b>One facade material for every building</b>: the colour is each building's own setting, read by the material,
+not a new material. A painted colour band on a facade, and the building flattening its footprint and painting its concrete apron: design.</td></tr>
+<tr><td>Roads</td><td>A line of clicks; width and kind; markings in the material (dashed centre line, edge lines, worn); kerbs. The terrain is
+<b>cut and filled</b> to a smooth profile with at most 6 % grade and 4 m shoulders, the plants are cleared, gravel shoulders are painted.
+Crossroads: design.</td></tr>
+<tr><td>Water</td><td><b>Pond / lake:</b> a point and a level; the water fills only what connects to that point, not every low spot (the first
+try flooded the whole site). <b>Sea:</b> today's sea, its shore where the terrain dips under it (design). <b>River:</b> a line that carves a bed
+(design). The shore paints itself. <b>Hand-over to 0312</b> (breaking waves): the water depth on the grid and the shore line; waves break where
+the depth is about 1.3 × the wave height.</td></tr>
+<tr><td>Presets</td><td>Terrain, roads, buildings, water, plants, light and weather in one file, kept in 0272's folders as a new kind
+"Surroundings" (My / Department / Company, shared in a <code>.frsetup</code>). The ready ones are made in code and fit the machine: the pad
+follows its box.</td></tr>
+<tr><td>Vehicles (0306)</td><td>One terrain for both: a speed bump is a Raise stroke, an off-road track is Lower + Mud; the wheels read height
+and slope from the same grid.</td></tr>
+</table></div>
+
+<h2>3 · Cost and speed (measured)</h2>
+<div class="tbl"><table>
+<tr><th>What</th><th>Measured</th></tr>
+<tr><td>Build the whole site (terrain, paint, road, pond, buildings, sources of the plants)</td><td class="n">≈ 3 s; brushes on a window round the
+brush: all strokes 1.8–2.0 s (11.7 s on the whole grid each time)</td></tr>
+<tr><td>Place every plant (Geometry Nodes)</td><td class="n">0.05–0.27 s</td></tr>
+<tr><td>One brush dab (raise) with grass in view</td><td class="n">0.16–0.20 s: arrays 0.3 ms, mesh written 41–58 ms, plants placed again 0.12–0.15 s</td></tr>
+<tr><td>One dab painting trees</td><td class="n">0.14–0.18 s (plants again 0.12–0.16 s)</td></tr>
+<tr><td>The scene camera moves (plants follow its view)</td><td class="n">0.11–0.14 s</td></tr>
+</table></div>
+<h3 style="margin-top:14px">Grass at ground level (960 × 540, 32 samples)</h3>
+<div class="tbl"><table>
+<tr><th>Grass</th><th>Blades in view</th><th>Render</th><th>Render memory</th><th>Blender in all (peak)</th></tr>
+<tr><td>none</td><td class="n">–</td><td class="n">41.9 s</td><td class="n">181 MB</td><td class="n">1,335 MB</td></tr>
+<tr><td>copies of one clump</td><td class="n">258,224</td><td class="n">42.9 s</td><td class="n">190 MB</td><td class="n">1,434 MB</td></tr>
+<tr><td>merged into one mesh</td><td class="n">258,224 (1.55 M triangles)</td><td class="n">39.9 s</td><td class="n">362 MB</td><td class="n">2,068 MB</td></tr>
+<!--GRASS1M-->
+</table></div>
+<h3 style="margin-top:14px">Culling and light versions (640 × 360, 16 samples)</h3>
+<div class="tbl"><table>
+<tr><th>View</th><th>Run</th><th>Made</th><th>Render</th><th>Render memory</th></tr>
+<tr><td>whole site</td><td>culling + light versions</td><td>42 trees, 29 conifers, 44 bushes, 18 rocks</td><td class="n">11.6 s</td><td class="n">160 MB</td></tr>
+<tr><td>whole site</td><td>no culling</td><td>52 / 35 / 44 / 18</td><td class="n">11.6 s</td><td class="n">160 MB</td></tr>
+<tr><td>whole site</td><td>no light versions</td><td>42 / 29 / 44 / 18</td><td class="n">11.7 s</td><td class="n">172 MB</td></tr>
+<tr><td>crane close-up</td><td>culling + light versions</td><td>31 / 24 / 37 / 18 + 7,772 grass clumps</td><td class="n">6.3 s</td><td class="n">164 MB</td></tr>
+<tr><td>crane close-up</td><td>no culling</td><td>52 / 35 / 44 / 18 + 88,085 grass clumps (1.4 M blades)</td><td class="n">6.9 s</td><td class="n">210 MB</td></tr>
+<tr><td>crane close-up</td><td>no light versions</td><td>31 / 24 / 37 / 18 + 7,772</td><td class="n">6.5 s</td><td class="n">176 MB</td></tr>
+</table></div>
+<!--FRAME4K-->
+<ol>
+<li><b>Copies, never merged.</b> Merged grass doubled the render memory and used 630 MB more in Blender as a whole, for no speed. On the
+24 GB card a million copied blades is small; merged it would be the first thing to run out. Expected, not measured.</li>
+<li><b>Culling pays where the camera sees a part of the site</b> (close-ups, eye-height shots): 11 × less grass. Seen from far away, where the
+camera sees everything, it changes nothing. <b>Snag:</b> what is culled casts no shadow into the picture and shows in no reflection; trees
+just outside the frame on the sun's side need a margin. The prototype uses 8 m for trees; the build task keeps everything within about 30 m.</li>
+<li><b>Light versions</b> saved only 12 MB on a site with under 150 plants. They are for forests and wind farms with thousands of trees,
+and for the 3D page; expected, not measured on such a site.</li>
+<li><b>Brushes.</b> 5–6 dabs a second with the plants placed again each time is too slow to paint smoothly. During a stroke only the
+ground changes; the plants follow when the brush is lifted. The terrain is split into tiles of about 32 m, and a dab writes only the tiles it
+touches: about 1 ms instead of 42–58 ms (design, from the measured full-mesh write).</li>
+<li><b>Live preview.</b> The app's Live preview (Cycles in the 3D view) is not measured here; this machine has no graphics card, and EEVEE
+took 33 s for one 640 × 360 picture of a single cube in software. Because the plants follow the scene's camera, not the 3D view, turning the
+view never places them again. Moving the camera does: 0.11–0.14 s, and then Cycles builds its scene again.</li>
+<li><b>Animations with a moving camera</b> place the plants again every frame (0.1–0.3 s a frame here, small next to the render). Option:
+cull by the whole camera path once.</li>
+</ol>
+<!--WEB-->
+
+<h2>4 · Ground materials: made by the app or scanned photos (point D)</h2>
+<p class="d">The same flat field (grass, a painted gravel strip with a natural edge), the same two views, 960 × 540, 64 samples. Scanned:
+ambientCG Grass004 and Gravel017, 2048 px colour / normal / roughness (CC0, taken from a CC0 mirror on GitHub; ambientcg.com itself was
+not reachable from this machine), tiled every 2 m, flat projection.</p>
+<div class="pics">
+<figure style="max-width:530px"><img src="img/ground_proc_eye.jpg" alt="procedural" width="520"><figcaption>Made by the app (no pictures):
+46.1 s, 149 MB.</figcaption></figure>
+<figure style="max-width:530px"><img src="img/ground_scan_eye.jpg" alt="scanned" width="520"><figcaption>Scanned photos: 23.2 s, 253 MB.</figcaption></figure>
+<figure style="max-width:530px"><img src="img/ground_proc_close.jpg" alt="procedural close" width="520"><figcaption>Closer: made by the
+app, 65.0 s.</figcaption></figure>
+<figure style="max-width:530px"><img src="img/ground_scan_close.jpg" alt="scanned close" width="520"><figcaption>Closer: scanned, 27.8 s.</figcaption></figure>
+</div>
+<div class="tbl"><table>
+<tr><th></th><th>Made by the app</th><th>Scanned (2 K)</th></tr>
+<tr><td>Render, eye height / closer</td><td class="n">46.1 / 65.0 s</td><td class="n">23.2 / 27.8 s</td></tr>
+<tr><td>Render memory</td><td class="n">149 MB</td><td class="n">253 MB (6 maps × 16 MB as Cycles holds them = 96 MB)</td></tr>
+<tr><td>Files</td><td class="n">none</td><td class="n">37 MB for two grounds (JPEG); 4 K would be ×4, 8 K ×16</td></tr>
+<tr><td>Look close up</td><td>gravel reads as flat, angular pieces</td><td>real rounded stones, real roughness</td></tr>
+<tr><td>Look far away</td><td>no repeats</td><td>repeats every 2 m show as a pattern unless broken up</td></tr>
+<tr><td>Colour per project, painted edges, wet / snow (0109)</td><td>all settings</td><td>edges and wet yes; its colour is the photo's</td></tr>
+<tr><td>3D page</td><td>baked to a picture by 0099's baker</td><td>the picture itself</td></tr>
+</table></div>
+<p><b>Recommendation:</b> keep the app's own ground as the default: no files, no repeats, any colour, and every layer paintable. Add
+<b>photo ground</b> per layer as an option from 0286's library (CC0: ambientCG, Poly Haven), with the repeats broken up (each tile turned at
+random, mixed with the app's own large-scale variation). That suits gravel, rock and close-up shots. The procedural gravel was the slowest
+part here: four Voronoi lookups a point. The build task makes a cheaper one (or bakes it to a picture once) and measures it on the 3090.</p>
+
+<h2>5 · New ready-made backgrounds (point A)</h2>
+<div class="tbl"><table>
+<tr><th>#</th><th>Background</th><th>Who needs it</th><th>What it holds</th><th>Phase 1 from today's pieces?</th></tr>
+<tr><td>1 ★</td><td><b>Building site</b></td><td>cranes, lifting plans, machines delivered</td><td>gravel, site fence, site huts (the containers stacked), barriers, pallets, skip, steel and rebar stacks</td><td>yes (+ gravel material)</td></tr>
+<tr><td>2 ★</td><td><b>Onshore wind farm</b></td><td>wind, cranes (blade lift)</td><td>meadow, crane pad, access road, turbines at real size from <code>demo_model/turbine.py</code>'s shapes, a blade on its transport</td><td>yes (+ grass, gravel, asphalt materials; turbines as Loft shapes)</td></tr>
+<tr><td>3 ★</td><td><b>Industrial yard</b></td><td>machines, vehicles, lifting</td><td>asphalt yard with lines, a hall from outside, fences, containers, pallets, lamp posts</td><td>yes</td></tr>
+<tr><td>4</td><td>Road &amp; crossroads</td><td>vehicles (0306), transport</td><td>2-lane road, markings, kerbs, pavement, lamp posts, a crossroads, grass verges</td><td>yes (straight pieces; curves need the maker)</td></tr>
+<tr><td>5</td><td>Harbour basin</td><td>cable lay, loading</td><td>today's quay on two sides, the sea between, fenders, a moored work boat as shapes</td><td>yes (extends Quayside)</td></tr>
+<tr><td>6</td><td>Meadow</td><td>a neutral outdoor ground</td><td>grass ground to the horizon, a far tree line</td><td>ground yes; grass blades and trees need the maker</td></tr>
+<tr><td>7</td><td>Beach / landfall</td><td>cable landfall, vessels (0312)</td><td>sand sloping under the sea, dunes, a foam line</td><td>partly; breaking waves are 0312's</td></tr>
+<tr><td>8</td><td>Forest edge</td><td>product shots, vehicles</td><td>trees, bushes</td><td>no (maker)</td></tr>
+<tr><td>9</td><td>Snow</td><td>anything in winter</td><td>= Meadow or Building site + 0109's snow weather</td><td>yes, through the weather</td></tr>
+<tr><td>10</td><td>Desert</td><td>rarely</td><td>sand, dunes</td><td>after the maker</td></tr>
+</table></div>
+
+<h2>6 · Build tasks – tick what you want</h2>
+<p class="d">Lanes: phase 1 is the Scene &amp; Render lane (it owns the world part of <code>surroundings.py</code>); a beach shares the sea with
+the Sea lane. The maker gets a new <b>Surroundings maker lane</b> with new files (<code>core/terrain.py</code>, <code>core/plants.py</code>,
+<code>core/buildings.py</code>, <code>core/roads.py</code>, <code>blender/terrain.py</code>, <code>ops_terrain.py</code>,
+<code>ui_terrain.py</code>) and one additive kind "Made" in <code>surroundings.py</code>.</p>
+<div id="picks">
+<div class="item"><div class="pick"><input type="checkbox" data-id="P1" checked></div><div class="body"><h3><span class="star">★</span> P1 · Six new backgrounds <span class="tag">Phase 1 · Scene &amp; Render lane · Opus · Medium</span></h3>
+<div class="why">Building site, Onshore wind farm, Industrial yard, Road &amp; crossroads, Harbour basin, Meadow (+ snow through the weather), plus new
+procedural grounds: gravel, asphalt, grass, sand, mud. Each with a tour stop, a PC-check line, function entries and a guide section.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="P2"></div><div class="body"><h3>P2 · Beach / landfall <span class="tag">Phase 1 · Sea lane · Opus · Medium · after 0312's picks</span></h3>
+<div class="why">Sand sloping under today's sea, dunes, a foam line in shallow water; breaking waves later from 0312.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M1" checked></div><div class="body"><h3><span class="star">★</span> M1 · The maker window, terrain, paint layers, Map view <span class="tag">Phase 2 · new lane · Opus · High</span></h3>
+<div class="why"><code>core/terrain.py</code> (from the prototype), terrain in 32 m tiles, the app's own brushes with a circle on the ground, 8 layers,
+one ground material, the pad, Simple | More.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M2" checked></div><div class="body"><h3><span class="star">★</span> M2 · Plants and rocks <span class="tag">Phase 2 · Opus · High · after M1</span></h3>
+<div class="why">The app's own tree (broad-leaved, conifer, later birch, poplar, palm), bush, grass and rock makers with a detailed and a light
+version; the Geometry Nodes scatter with culling (30 m kept round the camera for shadows), light versions, grass thinning; density brush and
+eraser; plants follow the ground.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M3" checked></div><div class="body"><h3><span class="star">★</span> M3 · Roads <span class="tag">Phase 2 · Opus · High · after M1</span></h3>
+<div class="why">Draw by clicks; kinds; markings; kerbs; cut and fill at a set grade; crossroads.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M4" checked></div><div class="body"><h3><span class="star">★</span> M4 · Buildings <span class="tag">Phase 2 · Opus · Medium · after M1</span></h3>
+<div class="why">Hall, office, house, warehouse, site hut; roof kinds; one facade material whose colour is each building's setting; footprint
+flattened and apron painted.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M5" checked></div><div class="body"><h3><span class="star">★</span> M5 · Water: pond, lake, river, sea shore <span class="tag">Phase 2 · Opus · High · with the Sea lane</span></h3>
+<div class="why">Fill from a point, a river line, the sea's shore from the terrain, the shore painted by the water; hands depth and shore line to 0312.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M6" checked></div><div class="body"><h3><span class="star">★</span> M6 · Presets and saving <span class="tag">Phase 2 · Opus · Medium · after M1–M5</span></h3>
+<div class="why">Save as my / department / company preset in 0272's folders; the ready presets remade with the maker (Phase 1's kinds become
+presets that the user can change).</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M7"></div><div class="body"><h3>M7 · Photo ground from the library <span class="tag">Phase 3 · Opus · Medium · after 0286's build tasks</span></h3>
+<div class="why">Scanned CC0 grounds per layer with the repeats broken up; a cheaper app-made gravel.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M8"></div><div class="body"><h3>M8 · The surroundings on the 3D page <span class="tag">Phase 3 · Web 3D lane · Opus · Medium</span></h3>
+<div class="why">The terrain on a 2 m grid, its ground baked to a picture, the light plants as GPU copies, no grass blades.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M9"></div><div class="body"><h3>M9 · Import a terrain; bumps and tracks for Vehicles <span class="tag">Phase 3 · Opus · Medium · with 0306</span></h3>
+<div class="why">Height-map picture, GeoTIFF, a mesh; the speed bump and the off-road track as presets.</div></div></div>
+<div class="item"><div class="pick"><input type="checkbox" data-id="M10"></div><div class="body"><h3>M10 · Seasons and wind <span class="tag">Phase 3 · Opus · Medium</span></h3>
+<div class="why">Leaf colour, bare trees, snow on plants (0109's snow), grass and trees moving in the wind (works with scripts off).</div></div></div>
+</div>
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+<script>
+const boxes=[...document.querySelectorAll('#picks input')];
+function upd(){document.getElementById('line').textContent='0311 pick: '+(boxes.filter(b=>b.checked).map(b=>b.dataset.id).join(', ')||'none');}
+boxes.forEach(b=>b.addEventListener('change',upd));upd();
+document.getElementById('copy').onclick=()=>{const t=document.getElementById('line').textContent;
+(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(()=>{const r=document.createRange();r.selectNode(document.getElementById('line'));getSelection().removeAllRanges();getSelection().addRange(r);});};
+</script>
+<p class="d">Made with: <code>tools/surroundings_proto/</code> – <code>terrain.py</code> (heights, brushes, layers, road cut and fill, flood
+fill), <code>shapes.py</code> (trees, conifers, bushes, grass, rocks, buildings), <code>scene.py</code> (the Blender scene, materials,
+Geometry Nodes scatter), <code>measure.py</code>, <code>clips.py</code>, <code>sketch.py</code>. Ground photos: ambientCG (CC0).</p>
+</main></body></html>
