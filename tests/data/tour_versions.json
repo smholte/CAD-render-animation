@@ -8,7 +8,7 @@
   },
   "atc": {
    "added": "0.2.47",
-   "changed": "0.2.214",
+   "changed": "0.2.215",
    "fp": "7830f99c30017193"
   },
   "cables": {
@@ -18,7 +18,7 @@
   },
   "chains": {
    "added": "0.2.78",
-   "changed": "0.2.214",
+   "changed": "0.2.215",
    "fp": "be0e2c89b4bc0c7c"
   },
   "clash": {
@@ -73,12 +73,12 @@
   },
   "flex_drawn": {
    "added": "0.2.180",
-   "changed": "0.2.214",
+   "changed": "0.2.215",
    "fp": "41cf7b9081c21f84"
   },
   "gantry": {
    "added": "0.2.47",
-   "changed": "0.2.214",
+   "changed": "0.2.215",
    "fp": "a6d02dbac6e5d927"
   },
   "hoses": {
@@ -228,12 +228,12 @@
   },
   "waycover": {
    "added": "0.2.47",
-   "changed": "0.2.214",
+   "changed": "0.2.215",
    "fp": "a653b6742ea2aea9"
   },
   "waycover2": {
    "added": "0.2.61",
-   "changed": "0.2.214",
+   "changed": "0.2.215",
    "fp": "f9a45e9696fea60b"
   },
   "weather": {

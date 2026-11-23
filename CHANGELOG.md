@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.214 – 23 Nov 2026 – Test models at real size: the gantry routers and the way covers (task 0262)
+## 0.2.215 – 23 Nov 2026 – Test models at real size: the gantry routers and the way covers (task 0262)
 
 - **The two gantry routers are 2.5 times bigger and stand on a stand.** The CNC gantry of the test tour, the PC check
   and the guide was a desk router on the floor: now its bed is 2.0 x 1.5 m (a sheet-size router) and its top is at a
@@ -17,6 +17,16 @@ installer of that version was built from.
 - Same part names, assemblies and colours as before (the routers get one more part, `MACHINE STAND`). The tour stops
   show the new sizes: the way cover's carriage now travels 1000 mm, and the drag chains' program moves further.
 
+
+## 0.2.214 – 23 Nov 2026 – Fresing Render is in Windows' "Installed apps": uninstall it from Settings (task 0265)
+
+- **Settings > Apps > Installed apps now lists Fresing Render**, with its version, "Fresing" as the publisher, its icon
+  and its size. **⋯ > Uninstall** there removes the app like any other program: a window says what goes and that your
+  projects, renders and backups stay, and closes on a key. It needs no administrator rights.
+- **Update now keeps the entry right** (the new version and size), and an install made before this version gets the
+  entry once at its next start – you do not have to install again.
+- **Uninstall.bat** in the installer folder still works and does the same.
+- New line in the self-test: "Windows: in Installed apps".
 
 ## 0.2.213 – 23 Nov 2026 – Test models at real size: the scissor lift table and the bearing unit (task 0264)
 

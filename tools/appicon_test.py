@@ -73,7 +73,10 @@ def main():
     check("refresh: a shortcut with an old name that points elsewhere left alone",
           os.path.isfile(foreign) and ai.read_shortcut(foreign)["target"].lower() == notepad.lower())
     check("refresh: the Tools folder holds the six extras",
-          sorted(os.listdir(ai.tools_dir(folder))) == sorted(ai.TOOLS.values()), os.listdir(ai.tools_dir(folder)))
+          sorted(n for n in os.listdir(ai.tools_dir(folder)) if n.endswith('.lnk')) == sorted(ai.TOOLS.values()),
+          os.listdir(ai.tools_dir(folder)))
+    check("refresh: the uninstaller and the Installed-apps entry are made (task 0265)",
+          os.path.isfile(os.path.join(ai.tools_dir(folder), 'Uninstall-FresingRender.ps1')), "; ".join(done))
     check("refresh: icon copied into the install folder", os.path.isfile(os.path.join(folder, ai.ICON_FILE)))
     check("refresh changed the older shortcuts", all(any(d.startswith(n + ":") for d in done) for n in old),
           "; ".join(done))

@@ -660,7 +660,11 @@ site/                      the landing page https://smholte.github.io/CAD-render
                            each release, on site-only pushes to main, by hand). The kit itself: .github/workflows/
                            site-kit.yml builds it (tools/make_site_projects.py --kit) and puts it on the DRAFT release
                            "site-kit" (on main when the kit or its makers change; by hand)
-installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender)
+installer/                 Install.bat / Install-FresingRender.ps1 (Windows, no admin rights, portable Blender), Uninstall.bat /
+                           Uninstall-FresingRender.ps1 (task 0265: also what Settings > Apps > Installed apps runs – the install
+                           folder's Tools\ keeps a copy, started from %TEMP%; a byte copy ships in fresing_render/installer_files/,
+                           `tests/test_installed_apps.py` says when they differ: change both; the per-user key is written by the
+                           installer, by core/installed_apps.py at the app's start and by update_helper.py after Update now)
 tools/                     build_release.py, release_tools.py (release job), test-model makers (task 0122: details from
                            model_details.py – chamfers, outlines, ISO bolts/screws/nuts – and machine_parts.py – rails,
                            guide blocks, servo motors, clamps; task 0249: rails/blocks in any direction, way-cover
