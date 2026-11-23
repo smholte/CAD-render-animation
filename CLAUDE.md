@@ -1531,5 +1531,6 @@ the release → Delete); the next run on `main` publishes it again.
   reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.
 - A branch's last commit that changes only `TASKS.md` / `tasks/` (the report + a merge of a documents-only `main`) is
   judged by ITS OWN change: pushed to `main` it starts no run, even though the push brings the task's code – no release
-  (task 0289). Put the report into a commit that also touches a document (CHANGELOG, guide) or the version, or push
-  a documents change on top afterwards (a docs run, then the release jobs).
+  (task 0289). A merge counts the same way (its change against its first parent: a merge of the lead's task files is
+  "task list only" too). Put the report into a commit that also touches a document (CHANGELOG, guide) or the version,
+  or make the NEWEST commit of the push a documents change (a docs run, then the release jobs).
