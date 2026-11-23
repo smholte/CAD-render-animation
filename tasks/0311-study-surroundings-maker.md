@@ -1,6 +1,6 @@
 # 0311 – Study + prototype (findings only): a surroundings maker – terrain, paint, plants, trees, rocks, buildings, roads, water – and new ready-made backgrounds (beach, road, building site …)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0311-study-surroundings-maker` (branch only, never
+**Who:** worker · **Status:** running · **Branch:** `task/0311-study-surroundings-maker` (branch only, never
 merged; every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "a separate background maker later with procedural plants, trees,
 rocks and such, also different types of building, and ocean, and have everything paintable. Also more backgrounds like
