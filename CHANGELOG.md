@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.220 – 23 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
+
+- **The cable test machine** (test tour "Cable over sheaves", the PC check, the user guide) is now real size: its
+  A-frame stands about 5 m tall on an 8 m base. The winch drum, the sheaves, the V rollers, the chute and the 24 mm
+  wire rope kept their real size – the rope's way is longer.
+- **The winch drum is full of wire rope**, layer on layer, and works as a winch drum (4 Motion > Drums and carousels):
+  when the rope runs, it winds off and on the drum wrap by wrap. A new picture in the user guide shows it close up.
+- **The spooling test model's carousel** is twice as big: 4 m across with a 1.28 m core, so the 40 mm power cable
+  bends round it as a real one would. It holds 665 m of cable now (was 166 m). The winch beside it is unchanged.
+- **Web 3D model:** a cable coming off a drum or carousel could show one ring more at its end than the app; the page
+  now ends it exactly where the app does.
+
 ## 0.2.219 – 23 Nov 2026 – Place: move and turn by numbers; Remove a model, subassembly or parts; a lock in every tree row (task 0292)
 
 - **2 Structure > Place** (new): select a model, a subassembly or parts and type where it goes – X / Y / Z in mm and
