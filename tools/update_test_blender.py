@@ -20,8 +20,10 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 
@@ -150,10 +152,59 @@ def settings_checks(mod) -> None:
         prefs = importlib.import_module(mod.__name__ + ".blender.prefs").get()
         got = {k: getattr(prefs, k, None) for k in SETTINGS_MARK}
         check("after the update: the settings chosen before it are in use", got == SETTINGS_MARK, got)
+        locations_checks(mod)
+
+
+def forget_locations(mod) -> None:
+    """Task 0272: as a version from before 0272 left it – no locations file and no ready-made folders (the old build
+    here is today's code: its start made them; an empty ready-made folder is taken away again)."""
+    try:
+        loc = importlib.import_module(mod.__name__ + ".blender.locations")
+        core = importlib.import_module(mod.__name__ + ".core.locations")
+    except ImportError:
+        return
+    if os.path.isfile(loc.path()):
+        os.remove(loc.path())
+    root = core.ready_root(loc.documents())
+    if os.path.isdir(root) and not any(files for _d, _s, files in os.walk(root)):
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def locations_checks(mod) -> None:
+    """Task 0272: an update from a version without locations – no library folder set: the ready-made folders are
+    made and on; a library folder set: it becomes the own folder of every kind (the second case at a start done
+    again here: the locations file taken away, the folder set, the start's load run again)."""
+    loc = importlib.import_module(mod.__name__ + ".blender.locations")
+    core = importlib.import_module(mod.__name__ + ".core.locations")
+    prefs = importlib.import_module(mod.__name__ + ".blender.prefs").get()
+    root = core.ready_root(loc.documents())
+    st = loc.state()
+    made = all(os.path.isdir(os.path.join(root, k.sub)) for k in core.KINDS)
+    on = all(any(f["on"] and f.get("ready") for f in st["mine"][k.key]) for k in core.KINDS)
+    check("after the update, no library folder before: the ready-made folders are made and on", made and on
+          and st["migrated"], root)
+    lib = tempfile.mkdtemp(prefix="old library é ")
+    was = prefs.library_path
+    try:
+        prefs.library_path = lib
+        os.remove(loc.path())
+        loc.forget()
+        loc.load()
+        got = [loc.mine_list(k.key) for k in core.KINDS]
+        check("after the update, a library folder before: it is the own folder of every kind",
+              all(g and g[0]["path"] == os.path.join(lib, k.sub) and g[0]["on"] for g, k in zip(got, core.KINDS)),
+              got[0])
+    finally:
+        prefs.library_path = was
+        if os.path.isfile(loc.path()):
+            os.remove(loc.path())
+        loc.forget()
+        loc.load()
 
 
 def before_checks(mod) -> bool:
     write_settings_mark()
+    forget_locations(mod)
     upd = importlib.import_module(mod.__name__ + ".blender.updates")
     check("old version installed", mod.__version__ == OLD or not OLD, mod.__version__)
     check("installed as an extension", upd.extension_repo() != "", upd.extension_repo())

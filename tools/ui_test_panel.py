@@ -293,14 +293,13 @@ def s_family():
 @step
 def s_own():
     """An own workspace: one file; a colleague's library folder gets it by copying the file, then Refresh."""
-    workspaces, prefs = mod("blender.workspaces"), mod("blender.prefs")
+    workspaces, locations = mod("blender.workspaces"), mod("blender.locations")
     sc = bpy.context.scene
-    p = prefs.get()
     mine, theirs = os.path.join(S["tmp"], "my library"), os.path.join(S["tmp"], "colleague's library")
     os.makedirs(mine)
     os.makedirs(theirs)
-    S["lib_before"] = p.library_path
-    p.library_path = mine
+    S["lib_before"] = locations.L.deep(locations.state()["mine"])
+    locations.set_mine_root(mine)                             # task 0272: the own folders (was the library folder)
     workspaces.forget_scan()
     with override():
         bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name=mod("core.workspaces").NAMES["cnc"])
@@ -309,7 +308,7 @@ def s_own():
     files = os.listdir(os.path.join(mine, "Workspaces")) if os.path.isdir(os.path.join(mine, "Workspaces")) else []
     check("Save as my own: one file in the library folder Workspaces", res == {"FINISHED"}
           and files == ["Mill demos.json"] and sc.fresing.ws_name == "Mill demos", str(files))
-    p.library_path = theirs                                   # the colleague's PC
+    locations.set_mine_root(theirs)                           # the colleague's PC
     workspaces.forget_scan()
     check("the colleague does not have it yet", not workspaces.is_own("Mill demos"))
     check("the project still shows the same without the file", not workspaces.family_on(sc, "web")
@@ -328,7 +327,9 @@ def s_own():
         bpy.ops.fresing.workspace_delete("EXEC_DEFAULT", True)
     check("Delete deletes the file; the project keeps its copy", os.listdir(os.path.join(theirs, "Workspaces")) == []
           and not workspaces.family_on(sc, "web"))
-    p.library_path = S["lib_before"]
+    locations.state()["mine"] = S["lib_before"]
+    locations.look_again()
+    locations.save_state()
     workspaces.forget_scan()
     with override():
         bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name="Full access")

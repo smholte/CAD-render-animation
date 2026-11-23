@@ -29,14 +29,14 @@ It is free software under **GPL-3.0-or-later** (see "The licence in plain words"
 | the **Toolbox folder** (task 0217) | `%USERPROFILE%\Toolbox\` (made when missing; `TOOLBOX_HOME` names another folder): `toolbox-folder.json` and the app's own `tools\nl.fresing.render\` – its description `toolbox.json`, `alive.json` while it runs, and `inbox\` where other tools on this PC (House Planner) leave files for it. `Uninstall.bat` removes only `tools\nl.fresing.render\` |
 
 What it writes while it works: the user's **projects** (`.blend`) where the user saves them; **renders** in a "Renders"
-folder next to the saved project (or `Pictures\Fresing Render`); a **cache** of read STEP files in the extension's user
+folder next to the saved project (or `Pictures\Fresing Render`; or an export place of Fresing > Settings… > Exports); a **cache** of read STEP files in the extension's user
 folder (`…\cache\`, so the same file opens fast the next time); the **self-test and PC-check reports** on the Desktop;
 the **logs** named above. `Uninstall.bat` removes the install folder; projects and renders are not touched. The installer writes no registry keys and
 starts no service (searched in `Install-FresingRender.ps1`).
 
 ## The user's settings (one file)
 
-Everything a user sets in **Fresing > Settings…** (library folder, default template, rule set and workspace, the
+Everything a user sets in **Fresing > Settings…** (default template, rule set and workspace, the
 lesson look, backups, update checks …) is kept in **one file**, `…\portable\config\fresing_settings.json`
 (task 0283; Blender itself forgets an add-on's preferences while the app's layout is on). It is plain JSON:
 `{"format": "fresing-settings", "version": 1, "settings": {…}}`, holding only the settings that differ from the
@@ -45,11 +45,52 @@ of a change (a temporary file, then a rename). An update – **Update now** or t
 leaves it as it is; `Uninstall.bat` removes it with the install folder, like the other files in `config\`.
 
 **To give every PC the same settings:** set them once on one PC, then copy that file into `…\portable\config\` of
-the others (with the app closed). Paths in it (the library folder, the default template) must exist on each PC – a
+the others (with the app closed). Paths in it (the default template) must exist on each PC – a
 network share works. A file that cannot be read is not used: the app starts with the defaults, keeps the file as
 `fresing_settings.broken-<date>-<time>.json` and shows one line in Settings > General. A file from a newer version
-of the app is read for what this version knows; the rest is kept. (A set-up file for whole departments, with
-locations and more, follows with task 0272.)
+of the app is read for what this version knows; the rest is kept. For folders, export places and settings for a
+whole company or department there is the **set-up file** (below).
+
+## Set up locations for everyone (one set-up file)
+
+The app reads models, logos, stickers, materials, 360° photos, templates, rule sets, workspaces, brand kits and lifting
+equipment from **folders per kind**, each marked **Company**, **Department** or **Mine** (Fresing > Settings… >
+Locations). A company or department hands out its folders, export places and settings as **one file**,
+`<name>.frsetup` – a zip with a `setup.json` and, if wanted, the content itself in folders named `STEP models`,
+`Materials`, `Logos`, `Stickers`, `HDRI`, `Templates`, `Rule sets`, `Workspaces`, `Brand kits`, `Lifting equipment`
+(so a firm without a network share can hand out everything in one file). Example `setup.json`:
+
+```json
+{"format": "fresing-setup", "format_version": 1, "id": "acme-standard", "name": "Acme standard",
+ "level": "company", "label": "Acme", "version": 4, "date": "2026-11-23", "made_by": "IT",
+ "settings": {"default_rule_set": "Acme", "default_workspace": "CNC milling"},
+ "locations": {"logos": ["\\\\server\\share\\Fresing\\Logos"], "rule_sets": ["Rule sets"],
+               "step": ["S:\\Engineering\\STEP"]},
+ "exports": [{"name": "Marketing share", "path": "\\\\server\\marketing\\Renders", "project_sub": true}]}
+```
+
+- **Paths** may be UNC (`\\server\share\…`), a mapped drive, a local path, or **relative to the set-up file** (as
+  `Rule sets` above): a set-up kept in a folder synced by OneDrive / SharePoint works wherever that folder lands.
+- **The `id` makes it the same set-up**, whatever the file is called: a file with the same id and a higher `version`
+  is offered as an update with the list of what changes. **Fresing > Settings… > Locations > Save as a set-up file…**
+  writes one from a PC that is set up (and raises the version when saving over the old one); **Edit this set-up
+  file…** writes back a set-up in use.
+- **Bring it to every PC:** put it in the folder of the approved version (the folder `Install.bat -UpdateUrl` points
+  at, [below](#holding-one-approved-version)) – every PC picks it up by itself at its next start, linked: when you
+  replace it there with a newer version, every PC updates at its next start. Or each user adds it with **Add a set-up
+  file…** (copy or link) or drops it on the app window. A PC whose first start of this version finds such a set-up
+  makes the user's own folders but switches them off, with one note.
+- **Who may change it:** Windows' file rights on the set-up file and its folders are the only guard; make them
+  read-only for users. Folders users cannot write to are never offered for saving.
+- **The app keeps** a copy of each set-up and its unpacked content in `…\portable\config\fresing_setups\`, and the
+  user's folders, set-ups and export places in `…\portable\config\fresing_locations.json`. A folder that cannot be
+  reached (network down, VPN off) is looked at in the background and left out until it answers – the app never waits
+  for it.
+- **Refused** with a plain message: a file that is not a Fresing set-up or is damaged, content of an unknown kind, a
+  path that would write outside its folder, a single file over 200 MB or more than 1 GB in all. A set-up from a newer
+  app is read for what this version knows; what is left out is named.
+- **Export places** in a set-up show next to **Next to the project (Renders)** – the standard – and
+  **Pictures\Fresing Render\<project>**; "project_sub" puts each project's outputs in a folder of its own.
 
 ## Your files stay on your PC
 
@@ -61,6 +102,7 @@ locations and more, follows with task 0272.)
 | 2 | **Update download**: the extension zip of the new version, checked against the size and SHA-256 in `index.json` | only when the user clicks **Update now** | the address in `index.json` (a GitHub release file) | `core/updates.py` 311 (`download`); `blender/updates.py` 311 (`start_download`) |
 | 3 | **The same check, once**, inside the self-test and the PC-check line "Update check" | when the user runs them | as 1 | `selftest.py` 238–258; `pccheck/checks.py` 4261 |
 | 4 | **Links that open the web browser** | only when the user clicks one: "What's new" release page, "How to get free 360° photos" | `github.com/smholte/CAD-render-animation` pages | `blender/updates.py` 652; `blender/welcome.py` 501; `blender/ui.py` 38 and 990 |
+| 6 | **Folders on your own file shares** (task 0272): the folders of Locations, a linked set-up file, the set-up file in the approved version's folder – read like any file on the share, never the internet | at the start and in the background while the app runs (each folder at most every 30 s), when a list is shown, when the user clicks Look again | the paths in the set-up files and the user's own folders | `core/locations.py` 638 (`Reach._look`), 168 (`read_setup`), 304 (`unpack`); `blender/locations.py` 174 (`install`), 239 (`refresh`), 274 (`approved_folder`), 296 (`pick_up`), 445 (`items`) |
 | 5 | **The installer downloads Blender** | at install time, unless `blender-5.2.3-windows-x64.zip` is put next to `Install.bat` | `https://download.blender.org/release/Blender5.2/` (an old PowerShell may use BITS) | `installer/Install-FresingRender.ps1` 52 (address), 128 and 133 (transfer) |
 
 The request carries only `FresingRender/<version> (update check)` as its `User-Agent` (`core/updates.py`, `user_agent`) –

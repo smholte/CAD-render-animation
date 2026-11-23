@@ -137,7 +137,7 @@ def setups() -> list:
                 if f"{e.get('id')}: {exc}" not in _S["notes"]:
                     _S["notes"].append(f"{e.get('label') or e.get('name') or e.get('id')}: {exc}")
                 continue
-            base = os.path.dirname(e.get("source") or f) if e.get("mode") == "link" else os.path.dirname(f)
+            base = os.path.dirname(e.get("source") or f)        # relative folders: next to the file as it was given
             out.append((s, base, os.path.join(setups_dir(), s.id)))
         _S["setups"] = out
     return _S["setups"]
@@ -278,19 +278,22 @@ def approved_folder() -> str:
     if env:
         return env
     try:
+        from ..core import updates as core_updates
         from . import updates
         url, _source = updates.index_url()
+        path = core_updates.local_path(url, windows=os.name == "nt") if url else ""
     except Exception:  # noqa: BLE001
         return ""
-    if not url or url.lower().startswith(("http://", "https://")):
+    if not path:
         return ""
-    if url.lower().startswith("file:"):
-        from urllib.parse import unquote, urlparse
-        u = urlparse(url)
-        url = unquote(("//" + u.netloc if u.netloc else "") + u.path)
-        if os.name == "nt" and url.startswith("/") and len(url) > 2 and url[2] == ":":
-            url = url[1:]
-    return url if os.path.isdir(url) else os.path.dirname(url)
+    # decided from the text, never by asking the disk: a server that does not answer must not hold up the start
+    import ntpath
+    import posixpath
+    paths = ntpath if os.name == "nt" else posixpath
+    return paths.dirname(path) if path.lower().endswith(".json") else path.rstrip("\\/")
+
+
+_PICKED: dict = {}               # file in the approved folder -> its stamp when it was last read
 
 
 def pick_up() -> list:
@@ -305,6 +308,10 @@ def pick_up() -> list:
         return []
     for n in names:
         src = os.path.join(folder, n)
+        stamp = _stamp(src)
+        if _PICKED.get(src) == stamp:             # read once; a changed file is taken in by refresh (linked)
+            continue
+        _PICKED[src] = stamp
         try:
             s = L.read_setup(src)
         except L.SetupError as exc:
@@ -482,7 +489,7 @@ def _can_write(path: str) -> bool:
     hit = _WRITABLE.get(path)
     if hit is not None and now - hit[1] < REACH.ttl:
         return hit[0]
-    ok = os.access(path, os.W_OK)
+    ok = L.writable(path)                 # a real try (Windows' os.access says yes to every folder)
     _WRITABLE[path] = (ok, now)
     return ok
 
@@ -527,6 +534,13 @@ def save_folder(kind: str, make: bool = True) -> str:
             return ""
         made(p)
     return p
+
+
+def look_again() -> None:
+    """Every folder looked at again (Refresh / Look again buttons): the last answers stay until the new ones come."""
+    REACH.forget()
+    _WRITABLE.clear()
+    _changed()
 
 
 def made(folder: str) -> None:

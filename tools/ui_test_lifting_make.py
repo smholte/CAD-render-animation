@@ -144,7 +144,7 @@ def s_start():
     log("extension", pkg())
     press("ESC")                                      # the splash screen first (CLAUDE.md 8)
     L().set_understood(True)
-    mod("blender.prefs").get().library_path = LIB_ROOT
+    mod("blender.locations").set_mine_root(LIB_ROOT)  # task 0272: the own folders (was the library folder)
     return 2.0
 
 

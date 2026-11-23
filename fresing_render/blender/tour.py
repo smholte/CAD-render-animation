@@ -5278,6 +5278,40 @@ stop("settings", OUT, HUB_SET, "Fresing Settings",
      where="Fresing menu > Settings…; the gear on the left panel", since="0.2.201",
      shot="Tour view", check=_check_settings, auto=lambda ctx, scene, st: "")
 
+def _check_locations(scene):
+    """Task 0272: Locations and Exports in Fresing Settings – what the tour reads only (the user's own folders and
+    set-ups are never changed by the tour): both tabs draw, every kind has its folders, every output has its folder,
+    and a set-up file made in a temporary folder reads back with its change list."""
+    import bpy
+    import tempfile
+
+    from ..core import locations as L
+    from . import locations, ui_settings
+    drawn = ui_settings.draw_all(bpy.context)
+    _check("locations" in drawn and "exports" in drawn, f"only these tabs draw: {', '.join(drawn)}")
+    for op in ("loc_setup_add", "loc_setup_save", "loc_folder_add", "loc_place_add", "out_place"):
+        _check(hasattr(bpy.ops.fresing, op), f"the button fresing.{op} is missing")
+    folders = {k.key: locations.folders(k.key, include_off=True) for k in L.KINDS}
+    _check(all(folders.values()), "a kind has no folder: " + ", ".join(k for k, v in folders.items() if not v))
+    _check(bool(locations.output_dir(scene)), "the outputs have no folder")
+    with tempfile.TemporaryDirectory(prefix="fr_tour_setup ") as tmp:
+        a, b = os.path.join(tmp, "Ours.frsetup"), os.path.join(tmp, "Ours renamed.frsetup")
+        L.write_setup(a, L.Setup(id="tour", name="Ours", version=1))
+        L.write_setup(b, L.Setup(id="tour", name="Ours", version=2, locations={"logos": ["\\\\server\\Logos"]}))
+        lines = L.changes(L.read_setup(a), L.read_setup(b))
+    _check("Version 1 → 2" in lines, f"a renamed newer set-up gave {lines}")
+    return (f"{len(L.KINDS)} kinds, {sum(len(v) for v in folders.values())} folders; "
+            f"{len(locations.places())} export places; {len(locations.setups())} set-ups")
+
+
+stop("locations", OUT, HUB_SET, "Locations and Exports",
+     "Fresing > Settings…, the tabs Locations and Exports. Locations: Set-up files at the top (Add a set-up file…, "
+     "Save as a set-up file…), Different from standard, then a fold per kind (STEP models, Materials, Logos …) with "
+     "its folders – each with its badge (Company, Department, Mine). Exports: the export places, the default one "
+     "ticked, Also save a copy to. 5 Scene & Render > Render image > Files: Save to shows the project's place.",
+     where="Fresing menu > Settings… > Locations, Exports", since="0.2.209",
+     shot="Tour view", check=_check_locations, auto=lambda ctx, scene, st: "")
+
 def _check_learn(scene):
     """Learn as you go (task 0208): its buttons, the menu line, and its rules on a made-up user (the user's own usage
     file is never touched by the tour)."""

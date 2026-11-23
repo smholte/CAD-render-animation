@@ -93,8 +93,11 @@ def names() -> list:
     own = {n: v for n, v in library().items() if W.key_of(n) not in W.RESERVED}
     low = {n.casefold() for n in own}
     out = [(n, W.BUILTIN[k][1], False) for k, n in W.NAMES.items() if n.casefold() not in low]
-    out += [(n, ws.note or "Your own workspace", True) for n, (_p, ws) in sorted(own.items(),
-                                                                                key=lambda kv: kv[0].casefold())]
+    from . import locations
+    for n, (path, ws) in sorted(own.items(), key=lambda kv: kv[0].casefold()):
+        badge = locations.badge_of(path, "workspaces")             # task 0272: where it comes from
+        note = ws.note or "Your own workspace"
+        out.append((n, note + (f" ({badge})" if badge and badge != "Mine" else ""), True))
     return out
 
 

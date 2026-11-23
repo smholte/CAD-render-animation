@@ -39,8 +39,13 @@ def _number(name: str, used: set[int]) -> int:
 
 
 def _library_entries() -> list:
-    return [(name, name, _describe(rs), "FILE")
-            for name, (_p, rs) in sorted(rule_sets.library().items(), key=lambda kv: kv[0].casefold())]
+    """The library's rule sets, each labelled with where it comes from (task 0272: "Acme  ·  Company")."""
+    out = []
+    for name, (path, rs) in sorted(rule_sets.library().items(), key=lambda kv: kv[0].casefold()):
+        badge = locations.badge_of(path, "rule_sets")
+        label = f"{rs.name}  ·  {badge}" if badge else name
+        out.append((name, label, _describe(rs), "FILE"))
+    return out
 
 
 def _numbered(entries: list, first=None) -> list:

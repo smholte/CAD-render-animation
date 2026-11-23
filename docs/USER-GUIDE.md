@@ -213,8 +213,8 @@ the Workspace row says so, with **Show**.
 1. Pick the workspace that is closest and set the ticks the way you want them.
 2. Press **Save as my own…**, give it a name ("Offshore cranes", "Mill demos") and press **Save**.
 
-Your workspace is one file in the library folder **Workspaces** (in the shared library when one is set
-in the preferences, else in Documents\Fresing Render). **A colleague gets it by copying that file into
+Your workspace is one file in your **Workspaces** folder ([Locations](#locations): your own one first,
+`Documents\Fresing Render\Library\Workspaces` from the start). **A colleague gets it by copying that file into
 his own Workspaces folder** and pressing **Refresh**. **Show in folder** opens the folder; **Rename…**
 and **Delete…** work on your own workspaces only – the built-in ones cannot be changed. A workspace of
 your own with the name of a built-in one is used instead of it, and the panel says so. A project keeps
@@ -334,7 +334,9 @@ On Windows it opens where it was and as big as you left it. It also opens in the
 
 | Tab | What is there |
 | --- | --- |
-| **General** | The shared library folder, the default template, the default rule set, the workspace for new projects, the highlight while you pick on the model |
+| **General** | The default template, the default rule set, the workspace for new projects, the highlight while you pick on the model |
+| **Locations** | The folders the app reads from – STEP models, materials, logos, stickers, 360° photos, templates, rule sets, workspaces, brand kits, lifting equipment – of your company, your department and your own; set-up files ([below](#locations)) |
+| **Exports** | Where pictures, videos and 3D pages go; the default place; also a copy to a second place ([below](#export-places)) |
 | **Side panel** | Keep sections as I left them, keep How it works open, the favourites bar (on/off, how many buttons), the quiet questions about unused panels (hide, teach, after how many starts) and **Suggest what to learn next** |
 | **Lessons** | How a lesson shows the button, a folded section and a part; its colour; **Play on** |
 | **Backups** | The [automatic backups](#backups): on/off, every how many minutes, how many are kept |
@@ -342,11 +344,13 @@ On Windows it opens where it was and as big as you left it. It also opens in the
 | **My usage** | What the app counted about your work ([below](#my-usage)) |
 | **About** | Version, licence, third-party licences, using it in a company ([About](#about-licences)) |
 
-<img class="panel" src="img/settings_general.png" alt="Fresing Settings, tab General: the tabs along the top, the library folder, template, rule set, workspace for new projects">
+<img class="panel" src="img/settings_general.png" alt="Fresing Settings, tab General: the tabs along the top, template, rule set, workspace for new projects">
 <img class="panel" src="img/settings_panel.png" alt="Fresing Settings, tab Side panel: sections, How it works, the favourites bar and the questions about unused panels">
 <img class="panel" src="img/settings_lessons.png" alt="Fresing Settings, tab Lessons: button, folded section, part, colour, Play on">
 <img class="panel" src="img/settings_backups.png" alt="Fresing Settings, tab Backups: the switch and the three numbers">
 <img class="panel" src="img/settings_updates.png" alt="Fresing Settings, tab Updates: check at start-up, Check now, the installed version">
+<img class="panel" src="img/settings_locations.png" alt="Fresing Settings, tab Locations: set-up files, Different from standard, a fold per kind with its folders">
+<img class="panel" src="img/settings_exports.png" alt="Fresing Settings, tab Exports: the export places, the default, Also save a copy to">
 <img class="panel" src="img/settings_about.png" alt="Fresing Settings, tab About: version, licence and the licence buttons">
 
 **Your settings are kept for you – nothing to save.** Whatever you change here (and choices the app remembers by
@@ -359,6 +363,72 @@ again and they are kept as before. Where the file is, and how IT can give the sa
 
 **Edit > Preferences > Add-ons > Fresing Render** now only says where the settings are and has a button **Open
 Fresing Settings**. Your settings from before stay as they were.
+
+<a id="locations"></a>
+### Locations: the folders the app reads from
+
+Every place the app takes things from – **STEP models, materials, logos, stickers, backgrounds (360° photos),
+templates, rule sets, workspaces, brand kits, lifting equipment** – can have **several folders**, each with a badge:
+
+- **Company** and **Department** folders come from a **set-up file** that whoever looks after the app at your firm
+  gives you (one file, `<name>.frsetup`).
+- **Mine** are your own folders. From the first start you have one per kind, ready to use:
+  `Documents\Fresing Render\Library\Logos`, `…\Rule sets`, `…\Lifting equipment` and so on – nothing to set up.
+  If you had set a **Shared library** folder in an older version, that folder is your own one now (with its
+  sub-folders as before); nothing is moved.
+
+Every list in the app – logos and stickers, rule sets, templates, 360° photos, brand kits, your workspaces, lifting
+equipment – shows the items of **all** these folders together, sorted by name, each with its badge
+(**Acme · Company**, **Acme · Mine**). The same name in two folders shows twice: nothing hides anything.
+**Saving** something new (a rule set, a workspace, a crane) goes into the first folder you can write to, your own
+first; when you can write into more than one, the dialog asks **Save in**.
+
+**Fresing Settings > Locations** shows, from the top:
+
+1. **Set-up files.** Each with its badge and version (**Company v4**), linked or copied, and the buttons
+   **Show changes**, **Edit this set-up file…** and **Remove**. Under them **Add a set-up file…**, **Save as a set-up
+   file…** and **Look again** (every folder is looked at again).
+2. **Different from standard** (a fold): every setting and folder that is not as the app comes, with where it comes
+   from (Company v4, Offshore department v2, Mine); your own rows have **Back to standard**.
+3. **Folders**, one fold per kind: each folder with its badge and path. Your own ones can be switched off and on
+   (an off folder is not read and nothing is saved into it), moved up and down (the top one is where new things go)
+   and removed (nothing in it is deleted); **Add a folder…** adds one. **Show in folder** opens it in Explorer.
+
+**A folder that cannot be reached** (the network is down, the VPN is off) shows greyed with one line why; its items
+are left out of the lists until it is back. The app never waits for it: it is looked at in the background, so the
+start and the panels stay quick.
+
+**Bring a set-up file in:** **Add a set-up file…**, or drop the file on the 3D view. **Keep it** chooses: **link** (the
+app reads the file where it lies – a network folder or a synced one – and takes a changed one at its next start; the
+default for a network path) or **copy** (the app keeps its own copy). Its folders, export places and settings are then
+in use. A set-up file put by IT next to the approved version (see [Using it in a company](#about-licences)) is
+picked up by itself. **When such a set-up was there before your first start**, your own folders are made but
+**switched off**, and one note says so: **Switch my folders on** turns them all on, or switch them on per kind.
+
+**A newer set-up file**, whatever its file name: the app knows it is the same set-up (by its id) and shows
+**Update Offshore department from version 3 to 4?** with the list of what changes – settings, folders, content added,
+changed or removed. **Update**, or Cancel to keep the old one. An older file says so first. A linked set-up that
+changed on the network is updated by itself at the next start, with one line "Company set-up updated (3 → 4)" and
+**Show changes**.
+
+**Save as a set-up file…** makes one from your own settings, folders and export places: give it a name, a level
+(Company or Department) and a label, tick what goes in, and which of your folders' **content** is packed inside the
+file (so a colleague without the network share gets the logos or rule sets too). Saved over a file of the same
+set-up, its version goes up by itself. **Edit this set-up file…** does the same on a set-up in use and writes it back
+where it lies – only when Windows lets you write there.
+
+<a id="export-places"></a>
+### Exports: where pictures, videos and 3D pages go
+
+**Fresing Settings > Exports** lists the **export places**: **Next to the project (Renders)** – the standard, as before
+– and **Pictures\Fresing Render\<project>** come with the app; a set-up file can add places (e.g. "Marketing
+share"), and **Add an export place…** adds your own (with or without a folder per project). The ticked one is the
+**default**. **Also save a copy to** saves a second copy of every picture, every video from the queue and every
+3D page into another place, after the output itself is saved.
+
+Each project's outputs show **Save to** – in 5 Scene & Render > Render image > Files & graphics card, in 7 Render
+queue and in the Web 3D model panel: **Default** or any place of the list. A folder typed into **Own folder** (as in
+older versions) wins over it.
 
 <a id="blender-editors"></a>
 ### Blender's Outliner and Properties (hidden)
@@ -712,11 +782,11 @@ project does not use. Switch it off with **Suggest what to learn next** in Setti
 ### Profiles: your side panel as one file
 
 **Export profile…** saves the project's workspace together with your favourites bar (its pins, on/off, size) and
-the panels you hid (kept apart from the workspace's own settings), as one file in the library folder **Workspaces** – the same kind of file as
+the panels you hid (kept apart from the workspace's own settings), as one file in your **Workspaces** folder – the same kind of file as
 [your own workspaces](#own-workspaces), with the bar added. Your usage counts go in only when you tick **Include my
 usage counts**. The project uses the profile from then on.
 
-**Import profile…** takes such a file (from a colleague, or one a team keeps in the shared library): it is copied
+**Import profile…** takes such a file (from a colleague, or one a team keeps in a shared folder): it is copied
 into your Workspaces folder – replacing your own workspace of the same name –, the project switches to it and your
 favourites bar takes its pins; the panels it hides are added to your own, so **Back to the workspace as it came**
 (Settings > My usage) shows them again. Counts in the file are added to yours only when you tick **Add the usage counts in
@@ -1127,9 +1197,10 @@ and cannot be changed; make a copy to change it.
 - **Rename…** and **Delete…**. Projects that use the rule set keep their own copy of it.
 - **New projects**: the rule set every new project starts with (also in Edit > Preferences >
   Add-ons > Fresing Render, **Default rule set**).
-- Rule sets are files in the folder `Rule sets` in the shared library, so colleagues use the same ones.
-  **Show in folder** opens it. Without a shared library they are kept on this PC, in
-  `Documents\Fresing Render\Rule sets`.
+- Rule sets are files in the **Rule sets** folders of [Locations](#locations): the company's, a department's and
+  your own, so colleagues use the same ones. The list shows them all, each with its badge (**Acme · Company**); the
+  same name in two folders is listed twice. **Save as new…** asks where when you can write into more than one
+  folder (your own first). **Show in folder** opens the folder new ones go to.
 
 **Good to know**
 
@@ -1211,10 +1282,9 @@ but not shown or rendered) and × removes it (<kbd>Ctrl</kbd>+<kbd>Z</kbd> bring
 
 **All decals in this project** lists every decal; a click on one clicks its part. **Library of logos
 and stickers**: put your logos as PNG files in the folder `Logos`, and stickers of your own in
-`Stickers`, of the [shared library](#schemes) – the same library as the rule sets and templates.
+`Stickers` ([Locations](#locations): your own, and the company's and department's – each picture shows its badge).
 They then show in the list next to Picture. The panel has two rows, **Logos** and **Stickers**, each with
-**Show in folder**, which opens that folder. Without a shared library these folders are in
-Documents\Fresing Render.
+**Show in folder**, which opens your own folder of that kind.
 
 Good to know:
 
@@ -1338,12 +1408,12 @@ decides. The order is: fasteners → part type → CAD material → CAD colour �
 - A **paint scheme** stores the material and colour of every group, for example "Customer blue" and
   "Fresing grey". **+** saves the colours you have now; **Use** switches every group at once.
 - A **template** keeps the rule set, paint schemes, background and image settings, and the logos and
-  stickers on parts ([Logos & stickers](#decals)), for the next project. **Save** writes a template file, **Load** reads one, **Library** picks one from the shared
-  library.
-- The **shared library** is a folder, for example on the network, with a folder `HDRI` (360° photos),
-  a folder `Templates`, a folder `Rule sets` and the folders `Logos` and `Stickers`. Set it once: Fresing > Settings… > General >
-  **Shared library**. **Default template** there is used for every new import; **Default rule
-  set** is the rule set new projects start with.
+  stickers on parts ([Logos & stickers](#decals)), for the next project. **Save** writes a template file, **Load** reads one, **Library** picks one from your
+  Templates folders.
+- The folders the app reads from – 360° photos, templates, rule sets, logos, stickers and more – are set in
+  [Fresing Settings > Locations](#locations): your own ones are ready from the first start, a company or department
+  adds its own with one set-up file. **Default template** and **Default rule set** (Fresing Settings > General) are
+  used for every new import.
 
 <a id="motion"></a>
 ## 4 Motion – joints, poses and exploded views
@@ -3164,7 +3234,7 @@ The 3D view sees as far as the scene reaches (the sea, the wind park), so nothin
   With **Stand on its ground** ticked, the photo's floor lies flat under the machine and catches its
   shadow, so the machine stands in the photo. **Photo taken at** is the height the photo was taken
   from (most: 1.5–2 m): change it until the machine has the right size against the photo's floor.
-  The small icon next to **Photo** picks a photo from the shared library; **How to get free 360°
+  The small icon next to **Photo** picks a photo from your Backgrounds folders ([Locations](#locations)); **How to get free 360°
   photos** opens a list of good free photos (harbours, workshops, halls) and how to add them.
 - **Offshore**: **Open sea**, **Vessel deck**, **Quayside** – sea to the horizon under a sky with a
   sun.
@@ -4418,8 +4488,8 @@ plays everywhere.
 
 A brand kit is a company's look for its videos and pictures: the logo, two colours, a font and a contact
 line. You work for your own company and for others, so there is one kit per company; every project uses
-one, and a kit is stored in the shared library (the folder **Brand kits**, next to **Rule sets**; without a
-shared library it is in your Documents folder, under Fresing Render).
+one, and a kit is stored in your **Brand kits** folder ([Locations](#locations)); **Load a kit** lists the kits of
+every Brand kits folder – the company's too – each with its badge.
 
 The kit **Fresing** comes with the app (Fresing's logo and colours). It is always in the list of kits and cannot
 be changed or deleted: load it, give it another name and **Save kit** to make a copy of your own.
@@ -4597,7 +4667,7 @@ before that. The app remembers it for you (a preference), so it asks once per us
 <img class="panel" src="img/panel_8_lifting_equipment.png" alt="Equipment: the placed AT-40, its poses, the counterweight and outrigger spread its chart is picked for">
 
 1. Open **Equipment**. Under **Add a crane from the library** the cranes that come with the app are listed by kind
-   (mobile, crawler, knuckle-boom) and size class, then your own items from the library folder **Lifting equipment**
+   (mobile, crawler, knuckle-boom) and size class, then your own items from your **Lifting equipment** folders ([Locations](#locations))
    (see [Own lifting equipment](#lifting-equipment)). An item with a problem in its file shows the problem in red and
    cannot be placed.
 2. Click a crane: its picture shows. Click **Place AT-40…** (or **Place a crane…** at the top of the section).
@@ -4711,8 +4781,8 @@ The lift path with checks along it, ground pressure and the printed plan come in
    planned to share the load (C3): *Two legs carry* (a rigid load, the usual rule), *Equal share* (only with
    equalisers) or *Share x 1.25* (offshore, DNV). Gear not picked when you hang: the smallest built-in chain sling and
    shackle that carry the legs' forces are picked and shown. The built-in gear is invented SAMPLE gear in usual size
-   classes; your own slings, shackles and spreaders are files like your cranes in the library folder "Lifting
-   equipment".
+   classes; your own slings, shackles and spreaders are files like your cranes in your "Lifting
+   equipment" folder.
 3. The **rigging mass** (slings, shackles, the spreader) is added to the gross load (Load and Hook & capacity).
 
 <a id="lifting-hang"></a>
@@ -4830,7 +4900,7 @@ cab while folded) are a grey line only – narrow the joint's limits, or go on w
 there; the hook block counts only in the poses (in a sweep it hangs wherever the rope is). Each line has **Go to
 step**.
 
-**Save** writes the crane into your library folder "Lifting equipment" (Preferences > library folder): its file,
+**Save** writes the crane into your "Lifting equipment" folder ([Locations](#locations); one is ready from the first start): its file,
 a copy of the STEP and a small picture of the view. Never into the built-in samples. Place it from 8 Lifting plan >
 Equipment in any project, as a built-in.
 <a id="lifting-make"></a>
@@ -5036,8 +5106,8 @@ update that is outside them, the app says so – download the kit's newer versio
 ## Own lifting equipment (file format)
 
 The cranes of this library are placed in 8 Lifting plan ([above](#lifting)); the files for your own cranes,
-forklifts, hoists and rigging gear are written by hand. **One item = one folder** in your library folder
-(the one set in the app's preferences), in a sub-folder **Lifting equipment**:
+forklifts, hoists and rigging gear are written by hand. **One item = one folder** in a **Lifting equipment** folder of
+[Locations](#locations) (your own one is `Documents\Fresing Render\Library\Lifting equipment` from the start):
 
 - `My crane/My crane.json` – the data below,
 - the model (`.step`, `.glb`, `.obj` or `.fbx`) and, if you like, a picture (`.png` or `.jpg`) with the same name.

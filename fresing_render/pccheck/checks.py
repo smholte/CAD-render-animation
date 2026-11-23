@@ -5038,6 +5038,106 @@ def settings_kept(ctx):
     return f"{len(chosen)} settings kept over a restart; {len(spec)} settings in the file; a damaged file: defaults"
 
 
+@line("settings.locations", "Locations: folders of the company, a department and your own; set-up files; export places",
+      "0.2.209",
+      what="In a folder of its own (with an accent): a new user's ready-made folders are made and on; a company set-up "
+           "file (copied) and a department one (linked) bring a logo and a rule set each – both listed with their "
+           "badges next to your own, the same logo name twice shown twice; saving asks where (your own folder first); "
+           "a renamed newer set-up is the same one with its change list; a folder on a server that does not answer "
+           "does not slow the reading; Save to and Also save a copy to put a picture into two places")
+def settings_locations(ctx):
+    import time as _time
+
+    from ..blender import decals, locations, ops_rule_sets, prefs, settings_store
+    from ..core import locations as L
+    from ..core import rule_sets as RS
+    p = prefs.get()
+    _check(p is not None, "the add-on's preferences are missing")
+    work = os.path.join(ctx.work, "locations é")
+    was_prefs = settings_store.current(p)
+    was_env = {k: os.environ.get(k) for k in (locations.ENV, "FRESING_RULE_SETS_DIR", L.SLOW_ENV)}
+    was_docs = locations.documents
+    os.environ[locations.ENV] = os.path.join(work, "config", L.STATE_FILE)
+    os.environ.pop("FRESING_RULE_SETS_DIR", None)
+    locations.documents = lambda: os.path.join(work, "Documents")
+    try:
+        locations.forget()
+        locations.load()
+        root = L.ready_root(locations.documents())
+        _check(all(os.path.isdir(os.path.join(root, k.sub)) for k in L.KINDS), "the ready-made folders were not made")
+        with open(os.path.join(root, "Logos", "acme.png"), "wb") as fh:
+            fh.write(b"mine")
+
+        def folder(name, files=()):
+            d = os.path.join(work, name)
+            os.makedirs(d, exist_ok=True)
+            for f in files:
+                with open(os.path.join(d, f), "wb") as fh:
+                    fh.write(b"x")
+            return d
+        rules = folder("company rules")
+        RS.save_in(rules, RS.empty("Acme rules"))
+        c = os.path.join(work, "Company.frsetup")
+        L.write_setup(c, L.Setup(id="pc-check-co", name="Company", version=1, locations={"rule_sets": [rules]}),
+                      {"logos": folder("company logos", ("acme.png",))})
+        d = os.path.join(work, "Offshore.frsetup")
+        L.write_setup(d, L.Setup(id="pc-check-dep", name="Offshore", level="department", label="Offshore", version=1),
+                      {"logos": folder("dep logos", ("buoy.png",))})
+        locations.install(c, "copy")
+        locations.install(d, "link")
+        locations.wait_reach()
+        pics = [lbl for lbl, _p in decals.library_pictures()]
+        _check({"Logos: acme  ·  Company", "Logos: acme  ·  Mine", "Logos: buoy  ·  Offshore"} <= set(pics),
+               f"the logos listed are {pics}")
+        labels = [e[1] for e in ops_rule_sets._library_entries()]
+        _check("Acme rules  ·  Company" in labels, f"the rule sets listed are {labels}")
+        ch = [lbl.split(":")[0] for _p, lbl in locations.save_choices("rule_sets")]
+        _check(ch[:2] == ["Mine", "Company"], f"saving offers {ch}")
+        renamed = os.path.join(work, "Offshore NEW.frsetup")
+        L.write_setup(renamed, L.Setup(id="pc-check-dep", name="Offshore", level="department", label="Offshore",
+                                       version=2))
+        new, old, lines = locations.check(renamed)
+        _check(old is not None and "Version 1 → 2" in lines, f"a renamed newer set-up gave {lines}")
+        dead = os.path.join(work, "dead server")
+        os.environ[L.SLOW_ENV] = f"{dead}=5"
+        locations.add_mine("logos", os.path.join(dead, "Logos"))
+        locations.forget()
+        t0 = _time.perf_counter()
+        locations.load()
+        decals.library_pictures()
+        took = _time.perf_counter() - t0
+        _check(took < 1.0, f"a folder on a server that does not answer slowed the reading to {took:.1f} s")
+        ctx.metric("locations.dead_server_ms", round(took * 1000), "ms")
+        share = folder("marketing")
+        locations.state()["exports"]["own"].append({"name": "Marketing", "path": share, "project_sub": False})
+        locations.state()["exports"].update(also=True, also_to="mine:Marketing")
+        pic = os.path.join(work, "still.png")
+        with open(pic, "wb") as fh:
+            fh.write(b"png")
+        import bpy
+        copy = locations.copy_also(bpy.context.scene, pic)
+        _check(bool(copy) and os.path.dirname(copy) == share, f"the copy went to {copy!r}")
+    finally:
+        os.environ.pop(L.SLOW_ENV, None)
+        for k, v in was_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        locations.documents = was_docs
+        for n, v in was_prefs.items():
+            try:
+                setattr(p, n, v)
+            except Exception:  # noqa: BLE001
+                pass
+        locations.forget()
+        try:
+            locations.load()
+        except Exception:  # noqa: BLE001
+            pass
+    return f"{len(pics)} logos from 3 places with badges; dead server: {took * 1000:.0f} ms; also a copy: ok"
+
+
 @line("app.usage", "Usage tracker: counting on this PC, the favourites bar, unused panels, My usage", "0.2.158",
       what="Counts clicks into a usage file of its own (never yours; with an accent in its folder), checks every "
            "Fresing button counts, the bar is sorted at a start only, a panel is offered for hiding after 10 starts "

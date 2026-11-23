@@ -291,6 +291,7 @@ class FRESING_OT_workspace_refresh(bpy.types.Operator):
     bl_label = "Refresh"
 
     def execute(self, context):
+        locations.look_again()                    # task 0272: a folder made or brought back meanwhile is seen
         found = workspaces.library(force=True)
         self.report({"INFO"}, f"{plural(len(found), 'workspace')} of your own in your Workspaces folders")
         panels.redraw()

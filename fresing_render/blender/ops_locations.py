@@ -208,9 +208,8 @@ class FRESING_OT_loc_reload(bpy.types.Operator):
     bl_options = {"INTERNAL"}
 
     def execute(self, context):
-        locations.REACH.forget()
+        locations.look_again()
         out = locations.refresh(force=True)
-        locations._changed()
         self.report({"INFO"}, "; ".join(out) if out else "Folders and set-ups looked at again")
         _redraw()
         return {"FINISHED"}

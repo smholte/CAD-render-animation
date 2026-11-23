@@ -113,6 +113,8 @@ class FRESING_OT_lifting_library(bpy.types.Operator):
         return _ok(context)
 
     def execute(self, context):
+        from . import locations
+        locations.look_again()                    # task 0272: the folders looked at again
         items = lifting.library(force=True)
         self.report({"INFO"}, f"{len(items)} items in the lifting library")
         return {"FINISHED"}

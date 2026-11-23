@@ -145,14 +145,33 @@ def new_id() -> str:
     return uuid.uuid4().hex[:16]
 
 
+RESERVED = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(1, 10)} | {f"lpt{i}" for i in range(1, 10)}
+SKIP_FILES = {"thumbs.db", "desktop.ini", ".ds_store"}
+
+
+def _is_dir_entry(name: str) -> bool:
+    return name.endswith(("/", "\\"))
+
+
 def _bad_name(name: str) -> str:
-    """'' or why a name inside the zip may not be unpacked (a path that would leave its folder)."""
+    """'' or why a name inside the zip may not be unpacked: a path that would leave its folder (absolute, a drive,
+    '..'), or a name Windows cannot hold (a ':' – drives and hidden streams –, a device name such as CON or NUL, a
+    trailing dot or space, <>"|?* or control characters). Checked before anything is written."""
     n = name.replace("\\", "/")
-    if not n or n.startswith("/") or re.match(r"^[A-Za-z]:", n) or "\0" in n:
+    if not n or n.startswith("/") or "\0" in n:
         return f"'{name}' is an absolute path"
     parts = [p for p in n.split("/") if p]
-    if any(p == ".." for p in parts):
-        return f"'{name}' points outside the set-up's folder"
+    for p in parts:
+        if p.strip(" .") == "" and ".." in p or p == "..":
+            return f"'{name}' points outside the set-up's folder"
+        if ":" in p:
+            return f"'{name}' names a drive or a hidden stream (':')"
+        if p.split(".")[0].strip().casefold() in RESERVED:
+            return f"'{name}' uses a name Windows keeps for devices ({p})"
+        if p != p.rstrip(" ."):
+            return f"'{name}' ends a name with a dot or a space, which Windows drops"
+        if any(c in p for c in '<>"|?*') or any(ord(c) < 32 for c in p):
+            return f"'{name}' has a character Windows does not allow in a file name"
     return ""
 
 
@@ -180,12 +199,18 @@ def read_setup(path: str) -> Setup:
             raise SetupError(f"{base} holds {len(infos)} files, more than the {MAX_FILES} a set-up may hold")
         total = 0
         content: dict = {}
+        seen: dict = {}
         for info in infos:
             why = _bad_name(info.filename)
             if why:
                 raise SetupError(f"{base} was refused: {why}")
-            if info.is_dir() or info.filename == SETUP_JSON:
+            if info.is_dir() or _is_dir_entry(info.filename) or info.filename == SETUP_JSON:
                 continue
+            low = info.filename.replace("\\", "/").casefold()
+            if low in seen:
+                raise SetupError(f"{base} was refused: '{info.filename}' and '{seen[low]}' are one file on Windows "
+                                 "(they differ only in capitals)")
+            seen[low] = info.filename
             if info.file_size > MAX_FILE:
                 raise SetupError(f"{base}: '{info.filename}' is {info.file_size // (1024 * 1024)} MB, more than the "
                                  f"{MAX_FILE // (1024 * 1024)} MB one file in a set-up may be")
@@ -276,7 +301,7 @@ def write_setup(path: str, setup: Setup, content: dict | None = None) -> str:
                 for dirpath, dirs, files in os.walk(src):
                     dirs.sort()
                     for f in sorted(files):
-                        if f.startswith("."):
+                        if f.startswith(".") or f.casefold() in SKIP_FILES:
                             continue
                         full = os.path.join(dirpath, f)
                         rel = os.path.relpath(full, src).replace(os.sep, "/")
@@ -305,23 +330,37 @@ def unpack(path: str, dest: str) -> dict:
     """Unpack a set-up's content into ``dest/<sub>/…`` (``dest`` emptied first). {kind: folder} of what it holds."""
     import shutil
     read_setup(path)                                  # the checks first: nothing written for a refused file
-    if os.path.isdir(dest):
-        shutil.rmtree(dest, ignore_errors=True)
-    os.makedirs(dest, exist_ok=True)
+    new = dest.rstrip("\\/") + ".new"
+    shutil.rmtree(new, ignore_errors=True)
+    os.makedirs(new, exist_ok=True)
     out = {}
-    root = os.path.realpath(dest)
-    with zipfile.ZipFile(path) as zf:
-        for info in zf.infolist():
-            if info.is_dir() or info.filename == SETUP_JSON:
-                continue
-            k, rel = _content_kind(info.filename)
-            target = os.path.realpath(os.path.join(dest, k.sub, *rel.split("/")))
-            if os.path.commonpath([root, target]) != root:            # second guard (links, odd names)
-                raise SetupError(f"'{info.filename}' points outside the set-up's folder")
-            os.makedirs(os.path.dirname(target), exist_ok=True)
-            with zf.open(info) as src, open(target, "wb") as dst:
-                shutil.copyfileobj(src, dst)
-            out[k.key] = os.path.join(dest, k.sub)
+    root = os.path.realpath(new)
+    try:
+        with zipfile.ZipFile(path) as zf:
+            for info in zf.infolist():
+                if info.is_dir() or _is_dir_entry(info.filename) or info.filename == SETUP_JSON:
+                    continue
+                k, rel = _content_kind(info.filename)
+                target = os.path.realpath(os.path.join(new, k.sub, *rel.replace("\\", "/").split("/")))
+                try:
+                    inside = os.path.commonpath([root, target]) == root
+                except ValueError:                    # another drive (Windows)
+                    inside = False
+                if not inside:                        # second guard (links, odd names)
+                    raise SetupError(f"'{info.filename}' points outside the set-up's folder")
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with zf.open(info) as src, open(target, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                out[k.key] = os.path.join(dest, k.sub)
+    except BaseException:
+        shutil.rmtree(new, ignore_errors=True)        # the old content stays as it was
+        raise
+    old = dest.rstrip("\\/") + ".old"
+    shutil.rmtree(old, ignore_errors=True)
+    if os.path.isdir(dest):
+        os.replace(dest, old)
+    os.replace(new, dest)
+    shutil.rmtree(old, ignore_errors=True)
     return out
 
 
@@ -476,12 +515,29 @@ def read_state(path: str) -> tuple:
     return st, ""
 
 
-def write_state(path: str, state: dict) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(state, fh, indent=1, ensure_ascii=False)
-    os.replace(tmp, path)
+def write_state(path: str, state: dict, tries: int = 5) -> None:
+    """Written to a temporary file of its own, then moved over the old one; a refusal (another program holds the
+    file for a moment) is tried again a few times, and the temporary file never stays behind."""
+    folder = os.path.dirname(os.path.abspath(path)) or "."
+    os.makedirs(folder, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".fresing_locations-", suffix=".tmp", dir=folder)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(state, fh, indent=1, ensure_ascii=False)
+        for i in range(tries):
+            try:
+                os.replace(tmp, path)
+                return
+            except PermissionError:
+                if i == tries - 1:
+                    raise
+                time.sleep(0.1)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def ready_root(documents: str) -> str:
@@ -546,6 +602,8 @@ def resolve(path: str, base: str) -> str:
     """A folder named in a set-up: absolute (``C:\\…``, ``\\\\server\\share\\…``, ``/…``) as it is, ``~`` expanded,
     else relative to the folder of the set-up file (a set-up kept in a synced folder works wherever it lands)."""
     p = os.path.expandvars(os.path.expanduser(path.strip()))
+    if re.match(r"^[A-Za-z]:(?![\\/])", p):               # "X:Logos" (drive-relative): taken as X:\Logos
+        p = p[:2] + "\\" + p[2:]
     if is_unc(p) or os.path.isabs(p) or re.match(r"^[A-Za-z]:[\\/]", p):
         return p
     return os.path.normpath(os.path.join(base, p.replace("\\", os.sep).replace("/", os.sep)))
@@ -606,14 +664,23 @@ def merge(items: list) -> list:
 
 
 def writable(path: str) -> bool:
-    """Can new files go there (the folder, or the first folder above it that exists)."""
+    """Can new files go there (the folder, or the first folder above it that exists). Tried for real – a small file
+    made and deleted – because on Windows ``os.access`` says yes to every folder, whatever the share's rights."""
     p = os.path.abspath(path)
     while p and not os.path.isdir(p):
         up = os.path.dirname(p)
         if up == p:
             return False
         p = up
-    return os.access(p, os.W_OK)
+    if not os.access(p, os.W_OK):
+        return False
+    try:
+        fd, probe = tempfile.mkstemp(prefix=".fresing-write-", dir=p)
+        os.close(fd)
+        os.remove(probe)
+        return True
+    except OSError:
+        return False
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -626,9 +693,11 @@ class Reach:
     """Whether folders can be reached, looked at in helper threads. ``state(path)`` never blocks longer than
     ``wait`` seconds: True (there), False (not there / no answer within ``timeout``), None (still looking)."""
 
-    def __init__(self, ttl: float = 30.0, timeout: float = 8.0, wait: float = 0.05, workers: int = 4):
+    def __init__(self, ttl: float = 30.0, timeout: float = 8.0, wait: float = 0.05, workers: int = 8):
         self.ttl, self.timeout, self.wait = ttl, timeout, wait
+        # two pools: folders on a server (\\\\server\\share) never hold up the PC's own folders behind them
         self._pool = concurrent.futures.ThreadPoolExecutor(max_workers=workers, thread_name_prefix="fr-reach")
+        self._net = concurrent.futures.ThreadPoolExecutor(max_workers=workers, thread_name_prefix="fr-reach-net")
         self._lock = threading.Lock()
         self._known: dict = {}        # path -> (answer, time)
         self._busy: dict = {}         # path -> (future, started)
@@ -659,6 +728,8 @@ class Reach:
                 pass
 
     def state(self, path: str):
+        """True / False / None (never looked at, answer not in yet). A stale answer is looked at again in the
+        background; its new answer is given when it comes within ``wait`` seconds, else the last one."""
         now = time.monotonic()
         with self._lock:
             known = self._known.get(path)
@@ -669,16 +740,14 @@ class Reach:
             fresh = known is not None and now - known[1] < self.ttl
             start = not fresh and busy is None
             if start:
-                fut = self._pool.submit(self._look, path)
+                fut = (self._net if is_unc(path) else self._pool).submit(self._look, path)
                 self._busy[path] = busy = (fut, now)
         if start:                                         # outside the lock: a done future calls back at once
             fut.add_done_callback(lambda f, p=path: self._done(p, f))
-        if known is not None:
-            return known[0]                               # last answer while a new look runs
-        if busy is not None:
+        if busy is not None and self.wait > 0 and (start or known is None):
             try:
                 busy[0].result(timeout=self.wait)
-            except Exception:  # noqa: BLE001 - not yet (or failed): ask the record
+            except Exception:  # noqa: BLE001 - not yet (or failed): the record says
                 pass
         with self._lock:
             k = self._known.get(path)
@@ -690,11 +759,12 @@ class Reach:
             self._known[path] = (bool(ok), time.monotonic())
 
     def forget(self, path: str | None = None) -> None:
+        """Look again at the next ask (the last answer is kept meanwhile: a server that does not answer keeps its
+        old answer, nothing flickers)."""
         with self._lock:
-            if path is None:
-                self._known.clear()
-            else:
-                self._known.pop(path, None)
+            for p in (list(self._known) if path is None else [path]):
+                if p in self._known:
+                    self._known[p] = (self._known[p][0], -1e9)
 
     def settle(self, paths, timeout: float = 5.0) -> None:
         """Tests: wait until every path has an answer."""
@@ -734,6 +804,8 @@ def find_place(all_places: list, key: str):
 
 def safe_folder(name: str) -> str:
     n = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", name or "").strip(" .")
+    if n.split(".")[0].strip().casefold() in RESERVED:     # CON, NUL, COM1 …: Windows cannot make such a folder
+        n = "_" + n
     return n or "Project"
 
 
