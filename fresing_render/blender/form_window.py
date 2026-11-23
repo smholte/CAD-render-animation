@@ -64,6 +64,7 @@ POPUPS = {
     "fresing.loc_setup_changes": "a short list of what the last update changed",
     "fresing.rule_set_switch": "a question: Switch rule set (with what changes) or not",
     "fresing.usage_clear": "Are you sure? (its one tick belongs to the question)",
+    "fresing.update_install": "a question before the app closes for an update: save the changes or not (task 0316)",
     "fresing.web3d_export": "a question before the file browser: bake the shadows anyway",
     "fresing.family_toggle": "a question: hide a family the project uses",
     "fresing.welcome": "the welcome – task 0276 makes it the first-start set-up (welcome.py is its file)",
