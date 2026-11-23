@@ -1,6 +1,6 @@
 # 0283 – Every Fresing setting is kept over a restart (the app's own settings file)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0283-settings-file`
+**Who:** worker · **Status:** done (0.2.206) · **Branch:** `task/0283-settings-file`
 **Started by:** lead, 23 Nov 2026 (0278's finding: Blender 5.2.3 does **not** keep the extension's preferences over a
 restart while the app template is on – a value saved with Save Preferences reads back as its default with
 `--app-template fresing_render`. So every Fresing setting in `prefs.py` (keep sections, lesson look, backups, Live
@@ -31,10 +31,10 @@ versions / a broken file) + `blender/settings_store.py` (load at start, save on 
 
 ## Done when
 
-- [ ] Every `prefs.py` setting survives a restart in the app (real-app test, each tab) and an update (update test)
-- [ ] Broken / missing / older file handled; tests in `core`
-- [ ] Guide (Settings chapter: "kept for you, nothing to save"), COMPANY-USE, PC-check line, CHANGELOG
-- [ ] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
+- [x] Every `prefs.py` setting survives a restart in the app (real-app test, each tab) and an update (update test)
+- [x] Broken / missing / older file handled; tests in `core`
+- [x] Guide (Settings chapter: "kept for you, nothing to save"), COMPANY-USE, PC-check line, CHANGELOG
+- [x] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
 
 ## Report (filled in by the chat that did the task)
 
@@ -78,7 +78,9 @@ instead of `task/0283-settings-file`). Version **0.2.206**.
 - Update test (`update_test_blender.py`): a settings file written before Update now; after it the file is there and,
   in the window run, the two values are in use (GitHub's Linux update test and Windows A).
 - PC check `settings.kept` + `app.settings` OK locally (bpy module).
-- GitHub: see the run below.
+- GitHub: branch run 45082615831 full, all green (31.6 min; 3 jobs SLOW from a busy GitHub); the merge with main
+  (0285's site pages) run 45085485674 docs, green; `main` fast-forwarded to it: release v0.2.206 published, the old
+  install updated itself from it, offered to the apps. 2 runs, no failures.
 
 **Subagents / review:** none (no Windows-only code; the independent helper was skipped to save usage).
 
