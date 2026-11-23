@@ -206,6 +206,16 @@ fn(id="import.update", short="Update revision", title="Model update to a new rev
    manual_estimate=("use", 1800, "import the new revision and set up joints, looks and the animation again"))
 fn(id="import.two_copies", short="STEP twice", title="The same STEP twice", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
+fn(id="import.drop", short="Drop a file", title="Drop a STEP or mesh file on the view", family="import",
+   panel="FRESING_PT_import", button="fresing.import_step", text="Import STEP…", guide="drop-a-file",
+   pccheck=("import.drop",), since="0.2.218")
+fn(id="import.again", short="Import again", title="Imported models: import again from the cache", family="import",
+   panel="FRESING_PT_import", fold="fr_import_cached", button="fresing.import_step", text="Import again", guide="imported-models",
+   tour=("import_again",), pccheck=("import.again",), since="0.2.218")
+fn(id="import.up_axis", short="Up axis", title="Change a model's up axis after the import", family="import",
+   panel="FRESING_PT_import", button="fresing.model_up_axis", guide="up-axis-after-import",
+   tour=("import_again",), pccheck=("import.up_axis",), since="0.2.218",
+   workspaces=_WORK + ("lifting",))                 # the Client view never changes a model
 fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide and lock parts", family="import",
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
@@ -247,13 +257,13 @@ fn(id="looks.schemes", short="Paint schemes", title="Paint schemes & templates",
 # ----- 4 Motion: joints, poses -----
 fn(id="joints.rotate", title="Rotate joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", tour=("joint",),
-   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.218")
+   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.219")
 fn(id="joints.slide", title="Slide joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", lesson="mill:3", since="0.2.0",
-   changed="0.2.218")
+   changed="0.2.219")
 fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", tour=("stack",),
-   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.218")
+   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.219")
 fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
@@ -261,7 +271,7 @@ fn(id="joints.cad_position", title="Everything back to CAD position", family="mo
    button="fresing.pose_reset", guide="motion", since="0.2.5")
 fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18",
-   changed="0.2.218")
+   changed="0.2.219")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
@@ -273,7 +283,7 @@ fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT
 fn(id="machines.cylinder", title="Cylinders", family="machines", panel="FRESING_PT_cylinders",
    button="fresing.cylinder_add", guide="cylinders", tour=("cylinder",), pccheck=("joints.cylinder",),
    since="0.2.25",
-   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.218")
+   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.219")
 fn(id="machines.mechanism", title="Mechanisms: scissor lift, crank", family="machines",
    panel="FRESING_PT_mechanisms", button="fresing.mechanism_add", guide="mechanisms", tour=("mechanism",),
    pccheck=("joints.mechanism",), since="0.2.26")

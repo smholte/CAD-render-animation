@@ -499,13 +499,13 @@ def _howto_as_in_the_app():
         return
     real = ui.fold
 
-    def fold(layout, idname, title, icon="NONE", closed=True):
+    def fold(layout, idname, title, icon="NONE", closed=True, **kw):
         if title != "How it works":
-            return real(layout, idname, title, icon, closed)
+            return real(layout, idname, title, icon, closed, **kw)
         keep = ui._OPEN_FOLDS
         ui._OPEN_FOLDS = False
         try:
-            return real(layout, idname, title, icon, closed)
+            return real(layout, idname, title, icon, closed, **kw)
         finally:
             ui._OPEN_FOLDS = keep
     fold._guide = True
@@ -550,6 +550,17 @@ def _frame_model():
         bpy.ops.view3d.view_selected()
     select_only()
     return 1.0
+
+
+def _imported_models(self, context):
+    """Task 0289: only the Imported models fold of 1 Import, opened."""
+    ui = mod("blender.ui")
+    keep = ui._OPEN_FOLDS
+    ui._OPEN_FOLDS = True
+    try:
+        ui._draw_imported(self.layout, context)
+    finally:
+        ui._OPEN_FOLDS = keep
 
 
 if MODE == "panels":
@@ -621,6 +632,7 @@ if MODE == "panels":
 
     SHOTS = [
         ("panel_1_import", [("FRESING_PT_import", False, True)]),
+        ("panel_1_imported_models", [("FRESING_PT_import", False, True, _imported_models)]),     # task 0289
         ("panel_2_structure", [("FRESING_PT_structure", False, True)]),
         ("panel_2_cleanup", [("FRESING_PT_cleanup", False, True)]),
         ("panel_2_visibility", [("FRESING_PT_visibility", False, True)]),

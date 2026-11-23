@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.218")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.219")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -3967,6 +3967,58 @@ def _check_mesh(scene):
     return f"ring Ø{dia:.1f} mm, axis {off:.2f}° off vertical"
 
 
+@tour_set("import", "Import again and Up axis", "test_crane_a.step", added="0.2.218", changed="0.2.218")
+def build_import(b: Build):
+    """Task 0289: the crane imported, then a second copy from 1 Import > Imported models > Import again (the stored
+    copy, nothing read), moved aside and turned to Y up on its line – it lies on its side, as a Y-up file would."""
+    import bpy
+
+    from . import build, ops_import
+    from ..core import import_cache
+    sc = b.scene
+    _look("PRODUCT")
+    src = os.path.normcase(os.path.abspath(build.model_roots(sc)[0].get(build.PROP_SOURCE, "")))
+    e = next((x for x in import_cache.entries(ops_import.cache_root())
+              if os.path.normcase(os.path.abspath(x.source)) == src), None)
+    _check(e is not None, "the crane's import is not in the cache")
+    res = bpy.ops.fresing.import_step("EXEC_DEFAULT", again=e.id)
+    _check(res == {"FINISHED"}, f"Import again returned {res}")
+    second = build.model_roots(sc)[1]
+    second.location.x += IMPORT_ASIDE
+    build.set_mat(second, build.PROP_REST_BASIS, second.matrix_basis)
+    _update()
+    res = bpy.ops.fresing.model_up_axis("EXEC_DEFAULT", root=second.name, axis="Y")
+    _check(res == {"FINISHED"}, f"Up axis returned {res}")
+    _update()
+    _surround(b, "FACTORY")
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@import_again")
+
+
+IMPORT_ASIDE = 5.0                   # m: the second copy stands this far along +X
+
+
+def _check_import(scene):
+    from . import build, logic
+    roots = build.model_roots(scene)
+    _check(len(roots) == 2, f"expected 2 copies of the crane, there are {len(roots)}")
+    axes = [logic.up_axis_of(r) for r in roots]
+    _check(axes == ["Z", "Y"], f"the copies' up axes are {axes}, expected Z and Y")
+    n = [len([o for o in build.iter_parts(scene) if build.logical_parent(o) is not None and _root_is(o, r)])
+         for r in roots]
+    _check(n[0] == n[1] and n[0] > 10, f"the copies have {n[0]} and {n[1]} parts")
+    return f"2 copies of {n[0]} parts, Z up and Y up"
+
+
+def _root_is(ob, root) -> bool:
+    from . import build
+    while ob is not None:
+        if ob == root:
+            return True
+        ob = build.logical_parent(ob)
+    return False
+
+
 # ---------------------------------------------------------------------------
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
@@ -4429,15 +4481,21 @@ stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks, since="0.2.47")
 
+stop("import_again", LOOK, "import", "Import again and Up axis",
+     "Two copies of the test crane. The left one was imported as usual; the right one came from 1 Import > Imported "
+     "models > Import again – the stored copy, in a second, nothing read – and its line's Up axis was set to Y up: it "
+     "lies on its side, as a model drawn Y up in its CAD would stand. Imported models lists the crane with its parts, "
+     "date and size; Z up / Y up on each model's line turns it back.",
+     where="1 Import: the model's line (Up axis), Imported models", since="0.2.218", check=_check_import)
 stop("joint", MOTION, HUB_SET, "Joint: the boom turns",
      "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it. The luffing "
      "cylinder under it follows: its rod slides out and its eye stays on the pin under the boom.",
      where="4 Motion > Joints; 6 Animation", animation="Boom up", play=True, select=("BOOM",), check=_check_boom,
-     auto="clip", since="0.2.47", changed="0.2.218")
+     auto="clip", since="0.2.47", changed="0.2.219")
 stop("stack", MOTION, HUB_SET, "Stacked joints: boom + trolley",
      "The boom turns up while the trolley slides out along it: the two moves add up, the trolley stays on the "
      "boom.", where="4 Motion > Joints (the trolley's joint rides on the boom)", animation="Boom and trolley",
-     play=True, select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47", changed="0.2.218")
+     play=True, select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47", changed="0.2.219")
 stop("fade", MOTION, HUB_SET, "Fade, X-ray and trail",
      "The boom turns up while the trolley runs out along it; meanwhile the cover fades into a light-blue X-ray "
      "(see-through, glowing edges) and a green line draws the path of the trolley's centre behind it. Look in "
@@ -4456,7 +4514,7 @@ stop("explode", MOTION, HUB_SET, "Exploded view",
 stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
      "The rod comes out of the cylinder 450 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
-     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.218")
+     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.219")
 stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "

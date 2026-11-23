@@ -4272,8 +4272,12 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                ("fine", "Fine", "Smooth curves for close-ups (slower, more memory)")])
     import_up_axis: EnumProperty(
         name="Up axis", default="Z",
-        description="Which axis points up in the CAD file. Choose it before pressing Import STEP",
+        description="Which axis points up in the CAD file. Choose it before pressing Import STEP or dropping a "
+                    "file; a model's own Up axis can still be changed on its line after the import",
         items=[("Z", "Z up", "Most STEP files"), ("Y", "Y up", "Inventor parts drawn with Y up")])
+    import_cache_search: StringProperty(
+        name="Search", default="", options={"SKIP_SAVE"},
+        description="Shows only the stored models whose name or folder holds these words")
 
     # ---- brand kit and finishing (task 0018) ----
     brand_name: StringProperty(name="Brand kit", default="",

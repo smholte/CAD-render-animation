@@ -38,7 +38,7 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.218",
+   "changed": "0.2.219",
    "fp": "bea4e04d55105d72"
   },
   "crane_setup": {
@@ -90,6 +90,11 @@
    "added": "0.2.92",
    "changed": "0.2.173",
    "fp": "1c378a11ff325c22"
+  },
+  "import": {
+   "added": "0.2.218",
+   "changed": "0.2.218",
+   "fp": "fd0b70db11901d08"
   },
   "lifting": {
    "added": "0.2.156",
