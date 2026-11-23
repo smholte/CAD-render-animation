@@ -1,6 +1,6 @@
 # 0281 – Learning hub: one chapter open at a time; the lesson's Back / Next / Play on at the top
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0281-hub-one-chapter-lesson-top`
+**Who:** worker · **Status:** done (0.2.208) · **Branch:** `task/0281-hub-one-chapter-lesson-top`
 **Started by:** lead, 21 Nov 2026 (owner 22:00, screenshots of 0.2.197's Learning hub stops – Look / Motion /
 Machining / Pictures and videos – and the Lesson section "2 of 11": "when opening a new chapter in the Learning hub the
 other chapter should close, max 1 open at once" and "Back, Next and Play on should be at the top of the lesson section,
