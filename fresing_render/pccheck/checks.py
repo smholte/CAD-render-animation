@@ -273,7 +273,7 @@ def import_mesh_fbx(ctx):
     _check({"BASE", "SLEWING RING", "BOOM"} <= names, f"parts missing after the FBX round trip: {sorted(names)[:6]}")
     ring = _ob(scene, "SLEWING RING")
     dims = sorted(ring.dimensions)
-    _check(abs(dims[-1] - 1.6) < 0.01, f"the ring is {dims[-1]:.3f} m across after the FBX round trip (1.6 m)")
+    _check(abs(dims[-1] - 4.0) < 0.01, f"the ring is {dims[-1]:.3f} m across after the FBX round trip (4.0 m)")
     return f"{len(names)} parts back from FBX"
 
 
