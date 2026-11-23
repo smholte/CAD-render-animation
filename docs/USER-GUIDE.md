@@ -362,6 +362,14 @@ On Windows it opens where it was and as big as you left it. It also opens in the
 <img class="panel" src="img/settings_updates.png" alt="Fresing Settings, tab Updates: check at start-up, Check now, the installed version">
 <img class="panel" src="img/settings_about.png" alt="Fresing Settings, tab About: version, licence and the licence buttons">
 
+**Your settings are kept for you – nothing to save.** Whatever you change here (and choices the app remembers by
+itself, such as Live preview on or off, or the tab this window opened on) is written within a second to the app's own
+settings file and is back at the next start, also after an update. **General** says so at its top. If that file was
+ever damaged (a crash of the PC while it was written, a copy that went wrong), the app starts with the default
+settings, keeps a copy of the damaged file next to it and says so in one red line on **General**; set your settings
+again and they are kept as before. Where the file is, and how IT can give the same settings to every PC:
+[using it in a company](#about-licences).
+
 **Edit > Preferences > Add-ons > Fresing Render** now only says where the settings are and has a button **Open
 Fresing Settings**. Your settings from before stay as they were.
 

@@ -70,7 +70,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 30, "tour": 96, "tour2": 2, "tourui": 15, "layout": 66,
               "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31, "lesson": 40, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 42, "settings": 34, "toolbox": 19,
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 42, "settings": 50, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 23, "drawn": 25, "backups": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
@@ -181,7 +181,8 @@ TESTS = {
               "every workspace (ui_test_start.py)", "ui_test_start.py", True),
     "settings": ("Real app: Fresing Settings – Fresing > Settings… opens one window, each tab clicked draws its page, "
                  "it stays open, opens again on the last tab, My usage… opens it on My usage, the Client view opens it; "
-                 "a played animation with no input adds no time to My usage (ui_test_settings.py)",
+                 "a played animation with no input adds no time to My usage; a setting of each tab kept over a restart "
+                 "with the app template, a damaged settings file gives the defaults and a note (ui_test_settings.py)",
                  "ui_test_settings.py", True),
     "usage": ("Real app: the usage tracker – the favourites bar sorted at a start, a click on a favourite, a click counted "
               "with its panel, the question about an unused panel and Hide, My usage, Back as it came "

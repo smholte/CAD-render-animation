@@ -1,6 +1,6 @@
 # 0283 – Every Fresing setting is kept over a restart (the app's own settings file)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0283-settings-file`
+**Who:** worker · **Status:** done (0.2.206) · **Branch:** `task/0283-settings-file`
 **Started by:** lead, 23 Nov 2026 (0278's finding: Blender 5.2.3 does **not** keep the extension's preferences over a
 restart while the app template is on – a value saved with Save Preferences reads back as its default with
 `--app-template fresing_render`. So every Fresing setting in `prefs.py` (keep sections, lesson look, backups, Live
@@ -31,19 +31,67 @@ versions / a broken file) + `blender/settings_store.py` (load at start, save on 
 
 ## Done when
 
-- [ ] Every `prefs.py` setting survives a restart in the app (real-app test, each tab) and an update (update test)
-- [ ] Broken / missing / older file handled; tests in `core`
-- [ ] Guide (Settings chapter: "kept for you, nothing to save"), COMPANY-USE, PC-check line, CHANGELOG
-- [ ] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
+- [x] Every `prefs.py` setting survives a restart in the app (real-app test, each tab) and an update (update test)
+- [x] Broken / missing / older file handled; tests in `core`
+- [x] Guide (Settings chapter: "kept for you, nothing to save"), COMPANY-USE, PC-check line, CHANGELOG
+- [x] Full suite + GitHub run green; report filled in; merged, version, release (CLAUDE.md section 7)
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 22 Nov 2026 (branch `ccr-8c41bd11-e81xe9` – the session's own branch name
+instead of `task/0283-settings-file`). Version **0.2.206**.
 
 **What changed:**
+- `core/settings_file.py` (no Blender): the file `<config>/fresing_settings.json` =
+  `{"format": "fresing-settings", "version": 1, "settings": {...}}`, only the values that differ from the defaults (a
+  setting never changed follows a later default). Read never fails: missing → nothing; damaged (not JSON, NaN, not
+  ours, no version, wrong shape) → defaults, a copy `fresing_settings.broken-<time>.json`, one plain note (the
+  technical reason goes to the console only); a value of the wrong kind / out of range → left at its default with a
+  note naming it; a newer file's unknown settings are kept and written back. Write = temp file + fsync + rename.
+- `blender/settings_store.py`: the spec is read from the registered `FRESING_AP_prefs` (a new setting in `prefs.py`
+  is kept with no further change). `register()` loads at once (start-up code reads the settings), a 1 s timer saves
+  when a value differs from what was written (one small write a second at most while a slider is dragged); `atexit`
+  and `unregister` write the last change. Nothing runs in a background Blender unless `FRESING_SETTINGS_FILE` is set.
+- **Moving old values:** no file at the first start → written from what Blender has (a run without the template).
+- **0278's files stay separate:** `left_folded`, `left_width`, `next_folded` stay in `fresing_left.json` (it also holds
+  each left section's fold, which is no preference); `fresing_layout.json` (editors' column) stays too. One file per
+  value, no double source.
+- Settings > General: "Your settings are kept for you: nothing to save" on top, the note in red when the file was
+  damaged (guide picture `settings_general.png` made again).
+- **Update / uninstall:** nothing to change in `installer/` – the installer moves the old `portable` folder (with
+  `config\`) into a new install, Update now does not touch `config\`; `Uninstall.bat` removes the install folder
+  with `config\`, as the other user files there (usage, layout, left). Written in `docs/COMPANY-USE.md` (+ how IT
+  copies the file).
+- PC-check line `settings.kept` (Full; `MIN_LINES_FULL` 121), named by `help.settings` in the function list; guide
+  (Settings chapter), CHANGELOG.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Linux, Blender 5.2.3):
+- `tests/test_settings_file.py` 29 tests (missing, round trip with accents, only changed values, 9 damaged forms each
+  with one copy and one note, 11 wrong values, newer file, BOM, a failed write leaves the old file).
+- `tests/test_settings_store.py` 8 tests (bpy module): every preference in the spec but the three of
+  `fresing_left.json`; a setting of each tab survives a "restart" (defaults put in, file read); back to default;
+  the timer; moving old values; damaged file + the note drawn on General; a wrong value; nothing in a background run.
+- Real app `ui_test_settings.py` (now 50 checks, was 34) with `--app-template fresing_render`: 8 settings of the tabs
+  General / Side panel / Lessons / Backups / Updates + the window's tab changed → written by the timer without Save
+  Preferences → a second app started in the same settings folder (`ui_test_settings_restart.py`, 6 s) has every value;
+  a damaged file → that app starts, defaults, one note, a copy. 50/50 locally (81 s).
+- Update test (`update_test_blender.py`): a settings file written before Update now; after it the file is there and,
+  in the window run, the two values are in use (GitHub's Linux update test and Windows A).
+- PC check `settings.kept` + `app.settings` OK locally (bpy module).
+- GitHub: branch run 45082615831 full, all green (31.6 min; 3 jobs SLOW from a busy GitHub); the merge with main
+  (0285's site pages) run 45085485674 docs, green; `main` fast-forwarded to it: release v0.2.206 published, the old
+  install updated itself from it, offered to the apps. 2 runs, no failures.
+
+**Subagents / review:** none (no Windows-only code; the independent helper was skipped to save usage).
 
 **Open points / follow-up tasks:**
+- 0272 can put its locations into this file (the spec is read from `prefs.py`; nested values like a list of locations
+  need a new kind in `core/settings_file.py` and `VERSION` 2 with a move from 1).
+- The note in Settings > General is one label: on a narrow window its end (the copy's name) may be cut off; the full
+  text is in the console.
 
 **Owner's check on your PC:**
+1. Update to 0.2.206 (Fresing tab > **Update now**), the app starts again.
+2. **Fresing > Settings…**, tab **Lessons**: set **Part** to **Glow**; tab **Backups**: **Every (minutes)** to 10.
+3. Close Fresing Render (the X of the window), start it again from the Desktop.
+4. **Fresing > Settings…**: Lessons shows **Glow**, Backups **10** – and General says "Your settings are kept for you".

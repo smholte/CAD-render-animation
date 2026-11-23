@@ -621,11 +621,11 @@ fn(id="usage.my_usage", title="My usage: what you use, time per stage (only whil
    pccheck=("app.usage",), since="0.2.158", changed="0.2.201")
 fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings: all of the app's settings in one "
    "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
-   panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",), pccheck=("app.settings",),
-   since="0.2.201")
+   panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",),
+   pccheck=("app.settings", "settings.kept"), since="0.2.201", changed="0.2.206")
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
-   guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.206")
+   guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.207")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")
