@@ -236,7 +236,9 @@ class FRESING_OT_group_add(bpy.types.Operator):
     name: StringProperty(name="Name", default="New group")
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
+        from . import form_window
+        return form_window.open(self, context, width=340, height=150, title="New group", confirm="Add",
+                                icon="ADD")
 
     def execute(self, context):
         s = context.scene.fresing
@@ -458,7 +460,9 @@ class FRESING_OT_scheme_save(bpy.types.Operator):
         s = context.scene.fresing
         if 0 <= s.schemes_index < len(s.schemes):
             self.name = s.schemes[s.schemes_index].name
-        return context.window_manager.invoke_props_dialog(self)
+        from . import form_window
+        return form_window.open(self, context, width=340, height=150, title="Save paint scheme", confirm="Save",
+                                icon="COLOR")
 
     def execute(self, context):
         s = context.scene.fresing

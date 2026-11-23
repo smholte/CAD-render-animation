@@ -28,6 +28,13 @@ os.makedirs(OUT, exist_ok=True)
 LOG = open(os.path.join(OUT, "ui_test_lesson.log"), "w")
 RESULTS = []
 S = {}
+def _fs():
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import form_shots
+    return form_shots
+
+
 STEPS = []
 KEPT = {}
 
@@ -166,6 +173,15 @@ def s_learn_window():
     with override():
         r = bpy.ops.fresing.learn_lessons("INVOKE_DEFAULT")
     check("Fresing > Learn… opens", r == {"RUNNING_MODAL"} or r == {"FINISHED"} or r == {"INTERFACE"}, r)
+    return 2.0
+
+
+@step
+def s_learn_window_wait():
+    """Task 0282: the window opens a moment later (the first window of a session waits for the layout to settle)."""
+    S.setdefault("t_lw", time.time())
+    if not _fs().ready_one(mod("blender.form_window").windows("fresing.learn_lessons")) and time.time() - S["t_lw"] < 15:
+        return "again"
     return 1.0
 
 
@@ -179,11 +195,17 @@ def s_learn_window_shot():
     log("the window's box", box)
     ok = "x" in box and int(box.split("x")[0]) > 400
     check("the Learn window is drawn", ok, box)
-    if ok:
+    fw = mod("blender.form_window")
+    wins = fw.windows("fresing.learn_lessons")
+    check("… in a window of its own (task 0282)", len(wins) == 1, str(len(wins)))
+    if wins:                                       # the guide's picture: the window's page
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import form_shots
+        form_shots.crop(after, wins[0], os.path.join(OUT, "learn_window.png"))
+    elif ok:
         subprocess.run(["convert", after, "-crop", box, "+repage", os.path.join(OUT, "learn_window.png")], check=False)
-    win = ui()[0]
-    win.event_simulate(type="ESC", value="PRESS", x=win.width // 2, y=win.height // 2)
-    win.event_simulate(type="ESC", value="RELEASE", x=win.width // 2, y=win.height // 2)
+    fw.close("fresing.learn_lessons")
     return 0.8
 
 

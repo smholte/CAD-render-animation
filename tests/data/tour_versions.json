@@ -38,8 +38,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.210",
-   "fp": "f686652f42783b96"
+   "changed": "0.2.213",
+   "fp": "4ae97be97acdedfe"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -68,8 +68,8 @@
   },
   "faces": {
    "added": "0.2.47",
-   "changed": "0.2.187",
-   "fp": "052a5287da4fc2b2"
+   "changed": "0.2.213",
+   "fp": "fec01e7a7e9895cf"
   },
   "flex_drawn": {
    "added": "0.2.180",
@@ -98,8 +98,8 @@
   },
   "lifting_make": {
    "added": "0.2.159",
-   "changed": "0.2.176",
-   "fp": "1ba86295472a20a4"
+   "changed": "0.2.213",
+   "fp": "22cdc7e6f4e0c753"
   },
   "linkage": {
    "added": "0.2.47",

@@ -612,7 +612,9 @@ class FRESING_OT_pose_save(bpy.types.Operator):
 
     def invoke(self, context, event):
         self.name = states.unique_pose_name(context.scene)
-        return context.window_manager.invoke_props_dialog(self)
+        from . import form_window
+        return form_window.open(self, context, width=340, height=150, title="Save pose", confirm="Save",
+                                icon="ARMATURE_DATA")
 
     def execute(self, context):
         name = self.name.strip() or states.unique_pose_name(context.scene)
@@ -718,7 +720,9 @@ class FRESING_OT_vis_save(bpy.types.Operator):
 
     def invoke(self, context, event):
         self.name = states.unique_visibility_name(context.scene)
-        return context.window_manager.invoke_props_dialog(self)
+        from . import form_window
+        return form_window.open(self, context, width=340, height=150, title="Save visibility set", confirm="Save",
+                                icon="HIDE_OFF")
 
     def execute(self, context):
         name = self.name.strip() or states.unique_visibility_name(context.scene)
@@ -792,7 +796,9 @@ class FRESING_OT_shot_save(bpy.types.Operator):
     def invoke(self, context, event):
         self.name = states.unique_shot_name(context.scene, context.scene.camera.name if context.scene.camera
                                             else "Scene")
-        return context.window_manager.invoke_props_dialog(self, width=360)
+        from . import form_window
+        return form_window.open(self, context, width=380, height=250, title="Save scene", confirm="Save",
+                                icon="SCENE_DATA")
 
     def draw(self, context):
         layout = self.layout

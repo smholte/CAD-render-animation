@@ -520,7 +520,9 @@ class FRESING_OT_lifting_box(bpy.types.Operator):
     def invoke(self, context, event):
         L = lifting.plan(context.scene)
         self.size, self.mass = tuple(L.box_size), L.box_mass
-        return context.window_manager.invoke_props_dialog(self, width=320)
+        from . import form_window
+        return form_window.open(self, context, width=340, height=190, title="Box load", confirm="Add",
+                                icon="MESH_CUBE")
 
     def execute(self, context):
         L = lifting.plan(context.scene)

@@ -623,6 +623,11 @@ fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings:
    "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",),
    pccheck=("app.settings", "settings.kept"), since="0.2.201", changed="0.2.206")
+fn(id="help.windows", headline=True, short="Function windows", title="Function windows: Make a crane, Save as my own "
+   "workspace, the PC check and the other forms open in a window of their own that stays open while you work, can go "
+   "onto another screen and opens again where it was", family="help", panel="TOPBAR_MT_fresing",
+   button="fresing.learn_lessons", guide="function-windows", tour=("lessons",), pccheck=("app.windows",),
+   since="0.2.213")
 fn(id="settings.locations", short="Locations", title="Locations: folders for STEP models, logos, materials, rule "
    "sets, templates … of your company, your department and your own, each item with its badge; one set-up file "
    "(.frsetup) brings a company's folders and settings", family="help", panel="TOPBAR_MT_fresing",

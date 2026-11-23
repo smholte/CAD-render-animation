@@ -312,7 +312,8 @@ class FRESING_OT_learn_lessons(bpy.types.Operator):
     bl_options = {"INTERNAL"}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=720, title="Learn", confirm_text="Close")
+        from . import form_window
+        return form_window.open(self, context, width=740, height=560, title="Learn", confirm=None, icon="HELP")
 
     def execute(self, context):
         CHOSEN["mode"] = ""
@@ -381,8 +382,9 @@ class FRESING_OT_learn_window(bpy.types.Operator):
     def invoke(self, context, event):
         self._told = core.take_told(usage.state())            # said once
         learning.save()
-        return context.window_manager.invoke_props_dialog(self, width=620, title="My learning list",
-                                                          confirm_text="Close")
+        from . import form_window
+        return form_window.open(self, context, width=640, height=480, title="My learning list", confirm=None,
+                                icon="BOOKMARKS", extra={"_told": self._told})
 
     def execute(self, context):
         return {"FINISHED"}

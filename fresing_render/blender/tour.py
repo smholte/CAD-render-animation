@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.210")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.213")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -964,7 +964,7 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.187")
+@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.213")
 def build_faces(b: Build):
     import bpy
 
@@ -4193,7 +4193,7 @@ def _check_crane_setup(scene):
     _check(not red, "Check: " + "; ".join(red[:2]))
     return f"{len(js)} joints with {len(roles)} roles, hook point set, Check: nothing wrong"
 @tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_loads.step", added="0.2.159",
-          changed="0.2.176")
+          changed="0.2.213")
 def build_lifting_make(b: Build):
     """Task 0204 / 0231: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next
     to the tour, placed on mats beside the yard's container and set up; its boom stands out, slewed over the yard (pose 'Working' + slew 90°) and
@@ -4621,8 +4621,11 @@ stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
      "On the yard stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… from the "
      "AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its outriggers and "
      "mats, its boom raised, slewed over the yard and telescoped out; the panel shows its radius and chart. Its boom "
-     "has 5 sections (joints Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
-     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", check=_check_lifting_make)
+     "has 5 sections (joints Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented. "
+     "Make a crane… opens its form in a window of its own: it stays open while you click in the main window, can be "
+     "dragged onto another screen and opens again where it was.",
+     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", changed="0.2.213",
+     check=_check_lifting_make)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
@@ -5134,7 +5137,8 @@ stop("make", OUT, HUB_SET, "Make: each output in a window",
      auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
-     "Help > Make demo project… makes the demo 'Vessel in a wind park' in the background (a minute or two on your PC; "
+     "Help > Make demo project… opens a small window of its own; Make it there makes the demo 'Vessel in a wind park' "
+     "in the background (a minute or two on your PC; "
      "the status bar shows how far). Then Help > Open demo project: an invented ship on the open sea in a wind park "
      "of nine turbines; 4 Motion lists 33 joints (the ship's thrusters, propellers, radars and deck crane, the park's "
      "turbines), 5 Scene & Render has the saved scene 'At the quay' and the saved cameras 'Stern thrusters' (under "
@@ -5143,8 +5147,8 @@ stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "6 Animation > 'What it can do today' plays a video of about a minute (Build & play): the ship sails in and holds "
      "her place, her crane slews and lowers its hook, the rotors turn, night falls. This stop only checks that the "
      "demo is there.",
-     where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
-     auto=lambda ctx, scene, st: "", changed="0.2.188")
+     where="Help menu (Make demo project…, Open demo project)", since="0.2.68", changed="0.2.213", shot="Tour view", check=_check_demo,
+     auto=lambda ctx, scene, st: "")
 
 def _check_panel_back(scene):
     """The header button and its operator (task 0198)."""
@@ -5365,9 +5369,10 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
      "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "
      "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
-     "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
+     "may have one quiet line \"Next to learn: …\" with Learn and Not interested. My learning list opens in a window "
+     "of its own that stays open beside your work; Esc with the mouse over it closes it.",
      where="Fresing menu > My learning list…; the question and the What's next card on the left panel",
-     since="0.2.160", changed="0.2.197", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+     since="0.2.160", changed="0.2.213", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
 def _check_lessons(scene):
     """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""
@@ -5395,9 +5400,10 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "tour at the set, Show me opens a new project with the plain model and the app does each step itself – the "
      "button glows, a card beside the part says what happens, Next goes on (or tick Play on) – and Build it yourself "
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
-     "coming'.",
+     "coming'. Learn… is a window of its own: click in the main window and it stays open, drag it onto another "
+     "screen, close it with Close or its X.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.197", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.213", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 
@@ -5424,12 +5430,12 @@ def _check_backups(scene):
 
 
 stop("backups", OUT, "faces", "Automatic backups",
-     "Fresing > Restore a backup… lists a backup of this tour project made just now (Today and the time, its size), "
-     "with Restore and a folder button. Restore keeps your work as a backup first, then opens the backup. In Edit > "
+     "Fresing > Restore a backup… opens a window of its own (it stays open while you work) listing a backup of this "
+     "tour project made just now (Today and the time, its size), with Restore and a folder button. Restore keeps your work as a backup first, then opens the backup. In Edit > "
      "Preferences > Add-ons > Fresing Render the box Automatic backups has the switch, every 5 minutes, keep the last 5 "
      "and one a day for 7 days.",
      where="Fresing menu > Restore a backup…; Edit > Preferences > Add-ons > Fresing Render > Automatic backups",
-     since="0.2.187", shot="Painted faces", check=_check_backups, setup=_backup_setup)
+     since="0.2.187", changed="0.2.213", shot="Painted faces", check=_check_backups, setup=_backup_setup)
 
 # ---------------------------------------------------------------------------
 # every machining stop: the block shows what the program does (task 0223)

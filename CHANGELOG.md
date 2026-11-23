@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.213 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
+
+- **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,
+  Save scene, the rule-set Copy / New / Rename, Make demo project, the PC check's choices, Learn…, My learning list,
+  Restore a backup, About and others (the user guide has the list). The window **stays open** while you click in the
+  main window, can be **dragged onto another screen**, and opens again **as big as you left it** (on Windows also
+  **where** you left it). Two different windows can be open at once; pressing the button again brings its window to
+  the front with what you typed.
+- Its button at the bottom (**Make**, **Save**, **Start** …) works with the project **as it is when you press it**;
+  when it cannot (no name, no model, a job running), the window stays and says why in red. **Cancel**, the **X** or
+  **Esc** over the window close it; **Return** there is its button. Undo works as before.
+- Short yes / no questions ("Remove this?", "Switch rule set?") stay small popups. The Client view refuses the same
+  functions as before. Window sizes and places are kept in the app's settings file.
+
 ## 0.2.212 – 23 Nov 2026 – "Making the Learning hub" says so clearly; Next goes to the next stop at once (task 0275)
 
 - **A card in the middle of the screen while the Learning hub is made.** It says what is happening, shows a bar with

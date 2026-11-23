@@ -126,7 +126,9 @@ class FRESING_OT_demo_make(bpy.types.Operator):
             self.report({"WARNING"}, "The demo project is being made: wait for it, or Help > Cancel demo project")
             return {"CANCELLED"}
         self.folder = self.folder or demo.default_folder()
-        return context.window_manager.invoke_props_dialog(self, width=460, confirm_text="Make it")
+        from . import form_window
+        return form_window.open(self, context, width=480, height=420, title="Make demo project", confirm="Make it",
+                                icon="FILE_BLEND")
 
     def _target(self):
         """(kit info or None, title, folder) of the chosen demo; kit info None + title '' = nothing to make."""

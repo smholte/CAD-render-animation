@@ -81,7 +81,9 @@ NOT_COUNTED = {"fresing.presence", "fresing.panel_toggle", "fresing.panel_tab", 
                # task 0253: a swallowed Blender key is no use of a function; F12 counts as the render it starts; the
                # right-click menu counts once when it opens (fresing.view_menu), not per entry
                "fresing.blender_key", "fresing.key_render", "fresing.ctx_zoom", "fresing.ctx_tree", "fresing.ctx_hide",
-               "fresing.ctx_only", "fresing.ctx_show_all", "fresing.ctx_label", "fresing.ctx_joint"}
+               "fresing.ctx_only", "fresing.ctx_show_all", "fresing.ctx_label", "fresing.ctx_joint",
+               # task 0282: a function window's buttons – the function counted once, when its window opened
+               "fresing.form_ok", "fresing.form_close", "fresing.form_key"}
 # Families never offered for hiding (there would be nothing to work with) and never on the bar (the panel's own
 # switches, menu lines).
 NEVER_ASK_FAMILIES = ("import", "help", "panel")

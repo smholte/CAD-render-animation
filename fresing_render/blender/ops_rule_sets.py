@@ -240,8 +240,9 @@ class FRESING_OT_rule_set_save_as(bpy.types.Operator):
             name = f"{first} {i}"
             i += 1
         self.name = name
-        return context.window_manager.invoke_props_dialog(self, width=360, title="Save as new rule set",
-                                                          confirm_text="Save")
+        from . import form_window
+        return form_window.open(self, context, width=400, height=220, title="Save as new rule set", confirm="Save",
+                                icon="DUPLICATE")
 
     def draw(self, context):
         layout = self.layout
@@ -283,8 +284,9 @@ class FRESING_OT_rule_set_new_empty(bpy.types.Operator):
             name = f"New rule set {i}"
             i += 1
         self.name = name
-        return context.window_manager.invoke_props_dialog(self, width=420, title="New, empty rule set",
-                                                          confirm_text="Start")
+        from . import form_window
+        return form_window.open(self, context, width=440, height=300, title="New, empty rule set", confirm="Start",
+                                icon="FILE_NEW")
 
     def draw(self, context):
         layout = self.layout
@@ -320,8 +322,9 @@ class FRESING_OT_rule_set_rename(bpy.types.Operator):
             self.report({"INFO"}, "Nothing to rename: copy Standard first")
             return {"CANCELLED"}
         self.new_name = self.name
-        return context.window_manager.invoke_props_dialog(self, width=360, title=f"Rename '{self.name}'",
-                                                          confirm_text="Rename")
+        from . import form_window
+        return form_window.open(self, context, width=400, height=150, title=f"Rename '{self.name}'",
+                                confirm="Rename", icon="GREASEPENCIL")
 
     def draw(self, context):
         self.layout.prop(self, "new_name")
