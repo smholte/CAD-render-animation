@@ -166,7 +166,7 @@ def hoses(folder):
         flex.remove(sc, 0)
     luff, slide = joints.find(sc, "Luff"), joints.find(sc, "Slide")
     luff.rot_min, luff.rot_max, luff.use_limits = math.radians(-20), math.radians(20), True
-    slide.slide_min, slide.slide_max, slide.use_limits = -0.15, 0.15, True
+    slide.slide_min, slide.slide_max, slide.use_limits = -0.45, 0.45, True
     for n in CAD_HOSES:
         logic.set_visible_flags(named(sc, n), True)
     update()
@@ -174,11 +174,11 @@ def hoses(folder):
 
 
 def valve_c_top(sc):
-    return click(sc, (0.432, -0.069, 0.5), (0, 0, -1), "FITTING VALVE C")
+    return click(sc, (1.292, -0.209, 1.0), (0, 0, -1), "FITTING VALVE C")
 
 
 def fitting_arm(sc):
-    return click(sc, (1.002, -0.3, 0.6), (0, 1, 0), "FITTING ARM")
+    return click(sc, (3.002, -0.9, 1.8), (0, 1, 0), "FITTING ARM")
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ def test_the_same_small_face_clicked_twice_at_two_points_is_one_click_and_nothin
     sc = hoses
     before = snapshot(sc)
     a1 = valve_c_top(sc)
-    a2 = click(sc, (0.426, -0.075, 0.5), (0, 0, -1), "FITTING VALVE C")         # same face, 8 mm away
+    a2 = click(sc, (1.286, -0.215, 1.0), (0, 0, -1), "FITTING VALVE C")         # same face, 8 mm away
     assert np.allclose(a1["point"], a2["point"], atol=1e-6)                       # (a small face: its middle)
     with pytest.raises(flex.FlexError):
         flex.draw_hose(sc, [a1, a2])
@@ -207,20 +207,20 @@ def test_the_same_small_face_clicked_twice_at_two_points_is_one_click_and_nothin
 
 def test_two_ends_on_one_big_face_make_an_arch(hoses):
     sc = hoses
-    a = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
-    b = click(sc, (0.9, -0.12, 0.8), (0, 0, -1), "BASE")
+    a = click(sc, (1.8, -0.36, 2.5), (0, 0, -1), "BASE")
+    b = click(sc, (2.55, -0.36, 2.5), (0, 0, -1), "BASE")
     item, _n = flex.draw_hose(sc, [a, b])
-    assert np.isfinite(item.length) and item.length > 0.3
+    assert np.isfinite(item.length) and item.length > 0.9
     line = passes_stops(sc, item)
-    assert line[:, 2].max() > 0.1 + 0.02                                          # it rises off the base
+    assert line[:, 2].max() > 0.3 + 0.02                                          # it rises off the base
     assert flex.status(sc, item)[1] == "OK"
 
 
 def test_a_clip_behind_end_b_and_a_clip_on_the_fitting_itself(hoses):
     sc = hoses
     a, b = valve_c_top(sc), fitting_arm(sc)
-    behind = click(sc, (1.15, -0.12, 0.8), (0, 0, -1), "BASE")                   # past end B along x
-    side = click(sc, (0.43, -0.3, 0.21), (0, 1, 0), "FITTING VALVE C")           # end A's own fitting, its side
+    behind = click(sc, (3.45, -0.36, 2.5), (0, 0, -1), "BASE")                   # past end B along x
+    side = click(sc, (1.29, -0.9, 0.61), (0, 1, 0), "FITTING VALVE C")           # end A's own fitting, its side
     before = snapshot(sc)
     for spots in ([a, behind, b], [a, side, b]):
         try:
@@ -240,13 +240,13 @@ def test_a_clip_behind_end_b_and_a_clip_on_the_fitting_itself(hoses):
 
 def test_a_clip_on_a_round_face_runs_along_its_axis(hoses):
     sc = hoses
-    gland = click(sc, (0.37, 0.35, 0.8), (0, 0, -1), "SLIDE GLAND")              # a round stub along +X
+    gland = click(sc, (1.07, 1.05, 2.5), (0, 0, -1), "SLIDE GLAND")              # a round stub along +X
     item, _n = flex.draw_hose(sc, [valve_c_top(sc), gland, fitting_arm(sc)])
     assert len(item.clips) == 1
     p, d = drawn.world_spot(item.clips[0].part, item.clips[0].point, item.clips[0].dir)
-    assert np.allclose(p, (0.375, 0.35, 0.62), atol=0.0005)                       # on its axis, at its end
+    assert np.allclose(p, (1.075, 1.05, 1.86), atol=0.0005)                       # on its axis, at its end
     assert abs(d[0]) == pytest.approx(1.0, abs=1e-6)
-    for slide in (0.0, 0.12):
+    for slide in (0.0, 0.36):
         set_joint(sc, "Slide", slide)
         line = passes_stops(sc, item)
         k = int(np.argmin(np.linalg.norm(line - drawn.world_spot(item.clips[0].part, item.clips[0].point,
@@ -258,7 +258,7 @@ def test_a_clip_on_a_round_face_runs_along_its_axis(hoses):
 def test_end_b_back_on_the_fitting_of_end_a_after_a_clip(hoses):
     sc = hoses
     a = valve_c_top(sc)
-    clip = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
+    clip = click(sc, (1.8, -0.36, 2.5), (0, 0, -1), "BASE")
     before = snapshot(sc)
     try:
         item, _n = flex.draw_hose(sc, [a, clip, dict(a)])
@@ -273,12 +273,12 @@ def test_a_fitting_on_a_part_that_moves_out_of_reach_says_too_short(hoses):
     sc = hoses
     slide = joints.find(sc, "Slide")
     slide.use_limits = False
-    a = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
-    b = click(sc, (0.28, 0.32, 0.5), (0, 0, -1), "SLIDE CARRIAGE")
+    a = click(sc, (1.8, -0.36, 2.5), (0, 0, -1), "BASE")
+    b = click(sc, (0.84, 0.96, 1.5), (0, 0, -1), "SLIDE CARRIAGE")
     item, notes = flex.draw_hose(sc, [a, b])
     assert any("limits" in n for n in notes), notes                               # the brief: no limits -> said
     length = item.length
-    set_joint(sc, "Slide", 3.0)                                                   # 3 m away: far out of reach
+    set_joint(sc, "Slide", 9.0)                                                   # 9 m away: far out of reach
     words, level = flex.status(sc, item)
     assert level == "WARN" and "short" in words.lower(), (words, level)
     line = flex.shape_now(sc, item)
@@ -291,7 +291,7 @@ def test_a_fitting_on_a_part_that_moves_out_of_reach_says_too_short(hoses):
 def test_the_length_typed_too_short_warns_and_stays_finite(hoses):
     sc = hoses
     item, _n = flex.draw_hose(sc, [valve_c_top(sc), fitting_arm(sc)])
-    item.length = 0.2                                                             # ends ~0.71 m apart
+    item.length = 0.6                                                             # ends ~1.65 m apart
     flex.refresh(sc, force=True)
     words, level = flex.status(sc, item)
     assert level == "WARN" and "short" in words.lower(), (words, level)
@@ -304,7 +304,7 @@ def test_the_length_typed_too_short_warns_and_stays_finite(hoses):
 
 def test_the_part_an_end_or_clip_sits_on_deleted_by_the_user(hoses):
     sc = hoses
-    clip = click(sc, (0.28, 0.32, 0.5), (0, 0, -1), "SLIDE CARRIAGE")
+    clip = click(sc, (0.84, 0.96, 1.5), (0, 0, -1), "SLIDE CARRIAGE")
     item, _n = flex.draw_hose(sc, [valve_c_top(sc), clip, fitting_arm(sc)])
     name, obj = item.name, item.part.name
     bpy.data.objects.remove(named(sc, "SLIDE CARRIAGE"), do_unlink=True)
@@ -362,8 +362,8 @@ def test_two_drawn_hoses_cannot_both_replace_one_cad_hose(hoses):
     cad = named(sc, "HYDRAULIC HOSE ARM")
     one, _n = flex.draw_hose(sc, [valve_c_top(sc), fitting_arm(sc)], replace=cad)
     one_name = one.name
-    a2 = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
-    b2 = click(sc, (0.9, -0.12, 0.8), (0, 0, -1), "BASE")
+    a2 = click(sc, (1.8, -0.36, 2.5), (0, 0, -1), "BASE")
+    b2 = click(sc, (2.55, -0.36, 2.5), (0, 0, -1), "BASE")
     two, notes = flex.draw_hose(sc, [a2, b2], replace=cad)
     assert notes and "already" in notes[0]
     assert not len(two.replaces) and cad.get(drawn.REPLACED) == one_name
@@ -376,8 +376,8 @@ def test_two_drawn_hoses_cannot_both_replace_one_cad_hose(hoses):
 def test_replacing_a_drawn_object_is_refused_in_a_note(hoses):
     sc = hoses
     one, _n = flex.draw_hose(sc, [valve_c_top(sc), fitting_arm(sc)])
-    a2 = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
-    b2 = click(sc, (0.9, -0.12, 0.8), (0, 0, -1), "BASE")
+    a2 = click(sc, (1.8, -0.36, 2.5), (0, 0, -1), "BASE")
+    b2 = click(sc, (2.55, -0.36, 2.5), (0, 0, -1), "BASE")
     _two, notes = flex.draw_hose(sc, [a2, b2], replace=one.part)
     assert notes
     assert not one.part.get(build.PROP_EXCLUDED) and drawn.REPLACED not in one.part
@@ -389,8 +389,8 @@ def test_replacing_a_drawn_object_is_refused_in_a_note(hoses):
 
 def test_save_and_open_keeps_the_clips_on_their_moving_parts(hoses, tmp_path):
     sc = hoses
-    c1 = click(sc, (0.28, 0.32, 0.5), (0, 0, -1), "SLIDE CARRIAGE")              # a clip that slides
-    c2 = click(sc, (0.6, -0.5, 0.62), (0, 1, 0), "ARM")                           # a clip that luffs
+    c1 = click(sc, (0.84, 0.96, 1.5), (0, 0, -1), "SLIDE CARRIAGE")              # a clip that slides
+    c2 = click(sc, (1.8, -1.5, 1.86), (0, 1, 0), "ARM")                           # a clip that luffs
     item, _n = flex.draw_hose(sc, [valve_c_top(sc), c1, c2, fitting_arm(sc)])
     name, shares, length = item.name, list(item["shares"]), item.length
     path = str(tmp_path / "clips.blend")
@@ -401,7 +401,7 @@ def test_save_and_open_keeps_the_clips_on_their_moving_parts(hoses, tmp_path):
     assert item is not None and len(item.clips) == 2 and item.length == pytest.approx(length)
     assert np.allclose(list(item["shares"]), shares)
     assert [c.part.get(build.PROP_NAME) for c in item.clips] == ["SLIDE CARRIAGE", "ARM"]
-    for luff, slide in ((math.radians(12), 0.1), (math.radians(-12), -0.1)):
+    for luff, slide in ((math.radians(12), 0.3), (math.radians(-12), -0.3)):
         joints.set_value(joints.find(sc, "Luff"), luff)
         set_joint(sc, "Slide", slide)
         line = passes_stops(sc, item)
@@ -416,7 +416,7 @@ def test_model_update_where_an_end_part_is_gone_keeps_the_hose_and_says_so(folde
     for n in CAD_HOSES:
         logic.set_visible_flags(named(sc, n), True)
     update()
-    lamp = click(sc, (1.2, 0.2, 1.0), (0, 0, -1), "ARM.LAMP")                     # only in revision B
+    lamp = click(sc, (3.6, 0.6, 3.0), (0, 0, -1), "ARM.LAMP")                     # only in revision B
     item, _n = flex.draw_hose(sc, [valve_c_top(sc), lamp], soft=True, name="Lamp cable")
     obj, radius = item.part.name, 0.5 * item.diameter
     shown = HS.resample(flex.shape_now(sc, item), 4000)                           # what showed before the update
@@ -439,11 +439,11 @@ def test_model_update_where_an_end_part_is_gone_keeps_the_hose_and_says_so(folde
 
 def test_build_of_a_hose_whose_clip_slides(hoses):
     sc = hoses
-    clip = click(sc, (0.28, 0.32, 0.5), (0, 0, -1), "SLIDE CARRIAGE")
+    clip = click(sc, (0.84, 0.96, 1.5), (0, 0, -1), "SLIDE CARRIAGE")
     item, _n = flex.draw_hose(sc, [valve_c_top(sc), clip, fitting_arm(sc)])
     anim = sc.fresing.animations.add()
     anim.name, anim.tail, anim.fps = "Slide", 0.0, "25"
-    for j, start, to in (("Slide", 0.0, 0.12), ("Luff", 1.0, math.radians(-15))):
+    for j, start, to in (("Slide", 0.0, 0.36), ("Luff", 1.0, math.radians(-15))):
         blk = anim.blocks.add()
         blk.kind, blk.joint, blk.start, blk.duration, blk.easing = "JOINT", j, start, 1.0, "LINEAR"
         blk.use_from = True
@@ -458,7 +458,7 @@ def test_build_of_a_hose_whose_clip_slides(hoses):
         sc.frame_set(f)
         passes_stops(sc, item)
         seen.append(stops_now(item)[1][0])
-    assert max(seen) - min(seen) > 0.1                                            # the clip did move with the slide
+    assert max(seen) - min(seen) > 0.3                                            # the clip did move with the slide
 
 
 def test_undo_after_a_draw(hoses):
@@ -493,11 +493,11 @@ def test_undo_after_a_draw(hoses):
 
 def test_the_picker_refuses_in_words_when_a_clicked_part_was_deleted_before_enter(hoses):
     sc = hoses
-    ob, index, loc, normal = hover.cast(sc, bpy.context.evaluated_depsgraph_get(), Vector((0.28, 0.32, 0.5)),
+    ob, index, loc, normal = hover.cast(sc, bpy.context.evaluated_depsgraph_get(), Vector((0.84, 0.96, 1.5)),
                                         Vector((0, 0, -1)))
     a = valve_c_top(sc)
     fake = types.SimpleNamespace(_clicks=[(a["part"].name, *hover.cast(sc, bpy.context.evaluated_depsgraph_get(),
-                                                                         Vector((0.432, -0.069, 0.5)),
+                                                                         Vector((1.292, -0.209, 1.0)),
                                                                          Vector((0, 0, -1)))[1:]),
                                           (ob.name, index, tuple(loc), tuple(normal))])
     assert len(ops_drawn._Picker._spots(fake, sc)) == 2

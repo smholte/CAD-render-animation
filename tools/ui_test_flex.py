@@ -34,8 +34,8 @@ LOG = open(os.path.join(OUT, "ui_test_flex.log"), "w")
 RESULTS = []
 STATE = {}
 MM = 0.001
-PIVOT = Vector((0.1, 0.0, 0.6))                 # the arm turns about Y through here (tools/make_test_flex.py)
-HOSE_END = Vector((1.0, 0.12, 0.6))             # end 1 of HYDRAULIC HOSE ARM on FITTING ARM, as drawn
+PIVOT = Vector((0.3, 0.0, 1.8))                 # the arm turns about Y through here (tools/make_test_flex.py)
+HOSE_END = Vector((3.0, 0.42, 1.8))             # end 1 of HYDRAULIC HOSE ARM on FITTING ARM, as drawn
 LUFF = math.radians(15.0)
 
 
@@ -265,7 +265,7 @@ def s_wait():
     sc = bpy.context.scene
     if sc.fresing.model_count == 0:
         return "wait"
-    view((0.6, 0.15, 0.35), 2.6)
+    view((1.9, -0.45, 1.3), 2.6)                # close on the arm's hose (real size: Ø20)
     open_panel()
     made = flex().set_up_test_hoses(sc)            # the joints "Luff" and "Slide" and the cylinder …
     while len(items()):
@@ -313,7 +313,7 @@ def s_add_hose():
           it is not None and it.a_part == named("FITTING VALVE C") and it.b_part == named("FITTING ARM"))
     mod("blender.joints").set_value(mod("blender.joints").find(sc, "Luff"), LUFF)       # the arm's tip goes up
     bpy.context.view_layer.update()
-    view((0.78, 0.3, 0.5), 1.0)                             # close on the cable (10 mm thick) for the next click (task 0221: the solid side panel makes the view narrower)
+    view((2.34, 0.9, 1.5), 1.0)                             # close on the cable (10 mm thick, real size) for the next click (task 0221: the solid side panel makes the view narrower)
     wiggle()
     return 1.5
 
@@ -324,9 +324,9 @@ def s_hose_follows():
     turned = Quaternion((0, -1, 0), LUFF) @ (HOSE_END - PIVOT) + PIVOT        # where the arm's fitting is now
     first, last = tube_ends(hose)
     off = float(np.linalg.norm(last - np.array(turned)))
-    check("Luff 15 degrees: the hose's end is on the arm's fitting", off < 0.1 * MM and turned.z > 0.8,
+    check("Luff 15 degrees: the hose's end is on the arm's fitting", off < 0.1 * MM and turned.z > 2.4,
           f"{off * 1000:.4f} mm off, fitting at z {turned.z * 1000:.0f} mm")
-    off0 = float(np.linalg.norm(first - np.array((0.43, -0.07, 0.22))))
+    off0 = float(np.linalg.norm(first - np.array((1.29, -0.21, 0.62))))
     check("… and its other end still on the valve block", off0 < 0.1 * MM, f"{off0 * 1000:.4f} mm off")
     shot("01_hose_follows")
     spot = spot_on(named("CABLE"))
@@ -351,7 +351,7 @@ def s_add_cable():
     r = op("fresing.flex_find", add=True)
     check("Find and add all: the two hoses of the cylinder come too", r == {"FINISHED"} and len(items()) == 4
           and item("HYDRAULIC HOSE CYL A") is not None and item("HYDRAULIC HOSE CYL B") is not None, said())
-    mod("blender.joints").set_value(mod("blender.joints").find(sc, "Slide"), 0.1)
+    mod("blender.joints").set_value(mod("blender.joints").find(sc, "Slide"), 0.3)
     bpy.context.view_layer.update()
     wiggle()
     return 1.5

@@ -244,7 +244,7 @@ def import_mesh(ctx):
     _check(desc.startswith("round face"), f"the ring's wall is not a round face ({desc})")
     off = math.degrees(math.acos(min(1.0, abs(d.normalized().z))))
     dia = float(desc.split("Ø")[1].split()[0])
-    _check(off < 0.5 and abs(dia - 1600.0) < 8.0, f"the ring's axis is {off:.2f}° off and Ø{dia:.1f} mm (Ø1600)")
+    _check(off < 0.5 and abs(dia - 4000.0) < 20.0, f"the ring's axis is {off:.2f}° off and Ø{dia:.1f} mm (Ø4000)")
     j = joints.create(scene, "ROTATE", [_ob(scene, "TURRET")], o, d, name="Slew", base=base)
     tip0 = _ob(scene, "BOOM").matrix_world.translation.copy()
     joints.set_value(j, math.radians(90))
@@ -273,7 +273,7 @@ def import_mesh_fbx(ctx):
     _check({"BASE", "SLEWING RING", "BOOM"} <= names, f"parts missing after the FBX round trip: {sorted(names)[:6]}")
     ring = _ob(scene, "SLEWING RING")
     dims = sorted(ring.dimensions)
-    _check(abs(dims[-1] - 1.6) < 0.01, f"the ring is {dims[-1]:.3f} m across after the FBX round trip (1.6 m)")
+    _check(abs(dims[-1] - 4.0) < 0.01, f"the ring is {dims[-1]:.3f} m across after the FBX round trip (4.0 m)")
     return f"{len(names)} parts back from FBX"
 
 
@@ -780,19 +780,19 @@ def joints_cylinder(ctx):
     from ..blender import build, cylinders, joints
     scene = ctx.fresh(LUFFER)
 
-    def at_y(name, y):              # the cylinder at y = 80 mm (there are two side by side)
+    def at_y(name, y):              # the cylinder at y = 240 mm (there are two side by side)
         hits = [o for o in scene.objects if o.get(build.PROP_NAME) == name]
         _check(bool(hits), f"the test model has no part '{name}'")
         return min(hits, key=lambda o: abs(o.matrix_world.translation.y - y))
 
     along_y = Vector((0, 1, 0))
-    pivot, barrel_pin, rod_pin = Vector((0.1, 0.08, 0.6)), Vector((0.5, 0.08, 0.15)), Vector((0.8, 0.08, 0.45))
-    arm = joints.create(scene, "ROTATE", [_ob(scene, "ARM.ASM")], Vector((0.1, 0.2, 0.6)), along_y, name="Luff")
-    c, _notes = cylinders.create(scene, [at_y("CYL.BARREL", 0.08)], [at_y("CYL.ROD", 0.08)],
+    pivot, barrel_pin, rod_pin = Vector((0.3, 0.24, 1.8)), Vector((1.5, 0.24, 0.45)), Vector((2.4, 0.24, 1.35))
+    arm = joints.create(scene, "ROTATE", [_ob(scene, "ARM.ASM")], Vector((0.3, 0.6, 1.8)), along_y, name="Luff")
+    c, _notes = cylinders.create(scene, [at_y("CYL.BARREL", 0.24)], [at_y("CYL.ROD", 0.24)],
                                  (barrel_pin, along_y, _ob(scene, "BASE.PIN")),
                                  (rod_pin, along_y, _ob(scene, "ARM.ROD.PIN")))
     _update()
-    eye = at_y("ROD.EYE", 0.08)
+    eye = at_y("ROD.EYE", 0.24)
     eye_centre = eye.matrix_world.inverted() @ rod_pin
     joints.set_value(arm, math.radians(20))
     _update()
@@ -800,15 +800,15 @@ def joints_cylinder(ctx):
     err = (eye.matrix_world @ eye_centre - want).length
     _check(err < 1e-4, f"the rod's eye is {err * 1000:.2f} mm off its pin with the arm at 20°")
     cylinders.set_mode(scene, c, "DRIVE")
-    cylinders.set_stroke(scene, c, 0.1)
+    cylinders.set_stroke(scene, c, 0.3)
     a, b = (barrel_pin - pivot).length, (rod_pin - pivot).length
-    length0, length = (rod_pin - barrel_pin).length, c.closed_length + 0.1
+    length0, length = (rod_pin - barrel_pin).length, c.closed_length + 0.3
     expected = (math.acos((a * a + b * b - length0 * length0) / (2 * a * b))
                 - math.acos((a * a + b * b - length * length) / (2 * a * b)))
     got = joints.get_value(arm)
-    _check(abs(got - expected) < 1e-4, f"stroke 100 mm turned the arm to {math.degrees(got):.2f}°, "
+    _check(abs(got - expected) < 1e-4, f"stroke 300 mm turned the arm to {math.degrees(got):.2f}°, "
                                        f"not {math.degrees(expected):.2f}°")
-    return f"eye on its pin to {err * 1000:.3f} mm; stroke 100 mm → arm {math.degrees(got):.2f}°"
+    return f"eye on its pin to {err * 1000:.3f} mm; stroke 300 mm → arm {math.degrees(got):.2f}°"
 
 
 @line("joints.mechanism", "Mechanisms: scissor lift height, slider-crank", "0.2.26",
@@ -898,7 +898,7 @@ def motion_flex(ctx):
     _check(len(made["items"]) == 4, f"only {len(made['items'])} of the 4 hoses were made")
     # posed by hand (no animation): the hoses follow at once
     joints.set_value(joints.find(scene, "Luff"), math.radians(15.0))
-    joints.set_value(joints.find(scene, "Slide"), 0.1)
+    joints.set_value(joints.find(scene, "Slide"), 0.3)
     _update()
     flex.refresh(scene)
     end, stretch, _chord = tour.flex_errors(scene)
@@ -1052,7 +1052,7 @@ def motion_flex_kinds(ctx):
     m = root.matrix_world
     from mathutils import Vector
     cam = cameras.add_camera(scene, "ISO", 32.0, name="PC check kinds")
-    at, target = m @ Vector((0.86, 1.45, 0.95)), m @ Vector((0.86, 0.39, 0.2))
+    at, target = m @ Vector((2.15, 2.23, 1.05)), m @ Vector((2.15, 1.17, 0.3))
     from mathutils import Matrix
     cam.matrix_world = Matrix.Translation(at) @ (target - at).normalized().to_track_quat("-Z", "Y").to_matrix().to_4x4()
     scene.camera = cam

@@ -35,8 +35,8 @@ from fresing_render.blender import (animation, build, clash, cylinders, flex, jo
                                     turntable)
 
 HOSE_NAMES = ("HYDRAULIC HOSE ARM", "HYDRAULIC HOSE CYL A", "HYDRAULIC HOSE CYL B", "CABLE")
-LENGTHS = {"HYDRAULIC HOSE ARM": 1008.54, "HYDRAULIC HOSE CYL A": 450.40, "HYDRAULIC HOSE CYL B": 551.52,
-           "CABLE": 1062.59}                                # mm, from the maker's docstring
+LENGTHS = {"HYDRAULIC HOSE ARM": 3000.81, "HYDRAULIC HOSE CYL A": 1413.55, "HYDRAULIC HOSE CYL B": 1756.04,
+           "CABLE": 3286.14}                                # mm, from the maker's docstring
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -214,7 +214,7 @@ def test_a_hose_added_in_another_pose_reads_the_same(folder):
     while len(flex.items(sc)):
         flex.remove(sc, 0)
     set_joint(sc, "Luff", math.radians(17))
-    set_joint(sc, "Slide", -0.12)
+    set_joint(sc, "Slide", -0.36)
     update()
     update()
     for name in made["items"]:
@@ -240,7 +240,7 @@ def test_a_model_moved_by_its_root_and_a_hose_part_that_moves(folder):
     root.matrix_basis = Matrix.Translation((0.7, -0.4, 0.25)) @ Matrix.Rotation(math.radians(35), 4, "Z")
     update()
     arm = ob(sc, "ARM.ASM")
-    pivot = root.matrix_world @ Vector((0.1, 0.2, 0.6))
+    pivot = root.matrix_world @ Vector((0.3, 0.6, 1.8))
     axis = root.matrix_world.to_3x3() @ Vector((0, -1, 0))
     j = joints.create(sc, "ROTATE", [arm, ob(sc, "HYDRAULIC HOSE ARM")], pivot, axis, name="Luff")
     assert len(joints.members(j)) == 2
@@ -317,7 +317,7 @@ def test_the_tube_ends_on_its_fittings(hoses):
     for name in HOSE_NAMES:
         it = flex.find(sc, name)
         cad_dir[name] = (it.a_part.matrix_world.to_3x3().copy(), it.b_part.matrix_world.to_3x3().copy())
-    for arm, slide in ((0.0, 0.0), (20.0, 0.0), (-20.0, 0.0), (8.0, 0.12), (-10.0, -0.15), (0.0, 0.15)):
+    for arm, slide in ((0.0, 0.0), (20.0, 0.0), (-20.0, 0.0), (8.0, 0.36), (-10.0, -0.45), (0.0, 0.45)):
         set_joint(sc, "Luff", math.radians(arm))
         set_joint(sc, "Slide", slide)
         update()
@@ -369,7 +369,7 @@ def test_hoses_follow_live_without_a_build(hoses):
     # a pose applied by a script (the model is not updated in between: flex.refresh sees to it)
     states.save_pose(sc, "Up")
     set_joint(sc, "Luff", math.radians(-12))
-    set_joint(sc, "Slide", 0.1)
+    set_joint(sc, "Slide", 0.3)
     update()
     assert end_errors(sc) < END_TOL and arm_deg(sc) == pytest.approx(-12, abs=1e-3)
     states.apply_pose(sc, "Up")
@@ -390,7 +390,7 @@ def test_hoses_follow_live_without_a_build(hoses):
     # only what moved is solved again: the slide carries one end of the cable and nothing else
     update()
     n = flex._STATE["solves"]
-    set_joint(sc, "Slide", -0.05)
+    set_joint(sc, "Slide", -0.15)
     update()
     assert flex._STATE["solves"] - n == 1
     update()
@@ -469,7 +469,7 @@ def test_a_built_animation_shows_every_frame(hoses):
     sc = hoses
     solves = flex._STATE["solves"]
     t = time.perf_counter()
-    a, r = built(sc, (("Luff", 0.0, 2.0, math.radians(20)), ("Slide", 2.0, 2.0, 0.12)))
+    a, r = built(sc, (("Luff", 0.0, 2.0, math.radians(20)), ("Slide", 2.0, 2.0, 0.36)))
     took = time.perf_counter() - t
     assert r["frames"] == 101 and sc.fresing.anim_baked == a.name
     assert took < 15.0                                       # 4 hoses x 101 frames (0.2 s on the web machine)
@@ -480,7 +480,7 @@ def test_a_built_animation_shows_every_frame(hoses):
         sc.frame_set(f)
         assert end_errors(sc) < END_TOL, f
     sc.frame_set(101)
-    assert arm_deg(sc) == pytest.approx(20, abs=1e-3) and slide_mm(sc) == pytest.approx(120, abs=1e-3)
+    assert arm_deg(sc) == pytest.approx(20, abs=1e-3) and slide_mm(sc) == pytest.approx(360, abs=1e-3)
     # the same frame gives the same shape whatever was shown before
     part = flex.find(sc, "HYDRAULIC HOSE ARM").part
     sc.frame_set(10)
@@ -510,7 +510,7 @@ def test_adding_and_removing_while_an_animation_is_built(folder):
     flex.set_up_test_hoses(sc)
     flex.remove(sc, flex.index_of(sc, flex.find(sc, "CABLE")))
     flex.remove(sc, flex.index_of(sc, flex.find(sc, "HYDRAULIC HOSE CYL B")))
-    built(sc, (("Luff", 0.0, 1.0, math.radians(18)), ("Slide", 0.0, 1.0, 0.1)))
+    built(sc, (("Luff", 0.0, 1.0, math.radians(18)), ("Slide", 0.0, 1.0, 0.3)))
     sh = bpy.data.objects[flex.SHAPES]
     assert len(sh.data.vertices) == 26 * 2 * flex.DRAWN
     stepped = flex._STATE["steps"]
@@ -626,7 +626,7 @@ def test_the_cylinders_hoses_follow_its_barrel(hoses):
     c = cylinders.find(sc, "Luff cylinder")
     a = sc.fresing.animations.add()
     a.name, a.tail, a.fps = "Stroke", 0.0, "25"
-    for start, stroke in ((0.0, 0.32), (1.5, 0.03)):         # out (the arm goes up), then nearly all the way in
+    for start, stroke in ((0.0, 0.96), (1.5, 0.09)):         # out (the arm goes up), then nearly all the way in
         b = a.blocks.add()
         b.kind, b.cylinder, b.start, b.duration = "CYLINDER", c.name, start, 1.5
         b.use_from, b.to_stroke = False, stroke
@@ -648,12 +648,12 @@ def test_a_still_in_a_saved_scene(hoses):
     """What the queue's background Blender does for a still: apply the saved scene, render."""
     sc = hoses
     set_joint(sc, "Luff", math.radians(18))
-    set_joint(sc, "Slide", -0.1)
+    set_joint(sc, "Slide", -0.3)
     update()
     states.save_shot(sc, "Arm up")
     want = {name: flex.shape_now(sc, flex.find(sc, name)).copy() for name in HOSE_NAMES}
     set_joint(sc, "Luff", math.radians(-15))
-    set_joint(sc, "Slide", 0.1)
+    set_joint(sc, "Slide", 0.3)
     update()
     assert np.abs(flex.shape_now(sc, flex.find(sc, "CABLE")) - want["CABLE"]).max() > 0.05
     states.apply_shot(sc, "Arm up")
@@ -754,7 +754,7 @@ def test_model_update_keeps_the_hoses(hoses):
     cable.name = "CABLE"
     assert end_errors(sc) < END_TOL
     set_joint(sc, "Luff", math.radians(14))
-    set_joint(sc, "Slide", 0.08)
+    set_joint(sc, "Slide", 0.24)
     update()
     assert end_errors(sc) < END_TOL
 
@@ -778,7 +778,7 @@ def test_a_part_gone_in_the_new_revision(hoses, folder):
 
 def test_a_project_without_flex_parts_gets_nothing(folder):
     sc = load(folder, HOSES_A)
-    joints.create(sc, "ROTATE", [ob(sc, "ARM.ASM")], Vector((0.1, 0.2, 0.6)), Vector((0, -1, 0)), name="Luff")
+    joints.create(sc, "ROTATE", [ob(sc, "ARM.ASM")], Vector((0.3, 0.6, 1.8)), Vector((0, -1, 0)), name="Luff")
     solves = flex._STATE["solves"]
     a, _r = built(sc, (("Luff", 0.0, 1.0, math.radians(20)),))
     assert flex.bake(sc, a) == [] and flex.after_model_update(sc, {}, {}) == []

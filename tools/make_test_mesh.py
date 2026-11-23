@@ -7,20 +7,22 @@ Every model is built here in the app's coordinates (metres, Z up) and written th
 metres with Y up ((x, y, z) -> (x, z, -y)), OBJ in millimetres with Y up. The files are byte for byte the same at
 every run.
 
-  test_mesh_crane.glb     a small crane, the tour's and the PC check's model:
+  test_mesh_crane.glb     a small crane, the tour's and the PC check's model (real size since task 0261: x 2.5 of
+                          the first one, ``S``; the boom pin a real Ø100):
     MESH CRANE              root node (no mesh)
-      BASE                  a 2.0 x 2.0 x 0.4 m box, its base colour a checker TEXTURE ("Base steel", UVs)
-      SLEWING RING          a facetted ring of 48 sides about the vertical axis through (0, 0): outer radius 0.80,
-                            inner 0.60, z 0.40 .. 0.55 ("Ring grey")
+      BASE                  a 5.0 x 5.0 x 1.0 m box, its base colour a checker TEXTURE ("Base steel", UVs)
+      SLEWING RING          a facetted ring of 48 sides about the vertical axis through (0, 0): outer radius 2.00,
+                            inner 1.50, z 1.00 .. 1.375 ("Ring grey")
       TURRET                a node (no mesh) the turret's parts hang under
-        CAB                 one mesh of TWO primitives: the cab box ("Yellow paint") and its window ("Glass")
-        BOOM                a 3.0 m box, tilted up 20 degrees ("Yellow paint")
-        BOOM PIN            a facetted shaft of 24 sides along Y through the boom's foot (0.45, *, 1.05), r 0.06
+        CAB                 one mesh of TWO primitives: the cab box, 2.0 x 2.25 x 1.975 m ("Yellow paint"), and its
+                            window ("Glass")
+        BOOM                a 7.5 m box, tilted up 20 degrees ("Yellow paint")
+        BOOM PIN            a facetted shaft of 24 sides along Y through the boom's foot (1.125, *, 2.625), r 0.05
       WHEEL FL/FR/RL/RR     four nodes sharing ONE mesh (instancing): a facetted wheel of 32 sides, axis along Y,
-                            r 0.25, width 0.18 ("Black rubber"); RL and RR turned over (negative scale on Y)
+                            r 0.625, width 0.45 ("Black rubber"); RL and RR turned over (negative scale on Y)
     asset.copyright "Fresing test models (invented), CC BY 4.0", asset.extras title / author / license / source
   test_mesh_crane_b.glb   its next revision: HOOK BLOCK added under TURRET, BOOM renamed "MAIN BOOM", the cab
-                          1 cm higher, everything else the same
+                          2.5 cm higher, everything else the same
   test_mesh_single.glb    ONE node with ONE mesh holding five loose pieces (a plate 1.2 x 0.8 x 0.05 m, a facetted
                           shaft r 0.04 of 16 sides standing on it, three blocks); the mesh has no normals (glTF: flat)
   test_mesh_parts.obj     an OBJ + test_mesh_parts.mtl + test_mesh_tile.png, millimetres, Y up: objects "Frame"
@@ -48,11 +50,12 @@ CREDIT = {"title": "Mesh crane (test model)", "author": "Fresing test models",
           "source": "tools/make_test_mesh.py"}
 
 # numbers the tests check against
-RING = {"centre": (0.0, 0.0), "outer": 0.80, "inner": 0.60, "z": (0.40, 0.55), "sides": 48}
-BOOM_PIN = {"centre": (0.45, 1.05), "r": 0.06, "sides": 24, "axis": (0.0, 1.0, 0.0)}
-WHEEL = {"r": 0.25, "width": 0.18, "sides": 32}
-WHEELS = {"WHEEL FL": (0.75, 1.10, 0.25, 1), "WHEEL FR": (-0.75, 1.10, 0.25, 1),
-          "WHEEL RL": (0.75, -1.10, 0.25, -1), "WHEEL RR": (-0.75, -1.10, 0.25, -1)}
+S = 2.5                         # the crane's scale against the first model (task 0261)
+RING = {"centre": (0.0, 0.0), "outer": 2.00, "inner": 1.50, "z": (1.00, 1.375), "sides": 48}
+BOOM_PIN = {"centre": (1.125, 2.625), "r": 0.05, "sides": 24, "axis": (0.0, 1.0, 0.0)}
+WHEEL = {"r": 0.625, "width": 0.45, "sides": 32}
+WHEELS = {"WHEEL FL": (1.875, 2.75, 0.625, 1), "WHEEL FR": (-1.875, 2.75, 0.625, 1),
+          "WHEEL RL": (1.875, -2.75, 0.625, -1), "WHEEL RR": (-1.875, -2.75, 0.625, -1)}
 SINGLE_SHAFT = {"centre": (0.3, 0.1), "r": 0.04, "sides": 16, "z": (0.05, 0.45)}
 OBJ_PIPE = {"r_mm": 50.0, "sides": 20}
 
@@ -306,30 +309,30 @@ def crane(revision: str = "a") -> bytes:
 
     root = g.node("MESH CRANE")
     base = Shape()
-    base.box((-1.0, -1.0, 0.0), (1.0, 1.0, 0.4), uv_scale=2.0)
+    base.box((-1.0 * S, -1.0 * S, 0.0), (1.0 * S, 1.0 * S, 0.4 * S), uv_scale=2.0)
     g.node("BASE", g.mesh("Base", [(base, steel)]), parent=root)
     ring = Shape()
     ring.ring(RING["outer"], RING["inner"], RING["z"][0], RING["z"][1], RING["sides"])
     g.node("SLEWING RING", g.mesh("Ring", [(ring, grey)]), parent=root)
     turret = g.node("TURRET", parent=root)
-    lift = 0.01 if revision == "b" else 0.0
+    lift = 0.025 if revision == "b" else 0.0
     cab, window = Shape(), Shape()
-    cab.box((-0.5, -0.45, 0.56), (0.3, 0.45, 1.35))           # 1 cm above the ring: it turns freely
-    window.quad((-0.51, -0.35, 0.95), (-0.51, 0.35, 0.95), (-0.51, 0.35, 1.25), (-0.51, -0.35, 1.25),
+    cab.box((-1.25, -1.125, 1.40), (0.75, 1.125, 3.375))     # 2.5 cm above the ring: it turns freely
+    window.quad((-1.26, -0.875, 2.375), (-1.26, 0.875, 2.375), (-1.26, 0.875, 3.125), (-1.26, -0.875, 3.125),
                 n=(-1.0, 0.0, 0.0))
     g.node("CAB", g.mesh("Cab", [(cab, yellow), (window, glass)]), matrix=move(0, 0, lift), parent=turret)
     boom = Shape()
-    boom.box((0.0, -0.12, -0.1), (3.0, 0.12, 0.1))
+    boom.box((0.0, -0.3, -0.25), (7.5, 0.3, 0.25))
     g.node("MAIN BOOM" if revision == "b" else "BOOM", g.mesh("Boom", [(boom, yellow)]),
            matrix=move(BOOM_PIN["centre"][0], 0.0, BOOM_PIN["centre"][1]) @ rot_y(-20), parent=turret)
     pin = Shape()
-    pin.cylinder(BOOM_PIN["r"], -0.2, 0.2, BOOM_PIN["sides"])
+    pin.cylinder(BOOM_PIN["r"], -0.5, 0.5, BOOM_PIN["sides"])
     g.node("BOOM PIN", g.mesh("Pin", [(pin, grey)]),
            matrix=move(BOOM_PIN["centre"][0], 0.0, BOOM_PIN["centre"][1]) @ rot_x(90), parent=turret)
     if revision == "b":
         hook = Shape()
-        hook.box((-0.1, -0.1, -0.2), (0.1, 0.1, 0.0))
-        g.node("HOOK BLOCK", g.mesh("Hook", [(hook, grey)]), matrix=move(3.2, 0.0, 1.6), parent=turret)
+        hook.box((-0.25, -0.25, -0.5), (0.25, 0.25, 0.0))
+        g.node("HOOK BLOCK", g.mesh("Hook", [(hook, grey)]), matrix=move(8.0, 0.0, 4.0), parent=turret)
     wheel = Shape()
     wheel.cylinder(WHEEL["r"], -WHEEL["width"] / 2, WHEEL["width"] / 2, WHEEL["sides"])
     wm = g.mesh("Wheel", [(wheel, rubber)])

@@ -1310,7 +1310,7 @@ def _check_chips(scene):
     return f"{n} chips"
 
 
-@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.199")
+@tour_set("cylinder", "Cylinder", "test_cylinder_a.step", added="0.2.47", changed="0.2.211")
 def build_cylinder(b: Build):
     from mathutils import Vector
 
@@ -1324,19 +1324,19 @@ def build_cylinder(b: Build):
         return min(hits, key=lambda o: abs(o.matrix_world.translation.y - y))
 
     along_y = Vector((0, 1, 0))
-    barrel_pin, rod_pin = Vector((0.5, 0.08, 0.15)), Vector((0.8, 0.08, 0.45))
-    joints.create(sc, "ROTATE", [_ob(sc, "ARM.ASM")], Vector((0.1, 0.2, 0.6)), along_y, name="Luff")
-    c, _notes = cylinders.create(sc, [at_y("CYL.BARREL", 0.08)], [at_y("CYL.ROD", 0.08)],
+    barrel_pin, rod_pin = Vector((1.5, 0.24, 0.45)), Vector((2.4, 0.24, 1.35))
+    joints.create(sc, "ROTATE", [_ob(sc, "ARM.ASM")], Vector((0.3, 0.6, 1.8)), along_y, name="Luff")
+    c, _notes = cylinders.create(sc, [at_y("CYL.BARREL", 0.24)], [at_y("CYL.ROD", 0.24)],
                                  (barrel_pin, along_y, _ob(sc, "BASE.PIN")),
                                  (rod_pin, along_y, _ob(sc, "ARM.ROD.PIN")), name="Luff cylinder")
     _update()
     cylinders.set_mode(sc, c, "DRIVE")
     # the second cylinder and the telescopic one follow the arm (task 0067: left standing, the arm's pin tore through
     # their eyes)
-    for barrel, rod, stage, y in (("CYL.BARREL", "CYL.ROD", "", 0.32), ("TELE.BARREL", "TELE.ROD", "TELE.STAGE", 0.2)):
+    for barrel, rod, stage, y in (("CYL.BARREL", "CYL.ROD", "", 0.96), ("TELE.BARREL", "TELE.ROD", "TELE.STAGE", 0.6)):
         cylinders.create(sc, [at_y(barrel, y)], [at_y(rod, y)],
-                         (Vector((0.5, y, 0.15)), along_y, _ob(sc, "BASE.PIN")),
-                         (Vector((0.8, y, 0.45)), along_y, _ob(sc, "ARM.ROD.PIN")),
+                         (Vector((1.5, y, 0.45)), along_y, _ob(sc, "BASE.PIN")),
+                         (Vector((2.4, y, 1.35)), along_y, _ob(sc, "ARM.ROD.PIN")),
                          name=f"Follower {barrel.split('.')[0].lower()}", stages=[at_y(stage, y)] if stage else ())
     _update()
     _surround(b, "FACTORY")
@@ -1345,8 +1345,8 @@ def build_cylinder(b: Build):
     a = _animation(b, "Stroke out", shot.name)
     blk = a.blocks.add()
     blk.kind, blk.cylinder, blk.start, blk.duration = "CYLINDER", c.name, 0.0, 3.0
-    blk.use_from, blk.from_stroke, blk.to_stroke = False, 0.0, min(0.15, c.full_stroke)
-    blk.name = "Stroke 0 → 150 mm"
+    blk.use_from, blk.from_stroke, blk.to_stroke = False, 0.0, min(0.45, c.full_stroke)
+    blk.name = "Stroke 0 → 450 mm"
 
 
 def _check_cylinder(scene):
@@ -1357,7 +1357,7 @@ def _check_cylinder(scene):
     _check(c is not None, "the cylinder is missing")
     arm = joints.find(scene, "Luff")
     eyes = [o for o in scene.objects if o.get(build.PROP_NAME) == "ROD.EYE"]
-    eye = min(eyes, key=lambda o: abs(o.matrix_world.translation.y - 0.08))
+    eye = min(eyes, key=lambda o: abs(o.matrix_world.translation.y - 0.24))
     pin = _ob(scene, "ARM.ROD.PIN")
 
     def off():                      # the eye's hole axis against the pin's axis (both along Y), in mm
@@ -1559,12 +1559,12 @@ M30
 def hoses_motion(a) -> None:
     """The steps of the hoses stop: the arm goes up 18° and down to -8° while the slide goes out and back."""
     _joint_step(a, "Luff", 0.0, 2.0, math.radians(18.0), label="Arm up 18°")
-    _joint_step(a, "Slide", 0.5, 2.0, 0.12, slide=True, label="Slide out 120 mm")
+    _joint_step(a, "Slide", 0.5, 2.0, 0.36, slide=True, label="Slide out 360 mm")
     _joint_step(a, "Luff", 2.0, 2.0, math.radians(-8.0), label="Arm down to -8°")
-    _joint_step(a, "Slide", 2.5, 1.5, -0.10, slide=True, label="Slide back 220 mm")
+    _joint_step(a, "Slide", 2.5, 1.5, -0.30, slide=True, label="Slide back 660 mm")
 
 
-@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78", changed="0.2.199")
+@tour_set("hoses", "Hoses and a cable", "test_flex_hoses_a.step", added="0.2.78", changed="0.2.211")
 def build_hoses(b: Build):
     from . import flex
     sc = b.scene
@@ -1737,13 +1737,13 @@ def _check_cables(scene):
 # ---------------------------------------------------------------------------
 
 DRAWN_ANIM = "Drawn hose, chain and cable"
-DRAWN_CHAINS_AT = (0.0, -1.1, 0.0)              # the gantry beside the hoses model (m)
-DRAWN_PATHS_AT = (0.0, 1.5, 0.0)                # the cable model on the other side
+DRAWN_CHAINS_AT = (0.0, -1.5, 0.0)              # the gantry beside the hoses model (m; task 0261: the arm x 3)
+DRAWN_PATHS_AT = (0.0, 1.9, 0.0)                # the cable model on the other side
 DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE = "Hose 1", "Drag chain 1", "Drawn rope"
-#: task 0243: drawn hoses on the base's top behind the arm (free of the CAD hoses and cable there), one per kind, in
-#: three rows of two: each an arch between two ends 300 mm apart along X, looking up
+#: task 0243: drawn hoses on the base's top behind the arm, past the rail's end (free of the CAD hoses and cable there), one
+#: per kind, in three rows of two: each an arch between two ends 300 mm apart along X, looking up
 KIND_ROW = ("HYDRAULIC", "BRAIDED", "PNEUMATIC", "SLEEVE", "MACHINE", "POWER")
-KIND_ROW_X, KIND_ROW_Y, KIND_ROW_SPAN = (0.565, 0.875), (0.345, 0.39, 0.435), 0.30          # m, along the base (model coordinates)
+KIND_ROW_X, KIND_ROW_Y, KIND_ROW_SPAN = (1.80, 2.20), (1.08, 1.17, 1.26), 0.30          # m, along the base (model coordinates)
 DRAWN_CHAIN_TYPE = "CLOSED"
 
 
@@ -1786,10 +1786,10 @@ def drawn_hose_setup(scene, root) -> str:
     luff = joints.find(scene, "Luff")
     luff.rot_min, luff.rot_max, luff.use_limits = math.radians(-20.0), math.radians(20.0), True
     cad = _ob(scene, "HYDRAULIC HOSE ARM")
-    spots = [_drawn_click(scene, root, (0.432, -0.069, 0.5), (0, 0, -1), "FITTING VALVE C", (cad,)),
-             _drawn_click(scene, root, (0.6, -0.12, 0.8), (0, 0, -1), "BASE", (cad,)),
-             _drawn_click(scene, root, (0.85, -0.12, 0.8), (0, 0, -1), "BASE", (cad,)),
-             _drawn_click(scene, root, (1.002, -0.3, 0.6), (0, 1, 0), "FITTING ARM", (cad,))]
+    spots = [_drawn_click(scene, root, (1.292, -0.209, 1.0), (0, 0, -1), "FITTING VALVE C", (cad,)),
+             _drawn_click(scene, root, (1.8, -0.36, 2.5), (0, 0, -1), "BASE", (cad,)),
+             _drawn_click(scene, root, (2.55, -0.36, 2.5), (0, 0, -1), "BASE", (cad,)),
+             _drawn_click(scene, root, (3.002, -0.9, 1.8), (0, 1, 0), "FITTING ARM", (cad,))]
     item, notes = flex.draw_hose(scene, spots, replace=cad)
     _check(not notes, "; ".join(notes))
     return item.name
@@ -1841,8 +1841,8 @@ def kind_row_setup(scene, root) -> list:
     for k, kid in enumerate(KIND_ROW):
         x, y = KIND_ROW_X[k % 2], KIND_ROW_Y[k // 2]
         done = [flex.find(scene, n).part for n in names]        # (an arch drawn already may be over the spot)
-        a = _drawn_click(scene, root, (x, y, 0.5), (0, 0, -1), "BASE", done)
-        b = _drawn_click(scene, root, (x + KIND_ROW_SPAN, y, 0.5), (0, 0, -1), "BASE", done)
+        a = _drawn_click(scene, root, (x, y, 1.0), (0, 0, -1), "BASE", done)
+        b = _drawn_click(scene, root, (x + KIND_ROW_SPAN, y, 1.0), (0, 0, -1), "BASE", done)
         item, notes = flex.draw_hose(scene, [a, b], soft=flex_kinds.get(kid).family == "cable",
                                      name=flex_kinds.get(kid).label)
         _check(not notes, "; ".join(notes))
@@ -1866,7 +1866,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.182")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.211")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -3918,14 +3918,14 @@ def mesh_ring_click(scene):
     from . import hover, joints
     a = math.radians(3.75)                              # half a facet of the 48-sided ring
     n = Vector((math.cos(a), math.sin(a), 0.0))
-    pt = Vector((0.8 * math.cos(a) * math.cos(a), 0.8 * math.sin(a), 0.475))
+    pt = Vector((2.0 * math.cos(a) * math.cos(a), 2.0 * math.sin(a), 1.1875))
     ob, index, loc, normal = hover.cast(scene, bpy.context.evaluated_depsgraph_get(), pt + n * 0.01, -n)
     _check(index >= 0, "the click did not hit the slewing ring")
     o, d, desc = joints.axis_from_hit(ob, index, loc, normal)
     return ob, o, d, desc
 
 
-@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.199")
+@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.211")
 def build_mesh(b: Build):
     """The invented mesh crane (a glTF file: no CAD faces) imported; its 48-sided slewing ring clicked for a joint
     that turns the turret, as a user does it."""
@@ -3957,7 +3957,7 @@ def _check_mesh(scene):
     off = math.degrees(math.acos(min(1.0, abs(d.normalized().z))))
     _check(off < 0.5, f"the ring's axis is {off:.2f}° off vertical")
     dia = float(desc.split("Ø")[1].split()[0])
-    _check(abs(dia - 1600.0) < 8.0, f"the ring measures Ø{dia:.1f} mm, it is Ø1600")
+    _check(abs(dia - 4000.0) < 20.0, f"the ring measures Ø{dia:.1f} mm, it is Ø4000")
     base = _ob(scene, "BASE")
     _check(base.material_slots[0].material is not None and base.material_slots[0].material.get("fr_has_texture"),
            "the base lost its texture from the file")
@@ -4451,9 +4451,9 @@ stop("explode", MOTION, HUB_SET, "Exploded view",
      "The crane's subassemblies are pulled apart outwards; Reset pose puts them back.",
      where="4 Motion > Poses & exploded views", check=_check_explode, since="0.2.47")
 stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
-     "The rod comes out of the cylinder 150 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
+     "The rod comes out of the cylinder 450 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
-     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.101")
+     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.211")
 stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
@@ -4471,7 +4471,7 @@ stop("waycover2", MOTION, "waycover2", "Two way covers on one axis",
 stop("hoses", MOTION, "hoses", "Hoses and a cable follow the arm",
      "The arm goes up and down and the slide travels: the three hydraulic hoses and the hanging cable bend along, "
      "their ends stay on the fittings and none gets longer or shorter.", where="4 Motion > Hoses and drag chains",
-     animation=HOSES_ANIM, play=True, since="0.2.78", check=_check_hoses, auto="clip")
+     animation=HOSES_ANIM, play=True, since="0.2.78", changed="0.2.211", check=_check_hoses, auto="clip")
 stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "A short G-code program moves X, Y and Z: each axis' drag chain rolls over its bend, link by link, and its "
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
@@ -4486,7 +4486,7 @@ stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
      "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
      "fittings, and keeps its length.", where="4 Motion > Hoses and drag chains > Draw hose", animation=DRAWN_ANIM,
-     play=True, since="0.2.180", check=check_drawn_hose, auto="clip")
+     play=True, since="0.2.180", changed="0.2.211", check=check_drawn_hose, auto="clip")
 stop("drawn_chain", MOTION, "flex_drawn", "A drawn drag chain",
      "Left: the gantry's X chain was drawn with two clicks on its brackets; the app draws its links. X travels out "
      "and back: the chain rolls over its bend, link by link, and its moving end stays on its bracket.",
@@ -4507,7 +4507,7 @@ stop("flex_kinds", MOTION, "flex_drawn", "Hose and cable kinds and sizes",
      "a steel-braided hose (a woven steel look), a blue pneumatic tube, a black spiral sleeve over a hose, a grey "
      "machine cable and a black power cable. The drawn rope on the right is a galvanised 16 mm wire rope (duller than bright steel).",
      where="4 Motion > Hoses and drag chains > Kind · Colour · Size", shot="Tour: drawn hose, chain and cable",
-     since="0.2.182", check=check_flex_kinds)
+     since="0.2.182", changed="0.2.211", check=check_flex_kinds)
 stop("chain_types", MOTION, "flex_drawn", "Drag chain types",
      "The drawn chain on the gantry is a closed chain now: lids top and bottom, a closed tube. Its Type can be "
      "open, closed, half-open (a lid on the outside of the bend) or steel; each rolls with X as before.",
@@ -4577,7 +4577,7 @@ stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "texture, the other parts the file's colours. The 48-sided slewing ring was clicked like a round CAD face: the "
      "joint 'Slew' turns the turret (cab, boom) 120° about the ring's centre, without wobble. 1 Import shows the "
      "file and its credit line.", where="File > Import > Mesh model (glTF, OBJ, FBX); 1 Import; 4 Motion > Add "
-     "joint", since="0.2.99", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
+     "joint", since="0.2.99", changed="0.2.211", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
 
 stop("lifting_place", MOTION, "lifting", "Lifting: a crane placed",
      "On a quayside yard – an IBC on its pallet, a pump skid and a 20 ft container – stands the built-in AT-40 sample "

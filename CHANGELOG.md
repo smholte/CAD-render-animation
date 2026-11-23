@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.211 – 23 Nov 2026 – "Making the Learning hub" says so clearly; Next goes to the next stop at once (task 0275)
+## 0.2.212 – 23 Nov 2026 – "Making the Learning hub" says so clearly; Next goes to the next stop at once (task 0275)
 
 - **A card in the middle of the screen while the Learning hub is made.** It says what is happening, shows a bar with
   "project 4 of 23", about how long it still takes, and that you can keep working. **Hide** keeps the bar in the
@@ -16,6 +16,20 @@ installer of that version was built from.
   menu, the welcome, What's new, the left panel) uses the same card.
 - **Next in the Learning hub** now sets the next stop up in one click, also when it lives in another project. The
   welcome says you can keep working while the hub is made.
+
+## 0.2.211 – 23 Nov 2026 – Test models at real size: the cylinder arm, the hose arm and the mesh crane (task 0261)
+
+- **The two luffing arms are three times bigger.** The cylinder arm and the hose arm of the test tour, the PC check and
+  the guide were desk-sized next to the life-size people and props: now the arm reaches 4.5 m from its pivot, which
+  sits 1.8 m up. The parts that have a real size are drawn at it, not three times bigger: pins Ø60, cylinders with a
+  Ø125 bore and a Ø70 rod (an ISO size), M24 anchor bolts (`ISO 4017 M24 x 120 - 8.8 HDG`). The hoses, fittings,
+  glands and the cable keep their real thickness and only get longer (the arm's hose is now 3.0 m).
+- **The mesh crane is 2.5 times bigger**: a 7.5 m boom and a cab 2 m high (it was lower than a person), with a real
+  Ø100 boom pin.
+- Same part names, assemblies and colours as before. The
+  tour stops show the new sizes: the cylinder now strokes 450 mm, the hose arm's slide travels 360 mm out and 660 mm
+  back.
+
 
 ## 0.2.210 – 23 Nov 2026 – Locations: company, department and your own folders; set-up files; export places (task 0272)
 

@@ -2217,7 +2217,7 @@ def render_flex():
         subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", path], check=True)
         return path
 
-    hose_moves = [("Luff", math.radians(15)), ("Slide", 0.12)]
+    hose_moves = [("Luff", math.radians(15)), ("Slide", 0.36)]
     on = one("test_flex_hoses_a.step", flex.set_up_test_hoses, hose_moves, "view_flex_hoses")
     off = one("test_flex_hoses_a.step", flex.set_up_test_hoses, hose_moves, "view_flex_off", items_on=False)
     pair = os.path.join(OUT, "view_flex_before_after.jpg")
@@ -2319,7 +2319,7 @@ def render_kinds():
         name = tour.drawn_chain_setup(sc, root)
         flex.find(sc, name).chain_kind = tour.DRAWN_CHAIN_TYPE
 
-    one("test_flex_hoses_a.step", hoses, "view_flex_kinds", (0.86, 1.3, 0.8), (0.86, 0.39, 0.17), 34)
+    one("test_flex_hoses_a.step", hoses, "view_flex_kinds", (2.15, 2.15, 1.05), (2.15, 1.12, 0.45), 34)
     one("test_flex_chains_a.step", chain, "view_chain_types", (0.2, -0.9, 0.7), (0.05, 0.07, 0.35), 40)
 
 

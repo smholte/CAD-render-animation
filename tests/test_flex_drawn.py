@@ -130,7 +130,7 @@ def hoses(folder):
         flex.remove(sc, 0)
     luff, slide = joints.find(sc, "Luff"), joints.find(sc, "Slide")      # the travel the maker checked
     luff.rot_min, luff.rot_max, luff.use_limits = math.radians(-20), math.radians(20), True
-    slide.slide_min, slide.slide_max, slide.use_limits = -0.15, 0.15, True
+    slide.slide_min, slide.slide_max, slide.use_limits = -0.45, 0.45, True
     update()
     return sc
 
@@ -141,8 +141,8 @@ def hose_ab(sc):
     cad = named(sc, "HYDRAULIC HOSE ARM")
     logic.set_visible_flags(cad, True)
     update()
-    a = click(sc, (0.432, -0.069, 0.5), (0, 0, -1), "FITTING VALVE C")
-    b = click(sc, (1.002, -0.3, 0.6), (0, 1, 0), "FITTING ARM")
+    a = click(sc, (1.292, -0.209, 1.0), (0, 0, -1), "FITTING VALVE C")
+    b = click(sc, (3.002, -0.9, 1.8), (0, 1, 0), "FITTING ARM")
     logic.set_visible_flags(cad, False)
     update()
     return a, b
@@ -157,15 +157,15 @@ def stops_now(item):
 def test_a_spot_on_a_round_face_is_on_its_axis_at_its_end(hoses):
     sc = hoses
     # SLIDE GLAND: a round stub Ø22 on the post along +X, its end face at (375, 350, 620); clicked on its side
-    sp = click(sc, (0.37, 0.35, 0.8), (0, 0, -1), "SLIDE GLAND")
+    sp = click(sc, (1.07, 1.05, 2.5), (0, 0, -1), "SLIDE GLAND")
     assert sp["round"] and sp["diameter"] == pytest.approx(0.022, abs=0.0005)
-    assert np.allclose(sp["point"], (0.375, 0.35, 0.62), atol=0.0005)
+    assert np.allclose(sp["point"], (1.075, 1.05, 1.86), atol=0.0005)
     assert np.allclose(sp["dir"], (1, 0, 0), atol=1e-6)
     # a small flat face: its middle, along its normal
     a, b = hose_ab(sc)
-    assert not a["round"] and np.allclose(a["point"], (0.43, -0.07, 0.22), atol=1e-4)
+    assert not a["round"] and np.allclose(a["point"], (1.29, -0.21, 0.62), atol=1e-4)
     assert np.allclose(a["dir"], (0, 0, 1), atol=1e-6)
-    assert np.allclose(b["point"], (1.0, 0.12, 0.6), atol=1e-4) and np.allclose(b["dir"], (0, -1, 0), atol=1e-6)
+    assert np.allclose(b["point"], (3.0, 0.42, 1.8), atol=1e-4) and np.allclose(b["dir"], (0, -1, 0), atol=1e-6)
 
 
 def test_a_hose_drawn_with_two_clicks_follows_like_a_cad_hose(hoses):
@@ -178,7 +178,7 @@ def test_a_hose_drawn_with_two_clicks_follows_like_a_cad_hose(hoses):
     assert item.a_part.get(build.PROP_NAME) == "FITTING VALVE C" and item.b_part.get(build.PROP_NAME) == "FITTING ARM"
     assert flex.status(sc, item) == ("follows the motion", "OK")
     length = item.length
-    for luff, slide in ((0.0, 0.0), (math.radians(-15), 0.1), (math.radians(18), -0.1)):     # three poses
+    for luff, slide in ((0.0, 0.0), (math.radians(-15), 0.3), (math.radians(18), -0.3)):     # three poses
         set_joint(sc, "Luff", luff)
         set_joint(sc, "Slide", slide)
         line = flex.shape_now(sc, item)
@@ -203,8 +203,8 @@ def test_a_hose_drawn_with_two_clicks_follows_like_a_cad_hose(hoses):
 def test_a_hose_through_two_clips_passes_them_at_every_pose_and_in_a_build(hoses):
     sc = hoses
     a, b = hose_ab(sc)
-    c1 = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
-    c2 = click(sc, (0.85, -0.12, 0.8), (0, 0, -1), "BASE")
+    c1 = click(sc, (1.8, -0.36, 2.5), (0, 0, -1), "BASE")
+    c2 = click(sc, (2.55, -0.36, 2.5), (0, 0, -1), "BASE")
     logic.exclude([named(sc, "HYDRAULIC HOSE ARM")], True)
     item, _notes = flex.draw_hose(sc, [a, c1, c2, b])
     assert len(item.clips) == 2 and item.points == HS.segment_points(3, flex.DRAWN)
@@ -212,7 +212,7 @@ def test_a_hose_through_two_clips_passes_them_at_every_pose_and_in_a_build(hoses
     assert shares.sum() == pytest.approx(1.0) and (shares > 0).all()
     # a clip on a flat face: the hose lies on it (its middle one radius above), along it
     stops = stops_now(item)
-    assert stops[1][2] == pytest.approx(0.1 + 0.5 * item.diameter, abs=1e-6)
+    assert stops[1][2] == pytest.approx(0.3 + 0.5 * item.diameter, abs=1e-6)
     d1 = drawn.world_spot(item.clips[0].part, item.clips[0].point, item.clips[0].dir)[1]
     assert abs(d1[2]) < 1e-6 and d1[0] > 0.9
     length = item.length
@@ -264,7 +264,7 @@ def test_the_queue_copy_builds_the_drawn_hose_again(hoses, tmp_path):
     """The render queue opens a copy of the project and builds again: the drawn hose (with a clip) is drawn the same."""
     sc = hoses
     a, b = hose_ab(sc)
-    clip = click(sc, (0.6, -0.12, 0.8), (0, 0, -1), "BASE")
+    clip = click(sc, (1.8, -0.36, 2.5), (0, 0, -1), "BASE")
     flex.draw_hose(sc, [a, clip, b])
     anim = sc.fresing.animations.add()
     anim.name, anim.tail, anim.fps = "Queue", 0.0, "25"

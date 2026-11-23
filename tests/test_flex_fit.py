@@ -746,14 +746,14 @@ def test_bad_input_never_raises():
 # ---------------------------------------------------------------------------------------------------------
 
 # name: (diameter, length in A, length in B, end 0, out 0, end 1, out 1, fitting at end 0, fitting at end 1) – mm
-HOSES = {
-    "HYDRAULIC HOSE ARM": (20.0, 1008.54, 1058.99, (430, -70, 220), (0, 0, 1), (1000, 120, 600), (0, -1, 0),
+HOSES = {                                   # task 0261: the arm x 3, the hoses keep their diameters
+    "HYDRAULIC HOSE ARM": (20.0, 3000.81, 3150.56, (1290, -210, 620), (0, 0, 1), (3000, 420, 1800), (0, -1, 0),
                            "FITTING VALVE C", "FITTING ARM"),
-    "HYDRAULIC HOSE CYL A": (16.0, 450.40, 450.40, (310, -70, 220), (0, 0, 1), (381.56, 125, 208.06), (0, -1, 0),
+    "HYDRAULIC HOSE CYL A": (16.0, 1413.55, 1413.55, (930, -210, 620), (0, 0, 1), (1144.67, 500, 624.18), (0, -1, 0),
                              "FITTING VALVE A", "FITTING BARREL A"),
-    "HYDRAULIC HOSE CYL B": (16.0, 551.52, 551.52, (370, -70, 220), (0, 0, 1), (647.97, 125, 332.39), (0, -1, 0),
+    "HYDRAULIC HOSE CYL B": (16.0, 1756.04, 1756.04, (1110, -210, 620), (0, 0, 1), (1942.11, 500, 996.32), (0, -1, 0),
                              "FITTING VALVE B", "FITTING BARREL B"),
-    "CABLE": (10.0, 1062.59, 1062.59, (375, 350, 620), (1, 0, 0), (1185, 262, 600), (-1, 0, 0),
+    "CABLE": (10.0, 3286.14, 3286.14, (1075, 1050, 1860), (1, 0, 0), (3555, 762, 1800), (-1, 0, 0),
               "SLIDE GLAND", "CABLE GLAND ARM"),
 }
 HOSE_PARTS = ["BASE", "POST", "BASE.BRACKET", "BASE.PIN", "VALVE BLOCK", "FITTING VALVE A", "FITTING VALVE B",
@@ -827,9 +827,9 @@ def test_the_maker_says_what_its_docstring_says(revision):
         drawn, least, most, spare, _pose = maker.hose_motion(revision)[name]
         assert most < r.length and spare > 0.07 * r.length and least <= drawn <= most
     assert abs(routes["CABLE"].length / np.linalg.norm(routes["CABLE"].end1 - routes["CABLE"].end0) - 1.3) < 0.02
-    assert abs(maker.CYL_L - 662.12) < 0.01 and abs(maker.CYL_ANGLE - 25.02) < 0.01
-    assert abs(maker.cylinder(-20.0)[0] - 500.69) < 0.01 and abs(maker.cylinder(20.0)[0] - 824.78) < 0.01
-    assert (maker.PISTON, maker.TUBE_END) == (214.0, 418.0)
+    assert abs(maker.CYL_L - 1986.35) < 0.01 and abs(maker.CYL_ANGLE - 25.02) < 0.01
+    assert abs(maker.cylinder(-20.0)[0] - 1502.07) < 0.01 and abs(maker.cylinder(20.0)[0] - 2474.35) < 0.01
+    assert (maker.PISTON, maker.TUBE_END) == (641.0, 1252.0)
     for name, (links, first, last, along, _asm) in CHAINS.items():
         pins = maker.chain_pins(name)
         assert len(pins) == links + 1
