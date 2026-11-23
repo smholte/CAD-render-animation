@@ -159,7 +159,8 @@ def s_left_parts():
     check("Blender's tool buttons are not drawn there outside Full access", tools_quiet())
     order = [c.__name__ for c in mod("")._all_classes() if getattr(c, "bl_region_type", "") == "TOOLS"
              and getattr(c, "bl_space_type", "") == "VIEW_3D"      # task 0272: not the file browser's STEP folders
-             and c.__name__ != "FRESING_PT_settings_window"]      # task 0271: shows only in the Settings window
+             and c.__name__ not in ("FRESING_PT_settings_window",   # task 0271: shows only in the Settings window
+                                    "FRESING_PT_form_window")]       # task 0282: only in a function window
     check("the left panel's parts in order", order[:3] == ["FRESING_PT_left_quick", "FRESING_PT_update",
                                                            "FRESING_PT_workspace"] and order[-1] == "FRESING_PT_next",
           str(order))

@@ -628,6 +628,11 @@ fn(id="help.settings", headline=True, short="Settings", title="Fresing Settings:
    "window with tabs (General, Side panel, Lessons, Backups, Updates, My usage, About)", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="settings", tour=("settings",),
    pccheck=("app.settings", "settings.kept"), since="0.2.201", changed="0.2.206")
+fn(id="help.windows", headline=True, short="Function windows", title="Function windows: Make a crane, Save as my own "
+   "workspace, the PC check and the other forms open in a window of their own that stays open while you work, can go "
+   "onto another screen and opens again where it was", family="help", panel="TOPBAR_MT_fresing",
+   button="fresing.learn_lessons", guide="function-windows", tour=("lessons",), pccheck=("app.windows",),
+   since="0.2.217")
 fn(id="settings.locations", short="Locations", title="Locations: folders for STEP models, logos, materials, rule "
    "sets, templates … of your company, your department and your own, each item with its badge; one set-up file "
    "(.frsetup) brings a company's folders and settings", family="help", panel="TOPBAR_MT_fresing",
@@ -641,7 +646,7 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
 fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
    "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
    "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
-   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.217")       # task 0296
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.219")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")

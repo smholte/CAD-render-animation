@@ -187,10 +187,7 @@ def _dress(window) -> None:
     """The Set-up window's 3D view shows the side panel and nothing that costs time or space. Sets only what is
     not so yet: it runs again whenever the tab is put back. The Settings window (task 0271) shows its page in the
     toolbar region instead (a region without tabs): its side panel is off, the toolbar on."""
-    try:
-        settings = bool(window.screen.get(SETTINGS_MARK))
-    except (AttributeError, ReferenceError):
-        settings = False
+    settings = is_page_window(window)       # (task 0282: a function window too)
     for area in window.screen.areas:
         if area.type != "VIEW_3D":
             continue
@@ -221,6 +218,18 @@ OUTPUT_MARK = "fr_output"      # task 0260: an output window of Make (ops_make.p
 OUTPUT_TAB = "Make"
 SETTINGS_MARK = "fr_settings"  # task 0271: the Fresing Settings window (ops_settings.py): screen ID property = "settings"
 SETTINGS_TAB = "Settings"
+FORM_MARK = "fr_form"          # task 0282: a function window (form_window.py): screen ID property = the operator's id
+FORM_TAB = "Window"
+PAGE_MARKS = (SETTINGS_MARK, FORM_MARK)    # windows whose page is drawn in the toolbar region (no tab strip there)
+
+
+def is_page_window(window) -> bool:
+    """Fresing Settings or a function window: its page fills the toolbar region (task 0271 / 0282)."""
+    try:
+        screen = window.screen
+        return bool(screen is not None and any(screen.get(m) for m in PAGE_MARKS))
+    except (AttributeError, ReferenceError):
+        return False
 
 
 def tab_of(window) -> str:
@@ -229,13 +238,15 @@ def tab_of(window) -> str:
         screen = window.screen
         if screen.get(SETTINGS_MARK):
             return SETTINGS_TAB
+        if screen.get(FORM_MARK):
+            return FORM_TAB
         return TAB if screen.get(MARK) else (OUTPUT_TAB if screen.get(OUTPUT_MARK) else "")
     except (AttributeError, ReferenceError):
         return ""
 
 
 def app_windows() -> list:
-    """Every open Set-up window, output window and Settings window."""
+    """Every open Set-up window, output window, Settings window and function window."""
     wm = getattr(bpy.context, "window_manager", None)
     return [w for w in wm.windows if tab_of(w)] if wm is not None else []
 
@@ -246,7 +257,7 @@ def _show_tab(window) -> bool:
     ok = True
     tab = tab_of(window) or TAB
     _dress(window)
-    if tab == SETTINGS_TAB:                  # task 0271: its page is in the toolbar region, which has no tabs
+    if tab in (SETTINGS_TAB, FORM_TAB):      # task 0271 / 0282: the page is in the toolbar region, which has no tabs
         return True
     for area in window.screen.areas:
         if area.type != "VIEW_3D":

@@ -564,6 +564,17 @@ fresing_render/            the Blender extension (Python package)
                            prefs.py (the Add-ons page only has Open Fresing Settings). ``FRESING_OT_presence`` in the
                            add-on keymap "Window" (mouse move / click / wheel, PASS_THROUGH) is the usage tracker's only
                            sign of the user besides clicks and panel openings (``usage.presence``)
+    form_window.py         task 0282: **function windows** – a function's form (Make a crane, Save as my own workspace,
+                           the PC check …) in a window of its own instead of a dialog: ``invoke`` ends in
+                           ``form_window.open(self, context, width=, height=, title=, confirm=)`` (``confirm=None``: only
+                           Close). The values are a property group made from the operator's own properties on the window
+                           manager (``make_group``), its ``draw`` draws them (``_Self`` / ``_Layout`` hand Blender the
+                           group), Make = ``fresing.form_ok`` runs ``execute`` in the main window with its undo step
+                           (refused / failed: the window stays and says why); the window is 0271's kind (mark ``fr_form`` =
+                           the operator id, ``ops_setup.PAGE_MARKS``); size + place in the settings file
+                           (``prefs.window_places``, ``ops_make.remember`` / ``kept_size``); Esc / Return over it;
+                           another project closes them. ``WINDOWS`` / ``POPUPS`` = the inventory: a new dialog must be in
+                           one of them (``tests/test_form_window.py``)
     editors.py             task 0221: Blender's right-hand column (Outliner + Properties next to the main 3D view) closed on
                            every load the app tidies, Fresing > Show / Hide Blender's editors, the choice in
                            `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
@@ -902,6 +913,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   `missing()` when the thing a panel needs is not there; one word per action (Remove / Clear / Delete,
   Show in folder, Add / Use as, Back to …, Find, Set-up). Check with `tools/ui_screens.py`
   (`UISHOT_TAB=4` shows one section).
+- **The panel stays still** (owner, 23 Nov 2026): a warning or state that comes and goes does not push the rows under it
+  down. Put it on a row that is always there (next to the value it is about, e.g. "Distance: −17.2 mm  ⚠ Beyond
+  limits", the longer text as its tooltip), or keep its line drawn when there is nothing to say. Only when neither is
+  possible may it add a line – then at the bottom of the box, never between the value and the settings under it.
 - **A new panel** (task 0062): the class says `draw_header` (icon), `draw_header_preset` (state) and
   `draw` (body) – never its own title row, `bl_options` only `DEFAULT_CLOSED` or nothing (`panels.py`
   draws the title and keeps what is open). Add it to `core/places.py` (parent, title, at its place in
@@ -1498,6 +1513,19 @@ the release → Delete); the next run on `main` publishes it again.
   must survive a restart goes into a small file in `bpy.utils.user_resource("CONFIG")` (`fresing_layout.json`,
   `fresing_usage.json`, `fresing_left.json` = the left panel's folds, `ui_left.store`). Test a restart for real: a
   second app in the same settings folder (`tools/ui_test_left_restart.py`, started by `ui_test_left.py`).
+- In a 3D view's toolbar region (the page of Fresing Settings and of the function windows) Blender's "Frames" keymap takes
+  Esc first (`screen.animation_cancel`, whose poll is always true): an Esc in the add-on's "Window" keymap, or in "3D View
+  Generic", never ran (task 0282). The add-on's Esc sits in "Frames" with `head=True`; its poll lets it pass elsewhere.
+  Return in "Window" works.
+- An operator called through `bpy.ops` from inside another operator pushes no undo step of its own, even with the undo
+  argument True (Blender counts the outer call): a function window's Return first called `bpy.ops.fresing.form_ok`, and
+  the pose it saved could not be undone. Both the button and the key call one plain function (`form_window.press_ok`),
+  which calls the function's operator once, at the top. In Blender as a Python module the undo argument crashes (no
+  undo stack): pass it only when not `bpy.app.background`.
+- An operator's ``bl_rna.properties`` are the Operator struct's own (``properties``, ``layout`` …), not the operator's
+  settings: read those from ``bpy.ops.<cat>.<name>.get_rna_type().properties``. String annotations (``from __future__
+  import annotations``) of a new class are evaluated by Blender at registration in the class's ``__module__`` – a
+  property group made from an operator's annotations needs the operator's module (``form_window.make_group``).
 - `os.access(folder, os.W_OK)` on Windows says yes to every folder (it reads only a FILE's read-only flag, never a
   share's or NTFS rights): a read-only company share counted as writable (task 0272, found by its independent
   reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.

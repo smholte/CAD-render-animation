@@ -407,17 +407,17 @@ class FRESING_OT_gpu_how(bpy.types.Operator):
         col.separator()
         row = col.row()
         if sys.platform == "win32":
-            row.operator("fresing.gpu_open_settings", icon="PREFERENCES")
+            row.operator("fresing.gpu_windows_page", icon="PREFERENCES")
         row.operator("fresing.whats_new_guide", text="Open the user guide", icon="HELP").anchor = GUIDE_ANCHOR
 
     def execute(self, context):
         return {"FINISHED"}
 
 
-class FRESING_OT_gpu_open_settings(bpy.types.Operator):
+class FRESING_OT_gpu_windows_page(bpy.types.Operator):
     """Open Windows' Graphics settings (Settings > System > Display > Graphics), where a program's GPU is chosen"""
 
-    bl_idname = "fresing.gpu_open_settings"
+    bl_idname = "fresing.gpu_windows_page"
     bl_label = "Open Windows' Graphics settings"
 
     @classmethod
@@ -584,7 +584,7 @@ def check(no_gpu_expected: bool = False) -> tuple:
     return "ok", "; ".join(text)
 
 
-CLASSES = (FRESING_OT_gpu_notice, FRESING_OT_gpu_use_card, FRESING_OT_gpu_how, FRESING_OT_gpu_open_settings,
+CLASSES = (FRESING_OT_gpu_notice, FRESING_OT_gpu_use_card, FRESING_OT_gpu_how, FRESING_OT_gpu_windows_page,
            FRESING_OT_gpu_render_device, FRESING_OT_gpu_look)
 
 

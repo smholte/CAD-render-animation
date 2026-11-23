@@ -498,12 +498,17 @@ class FRESING_OT_gcode_report(_CncOp, bpy.types.Operator):
         return super().poll(context) and _step(context) is not None
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_popup(self, width=560)
+        from . import form_window
+        return form_window.open(self, context, width=580, height=520, title="Program details", confirm=None,
+                                icon="FILE_SCRIPT")
 
     def draw(self, context):
         b = _step(context)
-        info = gcode.info(context.scene, b) if b is not None else {}
         col = self.layout.column(align=True)
+        if b is None:                   # task 0282: the window stays open – the step may be gone or unselected now
+            col.label(text="Select a 'Run G-code program' step in 6 Animation to see its details.", icon="INFO")
+            return
+        info = gcode.info(context.scene, b)
         if info.get("error"):
             col.label(text=info["error"], icon="ERROR")
             return
@@ -585,7 +590,9 @@ class FRESING_OT_gcode_go_line(_CncOp, bpy.types.Operator):
         return super().poll(context) and _step(context) is not None and bool(context.scene.fresing.anim_baked)
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=260)
+        from . import form_window
+        return form_window.open(self, context, width=300, height=150, title="Go to line", confirm="Go",
+                                icon="TIME")
 
     def execute(self, context):
         scene = context.scene

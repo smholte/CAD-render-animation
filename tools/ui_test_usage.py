@@ -27,6 +27,13 @@ os.environ["FRESING_USAGE_FILE"] = os.path.join(OUT, "usage é", "fresing_usage.
 LOG = open(os.path.join(OUT, "ui_test_usage.log"), "w")
 RESULTS = []
 S = {}
+def _fs():
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import form_shots
+    return form_shots
+
+
 STEPS = []
 KEPT = {}
 
@@ -380,21 +387,39 @@ def s_after_learn():
           len(s["learning"]["list"]))
     with override():
         bpy.ops.fresing.learn_window("INVOKE_DEFAULT")
+    return 2.0
+
+
+@step
+def s_learn_window_wait():
+    S.setdefault("t_lw", time.time())
+    if not _fs().ready_one(mod("blender.form_window").windows("fresing.learn_window")) and time.time() - S["t_lw"] < 15:
+        return "again"
     return 1.0
 
 
 @step
 def s_learn_window_shot():
-    win = ui()[0]
-    subprocess.run(["import", "-window", "root", os.path.join(OUT, "07_learning_list.png")], check=False)
-    win.event_simulate(type="ESC", value="PRESS", x=win.width // 2, y=win.height // 2)
-    return 0.4
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import form_shots
+    path = os.path.join(OUT, "07_learning_list.png")
+    subprocess.run(["import", "-window", "root", path], check=False)
+    fw = mod("blender.form_window")
+    wins = fw.windows("fresing.learn_window")
+    check("My learning list opens in a window of its own (task 0282)", len(wins) == 1, str(len(wins)))
+    if wins:                                       # the guide's picture (docs/img/learning_list.png)
+        form_shots.crop(path, wins[0], os.path.join(OUT, "learning_list.png"))
+        form_shots.key(wins[0], "ESC")             # Esc with the mouse over it closes it
+    return 1.0
 
 
 @step
 def s_learn_window_close():
-    win = ui()[0]
-    win.event_simulate(type="ESC", value="RELEASE", x=win.width // 2, y=win.height // 2)
+    S.setdefault("t_esc", time.time())
+    if mod("blender.form_window").windows("fresing.learn_window") and time.time() - S["t_esc"] < 8:
+        return "again"
+    check("… Esc over it closes it", not mod("blender.form_window").windows("fresing.learn_window"))
     return 0.5
 
 

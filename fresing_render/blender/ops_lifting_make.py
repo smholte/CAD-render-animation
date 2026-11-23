@@ -145,8 +145,9 @@ class FRESING_OT_lifting_make(bpy.types.Operator):
         m = U.settings(context)
         if not m.name.strip() or m.name == "My crane":
             m.name = unique_name(f"My {m.start}")
-        return context.window_manager.invoke_props_dialog(self, width=470, title="Make a crane",
-                                                          confirm_text="Make")
+        from . import form_window
+        return form_window.open(self, context, width=490, height=700, title="Make a crane", confirm="Make",
+                                icon="MOD_BUILD")
 
     def draw(self, context):
         U.draw_dialog(self.layout, context, U.settings(context))
