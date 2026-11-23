@@ -1,6 +1,6 @@
 # 0312 – Study + prototype (findings only): vessels on the sea – presets, driving and paths, anything floats and can be hit, waves that break on a beach, the camera under water
 
-**Who:** worker · **Status:** running 23 Nov · **Branch:** `task/0312-study-vessels-on-the-sea` (branch only, never
+**Who:** worker · **Status:** done 23 Nov – findings only, page waits for the owner's picks · **Branch:** `task/0312-study-vessels-on-the-sea` (branch only, never
 merged; every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "the same for the boats / ships as we told earlier for cars, driving
 simulation but with ocean waves, and the path creation … this also adds water vessel interaction physics; waves that
@@ -56,7 +56,7 @@ H. **Prototype** on the branch: a crew transfer vessel and a tug on a moderate s
 
 ## Done when
 
-- [ ] Report + page on the branch → the lead publishes the page for the owner's picks → build tasks
+- [x] Report + page on the branch → the lead publishes the page for the owner's picks → build tasks
 
 ---
 
@@ -162,7 +162,8 @@ G does not depend on B–F and could go first.
 for the pictures): numbers above, from `tools/vessels_proto/out/*.json` (`measure_presets.py`, `measure_drive.py`,
 `measure_floaters.py`, `measure_shore.py`, `diagrams.py`). Cycles on the processor, 960 × 540, 64 samples: vessels
 still 23.5 s, beach 17.0 s, under water 30–33 s each. Clips at 640 × 360, 32 samples, 12 frames a second: see the
-page (times in `render_all.sh`'s log). Nothing was run on a graphics card; the live driving frame rate is unmeasured.
+vessels 120 frames in 628 s (5.2 s a frame), beach 96 frames in 369 s (3.8 s), under water 72 frames in 612 s (8.5 s;
+the lens-dome Boolean is made again every frame). Nothing was run on a graphics card; the live driving frame rate is unmeasured.
 
 **Open points / follow-up tasks:**
 - The floating container rolls up to ±29° on Bft 4: the roll damping of a box is not calibrated (prototype constant).
