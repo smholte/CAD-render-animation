@@ -105,8 +105,9 @@ def grass_test(a):
                                   ("instanced", None, ()), ("merged", None, ("grass",))):
         if a.only and label != a.only:
             continue
-        sc, T, terrain, obs, tm = full_scene(a, kinds, realize=realize, shot="ground")
-        SC.render(os.path.join(a.out, f"grass_{label}.jpg"), tm, "r")
+        sc, T, terrain, obs, tm = full_scene(a, kinds, realize=realize, shot="ground", density=a.density)
+        tm["blades"] = tm["instances"].get("grass", 0) * 16
+        SC.render(os.path.join(a.out, f"grass_{label}{a.tag}.jpg"), tm, "r")
         tm["rss_end_mb"] = round(SC.rss_mb())
         tm["peak_mb"] = round(SC.peak_mb())
         res[label] = tm
@@ -229,12 +230,14 @@ def main():
     ap.add_argument("--size", default="960x540")
     ap.add_argument("--shot", default="overview")
     ap.add_argument("--only", default="")
+    ap.add_argument("--density", type=float, default=1.0)
+    ap.add_argument("--tag", default="")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     fn = {"ground": ground_test, "grass": grass_test, "cull": cull_test, "dab": dab_test, "frame4k": frame4k,
           "web": web_test}[a.exp]
     res = fn(a)
-    tag = a.exp + (f"_{a.only}" if a.only else "") + (f"_{a.shot}" if a.exp in ("cull", "frame4k", "dab") else "")
+    tag = a.exp + (f"_{a.only}" if a.only else "") + a.tag + (f"_{a.shot}" if a.exp in ("cull", "frame4k", "dab") else "")
     with open(os.path.join(a.out, f"m_{tag}.json"), "w") as f:
         json.dump(res, f, indent=1, default=str)
 
