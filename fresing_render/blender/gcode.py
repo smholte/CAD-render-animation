@@ -181,7 +181,7 @@ class Machine:
         from . import rotary                                    # A, B, C (task 0066): turned back to 0 first
         rotary.build(self, c, s, _carries, [j.name for j in self.joints])
         self.zero = self._zero_point(c)                         # world, as at A0 B0 C0
-        tip_world = self.unturn_tool @ (self.tool.matrix_world @ _rest_tip(self.tool)[0])
+        tip_world = self.unturn_tool @ (world_of(self.tool) @ _rest_tip(self.tool)[0])
         t_local = self.rot.transposed() @ (tip_world - self.zero)
         self.values = [joints.get_value(j) for j in self.joints]
         self.home = list(c.home) if c.home_set else [0.0, 0.0, 0.0]
@@ -196,7 +196,7 @@ class Machine:
     def _zero_point(self, c) -> Vector:
         wp = self.workpiece
         if c.zero_mode == "POINT":
-            p = self.unturn_part @ (wp.matrix_world @ Vector(c.zero_point))
+            p = self.unturn_part @ (world_of(wp) @ Vector(c.zero_point))
         else:
             co = _world_points(wp)
             if self.axes:
@@ -235,13 +235,27 @@ class Machine:
         return out
 
 
+def world_of(ob) -> Matrix:
+    """``ob``'s world matrix. Blender does not work out an object hidden in the view, so its ``matrix_world`` can be
+    stale - right after a project saved during a tool change was opened, the tool in the spindle (hidden while the arm
+    holds it) read as standing at the origin and the work zero came out 480 mm off (task 0250): such an object's is
+    worked out from its parent's. One with a constraint keeps Blender's."""
+    try:
+        shown = ob.visible_get()
+    except RuntimeError:                       # not in the view layer
+        shown = True
+    if shown or ob.parent is None or any(not c.mute for c in ob.constraints):
+        return ob.matrix_world
+    return world_of(ob.parent) @ ob.matrix_parent_inverse @ ob.matrix_basis
+
+
 def _world_points(ob) -> np.ndarray:
     me = ob.data
     n = len(me.vertices)
     co = np.empty(n * 3, dtype=np.float64)
     me.vertices.foreach_get("co", co)
     co = co.reshape(-1, 3)
-    mw = np.array(ob.matrix_world)
+    mw = np.array(world_of(ob))
     return co @ mw[:3, :3].T + mw[:3, 3]
 
 

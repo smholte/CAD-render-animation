@@ -197,11 +197,12 @@ def sliding_door(x0: float, x1: float, z0: float, z1: float, y_back: float, thic
     return g.fuse(door, bar, *feet)
 
 
-def bt40_holder_with_end_mill(stick: float = 38.0, gauge: float = 120.0, d: float = 10.0):
-    """A BT40-like holder with a flat end mill Ø ``d`` (its tip at z = 0) along +z: the cutter, a collet nut Ø32, a
-    body Ø44 tapering to the flange Ø63.5 with its V groove and two drive slots; the flange's top (the gauge line) at
-    z = ``gauge`` – the taper above it sits inside the spindle and is not drawn."""
-    cutter = g.cyl(d / 2, stick)
+def bt40_holder_with_end_mill(stick: float = 38.0, gauge: float = 120.0, d: float = 10.0, ball: bool = False):
+    """A BT40-like holder with a flat end mill Ø ``d`` (``ball``: a ball end mill; its tip at z = 0) along +z: the
+    cutter, a collet nut Ø32, a body Ø44 tapering to the flange Ø63.5 with its V groove and two drive slots; the
+    flange's top (the gauge line) at z = ``gauge`` – the taper above it sits inside the spindle and is not drawn."""
+    r = d / 2
+    cutter = g.fuse(g.sphere(r, (0, 0, r)), g.cyl(r, stick - r, (0, 0, r))) if ball else g.cyl(r, stick)
     nut = g.cyl(16.0, 14.0, (0.0, 0.0, stick - 2.0))
     body = g.revolve([(0.0, stick + 12.0), (17.0, stick + 12.0), (22.0, stick + 30.0), (22.0, gauge - 26.0),
                       (0.0, gauge - 26.0)])
@@ -210,3 +211,17 @@ def bt40_holder_with_end_mill(stick: float = 38.0, gauge: float = 120.0, d: floa
                         (31.75, gauge), (0.0, gauge)])
     slots = [g.box(x, -8.0, gauge - 8.0, 10.0, 16.0, 9.0) for x in (-32.0, 22.0)]
     return g.cut(g.fuse(cutter, nut, body, flange), *slots)
+
+
+def bt40_collet_holder(stick: float, gauge: float, bore: float = 3.0):
+    """A BT40-like collet holder without its cutter (task 0250: the 4th- and 5th-axis mills): the nut Ø32 from z =
+    ``stick`` (where the cutter of ``stick`` comes out; its tip at z = 0) with a bore of radius ``bore``, the body Ø44
+    tapering to the flange Ø63.5 with its V groove and two drive slots; the gauge line at z = ``gauge``."""
+    nut = g.cut(g.cyl(16.0, 14.0, (0.0, 0.0, stick)), g.cyl(bore, 6.0, (0.0, 0.0, stick - 1.0)))
+    body = g.revolve([(0.0, stick + 12.0), (17.0, stick + 12.0), (22.0, stick + 30.0), (22.0, gauge - 26.0),
+                      (0.0, gauge - 26.0)])
+    fl = gauge - 26.0
+    flange = g.revolve([(0.0, fl), (31.75, fl), (31.75, fl + 8.0), (27.5, fl + 13.0), (31.75, fl + 18.0),
+                        (31.75, gauge), (0.0, gauge)])
+    slots = [g.box(x, -8.0, gauge - 8.0, 10.0, 16.0, 9.0) for x in (-32.0, 22.0)]
+    return g.cut(g.fuse(nut, body, flange), *slots)

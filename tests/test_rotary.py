@@ -1,12 +1,16 @@
 """Task 0066: the 4th and 5th axis in Blender, on the two generic test models.
 
-test_4axis.step (tools/make_test_4axis.py): a moving column carries the tool (X/Y/Z); the rotary table turns about the
-X line y = 0, z = 150 mm and holds a bar Ø50 (x -120 .. 120). Plain kinematics; the work zero is on the bar's top in
-its middle, (0, 0, 175). The program (rotary.TEST_PROGRAM_4AXIS) cuts a slot 2 deep wrapped once round the bar (X -90
+Task 0250: both are the larger test mill (a VMC: the table moves along X and Y and carries the rotary table or the
+trunnion, the head moves along Z).
+
+test_4axis.step (tools/make_test_4axis.py): the rotary table on the mill's table turns about the X line y = 0,
+z = 210 mm and holds a bar Ø50 (x -120 .. 120). Plain kinematics; the work zero is on the bar's top in its middle,
+(0, 0, 235). The program (rotary.TEST_PROGRAM_4AXIS) cuts a slot 2 deep wrapped once round the bar (X -90
 .. -10 while A turns 0 .. 360) and a flat 3 deep (X 20 .. 50) at A0 and at A180.
 
-test_5axis.step (tools/make_test_5axis.py): a trunnion tilts about the X line y = 0, z = 140 (A) and its table turns
-about the vertical through x = y = 0 (C, riding on A); the block 60 x 60 x 40 sits on it (top at z = 180). Tool
+test_5axis.step (tools/make_test_5axis.py): a trunnion on the mill's table tilts about the X line y = 0, z = 260 (A)
+and its table turns about the vertical through x = y = 0 (C, riding on A); the block 60 x 60 x 40 sits on it (top at
+z = 300). Tool
 follows the part (TCP); the work zero on the block's top in its middle. The program (rotary.TEST_PROGRAM_5AXIS) cuts a
 pocket 3 deep at A30 C0 and at A30 C180, and a groove 1 deep along y = 20 while C turns 90°.
 
@@ -166,7 +170,7 @@ def test_4axis_wrapped_slot_and_flats_are_cut(tmp_path):
     print(f"\n4-axis: bake {t_bake:.2f} s, read the path {t_sample:.2f} s, cut to the end {t_cut:.2f} s "
           f"({end} frames)")
     bvh = cut_bvh(sc, home)
-    axis_y, axis_z = 0.0, 0.150
+    axis_y, axis_z = 0.0, 0.210
 
     def radius(x_mm, ang_deg):
         """The bar's radius (mm) at x, in the direction at ``ang_deg`` about +X from the top (+Z)."""
@@ -307,7 +311,7 @@ def test_5axis_tilted_pockets_and_groove_are_cut(tmp_path):
     assert machining.refresh(sc, frame=sc.frame_end, force=True)
     print(f"\n5-axis: build, read and cut {time.perf_counter() - t0:.2f} s")
     bvh = cut_bvh(sc, home)
-    top = Vector((0.0, 0.0, 0.180))
+    top = Vector((0.0, 0.0, 0.300))
     a30 = math.radians(rotary.POCKET_A)
     for side in (-1.0, 1.0):                         # C0: the -Y side, C180: the +Y side
         n = Vector((0.0, side * math.sin(a30), math.cos(a30)))
@@ -497,4 +501,4 @@ def test_a_tool_tip_never_comes_from_another_projects_tool(tmp_path):
             assert not any(k[0] == "tip" for k in gcode._CACHE), "a tool tip of the project before is still kept"
     gcode._CACHE.update(kept)                                # even if one were kept (worst case: same address)
     tip4 = gcode._rest_tip(_tool(sc))[0]
-    assert tip5.z == pytest.approx(0.23, abs=1e-4) and tip4.z == pytest.approx(0.19, abs=1e-4), (tip5, tip4)
+    assert tip5.z == pytest.approx(0.02, abs=1e-4) and tip4.z == pytest.approx(0.03, abs=1e-4), (tip5, tip4)

@@ -319,9 +319,13 @@ def travel_check():
                 out.append(f"{side} at Y {y}: overlap {length - e:.0f} mm")
     return out
 
-def machine(name: str, stock_part, finished, stock, tools, ball_bracket: bool = False, extra_head=()):
+def machine(name: str, stock_part, finished, stock, tools, ball_bracket: bool = False, extra_head=(),
+            extra_table=(), clamps: bool = True, head_up: float = 0.0, extra=()):
     """The VMC round a stock (x, y, z, dx, dy, dz) and its finished part; ``tools``: [(Part, (x, y, z))] on the head;
-    ``extra_head``: more children of Z.ASM."""
+    ``extra_head``: more children of Z.ASM. Task 0250 (the double-arm, 4th- and 5th-axis mills on this machine):
+    ``stock_part`` / ``finished`` may be None, ``clamps`` False leaves out the edge clamps and their screws (the
+    table's slots still follow ``stock``), ``extra_table``: more children of X.ASM (on the table), ``extra``: more
+    children of the machine, ``head_up``: Z.ASM this much higher in the CAD pose (mm)."""
     bed_p = part("BED", bed(), BLUE)
     col_p = part("COLUMN", column(), BLUE)
     rail_yp = part("LINEAR RAIL Y", rail_along(880.0, (0.0, -300.0, BED_TOP), (0, 1, 0), (0, 0, 1)), RAIL_STEEL)
@@ -331,8 +335,9 @@ def machine(name: str, stock_part, finished, stock, tools, ball_bracket: bool = 
     motor_z = part("SERVO MOTOR Z", servo_motor(80.0, 140.0), DARK)
     motor_x = part("SERVO MOTOR X", servo_motor(60.0, 95.0), DARK)
     table_p = part("TABLE", table(stock), GREY)
-    clamp = part("EDGE CLAMP", edge_clamp(stock), DARK)
-    screw = part("ISO 4762 M12 x 30 - 12.9", socket_screw(12, 30.0), SCREW_BLACK)
+    use_clamps = clamps
+    clamp = part("EDGE CLAMP", edge_clamp(stock), DARK) if use_clamps else None
+    screw = part("ISO 4762 M12 x 30 - 12.9", socket_screw(12, 30.0), SCREW_BLACK) if use_clamps else None
     saddle_p = part("SADDLE", saddle(), BLUE)
     spindle_p = part("SPINDLE", spindle(), GREY)
     housing_p = part("SPINDLE HOUSING", housing(ball_bracket), BLUE)
@@ -351,16 +356,19 @@ def machine(name: str, stock_part, finished, stock, tools, ball_bracket: bool = 
         clamps += [(clamp, g.T(x, 0, 0)), (clamp, g.T(x, 0, 0) @ flip)]
     screws = [(screw, (x, y, CLAMP_TOP)) for x in (-60.0, 60.0) for y in (-sy, sy)]
     mx = g.Frame((TABLE[0] + TABLE[2], 0.0, -15.0), (0, 1, 0), (1, 0, 0))
+    if not use_clamps:
+        clamps, screws = [], []
     x_asm = asm("X.ASM", table_p, *[(rail_xp, (0.0, y, 0.0)) for y in RAILS_X], (motor_x, mx),
-                stock_part, finished, *clamps, *screws)
+                *[p for p in (stock_part, finished) if p is not None], *clamps, *screws, *extra_table)
     y_asm = asm("Y.ASM", saddle_p, covers[("FRONT", nf)], covers[("BACK", nb)], x_asm)
     z_asm = asm("Z.ASM", spindle_p, housing_p, smotor, *tools, *extra_head)
+    z_node = (z_asm, (0.0, 0.0, head_up)) if head_up else z_asm
     my = g.Frame((0.0, BED[1] + BED[3], -620.0), (1, 0, 0), (0, 1, 0))
     mz = g.Frame((0.0, COL_FRONT + 250.0, COLUMN[2]), (1, 0, 0), (0, 0, 1))
     fixed_covers = [covers[(s_, k)] for s_, n in (("FRONT", nf), ("BACK", nb)) for k in range(n)]
     return asm(name, bed_p, col_p, *[(rail_yp, (x, 0.0, 0.0)) for x in RAILS_Y],
                *[(rail_zp, (x, 0.0, 0.0)) for x in RAILS_Z], (motor_y, my), (motor_z, mz), tray_p, drain_p, tank_p,
-               *fixed_covers, y_asm, z_asm)
+               *fixed_covers, y_asm, z_node, *extra)
 
 def model():
     sx, sy, sz, sdx, sdy, sdz = STOCK

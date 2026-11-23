@@ -407,16 +407,17 @@ def test_double_arm_held_tools_are_skipped_and_reported_when_left_behind(tmp_pat
     a = sc.fresing.animations["Double-arm changer"]
     animation.bake(sc, a)
     assert not clash.check(sc, store=False).rows
-    t1 = named(sc, "TOOL T1 BT30 FLAT D10")
+    t1 = named(sc, "TOOL T1 BT40 FLAT D10")
     held = [o for o in sc.objects if o.get("fr_cnc_carry") == 1]
     assert held and all(o.parent is not None and o.parent.get("fr_atc") for o in held)     # on the arm's turn
-    sc.frame_set(260)                                       # mid-swap: T1 is on the arm, its spindle part hidden
+    x = next(c for c in tour._changes(sc, a).changes if c.kind == "arm")
+    sc.frame_set(round(1 + sum(x.arm_times()["swap"]) / 2 * int(a.fps)))   # mid-swap: T1 on the arm, its part hidden
     assert t1.hide_render and any(not o.hide_render for o in held)
     t1.animation_data_clear()
     t1.hide_render = t1.hide_viewport = False
     rows = clash.check(sc, store=False).rows
     pairs = {frozenset((r.a, r.b)) for r in rows}
-    assert frozenset(("TOOL T1 BT30 FLAT D10", "CHANGER ARM")) in pairs, [core.row_text(r) for r in rows]
+    assert frozenset(("TOOL T1 BT40 FLAT D10", "CHANGER ARM")) in pairs, [core.row_text(r) for r in rows]
 
 
 def test_cut_workpiece_meshes_need_no_turning(tmp_path):

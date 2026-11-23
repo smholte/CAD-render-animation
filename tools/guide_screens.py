@@ -1618,8 +1618,8 @@ elif MODE in ("doublearm", "doublearm_view"):
             sp.overlay.show_overlays = False
             r3d = sp.region_3d
             r3d.view_perspective = "PERSP"
-            r3d.view_location = Vector((-0.15, 0.0, 0.27))
-            r3d.view_distance = 0.75
+            r3d.view_location = Vector((-0.25, 0.0, 0.5))       # task 0250: the larger mill, the arm at z 0.58
+            r3d.view_distance = 1.1
             from mathutils import Euler
             r3d.view_rotation = Euler([math.radians(x) for x in (72, 0, 24)]).to_quaternion()
             wiggle(5)
@@ -1696,8 +1696,8 @@ elif MODE in ("rotary", "rotary_view"):
             sp.shading.type = "SOLID"
             r3d = sp.region_3d
             r3d.view_perspective = "PERSP"
-            r3d.view_location = Vector((-0.04, 0.0, 0.155))
-            r3d.view_distance = 0.30
+            r3d.view_location = Vector((-0.04, 0.0, 0.215))     # task 0250: the bar's axis at z 0.21
+            r3d.view_distance = 0.32
             from mathutils import Euler
             r3d.view_rotation = Euler([math.radians(x) for x in (66, 0, 28)]).to_quaternion()
             wiggle(5)

@@ -474,27 +474,36 @@ def _named(scene, name):
     return ob
 
 
+# task 0250: the larger test mill (tools/make_test_4axis.py, make_test_5axis.py), metres
+TEST_TIP_4 = (0.0, 0.0, 0.25)            # the tool's tip in the CAD pose (on the spindle's axis)
+TEST_TIP_5 = (0.0, 0.0, 0.35)
+TEST_A_4 = (0.0, 0.0, 0.21)              # a point on the A axis (along X): the rotary table's centre height
+TEST_A_5 = (0.0, 0.0, 0.26)              # the trunnion's A axis (along X) meets the C axis (vertical) here
+
+
 def set_up_test_model(scene, b, five: bool = False, milling: bool = True) -> None:
     """The imported test_4axis.step (``five``: test_5axis.step) as a CNC machine, step ``b`` running its program:
-    X/Y/Z on the moving column, the spindle (a motor), A (and C) on the rotary table, the tool list (T1 the part in
-    the spindle), the work zero on top of the workpiece in its middle; 4 axes Plain, 5 axes TCP. ``milling``: the
-    tool cuts the workpiece."""
-    from . import gcode, machining, tools
-    for name, asm, d in (("X", "X.ASM", (1, 0, 0)), ("Y", "Y.ASM", (0, 1, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+    X/Y/Z (task 0250: the larger test mill – the table moves along X and Y and carries the rotary table or the
+    trunnion, the head moves along Z), the spindle (a motor turning the tool and its holder), A (and C), the tool list
+    (T1 the part in the spindle), the work zero on top of the workpiece in its middle; 4 axes Plain, 5 axes TCP.
+    ``milling``: the tool cuts the workpiece."""
+    from . import gcode, machining, tools, waycover
+    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
         o = _named(scene, asm)
         joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
+    waycover.set_up_test_mill(scene)                # the larger mill's Y way covers follow Y
     tool = _named(scene, "TOOL T1 FLAT D6")
-    j = joints.create(scene, "ROTATE", [tool], Vector((0, 0, 0.25 if five else 0.21)), Vector((0, 0, 1)),
-                      name="Spindle")
+    j = joints.create(scene, "ROTATE", [tool, _named(scene, "TOOL HOLDER BT40")],
+                      Vector(TEST_TIP_5 if five else TEST_TIP_4), Vector((0, 0, 1)), name="Spindle", ref=tool)
     joints.set_motor(scene, j, True)
     if five:
-        joints.create(scene, "ROTATE", [_named(scene, "A.ASM")], Vector((0, 0, 0.14)), Vector((1, 0, 0)),
+        joints.create(scene, "ROTATE", [_named(scene, "A.ASM")], Vector(TEST_A_5), Vector((1, 0, 0)),
                       name="Trunnion A")
-        joints.create(scene, "ROTATE", [_named(scene, "C.ASM")], Vector((0, 0, 0.14)), Vector((0, 0, 1)),
+        joints.create(scene, "ROTATE", [_named(scene, "C.ASM")], Vector(TEST_A_5), Vector((0, 0, 1)),
                       name="Table C")
         wp = _named(scene, "BLOCK 60x60x40")
     else:
-        joints.create(scene, "ROTATE", [_named(scene, "A.ASM")], Vector((0, 0, 0.15)), Vector((1, 0, 0)),
+        joints.create(scene, "ROTATE", [_named(scene, "A.ASM")], Vector(TEST_A_4), Vector((1, 0, 0)),
                       name="Rotary A")
         wp = _named(scene, "BAR D50x240")
     for jn in ("Trunnion A", "Table C", "Rotary A"):
