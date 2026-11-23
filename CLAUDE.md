@@ -1529,3 +1529,7 @@ the release → Delete); the next run on `main` publishes it again.
 - `os.access(folder, os.W_OK)` on Windows says yes to every folder (it reads only a FILE's read-only flag, never a
   share's or NTFS rights): a read-only company share counted as writable (task 0272, found by its independent
   reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.
+- A branch's last commit that changes only `TASKS.md` / `tasks/` (the report + a merge of a documents-only `main`) is
+  judged by ITS OWN change: pushed to `main` it starts no run, even though the push brings the task's code – no release
+  (task 0289). Put the report into a commit that also touches a document (CHANGELOG, guide) or the version, or push
+  a documents change on top afterwards (a docs run, then the release jobs).
