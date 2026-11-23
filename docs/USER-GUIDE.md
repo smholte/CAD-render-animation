@@ -5355,4 +5355,7 @@ your PC.
   sees.
 - "Add a camera first": click a view under **Camera** in 5 Scene & Render.
 - Too dark or too light: **Exposure** and **Brightness** in 5 Scene & Render, or another **Light look**.
+- **Live preview is black, but Render image works** – most often after the PC woke from sleep with the app
+  still open: the graphics driver lost its link with the live view. Close the app and start it again
+  (your automatic backups keep your work); Live preview then works again.
 - A job in the queue failed: click it to read its message, and **Open log**.

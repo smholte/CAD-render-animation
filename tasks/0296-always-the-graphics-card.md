@@ -50,6 +50,15 @@ port** makes Windows draw everything on the built-in graphics – the cable belo
 5. **Owner's test steps** in the report, for the tester's PC: install / Update now, start, see no notice (or press Use
    the graphics card), Help > PC check (Quick), read the graphics line.
 
+6. **Live preview black after sleep** (owner 23 Nov 20:32, lead's reading – not proven): on his RTX 3090 PC the app
+   stayed open overnight while Windows slept (`Win32 Error# (0)` in the console at that time); next evening Live
+   preview showed only black with "Rendering Done", while Solid view and **Render image** were fine. Changing the
+   Light look, Background or sea detail and switching Live preview off and on did not help; restarting the app did.
+   Most likely the driver's link between Cycles' viewport and the window was lost on resume. Find out (Blender's
+   own bug reports, a test on Windows if the session has one – otherwise reason and say so) whether the app can
+   give Live preview a fresh start after a resume without a restart; if yes, do it where it is small and safe, if
+   not, say so in the report. The guide line under Troubleshooting > Render problems is already on `main` (lead).
+
 ## Done when
 
 - [ ] Pure-Python tests of the rules with made-up adapter lists: Intel built-in + NVIDIA, AMD built-in + AMD card, Intel
