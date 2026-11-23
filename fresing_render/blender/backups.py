@@ -432,6 +432,31 @@ def restore(backup_path: str) -> str:
     return target
 
 
+def keep_unsaved_work(scene=None) -> str:
+    """Update without saving (task 0316): one backup of the work as it is now, when backups are on, and every backup
+    the next start would offer for it marked as dealt with – the user chose not to keep these changes, so the start
+    asks nothing (they stay in Fresing > Restore a backup…). A saved project: its backups newer than the saved file;
+    a project never saved: the unsaved backups of this session. Returns the backup's path or ""."""
+    if not settings()[0]:
+        return ""
+    path = make(scene, force=True, note=False)
+    project = bpy.data.filepath
+    if project:
+        mt = saved_mtime(project) or 0.0
+        names = [b.path for b in project_backups(project) if b.mtime > mt]
+    else:
+        names = [b.path for b in core.listing(core.unsaved_folder(documents()), core.UNSAVED_NAME)
+                 if b.mtime >= _S.get("opened_at", 0.0)]
+    if path:
+        names.append(path)
+    if names:
+        try:
+            core.mark_handled(state_path(), names)
+        except OSError as exc:
+            print("Fresing Render (backups): could not note the backup as dealt with:", exc)
+    return path
+
+
 # ---------------------------------------------------------------------------
 # the question at the start
 # ---------------------------------------------------------------------------
@@ -445,7 +470,9 @@ def offer() -> tuple:
         if other_user(project) is not None:          # their backups are their unsaved work: never offered here
             return None, None
         mt = saved_mtime(project)
-        return (core.newest_newer(found, mt), mt) if mt is not None else (None, None)
+        if mt is None:
+            return None, None
+        return core.newest_newer(found, mt, core.load_state(state_path())["handled"]), mt
     b = core.unsaved_offer(found, time.time(), core.load_state(state_path())["handled"])
     return b, None
 

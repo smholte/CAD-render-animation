@@ -31,7 +31,14 @@ merged into `main` is published by GitHub, and every installed app offers it at 
    `https://github.com/smholte/CAD-render-animation/releases/latest/download/index.json` (GitHub sends
    that address to the newest release). Newer than the installed version → **Update available** at
    the top of the Fresing tab, with what's new from `changelog.json`.
-5. **Update now**: the app downloads the extension zip and checks size and SHA-256, saves the project,
+5. **Update now**: with unsaved changes the app first asks (task 0316): **Save and update** (a project never
+   saved: **Save as… and update** – Blender's Save As, the update goes on once the file is saved) or **Update
+   without saving** (with automatic backups on: one backup copy, marked as dealt with so the next start does not
+   offer it; then Blender closes without its "Save changes?" – the preference "Save Prompt" is switched off for
+   that close only, the preferences are marked unchanged so it is never written – and the app opens again with the
+   project file as it is on disk, or empty for a project never saved). Scripts choose with
+   `bpy.ops.fresing.update_install(save='SAVE' | 'DONT_SAVE')`; a never-saved project with 'SAVE' is refused in
+   the background. Then the app downloads the extension zip and checks size and SHA-256, saves the project (or not),
    copies `update_helper.py` out of the extension folder and starts it with Blender's own Python, and
    closes. The helper waits until Blender has closed, installs the zip with Blender's own installer
    (`blender --command extension install-file -r user_default -e <zip>`), checks the installed version,
@@ -77,8 +84,8 @@ by running the installer.
 | Test | Where |
 | --- | --- |
 | versions, listing, changelog, download, helper with a stand-in Blender | `tests/test_updates.py` |
-| check, panel in every state, Update now (download, save, helper plan, close), template refresh, Help menu | `tests/test_updates_blender.py` |
-| real Blender, real window: old version (0.0.1 with the 0.2.10 app template) finds the update on a GitHub-like local server, Update now, closes, is updated, starts again; new template and Help menu checked | `tools/ci_update_test.py --gui` (real-app job, "update") |
+| check, panel in every state, Update now (download, save, helper plan, close), save or not (task 0316: Update without saving leaves the file, one backup not offered again, the restart with or without the file, Save as… and update after the save / on Cancel), template refresh, Help menu | `tests/test_updates_blender.py` |
+| real Blender, real window: old version (0.0.1 with the 0.2.10 app template) finds the update on a GitHub-like local server, Update now, closes, is updated, starts again; new template and Help menu checked; a second run (task 0316): a new project never saved, **Update without saving** – closes without a question, opens empty, one backup kept and not offered | `tools/ci_update_test.py --gui` (real-app job, "update") |
 | Windows: old build installed with Install.bat, updates itself from a local copy of the listing (folder with a space and an accent), then Install.bat over it, self-test | `tools/ci_windows_install.ps1 -OldReleaseZip … -UpdateRepo …` (Windows job) |
 | Windows: old build updates itself from the published release on GitHub | release check job (`-UpdateFrom github -OnlyUpdate`) |
 | the real GitHub address from Linux: check and download of the newest release | `tools/ci_update_test.py --github --expect <version>` |

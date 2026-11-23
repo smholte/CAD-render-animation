@@ -905,17 +905,28 @@ a newer version. When there is one, **Update available** appears at the top of t
 <img class="panel" src="img/panel_update.png" alt="Update available, with Update now">
 
 1. Open **What's new** to read what changed (it is the same text as on the release page).
-2. Click **Update now**, then **Update now** again in the small window that asks.
-3. The app downloads the new version (a minute or less), saves your project, closes, installs the
-   update and opens again with the same project. Nothing else to do.
+2. Click **Update now**. A small window asks:
+   - **No unsaved changes:** click **Update now** again.
+   - **Unsaved changes in a saved project:** **Save and update** saves them first. **Update without
+     saving** leaves them out: the app opens again with the project as you last saved it – the changes
+     since then are lost.
+   - **Unsaved changes in a project that was never saved:** **Save as… and update** opens Save As; choose
+     a name and a folder, and the update goes on by itself once it is saved (Cancel in Save As: nothing
+     happens, **Update now** stays). **Update without saving**: the app opens again empty – this project
+     is not kept as a project file.
+   - With automatic backups on ([Backups](#backups)), **Update without saving** first keeps **one backup
+     copy** of the work as it was (the window says "A backup copy is kept"). The next start does not ask to
+     restore it – you chose not to keep it –, but it is in **Fresing > Restore a backup…** if you need it.
+   - **Cancel** closes the window; nothing is downloaded or changed.
+3. The app downloads the new version (a minute or less), saves your project (or not, as you chose),
+   closes, installs the update and opens again. Nothing else to do.
 4. At the top of the left panel it says **Updated to …**, with what's new. **Close** hides it.
 
 <img class="panel" src="img/panel_update_done.png" alt="Updated to, after the update">
 
 - **Later** hides the notice until the app starts again. **Help > Check for Fresing Render updates**
   asks at any time.
-- A project that was never saved has to be saved first (**File > Save As**): the app says so. While the
-  render queue runs or a STEP file is being imported, the update waits until you start it again.
+- While the render queue runs or a STEP file is being imported, the update waits until you start it again.
 - **Update now refuses** (it says why in a red line, the button stays) when:
   - a colleague has the same project open ("In use by …", [1 Import](#import)): the update saves the
     project before closing and would save over their work. Use **File > Save As** (a new name) or open

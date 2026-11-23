@@ -8,6 +8,12 @@
   start ``update_helper.py`` with Blender's own Python and close Blender. The helper installs the
   zip with Blender's own extension installer, copies the new app template and starts the app again
   with the same project. At that start the panel says "Updated to 0.x.y" (or what went wrong).
+* Task 0316: with unsaved changes Update now asks first (a box of its own, ``draw``): **Save and update**
+  (a project never saved: **Save as… and update** – Blender's Save As, the update goes on once it is
+  saved, ``_wait_save_as``) or **Update without saving**: one backup copy (when backups are on, marked as
+  dealt with so the next start asks nothing – ``backups.keep_unsaved_work``), then the app closes without
+  Blender's "Save changes?" (``no_save_question``) and opens again with the file as it is on disk, or
+  empty. Scripts and tests choose with the operator's ``save`` ('SAVE' / 'DONT_SAVE').
 * The app template (``app_template/`` in the repository) ships inside the extension as
   ``app_template_files/``; the helper copies it, and every start copies it again when it differs
   (an update made some other way brings the right template too).
@@ -41,7 +47,7 @@ _check: dict = {"state": "idle"}
 _dl: dict = {"active": False}
 # message left by update_helper.py for this start ("Updated to 0.x.y" or what went wrong)
 _status: dict = {}
-_ui = {"later": False, "manual": False}
+_ui = {"later": False, "manual": False, "note": ""}
 _thread: threading.Thread | None = None
 
 
@@ -210,8 +216,6 @@ def preflight(context, downloaded: bool = False) -> str:
                     "update when that queue has finished")
     except Exception:  # noqa: BLE001
         pass
-    if project_dirty() and not bpy.data.filepath:
-        return "This project has never been saved: save it first (File > Save As…), then press Update now"
     other = lock_holder()
     if other.startswith("you,"):
         return ("This project is also open in another Fresing Render window on this PC: close that window "
@@ -255,6 +259,34 @@ def project_dirty() -> bool:
     return bool(bpy.data.is_dirty)
 
 
+NEVER_SAVED = "This project has never been saved: save it first (File > Save As…), then press Update now"
+NOT_SAVED_NOTE = "Not saved, so the update did not start. Press Update now again when you are ready."
+
+
+def box_text(version: str, saved: bool, backup: bool) -> list[str]:
+    """The Update now box's text when the project has unsaved changes (task 0316), one paragraph per item."""
+    out = [f"Fresing Render downloads {version}, closes, updates and opens again by itself (about a minute). "
+           "This project has unsaved changes."]
+    if saved:
+        out.append("Save and update: your changes are saved first; the project opens again.")
+        out.append("Without saving, the app opens again with the project as you last saved it – the changes since "
+                   "then are lost.")
+    else:
+        out.append("Save as… and update: choose a name and a folder first; the update goes on once it is saved.")
+        out.append("Without saving, the app opens again empty – this project is not kept as a project file.")
+    if backup:
+        out.append("A backup copy is kept (Backups).")
+    return out
+
+
+def backups_on() -> bool:
+    try:
+        from . import backups
+        return bool(backups.settings()[0])
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def save_project(context) -> str:
     """Save the open project before closing; '' or what went wrong."""
     try:
@@ -269,11 +301,15 @@ def restart_command(context) -> list[str]:
     """How to start the app again after the update: the same program, app layout and project."""
     if os.environ.get(RESTART_ENV):
         return list(json.loads(os.environ[RESTART_ENV]))
-    if bpy.app.background:
+    if _background():
         return []
     extra = json.loads(os.environ[RESTART_EXTRA_ENV]) if os.environ.get(RESTART_EXTRA_ENV) else []
     return build_restart(bpy.app.binary_path, getattr(context.preferences, "app_template", "") or "",
                          bpy.data.filepath, sys.platform == "win32") + list(extra)
+
+
+def _background() -> bool:
+    return bool(bpy.app.background)
 
 
 def build_restart(exe: str, template: str, filepath: str, windows: bool) -> list[str]:
@@ -308,7 +344,7 @@ def _download_worker(info: dict, dest: str) -> None:
         _dl["error"] = "Download failed: " + core.describe_error(exc)
 
 
-def start_download(info: dict, blocking: bool = False) -> None:
+def start_download(info: dict, blocking: bool = False, save: str = "SAVE") -> None:
     os.makedirs(update_dir(), exist_ok=True)
     for old in os.listdir(update_dir()):                     # earlier, unfinished downloads
         if old.endswith((".zip", ".part")):
@@ -319,7 +355,7 @@ def start_download(info: dict, blocking: bool = False) -> None:
     dest = os.path.join(update_dir(), f"fresing_render-{info['version']}.zip")
     _dl.clear()
     _dl.update(active=True, version=info["version"], done=0, total=info.get("size", 0), error="", path="",
-               stop=False)
+               stop=False, save=save)
     if blocking:
         _download_worker(info, dest)
         return
@@ -385,7 +421,8 @@ def _window_override():
 
 
 def finish_update(context=None) -> str:
-    """After the download: save, start the helper, close the app. Returns an error text or ''.
+    """After the download: save (or not: ``_dl["save"]``, task 0316), start the helper, close the app. Returns an
+    error text or ''.
 
     In a window, Blender counts a saved project as saved only once its event loop has run again: closing
     straight after saving would still ask "Save changes?". So after saving, the helper is started and
@@ -397,6 +434,11 @@ def finish_update(context=None) -> str:
     problem = preflight(context, downloaded=True)
     if problem:
         return problem
+    if project_dirty() and _dl.get("save") == "DONT_SAVE":
+        update_without_saving(context)
+        return ""
+    if project_dirty() and not bpy.data.filepath:
+        return NEVER_SAVED
     if project_dirty() and bpy.data.filepath:
         err = save_project(context)
         if err:
@@ -416,6 +458,117 @@ def launch_and_quit(context) -> None:
     quit_app(context)
 
 
+def update_without_saving(context) -> None:
+    """Task 0316: one backup copy of the unsaved work (when backups are on; the next start does not offer it), then
+    the helper and a close without Blender's "Save changes?". The app opens again with the project file as it is on
+    disk (``restart_command`` names ``bpy.data.filepath``), or empty when it was never saved."""
+    try:
+        from . import backups
+        _dl["kept"] = backups.keep_unsaved_work(context.scene)
+    except Exception as exc:  # noqa: BLE001 - a backup that fails must not stop the update
+        _dl["kept"] = ""
+        print("Fresing Render: no backup copy before the update:", exc)
+    launch_helper(context, _dl["path"], _dl.get("version", ""))
+    _dl["active"] = False
+    print(f"Fresing Render: closing without saving to install {_dl.get('version', '')}; it opens again by itself")
+    quit_app(context, ask=False)
+
+
+def no_save_question(prefs) -> None:
+    """Close without Blender's "Save changes?" window (task 0316): its preference "Save Prompt" is switched off for
+    this close only. Blender writes changed preferences when it closes (with Auto-Save Preferences on), so: the
+    user's own pending changes are saved first, as that close would have done, and the preferences are then marked
+    unchanged – the switched-off prompt is never written; the next start has it on again."""
+    view = prefs.view
+    if not view.use_save_prompt:
+        return
+    auto = bool(prefs.use_preferences_save)
+    if prefs.is_dirty and auto and not bpy.app.background:
+        try:
+            bpy.ops.wm.save_userpref()
+        except Exception as exc:  # noqa: BLE001
+            print("Fresing Render: could not save the preferences before closing:", exc)
+    was = bool(prefs.is_dirty)
+    view.use_save_prompt = False
+    prefs.is_dirty = was and not auto
+
+
+def _save_browser_open() -> bool:
+    """Is Blender's Save As file browser open (in any window)?"""
+    wm = bpy.context.window_manager
+    for win in (wm.windows if wm else ()):
+        for area in (win.screen.areas if win.screen else ()):
+            if area.type != "FILE_BROWSER":
+                continue
+            op = getattr(area.spaces.active, "active_operator", None)
+            if op is not None and "save_as_mainfile" in (getattr(op, "bl_idname", "") or "").lower():
+                return True
+    return False
+
+
+_save_as: dict = {}
+
+
+def start_save_as(context) -> str:
+    """Save as… and update (task 0316): Blender's Save As; ``_wait_save_as`` starts the update once the project
+    has a file. '' or what went wrong."""
+    try:
+        with context.temp_override(**_window_override()):
+            bpy.ops.wm.save_as_mainfile("INVOKE_DEFAULT")
+    except Exception as exc:  # noqa: BLE001
+        return f"Save As could not open ({exc}): save the project with File > Save As, then press Update now"
+    _save_as.clear()
+    _save_as.update(t0=time.time(), seen=False, gone=0.0)
+    if not bpy.app.timers.is_registered(_wait_save_as):
+        bpy.app.timers.register(_wait_save_as, first_interval=0.3)
+    return ""
+
+
+def _wait_save_as():
+    """Timer after Save as… and update: the project saved -> the update starts as "Save and update"; the file
+    browser closed without a save (Cancel) -> a plain line, Update now stays offered."""
+    try:
+        if not _save_as:
+            return None
+        if bpy.data.filepath:
+            _save_as.clear()
+            problem = preflight(bpy.context)
+            if problem:
+                _ui["note"] = problem
+            else:
+                begin_update(bpy.context, "SAVE")
+            _redraw()
+            return None
+        now = time.time()
+        if _save_browser_open():
+            _save_as.update(seen=True, gone=0.0)
+            return 0.3
+        if not _save_as["seen"] and now - _save_as["t0"] < 5.0:
+            return 0.3                              # the browser is still opening
+        if not _save_as["gone"]:
+            _save_as["gone"] = now                   # closed: the save itself may follow a moment later
+            return 0.5
+        if now - _save_as["gone"] < 1.0:
+            return 0.3
+        _save_as.clear()
+        _ui["note"] = NOT_SAVED_NOTE
+        _redraw()
+    except Exception as exc:  # noqa: BLE001
+        _save_as.clear()
+        _ui["note"] = f"The update did not start ({exc})"
+        _redraw()
+    return None
+
+
+def begin_update(context, save: str) -> None:
+    """Start the download in the window (its timer finishes the update)."""
+    info = dict(_check)
+    _ui["note"] = ""
+    start_download(info, save=save)
+    if not bpy.app.timers.is_registered(_poll_download):
+        bpy.app.timers.register(_poll_download, first_interval=0.25)
+
+
 def _close_when_saved():
     """Timer after saving: once Blender counts the project as saved, start the helper and close."""
     if project_dirty():
@@ -432,14 +585,17 @@ def _close_when_saved():
     return None
 
 
-def quit_app(context) -> None:
-    """Close Blender (the project is saved by then); update_helper.py waits for this."""
+def quit_app(context, ask: bool = True) -> None:
+    """Close Blender (the project is saved by then, or the user chose not to save it: ``ask=False`` closes without
+    Blender's "Save changes?"); update_helper.py waits for this."""
     if sys.platform == "win32":                 # let the app that the helper starts come to the front
         try:
             import ctypes
             ctypes.windll.user32.AllowSetForegroundWindow(-1)        # ASFW_ANY
         except Exception:  # noqa: BLE001
             pass
+    if not ask:
+        no_save_question(context.preferences)
     with context.temp_override(**_window_override()):
         bpy.ops.wm.quit_blender()
 
@@ -553,35 +709,98 @@ class FRESING_OT_update_check(bpy.types.Operator):
         return {"FINISHED"}
 
 
+SAVE_ITEMS = (("SAVE", "Save and update", "Save the project first (a project never saved: Save As), then update"),
+              ("DONT_SAVE", "Update without saving", "Update without saving the changes since the last save"))
+BOX_WIDTH = 560
+BOX_CHARS = 96                                    # characters per line of the box's text at its width
+
+
 class FRESING_OT_update_install(bpy.types.Operator):
-    """Download the new version, save the project, close Fresing Render, install the update and open the app
-    again with the same project (about a minute). Your projects, renders and settings stay as they are"""
+    """Download the new version, close Fresing Render, install the update and open the app again (about a
+    minute). With unsaved changes it asks first: save them, or update without saving. Your projects, renders and
+    settings stay as they are"""
 
     bl_idname = "fresing.update_install"
     bl_label = "Update now"
 
+    save: bpy.props.EnumProperty(
+        name="Unsaved changes", items=SAVE_ITEMS, default="SAVE", options={"SKIP_SAVE"},
+        description="What happens to unsaved changes: saved first (Save and update), or left out (Update without "
+                    "saving)")
+
     @classmethod
     def poll(cls, context):
         return _check.get("state") == "available" and not _dl.get("active")
+
+    @classmethod
+    def description(cls, context, properties):
+        if not properties.is_property_set("save"):
+            return " ".join(cls.__doc__.split())
+        if properties.save == "DONT_SAVE":
+            if bpy.data.filepath:
+                return ("Updates without saving: the app closes and opens again with the project as you last "
+                        "saved it – the changes since then are lost. A backup copy is kept when backups are on")
+            return ("Updates without saving: the app closes and opens again empty – this project is not kept as "
+                    "a project file. A backup copy is kept when backups are on")
+        if not bpy.data.filepath:
+            return ("Opens Save As: choose a name and a folder for the project. Once it is saved, the update goes "
+                    "on by itself (download, close, update, open again with the project)")
+        return ("Saves your changes, then downloads the update, closes, updates and opens again with the "
+                "project (about a minute)")
 
     def invoke(self, context, event):
         problem = preflight(context)
         if problem:
             self.report({"ERROR"}, problem)
             return {"CANCELLED"}
-        msg = (f"Fresing Render downloads {_check.get('version')}, saves your project, closes, updates and "
-               "opens again by itself (about a minute).")
+        _ui["note"] = ""
+        if project_dirty():                          # task 0316: save or not – the box below (draw)
+            return context.window_manager.invoke_popup(self, width=BOX_WIDTH)
+        msg = (f"Fresing Render downloads {_check.get('version')}, closes, updates and opens again by itself "
+               "(about a minute).")
         return context.window_manager.invoke_confirm(self, event, title=f"Update to {_check.get('version')}",
                                                      message=msg, confirm_text="Update now", icon="INFO")
+
+    def draw(self, context):
+        import textwrap
+        layout = self.layout
+        layout.label(text=f"Update to {_check.get('version', '')}", icon="IMPORT")
+        saved = bool(bpy.data.filepath)
+        col = layout.column(align=True)
+        for i, para in enumerate(box_text(_check.get("version", ""), saved, backups_on())):
+            if i:
+                col.separator(factor=0.4)
+            for line in textwrap.wrap(para, BOX_CHARS):
+                col.label(text=line)
+        layout.separator()
+        row = layout.row()
+        row.scale_y = 1.3
+        row.operator_context = "EXEC_DEFAULT"        # the buttons run the update; they do not open this box again
+        op = row.operator("fresing.update_install", text="Save and update" if saved else "Save as… and update",
+                          icon="FILE_TICK", depress=True)
+        op.save = "SAVE"
+        op = row.operator("fresing.update_install", text="Update without saving", icon="IMPORT")
+        op.save = "DONT_SAVE"
+        row.operator("fresing.update_box_cancel", text="Cancel")
 
     def execute(self, context):
         problem = preflight(context)
         if problem:
             self.report({"ERROR"}, problem)
             return {"CANCELLED"}
+        _ui["note"] = ""
+        if self.save == "SAVE" and project_dirty() and not bpy.data.filepath:
+            if bpy.app.background:                   # no file browser here
+                self.report({"ERROR"}, NEVER_SAVED)
+                return {"CANCELLED"}
+            err = start_save_as(context)             # the update starts once the project is saved
+            if err:
+                self.report({"ERROR"}, err)
+                return {"CANCELLED"}
+            return {"FINISHED"}
         info = dict(_check)
         if bpy.app.background:                       # tests and scripts: everything in one go
-            start_download(info, blocking=True)
+            start_download(info, blocking=True, save=self.save)
             if _dl.get("error"):
                 self.report({"ERROR"}, _dl["error"])
                 _dl["active"] = False
@@ -591,9 +810,19 @@ class FRESING_OT_update_install(bpy.types.Operator):
                 self.report({"ERROR"}, err)
                 return {"CANCELLED"}
             return {"FINISHED"}
-        start_download(info)
-        bpy.app.timers.register(_poll_download, first_interval=0.25)
+        begin_update(context, self.save)
         self.report({"INFO"}, f"Downloading Fresing Render {info.get('version')}…")
+        return {"FINISHED"}
+
+
+class FRESING_OT_update_box_cancel(bpy.types.Operator):
+    """Close this box without updating: nothing is downloaded, saved or changed. Update now stays offered"""
+
+    bl_idname = "fresing.update_box_cancel"
+    bl_label = "Cancel"
+    bl_options = {"INTERNAL"}
+
+    def execute(self, context):
         return {"FINISHED"}
 
 
@@ -747,8 +976,11 @@ class FRESING_PT_update(bpy.types.Panel):
                 done = _dl.get("done") or 0
                 frac = done / total if total else 0.0
                 layout.progress(factor=frac, text=f"Downloading… {done / 1e6:.0f} of {total / 1e6:.0f} MB")
-                wrap(layout, context, "Then Fresing Render saves your project, closes and opens again with "
-                                      "the new version.", icon="INFO")
+                if _dl.get("save") == "DONT_SAVE":
+                    after = "Then Fresing Render closes without saving and opens again with the new version."
+                else:
+                    after = "Then Fresing Render saves your project, closes and opens again with the new version."
+                wrap(layout, context, after, icon="INFO")
                 layout.operator("fresing.update_cancel", icon="CANCEL")
             else:
                 wrap(layout, context, _dl.get("error", ""), icon="ERROR", alert=True)
@@ -774,9 +1006,12 @@ class FRESING_PT_update(bpy.types.Panel):
         if project_lock.warning():
             wrap(layout, context, f"This project is in use by {project_lock.warning()}: Save As first (a new "
                                   "name), then Update now.", icon="ERROR", alert=True)
+        if _ui.get("note"):
+            wrap(layout, context, _ui["note"], icon="ERROR", alert=True)
         primary(layout, "fresing.update_install", "Update now", "IMPORT")
-        wrap(layout, context, "Saves your project, closes the app, updates it and opens it again "
-                              f"(download {size / 1e6:.0f} MB, about a minute).", icon="INFO")
+        wrap(layout, context, "Closes the app, updates it and opens it again (download "
+                              f"{size / 1e6:.0f} MB, about a minute). With unsaved changes it asks first: save "
+                              "them or not.", icon="INFO")
         body = fold(layout, "fresing_update_whats_new", "What's new", icon="INFO")
         if body is not None:
             if _check.get("changes"):
@@ -808,7 +1043,8 @@ def _add_help_entry() -> None:
         menu.prepend(_draw_help)
 
 
-CLASSES = (FRESING_OT_update_check, FRESING_OT_update_install, FRESING_OT_update_cancel, FRESING_OT_update_later,
+CLASSES = (FRESING_OT_update_check, FRESING_OT_update_install, FRESING_OT_update_box_cancel, FRESING_OT_update_cancel,
+           FRESING_OT_update_later,
            FRESING_OT_update_close_status, FRESING_OT_update_release_page, FRESING_OT_update_show_log,
            FRESING_PT_update)
 
