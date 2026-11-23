@@ -103,8 +103,8 @@
   },
   "linkage": {
    "added": "0.2.47",
-   "changed": "0.2.199",
-   "fp": "c4e2752c22238093"
+   "changed": "0.2.213",
+   "fp": "53c6fafad38afcfa"
   },
   "looks": {
    "added": "0.2.47",
@@ -148,8 +148,8 @@
   },
   "productvideo": {
    "added": "0.2.81",
-   "changed": "0.2.199",
-   "fp": "0d96f1b7530ca4e6"
+   "changed": "0.2.213",
+   "fp": "f3200a45394995f0"
   },
   "props": {
    "added": "0.2.124",
@@ -173,8 +173,8 @@
   },
   "sequence": {
    "added": "0.2.79",
-   "changed": "0.2.199",
-   "fp": "e87e09203de146c3"
+   "changed": "0.2.213",
+   "fp": "e9d31ed0f156ac58"
   },
   "sequenceframe": {
    "added": "0.2.102",
