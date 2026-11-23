@@ -1,6 +1,6 @@
 # 0307 – Moving parts with G / R does not stick: find why, fix it, and a short guide for the owner
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0307-moving-does-not-stick`
+**Who:** worker · **Status:** running · **Branch:** `task/0307-moving-does-not-stick`
 **Started by:** lead, 23 Nov 2026 (the lead told the owner that G / R, then X / Y / Z and a number, move a part outside
 Full access – task 0253 kept those keys. Owner 20:12: "Moving parts / assemblies is not working for me. I see some
 numbers appear in the UI and when I click or press Enter they just disappear. So maybe a study to check this out? And
