@@ -40,12 +40,67 @@ places, `lock_location` on joint objects), `animation.py` (keys written by Build
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 23 Nov 2026 · version 0.2.216
 
-**What changed:**
+**Case table** (real Blender 5.2.3 under xvfb, simulated keys, test crane `test_crane_a.step`, web machine 4 cores;
+"before" = 0.2.215):
 
-**Tested and measured** (name the machine and the model):
+| Case | Before | Now |
+| --- | --- | --- |
+| Fresh import, boom clicked (BOOM.ASM selected), G X 100 Enter – All functions | numbers show, **nothing moves** | nothing starts; status bar: "'BOOM.ASM' is locked in place – right-click it > Unlock so it can move …" |
+| same, G + mouse move + left click; R Z 30 Enter | nothing moves | same message |
+| same in Full access | nothing moves | same message |
+| a single part picked (2 Structure part row) | nothing moves | message names its subassembly |
+| subassembly unlocked, G X 100 Enter / G + mouse + click / R Z 30 Enter | moves, stays | moves, stays (1 s later, after a frame change) |
+| unlocked part with a joint (boom joint + luffing cylinder), G / R | moves, stays | moves, stays |
+| joint part, G, then Build & play | move kept | move kept |
+| after Build & play, G | moves, but **undone at the next Build or at Stop** | nothing starts; "The animation is built: … Stop it first (4 Motion > Stop it to move joints by hand)" |
+| after Stop it to move joints by hand, G | moves | moves (and a later Build keeps it) |
+| G, then Go to pose | put back where the pose had it (by design) | same – said in the guide |
+| S on a part | nothing (scale always locked) | "Parts keep their size from the CAD model" |
+| Client view | nothing selectable, G silent | G gives the Client view's lock message |
+| model root | locked like every subassembly | same message; top row of 2 Structure > Locked in place unlocks the whole model |
+| mechanism parts, vessel motion | not run with keys: by reading the code the link empties / Child Of are moved, never the part's own place, so a move stays; after Build the "built" message applies | – |
 
-**Open points / follow-up tasks:**
+**Causes:** (1) **every import locks all subassemblies and parts in place** (`logic.lock_all`: lock_location /
+rotation / scale). Blender's G / R then run, show their numbers, move nothing and say nothing – the owner's case. The
+only unlock was a button under the 2 Structure tree. (2) **A built animation** saves how things stood and puts it back
+at the next Build and at Stop: a move made after Build vanished later. (3) **Go to pose** puts subassemblies where the
+pose has them (by design). (4) Blender's click cycling: a second click on the same spot selects the object behind
+(found by the test: the trolley) – said in the guide. No handler, driver or Client-view lock put places back.
+
+**What changed:** new `blender/place.py` (the Place lane's file; 0292 builds on it): `fresing.move_key` on G / R / S in
+Object Mode (`lock.APP_KEYS`) checks what Blender would move (`movers`, `why_not`) – locked / built / scale / Client
+view → the reason in the status bar at once and Blender's key is not started; otherwise `PASS_THROUGH`, Blender's own
+G / R unchanged (some of a selection locked: the rest moves, with the message). Right-click menu: last entry **Unlock so
+it can move** / **Lock in place** (`fresing.ctx_unlock`, not in the Client view). Tooltip of Locked in place names G / R.
+Locks stay the default (no change to imports or saved projects). Guide: section "Moving and turning parts" (anchor
+`moving-parts`), the right-click list and "These stay" keys. Function `structure.move`; PC-check Full line
+`structure.move` (MIN_LINES_FULL 124); real-app test `move` (14 checks, group pccheck-b).
+
+**Tested and measured:** web machine (4 cores, no GPU): `tests/test_place.py` (7) – the locked message failed before
+(no check existed: G stayed silent); with test_keys_right_click, test_functions, test_user_guide, test_usage,
+test_places 94 passed; `tools/ui_test_move.py` 14/14 (G X 100 Enter stays, mouse + click stays, R Z 30 stays, locked
+and after-Build messages, Stop then G moves); PC-check line `structure.move` OK in 2 s; tooltip report --strict clean.
+GitHub runs: see below. Subagents: none (small change; no Windows-only code, so no independent review).
+
+**Owner's steps on your PC** (after Update now to 0.2.216):
+1. Open a project (or Import STEP… the test crane).
+2. Click a part in the 3D view, press **G**: the status bar at the bottom says "'…' is locked in place – right-click it
+   > Unlock so it can move …" and nothing moves.
+3. **Right-click** the same part → click **Unlock so it can move** (the last entry).
+4. Click the part once, move the mouse over the 3D view, press **G**, then **X**, type **500**, press **Enter**: the
+   subassembly moves half a metre along X and stays there.
+5. **R**, **Z**, **90**, **Enter**: it turns a quarter turn and stays. **Esc** (or a right-click) while moving puts it back.
+6. The whole model: in 2 Structure click the top row of the tree → **Locked in place** (it changes to "Unlocked: can be
+   moved") → G / R as above.
+7. With an animation built (after Build & play): G says "The animation is built …". Click **Stop it to move joints by
+   hand** at the top of 4 Motion, move it, then **Build & play** again – the new place is kept.
+8. After a move, a saved pose still has the old place: save the pose again (4 Motion > Poses & exploded views).
+
+**Open points / follow-up tasks:** no test-tour stop (the PC-check line and the real-app test cover it; the guide
+picture `img/view_right_click.png` does not show the new last entry yet – next guide-picture pass or 0292). 0292: the
+fields / gizmo can reuse `place.why_not` and `lock_owner`. Possible later choice for the owner: unlock model roots by
+default so a whole model moves without the extra click.
 
 **Owner's check on your PC:**
