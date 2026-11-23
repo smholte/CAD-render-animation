@@ -91,6 +91,11 @@
    "changed": "0.2.173",
    "fp": "1c378a11ff325c22"
   },
+  "import": {
+   "added": "0.2.218",
+   "changed": "0.2.218",
+   "fp": "fd0b70db11901d08"
+  },
   "lifting": {
    "added": "0.2.156",
    "changed": "0.2.192",

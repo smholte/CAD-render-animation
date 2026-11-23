@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 import bpy
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 from ..core import rules as R
 from . import build, faces, materials
@@ -407,3 +407,56 @@ def set_up_axis(root, axis: str) -> None:
     if axis == "Y":
         root.matrix_basis = Matrix.Rotation(math.radians(90), 4, "X") @ root.matrix_basis
     build.set_mat(root, build.PROP_REST_BASIS, root.matrix_basis)   # turning the model is not a "free move"
+
+
+def up_axis_of(root) -> str:
+    """'Y' when the model lies as an import with Y up put it (its CAD Y axis points up), else 'Z' (task 0289)."""
+    M = build.rest_basis(root).to_3x3()
+    y = M @ Vector((0.0, 1.0, 0.0))
+    return "Y" if y.z > 0.9 * max(y.length, 1e-12) else "Z"
+
+
+def _free_cameras(scene, roots) -> list:
+    """The project's cameras that do not ride on a model (no parent under a model root), not the animation camera."""
+    out = []
+    for ob in scene.objects:
+        if ob.type != "CAMERA" or ob.get("fr_anim_camera"):
+            continue
+        p, riding = ob.parent, False
+        while p is not None:
+            if p in roots:
+                riding = True
+                break
+            p = p.parent
+        if not riding:
+            out.append(ob)
+    return out
+
+
+def change_up_axis(scene, root, axis: str) -> bool:
+    """Turn a model after its import as the import's Up axis would have (task 0289): the root turns 90° about X round
+    its own origin – everything under it (joints, cylinders, cuts, cameras and labels riding on parts) turns with it;
+    poses and saved scenes keep working, they store joint values and moves relative to the parts. When the project
+    holds only this model, its free cameras turn with it too, so saved views keep looking at it. A built animation is
+    taken off (the caller says "Build again"). Returns False when the model already has that axis."""
+    axis = "Y" if str(axis).upper() == "Y" else "Z"
+    if up_axis_of(root) == axis:
+        return False
+    from . import animation
+    animation.clear_keys(scene)
+    turn = Matrix.Rotation(math.radians(90 if axis == "Y" else -90), 4, "X")
+    loc = root.matrix_basis.translation.copy()
+    about = Matrix.Translation(loc) @ turn @ Matrix.Translation(-loc)
+    rest = build.rest_basis(root)
+    root.matrix_basis = about @ root.matrix_basis
+    build.set_mat(root, build.PROP_REST_BASIS, about @ rest)
+    root["fr_up_axis"] = axis
+    roots = build.model_roots(scene)
+    if len(roots) == 1:
+        world_about = (root.parent.matrix_world @ root.matrix_parent_inverse if root.parent else Matrix.Identity(4))
+        world_about = world_about @ about @ world_about.inverted()
+        for cam in _free_cameras(scene, set(roots)):
+            cam.matrix_world = world_about @ cam.matrix_world
+    bpy.context.view_layer.update()
+    update_bounds(scene)
+    return True

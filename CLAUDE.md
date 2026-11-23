@@ -1529,3 +1529,9 @@ the release → Delete); the next run on `main` publishes it again.
 - `os.access(folder, os.W_OK)` on Windows says yes to every folder (it reads only a FILE's read-only flag, never a
   share's or NTFS rights): a read-only company share counted as writable (task 0272, found by its independent
   reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.
+- `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
+  report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
+  run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs
+  mode and published the release while `ci_status.py` said no run). Check the push's runs on GitHub
+  (`gh api "repos/smholte/CAD-render-animation/actions/runs?branch=main&per_page=5"`) before pushing anything to
+  "start" one.

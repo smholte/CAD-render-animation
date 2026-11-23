@@ -21,6 +21,21 @@ installer of that version was built from.
   the device (or the processor).
 - Self-test line "Graphics card used", PC check line `pc.gpu`; the PC check's report names the GPU that draws and the
   one that renders. New guide section "Graphics card" (Troubleshooting).
+
+## 0.2.218 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
+
+- **A STEP or mesh file dropped on the view now comes in exactly like Import STEP…**: the side panel opens on
+  1 Import (also when it was hidden or another section's tab was chosen), the Detail and Up axis you chose there are
+  used, the progress bar with Esc to cancel shows, then the model's box and the same message. Several files dropped
+  at once: the first one is imported and the panel says so.
+- **1 Import > Imported models** (a fold; its title says how many are stored) lists every model in the import cache,
+  newest first, with parts, detail, size and date. **Import again** adds it to this project – an unchanged file from
+  the stored copy in seconds, a changed file read again (the message says so), a moved file from the stored copy.
+  The folder button shows the file, the bin removes it from the cache (asks first). A search field from 11 models on.
+- **Up axis after the import**: each model's box has **Z up / Y up**. It turns the whole model as the import would
+  have; joints, cylinders, poses, saved scenes and labels keep working, a built animation is taken off (Build again
+  gives the same motion, turned). One Ctrl+Z undoes it; a model update keeps the axis.
+- New PC-check lines `import.drop`, `import.again`, `import.up_axis` and a test-tour stop "Import again and Up axis".
 ## 0.2.217 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
 
 - **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,

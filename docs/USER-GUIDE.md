@@ -990,7 +990,8 @@ your work.
    but which makes big models lighter. Other small parts (cutters, lamps, workpieces) stay as detailed as before.
    A project imported earlier keeps its meshes until its next **Update to new revision…**: then the round parts
    come in with the new facets, and painted faces, joints and looks stay.
-2. **Up axis**: **Z up** for most files. **Y up** when the model comes in lying on its back.
+2. **Up axis**: **Z up** for most files. **Y up** when the model comes in lying on its back. You can still
+   change it after the import, per model (below).
 3. Click **Import STEP…** and pick the file, or drag a .step file onto the view.
 4. Wait for the progress bar. Big files are read on all processor cores but one, so the PC stays
    usable. <kbd>Esc</kbd> with the mouse over the view cancels.
@@ -998,6 +999,45 @@ your work.
 The box under the button then shows the model: its parts (placed, and how many different), its
 triangles and how long the import took. An unchanged file imports again in seconds, from a stored
 copy (**More > Clear import cache** throws those copies away if disk space is short).
+
+<a id="drop-a-file"></a>
+**Drop a file on the view.** Dragging a .step / .stp file (or a glTF, OBJ or FBX mesh model) from Explorer onto the
+3D view or the Outliner does exactly what **Import STEP…** does: the side panel opens on **1 Import** (also when
+another section's tab was chosen or the side panel was hidden), the **Detail** and **Up axis** chosen there are used,
+the progress bar with <kbd>Esc</kbd> to cancel shows, then the model's box and the same message; one
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> takes the import back. Several files dropped at once: the **first** one is imported and
+the panel says so – drop the others one at a time once it is in.
+
+<a id="up-axis-after-import"></a>
+**Up axis after the import.** Each model's box has **Up axis: Z up / Y up**. Clicking the other one turns the whole
+model at its own origin, exactly as the import's Up axis would have. Everything you made on it keeps working: joints,
+cylinders, mechanisms, slices, poses, saved scenes, labels and cameras riding on its parts. When the project holds
+only this model, its other cameras turn with it, so saved views still look at it. A built animation is taken off
+(the message says **Build again**); built again it gives the same motion, turned. One <kbd>Ctrl</kbd>+<kbd>Z</kbd>
+undoes it. A model update to a new revision keeps the chosen axis. The **Up axis** above **Import STEP…** stays the
+choice for the next import.
+
+<a id="imported-models"></a>
+<img class="panel" src="img/panel_1_imported_models.png" alt="1 Import: the Imported models fold opened">
+
+**Imported models** (a fold under the model boxes; its title row says how many are stored) lists every model in
+the import cache, newest first: its name, parts, detail, size on disk, when it was stored and the file's name. A file
+that was moved or deleted since is greyed with **File moved**; a changed file says **File changed since**. More than
+10 stored: a search field narrows the list. Each row:
+
+- **Import again** adds that model to this project. An unchanged file comes from the stored copy in seconds (nothing
+  is read); a changed file is read again, and the message says so; a moved file comes from the stored copy.
+- The folder button (**Show in folder**) shows the file in Explorer (a moved file: the stored copy's folder).
+- The bin (**Remove from cache**) asks first, then deletes the stored copy and frees its space. Models already in a
+  project are not touched; the next import of that file reads it in full again.
+
+Where the cache lives: in the app's settings folder,
+`%LOCALAPPDATA%\FresingRender\…\portable\extensions\.user\user_default\fresing_render\cache` (one folder per
+stored model). How big it grows: about 40 bytes per triangle
+(measured on the test crane: 5,890 triangles, 244 KB) – a model of a million triangles takes about 40 MB. Nothing
+is thrown away by itself, except copies made by an older version of the app (at the next import) and the older copy
+of a file that was read again. The fold shows the total; remove what you no longer need, or **More > Clear import
+cache** for all.
 
 **The same file twice** (two cranes on one quay): import it again. Each copy is its own machine: hiding
 a part, visibility sets, poses, Show/Hide steps and model updates of one copy never touch the other.
