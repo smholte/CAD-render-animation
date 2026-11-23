@@ -1,6 +1,6 @@
 # 0261 – Real size, category A: the cylinder arm and the hose arm ×3, the mesh crane ×2.5
 
-**Who:** worker · **Status:** open – waits for 0259 (its real pins / bolts / cylinder are the pattern) · **Branch:**
+**Who:** worker · **Status:** running (23 Nov 2026) · **Branch:**
 `task/0261-arms-mesh-crane-real-size`
 **Started by:** lead, 21 Nov 2026 (owner 14:20: every model at a realistic scale – "study first, then one fix task per
 type"; study **0258** category A) · **Model:** Opus · effort Medium
