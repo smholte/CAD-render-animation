@@ -57,6 +57,7 @@ S = ARM * math.sin(PHI0)
 Z0 = 100.0                      # fixed pin height above the base's underside
 TOP = Z0 + STAGES * S           # platform pin
 PIN_R = 15.0
+W = 680.0                       # the second scissor pair is the first one mirrored about y = W / 2 (task 0264)
 ROLLER_R = 40.0
 CYL_G = (450.0, Z0)              # the lifting cylinder's barrel pin on the base
 CYL_AT = 0.75                    # the rod pin on the bottom inner arm, share of its length
@@ -117,6 +118,11 @@ def _lug(x):
     body = BRepPrimAPI_MakeBox(gp_Pnt(x - 30, -100, -30), 60.0, 100.0, 60.0).Shape()
     body = BRepAlgoAPI_Cut(body, BRepPrimAPI_MakeBox(gp_Pnt(x - 31, -97, -31), 62.0, 34.0, 62.0).Shape()).Shape()
     return BRepAlgoAPI_Cut(body, _cyl_y(x, 0, 10.0, -101, 1)).Shape()
+
+
+def _roller(y0, y1):
+    """A roller Ø80 with its bore Ø30, y0 … y1 (one wide roller between the two bars)."""
+    return BRepAlgoAPI_Cut(_cyl_y(0, 0, ROLLER_R, y0, y1), _cyl_y(0, 0, PIN_R, y0 - 1, y1 + 1)).Shape()
 
 
 def _clevis(x, z, y0, y1, slot0, slot1, below, above, half, r):
@@ -185,18 +191,31 @@ def build(path: str, revision: str = "A") -> None:
     lift = assy("LIFT.ASM")
     turn = math.degrees(PHI0)
     base = assy("LIFT.BASE.ASM")
-    place(base, part(BRepPrimAPI_MakeBox(gp_Pnt(-150, -60, 0), 1300.0, 180.0, Z0 - ROLLER_R).Shape(),
+    place(base, part(BRepPrimAPI_MakeBox(gp_Pnt(-150, -60, 0), 1300.0, W + 120.0, Z0 - ROLLER_R).Shape(),
                      "LIFT.BASE", grey))
     place(base, part(_bored_block(-40, 40, -40, 0, Z0 - ROLLER_R, Z0 + 40, [(0, Z0)], PIN_R),
                      "LIFT.BASE.BRACKET", grey))
-    place(base, part(_cyl_y(0, Z0, PIN_R, -40, 30), "LIFT.BASE.PIN", chrome))
+    place(base, part(_bored_block(-40, 40, W, W + 40, Z0 - ROLLER_R, Z0 + 40, [(0, Z0)], PIN_R),
+                     "LIFT.BASE.BRACKET.2", grey))
+    place(base, part(_cyl_y(0, Z0, PIN_R, -40, W + 40), "LIFT.BASE.PIN", chrome))
     place(lift, base)
 
-    inner_bar = part(_bar(ARM, 60, 0, 30, [0, ARM / 2, ARM], PIN_R), "LIFT.ARM.IN", yellow)
-    outer_bar = part(_bar(ARM, 60, 30, 60, [0, ARM / 2, ARM], PIN_R), "LIFT.ARM.OUT", yellow)
-    centre_pin = part(_cyl_y(ARM / 2, 0, PIN_R, -5, 65), "LIFT.PIN", chrome)
-    end_pin = part(_cyl_y(0, 0, PIN_R, -5, 65), "LIFT.PIN.END", chrome)
-    roller_shape = BRepAlgoAPI_Cut(_cyl_y(0, 0, ROLLER_R, 0, 30), _cyl_y(0, 0, PIN_R, -1, 31)).Shape()
+    # two scissor pairs side by side (task 0264): each arm is two bars joined by a cross tube, one solid; the second
+    # pair is the first mirrored about y = W / 2, the pins run the whole width
+    def pair(y0, y1, hole=True):
+        a = _bar(ARM, 60, y0, y1, [0, ARM / 2, ARM], PIN_R)
+        b = _bar(ARM, 60, W - y1, W - y0, [0, ARM / 2, ARM], PIN_R)
+        return a, b
+
+    def two_bars(y0, y1):
+        a, b = pair(y0, y1)
+        tube = _cyl_y(ARM / 4, 0, 20.0, y1, W - y1)
+        return BRepAlgoAPI_Fuse(BRepAlgoAPI_Fuse(a, b).Shape(), tube).Shape()
+
+    inner_bar = part(two_bars(0, 30), "LIFT.ARM.IN", yellow)
+    outer_bar = part(two_bars(30, 60), "LIFT.ARM.OUT", yellow)
+    centre_pin = part(_cyl_y(ARM / 2, 0, PIN_R, -5, W + 5), "LIFT.PIN", chrome)
+    end_pin = part(_cyl_y(0, 0, PIN_R, -5, W + 5), "LIFT.PIN.END", chrome)
     for i in range(STAGES):
         z = Z0 + i * S
         a = assy(f"LIFT.ARM.IN.{i + 1}")
@@ -206,12 +225,14 @@ def build(path: str, revision: str = "A") -> None:
             place(a, part(_lug(ARM * CYL_AT), "LIFT.ARM.LUG", yellow))
             place(a, part(_cyl_y(ARM * CYL_AT, 0, 10.0, -110, 30), "LIFT.CYL.PIN", chrome))
         if i == STAGES - 1:                      # roller under the platform, at the inner arm's top end
-            place(a, part(roller_shape, "LIFT.ROLLER", grey), ARM, 0, 0, y=-30)
+            place(a, end_pin, ARM)
+            place(a, part(_roller(30, W - 30), "LIFT.ROLLER", grey), ARM, 0, 0)
         place(lift, a, 0, z, turn)
         b = assy(f"LIFT.ARM.OUT.{i + 1}")
         place(b, outer_bar)
         if i == 0:                               # roller on the base, at the outer arm's bottom end
-            place(b, part(roller_shape, "LIFT.ROLLER", grey), 0, 0, 0, y=60)
+            place(b, end_pin)
+            place(b, part(_roller(60, W - 60), "LIFT.ROLLER", grey))
         else:                                    # its bottom end is pinned to the inner arm below
             place(b, end_pin)
         place(lift, b, C, z, 180.0 - turn)
@@ -220,11 +241,13 @@ def build(path: str, revision: str = "A") -> None:
             place(p, end_pin)
             place(a, p)
     plat = assy("LIFT.PLATFORM.ASM")
-    place(plat, part(BRepPrimAPI_MakeBox(gp_Pnt(-150, -60, TOP + ROLLER_R), 1300.0, 180.0, 40.0).Shape(),
+    place(plat, part(BRepPrimAPI_MakeBox(gp_Pnt(-150, -60, TOP + ROLLER_R), 1300.0, W + 120.0, 40.0).Shape(),
                      "LIFT.PLATFORM", blue))
     place(plat, part(_bored_block(-40, 40, 60, 100, TOP - 40, TOP + ROLLER_R, [(0, TOP)], PIN_R),
                      "LIFT.PLATFORM.BRACKET", blue))
-    place(plat, part(_cyl_y(0, TOP, PIN_R, 30, 100), "LIFT.PLATFORM.PIN", chrome))
+    place(plat, part(_bored_block(-40, 40, W - 100, W - 60, TOP - 40, TOP + ROLLER_R, [(0, TOP)], PIN_R),
+                     "LIFT.PLATFORM.BRACKET.2", blue))
+    place(plat, part(_cyl_y(0, TOP, PIN_R, 30, W - 30), "LIFT.PLATFORM.PIN", chrome))
     if revision == "B":
         place(plat, part(BRepPrimAPI_MakeSphere(gp_Pnt(500, 30, TOP + 120), 40.0).Shape(), "LIFT.PLATFORM.LAMP"))
     place(lift, plat)

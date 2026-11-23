@@ -1,6 +1,6 @@
 # 0282 – Function dialogs become windows: they stay open when you click elsewhere and can be dragged to another screen
 
-**Who:** worker · **Status:** open – can start (batch A now; batch B after 0272) · **Branch:** `task/0282-function-windows`
+**Who:** worker · **Status:** running (23 Nov 2026, batch A + B) · **Branch:** `task/0282-function-windows`
 **Started by:** lead, 21 Nov 2026 (owner 22:39, screenshot of **Make a crane** (type, Start from AT-40, folds Crane /
 Boom / Carrier / …, Name, Make / Cancel): "when a function menu like Make a crane or other functions are open they
 should stay open when you click off the menu and be able to drag to another screen") · **Model:** Opus · effort High

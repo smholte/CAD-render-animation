@@ -44,10 +44,26 @@ Other models (0259, 0261–0263, 0235), app code, surroundings. **Never the Fres
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, Sonnet, 23 Nov 2026
 
-**What changed:**
+**What changed:** (version 0.2.213)
+- `make_test_linkage.py` (both variants A and B): platform and base 1.30 × 0.80 m (were 0.18 m wide). Each scissor arm is now
+  two bars joined by a cross tube, one solid, the second pair being the first mirrored about y = 340 mm; pins run the whole
+  width; one wide roller between the bars (bottom outer arm, and under the platform at the top inner arm, now with its own
+  pin); second brackets `LIFT.BASE.BRACKET.2`, `LIFT.PLATFORM.BRACKET.2`. Arm lengths, heights, pin places and every
+  existing part name are unchanged, so the linkage numbers, the tour stop and the PC-check line did not change. The lifting
+  cylinder stays at the front side (y -100 … -60).
+- `make_test_sequence.py`: the M24 hex nut became **"SKF KM 5 Locknut M25x1.5"** (KM5: Ø38, 7 high, four slots in the rim,
+  bore Ø25, z 145 … 152). The part library reads it as a fastener ("Lock nut M25") in the bearings group; no app data
+  change needed. Test readers of the old name (`tests/test_sequence.py`) changed in the same commit.
+- Data copies (`tests/data` + `fresing_render/data`), the sets `linkage`, `sequence`, `productvideo` `changed=0.2.213` +
+  `tour_versions.json` record, CHANGELOG.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine): `test_linkages`, `test_sequence`, `test_seq_mesh_0162_independent`,
+`test_model_update`, `test_product_video` 134 passed; `test_tour.py` 109 passed; `test_tour_clash` for the three sets
+(0 clashes); precheck full mode. GitHub run: see the merge. Pictures (viewer drawn from the STEP, not the app):
+`tasks/img/0264/`.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** The tour's Mechanisms view is the front view (mechanism plane), so the new width does
+not show in it; an oblique view would. No tab washer on the nut (not cheap in one solid). Guide pictures were not remade
+(the front view looks the same).

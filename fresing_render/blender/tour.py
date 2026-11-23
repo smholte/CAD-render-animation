@@ -1383,7 +1383,7 @@ def _check_cylinder(scene):
 LIFT_ROD_PIN = (0.75 * math.cos(math.radians(15.0)), -0.08, 0.1 + 0.75 * math.sin(math.radians(15.0)))
 
 
-@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.199")
+@tour_set("linkage", "Mechanisms", "test_linkage_a.step", added="0.2.47", changed="0.2.213")
 def build_linkage(b: Build):
     from mathutils import Vector
 
@@ -2841,7 +2841,7 @@ def check_sequence(scene, a=None) -> str:
     return f"12 parts out (least {least * 1000:.0f} mm), 5 fasteners first, back within {worst * 1000:.4f} mm"
 
 
-@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.199")
+@tour_set("sequence", "Assembly sequence", "test_sequence.step", added="0.2.79", changed="0.2.213")
 def build_sequence(b: Build):
     sc = b.scene
     _studio(b)
@@ -2872,7 +2872,7 @@ def check_product_video(scene) -> str:
     return f"{len(a.blocks)} steps, {len(close)} close-up, {animation.length_seconds(a):.0f} s without the cards"
 
 
-@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.199")
+@tour_set("productvideo", "Product video", "test_sequence.step", added="0.2.81", changed="0.2.213")
 def build_productvideo(b: Build):
     from mathutils import Vector
 
