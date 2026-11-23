@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.216 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
+
+- **A STEP or mesh file dropped on the view now comes in exactly like Import STEP…**: the side panel opens on
+  1 Import (also when it was hidden or another section's tab was chosen), the Detail and Up axis you chose there are
+  used, the progress bar with Esc to cancel shows, then the model's box and the same message. Several files dropped
+  at once: the first one is imported and the panel says so.
+- **1 Import > Imported models** (a fold; its title says how many are stored) lists every model in the import cache,
+  newest first, with parts, detail, size and date. **Import again** adds it to this project – an unchanged file from
+  the stored copy in seconds, a changed file read again (the message says so), a moved file from the stored copy.
+  The folder button shows the file, the bin removes it from the cache (asks first). A search field from 11 models on.
+- **Up axis after the import**: each model's box has **Z up / Y up**. It turns the whole model as the import would
+  have; joints, cylinders, poses, saved scenes and labels keep working, a built animation is taken off (Build again
+  gives the same motion, turned). One Ctrl+Z undoes it; a model update keeps the axis.
+- New PC-check lines `import.drop`, `import.again`, `import.up_axis` and a test-tour stop "Import again and Up axis".
+
 ## 0.2.214 – 23 Nov 2026 – Fresing Render is in Windows' "Installed apps": uninstall it from Settings (task 0265)
 
 - **Settings > Apps > Installed apps now lists Fresing Render**, with its version, "Fresing" as the publisher, its icon

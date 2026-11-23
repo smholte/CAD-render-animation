@@ -16,6 +16,9 @@ _ACTIVE_JOB: ImportJob | None = None
 
 
 def cache_root() -> str:
+    if _ROOT_OVERRIDE:
+        os.makedirs(_ROOT_OVERRIDE[0], exist_ok=True)
+        return _ROOT_OVERRIDE[0]
     try:
         base = bpy.utils.extension_path_user(__package__.rsplit(".", 1)[0], path="cache", create=True)
     except Exception:
@@ -89,6 +92,85 @@ def _locked(op) -> bool:
     return True
 
 
+PANEL = "FRESING_PT_import"
+_ROOT_OVERRIDE: list = []      # tests: a cache folder of their own (``use_cache_root``)
+
+
+def use_cache_root(path: str | None) -> None:
+    """Tests: keep the stored imports in ``path`` (None: the app's own folder again)."""
+    _ROOT_OVERRIDE[:] = [path] if path else []
+
+
+def show_import_panel(context) -> None:
+    """A drop (or Import again) shows what the Import STEP… button shows (task 0289): 1 Import opened in the side
+    panel, the section tab on All when another section's tab was chosen, the side panel shown on the Fresing tab."""
+    from . import panels
+    panels.open_to(PANEL)
+    sec = panels.tab_section()
+    if sec and sec != PANEL:
+        panels._TAB["v"] = "ALL"
+        wm = getattr(context, "window_manager", None)
+        if wm is not None and getattr(wm, "fresing_tab", "ALL") != "ALL":
+            wm.fresing_tab = "ALL"
+    if bpy.app.background:
+        return
+    from . import editors
+    if not editors.settled():                 # never set a 3D view's settings before it was drawn (CLAUDE.md 8)
+        return
+    win = getattr(context, "window", None)
+    if win is None or panels.side_window(win):
+        return
+    for area in win.screen.areas:
+        if area.type != "VIEW_3D":
+            continue
+        space = area.spaces.active
+        try:
+            if not space.show_region_ui:
+                space.show_region_ui = True
+            for region in area.regions:
+                if region.type == "UI":
+                    try:
+                        region.active_panel_category = panels.CATEGORY
+                    except (TypeError, AttributeError, ValueError):
+                        pass
+        except (AttributeError, RuntimeError):
+            pass
+        area.tag_redraw()
+
+
+def _redraw_panel() -> None:
+    try:
+        from . import panels
+        panels.redraw()
+    except Exception:  # noqa: BLE001 – a redraw never stops an import
+        pass
+
+
+class _Stored:
+    """Stands in for an ImportJob when Import again takes a stored import as it is (nothing to read)."""
+
+    def __init__(self, entry):
+        self.cache_dir = entry.folder
+        self.step_path = entry.source or entry.name
+        self.error = None
+        self.done = True
+
+
+def _again_entry(op):
+    from ..core import import_cache
+    e = import_cache.find(cache_root(), op.again)
+    if e is None:
+        op.report({"WARNING"}, "That stored import is no longer in the cache")
+    elif e.state == import_cache.OLD:
+        op.report({"ERROR"}, "That stored import was made by an older version of the app: import the file itself")
+        e = None
+    return e
+
+
+AGAIN_TIP = ("Import this model again into this project. An unchanged file comes from the stored copy in seconds, "
+             "a changed file is read again; a file that was moved comes from the stored copy")
+
+
 class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
     """Import a STEP assembly: pick the file, it is read in the background (the app stays usable).
     Choose the detail and up axis above first"""
@@ -110,9 +192,13 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
     up_axis: EnumProperty(name="Up axis", default="Z", items=[("Z", "Z up", ""), ("Y", "Y up", "")])
     # UPDATE: replace this model by a new revision of the file and keep all work
     update_root: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+    # task 0289: Import again – the folder name of a stored import (the Imported models fold)
+    again: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
 
     @classmethod
     def description(cls, context, properties):
+        if properties.again:
+            return AGAIN_TIP
         if properties.update_root:
             return ("Read a new revision of this model's STEP file. Parts are matched with the old ones and keep "
                     "their groups, painted faces, joints, poses and scenes; a report lists what is new or missing")
@@ -127,10 +213,10 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         s = context.scene.fresing
         self.quality = s.import_quality
         self.up_axis = s.import_up_axis
-        if self.directory and self.files and self.files[0].name:   # drag & drop
-            if len(self.files) > 1:
-                self.report({"WARNING"}, "Several files dropped: importing the first one")
+        if self.again:                                              # task 0289: the Imported models fold
             return self.execute(context)
+        if self.directory and self.files and self.files[0].name:   # drag & drop: as the button (task 0289)
+            return _dropped(self, context)
         root = bpy.data.objects.get(self.update_root) if self.update_root else None
         if root is not None:
             src = root.get(build.PROP_SOURCE, "")
@@ -144,7 +230,11 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
                 self.filepath = os.path.join(first, "")
         return ImportHelper.invoke(self, context, event)
 
+    _note = ""
+
     def _path(self) -> str:
+        if self.again and self.filepath:
+            return self.filepath
         if self.files and self.directory and self.files[0].name:
             return os.path.join(self.directory, self.files[0].name)
         return self.filepath
@@ -153,6 +243,23 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         if self.update_root and _locked(self):
             return {"CANCELLED"}
         global _ACTIVE_JOB
+        self._note = ""
+        if self.again:
+            entry = _again_entry(self)
+            if entry is None:
+                return {"CANCELLED"}
+            if _busy(self):
+                return {"CANCELLED"}
+            show_import_panel(context)
+            if entry.state != "changed":                 # unchanged or moved: the stored copy, nothing is read
+                self._job = _Stored(entry)
+                self.quality = entry.quality if entry.quality in ("draft", "normal", "fine") else self.quality
+                if entry.state == "moved":
+                    self._note = " (from the stored copy: the file was moved)"
+                return self._finish(context, cached=True)
+            self.filepath = entry.source
+            self.quality = entry.quality if entry.quality in ("draft", "normal", "fine") else self.quality
+            self._note = " (the file had changed since it was stored: read again)"
         path = self._path()
         if not os.path.isfile(path):
             self.report({"ERROR"}, f"File not found: {path}")
@@ -208,6 +315,7 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         msg = f"Importing {os.path.basename(self._job.step_path)}: {self._job.message} ({self._job.pct:.0f}%) - Esc to cancel"
         context.workspace.status_text_set(msg)
         context.scene.fresing.last_message = msg
+        _redraw_panel()
         if not finished:
             return {"PASS_THROUGH"}
         self._cleanup(context)
@@ -219,6 +327,7 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         if job.error:
             self.report({"ERROR"}, f"Import failed: {job.error}")
             s.last_message = f"Import failed: {job.error}"
+            _redraw_panel()
             return {"CANCELLED"}
         old_root = bpy.data.objects.get(self.update_root) if self.update_root else None
         if old_root is not None:
@@ -232,11 +341,13 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
             res["root"]["fr_quality"] = self.quality
             s.last_message = s.report_title
             self.report({"INFO"}, s.last_message)
+            _redraw_panel()
             return {"FINISHED"}
         root = finish_import(context, job.cache_dir, self.up_axis)
         root["fr_quality"] = self.quality
         s.last_message = f"Imported {os.path.basename(job.step_path)}" + (
-            " (from cache: file unchanged since last import)" if cached else "")
+            self._note or (" (from cache: file unchanged since last import)" if cached else ""))
+        _redraw_panel()
         self.report({"INFO"}, s.last_message)
         from . import rule_sets
         notice = rule_sets.take_notice()           # e.g. the default rule set is not in the library
@@ -259,6 +370,35 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         layout = self.layout
         layout.prop(self, "quality")
         layout.prop(self, "up_axis")
+
+
+def _busy(op) -> bool:
+    if _ACTIVE_JOB is not None and not _ACTIVE_JOB.done:
+        try:
+            _ACTIVE_JOB.poll()
+        except Exception:
+            _ACTIVE_JOB.done = True
+        if not _ACTIVE_JOB.done:
+            op.report({"WARNING"}, "An import is already running")
+            return True
+    return False
+
+
+def _dropped(op, context):
+    """A file dropped on the 3D view or the Outliner (task 0289): the same as Import STEP… – 1 Import opens, the
+    panel's Detail and Up axis are used, the progress with Esc to cancel, the model's line, the same message and the
+    same undo step. Several files at once: the first one is imported, and the panel says so."""
+    show_import_panel(context)
+    names = [f.name for f in op.files if f.name]
+    res = op.execute(context)
+    if len(names) > 1:
+        note = (f"{plural(len(names), 'file')} dropped: {names[0]} is imported – drop the others one at a time, "
+                "after this one is in")
+        op.report({"WARNING"}, note)
+        s = context.scene.fresing
+        s.last_message = (s.last_message + ". " if s.last_message else "") + note
+        _redraw_panel()
+    return res
 
 
 class FRESING_FH_step(bpy.types.FileHandler):
@@ -317,6 +457,7 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
         description="Which axis points up in the file. glTF and FBX say it themselves; most OBJ files are Y up",
         items=[("auto", "Auto", "glTF and FBX as the file says; OBJ Y up"), ("y", "Y up", "The file's Y axis is up"),
                ("z", "Z up", "The file's Z axis is up (as in the app)")])
+    again: StringProperty(options={"SKIP_SAVE", "HIDDEN"})        # task 0289, as Import STEP's
     split: EnumProperty(
         name="Split by loose parts", default="auto",
         description="Make every separate piece of a mesh a part of its own, so it can be moved and given a look. "
@@ -328,6 +469,8 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
 
     @classmethod
     def description(cls, context, properties):
+        if properties.again:
+            return AGAIN_TIP
         if properties.update_root:
             return ("Read a new revision of this mesh model's file. Parts are matched with the old ones by their "
                     "names (a renamed part by its place and shape) and keep their groups, painted faces, joints, "
@@ -350,12 +493,13 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
             src = root.get(build.PROP_SOURCE, "")
             if src:
                 self.filepath = src
-        if self.directory and self.files and self.files[0].name:   # drag & drop
-            if len(self.files) > 1:
-                self.report({"WARNING"}, "Several files dropped: importing the first one")
+        if self.again:
             return self.execute(context)
+        if self.directory and self.files and self.files[0].name:   # drag & drop: as the button (task 0289)
+            return _dropped(self, context)
         return ImportHelper.invoke(self, context, event)
 
+    _note = ""
     _path = FRESING_OT_import_step._path
     modal = FRESING_OT_import_step.modal
     _cleanup = FRESING_OT_import_step._cleanup
@@ -364,6 +508,25 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
         if self.update_root and _locked(self):
             return {"CANCELLED"}
         global _ACTIVE_JOB
+        self._note = ""
+        if self.again:
+            entry = _again_entry(self)
+            if entry is None:
+                return {"CANCELLED"}
+            if _busy(self):
+                return {"CANCELLED"}
+            show_import_panel(context)
+            if entry.state != "changed":
+                self._job = _Stored(entry)
+                if entry.state == "moved":
+                    self._note = " (from the stored copy: the file was moved)"
+                return self._finish(context, cached=True)
+            self.filepath = entry.source            # read again with the choices it was read with
+            opts = entry.options
+            self.units = opts.get("units", "auto") if opts.get("units") in ("m", "cm", "mm", "in", "ft") else "auto"
+            self.up_axis = opts.get("up", "auto") if opts.get("up") in ("y", "z") else "auto"
+            self.split = "on" if opts.get("split") else "off"
+            self._note = " (the file had changed since it was stored: read again)"
         path = self._path()
         if not os.path.isfile(path):
             self.report({"ERROR"}, f"File not found: {path}")
@@ -435,7 +598,8 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
         mesh_import.start_from_file(context.scene, before)
         mesh_import.write_credits(context.scene)
         s.last_message = f"Imported {os.path.basename(job.step_path)}" + (
-            " (from cache: file unchanged since last import)" if cached else "")
+            self._note or (" (from cache: file unchanged since last import)" if cached else ""))
+        _redraw_panel()
         notes = mesh_import.notes(root)
         if notes:
             s.last_message += ". " + "; ".join(notes)
@@ -501,10 +665,117 @@ class FRESING_OT_clear_cache(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_cache_remove(bpy.types.Operator):
+    """Removes this stored import from the cache to free its disk space (asks first). Models already in a project
+    stay as they are; the next import of the file reads it in full again"""
+
+    bl_idname = "fresing.cache_remove"
+    bl_label = "Remove from cache"
+
+    entry: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+
+    def invoke(self, context, event):
+        from ..core import import_cache
+        e = import_cache.find(cache_root(), self.entry)
+        if e is None:
+            self.report({"WARNING"}, "That stored import is no longer in the cache")
+            return {"CANCELLED"}
+        return context.window_manager.invoke_confirm(
+            self, event, title=f"Remove {e.name} from the cache?",
+            message=f"Frees {import_cache.size_text(e.size)}. The next import of this file reads it in full again.",
+            confirm_text="Remove")
+
+    def execute(self, context):
+        from ..core import import_cache
+        if _ACTIVE_JOB is not None and not _ACTIVE_JOB.done:
+            self.report({"WARNING"}, "Wait until the import has finished")
+            return {"CANCELLED"}
+        e = import_cache.find(cache_root(), self.entry)
+        if e is None:
+            self.report({"WARNING"}, "That stored import is no longer in the cache")
+            return {"CANCELLED"}
+        if not import_cache.remove(e, cache_root()):
+            self.report({"ERROR"}, f"Could not remove {e.name} from the cache (a file in it is in use?)")
+            return {"CANCELLED"}
+        msg = f"Removed {e.name} from the cache: {import_cache.size_text(e.size)} freed"
+        context.scene.fresing.last_message = msg
+        self.report({"INFO"}, msg)
+        _redraw_panel()
+        return {"FINISHED"}
+
+
+class FRESING_OT_cache_show(bpy.types.Operator):
+    """Shows the model's file in Explorer. When the file was moved, shows the stored copy's folder in the cache
+    instead"""
+
+    bl_idname = "fresing.cache_show"
+    bl_label = "Show in folder"
+
+    entry: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+
+    def execute(self, context):
+        from ..core import import_cache
+        from . import files
+        e = import_cache.find(cache_root(), self.entry)
+        if e is None:
+            self.report({"WARNING"}, "That stored import is no longer in the cache")
+            return {"CANCELLED"}
+        path = e.source if e.source and os.path.isfile(e.source) else e.folder
+        files.show_in_folder(path)
+        return {"FINISHED"}
+
+
+class FRESING_OT_model_up_axis(bpy.types.Operator):
+    """Turns this model so the chosen axis of its file points up, as Up axis does at the import. Joints, cylinders,
+    poses, saved scenes and labels keep working; a built animation is taken off: Build again"""
+
+    bl_idname = "fresing.model_up_axis"
+    bl_label = "Up axis of this model"
+    bl_options = {"REGISTER", "UNDO"}
+
+    root: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+    axis: EnumProperty(name="Up axis", default="Z",
+                       items=[("Z", "Z up", "The file's Z axis points up (most CAD programs, Inventor's default)"),
+                              ("Y", "Y up", "The file's Y axis points up (some CAD programs and many mesh models)")])
+
+    @classmethod
+    def description(cls, context, properties):
+        return ("Turns this model so its file's Z axis points up" if properties.axis == "Z" else
+                "Turns this model so its file's Y axis points up") + (
+            ", as Up axis does at the import. Joints, poses, saved scenes and labels keep working; a built "
+            "animation is taken off: Build again")
+
+    def execute(self, context):
+        if _locked(self):
+            return {"CANCELLED"}
+        scene = context.scene
+        root = bpy.data.objects.get(self.root)
+        if root is None or root.name not in scene.objects:
+            self.report({"ERROR"}, "That model is no longer in the project")
+            return {"CANCELLED"}
+        if root.get("fr_lifting"):
+            self.report({"WARNING"}, "A crane of the lifting plan keeps its own up axis")
+            return {"CANCELLED"}
+        from . import animation
+        built = animation.has_keys(scene)
+        if not logic.change_up_axis(scene, root, self.axis):
+            return {"CANCELLED"}
+        world.apply(scene, scene.fresing)           # floor, lights and surroundings fit the turned model
+        frame_views(context, scene)
+        msg = f"{root.name}: {self.axis} up"
+        if built:
+            msg += ". The built animation was taken off: Build again"
+        scene.fresing.last_message = msg
+        self.report({"INFO"}, msg)
+        _redraw_panel()
+        return {"FINISHED"}
+
+
 def cancel_running_job(*_args) -> None:
     """Stop a running import (file closed, new file opened, Blender quitting)."""
     if _ACTIVE_JOB is not None and not _ACTIVE_JOB.done:
         _ACTIVE_JOB.cancel()
 
 
-CLASSES = (FRESING_OT_import_step, FRESING_FH_step, FRESING_OT_import_mesh, FRESING_FH_mesh, FRESING_OT_clear_cache)
+CLASSES = (FRESING_OT_import_step, FRESING_FH_step, FRESING_OT_import_mesh, FRESING_FH_mesh, FRESING_OT_clear_cache,
+           FRESING_OT_cache_remove, FRESING_OT_cache_show, FRESING_OT_model_up_axis)

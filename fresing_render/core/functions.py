@@ -206,6 +206,15 @@ fn(id="import.update", short="Update revision", title="Model update to a new rev
    manual_estimate=("use", 1800, "import the new revision and set up joints, looks and the animation again"))
 fn(id="import.two_copies", short="STEP twice", title="The same STEP twice", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
+fn(id="import.drop", short="Drop a file", title="Drop a STEP or mesh file on the view", family="import",
+   panel="FRESING_PT_import", button="fresing.import_step", text="Import STEP…", guide="drop-a-file",
+   pccheck=("import.drop",), since="0.2.216")
+fn(id="import.again", short="Import again", title="Imported models: import again from the cache", family="import",
+   panel="FRESING_PT_import", fold="fr_import_cached", button="fresing.import_step", text="Import again", guide="imported-models",
+   tour=("import_again",), pccheck=("import.again",), since="0.2.216")
+fn(id="import.up_axis", short="Up axis", title="Change a model's up axis after the import", family="import",
+   panel="FRESING_PT_import", button="fresing.model_up_axis", guide="up-axis-after-import",
+   tour=("import_again",), pccheck=("import.up_axis",), since="0.2.216")
 fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide and lock parts", family="import",
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))

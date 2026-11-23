@@ -219,6 +219,120 @@ def import_materials(ctx):
     return f"{len(names)} parts, {len(groups)} groups"
 
 
+class _Drop:
+    """What a FileHandler hands the import (task 0289): the dropped file's folder and name, the panel's choices."""
+
+    def __init__(self, path, scene):
+        self.directory, self.files = os.path.dirname(path), [type("F", (), {"name": os.path.basename(path)})()]
+        self.quality, self.up_axis = scene.fresing.import_quality, scene.fresing.import_up_axis
+        self.reports = []
+
+    def execute(self, context):
+        import bpy
+        return bpy.ops.fresing.import_step("EXEC_DEFAULT", filepath=os.path.join(self.directory, self.files[0].name),
+                                           quality=self.quality, up_axis=self.up_axis)
+
+    def report(self, kind, text):
+        self.reports.append(text)
+
+
+def _copy_crane(ctx, name: str) -> str:
+    folder = os.path.join(ctx.work, "dropped é")
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, name)
+    shutil.copy(CRANE_A, path)
+    return path
+
+
+@line("import.drop", "A dropped STEP file comes in as with Import STEP…", "0.2.216",
+      what="A file dropped on the view: 1 Import opens, the panel's Detail and Up axis are used, the same message")
+def import_drop(ctx):
+    import bpy
+
+    from ..blender import build, logic, ops_import, panels
+    bpy.ops.wm.read_homefile(use_empty=True)
+    from ..blender import workspaces
+    scene = bpy.context.scene
+    workspaces.use_all(scene)
+    scene.fresing.out_folder = os.path.join(ctx.work, "renders")
+    scene.fresing.import_quality, scene.fresing.import_up_axis = "draft", "Y"
+    panels.OPEN.discard(ops_import.PANEL)
+    res = ops_import._dropped(_Drop(_copy_crane(ctx, "dropped crane.step"), scene), bpy.context)
+    _check(res == {"FINISHED"}, f"the drop's import returned {res}: {scene.fresing.last_message}")
+    _check(panels.is_open(ops_import.PANEL), "1 Import did not open")
+    root = build.model_roots(scene)[0]
+    _check(root.get("fr_quality") == "draft", "the panel's Detail was not used")
+    _check(logic.up_axis_of(root) == "Y", "the panel's Up axis was not used")
+    _check(scene.fresing.last_message.startswith("Imported dropped crane.step"), scene.fresing.last_message)
+    from ..core import import_cache
+    for e in import_cache.entries(ops_import.cache_root()):       # leave the owner's cache as it was
+        if os.path.basename(e.source) == "dropped crane.step" and os.path.dirname(e.source).endswith("dropped é"):
+            import_cache.remove(e, ops_import.cache_root())
+    return "1 Import open, Draft, Y up"
+
+
+@line("import.again", "Imported models: Import again, Remove from cache", "0.2.216",
+      what="A model in the import cache imported again without reading the file, then removed from the cache")
+def import_again(ctx):
+    import bpy
+
+    from ..blender import build, ops_import
+    from ..core import import_cache
+    path = _copy_crane(ctx, "crane again.step")
+    scene = ctx.fresh(path, read_again=True)
+    root_dir = ops_import.cache_root()
+    e = next((x for x in import_cache.entries(root_dir) if os.path.normcase(x.source) == os.path.normcase(path)), None)
+    _check(e is not None, "the import is not in the Imported models list")
+    _check(e.state == import_cache.OK, f"the stored import says '{import_cache.state_text(e)}'")
+    t0 = time.time()
+    res = bpy.ops.fresing.import_step("EXEC_DEFAULT", again=e.id)
+    ctx.metric("again", time.time() - t0, "s")
+    _check(res == {"FINISHED"} and len(build.model_roots(scene)) == 2, f"Import again returned {res}")
+    _check("from cache" in scene.fresing.last_message, f"not from the cache: {scene.fresing.last_message}")
+    res = bpy.ops.fresing.cache_remove("EXEC_DEFAULT", entry=e.id)
+    _check(res == {"FINISHED"} and not os.path.exists(e.folder), "Remove from cache left the folder")
+    return f"{import_cache.size_text(e.size)} stored, again in {time.time() - t0:.1f} s"
+
+
+@line("import.up_axis", "Up axis changed after the import", "0.2.216",
+      what="The crane turned to Y up and back after its import: a joint and a built animation give the same motion")
+def import_up_axis(ctx):
+    import bpy
+    from mathutils import Matrix, Vector
+
+    from ..blender import animation, build, joints, logic
+    scene = ctx.fresh(CRANE_A)
+    root = build.model_roots(scene)[0]
+    boom = _ob(scene, "BOOM.ASM")
+    j = joints.create(scene, "ROTATE", [boom], Vector((0.1, 0.3, 0.4)), Vector((0.0, 0.0, 1.0)),
+                      ref=_ob(scene, "BOOM.PIN"), name="Up axis check")
+    an = scene.fresing.animations.add()
+    an.name = "Up axis check"
+    b = an.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", j.name, 0.0, 2.0, "LINEAR"
+    b.use_from, b.to_angle = True, math.radians(80)
+
+    def tips():
+        animation.bake(scene, scene.fresing.animations["Up axis check"])
+        out = []
+        for f in (1, 30):
+            scene.frame_set(f)
+            out.append(boom.matrix_world @ Vector((1.0, 0.0, 0.0)))
+        scene.frame_set(1)
+        return out
+    before = tips()
+    res = bpy.ops.fresing.model_up_axis("EXEC_DEFAULT", root=root.name, axis="Y")
+    _check(res == {"FINISHED"} and logic.up_axis_of(root) == "Y", f"Y up returned {res}")
+    _check(not animation.has_keys(scene), "the built animation was not taken off")
+    turn = Matrix.Rotation(math.radians(90), 4, "X")
+    off = max((turn @ p - q).length for p, q in zip(before, tips()))
+    _check(off < 1e-3, f"after Y up the boom moves {off * 1000:.1f} mm off the turned motion")
+    bpy.ops.fresing.model_up_axis("EXEC_DEFAULT", root=root.name, axis="Z")
+    off = max((p - q).length for p, q in zip(before, tips()))
+    _check(off < 1e-3, f"back to Z up the boom is {off * 1000:.1f} mm off")
+    return "Y up and back, the same motion"
+
+
 @line("import.mesh", "Mesh model (glTF): import, faces, a joint on a facetted ring", "0.2.99",
       what="The invented mesh crane read from a glTF file: its looks from the file, its 48-sided ring clicked for a "
            "joint that turns the turret")
