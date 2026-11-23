@@ -369,20 +369,15 @@ def s_card_stopped():
         return "wait"
     check("Yes, stop: the build is stopped and the card goes", not hp().active() and not mod("blender.ops_tour").building())
     op("fresing.tour_make", folder=STATE["cfolder"], only="looks")      # again, to the end
-    return 2.0
-
-
-@step
-def s_card_failure():
-    """A forced failure: the build's program is killed from outside."""
-    ops = mod("blender.ops_tour")
-    ops._BUILD["proc"].kill()
+    # a forced failure: the build's program is killed from outside at once (a slow machine must not finish first)
+    mod("blender.ops_tour")._BUILD["proc"].kill()
     return 3.0
 
 
 @step
 def s_card_failed():
     if hp().STATE["mode"] != "failed":
+        log("waiting for the failed card, mode:", hp().STATE["mode"], hp().STATE["gen"])
         return "wait"
     check("A failed build shows what failed and its log, with Try again",
           "log" in hp().STATE["log"].lower() and hp().STATE["why"] and hp().button_point("again", {}) is not None,
