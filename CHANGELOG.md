@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.213 – 23 Nov 2026 – Fresing Render is in Windows' "Installed apps": uninstall it from Settings (task 0265)
+
+- **Settings > Apps > Installed apps now lists Fresing Render**, with its version, "Fresing" as the publisher, its icon
+  and its size. **⋯ > Uninstall** there removes the app like any other program: a window says what goes and that your
+  projects, renders and backups stay, and closes on a key. It needs no administrator rights.
+- **Update now keeps the entry right** (the new version and size), and an install made before this version gets the
+  entry once at its next start – you do not have to install again.
+- **Uninstall.bat** in the installer folder still works and does the same.
+- New line in the self-test: "Windows: in Installed apps".
+
 ## 0.2.212 – 23 Nov 2026 – "Making the Learning hub" says so clearly; Next goes to the next stop at once (task 0275)
 
 - **A card in the middle of the screen while the Learning hub is made.** It says what is happening, shows a bar with

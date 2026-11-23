@@ -31,8 +31,8 @@ It is free software under **GPL-3.0-or-later** (see "The licence in plain words"
 What it writes while it works: the user's **projects** (`.blend`) where the user saves them; **renders** in a "Renders"
 folder next to the saved project (or `Pictures\Fresing Render`; or an export place of Fresing > Settings… > Exports); a **cache** of read STEP files in the extension's user
 folder (`…\cache\`, so the same file opens fast the next time); the **self-test and PC-check reports** on the Desktop;
-the **logs** named above. `Uninstall.bat` removes the install folder; projects and renders are not touched. The installer writes no registry keys and
-starts no service (searched in `Install-FresingRender.ps1`).
+the **logs** named above. `Uninstall.bat` (or Uninstall in Installed apps) removes the install folder; projects and renders are not touched. The installer writes **one registry key, per user** (no admin
+rights): `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender`, so the app is listed in Settings > Apps > Installed apps with its version, size and an Uninstall button (task 0265; the app updates its version at **Update now** and checks it at start; the uninstaller removes the key last). It starts no service (searched in `Install-FresingRender.ps1`).
 
 ## The user's settings (one file)
 

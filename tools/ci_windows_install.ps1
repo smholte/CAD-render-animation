@@ -15,7 +15,7 @@
      and copies its report to -OutDir. The report is judged afterwards by tools/ci_check_selftest.py.
   6. Starts the PC check (Full) exactly as its Tools-folder shortcut does and copies its report and its
      text block (pccheck_last_run.txt) to -OutDir; judged afterwards by tools/ci_check_pccheck.py.
-  With -Uninstall it instead runs Uninstall.bat and checks that everything is gone.
+  With -Uninstall it instead runs the Installed-apps entry's UninstallString and checks that everything is gone.
 
   -Part (task 0171: GitHub runs two parts at once, each on its own Windows machine):
     all  everything below (the default; the owner's or a chat's own run)
@@ -124,6 +124,31 @@ function Make-OldLayout([switch]$Foreign) {
     Note "An older install's shortcuts put back: $n in the Start-menu folder, 2 on the Desktop$(if ($Foreign) { ' (one of them someone else''s)' })"
 }
 
+# Task 0265: Settings > Apps > Installed apps - the per-user key the installer writes (and Update now keeps right).
+$AppsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender"
+function Check-AppsEntry([string]$when, [string]$expectVersion) {
+    $bad = @()
+    $e = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction SilentlyContinue
+    if (-not $e) {
+        $bad += "no Installed-apps entry"
+    } else {
+        if ($e.DisplayName -ne "Fresing Render") { $bad += "name '$($e.DisplayName)'" }
+        if ($e.Publisher -ne "Fresing") { $bad += "publisher '$($e.Publisher)'" }
+        if ($expectVersion -and $e.DisplayVersion -ne $expectVersion) { $bad += "version '$($e.DisplayVersion)', expected $expectVersion" }
+        if (-not ($e.EstimatedSize -gt 0)) { $bad += "size '$($e.EstimatedSize)'" }
+        if ($e.InstallLocation -ne $InstallDir) { $bad += "location '$($e.InstallLocation)'" }
+        if ($e.NoModify -ne 1 -or $e.NoRepair -ne 1) { $bad += "NoModify / NoRepair not set" }
+        if (-not $e.DisplayIcon -or -not (Test-Path -LiteralPath $e.DisplayIcon)) { $bad += "icon '$($e.DisplayIcon)' missing" }
+        $script = Join-Path $InstallDir "Tools\Uninstall-FresingRender.ps1"
+        if (-not (Test-Path -LiteralPath $script)) { $bad += "the uninstaller is not in the Tools folder" }
+        if (-not $e.UninstallString -or $e.UninstallString -notlike "*`"$script`"*") { $bad += "UninstallString does not point at the uninstaller: '$($e.UninstallString)'" }
+        if (-not $e.QuietUninstallString -or $e.QuietUninstallString -like "*-Pause*") { $bad += "QuietUninstallString: '$($e.QuietUninstallString)'" }
+        Write-Host "   ($when) Installed apps: $($e.DisplayName) $($e.DisplayVersion), $($e.Publisher), $($e.EstimatedSize) KB"
+    }
+    foreach ($b in $bad) { Problem "Installed apps ($when): $b" }
+    $script:Summary += "| Installed apps entry ($when) | $(if (-not $bad) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
+}
+
 function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Arguments = "") {   # measured: 3-21 s
     # The .bat ends with "pause": an empty file as keyboard input ends the pause at once.
     $empty = Join-Path $WorkDir "no_keyboard.txt"
@@ -221,10 +246,19 @@ if (`$errs.Count) { `$errs | ForEach-Object { 'PARSE line ' + `$_.Extent.StartLi
 }
 
 if ($Uninstall) {
-    $bat = Get-ChildItem -LiteralPath $UnzipDir -Recurse -Filter "Uninstall.bat" | Select-Object -First 1
-    if (-not $bat) { throw "Uninstall.bat not found under $UnzipDir (run the install part first)" }
-    Note "Uninstall.bat"
-    $r = Run-Bat $bat.FullName "uninstall" 5
+    # task 0265: what Settings > Apps > Installed apps > Uninstall runs - the key's own UninstallString, not Uninstall.bat
+    $e = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction SilentlyContinue
+    if (-not $e -or -not $e.UninstallString) { throw "no Installed-apps entry to uninstall from (run the install part first)" }
+    # a project in Documents beforehand: it must still be there afterwards
+    $Documents = [Environment]::GetFolderPath("MyDocuments")
+    $project = Join-Path $Documents "Fresing uninstall test project.blend"
+    Set-Content -LiteralPath $project -Value "a project of mine"
+    Note "UninstallString from Installed apps: $($e.UninstallString)"
+    $r = Run-Bat (Join-Path $env:WINDIR "System32\cmd.exe") "uninstall" 5 ("/d /s /c `"" + $e.UninstallString + "`"")
+    if (-not (Test-Path -LiteralPath $project)) { Problem "Uninstall removed a project in Documents" }
+    Remove-Item -LiteralPath $project -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $AppsKey) { Problem "Uninstall left the entry in Installed apps" }
+    if ($r.Text -notmatch "projects" ) { Problem "Uninstall did not say that projects are kept" }
     if (Test-Path -LiteralPath $InstallDir) { Problem "Uninstall left $InstallDir behind" }
     if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk")) { Problem "Uninstall left the Desktop shortcut" }
     if (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render.lnk")) { Problem "Uninstall left the Start-menu shortcut" }
@@ -235,7 +269,7 @@ if ($Uninstall) {
     # task 0217: only the app's own folder of the Toolbox folder goes
     if (Test-Path -LiteralPath (Join-Path $ToolboxHome "tools\nl.fresing.render")) { Problem "Uninstall left tools\nl.fresing.render in the Toolbox folder" }
     if (-not (Test-Path -LiteralPath (Join-Path $ToolboxHome "toolbox-folder.json"))) { Problem "Uninstall removed the Toolbox folder itself" }
-    $Summary += "| Uninstall.bat | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
+    $Summary += "| Uninstall from Installed apps | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
 } else {
     if (-not $OnlyUpdate) {
         # ---- 1. unzip like a user -------------------------------------------------------
@@ -358,6 +392,7 @@ if ($Uninstall) {
             }
             $Summary += "| Update: old app start -> new app checked | | $secs s |"
             Check-OneShortcut "after the old build updated itself in the app"
+            Check-AppsEntry "after the old build updated itself in the app" $Expect
             foreach ($v in "UPDATE_TEST_EXPECT", "UPDATE_TEST_OLD", "UPDATE_TEST_URL", "UPDATE_TEST_PROJECT", "FRESING_UPDATE_RESTART") {
                 Remove-Item "Env:$v" -ErrorAction SilentlyContinue
             }
@@ -563,6 +598,9 @@ if ($Uninstall) {
                 $Summary += "| $k | $(if ($rows[$k]) { '✅' } else { '❌' }) | |"
             }
         }
+
+        Note "Settings > Apps > Installed apps (Install.bat)"
+        Check-AppsEntry "after Install.bat" $Expected
 
         Note "Fresing icon on the shortcuts (Install.bat)"
         Check-Links "after Install.bat"

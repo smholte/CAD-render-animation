@@ -848,6 +848,12 @@ and in the Start menu (the folder "Fresing Render" with the self-test, the PC ch
 are removed and made in the Tools folder. Only shortcuts that start this install are removed; a shortcut of your own
 is left alone. (Install.bat does the same.)
 
+<a id="remove"></a>
+**Remove Fresing Render:** Windows **Settings > Apps > Installed apps > Fresing Render > ⋯ > Uninstall**. A window shows
+what is removed and says that your projects, renders and backups stay; close Fresing Render first. The entry shows the
+installed version and size, and **Update now** keeps it right. (An older install gets the entry at its next start.)
+The installer folder's **Uninstall.bat** does the same.
+
 README.txt in the installer folder has the details: company PCs, updates, removing the app.
 
 <a id="updates"></a>

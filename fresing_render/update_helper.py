@@ -515,10 +515,84 @@ def run(plan: dict) -> bool:
         except OSError:
             pass
         message = f"Updated to {version}."
+        note = set_installed_apps_version(plan, version)
+        if note:
+            _log(plan, note)
     _log(plan, ("OK: " if ok else "FAILED: ") + message)
     write_status(plan, ok, message, version)
     _start_again(plan)
     return ok
+
+
+UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender"   # core/installed_apps.py (task 0265)
+UNINSTALLER = "Uninstall-FresingRender.ps1"
+
+
+def _apps_key_read() -> dict | None:
+    import winreg
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY, 0, winreg.KEY_READ)
+    except OSError:
+        return None
+    out, i = {}, 0
+    with key:
+        while True:
+            try:
+                name, value, _kind = winreg.EnumValue(key, i)
+            except OSError:
+                return out
+            out[name] = value
+            i += 1
+
+
+def _apps_key_write(values: dict) -> None:
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY, 0, winreg.KEY_SET_VALUE) as key:
+        for name, value in values.items():
+            winreg.SetValueEx(key, name, 0, winreg.REG_DWORD if isinstance(value, int) else winreg.REG_SZ, value)
+
+
+def _folder_kb(folder: str) -> int:
+    total = 0
+    for root, _dirs, files in os.walk(folder):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(root, name))
+            except OSError:
+                pass
+    return max(1, (total + 1023) // 1024)
+
+
+def set_installed_apps_version(plan: dict, version: str, read=None, write=None) -> str:
+    """Task 0265: after an update the entry in Windows' Installed apps shows the new version (and size), and the
+    uninstaller in the install's Tools folder is the one of the new extension. Only an entry that exists and belongs to
+    the install this update ran in is touched. Returns what was done ('' = nothing; never raises)."""
+    try:
+        if sys.platform != "win32" and read is None:
+            return ""
+        current = (read or _apps_key_read)()
+        folder = str((current or {}).get("InstallLocation") or "")
+        if not current or not folder or not is_inside(plan.get("blender", ""), folder):
+            return ""
+        done = []
+        src = os.path.join(plan.get("ext_dir", ""), "installer_files", UNINSTALLER)
+        dst = os.path.join(folder, "Tools", UNINSTALLER)
+        if os.path.isfile(src) and os.path.isdir(os.path.dirname(dst)):
+            data = open(src, "rb").read()
+            try:
+                same = open(dst, "rb").read() == data
+            except OSError:
+                same = False
+            if not same:
+                with open(dst + ".new", "wb") as fh:
+                    fh.write(data)
+                os.replace(dst + ".new", dst)
+                done.append("uninstaller")
+        values = {"DisplayVersion": str(version), "EstimatedSize": _folder_kb(folder)}
+        (write or _apps_key_write)(values)
+        return "Installed apps: version " + str(version) + (", " + ", ".join(done) + " updated" if done else "")
+    except Exception as exc:  # noqa: BLE001 - the update is done; the app sets the entry right at its next start
+        return f"Installed apps entry not updated ({exc})"
 
 
 def _start_again(plan: dict) -> None:

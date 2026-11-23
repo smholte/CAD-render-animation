@@ -14,7 +14,7 @@ name: Tests
 #   - Windows: the installer zip is built; then two jobs at once (task 0171). Part A: an old build is installed and
 #     updates itself in the app from a local copy of the update listing; Install.bat runs unattended over it, then
 #     the self-test (started like its Tools-folder shortcut), the PC check (Full, from its Tools-folder shortcut) and
-#     Uninstall.bat. Part B: Install.bat, then the PC check Heavy (scaled down) from its Tools-folder shortcut
+#     the Installed-apps entry's UninstallString (task 0265). Part B: Install.bat, then the PC check Heavy (scaled down) from its Tools-folder shortcut
 # On main, when the version in blender_manifest.toml has no release yet and every test passed, it publishes
 # the release on GitHub (tag v<version>, installer, extension, index.json, changelog.json), checks on
 # Windows that an installed old version finds it and updates itself from it, and only then makes it the
@@ -540,7 +540,7 @@ jobs:
         if: ${{ !cancelled() && matrix.part.part == 'b' }}
         run: python tools/ci_check_pccheck.py "windows-results/pccheck_heavy_last_run.txt" --title "Windows PC check (Heavy, scaled down)" --min-lines 10
 
-      - name: Uninstall (Uninstall.bat)
+      - name: Uninstall (Installed apps entry)
         if: ${{ !cancelled() && matrix.part.part == 'a' }}
         run: ./tools/ci_windows_install.ps1 -Uninstall -WorkDir (Join-Path $env:RUNNER_TEMP "fr") -OutDir windows-results
 

@@ -615,6 +615,14 @@ def ensure_tools(folder: str, binary_path: str, desktop: str, icon: str) -> list
     return done
 
 
+def ensure_installed_apps(folder: str, icon: str = "") -> list[str]:
+    """Windows (task 0265): the entry in Settings > Apps > Installed apps, made for an install that does not have it
+    yet and its version set after an update (``core/installed_apps.py``)."""
+    from . import __version__
+    from .core import installed_apps
+    return installed_apps.ensure(folder, str(__version__), icon if icon and os.path.isfile(icon) else "")
+
+
 def app_target_for(binary_path: str, icon: str) -> str:
     """Windows (task 0177): make "Fresing Render.exe" when needed; the program the app's shortcuts should start – the
     copy, or Blender's launcher when the copy cannot be used ('' when there is neither)."""
@@ -642,7 +650,8 @@ def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", a
     done = []
     # task 0212: tidy and the Tools folder need no icon file of their own (the shipped one serves for new shortcuts)
     for name, step in (("tidy", lambda: tidy_old(folder, desktop, programs)),
-                       ("tools", lambda: ensure_tools(folder, binary_path, desktop, icon or SHIPPED_ICON))):
+                       ("tools", lambda: ensure_tools(folder, binary_path, desktop, icon or SHIPPED_ICON)),
+                       ("installed-apps entry", lambda: ensure_installed_apps(folder, icon))):
         try:
             done += step()
         except Exception as exc:  # noqa: BLE001 - one step's fault does not stop the others

@@ -84,7 +84,7 @@ MENUS = {
 READING = {
     "layout", "start", "install", "navigate", "first-render", "scene", "tips", "inventor-export", "faster-renders",
     "troubleshooting", "self-test", "updates-not-arriving", "renders-folder", "panel-gone", "import-problems",
-    "render-problems", "lifting-equipment", "lifting", "usage",
+    "render-problems", "lifting-equipment", "lifting", "usage", "remove",
     "cutaway",            # task 0220: the old anchor of the Slice section (old links still land)
 }
 

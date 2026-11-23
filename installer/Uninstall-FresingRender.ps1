@@ -1,14 +1,48 @@
 <#
 .SYNOPSIS
   Removes Fresing Render (its Blender, settings and shortcuts). Projects and renders are kept.
+
+.DESCRIPTION
+  Started by Uninstall.bat next to the installer, or from Settings > Apps > Installed apps (task 0265): the entry's
+  Uninstall runs the copy in the install's Tools folder with -Pause. That copy lives in the folder it removes, so it
+  first starts a copy of itself in %TEMP% and waits for it. The entry in Installed apps goes last, and only when the
+  folder is gone.
 #>
-param([string]$InstallDir = (Join-Path $env:LOCALAPPDATA "FresingRender"))
+param([string]$InstallDir = (Join-Path $env:LOCALAPPDATA "FresingRender"), [switch]$Pause, [switch]$FromTemp)
+
+$InstallDir = [IO.Path]::GetFullPath($InstallDir.TrimEnd('\', '/'))
+$AppsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender"
+
+function Finish([int]$code) {
+    if ($Pause) {
+        Write-Host ""
+        Write-Host "Press any key to close this window..."
+        try { [void][Console]::ReadKey($true) } catch { Start-Sleep -Seconds 5 }
+    }
+    exit $code
+}
+
+# Inside the folder it removes: run a copy from %TEMP% (a running script's folder cannot be deleted from under it)
+$me = $MyInvocation.MyCommand.Path
+if (-not $FromTemp -and $me -and $me.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) {
+    $copy = Join-Path ([IO.Path]::GetTempPath()) ("Uninstall-FresingRender-" + [guid]::NewGuid().ToString("N") + ".ps1")
+    Copy-Item -LiteralPath $me -Destination $copy -Force
+    $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $copy, "-InstallDir", $InstallDir, "-FromTemp")
+    if ($Pause) { $argList += "-Pause" }
+    & powershell.exe @argList
+    $code = $LASTEXITCODE
+    Remove-Item -LiteralPath $copy -Force -ErrorAction SilentlyContinue
+    exit $code
+}
+
+Write-Host "Removing Fresing Render from $InstallDir" -ForegroundColor Cyan
+Write-Host "Your projects (.blend files), renders and backups are kept."
 
 $running = Get-Process -Name blender, blender-launcher, "Fresing Render" -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -and $_.Path.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase) }
+    Where-Object { $_.Path -and $_.Path.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase) }
 if ($running) {
     Write-Host "Fresing Render is still open. Close it first, then run Uninstall again." -ForegroundColor Yellow
-    exit 1
+    Finish 1
 }
 
 $Desktop = [Environment]::GetFolderPath("Desktop")
@@ -47,6 +81,15 @@ if (Test-Path -LiteralPath $InstallDir) {
 }
 if (Test-Path -LiteralPath $InstallDir) {
     Write-Host "Some files in $InstallDir could not be removed (in use?). Restart the PC and run Uninstall again." -ForegroundColor Yellow
-    exit 1
+    Finish 1
 }
+# the entry in Settings > Apps > Installed apps goes last, and only the one that belongs to this folder
+try {
+    $entry = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction Stop
+    $where = [string]$entry.InstallLocation
+    if ($where -and ([IO.Path]::GetFullPath($where.TrimEnd('\', '/')) -ieq $InstallDir)) {
+        Remove-Item -LiteralPath $AppsKey -Force -ErrorAction SilentlyContinue
+    }
+} catch { }
 Write-Host "Fresing Render removed. Your .blend projects and renders were not touched." -ForegroundColor Green
+Finish 0
