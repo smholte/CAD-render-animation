@@ -416,7 +416,7 @@ def s_wait_chains():
     sc = bpy.context.scene
     if sc.fresing.model_count == 0:
         return "wait"
-    view((0.0, 0.05, 0.25), 1.5, turn=25.0, tilt=55.0)       # close on the beam: the X chain lies on it
+    view((0.15, 0.15, 0.70), 1.8, turn=25.0, tilt=55.0)      # close on the beam: the X chain lies on it (task 0262)
     open_panel()
     made = flex().set_up_test_chains(sc)
     while len(items()):
@@ -457,7 +457,7 @@ def s_add_chain():
     r = op("fresing.flex_add_chain") if can("fresing.flex_add_chain") else None
     it = item("CHAIN X.ASM")
     check("Add drag chain: the link's whole row is one chain", r == {"FINISHED"} and len(items()) == 1
-          and it is not None and len(it.links) == 18 and flex().status(sc, it)[1] == "OK", said())
+          and it is not None and len(it.links) == 24 and flex().status(sc, it)[1] == "OK", said())
     check("fixed end on the beam's bracket, moving end on the carriage's; pitch 40 mm, bend radius 80 mm",
           it is not None and it.a_part == named("CHAIN BRACKET X FIXED") and it.b_part == named("CHAIN BRACKET X MOVING")
           and abs(it.pitch - 0.04) < 1e-5 and abs(it.radius - 0.08) < 1e-5,
@@ -506,7 +506,7 @@ def s_undone():
 def s_redone():
     sc = bpy.context.scene
     it = item("CHAIN X.ASM")
-    check("Redo brings it back", it is not None and len(it.links) == 18 and len(items()) == 1)
+    check("Redo brings it back", it is not None and len(it.links) == 24 and len(items()) == 1)
     if it is not None:
         mod("blender.joints").set_value(mod("blender.joints").find(sc, "X"), -0.1)
         bpy.context.view_layer.update()
@@ -533,7 +533,7 @@ def s_after_redo():
 def s_reopened():
     sc = bpy.context.scene
     it = item("CHAIN X.ASM")
-    check("saved and opened again: the chain is in the list", it is not None and len(it.links) == 18)
+    check("saved and opened again: the chain is in the list", it is not None and len(it.links) == 24)
     if it is not None:
         mod("blender.joints").set_value(mod("blender.joints").find(sc, "X"), 0.05)
         bpy.context.view_layer.update()

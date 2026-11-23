@@ -1189,7 +1189,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 mod("blender.waycover").set_up_test_model(sc, carriage=True)   # 'X left' + 'X right', carriage sections
             sc.fresing.waycovers_index = 0
             select_only()
-            mod("blender.joints").set_value(sc.fresing.joints.get("X axis"), 0.3)
+            mod("blender.joints").set_value(sc.fresing.joints.get("X axis"), 0.6)
             bpy.context.view_layer.update()
         step(lambda: (_wc_setup(), 1.0)[1])
         _grab("panel_4_waycover", [("FRESING_PT_waycover", False, True)])
@@ -1433,7 +1433,7 @@ elif MODE in ("toolchange", "toolchange_view"):
         for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
             o = _named(asm)
             joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
-        joints.create(sc, "ROTATE", [_named("CAROUSEL.ASM")], Vector((0.5, 0, 0)), Vector((0, 0, 1)),
+        joints.create(sc, "ROTATE", [_named("CAROUSEL.ASM")], Vector((1.25, 0, 0)), Vector((0, 0, 1)),
                       name="Carousel")
         with override():
             bpy.ops.fresing.cnc_find_axes()
@@ -1472,7 +1472,7 @@ elif MODE in ("toolchange", "toolchange_view"):
         cnc = sc.fresing.cnc
         cnc.changer = "ATC"
         cnc.carousel_joint = "Carousel"
-        tc.add_pocket(sc, _named("CAROUSEL DISC"), Vector((0.56, 0, 0.14)))
+        tc.add_pocket(sc, _named("CAROUSEL DISC"), Vector((1.40, 0, 0.35)))
         cnc.pocket_count = 8
         tc.fill_carousel(sc)
         cnc.pockets_index = 3
@@ -1537,7 +1537,7 @@ elif MODE in ("toolchange", "toolchange_view"):
             t = next(t for t, p in keys if p == "grip") + 0.25        # pulling the old tool out
             sc.frame_set(int(1 + t * int(a.fps)))
             tip = _named("TOOL T1 FLAT D6").matrix_world.translation
-            _look((tip.x, tip.y - 0.05, 0.11), 0.75, (68, 0, 28))
+            _look((tip.x, tip.y - 0.05, tip.z + 0.03), 0.75, (68, 0, 28))
             return 2.0
 
         def _atc_frame():
@@ -1555,7 +1555,7 @@ elif MODE in ("toolchange", "toolchange_view"):
             turn = c.turns()[-1]
             t = (turn[0] + turn[1]) / 2                                 # the carousel turning to the new pocket
             sc.frame_set(int(1 + t * int(a.fps)))
-            _look((0.53, 0.0, 0.13), 0.42, (86, 0, 28))
+            _look((1.32, 0.0, 0.34), 1.0, (86, 0, 28))      # task 0262: the carousel Ø425
             return 2.0
 
         step(_hand_frame)
@@ -2226,7 +2226,7 @@ def render_flex():
     subprocess.run(["convert", pair, "-strip", "-quality", "86", pair], check=True)
     os.remove(off)
     os.remove(on)                               # only the pair is shown in the guide
-    one("test_flex_chains_a.step", flex.set_up_test_chains, [("X", 0.2), ("Y", 0.15), ("Z", -0.06)],
+    one("test_flex_chains_a.step", flex.set_up_test_chains, [("X", 0.3), ("Y", 0.2), ("Z", -0.12)],
         "view_flex_chains")
 
 
@@ -2320,7 +2320,7 @@ def render_kinds():
         flex.find(sc, name).chain_kind = tour.DRAWN_CHAIN_TYPE
 
     one("test_flex_hoses_a.step", hoses, "view_flex_kinds", (2.15, 2.15, 1.05), (2.15, 1.12, 0.45), 34)
-    one("test_flex_chains_a.step", chain, "view_chain_types", (0.2, -0.9, 0.7), (0.05, 0.07, 0.35), 40)
+    one("test_flex_chains_a.step", chain, "view_chain_types", (0.4, -1.6, 1.3), (0.15, 0.17, 0.72), 40)
 
 
 def render_spools(full: bool = False):

@@ -1644,7 +1644,7 @@ and coolant stay off the guide ways. Here the sections follow the axis by themse
 every move of the axis – by hand, in a pose, in a Move joint or Run motor step, from a G-code program – opens
 and closes the covers.
 
-<img class="panel" src="img/panel_4_waycover.png" alt="Way covers: two covers on the X axis, five sections each, the last one on the carriage"> <img class="wide" src="img/view_waycover.png" alt="The test machine with a way cover on each side of the carriage, the carriage 300 mm along">
+<img class="panel" src="img/panel_4_waycover.png" alt="Way covers: two covers on the X axis, five sections each, the last one on the carriage"> <img class="wide" src="img/view_waycover.png" alt="The test machine with a way cover on each side of the carriage, the carriage 600 mm along">
 
 **Set it up**
 

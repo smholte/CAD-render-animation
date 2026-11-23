@@ -1,8 +1,10 @@
 """Task 0034: way covers (telescopic covers follow one slide axis), against hand calculations.
 
-Generic model (tools/make_test_waycover.py): bed (with the cover's end bracket at x = 0 … 20), carriage (left face
-at x = 120) and five cover sections 20 mm thick, nested at x = 20, 40 … 100 mm (sections 1 and 3 are two parts each). Axis 500 mm, 5 moving sections: section k stands
-100 k mm from where it is in CAD. The owner's way-cover STEP (test_waycover_a.step, five sections, in the middle
+Generic model (tools/make_test_waycover.py, task 0262: x 2): bed (with the cover's end bracket at x = 0 … 40),
+carriage (left face at x = 240) and five cover sections 40 mm thick, nested at x = 40, 80 … 200 mm (sections 1 and 3
+are two parts each). The single-cover tests use an axis of 500 mm (the app's sums do not depend on the model's size):
+5 moving sections, section k stands 100 k mm from where it is in CAD. The two-cover model and the model drawn at mid
+travel are tested over their own 1000 mm axis. The owner's way-cover STEP (test_waycover_a.step, five sections, in the middle
 of its travel: 376.5 mm long, 166.5 mm closed, 586.5 mm open) is set up with the housing counting as a section.
 """
 
@@ -309,7 +311,7 @@ def test_remove_the_way_cover_leaves_the_axis_as_before(scene):
     assert not len(c.sections)
     axis_to(scene, 0.5)
     assert all(abs(g - r) < TOL for g, r in zip(positions(scene), rest))
-    assert abs(min_x(ob(scene, "CARRIAGE")) - min_x(ob(scene, "BASE")) - 0.12 - 0.5) < TOL     # (task 0122: 0.06
+    assert abs(min_x(ob(scene, "CARRIAGE")) - min_x(ob(scene, "BASE")) - 0.24 - 0.5) < TOL     # (task 0122: 0.06
     # before: the carriage started inside sections 4 and 5; now the end bracket and the five sections come first)
 
 
@@ -379,13 +381,16 @@ def bake_out_and_back(sc, total=0.5):
     return animation.bake(sc, a)
 
 
+TRAVEL = waycover.TEST_TRAVEL                                   # 1.0 m: the two-cover model's X axis
+
+
 def two_covers(sc, carriage=False):
-    """Axis X (0 … 500 mm) on the carriage; 'X left' and 'X right' with five sections each. ``carriage``: the
+    """Axis X (0 … 1000 mm) on the carriage; 'X left' and 'X right' with five sections each. ``carriage``: the
     sections next to the carriage are bolted to it (members of the axis) and become the carriage sections."""
     members = [ob(sc, "CARRIAGE")] + ([ob(sc, "COVER.L.5"), ob(sc, "COVER.R.5")] if carriage else [])
-    j = joints.create(sc, "SLIDE", members, Vector((0.2, 0.15, 0.1)), Vector((1, 0, 0)), name="X axis")
+    j = joints.create(sc, "SLIDE", members, Vector((0.4, 0.3, 0.2)), Vector((1, 0, 0)), name="X axis")
     j.use_limits = True
-    j.slide_min, j.slide_max = 0.0, 0.5
+    j.slide_min, j.slide_max = 0.0, TRAVEL
     for side in ("L", "R"):
         c = waycover.add_cover(sc, "X left" if side == "L" else "X right")
         c.axis = "X axis"
@@ -402,7 +407,7 @@ def cover_x(sc, side):
 
 
 def check_two_covers(sc, rest_l, rest_r):
-    for a in (0.0, 0.13, 0.5, 0.31):
+    for a in (0.0, 0.26, 1.0, 0.62):
         axis_to(sc, a)
         for side, rest in (("L", rest_l), ("R", rest_r)):
             for k, (got, r) in enumerate(zip(cover_x(sc, side), rest), start=1):
@@ -416,21 +421,21 @@ def test_two_covers_on_one_axis_build_without_warnings(tmp_path):
     assert [c.name for c in cs] == ["X left", "X right"] and len(waycover.covers(sc)) == 2
     assert len([j for j in sc.fresing.joints if j.follows == "X axis"]) == 10
     check_two_covers(sc, rest_l, rest_r)
-    # fully over: the left cover is open, the right one closed against the carriage (sections 20 mm apart)
-    axis_to(sc, 0.5)
+    # fully over: the left cover is open, the right one closed against the carriage (sections 40 mm apart)
+    axis_to(sc, TRAVEL)
     r = cover_x(sc, "R")
-    assert all(abs((r[k] - r[k + 1]) - 0.02) < TOL for k in range(4))
-    assert abs(r[4] - (min_x(ob(sc, "CARRIAGE")) + 0.2)) < TOL
-    res = bake_out_and_back(sc)
+    assert all(abs((r[k] - r[k + 1]) - 0.04) < TOL for k in range(4))
+    assert abs(r[4] - (min_x(ob(sc, "CARRIAGE")) + 0.4)) < TOL
+    res = bake_out_and_back(sc, TRAVEL)
     assert not res["warnings"], res["warnings"]
-    for f, a in ((1, 0.0), (26, 0.25), (51, 0.5), (114, 0.0)):
+    for f, a in ((1, 0.0), (26, 0.5), (51, 1.0), (114, 0.0)):
         sc.frame_set(f)
         update()
         for k, (got, rr) in enumerate(zip(cover_x(sc, "R"), rest_r), start=1):
             assert abs((got - rr) - a * k / 5) < 1e-4, (f, k)
     assert joints.couplings_simple(sc)
     for c in cs:
-        assert waycover.status(sc, c) == "5 sections · 100 mm each · follows 'X axis'"
+        assert waycover.status(sc, c) == "5 sections · 200 mm each · follows 'X axis'"
 
 
 def test_a_part_belongs_to_one_cover_only(tmp_path):
@@ -450,9 +455,9 @@ def test_remove_one_cover_leaves_the_other_and_the_axis(tmp_path):
     assert waycover.remove_cover(sc) == 5
     assert [c.name for c in sc.fresing.waycovers] == ["X right"]
     assert sorted(j.name for j in sc.fresing.joints if not j.follows) == ["X axis"]
-    axis_to(sc, 0.5)
+    axis_to(sc, TRAVEL)
     assert all(abs(g - r) < TOL for g, r in zip(cover_x(sc, "L"), rest_l))
-    assert all(abs((g - r) - 0.1 * k) < TOL for k, (g, r) in enumerate(zip(cover_x(sc, "R"), rest_r), start=1))
+    assert all(abs((g - r) - 0.2 * k) < TOL for k, (g, r) in enumerate(zip(cover_x(sc, "R"), rest_r), start=1))
 
 
 def test_carriage_as_the_last_section(scene):
@@ -572,7 +577,7 @@ def test_two_covers_with_carriage_survive_save_and_model_update(tmp_path):
     assert [c.name for c in sc.fresing.waycovers] == ["X left", "X right"]
     assert all(waycover.is_made(sc, s) for c in waycover.covers(sc) for s in c.sections)
     check_two_covers(sc, rest_l, rest_r)
-    axis_to(sc, 0.2)
+    axis_to(sc, 0.4)
     root = build.model_roots(sc)[0]
     assert bpy.ops.fresing.import_step(filepath=TWO, quality="draft", update_root=root.name) == {"FINISHED"}
     update()
@@ -581,7 +586,7 @@ def test_two_covers_with_carriage_survive_save_and_model_update(tmp_path):
     assert len(cs) == 2 and all(waycover.is_made(sc, s) for c in cs for s in c.sections)
     assert all(c.sections[4].carriage for c in cs)
     check_two_covers(sc, rest_l, rest_r)
-    res = bake_out_and_back(sc)
+    res = bake_out_and_back(sc, TRAVEL)
     assert not res["warnings"], res["warnings"]
 
 
@@ -607,35 +612,35 @@ def test_panel_draws_with_several_covers(tmp_path):
 # task 0090: the cover drawn at any axis position
 # ---------------------------------------------------------------------------
 
-DRAWN = os.path.join(HERE, "data", "test_waycover_d.step")     # make_test_waycover.py --drawn-at 250
-MID = 0.25
+DRAWN = os.path.join(HERE, "data", "test_waycover_d.step")     # make_test_waycover.py --drawn-at 500 (task 0262: x 2)
+MID = 0.5
 
 
 def test_drawn_at_mid_travel_builds_clean_and_fits_at_the_drawn_position(tmp_path):
     sc = load(DRAWN, tmp_path)
     cad = positions(sc)
-    make_axis(sc)
+    make_axis(sc, total=TRAVEL)
     c = waycover.settings(sc)
-    c.total = 0.5
+    c.total = TRAVEL
     c.drawn_at = MID
     add_sections(sc)
     built, problems = waycover.make(sc)
     assert built == 5 and not problems, problems
-    assert waycover.check_line(sc, c).startswith("At 0 mm: section 1 … 5 at -50 / -100 / -150 / -200 / -250 mm")
-    for a in (0.0, 0.1, MID, 0.4, 0.5):
+    assert waycover.check_line(sc, c).startswith("At 0 mm: section 1 … 5 at -100 / -200 / -300 / -400 / -500 mm")
+    for a in (0.0, 0.2, MID, 0.8, 1.0):
         axis_to(sc, a)
         for k, (got, r) in enumerate(zip(positions(sc), cad), start=1):
             assert abs((got - r) - (a - MID) * k / 5) < TOL, (a, k, got - r)
     axis_to(sc, MID)                                       # at "Drawn at" every section is on its CAD place
     assert all(abs(g - r) < 1e-5 for g, r in zip(positions(sc), cad))
-    res = bake_out_and_back(sc)
+    res = bake_out_and_back(sc, TRAVEL)
     assert not res["warnings"], res["warnings"]
     assert joints.couplings_simple(sc)
     # the setting changes at once, and Read takes the axis' value
     c.drawn_at = 0.0
     update()
-    axis_to(sc, 0.5)
-    assert all(abs((g - r) - 0.1 * k) < TOL for k, (g, r) in enumerate(zip(positions(sc), cad), start=1))
+    axis_to(sc, TRAVEL)
+    assert all(abs((g - r) - 0.2 * k) < TOL for k, (g, r) in enumerate(zip(positions(sc), cad), start=1))
     axis_to(sc, MID)
     assert waycover.read_drawn(sc) == "" and abs(c.drawn_at - MID) < 1e-6
     # save + reopen + model update keep it
@@ -648,9 +653,9 @@ def test_drawn_at_mid_travel_builds_clean_and_fits_at_the_drawn_position(tmp_pat
     assert bpy.ops.fresing.import_step(filepath=DRAWN, quality="draft", update_root=root.name) == {"FINISHED"}
     update()
     assert abs(waycover.settings(sc).drawn_at - MID) < 1e-6
-    axis_to(sc, 0.5)
+    axis_to(sc, TRAVEL)
     for k, (g, r) in enumerate(zip(positions(sc), cad), start=1):
-        assert abs((g - r) - (0.5 - MID) * k / 5) < TOL
+        assert abs((g - r) - (TRAVEL - MID) * k / 5) < TOL
 
 
 def test_drawn_at_outside_the_limits_warns(scene):
@@ -665,13 +670,13 @@ def test_covers_have_their_own_drawn_at(tmp_path):
     sc = load(TWO, tmp_path)
     rest_l, rest_r = cover_x(sc, "L"), cover_x(sc, "R")
     cs = two_covers(sc)
-    cs[0].drawn_at = 0.1
+    cs[0].drawn_at = 0.2
     cs[1].drawn_at = 0.0
     update()
-    for a in (0.0, 0.3, 0.5):
+    for a in (0.0, 0.6, 1.0):
         axis_to(sc, a)
         for k, (g, r) in enumerate(zip(cover_x(sc, "L"), rest_l), start=1):
-            assert abs((g - r) - (a - 0.1) * k / 5) < TOL
+            assert abs((g - r) - (a - 0.2) * k / 5) < TOL
         for k, (g, r) in enumerate(zip(cover_x(sc, "R"), rest_r), start=1):
             assert abs((g - r) - a * k / 5) < TOL
 

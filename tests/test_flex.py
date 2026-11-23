@@ -801,19 +801,19 @@ def test_candidates_are_found_by_name_and_type(hoses, folder):
     assert found == {name: "HOSE" for name in HOSE_NAMES}
     sc = load(folder, CHAINS)
     found = flex.candidates(sc)
-    assert len(found) == 47 and {kind for _o, kind in found} == {"CHAIN"}
+    assert len(found) == 62 and {kind for _o, kind in found} == {"CHAIN"}
     assert {o.get(build.PROP_NAME) for o, _k in found} == {"CHAIN LINK"}
     row = flex.siblings(sc, next(o for o, _k in found if build.logical_parent(o).get(build.PROP_NAME) == "CHAIN Z.ASM"))
-    assert len(row) == 13
+    assert len(row) == 17
 
 
 # ---------------------------------------------------------------------------
 # drag chains
 # ---------------------------------------------------------------------------
 
-CHAIN_ENDS = {"CHAIN X.ASM": ("CHAIN BRACKET X FIXED", "CHAIN BRACKET X MOVING", 18),
-              "CHAIN Y.ASM": ("CHAIN BRACKET Y FIXED", "CHAIN BRACKET Y MOVING", 16),
-              "CHAIN Z.ASM": ("CHAIN BRACKET Z FIXED", "CHAIN BRACKET Z MOVING", 13)}
+CHAIN_ENDS = {"CHAIN X.ASM": ("CHAIN BRACKET X FIXED", "CHAIN BRACKET X MOVING", 24),
+              "CHAIN Y.ASM": ("CHAIN BRACKET Y FIXED", "CHAIN BRACKET Y MOVING", 21),
+              "CHAIN Z.ASM": ("CHAIN BRACKET Z FIXED", "CHAIN BRACKET Z MOVING", 17)}
 AXIS_OF = {"CHAIN X.ASM": ("X", 0), "CHAIN Y.ASM": ("Y", 1), "CHAIN Z.ASM": ("Z", 2)}
 
 
@@ -910,7 +910,7 @@ def test_a_chain_is_read_from_its_links(folder):
 def test_chains_roll_over_their_whole_travel(chains):
     sc = chains
     rest = {it.name: check_chain(sc, it, "CAD") for it in flex.items(sc)}
-    travel = {"X": (-0.15, 0.15), "Y": (-0.10, 0.10), "Z": (-0.06, 0.06)}
+    travel = {axis: (lo * MM, hi * MM) for axis, (lo, hi) in maker.TRAVEL.items()}   # task 0262: x 2.5
     for it_name, (axis, _k) in AXIS_OF.items():
         lo, hi = travel[axis]
         for value in np.linspace(lo, hi, 13):
@@ -926,14 +926,14 @@ def test_chains_roll_over_their_whole_travel(chains):
         set_joint(sc, axis, 0.0)
         update()
     # all three axes at once, and what is drawn: a link in the middle of the X chain lies between its pins
-    for axis, value in (("X", 0.12), ("Y", -0.08), ("Z", 0.05)):
+    for axis, value in (("X", 0.3), ("Y", -0.2), ("Z", 0.12)):
         set_joint(sc, axis, value)
     update()
     for it in flex.items(sc):
         check_chain(sc, it, "all three")
     it = flex.find(sc, "CHAIN X.ASM")
     pins = flex.pins_now(sc, it)
-    for k in (0, 7, 9, 17):
+    for k in (0, 9, 12, 23):
         pts = drawn(it.links[k].obj)[0]
         mid = 0.5 * (pts.min(axis=0) + pts.max(axis=0))
         assert np.linalg.norm(mid - 0.5 * (pins[k] + pins[k + 1])) < 0.012   # (the link's body is not centred on them)
@@ -941,7 +941,7 @@ def test_chains_roll_over_their_whole_travel(chains):
         size = np.ptp(pts @ along)
         assert size == pytest.approx(0.032, abs=1e-5), k                     # 32 mm long along its pins: turned right
     # beyond its length the chain cannot reach: a warning, no error
-    set_joint(sc, "X", 0.9)
+    set_joint(sc, "X", 2.0)
     update()
     it = flex.find(sc, "CHAIN X.ASM")
     assert it.problem == "cannot reach in this pose" and flex.status(sc, it)[1] == "WARN"
@@ -965,9 +965,9 @@ M30
 
 def test_chains_follow_a_built_animation_and_a_g_code_program(chains, tmp_path):
     sc = chains
-    _a, r = built(sc, (("X", 0.0, 1.0, 0.15), ("Y", 0.5, 1.0, -0.1), ("Z", 1.0, 1.0, 0.06)))
+    _a, r = built(sc, (("X", 0.0, 1.0, 0.375), ("Y", 0.5, 1.0, -0.25), ("Z", 1.0, 1.0, 0.15)))
     solves = flex._STATE["solves"]
-    assert len(bpy.data.objects[flex.SHAPES].data.vertices) == r["frames"] * 47
+    assert len(bpy.data.objects[flex.SHAPES].data.vertices) == r["frames"] * 62
     seen = set()
     for f in range(1, r["frames"] + 1, 3):
         sc.frame_set(f)
@@ -1021,7 +1021,7 @@ def test_swap_ends_and_remove(chains):
     it = flex.find(sc, "CHAIN X.ASM")
     assert (it.a_part.get(build.PROP_NAME), it.b_part.get(build.PROP_NAME)) == ("CHAIN BRACKET X MOVING",
                                                                                  "CHAIN BRACKET X FIXED")
-    assert [r.obj.name for r in it.links] == first[::-1] and it.count == 18
+    assert [r.obj.name for r in it.links] == first[::-1] and it.count == 24
     for o in flex.parts_of(sc, it):                          # the same chain in the CAD pose
         assert np.abs(drawn(o)[0] - cad[o.name]).max() < 0.05 * MM
     check_chain(sc, it, "swapped")
@@ -1040,8 +1040,8 @@ def test_swap_ends_and_remove(chains):
     on_bend = pins[(pins[:, 1] > 0.02) & (pins[:, 1] < 0.12)]
     centre = on_bend[:, 0] - np.sqrt(0.09 ** 2 - (on_bend[:, 1] - 0.09) ** 2)
     assert len(on_bend) >= 3 and np.ptp(centre) < 2e-6 and it.radius == pytest.approx(0.09)
-    it.count = 25                                            # CAD links: as many as there are
-    assert it.count == 18
+    it.count = 30                                            # CAD links: as many as there are
+    assert it.count == 24
     it.radius = 0.08
     it.mode = "GLIDE"                                        # the other way to draw the upper run: still a chain
     check_pins(sc, it, "glide")
@@ -1131,7 +1131,7 @@ def test_a_chain_drawn_as_one_solid_gets_links(chains):
 def test_the_clash_check_leaves_flex_parts_out(chains):
     sc = chains
     flexed = {o.name for o in flex.flex_parts(sc)}
-    assert len(flexed) == 47
+    assert len(flexed) == 62
     checked = {o.name for o in clash.objects(sc)}
     assert not (checked & flexed) and "CHAIN BRACKET X FIXED" in checked and "BEAM" in checked
     while len(flex.items(sc)):
@@ -1149,7 +1149,7 @@ def test_model_update_keeps_the_chains(chains):
     assert bpy.ops.fresing.import_step(filepath=CHAINS, quality="draft", update_root=root.name) == {"FINISHED"}
     update()
     assert [i.name for i in flex.items(sc)] == ["CHAIN X.ASM", "CHAIN Y.ASM", "CHAIN Z.ASM"]
-    assert not (old_parts & {o.name for o in flex.flex_parts(sc)}) and len(flex.flex_parts(sc)) == 47
+    assert not (old_parts & {o.name for o in flex.flex_parts(sc)}) and len(flex.flex_parts(sc)) == 62
     x, y, z = flex.items(sc)
     assert z.radius == pytest.approx(0.085) and x.radius == pytest.approx(0.08, abs=1e-6)
     assert y.a_part.get(build.PROP_NAME) == "CHAIN BRACKET Y MOVING"       # still swapped

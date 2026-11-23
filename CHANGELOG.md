@@ -5,6 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.213 – 23 Nov 2026 – Test models at real size: the gantry routers and the way covers (task 0262)
+
+- **The two gantry routers are 2.5 times bigger and stand on a stand.** The CNC gantry of the test tour, the PC check
+  and the guide was a desk router on the floor: now its bed is 2.0 x 1.5 m (a sheet-size router) and its top is at a
+  working height of 0.9 m. The tool carousel is Ø425 mm. The tools, the 300 x 200 x 30 block, its clamps and bolts and
+  the T-slots keep their real size; the servo motors have real sizes.
+- **The drag-chain router is the same machine:** its chain links keep their size (pitch 40 mm, bend radius 80 mm), the
+  chains are just longer – 62 links instead of 47.
+- **The way covers are twice as big:** an X axis of 1000 mm, like the test mill's, the sheet still 3 mm.
+- Same part names, assemblies and colours as before (the routers get one more part, `MACHINE STAND`). The tour stops
+  show the new sizes: the way cover's carriage now travels 1000 mm, and the drag chains' program moves further.
+
+
 ## 0.2.212 – 23 Nov 2026 – "Making the Learning hub" says so clearly; Next goes to the next stop at once (task 0275)
 
 - **A card in the middle of the screen while the Learning hub is made.** It says what is happening, shows a bar with
