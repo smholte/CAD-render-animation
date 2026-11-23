@@ -223,7 +223,16 @@ fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide
 fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
    "can move (right-click); a line in the status bar when it cannot move", family="import",
    panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
-   since="0.2.216", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.216", changed="0.2.219", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0292: Place (numbers, steps, snap, mouse, arrows and rings, floor, back), Remove…, a lock in every tree row
+fn(id="structure.place", short="Place", title="Place a model, subassembly or part: X / Y / Z and turns, steps, snap, "
+   "move and turn with the mouse, arrows and rings, Put on the floor, Back to the CAD place", family="import",
+   panel="FRESING_PT_place", button="fresing.place_floor", guide="place", tour=("place",), pccheck=("place.move",),
+   since="0.2.219", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+fn(id="structure.remove", short="Remove", title="Remove a model, subassembly or parts with what lives on them (a window "
+   "lists what goes; Delete / X open it)", family="import", panel="FRESING_PT_place", button="fresing.remove",
+   guide="remove-model", tour=("remove",), pccheck=("place.remove",), since="0.2.219",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
@@ -656,7 +665,7 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
 fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
    "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
    "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
-   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.219")       # task 0296
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.220")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")

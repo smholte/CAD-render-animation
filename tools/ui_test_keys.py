@@ -35,8 +35,9 @@ LOG = open(os.path.join(OUT, "ui_test_keys.log"), "w", encoding="utf-8")
 RESULTS = []
 S = {}
 
-# the swallowed keys pressed in the 3D view: (key, modifiers)
-PRESSED = [("X", {}), ("DEL", {}), ("X", {"shift": True}), ("DEL", {"shift": True}), ("TAB", {}),
+# the swallowed keys pressed in the 3D view: (key, modifiers) – X / Delete open the app's Remove window since task 0292
+# (tools/ui_test_place.py)
+PRESSED = [("TAB", {}),
            ("TAB", {"ctrl": True}), ("D", {"shift": True}), ("D", {"alt": True}), ("J", {"ctrl": True}),
            ("P", {"ctrl": True}), ("P", {"alt": True}), ("A", {"ctrl": True}), ("M", {}), ("M", {"shift": True}),
            ("A", {"shift": True}), ("H", {"ctrl": True}),

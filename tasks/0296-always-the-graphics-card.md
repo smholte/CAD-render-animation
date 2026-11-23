@@ -1,6 +1,6 @@
 # 0296 – Always the graphics card: NVIDIA, AMD or Intel Arc before built-in graphics; a calm notice with a guide when not
 
-**Who:** worker · **Status:** done (0.2.219) · **Branch:** `task/0296-always-the-graphics-card`
+**Who:** worker · **Status:** done (0.2.220) · **Branch:** `task/0296-always-the-graphics-card`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: someone tested the app on a Windows 11 PC with an AMD
 graphics card and the app used the processor's built-in graphics; on a second PC of the owner's (Intel Core i7-12700,
 NVIDIA RTX A2000) and on his own (Ryzen 9 9900X, RTX 3090) it chose the card. "Fresing Render should rather always
@@ -72,7 +72,7 @@ port** makes Windows draw everything on the built-in graphics – the cable belo
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web, 23 Nov 2026. Released as 0.2.219.
+**Chat / date:** worker, Claude Code on the web, 23 Nov 2026. Released as 0.2.220.
 
 **What changed:**
 - **Measured first:** Blender 5.2.3's `blender.exe` (Windows zip, read on Linux with `pefile`) exports
@@ -123,7 +123,9 @@ Install.bat and that Uninstall removes them (`Check-GpuPref`).
 - GitHub runs: run 1 (0.2.217, run 45265461041) all green except one test – the Client view's allow-list count and
   an operator name containing "_set" (renamed `fresing.gpu_windows_page`); both Windows install jobs green there
   (installer writes the preference, uninstall removes it, self-test OK). Then main took 0.2.217 (0282), 0.2.218 went to
-  0289: merged main, renumbered to 0.2.219, the two pop-ups named in 0282's `form_window.POPUPS`; run 2 (45270914159) green; main then brought 0289 (0.2.218, code): merged again, run 3 (45276014813) failed one test outside this task – `test_kit_window` found another test's `models/b.step` in a sibling temp folder (the kit looks in an older kit next to it); the test now keeps its kit in a folder of its own; run 4.
+  0289: merged main, renumbered to 0.2.219, the two pop-ups named in 0282's `form_window.POPUPS`; run 2 (45270914159) green; main then brought 0289 (0.2.218, code): merged again, run 3 (45276014813) failed one test outside this task – `test_kit_window` found another test's `models/b.step` in a sibling temp folder (the kit looks in an older kit next to it); the test now keeps its kit in a folder of its own; run 4 (45280740975): one real-app check of the lessons test ("undo
+  after the app built again", a timing check on a path this task does not touch) failed once and passed on re-running
+  the failed jobs. Then 0292 took 0.2.219: merged main once more, renumbered to **0.2.220**, run 5.
 
 **Open points / follow-up tasks:**
 - Whether Windows' preference moves an **OpenGL** window on an AMD desktop (iGPU + card) is not proven anywhere – only
@@ -133,7 +135,7 @@ Install.bat and that Uninstall removes them (`Check-GpuPref`).
 - No tour stop (the notice is suppressed in tests; Settings' stop shows the page).
 
 **Owner's check on your PC (and the tester's):**
-1. Update now (or Install.bat) to 0.2.219, start Fresing Render.
+1. Update now (or Install.bat) to 0.2.220, start Fresing Render.
 2. Tester's PC (Ryzen 7700X + RX 6700 XT): close and start the app **once more** (Windows' setting counts from the
    next start). Expected: no notice. If the notice "running on your processor's built-in graphics" shows: press
    **Use the graphics card**, start again; still there: **Show me how** – first check the monitor cable is in the

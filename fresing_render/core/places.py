@@ -23,6 +23,7 @@ SECTIONS = {
 # sub-panel -> (parent panel, title), in the order they show under their parent
 PLACES = {
     # 2 Structure
+    "FRESING_PT_place": ("FRESING_PT_structure", "Place"),
     "FRESING_PT_cleanup": ("FRESING_PT_structure", "Clean-up"),
     "FRESING_PT_visibility": ("FRESING_PT_structure", "Visibility sets"),
     # 3 Looks

@@ -1686,7 +1686,7 @@ def spec_key(ob, root=None):
     return ob.get(build.PROP_UID)
 
 
-SPEC_TAGS = ("fr_atc", "fr_cable", "fr_track")   # tags on a joint's motion empty that a model update keeps (task 0071: the double arm's)
+SPEC_TAGS = ("fr_atc", "fr_cable", "fr_track", "fr_place_frame")   # task 0292: Place moved the frame   # tags on a joint's motion empty that a model update keeps (task 0071: the double arm's)
 
 
 def to_specs(scene, values: dict | None = None, only=None, root=None) -> list[dict]:
