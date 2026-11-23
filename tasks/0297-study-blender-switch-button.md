@@ -1,6 +1,6 @@
 # 0297 – Study + prototype (findings only): a Blender / Fresing Render switch button at the top right, with slide options and their lag
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0297-study-switch-button` (branch only, never merged;
+**Who:** worker · **Status:** running · **Branch:** `task/0297-study-switch-button` (branch only, never merged;
 every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39, with a screenshot of 0.2.212's top bar, an area marked at
 its far right: "Add a separate Blender button to the top right corner of the menu. When in full Blender mode the button
