@@ -69,8 +69,8 @@ B two-part pill "Fr Fresing Render | Blender" whose blue half (where you are) sl
 - Lead: check blender.org/about/logo (and its trademark page) before offering the logo choice.
 - Build task (after the owner's pick): the button in `ui_topbar.py` / `quiet.py` (right region only), always drawn
   (also in full Blender, where `quiet` gives Blender's own right part back), redraw by the top-bar region's own
-  `tag_redraw` from a timer only while the slide runs, a check in `lock.ALLOWED`? (no – the Client view keeps it off:
-  `fresing.blender_all` is refused there; show it greyed or hide it), function entry, guide, tour stop, and a **PC-check
+  `tag_redraw` from a timer only while the slide runs; in the Client view `fresing.blender_all` is refused, so the
+  button is hidden or greyed there; function entry, guide, tour stop, and a **PC-check
   line that measures on the owner's PC**: top-bar frames during the slide (expected ~9 at 60 Hz), click to rest
   (expected ≤ ~170 ms), and a playing animation's frames/s while the switch runs. These three are the numbers the owner
   should check; nothing here measured them with a graphics card.
