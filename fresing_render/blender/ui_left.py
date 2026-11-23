@@ -412,6 +412,12 @@ class FRESING_PT_hub(LeftPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         st = hub_state(context.scene)
+        from . import hub_progress, ops_tour
+        if hub_progress.active() and ops_tour.building().get("running"):      # task 0275
+            data = ops_tour.building()
+            ui.wrap(layout, context, hub_progress.line(data), icon="TIME")
+            layout.progress(factor=hub_progress.numbers(data)["fraction"], type="BAR", text="")
+            layout.operator("fresing.hub_show", icon="WINDOW")
         split = layout.split(factor=0.25, align=True)          # the switch: View | Show me | Build it yourself
         split.scale_y = 1.15
         first = split.row(align=True)

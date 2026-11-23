@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.211 – 23 Nov 2026 – "Making the Learning hub" says so clearly; Next goes to the next stop at once (task 0275)
+
+- **A card in the middle of the screen while the Learning hub is made.** It says what is happening, shows a bar with
+  "project 4 of 23", about how long it still takes, and that you can keep working. **Hide** keeps the bar in the
+  bottom-left corner and on the left panel (**Show progress** brings the card back); **Stop making it** asks once and
+  keeps the projects made so far.
+- **When it is done** the card comes up (also when hidden): **The Learning hub is ready – Open it now / Later**. If
+  something failed it says what, where the log is, and offers **Try again**. Every way of making the hub (Fresing
+  menu, the welcome, What's new, the left panel) uses the same card.
+- **Next in the Learning hub** now sets the next stop up in one click, also when it lives in another project. The
+  welcome says you can keep working while the hub is made.
+
 ## 0.2.210 – 23 Nov 2026 – Locations: company, department and your own folders; set-up files; export places (task 0272)
 
 - **Several folders per kind, each with a badge.** STEP models, materials, logos, stickers, 360° photos, templates,

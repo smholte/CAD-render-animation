@@ -216,7 +216,7 @@ def s_marks():
     data = tour().load_results(STATE["folder"], STATE["version"])
     check("OK / Problem / Note are saved next to the tour",
           (r1, r2, r3) == ({"FINISHED"},) * 3 and data["stops"]["cylinder"]["state"] == "OK"
-          and data["stops"]["looks"] == {"state": "PROBLEM", "note": "test note é"})
+          and data["stops"]["looks"] == {"state": "PROBLEM", "note": "test note é"}, f"{(r1, r2, r3)} {data['stops'].get('cylinder')} {data['stops'].get('looks')}")
     redraw()
     return 0.5
 
@@ -231,6 +231,188 @@ def s_copy():
           and f"[PROBLEM] {sea.title} (looks) - test note é" in text, text[:200])
     check("Copy results: the text file next to the tour", os.path.isfile(path))
     sidebar_shot("02_tour_panel_marked")
+    return 0.5
+
+
+@step
+def s_next():
+    """Task 0275: Next = pick + Go in one click (the panel's Next button is ``fresing.tour_go``)."""
+    here = tour().find("cylinder")
+    nxt = next((s for s in tour().STOPS if s.number == here.number + 1), None)
+    check("the stop after the cylinder's exists", nxt is not None)
+    import inspect
+    src = inspect.getsource(mod("blender.ui_tour"))
+    check("the panel's Next button is Go on the next stop",
+          'operator("fresing.tour_go", text=f"Next:' in src and 'operator("fresing.tour_pick", text=f"Next:' not in src)
+    STATE["next"] = nxt
+    with override():
+        if bpy.context.screen.is_animation_playing:
+            bpy.ops.screen.animation_cancel(restore_frame=False)
+    op("fresing.tour_go", stop=nxt.id)
+    return 3.0
+
+
+@step
+def s_next_done():
+    nxt = STATE["next"]
+    sc = bpy.context.scene
+    if sc.get(tour().TAG) != nxt.set or not nxt.check(sc):
+        return "wait"
+    data = tour().load_results(STATE["folder"], STATE["version"])
+    check("Next set the next stop up in one click (its project open, its check passes)",
+          sc[tour().TAG] == nxt.set and data["current"] == nxt.id)
+    with override():
+        if bpy.context.screen.is_animation_playing:
+            bpy.ops.screen.animation_cancel(restore_frame=False)
+    return 0.5
+
+
+def hp():
+    return mod("blender.hub_progress")
+
+
+def click(key):
+    """A click on the card's button, at its place in the window (the build's modal takes it)."""
+    win, area, region, sb = ui()
+    pt = hp().button_point(key, mod("blender.ops_tour").building())
+    if pt is None:
+        return False
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=pt[0], y=pt[1])
+    win.event_simulate(type="LEFTMOUSE", value="PRESS", x=pt[0], y=pt[1])
+    win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=pt[0], y=pt[1])
+    return True
+
+
+def card_shot(name):
+    """The card alone, cropped from a picture of the screen (for the guide)."""
+    win, area, region, sb = ui()
+    g = hp()._geometry(mod("blender.ops_tour").building())
+    if g is None:
+        return
+    sc = bpy.context.preferences.system.ui_scale or 1.0
+    x, y, w, h = int(g["x"]) - 4, int(win.height - g["y"] - g["h"]) - 4, int(g["w"]) + 8, int(g["h"]) + 8
+    full = os.path.join(OUT, name + "_full.png")
+    subprocess.run(["import", "-window", "root", full], check=False)
+    subprocess.run(["convert", full, "-crop", f"{w}x{h}+{max(x, 0)}+{max(y, 0)}", "+repage",
+                    os.path.join(OUT, name + ".png")], check=False)
+    try:
+        os.remove(full)
+    except OSError:
+        pass
+
+
+@step
+def s_card_start():
+    """Task 0275: Make the Learning hub (one project, a real background build): the card is there at once."""
+    STATE["cfolder"] = os.path.join(OUT, "Card tour")
+    t0 = time.time()
+    op("fresing.tour_make", folder=STATE["cfolder"], only="looks,cylinder,mill,linkage,waycover")   # long enough to stop
+    ops = mod("blender.ops_tour")
+    check("the card is there at once, mode progress", hp().STATE["mode"] == "progress" and hp().visible()
+          and time.time() - t0 < 1.0, f"{time.time() - t0:.2f} s")
+    data = ops.building()
+    text = hp().line(data)
+    check("the card's line says project N of M and the time left",
+          text.startswith("Making the Learning hub: project 1 of 5 ") and "left" in text, text)
+    check("the card has Hide and Stop making it", hp().button_point("hide", data) and hp().button_point("stop", data))
+    return 2.0
+
+
+@step
+def s_card_hide():
+    card_shot("hub_card_progress")
+    if not click("hide"):
+        check("Hide button found", False)
+        return 0.5
+    return 1.5
+
+
+@step
+def s_card_hidden():
+    check("Hide: the card is hidden, the build goes on", hp().STATE["hidden"] and hp().active()
+          and mod("blender.ops_tour").building().get("running") is not False)
+    check("Show progress is possible while hidden", bpy.ops.fresing.hub_show.poll())
+    op("fresing.hub_show")
+    check("Show progress brings the card back", hp().visible())
+    return 0.5
+
+
+@step
+def s_card_stop():
+    click("stop")
+    return 1.0
+
+
+@step
+def s_card_stop_ask():
+    check("Stop making it asks once", hp().STATE["mode"] == "confirm")
+    click("stop_no")
+    return 1.0
+
+
+@step
+def s_card_stop_no():
+    check("Keep making it goes back to the progress", hp().STATE["mode"] == "progress")
+    click("stop")
+    return 1.0
+
+
+@step
+def s_card_stop_yes():
+    click("stop_yes")
+    return 3.0
+
+
+@step
+def s_card_stopped():
+    if hp().active() or mod("blender.ops_tour").building().get("running"):
+        return "wait"
+    check("Yes, stop: the build is stopped and the card goes", not hp().active() and not mod("blender.ops_tour").building())
+    op("fresing.tour_make", folder=STATE["cfolder"], only="looks")      # again, to the end
+    return 2.0
+
+
+@step
+def s_card_failure():
+    """A forced failure: the build's program is killed from outside."""
+    ops = mod("blender.ops_tour")
+    ops._BUILD["proc"].kill()
+    return 3.0
+
+
+@step
+def s_card_failed():
+    if hp().STATE["mode"] != "failed":
+        return "wait"
+    check("A failed build shows what failed and its log, with Try again",
+          "log" in hp().STATE["log"].lower() and hp().STATE["why"] and hp().button_point("again", {}) is not None,
+          hp().STATE["why"])
+    card_shot("hub_card_failed")
+    click("again")
+    return 1.5
+
+
+@step
+def s_card_again():
+    check("Try again starts the build and the card again", hp().STATE["mode"] == "progress")
+    return 1.0
+
+
+@step
+def s_card_ready():
+    if hp().STATE["mode"] != "ready":
+        return "wait"
+    hub = hp().STATE["hub"]
+    check("Done: the card says the hub is ready", os.path.isfile(hub), hub)
+    card_shot("hub_card_ready")
+    click("open")
+    return 3.0
+
+
+@step
+def s_card_opened():
+    check("Open it now opens the hub and the card is gone",
+          bpy.data.filepath.startswith(STATE["cfolder"]) and not hp().active(), bpy.data.filepath)
     return 0.5
 
 

@@ -132,7 +132,7 @@ class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
             ui.wrap(box, context, f"Note: {note}", inset=12)
         nxt = next((s for s in tour.STOPS if s.number == st.number + 1), None)
         if nxt is not None:
-            box.operator("fresing.tour_pick", text=f"Next: {nxt.number}. {nxt.title}", icon="FORWARD").stop = nxt.id
+            box.operator("fresing.tour_go", text=f"Next: {nxt.number}. {nxt.title}", icon="FORWARD").stop = nxt.id
 
         done = sum(1 for s in tour.STOPS if rows.get(s.id, {}).get("state"))
         layout.separator()

@@ -66,6 +66,7 @@ class FRESING_OT_tour_make(bpy.types.Operator):
     only: StringProperty(options={"HIDDEN", "SKIP_SAVE"})       # task 0199: set ids, "" = the whole tour
 
     _timer = None
+    _gen = 0
 
     def invoke(self, context, event):
         if building().get("running"):
@@ -124,24 +125,41 @@ class FRESING_OT_tour_make(bpy.types.Operator):
             self.report({"ERROR"}, f"Could not start making the Learning hub: {exc}")
             return {"CANCELLED"}
         _BUILD.update(proc=proc, folder=folder, log=log, version=_version(), fh=fh, only=self._only())
+        from . import hub_progress, welcome
+        n_sets = len(self._only()) or len(tour.SETS)
+        expected = welcome.tour_minutes() * 60.0 * n_sets / len(tour.SETS)
+        self._gen = hub_progress.begin(folder, self.only, expected)      # task 0275: the card, at once
         self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
         context.window_manager.modal_handler_add(self)
         self.report({"INFO"}, "Making the Learning hub in the background (about 2 minutes)")
         return {"RUNNING_MODAL"}
 
+    def _end(self, context):
+        try:
+            context.window_manager.event_timer_remove(self._timer)
+        except (RuntimeError, ValueError, TypeError):
+            pass
+        try:
+            context.workspace.status_text_set(None)
+        except AttributeError:
+            pass
+        return {"FINISHED"}
+
     def modal(self, context, event):
+        from . import hub_progress as hp
+        if self._gen != hp.STATE["gen"]:             # another make started, or the card was dismissed
+            return self._end(context)
         if event.type != "TIMER":
-            return {"PASS_THROUGH"}
+            return {"RUNNING_MODAL"} if hp.handle_event(context, event) else {"PASS_THROUGH"}
         text = progress_text()
         if text:
             context.workspace.status_text_set(text)
-            for area in context.screen.areas:
-                if area.type == "VIEW_3D":
-                    area.tag_redraw()
+            hp.redraw()
             return {"PASS_THROUGH"}
-        context.window_manager.event_timer_remove(self._timer)
+        if hp.STATE["mode"] in ("ready", "failed"):  # the result card waits for its click
+            return {"PASS_THROUGH"}
         context.workspace.status_text_set(None)
-        proc, folder, version = _BUILD.get("proc"), _BUILD.get("folder", ""), _BUILD.get("version", _version())
+        folder, version = _BUILD.get("folder", ""), _BUILD.get("version", _version())
         try:
             _BUILD["fh"].close()
         except (KeyError, OSError):
@@ -151,34 +169,40 @@ class FRESING_OT_tour_make(bpy.types.Operator):
         data = tour.read_progress(folder)
         hub = tour.ready_path(folder, version)
         errors = data.get("errors") or {}
+        log = os.path.join(folder, "Make test tour log.txt")
         if cancelled:
             self.report({"WARNING"}, "Making the Learning hub was cancelled")
-            return {"FINISHED"}
+            hp.dismiss()
+            return self._end(context)
         if data.get("finished") and hub and os.path.isfile(hub):
-            _ready_popup(context, hub)
-            if errors:
-                self.report({"WARNING"}, "Learning hub made, but these projects failed: "
-                                         + "; ".join(f"{k}: {v}" for k, v in errors.items())[:250])
-            else:
-                self.report({"INFO"}, f"Learning hub ready ({data.get('seconds', 0):.0f} s): Fresing > Open the Learning hub")
-            return {"FINISHED"}
-        del proc
+            note = ("Made, but these projects failed: " + "; ".join(f"{k}: {v}" for k, v in errors.items())[:250]) \
+                if errors else ""
+            hp.finish("ready", hub=hub, note=note)
+            self.report({"WARNING" if errors else "INFO"},
+                        note or f"Learning hub ready ({data.get('seconds', 0):.0f} s): Fresing > Open the Learning hub")
+            return {"PASS_THROUGH"}
         why = "; ".join(f"{k}: {v}" for k, v in errors.items()) or "it stopped half-way"
-        self.report({"ERROR"}, f"The Learning hub could not be made ({why[:200]}). Its log: "
-                               f"{os.path.join(folder, 'Make test tour log.txt')}")
+        hp.finish("failed", why=why[:300], log=log)
+        self.report({"ERROR"}, f"The Learning hub could not be made ({why[:200]}). Its log: {log}")
+        return {"PASS_THROUGH"}
+
+
+class FRESING_OT_hub_show(bpy.types.Operator):
+    """Show the card that tells how far the Learning hub is (it was hidden). The build goes on either way"""
+
+    bl_idname = "fresing.hub_show"
+    bl_label = "Show progress"
+    bl_options = {"INTERNAL"}
+
+    @classmethod
+    def poll(cls, context):
+        from . import hub_progress
+        return hub_progress.active()
+
+    def execute(self, context):
+        from . import hub_progress
+        hub_progress.show()
         return {"FINISHED"}
-
-
-def _ready_popup(context, hub: str) -> None:
-    def draw(menu, _context):
-        menu.layout.label(text="The Learning hub is ready.")
-        op = menu.layout.operator(FRESING_OT_tour_open.bl_idname, text="Open the Learning hub", icon="FILE_BLEND")
-        op.filepath = hub
-
-    try:
-        context.window_manager.popup_menu(draw, title="Learning hub", icon="CHECKMARK")
-    except Exception:  # noqa: BLE001 - the report line says it too
-        pass
 
 
 class FRESING_OT_tour_open(bpy.types.Operator):
@@ -512,16 +536,20 @@ class FRESING_OT_tour_cancel(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_tour_take, FRESING_OT_tour_cancel, FRESING_OT_tour_make, FRESING_OT_tour_open, FRESING_OT_tour_pick, FRESING_OT_tour_go,
+CLASSES = (FRESING_OT_hub_show, FRESING_OT_tour_take, FRESING_OT_tour_cancel, FRESING_OT_tour_make, FRESING_OT_tour_open, FRESING_OT_tour_pick, FRESING_OT_tour_go,
            FRESING_OT_tour_mark, FRESING_OT_tour_note, FRESING_OT_tour_copy, FRESING_OT_tour_run,
            FRESING_OT_tour_folder)
 
 
 def register_handlers() -> None:
+    from . import hub_progress
+    hub_progress.register_handlers()
     if _after_load not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(_after_load)
 
 
 def unregister_handlers() -> None:
+    from . import hub_progress
+    hub_progress.unregister_handlers()
     while _after_load in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(_after_load)

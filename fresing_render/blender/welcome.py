@@ -274,7 +274,7 @@ def _draw_quick_setup(self, context):
 def WELCOME_TEXT(minutes: int) -> list:  # noqa: N802 - a text, called like one
     return ["Photo-realistic pictures and animations of your STEP assemblies.",
             "The Learning hub shows every function on small test models, one stop at a time.",
-            f"Making it takes about {minutes} minutes on a PC like yours (in the background)."]
+            f"Making it takes about {minutes} minutes on a PC like yours (you can keep working while it is made)."]
 
 
 def _lines(layout, text: str, width: int = 88, icon: str = "NONE") -> None:

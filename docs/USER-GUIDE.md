@@ -4976,11 +4976,23 @@ opens that group.
 <img class="panel" src="img/panel_tour.png" alt="The Learning hub panel: the stops in four groups, the stop picked with Go, OK, Problem and a note">
 
 **Make it (once per version)**
-1. **Fresing > Open the Learning hub** (or **Help > Make the Learning hub…**, then **Make it**). It is made in the
-   background in a few minutes (the bottom line of the window shows "Making the Learning hub: project 3 of 44 …"); you
-   can keep working.
-2. When it is ready a small window says so: click **Open the Learning hub**. Later: **Fresing > Open the Learning hub**
-   Save your own project first: changes that are not saved are lost when another project opens.
+1. **Fresing > Open the Learning hub** (or **Help > Make the Learning hub…**, then **Make it**). A card in the middle
+   of the 3D view says **Making the Learning hub**: how far it is ("project 4 of 23 – Crane"), about how long it still
+   takes, and that you can keep working.
+
+<img class="panel" src="img/hub_card_progress.png" alt="The card Making the Learning hub: a progress bar, project 1 of 5, the time left, Hide and Stop making it">
+
+   **Hide** takes the card away (the bar goes on in the bottom-left corner and on the left panel, where **Show
+   progress** brings the card back). **Stop making it** asks once; the projects made so far are kept, and making it
+   again finishes the rest.
+2. When it is ready, the card comes up again (also when it was hidden): **Open it now**, or **Later** (then
+   **Fresing > Open the Learning hub**). If it could not be made, the card says what failed, where the log is, and
+   offers **Try again**. Save your own project first: changes that are not saved are lost when another project opens.
+
+<img class="panel" src="img/hub_card_ready.png" alt="The card The Learning hub is ready with Open it now and Later">
+
+**Next** under a stop sets the next stop up at once (it opens that stop's project when needed) – no **Go** after it.
+Picking a stop in the list only shows it; then press **Go**.
 
 It goes to **Documents\Fresing Render\Test tour**: "Test tour 0.2.47.blend" (the crane, the one you open)
 and a folder "Test tour 0.2.47 files" with the other projects. It is made new for every version, so it always
