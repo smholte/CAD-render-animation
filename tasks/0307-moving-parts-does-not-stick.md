@@ -1,6 +1,6 @@
 # 0307 – Moving parts with G / R does not stick: find why, fix it, and a short guide for the owner
 
-**Who:** worker · **Status:** running · **Branch:** `task/0307-moving-does-not-stick`
+**Who:** worker · **Status:** done (0.2.216) · **Branch:** `task/0307-moving-does-not-stick`
 **Started by:** lead, 23 Nov 2026 (the lead told the owner that G / R, then X / Y / Z and a number, move a part outside
 Full access – task 0253 kept those keys. Owner 20:12: "Moving parts / assemblies is not working for me. I see some
 numbers appear in the UI and when I click or press Enter they just disappear. So maybe a study to check this out? And
@@ -32,9 +32,9 @@ places, `lock_location` on joint objects), `animation.py` (keys written by Build
 
 ## Done when
 
-- [ ] The case table in the report; every cause named; fixes with tests that failed before; a real-app test of G + X +
+- [x] The case table in the report; every cause named; fixes with tests that failed before; a real-app test of G + X +
       number + Enter that stays moved (and one after Build that shows the message)
-- [ ] Guide section + the owner's numbered steps in the report; full suite + GitHub run green; merged, version, release
+- [x] Guide section + the owner's numbered steps in the report; full suite + GitHub run green; merged, version, release
 
 ---
 
@@ -81,7 +81,7 @@ Not in the Client view (nothing selectable there; its allow-list keeps viewing o
 (no check existed: G stayed silent); with test_keys_right_click, test_functions, test_user_guide, test_usage,
 test_places 94 passed; `tools/ui_test_move.py` 14/14 (G X 100 Enter stays, mouse + click stays, R Z 30 stays, locked
 and after-Build messages, Stop then G moves); PC-check line `structure.move` OK in 2 s; tooltip report --strict clean.
-GitHub runs: see below. Subagents: none (small change; no Windows-only code, so no independent review).
+GitHub: 2 full runs – the first red (4 workspace tests: the new function entry showed 2 Structure in the Client view, and the Client view's allow-list must stay viewing-only; fixed), the second green (run 45257047216, 27 min). Subagents: none (small change; no Windows-only code, so no independent review).
 
 **Owner's steps on your PC** (after Update now to 0.2.216):
 1. Open a project (or Import STEP… the test crane).
