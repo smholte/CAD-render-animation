@@ -1,6 +1,6 @@
 # 0296 – Always the graphics card: NVIDIA, AMD or Intel Arc before built-in graphics; a calm notice with a guide when not
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0296-always-the-graphics-card`
+**Who:** worker · **Status:** running · **Branch:** `task/0296-always-the-graphics-card`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: someone tested the app on a Windows 11 PC with an AMD
 graphics card and the app used the processor's built-in graphics; on a second PC of the owner's (Intel Core i7-12700,
 NVIDIA RTX A2000) and on his own (Ryzen 9 9900X, RTX 3090) it chose the card. "Fresing Render should rather always

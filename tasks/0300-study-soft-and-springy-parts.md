@@ -1,6 +1,6 @@
 # 0300 – Study + prototype (findings only): soft and springy parts – rubber that squeezes, springs that compress – set up in a few clicks
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0300-study-soft-parts` (branch only, never merged;
+**Who:** worker · **Status:** running · **Branch:** `task/0300-study-soft-parts` (branch only, never merged;
 every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Simulated materials like rubber getting squished, spring
 and such. And again, a way to add it with a few clicks or possibly a popup window with a few steps.") · **Model:** Opus ·

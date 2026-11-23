@@ -1,6 +1,6 @@
 # 0263 – Real size, category C: the winch model's A-frame ×2.5, the spool model's carousel ×2 (rope parts kept)
 
-**Who:** worker · **Status:** open – waits for 0262 (same lane; `flex_drawn` is shared) · **Branch:**
+**Who:** worker · **Status:** running (23 Nov 2026, Claude Code on the web) · **Branch:**
 `task/0263-winch-spool-real-size`
 **Started by:** lead, 21 Nov 2026 (owner 14:20: every model at a realistic scale, one fix task per type; study **0258**
 category C) · **Model:** Opus · effort High
