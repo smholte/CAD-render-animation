@@ -156,15 +156,15 @@ def test_cylinder_across_two_models(tmp_path):
     """The luffer's barrel pin sits on the machine's frame."""
     sc = load(tmp_path, LUFFER_A, MACHINE)
     y = Vector((0, 1, 0))
-    arm = joints.create(sc, "ROTATE", [ob(sc, "ARM.ASM")], Vector((0.1, 0.2, 0.6)), y, name="Luff")
+    arm = joints.create(sc, "ROTATE", [ob(sc, "ARM.ASM")], Vector((0.3, 0.6, 1.8)), y, name="Luff")
     barrel = next(o for o in sc.objects if o.get(build.PROP_NAME) == "CYL.BARREL"
-                  and (o.matrix_world.translation.y < 0.2 if o.type != "MESH" else True))
+                  and (o.matrix_world.translation.y < 0.6 if o.type != "MESH" else True))
     rod = next(o for o in sc.objects if o.get(build.PROP_NAME) == "CYL.ROD" and o.parent is barrel.parent)
     frame = ob(sc, "FRAME", "TEST.MACHINE")
-    c, _n = cylinders.create(sc, [barrel], [rod], (Vector((0.5, 0.0, 0.15)), y, frame),
-                             (Vector((0.8, 0.4, 0.45)), -y, ob(sc, "ARM.ROD.PIN")), name="Lift")
+    c, _n = cylinders.create(sc, [barrel], [rod], (Vector((1.5, 0.0, 0.45)), y, frame),
+                             (Vector((2.4, 1.2, 1.35)), -y, ob(sc, "ARM.ROD.PIN")), name="Lift")
     cylinders.set_mode(sc, c, "DRIVE")
-    cylinders.set_stroke(sc, c, 0.09)
+    cylinders.set_stroke(sc, c, 0.27)
     update()
     angle = joints.get_value(arm)
     for path, model in ((MACHINE, "TEST.MACHINE"), (LUFFER_B, "TEST.LUFFER")):
@@ -405,14 +405,14 @@ def test_failed_update_gives_cylinders_back(tmp_path, monkeypatch):
     sc = load(tmp_path, LUFFER_A)
     y = Vector((0, 1, 0))
     joints.create(sc, "ROTATE", [o for o in sc.objects if o.get(build.PROP_NAME) == "ARM.ASM"],
-                  Vector((0.1, 0.2, 0.6)), y, name="Luff")
+                  Vector((0.3, 0.6, 1.8)), y, name="Luff")
     barrel = sorted((o for o in sc.objects if o.get(build.PROP_NAME) == "CYL.BARREL"),
                     key=lambda o: o.get(build.PROP_UID))[0]
     rod = next(o for o in sc.objects if o.get(build.PROP_NAME) == "CYL.ROD" and o.parent is barrel.parent)
-    c, _n = cylinders.create(sc, [barrel], [rod], (Vector((0.5, 0.0, 0.15)), y, ob(sc, "BASE.PIN")),
-                             (Vector((0.8, 0.4, 0.45)), -y, ob(sc, "ARM.ROD.PIN")), name="Lift")
+    c, _n = cylinders.create(sc, [barrel], [rod], (Vector((1.5, 0.0, 0.45)), y, ob(sc, "BASE.PIN")),
+                             (Vector((2.4, 1.2, 1.35)), -y, ob(sc, "ARM.ROD.PIN")), name="Lift")
     cylinders.set_mode(sc, c, "DRIVE")
-    cylinders.set_stroke(sc, c, 0.09)
+    cylinders.set_stroke(sc, c, 0.27)
     update()
     before = snapshot(sc)
 
@@ -428,7 +428,7 @@ def test_failed_update_gives_cylinders_back(tmp_path, monkeypatch):
     assert snapshot(sc) == before
     c = cylinders.find(sc, "Lift")
     assert cylinders.is_valid(c) and c.mode == "DRIVE"
-    assert cylinders.stroke_now(sc, c) == pytest.approx(0.09, abs=1e-6)
+    assert cylinders.stroke_now(sc, c) == pytest.approx(0.27, abs=1e-6)
 
 
 def test_update_model_raises_update_failed(tmp_path, monkeypatch):

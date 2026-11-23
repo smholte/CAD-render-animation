@@ -180,7 +180,7 @@ def test_add_cable_starts_soft(hoses):
     pick(sc, [T.ob(sc, "CABLE")])
     assert bpy.ops.fresing.flex_add_hose() == {"FINISHED"}
     assert flex.find(sc, "CABLE").stiffness == pytest.approx(0.2) and said(sc).startswith("1 cable added")
-    T.set_joint(sc, "Slide", 0.1)
+    T.set_joint(sc, "Slide", 0.3)
     T.update()
     assert T.end_errors(sc, ("CABLE", "HYDRAULIC HOSE CYL A")) < T.END_TOL
 
@@ -355,7 +355,7 @@ def test_fit_set_end_select_and_remove_a_hose(hoses):
     it = choose(sc, "HYDRAULIC HOSE ARM")
     part = it.part
     cad_length, cad_diameter = it.cad_length, it.diameter
-    assert cad_length == pytest.approx(1.00854, rel=3e-3)
+    assert cad_length == pytest.approx(3.00081, rel=3e-3)
     it.length, it.diameter, it.stiffness = cad_length * 1.2, cad_diameter * 2, 0.33
     assert bpy.ops.fresing.flex_fit() == {"FINISHED"}
     it = choose(sc, "HYDRAULIC HOSE ARM")

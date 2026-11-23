@@ -32,8 +32,8 @@ os.makedirs(OUT, exist_ok=True)
 LOG = open(os.path.join(OUT, "ui_test_drawn.log"), "w")
 RESULTS = []
 MM = 0.001
-VALVE_TOP = Vector((0.432, -0.069, 0.22))       # FITTING VALVE C's end face (tools/make_test_flex.py)
-ARM_FACE = Vector((1.002, 0.12, 0.6))           # FITTING ARM's end face, looking along -Y
+VALVE_TOP = Vector((1.292, -0.209, 0.62))       # FITTING VALVE C's end face (tools/make_test_flex.py)
+ARM_FACE = Vector((3.002, 0.42, 1.8))           # FITTING ARM's end face, looking along -Y
 LUFF = math.radians(15.0)
 
 
@@ -186,7 +186,7 @@ def s_wait():
     luff = joints.find(sc, "Luff")
     luff.rot_min, luff.rot_max, luff.use_limits = math.radians(-20), math.radians(20), True
     mod("blender.panels").open_to("FRESING_PT_flex")
-    view((0.7, 0.05, 0.4), 1.6)
+    view(VALVE_TOP, 1.6)                       # close on the valve fitting (real size: 30 across flats)
     check("the hoses model: joints made, nothing in the list", len(items()) == 0
           and joints.find(sc, "Slide") is not None)
     wiggle()
@@ -230,6 +230,12 @@ def s_click_valve_again():
 
 
 @step
+def s_view_arm():
+    view(ARM_FACE, 1.6)                         # close on the arm's fitting (the arm is 3 x the first one, task 0261)
+    return 0.8
+
+
+@step
 def s_hover_arm():
     move(*pixel(ARM_FACE + Vector((0.0, -0.002, 0.0))))
     return 0.8
@@ -259,7 +265,7 @@ def s_drawn():
     check("its ends sit on the two fittings clicked (Backspace took the first click back: no clip)",
           it.a_part == named("FITTING VALVE C") and it.b_part == named("FITTING ARM") and len(it.clips) == 0)
     a = drawn.world_spot(it.a_part, it.a_point, it.a_dir)[0]
-    check("end A in the middle of the valve fitting's face", np.linalg.norm(a - np.array((0.43, -0.07, 0.22))) < 1e-4,
+    check("end A in the middle of the valve fitting's face", np.linalg.norm(a - np.array((1.29, -0.21, 0.62))) < 1e-4,
           f"{a}")
     cad = named("HYDRAULIC HOSE ARM")
     check("the CAD hose is hidden for good (replaced)", cad.get("fr_excluded") and not cad.visible_get()
@@ -281,12 +287,13 @@ def s_follows():
     line = flex().shape_now(sc, it)
     b = drawn.world_spot(it.b_part, it.b_point, it.b_dir)[0]
     off = float(np.linalg.norm(line[-1] - b))
-    check("Luff 15°: the drawn hose's end B stays on the arm's fitting", off < 0.1 * MM and b[2] > 0.7,
+    check("Luff 15°: the drawn hose's end B stays on the arm's fitting", off < 0.1 * MM and b[2] > 2.3,
           f"{off * 1000:.4f} mm")
     check("… and it is long enough over the luff's limits", flex().status(sc, it)[1] == "OK",
           flex().status(sc, it)[0])
     r = start_draw(kind="HOSE")
     check("Draw hose again starts", r == {"RUNNING_MODAL"})
+    view(VALVE_TOP, 1.6)
     x, y = pixel(VALVE_TOP + Vector((0, -0.002, 0.002)))
     move(x, y)
     press(x, y)

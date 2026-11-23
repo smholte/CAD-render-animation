@@ -12,73 +12,78 @@ the code (``hose_routes``, ``hose_ends``, ``hose_motion``, ``cylinder``, ``CHAIN
 for tests to use.
 
 ======================================================================================================================
-TEST.FLEX.HOSES – a small luffing arm with hydraulics                 29 parts (revision B: 30), each its own shape
+TEST.FLEX.HOSES – a luffing arm with hydraulics                       29 parts (revision B: 30), each its own shape
 ======================================================================================================================
-  BASE                         box 1200 x 600 x 100: x 0..1200, y -150..450, z 0..100
-  POST                         carries the arm's pivot (100, *, 600), axis along Y: a block up to z 500 and a fork
-                               (cheeks y 115..145 and 255..285, bore Ø40.4) the arm turns in
-  BASE.BRACKET                 two lugs (y 120..145 and 255..280) on a foot, bore Ø40: carries the barrel pin
-  BASE.PIN                     Ø40 along Y through the barrel pin (300, *, 170) (pick target)
-  VALVE BLOCK                  box x 280..460, y -110..-30, z 100..200; three ports on top
-  FITTING VALVE A / B / C      hex stubs on the block's top at (310 / 370 / 430, -70), z 200..220 (A and B 24 across
-                               flats, C 30); end face up
-  RAIL                         box x 100..560, y 320..380, z 100..130: the slide's rail, along X
+Task 0261 (study 0258): real size. The LAYOUT is three times the first model's (``K``: places, lengths, the slide's
+travel); the structure (base, post, brackets, arm, valve block, rail, carriage) is drawn at the first numbers and
+scaled x 3. What has a real size is drawn at it: the hoses (Ø16 / Ø20), the cable (Ø10), the fittings and glands,
+the pins (Ø60, bores Ø60.4), the cylinder (bore Ø125, barrel Ø150, rod Ø70, eyes Ø100 x 90). The hoses only get longer.
+
+  BASE                         box 3600 x 1800 x 300: x 0..3600, y -450..1350, z 0..300
+  POST                         carries the arm's pivot (300, *, 1800), axis along Y: a block up to z 1500 and a fork
+                               (cheeks y 345..435 and 765..855, bore Ø60.4) the arm turns in
+  BASE.BRACKET                 two lugs (y 360..435 and 765..840) on a foot, bore Ø60: carries the barrel pin
+  BASE.PIN                     Ø60 along Y through the barrel pin (900, *, 510) (pick target)
+  VALVE BLOCK                  box x 840..1380, y -330..-90, z 300..600; three ports on top
+  FITTING VALVE A / B / C      hex stubs on the block's top at (930 / 1110 / 1290, -210), z 600..620 (A and B 24
+                               across flats, C 30); end face up
+  RAIL                         box x 300..1680, y 960..1140, z 300..390: the slide's rail, along X
   ARM.ASM                      turns about the pivot; drawn level, the middle of its range -20° .. +20°
-    ARM                        box 1250 x 100 x 100 along X, from 50 behind the pivot to 1200 in front of it
-    ARM.PIN                    Ø40 along Y at the pivot (pick target for the arm's joint)
+    ARM                        box 3750 x 300 x 300 along X, from 150 behind the pivot to 3600 in front of it
+    ARM.PIN                    Ø60 along Y at the pivot (pick target for the arm's joint)
     ARM.BRACKET                under the arm: a plate with two lugs, carries the rod pin
-    ARM.ROD.PIN                Ø40 along Y through the rod pin, (800, *, -150) from the pivot = (900, *, 450) (pick)
-    FITTING ARM                hex stub (30 across flats) on the arm's side 900 from the pivot, y 150 -> 120; end
-                               face (1000, 120, 600), looking along -Y
-    CABLE GLAND ARM            block 30 x 24 x 24 on the arm's other side, 1085..1115 from the pivot; the cable
-                               leaves its face (1185, 262, 600) along -X
-    ARM.LAMP                   revision B only: a ball Ø60 on top of the arm, 1100 from the pivot
-  CYL.ASM                      one cylinder at y = 200 in the pattern of tools/make_test_cylinder.py: barrel pin
-                               (300, 170), rod pin (900, 450); pin to pin 662.12, 25.02° up from level
-    CYL.BARREL                 BARREL.CAP (end cap + eye, bore Ø40.4), BARREL.TUBE (Ø100/80, 40..418 from the pin),
-                               BARREL.GLAND (418..448, bore Ø32), FITTING BARREL A and B (hex stubs 24 across
-                               flats on the tube's side, 90 and 384 from the pin, y 150 -> 125; end faces
-                               (381.56, 125, 208.06) and (647.97, 125, 332.39), looking along -Y)
-    CYL.ROD                    PISTON (Ø78, 214..244 from the pin), ROD (Ø30), ROD.EYE (bore Ø40.4)
-  SLIDE.ASM                    slides along X on the rail (1 mm above it); drawn at mid travel, -150 .. +150
-    SLIDE CARRIAGE             block x 270..390, y 310..390, z 131..171 with a post 40 x 40 up to z 641
-    SLIDE GLAND                round stub Ø22 on the post, x 350 -> 375; the cable leaves its face (375, 350, 620)
-                               along +X
+    ARM.ROD.PIN                Ø60 along Y through the rod pin, (2400, *, -450) from the pivot = (2700, *, 1350) (pick)
+    FITTING ARM                hex stub (30 across flats) on the arm's side 2700 from the pivot, y 450 -> 420; end
+                               face (3000, 420, 1800), looking along -Y
+    CABLE GLAND ARM            block 30 x 24 x 24 on the arm's other side, 3255..3285 from the pivot; the cable
+                               leaves its face (3555, 762, 1800) along -X
+    ARM.LAMP                   revision B only: a ball Ø180 on top of the arm, 3300 from the pivot
+  CYL.ASM                      one cylinder at y = 600 in the pattern of tools/make_test_cylinder.py: barrel pin
+                               (900, 510), rod pin (2700, 1350); pin to pin 1986.35, 25.02° up from level
+    CYL.BARREL                 BARREL.CAP (end cap + eye, bore Ø60.4), BARREL.TUBE (Ø150/125, 120..1252 from the
+                               pin), BARREL.GLAND (1252..1342, bore Ø72), FITTING BARREL A and B (hex stubs 24 across
+                               flats on the tube's side, 270 and 1150 from the pin, y 525 -> 500; end faces
+                               (1144.67, 500, 624.18) and (1942.11, 500, 996.32), looking along -Y)
+    CYL.ROD                    PISTON (Ø123, 641..731 from the pin), ROD (Ø70), ROD.EYE (bore Ø60.4)
+  SLIDE.ASM                    slides along X on the rail (3 mm above it); drawn at mid travel, -450 .. +450
+    SLIDE CARRIAGE             block x 810..1170, y 930..1170, z 393..513 with a post 120 x 120 up to z 1923
+    SLIDE GLAND                round stub Ø22 on the post, x 1050 -> 1075; the cable leaves its face (1075, 1050,
+                               1860) along +X
   HYDRAULIC HOSE ARM, HYDRAULIC HOSE CYL A, HYDRAULIC HOSE CYL B, CABLE
                                directly under the root (as bought-in hoses usually are), each one solid: a round
                                bar swept along straight pieces and arcs that meet smoothly (in 3D). Every end is
                                straight for 2 diameters and lies flat on its fitting's face (touching, not inside).
 
-The motion.  Arm: about Y through (100, *, 600); +20° is tip up (a joint about +Y turns it down: there -20°). The
-cylinder then goes from 500.69 to 824.78 pin to pin (drawn 662.12): its piston can go 174 in and 174 out (closed
-length 488.12, full stroke 348), which lets the arm go from -21.7° to +21.4°. Slide: along X, -150 .. +150.
+The motion.  Arm: about Y through (300, *, 1800); +20° is tip up (a joint about +Y turns it down: there -20°). The
+cylinder then goes from 1502.07 to 2474.35 pin to pin (drawn 1986.35): its piston can go 521 in and 521 out (closed
+length 1465.35, full stroke 1042), which lets the arm go from -21.6° to +21.4°. Slide: along X, -450 .. +450.
 
 Hoses. End 0 is the first fitting named; "out" is the direction the hose leaves that fitting; lengths are exact.
 
-  HYDRAULIC HOSE ARM      Ø20   length 1008.54   tightest bend (centreline) 164.9
-      end 0  (430, -70, 220)        out (0, 0, 1)    touches FITTING VALVE C  (on the VALVE BLOCK)
-      end 1  (1000, 120, 600)       out (0, -1, 0)   touches FITTING ARM      (in ARM.ASM: across the arm's pivot)
-      revision B: the same ends on a wider path, length 1058.99 (5.0 % longer), tightest bend 152.5
-  HYDRAULIC HOSE CYL A    Ø16   length  450.40   tightest bend 59.1
-      end 0  (310, -70, 220)        out (0, 0, 1)    touches FITTING VALVE A
-      end 1  (381.56, 125, 208.06)  out (0, -1, 0)   touches FITTING BARREL A (in CYL.BARREL: turns with the barrel)
-  HYDRAULIC HOSE CYL B    Ø16   length  551.52   tightest bend 105.3
-      end 0  (370, -70, 220)        out (0, 0, 1)    touches FITTING VALVE B
-      end 1  (647.97, 125, 332.39)  out (0, -1, 0)   touches FITTING BARREL B
-  CABLE                   Ø10   length 1062.59   tightest bend 198.0; 1.30 x the distance between its ends
-      end 0  (375, 350, 620)        out (1, 0, 0)    touches SLIDE GLAND      (in SLIDE.ASM)
-      end 1  (1185, 262, 600)       out (-1, 0, 0)   touches CABLE GLAND ARM  (in ARM.ASM, near the tip); it hangs
-                                                     between them, lowest about (790, 306, 330)
+  HYDRAULIC HOSE ARM      Ø20   length 3000.81   tightest bend (centreline) 494.6
+      end 0  (1290, -210, 620)      out (0, 0, 1)    touches FITTING VALVE C  (on the VALVE BLOCK)
+      end 1  (3000, 420, 1800)      out (0, -1, 0)   touches FITTING ARM      (in ARM.ASM: across the arm's pivot)
+      revision B: the same ends on a wider path, length 3150.56 (5.0 % longer), tightest bend 465.4
+  HYDRAULIC HOSE CYL A    Ø16   length 1413.55   tightest bend 184.8
+      end 0  (930, -210, 620)       out (0, 0, 1)    touches FITTING VALVE A
+      end 1  (1144.67, 500, 624.18) out (0, -1, 0)   touches FITTING BARREL A (in CYL.BARREL: turns with the barrel)
+  HYDRAULIC HOSE CYL B    Ø16   length 1756.04   tightest bend 402.7
+      end 0  (1110, -210, 620)      out (0, 0, 1)    touches FITTING VALVE B
+      end 1  (1942.11, 500, 996.32) out (0, -1, 0)   touches FITTING BARREL B
+  CABLE                   Ø10   length 3286.14   tightest bend 610.0; 1.32 x the distance between its ends
+      end 0  (1075, 1050, 1860)     out (1, 0, 0)    touches SLIDE GLAND      (in SLIDE.ASM)
+      end 1  (3555, 762, 1800)      out (-1, 0, 0)   touches CABLE GLAND ARM  (in ARM.ASM, near the tip); it hangs
+                                                     between them, lowest about (2370, 918, 940)
 
-Checked over the arm's -20° .. +20° and the slide's -150 .. +150: the two ends are never further apart than the
+Checked over the arm's -20° .. +20° and the slide's -450 .. +450: the two ends are never further apart than the
 hose is long. "Spare" = length - the two straight ends - the distance between the ends of those straight pieces:
 
-  HYDRAULIC HOSE ARM      ends 710.9 apart as drawn, 554.3 .. 880.4 over the motion; spare  87.0 (arm +20°)
-  HYDRAULIC HOSE CYL A    ends 208.1 apart as drawn, 203.1 .. 216.0;                 spare 188.3 (arm -20°)
-  HYDRAULIC HOSE CYL B    ends 357.7 apart as drawn, 356.1 .. 371.4;                 spare 127.0 (arm -20°)
-  CABLE                   ends 815.0 apart as drawn, 665.9 .. 980.3;                 spare  78.7 (arm -20°,
-                                                                                     slide -150)
-With the arm down 20° and the slide at +150 the cable's ends are 717 apart: 346 mm of slack, it then hangs down to
+  HYDRAULIC HOSE ARM      ends 2171.0 apart as drawn, 1690.1 .. 2686.1 over the motion; spare 275.1 (arm +20°)
+  HYDRAULIC HOSE CYL A    ends  741.8 apart as drawn,  733.2 ..  756.3;                 spare 618.0 (arm -20°)
+  HYDRAULIC HOSE CYL B    ends 1156.8 apart as drawn, 1156.7 .. 1179.9;                 spare 528.6 (arm -20°)
+  CABLE                   ends 2497.4 apart as drawn, 2050.3 .. 2988.8;                 spare 293.9 (arm -20°,
+                                                                                        slide -450)
+With the arm down 20° and the slide at +450 the cable's ends are 2196 apart: 1090 mm of slack, it then hangs down to
 about the base. The app does not lay hoses on parts (not in task 0058): a tour looks best with the arm at -10° or up.
 
 Revision B: ARM.LAMP in ARM.ASM, the four hoses placed in the other order, HYDRAULIC HOSE ARM on a wider path.
@@ -143,7 +148,7 @@ Over X -150 .. +150, Y -100 .. +100, Z -60 .. +60 the bend's centre moves half a
 and 3. +X and +Z move their chain's far end the way its fixed run goes; +Y moves it against (``CHAIN_SIGN``).
 
 The files are small because equal parts are one shape placed again and the curves on the surfaces are left out
-(hoses a: 272 KB, chains: 178 KB). Needs OpenCascade (OCP), as the other tools/make_test_*.py.
+(hoses a: 274 KB, chains: 178 KB). Needs OpenCascade (OCP), as the other tools/make_test_*.py.
 """
 
 import math
@@ -258,15 +263,20 @@ class Route:
 # TEST.FLEX.HOSES
 # =====================================================================================================================
 
-PIVOT = (100.0, 600.0)              # (x, z) of the arm's pivot; everything hydraulic lies at y = ARM_Y
-ARM_Y = 200.0
-BARREL_PIN = (300.0, 170.0)
-ROD_PIN_ARM = (800.0, -150.0)       # the rod pin from the pivot, in the arm
+K = 3.0                             # task 0261: the layout x 3 of the first model; real-size parts stay real
+PIVOT = (300.0, 1800.0)             # (x, z) of the arm's pivot; everything hydraulic lies at y = ARM_Y
+ARM_Y = 600.0
+BARREL_PIN = (900.0, 510.0)
+ROD_PIN_ARM = (2400.0, -450.0)      # the rod pin from the pivot, in the arm
 ARM_RANGE = 20.0                    # degrees either way the hoses are made for
-SLIDE_RANGE = 150.0
-SLIDE_AT = (330.0, 350.0, 131.0)    # where SLIDE.ASM is placed (its origin: the carriage's middle, underside)
-FIT_ARM, FIT_BARREL_A = 900.0, 90.0
-GLAND_ARM = 1085.0
+SLIDE_RANGE = 450.0
+SLIDE_AT = (990.0, 1050.0, 393.0)   # where SLIDE.ASM is placed (its origin: the carriage's middle, underside)
+FIT_ARM, FIT_BARREL_A = 2700.0, 270.0
+GLAND_ARM = 3255.0
+PIN_R = 30.0                        # pins Ø60, the bores of what turns on them Ø60.4
+BORE_R, TUBE_R, ROD_R, PISTON_R = 62.5, 75.0, 35.0, 61.5      # cylinder: bore Ø125, barrel Ø150, rod Ø70
+EYE_R, EYE_W = 50.0, 90.0
+CAP_IN = 120.0                      # the end cap's inside face from the barrel pin
 
 
 def rod_pin(a_deg):
@@ -284,11 +294,11 @@ def cylinder(a_deg=0.0):
 
 
 CYL_L, CYL_ANGLE = cylinder()
-_IN = math.ceil(CYL_L - cylinder(-ARM_RANGE)[0]) + 12          # what the piston can go in and out: the arm's range
-_OUT = math.ceil(cylinder(ARM_RANGE)[0] - CYL_L) + 11          # and a little more
-PISTON = 40.0 + _IN                 # the piston's back face from the barrel pin (the cap's inside is at 40)
-TUBE_END = PISTON + 30.0 + _OUT     # where the gland begins
-FIT_BARREL_B = TUBE_END - 34.0
+_IN = math.ceil(CYL_L - cylinder(-ARM_RANGE)[0]) + 36          # what the piston can go in and out: the arm's range
+_OUT = math.ceil(cylinder(ARM_RANGE)[0] - CYL_L) + 33          # and a little more
+PISTON = CAP_IN + _IN               # the piston's back face from the barrel pin
+TUBE_END = PISTON + 90.0 + _OUT     # where the gland begins
+FIT_BARREL_B = TUBE_END - 102.0
 
 
 def arm_matrix(a_deg=0.0):
@@ -308,10 +318,10 @@ def hose_ends(a_deg=0.0, slide=0.0):
     """Every hose's two end points at a pose: name -> (end 0, end 1)."""
     arm, barrel = arm_matrix(a_deg), barrel_matrix(a_deg)
     return {
-        "HYDRAULIC HOSE ARM": (np.array([430.0, -70.0, 220.0]), _at(arm, (FIT_ARM, -80.0, 0.0))),
-        "HYDRAULIC HOSE CYL A": (np.array([310.0, -70.0, 220.0]), _at(barrel, (FIT_BARREL_A, -75.0, 0.0))),
-        "HYDRAULIC HOSE CYL B": (np.array([370.0, -70.0, 220.0]), _at(barrel, (FIT_BARREL_B, -75.0, 0.0))),
-        "CABLE": (np.array([375.0 + slide, 350.0, 620.0]), _at(arm, (GLAND_ARM, 62.0, 0.0))),
+        "HYDRAULIC HOSE ARM": (np.array([1290.0, -210.0, 620.0]), _at(arm, (FIT_ARM, -180.0, 0.0))),
+        "HYDRAULIC HOSE CYL A": (np.array([930.0, -210.0, 620.0]), _at(barrel, (FIT_BARREL_A, -TUBE_R - 25.0, 0.0))),
+        "HYDRAULIC HOSE CYL B": (np.array([1110.0, -210.0, 620.0]), _at(barrel, (FIT_BARREL_B, -TUBE_R - 25.0, 0.0))),
+        "CABLE": (np.array([1075.0 + slide, 1050.0, 1860.0]), _at(arm, (GLAND_ARM, 162.0, 0.0))),
     }
 
 
@@ -330,13 +340,13 @@ def hose_routes(revision="A"):
     ends = hose_ends()
     knots = {
         # up out of the valve block, in a wide arc over to the arm's side
-        "HYDRAULIC HOSE ARM": [((660.0, -230.0, 500.0), (1.0, 0.0, 0.45))] if revision == "A" else
-                              [((600.0, -260.0, 484.0), (1.0, 0.0, 0.45))],
+        "HYDRAULIC HOSE ARM": [((1980.0, -690.0, 1380), (1.0, 0.0, 0.45))] if revision == "A" else
+                              [((1800.0, -780.0, 1342.0), (1.0, 0.0, 0.45))],
         # up, over in a hump and down into the port on the barrel's side
-        "HYDRAULIC HOSE CYL A": [((346.0, -10.0, 370.0), (0.5, 1.0, 0.0))],
-        "HYDRAULIC HOSE CYL B": [((500.0, -60.0, 420.0), (1.0, 0.45, 0.25))],
+        "HYDRAULIC HOSE CYL A": [((1038.0, -30.0, 1110.0), (0.5, 1.0, 0.0))],
+        "HYDRAULIC HOSE CYL B": [((1500.0, -180.0, 1260.0), (1.0, 0.45, 0.25))],
         # hangs between the two glands: its lowest point about half-way
-        "CABLE": [((790.0, 306.0, 330.0), (1.0, -0.11, 0.0))],
+        "CABLE": [((2370.0, 918.0, 940.0), (1.0, -0.11, 0.0))],
     }
     return {name: Route(ends[name][0], HOSE_OUT[name][0], ends[name][1], HOSE_OUT[name][1],
                         2.0 * HOSE_DIAMETER[name], knots[name]) for name in HOSE_DIAMETER}
@@ -384,50 +394,59 @@ def _hex(base, direction, flats, length):
     return G.polygon_prism(pts, length, G.on_axis(base, direction))
 
 
+def _big(shape):
+    """A shape drawn at the first model's numbers, K times as big (about the origin)."""
+    return G.xform(shape, np.diag([K, K, K, 1.0]))
+
+
 def hoses_model(revision="A"):
     px, pz = PIVOT
     bx, bz = BARREL_PIN
     ax, az = ROD_PIN_ARM
     root = Asm("TEST.FLEX.HOSES")
 
-    root.add(Part("BASE", G.box(0, -150, 0, 1200, 600, 100), YELLOW))
-    post = G.fuse(G.box(px - 60, 115, 100, 120, 170, 400), G.box(px - 40, 115, pz - 120, 80, 30, 160),
-                  G.box(px - 40, 255, pz - 120, 80, 30, 160))
-    root.add(Part("POST", G.cut(post, G.cyl(20.2, 200, (px, 100, pz), Y)), YELLOW))
-    bracket = G.fuse(G.box(bx - 40, 120, 100, 80, 160, 8), G.box(bx - 40, 120, 100, 80, 25, 110),
-                     G.box(bx - 40, 255, 100, 80, 25, 110))
-    root.add(Part("BASE.BRACKET", G.cut(bracket, G.cyl(20.0, 200, (bx, 100, bz), Y)), YELLOW))
-    root.add(Part("BASE.PIN", G.cyl(20.0, 170, (bx, 115, bz), Y), CHROME))
-    root.add(Part("VALVE BLOCK", G.box(280, -110, 100, 180, 80, 100), GREY))
-    for name, x, flats in (("A", 310.0, 24.0), ("B", 370.0, 24.0), ("C", 430.0, 30.0)):
-        root.add(Part(f"FITTING VALVE {name}", _hex((x, -70.0, 200.0), Z, flats, 20.0), BRASS))
-    root.add(Part("RAIL", G.box(100, 320, 100, 460, 60, 30), STEEL))
+    # the structure: drawn at the first model's numbers, x K, then the real-size bores
+    root.add(Part("BASE", _big(G.box(0, -150, 0, 1200, 600, 100)), YELLOW))
+    opx, opz, obx, obz = px / K, pz / K, bx / K, bz / K
+    post = _big(G.fuse(G.box(opx - 60, 115, 100, 120, 170, 400), G.box(opx - 40, 115, opz - 120, 80, 30, 160),
+                       G.box(opx - 40, 255, opz - 120, 80, 30, 160)))
+    root.add(Part("POST", G.cut(post, G.cyl(PIN_R + 0.2, 600, (px, 300, pz), Y)), YELLOW))
+    bracket = _big(G.fuse(G.box(obx - 40, 120, 100, 80, 160, 8), G.box(obx - 40, 120, 100, 80, 25, 110),
+                          G.box(obx - 40, 255, 100, 80, 25, 110)))
+    root.add(Part("BASE.BRACKET", G.cut(bracket, G.cyl(PIN_R, 600, (bx, 300, bz), Y)), YELLOW))
+    root.add(Part("BASE.PIN", G.cyl(PIN_R, 510, (bx, 345, bz), Y), CHROME))
+    root.add(Part("VALVE BLOCK", _big(G.box(280, -110, 100, 180, 80, 100)), GREY))
+    for name, x, flats in (("A", 930.0, 24.0), ("B", 1110.0, 24.0), ("C", 1290.0, 30.0)):
+        root.add(Part(f"FITTING VALVE {name}", _hex((x, -210.0, 600.0), Z, flats, 20.0), BRASS))
+    root.add(Part("RAIL", _big(G.box(100, 320, 100, 460, 60, 30)), STEEL))
 
     # the arm, built round its pivot
     arm = Asm("ARM.ASM")
-    arm.add(Part("ARM", G.cut(G.box(-50, -50, -50, 1250, 100, 100), G.cyl(20.0, 120, (0, -60, 0), Y)), YELLOW))
-    arm.add(Part("ARM.PIN", G.cyl(20.0, 180, (0, -90, 0), Y), CHROME))
-    lugs = G.fuse(G.box(ax - 40, -75, -60, 80, 150, 10), G.box(ax - 40, -75, az - 40, 80, 20, -60 - (az - 40)),
-                  G.box(ax - 40, 55, az - 40, 80, 20, -60 - (az - 40)))
-    arm.add(Part("ARM.BRACKET", G.cut(lugs, G.cyl(20.0, 200, (ax, -100, az), Y)), YELLOW))
-    arm.add(Part("ARM.ROD.PIN", G.cyl(20.0, 160, (ax, -80, az), Y), CHROME))
-    arm.add(Part("FITTING ARM", _hex((FIT_ARM, -50.0, 0.0), -Y, 30.0, 30.0), BRASS))
-    arm.add(Part("CABLE GLAND ARM", G.box(GLAND_ARM, 50, -12, 30, 24, 24), GREY))
+    arm.add(Part("ARM", G.cut(_big(G.box(-50, -50, -50, 1250, 100, 100)), G.cyl(PIN_R + 0.2, 360, (0, -180, 0), Y)),
+                 YELLOW))
+    arm.add(Part("ARM.PIN", G.cyl(PIN_R, 540, (0, -270, 0), Y), CHROME))
+    oax, oaz = ax / K, az / K
+    lugs = _big(G.fuse(G.box(oax - 40, -75, -60, 80, 150, 10), G.box(oax - 40, -75, oaz - 40, 80, 20, -60 - (oaz - 40)),
+                       G.box(oax - 40, 55, oaz - 40, 80, 20, -60 - (oaz - 40))))
+    arm.add(Part("ARM.BRACKET", G.cut(lugs, G.cyl(PIN_R, 600, (ax, -300, az), Y)), YELLOW))
+    arm.add(Part("ARM.ROD.PIN", G.cyl(PIN_R, 480, (ax, -240, az), Y), CHROME))
+    arm.add(Part("FITTING ARM", _hex((FIT_ARM, -150.0, 0.0), -Y, 30.0, 30.0), BRASS))
+    arm.add(Part("CABLE GLAND ARM", G.box(GLAND_ARM, 150, -12, 30, 24, 24), GREY))
     if revision == "B":
-        arm.add(Part("ARM.LAMP", G.sphere(30.0), ORANGE), T(1100, 0, 80))
+        arm.add(Part("ARM.LAMP", G.sphere(90.0), ORANGE), T(3300, 0, 240))
     root.add(arm, arm_matrix())
 
     # the cylinder, built along X from its barrel pin (x = 0) to its rod pin (x = CYL_L)
     barrel = Asm("CYL.BARREL")
-    barrel.add(Part("BARREL.CAP", G.fuse(_x(22, 40, 50), _eye(0, 30, 20.2, 40)), GREY))
-    barrel.add(Part("BARREL.TUBE", _tube_x(40, TUBE_END, 40, 50), GREY))
-    barrel.add(Part("BARREL.GLAND", _tube_x(TUBE_END, TUBE_END + 30, 16, 50), GREY))
-    barrel.add(Part("FITTING BARREL A", _hex((FIT_BARREL_A, -50.0, 0.0), -Y, 24.0, 25.0), BRASS))
-    barrel.add(Part("FITTING BARREL B", _hex((FIT_BARREL_B, -50.0, 0.0), -Y, 24.0, 25.0), BRASS))
+    barrel.add(Part("BARREL.CAP", G.fuse(_x(45, CAP_IN, TUBE_R), _eye(0, EYE_R, PIN_R + 0.2, EYE_W)), GREY))
+    barrel.add(Part("BARREL.TUBE", _tube_x(CAP_IN, TUBE_END, BORE_R, TUBE_R), GREY))
+    barrel.add(Part("BARREL.GLAND", _tube_x(TUBE_END, TUBE_END + 90, ROD_R + 1.0, TUBE_R), GREY))
+    barrel.add(Part("FITTING BARREL A", _hex((FIT_BARREL_A, -TUBE_R, 0.0), -Y, 24.0, 25.0), BRASS))
+    barrel.add(Part("FITTING BARREL B", _hex((FIT_BARREL_B, -TUBE_R, 0.0), -Y, 24.0, 25.0), BRASS))
     rod = Asm("CYL.ROD")
-    rod.add(Part("PISTON", _x(PISTON, PISTON + 30, 39), STEEL))
-    rod.add(Part("ROD", _x(PISTON + 30, CYL_L - 25, 15), CHROME))
-    rod.add(Part("ROD.EYE", _eye(CYL_L, 30, 20.2, 40), STEEL))
+    rod.add(Part("PISTON", _x(PISTON, PISTON + 90, PISTON_R), STEEL))
+    rod.add(Part("ROD", _x(PISTON + 90, CYL_L - 45, ROD_R), CHROME))
+    rod.add(Part("ROD.EYE", _eye(CYL_L, EYE_R, PIN_R + 0.2, EYE_W), STEEL))
     cyl = Asm("CYL.ASM")
     cyl.add(barrel)
     cyl.add(rod)
@@ -435,9 +454,9 @@ def hoses_model(revision="A"):
 
     # the slide, built round the middle of its carriage's underside
     slide = Asm("SLIDE.ASM")
-    slide.add(Part("SLIDE CARRIAGE", G.fuse(G.box(-60, -40, 0, 120, 80, 40), G.box(-20, -20, 40, 40, 40, 470)),
+    slide.add(Part("SLIDE CARRIAGE", _big(G.fuse(G.box(-60, -40, 0, 120, 80, 40), G.box(-20, -20, 40, 40, 40, 470))),
                    BLUE))
-    slide.add(Part("SLIDE GLAND", G.cyl(11.0, 25.0, (20, 0, 489), X), GREY))
+    slide.add(Part("SLIDE GLAND", G.cyl(11.0, 25.0, (60, 0, 1467), X), GREY))
     root.add(slide, T(*SLIDE_AT))
 
     routes = hose_routes(revision)
@@ -518,7 +537,7 @@ def check_hoses(root, revision="A", say=print):
         turn = T(BARREL_PIN[0], ARM_Y, BARREL_PIN[1]) @ Rot(Y, -(angle - CYL_ANGLE)) @ T(-BARREL_PIN[0], -ARM_Y,
                                                                                          -BARREL_PIN[1])
         along = np.array([math.cos(math.radians(angle)), 0.0, math.sin(math.radians(angle))]) * (length - CYL_L)
-        assert PISTON - (CYL_L - length) > 40.0 + 5 and PISTON + 30 + (length - CYL_L) < TUBE_END - 5
+        assert PISTON - (CYL_L - length) > CAP_IN + 15 and PISTON + 90 + (length - CYL_L) < TUBE_END - 15
         for s in (-SLIDE_RANGE, 0.0, SLIDE_RANGE):
             move = {"base": np.eye(4), "ARM.ASM": arm_matrix(a) @ np.linalg.inv(arm_matrix()), "CYL.BARREL": turn,
                     "CYL.ROD": T(*along) @ turn, "SLIDE.ASM": T(s, 0, 0)}
@@ -747,11 +766,11 @@ CHAIN_SIGN = {"CHAIN X": 1.0, "CHAIN Y": -1.0, "CHAIN Z": 1.0}
 def numbers(say=print):
     say(f"cylinder: pin to pin {CYL_L:.2f} at {CYL_ANGLE:.2f}°; {cylinder(-ARM_RANGE)[0]:.2f} .. "
         f"{cylinder(ARM_RANGE)[0]:.2f} over the arm's range; piston back face {PISTON:.0f}, tube to {TUBE_END:.0f}: "
-        f"{PISTON - 40:.0f} in, {TUBE_END - PISTON - 30:.0f} out, closed {CYL_L - (PISTON - 40):.2f}, full stroke "
-        f"{TUBE_END - 70:.0f}")
+        f"{PISTON - CAP_IN:.0f} in, {TUBE_END - PISTON - 90:.0f} out, closed {CYL_L - (PISTON - CAP_IN):.2f}, "
+        f"full stroke {TUBE_END - CAP_IN - 90:.0f}")
     lo = hi = 0.0
     for a in np.linspace(-30, 30, 6001):
-        if CYL_L - (PISTON - 40) <= cylinder(a)[0] <= CYL_L + TUBE_END - PISTON - 30:
+        if CYL_L - (PISTON - CAP_IN) <= cylinder(a)[0] <= CYL_L + TUBE_END - PISTON - 90:
             lo, hi = min(lo, a), max(hi, a)
     say(f"  that lets the arm go from {lo:+.1f}° to {hi:+.1f}°")
     for rev in ("A", "B"):

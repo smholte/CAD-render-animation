@@ -101,7 +101,7 @@ def test_crane_comes_in_like_a_step_model(tmp_path):
     assert abs(rgb[0] - 0.85) < 1e-3 and abs(rgb[1] - 0.55) < 1e-3          # the file's linear colour
     # the model sits as drawn: Z up, metres
     mn, mx = logic.cached_bounds(sc)
-    assert abs(mn[2]) < 1e-3 and mx[2] > 1.3 and abs(mn[0] + 1.0) < 1e-3
+    assert abs(mn[2]) < 1e-3 and mx[2] > 3.3 and abs(mn[0] + 2.5) < 1e-3
 
 
 def test_another_look_replaces_the_file_look_and_back(tmp_path):
@@ -121,24 +121,24 @@ def test_clicked_facetted_ring_gives_its_axis(tmp_path):
     ring = part(sc, "SLEWING RING")
     # the outer wall half way up, between two corners of the 48-sided ring
     a = math.radians(360 / 48 * 0.5)
-    pt = Vector((0.8 * math.cos(a) * math.cos(math.radians(3.75)), 0.8 * math.sin(a), 0.475))
+    pt = Vector((2.0 * math.cos(a) * math.cos(math.radians(3.75)), 2.0 * math.sin(a), 1.1875))
     ob, index, o, d, desc = click(sc, *ray_at(pt, (math.cos(a), math.sin(a), 0)))
     assert ob == ring and desc.startswith("round face")
     assert angle(d, (0, 0, 1)) < 0.5
     r = float(desc.split("Ø")[1].split()[0]) / 2000
-    assert abs(r - 0.8) / 0.8 < 0.005, desc
+    assert abs(r - 2.0) / 2.0 < 0.005, desc
     foot = o - d * o.dot(d)
-    assert foot.length < 0.004                                             # the axis goes through (0, 0)
+    assert foot.length < 0.01                                             # the axis goes through (0, 0)
     # the whole wall is one face: hover lights up all of it
     h = hover.look(sc, bpy.context.evaluated_depsgraph_get(), *ray_at(pt, (math.cos(a), math.sin(a), 0)))
-    assert h.kind == "shaft" and h.tris[1] - h.tris[0] == 2 * 48 and abs(h.diameter - 1600) < 8
+    assert h.kind == "shaft" and h.tris[1] - h.tris[0] == 2 * 48 and abs(h.diameter - 4000) < 20
     # the inner wall: a hole of the same axis
-    pt = Vector((0.6 * math.cos(a) * math.cos(math.radians(3.75)), 0.6 * math.sin(a), 0.475))
+    pt = Vector((1.5 * math.cos(a) * math.cos(math.radians(3.75)), 1.5 * math.sin(a), 1.1875))
     h = hover.look(sc, bpy.context.evaluated_depsgraph_get(), *ray_at(pt, (-math.cos(a), -math.sin(a), 0)))
     assert h.kind == "hole" and angle(h.direction, (0, 0, 1)) < 0.5
-    assert abs(h.diameter - 1600) < 8            # walls on one line share one axis, its size the biggest (as STEP)
+    assert abs(h.diameter - 4000) < 20           # walls on one line share one axis, its size the biggest (as STEP)
     # the top: a flat face, its axis at right angles to it
-    ob, index, o, d, desc = click(sc, *ray_at((0.7, 0.0, 0.55), (0, 0, 1)))
+    ob, index, o, d, desc = click(sc, *ray_at((1.75, 0.0, 1.375), (0, 0, 1)))
     assert desc.startswith("flat") and angle(d, (0, 0, 1)) < 1e-3
     starts = faces.face_starts(ring.data)
     f = faces.face_of_polygon(ring.data, index)
@@ -147,28 +147,28 @@ def test_clicked_facetted_ring_gives_its_axis(tmp_path):
 
 def test_boom_pin_and_wheels_are_round_faces(tmp_path):
     sc = fresh(tmp_path)
-    pin = part(sc, "BOOM PIN")                                               # along Y through (0.45, *, 1.05)
-    ob, index, o, d, desc = click(sc, *ray_at((0.45, 0.15, 1.05 + 0.06), (0, 0, 1)))
-    assert ob == pin and angle(d, (0, 1, 0)) < 0.5 and abs(o.x - 0.45) < 2e-3 and abs(o.z - 1.05) < 2e-3
+    pin = part(sc, "BOOM PIN")                                               # along Y through (1.125, *, 2.625)
+    ob, index, o, d, desc = click(sc, *ray_at((1.125, 0.375, 2.625 + 0.05), (0, 0, 1)))
+    assert ob == pin and angle(d, (0, 1, 0)) < 0.5 and abs(o.x - 1.125) < 2e-3 and abs(o.z - 2.625) < 2e-3
     for name in ("WHEEL FL", "WHEEL RR"):
         w = part(sc, name)
         c = w.matrix_world.translation
-        ob, index, o, d, desc = click(sc, *ray_at(c + Vector((0, 0, 0.25)), (0, 0, 1)))
+        ob, index, o, d, desc = click(sc, *ray_at(c + Vector((0, 0, 0.625)), (0, 0, 1)))
         assert ob == w and angle(d, (0, 1, 0)) < 0.5, name
-        assert abs(float(desc.split("Ø")[1].split()[0]) - 500) < 2.5, desc
+        assert abs(float(desc.split("Ø")[1].split()[0]) - 1250) < 6, desc
 
 
 def test_a_joint_made_on_the_ring_turns_the_turret(tmp_path):
     sc = fresh(tmp_path)
     a = math.radians(3.75)
-    pt = Vector((0.8 * math.cos(a) * math.cos(a), 0.8 * math.sin(a), 0.475))
+    pt = Vector((2.0 * math.cos(a) * math.cos(a), 2.0 * math.sin(a), 1.1875))
     _ob, _i, o, d, _desc = click(sc, *ray_at(pt, (math.cos(a), math.sin(a), 0)))
     turret = next(x for x in sc.objects if x.get(build.PROP_NAME) == "TURRET")
     j = joints.create(sc, "ROTATE", [turret], o, d, name="Slew", base=part(sc, "BASE"))
-    tip0 = part(sc, "BOOM").matrix_world @ Vector((3.0, 0, 0))
+    tip0 = part(sc, "BOOM").matrix_world @ Vector((7.5, 0, 0))
     joints.set_value(joints.find(sc, "Slew"), math.radians(90.0))
     bpy.context.view_layer.update()
-    tip = part(sc, "BOOM").matrix_world @ Vector((3.0, 0, 0))
+    tip = part(sc, "BOOM").matrix_world @ Vector((7.5, 0, 0))
     assert abs(tip.z - tip0.z) < 1e-4 and abs(Vector((tip.x, tip.y)).length - Vector((tip0.x, tip0.y)).length) < 1e-3
     assert abs(tip.y - tip0.x) < 0.01 and abs(tip.x + tip0.y) < 0.01            # a quarter turn about Z
     assert j is not None
@@ -177,7 +177,7 @@ def test_a_joint_made_on_the_ring_turns_the_turret(tmp_path):
 def test_a_decal_on_a_mesh_part(tmp_path):
     sc = fresh(tmp_path)
     base = part(sc, "BASE")
-    ob, index, loc, normal = hover.cast(sc, bpy.context.evaluated_depsgraph_get(), *ray_at((0.5, -1.0, 0.2), (0, -1, 0)))
+    ob, index, loc, normal = hover.cast(sc, bpy.context.evaluated_depsgraph_get(), *ray_at((1.25, -2.5, 0.5), (0, -1, 0)))
     assert ob == base
     face = faces.face_of_polygon(base.data, index)
     it = decals.add(base, face, base.matrix_world.inverted() @ loc, (0, -1, 0), "TEXT", text="MESH")
@@ -224,7 +224,7 @@ def test_model_update_keeps_the_work_and_names_a_renamed_part(tmp_path):
     boom = part(sc, "BOOM")
     boom["fr_group_manual"] = "Boom look"
     a = math.radians(3.75)
-    pt = Vector((0.8 * math.cos(a) * math.cos(a), 0.8 * math.sin(a), 0.475))
+    pt = Vector((2.0 * math.cos(a) * math.cos(a), 2.0 * math.sin(a), 1.1875))
     _ob, _i, o, d, _desc = click(sc, *ray_at(pt, (math.cos(a), math.sin(a), 0)))
     turret = next(x for x in sc.objects if x.get(build.PROP_NAME) == "TURRET")
     joints.create(sc, "ROTATE", [turret], o, d, name="Slew", base=part(sc, "BASE"))

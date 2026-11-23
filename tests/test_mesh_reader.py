@@ -100,8 +100,8 @@ def test_gltf_y_up_comes_in_z_up_in_metres(tmp_path):
     p = arr[f"p{ring['mesh']}"]
     w = world(info, info["nodes"].index(ring))
     pw = p @ w[:3, :3].T + w[:3, 3]
-    assert np.allclose(pw.min(axis=0), [-0.8, -0.8, 0.40], atol=1e-3)     # the app's coordinates: Z up
-    assert np.allclose(pw.max(axis=0), [0.8, 0.8, 0.55], atol=1e-3)
+    assert np.allclose(pw.min(axis=0), [-2.0, -2.0, 1.00], atol=1e-3)     # the app's coordinates: Z up
+    assert np.allclose(pw.max(axis=0), [2.0, 2.0, 1.375], atol=1e-3)
     # a wheel: placed at its node, turned so its axis lies along Y; RL/RR mirrored by a negative scale
     for name, (x, y, z, side) in maker.WHEELS.items():
         k = info["nodes"].index(node(info, name))
@@ -328,8 +328,8 @@ def test_fbx_through_blender(tmp_path):
     ring = node(info, "SLEWING RING")
     w = world(info, info["nodes"].index(ring))
     p = arr[f"p{ring['mesh']}"] @ w[:3, :3].T + w[:3, 3]
-    assert np.allclose(p.min(axis=0), [-0.8, -0.8, 0.40], atol=2e-3)         # metres, Z up after the round trip
-    assert np.allclose(p.max(axis=0), [0.8, 0.8, 0.55], atol=2e-3)
+    assert np.allclose(p.min(axis=0), [-2.0, -2.0, 1.00], atol=2e-3)         # metres, Z up after the round trip
+    assert np.allclose(p.max(axis=0), [2.0, 2.0, 1.375], atol=2e-3)
     assert not os.path.exists(os.path.join(out, "converted.glb"))
 
 

@@ -1,35 +1,40 @@
-"""Write a small luffing arm with hydraulic cylinders as a STEP assembly (task 0013; generic, no owner data).
+"""Write a luffing arm with hydraulic cylinders as a STEP assembly (task 0013; generic, no owner data).
+
+Task 0261 (study 0258): real size. The LAYOUT is three times the first model's (places, lengths, travels: the arm
+4.5 m from its pivot, the pivot 1.8 m up); the parts that have a real size are drawn at it, not x 3: pins Ø60, the
+cylinders' bore Ø125 / rod Ø70 (an ISO 6020/6022 size), M24 anchor bolts, fittings and screws. The structure (base,
+post, brackets, arm) is built at the first model's numbers, scaled x 3 (``K``) and then given real-size bores.
 
 TEST.LUFFER                      mm; every pin turns about Y
-  BASE                           plate 1200 x 400 x 100, corners and top edges chamfered, four anchor-bolt holes Ø18
-  ISO 4017 M16 x 100 - 8.8       x4, hex head anchor bolts in the base's holes (task 0122)
-  POST                           a foot flange, a block with chamfered corners and gussets up to 30 mm under the arm,
-                                 and a fork (two cheeks with round tops and bosses, bore Ø40.4) the arm turns in, the
-                                 pivot at (100, *, 600)
-  BASE.BRACKET                   a plate with five lugs (round tops) that carry the barrel pins (500, *, 150), bore Ø40;
-                                 a slot for each cylinder between the lugs (task 0072: no part starts inside another, so
-                                 the clash check never sits on its threshold)
-  BASE.PIN                       Ø40 along Y through the barrel pins (pick target)
+  BASE                           plate 3600 x 1200 x 300, corners and top edges chamfered, four anchor-bolt holes Ø26
+  ISO 4017 M24 x 120 - 8.8 HDG   x4, hex head anchor bolts in the base's holes (task 0122; real size since 0261)
+  POST                           a foot flange, a block with chamfered corners and gussets up to 90 mm under the arm,
+                                 and a fork (two cheeks with round tops and bosses, bore Ø60.4) the arm turns in, the
+                                 pivot at (300, *, 1800)
+  BASE.BRACKET                   a plate with five lugs (round tops) that carry the barrel pins (1500, *, 450), bore
+                                 Ø60; a slot for each cylinder between the lugs (task 0072: no part starts inside
+                                 another, so the clash check never sits on its threshold)
+  BASE.PIN                       Ø60 along Y through the barrel pins (pick target)
   ARM.ASM                        turns about the pivot
-    ARM                          box girder 1500 x 100 x 100 from the pivot: chamfered, round end round the pin, side
+    ARM                          box girder 4500 x 300 x 300 from the pivot: chamfered, round end round the pin, side
                                  ribs, the tip tapered underneath with a clevis for a hook
-    ARM.PIN                      Ø40 along Y at the pivot (pick target for the arm joint)
+    ARM.PIN                      Ø60 along Y at the pivot (pick target for the arm joint)
     ARM.BRACKET                  under the arm: a plate with gussets and lugs (round bottoms) that carry the rod pins
-                                 (800, *, 450), bore Ø40; a slot per cylinder
-    ARM.ROD.PIN                  Ø40 along Y through the rod pins (pick target)
-  CYL.ASM  (twice: y = 80 and y = 320, side by side)
-    CYL.BARREL                   BARREL.CAP (end cap + eye, cap screws), BARREL.TUBE (Ø100/80, two oil ports and the
-                                 pipe from the rod-side port back to a block at the cap end), BARREL.GLAND (bore Ø32,
+                                 (2400, *, 1350), bore Ø60; a slot per cylinder
+    ARM.ROD.PIN                  Ø60 along Y through the rod pins (pick target)
+  CYL.ASM  (twice: y = 240 and y = 960, side by side)
+    CYL.BARREL                   BARREL.CAP (end cap + eye, cap screws), BARREL.TUBE (Ø150/125, two oil ports and the
+                                 pipe from the rod-side port back to a block at the cap end), BARREL.GLAND (bore Ø72,
                                  flange with cap screws)
-    CYL.ROD                      PISTON (Ø78), ROD (Ø30), ROD.EYE (with a threaded neck)
-  TELE.ASM (y = 200, telescopic: barrel with one oil port, one stage, rod)
+    CYL.ROD                      PISTON (Ø123), ROD (Ø70), ROD.EYE (with a threaded neck)
+  TELE.ASM (y = 600, telescopic: barrel with one oil port, one stage, rod Ø80)
     TELE.BARREL, TELE.STAGE, TELE.ROD
 
-The cylinders lie at 45°: barrel pin (500, 150), rod pin (800, 450), pin to pin 424.26 mm. Their rod can
-go 60 mm in (piston back face 100 mm from the barrel pin, end cap inside at 40) and 130 mm out (piston
-front 130, gland at 260): closed length 364.26 mm, full stroke 190 mm. Everything the stroke is read from
-(the cap's inside face, the bore, the piston, the gland's inside face) lies inside radius 40 and is kept as it was
-(task 0122 added only outside it). The pins are the plain cylinders of task 0013 (their round face is the first axis).
+The cylinders lie at 45°: barrel pin (1500, 450), rod pin (2400, 1350), pin to pin 1272.79 mm. Their rod can
+go 180 mm in (piston back face 300 mm from the barrel pin, end cap inside at 120) and 390 mm out (piston
+front 390, gland at 780): closed length 1092.79 mm, full stroke 570 mm. Everything the stroke is read from
+(the cap's inside face, the bore, the piston, the gland's inside face) lies inside radius 62.5 (the ports, screws and
+the pipe lie outside it). The pins are the plain cylinders of task 0013 (their round face is the first axis).
 
 Revision B: a new ARM.LAMP in ARM.ASM and the two CYL.ASM placed in the other order.
 
@@ -39,6 +44,8 @@ usage: python make_test_cylinder.py out.step [A|B]
 import math
 import os
 import sys
+
+import numpy as np
 
 from OCP.BRepPrimAPI import BRepPrimAPI_MakeCylinder, BRepPrimAPI_MakeSphere
 from OCP.gp import gp_Ax1, gp_Ax2, gp_Dir, gp_Pnt, gp_Trsf, gp_Vec
@@ -58,19 +65,29 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fresing_render.demo_model import geom as g  # noqa: E402
 from model_details import chamfer, chamfered_rect, hex_bolt, hex_prism  # noqa: E402
 
-PIVOT = (100.0, 600.0)          # (x, z) of the arm pivot
-BARREL_PIN = (500.0, 150.0)
-ROD_PIN = (800.0, 450.0)
-LENGTH = math.hypot(ROD_PIN[0] - BARREL_PIN[0], ROD_PIN[1] - BARREL_PIN[1])     # 424.26
-CYL_Y = (80.0, 320.0)
-TELE_Y = 200.0
-SLOT = 55.0                     # half the width of a bracket's slot round a cylinder (Ø100 barrel, gland)
-ANCHORS = [(60.0, 50.0), (60.0, 350.0), (1140.0, 50.0), (1140.0, 350.0)]
+K = 3.0                         # the layout's scale against the first model (task 0261)
+PIVOT = (300.0, 1800.0)         # (x, z) of the arm pivot
+BARREL_PIN = (1500.0, 450.0)
+ROD_PIN = (2400.0, 1350.0)
+LENGTH = math.hypot(ROD_PIN[0] - BARREL_PIN[0], ROD_PIN[1] - BARREL_PIN[1])     # 1272.79
+CYL_Y = (240.0, 960.0)
+TELE_Y = 600.0
+ANCHORS = [(180.0, 150.0), (180.0, 1050.0), (3420.0, 150.0), (3420.0, 1050.0)]
+PIN_R = 30.0                    # every pin Ø60; the post's and the arm's pivot bores Ø60.4
+BORE_R, TUBE_R = 62.5, 75.0     # cylinder bore Ø125, barrel Ø150
+ROD_R, PISTON_R = 35.0, 61.5    # rod Ø70, piston Ø123
+EYE_R, EYE_W = 50.0, 90.0       # the eyes round the pins: Ø100, 90 wide
+ANCHOR = (24, 120.0)            # M24 x 120
 
 
 # ---------------------------------------------------------------------------
 # small shape helpers (mm)
 # ---------------------------------------------------------------------------
+
+def _big(shape):
+    """The first model's shape, K times as big (about the origin)."""
+    return g.xform(shape, np.diag([K, K, K, 1.0]))
+
 
 def _along_x(x0, x1, r):
     return g.cyl(r, x1 - x0, (x0, 0, 0), (1, 0, 0))
@@ -114,12 +131,12 @@ def _lug(cx, cz, r, y0, y1, down: bool, depth: float):
 
 def base_shape():
     plate = g.polygon_prism(chamfered_rect(0, 0, 1200, 400, 25), 100.0)
-    plate = chamfer(plate, 8.0, lambda p: abs(p[2] - 100.0) < 1e-6)
-    return g.cut(plate, *[g.cyl(9.0, 102.0, (x, y, -1.0)) for x, y in ANCHORS])
+    plate = _big(chamfer(plate, 8.0, lambda p: abs(p[2] - 100.0) < 1e-6))
+    return g.cut(plate, *[g.cyl(ANCHOR[0] / 2 + 1.0, 302.0, (x, y, -1.0)) for x, y in ANCHORS])
 
 
 def post_shape():
-    px, pz = PIVOT
+    px, pz = PIVOT[0] / K, PIVOT[1] / K                              # built at the first model's size, then x K
     foot = g.polygon_prism(chamfered_rect(px - 85, 90, 170, 220, 14), 18.0, g.T(0, 0, 100))
     foot = chamfer(foot, 3.0, lambda p: abs(p[2] - 118.0) < 1e-6)
     block = g.polygon_prism(chamfered_rect(px - 60, 115, 120, 170, 12), pz - 50 - 30 - 118, g.T(0, 0, 118))
@@ -138,20 +155,20 @@ def post_shape():
         for xc in (px - 35, px + 35):
             pts = [(y + sgn * u, 118.0 + v) for u, v in [(0.0, 0.0), (22.0, 0.0), (0.0, 90.0)]]
             parts.append(g.xform(g.polygon_prism(pts, 12.0), g.Frame((xc - 6, 0, 0), (0, 1, 0), (1, 0, 0))))
-    shape = g.fuse(*parts)
-    return g.cut(shape, _along_y(px, pz, 100.0, 300.0, 20.2))
+    shape = _big(g.fuse(*parts))
+    return g.cut(shape, _along_y(PIVOT[0], PIVOT[1], 300.0, 900.0, PIN_R + 0.2))
 
 
 def base_bracket_shape():
-    bx, bz = BARREL_PIN
+    bx, bz = BARREL_PIN[0] / K, BARREL_PIN[1] / K
     plate = g.polygon_prism(chamfered_rect(bx - 40, 10, 80, 380, 6), 15.0, g.T(0, 0, 100))
     plate = chamfer(plate, 2.0, lambda p: abs(p[2] - 115.0) < 1e-6)
     lugs = [(10.0, 25.0), (135.0, 145.0), (255.0, 265.0), (375.0, 390.0)]
     parts = [plate] + [_lug(bx, bz, 40.0, y0, y1, False, bz - 115.0 + 0.0) for y0, y1 in lugs]
     parts.append(_along_y(bx, bz, 4.0, 10.0, 28.0))                 # bosses on the outer lugs
     parts.append(_along_y(bx, bz, 390.0, 396.0, 28.0))
-    shape = g.fuse(*parts)
-    return g.cut(shape, _along_y(bx, bz, -10.0, 410.0, 20.0))
+    shape = _big(g.fuse(*parts))
+    return g.cut(shape, _along_y(BARREL_PIN[0], BARREL_PIN[1], -30.0, 1230.0, PIN_R))
 
 
 # ---------------------------------------------------------------------------
@@ -168,16 +185,19 @@ def arm_shape():
     shape = g.fuse(*parts)
     # the tip tapers underneath: from z -50 at x 1250 to z -25 at the end
     taper = _xz_prism([(1250.0, -50.0), (1510.0, -25.0), (1510.0, -60.0), (1250.0, -60.0)], -70.0, 70.0)
-    shape = g.cut(shape, _along_y(0, 0, -60, 60, 20.2), taper)
+    shape = g.cut(shape, taper)
     clevis = []
     for y0 in (-42.0, 30.0):                                         # a clevis at the tip for a hook
         clevis.append(g.box(1490, y0, -25, 50, 12, 50))
         clevis.append(_along_y(1540, 0, y0, y0 + 12, 25.0))
-    return g.cut(g.fuse(shape, *clevis), _along_y(1540, 0, -50, 50, 10.0))
+    shape = _big(g.cut(g.fuse(shape, *clevis), _along_y(1540, 0, -50, 50, 10.0)))
+    return g.cut(shape, _along_y(0, 0, -180, 180, PIN_R + 0.2))
 
 
 def arm_bracket_shape(ax, az):
-    """Under the arm round the rod pins at (ax, *, az) (arm coordinates; the arm's underside at z = -50)."""
+    """Under the arm round the rod pins at (ax, *, az) (arm coordinates; the arm's underside at z = -150)."""
+    pin_x, pin_z = ax, az
+    ax, az = ax / K, az / K                                          # built at the first model's size, then x K
     plate = _yz_prism(chamfered_rect(-190, az + 60, 380, -50 - (az + 60), 6), ax - 40, ax + 40)
     lugs = [(-190.0, -175.0), (-65.0, -55.0), (55.0, 65.0), (175.0, 190.0)]
     parts = [plate] + [_lug(ax, az, 40.0, y0, y1, True, 60.0) for y0, y1 in lugs]
@@ -187,8 +207,8 @@ def arm_bracket_shape(ax, az):
         y = sgn * 50.0
         pts = [(y, -50.0), (y + sgn * 100.0, -50.0), (y, 10.0)]
         parts.append(g.xform(g.polygon_prism(pts, 10.0), g.Frame((ax - 5, 0, 0), (0, 1, 0), (1, 0, 0))))
-    shape = g.fuse(*parts)
-    return g.cut(shape, _along_y(ax, az, -210.0, 210.0, 20.0))
+    shape = _big(g.fuse(*parts))
+    return g.cut(shape, _along_y(pin_x, pin_z, -630.0, 630.0, PIN_R))
 
 
 # ---------------------------------------------------------------------------
@@ -201,53 +221,54 @@ def _hex_x(af, h, x0, radius, deg):
     return g.xform(hex_prism(af, h), g.Frame((x0, radius * math.cos(a), radius * math.sin(a)), (0, 1, 0), (1, 0, 0)))
 
 
-def _port(x, top=58.0, fitting=70.0, length=24.0, width=24.0):
-    """An oil port on the barrel's top: a welded block and a fitting (outside radius 44: the bore stays clear)."""
-    return g.fuse(g.box(x - length / 2, -width / 2, 44.0, length, width, top - 44.0),
-                  g.cyl(7.0, fitting - top, (x, 0, top)), g.cyl(9.0, 4.0, (x, 0, top)))
+def _port(x, top=88.0, fitting=100.0, length=40.0, width=40.0):
+    """An oil port on the barrel's top: a welded block and a fitting (from radius 70: the bore stays clear)."""
+    return g.fuse(g.box(x - length / 2, -width / 2, 70.0, length, width, top - 70.0),
+                  g.cyl(9.0, fitting - top, (x, 0, top)), g.cyl(11.0, 5.0, (x, 0, top)))
 
 
 def cap_shape():
-    disc = _along_x(20, 40, 50)
-    heads = [_hex_x(8.0, 6.0, 14.0, 42.0, a) for a in (45.0, 135.0, 225.0, 315.0)]
-    return g.fuse(_eye(0, 30, 20, 40), disc, *heads)
+    disc = _along_x(45, 120, TUBE_R)
+    heads = [_hex_x(18.0, 10.0, 35.0, 62.0, a) for a in (45.0, 135.0, 225.0, 315.0)]
+    return g.fuse(_eye(0, EYE_R, PIN_R, EYE_W), disc, *heads)
 
 
-def tube_shape(x1=260.0, ports=(65.0, 238.0), pipe=True):
-    shape = [_hollow_x(40, x1, 40, 50), _hollow_x(40, 48, 45, 52)]   # a weld collar at the cap end
+def tube_shape(x1=780.0, ports=(195.0, 714.0), pipe=True):
+    shape = [_hollow_x(120, x1, BORE_R, TUBE_R), _hollow_x(120, 144, 70, 79)]   # a weld collar at the cap end
     if pipe:                                                        # the cap-end port's block is a manifold
-        shape.append(g.box(55, -12, 44, 50, 24, 14))
-        shape.append(g.cyl(7.0, 14.0, (92, 0, 58)))
+        shape.append(g.box(165, -20, 70, 150, 40, 18))
+        shape.append(g.cyl(9.0, 14.0, (276, 0, 88)))
     for x in ports:
         shape.append(_port(x))
     if pipe:                                                        # the pipe from the rod-side port to the block
-        shape.append(g.rod((92, 0, 66), (238, 0, 66), 5.0))
+        shape.append(g.rod((276, 0, 95), (714, 0, 95), 8.0))
     return g.fuse(*shape)
 
 
 def gland_shape():
-    flange = _hollow_x(260, 270, 16, 50)
-    nose = _hollow_x(270, 290, 16, 40)
-    heads = [_hex_x(6.0, 4.0, 270.0, 45.0, a) for a in range(30, 360, 60)]
+    flange = _hollow_x(780, 810, ROD_R + 1, TUBE_R)
+    nose = _hollow_x(810, 870, ROD_R + 1, 62.0)
+    heads = [_hex_x(10.0, 8.0, 810.0, 68.0, a) for a in range(30, 360, 60)]
     shape = g.fuse(flange, nose, *heads)
-    return g.cut(shape, _along_x(286, 291, 18))                      # the wiper's seat at the front
+    return g.cut(shape, _along_x(858, 871, ROD_R + 5))               # the wiper's seat at the front
 
 
 def rod_eye_shape(L):
-    return g.fuse(_eye(L, 30, 20, 40), g.cut(_along_x(L - 48, L - 22, 18), _along_x(L - 60, L - 21, 15.5)))
+    return g.fuse(_eye(L, EYE_R, PIN_R, EYE_W), g.cut(_along_x(L - 110, L - 45, 45), _along_x(L - 120, L - 44,
+                                                                                               ROD_R + 0.5)))
 
 
 def tele_barrel_shape():
-    return g.fuse(_eye(0, 30, 20, 40), _along_x(20, 40, 50), _along_x(18, 22, 34), _hollow_x(40, 200, 40, 50),
-                  _hollow_x(190, 200, 40, 52), _port(65.0))
+    return g.fuse(_eye(0, EYE_R, PIN_R, EYE_W), _along_x(45, 120, TUBE_R), _along_x(54, 66, 52),
+                  _hollow_x(120, 600, BORE_R, TUBE_R), _hollow_x(570, 600, BORE_R, 78), _port(195.0))
 
 
 def tele_stage_shape():
-    return g.fuse(_hollow_x(150, 300, 28, 38), _hollow_x(150, 165, 28, 39), _hollow_x(288, 300, 28, 42))
+    return g.fuse(_hollow_x(450, 900, 45, 58), _hollow_x(450, 495, 45, 60), _hollow_x(864, 900, 45, 62))
 
 
 def tele_rod_shape(L):
-    return g.fuse(_along_x(220, L - 25, 20), _eye(L, 30, 20, 40))
+    return g.fuse(_along_x(660, L - 45, 40), _eye(L, EYE_R, PIN_R, EYE_W))
 
 
 # ---------------------------------------------------------------------------
@@ -296,29 +317,29 @@ def build(path: str, revision: str = "A") -> None:
     L = LENGTH
 
     base = part(base_shape(), "BASE", yellow)
-    anchor = part(hex_bolt(16, 100.0), "ISO 4017 M16 x 100 - 8.8", (0.12, 0.12, 0.13))
+    anchor = part(hex_bolt(*ANCHOR), f"ISO 4017 M{ANCHOR[0]} x {ANCHOR[1]:.0f} - 8.8 HDG", (0.12, 0.12, 0.13))
     post = part(post_shape(), "POST", yellow)
     base_bracket = part(base_bracket_shape(), "BASE.BRACKET", yellow)
     # the pins: plain cylinders (their round face is the part's first axis, the pick target)
-    base_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(bx, -20, bz), gp_Dir(0, 1, 0)), 20.0, 440.0).Shape(),
+    base_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(bx, -60, bz), gp_Dir(0, 1, 0)), PIN_R, 1320.0).Shape(),
                     "BASE.PIN", chrome)
 
     # the arm, built at the pivot
     arm = part(arm_shape(), "ARM", yellow)
-    arm_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, -90, 0), gp_Dir(0, 1, 0)), 20.0, 180.0).Shape(),
+    arm_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0, -270, 0), gp_Dir(0, 1, 0)), PIN_R, 540.0).Shape(),
                    "ARM.PIN", chrome)
     ax, az = rx - px, rz - pz                                      # rod pin relative to the pivot
     arm_bracket = part(arm_bracket_shape(ax, az), "ARM.BRACKET", yellow)
-    arm_rod_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(ax, -220, az), gp_Dir(0, 1, 0)), 20.0,
-                                                440.0).Shape(), "ARM.ROD.PIN", chrome)
-    lamp = part(BRepPrimAPI_MakeSphere(30.0).Shape(), "ARM.LAMP") if revision == "B" else None
+    arm_rod_pin = part(BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(ax, -660, az), gp_Dir(0, 1, 0)), PIN_R,
+                                                1320.0).Shape(), "ARM.ROD.PIN", chrome)
+    lamp = part(BRepPrimAPI_MakeSphere(90.0).Shape(), "ARM.LAMP") if revision == "B" else None
 
     # a cylinder, built along X from its barrel pin (x = 0) to its rod pin (x = L)
     cap = part(cap_shape(), "BARREL.CAP", grey)
     tube = part(tube_shape(), "BARREL.TUBE", grey)
     gland = part(gland_shape(), "BARREL.GLAND", grey)
-    piston = part(_along_x(100, 130, 39), "PISTON", steel)
-    rod = part(_along_x(130, L - 25, 15), "ROD", chrome)
+    piston = part(_along_x(300, 390, PISTON_R), "PISTON", steel)
+    rod = part(_along_x(390, L - 60, ROD_R), "ROD", chrome)
     rod_eye = part(rod_eye_shape(L), "ROD.EYE", steel)
 
     barrel_asm = assy("CYL.BARREL")
@@ -345,16 +366,16 @@ def build(path: str, revision: str = "A") -> None:
     place(arm_asm, arm_bracket)
     place(arm_asm, arm_rod_pin)
     if lamp is not None:
-        place(arm_asm, lamp, 1450, 0, 80)
+        place(arm_asm, lamp, 4350, 0, 240)
 
     root = assy("TEST.LUFFER")
     place(root, base)
     for x, y in ANCHORS:
-        place(root, anchor, x, y, 100.0)
+        place(root, anchor, x, y, 300.0)
     place(root, post)
     place(root, base_bracket)
     place(root, base_pin)
-    place(root, arm_asm, px, 200, pz)
+    place(root, arm_asm, px, TELE_Y, pz)
     turn = -math.degrees(math.atan2(rz - bz, rx - bx))      # local +X onto the line barrel pin -> rod pin
     for y in (CYL_Y if revision == "A" else tuple(reversed(CYL_Y))):
         place(root, cyl, bx, y, bz, turn_y=turn)

@@ -365,7 +365,8 @@ def test_hoses_moved_as_one_body_are_not_solved_again(tmp_path):
     for it in sc.fresing.flex:
         if it.kind == "HOSE":
             d = float(np.abs(flex.shape_now(sc, it) - moved[it.name]).max())
-            assert d < 2e-3, f"{it.name}: {d * 1000:.2f} mm from a fresh solve"
+            # 2 mm per metre of hose (the error of a shape carried along grows with its length; real size since 0261)
+            assert d < 2e-3 * max(1.0, it.length), f"{it.name}: {d * 1000:.2f} mm from a fresh solve"
     # a joint that moves one end only is solved again
     s1 = flex._STATE["solves"]
     joints.set_value(joints.find(sc, "Slide"), 0.05)

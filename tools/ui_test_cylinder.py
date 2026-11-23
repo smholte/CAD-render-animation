@@ -25,12 +25,12 @@ os.makedirs(OUT, exist_ok=True)
 LOG = open(os.path.join(OUT, "ui_test_cylinder.log"), "w")
 RESULTS = []
 STATE = {}
-# the luffer (tools/make_test_cylinder.py), metres: arm pivot, barrel pin, rod pin of the cylinder at y = 0.08
-P = Vector((0.1, 0.08, 0.6))
-B = Vector((0.5, 0.08, 0.15))
-R = Vector((0.8, 0.08, 0.45))
-L0 = math.hypot(0.3, 0.3)
-CLOSED, FULL = L0 - 0.060, 0.190
+# the luffer (tools/make_test_cylinder.py), metres: arm pivot, barrel pin, rod pin of the cylinder at y = 0.24 (real size since task 0261)
+P = Vector((0.3, 0.24, 1.8))
+B = Vector((1.5, 0.24, 0.45))
+R = Vector((2.4, 0.24, 1.35))
+L0 = math.hypot(0.9, 0.9)
+CLOSED, FULL = L0 - 0.18, 0.57
 
 
 def log(*a):
@@ -163,7 +163,7 @@ def law_of_cosines(length):
 
 def eye_error(angle):
     """How far the rod's eye centre is from where the arm carries the rod pin (m)."""
-    eye = named("ROD.EYE", 0.08)
+    eye = named("ROD.EYE", 0.24)
     return (eye.matrix_world @ STATE["eye_local"] - rod_pin_at(angle)).length
 
 
@@ -207,16 +207,16 @@ def s_wait():
     if sc.fresing.model_count == 0:
         return "wait"
     joints = mod("blender.joints")
-    joints.create(sc, "ROTATE", [named("ARM.ASM")], Vector((0.1, 0.2, 0.6)), Vector((0, 1, 0)), name="Luff")
-    eye = named("ROD.EYE", 0.08)
+    joints.create(sc, "ROTATE", [named("ARM.ASM")], Vector((0.3, 0.6, 1.8)), Vector((0, 1, 0)), name="Luff")
+    eye = named("ROD.EYE", 0.24)
     STATE["eye_local"] = eye.matrix_world.inverted() @ R           # the rod eye's centre, on the part
     win, area, region, sb = ui()
     r3d = area.spaces.active.region_3d
     r3d.view_perspective = "ORTHO"
     # from the front (-Y), 25° from above: the pins' round sides in front of the brackets are seen
     r3d.view_rotation = Quaternion((math.cos(math.radians(32.5)), math.sin(math.radians(32.5)), 0, 0))
-    r3d.view_location = Vector((0.55, 0.2, 0.35))
-    r3d.view_distance = 1.6
+    r3d.view_location = Vector((1.65, 0.6, 1.05))
+    r3d.view_distance = 4.8
     area.spaces.active.shading.type = "SOLID"
     open_panel()
     redraw()
@@ -226,9 +226,9 @@ def s_wait():
 @step
 def s_pick_parts():
     s = bpy.context.scene.fresing
-    select_only(named("CYL.BARREL", 0.08))
+    select_only(named("CYL.BARREL", 0.24))
     r1 = op("fresing.cylinder_pick_parts", role="BARREL")
-    select_only(named("CYL.ROD", 0.08))
+    select_only(named("CYL.ROD", 0.24))
     r2 = op("fresing.cylinder_pick_parts", role="ROD")
     check("Barrel and Rod take the selection", r1 == r2 == {"FINISHED"} and len(s.cyl_pick_barrel) == 1
           and s.cyl_pick_barrel[0].obj.get("fr_name") == "CYL.BARREL" and len(s.cyl_pick_rod) == 1
@@ -244,14 +244,14 @@ def s_add():
         res = bpy.ops.fresing.cylinder_add("INVOKE_DEFAULT")
     check("Add cylinder waits for the clicks on the pins", res == {"RUNNING_MODAL"}, res)
     # the top of BASE.PIN where it sticks out in front of the bracket (y -20 … 0 mm)
-    click(*to_window(Vector((0.5, -0.008, 0.15 + 0.0199))))
+    click(*to_window(Vector((1.5, -0.03, 0.45 + 0.0299))))
     return 0.8
 
 
 @step
 def s_click_rod_pin():
     check("one click: no cylinder yet", len(bpy.context.scene.fresing.cylinders) == 0)
-    click(*to_window(Vector((0.8, -0.008, 0.45 + 0.0199))))       # the top of ARM.ROD.PIN
+    click(*to_window(Vector((2.4, -0.03, 1.35 + 0.0299))))       # the top of ARM.ROD.PIN
     return 1.0
 
 
@@ -299,13 +299,13 @@ def s_follows():
 @step
 def s_stroke_field():
     c = cyl()
-    c.stroke = 0.1                                         # what typing 100 mm in the field does
+    c.stroke = 0.3                                         # what typing 300 mm in the field does
     with override():
         bpy.ops.ed.undo_push(message="stroke")
     bpy.context.view_layer.update()
     a = mod("blender.joints").get_value(luff())
-    check("the Stroke field moves the arm", abs(a - law_of_cosines(c.closed_length + 0.1)) < 1e-5
-          and abs(c.stroke - 0.1) < 1e-5, f"{math.degrees(a):.3f}°")
+    check("the Stroke field moves the arm", abs(a - law_of_cosines(c.closed_length + 0.3)) < 1e-5
+          and abs(c.stroke - 0.3) < 1e-5, f"{math.degrees(a):.3f}°")
     redraw()
     return 0.8
 
@@ -335,7 +335,7 @@ def s_screens():
     subprocess.run(["convert", os.path.join(OUT, "panel4_cylinders_full.png"), "-fuzz", "3%", "-trim", "+repage",
                     os.path.join(OUT, "panel4_cylinders.png")], check=False)
     shot("03_driven")
-    key("Z", ctrl=True)                                    # undo the 100 mm
+    key("Z", ctrl=True)                                    # undo the 300 mm
     return 1.5
 
 
@@ -352,7 +352,7 @@ def s_after_undo():
 def s_after_redo():
     wiggle()
     c = cyl()
-    check("redo: 100 mm again", c is not None and abs(mod("blender.cylinders").stroke_now(bpy.context.scene, c) - 0.1)
+    check("redo: 300 mm again", c is not None and abs(mod("blender.cylinders").stroke_now(bpy.context.scene, c) - 0.3)
           < 1e-5)
     # a Move cylinder step, filled in from the selected cylinder, built like Build & play
     s = bpy.context.scene.fresing
@@ -409,12 +409,12 @@ def s_reopened():
     check("reopened: the cylinder drives the arm", c is not None and c.mode == "DRIVE")
     if c is None:
         return 0.5
-    mod("blender.cylinders").set_stroke(sc, c, 0.05)
+    mod("blender.cylinders").set_stroke(sc, c, 0.15)
     a = mod("blender.joints").get_value(luff())
     bpy.context.view_layer.update()
-    check("reopened: stroke 50 mm moves the arm, eye on its pin", abs(a - law_of_cosines(c.closed_length + 0.05))
+    check("reopened: stroke 150 mm moves the arm, eye on its pin", abs(a - law_of_cosines(c.closed_length + 0.15))
           < 1e-5 and eye_error(a) < 1e-5)
-    rod = named("CYL.ROD", 0.08)
+    rod = named("CYL.ROD", 0.24)
     r = op("fresing.cylinder_remove")
     check("Remove: the rod goes back under its CAD subassembly", r == {"FINISHED"} and not len(sc.fresing.cylinders)
           and rod.parent.get("fr_name") == "CYL.ASM")

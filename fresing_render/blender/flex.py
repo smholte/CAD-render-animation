@@ -2757,14 +2757,14 @@ def set_up_test_hoses(scene) -> dict:
     items: three hydraulic hoses and the cable. Returns the names of what was made."""
     from . import cylinders, joints
     along_y = Vector((0.0, 1.0, 0.0))
-    joints.create(scene, "ROTATE", [_named(scene, "ARM.ASM")], Vector((0.1, 0.2, 0.6)), -along_y, name="Luff")
+    joints.create(scene, "ROTATE", [_named(scene, "ARM.ASM")], Vector((0.3, 0.6, 1.8)), -along_y, name="Luff")
     slide = _named(scene, "SLIDE.ASM")
     joints.create(scene, "SLIDE", [slide], slide.matrix_world.translation.copy(), Vector((1.0, 0.0, 0.0)),
                   name="Slide")
     bpy.context.view_layer.update()
     c, _notes = cylinders.create(scene, [_named(scene, "CYL.BARREL")], [_named(scene, "CYL.ROD")],
-                                 (Vector((0.3, 0.2, 0.17)), along_y, _named(scene, "BASE.PIN")),
-                                 (Vector((0.9, 0.2, 0.45)), along_y, _named(scene, "ARM.ROD.PIN")),
+                                 (Vector((0.9, 0.6, 0.51)), along_y, _named(scene, "BASE.PIN")),
+                                 (Vector((2.7, 0.6, 1.35)), along_y, _named(scene, "ARM.ROD.PIN")),
                                  name="Luff cylinder")
     cylinder = c.name
     bpy.context.view_layer.update()
