@@ -1,0 +1,7 @@
+{"fresing_render_usage": 1, "track": true, "sessions": 36, "first": "2026-10-02",
+ "functions": {"import.step": [47, 36], "structure.tree": [80, 36], "looks.materials": [35, 35], "looks.decals": [9, 33],
+               "joints.rotate": [52, 36], "joints.slide": [24, 36], "machines.cylinder": [11, 35],
+               "poses.explode": [6, 30], "animation.joint_step": [38, 36], "animation.fade": [10, 35],
+               "scene.light_look": [17, 35], "scene.turntable": [3, 22], "render.image": [61, 36],
+               "queue.video": [15, 35], "web.export": [2, 18], "cnc.gcode": [5, 12]},
+ "stages": {"import": 10500, "looks": 5800, "rigging": 13100, "scene": 3700, "animation": 8300, "render": 10900}}

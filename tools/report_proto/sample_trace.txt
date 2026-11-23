@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "C:\Users\jdevries\AppData\Local\FresingRender\blender-5.2.3-windows-x64\portable\extensions\user_default\fresing_render\blender\ops_motion.py", line 412, in execute
+    joints.create(scene, members, axis=axis, kind=self.kind)
+  File "C:\Users\jdevries\AppData\Local\FresingRender\blender-5.2.3-windows-x64\portable\extensions\user_default\fresing_render\blender\joints.py", line 233, in create
+    frame = _frame_from(members[0], axis)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jdevries\AppData\Local\FresingRender\blender-5.2.3-windows-x64\5.2\scripts\modules\bpy_types.py", line 88, in matrix_world
+    return self.original.matrix_world
+  File "\\FILESRV01\eng\Klant Acme\scripts\my_helper.py", line 7, in fix
+    print("Pump skid rev4 by jdevries@acme-offshore.com")
+KeyError: 'IMPELLER HOUSING 250-3 has no fr_rest_basis' while reading 'fr_rest_basis' of "Pump skid rev4"

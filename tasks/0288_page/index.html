@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning from users</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#1c2128;--muted:#5b6470;--line:#dde1e6;--accent:#1f5fbf;--ok:#1e7d3a;
+--bad:#b4232a;--warn:#8a5a00;--code:#f0f2f5;
+--bl-bg:#2b2b2b;--bl-panel:#3a3a3a;--bl-ink:#e6e6e6;--bl-muted:#a8a8a8;--bl-btn:#545454;--bl-blue:#4772b3;--bl-line:#1f1f1f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171b;--card:#1d2127;--ink:#e5e8ec;
+--muted:#9aa3ad;--line:#343a42;--accent:#7fb0ff;--ok:#5cc47a;--bad:#ff7b7b;--warn:#e0b050;--code:#252a31}}
+:root[data-theme="dark"]{--bg:#14171b;--card:#1d2127;--ink:#e5e8ec;--muted:#9aa3ad;--line:#343a42;--accent:#7fb0ff;
+--ok:#5cc47a;--bad:#ff7b7b;--warn:#e0b050;--code:#252a31}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+main{max-width:1060px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:20px;margin:36px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 6px}
+.sub{color:var(--muted)}a{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:10px 0}
+.short li{margin:4px 0}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);font-size:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px}
+.wrap{overflow-x:auto}
+.yes{color:var(--ok);font-weight:600}.no{color:var(--bad);font-weight:600}.mid{color:var(--warn);font-weight:600}
+pre{background:var(--code);border:1px solid var(--line);border-radius:6px;padding:10px;overflow-x:auto;
+font:12px/1.45 Consolas,"Cascadia Mono",monospace;white-space:pre-wrap;word-break:break-word;margin:6px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--muted)}
+/* Blender-like window mock-ups */
+.win{background:var(--bl-bg);color:var(--bl-ink);border:1px solid #111;border-radius:6px;max-width:720px;
+font:13px/1.45 "Segoe UI",system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25);margin:12px 0}
+.win .bar{background:#1f1f1f;padding:6px 10px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;
+color:#cfcfcf}
+.win .body{padding:12px 14px}
+.win .hint{color:var(--bl-muted)}
+.win .box{background:var(--bl-panel);border:1px solid var(--bl-line);border-radius:4px;padding:8px 10px;margin:8px 0}
+.win pre.rep{background:#1e1e1e;color:#dcdcdc;border:1px solid #111;max-height:340px;overflow:auto;margin:8px 0}
+.win .btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.win .b{background:var(--bl-btn);color:#fff;border-radius:4px;padding:4px 12px;border:1px solid #2a2a2a}
+.win .b.blue{background:var(--bl-blue)}
+.win .b.grey{opacity:.45}
+.win .lnk{color:#8fb3ff;text-decoration:underline}
+.win label{display:block;margin:3px 0}
+.win .chk{display:inline-block;width:13px;height:13px;border:1px solid #777;border-radius:2px;vertical-align:-2px;
+margin-right:6px;background:#222}
+.win .chk.on{background:var(--bl-blue);border-color:var(--bl-blue)}
+.win .rad{display:inline-block;width:13px;height:13px;border:1px solid #777;border-radius:50%;vertical-align:-2px;
+margin-right:6px;background:#222}
+.win .rad.on{background:radial-gradient(circle,#fff 30%,var(--bl-blue) 35%);border-color:var(--bl-blue)}
+.win .steps{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.win .steps span{padding:2px 8px;border-radius:10px;background:#3d3d3d;color:#bbb;font-size:12px}
+.win .steps span.on{background:var(--bl-blue);color:#fff}
+.win .lock{color:#e0b050}
+.choice{margin:8px 0}.choice b{display:block;margin-bottom:2px}
+.choice label{display:inline-block;margin:2px 14px 2px 0}
+#line{font:13px Consolas,monospace}
+button.copy{font:inherit;padding:6px 16px;border-radius:6px;border:0;background:#2563c9;color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>Learning from users – "Send a report" now, opt-in statistics later</h1>
+<p class="sub">Task 0288 · study, findings only · 23 Nov 2026 · nothing in the app is changed. The report text, the
+summary and the trace on this page are made by the prototype on the branch
+(<code>tools/report_proto/report_proto.py</code>) from <b>made-up</b> files. The full report with every source:
+<code>tasks/0288-study-user-feedback-data.md</code>.</p>
+
+<div class="card short">
+<b>In short</b>
+<ul>
+<li><b>Step 1 – Send a report:</b> one window (Help menu, Fresing menu, after an error, at the end of a PC check)
+shows the whole report in plain text. The user can untick parts, then <b>Copy</b>, <b>Save as file</b> or
+<b>E-mail it</b> with his own mail program. The app sends nothing itself. A public bug goes to GitHub as today, with
+the version already filled in.</li>
+<li><b>Step 2 – weekly statistics:</b> <b>off unless the user says yes</b>. The app asks with two equal buttons and
+no box ticked in advance. A summary of about 1 KB goes out once a week; this one is 944 bytes. It
+carries a random id the user can reset, and <b>Show what was sent</b> and <b>Delete my data</b> are in Settings. A
+company can switch it off for everyone in its <code>.frsetup</code>.</li>
+<li><b>Where it goes:</b> my suggestion is a Supabase project in Frankfurt behind the app's own address
+(<code>stats.&lt;Fresing domain&gt;</code>). It costs $0 for a pilot and $25 a month for real use, at any of
+100 / 1,000 / 10,000 users. The alternative is a Hetzner server in Germany at about €6 a month, which needs more
+upkeep. Raw rows are kept 90 days, then only totals with no id.</li>
+<li><b>Never collected:</b> part, file, folder, project, workspace and company names; paths; pictures; models;
+G-code; user and computer names; times of day.</li>
+<li>This is <b>not legal advice</b>. The questions for a privacy advisor are in section E of the report.</li>
+</ul>
+</div>
+
+<h2>1. The report window (step 1) – mock-up</h2>
+<p>The text inside the box is real prototype output. It was made from a made-up usage file, a PC check text block and
+an error trace that contained the names <i>jdevries, WS-ENG-0412, Pump skid rev4, pump_skid_rev4, IMPELLER HOUSING 250-3, Acme Offshore, Klant Acme</i>, a Windows user folder, a network share and an e-mail
+address. The leak check found: <b>none</b>.</p>
+<div class="win">
+ <div class="bar"><span>Fresing Render – Send a report</span><span>✕</span></div>
+ <div class="body">
+  <div>This report helps Fresing find faults and make the app faster. <b>You see everything it holds.</b> Nothing has
+  been sent: you choose below what to do with it.</div>
+  <div class="box">
+   <label><span class="chk on"></span>The app and the PC (version, kind of processor and graphics card)</label>
+   <label><span class="chk on"></span>How you use the app (the counts from My usage)</label>
+   <label><span class="chk on"></span>Speeds measured while you worked</label>
+   <label><span class="chk on"></span>The last PC check (20 Nov 2026)</label>
+   <label><span class="chk on"></span>The last error (22 Nov 2026)</label>
+  </div>
+  <div class="hint">What you want to tell us (optional – do not write confidential names):</div>
+  <div class="box" style="min-height:42px;color:#8a8a8a">The app stopped when I added a joint to …</div>
+<pre class="rep">Fresing Render – report – made 23 Nov 2026
+This is everything this report holds. Nothing has been sent: you decide what to do with it.
+
+== The app and the PC
+Fresing Render 0.2.203, Blender 5.2.3
+PC: Windows 11 24H2; processor AMD Ryzen 9, 17–32 cores; memory 64 GB
+Graphics: NVIDIA RTX 40-series, video memory 16 GB, driver 566
+
+== How the app is used (from My usage; counting can be switched off there)
+App starts counted: 41, counting since 2026-10
+Active time by stage (5-minute steps): Motion &amp; rigging 4.2 h; Render &amp; export 3.5 h; Import &amp; structure 3.2 h; Animation 2.8 h; Looks 1.7 h; Scene &amp; surroundings 65 min
+Most-used functions (clicks): structure.tree 88, render.image 72, joints.rotate 61, import.step 52, animation.joint_step 44, looks.materials 37, joints.slide 24, scene.light_look 19, queue.video 17, machines.cylinder 14, animation.fade 11, looks.decals 9, poses.explode 6, cnc.gcode 5, scene.turntable 3
+Panels you hid: FRESING_PT_house, FRESING_PT_lifting
+Pinned on the favourites bar: render.image, joints.rotate
+
+== Speeds measured while you worked (sizes in steps, times to two digits)
+Import STEP: 1,000–5,000 parts, 83 s
+Build animation: 1,000–5,000 parts, 13 s
+Render image (Cycles, GPU, 1920 x 1080, 128 samples): 1,000–5,000 parts, 41 s
+
+== The last PC check (its own text block, names and paths taken out)
+Fresing Render PC check 0.2.203 - Full - 20 Nov 2026
+Result: 61 OK, 1 FAILED, 2 skipped in 742 s; compared with the run of 13 Nov 2026 (0.2.198)
+NEW [ OK ] lifting.plan 4.1 s
+[ OK ] import.crane 6.2 s (before 6.0 s, about the same)
+[ OK ] render.cycles 31.0 s (before 22.5 s, 38 % slower) | samples/s 412 | FLAG: slower
+[FAIL] queue.eevee 9.8 s | could not write &lt;path&gt;: disk full
+[SKIP] web3d.small 0.0 s | no browser found on &lt;name&gt;
+
+== The last error (22 Nov 2026) – folders, file names and your own names taken out
+Traceback (most recent call last):
+  File &quot;fresing_render/blender/ops_motion.py&quot;, line 412, in execute
+    joints.create(scene, members, axis=axis, kind=self.kind)
+  File &quot;fresing_render/blender/joints.py&quot;, line 233, in create
+    frame = _frame_from(members[0], axis)
+  File &quot;blender:/modules/bpy_types.py&quot;, line 88, in matrix_world
+    return self.original.matrix_world
+  File &quot;&lt;other file&gt;&quot;, line 7, in fix
+KeyError: &#x27;&lt;text&gt;&#x27; while reading &#x27;fr_rest_basis&#x27; of &quot;&lt;name&gt;&quot;
+
+== Never in this report
+Names of parts, files, folders or projects; pictures, models, G-code; your name, your company&#x27;s name, your computer&#x27;s name; set-up files and their folders; anything you typed.</pre>
+  <div class="btns"><span class="b blue">E-mail it…</span><span class="b">Copy</span><span class="b">Save as file…</span>
+  <span class="b">Close</span></div>
+  <div class="hint" style="margin-top:8px"><b>E-mail it…</b> opens your own mail program with the report to
+  <i>report@&lt;Fresing domain&gt;</i>. Check it, then press Send there. A problem anyone may read and answer:
+  <span class="lnk">Report a bug in public on GitHub…</span> (needs a GitHub account; version and Windows are filled
+  in). <span class="lnk">What Fresing does with a report</span></div>
+ </div>
+</div>
+
+<h3>Where the button lives</h3>
+<table>
+<tr><th>Place</th><th>What it says</th><th>What is ticked</th></tr>
+<tr><td>Help menu and Fresing menu</td><td>Send a report…</td><td>everything except the error, if it is more than 7 days old</td></tr>
+<tr><td>After an error of a Fresing button (Blender's red message)</td><td>one line in the status bar: "Something went wrong – Send a report…"</td><td>the error first</td></tr>
+<tr><td>After a crash (Blender's crash file is newer than the last start)</td><td>at the next start, once: "Fresing Render closed unexpectedly last time. Send a report…?" [Send a report…] [Not now]</td><td>the crash's trace (Blender's crash file, paths taken out)</td></tr>
+<tr><td>End of a PC check (its HTML report and the progress window)</td><td>Send this result to Fresing…</td><td>the PC check first</td></tr>
+<tr><td>Fresing &gt; Settings… &gt; My usage</td><td>Send a report…</td><td>everything</td></tr>
+</table>
+
+<h3>How a report is sent – compared</h3>
+<div class="wrap"><table>
+<tr><th>Route</th><th>Private?</th><th>Account needed?</th><th>Works behind a company firewall?</th><th>Our server?</th><th>Verdict</th></tr>
+<tr><td><b>E-mail with the user's own mail program</b> (a <code>mailto:</code> link; the full text in the body, or the saved file to attach when it is long)</td>
+<td class="yes">yes – only Fresing reads it</td><td class="yes">no</td><td class="yes">yes – the company's own mail</td><td class="yes">none</td><td class="yes">pick this</td></tr>
+<tr><td>GitHub issue form (<code>bug_report.yml</code>, fields filled in by the link)</td>
+<td class="no">no – public</td><td class="no">yes, GitHub</td><td class="mid">usually</td><td class="yes">none</td><td class="mid">keep for public bugs; never the whole report</td></tr>
+<tr><td>GitHub private report (security advisory)</td><td class="yes">yes</td><td class="no">yes, GitHub</td><td class="mid">usually</td><td class="yes">none</td><td class="mid">security only (SECURITY.md)</td></tr>
+<tr><td>Plain file the user attaches anywhere (a helpdesk, a chat)</td><td class="yes">the user decides</td><td class="yes">no</td><td class="yes">yes</td><td class="yes">none</td><td class="yes">always there: Save as file…</td></tr>
+<tr><td>Upload to a Fresing server</td><td class="yes">yes</td><td class="yes">no</td><td class="mid">proxy questions</td><td class="no">yes</td><td class="no">not in step 1: a server is step 2's question</td></tr>
+</table></div>
+
+<h2>2. What we collect – and what we never collect</h2>
+<div class="wrap"><table>
+<tr><th>Item</th><th>Why (which decision it helps)</th><th>How it is reduced</th><th>Step 1</th><th>Step 2</th></tr>
+<tr><td>App and Blender version</td><td>Which versions are in use; when an old one can be dropped</td><td>as is</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+<tr><td>Windows version</td><td>Which Windows to test on</td><td>release name ("Windows 11 24H2"), no build details</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+<tr><td>Processor</td><td>Which PCs are slow</td><td>family ("AMD Ryzen 9"); cores in steps ("17–32")</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+<tr><td>Memory</td><td>Big models: how much memory users have</td><td>the usual size ("64 GB")</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+<tr><td>Graphics card</td><td>GPU or CPU render; which drivers to test</td><td>family ("NVIDIA RTX 40-series"), video memory in steps; driver's main number (report only)</td><td class="yes">yes</td><td class="mid">family only</td></tr>
+<tr><td>Function counts (My usage)</td><td>Which functions matter; which to simplify, to teach, or to drop</td><td>the app's function ids; step 2: this week's clicks only</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+<tr><td>Active time per stage</td><td>Where users spend their time (Import → Render)</td><td>5 minutes (report) / 15 minutes (summary)</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+<tr><td>Panels hidden, favourites pinned</td><td>What is clutter, what is a favourite</td><td>the app's panel and function ids</td><td class="yes">yes</td><td class="no">no</td></tr>
+<tr><td>Speeds (import, build, render)</td><td>Speed work: what is slow, on which PCs and model sizes</td><td>parts in steps ("1,000–5,000"), seconds to two digits</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+<tr><td>PC check result</td><td>Faults per PC kind; slower after an update</td><td>its own text block, scrubbed again; step 2: counts and slower line ids only</td><td class="yes">yes</td><td class="mid">counts</td></tr>
+<tr><td>The last error / crash</td><td>Which faults users hit</td><td>trace with paths and names taken out (below); step 2: kind + place in the app's code only</td><td class="yes">yes</td><td class="mid">kind + place</td></tr>
+<tr><td>A company set-up file in use</td><td>How many users are in companies</td><td>yes / no – never its name, id, label or folders</td><td class="no">no</td><td class="yes">yes/no</td></tr>
+<tr><td>Workspace</td><td>Which kinds of work</td><td>the built-in name, or "own" (an own workspace's name is the user's)</td><td class="no">no</td><td class="yes">yes</td></tr>
+<tr><td>Random id</td><td>Count users; delete one user's rows</td><td>random, made at the yes, reset by the user; never from the PC</td><td class="no">no</td><td class="yes">yes</td></tr>
+<tr><td colspan="5"><b>Never, in any step:</b> part, file, folder, project, workspace, set-up and company names; paths;
+pictures; models; G-code; the text of labels and captions; user, computer and domain names; e-mail addresses; licence
+or hardware serials; MAC address; exact times of work (step 2 sends an ISO week); the IP address is not stored (the
+server sees it while answering, like every web request).</td></tr>
+</table></div>
+
+<h2>3. Paths and names out – before / after (prototype)</h2>
+<div class="two">
+<div><h3>Before – the error as Python writes it</h3><pre>Traceback (most recent call last):
+  File &quot;C:\Users\jdevries\AppData\Local\FresingRender\blender-5.2.3-windows-x64\portable\extensions\user_default\fresing_render\blender\ops_motion.py&quot;, line 412, in execute
+    joints.create(scene, members, axis=axis, kind=self.kind)
+  File &quot;C:\Users\jdevries\AppData\Local\FresingRender\blender-5.2.3-windows-x64\portable\extensions\user_default\fresing_render\blender\joints.py&quot;, line 233, in create
+    frame = _frame_from(members[0], axis)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File &quot;C:\Users\jdevries\AppData\Local\FresingRender\blender-5.2.3-windows-x64\5.2\scripts\modules\bpy_types.py&quot;, line 88, in matrix_world
+    return self.original.matrix_world
+  File &quot;\\FILESRV01\eng\Klant Acme\scripts\my_helper.py&quot;, line 7, in fix
+    print(&quot;Pump skid rev4 by jdevries@acme-offshore.com&quot;)
+KeyError: &#x27;IMPELLER HOUSING 250-3 has no fr_rest_basis&#x27; while reading &#x27;fr_rest_basis&#x27; of &quot;Pump skid rev4&quot;</pre></div>
+<div><h3>After – what the report shows</h3><pre>Traceback (most recent call last):
+  File &quot;fresing_render/blender/ops_motion.py&quot;, line 412, in execute
+    joints.create(scene, members, axis=axis, kind=self.kind)
+  File &quot;fresing_render/blender/joints.py&quot;, line 233, in create
+    frame = _frame_from(members[0], axis)
+  File &quot;blender:/modules/bpy_types.py&quot;, line 88, in matrix_world
+    return self.original.matrix_world
+  File &quot;&lt;other file&gt;&quot;, line 7, in fix
+KeyError: &#x27;&lt;text&gt;&#x27; while reading &#x27;fr_rest_basis&#x27; of &quot;&lt;name&gt;&quot;</pre></div>
+</div>
+<p>The rules: a frame in the app's own files keeps its place from <code>fresing_render/</code> on and its source line
+(the app's code is public). A frame in Blender's own Python becomes <code>blender:/…</code>. Any other file (a user's
+script) becomes <code>&lt;other file&gt;</code> and loses its line. Paths become <code>&lt;path&gt;</code>, names the
+app knows on this PC become <code>&lt;name&gt;</code>, and quoted text that is not one of the app's own words becomes
+<code>'&lt;text&gt;'</code>.</p>
+<h3>The PC check block it was given (its PC line is replaced by the bucketed one)</h3>
+<pre>Fresing Render PC check 0.2.203 - Full - 20 Nov 2026
+PC: AMD Ryzen 9 7950X 16-Core Processor, 32 cores, 63.7 GB; GPU: NVIDIA GeForce RTX 4070 Ti SUPER; driver 566.36; Windows 10 (10.0.26100); Blender 5.2.3
+Result: 61 OK, 1 FAILED, 2 skipped in 742 s; compared with the run of 13 Nov 2026 (0.2.198)
+NEW [ OK ] lifting.plan 4.1 s
+[ OK ] import.crane 6.2 s (before 6.0 s, about the same)
+[ OK ] render.cycles 31.0 s (before 22.5 s, 38 % slower) | samples/s 412 | FLAG: slower
+[FAIL] queue.eevee 9.8 s | could not write C:\Users\jdevries\Documents\Klant Acme\Renders\pump_skid_rev4_0001.png: disk full
+[SKIP] web3d.small 0.0 s | no browser found on WS-ENG-0412</pre>
+
+<h2>4. The consent question (step 2) – mock-ups</h2>
+<h3>In the first-start set-up (0276), at the end of step 3 "Your PC"</h3>
+<div class="win">
+ <div class="bar"><span>Fresing Render – Set-up</span><span>Skip set-up</span></div>
+ <div class="body">
+  <div class="steps"><span>1 Welcome</span><span>2 Your work</span><span class="on">3 Your PC</span><span>4 Your company</span><span>5 Learning hub</span><span>6 Done</span></div>
+  <div>Graphics card found: NVIDIA RTX 40-series – renders run on it. Suggested Live preview: Normal.</div>
+  <div class="box">
+   <b>Help make Fresing Render faster?</b>
+   <p style="margin:6px 0">If you say yes, the app sends a small summary to Fresing <b>once a week</b>: the app's
+   version, the kind of PC (for example "NVIDIA RTX 40-series, 64 GB"), how often you used each function, how long
+   imports and renders took, and where the app ran into an error. <b>Never</b> your models, pictures, file or part
+   names, your name or your company's name. It is stored in the EU, only Fresing can see it, and it is never sold.</p>
+   <p style="margin:6px 0">It stays off unless you say yes. You can see every summary, stop at any time and delete what
+   was sent: Fresing &gt; Settings… &gt; My usage.</p>
+   <div class="btns"><span class="b">Yes, share the weekly summary</span><span class="b">No, thanks</span></div>
+   <div class="hint" style="margin-top:6px"><span class="lnk">Show an example summary</span> · <span class="lnk">Privacy page</span></div>
+  </div>
+  <div class="btns"><span class="b">Back</span><span class="b grey">Next</span></div>
+  <div class="hint">Next turns on once you have answered. "Skip set-up" counts as no.</div>
+ </div>
+</div>
+<p class="sub">Both buttons look the same and nothing is chosen in advance: consent must be an active choice (CJEU
+Planet49, GDPR recital 32). When a company set-up says <code>off</code>, the box is not shown. In its place one line
+says "Statistics: switched off by your company's set-up".</p>
+
+<h3>In Fresing &gt; Settings… &gt; My usage</h3>
+<div class="two">
+<div class="win">
+ <div class="bar"><span>Fresing Settings – My usage</span><span>✕</span></div>
+ <div class="body">
+  <b>Share anonymous statistics with Fresing</b>
+  <div class="box">
+   <label><span class="rad"></span>Off – nothing is sent</label>
+   <label><span class="rad on"></span>On – a small summary once a week (since 23 Nov 2026)</label>
+  </div>
+  <div class="hint">Last sent: week 47, 944 bytes · next: week 48 · stored in the EU (Frankfurt),
+  kept 90 days, then only totals without your id.</div>
+  <div class="btns"><span class="b">Show what was sent…</span><span class="b">Show what would be sent now…</span></div>
+  <div class="btns"><span class="b">New random id</span><span class="b">Delete my data at Fresing…</span></div>
+  <div class="hint" style="margin-top:6px">Your random id: 7f3c…57d4 – made when you said yes; it is not linked to
+  your name or your PC. <span class="lnk">Privacy page</span></div>
+  <div class="box" style="margin-top:10px"><b>Send a report…</b> <span class="hint">– one report now, to see and
+  send yourself</span></div>
+ </div>
+</div>
+<div class="win">
+ <div class="bar"><span>Fresing Settings – My usage (company PC)</span><span>✕</span></div>
+ <div class="body">
+  <b>Share anonymous statistics with Fresing</b>
+  <div class="box">
+   <label class="hint"><span class="rad on"></span>Off – nothing is sent</label>
+   <label class="hint"><span class="rad"></span>On – a small summary once a week</label>
+  </div>
+  <div class="lock">🔒 Switched off by the set-up "Acme standard v4" (Company). Ask your IT to change it.</div>
+  <div class="btns"><span class="b">Show what was sent…</span><span class="b">Delete my data at Fresing…</span></div>
+  <div class="hint">(Both still work when something was sent before the company switched it off.)</div>
+  <div class="box" style="margin-top:10px"><b>Send a report…</b> <span class="hint">– still there: it sends
+  nothing by itself</span></div>
+  <div class="hint">Blender's online access off: "Blender's online access is off – nothing can be sent." (the same
+  line, without a lock)</div>
+ </div>
+</div>
+</div>
+
+<h3>"Show what was sent" – the week-47 summary exactly as it would go out (944 bytes)</h3>
+<pre>{
+ &quot;schema&quot;: 1,
+ &quot;asked&quot;: &quot;q1&quot;,
+ &quot;id&quot;: &quot;7f3c9a2e5b10d4e8a1c06f93be2257d4&quot;,
+ &quot;week&quot;: &quot;2026-W47&quot;,
+ &quot;app&quot;: &quot;0.2.203&quot;,
+ &quot;blender&quot;: &quot;5.2.3&quot;,
+ &quot;os&quot;: &quot;Windows 11 24H2&quot;,
+ &quot;cpu&quot;: &quot;AMD Ryzen 9&quot;,
+ &quot;cores&quot;: &quot;17–32&quot;,
+ &quot;ram&quot;: &quot;64 GB&quot;,
+ &quot;gpu&quot;: &quot;NVIDIA RTX 40-series&quot;,
+ &quot;sessions&quot;: 5,
+ &quot;active_minutes&quot;: {
+  &quot;import&quot;: 15,
+  &quot;rigging&quot;: 30,
+  &quot;animation&quot;: 30,
+  &quot;render&quot;: 30
+ },
+ &quot;functions&quot;: {
+  &quot;animation.fade&quot;: 1,
+  &quot;animation.joint_step&quot;: 6,
+  &quot;import.step&quot;: 5,
+  &quot;joints.rotate&quot;: 9,
+  &quot;looks.materials&quot;: 2,
+  &quot;machines.cylinder&quot;: 3,
+  &quot;queue.video&quot;: 2,
+  &quot;render.image&quot;: 11,
+  &quot;scene.light_look&quot;: 2,
+  &quot;structure.tree&quot;: 8
+ },
+ &quot;speeds&quot;: [
+  {
+   &quot;what&quot;: &quot;Import STEP&quot;,
+   &quot;parts&quot;: &quot;1,000–5,000&quot;,
+   &quot;s&quot;: 83.0
+  },
+  {
+   &quot;what&quot;: &quot;Build animation&quot;,
+   &quot;parts&quot;: &quot;1,000–5,000&quot;,
+   &quot;s&quot;: 13.0
+  },
+  {
+   &quot;what&quot;: &quot;Render image (Cycles, GPU, 1920 x 1080, 128 samples)&quot;,
+   &quot;parts&quot;: &quot;1,000–5,000&quot;,
+   &quot;s&quot;: 41.0
+  }
+ ],
+ &quot;errors&quot;: [
+  {
+   &quot;what&quot;: &quot;KeyError at fresing_render/blender/joints.py:233 create&quot;,
+   &quot;n&quot;: 1
+  }
+ ],
+ &quot;pccheck&quot;: {
+  &quot;mode&quot;: &quot;full&quot;,
+  &quot;ok&quot;: 61,
+  &quot;failed&quot;: 1,
+  &quot;skipped&quot;: 2,
+  &quot;slower&quot;: [
+   &quot;render.cycles&quot;
+  ]
+ },
+ &quot;company_setup&quot;: true,
+ &quot;workspace&quot;: &quot;own&quot;
+}</pre>
+<p class="sub">The id is made at random when the user says yes. <code>week</code> is an ISO week and never a time of
+day. <code>functions</code> holds this week's clicks: the difference from the totals sent last time, so a missed
+week is simply counted in the next one. The own workspace's name ("Acme drafting") became <code>own</code>. The app
+keeps the last 8 summaries it sent, so that "Show what was sent" can show them.</p>
+
+<h2>5. Where the data goes and what it costs</h2>
+<p class="sub">Prices per month, without VAT, as read on 23 Nov 2026. "Read in the docs" = Supabase's own
+documentation, read through its documentation connector. "Search" = what a web search showed of the official page;
+these pages could not be opened from this session, so check them before ordering. Sizes are estimates: about 2 KB a
+row with indexes, one row per user per week. 10,000 users is about 43,500 sends a month.</p>
+<div class="wrap"><table>
+<tr><th>Option</th><th>Where it runs</th><th>100 users</th><th>1,000 users</th><th>10,000 users</th><th>Keeping and deleting</th><th>Upkeep</th></tr>
+<tr><td><b>Supabase</b> – a database + one Edge Function (suggested)</td><td>Frankfurt (eu-central-1). The contract is with Supabase Pte. (Singapore) under the EU standard clauses; some sub-processors are in the US and Singapore (search)</td>
+<td>Free $0 (≈ 3 MB for 90 days; the database may hold 500 MB and 500,000 function calls are free a month – read in the docs). But a Free project is paused after a week with little use, and has no backups to download</td>
+<td>Free $0 (≈ 26 MB for 90 days) or Pro $25</td><td>Pro $25 (≈ 260 MB for 90 days – it would still fit in Free, but a live service should not be paused or go without backups; 2 M calls a month included)</td>
+<td>A nightly <code>pg_cron</code> job turns rows older than the keep-time into totals without an id, then deletes them. Delete-my-data removes one id's rows at once. Logs: 1 day on Free (search)</td><td>almost none; Pro: 7 days of daily backups (read in the docs)</td></tr>
+<tr><td><b>Hetzner Cloud</b> – a small server, our own endpoint (Python + SQLite)</td><td>Germany or Finland; Hetzner Online GmbH, a German company: no transfer outside the EU</td>
+<td colspan="3">CX23 about €5.49 + IPv4 ≈ €5.99 after the price rise of 15 June 2026; it has not always been possible to order since September 2026, and the next size up is about €19.99 (search). The same price for 100 to 10,000 users.</td>
+<td>Same job as a cron script; we own the disk</td><td>updates, HTTPS certificate, backups, watching it: about 1–2 hours a month (estimate)</td></tr>
+<tr><td>Aptabase – privacy-first app analytics (not chosen)</td><td>EU region (Germany); IP and user agent only in memory (search)</td>
+<td>Free (20,000 events)</td><td>Free</td><td>$10 (200,000 events)</td>
+<td class="no">Keeps data up to 5 years and has no deletion on request (its privacy policy, search). That fails "Delete my data"</td><td>none</td></tr>
+<tr><td>Plausible (not chosen)</td><td>EU (Hetzner)</td><td colspan="3">from about $9 (search) – it counts web page views, not a JSON summary</td><td>daily salt, no ids</td><td>none</td></tr>
+</table></div>
+
+<h2>6. The owner's choices</h2>
+<p>Tick, then press Copy and paste the line to the lead.</p>
+<div class="card" id="choices">
+ <div class="choice"><b>Step 1: how a report is sent</b>
+  <label><input type="radio" name="route" value="e-mail + copy + file" checked> E-mail with the user's own mail program + Copy + Save as file (suggested)</label>
+  <label><input type="radio" name="route" value="copy + file only"> Copy + Save as file only</label>
+  <label><input type="radio" name="route" value="GitHub form"> GitHub issue form</label></div>
+ <div class="choice"><b>Step 1: the address reports go to</b>
+  <label><input type="radio" name="addr" value="new report address" checked> A new address only for reports, on the Fresing domain (suggested)</label>
+  <label><input type="radio" name="addr" value="existing Fresing address"> The existing Fresing contact address</label></div>
+ <div class="choice"><b>Step 2: hosting</b>
+  <label><input type="radio" name="host" value="Supabase Frankfurt" checked> Supabase, Frankfurt (suggested)</label>
+  <label><input type="radio" name="host" value="Hetzner server"> Hetzner server in Germany</label>
+  <label><input type="radio" name="host" value="decide later"> Decide after the advisor's answers</label></div>
+ <div class="choice"><b>Step 2: keep the rows with an id for</b>
+  <label><input type="radio" name="keep" value="90 days" checked> 90 days (suggested)</label>
+  <label><input type="radio" name="keep" value="180 days"> 180 days</label>
+  <label><input type="radio" name="keep" value="365 days"> 365 days</label></div>
+ <div class="choice"><b>Step 2: what a company can set in its .frsetup</b>
+  <label><input type="radio" name="company" value="off or user decides" checked> "Off" or "each user decides" (suggested; the default is "each user decides")</label>
+  <label><input type="radio" name="company" value="off, user decides or on"> Also "on for everyone" (only if the advisor says a company may)</label></div>
+ <div class="choice"><b>Step 2: when</b>
+  <label><input type="radio" name="when" value="after the public launch" checked> After the public launch (as planned)</label>
+  <label><input type="radio" name="when" value="pilot with own PCs first"> First a pilot on Fresing's own PCs</label></div>
+ <div class="choice"><b>Privacy advisor</b>
+  <label><input type="radio" name="adv" value="ask advisor before step 2" checked> Ask before step 2 is built (suggested)</label>
+  <label><input type="radio" name="adv" value="ask advisor before step 1"> Ask before step 1 too</label></div>
+ <p id="line"></p>
+ <button class="copy" id="copy">Copy</button> <span id="copied" class="sub"></span>
+</div>
+
+<h2>Sources</h2>
+<p class="sub">Read on 23 Nov 2026. The pages marked "search" could not be opened from the session that wrote this:
+its network allows only a few hosts. Their facts come from what the search engine showed of them. The report lists
+each one with its link and short quote. Check them before relying on them.</p>
+<ul class="sub">
+<li>Supabase docs (read through Supabase's documentation connector): <a href="https://supabase.com/docs/guides/platform/free-project-pausing">project pausing</a>,
+<a href="https://supabase.com/docs/guides/platform/manage-your-usage/edge-function-invocations">function invocations</a>,
+<a href="https://supabase.com/docs/guides/platform/database-size">database size</a>, <a href="https://supabase.com/docs/guides/platform/backups">backups</a></li>
+<li>Search: <a href="https://supabase.com/docs/guides/platform/regions">Supabase regions</a>, <a href="https://supabase.com/legal/dpa">Supabase DPA</a>,
+<a href="https://supabase.com/pricing">Supabase pricing</a>, <a href="https://www.hetzner.com/cloud/">Hetzner Cloud</a>,
+<a href="https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/">Hetzner price adjustment</a>,
+<a href="https://aptabase.com/pricing">Aptabase pricing</a>, <a href="https://aptabase.com/legal/privacy">Aptabase privacy</a>,
+<a href="https://plausible.io/docs/subscription-plans">Plausible plans</a></li>
+<li>Law (search): <a href="https://eur-lex.europa.eu/eli/reg/2016/679/oj">GDPR</a> (recital 30, Art. 4, 6, 7, 13, 17, 28, 30),
+<a href="https://curia.europa.eu/jcms/upload/docs/application/pdf/2019-10/cp190125en.pdf">CJEU Planet49 press release</a>,
+<a href="https://edpb.europa.eu/system/files/2024-10/edpb_guidelines_202302_technical_scope_art_53_eprivacydirective_v2_en_0.pdf">EDPB Guidelines 2/2023 v2</a>,
+<a href="https://business.gov.nl/regulation/when-do-you-need-processing-register">business.gov.nl – processing register</a>,
+<a href="https://www.autoriteitpersoonsgegevens.nl/">Autoriteit Persoonsgegevens</a></li>
+<li>GitHub (search): <a href="https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema">issue form schema – <code>id</code> is used for URL prefills</a>;
+Blender (search): <a href="https://docs.blender.org/manual/en/5.2/troubleshooting/crash.html">crash files</a></li>
+</ul>
+</main>
+<script>
+(function(){
+  var box=document.getElementById('choices'),line=document.getElementById('line');
+  function val(n){var e=box.querySelector('input[name="'+n+'"]:checked');return e?e.value:'?'}
+  function upd(){line.textContent='0288 choices: report route = '+val('route')+'; report address = '+val('addr')+
+    '; hosting = '+val('host')+'; keep = '+val('keep')+'; company = '+val('company')+'; when = '+val('when')+
+    '; advisor = '+val('adv')}
+  box.addEventListener('change',upd);upd();
+  document.getElementById('copy').addEventListener('click',function(){
+    var t=line.textContent,done=function(){document.getElementById('copied').textContent='Copied.'};
+    try{navigator.clipboard.writeText(t).then(done,function(){fallback(t);done()})}catch(e){fallback(t);done()}});
+  function fallback(t){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();
+    try{document.execCommand('copy')}catch(e){}document.body.removeChild(a)}
+})();
+</script>
+</body>
+</html>

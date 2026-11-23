@@ -1,0 +1,8 @@
+Fresing Render PC check 0.2.203 - Full - 20 Nov 2026
+PC: AMD Ryzen 9 7950X 16-Core Processor, 32 cores, 63.7 GB; GPU: NVIDIA GeForce RTX 4070 Ti SUPER; driver 566.36; Windows 10 (10.0.26100); Blender 5.2.3
+Result: 61 OK, 1 FAILED, 2 skipped in 742 s; compared with the run of 13 Nov 2026 (0.2.198)
+NEW [ OK ] lifting.plan 4.1 s
+[ OK ] import.crane 6.2 s (before 6.0 s, about the same)
+[ OK ] render.cycles 31.0 s (before 22.5 s, 38 % slower) | samples/s 412 | FLAG: slower
+[FAIL] queue.eevee 9.8 s | could not write C:\Users\jdevries\Documents\Klant Acme\Renders\pump_skid_rev4_0001.png: disk full
+[SKIP] web3d.small 0.0 s | no browser found on WS-ENG-0412
