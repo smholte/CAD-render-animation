@@ -1,6 +1,7 @@
 # 0292 – Place, turn and remove: move a model, subassembly or parts by X / Y / Z and angles; Remove… with a confirm window
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0292-place-turn-remove`
+**Who:** worker · **Status:** waits – after 0307 (same lane: why G / R moves jump back today) · **Branch:**
+`task/0292-place-turn-remove`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "How to delete an assembly? Only with using cleanup or
 also with delete button?" – "How to move around object/assemblies in the scene? I want to move around parts before
 animating the scene, move xyz and rotate.") · **Model:** Opus · effort High
@@ -15,7 +16,8 @@ animating the scene, move xyz and rotate.") · **Model:** Opus · effort High
 
 - Outside Full access Blender's G / R / S still work (task 0253 kept them), so a user can press G or R, then X / Y / Z
   and a number – but nothing in the app says so, there are no fields, and the Move tool's gizmo is gone (the left panel
-  took the toolbar region, `quiet._no_tools`).
+  took the toolbar region, `quiet._no_tools`). **But on the owner's PC a G / R move jumps back on click / Enter**
+  (owner 23 Nov 20:12) – task 0307 finds why and fixes it first; read its report and build Place on that.
 - Delete / X do nothing outside Full access (0253, on purpose: nothing lost by accident). **Clean-up** only takes parts
   out of the render (restorable) – it is not a delete. There is no Remove for a model today.
 - A model's root is never a free move (CLAUDE.md 8): a model moved by its root keeps its place through Build, poses,

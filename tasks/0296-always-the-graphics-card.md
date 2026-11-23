@@ -27,6 +27,11 @@ something changes there (it should not: nothing goes on the network).
    device and then uses **every** device of it – an AMD processor's built-in Radeon and an AMD card are both HIP (the
    built-in one slows the card down); a card HIP does not support (old driver) leaves ONEAPI = an Intel built-in GPU.
 
+**The tester's PC** (owner 23 Nov 20:12): AMD Ryzen 7 7700X (it has small built-in Radeon graphics) + Gigabyte Radeon
+RX 6700 XT EAGLE, Windows 11. Both are AMD, so both can show up as HIP devices for Cycles, and Windows may draw the
+window on the built-in one. Also check (and put in the guide): **a monitor cable plugged into the motherboard's video
+port** makes Windows draw everything on the built-in graphics – the cable belongs in the graphics card.
+
 ## What to do
 
 1. **Prefer a dedicated GPU, always** – NVIDIA, AMD or Intel Arc over built-in graphics – for both choices: Cycles uses
