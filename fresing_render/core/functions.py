@@ -208,17 +208,22 @@ fn(id="import.two_copies", short="STEP twice", title="The same STEP twice", fami
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
 fn(id="import.drop", short="Drop a file", title="Drop a STEP or mesh file on the view", family="import",
    panel="FRESING_PT_import", button="fresing.import_step", text="Import STEP…", guide="drop-a-file",
-   pccheck=("import.drop",), since="0.2.216")
+   pccheck=("import.drop",), since="0.2.217")
 fn(id="import.again", short="Import again", title="Imported models: import again from the cache", family="import",
    panel="FRESING_PT_import", fold="fr_import_cached", button="fresing.import_step", text="Import again", guide="imported-models",
-   tour=("import_again",), pccheck=("import.again",), since="0.2.216")
+   tour=("import_again",), pccheck=("import.again",), since="0.2.217")
 fn(id="import.up_axis", short="Up axis", title="Change a model's up axis after the import", family="import",
    panel="FRESING_PT_import", button="fresing.model_up_axis", guide="up-axis-after-import",
-   tour=("import_again",), pccheck=("import.up_axis",), since="0.2.216",
+   tour=("import_again",), pccheck=("import.up_axis",), since="0.2.217",
    workspaces=_WORK + ("lifting",))                 # the Client view never changes a model
 fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide and lock parts", family="import",
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0307: G / R move and turn; what cannot move says why at once (locked in place, a built animation)
+fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
+   "can move (right-click); a line in the status bar when it cannot move", family="import",
+   panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
+   since="0.2.216", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))

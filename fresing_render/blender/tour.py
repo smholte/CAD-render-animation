@@ -3967,7 +3967,7 @@ def _check_mesh(scene):
     return f"ring Ø{dia:.1f} mm, axis {off:.2f}° off vertical"
 
 
-@tour_set("import", "Import again and Up axis", "test_crane_a.step", added="0.2.216", changed="0.2.216")
+@tour_set("import", "Import again and Up axis", "test_crane_a.step", added="0.2.217", changed="0.2.217")
 def build_import(b: Build):
     """Task 0289: the crane imported, then a second copy from 1 Import > Imported models > Import again (the stored
     copy, nothing read), moved aside and turned to Y up on its line – it lies on its side, as a Y-up file would."""
@@ -4486,7 +4486,7 @@ stop("import_again", LOOK, "import", "Import again and Up axis",
      "models > Import again – the stored copy, in a second, nothing read – and its line's Up axis was set to Y up: it "
      "lies on its side, as a model drawn Y up in its CAD would stand. Imported models lists the crane with its parts, "
      "date and size; Z up / Y up on each model's line turns it back.",
-     where="1 Import: the model's line (Up axis), Imported models", since="0.2.216", check=_check_import)
+     where="1 Import: the model's line (Up axis), Imported models", since="0.2.217", check=_check_import)
 stop("joint", MOTION, HUB_SET, "Joint: the boom turns",
      "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it. The luffing "
      "cylinder under it follows: its rod slides out and its eye stays on the pin under the boom.",

@@ -504,7 +504,7 @@ Fresing > Show all of Blender gives you Blender's keys"*:
   **Ctrl+A** (apply), **M**, **Shift+M** (collections), **Shift+A** (add), **Ctrl+H**, **Ctrl+0 … Ctrl+5**, **Tab**,
   **Ctrl+Tab** (Edit Mode and the other modes), **Ctrl+Page Up / Page Down** (Blender's workspaces) and **I**,
   **Alt+I**, **K** (keyframes – they would mix with the keys Build makes).
-- **These stay:** **H** hides the selected part, **Alt+H** shows everything again, **A** selects all, **Home** and the
+- **These stay:** **G** / **R** move and turn what is selected ([Moving and turning parts](#moving-parts)), **H** hides the selected part, **Alt+H** shows everything again, **A** selects all, **Home** and the
   number pad move the view, **Z** and **Ctrl+Space** for the shading and a bigger view, **Space** plays, **Ctrl+Z**
   undoes, **F3** searches, **N** shows or hides the side panel, **Ctrl+S** saves, **Ctrl+O** opens.
 - **F12** renders a picture with the app – the same as the blue **Render image** button. **Ctrl+F12** renders the
@@ -520,6 +520,8 @@ mode "Subassembly", its subassembly) and a short menu opens:
 - **Hide**, **Show only this** – as the buttons in 2 Structure; **Show all** appears when something is hidden.
 - **Add a label here** – a label that points at the spot you right-clicked; type its words in 6 Animation > Labels.
 - **Add joint here…** – Add joint starts with this part: click its pivot (a hole, a shaft or a flat face) next.
+- **Unlock so it can move** – unlocks the part's subassembly, so **G** moves it and **R** turns it
+  ([Moving and turning parts](#moving-parts)); once unlocked the entry reads **Lock in place**.
 
 **Right-click on empty space:** **Zoom to all** and **Show all**. In the **Client view** the menu has only Zoom, Show in
 2 Structure, Hide, Show only this and Show all – and its Hide only hides in the view: renders, the built animation and
@@ -1109,9 +1111,37 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
   end (":1", ":2"). The coloured ball is the part's material.
 - Under the list: the selected row, **Zoom to it** and, for a subassembly, its lock. **Locked in place**
   (the normal state): it moves only with the subassembly it is in. Click it to unlock: it can then be
-  moved on its own.
+  moved on its own with G / R ([Moving and turning parts](#moving-parts)).
 - **Hide** hides what is selected. **Show only** hides everything else; a red box "Showing only: …"
   with **Show everything again** brings the rest back. **Show all** shows everything you hid.
+
+<a id="moving-parts"></a>
+### Moving and turning parts
+
+After an import every subassembly is **Locked in place**: it moves only with the subassembly it is in, so a
+stray key cannot pull the model apart. Unlock what you want to move first.
+
+1. **Right-click** the part in the 3D view and click **Unlock so it can move** (or select its row in 2 Structure
+   and click **Locked in place**). This unlocks the subassembly the part is in.
+2. **Click** the part: its subassembly is selected. To move the **whole model**, select the top row of the tree in
+   2 Structure (and unlock that one).
+3. With the mouse over the 3D view press **G** to move or **R** to turn.
+4. Press **X**, **Y** or **Z** to keep to that direction, then type a number: millimetres for G, degrees for R
+   (for example **G X 500** moves it half a metre along X, **R Z 90** turns it a quarter turn).
+5. Press **Enter** (or click with the left mouse button) to keep it there. **Esc** or a right-click puts it back.
+
+When it cannot move, the status bar at the bottom says why at once and nothing starts:
+
+- *"'…' is locked in place – right-click it > Unlock so it can move …"*: unlock it (step 1).
+- *"The animation is built: a move now would be undone at the next Build …"*: click **Stop it to move joints by
+  hand** at the top of 4 Motion, move it, then **Build & play** again – the new place is kept.
+- *"Parts keep their size from the CAD model"*: **S** never scales a part.
+- In the **Client view** nothing can be selected or moved.
+
+Good to know: **Go to pose** puts subassemblies back where that pose had them – save the pose again after a move
+(4 Motion > Poses & exploded views). A part with a joint keeps moving with its joint.
+Clicking twice on the same spot selects the next part behind it (Blender's own): click once, or on empty space
+first.
 
 <a id="cleanup"></a>
 ### Clean-up

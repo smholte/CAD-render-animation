@@ -512,11 +512,16 @@ BLENDER_KEYS = (
     ("Outliner", "OUTLINER", "X", {"any": True}, "delete"),
     ("Outliner", "OUTLINER", "DEL", {"any": True}, "delete"),
 )
-# F12 / Ctrl+F12 = the app's Render image / Render animation; the right mouse / Menu key = the Fresing menu
+# F12 / Ctrl+F12 = the app's Render image / Render animation; the right mouse / Menu key = the Fresing menu; G / R / S
+# first ask place.py whether what is selected can move (task 0307), then pass the key on to Blender's
 APP_KEYS = (("Screen", "EMPTY", "F12", {}, "fresing.key_render", {"animation": False}),
             ("Screen", "EMPTY", "F12", {"ctrl": True}, "fresing.key_render", {"animation": True}),
             ("Object Mode", "EMPTY", "RIGHTMOUSE", {}, "fresing.view_menu", {}),
-            ("Object Mode", "EMPTY", "APP", {}, "fresing.view_menu", {}))
+            ("Object Mode", "EMPTY", "APP", {}, "fresing.view_menu", {}),
+            # task 0307: G / R / S say at once why something cannot move (locked in place, a built animation)
+            ("Object Mode", "EMPTY", "G", {}, "fresing.move_key", {"mode": "TRANSLATE"}),
+            ("Object Mode", "EMPTY", "R", {}, "fresing.move_key", {"mode": "ROTATE"}),
+            ("Object Mode", "EMPTY", "S", {}, "fresing.move_key", {"mode": "RESIZE"}))
 
 
 def key_label(key: str, mods: dict) -> str:

@@ -244,7 +244,7 @@ def _copy_crane(ctx, name: str) -> str:
     return path
 
 
-@line("import.drop", "A dropped STEP file comes in as with Import STEP…", "0.2.216",
+@line("import.drop", "A dropped STEP file comes in as with Import STEP…", "0.2.217",
       what="A file dropped on the view: 1 Import opens, the panel's Detail and Up axis are used, the same message")
 def import_drop(ctx):
     import bpy
@@ -271,7 +271,7 @@ def import_drop(ctx):
     return "1 Import open, Draft, Y up"
 
 
-@line("import.again", "Imported models: Import again, Remove from cache", "0.2.216",
+@line("import.again", "Imported models: Import again, Remove from cache", "0.2.217",
       what="A model in the import cache imported again without reading the file, then removed from the cache")
 def import_again(ctx):
     import bpy
@@ -294,7 +294,7 @@ def import_again(ctx):
     return f"{import_cache.size_text(e.size)} stored, again in {time.time() - t0:.1f} s"
 
 
-@line("import.up_axis", "Up axis changed after the import", "0.2.216",
+@line("import.up_axis", "Up axis changed after the import", "0.2.217",
       what="The crane turned to Y up and back after its import: a joint and a built animation give the same motion")
 def import_up_axis(ctx):
     import bpy
@@ -4959,6 +4959,50 @@ def app_keys(ctx):
         except KeyError:                               # an own workspace whose file is not here
             workspaces.switch(scene, "All functions")
     return f"{len(lock.BLENDER_KEYS)} Blender keys swallowed outside Full access, back in Full access; F12 = the app's render"
+
+
+@line("structure.move", "Move and turn with G / R: what is locked in place says so, Unlock so it can move, the move "
+      "stays", "0.2.216",
+      what="On the test crane: G / R / S bound to the app's check; the fresh import is locked in place and G says how "
+           "to unlock it; the right-click menu's Unlock so it can move; a move then stays; after Build G says the "
+           "animation is built and where to stop it; S never scales a part")
+def structure_move(ctx):
+    import types
+
+    import bpy
+
+    from ..blender import build, lock, logic, place
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    keys = {(k, p.get("mode")) for _km, _sp, k, _m, op, p in lock.APP_KEYS if op == "fresing.move_key"}
+    _check(keys == {("G", "TRANSLATE"), ("R", "ROTATE"), ("S", "RESIZE")}, f"G / R / S are not bound to the check: {keys}")
+    asm = next(o for o in scene.objects if o.get(build.PROP_NAME) == "BOOM.ASM")
+
+    def sel(*obs):
+        return types.SimpleNamespace(scene=scene, selected_objects=list(obs))
+
+    msg, _n = place.why_not(sel(asm), "TRANSLATE")
+    _check("locked in place" in msg and "Unlock so it can move" in msg,
+           f"G on the fresh import does not say it is locked in place: '{msg}'")
+    _check(bpy.ops.fresing.ctx_unlock(part=asm.name) == {"FINISHED"} and not any(asm.lock_location),
+           "Unlock so it can move did not unlock the boom's subassembly")
+    _check(place.why_not(sel(asm), "TRANSLATE") == ("", 0) and place.why_not(sel(asm), "ROTATE") == ("", 0),
+           "the unlocked boom still cannot move")
+    was = asm.location.x
+    asm.location.x += 0.1
+    bpy.context.view_layer.update()
+    _check(abs(asm.location.x - was - 0.1) < 1e-6, "the moved boom did not stay")
+    _check("keep their size" in place.why_not(sel(asm), "RESIZE")[0], "S does not say parts keep their size")
+    from ..blender import tour
+    tour._boom_joint(scene)
+    a = tour._animation(types.SimpleNamespace(s=scene.fresing), "Up")
+    tour._joint_step(a, "Boom", 0, 1, 20)
+    scene.fresing.animations_index = len(scene.fresing.animations) - 1
+    _check(bpy.ops.fresing.anim_build() == {"FINISHED"}, "Build & play failed")
+    msg, _n = place.why_not(sel(asm), "TRANSLATE")
+    _check(msg.startswith("The animation is built"), f"G after Build does not say the animation is built: '{msg}'")
+    bpy.ops.fresing.anim_clear()
+    logic.set_locked(asm, True)
+    return "locked: says how to unlock; unlocked: the move stays; after Build: says stop it first"
 
 
 @line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",

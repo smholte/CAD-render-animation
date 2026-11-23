@@ -1,6 +1,6 @@
 # 0306 – Study + design (findings only): a Vehicles workspace – suspension rigging, drawn and driven paths, terrain
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0306-study-vehicles` (branch only, never merged; every
+**Who:** worker · **Status:** running · **Branch:** `task/0306-study-vehicles` (branch only, never merged; every
 push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39, in short: car suspension in a separate car-rigging
 workspace, easy to rig different types; paths added from the user's view with a simple tool, or drive a fully rigged

@@ -1,6 +1,6 @@
 # 0303 – Study + look sheet (findings only): people in two more looks – low poly and realistic – on the same rig
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0303-study-people-looks` (branch only, never merged;
+**Who:** worker · **Status:** running 23 Nov · **Branch:** `task/0303-study-people-looks` (branch only, never merged;
 every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Better humans (visual) option for low poly, and
 realistic.") · **Model:** Opus · effort High

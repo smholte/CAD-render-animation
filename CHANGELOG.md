@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.216 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
+## 0.2.217 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
 
 - **A STEP or mesh file dropped on the view now comes in exactly like Import STEP…**: the side panel opens on
   1 Import (also when it was hidden or another section's tab was chosen), the Detail and Up axis you chose there are
@@ -19,6 +19,17 @@ installer of that version was built from.
   have; joints, cylinders, poses, saved scenes and labels keep working, a built animation is taken off (Build again
   gives the same motion, turned). One Ctrl+Z undoes it; a model update keeps the axis.
 - New PC-check lines `import.drop`, `import.again`, `import.up_axis` and a test-tour stop "Import again and Up axis".
+## 0.2.216 – 23 Nov 2026 – Moving parts with G / R: it moves, or it says why not (task 0307)
+
+- **Why G / R did nothing:** after an import every subassembly is *Locked in place*. G / R showed their numbers, and on
+  Enter the part was back – without a word. Now G / R (and S) say at once in the status bar why something cannot move
+  and what to do, and nothing starts.
+- **Right-click a part > Unlock so it can move** unlocks its subassembly (the same as 2 Structure > Locked in place).
+  Then **G X 500 Enter** moves it half a metre along X, **R Z 90 Enter** turns it a quarter turn, and it stays.
+- **After Build & play** a move was undone at the next Build or Stop. G / R now say: stop the animation first
+  (4 Motion > Stop it to move joints by hand), move it, build again – the new place is kept.
+- New guide section "Moving and turning parts" (2 Structure), a PC-check line and a test with real key presses.
+
 ## 0.2.215 – 23 Nov 2026 – Test models at real size: the gantry routers and the way covers (task 0262)
 
 - **The two gantry routers are 2.5 times bigger and stand on a stand.** The CNC gantry of the test tour, the PC check
