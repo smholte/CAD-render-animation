@@ -599,7 +599,7 @@ fn(id="queue.schemes", short="Every scheme", title="Every paint scheme", family=
 
 # ----- Help menu -----
 fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", button="fresing.update_check",
-   guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16")
+   guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16", changed="0.2.220")
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Learning hub", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
@@ -665,7 +665,7 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
 fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
    "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
    "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
-   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.220")       # task 0296
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.221")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")

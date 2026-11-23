@@ -172,7 +172,7 @@ def gpu_device(ctx):
     return ctx.gpu
 
 
-@line("pc.gpu", "Graphics card used: window and renders", "0.2.220", (Q, F),
+@line("pc.gpu", "Graphics card used: window and renders", "0.2.221", (Q, F),
       what="The graphics card draws the window and renders – not the processor's built-in graphics (task 0296)")
 def pc_gpu(ctx):
     from ..blender import gpu_choice

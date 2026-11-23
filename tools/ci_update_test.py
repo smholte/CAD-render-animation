@@ -1,7 +1,7 @@
 """In-app update, end to end with the real Blender program (task 0020). Linux; used by ci_real_app.py ("update")
 and usable on a chat machine:
 
-    python3 tools/ci_update_test.py --blender <blender> --wheels <linux wheels dir> --out <dir> [--gui]
+    python3 tools/ci_update_test.py --blender <blender> --wheels <linux wheels dir> --out <dir> [--gui] [--case …]
     python3 tools/ci_update_test.py --blender <blender> --wheels <dir> --out <dir> --github [--expect 0.2.16]
 
 What it does:
@@ -17,6 +17,9 @@ What it does:
     update_helper.py installs and starts the app again with "-- after", which checks the new version,
     the message, the new app template and its Help menu;
  5. checks the files: installed version, template, update log; prints "RESULT n/m".
+ With --gui, 2-5 run twice (task 0316): "save" - a saved project with a change, Update now saves it;
+ "dont_save" - a new project never saved, with a change, **Update without saving**: the app closes without
+ Blender's "Save changes?", updates and opens again empty, one backup copy kept and not offered at the start.
 
 --github  instead of 3-4: the real update address on GitHub. The app's check and download (size, SHA-256)
           run against the newest published release, as the Windows extension it is; installing needs
@@ -140,6 +143,24 @@ def read_checks(path, label):
         check(f"{label}: {name}", ok, detail)
 
 
+CASES = ("save", "dont_save")        # task 0316: the second run - a new project never saved, Update without saving
+
+
+def install_old(blender, env, user_res, old_zip) -> tuple[str, str]:
+    """The old version installed as Install.bat leaves it. Returns (extension folder, template folder)."""
+    env = dict(env, BLENDER_USER_RESOURCES=user_res)
+    p = run([blender, "--command", "extension", "install-file", "-r", "user_default", "-e", old_zip], env, quiet=True)
+    check("old version installed", p.returncode == 0)
+    tdir = os.path.join(user_res, "scripts", "startup", "bl_app_templates_user", "fresing_render")
+    os.makedirs(tdir, exist_ok=True)
+    shutil.copy2(os.path.join(OLD_TEMPLATE, "__init__.py"), tdir)
+    shutil.copy2(os.path.join(ROOT, "app_template", "fresing_render", "splash.png"), tdir)
+    run([blender, "--background", "--python-expr",
+         "import bpy; bpy.context.preferences.system.use_online_access = True; bpy.ops.wm.save_userpref()"],
+        env, quiet=True)
+    return os.path.join(user_res, "extensions", "user_default", "fresing_render"), tdir
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--blender", required=True)
@@ -149,14 +170,15 @@ def main(argv=None) -> int:
     ap.add_argument("--github", action="store_true", help="check + download against the real GitHub release")
     ap.add_argument("--expect", default="", help="with --github: the version that must be offered")
     ap.add_argument("--timeout-min", type=float, default=12)
+    ap.add_argument("--case", choices=CASES, action="append",
+                    help="only these cases (default: both with --gui, 'save' in the background)")
     args = ap.parse_args(argv)
 
     blender = os.path.abspath(args.blender)
     out = os.path.abspath(args.out)
     os.makedirs(out, exist_ok=True)
     work = tempfile.mkdtemp(prefix="fr_update_")
-    user_res = os.path.join(work, "blender user é")
-    env = dict(os.environ, BLENDER_USER_RESOURCES=user_res, PYTHONUNBUFFERED="1", UITEST_OUT=out,
+    env = dict(os.environ, PYTHONUNBUFFERED="1", UITEST_OUT=out,
                UPDATE_TEST_OLD=OLD, FRESING_NO_WELCOME="1")     # task 0199: no welcome / What's new window
     env["NO_PROXY"] = env["no_proxy"] = ",".join(x for x in ("127.0.0.1", "localhost", env.get("NO_PROXY", "")) if x)
 
@@ -167,20 +189,10 @@ def main(argv=None) -> int:
     new_zip = test_install_linux.build_linux_zip(args.wheels, os.path.join(work, "new"), blender=blender)
     print(f"== built {os.path.basename(old_zip)} and {os.path.basename(new_zip)} in {time.time() - t0:.0f} s", flush=True)
 
-    # 2. the old version installed as Install.bat leaves it
-    p = run([blender, "--command", "extension", "install-file", "-r", "user_default", "-e", old_zip], env, quiet=True)
-    check("old version installed", p.returncode == 0)
-    tdir = os.path.join(user_res, "scripts", "startup", "bl_app_templates_user", "fresing_render")
-    os.makedirs(tdir, exist_ok=True)
-    shutil.copy2(os.path.join(OLD_TEMPLATE, "__init__.py"), tdir)
-    shutil.copy2(os.path.join(ROOT, "app_template", "fresing_render", "splash.png"), tdir)
-    run([blender, "--background", "--python-expr",
-         "import bpy; bpy.context.preferences.system.use_online_access = True; bpy.ops.wm.save_userpref()"],
-        env, quiet=True)
-    ext_dir = os.path.join(user_res, "extensions", "user_default", "fresing_render")
-
     if args.github:
-        return github_check(blender, env, args, out, work)
+        user_res = os.path.join(work, "blender user é")
+        install_old(blender, env, user_res, old_zip)
+        return github_check(blender, dict(env, BLENDER_USER_RESOURCES=user_res), args, out, work)
 
     # 3. the new version, published like a GitHub release
     pub = os.path.join(work, "published")
@@ -192,30 +204,59 @@ def main(argv=None) -> int:
     env["FRESING_UPDATE_URL"] = f"{base}/releases/latest/download/index.json"
     env["UPDATE_TEST_EXPECT"] = __version__
 
+    cases = args.case or (list(CASES) if args.gui else ["save"])
+    xvfb = None
+    if args.gui:
+        xvfb, display = start_xvfb()
+        env["DISPLAY"] = display
+    try:
+        for case in cases:
+            print(f"== case {case}", flush=True)
+            run_case(case, blender, dict(env), args, out, work, old_zip)
+    finally:
+        srv.shutdown()
+        if xvfb is not None:
+            xvfb.kill()
+    return finish(work)
+
+
+def run_case(case, blender, env, args, out, work, old_zip) -> None:
+    """2, 4, 5 for one case: the old version installed into a fresh settings folder, updated, started again."""
+    tag = "" if case == "save" else f" [{case}]"
+    sfx = "" if case == "save" else f"_{case}"
+    user_res = os.path.join(work, f"blender user é{sfx}")
+    env["BLENDER_USER_RESOURCES"] = user_res
+    env["UPDATE_TEST_CASE"] = case
+    env["UITEST_SHOT_SUFFIX"] = sfx
+    if case == "dont_save":                     # the unsaved project's backup goes to <home>/Documents: a test home
+        env["HOME"] = os.path.join(work, f"home{sfx}")
+        os.makedirs(env["HOME"], exist_ok=True)
+        env.pop("UPDATE_TEST_PROJECT", None)
+    else:
+        env["UPDATE_TEST_PROJECT"] = os.path.join(work, "Projecten é", "Kraan – update test.blend")
+    n0 = len(RESULTS)
+    ext_dir, tdir = install_old(blender, env, user_res, old_zip)
+
     # 4. the old app finds the update, updates, starts again. Update now refuses while another Blender of the
     # same install runs (task 0053): a queued render of an earlier test may still be closing
-    sys.path.insert(0, ROOT)
     from fresing_render import update_helper
     end = time.time() + 120
     while update_helper.other_blenders(os.path.dirname(os.path.abspath(blender))) and time.time() < end:
         time.sleep(1.0)
-    before, after = os.path.join(out, "update_before.json"), os.path.join(out, "update_after.json")
+    before, after = os.path.join(out, f"update_before{sfx}.json"), os.path.join(out, f"update_after{sfx}.json")
     for f in (before, after):
         if os.path.exists(f):
             os.remove(f)
-    xvfb = None
-    env["UPDATE_TEST_PROJECT"] = os.path.join(work, "Projecten é", "Kraan – update test.blend")
     after_args = ["--python-exit-code", "1", "--python", SCRIPT, "--", "after", after]
     if args.gui:
-        xvfb, display = start_xvfb()
-        env["DISPLAY"] = display
         app = [blender, "--app-template", "fresing_render"]
         # the app's own restart command (program, app template, the project), plus the test script
         env["FRESING_UPDATE_RESTART_EXTRA"] = json.dumps(after_args)
     else:
         app = [blender, "--background"]
         env["FRESING_UPDATE_RESTART"] = json.dumps(app + after_args)
-    log = open(os.path.join(out, "blender_before.log"), "w", encoding="utf-8")
+    log_name = os.path.join(out, f"blender_before{sfx}.log")
+    log = open(log_name, "w", encoding="utf-8")
     t1 = time.time()
     proc = subprocess.Popen(app + ["--python-exit-code", "1", "--python", SCRIPT, "--", "before", before], env=env,
                             stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
@@ -226,14 +267,14 @@ def main(argv=None) -> int:
         os.killpg(proc.pid, signal.SIGKILL)
         code = None
     log.close()
-    print(open(os.path.join(out, "blender_before.log"), encoding="utf-8", errors="replace").read()[-5000:], flush=True)
-    check("old app closed for the update", code is not None, f"exit code {code}")
-    read_checks(before, "before")
+    print(open(log_name, encoding="utf-8", errors="replace").read()[-5000:], flush=True)
+    check("old app closed for the update" + tag, code is not None, f"exit code {code}")
+    read_checks(before, "before" + tag)
     got = wait_for(after, max(10.0, limit - (time.time() - t1)))
     secs = time.time() - t1
-    check("app started again after the update", got, f"{secs:.0f} s")
+    check("app started again after the update" + tag, got, f"{secs:.0f} s")
     if got:
-        read_checks(after, "after")
+        read_checks(after, "after" + tag)
     time.sleep(2)
     # 5. the files
     log_text = ""
@@ -242,22 +283,20 @@ def main(argv=None) -> int:
     except OSError:
         pass
     print("---- update.log ----\n" + log_text[-4000:], flush=True)
-    check("update.log: installed and started again", f"OK: Updated to {__version__}." in log_text
+    check("update.log: installed and started again" + tag, f"OK: Updated to {__version__}." in log_text
           and "started again:" in log_text)
     try:
         ver = open(os.path.join(ext_dir, "blender_manifest.toml"), encoding="utf-8").read()
     except OSError:
         ver = ""
-    check(f"installed manifest says {__version__}", f'version = "{__version__}"' in ver)
-    new_t = open(os.path.join(ROOT, "app_template", "fresing_render", "__init__.py"), "rb").read()
-    check("app template on disk is the current one", open(os.path.join(tdir, "__init__.py"), "rb").read() == new_t)
-    check("downloaded zip removed", not any(f.endswith(".zip") for f in os.listdir(
-        os.path.join(user_res, "config", "fresing_update"))))
-    print(f"== update took {secs:.0f} s from start of the old app to the new app's checks", flush=True)
-    srv.shutdown()
-    if xvfb is not None:
-        xvfb.kill()
-    return finish(work)
+    check(f"installed manifest says {__version__}" + tag, f'version = "{__version__}"' in ver)
+    if case == "save":
+        new_t = open(os.path.join(ROOT, "app_template", "fresing_render", "__init__.py"), "rb").read()
+        check("app template on disk is the current one", open(os.path.join(tdir, "__init__.py"), "rb").read() == new_t)
+        check("downloaded zip removed", not any(f.endswith(".zip") for f in os.listdir(
+            os.path.join(user_res, "config", "fresing_update"))))
+    print(f"== update{tag} took {secs:.0f} s from start of the old app to the new app's checks "
+          f"({sum(1 for r in RESULTS[n0:] if r[1])}/{len(RESULTS) - n0} passed)", flush=True)
 
 
 def github_check(blender, env, args, out, work) -> int:

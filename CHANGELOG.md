@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.220 – 23 Nov 2026 – Always the graphics card (task 0296)
+## 0.2.221 – 23 Nov 2026 – Always the graphics card (task 0296)
 
 - **Renders use only the graphics card.** On a PC with an AMD processor and an AMD card, the processor's small built-in
   Radeon and the card were both used for renders, and the built-in one slowed the card down. Now only the card renders
@@ -22,6 +22,17 @@ installer of that version was built from.
 - Self-test line "Graphics card used", PC check line `pc.gpu`; the PC check's report names the GPU that draws and the
   one that renders. New guide section "Graphics card" (Troubleshooting).
 
+## 0.2.220 – 23 Nov 2026 – Update now: save or not, also for a project that was never saved (task 0316)
+
+- **Update now no longer refuses a project that was never saved.** With unsaved changes it asks first, in one small
+  window: **Save and update** (as before) or **Update without saving**; for a project that was never saved the first
+  button is **Save as… and update** – choose a name and a folder, and the update goes on by itself once it is saved
+  (Cancel in Save As: nothing happens, Update now stays). **Cancel** closes the window.
+- **Update without saving**: the app opens again with the project as you last saved it (or empty, for a project that
+  was never saved) – the changes since then are left out. With automatic backups on, one backup copy of the work is
+  kept first ("A backup copy is kept"); the next start does not ask to restore it, it is in Fresing > Restore a
+  backup… if you need it. The app closes without Blender's "Save changes?" question; that question is back as usual
+  afterwards.
 ## 0.2.219 – 23 Nov 2026 – Place: move and turn by numbers; Remove a model, subassembly or parts; a lock in every tree row (task 0292)
 
 - **2 Structure > Place** (new): select a model, a subassembly or parts and type where it goes – X / Y / Z in mm and
