@@ -1096,7 +1096,7 @@ When it cannot move, the status bar at the bottom says why at once and nothing s
 - *"The animation is built: a move now would be undone at the next Build …"*: click **Stop it to move joints by
   hand** at the top of 4 Motion, move it, then **Build & play** again – the new place is kept.
 - *"Parts keep their size from the CAD model"*: **S** never scales a part.
-- *"Client view: the project is locked …"*: nothing moves in the Client view.
+- In the **Client view** nothing can be selected or moved.
 
 Good to know: **Go to pose** puts subassemblies back where that pose had them – save the pose again after a move
 (4 Motion > Poses & exploded views). A part with a joint keeps moving with its joint.

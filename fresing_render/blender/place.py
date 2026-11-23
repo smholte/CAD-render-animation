@@ -11,7 +11,8 @@ showed in the header while moving, and on a click or Enter the part was back. Th
 * **A built animation.** Build & play saves how things stood and puts that back at the next Build and at Stop: a
   move made while an animation is built is undone later, without a word.
 * **Scale.** Parts keep their CAD size (``lock_scale`` is always on): S never scales them.
-* **The Client view** locks everything (``lock.py``): G says so (``fresing.move_key`` is in ``lock.ALLOWED``).
+* **The Client view** locks everything (``lock.py``): nothing can be selected, so G / R have nothing to move; the
+  key stays off its allow-list (it is no viewing operator).
 
 So the app's own key (``fresing.move_key`` on G / R / S in Object Mode, ``lock.APP_KEYS``) looks at what would move
 before Blender does: when nothing of it can move, it says why in the status bar at once and Blender's G is not
@@ -67,10 +68,8 @@ def _locked(ob, mode: str) -> bool:
 def why_not(context, mode: str) -> tuple:
     """(message, how many of the movers cannot move) – ("", 0) when Blender's key may run as it is."""
     from ..core import places
-    from . import animation, lock
+    from . import animation
     scene = context.scene
-    if lock.ON[0]:                                   # the Client view: nothing can be selected, nothing moves
-        return lock.MESSAGE, 1
     obs = movers(context)
     if not obs:
         return "", 0

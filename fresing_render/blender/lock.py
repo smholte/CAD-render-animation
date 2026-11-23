@@ -54,7 +54,6 @@ MESSAGE = "Client view: the project is locked against changes. Workspace > Full 
 
 # fresing operators that still work in the Client view: looking, importing, rendering – nothing that edits the model
 ALLOWED = {
-    "fresing.move_key",                                 # task 0307: G / R / S say "locked" here (place.why_not)
     "fresing.import_step", "fresing.import_mesh", "fresing.report_clear",
     "fresing.render", "fresing.preview", "fresing.turntable", "fresing.light_look", "fresing.pick_hdri",
     "fresing.camera_activate", "fresing.shot_apply",

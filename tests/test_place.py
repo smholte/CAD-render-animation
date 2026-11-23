@@ -1,7 +1,7 @@
 """Moving and turning with G / R / S (task 0307): why a move "jumped back" and what the app now says.
 
 Here (Blender as a module, no window): what G / R would move, the reasons it cannot (locked in place, a built
-animation, S on a part, the Client view), the right-click menu's Unlock so it can move, and the keys bound to the
+animation, S on a part, the Client view's allow-list), the right-click menu's Unlock so it can move, and the keys bound to the
 check. The keys pressed in a window (G, X, a number, Enter – the move stays; after Build the message):
 tools/ui_test_move.py."""
 
@@ -107,19 +107,14 @@ def test_a_built_animation_says_stop_it_first(crane):
     assert place.why_not(ctx(crane, ob(crane, "BOOM.ASM")), "TRANSLATE") == ("", 0)
 
 
-def test_the_client_view_says_it_is_locked(crane):
-    workspaces.switch(crane, "Client view")
-    try:
-        assert lock.ON[0]
-        msg, _n = place.why_not(ctx(crane), "TRANSLATE")
-        assert msg == lock.MESSAGE
-    finally:
-        workspaces.switch(crane, "All functions")
+def test_the_client_view_keeps_g_off_its_allow_list(crane):
+    """The Client view allows only viewing operators (task 0213's list); nothing can be selected there anyway."""
+    assert not lock.allowed("fresing.move_key")
 
 
 def test_g_r_s_are_bound_to_the_check_and_not_counted():
     from fresing_render.core import usage
     keys = {(k, kw.get("mode")) for km, _sp, k, _m, idname, kw in lock.APP_KEYS if idname == "fresing.move_key"}
     assert keys == {("G", "TRANSLATE"), ("R", "ROTATE"), ("S", "RESIZE")}
-    assert "fresing.move_key" in usage.NOT_COUNTED and "fresing.move_key" in lock.ALLOWED
+    assert "fresing.move_key" in usage.NOT_COUNTED
     assert "Unlock so it can move" in context_menu.ON_PART and "Unlock so it can move" in context_menu.CLIENT_DROPS

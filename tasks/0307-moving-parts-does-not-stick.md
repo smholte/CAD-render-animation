@@ -58,7 +58,7 @@ places, `lock_location` on joint objects), `animation.py` (keys written by Build
 | after Stop it to move joints by hand, G | moves | moves (and a later Build keeps it) |
 | G, then Go to pose | put back where the pose had it (by design) | same – said in the guide |
 | S on a part | nothing (scale always locked) | "Parts keep their size from the CAD model" |
-| Client view | nothing selectable, G silent | G gives the Client view's lock message |
+| Client view | nothing selectable, G has nothing to move | unchanged (the Client view allows only viewing operators) |
 | model root | locked like every subassembly | same message; top row of 2 Structure > Locked in place unlocks the whole model |
 | mechanism parts, vessel motion | not run with keys: by reading the code the link empties / Child Of are moved, never the part's own place, so a move stays; after Build the "built" message applies | – |
 
@@ -70,11 +70,10 @@ pose has them (by design). (4) Blender's click cycling: a second click on the sa
 (found by the test: the trolley) – said in the guide. No handler, driver or Client-view lock put places back.
 
 **What changed:** new `blender/place.py` (the Place lane's file; 0292 builds on it): `fresing.move_key` on G / R / S in
-Object Mode (`lock.APP_KEYS`) checks what Blender would move (`movers`, `why_not`) – locked / built / scale / Client
-view → the reason in the status bar at once and Blender's key is not started; otherwise `PASS_THROUGH`, Blender's own
+Object Mode (`lock.APP_KEYS`) checks what Blender would move (`movers`, `why_not`) – locked / built / scale → the reason in the status bar at once and Blender's key is not started; otherwise `PASS_THROUGH`, Blender's own
 G / R unchanged (some of a selection locked: the rest moves, with the message). Right-click menu: last entry **Unlock so
 it can move** / **Lock in place** (`fresing.ctx_unlock`, not in the Client view). Tooltip of Locked in place names G / R.
-Locks stay the default (no change to imports or saved projects). Guide: section "Moving and turning parts" (anchor
+Not in the Client view (nothing selectable there; its allow-list keeps viewing operators only). Locks stay the default (no change to imports or saved projects). Guide: section "Moving and turning parts" (anchor
 `moving-parts`), the right-click list and "These stay" keys. Function `structure.move`; PC-check Full line
 `structure.move` (MIN_LINES_FULL 124); real-app test `move` (14 checks, group pccheck-b).
 
