@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.218 – 23 Nov 2026 – Joints in a fold, several parts per cylinder item, a clicked joint shows what it moves (task 0290)
+
+- **4 Motion > Joints** is now a fold of its own, like Cylinders and Mechanisms: Add rotate joint, Add slide joint,
+  the joint list and the selected joint's settings sit in it. "Everything back to CAD position" stays at the top of
+  4 Motion.
+- **Cylinders take several parts or subassemblies per item.** Under Barrel and Rod, **Add selected** adds what is
+  selected (Shift+click or Ctrl+click in the view or in 2 Structure selects several) – it no longer replaces what was
+  picked. Each pick shows as a short row with **×** to drop it, **🗑** clears the item. A part is never in both: adding
+  it to the rod takes it off the barrel. The same for a made cylinder (Set-up: parts and pins: barrel, rod and stages),
+  and in the Set-up window's cylinder step of Set up a crane. The stroke is read again from all the parts.
+- **The panel stays still:** a follower past its limits shows a short red "Beyond limits" on its Distance / Angle
+  row (the longer text when you rest the mouse on it) instead of two new lines that pushed Limits and the fields
+  under it down while you dragged. A cylinder past its stroke does the same on its Stroke row.
+- **Clicking a joint in the list shows what it moves:** its arrow (also when "Show joint arrows" is off) and its parts
+  tinted green in the view, joints riding on it in a lighter green. Nothing gets selected, hidden parts stay hidden
+  (the box says how many). Clicking a mechanism shows its moving links. A click elsewhere ends it. The list rows have
+  a real tooltip now.
+
 ## 0.2.217 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
 
 - **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,
