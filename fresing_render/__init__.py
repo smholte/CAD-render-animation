@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.216"
+__version__ = "0.2.217"
 
 _modules = []
 
@@ -46,6 +46,7 @@ def _classes():
     from .blender import ops_settings, ui_settings  # task 0271: the Fresing Settings window
     from .blender import ops_locations              # task 0272: Locations, Exports, Save to, set-up files
     from .blender import form_window                # task 0282: function windows (forms that stay open)
+    from .blender import place                      # task 0307: G / R / S say why something cannot move
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_faces) + 1
@@ -62,7 +63,7 @@ def _classes():
     looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
-    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + place.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES

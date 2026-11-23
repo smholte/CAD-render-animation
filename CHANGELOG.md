@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.216 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
+## 0.2.217 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
 
 - **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,
   Save scene, the rule-set Copy / New / Rename, Make demo project, the PC check's choices, Learn…, My learning list,
@@ -18,6 +18,17 @@ installer of that version was built from.
   **Esc** over the window close it; **Return** there is its button. Undo works as before.
 - Short yes / no questions ("Remove this?", "Switch rule set?") stay small popups. The Client view refuses the same
   functions as before. Window sizes and places are kept in the app's settings file.
+
+## 0.2.216 – 23 Nov 2026 – Moving parts with G / R: it moves, or it says why not (task 0307)
+
+- **Why G / R did nothing:** after an import every subassembly is *Locked in place*. G / R showed their numbers, and on
+  Enter the part was back – without a word. Now G / R (and S) say at once in the status bar why something cannot move
+  and what to do, and nothing starts.
+- **Right-click a part > Unlock so it can move** unlocks its subassembly (the same as 2 Structure > Locked in place).
+  Then **G X 500 Enter** moves it half a metre along X, **R Z 90 Enter** turns it a quarter turn, and it stays.
+- **After Build & play** a move was undone at the next Build or Stop. G / R now say: stop the animation first
+  (4 Motion > Stop it to move joints by hand), move it, build again – the new place is kept.
+- New guide section "Moving and turning parts" (2 Structure), a PC-check line and a test with real key presses.
 
 ## 0.2.215 – 23 Nov 2026 – Test models at real size: the gantry routers and the way covers (task 0262)
 

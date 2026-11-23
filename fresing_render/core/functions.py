@@ -209,6 +209,11 @@ fn(id="import.two_copies", short="STEP twice", title="The same STEP twice", fami
 fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide and lock parts", family="import",
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0307: G / R move and turn; what cannot move says why at once (locked in place, a built animation)
+fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
+   "can move (right-click); a line in the status bar when it cannot move", family="import",
+   panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
+   since="0.2.216", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
@@ -627,7 +632,7 @@ fn(id="help.windows", headline=True, short="Function windows", title="Function w
    "workspace, the PC check and the other forms open in a window of their own that stays open while you work, can go "
    "onto another screen and opens again where it was", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_lessons", guide="function-windows", tour=("lessons",), pccheck=("app.windows",),
-   since="0.2.216")
+   since="0.2.217")
 fn(id="settings.locations", short="Locations", title="Locations: folders for STEP models, logos, materials, rule "
    "sets, templates … of your company, your department and your own, each item with its badge; one set-up file "
    "(.frsetup) brings a company's folders and settings", family="help", panel="TOPBAR_MT_fresing",

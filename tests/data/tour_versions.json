@@ -38,7 +38,7 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.216",
+   "changed": "0.2.217",
    "fp": "4ae97be97acdedfe"
   },
   "crane_setup": {
@@ -68,7 +68,7 @@
   },
   "faces": {
    "added": "0.2.47",
-   "changed": "0.2.216",
+   "changed": "0.2.217",
    "fp": "fec01e7a7e9895cf"
   },
   "flex_drawn": {
@@ -98,7 +98,7 @@
   },
   "lifting_make": {
    "added": "0.2.159",
-   "changed": "0.2.216",
+   "changed": "0.2.217",
    "fp": "22cdc7e6f4e0c753"
   },
   "linkage": {
