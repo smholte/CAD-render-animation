@@ -1,7 +1,6 @@
 # 0275 – "Making the Learning hub…" says so clearly: a progress window after Take the test tour; Next goes to the next stop at once
 
-**Who:** worker · **Status:** open – waits for 0260 (same lane; 0260 renames the test tour to Learning hub and touches
-`welcome.py`) · **Branch:** `task/0275-hub-progress`
+**Who:** worker · **Status:** done (0.2.212) · **Branch:** `task/0275-hub-progress`
 **Started by:** lead, 21 Nov 2026 (owner 17:45 + 17:53 – Next in the tour, screenshot of the welcome window: "When I press Take the test tour it
 should tell you clearly that it is making the test tour and to wait for it. Now it is a bit unclear for a new user,
 with only a little status in the bottom left.") · **Model:** Sonnet · effort Medium
@@ -85,6 +84,8 @@ Making the hub faster; the first-start set-up (0276).
   Open it now opens the hub. Pictures looked at (progress, ready).
 - Not tested: the left panel line is drawn only while a build runs (not in a screenshot). Opening another file while
   building drops the card (the build goes on; the modal ends as before).
+
+**Runs:** 4 GitHub runs: the allow-list count (+ hub_show), a version clash (0261 took 0.2.211 → 0.2.212), the forced-failure test step racing the build (now kills it at once), then green; main = reuse run + release 0.2.212 published.
 
 **Open points / follow-up tasks:**
 - `ui_test_tour.py`'s "OK / Problem / Note are saved" + "Copy results" failed in 2 of 5 local runs, before any of my
