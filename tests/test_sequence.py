@@ -340,8 +340,8 @@ def test_take_apart_targets_order_stagger(sc):
     gaps = np.diff([f for f, _ in starts])
     assert all(12 <= g <= 13 for g in gaps), gaps
     first5 = {o.get(build.PROP_NAME) for _f, o in starts[:5]}
-    assert first5 == {"ISO 4762 M8x30", "ISO 4032 M24"}
-    assert starts[0][1].get(build.PROP_NAME) == "ISO 4032 M24"           # the nut on top first
+    assert first5 == {"ISO 4762 M8x30", "SKF KM 5 Locknut M25x1.5"}
+    assert starts[0][1].get(build.PROP_NAME) == "SKF KM 5 Locknut M25x1.5"           # the nut on top first
     assert starts[-1][1].get(build.PROP_NAME) == "HOUSING"               # the cup last
     # each part takes 1 s (25 frames)
     for o in parts:
@@ -363,7 +363,7 @@ def test_put_together_ends_exactly_home_and_starts_out(sc):
     # the first in is the housing (it left last), the last in is the nut
     first = min(parts, key=lambda o: key_frames(o)[-2])
     last = max(parts, key=lambda o: key_frames(o)[-2])
-    assert first.get(build.PROP_NAME) == "HOUSING" and last.get(build.PROP_NAME) == "ISO 4032 M24"
+    assert first.get(build.PROP_NAME) == "HOUSING" and last.get(build.PROP_NAME) == "SKF KM 5 Locknut M25x1.5"
 
 
 def test_apart_then_together_and_build_twice_same_keys(sc):
