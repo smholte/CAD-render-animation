@@ -1,0 +1,190 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0286 asset libraries</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708;--bad:#b42318;--ui:#2b2f36;--ui2:#3a3f47;--uifg:#e6e9ee;--uimut:#9aa4b2}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009;--bad:#f97066}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009;--bad:#f97066}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc)}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}figure{margin:0;max-width:100%}
+.pics figure{flex:1 1 320px}img{max-width:100%;height:auto;border:1px solid var(--line);display:block}
+figcaption{font-size:.85rem;color:var(--mut)}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:.88rem}th,td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}.d{color:var(--mut);font-size:.85rem}.star{color:var(--acc)}.no{color:var(--bad)}.maybe{color:var(--warn)}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:240px;word-break:break-word}button{font:inherit;padding:8px 18px;background:var(--acc);color:#fff;border:0;border-radius:6px;cursor:pointer}
+label{display:block;margin:4px 0}fieldset{border:1px solid var(--line);border-radius:8px;margin:12px 0;padding:8px 14px}legend{font-weight:600}
+/* mock-ups of the picker, drawn in the app's dark colours */
+.mock{background:var(--ui);color:var(--uifg);border-radius:8px;padding:8px;font-size:12px;line-height:1.35;overflow-x:auto}
+.mock .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.mock .tab{padding:3px 9px;border-radius:4px;background:var(--ui2)}
+.mock .tab.on{background:#4772b3}.mock .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.mock .tile{background:var(--ui2);border-radius:5px;padding:4px;position:relative}.mock .tile img{border:0;width:100%;border-radius:3px}
+.mock .tile .n{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mock .b{position:absolute;top:6px;left:6px;font-size:9px;padding:1px 4px;border-radius:3px;background:#479B29;color:#fff}
+.mock .b.ph{background:#7a4bc4}.mock .b.ac{background:#c47a1e}.mock .b.bk{background:#2a7fc4}.mock .b.co{background:#555}.mock .b.mi{background:#8a8f97}
+.mock .lic{position:absolute;top:6px;right:6px;font-size:9px;padding:1px 4px;border-radius:3px;background:#000a}
+.mock .side{min-width:150px;color:var(--uimut)}.mock .side b{color:var(--uifg)}.mock .btn{display:inline-block;padding:3px 10px;border-radius:4px;background:#4772b3;color:#fff;margin:2px 0}
+.mock .btn.g{background:var(--ui2)}.mock .search{background:#1d2026;border-radius:4px;padding:2px 8px;color:var(--uimut);min-width:120px}
+.lay{display:grid;grid-template-columns:150px 1fr 170px;gap:8px;min-width:640px}.lay2{display:grid;grid-template-columns:130px 1fr;gap:8px;min-width:560px}
+.chk{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:2px 16px}
+</style></head><body><main>
+<h1>0286 – Asset libraries: Fresing standard, online libraries, your own</h1>
+<p>A study with a working proof on its own branch – nothing is in the app yet. Everything was tried on the <b>4-core web
+test machine</b> (Linux, Blender 5.2.3, no graphics card) with <b>4 test assets this study drew itself</b> (CC0) – nothing
+downloaded from anyone, nothing of yours. Licence facts: see section 4; most provider web sites were blocked from the
+test machine, so some quotes are search-engine excerpts (marked) that you or a lead should check in a browser.</p>
+
+<div class="card"><b>Recommendation <span class="star">★</span></b>
+<ol>
+<li><b>Fresing standard = a Blender 5.2 "remote asset library"</b> hosted by us as plain files (a new public repository
+with GitHub Pages; big 360° photos as release files). Blender already has everything: the listing tool, the
+download, the cache, offline use. The proof works end to end inside the Fresing app (below). Only CC0 assets, made by us
+or taken from CC0 sources.</li>
+<li><b>Online: Poly Haven and ambientCG</b> (both CC0) – the app downloads from them itself; Poly Haven asks for our
+program name in each request and its name visible in the picker. <b>Blendkit only through its own add-on</b>: a
+"Get Blendkit" button, the user signs in himself; their Royalty-Free models may not go into a public Web 3D page or a
+Viewer file without asking them (draft e-mail in the report).</li>
+<li><b>Yours: "Keep" copies</b> a downloaded asset into Mine / Department / Company (task 0272's folders) with a small
+<code>asset.json</code> beside it (where from, licence, may it travel) – so it works offline and a company sees what came
+from where.</li>
+<li><b>One picker window</b> – 0273's material window grows tabs for Environments, 360° photos and Props, with the
+Source filter Fresing · Online · Company · Department · Mine (layout 1 below).</li>
+<li><b>Before anything leaves the PC</b> (send project, Web 3D page, Viewer file) the app lists assets that may not be
+passed on.</li>
+</ol></div>
+
+<h2>1 · The proof: our own library inside the Fresing app</h2>
+<p>4 assets (1.3 MB) → Blender's own listing tool (0.1 s) → a local web server → added as a remote library in the
+Fresing app → listing and pictures in <b>1.5 s</b>, all 4 assets downloaded in <b>0.5 s</b> → placed: the pallet at
+exactly <b>1.2 × 0.8 × 0.144 m</b>, the sky as the world, the paint on a block, the workshop corner around it → a project
+saved with the assets inside (1.1 MB) → closed, started again <b>offline</b>: library and downloads still there.</p>
+<div class="pics">
+<figure><img src="img/browser_remote.png" alt="Blender's Asset Browser showing the four test assets of the remote library"><figcaption>Blender's own Asset Browser on the remote library: pictures, catalogs (Environments, Materials, Props). Nothing downloaded yet – only the listing and pictures (≈ 7 kB).</figcaption></figure>
+<figure><img src="img/offline_after_restart.png" alt="Internet Access Required dialog"><figcaption><b>Snag:</b> started again offline, Blender hides even the downloaded assets behind "Internet Access Required" until the user clicks <i>Continue Offline</i>. Our picker must not show this to a user.</figcaption></figure>
+</div>
+<div class="pics">
+<figure><img src="img/placed_in_app.jpg" alt="The assets placed in the Fresing app"><figcaption>Placed in the Fresing app. <b>Snag:</b> the red line at the bottom – "Could not read asset listing 'Online Essentials'" – is Blender's own online library failing (the test machine blocks it). A user without internet would see it at every start.</figcaption></figure>
+<figure><img src="img/render.jpg" alt="Cycles render of the placed assets"><figcaption>Cycles, 640 × 400, 32 samples: 5–6 s on this machine. Test assets, not looks we would ship.</figcaption></figure>
+</div>
+
+<h2>2 · Picker layouts</h2>
+<p>Drawn with the four test pictures. Badges: <span class="d">green = Fresing · purple = Poly Haven · orange = ambientCG ·
+blue = Blendkit · grey = Company / Mine</span>; top right the licence.</p>
+
+<h3>Layout 1 ★ – one window, kinds as tabs, sources on the left (0273's window, grown)</h3>
+<div class="mock"><div class="row" style="margin-bottom:6px"><span class="tab">Materials</span><span class="tab on">Environments</span><span class="tab">360° photos</span><span class="tab">Props</span><span style="flex:1"></span><span class="search">Search…</span></div>
+<div class="lay"><div class="side"><b>Source</b><br>☑ Fresing<br>☑ Online<br>&nbsp;&nbsp;☑ Poly Haven<br>&nbsp;&nbsp;☑ ambientCG<br>&nbsp;&nbsp;☐ Blendkit <span style="color:#7fb0ff">Get…</span><br>☑ Company<br>☑ Offshore dept.<br>☑ Mine<br><br><b>Show</b><br>◉ All ○ On this PC<br><br><b>Kind</b><br>Hall · Outdoor · Studio · Sea</div>
+<div class="grid">
+<div class="tile"><img src="img/thumb_environment_test_workshop_corner.png" alt=""><span class="b">Fresing</span><span class="lic">CC0</span><div class="n">Workshop corner</div></div>
+<div class="tile"><img src="img/thumb_hdri_test_sky.png" alt=""><span class="b ph">Poly Haven</span><span class="lic">CC0</span><div class="n">Clear sky ⤓</div></div>
+<div class="tile"><img src="img/thumb_prop_test_euro_pallet.png" alt=""><span class="b co">Company</span><span class="lic">own</span><div class="n">Our pallet spec</div></div>
+<div class="tile"><img src="img/thumb_material_test_painted_steel.png" alt=""><span class="b bk">Blendkit</span><span class="lic">RF</span><div class="n">Rusty paint ⤓ plan</div></div>
+<div class="tile"><img src="img/thumb_environment_test_workshop_corner.png" alt=""><span class="b mi">Mine</span><span class="lic">CC0</span><div class="n">Kept: corner</div></div>
+</div>
+<div class="side"><img src="img/thumb_environment_test_workshop_corner.png" alt="" style="border:0;border-radius:4px"><b>Workshop corner</b><br>Fresing · CC0 · 10 × 10 × 4 m<br>May travel: yes<br>On this PC: no (0.2 MB)<br><span class="btn">Use</span> <span class="btn g">Keep…</span></div></div></div>
+<p class="d">One window for everything (draggable, stays open – like 0271 / 0282's windows). "⤓" = not on this PC yet: Use
+downloads it first. "Keep…" asks Mine / Department / Company (the writable ones). The Material tab is 0273's window as
+built; the other tabs reuse it. A company set-up can switch the Online group off.</p>
+
+<h3>Layout 2 – sources as tabs on top, kinds on the left</h3>
+<div class="mock"><div class="row" style="margin-bottom:6px"><span class="tab on">Fresing</span><span class="tab">Online</span><span class="tab">Company</span><span class="tab">Mine</span><span style="flex:1"></span><span class="search">Search…</span></div>
+<div class="lay2"><div class="side"><b>Kind</b><br>▸ Environments<br>▸ 360° photos<br>▸ Materials<br>▸ Props</div>
+<div class="grid">
+<div class="tile"><img src="img/thumb_environment_test_workshop_corner.png" alt=""><span class="lic">CC0</span><div class="n">Workshop corner</div></div>
+<div class="tile"><img src="img/thumb_hdri_test_sky.png" alt=""><span class="lic">CC0</span><div class="n">Clear sky</div></div>
+<div class="tile"><img src="img/thumb_material_test_painted_steel.png" alt=""><span class="lic">CC0</span><div class="n">Worn paint</div></div>
+<div class="tile"><img src="img/thumb_prop_test_euro_pallet.png" alt=""><span class="lic">CC0</span><div class="n">Euro pallet</div></div>
+</div></div></div>
+<p class="d">Simple, but a search never covers all sources at once, and it differs from 0273's Source filter.</p>
+
+<h3>Layout 3 – a picture strip in the panels, "More…" opens the window</h3>
+<div class="mock" style="max-width:360px"><b>5 Scene &amp; Render › Surroundings</b><div class="row" style="margin:6px 0">
+<img src="img/thumb_environment_test_workshop_corner.png" alt="" style="width:56px;border:0;border-radius:3px"><img src="img/thumb_hdri_test_sky.png" alt="" style="width:56px;border:0;border-radius:3px"><img src="img/thumb_prop_test_euro_pallet.png" alt="" style="width:56px;border:0;border-radius:3px"><span class="btn g">More…</span></div>
+<span class="d" style="color:var(--uimut)">Today's built-in surroundings first (hall, sea, quay…), then the ones used last.</span></div>
+<p class="d">Not instead of the window: the way the window joins today's Surroundings, Props and the group box of 3 Looks
+(0273's short list works the same). Recommended together with layout 1.</p>
+
+<h2>3 · What should be in Fresing standard first</h2>
+<p>The app already <b>builds</b> its halls, sea, quay, deck and 7 props itself (they stay – no download, any size).
+The library adds what is missing. "Made" = drawn by us (code or Blender), "CC0" = picked from Poly Haven / ambientCG
+and re-hosted (allowed, see 4). Sizes are estimates for a 2k picture packed in its .blend.</p>
+<div class="scroll"><table><tr><th>#</th><th>Kind</th><th>Asset</th><th>From</th><th>≈ size</th><th>For</th></tr>
+<tr><td>1</td><td>360° photo</td><td>Soft studio (light boxes)</td><td>CC0</td><td>10 MB</td><td>product shots, 0233 studio set</td></tr>
+<tr><td>2</td><td>360° photo</td><td>Overcast sky, open ground</td><td>CC0</td><td>8 MB</td><td>outdoor, cranes</td></tr>
+<tr><td>3</td><td>360° photo</td><td>Clear sky with sun</td><td>CC0</td><td>8 MB</td><td>outdoor</td></tr>
+<tr><td>4</td><td>360° photo</td><td>Industrial hall inside</td><td>CC0</td><td>10 MB</td><td>machines on the floor</td></tr>
+<tr><td>5</td><td>360° photo</td><td>Harbour / port</td><td>CC0</td><td>10 MB</td><td>offshore equipment on the quay</td></tr>
+<tr><td>6</td><td>Environment</td><td>Studio cove (white / grey infinity curve)</td><td>Made</td><td>0.5 MB</td><td>product renders</td></tr>
+<tr><td>7</td><td>Environment</td><td>Small workshop with benches</td><td>Made</td><td>3 MB</td><td>CNC mill set (0233)</td></tr>
+<tr><td>8</td><td>Environment</td><td>Outdoor yard (asphalt, fence, containers)</td><td>Made + CC0 materials</td><td>8 MB</td><td>cranes, lifting plans</td></tr>
+<tr><td>9</td><td>Environment</td><td>Showroom / trade-fair stand</td><td>Made</td><td>3 MB</td><td>sales pictures</td></tr>
+<tr><td>10</td><td>Materials</td><td>Floors: concrete, epoxy, checker plate, asphalt, gravel, grass</td><td>CC0</td><td>6 × 4 MB</td><td>under every machine</td></tr>
+<tr><td>11</td><td>Materials</td><td>Walls: brick, corrugated sheet, painted block</td><td>CC0</td><td>3 × 4 MB</td><td>halls</td></tr>
+<tr><td>12</td><td>Props</td><td>Pallet rack, workbench, oil drum, traffic cone, fire extinguisher, ladder, toolbox</td><td>Made (as props_detail.py)</td><td>&lt; 1 MB each</td><td>scale (0258)</td></tr>
+</table></div>
+<p class="d">Starter set in the installer (works offline, no internet ever): 6, 7, 1 and two floors ≈ 30 MB. Everything else
+on demand. All at real size, checked by the library's own test (0258's rule).</p>
+
+<h2>4 · What the sources allow (short)</h2>
+<div class="scroll"><table><tr><th>Source</th><th>Re-host in Fresing standard / installer</th><th>App downloads itself</th><th>Needs their add-on / account</th><th>In a project sent to a client</th><th>In a public Web 3D page / Viewer file</th><th>Credit</th></tr>
+<tr><td><b>Fresing standard</b> (ours, CC0)</td><td class="star">yes</td><td class="star">yes</td><td>no</td><td class="star">yes</td><td class="star">yes</td><td>no</td></tr>
+<tr><td><b>Poly Haven</b> (CC0)</td><td class="star">yes</td><td class="star">yes, also commercial since 18 Jul 2026 – our program name in each request, "Poly Haven" visible in the picker</td><td>no (their add-on is paid and not needed)</td><td class="star">yes</td><td class="star">yes</td><td>for the live API only, not the assets</td></tr>
+<tr><td><b>ambientCG</b> (CC0)</td><td class="star">yes</td><td class="maybe">yes – no API terms found, ask them</td><td>no</td><td class="star">yes</td><td class="star">yes</td><td>appreciated</td></tr>
+<tr><td><b>Blendkit</b> (Royalty Free + CC0)</td><td class="no">no (RF)</td><td class="no">no – no public API terms; only with their written OK</td><td>yes: their add-on; free assets without an account; Full plan $9.90 / month / seat</td><td class="maybe">probably yes "as part of the project" (search excerpt)</td><td class="no">unclear – ask first, warn meanwhile</td><td>no</td></tr>
+<tr><td><b>Blender Essentials</b> (CC0, in Blender)</td><td class="star">yes</td><td>Blender does it</td><td>no</td><td class="star">yes</td><td class="star">yes</td><td>no</td></tr>
+<tr><td>Sketchfab</td><td class="no">no</td><td>only with the user signed in inside the app</td><td>yes</td><td>per model (CC-BY etc.)</td><td>per model, credit must follow</td><td>often</td></tr>
+<tr><td>Fab / Megascans</td><td class="no">no</td><td class="no">no API found</td><td>Epic account</td><td>as part of a project</td><td class="no">no standalone</td><td>–</td></tr>
+</table></div>
+<p class="d">Quotes and links for every cell: the report in <code>tasks/0286-study-online-asset-libraries.md</code> and
+<code>tasks/0286_page/sources_licences.md</code>.</p>
+
+<h2>5 · Pick</h2>
+<form id="f">
+<fieldset><legend>Sources</legend>
+<label><input type="checkbox" name="src" value="fresing" checked> Fresing standard library (our own, CC0) ★</label>
+<label><input type="checkbox" name="src" value="polyhaven" checked> Poly Haven online ★</label>
+<label><input type="checkbox" name="src" value="ambientcg" checked> ambientCG online (after their answer on API use)</label>
+<label><input type="checkbox" name="src" value="blendkit-button" checked> Blendkit: a "Get Blendkit" button (their add-on, user signs in himself)</label>
+<label><input type="checkbox" name="src" value="blendkit-mail"> Send the Blendkit partnership e-mail (draft in the report)</label>
+<label><input type="checkbox" name="src" value="essentials-off" checked> Blender's own "Online Essentials" off by default (no red error, no extra network call at start)</label>
+</fieldset>
+<fieldset><legend>Picker layout</legend>
+<label><input type="radio" name="lay" value="1+3" checked> 1 + 3: one window (0273's, with tabs) + picture strips in the panels ★</label>
+<label><input type="radio" name="lay" value="1"> 1 only</label>
+<label><input type="radio" name="lay" value="2"> 2: sources as tabs</label>
+</fieldset>
+<fieldset><legend>Offline starter set in the installer</legend>
+<label><input type="radio" name="st" value="starter-30MB" checked> small, ≈ 30 MB ★</label>
+<label><input type="radio" name="st" value="starter-none"> none – everything on demand</label>
+<label><input type="radio" name="st" value="starter-all"> the whole first library, ≈ 120 MB</label>
+</fieldset>
+<fieldset><legend>First Fresing standard assets (section 3)</legend><div class="chk">
+<label><input type="checkbox" name="a" value="1" checked> 1 Soft studio photo</label>
+<label><input type="checkbox" name="a" value="2" checked> 2 Overcast sky</label>
+<label><input type="checkbox" name="a" value="3" checked> 3 Clear sky</label>
+<label><input type="checkbox" name="a" value="4" checked> 4 Industrial hall photo</label>
+<label><input type="checkbox" name="a" value="5" checked> 5 Harbour photo</label>
+<label><input type="checkbox" name="a" value="6" checked> 6 Studio cove</label>
+<label><input type="checkbox" name="a" value="7" checked> 7 Small workshop</label>
+<label><input type="checkbox" name="a" value="8" checked> 8 Outdoor yard</label>
+<label><input type="checkbox" name="a" value="9"> 9 Showroom / fair stand</label>
+<label><input type="checkbox" name="a" value="10" checked> 10 Floor materials</label>
+<label><input type="checkbox" name="a" value="11"> 11 Wall materials</label>
+<label><input type="checkbox" name="a" value="12" checked> 12 Props for scale</label>
+</div></fieldset>
+<fieldset><legend>Company</legend>
+<label><input type="checkbox" name="co" value="company-switch" checked> A set-up file (.frsetup) can say "only Fresing + Company assets" (hides Online and Blendkit)</label>
+<label><input type="checkbox" name="co" value="travel-check" checked> Licence check before a project, Web 3D page or Viewer file leaves the PC</label>
+</fieldset>
+</form>
+</main>
+<div id="bar"><code id="out"></code><button id="copy" type="button">Copy</button></div>
+<script>
+const f=document.getElementById('f'),o=document.getElementById('out');
+function v(n){return [...f.querySelectorAll('input[name='+n+']:checked')].map(x=>x.value);}
+function upd(){o.textContent='0286 picks: sources '+(v('src').join(', ')||'none')+'; layout '+v('lay')[0]+'; '+v('st')[0]+
+ '; first assets '+(v('a').join(', ')||'none')+(v('co').length?'; '+v('co').join(', '):'');}
+f.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=()=>{try{navigator.clipboard.writeText(o.textContent);}catch(e){}};
+</script>
+</body></html>
