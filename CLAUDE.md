@@ -902,6 +902,10 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   `missing()` when the thing a panel needs is not there; one word per action (Remove / Clear / Delete,
   Show in folder, Add / Use as, Back to …, Find, Set-up). Check with `tools/ui_screens.py`
   (`UISHOT_TAB=4` shows one section).
+- **The panel stays still** (owner, 23 Nov 2026): a warning or state that comes and goes does not push the rows under it
+  down. Put it on a row that is always there (next to the value it is about, e.g. "Distance: −17.2 mm  ⚠ Beyond
+  limits", the longer text as its tooltip), or keep its line drawn when there is nothing to say. Only when neither is
+  possible may it add a line – then at the bottom of the box, never between the value and the settings under it.
 - **A new panel** (task 0062): the class says `draw_header` (icon), `draw_header_preset` (state) and
   `draw` (body) – never its own title row, `bl_options` only `DEFAULT_CLOSED` or nothing (`panels.py`
   draws the title and keeps what is open). Add it to `core/places.py` (parent, title, at its place in
