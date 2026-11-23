@@ -1,0 +1,44 @@
+{
+ "load_cache": 0.0271561469999142,
+ "load_cache_again": 0.12637721200007945,
+ "mesh_arrays": 0.7444914649972816,
+ "mesh_edges": 0.20319662300039454,
+ "mesh_normals": 0.013940708001655366,
+ "cad_sets": 0.0038311529976908787,
+ "link_slots": 0.005924190999849088,
+ "build_total": 1.3229316340000423,
+ "up_axis": 2.0776999917870853e-05,
+ "lock_all": 0.010563656000158517,
+ "apply_rules": 0.4424139349998768,
+ "rebuild_tree": 0.027079980000053183,
+ "update_bounds": 0.21812191100002565,
+ "render_output": 3.749999996216502e-05,
+ "view_layer_update": 0.020870445999889853,
+ "camera": 0.06967046499994467,
+ "world": 0.646611417000031,
+ "finish_import_total": 2.7586828269998023,
+ "build_meshes": 0.9654599489970224,
+ "build_objects_etc": 0.33456641200291415,
+ "objects": 3050,
+ "meshes": 601,
+ "variants": {
+  "meshes_update": 1.3901970669999173,
+  "meshes_update_parts": {
+   "mesh_arrays": 0.9324106529982146,
+   "mesh_edges": 0.20151828599910004,
+   "mesh_normals": 0.01920795799787811
+  },
+  "meshes_no_edges": 1.2474620640000467,
+  "meshes_no_edges_parts": {
+   "mesh_arrays": 0.8513906719999795,
+   "mesh_edges": 0.1687912680017689,
+   "mesh_normals": 0.016189919999760605
+  },
+  "blend_write": 0.0803338260000146,
+  "blend_mb": 134.838872,
+  "blend_append_meshes": 0.07363601099996231,
+  "objects_bare": 0.03821086500011006,
+  "objects_props": 0.029319897000050332,
+  "objects_n": 3048
+ }
+}
