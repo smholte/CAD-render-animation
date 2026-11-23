@@ -256,9 +256,12 @@ def newer_than_saved(backup: Backup | None, saved_mtime: float) -> bool:
     return backup is not None and backup.mtime > saved_mtime + NEWER_MARGIN
 
 
-def newest_newer(backups, saved_mtime: float) -> Backup | None:
+def newest_newer(backups, saved_mtime: float, handled=()) -> Backup | None:
+    """The newest backup newer than the saved project that was not dealt with (``handled``: file names – task 0316:
+    the copy kept by "Update without saving", whose changes the user chose not to keep)."""
+    handled = set(handled or ())
     for b in backups:                                  # newest first
-        if newer_than_saved(b, saved_mtime):
+        if newer_than_saved(b, saved_mtime) and b.name not in handled:
             return b
     return None
 

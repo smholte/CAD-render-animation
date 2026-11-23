@@ -599,7 +599,7 @@ fn(id="queue.schemes", short="Every scheme", title="Every paint scheme", family=
 
 # ----- Help menu -----
 fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", button="fresing.update_check",
-   guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16")
+   guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16", changed="0.2.220")
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Learning hub", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",

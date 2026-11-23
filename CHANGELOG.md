@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.220 – 23 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
+## 0.2.221 – 23 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
 
 - **The cable test machine** (test tour "Cable over sheaves", the PC check, the user guide) is now real size: its
   A-frame stands about 5 m tall on an 8 m base. The winch drum, the sheaves, the V rollers, the chute and the 24 mm
@@ -17,6 +17,17 @@ installer of that version was built from.
 - **Web 3D model:** a cable coming off a drum or carousel could show one ring more at its end than the app; the page
   now ends it exactly where the app does.
 
+## 0.2.220 – 23 Nov 2026 – Update now: save or not, also for a project that was never saved (task 0316)
+
+- **Update now no longer refuses a project that was never saved.** With unsaved changes it asks first, in one small
+  window: **Save and update** (as before) or **Update without saving**; for a project that was never saved the first
+  button is **Save as… and update** – choose a name and a folder, and the update goes on by itself once it is saved
+  (Cancel in Save As: nothing happens, Update now stays). **Cancel** closes the window.
+- **Update without saving**: the app opens again with the project as you last saved it (or empty, for a project that
+  was never saved) – the changes since then are left out. With automatic backups on, one backup copy of the work is
+  kept first ("A backup copy is kept"); the next start does not ask to restore it, it is in Fresing > Restore a
+  backup… if you need it. The app closes without Blender's "Save changes?" question; that question is back as usual
+  afterwards.
 ## 0.2.219 – 23 Nov 2026 – Place: move and turn by numbers; Remove a model, subassembly or parts; a lock in every tree row (task 0292)
 
 - **2 Structure > Place** (new): select a model, a subassembly or parts and type where it goes – X / Y / Z in mm and
