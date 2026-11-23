@@ -5,6 +5,44 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.210 – 23 Nov 2026 – Locations: company, department and your own folders; set-up files; export places (task 0272)
+
+- **Several folders per kind, each with a badge.** STEP models, materials, logos, stickers, 360° photos, templates,
+  rule sets, workspaces, brand kits and lifting equipment can each have several folders – **Company**, **Department**
+  or **Mine**. Every list in the app (logos and stickers, rule sets, templates, 360° photos, brand kits, your
+  workspaces, lifting equipment) shows what all of them hold, sorted by name, each with its badge
+  ("Acme · Company"). The same name in two folders shows twice. A new tab **Fresing Settings > Locations** shows
+  them, one fold per kind.
+- **Your own folders are ready from the start.** No more "No library folder" message: the app makes
+  `Documents\Fresing Render\Library` with a folder per kind at its first start, so Make a crane, a logo and a saved
+  rule set work straight away. A **Shared library** folder you had set before is your own folder now, with its
+  sub-folders as they were – nothing is moved.
+- **One set-up file for a company or a department** (`.frsetup`): its folders, export places and settings in one file,
+  optionally with the logos, rule sets … themselves packed inside. **Add a set-up file…** (or drop it on the window),
+  linked where it lies or copied into the app. A newer file of the same set-up – whatever its name – shows what
+  changes first (**Update** or keep the old one); a linked one that changed on the network updates itself at the next
+  start. **Save as a set-up file…** makes one from your own settings; **Edit this set-up file…** writes one back.
+  **Different from standard** lists what is not as the app comes, with where it comes from, and **Back to standard**
+  for your own choices. A set-up put by IT next to the approved version is picked up by every PC by itself.
+- **Saving asks where**: a new rule set or workspace goes into your own folder first; when you can write into more
+  than one, the dialog has **Save in**.
+- **A folder that cannot be reached** (network down, VPN off) is greyed with a line why and its items are left out
+  until it is back. The app never waits for it: measured, the start's reading with a folder on a server that does
+  not answer took 53 ms (test machine).
+- **Export places** (new tab **Fresing Settings > Exports**): Next to the project (Renders) – still the standard –,
+  Pictures\Fresing Render\<project>, places from a set-up and your own. Each project's outputs have **Save to**
+  (Render image, the render queue, the web 3D model), and **Also save a copy to** saves a second copy of every
+  picture, video and 3D page into another place, e.g. the company share.
+- **Import STEP…** opens in your first STEP models folder and lists all of them on the left of the file browser.
+- The PC check has the line "Locations", the test tour the stop "Locations and Exports"; the user guide has the new
+  chapters Locations and Exports; "Using it in a company" has "Set up locations for everyone" with an example.
+
+## 0.2.209 – 23 Nov 2026 – The Fr mark in the top bar (task 0279)
+
+- **The Fr mark instead of Blender's logo.** At the far left of the top bar stands the green and white Fr mark, in
+  every workspace. Click it: **About Fresing Render…**, **Fresing Settings…** and, under a line, **Blender** with
+  Blender's own menu (Splash Screen, About Blender …). The Fresing menu after Help stays as it was. Switching the
+  extension off gives Blender's logo back.
 ## 0.2.208 – 22 Nov 2026 – Learning hub: one group open at a time, lesson buttons on top (task 0281)
 
 - **One group of stops at a time.** In the Learning hub's list of stops, opening a group (Look, Motion, Machining,

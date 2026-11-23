@@ -322,6 +322,19 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **Settings…** – all of the app's own settings in one window ([below](#settings)).
 - **Welcome screen…** – the welcome below, again.
 
+<a id="fr-mark"></a>
+### The Fr mark in the top bar
+
+At the far left of the top bar, where Blender shows its own logo, stands the green and white **Fr** mark – in every
+workspace, also in Full access and the Client view. Click it for a short menu:
+
+- **About Fresing Render…** – version, licence and third-party licences ([About](#about-licences)).
+- **Fresing Settings…** – all of the app's own settings in one window ([below](#settings)).
+- **Blender** – Blender's own menu, unchanged: Splash Screen, About Blender, Install Application Template…, System.
+
+The **Fresing** menu after Help stays as it was. When the Fresing Render extension is switched off, Blender's own
+logo comes back.
+
 <a id="settings"></a>
 ### Fresing Settings
 

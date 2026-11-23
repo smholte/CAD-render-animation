@@ -75,6 +75,7 @@ ALWAYS = ("import", "looks", "scene", "help", "panel")
 MENUS = {
     "TOPBAR_MT_help": "Help menu",
     "TOPBAR_MT_fresing": "Fresing menu (top bar)",
+    "TOPBAR_MT_fresing_mark": "Fr mark (top bar, far left)",
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
 }
@@ -626,11 +627,15 @@ fn(id="settings.locations", short="Locations", title="Locations: folders for STE
    "sets, templates … of your company, your department and your own, each item with its badge; one set-up file "
    "(.frsetup) brings a company's folders and settings", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.loc_setup_add", guide="locations", tour=("locations",), pccheck=("settings.locations",),
-   since="0.2.209")
+   since="0.2.210")
 fn(id="settings.exports", short="Export places", title="Export places: where pictures, videos and 3D pages go – next "
    "to the project, Pictures, a company share –, the default, and also a copy to a second place", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.loc_place_default", guide="export-places", tour=("locations",),
-   pccheck=("settings.locations",), since="0.2.209")
+   pccheck=("settings.locations",), since="0.2.210")
+
+fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
+   "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
+   guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")
 fn(id="usage.profiles", title="Profiles: your workspace with the favourites bar and hides as one file", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.usage_export", guide="usage-profiles", pccheck=("app.usage",),
    since="0.2.158", changed="0.2.181")
