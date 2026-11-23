@@ -1,8 +1,9 @@
 """Task 0026: G-code programs drive the machine, in Blender, on the test gantry (tools/make_test_gantry.py).
 
 The gantry: Y moves the gantry, X the carriage on it, Z the head; all three move the tool. The flat Ø6 tool
-T1 has its tip at (0, 0, 80) mm; the stock is x -150..150, y -100..100, z 0..30. The carousel (beside the
-bed, turning about x = 500, y = 0) holds T2 (ball Ø4, tip (560, 0, 110)) and T3 (drill Ø5, tip (500, 60, 100)).
+T1 has its tip at (0, 0, 245) mm; the stock is x -150..150, y -100..100, z 0..30. The carousel (beside the
+bed, turning about x = 1250, y = 0) holds T2 (ball Ø4, tip (1400, 0, 320)) and T3 (drill Ø5, tip (1250, 150, 310)).
+(Task 0262: the router x 2.5 on its stand; the tools and the stock keep their real size.)
 
 The check of every motion test: the tool's tip, measured in the work zero's frame from the evaluated
 objects, against the program's point at that moment (worked out by the reader), within 0.01 mm.
@@ -158,15 +159,15 @@ def test_axes_found_and_the_work_zero(scene):
     assert (c.x_joint, c.y_joint, c.z_joint) == ("X", "Y", "Z")
     m = gcode.Machine(scene)
     assert m.moves_tool == [True, True, True] and m.sign == [1.0, 1.0, 1.0]
-    # top centre of the stock is (0, 0, 30); the tip at (0, 0, 80) mm: the machine is 50 mm above the zero
-    assert near(Vector(m.g54), (0, 0, -50), 1e-3)
+    # top centre of the stock is (0, 0, 30); the tip at (0, 0, 245) mm: the machine is 215 mm above the zero
+    assert near(Vector(m.g54), (0, 0, -215), 1e-3)
     assert near(Vector(c.zero_empty.matrix_world.translation) / MM, (0, 0, 30), 1e-3)
     c.zero_mode = "TOP_FL"
     m = gcode.Machine(scene)
-    assert near(Vector(m.g54), (-150, -100, -50), 1e-3)
+    assert near(Vector(m.g54), (-150, -100, -215), 1e-3)
     c.zero_mode = "BOTTOM_CENTRE"
     c.zero_shift = (10 * MM, 0, 0)
-    assert near(Vector(gcode.Machine(scene).g54), (10, 0, -80), 1e-3)
+    assert near(Vector(gcode.Machine(scene).g54), (10, 0, -245), 1e-3)
 
 
 def test_clicked_zero_snaps_to_a_corner(scene):
@@ -215,7 +216,7 @@ def test_the_tool_tip_follows_the_program(scene, tmp_path):
                                            start=gcode.start_point(gcode.Machine(scene)))[0], gcode.timing(scene, a, b))
     for line, want in ((10, (60, -20, -2)), (19, (-100, 60, -5))):
         piece = next(p for p in sch.pieces if p.move.line == line and p.move.kind in ("ARC", "FEED")
-                     and abs(p.move.b[2] - (want[2] - 50)) < 1e-3)
+                     and abs(p.move.b[2] - (want[2] - 215)) < 1e-3)
         f = 1 + (piece.v0 + piece.vd) * animation.fps_of(a)
         scene.frame_set(int(f), subframe=f - int(f))
         assert near(tip_in_zero(scene) / MM, want, 0.01)
@@ -414,7 +415,7 @@ def test_tool_changes_show_the_right_tool(scene, tmp_path):
 def test_tool_changer_animation_plays_at_each_m6(scene, tmp_path):
     set_up(scene)
     car = ob(scene, "CAROUSEL.ASM")
-    joints.create(scene, "ROTATE", [car], Vector((500 * MM, 0, 0)), Vector((0, 0, 1)), name="Carousel")
+    joints.create(scene, "ROTATE", [car], Vector((1250 * MM, 0, 0)), Vector((0, 0, 1)), name="Carousel")
     s = scene.fresing
     atc = s.animations.add()
     atc.name = "ATC"

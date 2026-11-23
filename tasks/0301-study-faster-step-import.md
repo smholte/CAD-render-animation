@@ -1,6 +1,6 @@
 # 0301 – Study (findings + measurements only): faster STEP import – more cores and other gains
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0301-study-faster-import` (branch only, never merged;
+**Who:** worker · **Status:** running · **Branch:** `task/0301-study-faster-import` (branch only, never merged;
 every push `[skip ci]`)
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Multicore step import / import time improvements.")
 · **Model:** Opus · effort High

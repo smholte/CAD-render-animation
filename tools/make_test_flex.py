@@ -89,36 +89,39 @@ about the base. The app does not lay hoses on parts (not in task 0058): a tour l
 Revision B: ARM.LAMP in ARM.ASM, the four hoses placed in the other order, HYDRAULIC HOSE ARM on a wider path.
 
 ======================================================================================================================
-TEST.FLEX.GANTRY – a gantry router with a drag chain on every axis                    62 parts, 16 different shapes
+TEST.FLEX.GANTRY – a gantry router with a drag chain on every axis                    78 parts, 17 different shapes
 ======================================================================================================================
-The machine is the one of tools/make_test_gantry.py without the carousel (same names and sizes, but 1 mm of air
-between parts that slide on each other), so the CNC machine set-up and a G-code program can drive it:
+The machine is the one of tools/make_test_gantry.py without the carousel (same names and sizes, but about 2.5 mm of
+air between parts that slide on each other), so the CNC machine set-up and a G-code program can drive it. Task 0262:
+the router x 2.5 on the same stand (the bed's top at 0.9 m, the floor at z -900); the drag-chain links keep their
+size (pitch 40, bend R80): the chains are only longer.
 
-  BED                          box 800 x 600 x 40 (top at z = 0)
+  BED                          box 2000 x 1500 x 100 (top at z = 0)
+  MACHINE STAND                the stand of tools/make_test_gantry.py, down to the floor at z -900
   STOCK 300x200x30             the workpiece: x -150..150, y -100..100, z 0..30
-  CHAIN TRAY Y                 shelf beside the bed for the Y chain: x 400..640, y -260..210, z -50..-40
+  CHAIN TRAY Y                 shelf beside the bed for the Y chain: x 1000..1260, z -125..-100
   CHAIN BRACKET Y FIXED        block on the tray behind the Y chain's first link
-  CHAIN Y.ASM                  16 x CHAIN LINK (the bed is this chain's fixed side)
+  CHAIN Y.ASM                  21 x CHAIN LINK (the bed is this chain's fixed side)
   Y.ASM                        the gantry: moves along Y
-    GANTRY SIDE L / R          boxes x -410..-390 and 390..410, y 40..100, z 1..260
-    BEAM                       box between them, y 40..100, z 200..260
+    GANTRY SIDE L / R          boxes x -1025..-975 and 975..1025, y 100..250, z 2.5..650
+    BEAM                       box between them, y 100..250, z 500..650
     CHAIN BRACKET X FIXED      block on the beam behind the X chain's first link
-    CHAIN BRACKET Y MOVING     tab on GANTRY SIDE R over the Y chain's last link
-    CHAIN X.ASM                18 x CHAIN LINK (the beam is this chain's fixed side)
+    CHAIN BRACKET Y MOVING     an angle on GANTRY SIDE R over the Y chain's last link
+    CHAIN X.ASM                24 x CHAIN LINK (the beam is this chain's fixed side)
     X.ASM                      moves along X on the beam
-      CARRIAGE                 plate x -50..50, y 26..39, z 150..260
+      CARRIAGE                 plate x -125..125, y 65..97.5, z 375..650
       CHAIN BRACKET X MOVING   post on the carriage with a tab over the X chain's last link
       CHAIN BRACKET Z FIXED    bar from the carriage with a tab under the Z chain's first link
-      CHAIN Z.ASM              13 x CHAIN LINK (the carriage is this chain's fixed side)
+      CHAIN Z.ASM              17 x CHAIN LINK (the carriage is this chain's fixed side)
       Z.ASM                    moves along Z
-        SPINDLE                cylinder Ø50, z 110..230
-        TOOL T1 FLAT D6        flat end mill Ø6 x 30, tip at (0, 0, 80), 50 above the stock
+        SPINDLE                cylinder Ø125, z 275..575
+        TOOL T1 FLAT D6        flat end mill Ø6 x 30, tip at (0, 0, 245), 215 above the stock
         CHAIN BRACKET Z MOVING shelf on the spindle under the Z chain's last link
 
-Travel checked (nothing but the tool touches anything): X -150 .. +150, Y -100 .. +100, Z -50 .. +60 (at -50 the
-tool's tip is on the stock's top; the Z chain is laid out for -60 .. +60).
+Travel checked (nothing but the tool touches anything): X -375 .. +375, Y -250 .. +250, Z -214 .. +150 (at -215 the
+tool's tip is on the stock's top; the Z chain is laid out for -220 .. +150).
 
-CHAIN LINK (one shape, placed 47 times): a frame of two side plates (4 thick) joined by a bar at the top and one at
+CHAIN LINK (one shape, placed 62 times): a frame of two side plates (4 thick) joined by a bar at the top and one at
 the bottom; 32 long, 60 wide, 20 high. The solid's own origin is a lower corner: the body is x 0..32, y 0..60,
 z 0..20, and the two pins (a notion: where the link hinges on its neighbours) are at (-4, 30, 10) and (36, 30, 10),
 40 apart: **pitch 40**. The link from pin i to pin i + 1 has its own x along that line, its z across the run (on the
@@ -128,27 +131,28 @@ the bend each link is turned 28.955° (2 asin(40 / 160)) against the one before 
 Each chain, in its own plane: pins 0 .. k on the fixed run's line, 40 apart; pin k is where a circle of **radius
 80** touches that line; the next six pins lie on that circle, 28.955° apart; the next lies on the line 160 from the
 first (40 from the last pin on the circle) and the rest follow on it, back towards the fixed end, to the last pin.
-The brackets leave 2 mm to the link they hold.
+The brackets leave 2 mm to the link they hold. Pin 0 is worked out from where the last pin is drawn (``CHAIN_END``).
 
-  CHAIN X   plane X-Z, 18 links; lies on the beam (2 mm above it), the moving run 160 above the fixed run
-      fixed end   pin 0 (-28.74, 70, 272); the fixed run goes along +X (pins 0..6); CHAIN BRACKET X FIXED on the BEAM
-      bend        centre (211.26, 70, 352)
-      moving end  pin 18 (-20, 70, 432), 5 links on its run; CHAIN BRACKET X MOVING on the CARRIAGE (X.ASM)
-  CHAIN Y   plane X-Y, 16 links; lies on its side on the tray beside the bed (runs side by side, the bend's axis up)
-      fixed end   pin 0 (600, 98.74, -8); the fixed run goes along -Y (pins 0..5); CHAIN BRACKET Y FIXED on the tray
-      bend        centre (520, -101.26, -8)
-      moving end  pin 16 (440, 90, -8), 4 links on its run; CHAIN BRACKET Y MOVING on GANTRY SIDE R (Y.ASM)
-  CHAIN Z   plane X-Z, 13 links; stands beside the spindle (both runs upright, the bend on top)
-      fixed end   pin 0 (-222, -8, 221.26); the fixed run goes along +Z (pins 0..3); CHAIN BRACKET Z FIXED (X.ASM)
-      bend        centre (-142, -8, 341.26)
-      moving end  pin 13 (-62, -8, 190), 3 links on its run; CHAIN BRACKET Z MOVING on the SPINDLE (Z.ASM)
+  CHAIN X   plane X-Z, 24 links; lies on the beam (2 mm above it), the moving run 160 above the fixed run
+      fixed end   pin 0 (-58.74, 175, 662); the fixed run goes along +X (pins 0..9); CHAIN BRACKET X FIXED on the BEAM
+      bend        centre (301.26, 175, 742)
+      moving end  pin 24 (-50, 175, 822), 8 links on its run; CHAIN BRACKET X MOVING on the CARRIAGE (X.ASM)
+  CHAIN Y   plane X-Y, 21 links; lies on its side on the tray beside the bed (runs side by side, the bend's axis up)
+      fixed end   pin 0 (1225, 168.74, -68); the fixed run goes along -Y (pins 0..7); CHAIN BRACKET Y FIXED on the tray
+      bend        centre (1145, -111.26, -68)
+      moving end  pin 21 (1065, 200, -68), 7 links on its run; CHAIN BRACKET Y MOVING on GANTRY SIDE R (Y.ASM)
+  CHAIN Z   plane X-Z, 17 links; stands beside the spindle (both runs upright, the bend on top)
+      fixed end   pin 0 (-260, 15, 511.26); the fixed run goes along +Z (pins 0..5); CHAIN BRACKET Z FIXED (X.ASM)
+      bend        centre (-180, 15, 711.26)
+      moving end  pin 17 (-100, 15, 480), 5 links on its run; CHAIN BRACKET Z MOVING on the SPINDLE (Z.ASM)
 
-Over X -150 .. +150, Y -100 .. +100, Z -60 .. +60 the bend's centre moves half as far as the moving end (±75, ±50,
-±30) and the runs keep at least: CHAIN X 4 whole links (fixed run) and 3 (moving run), CHAIN Y 3 and 3, CHAIN Z 2
-and 3. +X and +Z move their chain's far end the way its fixed run goes; +Y moves it against (``CHAIN_SIGN``).
+Over X -375 .. +375, Y -250 .. +250, Z -220 .. +150 the bend's centre moves half as far as the moving end (±187.5,
+±125, -110 .. +75) and the runs keep at least: CHAIN X 4 whole links (fixed run) and 4 (moving run), CHAIN Y 3 and 4,
+CHAIN Z 2 and 3. +X and +Z move their chain's far end the way its fixed run goes; +Y moves it against
+(``CHAIN_SIGN``).
 
 The files are small because equal parts are one shape placed again and the curves on the surfaces are left out
-(hoses a: 274 KB, chains: 178 KB). Needs OpenCascade (OCP), as the other tools/make_test_*.py.
+(hoses a: 274 KB, chains: 237 KB). Needs OpenCascade (OCP), as the other tools/make_test_*.py.
 """
 
 import math
@@ -158,6 +162,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from OCP.BRepExtrema import BRepExtrema_DistShapeShape  # noqa: E402
 from OCP.Interface import Interface_Static  # noqa: E402
@@ -561,17 +566,23 @@ TURN = 2.0 * math.asin(PITCH / (2.0 * RADIUS))      # a link against the one bef
 LINK_SIZE = (32.0, 60.0, 20.0)                      # the link's body: along the chain, across it, its height
 LINK_PIN0, LINK_PIN1 = (-4.0, 30.0, 10.0), (36.0, 30.0, 10.0)     # the two pins in the link's own coordinates
 ON_BEND = 6                                         # pins on the circle after the one where it touches the run
-T1_TIP = (0.0, 0.0, 80.0)
+T1_TIP = (0.0, 0.0, 245.0)          # task 0262: the router x 2.5 as tools/make_test_gantry.py (nose at z 275)
 STOCK = (-150.0, -100.0, 0.0, 300.0, 200.0, 30.0)
-TRAVEL = {"X": (-150.0, 150.0), "Y": (-100.0, 100.0), "Z": (-60.0, 60.0)}
+TRAVEL = {"X": (-375.0, 375.0), "Y": (-250.0, 250.0), "Z": (-220.0, 150.0)}
+# where each chain's last pin (its moving end) is drawn, in the model's coordinates (the links keep their size: the
+# chains are only longer)
+CHAIN_END = {"CHAIN X": (-50.0, 175.0, 822.0), "CHAIN Y": (1065.0, 200.0, -68.0), "CHAIN Z": (-100.0, 15.0, 480.0)}
+
+
+def _origin(name, on_fixed, on_moving, u, v):
+    """Pin 0 of a chain whose last pin is CHAIN_END[name]."""
+    lu, lv = chain_pins_2d(on_fixed, on_moving)[-1]
+    return tuple(float(c) for c in np.round(np.array(CHAIN_END[name]) - lu * u - lv * v, 6))
+
 
 # name -> (links on the fixed run, links on the moving run, pin 0, the fixed run's direction, from the fixed run
 #          towards the moving run, the assembly it sits in (its fixed side), the axis that moves its far end)
-CHAINS = {
-    "CHAIN X": (6, 5, (-28.74, 70.0, 272.0), X, Z, "Y.ASM", "X"),
-    "CHAIN Y": (5, 4, (600.0, 98.74, -8.0), -Y, -X, "", "Y"),
-    "CHAIN Z": (3, 3, (-222.0, -8.0, 221.26), Z, X, "X.ASM", "Z"),
-}
+CHAINS = {}
 
 
 def chain_pins_2d(on_fixed, on_moving):
@@ -584,6 +595,11 @@ def chain_pins_2d(on_fixed, on_moving):
     u -= math.sqrt(PITCH ** 2 - (2.0 * RADIUS - v) ** 2)
     pins += [(u - PITCH * i, 2.0 * RADIUS) for i in range(on_moving + 1)]
     return np.array(pins)
+
+
+for _name, (_f, _m, _u, _v, _a, _ax) in {"CHAIN X": (9, 8, X, Z, "Y.ASM", "X"), "CHAIN Y": (7, 7, -Y, -X, "", "Y"),
+                                         "CHAIN Z": (5, 5, Z, X, "X.ASM", "Z")}.items():
+    CHAINS[_name] = (_f, _m, _origin(_name, _f, _m, _u, _v), _u, _v, _a, _ax)
 
 
 def chain_frame(name):
@@ -670,37 +686,45 @@ def chain_asm(name, link):
 
 
 def chains_model():
+    from make_test_gantry import stand
     root = Asm("TEST.FLEX.GANTRY")
     link = Part("CHAIN LINK", link_shape(), (0.12, 0.12, 0.13))
     px, py, pz = chain_pins("CHAIN X"), chain_pins("CHAIN Y"), chain_pins("CHAIN Z")
 
-    root.add(Part("BED", G.box(-400, -300, -40, 800, 600, 40), BLUE))
+    root.add(Part("BED", G.box(-1000, -750, -100, 2000, 1500, 100), BLUE))
+    root.add(Part("MACHINE STAND", stand(), (0.25, 0.27, 0.3)))
     root.add(Part("STOCK 300x200x30", G.box(*STOCK), (0.75, 0.76, 0.78)))
-    root.add(Part("CHAIN TRAY Y", G.box(400, -260, -50, 240, 470, 10), GREY))
-    root.add(Part("CHAIN BRACKET Y FIXED", G.box(585, py[0][1] - 2, -40, 30, 30, 62), STEEL))
+    ys = [p[1] for p in py]
+    tray_y0, tray_y1 = min(ys) - 0.5 * (TRAVEL["Y"][1] - TRAVEL["Y"][0]) - 100.0, max(ys) + 60.0
+    root.add(Part("CHAIN TRAY Y", G.box(1000, tray_y0, -125, 260, tray_y1 - tray_y0, 25), GREY))
+    root.add(Part("CHAIN BRACKET Y FIXED", G.box(py[0][0] - 15, py[0][1] - 2, -100, 30, 30, 62), STEEL))
     root.add(*chain_asm("CHAIN Y", link))
 
     y_asm = Asm("Y.ASM")
-    y_asm.add(Part("GANTRY SIDE L", G.box(-410, 40, 1, 20, 60, 259), BLUE))
-    y_asm.add(Part("GANTRY SIDE R", G.box(390, 40, 1, 20, 60, 259), BLUE))
-    y_asm.add(Part("BEAM", G.box(-390, 40, 200, 780, 60, 60), BLUE))
-    y_asm.add(Part("CHAIN BRACKET X FIXED", G.box(px[0][0] - 28, 40, 260, 30, 60, 22), STEEL))
-    y_asm.add(Part("CHAIN BRACKET Y MOVING", G.box(410, py[-1][1] - 30, 24, 42, 36, 10), STEEL))
+    y_asm.add(Part("GANTRY SIDE L", G.box(-1025, 100, 2.5, 50, 150, 647.5), BLUE))
+    y_asm.add(Part("GANTRY SIDE R", G.box(975, 100, 2.5, 50, 150, 647.5), BLUE))
+    y_asm.add(Part("BEAM", G.box(-975, 100, 500, 1950, 150, 150), BLUE))
+    y_asm.add(Part("CHAIN BRACKET X FIXED", G.box(px[0][0] - 28, px[0][1] - 30, 650, 30, 60, 22), STEEL))
+    yl = py[-1][1]
+    y_asm.add(Part("CHAIN BRACKET Y MOVING", G.fuse(G.box(1025, yl - 30, -36, 52, 36, 10),
+                                                    G.box(1025, yl - 30, -36, 10, 36, 50)), STEEL))
     y_asm.add(*chain_asm("CHAIN X", link))
 
     x_asm = Asm("X.ASM")
-    x_asm.add(Part("CARRIAGE", G.box(-50, 26, 150, 100, 13, 110), GREY))
-    x_asm.add(Part("CHAIN BRACKET X MOVING", G.fuse(G.box(-15, 26, 260, 30, 10, 192),
-                                                    G.box(px[-1][0] - 16, 26, 444, 52, 74, 8)), STEEL))
+    x_asm.add(Part("CARRIAGE", G.box(-125, 65, 375, 250, 32.5, 275), GREY))
+    top = px[-1][2] + 12.0
+    x_asm.add(Part("CHAIN BRACKET X MOVING", G.fuse(G.box(-37.5, 65, 650, 75, 25, top + 8 - 650),
+                                                    G.box(px[-1][0] - 16, 65, top, 52, px[-1][1] + 40 - 65, 8)), STEEL))
     z0 = pz[0][2]
-    x_asm.add(Part("CHAIN BRACKET Z FIXED", G.fuse(G.box(-240, 26, z0 - 8, 190, 13, 20),
-                                                   G.box(pz[0][0] - 15, -38, z0 - 8, 30, 64, 10)), STEEL))
+    x_asm.add(Part("CHAIN BRACKET Z FIXED", G.fuse(G.box(-280, 65, z0 - 8, 160, 32.5, 20),
+                                                   G.box(pz[0][0] - 15, pz[0][1] - 30, z0 - 8, 30, 95 - pz[0][1], 10)),
+                   STEEL))
     x_asm.add(*chain_asm("CHAIN Z", link))
 
     z_asm = Asm("Z.ASM")
-    z_asm.add(Part("SPINDLE", G.cyl(25.0, 120.0, (0, 0, 110)), GREY))
+    z_asm.add(Part("SPINDLE", G.cyl(62.5, 300.0, (0, 0, 275)), GREY))
     z_asm.add(Part("TOOL T1 FLAT D6", G.cyl(3.0, 30.0), (0.8, 0.8, 0.82)), T(*T1_TIP))
-    z_asm.add(Part("CHAIN BRACKET Z MOVING", G.box(-100, -38, pz[-1][2] - 8, 75, 60, 10), STEEL))
+    z_asm.add(Part("CHAIN BRACKET Z MOVING", G.box(-125, pz[-1][1] - 30, pz[-1][2] - 8, 62.5, 60, 10), STEEL))
     x_asm.add(z_asm)
     y_asm.add(x_asm)
     root.add(y_asm)
@@ -745,7 +769,7 @@ def check_chains(root, say=print):
     least = math.inf
     for x in TRAVEL["X"] + (0.0,):
         for y in TRAVEL["Y"] + (0.0,):
-            for z in (-49.0, 0.0, TRAVEL["Z"][1]):
+            for z in (STOCK[5] - T1_TIP[2] + 1.0, 0.0, TRAVEL["Z"][1]):
                 move = {"bed": np.eye(4), "Y.ASM": T(0, y, 0), "X.ASM": T(x, y, 0), "Z.ASM": T(x, y, z)}
                 now = {k: G.xform(v, move[k]) for k, v in at_rest.items()}
                 keys = sorted(now)
@@ -754,7 +778,8 @@ def check_chains(root, say=print):
                         d = gap(now[ka], now[kb])
                         assert d > 0.9, ("bodies touch", ka, kb, d, x, y, z)
                         least = min(least, d)
-    say(f"  bodies over X, Y, Z (Z from -49: at -50 the tool is on the stock): least gap {least:.2f} mm")
+    say(f"  bodies over X, Y, Z (Z from {STOCK[5] - T1_TIP[2] + 1:.0f}: 1 mm lower the tool is on the stock): least gap "
+        f"{least:.2f} mm")
 
 
 # +1: the axis' positive direction moves the chain's far end along its fixed run's direction (away from pin 0)

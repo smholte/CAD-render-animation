@@ -331,19 +331,19 @@ def test_a_drawn_drag_chain_rolls_with_its_axis_and_replaces_the_cad_chain(folde
     link = next(o for o in build.iter_parts(sc) if build.logical_parent(o) == named(sc, "CHAIN X.ASM"))
     # the CAD links are in the way of the brackets' clicks: hidden while clicking, as the picker does
     logic.exclude([o for o in build.iter_parts(sc) if build.logical_parent(o) == named(sc, "CHAIN X.ASM")], True)
-    a = click(sc, (-0.04, -1, 0.271), (0, 1, 0), "CHAIN BRACKET X FIXED")
-    b = click(sc, (-0.01, -1, 0.44), (0, 1, 0), "CHAIN BRACKET X MOVING")
+    a = click(sc, (-0.07, -1, 0.661), (0, 1, 0), "CHAIN BRACKET X FIXED")
+    b = click(sc, (-0.01, -1, 0.83), (0, 1, 0), "CHAIN BRACKET X MOVING")
     logic.exclude([o for o in build.iter_parts(sc) if build.logical_parent(o) == named(sc, "CHAIN X.ASM")], False)
     item, notes = flex.draw_chain(sc, a, b, replace=link)
     assert not notes and item.drawn and item.made_links and item.kind == "CHAIN"
     rows = {r.obj.name for r in item.replaces}
-    assert len(rows) == 18                                       # one link clicked: the whole row of 18
+    assert len(rows) == 24                                       # one link clicked: the whole row of 24
     assert all(named(sc, "CHAIN X.ASM") == build.logical_parent(sc.objects[n]) for n in rows)
     # the runs lie along X (the slide joint that moves the moving bracket), the bend radius = half the gap
     frame = np.array(item.a_part.matrix_world) @ np.array(item.frame).reshape(4, 4)
     assert abs(frame[0, 0]) == pytest.approx(1.0, abs=1e-6)
-    assert item.radius == pytest.approx(0.5 * (0.44 - 0.271), abs=1e-4)
-    for x in (-0.15, 0.0, 0.15):
+    assert item.radius == pytest.approx(0.5 * (0.83 - 0.661), abs=1e-4)
+    for x in (-0.375, 0.0, 0.375):
         set_joint(sc, "X", x)
         assert flex.status(sc, item) == ("follows the motion", "OK"), x
         pins = flex.pins_now(sc, item)

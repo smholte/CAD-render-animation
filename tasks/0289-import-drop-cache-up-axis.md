@@ -1,6 +1,6 @@
 # 0289 – Import: a dropped file shows in 1 Import like the button; "Imported models" fold with Import again; Up axis changeable after import
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0289-import-drop-cache-up-axis`
+**Who:** worker · **Status:** running · **Branch:** `task/0289-import-drop-cache-up-axis`
 **Started by:** lead, 23 Nov 2026 (owner's list "List of changes to Fresing render", 23 Nov 19:39, three points:
 "When drag and dropping a file into the Fresing window, the import menu doesn't show that, but it should. It should
 show the same as when you normally import from the import button." – "When in 1. import I want there to be a fold menu
