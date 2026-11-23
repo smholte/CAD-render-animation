@@ -159,7 +159,9 @@ def build_car():
         k2 = at_y(wc, side * 620.0)
         C.add(f"Rear {S} Trailing arm", G.fuse(eye(a, 25, 60), G.beam(a, k1, 40, 50), G.beam(k1, k2, 40, 50),
                                                G.sphere(25, k1), G.sphere(25, k2),
-                                               G.rod(k2, at_y(wc, side * 750.0), 30)), BLACK)
+                                               G.rod(k2, at_y(wc, side * 750.0), 30),
+                                               G.beam(np.array([q["spring_low"][0], side * 620.0, q["spring_low"][2]]),
+                                                      q["spring_low"], 70, 20)), BLACK)   # the spring's seat
         C.add(f"Rear {S} Damper", damper(q["spring_low"], q["spring_top"]), GREY)
         C.add(f"Rear {S} Spring", coil(q["spring_low"] + DZ(40), q["spring_top"] - DZ(30), 40, 4, 7), SPRING)
     C.add("Steering rack", G.tube(22, 16, abs(racks[0][1] - racks[1][1]), racks[1], Y), GREY)

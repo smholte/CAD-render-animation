@@ -122,7 +122,7 @@ CAR = Vehicle(
              points=dict(
                  wheel=(-2.85, 0.81, 0.36),
                  arm_pivot=(-2.40, 0.70, 0.40),
-                 spring_low=(-2.70, 0.70, 0.30), spring_top=(-2.70, 0.70, 0.72),
+                 spring_low=(-2.70, 0.56, 0.36), spring_top=(-2.70, 0.56, 0.72),
              )),
     ],
 )
