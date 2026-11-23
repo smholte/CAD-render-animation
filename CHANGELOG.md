@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.214 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
+## 0.2.215 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
 
 - **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,
   Save scene, the rule-set Copy / New / Rename, Make demo project, the PC check's choices, Learn…, My learning list,
@@ -18,6 +18,16 @@ installer of that version was built from.
   **Esc** over the window close it; **Return** there is its button. Undo works as before.
 - Short yes / no questions ("Remove this?", "Switch rule set?") stay small popups. The Client view refuses the same
   functions as before. Window sizes and places are kept in the app's settings file.
+
+## 0.2.214 – 23 Nov 2026 – Fresing Render is in Windows' "Installed apps": uninstall it from Settings (task 0265)
+
+- **Settings > Apps > Installed apps now lists Fresing Render**, with its version, "Fresing" as the publisher, its icon
+  and its size. **⋯ > Uninstall** there removes the app like any other program: a window says what goes and that your
+  projects, renders and backups stay, and closes on a key. It needs no administrator rights.
+- **Update now keeps the entry right** (the new version and size), and an install made before this version gets the
+  entry once at its next start – you do not have to install again.
+- **Uninstall.bat** in the installer folder still works and does the same.
+- New line in the self-test: "Windows: in Installed apps".
 
 ## 0.2.213 – 23 Nov 2026 – Test models at real size: the scissor lift table and the bearing unit (task 0264)
 

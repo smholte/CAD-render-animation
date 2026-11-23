@@ -5043,7 +5043,7 @@ def app_settings(ctx):
     return f"{len(drawn)} tabs draw; 10 min of playback with no input: 0 s counted"
 
 
-@line("app.windows", "Function windows: Make a crane and the other forms in a window of their own", "0.2.214",
+@line("app.windows", "Function windows: Make a crane and the other forms in a window of their own", "0.2.215",
       what="Every function that opens a form (Make a crane, Save as my own workspace, Restore a backup, the PC check, "
            "Learn … 23 of them) has its values as the window's own, draws its form there, and its Make runs the "
            "function with those values – a refused one says why and the window stays; window sizes and places are "

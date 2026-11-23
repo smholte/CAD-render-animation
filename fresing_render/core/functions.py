@@ -84,7 +84,7 @@ MENUS = {
 READING = {
     "layout", "start", "install", "navigate", "first-render", "scene", "tips", "inventor-export", "faster-renders",
     "troubleshooting", "self-test", "updates-not-arriving", "renders-folder", "panel-gone", "import-problems",
-    "render-problems", "lifting-equipment", "lifting", "usage",
+    "render-problems", "lifting-equipment", "lifting", "usage", "remove",
     "cutaway",            # task 0220: the old anchor of the Slice section (old links still land)
 }
 
@@ -627,7 +627,7 @@ fn(id="help.windows", headline=True, short="Function windows", title="Function w
    "workspace, the PC check and the other forms open in a window of their own that stays open while you work, can go "
    "onto another screen and opens again where it was", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.learn_lessons", guide="function-windows", tour=("lessons",), pccheck=("app.windows",),
-   since="0.2.214")
+   since="0.2.215")
 fn(id="settings.locations", short="Locations", title="Locations: folders for STEP models, logos, materials, rule "
    "sets, templates … of your company, your department and your own, each item with its badge; one set-up file "
    "(.frsetup) brings a company's folders and settings", family="help", panel="TOPBAR_MT_fresing",

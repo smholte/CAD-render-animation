@@ -257,6 +257,29 @@ def main(report_path: str | None = None) -> bool:
 
     check("Update check", _updates)
 
+    def _installed_apps():
+        """Windows (task 0265): Fresing Render is listed in Settings > Apps > Installed apps - the entry is there, its
+        version is the app's and its uninstaller exists."""
+        if sys.platform != "win32":
+            return "skipped (Windows only)"
+        from . import appicon, winexe
+        from .core import installed_apps
+        exe = bpy.app.binary_path
+        if not exe or not winexe.is_blender_program(exe) or not appicon.install_dir(exe):
+            return "skipped (not started from the installed Fresing Render)"
+        entry = installed_apps.Registry().read()
+        if not entry:
+            raise RuntimeError("no entry in Settings > Apps > Installed apps: run Install.bat again "
+                               "(the app also makes it at its next start)")
+        if entry.get("DisplayVersion") != str(__version__):
+            raise RuntimeError(f"the entry says version {entry.get('DisplayVersion')}, the app is {__version__}")
+        script = installed_apps.uninstaller_path(appicon.install_dir(exe))
+        if not os.path.isfile(script):
+            raise RuntimeError(f"the uninstaller is missing: {script}")
+        return f"listed as Fresing Render {entry.get('DisplayVersion')}, {entry.get('EstimatedSize', 0) // 1024} MB"
+
+    check("Windows: in Installed apps", _installed_apps)
+
     def _gpu():
         info = render.setup_gpu()
         if info == "CPU" and _no_gpu_expected():       # not for "CPU (Cycles add-on not loaded)"

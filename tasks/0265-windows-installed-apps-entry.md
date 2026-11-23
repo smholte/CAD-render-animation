@@ -1,6 +1,6 @@
 # 0265 – Fresing Render in Windows' "Installed apps": uninstall it from Settings like any program
 
-**Who:** worker · **Status:** open – can start once a code slot is free (Quality & delivery lane is free) · **Branch:**
+**Who:** worker · **Status:** done, 0.2.214 · **Branch:**
 `task/0265-installed-apps-entry`
 **Started by:** lead, 21 Nov 2026 (owner 15:42, two screenshots of Settings > Apps > Installed apps: searching "fresing"
 finds only **Fresing ToolBox** (0.1.0, Fresing, Uninstall), searching "blender" only his own separate Blender 5.2.2 –
@@ -57,12 +57,12 @@ deleted. Every normal Windows program, Fresing ToolBox included, can be removed 
 
 ## Done when
 
-- [ ] After an install, Settings > Apps > Installed apps lists "Fresing Render", version, Fresing, size; Uninstall
+- [x] After an install, Settings > Apps > Installed apps lists "Fresing Render", version, Fresing, size; Uninstall
       there removes it and keeps projects (proved on GitHub's Windows machine as above)
-- [ ] Update now shows the new version there; an older install gets the entry at its next start
-- [ ] Self-test line; guide, README-install and COMPANY-USE updated
-- [ ] Independent review of the Windows code done (say who and what it found)
-- [ ] Report filled in (with the owner's check steps: numbered, click by click), merged, released
+- [x] Update now shows the new version there; an older install gets the entry at its next start
+- [x] Self-test line; guide, README-install and COMPANY-USE updated
+- [x] Independent review of the Windows code done (say who and what it found)
+- [x] Report filled in (with the owner's check steps: numbered, click by click), merged, released
 
 ## Not in this task
 
@@ -72,10 +72,14 @@ Code signing (later, owner 20 Nov); an MSI or admin install; Fresing ToolBox's i
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, Sonnet 5.5, 23 Nov 2026
 
 **What changed:**
+- `core/installed_apps.py` (new, no Blender): the key `HKCU\...\Uninstall\FresingRender` – name, version, Fresing, icon, folder, date, size, links, NoModify / NoRepair, `UninstallString` (with `-Pause`) and `QuietUninstallString`; `ensure()` copies the uninstaller into `Tools\` and writes only what differs. The app calls it at start (`appicon.refresh_installed`), so an older install gets the entry once.
+- `installer/Install-FresingRender.ps1` writes the same key (new last section, guarded); `Uninstall-FresingRender.ps1` runs from a copy in %TEMP% when started from the install folder, shows what it removes and that projects are kept, waits for a key with `-Pause`, refuses a folder without `installed.txt`, removes the key last and only for its own folder, puts itself back when some files could not be removed. A byte copy ships in `fresing_render/installer_files/` (a test compares them). `Uninstall.bat` unchanged.
+- `update_helper.py`: after Update now sets version + size and refreshes the uninstaller. Self-test line "Windows: in Installed apps" (`MIN_CHECKS` 15). Guide (anchor `remove`), README-install, COMPANY-USE (the one per-user key), CLAUDE.md.
+- CI (`ci_windows_install.ps1`): key checked after Install.bat and after the old build's in-app update (new version); the uninstall step runs the key's own `UninstallString` via cmd, with a project file in Documents that must survive and the key gone. `appicon_test.py` counts shortcuts only and checks the uninstaller is made again.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured:** 13 new pytest tests (values, changes, ensure, Update now, files); related suites green locally. GitHub runs: first run failed only in Windows part A (`appicon_test` counted the new .ps1 as a seventh shortcut) – fixed; the next full runs were green incl. Windows A (~16 min, as before) and B; version clash with 0264 cost one more full run (3 runs in all). Independent review (a separate agent that did not write the code, reading the code only): no blocker; 5 points fixed (uninstaller's working folder, sanity check of `-InstallDir`, uninstaller put back after a failed removal, installer section guarded, no empty icon written). Not run on a real Windows desktop: the Settings window itself (GitHub ran the key's UninstallString).
 
-**Open points / follow-up tasks:**
+**Open points:** The Settings page's own look (icon, size column) is for the owner to see. Owner's check: 1. Update to 0.2.214 with **Update now** and start the app once. 2. Open Windows **Settings > Apps > Installed apps**, search "fresing": **Fresing Render 0.2.214, Fresing** is listed. 3. Close Fresing Render, click **⋯ > Uninstall** (twice to confirm): a window lists what goes, says your projects stay, closes on a key. Do this only if you want it removed – re-install with Install.bat afterwards.
