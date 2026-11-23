@@ -585,6 +585,7 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     scene = context.scene
     if old_root.get("fr_lifting"):               # task 0214 (0209 row 4): a crane is rigged from its equipment file
         raise UpdateFailed("this is a crane of the lifting plan: Remove it in 8 Lifting plan and place it again")
+    removed = old_root.get("fr_removed", "")   # task 0292: parts Remove took out of this model
     before = {"objects": _names(bpy.data.objects), "meshes": _names(bpy.data.meshes),
               "collections": _names(bpy.data.collections)}
     build.ensure_bases(scene)
@@ -614,6 +615,11 @@ def update_model(context, old_root, cache_dir: str) -> dict:
     for n in vessel_motion.after_model_update(scene, st.mapping or {}):   # the new model moves with the vessel
         scene.fresing.report_notes.add().text = n
         out["notes"].append(n)
+    if removed:                                  # task 0292: what Remove took out stays out
+        from . import remove
+        for n in remove.after_update(scene, removed, out.get("root")):
+            scene.fresing.report_notes.add().text = n
+            out["notes"].append(n)
     return out
 
 
@@ -790,6 +796,9 @@ def _carry_over(context, st) -> dict:
             ob_new[build.BOUNDS_CAD] = True      # rider): lost, the sea and the cameras measured another model (0192)
         if "fr_tree_open" in ob_old:             # open/closed rows in 2 Structure
             ob_new["fr_tree_open"] = ob_old["fr_tree_open"]
+        if ob_new is not new_root:
+            from . import place                  # task 0292: a placed part stays placed in the new revision
+            place.carry_over(ob_old, ob_new)
         d = deltas.get(ob_old.get(build.PROP_UID))
         if d is not None and ob_new is not new_root:
             ob_new.matrix_basis = build.rest_basis(ob_new) @ d

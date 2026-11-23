@@ -1,6 +1,6 @@
 # 0316 – Update now: choose to save or not (also for a project that was never saved)
 
-**Who:** worker · **Status:** done (0.2.219) · **Branch:** `task/0316-update-without-saving`
+**Who:** worker · **Status:** done (0.2.220) · **Branch:** `task/0316-update-without-saving`
 **Started by:** lead, 23 Nov 2026 22:41 (owner, with a screenshot of the error "This project has never been saved:
 save it first (File > Save As…), then press Update now": "what if I don't want to save the project – allow me to
 bypass and update and not save")
@@ -70,7 +70,7 @@ without asking.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 23 Nov 2026 – 0.2.219
+**Chat / date:** Claude Code on the web, 23 Nov 2026 – 0.2.220
 
 **What changed:**
 - `blender/updates.py`: the "never been saved" refusal left `preflight()` (the other refusals unchanged). Update now
@@ -94,7 +94,7 @@ without asking.
   The project lock is released at exit as on any close (`project_lock`'s atexit).
 - Panel texts: Update now's hint says it asks first; the download line says "closes without saving" when chosen.
 - Docs: USER-GUIDE "Updates: one click" (the choice, without saving, the backup copy; the old "save first" line
-  gone), UPDATES.md step 5 + test table; function entry `help.updates` `changed="0.2.219"`; CHANGELOG.
+  gone), UPDATES.md step 5 + test table; function entry `help.updates` `changed="0.2.220"`; CHANGELOG.
 - No PC-check line: Update now's choice closes the app, which a PC check cannot do; `updates.safe` is unchanged.
 
 **Tested and measured** (4-core web machine, no graphics card):
