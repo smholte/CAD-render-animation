@@ -59,10 +59,35 @@ Making the hub faster; the first-start set-up (0276).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** worker (Claude Code on the web), 23 Nov 2026
 
 **What changed:**
+- A **card in the middle of the main 3D view** while the hub is made (`blender/hub_progress.py`, words and numbers in
+  `core/hub_progress.py`): title, one line what happens ("about N minutes"), bar with "project 4 of 23 – <set>", time
+  left (steps of 30 s, falls freely, rises one step at a time), "You can keep working. The progress also shows in the
+  bottom-left corner.", **Hide** / **Stop making it** (asks once; projects made so far are kept). Done: it comes up
+  again, also when hidden: **The Learning hub is ready – Open it now / Later**; a failure: what failed, the log's
+  place, **Try again**. One code path: `FRESING_OT_tour_make`'s modal runs the card for every way the hub is made.
+- **Why a drawn card, not a window or popup:** a popup blocks Blender and cannot refresh; an app window (0260's
+  `open_window`) needs a split + settle timer, so nothing shows for a moment. A draw handler shows at the first
+  redraw and refreshes on the build's own timer; the build's modal hit-tests its buttons and passes every other event on.
+- Left panel (Learning hub panel): while it runs, the same line + a small bar + **Show progress** (`fresing.hub_show`,
+  in `lock.ALLOWED`). Bottom-left status unchanged. Welcome text: "(you can keep working while it is made)".
+- **Next = Go on the next stop** (also across projects). Back button: the panel has none. A click on a stop in the list
+  still only picks (my view: keep it, so a stop can be read before it is set up). Go has no "unsaved changes" question
+  today (it never had); not added.
+- Function list `help.tour` `changed=0.2.211`; guide chapter + 2 pictures; CHANGELOG 0.2.211.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (Linux web machine, 4 cores, no graphics card):
+- `tests/test_hub_progress.py` (4). Real app `ui_test_tour.py` (tourui, 15 → 31 checks): Next in one click across
+  projects; card there in 0.00 s after the call; Hide; Show progress; Stop asks once, Keep making it, Yes stop (build
+  killed, card gone); a forced failure (build killed from outside) → failed card + log, Try again; done → ready card →
+  Open it now opens the hub. Pictures looked at (progress, ready).
+- Not tested: the left panel line is drawn only while a build runs (not in a screenshot). Opening another file while
+  building drops the card (the build goes on; the modal ends as before).
 
 **Open points / follow-up tasks:**
+- `ui_test_tour.py`'s "OK / Problem / Note are saved" + "Copy results" failed in 2 of 5 local runs, before any of my
+  steps (a race after Go into another project; not caused by this task, shown in the check's detail now). Worth a look.
+- Owner's check: Fresing menu > Open the Learning hub (when not yet made) → the card appears at once; Hide, then
+  Show progress on the left panel; when ready press Open it now; in the hub press Next under a stop.
