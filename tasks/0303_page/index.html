@@ -1,0 +1,189 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0303 people looks</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#5b6573;--line:#d5dae1;--card:#f5f7fa;--acc:#479B29;--warn:#b54708}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}}
+:root[data-theme="dark"]{--bg:#16191f;--fg:#e6e9ee;--mut:#9aa4b2;--line:#323946;--card:#1e232b;--warn:#f79009}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:1.5rem}h2{margin-top:2.2rem;border-bottom:2px solid var(--acc);font-size:1.2rem}
+.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.item{display:flex;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:12px;margin:12px 0}
+.pick{flex:0 0 64px;font-size:1.1rem}.pick input{width:20px;height:20px}.star{color:var(--acc)}
+.body{flex:1;min-width:0}h3{margin:0 0 6px;font-size:1rem}.tag{font-weight:normal;color:var(--mut);font-size:.85rem}
+.why{color:var(--mut);font-size:.92rem;margin:4px 0}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-top:8px}
+figure{margin:0;max-width:100%}figure img,figure video{max-width:100%;height:auto;border:1px solid var(--line);display:block}
+figcaption,.d{font-size:.85rem;color:var(--mut)}
+.tbl{overflow-x:auto}table{border-collapse:collapse;font-size:.92rem;min-width:520px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+td.n{text-align:right;white-space:nowrap}.ok{color:var(--acc);font-weight:600}.no{color:var(--warn);font-weight:600}
+#bar{position:sticky;bottom:0;background:var(--bg);border-top:2px solid var(--acc);padding:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#bar code{flex:1;min-width:0;word-break:break-word}#bar button{font:inherit;padding:6px 16px;cursor:pointer}
+</style></head><body><main>
+<h1>People in two more looks: low poly and realistic (study 0303)</h1>
+<div class="card"><b>In short.</b> Both new looks were made and rendered on the web machine, on <b>the same 17-bone rig</b> as today's person
+(task 0157), so walk paths, actions, IK and carrying work unchanged – the walk clip below is the app's own walk plan driving all three.
+<ul>
+<li><b>Low poly:</b> a wooden-mannequin figure made in code, <b>1,016 triangles</b> (today: 6,780 near, 2,248 far), 0.09 MB, no licence
+question. 40 of them cost +1.7 s and +16 MB over an empty scene.</li>
+<li><b>Realistic:</b> Blender Studio's <b>Human Base Meshes</b> (scanned male and female bodies, <b>CC0</b> – checked in the files themselves
+and at the source), re-weighted to our rig in about a second, dressed in the app's outfits and a hard hat. 25,000 triangles, 99,700 with
+the smoothing at render. One person renders as fast as today's; 40 of them need <b>+2.9 GB</b> with the smoothing on, <b>+0.26 GB</b> without:
+it must give way to the low-poly figure at a distance.</li>
+<li>What the realistic route still needs: <b>fingers that grip</b> (carrying, tool change), <b>real clothes shapes</b> (today the coverall
+is the body pushed out 9–14 mm: it reads as a tight suit), a <b>face made generic</b> (the scan's face is smoothed, still a real face).</li>
+</ul>
+Below: the look sheet, the numbers, the fit with the rig, the sources and licences, and <b>8 build tasks</b> to tick. ★ = recommended.</div>
+
+<h2>1 · The look sheet</h2>
+<p class="d">Real renders, Cycles on the processor (web machine, 4 cores, no graphics card), 64 samples, one sun, grey floor. Left to right:
+<b>today</b> (task 0155, Offshore), <b>low poly</b>, <b>realistic</b> (male body, Offshore). The same lens at 5 m, 15 m and 45 m. Today's
+person switches to its light level beyond 30 m, as in the app (Light beyond = 30 m).</p>
+<div class="pics">
+<figure><img src="img/close_3.jpg" alt="today, low poly, realistic, full height" width="1200"><figcaption>Close (640 × 800 each, the camera 3.2 m away).</figcaption></figure>
+<figure><img src="img/heads.jpg" alt="heads of the three looks" width="900"><figcaption>Heads: today (lofted face without a likeness), low poly (no face), realistic (the scan's face after smoothing – still reads as a real person).</figcaption></figure>
+<figure><img src="img/row_5m.jpg" alt="side by side at 5 m" width="1000"><figcaption>5 m.</figcaption></figure>
+<figure style="max-width:490px"><img src="img/row_15m.jpg" alt="side by side at 15 m" width="490"><figcaption>15 m.</figcaption></figure>
+<figure style="max-width:490px"><img src="img/row_45m.jpg" alt="side by side at 45 m" width="490"><figcaption>45 m (today: its light level).</figcaption></figure>
+<figure style="max-width:490px"><img src="img/row_45m_zoom.jpg" alt="45 m enlarged 4 times" width="490"><figcaption>45 m, the people's part enlarged 4×: about 50 pixels tall – the three looks can hardly be told apart.</figcaption></figure>
+<figure><video src="img/walk.mp4" poster="img/walk_poster.jpg" controls loop muted playsinline width="800"></video><figcaption>Walk clip, 6.2 s: all three walk the
+<b>same plan</b> from <code>core/people.py</code> (Walk gait, a turn at the start), each look on its own armature with the same pose per frame.
+800 × 450, 24 samples, 4.8 s a frame.</figcaption></figure>
+<figure><img src="img/variety.jpg" alt="realistic variety and low-poly variants" width="1200"><figcaption>Variety, from the left: realistic male
+Office (hi-vis vest, light skin), female Workshop (yellow helmet), male Offshore (dark skin), female Offshore; low poly Workshop, Office,
+plain mannequin. Poses: today's Standing / Hands on a panel / Pointing / Walking / Operator.</figcaption></figure>
+</div>
+
+<h2>2 · Numbers (measured)</h2>
+<p class="d">Web machine, 4 cores, no graphics card. "Saved" = the person's object, mesh, weights and armature written to a compressed .blend
+(materials left out). "40 people": 8 × 5 people of one look 1.4 m apart, four poses, the camera 25 m away, 960 × 540, 64 samples; time and
+peak memory of the whole run against the same scene with nobody in it.</p>
+<div class="tbl"><table>
+<tr><th>Look</th><th>Triangles</th><th>Saved</th><th>One person, close (640 × 800)</th><th>40 people: render</th><th>40 people: peak memory</th></tr>
+<tr><td>Nobody (the scene alone)</td><td class="n">–</td><td class="n">–</td><td class="n">–</td><td class="n">10.5 s</td><td class="n">816 MB</td></tr>
+<tr><td>Low poly</td><td class="n">1,016</td><td class="n">0.09 MB</td><td class="n">11.2 s</td><td class="n">12.2 s (+1.7)</td><td class="n">832 MB (+16)</td></tr>
+<tr><td>Today, light level</td><td class="n">2,248</td><td class="n">0.13 MB</td><td class="n">14.1 s</td><td class="n">14.2 s (+3.7)</td><td class="n">870 MB (+54)</td></tr>
+<tr><td>Today, detailed</td><td class="n">6,780</td><td class="n">0.21 MB</td><td class="n">14.3 s</td><td class="n">14.2 s (+3.7)</td><td class="n">914 MB (+98)</td></tr>
+<tr><td>Realistic, no smoothing</td><td class="n">24,856</td><td class="n">0.64 MB</td><td class="n">–</td><td class="n">15.0 s (+4.5)</td><td class="n">1,078 MB (+262)</td></tr>
+<tr><td>Realistic, smoothing 1 at render</td><td class="n">99,688</td><td class="n">0.64 MB</td><td class="n">11.9–14.8 s</td><td class="n">20.3 s (+9.8)</td><td class="n">3,752 MB (+2,936)</td></tr>
+</table></div>
+<p class="d">One person close up takes 11–15 s for every look (two runs of the realistic one: 14.8 and 11.9 s): the picture's pixels set the time,
+not the person. The difference shows with many people: the smoothed realistic body costs about <b>73 MB per person</b> while rendering. On your
+RTX 3090 (24 GB) that would be roughly 300 people – worked out from this machine, not measured on a graphics card. Making 40 realistic people took 30 s in the prototype (its face smoothing runs
+in plain Python per person); a build stores the finished body once.</p>
+
+<h2>3 · How each look fits the rig of task 0157</h2>
+<div class="tbl"><table>
+<tr><th></th><th>Low poly</th><th>Realistic (Human Base Meshes)</th></tr>
+<tr><td>Skeleton</td><td class="ok">the same 17 bones; every piece on ONE bone (ball joints hide the gaps, nothing stretches)</td>
+<td class="ok">the same 17 bones: fitted once to the scan's A-pose (17 points per body, picked from its shape), Blender's automatic weights
+(1.2 s per body with Blender's start, all 10,582 points weighted), then turned into the rig's rest pose. <b>No retarget at run time.</b></td></tr>
+<tr><td>Walk paths, 5 gaits, actions, IK</td><td class="ok">work (the walk clip)</td><td class="ok">work (the walk clip)</td></tr>
+<tr><td>Carrying, hands</td><td>mitten hands: a grip = a closed mitten (no finger keys needed)</td><td class="no">the scan's hands stay open:
+the rig's six finger shape keys (open / grip / point per hand) must be made for it – task C</td></tr>
+<tr><td>Tool change (0156) close up</td><td>possible, looks like a mannequin</td><td class="no">needs task C</td></tr>
+<tr><td>Clash check, live preview</td><td class="ok">the lightest body: could stand in for every look (task G)</td><td>25,000 triangles moved along the path; use the low-poly body (task G)</td></tr>
+<tr><td>Far away</td><td>is its own far level</td><td>give way to the low-poly figure beyond 30 m (the "FR prop detail" switch that today's person already has)</td></tr>
+<tr><td>Web 3D page</td><td class="ok">1,016 triangles: tens of people cost nothing</td><td>about 0.7 MB per person worked out from its point count (not measured): only a few</td></tr>
+</table></div>
+
+<h2>4 · Sources and licences</h2>
+<p class="d">The app is GPL-3.0-or-later in a public repository and is installed in companies: an asset must allow being committed, shipped and
+used commercially. <b>Checked how:</b> "in the file" = read in the downloaded file itself; "GH" = the licence file read on GitHub;
+"search" = the source page read through a search tool, because this machine's network refuses those sites – check again before a build.</p>
+<div class="tbl"><table>
+<tr><th>Source</th><th>Licence</th><th>For us</th><th>Checked</th><th>Notes</th></tr>
+<tr><td>Blender Studio <b>Human Base Meshes</b> v1.4.1 (<a href="https://download.blender.org/demo/asset-bundles/human-base-meshes/">download.blender.org</a>,
+<a href="https://studio.blender.org/assets/human-base-meshes">studio page</a>)</td><td>CC0</td><td class="ok">ship + commit</td><td>in the file: every asset's
+licence field says CC0 (authors Dan Ulrich, Julien Kaspar, Paul Kotelevets, Tonatiuh de San Julián); studio page: search</td><td>50 MB bundle; realistic
+male/female bodies from scan data (10,582 points, multires 3 levels, UVs), stylised bodies, heads, hands, feet, eyes; no rig, no shape keys.
+<b>Used in this study.</b></td></tr>
+<tr><td>MPFB 2 / MakeHuman (<a href="https://github.com/makehumancommunity/mpfb2/blob/master/LICENSE.md">LICENSE.md</a>)</td><td>code GPL-3; system
+assets CC0; exports unrestricted</td><td class="ok">ship CC0 assets</td><td>GH (some community packs are CC-BY: search)</td><td>rigs of 163 / 137 / 53 / 31
+bones, clothes, skins, body shapes as targets. Its asset site is refused here, so nothing was tried (task H).</td></tr>
+<tr><td>Mesh2Motion (<a href="https://github.com/Mesh2Motion/mesh2motion-assets">assets</a>)</td><td>models, rigs, animations CC0; code MIT</td><td class="ok">ship</td><td>GH</td><td>where the animations came from is not stated</td></tr>
+<tr><td>Kenney (<a href="https://kenney.nl/support">support page</a>)</td><td>CC0</td><td class="ok">ship</td><td>search</td><td>toy-like game characters: not a work look</td></tr>
+<tr><td>CMU motion capture (<a href="http://mocap.cs.cmu.edu/">mocap.cs.cmu.edu</a>)</td><td>free, "may include in commercially-sold products"</td><td>likely ship</td><td>search, secondary copies disagree</td><td>only needed if a later task wants captured motion; today's walk is worked out in code</td></tr>
+<tr><td>Quaternius (<a href="https://quaternius.com/license.html">licence</a>)</td><td>pages say CC0; the Quaternius Asset License forbids redistributing the assets as assets</td><td class="no">unclear: not in a public repository</td><td>search</td><td></td></tr>
+<tr><td>Mixamo (Adobe)</td><td>Adobe terms: raw files may not be redistributed</td><td class="no">no</td><td>search (community copy of the FAQ)</td><td>a user's own download for own renders is allowed</td></tr>
+<tr><td>Epic MetaHuman</td><td>Epic content licence, Unreal Engine</td><td class="no">no</td><td>search</td><td></td></tr>
+<tr><td>Reallusion Character Creator / ActorCore</td><td>paid; no distribution</td><td class="no">no</td><td>search</td><td></td></tr>
+<tr><td>Human Generator</td><td>paid asset licence; exported models may not be shared</td><td class="no">no</td><td>search</td><td></td></tr>
+<tr><td>SMPL / SMPL-X</td><td>non-commercial research</td><td class="no">no</td><td>GH</td><td></td></tr>
+<tr><td>Bandai Namco motion dataset</td><td>CC BY-NC 4.0</td><td class="no">no</td><td>GH</td><td></td></tr>
+<tr><td>Poly Haven / ambientCG</td><td>CC0</td><td class="ok">ship</td><td>search</td><td>rubber boots and a life jacket on Poly Haven; <b>no hard hat, no hi-vis vest</b> found</td></tr>
+<tr><td>Sketchfab hard hats / safety shoe</td><td>CC-BY 4.0</td><td>ship with credit</td><td>search</td><td>2,400–2,800 triangles; one vest there is AI-made and some scans are
+non-commercial: avoid. The PPE is simple enough to make in code (task D).</td></tr>
+<tr><td>Rigify human metarig (in Blender)</td><td>GPL-2.0-or-later</td><td class="ok">compatible</td><td>GH</td><td>159 bones; not needed: our 17-bone rig stays</td></tr>
+</table></div>
+<p class="d"><b>A point for the owner:</b> the realistic bodies are scans of real people. The licence allows everything, but the app's own rule
+(0155) is "a face without a likeness". The prototype smooths the scan's face; it still reads as a real face (heads picture). Task B makes
+the face generic (more smoothing, a non-scan head of the same bundle, or safety glasses and a hard hat always on near the camera).</p>
+
+<h2>5 · Work clothes and PPE</h2>
+<p>Nothing ready-made fits all of hard hat, hi-vis vest, coverall, safety boots and offshore suit under a shipping licence (above). The
+prototype shows the cheap way: the clothes are the body's own surface pushed out (coverall 9–14 mm, boots 8 mm), coloured per region, with
+reflective bands and a hi-vis vest as regions, and a hard hat made in code (shell, brim, peak, ridge). It works at 5 m and beyond; close up the
+coverall reads as a tight suit and the bands are ragged where they cross the chest. A build makes: boots with a toe cap and sole around the
+foot (today's shoe shape), the vest as its own shell with bands round and over the shoulders (EN ISO 20471 look), gloves, safety glasses,
+ear defenders, and folds as a normal map (task F).</p>
+
+<h2>6 · Build tasks – tick what you want</h2>
+<section class="item"><label class="pick"><input type="checkbox" value="A" checked> <b>A</b> <span class="star">★</span></label>
+<div class="body"><h3>Low-poly look and a Look choice <span class="tag">work M · Opus · Medium · props / people lane (props_detail, props_scale, person_rig)</span></h3>
+<p>The mannequin of this study in the app: a <b>Look</b> choice in the person's settings (Today / Low poly / Realistic once B is in),
+outfit colours and helmet on it, a "plain mannequin" option; the web 3D export uses it for people; test tour stop, PC-check line.</p>
+<p class="why">Gain: crowds on big scenes and the web page for nothing (40 people: +1.7 s, +16 MB). Small: the prototype is about 170 lines.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="B" checked> <b>B</b> <span class="star">★</span></label>
+<div class="body"><h3>Realistic look from Blender Studio's CC0 bodies <span class="tag">work L · Opus · High · props / people lane · after A</span></h3>
+<p>A maker tool (developer side) downloads the bundle from download.blender.org, fits the 17 bones, weights, poses to the rest pose, makes
+the face generic and writes two small files (male, female: ~0.6 MB each) into the app; licence in THIRD-PARTY-NOTICES. In the app: dressed per
+outfit, hard hat, heights 1.65 / 1.75 / 1.85, the four skins, smoothing at render, the low-poly figure beyond 30 m.</p>
+<p class="why">Gain: people that read as people in close shots and stills. Cost: memory with many people near the camera (table above).</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="C" checked> <b>C</b> <span class="star">★</span></label>
+<div class="body"><h3>Hands that grip on the realistic body <span class="tag">work M · Opus · High · after B</span></h3>
+<p>15 finger joints fitted per hand once, the rig's six finger shape keys (open, grip, point per hand) made from them, so carrying (0157)
+and the tool change (0156) work as with today's person.</p>
+<p class="why">Without it the realistic person carries a toolbox with open hands.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="D" checked> <b>D</b> <span class="star">★</span></label>
+<div class="body"><h3>PPE set for all looks <span class="tag">work M · Opus · Medium · after B</span></h3>
+<p>Hard hat (with chin strap), hi-vis vest with bands round and over the shoulders, coverall, offshore suit, safety boots with toe cap and
+sole, gloves, safety glasses, ear defenders – ticks in the person's settings; made in code, no outside files; colour blocks on the low-poly look.</p>
+<p class="why">Gain: the owner's "work clothes and PPE" for offshore and workshop pictures.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="E"> <b>E</b></label>
+<div class="body"><h3>Body variety <span class="tag">work S–M · Sonnet · Medium · after B</span></h3>
+<p>Build slim / average / heavy as a shape on both bodies, short hair when no helmet, a random mix button for a group of people.</p>
+<p class="why">Male, female, three heights and four skins come with B already (variety picture).</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="F"> <b>F</b></label>
+<div class="body"><h3>Cloth folds <span class="tag">work M · Opus · High · after B and D</span></h3>
+<p>Folds at elbows, knees, waist and back as a normal map per outfit, made once from a cloth simulation; loose trouser legs over the boots.</p>
+<p class="why">Takes away the "tight suit" look close up. Not needed at 15 m and beyond.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="G" checked> <b>G</b> <span class="star">★</span></label>
+<div class="body"><h3>The light body for the clash check and the live preview <span class="tag">work S · Opus · Medium · after A</span></h3>
+<p>Every look is checked and previewed with the low-poly body (1,016 triangles) instead of its own mesh (6,780 today, 24,856 realistic).</p>
+<p class="why">Keeps the clash check and posing as fast as today when realistic people come in.</p></div></section>
+
+<section class="item"><label class="pick"><input type="checkbox" value="H"> <b>H</b></label>
+<div class="body"><h3>Bring your own figure (MakeHuman / MPFB) <span class="tag">work M · Opus · Medium · later</span></h3>
+<p>A figure the user made himself in MPFB (CC0 system assets) imported with its 53-bone game rig mapped onto our 17 bones by name.</p>
+<p class="why">Not tried: MakeHuman's asset site is refused on this machine. More choice of faces, bodies and clothes, at the cost of a second
+way of making people.</p></div></section>
+
+<div id="bar"><code id="line"></code><button id="copy">Copy</button></div>
+<p class="d">Pictures and clip: tasks/0303_page/img; numbers: tasks/0303_page/numbers.json; the scripts that made them: tasks/0303_proto/ on
+the branch task/0303-study-people-looks (lowpoly.py, realistic.py, weights_bpy.py, export_hbm.py, render_sheet.py). The Human Base Meshes
+bundle itself is not in the repository.</p>
+</main><script>
+function upd(){var v=[].slice.call(document.querySelectorAll('.pick input:checked')).map(function(e){return e.value});
+document.getElementById('line').textContent='0303 pick: '+(v.join(' ')||'none');}
+document.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=function(){var t=document.getElementById('line').textContent,b=this;
+function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove()}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb)}else fb()}catch(e){fb()}
+b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};
+</script></body></html>

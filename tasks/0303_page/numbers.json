@@ -1,0 +1,19 @@
+{
+ "machine": "web machine, 4 cores, no graphics card; Blender 5.2.3 as a Python module, Cycles CPU",
+ "single_close_640x800_64spp_s": {"today": [14.26, null], "lowpoly": [11.18, null], "realistic_subdiv1": [14.75, 11.87],
+   "note": "two runs; the picture's pixels set the time, not the person"},
+ "triangles": {"today_detailed": 6780, "today_light": 2248, "lowpoly": 1016, "realistic_base": 24856, "realistic_render_subdiv1": 99688},
+ "saved_person_mb": {"today_detailed": 0.209, "today_light": 0.134, "lowpoly": 0.086, "realistic": 0.642,
+   "note": "object + mesh + weights + armature, compressed .blend, materials not included"},
+ "crowd_40_people_960x540_64spp": {
+   "none":             {"make_s": 0.0,  "render_s": 10.5, "peak_mb": 816},
+   "lowpoly":          {"make_s": 0.6,  "render_s": 12.2, "peak_mb": 832},
+   "today_light":      {"make_s": 1.2,  "render_s": 14.2, "peak_mb": 870},
+   "today":            {"make_s": 1.3,  "render_s": 14.2, "peak_mb": 914},
+   "realistic_nosub":  {"make_s": 33.1, "render_s": 15.0, "peak_mb": 1078},
+   "realistic_subdiv1":{"make_s": 29.7, "render_s": 20.3, "peak_mb": 3752},
+   "note": "make_s of the realistic = the prototype's face smoothing in plain Python, per person; a build stores the result once"},
+ "rows_1280x720_64spp_s": {"5m": 31.8, "15m": 20.8, "45m": 18.3},
+ "walk_clip": {"frames": 154, "fps": 25, "size": "800x450", "samples": 24, "s_per_frame": 4.77},
+ "fit": {"weights_bone_heat_s_whole_blender_run": {"male": 1.2, "female": 1.2}, "points_without_weight": 0, "points": 10582}
+}
