@@ -634,6 +634,7 @@ if MODE == "panels":
         ("panel_1_import", [("FRESING_PT_import", False, True)]),
         ("panel_1_imported_models", [("FRESING_PT_import", False, True, _imported_models)]),     # task 0289
         ("panel_2_structure", [("FRESING_PT_structure", False, True)]),
+        ("panel_2_place", [("FRESING_PT_place", False, True)]),          # task 0292: the boom, unlocked
         ("panel_2_cleanup", [("FRESING_PT_cleanup", False, True)]),
         ("panel_2_visibility", [("FRESING_PT_visibility", False, True)]),
         ("panel_3_looks", [("FRESING_PT_looks", False, True)]),
@@ -687,7 +688,10 @@ if MODE == "panels":
     def _make_shot(name, spec):
         def show():
             sc = bpy.context.scene
-            if name == "panel_3_looks":                 # a part clicked: its box under the groups
+            if name == "panel_2_place":                 # task 0292: the boom's subassembly, unlocked
+                mod("blender.ops_place").set_lock(ob("BOOM.ASM"), False)
+                select_only(ob("BOOM.ASM"))
+            elif name == "panel_3_looks":                 # a part clicked: its box under the groups
                 sc.fresing.pick_mode = "PART"
                 select_only(ob("BOOM"))
                 grp = ob("BOOM").get("fr_group", "")

@@ -488,8 +488,6 @@ def keys_quiet() -> bool:
 # (keymap, space, key, modifiers, what it is in Blender) – swallowed outside Full access. H / Alt+H / Shift+H, A,
 # G / R / S, Home, the numpad, Z, Space, Ctrl+Space, Ctrl+Z, F3, N, F11, Ctrl+S / Ctrl+O stay Blender's.
 BLENDER_KEYS = (
-    ("Object Mode", "EMPTY", "X", {"any": True}, "delete"),
-    ("Object Mode", "EMPTY", "DEL", {"any": True}, "delete"),
     ("Object Non-modal", "EMPTY", "TAB", {}, "Edit Mode"),
     ("Object Non-modal", "EMPTY", "TAB", {"ctrl": True}, "mode menu"),
     ("Object Mode", "EMPTY", "D", {"shift": True}, "duplicate"),
@@ -523,7 +521,10 @@ APP_KEYS = (("Screen", "EMPTY", "F12", {}, "fresing.key_render", {"animation": F
             # task 0307: G / R / S say at once why something cannot move (locked in place, a built animation)
             ("Object Mode", "EMPTY", "G", {}, "fresing.move_key", {"mode": "TRANSLATE"}),
             ("Object Mode", "EMPTY", "R", {}, "fresing.move_key", {"mode": "ROTATE"}),
-            ("Object Mode", "EMPTY", "S", {}, "fresing.move_key", {"mode": "RESIZE"}))
+            ("Object Mode", "EMPTY", "S", {}, "fresing.move_key", {"mode": "RESIZE"}),
+            # task 0292: Delete / X open the app's Remove window (it lists what goes; Remove or Cancel)
+            ("Object Mode", "EMPTY", "X", {"any": True}, "fresing.remove_key", {}),
+            ("Object Mode", "EMPTY", "DEL", {"any": True}, "fresing.remove_key", {}))
 
 
 def key_label(key: str, mods: dict) -> str:

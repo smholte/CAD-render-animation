@@ -223,7 +223,16 @@ fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide
 fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
    "can move (right-click); a line in the status bar when it cannot move", family="import",
    panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
-   since="0.2.216", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.216", changed="0.2.219", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0292: Place (numbers, steps, snap, mouse, arrows and rings, floor, back), Remove…, a lock in every tree row
+fn(id="structure.place", short="Place", title="Place a model, subassembly or part: X / Y / Z and turns, steps, snap, "
+   "move and turn with the mouse, arrows and rings, Put on the floor, Back to the CAD place", family="import",
+   panel="FRESING_PT_place", button="fresing.place_floor", guide="place", tour=("place",), pccheck=("place.move",),
+   since="0.2.219", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+fn(id="structure.remove", short="Remove", title="Remove a model, subassembly or parts with what lives on them (a window "
+   "lists what goes; Delete / X open it)", family="import", panel="FRESING_PT_place", button="fresing.remove",
+   guide="remove-model", tour=("remove",), pccheck=("place.remove",), since="0.2.219",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
@@ -257,13 +266,13 @@ fn(id="looks.schemes", short="Paint schemes", title="Paint schemes & templates",
 # ----- 4 Motion: joints, poses -----
 fn(id="joints.rotate", title="Rotate joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", tour=("joint",),
-   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.219")
+   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.220")
 fn(id="joints.slide", title="Slide joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", lesson="mill:3", since="0.2.0",
-   changed="0.2.219")
+   changed="0.2.220")
 fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", tour=("stack",),
-   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.219")
+   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.220")
 fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
@@ -271,7 +280,7 @@ fn(id="joints.cad_position", short="Back to CAD", title="Everything back to CAD 
    button="fresing.pose_reset", guide="motion", since="0.2.5")
 fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18",
-   changed="0.2.219")
+   changed="0.2.220")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
@@ -283,7 +292,7 @@ fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT
 fn(id="machines.cylinder", title="Cylinders", family="machines", panel="FRESING_PT_cylinders",
    button="fresing.cylinder_add", guide="cylinders", tour=("cylinder",), pccheck=("joints.cylinder",),
    since="0.2.25",
-   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.219")
+   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.220")
 fn(id="machines.mechanism", title="Mechanisms: scissor lift, crank", family="machines",
    panel="FRESING_PT_mechanisms", button="fresing.mechanism_add", guide="mechanisms", tour=("mechanism",),
    pccheck=("joints.mechanism",), since="0.2.26")

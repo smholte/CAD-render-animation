@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.219")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.220")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -4491,11 +4491,11 @@ stop("joint", MOTION, HUB_SET, "Joint: the boom turns",
      "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it. The luffing "
      "cylinder under it follows: its rod slides out and its eye stays on the pin under the boom.",
      where="4 Motion > Joints; 6 Animation", animation="Boom up", play=True, select=("BOOM",), check=_check_boom,
-     auto="clip", since="0.2.47", changed="0.2.219")
+     auto="clip", since="0.2.47", changed="0.2.220")
 stop("stack", MOTION, HUB_SET, "Stacked joints: boom + trolley",
      "The boom turns up while the trolley slides out along it: the two moves add up, the trolley stays on the "
      "boom.", where="4 Motion > Joints (the trolley's joint rides on the boom)", animation="Boom and trolley",
-     play=True, select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47", changed="0.2.219")
+     play=True, select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47", changed="0.2.220")
 stop("fade", MOTION, HUB_SET, "Fade, X-ray and trail",
      "The boom turns up while the trolley runs out along it; meanwhile the cover fades into a light-blue X-ray "
      "(see-through, glowing edges) and a green line draws the path of the trolley's centre behind it. Look in "
@@ -4514,7 +4514,7 @@ stop("explode", MOTION, HUB_SET, "Exploded view",
 stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
      "The rod comes out of the cylinder 450 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
-     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.219")
+     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.220")
 stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
@@ -4730,6 +4730,74 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
      at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.203")
+# ---------------------------------------------------------------------------
+# task 0292: Place and Remove
+# ---------------------------------------------------------------------------
+
+@tour_set("place", "Place and remove", "test_crane_a.step", added="0.2.219", changed="0.2.219")
+def build_place(b: Build):
+    """The crane with the crane lesson's joints, cylinder and animation, placed 1 m along X and turned a quarter turn
+    with 2 Structure > Place; its trolley removed with Remove… (the trolley's joint went with it)."""
+    import math
+
+    from mathutils import Matrix
+
+    from . import lesson, ops_place, place, remove
+    sc = b.scene
+    lesson.run(sc, "crane")
+    _studio(b)
+    root = _ob(sc, "TEST.CRANE")
+    ops_place.set_lock(root, False)
+    place.move(sc, [root], Matrix.Translation((1.0, 0.0, 0.0)) @ Matrix.Rotation(math.radians(90.0), 4, "Z"))
+    remove.remove(sc, [_ob(sc, "TROLLEY.ASM")])
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@place")
+
+
+def _place_setup(scene):
+    from . import panels
+    try:
+        panels.open_to("FRESING_PT_place")
+    except Exception:  # noqa: BLE001 - the stop still opens
+        pass
+
+
+def _check_place(scene):
+    from . import place
+    root = _ob(scene, "TEST.CRANE")
+    x, y, z, rx, ry, rz = place.numbers(scene, root, "MODEL")
+    _check(abs(x - 1000.0) < 0.5 and abs(y) < 0.5 and abs(z) < 0.5, f"the crane is {x:.0f}, {y:.0f}, {z:.0f} mm from "
+           "where it was imported, not 1000, 0, 0")
+    _check(abs(rz - 90.0) < 0.05, f"the crane is turned {rz:.1f}°, not 90°")
+    _check(place.is_placed(root), "the crane does not count as placed")
+    return f"moved {x:.0f} mm, turned {rz:.0f}°"
+
+
+def _check_remove(scene):
+    from . import build, joints
+    s = scene.fresing
+    left = [o for o in scene.objects if o.get(build.PROP_NAME) in ("TROLLEY.ASM", "TROLLEY", "WHEEL")]
+    _check(not left, f"the trolley is still there: {[o.name for o in left]}")
+    _check([j.name for j in s.joints] == ["Boom"], f"the joints are {[j.name for j in s.joints]}, not only Boom")
+    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 1, "the boom's joint or the cylinder broke")
+    n = sum(1 for o in build.iter_parts(scene))
+    _check(n == 17, f"{n} parts left, not 17")
+    return f"{n} parts left, joints {[j.name for j in s.joints]}"
+
+
+stop("place", MOTION, "place", "Place: crane moved and turned",
+     "The crane stands 1 m to the side of where it was imported and turned a quarter turn. 2 Structure > Place, with "
+     "the crane selected, shows Model axes X 1000, Y 0, Z 0 and Turn Z 90 (World: where it stands). Its joints and "
+     "cylinder moved with it: the boom still luffs about its pin.",
+     where=places.where("FRESING_PT_place"), since="0.2.219", select=("TEST.CRANE",), check=_check_place,
+     setup=_place_setup)
+stop("remove", MOTION, "place", "Remove: the trolley is gone",
+     "The crane has no trolley: it was removed with Remove… (the window listed 3 parts, 1 joint). The trolley's "
+     "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
+     where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: crane moved and "
+     "turned", select=("TEST.CRANE",), check=_check_remove)
+
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
      "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "

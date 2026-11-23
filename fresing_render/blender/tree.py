@@ -58,7 +58,12 @@ def rebuild(scene) -> None:
             return counts[node.name]
         n = 0
         for c in t.children(node):
-            n += 1 if c.get(build.PROP_KIND) == "part" else count(c)
+            # task 0292: a part without a shape (an empty in the CAD file) is not counted – as 2 Structure's header
+            # counts (the owner's model: header 562, the model's box 564)
+            if c.get(build.PROP_KIND) == "part":
+                n += 1 if c.type == "MESH" else 0
+            else:
+                n += count(c)
         counts[node.name] = n
         return n
 

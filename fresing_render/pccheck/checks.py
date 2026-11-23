@@ -885,7 +885,7 @@ def joints_stack(ctx):
     return "boom 30° + trolley 1000 mm"
 
 
-@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.219",
+@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.220",
       what="Clicking the boom's joint in 4 Motion > Joints lights up the boom, the trolley riding on it lighter")
 def joints_show(ctx):
     from mathutils import Vector
@@ -5028,6 +5028,113 @@ def structure_move(ctx):
     bpy.ops.fresing.anim_clear()
     logic.set_locked(asm, True)
     return "locked: says how to unlock; unlocked: the move stays; after Build: says stop it first"
+
+
+@line("place.move", "Place: a model moved 1 m and turned 90° builds the same motion; the boom moved 100 mm takes its "
+      "joint along; Back to the CAD place", "0.2.219",
+      what="On the test crane with the crane lesson's joints, cylinder and animation: the whole crane moved 1 m along X "
+           "and turned 90° builds the same motion, moved; the boom subassembly moved 100 mm up takes its joint's axis "
+           "along and keeps it through Build; Back to the CAD place puts both back; the fields read the move")
+def place_move(ctx):
+    import math
+    import time
+
+    import bpy
+    from mathutils import Matrix
+
+    from ..blender import animation, build, joints, lesson, ops_place, place
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    lesson.run(scene, "crane")
+    s = scene.fresing
+    a = s.animations[0]
+
+    def ob(name):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == name)
+
+    def places(frames):
+        out = {}
+        for f in frames:
+            scene.frame_set(f)
+            out[f] = ob("BOOM").matrix_world.copy()
+        return out
+
+    def close(m, n):
+        return all(abs(m[r][c] - n[r][c]) < 3e-4 for r in range(4) for c in range(4))
+
+    info = animation.bake(scene, a)
+    frames = (1, info["frames"])
+    before = places(frames)
+    animation.clear_keys(scene)
+    root = ob("TEST.CRANE")
+    ops_place.set_lock(root, False)
+    D = Matrix.Translation((1.0, 0.0, 0.0)) @ Matrix.Rotation(math.radians(90.0), 4, "Z")
+    t0 = time.time()
+    place.move(scene, [root], D)
+    ctx.metric("move", time.time() - t0, "s")
+    animation.bake(scene, a)
+    after = places(frames)
+    _check(all(close(D @ before[f], after[f]) for f in frames), "the moved crane's boom does not move as before")
+    x = place.numbers(scene, root, "MODEL")[0]
+    _check(abs(x - 1000.0) < 0.5, f"Place's Model-axes X reads {x:.1f} mm, not 1000")
+    animation.clear_keys(scene)
+    place.back_to_cad(scene, [root])
+    boom = ob("BOOM.ASM")
+    ops_place.set_lock(boom, False)
+    j = joints.find(scene, "Boom")
+    o0, _d = joints.axis_world(j)
+    place.move(scene, [boom], Matrix.Translation((0.0, 0.0, 0.1)))
+    _update()
+    o1, _d = joints.axis_world(j)
+    _check(abs((o1 - o0).z - 0.1) < 1e-5, f"the boom's joint did not go along: {(o1 - o0).z * 1000:.2f} mm")
+    animation.bake(scene, a)
+    animation.clear_keys(scene)
+    _update()
+    _check(abs((joints.axis_world(j)[0] - o0).z - 0.1) < 1e-5, "Build lost the boom's new place")
+    place.back_to_cad(scene, [boom])
+    _update()
+    _check((joints.axis_world(j)[0] - o0).length < 1e-5, "Back to the CAD place did not put the joint back")
+    return "crane moved 1 m + 90°: same motion; boom +100 mm: joint along, kept by Build; back again"
+
+
+@line("place.remove", "Remove: a subassembly and a model with what lives on them; nothing left pointing at nothing",
+      "0.2.219",
+      what="On the test crane with the crane lesson's set-up and a label: the window's list (parts, joints, cylinder, "
+           "steps), the trolley removed (its joint goes, the boom and cylinder still work), then the whole crane "
+           "removed – no joint, cylinder, label, step or object of it left")
+def place_remove(ctx):
+    import time
+
+    import bpy
+
+    from ..blender import animation, build, lesson, remove
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    lesson.run(scene, "crane")
+    s = scene.fresing
+
+    def ob(name):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == name)
+
+    c = s.callouts.add()
+    c.text, c.part = "Boom", ob("BOOM")
+    trolley = ob("TROLLEY.ASM")
+    p = remove.plan(scene, [trolley])
+    _check((p["parts"], p["joints"]) == (3, 1), f"the trolley's list is wrong: {p['parts']} parts, {p['joints']} joints")
+    _check(bpy.ops.fresing.remove(names=trolley.name) == {"FINISHED"}, "Remove of the trolley failed")
+    _check([j.name for j in s.joints] == ["Boom"] and len(s.cylinders) == 1, "the boom's joint or the cylinder is gone")
+    _check(animation.bake(scene, s.animations[0])["frames"] > 1, "the crane without its trolley does not build")
+    animation.clear_keys(scene)
+    root = ob("TEST.CRANE")
+    p = remove.plan(scene, [root])
+    lines = remove.lines(p)
+    _check(lines and lines[0].startswith("Goes: 1 model, 17 parts, 1 joint, 1 cylinder"), f"the list: {lines[:1]}")
+    t0 = time.time()
+    _check(bpy.ops.fresing.remove(names=root.name) == {"FINISHED"}, "Remove of the crane failed")
+    ctx.metric("remove", time.time() - t0, "s")
+    left = [o.name for o in scene.objects if o.get(build.PROP_KIND) in build.MODEL_KINDS + build.JOINT_KINDS]
+    _check(not left and not len(s.joints) and not len(s.cylinders) and not len(s.callouts),
+           f"left after Remove: {left[:5]}, {len(s.joints)} joints, {len(s.callouts)} labels")
+    _check(not any(len(a.blocks) for a in s.animations), "an animation step of the crane is left")
+    return "trolley: its joint went, the rest builds; crane: nothing left"
 
 
 @line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",

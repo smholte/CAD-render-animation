@@ -64,7 +64,8 @@ class FRESING_OT_tree_row(bpy.types.Operator):
                                 ("ADD", "Add", "Add it to the selection"),
                                 ("FRAME", "Zoom to", "Select it and zoom the view onto it"),
                                 ("HIDE", "Hide / show", "Hide or show it (also in renders)"),
-                                ("ONLY", "Show only this", "Hide everything else")],
+                                ("ONLY", "Show only this", "Hide everything else"),
+                                ("LOCK", "Lock / unlock", "Locked in place or free to move")],
                          default="SELECT", options={"SKIP_SAVE"})
     extend: BoolProperty(default=False, options={"SKIP_SAVE"})
 
@@ -75,7 +76,10 @@ class FRESING_OT_tree_row(bpy.types.Operator):
                 "FRAME": "Select it and zoom the view onto it",
                 "HIDE": "Hide or show it (also in renders). After Build it takes the built animation off: Build again",
                 "ONLY": "Show only this, hide everything else (Show all brings it back). After Build it takes the "
-                        "built animation off: Build again"}[properties.action]
+                        "built animation off: Build again",
+                "LOCK": "Closed lock: locked in place – it does not move on its own (G, R and 2 Structure > Place "
+                        "leave it), but it still moves with the subassembly it is in and with its joints. Open lock: "
+                        "free to move. Click to switch (greyed: a subassembly above it is locked)"}[properties.action]
 
     def invoke(self, context, event):
         self.extend = event.shift or event.ctrl
@@ -103,6 +107,12 @@ class FRESING_OT_tree_row(bpy.types.Operator):
             return {"FINISHED"}
         if self.action == "ONLY":
             tree_mod.show_only(scene, objs, item.label)
+            return {"FINISHED"}
+        if self.action == "LOCK":                       # task 0292: the lock in every tree row
+            from . import ops_place, place
+            on = not place.locked(item.obj)
+            for o in (objs if item.is_part else [item.obj]):
+                ops_place.set_lock(o, on, t)
             return {"FINISHED"}
         tree_mod.select_objects(context, objs, extend=self.extend or self.action == "ADD")
         tree_mod._set_index_quietly(s, self.index)
