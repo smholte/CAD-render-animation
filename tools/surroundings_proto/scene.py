@@ -839,7 +839,7 @@ def render(path, timings=None, key="render"):
         if "Peak" in st or "Mem" in st:
             stats["mem"] = st
         import re
-        for m in re.finditer(r"Peak:? *([0-9.]+)([MG])", st):
+        for m in re.finditer(r"(?:Peak|Mem):? *([0-9.]+)([MG])", st):
             v = float(m.group(1)) * (1024 if m.group(2) == "G" else 1)
             stats["peak"] = max(stats.get("peak", 0.0), v)
         stats.setdefault("first", st)
