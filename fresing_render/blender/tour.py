@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.210")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.217")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -964,7 +964,7 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.187")
+@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.217")
 def build_faces(b: Build):
     import bpy
 
@@ -3984,6 +3984,58 @@ def _check_mesh(scene):
     return f"ring Ø{dia:.1f} mm, axis {off:.2f}° off vertical"
 
 
+@tour_set("import", "Import again and Up axis", "test_crane_a.step", added="0.2.218", changed="0.2.218")
+def build_import(b: Build):
+    """Task 0289: the crane imported, then a second copy from 1 Import > Imported models > Import again (the stored
+    copy, nothing read), moved aside and turned to Y up on its line – it lies on its side, as a Y-up file would."""
+    import bpy
+
+    from . import build, ops_import
+    from ..core import import_cache
+    sc = b.scene
+    _look("PRODUCT")
+    src = os.path.normcase(os.path.abspath(build.model_roots(sc)[0].get(build.PROP_SOURCE, "")))
+    e = next((x for x in import_cache.entries(ops_import.cache_root())
+              if os.path.normcase(os.path.abspath(x.source)) == src), None)
+    _check(e is not None, "the crane's import is not in the cache")
+    res = bpy.ops.fresing.import_step("EXEC_DEFAULT", again=e.id)
+    _check(res == {"FINISHED"}, f"Import again returned {res}")
+    second = build.model_roots(sc)[1]
+    second.location.x += IMPORT_ASIDE
+    build.set_mat(second, build.PROP_REST_BASIS, second.matrix_basis)
+    _update()
+    res = bpy.ops.fresing.model_up_axis("EXEC_DEFAULT", root=second.name, axis="Y")
+    _check(res == {"FINISHED"}, f"Up axis returned {res}")
+    _update()
+    _surround(b, "FACTORY")
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@import_again")
+
+
+IMPORT_ASIDE = 5.0                   # m: the second copy stands this far along +X
+
+
+def _check_import(scene):
+    from . import build, logic
+    roots = build.model_roots(scene)
+    _check(len(roots) == 2, f"expected 2 copies of the crane, there are {len(roots)}")
+    axes = [logic.up_axis_of(r) for r in roots]
+    _check(axes == ["Z", "Y"], f"the copies' up axes are {axes}, expected Z and Y")
+    n = [len([o for o in build.iter_parts(scene) if build.logical_parent(o) is not None and _root_is(o, r)])
+         for r in roots]
+    _check(n[0] == n[1] and n[0] > 10, f"the copies have {n[0]} and {n[1]} parts")
+    return f"2 copies of {n[0]} parts, Z up and Y up"
+
+
+def _root_is(ob, root) -> bool:
+    from . import build
+    while ob is not None:
+        if ob == root:
+            return True
+        ob = build.logical_parent(ob)
+    return False
+
+
 # ---------------------------------------------------------------------------
 # the stops, in order (numbers follow this order)
 # ---------------------------------------------------------------------------
@@ -4213,7 +4265,7 @@ def _check_crane_setup(scene):
     _check(not red, "Check: " + "; ".join(red[:2]))
     return f"{len(js)} joints with {len(roles)} roles, hook point set, Check: nothing wrong"
 @tour_set("lifting_make", "Lifting plan – a crane made from numbers", "test_loads.step", added="0.2.159",
-          changed="0.2.176")
+          changed="0.2.217")
 def build_lifting_make(b: Build):
     """Task 0204 / 0231: Make a crane… – the AT-100's numbers with 5 sections and a 50 m boom, made into a library next
     to the tour, placed on mats beside the yard's container and set up; its boom stands out, slewed over the yard (pose 'Working' + slew 90°) and
@@ -4446,6 +4498,12 @@ stop("looks", LOOK, HUB_SET, "Light looks",
      "The Dark studio look: a dark background with rim lights. The other looks are one click each in 5 Scene & Render > Light look.",
      where="5 Scene & Render > Light look", check=_check_looks, since="0.2.47")
 
+stop("import_again", LOOK, "import", "Import again and Up axis",
+     "Two copies of the test crane. The left one was imported as usual; the right one came from 1 Import > Imported "
+     "models > Import again – the stored copy, in a second, nothing read – and its line's Up axis was set to Y up: it "
+     "lies on its side, as a model drawn Y up in its CAD would stand. Imported models lists the crane with its parts, "
+     "date and size; Z up / Y up on each model's line turns it back.",
+     where="1 Import: the model's line (Up axis), Imported models", since="0.2.218", check=_check_import)
 stop("joint", MOTION, HUB_SET, "Joint: the boom turns",
      "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it. The luffing "
      "cylinder under it follows: its rod slides out and its eye stays on the pin under the boom.",
@@ -4642,8 +4700,11 @@ stop("lifting_make", MOTION, "lifting_make", "Lifting: a crane from numbers",
      "On the yard stands 'AT-100 with 5 sections': made with 8 Lifting plan > Equipment > Make a crane… from the "
      "AT-100's numbers with 5 boom sections instead of 7 (boom 50 m fully out). It is set up on its outriggers and "
      "mats, its boom raised, slewed over the yard and telescoped out; the panel shows its radius and chart. Its boom "
-     "has 5 sections (joints Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented.",
-     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", check=_check_lifting_make)
+     "has 5 sections (joints Telescope … Telescope 5) and the panel shows the SAMPLE line: its chart is invented. "
+     "Make a crane… opens its form in a window of its own: it stays open while you click in the main window, can be "
+     "dragged onto another screen and opens again where it was.",
+     where="8 Lifting plan > Equipment > Make a crane…", since="0.2.159", changed="0.2.217",
+     check=_check_lifting_make)
 
 stop("clash", MOTION, "clash", "Clash check: two arms meet",
      "Arm B turns into place, then arm A comes down onto it and runs 6 mm into it. 6 Animation > Clash check "
@@ -4687,6 +4748,74 @@ stop("people", MOTION, "people", "People walk, carry and meet",
      "nodding, taking turns, gesturing with their hands.",
      where="6 Animation > People (Example: two people meet, then Build)", since="0.2.128", animation=PEOPLE_ANIM,
      at=0.55, play=True, check=_check_people, auto="clip", changed="0.2.203")
+# ---------------------------------------------------------------------------
+# task 0292: Place and Remove
+# ---------------------------------------------------------------------------
+
+@tour_set("place", "Place and remove", "test_crane_a.step", added="0.2.219", changed="0.2.219")
+def build_place(b: Build):
+    """The crane with the crane lesson's joints, cylinder and animation, placed 1 m along X and turned a quarter turn
+    with 2 Structure > Place; its trolley removed with Remove… (the trolley's joint went with it)."""
+    import math
+
+    from mathutils import Matrix
+
+    from . import lesson, ops_place, place, remove
+    sc = b.scene
+    lesson.run(sc, "crane")
+    _studio(b)
+    root = _ob(sc, "TEST.CRANE")
+    ops_place.set_lock(root, False)
+    place.move(sc, [root], Matrix.Translation((1.0, 0.0, 0.0)) @ Matrix.Rotation(math.radians(90.0), 4, "Z"))
+    remove.remove(sc, [_ob(sc, "TROLLEY.ASM")])
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@place")
+
+
+def _place_setup(scene):
+    from . import panels
+    try:
+        panels.open_to("FRESING_PT_place")
+    except Exception:  # noqa: BLE001 - the stop still opens
+        pass
+
+
+def _check_place(scene):
+    from . import place
+    root = _ob(scene, "TEST.CRANE")
+    x, y, z, rx, ry, rz = place.numbers(scene, root, "MODEL")
+    _check(abs(x - 1000.0) < 0.5 and abs(y) < 0.5 and abs(z) < 0.5, f"the crane is {x:.0f}, {y:.0f}, {z:.0f} mm from "
+           "where it was imported, not 1000, 0, 0")
+    _check(abs(rz - 90.0) < 0.05, f"the crane is turned {rz:.1f}°, not 90°")
+    _check(place.is_placed(root), "the crane does not count as placed")
+    return f"moved {x:.0f} mm, turned {rz:.0f}°"
+
+
+def _check_remove(scene):
+    from . import build, joints
+    s = scene.fresing
+    left = [o for o in scene.objects if o.get(build.PROP_NAME) in ("TROLLEY.ASM", "TROLLEY", "WHEEL")]
+    _check(not left, f"the trolley is still there: {[o.name for o in left]}")
+    _check([j.name for j in s.joints] == ["Boom"], f"the joints are {[j.name for j in s.joints]}, not only Boom")
+    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 1, "the boom's joint or the cylinder broke")
+    n = sum(1 for o in build.iter_parts(scene))
+    _check(n == 17, f"{n} parts left, not 17")
+    return f"{n} parts left, joints {[j.name for j in s.joints]}"
+
+
+stop("place", MOTION, "place", "Place: crane moved and turned",
+     "The crane stands 1 m to the side of where it was imported and turned a quarter turn. 2 Structure > Place, with "
+     "the crane selected, shows Model axes X 1000, Y 0, Z 0 and Turn Z 90 (World: where it stands). Its joints and "
+     "cylinder moved with it: the boom still luffs about its pin.",
+     where=places.where("FRESING_PT_place"), since="0.2.219", select=("TEST.CRANE",), check=_check_place,
+     setup=_place_setup)
+stop("remove", MOTION, "place", "Remove: the trolley is gone",
+     "The crane has no trolley: it was removed with Remove… (the window listed 3 parts, 1 joint). The trolley's "
+     "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
+     where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: crane moved and "
+     "turned", select=("TEST.CRANE",), check=_check_remove)
+
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
      "doors by the left door's handle (the right door slides the other way), leans in, presses the release button "
@@ -5155,7 +5284,8 @@ stop("make", OUT, HUB_SET, "Make: each output in a window",
      auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
-     "Help > Make demo project… makes the demo 'Vessel in a wind park' in the background (a minute or two on your PC; "
+     "Help > Make demo project… opens a small window of its own; Make it there makes the demo 'Vessel in a wind park' "
+     "in the background (a minute or two on your PC; "
      "the status bar shows how far). Then Help > Open demo project: an invented ship on the open sea in a wind park "
      "of nine turbines; 4 Motion lists 33 joints (the ship's thrusters, propellers, radars and deck crane, the park's "
      "turbines), 5 Scene & Render has the saved scene 'At the quay' and the saved cameras 'Stern thrusters' (under "
@@ -5164,8 +5294,8 @@ stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "6 Animation > 'What it can do today' plays a video of about a minute (Build & play): the ship sails in and holds "
      "her place, her crane slews and lowers its hook, the rotors turn, night falls. This stop only checks that the "
      "demo is there.",
-     where="Help menu (Make demo project…, Open demo project)", since="0.2.68", shot="Tour view", check=_check_demo,
-     auto=lambda ctx, scene, st: "", changed="0.2.188")
+     where="Help menu (Make demo project…, Open demo project)", since="0.2.68", changed="0.2.217", shot="Tour view", check=_check_demo,
+     auto=lambda ctx, scene, st: "")
 
 def _check_panel_back(scene):
     """The header button and its operator (task 0198)."""
@@ -5386,9 +5516,10 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
      "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "
      "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
-     "may have one quiet line \"Next to learn: …\" with Learn and Not interested.",
+     "may have one quiet line \"Next to learn: …\" with Learn and Not interested. My learning list opens in a window "
+     "of its own that stays open beside your work; Esc with the mouse over it closes it.",
      where="Fresing menu > My learning list…; the question and the What's next card on the left panel",
-     since="0.2.160", changed="0.2.197", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+     since="0.2.160", changed="0.2.217", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
 def _check_lessons(scene):
     """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""
@@ -5416,9 +5547,10 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "tour at the set, Show me opens a new project with the plain model and the app does each step itself – the "
      "button glows, a card beside the part says what happens, Next goes on (or tick Play on) – and Build it yourself "
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
-     "coming'.",
+     "coming'. Learn… is a window of its own: click in the main window and it stays open, drag it onto another "
+     "screen, close it with Close or its X.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.197", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.217", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 
@@ -5445,12 +5577,12 @@ def _check_backups(scene):
 
 
 stop("backups", OUT, "faces", "Automatic backups",
-     "Fresing > Restore a backup… lists a backup of this tour project made just now (Today and the time, its size), "
-     "with Restore and a folder button. Restore keeps your work as a backup first, then opens the backup. In Edit > "
+     "Fresing > Restore a backup… opens a window of its own (it stays open while you work) listing a backup of this "
+     "tour project made just now (Today and the time, its size), with Restore and a folder button. Restore keeps your work as a backup first, then opens the backup. In Edit > "
      "Preferences > Add-ons > Fresing Render the box Automatic backups has the switch, every 5 minutes, keep the last 5 "
      "and one a day for 7 days.",
      where="Fresing menu > Restore a backup…; Edit > Preferences > Add-ons > Fresing Render > Automatic backups",
-     since="0.2.187", shot="Painted faces", check=_check_backups, setup=_backup_setup)
+     since="0.2.187", changed="0.2.217", shot="Painted faces", check=_check_backups, setup=_backup_setup)
 
 # ---------------------------------------------------------------------------
 # every machining stop: the block shows what the program does (task 0223)

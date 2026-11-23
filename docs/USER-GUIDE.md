@@ -377,6 +377,44 @@ again and they are kept as before. Where the file is, and how IT can give the sa
 **Edit > Preferences > Add-ons > Fresing Render** now only says where the settings are and has a button **Open
 Fresing Settings**. Your settings from before stay as they were.
 
+<a id="function-windows"></a>
+### Function windows: forms that stay open
+
+A function that asks you for a few things first – **Make a crane…**, **Save as my own workspace…**, **Save pose…**,
+**Save scene…**, **Copy… / New, empty…** rule set, **Make demo project…**, **Learn…**, **My learning list…**,
+**Restore a backup…**, **About**, the **PC check**'s choices and the others in the table below – opens them in a
+**window of its own**, like [Fresing Settings](#settings):
+
+- It **stays open** while you click in the main window: select a part, turn the view, look something up – your
+  values stay in it.
+- **Drag it anywhere**, also onto a second screen. Next time it opens **as big as you left it** (on Windows also
+  **where** you left it).
+- Its button at the bottom (**Make**, **Save**, **Start** …) does what it is for **with what is in the project at that
+  moment** – the part selected then, the model as it is then – and the window closes. When it cannot (no name typed, no
+  model, a job still running, the Client view), the window stays open and says why in red.
+- **Cancel**, the **X** or **Esc** with the mouse over the window closes it; **Return** there is its button.
+- Press the function's button again while its window is open: the window comes to the front, with what you typed.
+  Two different function windows can be open at once.
+- Opening another project closes them (their values belonged to the project before).
+
+<img class="panel" src="img/form_workspace_save.png" alt="The window Save as my own workspace: Name, Note, where it goes, Cancel and Save">
+
+A short question that needs one click – "Remove this?", "Switch to rule set …?", "Clear my usage data?", the question
+about a newer backup when a project opens – stays a small popup that closes when you click elsewhere.
+
+| Opens in a window | Where |
+| --- | --- |
+| Make a crane… · Box… | 8 Lifting plan > Equipment · 8 Lifting plan > Load |
+| Save pose (+) · Save visibility set (+) · Save scene (+) | 4 Motion > Poses & exploded views · 2 Structure > Visibility sets · the saved scenes' list |
+| New group (+) · Save paint scheme (+) | 3 Looks |
+| Copy… (Save as new rule set) · New, empty… · Rename | 3 Looks > Rule set |
+| Details (of a program) · Go to line … | 4 Motion > CNC machine |
+| Save as my own workspace… · Rename my workspace | Workspace (left panel) |
+| Export profile | Fresing > Settings… > My usage |
+| Make the Learning hub… · Note… | Fresing menu · a stop of the Learning hub |
+| Learn… · My learning list… · Restore a backup… · About Fresing Render | Fresing menu |
+| Make demo project… · Fresing Render PC check… | Help menu |
+
 <a id="locations"></a>
 ### Locations: the folders the app reads from
 
@@ -394,7 +432,7 @@ Every list in the app – logos and stickers, rule sets, templates, 360° photos
 equipment – shows the items of **all** these folders together, sorted by name, each with its badge
 (**Acme · Company**, **Acme · Mine**). The same name in two folders shows twice: nothing hides anything.
 **Saving** something new (a rule set, a workspace, a crane) goes into the first folder you can write to, your own
-first; when you can write into more than one, the dialog asks **Save in**.
+first; when you can write into more than one, the window asks **Save in**.
 
 **Fresing Settings > Locations** shows, from the top:
 
@@ -500,10 +538,12 @@ Blender has a key for almost everything, and a few of them delete or change your
 **Full access** those keys do nothing to the project; the status bar at the bottom says *"That is a Blender key –
 Fresing > Show all of Blender gives you Blender's keys"*:
 
-- **Delete, X** (also with Shift), **Shift+D**, **Alt+D** (copies), **Ctrl+J** (join), **Ctrl+P**, **Alt+P** (parent),
+- **Shift+D**, **Alt+D** (copies), **Ctrl+J** (join), **Ctrl+P**, **Alt+P** (parent),
   **Ctrl+A** (apply), **M**, **Shift+M** (collections), **Shift+A** (add), **Ctrl+H**, **Ctrl+0 … Ctrl+5**, **Tab**,
   **Ctrl+Tab** (Edit Mode and the other modes), **Ctrl+Page Up / Page Down** (Blender's workspaces) and **I**,
   **Alt+I**, **K** (keyframes – they would mix with the keys Build makes).
+- **Delete** and **X** (also with Shift) open the app's **Remove** window for what is selected: it lists what goes,
+  and nothing is lost until you click Remove ([Remove](#remove-model)).
 - **These stay:** **G** / **R** move and turn what is selected ([Moving and turning parts](#moving-parts)), **H** hides the selected part, **Alt+H** shows everything again, **A** selects all, **Home** and the
   number pad move the view, **Z** and **Ctrl+Space** for the shading and a bigger view, **Space** plays, **Ctrl+Z**
   undoes, **F3** searches, **N** shows or hides the side panel, **Ctrl+S** saves, **Ctrl+O** opens.
@@ -522,9 +562,11 @@ mode "Subassembly", its subassembly) and a short menu opens:
 - **Add joint here…** – Add joint starts with this part: click its pivot (a hole, a shaft or a flat face) next.
 - **Unlock so it can move** – unlocks the part's subassembly, so **G** moves it and **R** turns it
   ([Moving and turning parts](#moving-parts)); once unlocked the entry reads **Lock in place**.
+- **Move / turn…** – [Place](#place) in a window of its own: X / Y / Z, turns, steps, Put on the floor.
+- **Remove…** – the window that lists what goes with it ([Remove](#remove-model)).
 
 **Right-click on empty space:** **Zoom to all** and **Show all**. In the **Client view** the menu has only Zoom, Show in
-2 Structure, Hide, Show only this and Show all – and its Hide only hides in the view: renders, the built animation and
+2 Structure, Hide, Show only this and Show all (no Move / turn…, no Remove…) – and its Hide only hides in the view: renders, the built animation and
 the project stay as they are, and leaving the Client view shows those parts again.
 
 **Blender's keys and menu back:** **Fresing > Show all of Blender** (or Workspace > Full access) gives every key and
@@ -749,7 +791,7 @@ usage.
 <a id="learning-list"></a>
 ### My learning list
 
-**Fresing > My learning list…** opens the list.
+**Fresing > My learning list…** opens the list in a [window of its own](#function-windows).
 
 <img class="panel" src="img/learning_list.png" alt="My learning list: each function with Guide, Tour, Show me and Build, Done and a cross">
  Each line has the function's name and **Guide** (its section in this
@@ -952,7 +994,8 @@ your work.
    but which makes big models lighter. Other small parts (cutters, lamps, workpieces) stay as detailed as before.
    A project imported earlier keeps its meshes until its next **Update to new revision…**: then the round parts
    come in with the new facets, and painted faces, joints and looks stay.
-2. **Up axis**: **Z up** for most files. **Y up** when the model comes in lying on its back.
+2. **Up axis**: **Z up** for most files. **Y up** when the model comes in lying on its back. You can still
+   change it after the import, per model (below).
 3. Click **Import STEP…** and pick the file, or drag a .step file onto the view.
 4. Wait for the progress bar. Big files are read on all processor cores but one, so the PC stays
    usable. <kbd>Esc</kbd> with the mouse over the view cancels.
@@ -960,6 +1003,45 @@ your work.
 The box under the button then shows the model: its parts (placed, and how many different), its
 triangles and how long the import took. An unchanged file imports again in seconds, from a stored
 copy (**More > Clear import cache** throws those copies away if disk space is short).
+
+<a id="drop-a-file"></a>
+**Drop a file on the view.** Dragging a .step / .stp file (or a glTF, OBJ or FBX mesh model) from Explorer onto the
+3D view or the Outliner does exactly what **Import STEP…** does: the side panel opens on **1 Import** (also when
+another section's tab was chosen or the side panel was hidden), the **Detail** and **Up axis** chosen there are used,
+the progress bar with <kbd>Esc</kbd> to cancel shows, then the model's box and the same message; one
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> takes the import back. Several files dropped at once: the **first** one is imported and
+the panel says so – drop the others one at a time once it is in.
+
+<a id="up-axis-after-import"></a>
+**Up axis after the import.** Each model's box has **Up axis: Z up / Y up**. Clicking the other one turns the whole
+model at its own origin, exactly as the import's Up axis would have. Everything you made on it keeps working: joints,
+cylinders, mechanisms, slices, poses, saved scenes, labels and cameras riding on its parts. When the project holds
+only this model, its other cameras turn with it, so saved views still look at it. A built animation is taken off
+(the message says **Build again**); built again it gives the same motion, turned. One <kbd>Ctrl</kbd>+<kbd>Z</kbd>
+undoes it. A model update to a new revision keeps the chosen axis. The **Up axis** above **Import STEP…** stays the
+choice for the next import.
+
+<a id="imported-models"></a>
+<img class="panel" src="img/panel_1_imported_models.png" alt="1 Import: the Imported models fold opened">
+
+**Imported models** (a fold under the model boxes; its title row says how many are stored) lists every model in
+the import cache, newest first: its name, parts, detail, size on disk, when it was stored and the file's name. A file
+that was moved or deleted since is greyed with **File moved**; a changed file says **File changed since**. More than
+10 stored: a search field narrows the list. Each row:
+
+- **Import again** adds that model to this project. An unchanged file comes from the stored copy in seconds (nothing
+  is read); a changed file is read again, and the message says so; a moved file comes from the stored copy.
+- The folder button (**Show in folder**) shows the file in Explorer (a moved file: the stored copy's folder).
+- The bin (**Remove from cache**) asks first, then deletes the stored copy and frees its space. Models already in a
+  project are not touched; the next import of that file reads it in full again.
+
+Where the cache lives: in the app's settings folder,
+`%LOCALAPPDATA%\FresingRender\…\portable\extensions\.user\user_default\fresing_render\cache` (one folder per
+stored model). How big it grows: about 40 bytes per triangle
+(measured on the test crane: 5,890 triangles, 244 KB) – a model of a million triangles takes about 40 MB. Nothing
+is thrown away by itself, except copies made by an older version of the app (at the next import) and the older copy
+of a file that was read again. The fold shows the total; remove what you no longer need, or **More > Clear import
+cache** for all.
 
 **The same file twice** (two cranes on one quay): import it again. Each copy is its own machine: hiding
 a part, visibility sets, poses, Show/Hide steps and model updates of one copy never touch the other.
@@ -1081,8 +1163,9 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
 After an import every subassembly is **Locked in place**: it moves only with the subassembly it is in, so a
 stray key cannot pull the model apart. Unlock what you want to move first.
 
-1. **Right-click** the part in the 3D view and click **Unlock so it can move** (or select its row in 2 Structure
-   and click **Locked in place**). This unlocks the subassembly the part is in.
+1. **Right-click** the part in the 3D view and click **Unlock so it can move** (or click the **lock** at the end of
+   its row in 2 Structure: closed = locked in place, open = free to move; greyed when a subassembly above it is
+   locked – it still moves with that one). This unlocks the subassembly the part is in.
 2. **Click** the part: its subassembly is selected. To move the **whole model**, select the top row of the tree in
    2 Structure (and unlock that one).
 3. With the mouse over the 3D view press **G** to move or **R** to turn.
@@ -1099,9 +1182,61 @@ When it cannot move, the status bar at the bottom says why at once and nothing s
 - In the **Client view** nothing can be selected or moved.
 
 Good to know: **Go to pose** puts subassemblies back where that pose had them – save the pose again after a move
-(4 Motion > Poses & exploded views). A part with a joint keeps moving with its joint.
+(4 Motion > Poses & exploded views). To move something **for good** (it stays through poses and Build), use
+[Place](#place) instead. A part with a joint keeps moving with its joint.
 Clicking twice on the same spot selects the next part behind it (Blender's own): click once, or on empty space
 first.
+
+<a id="place"></a>
+### Move, turn and remove: Place
+
+<img class="panel" src="img/panel_2_place.png" alt="Place">
+
+**2 Structure > Place** moves and turns a model, a subassembly or parts **by numbers** and keeps them there. The same
+panel opens in a window of its own from the right-click menu: **Move / turn…**.
+
+1. Select what you want to place: click it in the view, or click its row in 2 Structure. The name shows at the top
+   of Place. A closed lock beside it means **Locked in place**: click the lock to free it.
+2. Choose **World** (positions and turns in the world's X / Y / Z) or **Model axes** (how far it is from where the
+   CAD file has it, along the model's own axes – 0 means on its CAD place).
+3. Type a number in **Position (mm)** or **Turn (°)**, or click **–** / **+** to step it (the **Step** row under the
+   fields: 10 or 100 mm, 15 or 90°). A turn turns it about the middle of its box.
+4. **Snap** rounds what you type or drag (1 / 10 / 100 mm, 5 / 15 / 45°). Off keeps the exact number.
+5. Or move it with the mouse: **Move with mouse** / **Turn with mouse** (X / Y / Z keeps to that axis, type a number,
+   click to place, Esc cancels), or drag the **arrows and rings** that show on it while Place is open (switch them
+   off with **Arrows and rings**).
+6. **Put on the floor** moves it straight down (or up) until its lowest point sits on the floor (the surroundings'
+   floor, else height 0). **Back to the CAD place** puts a subassembly or part back where the CAD file has it;
+   for a whole model the button is **Back to where it was imported**.
+
+What a Place move does:
+
+- **It stays.** Build & play, poses, Reset pose, saved scenes and a model update keep the new place (a move with **G**
+  / **R** by hand is a pose's move: Go to pose and Reset pose put it back).
+- **A whole model** moves with everything on it: joints, cylinders, mechanisms, hoses, cables, labels and cameras
+  that ride on its parts.
+- **A subassembly with a joint** (the boom on its pin): when you move everything the joint moves, the joint's axis
+  goes with it. When the joint also moves other parts, only what you chose moves and the axis stays.
+- **A built animation** is taken off first – Build again afterwards.
+- In the **Client view** nothing can be moved.
+
+<a id="remove-model"></a>
+### Remove a model, subassembly or parts
+
+**Remove…** – at the bottom of Place, in the selected row's box in 2 Structure, in the right-click menu, and outside
+Full access the **Delete** and **X** keys – opens a window that lists what goes with it:
+
+- the parts, its joints, cylinders, mechanisms and way covers, hoses and drag chains, cables, drums, tracks, labels,
+  logos and stickers on it, and animation steps that only move it;
+- what only loses something: a joint that keeps moving other parts, a camera step that looked at it.
+
+Click **Remove** to take it all out of the project, or **Close** to keep it. **Ctrl+Z** brings everything back in one
+step. Saved poses and scenes keep working. The import stays: **1 Import > Imported models** brings a removed model
+back.
+
+**Remove or Clean-up?** Remove takes things out of the project for good (only Ctrl+Z brings them back). **Clean-up**
+(below) only takes parts out of the view and the renders – the joints and everything else stay, and **Restore all**
+brings them back at any time.
 
 <a id="cleanup"></a>
 ### Clean-up
@@ -4965,7 +5100,8 @@ numbers, and lands in your library like any other item.
 
 1. In **8 Lifting plan > Equipment** click **Make a crane…** (under the library list).
 2. **Type**: mobile telescopic crane, crawler crane or knuckle-boom crane. **Start from**: the built-in class nearest
-   your crane – its numbers fill the dialog.
+   your crane – its numbers fill the window (a [window of its own](#function-windows): it stays open while you look
+   at the model).
 3. Change only the numbers you care about, in the folds: **Crane** (rated capacity or lifting moment, the charts'
    wind speed), **Boom** (sections, retracted and fully out lengths, section sizes, boom angles; a crawler's chart
    boom lengths typed as a list like `24, 30, 36`, and an optional luffing jib), **Carrier** / **Tracks** /
@@ -4980,7 +5116,7 @@ numbers, and lands in your library like any other item.
    steps that do not rise, an odd number of falls, tracks too short for the upper's tail, axles that do not fit
    between the outrigger boxes, no luffing cylinder that fits the angle range, no configuration that stays stable.
 5. Give it a **Name** (a name already in your library is refused unless you tick **Replace**) and click **Make**.
-   The dialog closes; the crane is drawn in the background (a few seconds: about 2 s for a mobile crane, 3 s for a
+   The window closes; the crane is drawn in the background (a few seconds: about 2 s for a mobile crane, 3 s for a
    crawler on a 4-core PC). Equipment shows the progress with **Cancel** – Cancel writes nothing. You can keep working.
 6. When it is ready, a small window offers **Place … now…** (the usual placing with the mouse) and **Enter the chart
    of your real crane…**; the same two buttons stay under Equipment. The new crane is in the list under **Your own

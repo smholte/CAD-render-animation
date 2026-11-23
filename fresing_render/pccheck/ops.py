@@ -92,7 +92,9 @@ class FRESING_OT_pc_check(bpy.types.Operator):
     def invoke(self, context, event):
         if not self.filepath:
             self.filepath = _model_of_project(context)
-        return context.window_manager.invoke_props_dialog(self, width=460)
+        from ..blender import form_window
+        return form_window.open(self, context, width=480, height=380, title="Fresing Render PC check",
+                                confirm="Start", icon="CHECKMARK")
 
     def draw(self, context):
         col = self.layout.column()

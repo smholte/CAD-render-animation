@@ -57,13 +57,16 @@ def _keys():
 
 def test_every_harmful_key_of_the_brief_is_swallowed():
     labels = {lab for _km, lab in _keys()}
-    for want in ("X", "Delete", "Tab", "Ctrl+Tab", "Shift+D", "Alt+D", "Ctrl+J", "Ctrl+P", "Alt+P", "Ctrl+A", "M",
+    for want in ("Tab", "Ctrl+Tab", "Shift+D", "Alt+D", "Ctrl+J", "Ctrl+P", "Alt+P", "Ctrl+A", "M",
                  "Shift+M", "Shift+A", "Ctrl+H", "Ctrl+0", "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4", "Ctrl+5",
                  "Ctrl+Page Up", "Ctrl+Page Down", "I", "Alt+I", "K"):
         assert want in labels, want
-    # X and Delete with any modifier: Shift+X / Shift+Delete too
+    # X and Delete with any modifier (Shift+X / Shift+Delete too) open the app's Remove window since task 0292: it
+    # lists what goes, nothing is lost until Remove is pressed
     anys = {k for km, _sp, k, m, _w in lock.BLENDER_KEYS if km == "Object Mode" and m.get("any")}
-    assert anys == {"X", "DEL"}
+    assert anys == set()
+    app = {k: op for km, _sp, k, m, op, _p in lock.APP_KEYS if km == "Object Mode" and m.get("any")}
+    assert app == {"X": "fresing.remove_key", "DEL": "fresing.remove_key"}
 
 
 def test_the_keys_a_user_needs_stay_blenders():

@@ -564,6 +564,17 @@ fresing_render/            the Blender extension (Python package)
                            prefs.py (the Add-ons page only has Open Fresing Settings). ``FRESING_OT_presence`` in the
                            add-on keymap "Window" (mouse move / click / wheel, PASS_THROUGH) is the usage tracker's only
                            sign of the user besides clicks and panel openings (``usage.presence``)
+    form_window.py         task 0282: **function windows** – a function's form (Make a crane, Save as my own workspace,
+                           the PC check …) in a window of its own instead of a dialog: ``invoke`` ends in
+                           ``form_window.open(self, context, width=, height=, title=, confirm=)`` (``confirm=None``: only
+                           Close). The values are a property group made from the operator's own properties on the window
+                           manager (``make_group``), its ``draw`` draws them (``_Self`` / ``_Layout`` hand Blender the
+                           group), Make = ``fresing.form_ok`` runs ``execute`` in the main window with its undo step
+                           (refused / failed: the window stays and says why); the window is 0271's kind (mark ``fr_form`` =
+                           the operator id, ``ops_setup.PAGE_MARKS``); size + place in the settings file
+                           (``prefs.window_places``, ``ops_make.remember`` / ``kept_size``); Esc / Return over it;
+                           another project closes them. ``WINDOWS`` / ``POPUPS`` = the inventory: a new dialog must be in
+                           one of them (``tests/test_form_window.py``)
     editors.py             task 0221: Blender's right-hand column (Outliner + Properties next to the main 3D view) closed on
                            every load the app tidies, Fresing > Show / Hide Blender's editors, the choice in
                            `<config>/fresing_layout.json` (default hidden; always hidden in the Client view: `lock.apply`
@@ -1502,6 +1513,25 @@ the release → Delete); the next run on `main` publishes it again.
   must survive a restart goes into a small file in `bpy.utils.user_resource("CONFIG")` (`fresing_layout.json`,
   `fresing_usage.json`, `fresing_left.json` = the left panel's folds, `ui_left.store`). Test a restart for real: a
   second app in the same settings folder (`tools/ui_test_left_restart.py`, started by `ui_test_left.py`).
+- In a 3D view's toolbar region (the page of Fresing Settings and of the function windows) Blender's "Frames" keymap takes
+  Esc first (`screen.animation_cancel`, whose poll is always true): an Esc in the add-on's "Window" keymap, or in "3D View
+  Generic", never ran (task 0282). The add-on's Esc sits in "Frames" with `head=True`; its poll lets it pass elsewhere.
+  Return in "Window" works.
+- An operator called through `bpy.ops` from inside another operator pushes no undo step of its own, even with the undo
+  argument True (Blender counts the outer call): a function window's Return first called `bpy.ops.fresing.form_ok`, and
+  the pose it saved could not be undone. Both the button and the key call one plain function (`form_window.press_ok`),
+  which calls the function's operator once, at the top. In Blender as a Python module the undo argument crashes (no
+  undo stack): pass it only when not `bpy.app.background`.
+- An operator's ``bl_rna.properties`` are the Operator struct's own (``properties``, ``layout`` …), not the operator's
+  settings: read those from ``bpy.ops.<cat>.<name>.get_rna_type().properties``. String annotations (``from __future__
+  import annotations``) of a new class are evaluated by Blender at registration in the class's ``__module__`` – a
+  property group made from an operator's annotations needs the operator's module (``form_window.make_group``).
 - `os.access(folder, os.W_OK)` on Windows says yes to every folder (it reads only a FILE's read-only flag, never a
   share's or NTFS rights): a read-only company share counted as writable (task 0272, found by its independent
   reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.
+- `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
+  report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
+  run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs
+  mode and published the release while `ci_status.py` said no run). Check the push's runs on GitHub
+  (`gh api "repos/smholte/CAD-render-animation/actions/runs?branch=main&per_page=5"`) before pushing anything to
+  "start" one.

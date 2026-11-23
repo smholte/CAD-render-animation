@@ -95,6 +95,13 @@ def lib_file(name):
     return os.path.join(LIB, name + ".json")
 
 
+def _form_shots():
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import form_shots
+    return form_shots
+
+
 STEPS = []
 
 
@@ -135,15 +142,20 @@ def s_copy_dialog():
     shot("01_looks_standard", sidebar=True)
     with override():
         res = bpy.ops.fresing.rule_set_save_as("INVOKE_DEFAULT")        # 'Copy…'
-    check("'Copy…' opens its dialog", res == {"RUNNING_MODAL"}, res)
-    return 1.0
+    check("'Copy…' opens its window", res in ({"FINISHED"}, {"RUNNING_MODAL"}), res)   # task 0282: a window
+    return 2.0
 
 
 @step
 def s_copy_confirm():
     shot("02_copy_dialog")
-    key("RET")
-    return 1.0
+    wins = mod("blender.form_window").windows("fresing.rule_set_save_as")
+    check("… a window of its own; Return over it is its button (task 0282)", len(wins) == 1, str(len(wins)))
+    if wins:
+        _form_shots().key(wins[0], "RET")
+    else:
+        key("RET")
+    return 1.5
 
 
 @step
@@ -218,15 +230,20 @@ def s_switched():
           s.rule_set)
     with override():
         res = bpy.ops.fresing.rule_set_new_empty("INVOKE_DEFAULT")
-    check("'New, empty…' opens its dialog", res == {"RUNNING_MODAL"}, res)
-    return 1.0
+    check("'New, empty…' opens its window", res in ({"FINISHED"}, {"RUNNING_MODAL"}), res)   # task 0282: a window
+    return 2.0
 
 
 @step
 def s_empty_confirm():
     shot("06_new_empty_dialog")
-    key("RET")
-    return 1.0
+    wins = mod("blender.form_window").windows("fresing.rule_set_new_empty")
+    check("… a window of its own; Return over it is its button (task 0282)", len(wins) == 1, str(len(wins)))
+    if wins:
+        _form_shots().key(wins[0], "RET")
+    else:
+        key("RET")
+    return 1.5
 
 
 @step

@@ -65,14 +65,14 @@ SCREEN = "-screen 0 1800x2600x24"
 RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Fewest checks each test must report: a check that silently disappears turns the run red.
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
-MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 17, "studio": 21,
+MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 19, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 32, "tour": 97, "tour2": 2, "tourui": 31, "layout": 66,
-              "panel": 39, "start": 55, "setup": 46, "highlight": 74, "usage": 31, "lesson": 40, "lessoni": 38,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 32, "tour": 100, "tour2": 2, "tourui": 31, "layout": 66,
+              "panel": 39, "start": 56, "setup": 46, "highlight": 74, "usage": 33, "lesson": 41, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 22, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 42, "settings": 52, "locations": 17, "toolbox": 19,
-              "clientkeys": 12, "keys": 30, "demokits": 23, "drawn": 25, "backups": 22,
-              "move": 14}
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 42, "settings": 52, "locations": 17, "toolbox": 19,
+              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "backups": 23, "forms": 29,
+              "move": 14, "importagain": 18, "place": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -87,9 +87,9 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
     "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move"],   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
-    "callouts": ["callouts"],
+    "callouts": ["callouts", "importagain", "place"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
-    "tour": ["tour", "toolbox"],        # toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
+    "tour": ["tour", "toolbox", "forms"],   # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout", "left", "settings", "locations"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271; locations: 0272 (~40 s)
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
@@ -100,6 +100,9 @@ GROUPS = {
 }
 
 TESTS = {
+    "importagain": ("Real app: a dropped STEP file comes in as with Import STEP…, Import again from the cache, a "
+                    "model's Up axis + Undo, Remove from cache (ui_test_import_again.py)", "ui_test_import_again.py",
+                    True),
     "ui1": ("Real app: import, looks, joints, animation, queue (ui_test_app.py)", "ui_test_app.py", True),
     "ui2": ("Real app: remaining buttons, undo/redo (ui_test_app2.py)", "ui_test_app2.py", True),
     "faces": ("Real app: painted faces (ui_test_faces.py)", "ui_test_faces.py", True),
@@ -185,6 +188,11 @@ TESTS = {
                  "a played animation with no input adds no time to My usage; a setting of each tab kept over a restart "
                  "with the app template, a damaged settings file gives the defaults and a note (ui_test_settings.py)",
                  "ui_test_settings.py", True),
+    "forms": ("Real app: function windows – Make a crane… opens a window with only its form, stays open after a click in "
+              "the main window, no second window, what was typed stays; a second function window beside it; Esc over "
+              "one closes it; its size kept in the settings file and used again; Return saves a pose (undo step); a "
+              "refused Save says why; the Client view refuses as before; another project closes them "
+              "(ui_test_forms.py)", "ui_test_forms.py", True),
     "locations": ("Real app: Locations and Exports – two set-up files (company copied, department linked) and the "
                   "user's own folder: a logo and a rule set of each with its badge, the same name twice shown twice, a "
                   "company rule set used, saving asks where, Settings opens on Locations / Exports, a renamed newer "
@@ -210,6 +218,11 @@ TESTS = {
              "status bar says how to unlock it; the right-click menu's Unlock so it can move; then G, X, 100, Enter, G "
              "with the mouse and R, Z, 30, Enter move and turn it and it stays; after Build the message, after Stop it "
              "moves again (ui_test_move.py)", "ui_test_move.py", True),
+    "place": ("Real app: Place and Remove – the boom's lock opened, Place open shows the arrows and rings, a + step moves "
+              "the boom and its joint and Ctrl+Z puts both back, Move with mouse X 100 Enter moves it 100 mm and it "
+              "stays; Delete opens the Remove window (nothing gone yet), Remove takes the crane with its joints and "
+              "cylinder, Ctrl+Z brings everything back; the Client view swallows Delete (ui_test_place.py)",
+              "ui_test_place.py", True),
     "lesson": ("Real app: lessons – Fresing > Learn…, Build it yourself on the crane by clicking where the highlight "
                "points and Do it for me, a step done another way, Show me from the learning list at its step, Back, "
                "saved half-way and going on, nothing left after Stop (ui_test_lesson.py)", "ui_test_lesson.py", True),

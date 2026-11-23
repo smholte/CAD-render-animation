@@ -219,6 +219,120 @@ def import_materials(ctx):
     return f"{len(names)} parts, {len(groups)} groups"
 
 
+class _Drop:
+    """What a FileHandler hands the import (task 0289): the dropped file's folder and name, the panel's choices."""
+
+    def __init__(self, path, scene):
+        self.directory, self.files = os.path.dirname(path), [type("F", (), {"name": os.path.basename(path)})()]
+        self.quality, self.up_axis = scene.fresing.import_quality, scene.fresing.import_up_axis
+        self.reports = []
+
+    def execute(self, context):
+        import bpy
+        return bpy.ops.fresing.import_step("EXEC_DEFAULT", filepath=os.path.join(self.directory, self.files[0].name),
+                                           quality=self.quality, up_axis=self.up_axis)
+
+    def report(self, kind, text):
+        self.reports.append(text)
+
+
+def _copy_crane(ctx, name: str) -> str:
+    folder = os.path.join(ctx.work, "dropped é")
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, name)
+    shutil.copy(CRANE_A, path)
+    return path
+
+
+@line("import.drop", "A dropped STEP file comes in as with Import STEP…", "0.2.218",
+      what="A file dropped on the view: 1 Import opens, the panel's Detail and Up axis are used, the same message")
+def import_drop(ctx):
+    import bpy
+
+    from ..blender import build, logic, ops_import, panels
+    bpy.ops.wm.read_homefile(use_empty=True)
+    from ..blender import workspaces
+    scene = bpy.context.scene
+    workspaces.use_all(scene)
+    scene.fresing.out_folder = os.path.join(ctx.work, "renders")
+    scene.fresing.import_quality, scene.fresing.import_up_axis = "draft", "Y"
+    panels.OPEN.discard(ops_import.PANEL)
+    res = ops_import._dropped(_Drop(_copy_crane(ctx, "dropped crane.step"), scene), bpy.context)
+    _check(res == {"FINISHED"}, f"the drop's import returned {res}: {scene.fresing.last_message}")
+    _check(panels.is_open(ops_import.PANEL), "1 Import did not open")
+    root = build.model_roots(scene)[0]
+    _check(root.get("fr_quality") == "draft", "the panel's Detail was not used")
+    _check(logic.up_axis_of(root) == "Y", "the panel's Up axis was not used")
+    _check(scene.fresing.last_message.startswith("Imported dropped crane.step"), scene.fresing.last_message)
+    from ..core import import_cache
+    for e in import_cache.entries(ops_import.cache_root()):       # leave the owner's cache as it was
+        if os.path.basename(e.source) == "dropped crane.step" and os.path.dirname(e.source).endswith("dropped é"):
+            import_cache.remove(e, ops_import.cache_root())
+    return "1 Import open, Draft, Y up"
+
+
+@line("import.again", "Imported models: Import again, Remove from cache", "0.2.218",
+      what="A model in the import cache imported again without reading the file, then removed from the cache")
+def import_again(ctx):
+    import bpy
+
+    from ..blender import build, ops_import
+    from ..core import import_cache
+    path = _copy_crane(ctx, "crane again.step")
+    scene = ctx.fresh(path, read_again=True)
+    root_dir = ops_import.cache_root()
+    e = next((x for x in import_cache.entries(root_dir) if os.path.normcase(x.source) == os.path.normcase(path)), None)
+    _check(e is not None, "the import is not in the Imported models list")
+    _check(e.state == import_cache.OK, f"the stored import says '{import_cache.state_text(e)}'")
+    t0 = time.time()
+    res = bpy.ops.fresing.import_step("EXEC_DEFAULT", again=e.id)
+    ctx.metric("again", time.time() - t0, "s")
+    _check(res == {"FINISHED"} and len(build.model_roots(scene)) == 2, f"Import again returned {res}")
+    _check("from cache" in scene.fresing.last_message, f"not from the cache: {scene.fresing.last_message}")
+    res = bpy.ops.fresing.cache_remove("EXEC_DEFAULT", entry=e.id)
+    _check(res == {"FINISHED"} and not os.path.exists(e.folder), "Remove from cache left the folder")
+    return f"{import_cache.size_text(e.size)} stored, again in {time.time() - t0:.1f} s"
+
+
+@line("import.up_axis", "Up axis changed after the import", "0.2.218",
+      what="The crane turned to Y up and back after its import: a joint and a built animation give the same motion")
+def import_up_axis(ctx):
+    import bpy
+    from mathutils import Matrix, Vector
+
+    from ..blender import animation, build, joints, logic
+    scene = ctx.fresh(CRANE_A)
+    root = build.model_roots(scene)[0]
+    boom = _ob(scene, "BOOM.ASM")
+    j = joints.create(scene, "ROTATE", [boom], Vector((0.1, 0.3, 0.4)), Vector((0.0, 0.0, 1.0)),
+                      ref=_ob(scene, "BOOM.PIN"), name="Up axis check")
+    an = scene.fresing.animations.add()
+    an.name = "Up axis check"
+    b = an.blocks.add()
+    b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", j.name, 0.0, 2.0, "LINEAR"
+    b.use_from, b.to_angle = True, math.radians(80)
+
+    def tips():
+        animation.bake(scene, scene.fresing.animations["Up axis check"])
+        out = []
+        for f in (1, 30):
+            scene.frame_set(f)
+            out.append(boom.matrix_world @ Vector((1.0, 0.0, 0.0)))
+        scene.frame_set(1)
+        return out
+    before = tips()
+    res = bpy.ops.fresing.model_up_axis("EXEC_DEFAULT", root=root.name, axis="Y")
+    _check(res == {"FINISHED"} and logic.up_axis_of(root) == "Y", f"Y up returned {res}")
+    _check(not animation.has_keys(scene), "the built animation was not taken off")
+    turn = Matrix.Rotation(math.radians(90), 4, "X")
+    off = max((turn @ p - q).length for p, q in zip(before, tips()))
+    _check(off < 1e-3, f"after Y up the boom moves {off * 1000:.1f} mm off the turned motion")
+    bpy.ops.fresing.model_up_axis("EXEC_DEFAULT", root=root.name, axis="Z")
+    off = max((p - q).length for p, q in zip(before, tips()))
+    _check(off < 1e-3, f"back to Z up the boom is {off * 1000:.1f} mm off")
+    return "Y up and back, the same motion"
+
+
 @line("import.mesh", "Mesh model (glTF): import, faces, a joint on a facetted ring", "0.2.99",
       what="The invented mesh crane read from a glTF file: its looks from the file, its 48-sided ring clicked for a "
            "joint that turns the turret")
@@ -4893,6 +5007,113 @@ def structure_move(ctx):
     return "locked: says how to unlock; unlocked: the move stays; after Build: says stop it first"
 
 
+@line("place.move", "Place: a model moved 1 m and turned 90° builds the same motion; the boom moved 100 mm takes its "
+      "joint along; Back to the CAD place", "0.2.219",
+      what="On the test crane with the crane lesson's joints, cylinder and animation: the whole crane moved 1 m along X "
+           "and turned 90° builds the same motion, moved; the boom subassembly moved 100 mm up takes its joint's axis "
+           "along and keeps it through Build; Back to the CAD place puts both back; the fields read the move")
+def place_move(ctx):
+    import math
+    import time
+
+    import bpy
+    from mathutils import Matrix
+
+    from ..blender import animation, build, joints, lesson, ops_place, place
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    lesson.run(scene, "crane")
+    s = scene.fresing
+    a = s.animations[0]
+
+    def ob(name):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == name)
+
+    def places(frames):
+        out = {}
+        for f in frames:
+            scene.frame_set(f)
+            out[f] = ob("BOOM").matrix_world.copy()
+        return out
+
+    def close(m, n):
+        return all(abs(m[r][c] - n[r][c]) < 3e-4 for r in range(4) for c in range(4))
+
+    info = animation.bake(scene, a)
+    frames = (1, info["frames"])
+    before = places(frames)
+    animation.clear_keys(scene)
+    root = ob("TEST.CRANE")
+    ops_place.set_lock(root, False)
+    D = Matrix.Translation((1.0, 0.0, 0.0)) @ Matrix.Rotation(math.radians(90.0), 4, "Z")
+    t0 = time.time()
+    place.move(scene, [root], D)
+    ctx.metric("move", time.time() - t0, "s")
+    animation.bake(scene, a)
+    after = places(frames)
+    _check(all(close(D @ before[f], after[f]) for f in frames), "the moved crane's boom does not move as before")
+    x = place.numbers(scene, root, "MODEL")[0]
+    _check(abs(x - 1000.0) < 0.5, f"Place's Model-axes X reads {x:.1f} mm, not 1000")
+    animation.clear_keys(scene)
+    place.back_to_cad(scene, [root])
+    boom = ob("BOOM.ASM")
+    ops_place.set_lock(boom, False)
+    j = joints.find(scene, "Boom")
+    o0, _d = joints.axis_world(j)
+    place.move(scene, [boom], Matrix.Translation((0.0, 0.0, 0.1)))
+    _update()
+    o1, _d = joints.axis_world(j)
+    _check(abs((o1 - o0).z - 0.1) < 1e-5, f"the boom's joint did not go along: {(o1 - o0).z * 1000:.2f} mm")
+    animation.bake(scene, a)
+    animation.clear_keys(scene)
+    _update()
+    _check(abs((joints.axis_world(j)[0] - o0).z - 0.1) < 1e-5, "Build lost the boom's new place")
+    place.back_to_cad(scene, [boom])
+    _update()
+    _check((joints.axis_world(j)[0] - o0).length < 1e-5, "Back to the CAD place did not put the joint back")
+    return "crane moved 1 m + 90°: same motion; boom +100 mm: joint along, kept by Build; back again"
+
+
+@line("place.remove", "Remove: a subassembly and a model with what lives on them; nothing left pointing at nothing",
+      "0.2.219",
+      what="On the test crane with the crane lesson's set-up and a label: the window's list (parts, joints, cylinder, "
+           "steps), the trolley removed (its joint goes, the boom and cylinder still work), then the whole crane "
+           "removed – no joint, cylinder, label, step or object of it left")
+def place_remove(ctx):
+    import time
+
+    import bpy
+
+    from ..blender import animation, build, lesson, remove
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    lesson.run(scene, "crane")
+    s = scene.fresing
+
+    def ob(name):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == name)
+
+    c = s.callouts.add()
+    c.text, c.part = "Boom", ob("BOOM")
+    trolley = ob("TROLLEY.ASM")
+    p = remove.plan(scene, [trolley])
+    _check((p["parts"], p["joints"]) == (3, 1), f"the trolley's list is wrong: {p['parts']} parts, {p['joints']} joints")
+    _check(bpy.ops.fresing.remove(names=trolley.name) == {"FINISHED"}, "Remove of the trolley failed")
+    _check([j.name for j in s.joints] == ["Boom"] and len(s.cylinders) == 1, "the boom's joint or the cylinder is gone")
+    _check(animation.bake(scene, s.animations[0])["frames"] > 1, "the crane without its trolley does not build")
+    animation.clear_keys(scene)
+    root = ob("TEST.CRANE")
+    p = remove.plan(scene, [root])
+    lines = remove.lines(p)
+    _check(lines and lines[0].startswith("Goes: 1 model, 17 parts, 1 joint, 1 cylinder"), f"the list: {lines[:1]}")
+    t0 = time.time()
+    _check(bpy.ops.fresing.remove(names=root.name) == {"FINISHED"}, "Remove of the crane failed")
+    ctx.metric("remove", time.time() - t0, "s")
+    left = [o.name for o in scene.objects if o.get(build.PROP_KIND) in build.MODEL_KINDS + build.JOINT_KINDS]
+    _check(not left and not len(s.joints) and not len(s.cylinders) and not len(s.callouts),
+           f"left after Remove: {left[:5]}, {len(s.joints)} joints, {len(s.callouts)} labels")
+    _check(not any(len(a.blocks) for a in s.animations), "an animation step of the crane is left")
+    return "trolley: its joint went, the rest builds; crane: nothing left"
+
+
 @line("app.start_here", "Start here: the Fresing menu, the welcome and What's new after an update", "0.2.155",
       what="Checks the Fresing menu in the top bar, the start file (welcome three times, What's new once after an "
            "update, nothing after the same version), the page that opens the user guide at a section, and that What's "
@@ -5087,6 +5308,40 @@ def app_settings(ctx):
     _check(s["stages"].get("render", 0.0) == 0.0, f"10 min away counted {s['stages'].get('render')} s")
     _check(usage._on_change.__code__.co_names.count("activity") == 0, "a change of the project still counts as you")
     return f"{len(drawn)} tabs draw; 10 min of playback with no input: 0 s counted"
+
+
+@line("app.windows", "Function windows: Make a crane and the other forms in a window of their own", "0.2.217",
+      what="Every function that opens a form (Make a crane, Save as my own workspace, Restore a backup, the PC check, "
+           "Learn … 23 of them) has its values as the window's own, draws its form there, and its Make runs the "
+           "function with those values – a refused one says why and the window stays; window sizes and places are "
+           "kept in the settings file")
+def app_windows(ctx):
+    import bpy
+
+    from ..blender import form_window as fw
+    from ..blender import ops_make, ui_settings
+    bad = []
+    for idname in fw.WINDOWS:
+        cls = fw.op_class(idname)
+        if cls is None:
+            bad.append(f"{idname} missing")
+            continue
+        fw.make_group(cls)
+        fw._FORMS.setdefault(idname, {"cls": cls, "title": "", "confirm": "OK", "icon": "WINDOW",
+                                      "extra": {"_told": []}, "error": ""})
+        try:
+            if not fw.draw_form(ui_settings._Any(), bpy.context, idname):
+                bad.append(f"{idname} has no values")
+        except Exception as exc:  # noqa: BLE001 - the line names every form that does not draw
+            bad.append(f"{idname}: {exc}"[:120])
+    _check(not bad, "these windows do not draw: " + "; ".join(bad))
+    fw.data("fresing.gcode_go_line").line = 7
+    res, why = fw.run("fresing.gcode_go_line")                 # no CNC machine here: refused, with a reason
+    _check(res == {"CANCELLED"} and bool(why), f"a refused Make gave {res} '{why}'")
+    places, sizes = ops_make.parse(ops_make.dump({"settings": [1, 2, 300, 400]}, {"form:fresing.pose_save": [340, 150]}))
+    _check(places == {"settings": [1, 2, 300, 400]} and sizes == {"form:fresing.pose_save": [340, 150]},
+           "window sizes and places are not read back as written")
+    return f"{len(fw.WINDOWS)} function windows draw their forms; a refused Make says why"
 
 
 @line("settings.kept", "Settings kept over a restart: the app's own settings file", "0.2.206",

@@ -32,7 +32,7 @@ import bpy
 from ..core import fasteners, materials_lib, presets, studio
 from ..core.words import plural, verb
 from ..core import surroundings as env
-from . import build, cameras, materials
+from . import build, cameras, logic, materials
 
 CATEGORY = "Fresing"
 PHOTOS_URL = "https://github.com/smholte/CAD-render-animation/blob/main/docs/SURROUNDINGS.md#getting-360-photos"
@@ -149,14 +149,20 @@ _OPEN_FOLDS = bool(os.environ.get("FRESING_UI_OPEN_FOLDS"))     # screenshots of
 HOOKS = {"fold": None, "header": None}
 
 
-def fold(layout, idname: str, title: str, icon: str = "NONE", closed: bool = True):
-    """A foldable part of a panel; returns its body layout or None when folded."""
+def fold(layout, idname: str, title: str, icon: str = "NONE", closed: bool = True, state: str = ""):
+    """A foldable part of a panel; returns its body layout or None when folded. ``state``: a short grey text on the
+    right of its title row (e.g. "3 in the cache")."""
     forced = HOOKS["fold"]
     if forced is not None and forced(idname):          # a lesson points into this fold: open, whatever it was
         header, body = layout.panel_prop(context_wm(), "fresing_fold_open")
     else:
         header, body = layout.panel(idname, default_closed=closed and not _OPEN_FOLDS)
     header.label(text=title, icon=icon)
+    if state:
+        r = header.row()
+        r.alignment = "RIGHT"
+        r.active = False
+        r.label(text=state)
     return body
 
 
@@ -305,6 +311,13 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                 op_id = "fresing.import_mesh"
             else:
                 op_id = "fresing.import_step"
+            if not root.get("fr_lifting") and not _client_locked(context):   # task 0289: Up axis after the import
+                up = logic.up_axis_of(root)
+                row = box.row(align=True)
+                row.label(text="Up axis")
+                for ax in ("Z", "Y"):
+                    op = row.operator("fresing.model_up_axis", text=f"{ax} up", depress=(up == ax))
+                    op.root, op.axis = root.name, ax
             if root.get("fr_lifting"):                 # a crane of the lifting plan (task 0214): Remove + Place
                 hint(box, context, "A crane of the lifting plan: to change it, Remove it in 8 Lifting plan and "
                                    "place it again.")
@@ -331,15 +344,71 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
             wrap(layout, context, s.last_message, icon="CHECKMARK" if s.last_message.startswith("Imported")
                  else "INFO")
         gap(layout)
+        _draw_imported(layout, context)
         body = fold(layout, "fr_import_more", "More")
         if body:
             hint(body, context, "Imports are stored, so an unchanged file opens again in seconds.")
             body.operator("fresing.clear_cache", icon="TRASH")
 
 
+def _draw_imported(layout, context) -> None:
+    """Task 0289: the Imported models fold – every stored import, newest first, with Import again, Show in folder and
+    Remove from cache."""
+    from ..core import import_cache
+    from . import ops_import
+    items = import_cache.entries(ops_import.cache_root())
+    items = [e for e in items if e.state != import_cache.OLD]
+    state = f"{len(items)} in the cache" if items else "none in the cache"
+    body = fold(layout, "fr_import_cached", "Imported models", state=state)
+    if not body:
+        return
+    if not items:
+        hint(body, context, "Every model you import is stored here, so it opens again in seconds.")
+        return
+    s = context.scene.fresing
+    if len(items) > import_cache.SEARCH_FROM:
+        body.prop(s, "import_cache_search", text="", icon="VIEWZOOM")
+        items = [e for e in items if import_cache.matches(e, s.import_cache_search)]
+        if not items:
+            hint(body, context, "No stored model matches the search.")
+    for e in items:
+        box = body.box()
+        col = box.column(align=True)
+        col.active = e.state != import_cache.MOVED
+        col.label(text=e.name, icon="MESH_DATA" if e.kind == "mesh" else "FILE_3D")
+        detail = "mesh model" if e.kind == "mesh" else e.quality.capitalize()
+        col.label(text=f"{plural(e.parts, 'part')} · {detail} · {import_cache.size_text(e.size)}")
+        col.label(text=import_cache.date_text(e.stored) + (f" · {e.file_name}" if e.file_name != e.name else ""))
+        note = import_cache.state_text(e)
+        if note:
+            col.label(text=note.capitalize(), icon="ERROR" if e.state == import_cache.MOVED else "INFO")
+        row = box.row(align=True)                # the Client view may bring a model in (it never replaces one)
+        op = row.operator("fresing.import_mesh" if e.kind == "mesh" else "fresing.import_step", text="Import again",
+                          icon="IMPORT")
+        op.again = e.id
+        row.operator("fresing.cache_show", text="", icon="FILE_FOLDER").entry = e.id
+        if not _client_locked(context):
+            row.operator("fresing.cache_remove", text="", icon="TRASH").entry = e.id
+    hint(body, context, f"Together {import_cache.size_text(import_cache.total_size(items))} on disk. "
+                        "Clear import cache under More removes them all.")
+
+
 # =============================================================================
 # 2 Structure
 # =============================================================================
+
+
+def _parent_locked(data, item) -> bool:
+    """Is a subassembly above this tree row locked in place (task 0292: its lock is drawn greyed)?"""
+    i = item.parent_index
+    seen = 0
+    while 0 <= i < len(data.tree) and seen < 64:
+        p = data.tree[i]
+        if p.obj is not None and p.obj.get(build.PROP_LOCKED, True) and all(p.obj.lock_location):
+            return True
+        i = p.parent_index
+        seen += 1
+    return False
 
 
 class FRESING_UL_tree(bpy.types.UIList):
@@ -380,8 +449,15 @@ class FRESING_UL_tree(bpy.types.UIList):
         sub.alignment = "RIGHT"
         if tag:
             sub.label(text=tag)
-        if not item.is_part and not ob.get(build.PROP_LOCKED, True):
-            sub.label(text="", icon="UNLOCKED")
+        sub = sub.row(align=True)
+        sub.scale_x = 0.8                     # task 0292: three icons (lock, eye, arrow) in the room of two and a half
+        # task 0292: a lock in every row – closed = locked in place, open = free to move; greyed when a subassembly
+        # above is locked (it still moves with that one)
+        locked = all(ob.lock_location) and all(ob.lock_rotation)
+        lk = sub.row(align=True)
+        lk.active = not _parent_locked(data, item)
+        op = lk.operator("fresing.tree_row", text="", icon="LOCKED" if locked else "UNLOCKED", emboss=False)
+        op.index, op.action = index, "LOCK"
         hidden = ob.get("fr_hidden", False)
         op = sub.operator("fresing.tree_row", text="", icon="HIDE_ON" if hidden else "HIDE_OFF", emboss=False)
         op.index, op.action = index, "HIDE"
@@ -444,6 +520,9 @@ class FRESING_PT_structure(_Panel, bpy.types.Panel):
                 locked = it.obj.get(build.PROP_LOCKED, True)
                 row.operator("fresing.toggle_lock", text="Locked in place" if locked else "Unlocked: can be moved",
                              icon="LOCKED" if locked else "UNLOCKED", depress=not locked).name = it.obj.name
+            row = box.row(align=True)                   # task 0292: Remove… (a window lists what goes first)
+            row.operator_context = "INVOKE_DEFAULT"
+            row.operator("fresing.remove", text="Remove…", icon="TRASH").names = "" if it.is_part else it.obj.name
 
         if s.isolated:
             box = layout.box()

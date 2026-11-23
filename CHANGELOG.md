@@ -5,6 +5,55 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.219 – 23 Nov 2026 – Place: move and turn by numbers; Remove a model, subassembly or parts; a lock in every tree row (task 0292)
+
+- **2 Structure > Place** (new): select a model, a subassembly or parts and type where it goes – X / Y / Z in mm and
+  turns in degrees, measured in the **World** or along the **Model axes** (then 0 means "where the CAD file has it").
+  **–** / **+** step it by 10 or 100 mm, 15 or 90°; **Snap** rounds to 1 / 10 / 100 mm or 5 / 15 / 45°. **Move with
+  mouse** / **Turn with mouse** (X / Y / Z keeps to an axis, type a number, click to place), and **arrows and rings**
+  on what is selected while Place is open. **Put on the floor** and **Back to the CAD place** (a model: **Back to where
+  it was imported**). The right-click menu's **Move / turn…** opens the same in a window of its own.
+- **A Place move stays**: Build & play, poses, Reset pose, saved scenes and a model update keep it. A whole model moves
+  with its joints, cylinders, hoses, cables and labels. A subassembly a joint moves (the boom on its pin) takes the
+  joint's axis along.
+- **Remove…** (new) – in Place, in the selected row's box of 2 Structure, in the right-click menu, and the **Delete**
+  and **X** keys outside Full access: a window lists what goes with it (parts, joints, cylinders, mechanisms, hoses,
+  cables, labels, stickers, animation steps that only move it) and what only loses something; **Remove** takes it out
+  in one step, **Ctrl+Z** brings it all back. The import stays (1 Import > Imported models), and a model update keeps
+  removed parts out. **Clean-up** stays what it was: it only hides parts and Restore all brings them back.
+- **A lock in every 2 Structure row**, next to the eye and the arrow: closed = locked in place, open = free to move;
+  one click switches it (greyed when a subassembly above it is locked – it still moves with that one).
+- The part count of a model's box now counts like 2 Structure's header (parts without a shape in the CAD file were
+  counted in the box only: 564 vs 562).
+
+## 0.2.218 – 23 Nov 2026 – Drop a file like Import STEP…, Imported models with Import again, Up axis after the import (task 0289)
+
+- **A STEP or mesh file dropped on the view now comes in exactly like Import STEP…**: the side panel opens on
+  1 Import (also when it was hidden or another section's tab was chosen), the Detail and Up axis you chose there are
+  used, the progress bar with Esc to cancel shows, then the model's box and the same message. Several files dropped
+  at once: the first one is imported and the panel says so.
+- **1 Import > Imported models** (a fold; its title says how many are stored) lists every model in the import cache,
+  newest first, with parts, detail, size and date. **Import again** adds it to this project – an unchanged file from
+  the stored copy in seconds, a changed file read again (the message says so), a moved file from the stored copy.
+  The folder button shows the file, the bin removes it from the cache (asks first). A search field from 11 models on.
+- **Up axis after the import**: each model's box has **Z up / Y up**. It turns the whole model as the import would
+  have; joints, cylinders, poses, saved scenes and labels keep working, a built animation is taken off (Build again
+  gives the same motion, turned). One Ctrl+Z undoes it; a model update keeps the axis.
+- New PC-check lines `import.drop`, `import.again`, `import.up_axis` and a test-tour stop "Import again and Up axis".
+## 0.2.217 – 23 Nov 2026 – Make a crane and the other forms open in windows that stay open (task 0282)
+
+- **Make a crane… opens in a window of its own** – and so do 22 more forms: Save as my own workspace, Save pose,
+  Save scene, the rule-set Copy / New / Rename, Make demo project, the PC check's choices, Learn…, My learning list,
+  Restore a backup, About and others (the user guide has the list). The window **stays open** while you click in the
+  main window, can be **dragged onto another screen**, and opens again **as big as you left it** (on Windows also
+  **where** you left it). Two different windows can be open at once; pressing the button again brings its window to
+  the front with what you typed.
+- Its button at the bottom (**Make**, **Save**, **Start** …) works with the project **as it is when you press it**;
+  when it cannot (no name, no model, a job running), the window stays and says why in red. **Cancel**, the **X** or
+  **Esc** over the window close it; **Return** there is its button. Undo works as before.
+- Short yes / no questions ("Remove this?", "Switch rule set?") stay small popups. The Client view refuses the same
+  functions as before. Window sizes and places are kept in the app's settings file.
+
 ## 0.2.216 – 23 Nov 2026 – Moving parts with G / R: it moves, or it says why not (task 0307)
 
 - **Why G / R did nothing:** after an import every subassembly is *Locked in place*. G / R showed their numbers, and on

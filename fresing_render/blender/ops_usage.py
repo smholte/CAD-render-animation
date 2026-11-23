@@ -195,8 +195,9 @@ class FRESING_OT_usage_export(bpy.types.Operator):
         from . import workspaces
         if not self.name:
             self.name = f"{workspaces.name_of(context.scene)} – my profile"
-        return context.window_manager.invoke_props_dialog(self, width=420, title="Export profile",
-                                                          confirm_text="Save")
+        from . import form_window
+        return form_window.open(self, context, width=440, height=190, title="Export profile", confirm="Save",
+                                icon="EXPORT")
 
     def draw(self, context):
         col = self.layout.column()

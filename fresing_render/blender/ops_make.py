@@ -10,7 +10,8 @@ queue, so a change in one shows in the other.
 window of its own, the piece closed again). Its screen is marked ``fr_output = <key>``; its side panel shows the tab
 "Make", where ``FRESING_PT_make_window`` draws the output of that key. Opening the same output again brings its
 window to the front (Windows) instead of a second one. On Windows the window also opens where it was last time
-(``winplace.py``; the places are kept per user in ``<config>/fresing_make_windows.json``). A window left open is saved
+(``winplace.py``); every PC opens it at the size it had (task 0282: sizes and places are kept in the settings file,
+``prefs.window_places``; the old ``<config>/fresing_make_windows.json`` is read once). A window left open is saved
 with the project like the Set-up window and comes back with it; another project brings its own windows.
 
 Client view: the windows open (``lock.ALLOWED_PREFIXES`` has ``fresing.make_``); the buttons in them follow the lock as
@@ -27,10 +28,10 @@ from bpy.app.handlers import persistent
 from bpy.props import StringProperty
 
 from . import ops_setup, panels, ui, ui_top
-from .ops_setup import OUTPUT_MARK, OUTPUT_TAB, SETTINGS_MARK
+from .ops_setup import FORM_MARK, OUTPUT_MARK, OUTPUT_TAB, SETTINGS_MARK
 
 PLACES_FILE = "fresing_make_windows.json"
-WATCH_SECONDS = 2.0           # Windows: how often the places of open output windows are read (to reopen them there)
+WATCH_SECONDS = 2.0           # how often the sizes (and on Windows the places) of open app windows are read
 
 
 def outputs() -> dict:
@@ -57,23 +58,30 @@ def output_windows(key: str | None = None) -> list:
 
 
 # ---------------------------------------------------------------------------
-# the places (Windows)
+# the places and sizes (task 0282: in the settings file)
 # ---------------------------------------------------------------------------
 
 def places_path() -> str:
+    """The file the places were kept in before task 0282 (read once, then they live in the settings file)."""
     return os.path.join(bpy.utils.user_resource("CONFIG"), PLACES_FILE)
 
 
+def _rects(data, n: int) -> dict:
+    if not isinstance(data, dict):
+        return {}
+    return {k: [int(v) for v in r] for k, r in data.items()
+            if isinstance(k, str) and isinstance(r, list) and len(r) == n
+            and all(isinstance(v, int) and not isinstance(v, bool) for v in r)}
+
+
 def read_places(path: str) -> dict:
+    """The old file of 0260 / 0271: {key: [left, top, right, bottom]}."""
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, ValueError):
         return {}
-    if not isinstance(data, dict):
-        return {}
-    return {k: [int(v) for v in r] for k, r in data.items()
-            if isinstance(k, str) and isinstance(r, list) and len(r) == 4 and all(isinstance(v, int) for v in r)}
+    return _rects(data, 4)
 
 
 def write_places(path: str, places: dict) -> None:
@@ -84,49 +92,112 @@ def write_places(path: str, places: dict) -> None:
     os.replace(tmp, path)
 
 
-_PLACES: dict = {}            # what was read last (key -> [left, top, right, bottom])
+def parse(text: str) -> tuple:
+    """(places, sizes) from the preference's text: {"places": {key: [l, t, r, b]}, "sizes": {key: [w, h]}};
+    anything odd is left out."""
+    try:
+        data = json.loads(text) if text else {}
+    except ValueError:
+        return {}, {}
+    if not isinstance(data, dict):
+        return {}, {}
+    return _rects(data.get("places"), 4), _rects(data.get("sizes"), 2)
+
+
+def dump(places: dict, sizes: dict) -> str:
+    return json.dumps({"places": dict(sorted(places.items())), "sizes": dict(sorted(sizes.items()))},
+                      separators=(",", ":"))
+
+
+_KEPT: dict = {"read": False, "places": {}, "sizes": {}}
+
+
+def _kept() -> dict:
+    """What is kept (read once from the preference – the settings file –, or moved over from the old file)."""
+    if not _KEPT["read"]:
+        from . import prefs
+        p = prefs.get()
+        text = getattr(p, "window_places", "") if p is not None else ""
+        places, sizes = parse(text)
+        if not text:
+            places = read_places(places_path())          # task 0282: the old file's places move over once
+        _KEPT.update(read=True, places=places, sizes=sizes)
+    return _KEPT
+
+
+def _store() -> None:
+    from . import prefs
+    p = prefs.get()
+    if p is None:
+        return
+    text = dump(_KEPT["places"], _KEPT["sizes"])
+    if p.window_places != text:
+        p.window_places = text                            # settings_store writes the file within a second
+
+
+def kept_place(key: str):
+    return _kept()["places"].get(key)
+
+
+def kept_size(key: str):
+    """(width, height) at UI scale 1 the window had when it was last seen open, or None."""
+    r = _kept()["sizes"].get(key)
+    return tuple(r) if r else None
+
+
+def forget_places() -> None:
+    """Tests: read the kept places again."""
+    _KEPT.update(read=False, places={}, sizes={})
 
 
 def place_key(win) -> str:
-    """The key a window's place is kept under: the output's key, or "settings" for the Settings window (task 0271)."""
+    """The key a window's place is kept under: the output's key, "settings" for the Settings window (task 0271),
+    "form:<operator id>" for a function window (task 0282)."""
     try:
         screen = win.screen
         if screen.get(SETTINGS_MARK):
             return "settings"
+        if screen.get(FORM_MARK):
+            return "form:" + str(screen.get(FORM_MARK))
         return str(screen.get(OUTPUT_MARK) or "")
     except (AttributeError, ReferenceError):
         return ""
 
 
 def placed_windows() -> list:
-    """The windows whose place is kept: the output windows and the Settings window."""
+    """The windows whose place is kept: the output windows, the Settings window and the function windows."""
     wm = getattr(bpy.context, "window_manager", None)
     return [w for w in (wm.windows if wm is not None else ()) if place_key(w)]
 
 
 def remember(win) -> None:
-    """Keep this output window's (or the Settings window's) place for the next time it opens (Windows only)."""
+    """Keep this window's size (every PC) and place (Windows) for the next time it opens."""
     from .. import winplace
-    if not winplace.available():
-        return
     key = place_key(win)
-    r = winplace.rect(win, key)
-    if not key or r is None or not winplace.usable(r):
+    if not key:
         return
-    if not _PLACES:
-        _PLACES.update(read_places(places_path()))
-    if _PLACES.get(key) == list(r):
-        return
-    _PLACES[key] = list(r)
+    kept = _kept()
+    changed = False
     try:
-        write_places(places_path(), _PLACES)
-    except OSError as exc:
-        print("Fresing Render: the output window's place was not kept:", exc)
+        scale = bpy.context.preferences.system.ui_scale or 1.0
+        size = [int(round(win.width / scale)), int(round(win.height / scale))]
+    except (AttributeError, ReferenceError):
+        size = None
+    if size and min(size) >= 100 and kept["sizes"].get(key) != size:
+        kept["sizes"][key] = size
+        changed = True
+    if winplace.available():
+        r = winplace.rect(win, key)
+        if r is not None and winplace.usable(r) and kept["places"].get(key) != list(r):
+            kept["places"][key] = list(r)
+            changed = True
+    if changed:
+        _store()
 
 
 def _watch():
-    """Windows: read the places of the open output windows now and then (a window closed with its own X is then
-    still reopened where it was)."""
+    """Read the sizes (and on Windows the places) of the open app windows now and then: a window closed with its own
+    X is then still reopened as it was."""
     wins = placed_windows()
     if not wins:
         return None
@@ -139,22 +210,20 @@ def _watch():
 
 
 def _placed(win) -> None:
-    """A new output window is open: where it was last time (Windows), and its place watched from now on."""
+    """A new app window is open: where it was last time (Windows), and its size and place watched from now on."""
     from .. import winplace
-    if not winplace.available():
-        return
-    key = place_key(win)
-    winplace.find(win, key)                   # the handle, while the window is new and stands where Blender put it
-    r = read_places(places_path()).get(key)
-    if r is not None:
-        winplace.place(win, r, key)
+    if winplace.available():
+        key = place_key(win)
+        winplace.find(win, key)               # the handle, while the window is new and stands where Blender put it
+        r = kept_place(key)
+        if r is not None:
+            winplace.place(win, r, key)
     watch()
 
 
 def watch() -> None:
-    """Keep reading the places of the open output windows (Windows) – also of those a project brought back."""
-    from .. import winplace
-    if winplace.available() and placed_windows() and not bpy.app.timers.is_registered(_watch):
+    """Keep reading the sizes and places of the open app windows – also of those a project brought back."""
+    if placed_windows() and not bpy.app.timers.is_registered(_watch):
         bpy.app.timers.register(_watch, first_interval=WATCH_SECONDS)
 
 
