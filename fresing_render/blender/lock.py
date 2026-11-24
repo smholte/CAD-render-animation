@@ -57,6 +57,7 @@ ALLOWED = {
     "fresing.import_step", "fresing.import_mesh", "fresing.report_clear",
     "fresing.render", "fresing.render_view", "fresing.preview", "fresing.turntable", "fresing.light_look", "fresing.pick_hdri",
     "fresing.camera_activate", "fresing.shot_apply",
+    "fresing.save",                                     # task 0291: Save (a new project's name proposed)
     "fresing.camera_add", "fresing.shot_save",          # task 0213: camera views and saved scenes are the Client
     "fresing.queue_schemes", "fresing.queue_schemes_tick",   # view's own (the new camera is locked like the rest)
     "fresing.queue_add", "fresing.queue_log", "fresing.queue_open", "fresing.queue_remove", "fresing.queue_start",
@@ -409,8 +410,8 @@ def _file_menu_locked(self, context):
     layout.menu("TOPBAR_MT_file_open_recent")
     layout.operator("wm.revert_mainfile")
     layout.separator()
-    layout.operator_context = "EXEC_AREA" if context.blend_data.is_saved else "INVOKE_AREA"
-    layout.operator("wm.save_mainfile", text="Save", icon="FILE_TICK")
+    layout.operator_context = "INVOKE_AREA"
+    layout.operator("fresing.save", text="Save", icon="FILE_TICK")      # task 0291: a new project's name proposed
     layout.separator()
     layout.label(text="Client view: Save As, Import and Export are off", icon="LOCKED")
     layout.separator()

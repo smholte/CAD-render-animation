@@ -784,7 +784,7 @@ def looks_finishes(ctx):
             f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
 
-@line("looks.rust", "Rust slider and carbon fibre", "0.2.233",
+@line("looks.rust", "Rust slider and carbon fibre", "0.2.234",
       what="The finishes test model's rust row and carbon parts: moving a steel group's Rust slider changes its "
            "material (the rust value in its nodes, the welds' value on it); a stainless group has no Rust (the panel "
            "says why) and its look stays the same; the carbon cup's dome and its tube get their weave from their own "
@@ -5245,6 +5245,45 @@ def app_editors(ctx):
     else:
         overlap = "on – the app switches it off at its next start"
     return f"your choice: Blender's editors {real['editors']}; Region Overlap {overlap}"
+
+
+@line("files.name", "Project names: a new project proposes its first model's name, Save As proposes \"(1)\"",
+      "0.2.233", requires=("import.crane",),
+      what="Imports the test crane into a new project: the first save proposes the crane's name in its folder, its "
+           "backups carry it; saved under that name, Save As proposes \"(1)\", then \"(2)\" past a file that is "
+           "there; saving as \"(2)\" leaves the first file as it was")
+def files_name(ctx):
+    import bpy
+
+    from ..blender import backups, project_name, ui_topbar
+    from ..core import project_name as core
+    for op in ("fresing.save", "fresing.save_as"):
+        _check(ui_topbar._has(op), f"the operator {op} is missing")
+    if not bpy.app.background:
+        _check(project_name.menu_swapped(), "File > Save / Save As are not the app's")
+    scene = ctx.fresh(CRANE_A)
+    name = project_name.proposal(scene)
+    _check(name not in ("", core.UNTITLED), f"the first save proposes {name!r}, not the crane's name")
+    _check(core.clean(name) == name and " v" not in name, f"the proposal {name!r} is not a clean file name")
+    path = project_name.proposed_path(scene)
+    _check(os.path.basename(path) == name + ".blend", f"the browser would open with {os.path.basename(path)!r}")
+    _check(backups.unsaved_name(scene) == name, f"the unsaved backups would be called {backups.unsaved_name(scene)!r}")
+    folder = os.path.join(ctx.work, "Projects é")
+    os.makedirs(folder, exist_ok=True)
+    first = os.path.join(folder, name + ".blend")
+    bpy.ops.wm.save_as_mainfile(filepath=first)
+    p1 = project_name.save_as_proposal()
+    _check(p1 == name + " (1)", f"Save As proposes {p1!r}")
+    with open(os.path.join(folder, name + " (1).blend"), "wb") as f:
+        f.write(b"x")
+    p2 = project_name.save_as_proposal()
+    _check(p2 == name + " (2)", f"with a (1) there, Save As proposes {p2!r}")
+    size = os.path.getsize(first)
+    res = bpy.ops.fresing.save_as("EXEC_DEFAULT", name=p2)
+    _check(res == {"FINISHED"} and bpy.data.filepath == os.path.join(folder, p2 + ".blend"),
+           f"Save As did not save {p2}.blend ({res})")
+    _check(os.path.getsize(first) == size, "the first project file changed")
+    return f"proposed \"{name}\", then \"{p1}\" and \"{p2}\""
 
 
 @line("backups.makes_one", "Automatic backups: a copy of the open project, the keep rule, nothing else deleted",

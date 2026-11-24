@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.233 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
+## 0.2.234 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or
   matte clear coat (**Kind**, **Tow width**, **Gloss**). The weave lies on every CAD face of its own – round a tube
@@ -33,6 +33,17 @@ installer of that version was built from.
   - **Marine paint, growth below the waterline** and **Marine paint, run-down streaks**: their rust streaks take the
     new rust colours.
   - Every project's group materials are made again once when it opens (they keep their material, colour and Wear).
+## 0.2.233 – 24 Nov 2026 – A new project is named after its first model; Save As offers "name (1)" (task 0291)
+
+- **The first save of a new project** (Ctrl+S, File > Save or File > Save As…) opens the file browser with a name
+  already filled in: the name of the **first model you imported**, without an Inventor version like " v8" and without
+  its file ending, in the folder of that model's STEP file. Nothing imported yet: "Untitled project".
+- **Save As on a saved project** (Ctrl+Shift+S or File > Save As…) opens a small box with the name and **(1)** – the
+  next number free in that folder, (2), (3) … – already selected: type a new name over it or keep it, then **Save**.
+  **Other folder…** opens the file browser. A file that is there already is never overwritten.
+- **Backups of a project you never saved** now carry the same name instead of "Unsaved project".
+- **Fresing Settings > General > Name of a new project:** **First model's name** (standard) or **Leave empty**.
+- A saved project keeps its name: the app never renames it.
 
 ## 0.2.232 – 24 Nov 2026 – The question about an unused panel stays open after Show me (task 0317)
 

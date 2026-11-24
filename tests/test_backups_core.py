@@ -163,3 +163,28 @@ def test_folders_and_texts():
     assert "14:35" in B.offer_text(b, t.replace(minute=10).timestamp())
     assert "never saved" in B.offer_text(b, None)
     assert B.clamp(0, B.RANGE_MINUTES) == 1 and B.clamp(99, B.RANGE_KEEP) == 50
+
+
+def test_unsaved_backups_carry_the_first_models_name(tmp_path):
+    """Task 0291: a never-saved project's backups are named after its first model, and every one is found."""
+    assert B.unsaved_name("Test crane") == "Test crane"
+    assert B.unsaved_name("") == B.unsaved_name("  ") == B.UNSAVED_NAME
+    t = datetime(2026, 11, 24, 10, 5)
+    assert B.parse_any(B.backup_name("Test crane", t)) == ("Test crane", t)
+    assert B.parse_any(B.backup_name("A backup plan", t, seconds=True)) == ("A backup plan", t)
+    assert B.parse_any("Test crane.blend") is None and B.parse_any("notes backup x.blend") is None
+    assert B.parse_any(" backup 2026-11-24 10-05.blend") is None
+    folder = tmp_path / "Unsaved projects"
+    folder.mkdir()
+    _files(str(folder), "Test crane", [t])
+    _files(str(folder), B.UNSAVED_NAME, [datetime(2026, 11, 24, 9, 0)])
+    (folder / "Test crane.blend").write_bytes(b"x")
+    found = B.listing(str(folder), None)
+    assert [os.path.basename(b.path) for b in found] == [B.backup_name("Test crane", t),
+                                                          B.backup_name(B.UNSAVED_NAME, datetime(2026, 11, 24, 9, 0))]
+    docs = str(tmp_path / "docs")
+    unsaved = B.unsaved_folder(docs)
+    os.makedirs(unsaved)
+    _files(unsaved, "Test crane", [t])
+    assert len(B.all_backups("", docs)) == 1
+    assert len(B.listing(unsaved, "Test crane")) == 1 and B.listing(unsaved, B.UNSAVED_NAME) == []

@@ -60,6 +60,7 @@ WINDOWS = (
 # that every dialog of the app is in one of the two lists)
 POPUPS = {
     "fresing.backup_offer": "a question when a project opens: Open the backup or not",
+    "fresing.save_as": "one name, selected to type over, then Save (task 0291)",
     "fresing.lifting_understand": "one click: I understand",
     "fresing.loc_setup_update": "a question: Update the set-up (with what changes) or keep the old one",
     "fresing.loc_setup_changes": "a short list of what the last update changed",

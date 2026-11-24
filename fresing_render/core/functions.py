@@ -131,6 +131,7 @@ MENUS = {
     "TOPBAR_MT_help": "Help menu",
     "TOPBAR_MT_fresing": "Fresing menu (top bar)",
     "TOPBAR_MT_fresing_mark": "Fr mark (top bar, far left)",
+    "TOPBAR_MT_file": "File menu",                  # task 0291: Save / Save As
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
 }
@@ -317,20 +318,20 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
 # ----- 3 Looks -----
 fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
-   changed="0.2.233", manual_estimate=("part", 5, "pick the part and give it its material"))
+   changed="0.2.234", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
-   changed="0.2.233")
+   changed="0.2.234")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains, perlage", family="looks",
    panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
-   pccheck=("looks.finishes",), since="0.2.229", changed="0.2.233")
+   pccheck=("looks.finishes",), since="0.2.229", changed="0.2.234")
 # task 0318: carbon fibre that follows every CAD face, the group's Rust slider, better existing looks
 fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (no seam)", family="looks",
    panel="FRESING_PT_looks", prop="material", guide="carbon", tour=("finishes",), pccheck=("looks.rust",),
-   since="0.2.233")
+   since="0.2.234")
 fn(id="looks.rust", title="Rust: a slider per group, only where steel rusts", family="looks",
    panel="FRESING_PT_looks", prop="rust", guide="rust", tour=("finishes",), pccheck=("looks.rust",),
-   since="0.2.233")
+   since="0.2.234")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -338,7 +339,7 @@ fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_face
 fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_PT_decals",
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
-   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.233")
+   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.234")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -796,6 +797,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
    "Fresing > Restore a backup… puts one back", family="help", panel="TOPBAR_MT_fresing", button="fresing.backups_window",
    guide="backups", tour=("backups",), pccheck=("backups.makes_one",), since="0.2.187",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
+fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
+   "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
+   guide="saving", pccheck=("files.name",), since="0.2.233")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")
