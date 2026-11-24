@@ -149,11 +149,12 @@ spool function).
   renumbered to 0.2.225, a seventh run (45328947436, green) – meanwhile 0.2.225 went to task 0298: merged again,
   renumbered to 0.2.226, an eighth run (45335595420): two failures from the merge – task 0298's new
   `test_flex_avoid.py` clicked the cable model at its old size (now the real-size spots of the tour), and the new
-  test file put two files that skip one test on GitHub in one group (`test_spool_independent.py` added to
-  `SKIPS_ON_GITHUB` in `tools/ci_groups.py`) – a ninth run (45341020272, green) – meanwhile 0.2.226 went to task
+  test file put two files that skip one test on GitHub in one group (first read as `test_spool_independent.py`;
+  it was task 0298's `test_flex_avoid_independent.py`, whose xfail the summary counts as a skip – it is in
+  `SKIPS_ON_GITHUB` in `tools/ci_groups.py` now) – a ninth run (45341020272, green) – meanwhile 0.2.226 went to task
   0294: merged again, renumbered to 0.2.227, a tenth run (45347087346, green) – meanwhile 0.2.227 went to task
-  0293: merged again, renumbered to 0.2.228, an eleventh run. (Eleven runs: eight version clashes, two real
-  failures.)
+  0293: merged again, renumbered to 0.2.228, an eleventh run (45353000278): the xfail and the film test's skip in
+  one group (see above) – a twelfth run. (Twelve runs: eight version clashes, three real failures.)
 
 **Open points / follow-up tasks:**
 - The cable panel shows a spool start as "Start on: Joint Drum turn (motion)" (the joint's empty): a plain-words text
