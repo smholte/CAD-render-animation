@@ -3922,6 +3922,13 @@ class FRWeb3D(bpy.types.PropertyGroup):
         name="Film: title and end card", default=False,
         description="Shows the video's title card before the Film starts and its end card (logo, contact line) after "
                     "it ends, for their seconds. Moving the time line skips them. Off: nothing of them is in the file")
+    # task 0310: the lead motions (top bar > Lead motions) as sliders on the page
+    lead_sliders: BoolProperty(
+        name="Lead motions as sliders", default=True,
+        description="Puts the project's lead motions on the page: a Motions button opens one slider per function "
+                    "(with ▶ and Back to start), so a visitor moves the machine as in the app. The parts the joints "
+                    "move go into the file once per joint. Hoses, cables and ropes stay where the page starts. Off: "
+                    "no sliders on the page")
     measure_faces: BoolProperty(
         name="Faces for measuring", default=True,
         description="Puts the flat and round faces of the parts and their straight and round edges into the file, "

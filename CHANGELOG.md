@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.238 – 24 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
+## 0.2.239 – 24 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
 
 - **More materials…** (3 Looks, in the box of the picked group) opens the new **Materials** window: a picture of every
   material on the same small block with a knurled knob and a round cap. On the left **Find** and the filters
@@ -24,6 +24,23 @@ installer of that version was built from.
 - A project keeps a copy of every own material it uses: it renders on a PC that does not have the folder.
 - **Ready-made material…** is gone: its materials are in the Materials window (paint RAL 7035, black matte plastic …).
 - **Fresing Settings > Materials**: where your materials are saved, how many each folder has, folders with a problem.
+## 0.2.238 – 24 Nov 2026 – The lead motions as sliders on the web 3D page (task 0310)
+
+- **Motions on the web 3D page:** a project with lead motions (top bar > Lead motions) puts them on its exported page.
+  A **Motions** button above the saved views opens one row per lead motion – its name, a slider between its end
+  labels ("0°" … "35°" for one joint, else "0 %" … "100 %") and **▶** – and **Back to start**. A visitor moves the
+  machine as in the app, without the app: on a PC the panel sits beside the controls at the bottom so the model stays
+  free to turn, on a phone it is a sheet from the bottom.
+- **The same values as in the app:** windows, stages and easing give each joint the app's value; several sliders mix as
+  in the app (a trolley on a boom follows both; a joint in two lead motions takes the one moved last, the other says
+  "moved by …").
+- **With the animation:** moving a slider pauses it; Play, the time line or the Film give the parts back to the
+  animation and the sliders go back. Copy link keeps the sliders.
+- **Lead motions as sliders** (5 Scene & Render > Web 3D model, on by default when the project has lead motions)
+  lists them. Each joint goes into the file once. Hoses, cables, ropes and track links stay where the page starts.
+  Measured: the test crane's page +7 KB; a 3,000-part machine +0.33 MB (2.4 %), its export 26 s instead of 14 s; the
+  pages open as fast as before.
+- New PC-check line **web3d.lead_motions**; the test tour's Web 3D model stop shows the crane's three sliders.
 
 ## 0.2.237 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
