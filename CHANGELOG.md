@@ -5,6 +5,45 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.222 – 24 Nov 2026 – Weather round 2: thunderstorm, sea mist, sunrise, sunset, hail, heat; change it in two clicks (task 0299)
+
+- **Six new weathers**, each with a picture you click (5 Scene & Render > Weather & time > Presets): **Thunderstorm**
+  (dark storm clouds, a downpour, lightning), **Fog / sea mist** (mist lying on the water, the machine fades in and
+  out), **Sunrise** and **Sunset** (golden low sun, long shadows), **Hail / sleet** (stones bouncing on the deck) and
+  **Hot and calm** (bright haze, heat shimmer in the distance).
+- **Lightning**: in a video each flash lights the whole scene for a moment and a bolt strikes in the distance. Flashes
+  come at random while there is lightning, or at moments you set in a Weather & time step ("Flash at"). Tick **Flash in
+  the picture** for a still of a flash.
+- **New values** under Weather & time (and in the Weather & time step): **Sea mist**, **Heat**, **Hail**,
+  **Lightning**.
+- **Change the weather in two clicks**: put the playhead where it should change, pick **Change to** (and **Over**, the
+  seconds), click **Add at playhead**. It adds a Weather & time step (or changes the one already there); the step list
+  shows "Weather to Thunderstorm (16:00)". Then Build & play.
+- **Smoother changes**: a step that ran the clock through sunset switched the sun, the daylight and the floodlights
+  on or off within 1–3 frames; the clock now slows down through sunrise and sunset, so the light changes over many
+  frames. The clock also goes the shorter way round (15:00 → 14:00 goes back an hour instead of running through a
+  whole night). New Weather & time steps start and stop gently (Smooth). A step whose wind changes builds faster (the
+  white caps' number no longer takes 0.1 s per frame).
+- **Learn**: a new lesson "Weather: a storm rolls in" (Fresing > Learn…: View, Show me, Build it yourself), and the
+  user guide explains the weather step by step.
+
+## 0.2.221 – 23 Nov 2026 – Always the graphics card (task 0296)
+
+- **Renders use only the graphics card.** On a PC with an AMD processor and an AMD card, the processor's small built-in
+  Radeon and the card were both used for renders, and the built-in one slowed the card down. Now only the card renders
+  (NVIDIA, AMD Radeon RX / Pro, Intel Arc). A PC without a card keeps using what it has.
+- **The window on the graphics card.** Windows picks which GPU draws each program; Blender only asks NVIDIA's driver
+  for the card, not AMD's. The installer, Update now and the app's start now set Windows' graphics preference for
+  Fresing Render to High performance (Settings > System > Display > Graphics) – only where you have not chosen
+  yourself. It counts from the next start. The uninstaller removes it again.
+- **A calm notice** when the window is still drawn by the built-in graphics although the PC has a card, or when the 3D
+  view is clearly slow: **Use the graphics card**, **Show me how** (Windows' Graphics settings, NVIDIA Control Panel,
+  the monitor cable in the card, not the motherboard), Cancel = not now, **Don't ask again**. At most once per start.
+- **Fresing > Settings > General > Graphics:** which GPU draws the window, which renders, and **Render on** to pick
+  the device (or the processor).
+- Self-test line "Graphics card used", PC check line `pc.gpu`; the PC check's report names the GPU that draws and the
+  one that renders. New guide section "Graphics card" (Troubleshooting).
+
 ## 0.2.220 – 23 Nov 2026 – Update now: save or not, also for a project that was never saved (task 0316)
 
 - **Update now no longer refuses a project that was never saved.** With unsaved changes it asks first, in one small

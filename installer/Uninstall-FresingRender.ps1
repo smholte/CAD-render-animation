@@ -96,6 +96,17 @@ if (Test-Path -LiteralPath $InstallDir) {
     Write-Host "Some files in $InstallDir could not be removed (in use?). Restart the PC and run Uninstall again." -ForegroundColor Yellow
     Finish 1
 }
+# task 0296: Windows' graphics preference of the programs that were in this folder (the installer and the app set it)
+try {
+    $GpuKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Software\Microsoft\DirectX\UserGpuPreferences", $true)
+    if ($GpuKey) {
+        try {
+            foreach ($name in $GpuKey.GetValueNames()) {
+                if ($name.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) { $GpuKey.DeleteValue($name, $false) }
+            }
+        } finally { $GpuKey.Close() }
+    }
+} catch { }
 # the entry in Settings > Apps > Installed apps goes last, and only the one that belongs to this folder
 try {
     $entry = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction Stop

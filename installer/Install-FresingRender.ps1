@@ -435,6 +435,35 @@ $ok = Invoke-Blender @("--background", "--python-exit-code", "1", "--python", $S
                        $InstallDir, $Desktop, $Programs, $env:APPDATA) "Setting the app's name, ID and program on the shortcuts" -AllowFailure
 if (-not $ok) { Write-Host "   (the shortcuts keep their icon; the app sets their ID at its next start)" -ForegroundColor Yellow }
 
+# ---- 4b. The graphics card (task 0296) ------------------------------------------------------------
+# Windows' per-user graphics preference "High performance" for the app's programs - what Settings > System > Display >
+# Graphics writes (HKCU\Software\Microsoft\DirectX\UserGpuPreferences, value name = the program's full path). Only
+# where the user has not chosen (no value, or "Let Windows decide"); other settings in the value are kept. The app does
+# the same at its start (wingpu.py), Update now too, and the uninstaller removes the values of this install folder.
+Step "Asking Windows to run Fresing Render on the graphics card"
+try {
+    $GpuKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey("Software\Microsoft\DirectX\UserGpuPreferences")
+    try {
+        foreach ($exe in @($BlenderExe, (Join-Path $BlenderDir "Fresing Render.exe"))) {
+            if (-not (Test-Path -LiteralPath $exe)) { continue }
+            $old = [string]$GpuKey.GetValue($exe, "")
+            $parts = @($old -split ";" | Where-Object { $_.Trim() })
+            $pref = @($parts | Where-Object { $_ -match "^\s*GpuPreference\s*=" })
+            $chosen = if ($pref) { ($pref[0] -split "=", 2)[1].Trim() } else { "" }
+            if ($chosen -and $chosen -ne "0") {
+                Write-Host "   $([IO.Path]::GetFileName($exe)): kept the choice made in Windows' Graphics settings ($old)"
+                continue
+            }
+            $keep = @($parts | Where-Object { $_ -notmatch "^\s*GpuPreference\s*=" } | ForEach-Object { $_.Trim() + ";" })
+            $new = ($keep -join "") + "GpuPreference=2;"
+            $GpuKey.SetValue($exe, $new, [Microsoft.Win32.RegistryValueKind]::String)
+            Write-Host "   $([IO.Path]::GetFileName($exe)): High performance"
+        }
+    } finally { $GpuKey.Close() }
+} catch {
+    Write-Host "   (could not set Windows' graphics preference: $($_.Exception.Message); the app tries again at its start)" -ForegroundColor Yellow
+}
+
 # ---- 5. Settings > Apps > Installed apps (task 0265) ---------------------------------------------
 # One per-user key (no admin rights). Its Uninstall runs the uninstaller kept in the Tools folder; a copy of that file
 # ships inside the extension too, so Update now and the app's start keep it and the entry right (core/installed_apps.py).
