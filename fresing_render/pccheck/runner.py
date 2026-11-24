@@ -417,8 +417,8 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
         os.remove(cancel_path())            # an old request must not stop this run
     except OSError:
         pass
-    from . import heavy
-    run.scaled = mode == "heavy" and heavy.small()
+    from . import heavy, stress
+    run.scaled = (mode == "heavy" and heavy.small()) or (mode == "stress" and stress.small())
     if lines is None and mode == "tour":               # the automatic test tour (task 0059)
         from . import tour
         tour.attach()
@@ -431,6 +431,10 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
         todo = [ln for ln in todo if not is_own(ln)] + [ln for ln in todo if is_own(ln)]
     _console(f"Fresing Render {__version__} PC check ({core.MODE_TITLES[mode]}{' + own model' if model else ''}), "
              f"{len(todo)} steps. The report opens by itself at the end: {report_path}")
+    if mode == "stress":                               # task 0315: say before it starts that it takes long
+        _console(f"Stress run: this takes long - about {stress.minutes_expected()} minutes on a fast PC, more on a "
+                 "small one. It makes a 10,000-part model and times every heavy action. Stop it any time: "
+                 "Help > Cancel Fresing Render PC check in the app (or close this window).")
     t_run = time.time()
     running = os.path.join(hist, "running.json")
     try:
@@ -461,12 +465,12 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
                 break
             write_report()
 
-    if mode == "heavy":
+    if mode in ("heavy", "stress"):
         threading.Thread(target=heartbeat, daemon=True).start()
 
     for i, ln in enumerate(todo):
         res = core.Result(ln.id, ln.title, ln.since, own=is_own(ln), what=ln.what, expected=ln.expected,
-                          started=time.time(), shows=ln.shows, not_shown=ln.not_shown)
+                          started=time.time(), shows=ln.shows, not_shown=ln.not_shown, limit=ln.limit)
         run.results.append(res)
         run.planned = [x.title for x in todo[i + 1:]]
         ctx.result = res
@@ -505,6 +509,13 @@ def run(mode: str = "quick", desktop: str = "", model: str = "", open_report: bo
     stop_beat.set()
     run.finished, run.planned = True, []
     block = write_report()
+    if mode == "stress":                               # task 0315: the table next to the report
+        try:
+            table = stress.write_table(run, os.path.dirname(report_path))
+            block += "\n\nStress table:\n" + core.stress_text(run)
+            _console(f"Stress table: {table}")
+        except OSError as exc:
+            _console(f"Could not write the stress table: {exc}")
     try:
         core.save_history(history_path, core.add_to_history(history, core.run_record(run)))
         core.write_text(os.path.join(hist, "last_run.txt"), block + "\n")

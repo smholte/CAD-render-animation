@@ -43,7 +43,8 @@ TOOLS_FOLDER = "Tools"                             # <install folder>\Tools: the
 SAFE_START = "Safe start.lnk"                      # task 0177: the app on Blender's own launcher, never retargeted
 # the Tools folder's shortcuts, by kind (task 0212)
 TOOLS = {"selftest": "Self test.lnk", "quick": "PC check (quick).lnk", "full": "PC check (full).lnk",
-         "heavy": "PC check (heavy).lnk", "safe": SAFE_START, "guide": "User guide.lnk"}
+         "heavy": "PC check (heavy).lnk", "stress": "PC check (stress).lnk",          # stress: task 0315
+         "safe": SAFE_START, "guide": "User guide.lnk"}
 DESKTOP_NAMES = (APP_LNK,)
 # what installs before 0212 made (removed by name when their target lies inside the install folder)
 OLD_DESKTOP = ("Fresing Render - PC check.lnk", "Fresing Render - PC check (heavy).lnk")
@@ -171,7 +172,7 @@ def tools_specs(folder: str, blender: str, desktop: str, extension: str) -> dict
                                workdir=bdir, description="Check this PC and write a report on the Desktop")
     pc = os.path.join(extension, "pccheck", "launcher.py") if extension else ""
     if blender and pc and os.path.isfile(pc):
-        for mode in ("quick", "full", "heavy"):
+        for mode in ("quick", "full", "heavy", "stress"):
             out[mode] = dict(target=blender, arguments=pc_core.shortcut_arguments(pc, desktop, mode), workdir=bdir,
                              description=pc_core.SHORTCUT_TEXT[mode])
     gui = os.path.join(bdir, "blender-launcher.exe") if bdir else ""

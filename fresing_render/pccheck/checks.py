@@ -63,9 +63,10 @@ Q, F, OWN, H = "quick", "full", "own", "heavy"
 
 
 def line(id: str, title: str, since: str, modes=(F,), requires=(), what: str = "", expected: int = 0,
-         shows: str = "", not_shown: str = ""):
+         shows: str = "", not_shown: str = "", limit: float = 0.0):
     def deco(fn):
-        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown))
+        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown,
+                          limit))
         return fn
     return deco
 
@@ -6493,3 +6494,4 @@ def own_time_eevee(ctx):
 
 
 from . import heavy  # noqa: E402,F401 - registers the Heavy lines (task 0033)
+from . import stress  # noqa: E402,F401 - registers the Stress lines (task 0315)

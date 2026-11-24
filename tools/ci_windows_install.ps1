@@ -81,7 +81,7 @@ function Problem([string]$text) {
 # Task 0212: only "Fresing Render" on the Desktop and in the Start menu (directly in Programs); the extras in the
 # Tools folder of the install folder.
 $ToolsDir = Join-Path $InstallDir "Tools"
-$ToolNames = @("Self test.lnk", "PC check (quick).lnk", "PC check (full).lnk", "PC check (heavy).lnk", "Safe start.lnk", "User guide.lnk")
+$ToolNames = @("Self test.lnk", "PC check (quick).lnk", "PC check (full).lnk", "PC check (heavy).lnk", "PC check (stress).lnk", "Safe start.lnk", "User guide.lnk")
 $OldMenu = Join-Path $Programs "Fresing Render"
 function Check-OneShortcut([string]$when) {
     $desk = @(Get-ChildItem -LiteralPath $Desktop -Filter "Fresing Render*.lnk" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
@@ -93,7 +93,7 @@ function Check-OneShortcut([string]$when) {
     if (($tools -join "|") -ne (($ToolNames | Sort-Object) -join "|")) { $bad += "Tools folder: $($tools -join ', ')" }
     Write-Host "   ($when) Desktop: $($desk -join ', ') / Start menu: $($menu -join ', ') / Tools: $($tools -join ', ')"
     if ($bad) { Problem "one shortcut only ($when): $($bad -join '; ')" }
-    $script:Summary += "| Only Fresing Render on the Desktop and in the Start menu, 6 in the Tools folder ($when) | $(if (-not $bad) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
+    $script:Summary += "| Only Fresing Render on the Desktop and in the Start menu, 7 in the Tools folder ($when) | $(if (-not $bad) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
 }
 # An install before 0212: the extras in a Start-menu folder "Fresing Render" (with the app's own shortcut) and two
 # PC-check shortcuts on the Desktop; made from the current ones (same targets), the Tools folder taken away.

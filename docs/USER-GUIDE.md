@@ -940,8 +940,9 @@ The Desktop and the Start menu hold one shortcut only: **Fresing Render**. Every
 - **PC check…** – tests every function on this PC ([The PC check](#pc-check)).
 - **Open the app folder** – opens the **Tools** folder of the app in Explorer
   (`%LOCALAPPDATA%\FresingRender\Tools`). It holds the same things as shortcuts, all with the Fresing **Fr** icon:
-  **Self test**, **PC check (quick)**, **PC check (full)**, **PC check (heavy)**, **Safe start** and **User guide**.
-  Drop a STEP file on a PC check shortcut there to test your own model too.
+  **Self test**, **PC check (quick)**, **PC check (full)**, **PC check (heavy)**, **PC check (stress)**, **Safe
+  start** and **User guide**. Drop a STEP file on the quick, full or heavy PC check shortcut there to test your own
+  model too.
 
 A PC that had an older version gets this at its first start after **Update now**: the extra shortcuts on the Desktop
 and in the Start menu (the folder "Fresing Render" with the self-test, the PC checks, safe start and the user guide)
@@ -5832,6 +5833,30 @@ with your last Heavy run. In its text block you also find the peak memory.
 **To stop a Heavy check** that takes too long: in the app **Help > Cancel Fresing Render PC check**
 (shown only while a check runs), or press **Ctrl+C** in the black window. A picture that is being
 rendered is finished first. The report then opens with the steps that were done, marked "Cancelled".
+
+**Stress: where the app slows down on a very big model (10 to 20 minutes).** Not for every update: run it
+when a version changes import, the side panel, joints or saving, or when you want to know how far your PC
+goes. It makes a made-up offshore substation topside of about 11,000 parts (2,000 unique, 44 % bolts, nuts and
+washers, long cables, a crane, a davit and doors with joints; deleted afterwards) and times every heavy action
+on it: making it, import at Draft and at Normal, sorting, the Structure list and search, select all and the
+hover highlight, the Solid view's first picture and turning, the Live preview's first picture, the joints and
+Build, dragging a joint, the clash check, save and open, a backup, Undo, Render image at 4K, the web 3D model
+and a model update where about 1 % of the parts changed.
+1. Close other programs; the check uses the whole PC and the graphics card.
+2. In the app: **Fresing > Tools and checks > PC check…**, pick **Stress (10 to 20 minutes)**, then **Start**. Or
+   double-click **PC check (stress)** in the app's Tools folder (**Fresing > Tools and checks > Open the app
+   folder**). The black window says first how long it will take.
+3. Leave the PC alone until "Fresing Render PC check.html" opens in your web browser. Next to it on the Desktop is
+   **Fresing Render stress table.csv** (it opens in Excel).
+4. Copy the text block at the bottom of the report (**For the lead chat > Copy**) into the lead chat: the table is
+   in it too.
+
+**Reading the stress table.** One row per action: **mark** (*pass*, *slow* or *failed*), **seconds**, the
+**limit** (a step that takes longer is *slow*), **peak memory MB** (the most memory the app used during that step;
+the import's helper programs come on top), **previous s** and **change** (your last Stress run on this PC) and
+**slower than before** = "yes" when a step took more than 15 % longer than last time. **numbers** holds the
+step's own measurements (for example triangles, frames, file size). The first Stress run has nothing to compare
+with yet. A *slow* or *failed* step is where the app needs work; the lead turns it into a task.
 
 **With your own model (optional).** Drag a STEP file onto **PC check (quick)** in the app's Tools folder,
 or in **Fresing > Tools and checks > PC check…** tick **Also test my own STEP file** and pick it (the
