@@ -514,7 +514,9 @@ def start_save_as(context) -> str:
     has a file. '' or what went wrong."""
     try:
         with context.temp_override(**_window_override()):
-            bpy.ops.wm.save_as_mainfile("INVOKE_DEFAULT")
+            from . import project_name          # task 0291: a new project's name proposed
+            kw = {} if bpy.data.filepath else {"filepath": project_name.proposed_path(bpy.context.scene)}
+            bpy.ops.wm.save_as_mainfile("INVOKE_DEFAULT", **kw)
     except Exception as exc:  # noqa: BLE001
         return f"Save As could not open ({exc}): save the project with File > Save As, then press Update now"
     _save_as.clear()

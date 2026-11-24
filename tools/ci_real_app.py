@@ -76,7 +76,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
-              "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 16,
+              "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 16, "names": 19,
               "firstsetup": 42}
 # Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
 # took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on). Task 0319:
@@ -96,7 +96,7 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
     "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move", "jointfold"],   # jointfold: task 0290 (~40 s)   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
-    "callouts": ["callouts", "importagain", "place", "copy"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s); copy: task 0293 (~40 s)
+    "callouts": ["callouts", "importagain", "place", "copy", "names"],      # names: task 0291 (~40 s)   # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s); copy: task 0293 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup", "firstsetup"],   # firstsetup: task 0276 (~1 min)   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms", "welds"],   # welds: task 0319 (~40 s)     # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start", "route", "workspaces2"],   # workspaces2: task 0294 (~1 min)   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
@@ -109,6 +109,9 @@ GROUPS = {
 }
 
 TESTS = {
+    "names": ("Real app: project names – Ctrl+S on a new project proposes the crane's name in its folder, Blender's own "
+              "Save too, Leave empty, Ctrl+Shift+S on a saved project proposes \"(1)\" selected to type over "
+              "(ui_test_names.py)", "ui_test_names.py", True),
     "workspaces2": ("Real app: workspaces round 2 – a new user starts in Essentials, the drop-down with stars on top, "
                     "Sales, Use for new projects, kept over a restart (ui_test_workspaces2.py)", "ui_test_workspaces2.py",
                     True),

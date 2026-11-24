@@ -132,6 +132,7 @@ MENUS = {
     "TOPBAR_MT_help": "Help menu",
     "TOPBAR_MT_fresing": "Fresing menu (top bar)",
     "TOPBAR_MT_fresing_mark": "Fr mark (top bar, far left)",
+    "TOPBAR_MT_file": "File menu",                  # task 0291: Save / Save As
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
 }
@@ -729,7 +730,7 @@ fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the L
 fn(id="help.first_setup", headline=True, short="Set up again",
    title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
          "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
-   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.233",
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.234",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
@@ -794,6 +795,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
    "Fresing > Restore a backup… puts one back", family="help", panel="TOPBAR_MT_fresing", button="fresing.backups_window",
    guide="backups", tour=("backups",), pccheck=("backups.makes_one",), since="0.2.187",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
+fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
+   "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
+   guide="saving", pccheck=("files.name",), since="0.2.233")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")
