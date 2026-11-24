@@ -36,10 +36,10 @@ RESULTS = []
 S = {}
 
 # the swallowed keys pressed in the 3D view: (key, modifiers) – X / Delete open the app's Remove window since task 0292
-# (tools/ui_test_place.py)
+# (tools/ui_test_place.py); M opens Measure since task 0322 (tools/ui_test_measure.py)
 PRESSED = [("TAB", {}),
            ("TAB", {"ctrl": True}), ("D", {"shift": True}), ("D", {"alt": True}), ("J", {"ctrl": True}),
-           ("P", {"ctrl": True}), ("P", {"alt": True}), ("A", {"ctrl": True}), ("M", {}), ("M", {"shift": True}),
+           ("P", {"ctrl": True}), ("P", {"alt": True}), ("A", {"ctrl": True}), ("M", {"shift": True}),
            ("A", {"shift": True}), ("H", {"ctrl": True}),
            *((k, {"ctrl": True}) for k in ("ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE")),
            ("PAGE_UP", {"ctrl": True}), ("PAGE_DOWN", {"ctrl": True}), ("I", {}), ("I", {"alt": True}), ("K", {})]

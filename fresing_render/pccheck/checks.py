@@ -5506,7 +5506,7 @@ def app_keys(ctx):
 
     from ..blender import context_menu, lock, quiet, workspaces
     labels = {lock.key_label(k, m) for _km, _sp, k, m, _w in lock.BLENDER_KEYS}
-    for want in ("X", "Delete", "Tab", "Shift+D", "Alt+D", "Ctrl+J", "Ctrl+P", "Ctrl+A", "M", "Shift+A", "Ctrl+H",
+    for want in ("X", "Delete", "Tab", "Shift+D", "Alt+D", "Ctrl+J", "Ctrl+P", "Ctrl+A", "Shift+M", "Shift+A", "Ctrl+H",
                  "Ctrl+1", "Ctrl+Page Up", "I", "K"):
         _check(want in labels, f"the key {want} is not swallowed outside Full access")
     for keep in ("H", "A", "G", "R", "S"):
@@ -5514,6 +5514,7 @@ def app_keys(ctx):
     app = {(k, bool(m.get("ctrl"))): op for _km, _sp, k, m, op, _p in lock.APP_KEYS}
     _check(app.get(("F12", False)) == "fresing.key_render" and app.get(("F12", True)) == "fresing.key_render",
            "F12 / Ctrl+F12 are not bound to the app's render")
+    _check(app.get(("M", False)) == "fresing.measure_key", "the key M does not open Measure (task 0322)")
     cls = bpy.types.VIEW3D_MT_object_context_menu
     _check(quiet._own(cls, quiet.draw_funcs(cls)) >= 0 or quiet.blender_draw(cls) is not None,
            "Blender's own right-click menu is not found: the Fresing menu cannot replace it")
