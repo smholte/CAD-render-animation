@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.223"
+__version__ = "0.2.224"
 
 _modules = []
 
@@ -44,6 +44,7 @@ def _classes():
     from .blender import apptools                 # task 0212: Fresing > Tools and checks
     from .blender import ops_backups              # task 0246: Fresing > Restore a backup…, the start question
     from .blender import ui_left, ops_make        # task 0260: the left panel, the output windows of Make
+    from .blender import ops_render_view          # task 0308: Render this view
     from .blender import ops_settings, ui_settings  # task 0271: the Fresing Settings window
     from .blender import ops_locations              # task 0272: Locations, Exports, Save to, set-up files
     from .blender import form_window                # task 0282: function windows (forms that stay open)
@@ -77,7 +78,7 @@ def _classes():
             + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ops_lifting_rig.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
-            + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
+            + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_render_view.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
             + ops_locations.CLASSES + form_window.CLASSES)
 
 
@@ -150,6 +151,8 @@ def register():
             # source would show a sentence broken in the middle
             cls.__doc__ = " ".join(cls.__doc__.split())
         bpy.utils.register_class(cls)
+    from .blender import make_icons
+    make_icons.register()                    # task 0308: the large icons of Make
     from .blender import settings_store
     settings_store.register()                # task 0283: every setting read from the app's own file, kept on change
     from .blender import locations
@@ -252,6 +255,8 @@ def unregister():
     from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
     from .blender import ops_house, toolbox_inbox
     toolbox_inbox.unregister()
+    from .blender import make_icons
+    make_icons.unregister()
     from .blender import settings_store
     settings_store.unregister()              # task 0283: the last change written
     from .blender import locations

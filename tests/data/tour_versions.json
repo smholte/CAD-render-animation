@@ -38,8 +38,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.223",
-   "fp": "bea4e04d55105d72"
+   "changed": "0.2.224",
+   "fp": "ed1934011cba23a3"
   },
   "crane_setup": {
    "added": "0.2.161",
