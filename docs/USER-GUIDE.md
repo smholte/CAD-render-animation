@@ -284,9 +284,10 @@ folded, also in other projects, until you open it again.
 
 <img class="panel" src="img/panel_top_make.png" alt="Make: one row with the six outputs as icons, above the section tabs">
 
-**Make**, at the top of the Fresing panel, is one row: the word **Make** and six icons – **Picture**, **Product
-video**, **Turntable**, **3D page** (the web 3D model), **Animation** and **Queue** (rest the mouse on an icon for its
-name). Click **Make** for the list with names; click it again for the row. The app keeps your choice.
+**Make**, at the top of the Fresing panel, is one row: the word **Make** and six large icons – **Picture**,
+**Product video**, **Turntable**, **3D page** (the web 3D model), **Animation** and **Queue** (rest the mouse on an icon
+for its name). Click **Make** for the list with names; click it again for the row. The app keeps your choice. Under
+the row is **Render this view** ([below](#render-this-view)).
 
 Each icon opens that output's **own window** with its settings and its Make button – the same settings as in
 5 Scene & Render, 6 Animation and 7 Render queue: a change in one shows in the other. Drag the window anywhere, also
@@ -295,6 +296,31 @@ onto a second screen; it stays open while you work in the main window or another
 it opens where it was last time. A window left open is saved with the project. The same list is in the header of the
 3D view (**Make**, top of the view): the main button there makes the output at once, the gear beside it opens its
 window.
+
+**Switching outputs in the window.** On the left of every output window is a strip with all six outputs; the one the
+window shows is blue. Click another icon and the same window shows that output – no need to go back to the Fresing
+panel. The strip is one icon wide; drag its right edge wider and the names show beside the icons (the settings beside
+it get narrower; drag it back to make room again).
+
+<img class="panel" src="img/make_strip_narrow.png" alt="The Picture window: the strip of six outputs on its left, Picture blue, the Picture's settings beside it">
+<img class="panel" src="img/make_strip_wide.png" alt="The same window with the strip dragged wider: the names beside the icons, 3D page blue">
+
+<a id="render-this-view"></a>
+#### Render this view: no camera needed
+
+Turn and zoom the 3D view until you like what you see, then press **Render this view** (under the Make row, or in
+**Make** in the header of the 3D view). The app renders exactly that view – its angle and zoom, perspective or
+orthographic – with the **Picture's** settings: its format and size, quality, file type, background and folder. The
+picture is saved as *project*\_View\_*date*\_*time* and shown as Render image shows it, with Open and Show in folder
+under Image size & render.
+
+- **The picture's shape.** When the Picture's shape is not the view's (a wide view, a square picture), the picture is
+  fitted **around** the view: nothing you see is cut off, a little more shows above and below or at the sides.
+- **No camera is added.** The app uses a camera of its own for this one render and deletes it afterwards – also when
+  you cancel the render or something goes wrong. The active camera, your saved cameras and the animations stay as they
+  were.
+- **In camera view** (Numpad 0, or a saved camera's view) it renders the camera you look through.
+- It waits while a render, the render queue or a long job (House bake, web 3D export, clash check) runs, and says so.
 
 This guide is in the app under **Help > Fresing Render user guide**, and as the shortcut **User guide** in the
 app's Tools folder (**Fresing > Tools and checks > Open the app folder**).

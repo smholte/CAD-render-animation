@@ -173,57 +173,111 @@ def shows_only_the_page(win) -> tuple:
 
 PAGES = ("FRESING_PT_settings_window", "FRESING_PT_form_window")     # the pages of the page windows (0271, 0282)
 
-# Blender's own panel of the 3D view's toolbar region (its tool buttons): hidden in the Settings window only
+# Blender's own panel of the 3D view's toolbar region (its tool buttons): hidden in the Settings window, the function
+# windows and (task 0308) the output windows, whose toolbar region holds the outputs strip
 QUIET_PANELS = ("VIEW3D_PT_tools_active",)
-_QUIET: dict = {}                 # class name -> (class, its own poll or None)
+# task 0308: the side-panel tabs of Blender's own an output window shows beside "Make" – their Python panels hide there.
+# (Blender's Transform panel of the tab Item is not a Python class: with an active object that tab stays.)
+QUIET_TABS = ("Item", "Tool", "View", "Animation")
+_QUIET: dict = {}                 # class name -> (class, its own poll in its __dict__ or None, its children)
 
 
 def _in_settings(context) -> bool:
-    """In Fresing Settings or a function window (task 0282): only the page shows there."""
-    return ops_setup.is_page_window(getattr(context, "window", None))
+    """In Fresing Settings, a function window (task 0282) or an output window (task 0308): no Blender panels there."""
+    win = getattr(context, "window", None)
+    return ops_setup.is_page_window(win) or ops_setup._is_output(win)
 
 
-def _hiding_poll(own):
+def _hiding_poll(inherited):
     def poll(cls, context):
         if _in_settings(context):
             return False
-        return own.__func__(cls, context) if own is not None else True
+        return inherited(context) if inherited is not None else True
     return poll
 
 
+def tab_panels() -> list:
+    """The top-level Python panels of the 3D view's side panel in Blender's tabs Item, Tool, View and Animation."""
+    out = []
+    for cls in bpy.types.Panel.__subclasses__():
+        if (getattr(cls, "bl_space_type", "") == "VIEW_3D" and getattr(cls, "bl_region_type", "") == "UI"
+                and getattr(cls, "bl_category", "") in QUIET_TABS and not getattr(cls, "bl_parent_id", "")
+                and getattr(cls, "is_registered", False) and not cls.__name__.startswith("FRESING_")):
+            out.append(cls)
+    return out
+
+
+def _children(cls) -> list:
+    """The registered panels under ``cls``, parents before children (they are registered again in that order)."""
+    ident = getattr(cls, "bl_idname", "") or cls.__name__
+    out = []
+    for sub in bpy.types.Panel.__subclasses__():
+        if getattr(sub, "bl_parent_id", "") == ident and getattr(sub, "is_registered", False):
+            out.append(sub)
+            out += _children(sub)
+    return out
+
+
+def _quiet_one(cls) -> None:
+    name = cls.__name__
+    if name in _QUIET:
+        return
+    own = cls.__dict__.get("poll")
+    inherited = getattr(cls, "poll", None)
+    kids = _children(cls)
+    try:
+        for kid in reversed(kids):            # children first: a parent taken away leaves its children loose
+            bpy.utils.unregister_class(kid)
+        bpy.utils.unregister_class(cls)
+        cls.poll = classmethod(_hiding_poll(inherited))     # Blender checks it takes (cls, context) only
+        bpy.utils.register_class(cls)
+        _QUIET[name] = (cls, own, kids)
+    except Exception as exc:  # noqa: BLE001 - the window still works, with Blender's panel in it
+        print(f"Fresing Render: {name} not hidden in the app's windows:", exc)
+        try:
+            if own is None and "poll" in cls.__dict__:
+                del cls.poll
+            elif own is not None:
+                cls.poll = own
+            if not getattr(cls, "is_registered", True):
+                bpy.utils.register_class(cls)
+        except Exception:  # noqa: BLE001
+            pass
+    for kid in kids:
+        if not getattr(kid, "is_registered", True):
+            try:
+                bpy.utils.register_class(kid)
+            except Exception as exc:  # noqa: BLE001
+                print(f"Fresing Render: {kid.__name__} not registered again:", exc)
+
+
 def quiet_panels() -> None:
-    """Give Blender's tool buttons a ``poll`` that hides them in the Settings window. A ``poll`` added to a registered
-    class is ignored, so the class is registered again with it (its draw – and quiet.py's swap of it – stays)."""
+    """Give Blender's tool buttons, and the panels of its side-panel tabs, a ``poll`` that hides them in the app's own
+    windows. A ``poll`` added to a registered class is ignored, so the class is registered again with it (its draw –
+    and quiet.py's swap of it – stays; its sub-panels are registered again after it)."""
     for name in QUIET_PANELS:
         cls = getattr(bpy.types, name, None)
-        if cls is None or name in _QUIET:
-            continue
-        own = cls.__dict__.get("poll")
-        try:
-            bpy.utils.unregister_class(cls)
-            cls.poll = classmethod(_hiding_poll(own))      # Blender checks it takes (cls, context) only
-            bpy.utils.register_class(cls)
-            _QUIET[name] = (cls, own)
-        except Exception as exc:  # noqa: BLE001 - the window still works, with the tool buttons in it
-            print(f"Fresing Render: {name} not hidden in the Settings window:", exc)
-            try:
-                if own is None and "poll" in cls.__dict__:
-                    del cls.poll
-                if not getattr(cls, "is_registered", True):
-                    bpy.utils.register_class(cls)
-            except Exception:  # noqa: BLE001
-                pass
+        if cls is not None:
+            _quiet_one(cls)
+    for cls in tab_panels():
+        _quiet_one(cls)
 
 
 def loud_panels() -> None:
-    for name, (cls, own) in list(_QUIET.items()):
+    for name, (cls, own, kids) in list(_QUIET.items()):
         try:
+            for kid in reversed(kids):
+                if getattr(kid, "is_registered", False):
+                    bpy.utils.unregister_class(kid)
             bpy.utils.unregister_class(cls)
             if own is None:
                 del cls.poll
             else:
                 cls.poll = own
             bpy.utils.register_class(cls)
+            for kid in kids:
+                if not getattr(kid, "is_registered", True):
+                    bpy.utils.register_class(kid)
         except Exception as exc:  # noqa: BLE001
             print(f"Fresing Render: {name} not put back:", exc)
         _QUIET.pop(name, None)

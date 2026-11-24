@@ -197,9 +197,13 @@ def _dress(window) -> None:
             sp.show_region_header = True            # the tool header can only be switched off while this is on
             sp.show_region_tool_header = False
             sp.show_region_header = False
-        for name, value in (("show_region_ui", not settings), ("show_region_toolbar", settings),
+        strip = _is_output(window)                 # task 0308: the outputs strip lives in the toolbar region
+        settling = strip and window.screen.get(STRIP_SETTLE)   # … being made narrow (ops_make.settle_strip)
+        for name, value in (("show_region_ui", not settings), ("show_region_toolbar", settings or strip),
                             ("show_region_asset_shelf", False), ("show_region_hud", False),
                             ("show_gizmo", False), ("lock_camera", False)):
+            if settling and name in ("show_region_ui", "show_region_toolbar"):
+                continue                            # (both at once would squeeze the settings for good)
             if getattr(sp, name, value) != value:
                 setattr(sp, name, value)
         if sp.overlay.show_overlays:
@@ -221,6 +225,16 @@ SETTINGS_TAB = "Settings"
 FORM_MARK = "fr_form"          # task 0282: a function window (form_window.py): screen ID property = the operator's id
 FORM_TAB = "Window"
 PAGE_MARKS = (SETTINGS_MARK, FORM_MARK)    # windows whose page is drawn in the toolbar region (no tab strip there)
+STRIP_SETTLE = "fr_strip_settle"           # task 0308: an output window whose strip is being made narrow
+STRIP = 46                     # task 0308: the outputs strip of an output window, px at UI scale 1 (one large icon)
+STRIP_GAP = 12                 # … and the room a side panel needs beside it (one that only just fits is drawn empty)
+
+
+def _is_output(window) -> bool:
+    try:
+        return bool(window is not None and window.screen.get(OUTPUT_MARK))
+    except (AttributeError, ReferenceError):
+        return False
 
 
 def is_page_window(window) -> bool:
@@ -374,6 +388,8 @@ def _finish(job) -> None:
         print("Fresing Render: the Set-up window did not open (Blender made no window)")
         return
     new[0].screen[job.get("mark", MARK)] = job.get("value", 1)
+    if job.get("mark") == OUTPUT_MARK:
+        new[0].screen[STRIP_SETTLE] = 1       # task 0308: ops_make.settle_strip shows the strip, then the settings
     _dress(new[0])
     restore_tabs()
     redraw_all()
@@ -440,7 +456,7 @@ def _left_back():
     return None
 
 
-def window_size(area, size=None) -> tuple:
+def window_size(area, size=None, extra: int = 0) -> tuple:
     """(width, height) in px of the piece of ``area`` the window is made from: as wide as the area's side panel
     (the copy's panel then fills the window), ``HEIGHT`` high. ``size`` (px at UI scale 1, task 0271): a window
     whose side panel is made that wide once it is open (the Settings window)."""
@@ -450,7 +466,7 @@ def window_size(area, size=None) -> tuple:
     side = next((r.width for r in area.regions if r.type == "UI"), 0)
     if side < 150 * scale:                          # the side panel is closed: its width cannot be read
         side = int(SIDE * scale)
-    return min(side, int(WIDEST * scale)) + EDGE, int(HEIGHT * scale)
+    return min(side, int(WIDEST * scale)) + EDGE + int(extra * scale), int(HEIGHT * scale)
 
 
 def open_window(window, area, mark: str = MARK, value=1, done=None, size=None) -> None:
@@ -484,7 +500,7 @@ def open_window(window, area, mark: str = MARK, value=1, done=None, size=None) -
 
 def _open_window(window, area, mark: str = MARK, value=1, done=None, size=None) -> None:
     scale = bpy.context.preferences.system.ui_scale or 1.0
-    w, h = window_size(area, size)
+    w, h = window_size(area, size, STRIP + STRIP_GAP if mark == OUTPUT_MARK and size is None else 0)
     _watch_loads()
     _STATE["busy"] = True
     job = {"win": window, "piece": area, "pieces": [], "pair": None, "close": [], "tries": 0,
