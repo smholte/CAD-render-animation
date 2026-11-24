@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.238 – 24 Nov 2026 – Copies take their welds, weld symbols and a weld list (task 0320)
+
+- **Copy and paste takes the welds along**: copy a welded model, subassembly or some parts (right-click > Copy,
+  Paste / Paste here, Ctrl+C / Ctrl+V) and every weld whose two parts are both in the copy comes with it – same seams,
+  size, metal and finish, named "… (2)". A weld with one part outside the copy is left out and named in the line after
+  the paste. Ctrl+Z takes the copied welds away with the copy.
+- **Weld symbols** (3 Looks > Welds, **off** until you tick it, kept with the project): an ISO 2553 symbol beside each
+  weld – arrow, reference line, the fillet triangle or butt symbol, a5, the length or "n × l (e)" for an intermittent
+  weld, the all-round circle, both sides, the process number (135 MAG, 131 MIG, 141 TIG, 111 stick) and the weld's
+  number. Same size on the screen at any zoom. Not in renders unless you tick **Show in renders** (then each symbol is
+  a label pointing at its seam).
+- **Weld list…**: a window with one row per weld (number, parts, type, size, length, process, finish, symbol) and
+  **Export CSV…** for Excel.
+- **Fixed**: updating one model to a new STEP revision marked the welds of every *other* model (and of copies) as
+  "lost". Now only the updated model's welds are looked at.
+
 ## 0.2.237 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or
