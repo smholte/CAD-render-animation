@@ -25,7 +25,7 @@ from .ops_setup import MATERIALS_MARK
 
 KEY = "materials"
 SIZE = (980, 640)                 # the window, px at UI scale 1
-DOUBLE = 0.6                      # seconds: a second click on the same name uses it
+DOUBLE = 1.0                      # seconds: a second click on the same name uses it
 _LAST = {"key": "", "time": 0.0}
 
 

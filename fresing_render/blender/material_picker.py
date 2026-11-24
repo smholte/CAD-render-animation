@@ -84,6 +84,8 @@ def _swatch_icon(rgb) -> int:
 
 
 def _rgb_of_entry(e) -> tuple:
+    if e.is_blend:
+        return (0.55, 0.55, 0.56)                     # its look is in its own file: a neutral grey until it is pictured
     rgb = F.rgb_of(e.changes.get("color", "")) if e.changes.get("color") else None
     if rgb:
         return rgb

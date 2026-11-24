@@ -4858,7 +4858,7 @@ stop("materials", LOOK, "looks", "Ready-made materials and Wear",
      "ground steel pins, a black anodised cylinder barrel with a chrome rod, rubber wheels, blue anodised cover, "
      "zinc flake bolts. The camera is close on the worn base and trolley, where Wear shows.",
      where="3 Looks: the material groups, More materials…, Wear", check=_check_materials, since="0.2.47", changed="0.2.199")
-stop("material_picker", LOOK, "looks", "The material picker and this project's materials",
+stop("material_picker", LOOK, "looks", "Material picker, project list",
      "3 Looks, pick a group: above Material, 'This project's materials' shows four small pictures – chrome, blue "
      "paint RAL 5010, a diamond knurl, black rubber; a click on one gives the group that material. More materials… "
      "opens the Materials window: a picture of every material, filters Source / Material / Colour / Look on the left, "

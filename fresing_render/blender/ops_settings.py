@@ -172,7 +172,7 @@ def shows_only_the_page(win) -> tuple:
 
 
 PAGES = ("FRESING_PT_settings_window", "FRESING_PT_form_window",     # the pages of the page windows (0271, 0282,
-         "FRESING_PT_first_setup")                                      # 0276)
+         "FRESING_PT_first_setup", "FRESING_PT_materials_window")       # 0276, 0273)
 
 # Blender's own panel of the 3D view's toolbar region (its tool buttons): hidden in the Settings window, the function
 # windows and (task 0308) the output windows, whose toolbar region holds the outputs strip

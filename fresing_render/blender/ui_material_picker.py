@@ -167,7 +167,7 @@ def _grid(col, context, st, g, width: float) -> None:
         return
     scale = context.preferences.system.ui_scale or 1.0
     n = columns_for(width, st.size, scale)
-    chars = max(6, int(st.size * 20 / 6.5) - 2)
+    chars = max(6, int(width / n / scale / 7.0) - 3)          # what fits beside the star at about 7 px a character
     grid = col.grid_flow(row_major=True, columns=n, even_columns=True, even_rows=False, align=False)
     listed = {pm.name for pm in context.scene.fresing.project_materials if pm.listed}
     for e in entries:
@@ -284,9 +284,12 @@ class FRESING_PT_materials_window(bpy.types.Panel):
         draw_window(self.layout, context)
         DRAW_TIMES.append(time.perf_counter() - t0)
         del DRAW_TIMES[:-50]
+        if not FIRST_DRAW:
+            FIRST_DRAW.append(time.time())
 
 
 DRAW_TIMES: list = []          # the last draws' times (s): the real-app test reads them
+FIRST_DRAW: list = []          # when the window's page was first drawn (the test measures the open)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

@@ -150,7 +150,7 @@ def fit_width(area, px: int) -> bool:
     stored = ctypes.c_short.from_address(addr).value
     if stored <= 0:
         return False
-    ctypes.c_short.from_address(addr).value = int(max(STRIP_WIDTH, min(900, px * stored / region.width)))
+    ctypes.c_short.from_address(addr).value = int(max(STRIP_WIDTH, min(2400, px * stored / region.width)))  # 0273: the Materials window is wider than 900
     space = area.spaces.active
     space.show_region_toolbar = False
     space.show_region_toolbar = True

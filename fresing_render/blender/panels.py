@@ -45,7 +45,8 @@ _PLAIN = set()               # panels that keep their own (header-less) drawing:
 LEFT: set = set()            # task 0260: the panels of the left panel (the 3D view's toolbar region, ``ui_left.py``)
 QUICK = "FRESING_PT_left_quick"     # … the one that shows also in the folded strip
 SIDE_MARKS = ("fr_setup", "fr_output", "fr_settings", "fr_form",    # Set-up, output windows (task 0260),
-              "fr_first_setup")                                 # + the first-start set-up (task 0276)
+              "fr_first_setup",                                 # + the first-start set-up (task 0276)
+              "fr_materials")                                   # + the Materials window (task 0273)
 #                                                    Settings (task 0271), function windows (task 0282)
 
 

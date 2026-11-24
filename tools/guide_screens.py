@@ -710,6 +710,9 @@ if MODE == "panels":
                 grp = ob("BOOM").get("fr_group", "")
                 idx = next((i for i, g in enumerate(sc.fresing.groups) if g.name == grp), 0)
                 sc.fresing.groups_index = idx
+                F, MP = mod("core.material_files"), mod("blender.material_picker")    # task 0273: the short list
+                for key in ("preset:paint_1003", "builtin:chrome", "builtin:steel_ground", "builtin:knurl_diamond"):
+                    MP.add_to_project(sc, F.builtin(key))
             elif name == "panel_3_rule_sets":
                 _rule_set_state(sc)
             elif name == "panel_3_find":                # back to Standard, as before

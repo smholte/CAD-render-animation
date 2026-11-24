@@ -5,6 +5,26 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.238 – 24 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
+
+- **More materials…** (3 Looks, in the box of the picked group) opens the new **Materials** window: a picture of every
+  material on the same small block with a knurled knob and a round cap. On the left **Find** and the filters
+  **Source** (Built-in, This project, your company's and department's folders, Mine), **Material** (Paint, Steel,
+  Stainless, Aluminium, Plastic, Rubber, Glass & clear …), **Colour** and **Look** (gloss, satin, matte, brushed,
+  machined, textured, knurled / patterned, see-through …). Click a name to see the material large with one line on
+  what it is; click it again (or **Use for <group>**) and the group gets it. The window stays open, can be dragged
+  anywhere and follows the group you pick in 3 Looks. A paint is pictured with a small square of your group's colour.
+- **This project's materials**: the star next to a material puts it in a row of small pictures in 3 Looks, right above
+  Material – one click gives the picked group that material. Saved with the project and in a template (a company
+  template can carry its standard list).
+- **Save as my material…** keeps what a group shows now (material, colour, wear, rust, a finish's settings) as a
+  material of your own, with a picture made in the background. **From a Blender material…** keeps a material you built
+  in Blender's shader editor. Each is one folder in your Materials folder (Fresing Settings > Locations): copy the
+  folder to share it. Your company's and department's materials come from their Materials folders, each with its badge.
+- A project keeps a copy of every own material it uses: it renders on a PC that does not have the folder.
+- **Ready-made material…** is gone: its materials are in the Materials window (paint RAL 7035, black matte plastic …).
+- **Fresing Settings > Materials**: where your materials are saved, how many each folder has, folders with a problem.
+
 ## 0.2.237 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or

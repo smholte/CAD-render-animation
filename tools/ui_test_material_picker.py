@@ -136,8 +136,15 @@ def s_import():
     data = os.path.join(os.path.dirname(mod("").__file__), "data", "test_crane_a.step")
     with override():
         r = bpy.ops.fresing.import_step("EXEC_DEFAULT", filepath=data, quality="draft")
-    check("the test crane is imported", r == {"FINISHED"} and len(bpy.context.scene.fresing.groups) >= 3,
-          len(bpy.context.scene.fresing.groups))
+    log("import:", r)
+    return 1.0
+
+
+wait_until("the test crane is imported", lambda: len(bpy.context.scene.fresing.groups) >= 3, 120)
+
+
+@step
+def s_folders():
     loc = mod("blender.locations")
     os.makedirs(MINE, exist_ok=True)
     loc.add_mine("materials", MINE)
@@ -150,6 +157,7 @@ def s_import():
 @step
 def s_open():
     S["t_open"] = time.time()
+    mod("blender.ui_material_picker").FIRST_DRAW.clear()
     with override():
         r = bpy.ops.fresing.materials("EXEC_DEFAULT", True)
     check("More materials… starts the Materials window", r == {"FINISHED"})
@@ -167,8 +175,9 @@ def s_settle():
         S["tries"] += 1
         return "again"
     check("the window shows only its page: no tab, no 3D view, no header", ok, other)
-    check("its first draw", bool(mod("blender.ui_material_picker").DRAW_TIMES),
-          f"{time.time() - S['t_open']:.1f} s after the click")
+    first = mod("blender.ui_material_picker").FIRST_DRAW
+    check("its first draw (the pictures load after it, a few at a time)", bool(first),
+          f"{first[0] - S['t_open']:.1f} s after the click" if first else "never drawn")
     with override():
         bpy.ops.fresing.materials("EXEC_DEFAULT", True)
     return 1.0
@@ -241,7 +250,16 @@ def s_double():
     S["before"] = (g.material, g.mat_key)
     win = mat_wins()[0]
     x, y = S["at"]
-    win.event_simulate(type="LEFTMOUSE", value="PRESS", x=x, y=y)      # the second click, within 0.6 s
+    win.event_simulate(type="LEFTMOUSE", value="PRESS", x=x, y=y)       # pick it again …
+    win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x, y=y)
+    return 0.5
+
+
+@step
+def s_double_2():
+    win = mat_wins()[0]
+    x, y = S["at"]
+    win.event_simulate(type="LEFTMOUSE", value="PRESS", x=x, y=y)       # … and a second click within a second
     win.event_simulate(type="LEFTMOUSE", value="RELEASE", x=x, y=y)
     return 0.8
 

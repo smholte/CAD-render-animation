@@ -372,3 +372,39 @@ def test_window_draws_quickly_with_every_material(scene):
     each = (time.perf_counter() - t0) / 5
     assert len(UI.visible(ctx)) >= 100
     assert each < 0.02, f"{each * 1000:.1f} ms a draw"
+
+
+OLD = os.path.join(HERE, "data", "old_project_0_2_195.blend")
+
+
+def test_a_project_of_0_2_195_opens_unchanged(app, tmp_path):
+    """A project saved by 0.2.195 (made with tools in this task's report: the test machine, four groups given a
+    material, colour and wear, a paint scheme): every group keeps its look, nothing is put on its list, the picker
+    shows what the groups use, the scheme still switches, it renders."""
+    from fresing_render.blender import logic, material_picker as MP
+    path = str(tmp_path / "old.blend")
+    shutil.copy(OLD, path)
+    bpy.ops.wm.open_mainfile(filepath=path)
+    sc = bpy.context.scene
+    s = sc.fresing
+    want = [("paint_satin", "RAL 5010", 0.3), ("steel_ground", "#13447C", 0.0), ("powder_coat", "RAL 9005", 0.1),
+            ("paint_gloss", "RAL 3020", 0.0), ("plastic_gloss", "RAL 9003", 0.0)]
+    assert [(g.material, g.color, round(g.wear, 3)) for g in s.groups] == want
+    assert all(g.mat_key == "" for g in s.groups) and len(s.project_materials) == 0
+    logic.upgrade_looks(sc)
+    assert [(g.material, g.color, round(g.wear, 3)) for g in s.groups] == want
+    for g in s.groups:
+        mat = bpy.data.materials["FR " + g.name]
+        assert mat["fr_material"] == g.material and mat["fr_color"] == g.color
+    assert MP.group_key(s.groups[0]) == "preset:paint_5010"            # a ready-made colour is found again
+    assert MP.group_key(s.groups[1]) == "builtin:steel_ground"
+    shown = MP.short_list(sc)
+    assert all(not listed and used for _e, listed, used in shown) and len(shown) == 5
+    s.groups[0].material = "chrome"
+    assert logic.apply_scheme(sc, "Blue") == 5 and s.groups[0].material == "paint_satin"
+    sc.render.resolution_x = sc.render.resolution_y = 32
+    sc.render.engine = "CYCLES"
+    sc.cycles.samples = 1
+    sc.render.filepath = str(tmp_path / "old.png")
+    bpy.ops.render.render(write_still=True)
+    assert os.path.isfile(str(tmp_path / "old.png"))
