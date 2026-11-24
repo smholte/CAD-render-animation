@@ -87,7 +87,13 @@ points: a drawn route is not re-laid when its sheaves move, clips hold the hose 
   steps); a 15–30 mm wall crossed; a part hidden after Avoid was on was still avoided; the documented callable
   signature crashed; odd ids in `Field`. All fixed except: **a wall about as thin as the hose (20 mm for Ø20) can
   still be crossed** (strict xfail, documented in the guide).
-- GitHub runs: see below.
+- **GitHub runs: 5 full runs and 2 re-runs of one job.** 1: the tour (a stop title over 32 characters, the stop cap 100, the check's bound
+  2 mm for a hose resting 2.8 mm above the block); 2: the version clash (0302 took 0.2.222); 3: green after re-running
+  one job whose Ubuntu package mirror hung 39 min – but 0308 had taken 0.2.223; 4: the PC check's first half stopped
+  at its 15-minute box twice (line 120 of 123; every line 1.4–1.8x slower from the first import, the other half and
+  pytest jobs not – locally main's code and this branch took the same 37–38 s on four of its lines), and 0290 took
+  0.2.224; 5: the PC check halves get a **25-minute box** (`LONG_MIN` in `tools/ci_real_app.py`), green (the first
+  half 792 s = 13.2 min, close to the old box). Released as 0.2.225.
 
 **Open points / follow-up tasks:**
 - Thin walls (≈ the hose's diameter) can be crossed where the hose sags into them.
