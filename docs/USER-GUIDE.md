@@ -347,7 +347,7 @@ On Windows it opens where it was and as big as you left it. It also opens in the
 
 | Tab | What is there |
 | --- | --- |
-| **General** | The default template, the default rule set, the workspace for new projects, the highlight while you pick on the model |
+| **General** | The default template, the default rule set, the workspace for new projects, the highlight while you pick on the model; **Graphics**: which GPU draws the window and which renders ([below](#graphics-card)) |
 | **Locations** | The folders the app reads from – STEP models, materials, logos, stickers, 360° photos, templates, rule sets, workspaces, brand kits, lifting equipment – of your company, your department and your own; set-up files ([below](#locations)) |
 | **Exports** | Where pictures, videos and 3D pages go; the default place; also a copy to a second place ([below](#export-places)) |
 | **Side panel** | Keep sections as I left them, keep How it works open, the favourites bar (on/off, how many buttons), the quiet questions about unused panels (hide, teach, after how many starts) and **Suggest what to learn next** |
@@ -5423,6 +5423,44 @@ on again in Blender's Preferences > Get Extensions; the app does not switch it o
 <a id="troubleshooting"></a>
 ## Troubleshooting
 
+<a id="graphics-card"></a>
+### Graphics card
+
+Fresing Render always uses the **graphics card** – NVIDIA, AMD Radeon RX / Pro or Intel Arc – and not the small
+graphics built into the processor, for the window (the 3D view, Live preview) and for renders.
+
+- **Renders (Cycles)** use only the graphics card when the PC also has built-in graphics. An AMD processor's built-in
+  Radeon and an AMD card are both "HIP" devices, and before this the app used both: the built-in one slowed the card
+  down. A PC without a card keeps using what it has.
+- **The window**: Windows chooses which GPU draws each program. The installer, **Update now** and the app's start set
+  Windows' graphics preference for Fresing Render to **High performance** (Settings > System > Display > Graphics) –
+  only where you have not chosen yourself. It counts from the next start of the app.
+- **A calm notice** when the window is still drawn by the built-in graphics while the PC has a card ("Fresing Render is
+  running on your processor's built-in graphics. Your PC has a faster graphics card: …"), or when the 3D view is
+  clearly slow (several frames over 2 seconds): **Use the graphics card** sets the preference (start the app again
+  afterwards), **Show me how** lists the steps below, **Cancel** = not now (asked again at the next start), tick
+  **Don't ask again** to stop it for good – until a graphics card is added or changed. It shows at most once per start,
+  never at a start that shows the welcome or What's new, and never in the background, the self-test or the PC check.
+- **Fresing > Settings > General > Graphics** shows which GPU draws the window and which renders, Windows' preference
+  for the app, and **Render on**: Automatic (the graphics card), one device, or the processor.
+
+**Show me how** – when the window is still on built-in graphics:
+
+1. **Monitor cable**: plug the monitor into the **graphics card** (the ports low on the back of the PC, in a horizontal
+   row), not into the motherboard's video port next to the USB ports. Windows draws everything on the GPU the monitor
+   is plugged into. The app tells you when it sees a monitor on the built-in graphics only.
+2. Close Fresing Render. Windows 11: **Settings > System > Display > Graphics** (Windows 10: **Graphics settings**).
+   Find Fresing Render, or **Add desktop app** / **Browse** and choose `Fresing Render.exe` in the app's Blender folder
+   (`%LOCALAPPDATA%\FresingRender\blender-…\`). Click it > **Options** (Windows 11: the GPU preference list) >
+   **High performance** > **Save**.
+3. NVIDIA card: NVIDIA Control Panel > Manage 3D settings > Program Settings > Add > the same program > Preferred
+   graphics processor: **High-performance NVIDIA processor** > Apply.
+4. AMD card: AMD Software needs no change for this on a desktop PC; keep its driver up to date.
+5. Start the app again and look at **Settings > General > Graphics**.
+
+The self-test line "Graphics card used" and the PC check line `pc.gpu` say which GPU drew the window at the app's last
+start and which renders; the PC check's report names both at its top.
+
 <a id="self-test"></a>
 ### The self-test
 
@@ -5539,7 +5577,8 @@ your PC.
 ### Render problems
 
 - Slow: is **Graphics card** on (Image size & render > Files & graphics card)? The self-test line
-  "Graphics card" should name your graphics card. Lower the Quality or Size, or Clean-up parts nobody
+  "Graphics card" should name your graphics card, and **Settings > General > Graphics** should say the window is drawn
+  by it ([Graphics card](#graphics-card)). Lower the Quality or Size, or Clean-up parts nobody
   sees.
 - "Add a camera first": click a view under **Camera** in 5 Scene & Render.
 - Too dark or too light: **Exposure** and **Brightness** in 5 Scene & Render, or another **Light look**.

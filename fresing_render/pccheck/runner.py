@@ -179,9 +179,22 @@ def gpu_driver() -> str:
     return "unknown"
 
 
+def window_gpu() -> str:
+    """Task 0296: the GPU that drew the app's window at its last start (this run is in the background)."""
+    try:
+        from ..blender import gpu_choice
+        w = gpu_choice.load().get("window") or {}
+    except Exception:  # noqa: BLE001
+        return ""
+    if not w.get("drawn"):
+        return ""
+    words = {"card": "graphics card", "built-in": "built-in graphics", "software": "no GPU"}.get(w.get("kind", ""), "")
+    return w["drawn"] + (f" ({words})" if words else "")
+
+
 def pc_info(gpu: str) -> dict:
     return {"cpu": cpu_name(), "cores": os.cpu_count() or "?", "ram_gb": ram_gb(), "gpu": gpu,
-            "driver": gpu_driver() if gpu.startswith("GPU") else "-",
+            "driver": gpu_driver() if gpu.startswith("GPU") else "-", "draws": window_gpu(),
             "os": f"{platform.system()} {platform.release()} ({platform.version()})"}
 
 

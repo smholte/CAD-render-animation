@@ -518,6 +518,9 @@ def run(plan: dict) -> bool:
         note = set_installed_apps_version(plan, version)
         if note:
             _log(plan, note)
+        note = set_gpu_preference(plan)
+        if note:
+            _log(plan, note)
     _log(plan, ("OK: " if ok else "FAILED: ") + message)
     write_status(plan, ok, message, version)
     _start_again(plan)
@@ -593,6 +596,64 @@ def set_installed_apps_version(plan: dict, version: str, read=None, write=None) 
         return "Installed apps: version " + str(version) + (", " + ", ".join(done) + " updated" if done else "")
     except Exception as exc:  # noqa: BLE001 - the update is done; the app sets the entry right at its next start
         return f"Installed apps entry not updated ({exc})"
+
+
+GPU_KEY = r"Software\Microsoft\DirectX\UserGpuPreferences"      # core/gpu_choice.py (task 0296)
+
+
+def gpu_preference_text(current: str | None) -> str | None:
+    """Task 0296 (the rule of ``core/gpu_choice.auto_preference``; this helper runs on its own): "High performance"
+    where the user has not chosen; None = leave it."""
+    values = {}
+    for part in (current or "").split(";"):
+        if "=" in part:
+            k, _, v = part.partition("=")
+            if k.strip():
+                values[k.strip()] = v.strip()
+    if values.get("GpuPreference", "0") not in ("", "0"):
+        return None
+    values["GpuPreference"] = "2"
+    return "".join(f"{k}={v};" for k, v in values.items())
+
+
+def _gpu_read(exe: str) -> str | None:
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, GPU_KEY, 0, winreg.KEY_READ) as key:
+            value, kind = winreg.QueryValueEx(key, exe)
+    except OSError:
+        return None
+    return value if isinstance(value, str) else None
+
+
+def _gpu_write(exe: str, text: str) -> None:
+    import winreg
+    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, GPU_KEY, 0, winreg.KEY_SET_VALUE) as key:
+        winreg.SetValueEx(key, exe, 0, winreg.REG_SZ, text)
+
+
+def set_gpu_preference(plan: dict, read=None, write=None) -> str:
+    """Task 0296: Windows' per-user graphics preference "High performance" for the app's programs (``blender.exe`` and
+    ``Fresing Render.exe`` next to it), so the app restarted by this update already draws on the graphics card. Never
+    raises; '' = nothing done."""
+    try:
+        if sys.platform != "win32" and read is None:
+            return ""
+        program = plan.get("blender", "")
+        folder = os.path.dirname(os.path.abspath(program)) if program else ""
+        if not folder or not os.path.isfile(os.path.join(os.path.dirname(folder), "installed.txt")):
+            return ""                       # only the app's own install (Install.bat), never someone's own Blender
+        done = []
+        for exe in (os.path.join(folder, "blender.exe"), os.path.join(folder, "Fresing Render.exe")):
+            if not folder or not os.path.isfile(exe):
+                continue
+            new = gpu_preference_text((read or _gpu_read)(exe))
+            if new is not None:
+                (write or _gpu_write)(exe, new)
+                done.append(os.path.basename(exe))
+        return ("graphics preference High performance: " + ", ".join(done)) if done else ""
+    except Exception as exc:  # noqa: BLE001 - the app sets it at its next start
+        return f"graphics preference not set ({exc})"
 
 
 def _start_again(plan: dict) -> None:
