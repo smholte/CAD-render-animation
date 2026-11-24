@@ -6,8 +6,8 @@ size / angle / strength limit and wear; odd meshes through ``prepare_faces``; th
 switched between finishes; a saved and reopened project; the web 3D model's numbers; small Cycles renders of the
 see-through finishes and of a sheet at 45° (96 px, 4 samples, well under a second each).
 
-Tests marked ``xfail(strict=True)`` show a fault found (the reason says what is wrong); they pass once it is fixed
-and then fail here as XPASS – take the mark off then."""
+The tester found six faults (round holes doubled, a sheet at 45° striped, NaN settings, the pixel aspect, a negative
+start in the importer's data, odd array lengths); all are fixed and these tests now guard them."""
 
 import math
 import os
@@ -64,8 +64,6 @@ def test_settings_text_with_odd_input_gives_the_defaults():
         assert fc.period(mid) == 0.0 and fc.open_share(mid) == 0.0 and fc.web_mode(mid) == ""
 
 
-@pytest.mark.xfail(strict=True, reason="clean() lets NaN through for Angle and Strength (min(max(nan, lo), hi) is "
-                                       "nan): key() writes 'angle=nan', parse() reads it back, the nodes get NaN")
 def test_nan_angle_and_strength_are_replaced_by_the_defaults():
     assert math.isfinite(fc.clean("knurl_diamond", angle=NAN)["angle"])
     assert math.isfinite(fc.clean("spun", amount=NAN)["amount"])
@@ -151,8 +149,6 @@ def test_face_frames_with_odd_importer_data_does_not_crash():
     assert (k[side:] == 2).all()
 
 
-@pytest.mark.xfail(strict=True, reason="face_frames: a round face whose start in fr_axis_faces is negative is put "
-                                       "on the LAST triangles of the mesh (slice(-10, -6)), not skipped")
 def test_face_frames_negative_start_is_skipped():
     co, tri, axes, _axf, _starts = _cylinder()
     P = len(tri)
@@ -309,9 +305,6 @@ def test_pixel_angle_with_odd_cameras(blender):
         bpy.data.scenes.remove(sc)
 
 
-@pytest.mark.xfail(strict=True, reason="cameras.pixel_angle multiplies the width by pixel_aspect_x: with a pixel "
-                                       "aspect of 2 it gives half the real angle of a pixel across (0.0001875 for "
-                                       "0.000375), so patterns finer than a pixel are not faded")
 def test_pixel_angle_with_a_pixel_aspect(blender):
     bpy = blender
     from fresing_render.blender import cameras
@@ -481,11 +474,6 @@ def test_expanded_metal_close_up_is_as_open_as_far_away(renders):
     assert float(alpha.mean()) == pytest.approx(fc.far("expanded", {"size": 0.1})["alpha"], abs=0.08)
 
 
-@pytest.mark.xfail(strict=True, reason="_hex_dist adds holes at the cell corners (|uu| - p/2, |vv| - rowh/2), half a "
-                                       "row between the rows, besides the shifted next row: twice the holes. Up "
-                                       "close the perforated sheet is ~71 % open (Rv 5-8 is 35 %: the far-away "
-                                       "alpha), the grille ~84 % (43 %): the holes merge, and the sheet jumps from "
-                                       "see-through to solid as it fades with distance")
 @pytest.mark.parametrize("mid, size, scale", [("perforated", 0.03, 0.3), ("grille", 0.004, 0.03)])
 def test_round_holes_up_close_are_as_open_as_far_away(renders, mid, size, scale):
     bpy, tmp = renders
@@ -507,9 +495,6 @@ def test_slotted_holes_up_close_are_as_open_as_far_away(renders):
     assert float(alpha.mean()) == pytest.approx(far, abs=0.08), (float(alpha.mean()), far)
 
 
-@pytest.mark.xfail(strict=True, reason="F.box(blend=False): on a face whose normal is exactly between two box axes "
-                                       "(a sheet at 45°: |nx| == |ny|) neither GREATER_THAN is true, so it takes the "
-                                       "z projection (x, y), which runs along the sheet: the holes become stripes")
 def test_a_perforated_sheet_at_45_degrees_has_holes_not_stripes(renders):
     bpy, tmp = renders
     from fresing_render.blender import materials

@@ -111,6 +111,17 @@ def _group_material_changed(self, context):
     _group_look_changed(self, context)
 
 
+def _fin_size_changed(self, context):
+    """The finish's own limits (a knurl 0.3 - 3 mm, a tread plate 10 - 50 mm): the field shows what is used."""
+    from ..core import finishes as fin_core
+    f = fin_core.get(self.material)
+    if f and f.get("size"):
+        v = min(max(float(self.fin_size), f["size"][3]), f["size"][4])
+        if abs(v - self.fin_size) > 1e-9:
+            self["fin_size"] = v
+    _group_look_changed(self, context)
+
+
 _FIN_ITEMS: dict = {}            # Blender keeps only references to enum item strings: the lists live here
 
 
@@ -425,7 +436,7 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
     # task 0274: the settings of a finish (knurl, spun, cross-hatch, tread plate, blasted …); a finish shows only
     # the ones it uses, with its own name for Size (Pitch, Feed, Hole size, Grain size …)
     fin_size: FloatProperty(name="Size", default=0.001, min=0.00005, max=0.2, precision=2, step=1,
-                            subtype="DISTANCE", unit="LENGTH", update=_group_look_changed,
+                            subtype="DISTANCE", unit="LENGTH", update=_fin_size_changed,
                             description="The size of the finish's pattern (its name says which: the pitch of a "
                                         "knurl, the feed of a faced end, the thread of a fabric, the holes of a "
                                         "perforated sheet, the grain of leather …). Smaller is finer; a pattern too "

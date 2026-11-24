@@ -244,10 +244,10 @@ class F(_Nodes):
         ns = self.sep(self.n())
         if not blend:
             ax = [self.math("ABSOLUTE", ns[k]) for k in range(3)]
-            is_x = self.math("MULTIPLY", self.math("GREATER_THAN", ax[0], ax[1]),
-                             self.math("GREATER_THAN", ax[0], ax[2]))
-            is_y = self.math("MULTIPLY", self.math("GREATER_THAN", ax[1], ax[0]),
-                             self.math("GREATER_THAN", ax[1], ax[2]))
+            # ties (a face at exactly 45°) go to x, then y: a projection along the face would draw stripes
+            not_gt = (lambda a, b: self.math("SUBTRACT", 1.0, self.math("GREATER_THAN", a, b)))
+            is_x = self.math("MULTIPLY", not_gt(ax[1], ax[0]), not_gt(ax[2], ax[0]))
+            is_y = self.math("MULTIPLY", self.math("GREATER_THAN", ax[1], ax[0]), not_gt(ax[2], ax[1]))
             u = self.mix("FLOAT", is_x, self.mix("FLOAT", is_y, ps[0], ps[0]), ps[1])   # x faces: (y, z)
             v = self.mix("FLOAT", is_x, self.mix("FLOAT", is_y, ps[1], ps[2]), ps[2])   # y: (x, z); z: (x, y)
             return fn(u, v)
@@ -462,8 +462,10 @@ def _hex_dist(b: F, u, v, p: float):
     uu = b.math("SUBTRACT", b.math("WRAP", b.math("SUBTRACT", u, shift), p, 0.0), p / 2)
     vv = b.math("SUBTRACT", b.math("WRAP", v, rowh, 0.0), rowh / 2)
     dd = b.math("SQRT", b.math("ADD", b.math("MULTIPLY", uu, uu), b.math("MULTIPLY", vv, vv)))
-    uu2 = b.math("SUBTRACT", b.math("ABSOLUTE", uu), p / 2)                  # the next row's holes at the corners
-    vv2 = b.math("SUBTRACT", b.math("ABSOLUTE", vv), rowh / 2)
+    # the next row's holes: half a pitch to the side, a whole row up or down (the study had them half a row away:
+    # twice the holes, found by the independent tester of task 0274)
+    uu2 = b.math("SUBTRACT", b.math("ABSOLUTE", uu), p / 2)
+    vv2 = b.math("SUBTRACT", b.math("ABSOLUTE", vv), rowh)
     d2 = b.math("SQRT", b.math("ADD", b.math("MULTIPLY", uu2, uu2), b.math("MULTIPLY", vv2, vv2)))
     return b.math("MINIMUM", dd, d2)
 

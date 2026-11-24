@@ -529,8 +529,8 @@ def pixel_angle(scene) -> float:
         return fin_core.PIXEL_ANGLE
     cd = cam.data
     r = scene.render
-    w = max(1.0, r.resolution_x * r.resolution_percentage / 100.0 * r.pixel_aspect_x)
-    h = max(1.0, r.resolution_y * r.resolution_percentage / 100.0 * r.pixel_aspect_y)
+    w = max(1.0, r.resolution_x * r.resolution_percentage / 100.0)
+    h = max(1.0, r.resolution_y * r.resolution_percentage / 100.0)
     fit = cd.sensor_fit if cd.sensor_fit != "AUTO" else ("HORIZONTAL" if w >= h else "VERTICAL")
     px = w if fit == "HORIZONTAL" else h
     if cd.type == "ORTHO":

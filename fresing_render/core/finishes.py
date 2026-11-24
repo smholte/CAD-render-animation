@@ -241,6 +241,10 @@ def clean(material_id: str, size=None, angle=None, amount=None, base=None, kind=
     if f is None:
         return {}
     out = dict(d)
+
+    def ok(v):
+        return v is not None and isinstance(v, (int, float)) and not math.isnan(v)     # inf: held at a limit
+    size, angle, amount = (v if ok(v) else None for v in (size, angle, amount))
     if f.get("size") and size is not None and size > 0:
         out["size"] = min(max(float(size), f["size"][3]), f["size"][4])
     if f.get("angle") and angle is not None:
@@ -456,15 +460,17 @@ def face_frames(co, tri, axes=(), axis_faces=(), starts=(), part_centre=None, pa
     ln = np.linalg.norm(cr, axis=1)
     area = ln / 2
     nrm = cr / np.maximum(ln, 1e-20)[:, None]
-    axes = np.asarray(axes, np.float64).reshape(-1, 7)
-    axf = np.asarray(axis_faces, np.int64).reshape(-1, 3)
+    axes = np.asarray(axes, np.float64).ravel()
+    axes = axes[:len(axes) // 7 * 7].reshape(-1, 7)            # a list of the wrong length: its whole entries
+    axf = np.asarray(axis_faces, np.int64).ravel()
+    axf = axf[:len(axf) // 3 * 3].reshape(-1, 3)
     bounds = [int(x) for x in starts] if len(starts) else [0]
     if bounds[-1] != P:
         bounds = [x for x in bounds if x < P] + [P]
     has_axis = np.zeros(P, bool)
     for t0, n, idx in axf:                                     # round faces: their own axis, their own radius
         t0, t1 = int(t0), int(min(t0 + n, P))
-        if t1 <= t0 or not (0 <= idx < len(axes)):
+        if t0 < 0 or t1 <= t0 or not (0 <= idx < len(axes)):
             continue
         sl = slice(t0, t1)
         ax = axes[idx]
@@ -512,10 +518,13 @@ def face_frames(co, tri, axes=(), axis_faces=(), starts=(), part_centre=None, pa
             pc = co[vid] - best[1]
             r[sl] = float(np.max(np.linalg.norm(pc - np.outer(pc @ best[2], best[2]), axis=1)))
         else:
+            if np.linalg.norm(nm) < 0.5:                         # a closed face: its normals cancel out
+                nm = np.array([0.0, 0.0, 1.0])
             o[sl], d[sl], k[sl] = cm, nm, 0.0
     return o, d, r, k
 
 
 def teeth(radius: float, pitch: float, angle_deg: float = 0.0) -> int:
     """Whole teeth round a face of this radius (the knurl has no seam): round(2 pi r cos(angle) / pitch)."""
-    return int(round(2 * math.pi * radius * math.cos(math.radians(angle_deg)) / max(pitch, 1e-12)))
+    v = 2 * math.pi * radius * math.cos(math.radians(angle_deg)) / max(pitch, 1e-12)
+    return int(round(v)) if math.isfinite(v) else 0
