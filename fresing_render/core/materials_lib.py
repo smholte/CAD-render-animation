@@ -296,6 +296,11 @@ MATERIALS: dict[str, dict] = {
                          finish="carbon_fibre"),
     "perlage": dict(label="Perlage (engine-turned spots)", category="Metal", base_color=(0.72, 0.72, 0.73),
                     metallic=1.0, roughness=0.2, finish="perlage"),
+    # ---- task 0273: a group whose look is a material made in Blender's own shader editor (an own material's
+    # material.blend, appended into the project): blender/materials.own_blend_material copies it; this entry is only
+    # its name in the Material drop-down and a plain grey stand-in when the appended material is missing
+    "blender_material": dict(label="Own Blender material (pick it in Materials)", category="Other",
+                             base_color=(0.6, 0.6, 0.6), roughness=0.5),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -387,9 +392,64 @@ UIDS: dict[str, int] = {
     "as_cast": 84,
     "carbon_fibre": 85,
     "perlage": 86,
+    "blender_material": 87,
 }
 
 DEFAULT_COLOR = "RAL 7035"
+
+#: task 0273: library materials the material picker does not list (they are chosen another way)
+NOT_PICKED = ("blender_material",)
+
+# The ready-made materials of before (the "Ready-made material…" menu, now entries of the material picker):
+# id, label, library material, colour. Those with a colour are listed in the picker as entries of their own
+# (key "preset:<id>"); those without are the library material itself.
+PRESETS = [
+    ("profile", "Aluminium profile", "aluminium_profile", ""),
+    ("alu", "Aluminium, anodised", "aluminium_anodized", ""),
+    ("alu_black", "Aluminium, black anodised", "aluminium_anodized_black", ""),
+    ("alu_machined", "Aluminium, machined", "aluminium_machined", ""),
+    ("stainless", "Stainless, brushed", "stainless_brushed", ""),
+    ("steel", "Steel, machined", "steel_machined", ""),
+    ("steel_ground", "Steel, ground (ways, shafts)", "steel_ground", ""),
+    ("steel_turned", "Steel, turned", "steel_turned", ""),
+    ("chrome", "Chrome", "chrome", ""),
+    ("chrome_rod", "Hydraulic chrome rod (piston rods)", "chrome_rod", ""),
+    ("galvanized", "Galvanised", "galvanized", ""),
+    ("zinc", "Zinc plated", "zinc_plated", ""),
+    ("black_oxide", "Black oxide", "black_oxide", ""),
+    ("brass", "Brass", "brass", ""),
+    ("copper", "Copper", "copper", ""),
+    ("cast_iron", "Cast iron, as cast", "cast_iron", ""),
+    ("cast_iron_painted", "Cast iron, painted RAL 7035", "cast_iron_painted", "RAL 7035"),
+    ("rubber", "Rubber, black (seals, O-rings)", "rubber_black", ""),
+    ("pom", "POM / PE, white", "pom_white", ""),
+    ("plastic_black", "Plastic, black matte", "plastic_matte", "RAL 9005"),
+    ("cable", "Cable / hose, black", "cable_black", ""),
+    ("pc_clear", "Polycarbonate, clear (guards)", "polycarbonate_clear", ""),
+    ("wire_mesh", "Wire mesh panel, black (see-through)", "wire_mesh", "RAL 9005"),
+    ("glass_tinted", "Glass / PC, tinted grey", "glass_tinted", "RAL 7016"),
+    ("paint_7035", "Paint RAL 7035 light grey", "paint_satin", "RAL 7035"),
+    ("paint_7016", "Paint RAL 7016 anthracite", "paint_satin", "RAL 7016"),
+    ("paint_9005", "Paint RAL 9005 black", "paint_satin", "RAL 9005"),
+    ("paint_9010", "Paint RAL 9010 white", "paint_satin", "RAL 9010"),
+    ("paint_5010", "Paint RAL 5010 blue", "paint_satin", "RAL 5010"),
+    ("paint_3020", "Paint RAL 3020 red", "paint_satin", "RAL 3020"),
+    ("paint_1003", "Paint RAL 1003 yellow", "paint_satin", "RAL 1003"),
+    ("paint_6018", "Paint RAL 6018 green", "paint_satin", "RAL 6018"),
+    ("led", "Light / LED (glowing)", "emission_light", "RAL 9010"),
+    # task 0274: finishes (their own settings – pitch, metal, kind … – are under the material in the group box)
+    ("knurl", "Knurled knob, diamond (steel)", "knurl_diamond", ""),
+    ("spun", "Spun aluminium (caps, discs)", "spun", ""),
+    ("tread", "Tread plate, aluminium", "tread", ""),
+    ("perforated", "Perforated sheet, galvanised (see-through)", "perforated", ""),
+    ("shot_blasted", "Steel, shot-blasted (before paint)", "shot_blasted", ""),
+    ("hammertone", "Paint, hammertone RAL 7031 blue grey", "hammertone", "RAL 7031"),
+    ("crosshatch", "Plastic housing, moulded cross-hatch, black", "crosshatch", "RAL 9005"),
+    ("antiskid", "Deck paint, anti-skid RAL 7040 grey", "antiskid", "RAL 7040"),
+    # task 0318
+    ("carbon", "Carbon fibre, 2x2 twill, glossy", "carbon_fibre", ""),
+    ("perlage", "Perlage, stainless (engine-turned spots)", "perlage", ""),
+]
 
 
 def get(material_id: str) -> dict:

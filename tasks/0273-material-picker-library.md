@@ -90,6 +90,66 @@ the **company's** materials, each marked where it comes from.
 
 New finishes (0274); sharing materials online; the picker in Paint faces / decals (follow-up if the owner wants it).
 
+## Design (worker, 24 Nov – the plan the code follows)
+
+**Entries.** Everything the picker shows is an *entry* (`core/material_files.Entry`): key, name, source (builtin /
+company / department / mine / project), badge, `base` (a built-in id of `materials_lib.MATERIALS`), `changes` (what
+differs from the base: `color`, `wear`, `rust`, `finish` = {size, angle, amount, base, kind}), tags (material kind,
+colour family, looks), description, picture path, and for a Blender material `blend` (file) + `blend_material` (its
+name inside). Keys: `builtin:<id>` (every library material but `blender_material`), `preset:<id>` (the old
+Ready-made presets that carry a colour, `materials_lib.PRESETS`), `own:<uuid>` (own / department / company materials,
+the uuid from their `material.json`; the same uuid in two folders lists twice, each with its badge).
+
+**Tags** (`materials_lib.TAGS`, `DESCRIPTIONS`, `KINDS`, `COLOURS`, `LOOKS`): Material = Paint, Steel, Stainless,
+Aluminium, Other metals, Fastener finish, Plastic, Rubber, Glass & clear, Light, Fabric, Other; Colour = any (takes the
+group's colour) or white, grey, black, red, orange, yellow, green, blue, purple, brown, metal; Looks = gloss, satin,
+matte, brushed, machined, polished, textured, patterned, see-through, glowing, weathered (one or more). Own materials
+with a fixed colour get their family from the hue (`material_files.colour_family`).
+
+**Own material = one folder** in a Materials location (0272): `material.json` + `picture.png` (+ `material.blend`).
+`material.json`: `format` "fresing-material", `format_version` "1.0" (lifting library's rules: a higher major is
+listed with its problem and never written, a higher minor keeps what it added), `id` (uuid), `name`, `description`,
+`author`, `made_with`, `made`, `base`, `changes`, `tags`, and for a Blender material `blend`: {`file`, `material`,
+`images_outside`}. A broken folder is an entry with `problems` (listed, greyed, never crashes the window).
+
+**In the project** (`props.py`, additive): `FRMaterialGroup.mat_key` ("" = picked with the Material drop-down, as
+in every older project) and `FRSceneSettings.project_materials` (`FRProjectMaterial`: key, name, `data` = the whole
+`material.json` as text, `listed` = on the short list, `blend_mat` = the appended Blender material). Using an own
+material copies it into `project_materials` (listed or not) and writes its settings into the group's own fields
+(material, colour, wear, rust, finish settings): the project renders on a PC without the folder, and paint schemes,
+rule sets, the queue, model update and the Web 3D bake see an ordinary group. Changing the group's Material drop-down
+to another material drops `mat_key`. A **Blender material** is *appended* (not linked) as "FRM <name>" (fake user):
+linked, the project would lose it on a PC without the folder; the group's material "FR <group>" is a copy of it
+(`materials.own_blend_material`), its Colour / Wear / Rust are not shown ("its own look, made in Blender"). The
+group's Material drop-down shows "Own Blender material" (`blender_material`, UID 87).
+
+**Pictures.** Built-ins: `tools/material_pictures.py` runs real Blender (`material_picture_runner.py`) on the swatch of
+study 0270 (a chamfered block, a knurled knob on it, a spun cap leaning in front; meshes with CAD face data so
+finishes show), Cycles 32 samples + denoise, 256 px JPEG in `fresing_render/data/material_pictures/` +
+`hashes.json` (sha of the material's spec, its finish spec, its picture colour and `material_files.PICTURE_VERSION`).
+`tests/test_material_pictures.py` fails on a missing or old picture and names the command. Colour-taking materials:
+a picture in a typical colour and, in the window, a chip of the group's colour drawn into the preview's corner
+(`material_picker.chip_icon`). Own materials: rendered by the same runner in a background Blender after Save
+(the app does not wait), **Make the picture again** per entry.
+
+**The window "Materials"** (`ops_material_picker.py`, `ui_material_picker.py`): made like Fresing Settings (screen
+mark `fr_materials` in `ops_setup.PAGE_MARKS`, the page in the toolbar region, size + place kept). Three columns:
+filters (search, Source, Material, Colour, Look), the grid (picture + name button; size slider; ★ = Add to this
+project; a second click on a picked name = Use), the picked entry (large picture, name, badge, tags, description, the
+group's colour / wear, **Use for <group>**, **Add to this project**, **Save as my material…**, **From a Blender
+material…**, **Make the picture again**, Show in folder). It follows 3 Looks' picked group. State on the window
+manager (`WindowManager.fresing_matpick`), not in the project.
+
+**3 Looks' group box**: above Material, "This project's materials": the short list (listed entries + the ones the
+groups use, marked) as small pictures with a name button each (click = use, × = off the list), **More materials…**.
+`fresing.group_preset` (the Ready-made menu) is gone: its presets are built-in entries.
+
+**Templates** keep the short list (`Template.materials`: key, name, data); a template's own materials come along.
+**Paint schemes** keep `mat_key` (`FRSchemeLook.key`).
+
+Subagents: one (Sonnet) writes the tags and one-line descriptions of every built-in + their test
+(`materials_lib.py` tags block only, `tests/test_material_tags.py`); one independent tester at the end.
+
 ---
 
 ## Report (filled in by the chat that did the task)
