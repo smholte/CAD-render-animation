@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.217")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.222")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -3779,10 +3779,22 @@ def _check_people(scene):
     return people.check_example(scene)
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.203")
+# task 0299: the new presets, each a saved scene of the quay (stop id, preset)
+WEATHER_PRESET_STOPS = (("wx_sunrise", "SUNRISE"), ("wx_sunset", "SUNSET"), ("wx_mist", "SEA_MIST"),
+                        ("wx_hail", "HAIL"), ("wx_heat", "HOT_CALM"))
+STORM_SHOT = "Storm coming"
+# where Go shows the thunderstorm: its set flash (Change to puts it at 80 % of the 4 s change: 3.2 s) in 4 s + 1 s tail
+STORM_AT = 3.2 / 5.0
+
+
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.222")
 def build_weather(b: Build):
-    from . import weather
+    """The weather lesson's steps first (``lessons/weather.py``, task 0299: Weather & time on, a preset, Change to
+    Thunderstorm at the playhead), then the tour's own scenes."""
+    from . import lesson, weather
+    from .lessons import weather as wx_lesson
     sc, s = b.scene, b.s
+    lesson.run(sc, "weather")
     _look("PRODUCT")
     s.env_detail = "SIMPLE"
     s.background = "QUAY"
@@ -3796,6 +3808,20 @@ def build_weather(b: Build):
     s.weather.flood_strength = 4.0               # task 0233: at 400 px the picture was almost black
     _update()
     _shot(b, "@night")
+    for stop_id, preset in WEATHER_PRESET_STOPS:            # task 0299
+        weather.use_preset(sc, preset)
+        _update()
+        _shot(b, "@" + stop_id)
+    # the lesson's thunderstorm: from a clear day (the weather the project is left in, so Go puts back nothing), seen
+    # low so the sky (and the bolts) show
+    quay = sc.camera
+    _camera(b, "LOW", "Tour storm", lens=22.0)
+    weather.use_preset(sc, "CLEAR_DAY")
+    _update()
+    storm = s.animations[wx_lesson.ANIM]
+    storm.tail, storm.quality, storm.out_resolution, storm.out_format = 1.0, "draft", "preview", "presentation"
+    storm.start_shot = _shot(b, STORM_SHOT).name
+    sc.camera = quay
     weather.use_preset(sc, "CLEAR_DAY")
     _update()
     a = _animation(b, WEATHER_ANIM)
@@ -3850,6 +3876,81 @@ def _check_night(scene):
     lamps = [o for o in scene.objects if o.type == "LIGHT" and o.get("fr_weather")]
     _check(len(lamps) >= 2, f"only {len(lamps)} night lamps")
     return weather.header(scene)
+
+
+def _check_preset(name: str, extra=None):
+    """A stop's check for a weather preset (task 0299): Weather & time on with the preset's values, its channels as
+    the preset says, and ``extra(scene)`` -> a few words."""
+    def check(scene):
+        from ..core import weather as core
+        from . import weather
+        _check(weather.enabled(scene), "Weather & time is off")
+        w = scene.fresing.weather
+        _check(w.preset == name, f"the preset is {w.preset}, not {name}")
+        want = core.derive(core.preset(name, weather.state(scene)), weather.place(scene))
+        for ch in ("sun_el", "rain", "hail", "mist", "heat", "lightning"):
+            _check(abs(_channel(scene, ch) - want[ch]) < 1e-3, f"{ch} is {_channel(scene, ch):.3f}, not "
+                                                             f"{want[ch]:.3f}")
+        words = extra(scene) if extra is not None else ""
+        return weather.header(scene) + (f" · {words}" if words else "")
+    return check
+
+
+def _sun_low(morning: bool):
+    def extra(scene):
+        el = _channel(scene, "sun_el")
+        _check(0.0 < el < 8.0, f"the sun stands at {el:.1f}°, not low over the horizon")
+        hour = scene.fresing.weather.hour
+        _check((hour < 12.0) == morning, f"{hour:.2f} h is not in the {'morning' if morning else 'evening'}")
+        _check(_channel(scene, "flood") < 0.01, "the floodlights are on")
+        return f"sun {el:.1f}° up"
+    return extra
+
+
+def _mist_on(scene):
+    from . import weather_sky
+    ng = scene.compositing_node_group
+    _check(ng is not None and ng.name == weather_sky.FOG_GROUP, "the mist is not laid over the picture")
+    _check(scene.view_layers[0].use_pass_position, "the mist has no Position pass")
+    return f"mist {_channel(scene, 'mist'):.0f} per km at the water"
+
+
+def _hail_on(scene):
+    roles = {o.get("fr_weather") for o in scene.objects}
+    _check("hail" in roles and "bounce" in roles, "the falling or bouncing hail is missing")
+    return "hail falls and bounces"
+
+
+def _heat_on(scene):
+    from . import weather_sky
+    ng = scene.compositing_node_group
+    _check(ng is not None and ng.name == weather_sky.FOG_GROUP, "no heat shimmer over the picture")
+    return "heat shimmer on"
+
+
+def _check_storm(scene):
+    """The lesson's thunderstorm video: the storm comes, lightning flashes only once it is there (task 0299)."""
+    from . import weather
+    from .lessons import weather as wx_lesson
+    _check(weather.enabled(scene), "Weather & time is off")
+    a = scene.fresing.animations.get(wx_lesson.ANIM)
+    _check(a is not None and any(b.kind == "WEATHER" for b in a.blocks), "the thunderstorm video has no weather step")
+    _check(scene.fresing.anim_baked == wx_lesson.ANIM, "the thunderstorm video is not built")
+    frames = range(scene.frame_start, scene.frame_end + 1)
+    rows = []
+    shown = scene.frame_current
+    for f in frames:
+        scene.frame_set(f)
+        rows.append((_channel(scene, "lightning"), _channel(scene, "flash"), _channel(scene, "rain")))
+    scene.frame_set(shown)                       # (the stop's picture is the flash)
+    flashes = [f for f, r in zip(frames, rows) if r[1] > 0.3]
+    _check(frame_for(scene, find("wx_thunder")) in flashes, "Go does not show the flash")
+    _check(rows[0][0] < 0.01 and rows[-1][0] > 0.5, f"lightning {rows[0][0]:.2f} -> {rows[-1][0]:.2f}")
+    _check(flashes, "no lightning flash")
+    _check(all(rows[f - scene.frame_start][0] > 0.0 for f in flashes), "a flash before the storm came")
+    roles = [o.get("fr_weather") for o in scene.objects]
+    _check(roles.count("bolt") == 4 and "lightning" in roles, "the bolts or the lightning lamp are missing")
+    return f"{len(flashes)} frames with a flash; rain {rows[0][2]:.2f} -> {rows[-1][2]:.2f}"
 
 
 # ----- a house from House Planner (task 0114) -----
@@ -4469,6 +4570,33 @@ stop("start_scene", LOOK, "weather", "Save into start scene",
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
      "on the quay (turned up to 4 for the picture).", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night, changed="0.2.199")
+stop("wx_thunder", LOOK, "weather", "Thunderstorm in a video",
+     "Change to Thunderstorm at the playhead (the weather lesson's last step): a clear day over the sea turns into a "
+     "thunderstorm over four seconds – dark clouds, a downpour – and a lightning flash lights the whole quay while a "
+     "bolt strikes in the distance. Go shows the moment of the flash.",
+     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.222",
+     animation="Weather", at=STORM_AT, play=True, check=_check_storm, auto="clip")
+stop("wx_sunrise", LOOK, "weather", "Sunrise",
+     "The quay just after sunrise: a low golden sun from the east, long shadows across the quay, a few clouds lit "
+     "from below, dew on the crane.", where="5 Scene & Render > Weather & time > Presets (Sunrise)",
+     since="0.2.222", check=_check_preset("SUNRISE", _sun_low(True)))
+stop("wx_sunset", LOOK, "weather", "Sunset",
+     "The quay at sunset: the sun low in the west, orange light on the crane's boom, long shadows.",
+     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.222",
+     check=_check_preset("SUNSET", _sun_low(False)))
+stop("wx_mist", LOOK, "weather", "Fog / sea mist",
+     "Thick mist lying on the quay and the water: the far quay and the sea are gone, the crane's far end is paler "
+     "than its foot. In a video banks of it drift by and the crane fades in and out.",
+     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.222",
+     check=_check_preset("SEA_MIST", _mist_on))
+stop("wx_hail", LOOK, "weather", "Hail / sleet",
+     "A cold shower: white hail stones and sleet falling, small stones bouncing on the quay and the crane's top "
+     "faces, grey light, everything wet, a little slush.", where="5 Scene & Render > Weather & time > Presets "
+     "(Hail / sleet); Hail", since="0.2.222", check=_check_preset("HAIL", _hail_on))
+stop("wx_heat", LOOK, "weather", "Hot and calm",
+     "A hot afternoon without wind: bright sun, a pale warm haze over the far sea; in a render the horizon wavers "
+     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.222",
+     check=_check_preset("HOT_CALM", _heat_on))
 stop("props", LOOK, "props", "Props for scale and people",
      "In a warehouse, beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
      "offshore coverall with reflective bands and gloves, one with both hands forward in office clothes and a "
@@ -5512,7 +5640,7 @@ def _check_lessons(scene):
     for op in ("learn_lessons", "lesson_start", "lesson_next", "lesson_do", "lesson_back", "lesson_stop"):
         _check(hasattr(bpy.ops.fresing, op), f"the button fresing.{op} is missing")
     _check("fresing.learn_lessons" in ui_topbar.entries(), "Learn… is not in the Fresing menu")
-    for lid in ("crane", "mill"):
+    for lid in ("crane", "mill", "weather"):
         les = lesson.LESSONS.get(lid)
         _check(les is not None, f"the {lid} lesson is missing")
         for k, st in enumerate(les.steps, 1):
@@ -5521,18 +5649,18 @@ def _check_lessons(scene):
     done = sum(1 for st in les.steps if lesson.is_done(scene, st))
     _check(done >= len(les.steps) - 1, f"only {done} of the crane lesson's {len(les.steps)} steps are in this project")
     return (f"crane lesson {len(les.steps)} steps ({done} done in this project), mill lesson "
-            f"{len(lesson.LESSONS['mill'].steps)} steps")
+            f"{len(lesson.LESSONS['mill'].steps)} steps, weather lesson {len(lesson.LESSONS['weather'].steps)} steps")
 
 
 stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
-     "Fresing > Learn… lists the learning sets. Crane and Milling a slot have three buttons: View opens this test "
+     "Fresing > Learn… lists the learning sets. Crane, Milling a slot and Weather have three buttons: View opens this test "
      "tour at the set, Show me opens a new project with the plain model and the app does each step itself – the "
      "button glows, a card beside the part says what happens, Next goes on (or tick Play on) – and Build it yourself "
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'. Learn… is a window of its own: click in the main window and it stays open, drag it onto another "
      "screen, close it with Close or its X.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.217", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.222", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 

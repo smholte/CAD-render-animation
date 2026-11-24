@@ -6,4 +6,4 @@ button's own call (or for a click on the model the function the click ends in), 
 ``core/functions.py``.
 """
 
-from . import crane, mill  # noqa: F401 - each registers its lesson
+from . import crane, mill, weather  # noqa: F401 - each registers its lesson

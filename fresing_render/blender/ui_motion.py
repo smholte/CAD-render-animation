@@ -802,6 +802,12 @@ def _draw_weather(context, box, scene, a, b) -> None:
     col.prop(b, "wx_snow_cover", text="Snow layer")
     col.prop(b, "wx_wind", text="Wind (Bft)")
     col.prop(b, "wx_wind_from", text="Wind from")
+    col.prop(b, "wx_drop_size", text="Drop size (mm)")       # task 0299
+    col.prop(b, "wx_hail", text="Hail")
+    col.prop(b, "wx_mist", text="Sea mist")
+    col.prop(b, "wx_heat", text="Heat")
+    col.prop(b, "wx_lightning", text="Lightning")
+    col.prop(b, "wx_flash_at", text="Flash at (s)")
 
 
 def _draw_vessel(context, box, scene, a, b) -> None:

@@ -391,7 +391,7 @@ def test_remove_leaves_nothing():
     assert not made()
     assert bpy.data.collections.get(WS.COLLECTION) is None
     assert bpy.data.node_groups.get(WS.FOG_GROUP) is None and sc.compositing_node_group is None
-    assert not vl.use_pass_z
+    assert not vl.use_pass_z and not vl.use_pass_position         # (task 0299: the mist's pass goes too)
     assert sc.world.node_tree.animation_data is None
     assert sc.view_settings.exposure == pytest.approx(0.3)
     assert sc.animation_data is None or not len(sc.animation_data.drivers)

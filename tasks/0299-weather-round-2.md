@@ -40,6 +40,41 @@ the animation step **Weather & time** (6 Animation) changes them over the step's
 - [ ] PC check line per new preset (a picture each); tour stops; function entries; guide + pictures; full suite +
       GitHub run green; report; merged, version, release
 
+## Design (worker, 24 Nov 2026)
+
+**Four new weather values** in `core/weather.State` (0 … 1, all blend in a step, all keyed as channels):
+`lightning` (how often flashes come), `mist` (height fog over the water / ground), `hail` (falling hail that bounces),
+`heat` (hot haze + heat shimmer). Channels `lightning`, `flash` (0 … 1, the flash now), `bolt` (which of 4 bolts),
+`mist` (per km at the surface), `hail`, `heat`.
+
+**Presets** (old numbers 1–5 kept in files, new ones 6–11): Thunderstorm, Fog / sea mist, Sunrise, Sunset,
+Hail / sleet, Hot and calm. Each has a **thumbnail** drawn from its own channels (`core/weather_thumbs.py`, NumPy, no
+picture files) shown as a picture grid in the panel (`fresing.weather_preset`).
+
+**Lightning** (`core/weather_fx.flash_track`): a seeded schedule per frame – random flashes while `lightning` > 0
+(more often and brighter the higher it is), plus flashes at set moments of a step (`wx_flash_at`, seconds). Each flash
+flickers over ~0.2 s (return strokes). Keyed at Build into `flash` / `bolt`; nothing per frame in Python. What shows a
+flash: a Sun lamp (`weather_sky`, energy = flash), the sky lit from inside the clouds (world shader), 4 bolt meshes
+~900 m away round the camera's view (emission only while their bolt flashes, see-through otherwise). A still picture:
+the panel's "Flash in this picture".
+
+**Mist** (`weather_sky` compositor): density `mist · exp(-(z - ground) / 25 m)` integrated along each pixel's ray
+(Position pass + the camera's height by a driver), drifting banks = noise on the hit point moving with the wind
+(the machine fades in and out). **Heat shimmer**: the compositor's Displace by an animated noise, growing with
+distance. **Hail**: a third falling kind (ice balls, Matson & Huggins 1980 fall speed) and stones that bounce on the
+top faces (the splash spots).
+
+**Change to ▸ [preset] over [N s] at the playhead** (`fresing.weather_change`): adds a Weather & time step at the
+playhead (or edits the one that starts there) in the active animation (made when there is none), easing Smooth.
+
+**Jumps found** (every channel sampled per frame, all preset pairs): when a step runs the clock through sunrise or
+sunset the direct sun, daylight and floodlights switched in 1–3 frames (12 h in 5 s). Fix: the clock runs slower where
+the light changes most (`core.weather.clock_at`: equal change of light per frame). A test samples every channel of
+every preset pair per frame.
+
+**Lesson**: `blender/lessons/weather.py` on the tour set "weather" (import, Weather & time on, a preset, Change to
+Thunderstorm); `tour.build_weather` runs it first.
+
 ---
 
 ## Report (filled in by the chat that did the task)
