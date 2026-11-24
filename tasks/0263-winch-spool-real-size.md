@@ -147,7 +147,10 @@ spool function).
   renumbered to 0.2.223, a fifth run (45309915972, green) – meanwhile 0.2.223 went to task 0308: merged again,
   renumbered to 0.2.224, a sixth run (45318515161, green) – meanwhile 0.2.224 went to task 0290: merged again,
   renumbered to 0.2.225, a seventh run (45328947436, green) – meanwhile 0.2.225 went to task 0298: merged again,
-  renumbered to 0.2.226, an eighth run. (Eight runs in all: six version clashes, one real failure.)
+  renumbered to 0.2.226, an eighth run (45335595420): two failures from the merge – task 0298's new
+  `test_flex_avoid.py` clicked the cable model at its old size (now the real-size spots of the tour), and the new
+  test file put two files that skip one test on GitHub in one group (`test_spool_independent.py` added to
+  `SKIPS_ON_GITHUB` in `tools/ci_groups.py`) – a ninth run. (Nine runs: six version clashes, two real failures.)
 
 **Open points / follow-up tasks:**
 - The cable panel shows a spool start as "Start on: Joint Drum turn (motion)" (the joint's empty): a plain-words text

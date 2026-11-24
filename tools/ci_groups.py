@@ -45,7 +45,8 @@ SELFTEST = "packaged self-test"
 # ``ci_pytest_summary.py --max-skipped 1``): Blender's meshopt bridge is not there; a crane class without a chart at
 # its working pose. Never two of them in one group (a new test file shifted the split and put both in group 2).
 SKIPS_ON_GITHUB = {"tests/test_web3d_keys.py", "tests/test_lifting_reach_independent.py",
-                   "tests/test_web3d_film_blender.py"}    # task 0279: no browser on the Linux runners
+                   "tests/test_web3d_film_blender.py",    # task 0279: no browser on the Linux runners
+                   "tests/test_spool_independent.py"}     # task 0263: its real-Blender test (none in the pytest jobs)
 
 
 def load_times(path: str = TIMES) -> dict:
