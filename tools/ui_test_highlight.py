@@ -472,6 +472,10 @@ def s_point_rotate():
         part.select_set(True)
         bpy.context.view_layer.objects.active = part
     hl().set_look("button", "C")
+    try:                                                    # task 0290: the buttons sit in 4 Motion > Joints (a fold)
+        mod("blender.panels").open_to("FRESING_PT_joints")
+    except (ImportError, AttributeError):
+        pass
     hl().point_function("joints.rotate")
     return 0.6
 
