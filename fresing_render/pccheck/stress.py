@@ -33,7 +33,7 @@ from .heavy import peak_memory_mb
 S = "stress"
 SMALL_ENV = "FRESING_PCCHECK_STRESS_SMALL"
 TABLE_NAME = "Fresing Render stress table.csv"
-SINCE = "0.2.232"          # the version this came in: raised with the version at the end
+SINCE = "0.2.234"
 
 
 def small() -> bool:
