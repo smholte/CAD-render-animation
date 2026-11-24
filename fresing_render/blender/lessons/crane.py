@@ -1,4 +1,5 @@
-"""The crane lesson (task 0230; written out in study 0123): the test crane from the plain import to a video, 11 steps.
+"""The crane lesson (task 0230; written out in study 0123): the test crane from the plain import to a video, 11 steps;
+step 12 (task 0309) makes a lead motion.
 
 Each step's ``do`` is the button's own call (``bpy.ops.fresing.…``), or for a click on the model the function the
 click ends in (the boom's pin → ``tour._boom_joint``). The test tour's crane set (the hub) runs these steps first
@@ -151,6 +152,46 @@ def _queue(scene):
         raise RuntimeError(f"Add to queue returned {res}")
 
 
+LEAD = "Boom up and out"           # the lead motion the lesson makes (task 0309)
+
+
+def _lead(scene):
+    """Edit lead motions…: a new lead motion, the boom and the trolley picked as its joints, their values typed, the
+    stages ordered (the boom first, the trolley after it)."""
+    s = scene.fresing
+    for res in (bpy.ops.fresing.lead_new(),):
+        if res != {"FINISHED"}:
+            raise RuntimeError(f"New lead motion returned {res}")
+    lm = s.lead_motions[s.lead_index]
+    lm.name = LEAD
+    lm.description = "The boom goes up, then the trolley runs out"
+    for part, kind in (("BOOM.ASM", "ROTATE"), ("TROLLEY.ASM", "SLIDE")):
+        s.lead_pick = joint_on(scene, part, kind).name
+        res = bpy.ops.fresing.lead_row_add()
+        if res != {"FINISHED"}:
+            raise RuntimeError(f"Add joint returned {res}")
+    boom, trolley = lm.rows[0], lm.rows[1]
+    boom.v0_angle, boom.v1_angle, boom.stage = 0.0, BOOM_UP, 1
+    trolley.v0_dist, trolley.v1_dist, trolley.stage = 0.0, 1.75, 2
+    s.lead_overlap = 20.0
+    res = bpy.ops.fresing.lead_stages()
+    if res != {"FINISHED"}:
+        raise RuntimeError(f"Order by stages returned {res}")
+
+
+def _has_lead(scene) -> bool:
+    lm = scene.fresing.lead_motions.get(LEAD) or (scene.fresing.lead_motions[0]
+                                                   if len(scene.fresing.lead_motions) else None)
+    return lm is not None and len(lm.rows) >= 2
+
+
+def _slide_lead(scene, t):
+    """Show me: the new slider goes to 100 % and back once."""
+    lm = scene.fresing.lead_motions.get(LEAD)
+    if lm is not None:
+        lm.position = 0.0 if t >= 1.0 else 100.0 * math.sin(math.pi * max(0.0, t))
+
+
 CRANE = lesson(Lesson(
     "crane", "Crane: from the plain import to a video",
     "Light look, rotate and stacked joints, a camera, a saved scene, an animation, an exploded view, the render queue",
@@ -210,4 +251,10 @@ CRANE = lesson(Lesson(
              more="The queue renders in the background: you can go on working. Start later renders tonight.",
              do=_queue, done=lambda sc: len(sc.fresing.queue) > 0,
              point={"panel": "FRESING_PT_shots", "button": "fresing.queue_add", "text": "Queue this"}),
+        Step("motion.lead_motions", "Lead motions: one slider per function",
+             "Lead motions on the top bar > Edit lead motions…: a new one, the boom and the trolley as its joints, "
+             "in two stages. Its slider moves the boom up, then runs the trolley out.",
+             more="Anyone can then open Lead motions on the top bar and drag the slider – also in the Client view. "
+                  "The + next to it adds the motion to the animation.",
+             parts=("BOOM.ASM", "TROLLEY.ASM"), do=_lead, done=_has_lead, show=_slide_lead),
     ]))

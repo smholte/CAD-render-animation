@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.232")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.233")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -547,6 +547,7 @@ def build_crane(b: Build):
     _joint_step(a, "Trolley", 0.0, 3.0, TROLLEY_RUN, slide=True)
     fade_and_trail(sc, _animation(b, FADE_ANIM, "Tour view"))
     camera_rides(sc, _animation(b, CAMERA_ANIM, "Tour view"))
+    lead_set_up(sc, _animation(b, LEAD_ANIM, "Tour view"))    # task 0309: lead motions + every function
     from . import build, states
     root = build.model_roots(sc)[0]
     states.explode(sc, root, 0.6)
@@ -622,6 +623,48 @@ def build_crane(b: Build):
 
 
 FADE_ANIM = "Fade and trail"
+LEAD_ANIM = "Every function"            # task 0309: Show every function of the crane's lead motions
+
+
+def lead_set_up(scene, anim) -> None:
+    """The crane's lead motions (task 0309): the lesson made 'Boom up and out' (two stages); here 'Boom up' and
+    'Trolley out', and an animation made by Show every function (shared with the PC check)."""
+    import math
+
+    from ..core import lead_motions as core
+    from . import lead_motions
+    s = scene.fresing
+    if s.lead_motions.get("Boom up") is None:
+        lead_motions.add(scene, "Boom up", [core.Row("Boom", 0.0, math.radians(35))], seconds=3.0,
+                         description="The boom goes up to 35°")
+    if s.lead_motions.get("Trolley out") is None:
+        lead_motions.add(scene, "Trolley out", [core.Row("Trolley", 0.0, TROLLEY_RUN, easing="LINEAR")], seconds=3.0)
+    s.lead_index = 0
+    anim.fin_captions = True
+    lead_motions.show_every_function(scene, anim)
+
+
+def _check_lead(scene):
+    import bpy
+
+    from ..core import lead_motions as core
+    from . import animation, joints, lead_motions, ui_topbar
+    s = scene.fresing
+    _check(len(s.lead_motions) >= 3, f"only {len(s.lead_motions)} lead motions (Boom up and out, Boom up, Trolley out)")
+    bad = [f"{lm.name}: {r.joint}" for lm in s.lead_motions for r in lm.rows if lead_motions.row_problem(scene, r)]
+    _check(not bad, "rows that cannot move: " + ", ".join(bad))
+    _check(ui_topbar._draw_in_editor_menus in bpy.types.TOPBAR_MT_editor_menus._dyn_ui_initialize(),
+           "the top bar has no Lead motions button")
+    a = s.animations.get(LEAD_ANIM)
+    _check(a is not None and len(a.blocks) == 2 * len(s.lead_motions), "the animation 'Every function' is missing a step")
+    b = a.blocks[0]
+    lm = s.lead_motions[b.lead]
+    f0, f1 = animation.frame_of(a, b.start), animation.frame_of(a, b.start + b.duration)
+    scene.frame_set((f0 + f1) // 2)
+    want = core.values(lead_motions.to_core(lm), core.step_position(0, 100, b.easing, ((f0 + f1) // 2 - f0) / (f1 - f0)))
+    err = max(abs(joints.get_value(joints.find(scene, n)) - v) for n, v in want.items())
+    _check(err < 1e-4, f"half way through '{b.lead}' the joints are {err:.5f} off what its slider gives")
+    return f"{len(s.lead_motions)} lead motions; '{lm.name}' half way = its slider at 50 %"
 
 
 def fade_and_trail(scene, a) -> None:
@@ -1373,13 +1416,24 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.195")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.233")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
     from . import lesson
     lesson.run(b.scene, "mill")
+    mill_leads(b.scene)                          # task 0309: the table's two travels as lead motions
     b.scene.frame_set(b.scene.frame_start)
+
+
+def mill_leads(scene) -> None:
+    """The test mill's lead motions (task 0309): Table X travel and Table Y travel (the mill has no door)."""
+    from ..core import lead_motions as core
+    from . import lead_motions
+    s = scene.fresing
+    for name, joint, to in (("Table X travel", "X", 0.3), ("Table Y travel", "Y", 0.2)):
+        if s.lead_motions.get(name) is None and s.joints.get(joint) is not None:
+            lead_motions.add(scene, name, [core.Row(joint, 0.0, to, easing="SMOOTH")], seconds=3.0)
 
 
 def _milled(scene):
@@ -4890,6 +4944,12 @@ stop("camera", MOTION, HUB_SET, "Camera rides and flies",
      "keeping the trolley in the middle of the picture. The thin line in the view is the path (never in renders).",
      where="6 Animation (Camera step: Ride along, Fly a path, Watch part)", since="0.2.62", animation=CAMERA_ANIM,
      play=True, check=_check_camera, auto="clip")
+stop("lead_motions", MOTION, HUB_SET, "Lead motions: one slider per function",
+     "The crane shows every function: 'Boom up and out' (the boom goes up, then the trolley runs out), 'Boom up' and "
+     "'Trolley out', each out and back, its name as a caption. Then click Lead motions on the top bar (right of the "
+     "Fresing menu): one slider per function. Drag 'Boom up and out' – the boom goes up first, the trolley follows; "
+     "▶ plays it, ▶ again plays it back; Back to start puts all at 0 %.", where="Top bar > Lead motions; 6 Animation "
+     "(Lead motion step)", since="0.2.233", animation=LEAD_ANIM, play=True, check=_check_lead, auto="clip")
 stop("explode", MOTION, HUB_SET, "Exploded view",
      "The crane's subassemblies are pulled apart outwards; Reset pose puts them back.",
      where="4 Motion > Poses & exploded views", check=_check_explode, since="0.2.47")

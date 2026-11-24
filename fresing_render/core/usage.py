@@ -63,7 +63,8 @@ BY_PROP = {
     ("fresing.block_add", "kind"): {
         "JOINT": "animation.joint_step", "MOTOR": "animation.motor", "GCODE": "cnc.gcode", "FADE_OUT": "animation.fade",
         "FADE_IN": "animation.fade", "SEQUENCE": "animation.sequence", "CAD": "animation.back_to_cad",
-        "WEATHER": "animation.weather_step", "VESSEL": "animation.vessel_step"},
+        "WEATHER": "animation.weather_step", "VESSEL": "animation.vessel_step",
+        "LEAD": "animation.lead_motion_step"},
     ("fresing.queue_add", "kind"): {"STILL": "queue.still", "ANIMATION": "queue.video", "TEST": "queue.time_test"},
 }
 # Buttons no function names that still count for one (the section's main button does the function's work).

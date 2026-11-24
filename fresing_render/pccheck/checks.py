@@ -2457,6 +2457,51 @@ def couplings_motor(ctx):
     return "motor → trolley → wheel; 12 rpm × 5 s = 1 turn"
 
 
+@line("motion.lead_motion", "Lead motions: one slider per function", "0.2.233",
+      what="A lead motion of two joints in two stages: its slider at 50 % gives the joints the values the plan says, "
+           "the slider is quick, and a Lead motion step gives the same values half way through")
+def lead_motion(ctx):
+    import time
+
+    import bpy
+
+    from ..blender import animation, joints, lead_motions
+    from ..blender.lessons import crane
+    from ..core import lead_motions as core
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    _boom_joint(scene)
+    crane._trolley(scene)
+    lm = lead_motions.add(scene, "Boom up and out", [core.Row("Boom", 0.0, math.radians(30), 0, 60),
+                                                     core.Row("Trolley", 0.0, 1.5, 40, 100, "LINEAR")])
+    times = []
+    for pct in (10.0, 25.0, 50.0):
+        t0 = time.perf_counter()
+        lm.position = pct
+        _update()
+        times.append((time.perf_counter() - t0) * 1000.0)
+    want = core.values(lead_motions.to_core(lm), 50.0)
+    for name, v in want.items():
+        got = joints.get_value(joints.find(scene, name))
+        _check(abs(got - v) < 1e-6, f"at 50 % '{name}' is at {got:.5f}, the lead motion says {v:.5f}")
+    _check(abs(joints.get_value(joints.find(scene, "Trolley")) - 0.25) < 1e-6,
+           "the trolley did not wait for its part of the slider (40 … 100 %)")
+    ctx.metric("slider", max(times), "ms")
+    lm.position = 0.0
+    _check(bpy.ops.fresing.anim_add() == {"FINISHED"}, "New animation failed")
+    a = s.animations[s.animations_index]
+    a.fps = "25"
+    b = lead_motions.add_step(scene, a, lm, 0.0, 100.0)
+    _check(bpy.ops.fresing.anim_build() == {"FINISHED"}, "Build & play failed")
+    f0, f1 = animation.frame_of(a, b.start), animation.frame_of(a, b.start + b.duration)
+    scene.frame_set((f0 + f1) // 2)
+    p = core.step_position(0.0, 100.0, b.easing, ((f0 + f1) // 2 - f0) / (f1 - f0))
+    want = core.values(lead_motions.to_core(lm), p)
+    err = max(abs(joints.get_value(joints.find(scene, n)) - v) for n, v in want.items())
+    _check(err < 1e-5, f"half way through the step the joints are {err:.6f} off the slider's values")
+    return f"slider {max(times):.1f} ms; the step half way = the slider at {p:.0f} %"
+
+
 @line("states.poses", "Poses, explode, visibility, saved scenes", "0.2.0",
       what="Save a pose, explode, hide a part, save a scene; each comes back exactly")
 def states_all(ctx):

@@ -994,6 +994,14 @@ class FRESING_OT_block_add(bpy.types.Operator):
             b.duration = 5.0
             b.easing = "SMOOTH"                       # task 0299: no kink where the change starts and ends
             weather.step_init(context.scene, a, b)
+        elif self.kind == "LEAD":                        # task 0309: the active lead motion, 0 -> 100 %
+            from . import lead_motions
+            lm = lead_motions.active(context.scene) or (s.lead_motions[0] if len(s.lead_motions) else None)
+            if lm is not None:
+                b.lead = lm.name
+                b.duration = float(lm.seconds)
+            b.lead_use_from, b.lead_from, b.lead_to = True, 0.0, 100.0
+            b.easing = "SMOOTH"
         elif self.kind == "VESSEL":                      # task 0154: what the vessel does
             from . import vessel_work
             b.duration = 6.0

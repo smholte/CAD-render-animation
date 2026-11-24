@@ -133,6 +133,7 @@ MENUS = {
     "TOPBAR_MT_fresing_mark": "Fr mark (top bar, far left)",
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
+    "TOPBAR_PT_fresing_lead": "Lead motions (top bar)",
 }
 
 # Guide sections that are only reading (no function of their own): no entry needs to name them.
@@ -673,6 +674,16 @@ fn(id="animation.weather_step", title="Weather & time step", family="animation",
    prop="wx_preset", guide="weather", tour=("weather_step",), pccheck=("weather.step",), since="0.2.88")
 fn(id="animation.vessel_step", title="Vessel at work step", family="animation", panel="FRESING_PT_animation",
    prop="vw_mode", guide="vessel-work-step", tour=("vessel_work",), since="0.2.127")
+# task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
+fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
+   family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_edit", guide="lead-motions",
+   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.233", headline=True,
+   workspaces=tuple(k for k in WORKSPACE_KEYS if k not in EVERYTHING),
+   manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
+fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
+   panel="FRESING_PT_animation", prop="lead", guide="lead-motion-step", tour=("lead_motions",),
+   pccheck=("motion.lead_motion",), since="0.2.233",
+   workspaces=("cnc", "offshore", "product", "education", "lifting", "sales", "animator"))
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",

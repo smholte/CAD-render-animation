@@ -2886,6 +2886,58 @@ A **pose** stores every joint position and every moved subassembly: "Working", "
 3. Click **Explode**. To keep it, save it as a pose (**+** above). **Everything back to CAD position**
    (4 Motion) puts it together again.
 
+<a id="lead-motions"></a>
+### Lead motions: one slider per function
+
+<img class="panel" src="img/lead_motions_menu.png" alt="The Lead motions drop-down on the top bar: one slider per function">
+
+A machine does a few things – the boom goes up, the crane slews, the outriggers go out – but each of them may need
+several joints, some after others. A **lead motion** puts one such function on **one slider**. Anyone – a colleague
+from sales, a client in the Client view – then opens **Lead motions** on the top bar (right of the Fresing menu) and
+drags: the whole function moves, live, in the right order. The joint box and poses stay for detailed work.
+
+**The drop-down** (one click in every workspace and in the Client view):
+
+- one row per lead motion: its name, a **slider** from 0 % to 100 % (the ends show the joint's own values when it
+  moves one joint, for example 0° … 35°), **▶** and **+**;
+- **▶** plays it to 100 % in its own seconds; pressed again at 100 % it plays back to 0 %;
+- **+** adds it to the animation picked in 6 Animation (0 → 100 % at the end, its seconds long);
+- **Back to start** puts every lead motion at 0 %; **Keep open** shows the same sliders in a small window that stays
+  open (drag it beside the model or onto a second screen); **Show every function** adds one step per lead motion, out
+  and back, one after another – a film of every function in one click (with **Captions** on, each shows its name);
+  **Edit lead motions…** opens the editor.
+- A note next to a name, **"moved by Boom up"**: a joint of it was moved since by another lead motion (the last one
+  moved wins) – or **"moved by hand"** in the joint box. Drag its slider and it takes over again.
+
+<img class="panel" src="img/lead_motions_editor.png" alt="Edit lead motions…: the list, three ways to make one, the joints and their part of the slider">
+
+**Making one** (Edit lead motions…, a window of its own). **+** makes a new lead motion; double-click to rename it; the
+arrows set the menu's order. Then give it its joints, one of three ways:
+
+1. **From two poses**: pick a **Start** and an **End** pose (4 Motion > Poses) and press **Use these poses**. Every
+   joint that differs between them becomes a row; the machine goes to the start pose.
+2. **Record**: put the machine where the function starts, press **Set start**, move the joints (the joint box, or G /
+   R on a joint's part) to where it ends, press **Set end**. The joints that moved become the rows.
+3. **Pick a joint** in the list and press **Add joint**; it goes from where it is now to its upper limit. Type the
+   values in its row, or move the joint and press the pipette next to **At 0 %** or **At 100 %**.
+
+Each row: the joint, its value **At 0 %** and **At 100 %** (degrees or mm, as the joint box shows them), where on the
+slider it **Starts at** and **Ends at**, and how it moves there (**Smooth**, **Constant speed**, **Slow start**, **Slow
+stop**). Before its part of the slider the joint stands at its 0 % value, after it at its 100 % value – so one slider
+can do things one after another: outriggers out over 0–40 %, then the boom up over 30–100 %.
+
+**Order the joints**: give each row a **Stage** (1 first, then 2, 3 …) and press **Order by stages**: the stages share
+the slider in that order, each running **Overlap** % into the next. **Test** plays the lead motion 0 → 100 → 0 %.
+
+Good to know:
+
+- Joints that follow another joint (couplings, tables, cylinders, mechanisms) move with it and are never a row.
+- A joint may be in several lead motions: the last one moved wins (above).
+- Saved with the project, in backups and Save as. A **model update** keeps them; a renamed joint is followed, a joint
+  that is gone leaves its row marked **missing** in red (the rest still works).
+- On a big model only the joints of the lead motion you drag are touched (measured: under 1 ms per slider change on
+  the test crane, the test mill and the PC check's Heavy machine without the view's own drawing).
+
 <a id="milling"></a>
 ### Milling
 
@@ -4826,6 +4878,25 @@ the other steps).
 
 The step only writes keys on the joints, as a Move joint step does: it works with scripts switched off and in the
 render queue.
+
+<a id="lead-motion-step"></a>
+**Lead motion: a whole function in one step**
+
+<img class="panel" src="img/panel_6_lead_step.png" alt="A Lead motion step: Boom up and out, from where it is to 100 %">
+
+The step **Lead motion** moves one of the machine's lead motions (above, 4 Motion > Lead motions) – pick it from the
+short list, set **To** (in %) and the **Duration**: "Boom up and out, 0 → 100 % in 6 s". **From where it is** starts
+where its slider is at that moment of the animation (after the steps before it); untick it to type **From**. The box
+lists the joints it moves.
+
+- The quickest way: **+** next to a slider in the Lead motions drop-down adds the step (0 → 100 %, its seconds), and
+  **Show every function** adds every lead motion out and back.
+- Build gives every joint exactly the value the slider gives at that moment (a key per frame): it works with scripts
+  switched off, in the render queue and in saved projects.
+- **Two steps on the same joint at the same time** (a Lead motion step and a Move joint step, or two lead motions that
+  share a joint): the step that starts later takes over from its start. The step's box says so in red, and Build
+  warns "Two steps move … at the same time".
+- A joint that is not where the lead motion has it at the step's start jumps there when the step starts: Build says so.
 
 <a id="people"></a>
 **People: walk, carry and meet**

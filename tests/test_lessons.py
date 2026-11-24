@@ -111,7 +111,10 @@ def fingerprint(scene) -> dict:
             "baked": s.anim_baked, "bits": sorted(ob.name for _it, ob in machining.bits(scene)),
             "workpiece": m.workpiece.name if m.workpiece else "", "chips": m.chips,
             "materials": sorted((g.name, g.material) for g in s.groups),
-            "weather": (s.weather.enabled, s.weather.preset, s.background)}
+            "weather": (s.weather.enabled, s.weather.preset, s.background),
+            "leads": [(lm.name, round(lm.position, 3), [(r.joint, round(r.v0, 5), round(r.v1, 5), round(r.start, 3),
+                                                         round(r.end, 3), r.stage) for r in lm.rows])
+                      for lm in s.lead_motions]}
 
 
 def _show_me_to_the_end(bpy, scene, lesson):
