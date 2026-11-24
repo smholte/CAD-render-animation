@@ -203,7 +203,12 @@ _KEYWORDS: list[tuple[str, str]] = [
     ("BLECHSCHRAUBE", "self_tapping"), ("HEX BOLT", "hex_bolt"), ("HEX SCREW", "hex_bolt"),
     ("HEX HEAD", "hex_bolt"), ("HHCS", "hex_bolt"), ("ZESKANTBOUT", "hex_bolt"), ("TAPBOUT", "hex_bolt"),
     ("SECHSKANTSCHRAUBE", "hex_bolt"), ("SECHSKANT SCHRAUBE", "hex_bolt"),
+    ("WURMSCHRAUBE", "set_screw"),
     # nuts (before generic nut / bolt)
+    # task 0302: German / Dutch one-word compounds (Wuerth, Bossard, Fabory catalogues)
+    ("SLEUFMOER", "t_slot_nut"), ("HAMMERMUTTER", "t_slot_nut"), ("NUTSTEIN", "t_slot_nut"),
+    ("RINGMUTTER", "eye_nut"), ("NUTMUTTER", "lock_nut"), ("KREUZLOCHMUTTER", "nut"), ("EINSCHLAGMUTTER", "nut"),
+    ("NIETMUTTER", "nut"), ("BLINDNIETMUTTER", "nut"), ("BLINDKLINKMOER", "nut"), ("KLINKMOER", "nut"),
     ("NYLOC", "lock_nut"), ("LOCKNUT", "lock_nut"), ("LOCK NUT", "lock_nut"), ("BORGMOER", "lock_nut"),
     ("SICHERUNGSMUTTER", "lock_nut"), ("STOPMOER", "lock_nut"), ("FLANGE NUT", "flange_nut"),
     ("FLENSMOER", "flange_nut"), ("BUNDMUTTER", "flange_nut"), ("CAP NUT", "cap_nut"), ("ACORN NUT", "cap_nut"),
@@ -214,6 +219,11 @@ _KEYWORDS: list[tuple[str, str]] = [
     ("EYE NUT", "eye_nut"), ("OOGMOER", "eye_nut"), ("THIN NUT", "thin_nut"), ("JAM NUT", "thin_nut"),
     ("CONTRAMOER", "thin_nut"), ("HEX NUT", "hex_nut"), ("ZESKANTMOER", "hex_nut"), ("SECHSKANTMUTTER", "hex_nut"),
     # washers
+    ("FEDERSCHEIBE", "spring_washer"), ("SPANNSCHEIBE", "spring_washer"), ("ZAHNSCHEIBE", "lock_washer"),
+    ("SPERRKANTRING", "lock_washer"), ("SCHNORR", "lock_washer"), ("KEILSICHERUNGSSCHEIBE", "lock_washer"),
+    ("PASSSCHEIBE", "washer"), ("DISTANZSCHEIBE", "washer"), ("KOTFLUEGELSCHEIBE", "washer"),
+    ("KOTFLUGELSCHEIBE", "washer"), ("BORGRING", "circlip"),
+    ("HALBRUNDNIET", "rivet"), ("SENKNIET", "rivet"), ("SPREIZNIET", "rivet"),
     ("SPRING WASHER", "spring_washer"), ("SPLIT WASHER", "spring_washer"), ("VEERRING", "spring_washer"),
     ("FEDERRING", "spring_washer"), ("TELLERFEDER", "spring_washer"), ("DISC SPRING", "spring_washer"),
     ("NORD LOCK", "lock_washer"), ("NORDLOCK", "lock_washer"), ("LOCK WASHER", "lock_washer"),
@@ -244,6 +254,8 @@ _NOT_FASTENER = {
     "LEADSCREW", "SCREW JACK", "KOGELOMLOOPSPINDEL", "KUGELGEWINDETRIEB", "NUT HOUSING", "NUT BRACKET",
     "SPINDLE NUT", "BALL NUT", "SCREW SUPPORT", "BOLT CIRCLE", "NUT RUNNER", "NUTRUNNER", "SCREW DRIVER",
     "SCREWDRIVER", "NUT DRIVER",
+    # task 0302: sealing and bearing washers are not fasteners (part library: seals, bushings)
+    "BONDED WASHER", "SEALING WASHER", "THRUST WASHER", "USIT",
 }
 
 # Misumi style codes, e.g. CB6-20 (black oxide), SCB6-20 (stainless), CBM6-20
@@ -307,7 +319,7 @@ class FastenerInfo:
     property_class: str | None = None
     finish: str | None = None
     finish_source: str | None = None   # "name", "class", "type" or None
-    matched_by: str = "keyword"         # "standard", "keyword" or "vendor"
+    matched_by: str = "keyword"         # "standard", "keyword", "vendor" or "shape" (task 0302)
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -471,6 +483,15 @@ def parse(name: str) -> FastenerInfo | None:
         finish_source=finish_source,
         matched_by=matched_by,
     )
+
+
+def from_shape(kind: str) -> FastenerInfo | None:
+    """A standard part known only by its shape (task 0302, ``shape_hints``): "washer" or "hex_nut", no size,
+    no finish (the part goes to "Fasteners default" unless a rule says more)."""
+    if kind not in ("washer", "hex_nut"):
+        return None
+    return FastenerInfo(kind=kind, family=FAMILY.get(kind, "other"), label=KIND_LABELS.get(kind, kind),
+                        matched_by="shape")
 
 
 def describe(info: FastenerInfo | None) -> str:
