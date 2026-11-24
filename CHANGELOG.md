@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.225 – 24 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
+## 0.2.226 – 24 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
 
 - **The cable test machine** (test tour "Cable over sheaves", the PC check, the user guide) is now real size: its
   A-frame stands about 5 m tall on an 8 m base. The winch drum, the sheaves, the V rollers, the chute and the 24 mm
@@ -16,6 +16,28 @@ installer of that version was built from.
   bends round it as a real one would. It holds 665 m of cable now (was 166 m). The winch beside it is unchanged.
 - **Web 3D model:** a cable coming off a drum or carousel could show one ring more at its end than the app; the page
   now ends it exactly where the app does.
+
+## 0.2.225 – 24 Nov 2026 – Hoses avoid other parts, and a route you can shape (task 0298)
+
+- **Avoid other parts** (4 Motion > Hoses and drag chains, under the chosen hose's Length): ticked, a hose or cable
+  no longer sags through the parts in its way – it **lies on them and slides along**, while you move a joint and in
+  the built animation. It keeps its radius from their surfaces (where it bends round a sharp edge it can cut the
+  corner by a millimetre or two). The parts it avoids are those that show near it; its own fittings, other hoses
+  and hidden parts do not count. On the new test model a Ø20 hose that sagged 85 mm into a block now stays on top of
+  it at every frame. It costs time (on the test model about 0.1–0.15 s per pose while the hose lies on a part, about
+  4 s for a 4-second animation): switch it on only where it is needed. A wall about as thin as the hose can still be
+  crossed.
+- **Shape the route**: a new button under the hose. Its middle line shows in the 3D view; click on it to add a
+  **via point**, drag the white dot and the hose follows, X removes one, Enter is done, Esc puts it back. Via points
+  ride along with the parts the two ends sit on, and they are kept when you save and through a model update. The X
+  beside the button takes them all off. Works for hoses read from CAD and drawn ones.
+- **Automatic length**: ticked, the length is worked out again from the route whenever it changes (long enough for
+  the joints' travel); unticked it stays as typed.
+- **Clash check**: a new tick box **Check hoses that avoid parts** lists such a hose where its fittings, clips or via
+  points force it into a part (other hoses stay out of the check, as before).
+- A **drawn cable route** is laid again over the new parts at a model update (it kept the route as clicked before).
+- Test tour: new set "A hose avoids a block, a route shaped by hand" with the stops **A hose lies on a block** and **A route shaped by a via point**; PC check line `motion.flex_avoid`; user guide
+  sections "Avoid other parts" and "Shape the route between the ends".
 
 ## 0.2.224 – 24 Nov 2026 – Joints in a fold, several parts per cylinder item, a clicked joint shows what it moves (task 0290)
 
