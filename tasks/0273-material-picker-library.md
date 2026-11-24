@@ -1,7 +1,6 @@
 # 0273 – Material picker with pictures, this project's short list, own / department / company materials, filters by material, colour and look
 
-**Who:** worker · **Status:** open – waits for 0272 (the Materials locations) and, if it is briefed by then, 0274
-(same files) · **Branch:** `task/0273-material-picker`
+**Who:** worker · **Status:** running (0272, 0274, 0318 merged) · **Branch:** `ccr-f130bd57-9cwtzc`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "I want a material selector with pictures. A user can select a material
 for the group it is currently working on, but also add more materials to the current project that it can later add
 from a short list. The preset materials should also be able to add from a user's own materials and the organisation's,
