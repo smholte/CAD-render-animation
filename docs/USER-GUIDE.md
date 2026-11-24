@@ -174,14 +174,36 @@ the Fresing tab picks what the side panel shows:
 
 | Workspace | Shows | Hides |
 | --- | --- | --- |
-| **All functions** | everything (new projects start here) | – |
+| **Essentials** | what a first good picture and a simple motion need: import, sort into groups and materials, surroundings and light, camera views, a joint and a pose, Build & play, render a picture or a turntable, saved scenes (**new projects start here** until you choose another) | everything else |
+| **All functions** | everything | – |
 | **CNC & machining** | CNC machine, tools, tool changes, milling, way covers, clash check | sea, vessel, cables and drums, weather, exploded views |
 | **Offshore & cable laying** | sea and seabed, vessel motion, cables, drums and carousels, weather | CNC machine, milling, way covers |
 | **Product design & R&D** | looks, exploded views, assembly sequence, slice, turntable, web 3D model | CNC, milling, cables, sea, weather |
 | **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
 | **Education & training** | every kind of motion, animation, camera | web 3D model |
 | **Lifting plans** | 8 Lifting plan, import, structure, looks, scene, animation, render queue | CNC, milling, cables, sea, joints by hand |
+| **Sales** | saved scenes, looks and paint schemes, logos, surroundings and weather, pictures, turntable, product video, video finishing, 3D page, render queue | import, structure and all motion (the project is **not** locked: unlike the Client view you can still change looks, scenes and outputs) |
+| **Quick render** | import a STEP, sort into groups and looks, surroundings, light, camera, one picture or a turntable | everything else |
+| **Animator** | joints, cylinders, mechanisms, poses, animation steps, cameras and camera paths, labels, video finishing, render queue | CNC, milling, cables, sea, web 3D model |
+| **Reviewer** | saved scenes, slice, X-ray, poses and exploded views, labels, visibility sets, Build & play, clash check | import, joints, looks, outputs |
 | **Full access** | everything, plus Blender's own tabs, toolbar and menus | – |
+
+<a id="essentials"></a>
+**Essentials is the start.** Anyone who has not chosen a workspace yet starts new projects in Essentials. If you used
+the app before Essentials came, nothing changes for you: the update writes down **All functions** as your
+choice. A project keeps the workspace it was saved in.
+
+<a id="task-workspaces"></a>
+**Sales, Quick render, Animator and Reviewer** are made for one job each and show only that job's functions – hover
+over a name in the list to read what it is for. Need one more function? Tick its family under **Functions in this
+project**, or pick another workspace.
+
+<a id="workspace-stars"></a>
+**Favourites on top.** Every workspace in the list has a star. Click the star and that workspace moves to the top of
+the list, above a line, in the order you starred them; click it again to take the star away. The workspace for new
+projects ("· new projects") is always on top too. The stars are kept for you, also after a restart.
+
+<img class="panel" src="img/workspace_stars.png" alt="The Workspace list: Essentials for new projects, Reviewer and Sales starred on top, a line, then the others">
 
 **Hiding never deletes or switches off anything.** What is set up stays in the project and keeps working
 in renders, in the queue and after a model update; only the panels go away. Pick another workspace, or
@@ -192,7 +214,8 @@ workspace except **Full access**: the word "workspace" means only one thing in t
 
 The workspace is saved with the project. A project made before workspaces opens in your default
 workspace **with everything it uses shown**. To choose the workspace new projects start in: open the
-Workspace row (the small arrow) and press **Use for new projects**.
+Workspace row (the small arrow) and press **Use for new projects**, or pick it in **Fresing > Settings… > General >
+Workspace for new projects**.
 
 <a id="families"></a>
 ### Functions in this project: families on and off

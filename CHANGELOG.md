@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.226 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
+## 0.2.227 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
 
 - **23 new finishes** in 3 Looks (pick one as a group's **Material**): **Knurled, diamond** and **straight**
   (knobs, handles), **Rubber, moulded grip pattern**, **Spun metal** (rings round the centre of caps and discs),
@@ -30,6 +30,22 @@ installer of that version was built from.
 - Test tour: a new stop **Finishes** (a board of 23 samples and a headphone-like set). PC check: a new line
   **Finishes**. User guide: 3 Looks > Finishes, with a picture of all 23.
 
+## 0.2.226 – 24 Nov 2026 – Essentials as the start, workspaces for one job, favourite workspaces on top (task 0294)
+
+- **Essentials** (new, first in the Workspace list): only what a first good picture and a simple motion need – import,
+  sort into groups and materials, surroundings and light, camera views, a joint and a pose, Build & play, render a
+  picture or a turntable, saved scenes. **New projects start here until you choose another workspace.** If you used
+  the app before, nothing changes for you: this update keeps **All functions** as your choice. A project keeps the
+  workspace it was saved in.
+- **Four workspaces for one job** (new): **Sales** (saved scenes, looks and paint schemes, logos, surroundings and
+  weather, pictures, turntable, product video, 3D page, render queue – import, structure and motion are not shown; not
+  locked like the Client view), **Quick render** (import, looks, surroundings, light, one picture or a turntable),
+  **Animator** (joints, cylinders, mechanisms, poses, animation steps, camera paths, labels, video finishing, render
+  queue) and **Reviewer** (saved scenes, slice, X-ray, exploded views, labels, play, clash check). Hover over a name in
+  the list to read what it is for.
+- **A star beside every workspace** in the list: starred ones move to the top, above a line, in the order you starred
+  them, together with your workspace for new projects. Kept for you, also after a restart.
+- **Fresing > Settings… > General > Workspace for new projects** says "Essentials (not chosen yet)" until you pick one.
 ## 0.2.225 – 24 Nov 2026 – Hoses avoid other parts, and a route you can shape (task 0298)
 
 - **Avoid other parts** (4 Motion > Hoses and drag chains, under the chosen hose's Length): ticked, a hose or cable

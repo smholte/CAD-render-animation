@@ -1,6 +1,6 @@
 # 0274 – Build the new finishes from study 0270: knurls, spun, moulded, fabric, plate patterns, blasted, paints, grains
 
-**Who:** worker · **Status:** done (0.2.226) · **Branch:** `task/0274-build-finishes`
+**Who:** worker · **Status:** done (0.2.227) · **Branch:** `task/0274-build-finishes`
 **Started by:** lead, 24 Nov 2026 (owner's picks from the 0270 page, 24 Nov 00:45: **all 27 ticked**) ·
 **Model:** Opus · effort High
 **Area:** Looks lane – `core/materials_lib.py` (new looks + their settings), `blender/materials.py` (the face data hook
@@ -74,7 +74,7 @@ and thumbnails (0273 – but leave the study's swatch idea in your report for it
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (Opus, effort High), 24 Nov 2026. Branch `task/0274-build-finishes`, version
-0.2.226.
+0.2.227.
 
 **What changed:**
 - **23 finishes** as library materials (`core/materials_lib.py`, numbers 62–84) with a `finish` key; their table, settings,
@@ -139,9 +139,9 @@ knurl +6 %, here +23 %). Node counts 15–121. Perforated and expanded stay abov
   function, guide tests and test_core / part_types / toolmarks / lightbake / cable_looks (1,505 passed); the tour set
   builds in 4.7 s and its check passes; PC check line looks.finishes OK (8 s, render 5.2 s). UI checked with
   `tools/ui_screens.py` (UISHOT_TAB=3, UISHOT_FINISH=perforated: Metal, Kind, Hole size under the material).
-- GitHub: 6 full runs on the branch. Green as 0.2.222, 0.2.223, 0.2.224 and 0.2.225, but 0302, 0308, 0290 and 0298 took each number first (merge main, renumber); one red run as 0.2.224 on two test faults the merge brought (test_tour allowed at most 100 stops – 0308 + 0274 make 101 –, and the independent lesson test pressed Next with fast Show me timing, so the lesson moved the crane apart before the test's Ctrl+Z): both tests fixed. Released as 0.2.226.
+- GitHub: 7 full runs on the branch. Green as 0.2.222, 0.2.223, 0.2.224, 0.2.225 and 0.2.226, but 0302, 0308, 0290, 0298 and 0294 took each number first (merge main, renumber); one red run as 0.2.224 on two test faults the merge brought (test_tour allowed at most 100 stops – 0308 + 0274 make 101 –, and the independent lesson test pressed Next with fast Show me timing, so the lesson moved the crane apart before the test's Ctrl+Z): both tests fixed. Released as 0.2.227.
 
-**Owner's test steps** (after Update now to 0.2.226):
+**Owner's test steps** (after Update now to 0.2.227):
 1. Open a project, go to **3 Looks**, click a group in the list.
 2. **Material** → in **Metal** pick **Knurled, diamond (knobs, handles)**. Under it you should see **Metal**, **Pitch**
    (0.8 mm) and **Angle** (30°).

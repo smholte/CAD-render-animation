@@ -102,6 +102,10 @@ import sys
 import time
 import traceback
 
+# task 0294: a user who has not chosen a workspace starts in Essentials; these tests and pictures start in All
+# functions as before (ui_test_workspaces2.py sets it empty for its own checks)
+os.environ.setdefault("FRESING_WORKSPACE_START", "All functions")
+
 import bpy
 from mathutils import Matrix, Vector
 

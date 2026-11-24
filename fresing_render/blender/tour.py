@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.224")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.226")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1274,7 +1274,7 @@ def finishes_demo(scene) -> dict:
     return groups
 
 
-@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.226")
+@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.227")
 def build_finishes(b: Build):
     """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front."""
     sc = b.scene
@@ -4647,7 +4647,7 @@ stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains",
      "the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, leather cushions. Look in rendered view "
      "and zoom in: the patterns show up close and fade calmly further away.",
      where="3 Looks: a group's Material (Metal, Plastic & rubber, Paint …) and its own settings under it (Pitch, "
-           "Angle, Metal, Kind …)", since="0.2.226", check=_check_finishes)
+           "Angle, Metal, Kind …)", since="0.2.227", check=_check_finishes)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
@@ -5438,6 +5438,13 @@ def _check_workspace(scene):
         _check(not lock.ON[0] and lock.marked() == 0
                and state == {ob.name: (ob.hide_select, tuple(ob.lock_location)) for ob in scene.objects},
                "Full access did not put the parts back as they were")
+        # task 0294: Essentials first, the task workspaces, a star on every row of the list
+        _check(workspaces.names()[0][0] == "Essentials", "Essentials is not first in the Workspace list")
+        workspaces.switch(scene, "Sales")
+        _check(workspaces.panel_hidden(scene, "FRESING_PT_motion") and not workspaces.panel_hidden(scene, "FRESING_PT_shots")
+               and not lock.ON[0], "Sales does not hide motion, show saved scenes and leave the project unlocked")
+        _check(hasattr(bpy.types, "FRESING_MT_workspaces") and hasattr(bpy.ops.fresing, "workspace_star"),
+               "the Workspace list with its stars is missing")
     finally:
         s.ws_name, s.ws_data, s.ws_ticks = was
         workspaces.apply(scene)
@@ -5472,9 +5479,12 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
+     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator and Reviewer for "
+     "one job each; the star beside a workspace puts it on top of the list, above a line (click it again to take it "
+     "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.226", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
