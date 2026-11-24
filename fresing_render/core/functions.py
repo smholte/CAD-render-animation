@@ -154,7 +154,10 @@ fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_
    guide="whats-next", since="0.2.152", changed="0.2.197")
 fn(id="panel.make", title="Make: every picture, video and 3D page, each in a window of its own", family="panel",
    panel="FRESING_PT_make", button="fresing.make_window", guide="make", tour=("make",), pccheck=("panel.two",),
-   since="0.2.152", changed="0.2.197")
+   since="0.2.152", changed="0.2.221")
+fn(id="scene.render_view", short="Render this view", title="Render this view: what the 3D view shows, no camera needed",
+   family="scene", panel="FRESING_PT_make", button="fresing.render_view", guide="render-this-view",
+   tour=("render_view",), pccheck=("scene.render_view",), since="0.2.221")
 fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
    panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")

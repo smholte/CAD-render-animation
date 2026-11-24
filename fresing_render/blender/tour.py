@@ -5257,13 +5257,50 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
-     "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
+     "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
      "Animation and Queue (rest the mouse on one for its name; click Make for the list with names). Click Picture: a "
      "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "
-     "Drag it anywhere, click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no "
-     "second window. The same list is under Make in the header of the 3D view.",
-     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.197", shot="Tour view", check=_check_make,
-     auto=lambda ctx, scene, st: "")
+     "On its left is a strip with the same six icons, Picture pressed: click 3D page and the same window shows the 3D "
+     "page's settings. Drag the strip's right edge wider: the names show beside the icons. Drag the window anywhere, "
+     "click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no second window. "
+     "The same list is under Make in the header of the 3D view.",
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.221",
+     shot="Tour view", check=_check_make, auto=lambda ctx, scene, st: "")
+
+
+def _check_render_view(scene):
+    """Render this view (task 0308): a camera made where the view's eye is and taken away again – the scene's camera
+    and everything else as before."""
+    import bpy
+
+    from . import ops_render_view
+    _check(hasattr(bpy.ops.fresing, "render_view"), "the button Render this view is missing")
+    cam = scene.camera
+    _check(cam is not None and cam.type == "CAMERA", "the crane set has no camera to stand in for the view")
+    before = (scene.camera, len(bpy.data.objects), len(bpy.data.cameras))
+    aspect = scene.render.resolution_x / max(1, scene.render.resolution_y)
+    state = ops_render_view.setup(scene, bpy.context, view=ops_render_view.stand_in(cam, aspect))
+    try:
+        made = scene.camera
+        _check(made != cam and made.get(ops_render_view.VIEW_MARK), "no camera was made for the view")
+        off = (made.matrix_world.translation - cam.matrix_world.translation).length
+        _check(off < 1e-4, f"the view's camera stands {off * 1000:.1f} mm from the view's eye")
+        lens = made.data.lens
+    finally:
+        ops_render_view.undo(scene, state)
+    _check((scene.camera, len(bpy.data.objects), len(bpy.data.cameras)) == before,
+           "Render this view left a camera behind or changed the active camera")
+    return f"lens {lens:.1f} mm, nothing left behind"
+
+
+stop("render_view", OUT, HUB_SET, "Render this view",
+     "Under the Make row: Render this view. Turn and zoom the 3D view to any angle you like (no camera needed) and "
+     "click it: the render window shows exactly what the view showed, at the Picture's size and quality (its shape "
+     "fitted round the view, nothing of the view cut off), and the picture is saved as <project>_View_<date>_<time>. "
+     "The active camera in 5 Scene & Render is the same as before and no new camera is in the list. In camera view "
+     "(Numpad 0) it renders that camera.",
+     where="Make, at the top of the Fresing panel (under the icons); Make in the 3D view's header", since="0.2.221",
+     shot="Tour view", check=_check_render_view, auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "Help > Make demo project… opens a small window of its own; Make it there makes the demo 'Vessel in a wind park' "

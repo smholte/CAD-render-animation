@@ -271,6 +271,9 @@ OUTPUTS = (
     ("queue", "Queue", "SORTTIME", "FRESING_PT_make_queue", "queue.still", "fresing.queue_start", "Start queue"),
 )
 POPOVER_UNITS = 17
+ROW_SCALE = 1.6       # task 0308: the Make row's height (0260: 1.2) – its icons are the large ones of make_icons.py
+VIEW_TEXT = "Render this view"
+VIEW_ICON = "HIDE_OFF"
 
 
 def _outputs(scene):
@@ -289,12 +292,13 @@ MAKE_LINES = {
 
 def draw_make(layout, context, labelled: bool = True) -> None:
     """The outputs: a labelled list (2 x 3) or icons only; each button opens that output's own window."""
+    from . import make_icons
     outs = _outputs(context.scene)
     if not labelled:
         row = layout.row(align=True)
-        row.scale_y = 1.2
+        row.scale_y = ROW_SCALE
         for key, _text, icon, *_rest in outs:
-            row.operator("fresing.make_window", text="", icon=icon).key = key
+            make_icons.icon_button(row, "fresing.make_window", key, icon).key = key
         return
     grid = layout.grid_flow(columns=2, even_columns=True, even_rows=True, align=True)
     for key, text, icon, *_rest in outs:
@@ -336,6 +340,14 @@ class FRESING_PT_make(_Panel, bpy.types.Panel):
             header_status(row, f"{n} queued")
         if opened:
             draw_make(box, context)
+        draw_render_view(box)
+
+
+def draw_render_view(layout) -> None:
+    """Task 0308: Render this view – what the 3D view shows, at the Picture's settings, no camera needed."""
+    row = layout.row(align=True)
+    row.scale_y = 1.15
+    row.operator("fresing.render_view", text=VIEW_TEXT, icon=VIEW_ICON)
 
 
 class _Popover:
@@ -442,6 +454,8 @@ class FRESING_PT_make_header(bpy.types.Panel):
                 row.operator("fresing.make_window", text=text, icon=icon).key = _key
                 continue
             row.operator("fresing.make_window", text="", icon="PREFERENCES").key = _key
+        layout.separator()
+        draw_render_view(layout)
 
 
 def _draw_view_header(self, context):

@@ -8,7 +8,9 @@ Learning hub switch: outside a hub project it opens the Learn window; in a hub p
 lesson, Build it yourself switches the same lesson at once. Task 0278: the crane lesson's Build & play step points at
 the left panel's button (open, and the strip's icon when folded); Favourites, Learning hub and Workspace fold with
 their arrows and keep it through a real restart (a second app, ``ui_test_left_restart.py``, in the same settings
-folder). Screenshots: left + right panel at the screen's size.
+folder). Task 0308: each output window has a strip of every output on its left (one icon wide, the names when it is
+dragged wider; Blender's tool buttons and its tabs Tool / View / Animation not there), its buttons switch the window;
+Render this view saves a picture and leaves no camera behind. Screenshots: left + right panel at the screen's size.
 
 Install the extension and the app template first (see ui_test_app.py), then run:
     xvfb-run -a -s "-screen 0 1920x1080x24" blender --app-template fresing_render --enable-event-simulate \\
@@ -93,6 +95,17 @@ def guide_crop(path, name, height=330):
                     os.path.join(out, name + ".png")], check=False)
 
 
+def window_crop(path, name, win, height=300):
+    """Task 0308: an output window's top as a user guide picture (GUIDE_OUT set: docs/img)."""
+    out = os.environ.get("GUIDE_OUT")
+    if not out:
+        return
+    top = main_win().height - (win.y + win.height)
+    h = min(int(height * (bpy.context.preferences.system.ui_scale or 1.0)), win.height)
+    subprocess.run(["convert", path, "-crop", f"{win.width}x{h}+{win.x}+{top}", "+repage",
+                    os.path.join(out, name + ".png")], check=False)
+
+
 def redraw():
     for win in bpy.context.window_manager.windows:
         for area in win.screen.areas:
@@ -160,7 +173,8 @@ def s_left_parts():
     order = [c.__name__ for c in mod("")._all_classes() if getattr(c, "bl_region_type", "") == "TOOLS"
              and getattr(c, "bl_space_type", "") == "VIEW_3D"      # task 0272: not the file browser's STEP folders
              and c.__name__ not in ("FRESING_PT_settings_window",   # task 0271: shows only in the Settings window
-                                    "FRESING_PT_form_window")]       # task 0282: only in a function window
+                                    "FRESING_PT_form_window",        # task 0282: only in a function window
+                                    "FRESING_PT_make_strip")]        # task 0308: only in an output window
     check("the left panel's parts in order", order[:3] == ["FRESING_PT_left_quick", "FRESING_PT_update",
                                                            "FRESING_PT_workspace"] and order[-1] == "FRESING_PT_next",
           str(order))
@@ -220,12 +234,114 @@ def s_still_open():
         uis = [r for a in w.screen.areas if a.type == "VIEW_3D" for r in a.regions if r.type == "UI"]
         check("it shows the tab Make", bool(uis) and uis[0].active_panel_category == "Make",
               uis[0].active_panel_category if uis else "no side panel")
-        check("no left panel in it", not any(a.spaces.active.show_region_toolbar for a in w.screen.areas
-                                             if a.type == "VIEW_3D"))
         log("output window size:", w.width, w.height)
     with override():
         r = bpy.ops.fresing.make_window("EXEC_DEFAULT", key="still")
     check("pressing Picture again gives no second window", r == {"FINISHED"} and len(outputs("still")) == 1)
+    return 1.0
+
+
+def _strip():
+    w = outputs()
+    return mod("blender.ops_make").strip_width(w[0]) if w else 0.0
+
+
+wait_until("task 0308: the outputs strip on the window's left, one icon wide", lambda: 30 < _strip() < 70, 15)
+
+
+@step
+def s_strip():
+    w = outputs()[0]
+    om = mod("blender.ops_make")
+    area = om._view_area(w)
+    sp = area.spaces.active
+    check("the settings still show beside the strip", sp.show_region_ui and om._region(area, "UI").width > 200,
+          f"side panel {om._region(area, 'UI').width} px, strip {_strip():.0f} px, window {w.width} px")
+    S["view_beside"] = area.width - om._region(area, "UI").width - om._region(area, "TOOLS").width
+    check("no empty 3D view beside the strip and the settings", S["view_beside"] <= 16, f"{S['view_beside']} px")
+    with bpy.context.temp_override(window=w, screen=w.screen, area=area, region=om._region(area, "TOOLS")):
+        quiet = not bpy.types.VIEW3D_PT_tools_active.poll(bpy.context)
+        mine = bpy.types.FRESING_PT_make_strip.poll(bpy.context)
+        left = [n for n in mod("blender.panels").LEFT if getattr(bpy.types, n).poll(bpy.context)]
+    check("Blender's tool buttons are not in the strip", quiet)
+    check("the strip shows the outputs, no left panel", mine and not left, ", ".join(left))
+    with bpy.context.temp_override(window=w, screen=w.screen, area=area, region=om._region(area, "UI")):
+        shown = [c.__name__ for c in mod("blender.ops_settings").tab_panels() if c.poll(bpy.context)]
+    check("Blender's tabs Tool, View, Animation hidden in the window", not shown, ", ".join(shown))
+    redraw()
+    return 0.8
+
+
+@step
+def s_strip_shot():
+    w = outputs()[0]
+    window_crop(shot("03a_output_strip_narrow"), "make_strip_narrow", w)
+    om = mod("blender.ops_make")
+    with bpy.context.temp_override(window=w, screen=w.screen, area=om._view_area(w)):
+        r = bpy.ops.fresing.make_switch("EXEC_DEFAULT", key="web")
+    check("a strip button switches the window to the 3D page", r == {"FINISHED"} and len(outputs()) == 1
+          and len(outputs("web")) == 1, r)
+    redraw()
+    return 1.0
+
+
+@step
+def s_strip_widen():
+    w = outputs()[0]
+    om = mod("blender.ops_make")
+    shot("03a2_web_narrow")
+    log("tab:", om._region(om._view_area(w), "UI").active_panel_category)
+    ok = mod("blender.ui_left").set_width(om._view_area(w), 150)     # as the user drags the strip wider
+    check("the strip can be made wider", ok)
+    return 0.8
+
+
+def _settings_fill():
+    w = outputs()
+    if not w:
+        return False
+    om = mod("blender.ops_make")
+    area = om._view_area(w[0])
+    side, tools = om._region(area, "UI"), om._region(area, "TOOLS")
+    S["fill"] = f"strip {tools.width} px, settings {side.width} px, view {area.width} px"
+    return side.width > 150 and abs(area.width - tools.width - side.width - om.FILL_GAP) <= om.FILL_SLACK + 4
+
+
+wait_until("the wider strip shows the names", lambda: _strip() >= mod("blender.ops_make").NAMES_FROM, 10)
+wait_until("… and the settings shrink to the rest of the window (still shown)", _settings_fill, 10)
+
+
+@step
+def s_strip_wide_draw():
+    log("wide strip:", S.get("fill"))
+    redraw()
+    return 1.0
+
+
+@step
+def s_strip_wide():
+    w = outputs()[0]
+    window_crop(shot("03b_output_strip_wide"), "make_strip_wide", w)
+    om = mod("blender.ops_make")
+    side = om._region(om._view_area(w), "UI")
+    log("tab:", side.active_panel_category, side.x, side.y, side.width, side.height, side.view2d.region_to_view(0, side.height - 1))
+    x, y = side.x + side.width // 2, side.y + side.height // 2
+    w.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+    return 2.0
+
+
+@step
+def s_strip_wide2():
+    shot("03c_output_strip_wide_later")
+    w = outputs()[0]
+    om = mod("blender.ops_make")
+    side = om._region(om._view_area(w), "UI")
+    log("tab later:", side.width, side.view2d.region_to_view(0, side.height - 1))
+    w = outputs()[0]
+    om = mod("blender.ops_make")
+    with bpy.context.temp_override(window=w, screen=w.screen, area=om._view_area(w)):
+        r = bpy.ops.fresing.make_switch("EXEC_DEFAULT", key="still")
+    check("… and back to the Picture", r == {"FINISHED"} and len(outputs("still")) == 1 and len(outputs()) == 1)
     with override():
         bpy.ops.fresing.make_window("EXEC_DEFAULT", key="web")
     return 1.0
@@ -248,6 +364,42 @@ def s_close():
 
 
 wait_until("Close closes the output windows", lambda: not outputs(), 10)
+
+
+# ----- task 0308: Render this view -----
+
+def _things():
+    sc = bpy.context.scene
+    return (sc.camera.name if sc.camera else "", len(bpy.data.objects), len(bpy.data.cameras))
+
+
+@step
+def s_render_view():
+    sc = bpy.context.scene
+    s = sc.fresing
+    s.out_format, s.out_custom_w, s.out_custom_h, s.quality, s.use_gpu = "custom", 160, 90, "draft", False
+    S["before_view"] = _things()
+    S["last"] = s.last_render
+    with override():
+        r = bpy.ops.fresing.render_view("EXEC_DEFAULT", True)
+    check("Render this view starts", r == {"RUNNING_MODAL"} or r == {"FINISHED"}, r)
+    return 1.0
+
+
+wait_until("Render this view saves the picture", lambda: (not bpy.app.is_job_running("RENDER"))
+           and "_View_" in os.path.basename(bpy.context.scene.fresing.last_render)
+           and os.path.isfile(bpy.context.scene.fresing.last_render), 240)
+
+
+@step
+def s_render_view_done():
+    check("Render this view leaves no camera and the active camera as it was", _things() == S["before_view"],
+          f"{_things()} / {S['before_view']}")
+    for win in list(bpy.context.window_manager.windows):        # Blender's render window: closed again
+        if win.screen is not None and any(a.type == "IMAGE_EDITOR" for a in win.screen.areas) and win != main_win():
+            with bpy.context.temp_override(window=win):
+                bpy.ops.wm.window_close()
+    return 1.0
 
 
 # ----- fold the left panel -----
