@@ -1,6 +1,6 @@
 # 0321 – Workspaces round 3: Welding, Machine builder, Video producer, Houses; Sales may move joints
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0321-workspaces-round-3`
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0321-yl8i1m`
 **Started by:** lead, 24 Nov 2026 (owner 11:44: "make a separate welding workspace. This will only be the rendering
 options and weld placement, weld symbols and later the 2D drawings. Optionally other functions if advised." – "I agree
 with the 3 additional workspaces you suggested" – "Sales workspace is allowed to move joints.") ·
