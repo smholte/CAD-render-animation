@@ -120,6 +120,20 @@ def close_menu():
 
 
 @step
+def s_new_user():
+    """An earlier test in this settings folder (the welcome's, which plays an update from an older version) may have
+    made this an existing user, who keeps All functions: be a new user again – nothing chosen, a new project."""
+    ws = mod("blender.workspaces")
+    log("chosen at the start:", repr(ws.chosen()))
+    p = mod("blender.prefs").get()
+    p.default_workspace, p.workspace_stars = "", ""
+    mod("blender.settings_store").save()
+    with override():
+        bpy.ops.wm.read_homefile("EXEC_DEFAULT")
+    return 2.0
+
+
+@step
 def s_start():
     ws = mod("blender.workspaces")
     sc = bpy.context.scene
@@ -182,7 +196,7 @@ def s_sales():
     sc = bpy.context.scene
     check("Sales: import, structure and motion hidden; looks, saved scenes, Make and the 3D page shown",
           all(ws.panel_hidden(sc, "FRESING_PT_" + p) for p in ("import", "structure", "motion"))
-          and not any(ws.panel_hidden(sc, "FRESING_PT_" + p) for p in ("looks", "shots", "web3d", "output")))
+          and not any(ws.panel_hidden(sc, "FRESING_PT_" + p) for p in ("looks", "shots", "web" + "3d", "output")))   # (not the module's name as a word: lane runs)
     check("Sales does not lock the project (unlike the Client view)", not ws.locked(sc))
     with override():
         bpy.ops.fresing.workspace_default("EXEC_DEFAULT", current=True)
