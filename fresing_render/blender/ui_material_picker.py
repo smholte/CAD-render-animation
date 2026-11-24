@@ -299,32 +299,36 @@ FIRST_DRAW: list = []          # when the window's page was first drawn (the tes
 
 def draw_short_list(box, context, g) -> None:
     """Above the group's Material row: the project's short list as small pictures (click = use for the group,
-    × = off the list) and More materials… (the window)."""
+    × = off the list), the picked group's own material when it is not on the list (marked with a link), how many
+    other materials the groups use, and More materials… (the window)."""
     scene = context.scene
+    mine = MP.group_key(g)
     items = MP.short_list(scene)
-    head = box.row(align=True)
-    head.label(text="This project's materials", icon="SOLO_ON")
-    head.operator("fresing.materials", text="More materials…", icon="MATERIAL")
-    if not items:
-        ui.hint(box, context, "None yet: open More materials… and press the star of the ones this project uses",
-                inset=12)
-        return
+    shown = [(e, listed) for e, listed, _used in items if listed or e.key == mine]
+    others = sum(1 for e, listed, _used in items if not listed and e.key != mine)
+    box.label(text="This project's materials", icon="SOLO_ON")
+    if not any(listed for _e, listed in shown):
+        ui.hint(box, context, "None yet: press the star of a material in More materials…", inset=12)
     region = getattr(context, "region", None)
     scale = context.preferences.system.ui_scale or 1.0
     n = max(2, min(6, int((getattr(region, "width", 300) or 300) / (scale * 74))))
-    grid = box.grid_flow(row_major=True, columns=n, even_columns=True, even_rows=False, align=True)
-    mine = MP.group_key(g)
-    for e, listed, used in items:
-        cell = grid.column(align=True)
-        cell.template_icon(icon_value=entry_icon(e, g), scale=2.6)
-        row = cell.row(align=True)
-        op = row.operator("fresing.mat_use", text=_short(e.name, 9), depress=(e.key == mine))
-        op.key = e.key
-        if listed:
-            x = row.operator("fresing.mat_unlist", text="", icon="X", emboss=False)
-            x.key = e.key
-        else:
-            row.label(text="", icon="LINKED")          # in use by a group, not on the list
+    if shown:
+        grid = box.grid_flow(row_major=True, columns=n, even_columns=True, even_rows=False, align=True)
+        for e, listed in shown:
+            cell = grid.column(align=True)
+            cell.template_icon(icon_value=entry_icon(e, g), scale=2.6)
+            row = cell.row(align=True)
+            op = row.operator("fresing.mat_use", text=_short(e.name, 9), depress=(e.key == mine))
+            op.key = e.key
+            if listed:
+                x = row.operator("fresing.mat_unlist", text="", icon="X", emboss=False)
+                x.key = e.key
+            else:
+                row.label(text="", icon="LINKED")          # the group's own, not on the list
+    if others:
+        ui.hint(box, context, f"The other groups use {ui.plural(others, 'more material')}: a star in More materials… "
+                              "puts one on this list", inset=12)
+    box.operator("fresing.materials", text="More materials…", icon="MATERIAL")
 
 
 CLASSES = (FRMatPickState, FRESING_PT_materials_window)
