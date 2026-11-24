@@ -1,6 +1,6 @@
 # 0276 – First-start set-up: one window that walks a new user through the app's set-up (replaces Blender's own)
 
-**Who:** worker · **Status:** open – waits for 0272 (it uses the Settings pages and the locations) and 0275 (the
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0276-loioex` (the web session's branch)
 progress window) · **Branch:** `task/0276-first-start-setup`
 **Started by:** lead, 21 Nov 2026 (owner 17:45: "maybe there should be a set-up menu when a user opens the app for the
 first time?"; owner's picks 17:50: **full set-up** – **replace Blender's own first-start window**) ·
