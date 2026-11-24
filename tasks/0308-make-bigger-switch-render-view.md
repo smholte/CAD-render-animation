@@ -1,6 +1,6 @@
 # 0308 – Make: a taller row with larger icons, an outputs strip in every output window, and "Render this view"
 
-**Who:** worker · **Status:** running · **Branch:** `task/0308-make-strip-render-view`
+**Who:** worker · **Status:** done (0.2.223) · **Branch:** `task/0308-make-strip-render-view`
 **Started by:** lead, 23 Nov 2026 (owner 20:49, with three screenshots: the Make row, the Picture window with its empty
 left side marked in purple – one icon per output, names beside them in orange when the strip is dragged wider) ·
 **Model:** Opus · effort Medium
@@ -61,16 +61,16 @@ beside 0294: no shared file – whoever merges second updates its branch).
 
 ## Done when
 
-- [ ] Make row taller with larger icons, still one row at the default panel width (screenshot)
-- [ ] Output windows: the strip on the left switches the window between outputs; icons narrow, names when wider;
+- [x] Make row taller with larger icons, still one row at the default panel width (screenshot)
+- [x] Output windows: the strip on the left switches the window between outputs; icons narrow, names when wider;
       Blender's tool buttons never there; Blender's sidebar tabs hidden as far as possible (screenshots of both widths)
-- [ ] Render this view: same picture as Render image from a camera at the same place (test), no camera or scene
+- [x] Render this view: same picture as Render image from a camera at the same place (test), no camera or scene
       setting left changed (test), error and cancel leave nothing behind (test)
-- [ ] Tests added/updated; full suite passes
-- [ ] (UI) screenshots checked with tools/ui_screens.py
-- [ ] (tour or functions changed) version fields: `since=` on new entries / stops, `changed=` raised on a changed tour
+- [x] Tests added/updated; full suite passes
+- [x] (UI) screenshots checked with tools/ui_screens.py
+- [x] (tour or functions changed) version fields: `since=` on new entries / stops, `changed=` raised on a changed tour
       set (`python3 tools/tour_versions.py --record`; the precheck says what to write)
-- [ ] Owner's test steps (numbered, click by click) in the report; merged, version, release
+- [x] Owner's test steps (numbered, click by click) in the report; merged, version, release
 
 ## Not in this task
 
