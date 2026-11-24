@@ -237,7 +237,7 @@ def heat_material(look: dict):
     if finish == "PAINTED":
         cover = 0.0                                        # the paint covers the zone: only worn toes show
     elif finish == "GROUND":
-        cover = b.map(fw, 0.35, 0.6, 0.85, 0.0, x=-1100, y=300)
+        cover = b.map(fw, 0.55, 0.85, 0.9, 0.0, x=-1100, y=300)
         color = (0.62, 0.62, 0.63, 1.0) if metal == "STEEL" else (0.75, 0.75, 0.76, 1.0)
         rough = 0.3
     elif look["tint"]:

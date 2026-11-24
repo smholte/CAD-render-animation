@@ -16,7 +16,7 @@ and a picked face of side B meet with air between them – the corner a welder f
    edge to edge, flush). This decides one-sided, both sides, lap, T, butt, tube in a hole and saddle the same way, and
    leaves out the inside of the joint (the faces in contact).
 3. *Seams*: neighbouring samples with the same kind of corner are chained across edges (a hole's rim of 32 edges is one
-   closed seam, an **all-round** weld); a sharp turn (> 35°) starts a new seam. A seam found twice (from each part's
+   closed seam, an **all-round** weld); a sharp turn (> 50°) starts a new seam, its ends joined to the next by a mitre (a square post welded round). A seam found twice (from each part's
    edge, or as an edge and a crossing) is kept once.
 
 **The bead** (``bead``): at every point of a seam a ring across the corner – from the toe on A to the toe on B, bulging
@@ -848,7 +848,8 @@ def _ring(c: Corner, look: Look, kind: str, scale: float = 1.0, dip: float = 0.0
     # the bulge square to the chord, into the air
     out = unit(out - chord * float(out @ chord) / max(float(chord @ chord), 1e-18))
     if kind == "BUTT":
-        crown = 0.12 * look.size if look.finish != "GROUND" else 0.00003
+        # ground flush: the cap's middle just over the plates (the toes are tucked in by TUCK)
+        crown = 0.12 * look.size if look.finish != "GROUND" else TUCK + 0.00004
         h = crown
     else:
         h = (0.12 * look.size + 0.0003) if look.finish != "GROUND" else -0.04 * look.size
@@ -1001,6 +1002,10 @@ def bead(seam: Seam, look: Look, surface_a: Side | None = None, surface_b: Side 
 
 def _bead_piece(pp, pc, look, kind, closed, s0, verts, faces, uvs, mats, taper=(True, True)):
     k = look.across
+    cap = [False, False]
+    if kind == "BUTT":                     # a butt weld ends square with its plates (run-off cut away): a flat end
+        cap = [taper[0], taper[1]]
+        taper = (False, False)
     u = s0 + _arc_len(pp, False)
     rings, us = [], []
     if not closed and taper[0]:                               # the start: a taper (and a crater) before the first point
@@ -1037,6 +1042,14 @@ def _bead_piece(pp, pc, look, kind, closed, s0, verts, faces, uvs, mats, taper=(
             faces.append((a, b, c, d))
             uvs.extend([(us[i], vs[q]), (us[i], vs[q + 1]), (uj, vs[q + 1]), (uj, vs[q])])
             mats.append(0)
+    for e, on in enumerate(cap):
+        if not on or closed:
+            continue
+        r = 0 if e == 0 else nr - 1
+        ring = [base + r * k + q for q in range(k)]
+        faces.append(tuple(ring if e == 0 else ring[::-1]))
+        uvs.extend([(us[r], vs[q]) for q in (range(k) if e == 0 else range(k - 1, -1, -1))])
+        mats.append(0)
 
 
 def _project(side: Side, pts: np.ndarray, lift: float):
@@ -1056,10 +1069,11 @@ def _heat_rows(pts, cs, look, kind, which, side):
     for c in cs:
         za, zb = legs(c, look, kind)
         root = 0.5 * (c.oa + c.ob)
+        start = 0.0 if look.finish == "GROUND" else 0.92       # ground flush: the brushed band runs under the cap
         if which == "A":
-            toe, d, n, st = root + c.da * za * 0.92, c.da, c.na, c.sa
+            toe, d, n, st = root + c.da * za * start, c.da, c.na, c.sa
         else:
-            toe, d, n, st = root + c.db * zb * 0.92, c.db, c.nb, c.sb
+            toe, d, n, st = root + c.db * zb * start, c.db, c.nb, c.sb
         rows.append([toe + d * (look.heat * st * f) + n * LIFT for f in HEAT_COLS])
     rows = np.array(rows)
     flat, _d = _project(side, rows.reshape(-1, 3), LIFT)
