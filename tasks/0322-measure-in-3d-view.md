@@ -42,9 +42,9 @@ page: open **Measure** in the top bar or press a key, click, read the value.
 
 ## Done when
 
-- [ ] Menu + key; all six kinds; snapping as above; Units (tests with known shapes)
-- [ ] Labels kept / cleared / saved; not in renders by default; Client view works
-- [ ] Tests added/updated; full suite passes; screenshots checked; version fields; owner's test steps; merged, release
+- [x] Menu + key; all six kinds; snapping as above; Units (tests with known shapes)
+- [x] Labels kept / cleared / saved; not in renders by default; Client view works
+- [x] Tests added/updated; full suite passes; screenshots checked; version fields; owner's test steps; merged, release
 
 ## Not in this task
 
@@ -54,10 +54,56 @@ The 3D page's tool, 2D drawings, weld symbols (0320), the Keys tab (0295).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 24 Nov 2026 (branch `ccr-b4de08d0-he2cht`, the web session's branch).
 
-**What changed:**
+**What changed** (0.2.238):
 
-**Tested and measured** (name the machine and the model):
+- **Top bar > Measure ▾** (right of Lead motions, every workspace and the Client view; `ui_measure.py`): a big
+  **Measure** (result by what you click = the 3D page's `measure(a, b, 'faces')`) and the six kinds Distance (+ X / Y /
+  Z), Edge length, Face to face, Angle (two faces / edges, or three points), Radius / diameter, Point to axis; the list
+  of measurements (eye, Copy, Remove), Clear all, Units mm / m / inch, Show measurements, Keep measurements, Show in
+  renders, Label size.
+- **Keys** (`lock.APP_KEYS`, so 0295 lists them): **M** outside Full access – Blender's M ("move to collection") was
+  swallowed there already, its entry left `BLENDER_KEYS`; **Alt+M** everywhere (nothing on Alt+M in Blender's Object
+  Mode, 3D View, Screen or Window keymaps – checked in the real app's default keymap). Both start the kind last picked.
+- **The tool** (`ops_measure.py`, modal in the main 3D view, also when started from the top bar): hovered face lit,
+  snapped point as a dot, snapped edge as a line, what the click takes + the value the last click will give next to
+  the mouse; red reason for a click that does not fit; a click on a label copies its value; Esc / right mouse drops
+  unfinished clicks, a second Esc leaves.
+- **Snapping** (`measure.py`, `core/measure.py`): per mesh the CAD faces and edges of `core/web3d_faces.py`
+  (`classify` + `edges`, the page's data – one behaviour), worked out once (23 ms for the crane's base); candidates of
+  the hovered face: corners, edge / arc middles, face centre (flat: area middle; round: axis middle), round-edge
+  centres, edges, the face. Points within 14 px, else edges within 9 px, else the face; Shift = none.
+- **Through a slice**: a hit on the side a cut takes away goes on to the cut face; if that point lies inside the part
+  (the next hit is a back face of it) the click takes the cut face (flat, normal to the viewer). Welds, the floor and
+  the surroundings are looked through.
+- **Measurements** (`scene.fresing_measure`, own property group like the welds – `props.py` untouched): picks in the
+  clicked part's coordinates, so values follow moves, joints and animations. Saved with the project; Keep off or the
+  Client view: left out at save (`save_pre` / `save_post`). Drawn by two 3D-view draw handlers (never in a render);
+  **Show in renders**: a tube for the lines and a white-on-dark label per measurement facing the camera, pulled to 20 %
+  of their distance towards the camera (same spot on the picture, nothing hides them), moved apart like the view's
+  labels, updated at every frame change.
+- Function `view.measure` (all workspaces incl. Reviewer – via its own `workspaces=`, so 0321 can add Welding), guide
+  section **Measure in the 3D view** + picture, tour set + stop **measure**, PC-check line **view.measure**.
+
+**Tested and measured** (web machine, 4 cores, no graphics card):
+
+- `tests/test_measure.py` (11 tests): the Python maths against `fr_measure.js` in node, 15 pairs + 4 singles, equal
+  to 1e-12; units, words, kinds, snapping order; on the test crane's base (5000 x 3000 x 500, Ø33 holes 4500 apart):
+  500.00 / Ø 33.00 / 4500.00 mm, Shift, point to axis, edge; a moved and turned base keeps 4500.00; saved file has 1,
+  with Keep off 0; Client view never saves; through a slice 1500.00 mm to the back face, cut off = the front face
+  again; units / Copy / Remove / Clear all; render objects only when ticked; keys and top bar.
+- Real app `tools/ui_test_measure.py` (group callouts, 16/16, 35 s): M over the view starts it, two clicks = 90.00°,
+  the label is drawn and a click on it copies "90.00°", Edge length from the top bar = the face data's length, one click
+  opens the drop-down, the Client view measures with M, Full access: M is Blender's, Alt+M measures. Screenshots
+  checked (view with labels, the drop-down; a Cycles render of the tour set with Show in renders).
+- Tour set `measure` builds in 2–4 s, its check passes after save and reopen. PC check `view.measure`: OK, a mouse
+  move 0.8 ms (face data cached).
+- GitHub: see the last commit of this report for the run.
 
 **Open points / follow-up tasks:**
+
+- The labels in renders turn with the camera (Track To), so a camera with roll tilts them; a rolled camera is rare.
+- Angle between two flat faces is the angle between their planes (0–90°, "(or 180 − x)" added), as the page.
+- A mesh model (glTF / OBJ) has no CAD faces: it measures between points only (as the page).
+- No independent review agent ran (no Windows-only code; usage saved) – the 3D page's own maths is the reference.
