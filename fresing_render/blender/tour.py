@@ -1274,7 +1274,7 @@ def finishes_demo(scene) -> dict:
     return groups
 
 
-@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.227")
+@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.228")
 def build_finishes(b: Build):
     """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front."""
     sc = b.scene
@@ -4647,7 +4647,7 @@ stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains",
      "the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, leather cushions. Look in rendered view "
      "and zoom in: the patterns show up close and fade calmly further away.",
      where="3 Looks: a group's Material (Metal, Plastic & rubber, Paint …) and its own settings under it (Pitch, "
-           "Angle, Metal, Kind …)", since="0.2.227", check=_check_finishes)
+           "Angle, Metal, Kind …)", since="0.2.228", check=_check_finishes)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
@@ -5017,6 +5017,71 @@ stop("remove", MOTION, "place", "Remove: the trolley is gone",
      "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
      where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: crane moved and "
      "turned", select=("TEST.CRANE",), check=_check_remove)
+
+# ---------------------------------------------------------------------------
+# task 0293: Copy and paste with joints and mechanisms
+# ---------------------------------------------------------------------------
+
+@tour_set("copy", "Copy and paste", "test_crane_a.step", added="0.2.227", changed="0.2.227")
+def build_copy(b: Build):
+    """The crane with the crane lesson's joints, cylinder and animation, copied with Copy / Paste: a second crane
+    beside it with its own joints "Boom (2)" and "Trolley (2)" and its own cylinder; the copy's boom is up 25°, the
+    original's at its CAD place, so the two show they move by themselves."""
+    import math
+
+    from . import animation, copy, joints, lesson, ops_place
+    sc = b.scene
+    lesson.run(sc, "crane")
+    animation.clear_keys(sc)
+    _studio(b)
+    p = copy.paste(sc, [_ob(sc, "TEST.CRANE")])
+    ops_place.set_lock(_ob(sc, "TEST.CRANE (2)"), False)            # as Paste leaves it: ready for Place
+    joints.set_value(joints.find(sc, "Boom (2)"), math.radians(25.0))
+    copy.LAST.clear()
+    copy.LAST.update(p)
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@copy")
+
+
+def _copy_setup(scene):
+    from . import panels
+    try:
+        panels.open_to("FRESING_PT_place")
+    except Exception:  # noqa: BLE001 - the stop still opens
+        pass
+
+
+def _check_copy(scene):
+    import math
+
+    from . import build, copy, cylinders, joints
+    s = scene.fresing
+    roots = {r.get(build.PROP_NAME): r for r in build.model_roots(scene)}
+    _check(set(roots) == {"TEST.CRANE", "TEST.CRANE (2)"}, f"the models are {sorted(roots)}, not the crane and its copy")
+    names = [j.name for j in s.joints]
+    _check(names == ["Boom", "Trolley", "Boom (2)", "Trolley (2)"], f"the joints are {names}")
+    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 2
+           and all(cylinders.is_valid(c) for c in s.cylinders), "a joint or cylinder of the copy is broken")
+    a, c = roots["TEST.CRANE"], roots["TEST.CRANE (2)"]
+    boom = [o for o in build.iter_parts(scene) if o.get(build.PROP_NAME) == "BOOM"]
+    _check(len(boom) == 2 and boom[0].data is boom[1].data, "the copy's boom does not share its shape")
+    up = math.degrees(joints.get_value(joints.find(scene, "Boom (2)")))
+    _check(abs(up - 25.0) < 0.05 and abs(joints.get_value(joints.find(scene, "Boom"))) < 1e-6,
+           f"the copy's boom is at {up:.1f}°, not 25° (the original's at 0°)")
+    dx = c.matrix_world.translation.x - a.matrix_world.translation.x
+    _check(dx > 1.0, f"the copy stands {dx * 1000:.0f} mm from the crane, not beside it")
+    _check(c.get(copy.GROUP) and c.get(copy.GROUP) == a.get(copy.GROUP), "the copy is not in the crane's copy group")
+    return f"2 cranes {dx * 1000:.0f} mm apart, joints {names}, copy's boom {up:.0f}°"
+
+
+stop("copy", MOTION, "copy", "Copy: crane and its own joints",
+     "Two cranes side by side: the right one is a copy made with Copy and Paste (right-click > Copy, then Paste or "
+     "Ctrl+V). It has its own joints 'Boom (2)' and 'Trolley (2)' and its own cylinder 'Luffing cylinder (2)' (4 "
+     "Motion): its boom is up 25°, the original's is down – they move by themselves. 2 Structure shows two models, "
+     "'TEST.CRANE' and 'TEST.CRANE (2)'. Its parts share their shapes with the original.",
+     where=places.where("FRESING_PT_place") + " > Copy / Paste", since="0.2.227", select=("TEST.CRANE (2)",),
+     check=_check_copy, setup=_copy_setup)
 
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.227 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
+## 0.2.228 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
 
 - **23 new finishes** in 3 Looks (pick one as a group's **Material**): **Knurled, diamond** and **straight**
   (knobs, handles), **Rubber, moulded grip pattern**, **Spun metal** (rings round the centre of caps and discs),
@@ -29,6 +29,20 @@ installer of that version was built from.
   perforated, expanded, hammertone, spangle …) as a texture.
 - Test tour: a new stop **Finishes** (a board of 23 samples and a headphone-like set). PC check: a new line
   **Finishes**. User guide: 3 Looks > Finishes, with a picture of all 23.
+
+## 0.2.227 – 24 Nov 2026 – Copy and paste with joints (task 0293)
+
+- **Copy and paste a model, a subassembly or parts – with its joints and mechanisms.** Select it and click **Copy**
+  (2 Structure > Place, the right-click menu, or **Ctrl+C**), then **Paste** (or **Ctrl+V**): a second one stands
+  beside the original. Right-click a spot and **Paste here** to put it there. The copy comes with its joints (and the
+  pose they are in), cylinders, mechanisms, way covers, hoses and drag chains, labels and logos, and **Move / turn**
+  opens for it at once. Names count up: "Crane (2)", "Boom (2)" … The parts share their shapes with the original, so
+  the project hardly grows. **Ctrl+Z** takes the copy away.
+- **What reaches outside the copy is left out**, so the copy always moves by itself: a joint that also moves other
+  parts, a cylinder or hose with an end outside, a coupling to a joint outside. The Move / turn window says what was
+  left out. Cables, drums and tracks are not copied yet: add them on the copy.
+- **Model updates:** a copy of a whole model is updated together with the original (and the other way round), each
+  keeping its own place and work. A copy of a subassembly or parts is a model of its own and stays as it is.
 
 ## 0.2.226 – 24 Nov 2026 – Essentials as the start, workspaces for one job, favourite workspaces on top (task 0294)
 
