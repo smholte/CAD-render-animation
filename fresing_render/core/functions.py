@@ -316,11 +316,11 @@ fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simpl
    pccheck=("motion.drawn",), since="0.2.180")
 fn(id="flex.avoid", title="Hoses and cables avoid other parts: they lie on them instead of going through",
    family="machines", panel="FRESING_PT_flex", prop="avoid", text="Avoid other parts", guide="flex-avoid",
-   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.221",
+   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.222",
    manual_estimate=("use", 1800, "reshape the hose by hand at every key frame where it would go through a part"))
 fn(id="flex.route", title="Shape a hose's route: drag via points between its ends", family="machines",
    panel="FRESING_PT_flex", button="fresing.flex_route", text="Shape the route", guide="flex-route",
-   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.221")
+   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.222")
 fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
    panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
    pccheck=("motion.flex_kinds",), since="0.2.182")
@@ -669,6 +669,10 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="export-places", tour=("locations",),
    pccheck=("settings.locations",), since="0.2.210")
 
+fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
+   "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
+   "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.221")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")

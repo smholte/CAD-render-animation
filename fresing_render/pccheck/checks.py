@@ -173,6 +173,18 @@ def gpu_device(ctx):
     return ctx.gpu
 
 
+@line("pc.gpu", "Graphics card used: window and renders", "0.2.221", (Q, F),
+      what="The graphics card draws the window and renders – not the processor's built-in graphics (task 0296)")
+def pc_gpu(ctx):
+    from ..blender import gpu_choice
+    from .runner import NO_GPU_TEXT, no_gpu_expected
+    status, text = gpu_choice.check(no_gpu_expected())
+    if status == "skip":
+        raise Skipped(f"skipped: {NO_GPU_TEXT}")
+    _check(status == "ok", text)
+    return text
+
+
 # ---------------------------------------------------------------------------
 # import and sorting
 # ---------------------------------------------------------------------------
@@ -1129,7 +1141,7 @@ def motion_drawn(ctx):
             "cable route: 6 contacts, 5 turning")
 
 
-@line("motion.flex_avoid", "A hose avoids other parts; a route shaped by a via point", "0.2.221",
+@line("motion.flex_avoid", "A hose avoids other parts; a route shaped by a via point", "0.2.222",
       what="Task 0298: on the avoid model (a block in a Ø20 hose's way, a lift that goes 400 mm down) the hose with "
            "'Avoid other parts' on stays out of the block at five lift heights (without it, it sags 85 mm into it), "
            "and in a built animation at every frame. Then a via point is set beside the block: the hose runs through "
