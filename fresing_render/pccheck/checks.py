@@ -926,6 +926,31 @@ def joints_stack(ctx):
     return "boom 30° + trolley 1000 mm"
 
 
+@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.224",
+      what="Clicking the boom's joint in 4 Motion > Joints lights up the boom, the trolley riding on it lighter")
+def joints_show(ctx):
+    from mathutils import Vector
+
+    from ..blender import joint_show, joints
+    scene = ctx.fresh(CRANE_A)
+    jb = _boom_joint(scene)
+    boom = jb.name
+    trolley_ob = _ob(scene, "TROLLEY.ASM")
+    joints.create(scene, "SLIDE", [trolley_ob], trolley_ob.matrix_world.translation.copy(), Vector((1, 0, 0)),
+                  base=_ob(scene, "BOOM.ASM"), name="Trolley")
+    s = scene.fresing
+    names = [j.name for j in s.joints]
+    s.joints_index = names.index(boom)                  # as a click on the list row
+    shown = joint_show.active()
+    joint_show.clear()
+    trolley = {o.name for o in _ob(scene, "TROLLEY.ASM").children_recursive if o.type == "MESH"}
+    _check(shown["name"] == boom and shown["main"], f"nothing shown for '{boom}': {shown}")
+    _check(trolley and trolley <= set(shown["riders"]) and not trolley & set(shown["main"]),
+           "the trolley riding on the boom is not shown in the lighter shade")
+    _check(not [o for o in scene.objects if o.select_get()], "showing a joint selected parts")
+    return f"{len(shown['main'])} parts lit, {len(shown['riders'])} riding on it"
+
+
 @line("joints.cylinder", "Cylinder: follows the arm, the stroke drives it", "0.2.25",
       what="The luffer's arm turns: the cylinder's rod eye stays on its pin; a set stroke turns the arm to the "
            "angle of the triangle pivot – barrel pin – rod pin")
@@ -2807,7 +2832,7 @@ def _weather_preset_still(ctx, preset, key, title, background="QUAY", low=False)
     return scene, info
 
 
-@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.224",
+@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.225",
       what="Change to Thunderstorm over 2 s at the playhead (5 Scene & Render > Weather & time) on the open sea: the "
            "Build keys the storm coming and lightning flashes only once it is there; the frame of the first flash is "
            "rendered small (processor, draft) – the scene lit up, a bolt in the sky")
@@ -2843,7 +2868,7 @@ def weather_thunderstorm(ctx):
     return f"{len(flashes)} frames with a flash, first at frame {flashes[0]}; rendered in {info['seconds']} s"
 
 
-@line("weather.mist", "Weather: fog and sea mist", "0.2.224",
+@line("weather.mist", "Weather: fog and sea mist", "0.2.225",
       what="The preset Fog / sea mist on the open sea: mist lies on the water (thick low down, thin higher up) and the "
            "far sea is gone. Rendered small (processor, draft)")
 def weather_mist(ctx):
@@ -2853,7 +2878,7 @@ def weather_mist(ctx):
     return f"mist {_wx(scene, 'mist'):.0f} per km at the water; rendered in {info['seconds']} s"
 
 
-@line("weather.sunrise", "Weather: sunrise", "0.2.224",
+@line("weather.sunrise", "Weather: sunrise", "0.2.225",
       what="The preset Sunrise on the quay: the sun just up (0–8°) in the morning, golden low light, long shadows; "
            "no floodlights. Rendered small (processor, draft)")
 def weather_sunrise(ctx):
@@ -2864,7 +2889,7 @@ def weather_sunrise(ctx):
     return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
 
 
-@line("weather.sunset", "Weather: sunset", "0.2.224",
+@line("weather.sunset", "Weather: sunset", "0.2.225",
       what="The preset Sunset on the quay: the sun low (0–8°) in the evening, orange light on the crane. Rendered small "
            "(processor, draft)")
 def weather_sunset(ctx):
@@ -2874,7 +2899,7 @@ def weather_sunset(ctx):
     return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
 
 
-@line("weather.hail", "Weather: hail and sleet", "0.2.224",
+@line("weather.hail", "Weather: hail and sleet", "0.2.225",
       what="The preset Hail / sleet on the quay: hail and sleet fall, stones bounce on the quay and the crane's top "
            "faces, everything wet. Rendered small (processor, draft)")
 def weather_hail(ctx):
@@ -2884,7 +2909,7 @@ def weather_hail(ctx):
     return f"rendered in {info['seconds']} s"
 
 
-@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.224",
+@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.225",
       what="The preset Hot and calm on the open sea: bright haze, heat shimmer over the distance (the compositor moves "
            "the far picture a few pixels). Rendered small (processor, draft)")
 def weather_heat(ctx):

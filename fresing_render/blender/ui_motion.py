@@ -10,7 +10,7 @@ import math
 
 import bpy
 
-from . import animation, build, cylinders, joints, linkages, paths, queue
+from . import animation, build, cylinders, joint_show, joints, linkages, paths, queue
 from ..core.words import plural
 from .ui import (BIG, MEDIUM, _has_model, _Panel, big, big_row, fold, gap, header_status, hint, list_rows, missing,
                  primary, split_props, steps, use_button, where, wrap)
@@ -39,6 +39,23 @@ def _value_row(layout, j, label: str):
         return row
     layout.prop(j.motion, f'["{joints.VALUE}"]', text=label)
     return layout
+
+
+def limits_note(row, beyond: bool, text: str = "Beyond limits",
+                why: str = "Beyond its limits now: the joint it follows has taken it past them. Check the ratio, "
+                            "or the limits", keep: bool = True) -> None:
+    """Task 0290: a short red "⚠ Beyond limits" on the value row (the longer text as its tooltip): never a line of
+    its own, so nothing under the row moves while the user drags. ``keep``: its room is kept when all is well too
+    (off for a row of text that needs the width: the row stays one row either way)."""
+    if not (beyond or keep):
+        return
+    sub = row.row(align=True)
+    sub.alert = True
+    sub.ui_units_x = 7.6                     # "⚠ Beyond stroke" whole at the default side-panel width
+    if beyond:
+        sub.operator("fresing.limits_note", text=text, icon="ERROR", emboss=False).why = why
+    else:
+        sub.label(text="")
 
 
 def joint_icon(j) -> str:
@@ -107,14 +124,33 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        from .ops_motion import selected_movers
         if animation.has_keys(scene):                 # a state, not a fault: a box, no red
             box = layout.box()
             wrap(box, context, f"Animation '{s.anim_baked}' is built: the joints follow it.", icon="RENDER_ANIMATION",
                  inset=12)
             box.operator("fresing.anim_clear", text="Stop it to move joints by hand", icon="CANCEL")
             gap(layout)
+        big(layout, "fresing.pose_reset", "Everything back to CAD position", "LOOP_BACK")
 
+
+class FRESING_PT_joints(_Panel, bpy.types.Panel):
+    """Task 0290: adding and setting joints in a fold of its own, like the other functions of 4 Motion."""
+    bl_label = "Joints"
+    bl_parent_id = "FRESING_PT_motion"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw_header(self, context):
+        self.layout.label(icon="CON_ROTLIKE")
+
+    def draw_header_preset(self, context):
+        n = len(context.scene.fresing.joints)
+        header_status(self.layout, plural(n, "joint") if n else "none")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        s = scene.fresing
+        from .ops_motion import selected_movers
         # -- adding a joint: what moves, then the button, then a click on the pivot
         steps(layout, context, ["Click what should move (subassembly or part)",
                                 "Add rotate joint or Add slide joint",
@@ -139,8 +175,6 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
 
         if s.joints:
             _draw_joints(context, layout, s)
-        gap(layout)
-        big(layout, "fresing.pose_reset", "Everything back to CAD position", "LOOP_BACK")
 
 
 def _draw_joints(context, layout, s):
@@ -163,7 +197,12 @@ def _draw_joints(context, layout, s):
     elif j is not None:
         scene = context.scene
         box = layout.box()
-        box.label(text=j.name, icon=joint_icon(j))
+        row = box.row()
+        row.label(text=j.name, icon=joint_icon(j))
+        hidden = joint_show.hidden_count(scene, j)
+        sub = row.row()
+        sub.alignment = "RIGHT"
+        sub.label(text=f"{plural(hidden, 'part')} hidden" if hidden else "")
         below = joints.rides_on(scene, j)
         if below is not None:
             # in a stack: the order matters for rotations, so it is shown with the swap right under it
@@ -180,13 +219,13 @@ def _draw_joints(context, layout, s):
         row = box.row(align=True)
         row.scale_y = BIG
         _value_row(row, j, "Angle" if j.kind == "ROTATE" else "Distance")
+        if j.follows:
+            # the panel stays still (owner 23 Nov 2026): the warning sits on the value row, never on a line of its own
+            beyond = j.use_limits and joints.outside_limits(j, joints.get_value(j))
+            limits_note(row, beyond)
         if joints.is_motor(j):
             box.label(text=f"= {joints.get_value(j) / joints.TURN:.2f} turns", icon="FORCE_VORTEX")
-        if j.follows:
-            if j.use_limits and joints.outside_limits(j, joints.get_value(j)):
-                wrap(box, context, "Beyond its limits now: check the ratio, or the limits", icon="ERROR",
-                     alert=True, inset=12)
-        else:
+        if not j.follows:
             row = box.row(align=True)
             for t, label in (("ZERO", "CAD (0)"), ("MIN", "Min"), ("MAX", "Max")):
                 sub = row.row(align=True)
@@ -298,6 +337,54 @@ def _mm(v: float) -> str:
     return f"{v * 1000.0:,.0f} mm"
 
 
+def _op(layout, spec, **kw):
+    idname, props = spec
+    op = layout.operator(idname, **kw)
+    for k, v in props.items():
+        setattr(op, k, v)
+    return op
+
+
+def pick_item(layout, context, text: str, objs: list, add, drop, clear=None, keep_one: bool = False,
+              empty: str = "not picked yet") -> None:
+    """Task 0290: one item of a cylinder (barrel, rod, stages) with several picks: a title row with Add selected
+    (and Clear), then one short row per pick with × to drop it. ``add`` / ``drop`` / ``clear``: (operator id,
+    {property: value}); ``drop`` gets ``index``. ``keep_one``: the last pick has no × (a barrel needs a part)."""
+    row = layout.row(align=True)
+    sub = row.row()
+    sub.ui_units_x = 3.4
+    sub.label(text=text)
+    _op(row, add, text="Add selected", icon="ADD")
+    if clear is not None:
+        sub = row.row(align=True)
+        sub.enabled = bool(objs)
+        _op(sub, clear, text="", icon="TRASH")
+    if not objs:
+        r = layout.row()
+        r.separator(factor=2.0)
+        r.label(text=empty, icon="BLANK1")
+        return
+    col = layout.column(align=True)
+    for i, ob in enumerate(objs):
+        r = col.row(align=True)
+        r.separator(factor=2.0)
+        r.label(text=ob.get(build.PROP_NAME, ob.name), icon="CHECKMARK")
+        if keep_one and len(objs) == 1:
+            r.label(text="", icon="BLANK1")
+        else:
+            _op(r, drop, text="", icon="X", emboss=False).index = i
+
+
+def draw_cyl_picks(layout, context) -> None:
+    """The barrel and the rod Add cylinder will use, each one or several picks (also in the Set-up window)."""
+    s = context.scene.fresing
+    for role, coll, text in (("BARREL", s.cyl_pick_barrel, "Barrel"), ("ROD", s.cyl_pick_rod, "Rod")):
+        pick_item(layout, context, text, [r.obj for r in coll if r.obj is not None],
+                  ("fresing.cylinder_pick_parts", {"role": role}),
+                  ("fresing.cylinder_pick_parts", {"role": role, "action": "DROP"}),
+                  ("fresing.cylinder_pick_parts", {"role": role, "action": "CLEAR"}))
+
+
 class FRESING_UL_cylinders(bpy.types.UIList):
     """Cylinders, with how far each rod is out now."""
 
@@ -331,19 +418,13 @@ class FRESING_PT_cylinders(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        steps(layout, context, [f"Click the barrel (in the view or {where('structure')}), press Barrel",
-                                "Click the rod, press Rod",
+        steps(layout, context, [f"Click the barrel (in the view or {where('structure')}; Shift+click for several), "
+                                "press Add selected under Barrel",
+                                "Click the rod (one part or several), press Add selected under Rod",
                                 "Add cylinder, then click the barrel's pin and the rod's pin"],
               key="fr_how_cylinders", used=bool(s.cylinders))
         gap(layout)
-        for role, coll, text in (("BARREL", s.cyl_pick_barrel, "Barrel"), ("ROD", s.cyl_pick_rod, "Rod")):
-            row = layout.row(align=True)
-            sub = row.row(align=True)
-            sub.ui_units_x = 3.6
-            sub.operator("fresing.cylinder_pick_parts", text=text, icon="RESTRICT_SELECT_OFF").role = role
-            picked = [r.obj for r in coll if r.obj is not None]
-            wrap(row, context, _names(picked) if picked else "not picked yet",
-                 icon="CHECKMARK" if picked else "BLANK1", inset=95)
+        draw_cyl_picks(layout, context)
         gap(layout)
         big(layout, "fresing.cylinder_add", "Add cylinder (then click the 2 pins)", "CON_STRETCHTO")
 
@@ -377,23 +458,26 @@ def _draw_cylinder(context, layout, scene, cyl) -> None:
     gap(box, size=0.5)
     j, reason = cylinders.arm_joint(scene, cyl)
     stroke = cylinders.stroke_now(scene, cyl)
+    # the panel stays still (task 0290): "beyond its stroke" sits on the stroke row, never on a line of its own
+    beyond = cylinders.outside_stroke(cyl, stroke)
+    why = "The rod is out further than its stroke allows (or in further): check the arm's limits, or the lengths below"
     if cyl.mode == "DRIVE" and j is not None:
         row = box.row(align=True)
         row.scale_y = BIG
         row.prop(cyl, "stroke", text="Stroke")
+        limits_note(row, beyond, "Beyond stroke", why)
         row = box.row(align=True)
         for t, text in (("IN", "Fully in"), ("CAD", "CAD"), ("OUT", "Fully out")):
             row.operator("fresing.cylinder_stroke", text=text).target = t
         wrap(box, context, f"Turns '{j.name}' to match" if j.kind == "ROTATE" else f"Slides '{j.name}' to match",
              icon="LINKED", inset=12)
     else:
-        wrap(box, context, f"Stroke now: {_mm(stroke)} (of {_mm(cyl.full_stroke)})", icon="CON_LOCKTRACK", inset=12)
+        row = box.row(align=True)
+        row.label(text=f"Stroke {_mm(stroke)} of {_mm(cyl.full_stroke)}", icon="CON_LOCKTRACK")
+        limits_note(row, beyond, "Beyond stroke", why, keep=False)
         if cyl.mode == "DRIVE" or j is None:
             wrap(box, context, reason, icon="ERROR" if cyl.mode == "DRIVE" else "INFO", alert=cyl.mode == "DRIVE",
                  inset=12)
-    if cylinders.outside_stroke(cyl, stroke):
-        wrap(box, context, "The rod is out further than its stroke allows (or in further): check the arm's "
-                           "limits, or the lengths below", icon="ERROR", alert=True, inset=12)
     gap(box, size=0.5)
     col = split_props(box)
     col.prop(cyl, "closed_length", text="Closed length")
@@ -407,16 +491,14 @@ def _draw_cylinder(context, layout, scene, cyl) -> None:
 
     body = fold(layout, "fr_cylinder_setup", "Set-up: parts and pins", icon="PREFERENCES")
     if body:
-        for action, text, objs in (("BARREL", "Barrel", cylinders.barrel_objs(cyl)),
-                                   ("ROD", "Rod", cylinders.rod_objs(cyl)),
-                                   ("STAGES", "Stages", cylinders.stage_objs(cyl))):
-            row = body.row()
-            sub = row.row(align=True)
-            sub.ui_units_x = 5.4                      # room for "Barrel pin" below: the five buttons line up
-            sub.operator("fresing.cylinder_parts", text=text, icon="RESTRICT_SELECT_OFF").action = action
-            wrap(row, context, _names(objs) if objs else "none", inset=135)
-        if cyl.stages:
-            body.operator("fresing.cylinder_parts", text="No stages", icon="X").action = "NO_STAGES"
+        for role, text, objs in (("BARREL", "Barrel", cylinders.barrel_objs(cyl)),
+                                 ("ROD", "Rod", cylinders.rod_objs(cyl)),
+                                 ("STAGES", "Stages", cylinders.stage_objs(cyl))):
+            pick_item(body, context, text, objs, ("fresing.cylinder_parts", {"action": role}),
+                      ("fresing.cylinder_parts", {"action": "DROP", "role": role}),
+                      ("fresing.cylinder_parts", {"action": "NO_STAGES"}) if role == "STAGES" else None,
+                      keep_one=role != "STAGES", empty="none")
+        gap(body, size=0.5)
         for action, text, ob in (("BARREL_PIN", "Barrel pin", cyl.frame.parent), ("ROD_PIN", "Rod pin", cyl.pin.parent)):
             row = body.row()
             sub = row.row(align=True)
@@ -1019,7 +1101,7 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                         turns = animation.motor_total(j, b) / joints.TURN
                         text = f"{turns:.2f} turns in this step"
                         if not joints.is_motor(j) and abs(turns) > 0.5:
-                            text += f". Tick 'Motor' on the joint in {where('motion')} so it can turn without end"
+                            text += f". Tick 'Motor' on the joint in {where('joints')} so it can turn without end"
                     elif paths.is_cable_joint(scene, j):       # a cable's speed is given in m/min (task 0078)
                         sub.prop(b, "speed_mmin", text="Speed (m/min)")
                         text = f"{animation.motor_total(j, b):.2f} m of cable in this step"
@@ -1335,6 +1417,6 @@ class FRESING_PT_queue(_Panel, bpy.types.Panel):
 
 CLASSES = (
     FRESING_UL_joints, FRESING_UL_cylinders, FRESING_UL_poses, FRESING_UL_shots, FRESING_UL_anims, FRESING_UL_blocks,
-    FRESING_UL_queue, FRESING_UL_mechanisms, FRESING_PT_motion, FRESING_PT_cylinders, FRESING_PT_mechanisms,
+    FRESING_UL_queue, FRESING_UL_mechanisms, FRESING_PT_motion, FRESING_PT_joints, FRESING_PT_cylinders, FRESING_PT_mechanisms,
     FRESING_PT_poses, FRESING_PT_shots, FRESING_PT_animation, FRESING_PT_queue,
 )

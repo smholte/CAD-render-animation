@@ -267,19 +267,23 @@ fn(id="looks.schemes", short="Paint schemes", title="Paint schemes & templates",
    button="fresing.scheme_save", guide="schemes", since="0.2.13")
 
 # ----- 4 Motion: joints, poses -----
-fn(id="joints.rotate", title="Rotate joint", family="motion", panel="FRESING_PT_motion",
+fn(id="joints.rotate", title="Rotate joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", tour=("joint",),
-   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0")
-fn(id="joints.slide", title="Slide joint", family="motion", panel="FRESING_PT_motion",
-   button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", lesson="mill:3", since="0.2.0")
-fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel="FRESING_PT_motion",
+   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.224")
+fn(id="joints.slide", title="Slide joint", family="motion", panel="FRESING_PT_joints",
+   button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", lesson="mill:3", since="0.2.0",
+   changed="0.2.224")
+fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", tour=("stack",),
-   pccheck=("joints.stack",), lesson="crane:4", since="0.2.10")
-fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_motion",
+   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.224")
+fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
-fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_motion",
-   button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18")
+fn(id="joints.cad_position", short="Back to CAD", title="Everything back to CAD position", family="motion", panel="FRESING_PT_motion",
+   button="fresing.pose_reset", guide="motion", since="0.2.5")
+fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_joints",
+   button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18",
+   changed="0.2.224")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
@@ -291,7 +295,7 @@ fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT
 fn(id="machines.cylinder", title="Cylinders", family="machines", panel="FRESING_PT_cylinders",
    button="fresing.cylinder_add", guide="cylinders", tour=("cylinder",), pccheck=("joints.cylinder",),
    since="0.2.25",
-   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"))
+   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.224")
 fn(id="machines.mechanism", title="Mechanisms: scissor lift, crank", family="machines",
    panel="FRESING_PT_mechanisms", button="fresing.mechanism_add", guide="mechanisms", tour=("mechanism",),
    pccheck=("joints.mechanism",), since="0.2.26")
@@ -441,23 +445,23 @@ fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT
 # task 0299: weather round 2
 fn(id="scene.weather_presets", short="Weather presets", title="Weather presets with pictures", family="scene",
    panel="FRESING_PT_weather", fold="fr_weather_presets", button="fresing.weather_preset", guide="weather-presets",
-   tour=("wx_sunrise", "wx_sunset"), pccheck=("weather.sunrise", "weather.sunset"), lesson="weather:3", since="0.2.224",
+   tour=("wx_sunrise", "wx_sunset"), pccheck=("weather.sunrise", "weather.sunset"), lesson="weather:3", since="0.2.225",
    workspaces=("offshore", "education"))
 fn(id="animation.weather_change", short="Change weather", title="Change the weather at the playhead",
    family="animation", panel="FRESING_PT_weather", button="fresing.weather_change", guide="weather-change",
-   tour=("wx_thunder",), pccheck=("weather.thunderstorm",), lesson="weather:4", since="0.2.224",
+   tour=("wx_thunder",), pccheck=("weather.thunderstorm",), lesson="weather:4", since="0.2.225",
    workspaces=("offshore", "education"))
 fn(id="scene.lightning", title="Thunderstorm and lightning", family="scene", panel="FRESING_PT_weather",
-   prop="lightning", guide="weather-lightning", tour=("wx_thunder",), pccheck=("weather.thunderstorm",), since="0.2.224",
+   prop="lightning", guide="weather-lightning", tour=("wx_thunder",), pccheck=("weather.thunderstorm",), since="0.2.225",
    workspaces=("offshore", "education"))
 fn(id="scene.sea_mist", title="Fog and sea mist", family="scene", panel="FRESING_PT_weather", prop="mist",
-   guide="weather-mist", tour=("wx_mist",), pccheck=("weather.mist",), since="0.2.224",
+   guide="weather-mist", tour=("wx_mist",), pccheck=("weather.mist",), since="0.2.225",
    workspaces=("offshore", "education"))
 fn(id="scene.hail", title="Hail and sleet", family="scene", panel="FRESING_PT_weather", prop="hail",
-   guide="weather-hail", tour=("wx_hail",), pccheck=("weather.hail",), since="0.2.224",
+   guide="weather-hail", tour=("wx_hail",), pccheck=("weather.hail",), since="0.2.225",
    workspaces=("offshore", "education"))
 fn(id="scene.heat", title="Hot and calm: heat haze", family="scene", panel="FRESING_PT_weather", prop="heat",
-   guide="weather-heat", tour=("wx_heat",), pccheck=("weather.heat",), since="0.2.224",
+   guide="weather-heat", tour=("wx_heat",), pccheck=("weather.heat",), since="0.2.225",
    workspaces=("offshore", "education"))
 fn(id="scene.start_scene_save", short="Save start scene", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
    button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125",

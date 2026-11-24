@@ -2398,6 +2398,17 @@ class FRCnc(bpy.types.PropertyGroup):
                     "tool out and puts the new one in. Off: the left hand stays down")
 
 
+def _joint_clicked(self, context):
+    """Task 0290: a joint clicked in the list shows its arrow and the parts it moves (joint_show.py)."""
+    from . import joint_show
+    joint_show.joint_clicked(self, context)
+
+
+def _mechanism_clicked(self, context):
+    from . import joint_show
+    joint_show.mechanism_clicked(self, context)
+
+
 def _show_joints_changed(self, context):
     """Show or hide the joints' arrows and the cylinders' pin markers. (Defined above the class that uses it:
     Blender reads the property definitions while this file is read, so a function further down is not
@@ -4743,7 +4754,10 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
     # ---- motion ----
     joints: CollectionProperty(type=FRJoint)
-    joints_index: IntProperty(default=0)
+    joints_index: IntProperty(name="Joint", default=0, update=_joint_clicked,
+                              description="Click a joint to see its settings below: its arrow shows in the view and "
+                                          "the parts it moves light up (a joint riding on it in a lighter shade). "
+                                          "Double-click to rename")
     show_joints: BoolProperty(name="Show joint axes", default=True, update=_show_joints_changed,
                               description="Shows or hides the joints' arrows and the cylinders' pin markers in the "
                                           "view. They never show in renders")
@@ -4752,7 +4766,10 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     cyl_pick_barrel: CollectionProperty(type=FRObjectRef)       # what Add cylinder will use
     cyl_pick_rod: CollectionProperty(type=FRObjectRef)
     mechanisms: CollectionProperty(type=FRMechanism)
-    mechanisms_index: IntProperty(default=0)
+    mechanisms_index: IntProperty(name="Mechanism", default=0, update=_mechanism_clicked,
+                                  description="Click a mechanism to see its settings below: its drive joint's arrow "
+                                              "shows in the view and its moving links light up. Double-click to "
+                                              "rename")
     mech_base: PointerProperty(type=bpy.types.Object)          # what Add mechanism stands on ('' = the parent)
     mech_kind: EnumProperty(name="Type", items=MECHANISM_KINDS, default="SCISSOR",
                             description="What kind of mechanism to add; the steps below change with it")

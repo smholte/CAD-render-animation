@@ -38,7 +38,12 @@ the pipe lie outside it). The pins are the plain cylinders of task 0013 (their r
 
 Revision B: a new ARM.LAMP in ARM.ASM and the two CYL.ASM placed in the other order.
 
-usage: python make_test_cylinder.py out.step [A|B]
+Revision C (task 0290: several parts per barrel and rod): as A, but the cylinder at y = 960 is SPLIT.ASM, drawn
+the way some CAD models split a cylinder – its barrel is 3 parts in 2 subassemblies (SPLIT.BARREL: BARREL.CAP +
+BARREL.TUBE; SPLIT.HEAD: BARREL.GLAND) and its rod is 2 parts lying loose in SPLIT.ASM (SPLIT.ROD = piston and rod
+as one solid, ROD.EYE).
+
+usage: python make_test_cylinder.py out.step [A|B|C]
 """
 
 import math
@@ -377,8 +382,22 @@ def build(path: str, revision: str = "A") -> None:
     place(root, base_pin)
     place(root, arm_asm, px, TELE_Y, pz)
     turn = -math.degrees(math.atan2(rz - bz, rx - bx))      # local +X onto the line barrel pin -> rod pin
-    for y in (CYL_Y if revision == "A" else tuple(reversed(CYL_Y))):
-        place(root, cyl, bx, y, bz, turn_y=turn)
+    if revision == "C":
+        place(root, cyl, bx, CYL_Y[0], bz, turn_y=turn)
+        piston_rod = part(g.fuse(_along_x(300, 390, PISTON_R), _along_x(390, L - 60, ROD_R)), "SPLIT.ROD", chrome)
+        eye2 = part(rod_eye_shape(L), "ROD.EYE", steel)
+        s_barrel = assy("SPLIT.BARREL")
+        for lab in (cap, tube):
+            place(s_barrel, lab)
+        s_head = assy("SPLIT.HEAD")
+        place(s_head, gland)
+        split = assy("SPLIT.ASM")
+        for lab in (s_barrel, s_head, piston_rod, eye2):
+            place(split, lab)
+        place(root, split, bx, CYL_Y[1], bz, turn_y=turn)
+    else:
+        for y in (CYL_Y if revision == "A" else tuple(reversed(CYL_Y))):
+            place(root, cyl, bx, y, bz, turn_y=turn)
     place(root, tele, bx, TELE_Y, bz, turn_y=turn)
     st.UpdateAssemblies()
 
