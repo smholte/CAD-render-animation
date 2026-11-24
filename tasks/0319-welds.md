@@ -1,6 +1,6 @@
 # 0319 – Welds: pick two sets of faces (like Inventor), a real bead where they meet – steel, stainless, aluminium, painted or bare, rust where it belongs
 
-**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0319-fwlaf1` (the web session's branch)
+**Who:** worker · **Status:** done · **Branch:** `claude/cad-render-animation-0319-fwlaf1` (the web session's branch)
 **Started by:** lead, 24 Nov 2026 (owner 24 Nov 00:45, ticking study 0270's #21: "for the weld, should be easy to select
 place, maybe like Inventor, two different face selections, allowing you to lay down welds the places those faces
 intersect. And allow to paint over the weld and different weld for steel, stainless and aluminium… Also allow rust on
@@ -89,10 +89,91 @@ how hard it would be); the finishes (0274); carbon / Rust slider / better looks 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 24 Nov 2026. Branch `claude/cad-render-animation-0319-fwlaf1` (the web
+session's own branch name, not `task/0319-welds`).
 
 **What changed:**
+- `core/welds.py` (new, no Blender): the seam finder – CAD edges of one part lying on the other (gap up to 2 mm, sampled
+  every 1 mm, ends by bisection), triangle crossings, and at each point the corner in the plane square to the line
+  (rays of the nearest faces of both parts; an air sector between a picked face of each = a weld: 35–160° fillet,
+  160–200° butt). Seams chained across edges (closed = all round), a second corner on the same line followed too,
+  seams meeting at a sharp turn joined with mitred ends (a square post welded round without notches). The bead (rings
+  across the corner, fillet legs from the throat a, butt cap + crown, tapers, craters, intermittent pieces even round a
+  closed seam, square ends on butt welds), heat-zone strips projected onto both parts (more rows where a flat strip
+  would dip under a curved, faceted face), rules per metal (`metal_of`, `defaults`, `rust_of`, `warning`), face prints
+  for model updates, seams packed as text for the project.
+- `blender/welds.py` (new): settings (`scene.fresing_welds`), `make` / `rebuild` / `refind` / `remove`, two objects per
+  weld (bead, heat zone) as children of the first part with MAX hide drivers on both parts, the seams kept in the
+  project where they were found (a change of a setting never looks for them where the parts happen to stand – an
+  exploded view or a pose), `carry_over` for model updates (with an undo for a failed update), motion check +
+  `move_as_one`, painted welds follow their part's paint (`sync_paint` on material updates), the shared test set-up
+  (`set_up_test_model`, `pick_test_weld`).
+- `blender/weld_looks.py` (new): bead and heat-zone materials (shader nodes only, no scripts): ripples per process,
+  steel / stick / stainless (tint, pickled) / aluminium MIG / TIG, ground flush, rust and tea stain, spatter; Painted =
+  a copy of the part's own material with the ripples in its normal and rusty toes with Wear.
+- `blender/ops_welds.py`, `blender/ui_welds.py` (new): the picker (`Picker`: click / Shift-click, Enter, Esc, live seam
+  preview with ticks, its own draw handler: first part blue, second orange, seams green / grey), Weld two parts,
+  Remove, Find seams again, Pick again, Tick all, Make them move as one, the right-click **Weld to another part…**;
+  3 Looks > Welds.
+- Additive: `__init__.py` (registration), `core/places.py`, `core/functions.py` (`looks.welds`, since 0.2.222),
+  `context_menu.py` (entry, `ON_PART`, `CLIENT_DROPS`), `hover.py` (a click looks through a weld), `reimport.py` (welds
+  carried over, rolled back), `remove.py` (a weld to a removed part is marked lost), `section.py` / `fade.py` /
+  `weather_look.py` / `logic.py` (welds go with their part, like decals; left out of the structure tree), `web3d.py`
+  (beads exported). `materials.py` not changed (read only).
+- Test model `tools/make_test_weldment.py` (TEST.WELDMENT, 7 parts; revision B; `--heavy N`), `tests/data/` and
+  `fresing_render/data/test_weldment.step`; tour set + stop "Welds"; PC check line `looks.welds`; real-app test
+  `tools/ui_test_welds.py` (group tour, 16 checks); guide section **Welds** with `panel_3_welds.png` and `welds.jpg`;
+  `tools/guide_screens.py` mode `welds_panel`.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine):
+- `tests/test_welds_core.py` (37), `tests/test_welds.py` (34), `tests/test_welds_independent.py` (57, written by an
+  independent tester); the tour stop (Go + check), the PC check line (OK, 7.9 s; pick to bead 51 ms), the real-app test
+  (16/16), the tests of the shared files touched (251 passed locally); GitHub: see below.
+- Test weldment, quick way, every pair right: fin 2 × 200 + 2 × 10 mm fillets; post 2 closed rings 189 mm (π × 60.3 =
+  189.4); branch 152 + bore 126 mm; saddle 155 mm closed (corner 78–135°); butt 2 × 300 + 2 × 12 mm.
+- **~300 welds** (invented frame, 150 cells, 450 parts, normal quality): 300 welds, 900 seams, 87 m of bead made in
+  103 s (0.34 s a weld: finding the seams 0.06 s, the bead 0.03 s, the rest Blender's objects and drivers), 0.9 M
+  bead + heat-zone triangles, save 0.49 s, open 0.33 s, file 3.1 MB. Render 800 × 450, 32 samples, Cycles CPU: 16.86 s
+  without, 16.85 s with the welds (+0 %). Before a speed-up the 300 took 377 s (a per-triangle Python loop, crossings
+  of faceted round faces looked at again).
+- Picture sheet (Cycles CPU, test weldment): `docs/img/welds.jpg` – painted fillet, MAG with spatter + a rusty one,
+  stainless with heat tint, pickled, aluminium MIG saddle, ground flush butt; `tasks/img/0319_weldment.jpg` the whole
+  weldment.
+- **Independent tester** (subagent, did not write the code): 57 tests, 16 failed at first – 11 faults, all fixed:
+  sheet ≤ 2 mm and thin-wall tubes (a part's far face 2 mm away counted at the corner), seams re-found where an
+  exploded view / a pose put the parts (seams and unticks lost), gap 0 and an exact 2.0 mm gap in 32-bit numbers,
+  short seams under an overhang, square posts notched at the corners (now mitred joins – my design choice: four
+  seams, each can be unticked, joined round the corners; the tester wanted one closed seam), a closed intermittent weld
+  with one piece welded all round, two corners on one line, mirrored parts, clicks blocked by an existing weld. A
+  second subagent wrote the test model maker.
+
+**Owner's test steps** (on your PC, after Update now to 0.2.222):
+1. Help > Make test tour project, open it, go to the stop **Welds** and press **Go**: a small weldment with
+   seven welds – blue painted fillet, grey MAG with spatter, a rusty one, stainless with straw-purple-blue tint, a
+   matt pickled one, a bright aluminium saddle, a ground-flush butt. Look in Rendered view.
+2. Import your own weldment (a frame, a bracket). Open **3 Looks > Welds**, press **Add weld…**, click a face of one
+   part (Shift-click for more), press **Enter**, click the faces of the part it is welded to: the seams show green in
+   the view. Untick one in the panel (it turns grey), press **Enter**: the bead is there.
+3. Click two parts (the second with Shift), press **Weld two parts**: every line where they meet gets a bead.
+4. In the weld's box try **Size a**, **Finish** (As welded / Painted / Ground flush), **Metal**, **Rust**; render a
+   close-up.
+5. Right-click a face of a part: **Weld to another part…** starts with that face.
+6. Hide a welded part (the bead hides with it), use Slice on it (the bead is cut too).
 
 **Open points / follow-up tasks:**
+- **0318 (Rust slider)**: a weld reads its part's material property `fr_rust` (0 … 1) as the group's rust; 0318 can
+  set `mat["fr_rust"]` on the group material (or tell me the node group's name) and the weld follows (the larger of it
+  and the weld's own Rust).
+- **0293 (copy)**: not merged when this was built. A copied subassembly should copy each weld whose two parts are
+  inside it: a new `FRWeld` with the copies as `part_a` / `part_b`, the same faces, `seam_data`, `rel` and settings,
+  then `welds.rebuild` (add as a hook in 0293).
+- **Web 3D model**: the beads are exported in their colour / paint; the ripples and the heat tint are not (the page
+  bakes 0.2 m tiles in the part's space, they live on the weld's own UVs); the heat-zone strips are left out.
+- **No Heavy PC-check line**: the weld time grows with the number of welds, measured above with the invented 300-weld
+  frame; a Heavy line would need the frame made at run time (`tools/` is not shipped). Ask if wanted.
+- Painted welds on a part with **painted faces** take the part's main paint, not a face set's.
+- **Weld symbols (ISO 2553) and a weld list** for drawings: the data is all there (kind, throat a, length, all round,
+  intermittent piece / pitch); a label showing "a5 ⊿ 4 × 50 (150)" next to each seam with the app's labels and a list
+  export would be a medium task (Opus · Medium, ~1 worker session).
+- Tester's minor notes left: an extra triangle inside a part's mesh (not closed) can add two short false seams (the
+  user unticks them); `core.welds.bead` needs prepared sides (the app always prepares them).
