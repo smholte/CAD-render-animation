@@ -1,6 +1,6 @@
 # 0310 – 3D page: the lead motions as sliders
 
-**Who:** worker · **Status:** running · **Branch:** `ccr-e50b9f63-gy57vr`
+**Who:** worker · **Status:** done, 0.2.238 · **Branch:** `ccr-e50b9f63-gy57vr`
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "these sliders for movement could also come to web 3D viewer") ·
 **Model:** Opus · effort Medium
 **Area:** Web 3D lane – `core/web3d.py` / `blender/web3d.py` (export: one glTF clip per lead motion),
@@ -35,9 +35,9 @@ drags a slider or presses ▶ to see each one – no app, no Blender.
 
 ## Done when
 
-- [ ] Clips exported per lead motion; the page's sliders and ▶ work on desktop and phone sizes (screenshots)
-- [ ] Film and sliders share the clock as above (test); size cost measured
-- [ ] Tests added/updated; full suite passes; owner's test steps in the report; merged, version, release
+- [x] Clips exported (one per joint the lead motions use – see the report); the page's sliders and ▶ work on desktop and phone sizes (screenshots)
+- [x] Film and sliders share the clock as above (test); size cost measured
+- [x] Tests added/updated; full suite passes; owner's test steps in the report; merged, version, release
 
 ## Not in this task
 
@@ -121,6 +121,10 @@ The app-side lead motions (0309); Fresing Viewer (its V-tasks read the same clip
 5. Press **▶** on **Trolley out**: the trolley runs over 3 s. **Back to start**: everything to 0 %.
 6. Press **Play** (Space) on the play bar: the animation plays again and the sliders let go.
 7. On your phone (send yourself the page): Motions opens as a sheet from the bottom; the phone's Back closes it.
+
+**GitHub runs:** 1 full run on the branch (green, run 45502683674, 36 min – several jobs slower than usual while
+other tasks' runs shared GitHub), then the fast-forward of `main` (reuse). No independent review agent (no Windows-only
+code; the page is checked against Blender in Python and in the browser).
 
 **Open points / follow-up tasks:**
 - Hoses, cables and ropes do not follow a slider (above). Following them would need their shapes per joint value.
