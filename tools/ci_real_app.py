@@ -71,7 +71,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "panel": 39, "start": 56, "setup": 46, "highlight": 74, "usage": 33, "lesson": 41, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 42, "settings": 52, "locations": 17, "toolbox": 19,
-              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "backups": 23, "forms": 29,
+              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 14, "importagain": 18, "place": 22}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
@@ -90,7 +90,7 @@ GROUPS = {
     "callouts": ["callouts", "importagain", "place"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms"],   # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
-    "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
+    "tour-b": ["tour2", "highlight", "start", "route"],   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout", "left", "settings", "locations"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271; locations: 0272 (~40 s)
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
@@ -130,6 +130,9 @@ TESTS = {
     "drawn": ("Real app: Draw hose – the picker's hover on the fittings, a click, Backspace, the clicks again, Enter; "
               "the CAD hose replaced, the arm luffs; one click and Esc; undo and redo (ui_test_drawn.py)",
               "ui_test_drawn.py", True),
+    "route": ("Real app: Avoid other parts and Shape the route – the hose lies on the block, a press on its line adds a "
+              "via point, a drag moves it, Enter; undo and redo; X over the dot, Esc (ui_test_route.py)",
+              "ui_test_route.py", True),
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
