@@ -236,7 +236,7 @@ fn(id="structure.remove", short="Remove", title="Remove a model, subassembly or 
 fn(id="structure.copy", short="Copy", title="Copy and paste a model, subassembly or parts with its joints, cylinders, "
    "mechanisms, way covers, hoses and labels (Ctrl+C / Ctrl+V, right-click > Copy / Paste here)", family="import",
    panel="FRESING_PT_place", button="fresing.paste", guide="copy-paste", tour=("copy",), pccheck=("place.copy",),
-   since="0.2.221", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.222", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))

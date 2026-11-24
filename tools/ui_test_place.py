@@ -294,6 +294,7 @@ def s_mouse_done():
     bpy.context.view_layer.objects.active = root
     S["parts"] = sum(1 for o in scene().objects if o.get("fr_kind") == "part")
     S["joints"], S["cyl"] = len(scene().fresing.joints), len(scene().fresing.cylinders)
+    move(S["xy"])                                # (task 0293: the view gets the key, not what had the mouse before)
     tap("DEL")
     return 1.5
 
@@ -302,6 +303,14 @@ def s_mouse_done():
 def s_window():
     fw = mod("blender.form_window")
     lk = mod("blender.lock")
+    if not fw.is_open("fresing.remove") and not S.get("del_again"):
+        # task 0293: under xvfb a key right after a modal (Move with mouse) is now and then not delivered (2 of ~8
+        # runs, also before this task): press it once more; a second miss fails the check below
+        S["del_again"] = True
+        log("Delete did not arrive: pressed once more")
+        move(S["xy"])
+        tap("DEL")
+        return "wait"
     check("Delete opens the Remove window", fw.is_open("fresing.remove"),
           f"kept {lk.KEPT[0]} last key {lk.LAST_KEY[0]} quiet {lk.keys_quiet()} note {mod('blender.place').NOTE[0]} "
           f"windows {len(bpy.context.window_manager.windows)} sel {[o.name for o in bpy.context.selected_objects][:3]}")
@@ -342,13 +351,21 @@ def s_client_del():
     root = next(o for o in scene().objects if o.get("fr_root"))
     root.select_set(True)
     _w, _a, region = view()
-    tap("DEL", (region.x + region.width // 2, region.y + region.height // 2))
+    S["cxy"] = (region.x + region.width // 2, region.y + region.height // 2)
+    move(S["cxy"])
+    tap("DEL", S["cxy"])
     return 1.0
 
 
 @step
 def s_client_done():
     fw = mod("blender.form_window")
+    if mod("blender.lock").SWALLOWED[0] <= S["swallowed"] and not S.get("cdel_again"):
+        S["cdel_again"] = True                   # (task 0293: as in s_window – one more press if it did not arrive)
+        log("Delete (Client view) did not arrive: pressed once more")
+        move(S["cxy"])
+        tap("DEL", S["cxy"])
+        return "wait"
     check("Client view: Delete is swallowed by the lock, no Remove window",
           mod("blender.lock").SWALLOWED[0] > S["swallowed"] and not fw.is_open("fresing.remove"))
     check("Client view: the crane is still there", scene().fresing.model_count == 1)

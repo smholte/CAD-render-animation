@@ -36,6 +36,11 @@
    "changed": "0.2.203",
    "fp": "54bbe571bac4c965"
   },
+  "copy": {
+   "added": "0.2.222",
+   "changed": "0.2.222",
+   "fp": "ff76250b1d490c83"
+  },
   "crane": {
    "added": "0.2.47",
    "changed": "0.2.217",

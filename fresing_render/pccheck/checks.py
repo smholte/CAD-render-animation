@@ -5086,7 +5086,7 @@ def place_move(ctx):
 
 
 @line("place.copy", "Copy and paste: the crane copied with its joints and cylinder, both move by themselves",
-      "0.2.221",
+      "0.2.222",
       what="On the test crane with the crane lesson's set-up: Copy + Paste makes 'TEST.CRANE (2)' beside it with joints "
            "'Boom (2)', 'Trolley (2)' and its own cylinder, shapes shared; the copy's boom moves without the original's; "
            "Build plays; the boom alone copied is a model of its own whose cylinder is left out (the window says so); "

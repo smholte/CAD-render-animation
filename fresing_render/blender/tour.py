@@ -4802,7 +4802,7 @@ stop("remove", MOTION, "place", "Remove: the trolley is gone",
 # task 0293: Copy and paste with joints and mechanisms
 # ---------------------------------------------------------------------------
 
-@tour_set("copy", "Copy and paste", "test_crane_a.step", added="0.2.221", changed="0.2.221")
+@tour_set("copy", "Copy and paste", "test_crane_a.step", added="0.2.222", changed="0.2.222")
 def build_copy(b: Build):
     """The crane with the crane lesson's joints, cylinder and animation, copied with Copy / Paste: a second crane
     beside it with its own joints "Boom (2)" and "Trolley (2)" and its own cylinder; the copy's boom is up 25°, the
@@ -4860,7 +4860,7 @@ stop("copy", MOTION, "copy", "Copy: a second crane with its own joints",
      "Ctrl+V). It has its own joints 'Boom (2)' and 'Trolley (2)' and its own cylinder 'Luffing cylinder (2)' (4 "
      "Motion): its boom is up 25°, the original's is down – they move by themselves. 2 Structure shows two models, "
      "'TEST.CRANE' and 'TEST.CRANE (2)'. Its parts share their shapes with the original.",
-     where=places.where("FRESING_PT_place") + " > Copy / Paste", since="0.2.221", select=("TEST.CRANE (2)",),
+     where=places.where("FRESING_PT_place") + " > Copy / Paste", since="0.2.222", select=("TEST.CRANE (2)",),
      check=_check_copy, setup=_copy_setup)
 
 stop("operator", MACH, "operator", "A person changes the tool",
