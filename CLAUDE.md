@@ -337,6 +337,9 @@ fresing_render/            the Blender extension (Python package)
                            result is the same bit for bit with any helper count), liquid_pool.py (its helper processes on
                            shared memory, started as the STEP reader's), liquid_cache.py (the bake on disk: 8-bit steps of
                            0.05 mm where wet, random access, a fingerprint)
+                           lead_motions.py (task 0309: one slider per machine function – rows of joint · value at 0 % /
+                           100 % · window start–end % · easing · stage; ``values`` at a slider position, stage windows,
+                           rows from two states, "moved by", play-throughs, the step's values, plain data for the page)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -588,6 +591,14 @@ fresing_render/            the Blender extension (Python package)
                            render, a cancel, an error; camera view renders that camera; `stand_in` = a view's matrices
                            from a camera (PC check, tests). make_icons.py + core/make_icons.py: Make's large icons, drawn
                            as triangles (geometry icons, `bpy.app.icons.new_triangles`); ops_make.py: the outputs strip
+    lead_motions.py ops_lead_motions.py ui_lead_motions.py  task 0309: **lead motions** – ``scene.fresing.lead_motions``
+                           (``FRLeadMotion``: rows, ``position`` = the slider, its update sets the rows' joints through
+                           ``joints.set_value``; mechanisms / hoses / cables follow by their own live handlers, in the
+                           background ``apply`` refreshes them), "moved by …" (``status``, ``lead_last``), from two poses /
+                           Record / a picked joint, stages, the Lead motion step (``bake_step``: a key per frame, the
+                           slider's own values); the top bar's **Lead motions ▾** is a popover (``TOPBAR_PT_fresing_lead``)
+                           drawn by ``ui_topbar`` after the Fresing menu – every workspace, the Client view (▶, Back to
+                           start, Keep open in ``lock.ALLOWED``); the editor and Keep open are function windows
     form_window.py         task 0282: **function windows** – a function's form (Make a crane, Save as my own workspace,
                            the PC check …) in a window of its own instead of a dialog: ``invoke`` ends in
                            ``form_window.open(self, context, width=, height=, title=, confirm=)`` (``confirm=None``: only
@@ -1562,6 +1573,11 @@ the release → Delete); the next run on `main` publishes it again.
 - `os.access(folder, os.W_OK)` on Windows says yes to every folder (it reads only a FILE's read-only flag, never a
   share's or NTFS rights): a read-only company share counted as writable (task 0272, found by its independent
   reviewer). Try for real – make and delete a small file (`core/locations.writable`) – and cache the answer.
+- The top bar keeps its last drawing: tagging areas, ``wm.redraw_timer`` and toggling the status bar did not make it
+  draw a changed button in a real-app test (task 0309). A mouse move over one of its menus (File) and off again does.
+  Its Lead motions button is found by drawing the top bar with and without it and comparing the pixels
+  (``tools/ui_test_lead_motions.py``); a click on it needed a second click after a workspace switch (the first only
+  focused the bar).
 - `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
   report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
   run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs
