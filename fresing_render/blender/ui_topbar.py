@@ -89,6 +89,8 @@ def _draw_in_editor_menus(self, context):
     self.layout.menu(MENU)
     from . import ui_lead_motions                  # task 0309: the Lead motions drop-down, right of the Fresing menu
     ui_lead_motions.draw_button(self.layout, context)
+    from . import ui_measure                       # task 0322: the Measure drop-down, right of Lead motions
+    ui_measure.draw_button(self.layout, context)
 
 
 def mark_icon() -> int:

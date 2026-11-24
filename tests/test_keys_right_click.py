@@ -57,7 +57,7 @@ def _keys():
 
 def test_every_harmful_key_of_the_brief_is_swallowed():
     labels = {lab for _km, lab in _keys()}
-    for want in ("Tab", "Ctrl+Tab", "Shift+D", "Alt+D", "Ctrl+J", "Ctrl+P", "Alt+P", "Ctrl+A", "M",
+    for want in ("Tab", "Ctrl+Tab", "Shift+D", "Alt+D", "Ctrl+J", "Ctrl+P", "Alt+P", "Ctrl+A",
                  "Shift+M", "Shift+A", "Ctrl+H", "Ctrl+0", "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4", "Ctrl+5",
                  "Ctrl+Page Up", "Ctrl+Page Down", "I", "Alt+I", "K"):
         assert want in labels, want
@@ -67,6 +67,9 @@ def test_every_harmful_key_of_the_brief_is_swallowed():
     assert anys == set()
     app = {k: op for km, _sp, k, m, op, _p in lock.APP_KEYS if km == "Object Mode" and m.get("any")}
     assert app == {"X": "fresing.remove_key", "DEL": "fresing.remove_key"}
+    # M (Blender's "move to collection", swallowed before) opens Measure since task 0322; Alt+M too, everywhere
+    measure = {(k, tuple(sorted(m.items()))): op for km, _sp, k, m, op, _p in lock.APP_KEYS if k == "M"}
+    assert measure == {("M", ()): "fresing.measure_key", ("M", (("alt", True),)): "fresing.measure"}
 
 
 def test_the_keys_a_user_needs_stay_blenders():

@@ -87,7 +87,9 @@ ALLOWED = {
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_",
                     "fresing.settings", "fresing.presence",     # task 0271: Fresing Settings, the presence mark
-                    "fresing.form_")                            # task 0282: a function window's OK / Close (OK runs
+                    "fresing.form_",                            # task 0282 (below)
+                    "fresing.measure")                          # task 0322: measuring changes nothing of the model
+#                                                                 task 0282: a function window's OK / Close (OK runs
 #                                                                 the function's own poll: refused stays refused)
 
 
@@ -500,7 +502,6 @@ BLENDER_KEYS = (
     ("Object Mode", "EMPTY", "P", {"ctrl": True}, "parent"),
     ("Object Mode", "EMPTY", "P", {"alt": True}, "clear parent"),
     ("Object Mode", "EMPTY", "A", {"ctrl": True}, "apply"),
-    ("Object Mode", "EMPTY", "M", {}, "move to collection"),
     ("Object Mode", "EMPTY", "M", {"shift": True}, "link to collection"),
     ("Object Mode", "EMPTY", "A", {"shift": True}, "add"),
     ("Object Mode", "EMPTY", "H", {"ctrl": True}, "hide collection"),
@@ -531,7 +532,11 @@ APP_KEYS = (("Screen", "EMPTY", "F12", {}, "fresing.key_render", {"animation": F
             ("Object Mode", "EMPTY", "DEL", {"any": True}, "fresing.remove_key", {}),
             # task 0293: Ctrl+C / Ctrl+V copy and paste a model, subassembly or parts with its joints (Copy / Paste)
             ("Object Mode", "EMPTY", "C", {"ctrl": True}, "fresing.copy_key", {}),
-            ("Object Mode", "EMPTY", "V", {"ctrl": True}, "fresing.paste_key", {}))
+            ("Object Mode", "EMPTY", "V", {"ctrl": True}, "fresing.paste_key", {}),
+            # task 0322: M = Measure (outside Full access, where Blender's M "move to collection" was off already);
+            # Alt+M = Measure everywhere (Blender has nothing on Alt+M in Object Mode)
+            ("Object Mode", "EMPTY", "M", {}, "fresing.measure_key", {}),
+            ("Object Mode", "EMPTY", "M", {"alt": True}, "fresing.measure", {}))
 
 
 def key_label(key: str, mods: dict) -> str:

@@ -139,6 +139,7 @@ MENUS = {
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
     "TOPBAR_PT_fresing_lead": "Lead motions (top bar)",
+    "TOPBAR_PT_fresing_measure": "Measure (top bar)",
 }
 
 # Guide sections that are only reading (no function of their own): no entry needs to name them.
@@ -693,6 +694,12 @@ fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slid
    tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.236", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
+# task 0322: measuring in the 3D view – on the top bar in every workspace and in the Client view, keys M / Alt+M
+fn(id="view.measure", short="Measure", title="Measure in the 3D view: distance, edge, gap, angle, Ø, point to axis",
+   family="scene", panel="TOPBAR_PT_fresing_measure", button="fresing.measure", guide="measure", tour=("measure",),
+   pccheck=("view.measure",), since="0.2.238", headline=True,
+   workspaces=_WORK + ("client", "lifting", "essentials", "sales", "quick", "animator", "reviewer"),
+   manual_estimate=("use", 90, "read the size off the drawing or measure it in the CAD program and type it in"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
    panel="FRESING_PT_animation", prop="lead", guide="lead-motion-step", tour=("lead_motions",),
    pccheck=("motion.lead_motion",), since="0.2.236", workspaces=_WORK + ("lifting",))

@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.237"
+__version__ = "0.2.238"
 
 _modules = []
 
@@ -56,6 +56,7 @@ def _classes():
     from .blender import ops_welds, ui_welds        # task 0319: 3 Looks > Welds
     from .blender import ops_copy                   # task 0293: Copy / Paste with joints and mechanisms
     from .blender import ops_lead_motions, ui_lead_motions   # task 0309: lead motions (top bar, editor, step)
+    from .blender import ops_measure, ui_measure    # task 0322: Measure in the 3D view (top bar, keys M / Alt+M)
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_structure) + 1
@@ -89,7 +90,7 @@ def _classes():
             + project_name.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_render_view.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
             + ops_locations.CLASSES + form_window.CLASSES + first_setup.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES
-            + ops_lead_motions.CLASSES + ui_lead_motions.CLASSES)
+            + ops_lead_motions.CLASSES + ui_lead_motions.CLASSES + ops_measure.CLASSES + ui_measure.CLASSES)
 
 
 def _all_classes():
@@ -155,6 +156,8 @@ def register():
     decals.register()
     from .blender import welds
     welds.register()                         # task 0319: the welds' settings (before the panels that draw them)
+    from .blender import measure
+    measure.register()                       # task 0322: the measurements' settings, the labels' draw handlers
     from .blender import panels
     panels.register()                        # task 0062: the section tab's setting, before the panels that draw it
     for cls in _all_classes():
@@ -382,5 +385,7 @@ def unregister():
     panels.unregister()
     from .blender import welds
     welds.unregister()
+    from .blender import measure
+    measure.unregister()
     decals.unregister()
     props.unregister()

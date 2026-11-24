@@ -141,6 +141,11 @@
    "changed": "0.2.205",
    "fp": "9f1396fda5e391e4"
   },
+  "measure": {
+   "added": "0.2.238",
+   "changed": "",
+   "fp": "f559df64b4f9a615"
+  },
   "mesh": {
    "added": "0.2.99",
    "changed": "0.2.211",

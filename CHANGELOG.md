@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.238 – 24 Nov 2026 – Measure in the 3D view (task 0322)
+
+- **Measure** (new, on the top bar right of Lead motions, or the key **M** over the 3D view – **Alt+M** in Full
+  access, where M stays Blender's own): click the model and read the value, the way the 3D page's measure tool does.
+  **Measure** gives the result by what you click (two flat faces: the gap or their angle; two holes: centre to centre;
+  a face and a hole; two points), or pick a kind: **Distance** (with its X / Y / Z parts), **Edge length**, **Face to
+  face**, **Angle** (two faces or edges, or three points), **Radius / diameter**, **Point to axis**.
+- **Snapping** on the CAD faces: corners, edge middles, face and hole centres jump into place, edges show as a line;
+  hold **Shift** for none. Next to the mouse you see what the click takes and, before the last click, the value.
+- Each measurement is a **label** in the 3D view that stays until you remove it and follows the parts when they move
+  or the animation plays. The drop-down lists them with **Copy** (the value as it reads) and **Remove**, **Clear all**,
+  **Units** (mm, m, inch), **Keep measurements** (saved with the project) and **Show in renders** – off by default:
+  labels are never in a picture or video unless you tick it.
+- Works through a **Slice** (measures on the cut face) and in the **Client view** (there it is never saved).
+
 ## 0.2.237 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or

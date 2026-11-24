@@ -2520,6 +2520,43 @@ def couplings_motor(ctx):
     return "motor → trolley → wheel; 12 rpm × 5 s = 1 turn"
 
 
+@line("view.measure", "Measure in the 3D view: the crane's base measures its drawn sizes", "0.2.238",
+      what="On the test crane's base (5000 x 3000 x 500 mm, bolt holes Ø33 4500 mm apart), clicked as a user would: "
+           "face to face, hole centre to hole centre (snapped), a hole's rim, and through a slice the cut face to the "
+           "back face – each within 0.01 mm of the drawing; the measurement follows the part when it moves; a mouse "
+           "move over the model is quick")
+def view_measure(ctx):
+    import time
+
+    from mathutils import Vector
+
+    from ..blender import measure
+    scene = ctx.fresh(CRANE_A)
+    measure.set_up_test(scene)
+    rows = measure.check_test(scene)
+    _check(len(rows) == 4, f"{len(rows)} of the 4 measurements were made")
+    for name, got, want in rows:
+        _check(got is not None, f"'{name}': a part it measures is gone")
+        _check(abs(got - want) < 1e-5, f"'{name}' reads {got * 1000:.3f} mm, the drawing says {want * 1000:.2f} mm")
+    base = next(o for o in scene.objects if o.get("fr_name") == "BASE")
+    item = measure.settings(scene).items["Bolt holes"]
+    base.location = (0.3, -0.2, 0.1)
+    _update()
+    moved = measure.result(scene, item)
+    base.location = (0.0, 0.0, 0.0)
+    _update()
+    _check(moved is not None and abs(moved.dist - 4.5) < 1e-5, "the measurement did not follow the moved base")
+    dg = __import__("bpy").context.evaluated_depsgraph_get()
+    times = []
+    for x in (0.5, 1.5, 2.5, 3.5, 4.5):
+        t0 = time.perf_counter()
+        measure.look(scene, dg, Vector((x, 2.2, 12.0)), Vector((0, 0, -1)), (x * 200, 440), lambda p: (p[0] * 200, p[1] * 200),
+                     "SMART", [])
+        times.append((time.perf_counter() - t0) * 1000.0)
+    ctx.metric("mouse_move", max(times), "ms")
+    return "500.00 / 4 500.00 / Ø 33.00 / 1 500.00 mm; follows a moved part"
+
+
 @line("motion.lead_motion", "Lead motions: one slider per function", "0.2.236",
       what="A lead motion of two joints in two stages: its slider at 50 % gives the joints the values the plan says, "
            "the slider is quick, and a Lead motion step gives the same values half way through")

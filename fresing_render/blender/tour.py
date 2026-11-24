@@ -1443,6 +1443,39 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
+@tour_set("measure", "Measure", "test_crane_a.step", added="0.2.238")
+def build_measure(b: Build):
+    """Task 0322: the crane's base measured – its thickness, two bolt holes, a hole's Ø and, through a slice that takes
+    the base's front half away, the cut face to the back face (``measure.set_up_test``, shared with the PC check).
+    Show in renders is on here, so the tour's picture shows the labels too."""
+    from mathutils import Vector
+
+    from . import measure
+    sc = b.scene
+    _studio(b)
+    measure.set_up_test(sc)
+    measure.settings(sc).in_renders = True
+    _close_camera(b, Vector((2.5, 1.5, 0.4)), 4.2, "Tour measure")
+    _shot(b, "@measure")
+
+
+def _check_measure(scene):
+    import bpy
+
+    from . import measure, ui_topbar
+    rows = measure.check_test(scene)
+    _check(len(rows) == 4, f"{len(rows)} of the 4 measurements are there")
+    for name, got, want in rows:
+        _check(got is not None, f"'{name}': a part it measures is gone")
+        _check(abs(got - want) < 1e-5, f"'{name}' reads {got * 1000:.3f} mm, the base's drawing says {want * 1000:.2f} mm")
+    _check(ui_topbar._draw_in_editor_menus in bpy.types.TOPBAR_MT_editor_menus._dyn_ui_initialize(),
+           "the top bar has no Measure button")
+    col = bpy.data.collections.get(measure.COLLECTION)
+    _check(col is not None and sum(1 for o in col.objects if o.type == "FONT") == 4,
+           "Show in renders is on but the labels are not in the picture")
+    return "500.00 / 4 500.00 / Ø 33.00 / 1 500.00 mm, each within 0.01 mm"
+
+
 @tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.236")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
@@ -4853,6 +4886,12 @@ stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "view: the grey solid view shows the parts whole.", where="3 Looks > Slice; 6 Animation (Move joint step "
      "with the joint 'Slice 1')", since="0.2.64", changed="0.2.170", animation=CUT_ANIM, at=1.0, play=True, check=_check_cutaway,
      auto="clip")
+stop("measure", LOOK, "measure", "Measure in the 3D view",
+     "Four labels on the crane's base: its thickness 'Between the planes 500.00 mm', two bolt holes 'Distance "
+     "4 500.00 mm' with X / Y / Z, a hole's 'Ø 33.00 mm', and through the slice (the base's front half is gone) the cut "
+     "face to the back face '1 500.00 mm'. Then click Measure on the top bar (or press M), click a face, another face: "
+     "a new label. Corners, edge middles and hole centres snap; Shift does not.", where="Top bar > Measure (key M)",
+     since="0.2.238", check=_check_measure)
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",

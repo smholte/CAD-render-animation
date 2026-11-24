@@ -3053,6 +3053,56 @@ Good to know:
   costs (measured on a 4-core test machine, without drawing the view: 0.2 ms on the test crane and the test mill,
   about 21 ms on the PC check's Heavy machine of 3,000 parts).
 
+<a id="measure"></a>
+### Measure in the 3D view
+
+<img class="panel" src="img/measure_menu.png" alt="The Measure drop-down on the top bar: Measure, the six kinds, the measurements, units">
+
+Measure the model the way you would on the 3D page: open **Measure** on the top bar (right of Lead motions) or press
+**M** with the mouse over the 3D view, click, read the value. It works in every workspace and in the Client view.
+
+**The kinds** (the drop-down; the key M starts the one you picked last):
+
+- **Measure** – click two faces, edges or points; the result goes by what you clicked, as the 3D page's measure tool:
+  two flat faces give the gap between them (or their angle), two holes or shafts centre to centre, a face and a hole
+  the face to the hole's centre, two points the straight distance.
+- **Distance** – two points: the straight distance and its **X / Y / Z** parts (drawn as red, green and blue steps).
+- **Edge length** – one click on an edge: its length; a round edge gives its Ø and the length of the arc.
+- **Face to face** – two flat faces: the gap between them (parallel within 1°), else their angle.
+- **Angle** – two faces or edges (the angle between them), or three points: the corner is the middle one.
+- **Radius / diameter** – one click on a hole, a shaft or a round edge: Ø and radius.
+- **Point to axis** – a point and a hole, a shaft or an edge: the distance square to its axis.
+
+**Snapping.** The face under the mouse lights up. Near one of its **corners**, the **middle of an edge**, the **centre**
+of the face or of a hole (or a round edge) the click jumps there – a dot shows where. Near an edge, the edge shows as a
+line and the click takes the edge (or the point on it). Hold **Shift** for no snapping: the click takes the spot under
+the mouse. Next to the mouse you read what the click will take, and before the last click the value it will give. A
+click that does not fit (a flat face for Radius) says why in red.
+
+**Results.** Each measurement is a label in the 3D view (dark box, white text) with a blue line; it stays until you
+remove it. The drop-down lists them: the eye hides one, the copy button puts its value on the clipboard (as it reads:
+`500.00 mm`), × removes it, **Clear all** removes them all. While Measure runs, a click on a label copies its value too.
+**Esc** (or the right mouse) drops the clicks of a measurement you have not finished; a second Esc leaves Measure.
+
+- **Units**: mm (two decimals), m (four) or inch (three) – for every label and every copied value.
+- **Keep measurements** (on): they are saved with the project. Off: they stay until you close it.
+- **Show in renders** (off): the labels are drawn in the 3D view only, never in a picture or a video. Tick it to have
+  them in renders too (lines and labels as real objects that face the camera).
+- **Label size**: bigger or smaller labels in the view.
+
+Good to know:
+
+- A measurement sticks to the parts you clicked: move a part, turn a joint or play the animation and the value and the
+  label follow (the X / Y / Z parts are the world's, at the frame shown).
+- Through a [Slice](#slice): a click on the cut-away side measures on the **cut face** (the red face) when the part is
+  there; a part the slice does not cut is measured as it is. Welds, the floor and the surroundings are looked through.
+- In the **Client view** you can measure, copy and clear, but measurements are never saved there.
+- **M** is the Measure key in every workspace but Full access – where M is Blender's own again: use **Alt+M** there
+  (Alt+M works everywhere).
+- What it measures is the CAD part's shape as imported: flat faces as planes, holes and shafts by their axis and
+  radius, the edges where two faces meet – the same face data the 3D page uses. A mesh model (glTF, OBJ) has no CAD
+  faces: there it measures between points.
+
 <a id="milling"></a>
 ### Milling
 
