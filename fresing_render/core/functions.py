@@ -266,13 +266,13 @@ fn(id="looks.schemes", short="Paint schemes", title="Paint schemes & templates",
 # ----- 4 Motion: joints, poses -----
 fn(id="joints.rotate", title="Rotate joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", tour=("joint",),
-   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.220")
+   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.221")
 fn(id="joints.slide", title="Slide joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", lesson="mill:3", since="0.2.0",
-   changed="0.2.220")
+   changed="0.2.221")
 fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", tour=("stack",),
-   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.220")
+   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.221")
 fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
@@ -280,7 +280,7 @@ fn(id="joints.cad_position", short="Back to CAD", title="Everything back to CAD 
    button="fresing.pose_reset", guide="motion", since="0.2.5")
 fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18",
-   changed="0.2.220")
+   changed="0.2.221")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
@@ -292,7 +292,7 @@ fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT
 fn(id="machines.cylinder", title="Cylinders", family="machines", panel="FRESING_PT_cylinders",
    button="fresing.cylinder_add", guide="cylinders", tour=("cylinder",), pccheck=("joints.cylinder",),
    since="0.2.25",
-   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.220")
+   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.221")
 fn(id="machines.mechanism", title="Mechanisms: scissor lift, crank", family="machines",
    panel="FRESING_PT_mechanisms", button="fresing.mechanism_add", guide="mechanisms", tour=("mechanism",),
    pccheck=("joints.mechanism",), since="0.2.26")
@@ -603,7 +603,7 @@ fn(id="queue.schemes", short="Every scheme", title="Every paint scheme", family=
 
 # ----- Help menu -----
 fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", button="fresing.update_check",
-   guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16")
+   guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16", changed="0.2.220")
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
    guide="pc-check", pccheck=("app.start",), since="0.2.24")
 fn(id="help.tour", title="Learning hub", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",

@@ -885,7 +885,7 @@ def joints_stack(ctx):
     return "boom 30° + trolley 1000 mm"
 
 
-@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.220",
+@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.221",
       what="Clicking the boom's joint in 4 Motion > Joints lights up the boom, the trolley riding on it lighter")
 def joints_show(ctx):
     from mathutils import Vector

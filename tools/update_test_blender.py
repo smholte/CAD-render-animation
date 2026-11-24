@@ -35,6 +35,8 @@ OUT = os.path.abspath(ARGS[1]) if len(ARGS) > 1 else os.path.join(os.getcwd(), f
 EXPECT = os.environ.get("UPDATE_TEST_EXPECT", "")
 PROJECT = os.environ.get("UPDATE_TEST_PROJECT", "")     # a saved project with unsaved changes when Update now is pressed
 MARKER = "Update test marker"
+CASE = os.environ.get("UPDATE_TEST_CASE", "save")       # task 0316: "dont_save" = a new project, Update without saving
+SUFFIX = os.environ.get("UITEST_SHOT_SUFFIX", "")
 OLD = os.environ.get("UPDATE_TEST_OLD", "")
 SHOTS = os.environ.get("UITEST_OUT", os.path.dirname(OUT))
 CHECKS: list[list] = []
@@ -67,7 +69,7 @@ def ext():
 def shot(name):
     if bpy.app.background or not shutil_which("import"):
         return
-    subprocess.run(["import", "-window", "root", os.path.join(SHOTS, name + ".png")], check=False)
+    subprocess.run(["import", "-window", "root", os.path.join(SHOTS, name + SUFFIX + ".png")], check=False)
 
 
 def shutil_which(cmd):
@@ -108,7 +110,20 @@ def make_project(part: int = 0):
                 bpy.ops.ed.undo_push(message="Update test change")     # like a click: counts as a change
 
 
+def make_change():
+    """Task 0316: a change in the new project that was never saved (counts as unsaved, like a click)."""
+    win = bpy.context.window_manager.windows[0]
+    with bpy.context.temp_override(window=win):
+        bpy.ops.object.empty_add()
+        bpy.context.view_layer.objects.active.name = MARKER
+        bpy.ops.ed.undo_push(message="Update test change")
+
+
 def project_is_dirty():
+    if CASE == "dont_save" and not bpy.app.background:
+        check("a new project, never saved, with unsaved changes", bpy.data.filepath == "" and bpy.data.is_dirty,
+              f"{bpy.data.filepath!r} dirty={bpy.data.is_dirty}")
+        return
     if PROJECT and not bpy.app.background:
         check("project saved, then changed (unsaved changes)", bpy.data.filepath == PROJECT and bpy.data.is_dirty,
               f"{bpy.data.filepath} dirty={bpy.data.is_dirty}")
@@ -261,11 +276,15 @@ def gui_driver():
             _state["step"] = "update"
             return 1.0
         if step == "update":
-            make_project(1)
+            if CASE == "save":
+                make_project(1)
             _state["step"] = "change"
             return 1.0
         if step == "change":
-            make_project(2)
+            if CASE == "save":
+                make_project(2)
+            else:
+                make_change()
             _state["step"] = "update2"
             return 1.0
         if step == "update2":
@@ -281,10 +300,23 @@ def gui_driver():
             return 1.5
         if step == "shot":
             shot("update_available")
-            log("Update now")
+            win = bpy.context.window_manager.windows[0]
+            area = max((a for a in win.screen.areas if a.type == "VIEW_3D"), key=lambda a: a.width * a.height)
+            region = next(r for r in area.regions if r.type == "WINDOW")
+            with bpy.context.temp_override(window=win, screen=win.screen, area=area, region=region):
+                res = bpy.ops.fresing.update_install("INVOKE_DEFAULT")    # task 0316: the box (save or not)
+            check("Update now opens its box (unsaved changes)", res == {"RUNNING_MODAL"} or res == {"FINISHED"}, res)
+            _state["step"] = "box"
+            return 1.5
+        if step == "box":
+            shot("update_box")
+            save_choice = "DONT_SAVE" if CASE == "dont_save" else "SAVE"
+            log("Update now:", save_choice)
             win = bpy.context.window_manager.windows[0]
             with bpy.context.temp_override(window=win, screen=win.screen):
-                bpy.ops.fresing.update_install("EXEC_DEFAULT")       # what the button does after "Update now" in its dialog
+                # what the box's button does ("Save and update" / "Update without saving")
+                bpy.ops.fresing.update_install("EXEC_DEFAULT", save=save_choice)
+            save()
             _state.update(step="downloading", t1=time.time())
             return 0.5
         if step == "downloading":                           # the app closes by itself when the download is done
@@ -299,6 +331,14 @@ def gui_driver():
             if upd._dl.get("active") and upd._dl.get("done", 0) > 0 and "shot_dl" not in _state:
                 _state["shot_dl"] = True
                 shot("update_downloading")
+            if not upd._dl.get("active") and upd._dl.get("path"):          # the helper is started: closing now
+                _state.setdefault("t_close", time.time())
+                if time.time() - _state["t_close"] > 30:                   # e.g. Blender asked "Save changes?"
+                    shot("update_not_closed")
+                    check("app closed by itself once the update was ready (no question)", False,
+                          "still open 30 s later")
+                    save()
+                    os._exit(1)
             return 0.25
     except Exception:  # noqa: BLE001
         check("before: " + _state["step"], False, traceback.format_exc())
@@ -355,6 +395,21 @@ def run_after():
               any("moved out of the Start-menu folder" in d for d in done)
               and os.path.isdir(ai.tools_dir(ai.install_dir(bpy.app.binary_path))), done)
     project_checks()
+    if CASE == "dont_save" and not bpy.app.background:
+        unsaved_checks(mod)
+
+
+def unsaved_checks(mod):
+    """Task 0316: after Update without saving of a new project: the app opened empty, Blender's save question is on
+    again (it was off for that close only), one backup copy kept, the start offers none."""
+    check("without saving: the app opened again empty", bpy.data.filepath == "" and MARKER not in bpy.data.objects,
+          repr(bpy.data.filepath))
+    check("without saving: Blender's 'Save changes?' is on again", bpy.context.preferences.view.use_save_prompt)
+    bk = importlib.import_module(mod.__name__ + ".blender.backups")
+    core_b = importlib.import_module(mod.__name__ + ".core.backups")
+    found = core_b.listing(core_b.unsaved_folder(bk.documents()), core_b.UNSAVED_NAME)
+    check("without saving: one backup copy kept (Unsaved projects)", len(found) == 1, [b.path for b in found])
+    check("without saving: the start offers no restore", bk.offer()[0] is None)
 
 
 def gui_after():
