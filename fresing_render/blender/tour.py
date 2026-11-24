@@ -1781,7 +1781,7 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.227")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.228")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
@@ -1993,7 +1993,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.227")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.228")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -2231,7 +2231,7 @@ def check_drawn_replace(scene) -> str:
 SPOOL_ANIM = "Spooling"
 
 
-@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.227")
+@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.228")
 def build_spool(b: Build):
     from . import spool
     sc = b.scene
@@ -2284,7 +2284,7 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.227")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.228")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -4571,7 +4571,7 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      "round the whole cable as one spiral, once round per metre, with ragged edges, the paint thinner in the grooves. "
      "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
-     since="0.2.116", check=_check_served, auto="clip", changed="0.2.227")
+     since="0.2.116", check=_check_served, auto="clip", changed="0.2.228")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
@@ -4670,7 +4670,7 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "top layer gets shorter wrap by wrap, and both sheaves and both rollers turn with it. Meanwhile the A-frame "
      "leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
-     auto="clip", changed="0.2.227")
+     auto="clip", changed="0.2.228")
 stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
      "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
      "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
@@ -4695,7 +4695,7 @@ stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
      where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
-     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.227")
+     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.228")
 stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 24 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
@@ -4720,7 +4720,7 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "anchor; the carousel pays its cable all out (every layer cable, one after the other, down to its core) and "
      "winds it back in. No grey sleeve or ring under the top layer.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
-     auto="clip", changed="0.2.227")
+     auto="clip", changed="0.2.228")
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
@@ -4935,6 +4935,71 @@ stop("remove", MOTION, "place", "Remove: the trolley is gone",
      "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
      where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: crane moved and "
      "turned", select=("TEST.CRANE",), check=_check_remove)
+
+# ---------------------------------------------------------------------------
+# task 0293: Copy and paste with joints and mechanisms
+# ---------------------------------------------------------------------------
+
+@tour_set("copy", "Copy and paste", "test_crane_a.step", added="0.2.227", changed="0.2.227")
+def build_copy(b: Build):
+    """The crane with the crane lesson's joints, cylinder and animation, copied with Copy / Paste: a second crane
+    beside it with its own joints "Boom (2)" and "Trolley (2)" and its own cylinder; the copy's boom is up 25°, the
+    original's at its CAD place, so the two show they move by themselves."""
+    import math
+
+    from . import animation, copy, joints, lesson, ops_place
+    sc = b.scene
+    lesson.run(sc, "crane")
+    animation.clear_keys(sc)
+    _studio(b)
+    p = copy.paste(sc, [_ob(sc, "TEST.CRANE")])
+    ops_place.set_lock(_ob(sc, "TEST.CRANE (2)"), False)            # as Paste leaves it: ready for Place
+    joints.set_value(joints.find(sc, "Boom (2)"), math.radians(25.0))
+    copy.LAST.clear()
+    copy.LAST.update(p)
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@copy")
+
+
+def _copy_setup(scene):
+    from . import panels
+    try:
+        panels.open_to("FRESING_PT_place")
+    except Exception:  # noqa: BLE001 - the stop still opens
+        pass
+
+
+def _check_copy(scene):
+    import math
+
+    from . import build, copy, cylinders, joints
+    s = scene.fresing
+    roots = {r.get(build.PROP_NAME): r for r in build.model_roots(scene)}
+    _check(set(roots) == {"TEST.CRANE", "TEST.CRANE (2)"}, f"the models are {sorted(roots)}, not the crane and its copy")
+    names = [j.name for j in s.joints]
+    _check(names == ["Boom", "Trolley", "Boom (2)", "Trolley (2)"], f"the joints are {names}")
+    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 2
+           and all(cylinders.is_valid(c) for c in s.cylinders), "a joint or cylinder of the copy is broken")
+    a, c = roots["TEST.CRANE"], roots["TEST.CRANE (2)"]
+    boom = [o for o in build.iter_parts(scene) if o.get(build.PROP_NAME) == "BOOM"]
+    _check(len(boom) == 2 and boom[0].data is boom[1].data, "the copy's boom does not share its shape")
+    up = math.degrees(joints.get_value(joints.find(scene, "Boom (2)")))
+    _check(abs(up - 25.0) < 0.05 and abs(joints.get_value(joints.find(scene, "Boom"))) < 1e-6,
+           f"the copy's boom is at {up:.1f}°, not 25° (the original's at 0°)")
+    dx = c.matrix_world.translation.x - a.matrix_world.translation.x
+    _check(dx > 1.0, f"the copy stands {dx * 1000:.0f} mm from the crane, not beside it")
+    _check(c.get(copy.GROUP) and c.get(copy.GROUP) == a.get(copy.GROUP), "the copy is not in the crane's copy group")
+    return f"2 cranes {dx * 1000:.0f} mm apart, joints {names}, copy's boom {up:.0f}°"
+
+
+stop("copy", MOTION, "copy", "Copy: crane and its own joints",
+     "Two cranes side by side: the right one is a copy made with Copy and Paste (right-click > Copy, then Paste or "
+     "Ctrl+V). It has its own joints 'Boom (2)' and 'Trolley (2)' and its own cylinder 'Luffing cylinder (2)' (4 "
+     "Motion): its boom is up 25°, the original's is down – they move by themselves. 2 Structure shows two models, "
+     "'TEST.CRANE' and 'TEST.CRANE (2)'. Its parts share their shapes with the original.",
+     where=places.where("FRESING_PT_place") + " > Copy / Paste", since="0.2.227", select=("TEST.CRANE (2)",),
+     check=_check_copy, setup=_copy_setup)
 
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "

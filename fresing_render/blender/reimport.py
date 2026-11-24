@@ -578,13 +578,21 @@ def _remove_new(before: dict, root=None) -> None:
             bpy.data.collections.remove(col)
 
 
-def update_model(context, old_root, cache_dir: str) -> dict:
+def update_model(context, old_root, cache_dir: str, copies: bool = True) -> dict:
     """Replace ``old_root`` by the model in ``cache_dir``, keeping all work. Returns a summary.
+
+    Task 0293: a whole model that was copied (or a copy of one) updates the other models of its copy group too
+    (``copies``), each keeping its own work and place; a copy of a subassembly or parts is refused (it is frozen).
 
     Raises ``UpdateFailed`` when it could not be done; the project is then as it was."""
     scene = context.scene
     if old_root.get("fr_lifting"):               # task 0214 (0209 row 4): a crane is rigged from its equipment file
         raise UpdateFailed("this is a crane of the lifting plan: Remove it in 8 Lifting plan and place it again")
+    from . import copy as copy_mod
+    why = copy_mod.refused_update(old_root)
+    if why:
+        raise UpdateFailed(why)
+    followers = [r.name for r in copy_mod.others(scene, old_root)] if copies else []
     removed = old_root.get("fr_removed", "")   # task 0292: parts Remove took out of this model
     before = {"objects": _names(bpy.data.objects), "meshes": _names(bpy.data.meshes),
               "collections": _names(bpy.data.collections)}
@@ -620,6 +628,34 @@ def update_model(context, old_root, cache_dir: str) -> dict:
         for n in remove.after_update(scene, removed, out.get("root")):
             scene.fresing.report_notes.add().text = n
             out["notes"].append(n)
+    title = scene.fresing.report_title
+    for name in followers:                       # task 0293: the copies of a whole model follow it
+        other = bpy.data.objects.get(name)
+        if other is None:
+            continue
+        label = other.get(build.PROP_NAME, other.name)
+        keep = [(x.text, x.uid) for x in scene.fresing.report_new], [(x.text, x.uid) for x in scene.fresing.report_missing], \
+            [x.text for x in scene.fresing.report_notes]
+        try:
+            update_model(context, other, cache_dir, copies=False)
+            n = f"The copy '{label}' was updated too"
+        except UpdateFailed as exc:
+            n = f"The copy '{label}' could not follow: {exc}"
+        s = scene.fresing                        # the report stays the first model's, with a line per copy
+        s.report_new.clear()
+        s.report_missing.clear()
+        s.report_notes.clear()
+        for text, uid in keep[0]:
+            line = s.report_new.add()
+            line.text, line.uid = text, uid
+        for text, uid in keep[1]:
+            line = s.report_missing.add()
+            line.text, line.uid = text, uid
+        for text in keep[2]:
+            s.report_notes.add().text = text
+        s.report_notes.add().text = n
+        s.report_title = title
+        out["notes"].append(n)
     return out
 
 
@@ -755,6 +791,8 @@ def _carry_over(context, st) -> dict:
 
     # 2. the new revision (built first, in update_model), placed where the old one was
     new_root.matrix_basis = old_root.matrix_basis.copy()
+    from . import copy as copy_mod
+    kept_root = copy_mod.carry_root(old_root, new_root)     # task 0293: a copy keeps its group and name
     build.set_mat(new_root, build.PROP_REST_BASIS, build.rest_basis(old_root))
     tree = logic.Tree(scene)
     new_objs = _model_objects_of(new_root, tree)
@@ -844,6 +882,7 @@ def _carry_over(context, st) -> dict:
     _put_back([(c, p) for c, p in aside if _alive(c)])       # not emptied (a child collection): back in place
     if old_name and new_root.users_collection and old_name not in bpy.data.collections:
         new_root.users_collection[0].name = old_name
+    copy_mod.after_root(new_root, kept_root)
     bpy.context.view_layer.update()
     logic.apply_rules(scene)
     logic.rebuild_tree(scene)
