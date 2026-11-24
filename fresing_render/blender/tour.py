@@ -1067,6 +1067,42 @@ def _check_welds(scene):
     return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead"
 
 
+WELDING = "Welding"
+WELDING_SHOWS = ("FRESING_PT_welds", "FRESING_PT_looks", "FRESING_PT_import", "FRESING_PT_scene", "FRESING_PT_camera",
+                 "FRESING_PT_output")
+WELDING_HIDES = ("FRESING_PT_motion", "FRESING_PT_animation", "FRESING_PT_cnc", "FRESING_PT_cables",
+                 "FRESING_PT_queue", "FRESING_PT_web3d")
+
+
+def _welding_open(scene):
+    """Task 0321: the stop switches the welds project to the workspace Welding, its Workspace row open."""
+    from . import panels, workspaces
+    workspaces.switch(scene, WELDING)
+    panels.set_open("FRESING_PT_workspace", True)
+    panels.set_open("FRESING_PT_welds", True)
+
+
+def _check_workspace_welding(scene):
+    """Workspaces round 3 (task 0321): Welding shows the welds and the render options, hides motion and the rest; the
+    welds stay as they are."""
+    from ..core import workspaces as W
+    from . import lock, welds, workspaces
+    before = welds.stats(scene)["welds"]
+    if workspaces.name_of(scene) != WELDING:
+        workspaces.switch(scene, WELDING)
+    for p in WELDING_SHOWS:
+        _check(not workspaces.panel_hidden(scene, p), f"Welding hides {p[11:]}")
+    for p in WELDING_HIDES:
+        _check(workspaces.panel_hidden(scene, p), f"Welding shows {p[11:]}")
+    _check(not lock.ON[0], "Welding locks the project")
+    _check(welds.stats(scene)["welds"] == before, "switching the workspace changed the welds")
+    names = [n for n, _note, _own in workspaces.names()]
+    for key in ("welding", "builder", "video", "houses"):
+        _check(W.NAMES[key] in names, f"{W.NAMES[key]} is not in the Workspace list")
+    n = len(workspaces._state(scene)[1])
+    return f"Welding: {n} functions; the list has {len(names)} workspaces"
+
+
 def _check_decals(scene):
     import bpy
 
@@ -4847,6 +4883,14 @@ stop("welds", LOOK, "welds", "Welds",
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
      "the branch meets the tube and a butt joint ground flush to the extension plate.",
      where="3 Looks > Welds", check=_check_welds, since="0.2.231")
+stop("workspace_welding", LOOK, "welds", "The workspace Welding",
+     "The same weldment, the Workspace row on the left panel now says 'Welding' (its small arrow open). The side "
+     "panel shows only what welding needs: 1 Import, 2 Structure, 3 Looks with Welds open, 5 Scene & Render (light, "
+     "camera, picture). 4 Motion, 6 Animation, the render queue and the CNC machine are gone; the welds are all still "
+     "there. Open the Workspace list: Welding, Machine builder, Video producer and Houses are new, each with its own "
+     "icon and a star. Pick All functions to have everything back.",
+     where="The Workspace row on the left panel", since="0.2.238", shot="Welds", setup=_welding_open,
+     check=_check_workspace_welding, auto=lambda ctx, scene, st: "")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
@@ -5770,8 +5814,11 @@ def _check_workspace(scene):
         # task 0294: Essentials first, the task workspaces, a star on every row of the list
         _check(workspaces.names()[0][0] == "Essentials", "Essentials is not first in the Workspace list")
         workspaces.switch(scene, "Sales")
-        _check(workspaces.panel_hidden(scene, "FRESING_PT_motion") and not workspaces.panel_hidden(scene, "FRESING_PT_shots")
-               and not lock.ON[0], "Sales does not hide motion, show saved scenes and leave the project unlocked")
+        # task 0321: Sales moves joints (4 Motion > Joints shows) but does not add them; the project is not locked
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_joints") and not workspaces.shows(scene, "joints.rotate")
+               and workspaces.panel_hidden(scene, "FRESING_PT_structure")
+               and not workspaces.panel_hidden(scene, "FRESING_PT_shots") and not lock.ON[0],
+               "Sales does not show moving joints without adding them, saved scenes, an unlocked project")
         _check(hasattr(bpy.types, "FRESING_MT_workspaces") and hasattr(bpy.ops.fresing, "workspace_star"),
                "the Workspace list with its stars is missing")
     finally:

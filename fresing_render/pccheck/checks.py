@@ -1062,8 +1062,8 @@ def workspace_essentials(ctx):
         _check(bpy.types.FRESING_PT_import.poll(bpy.context) and not bpy.types.FRESING_PT_cnc.poll(bpy.context),
                "the side panel does not follow Essentials")
         workspaces.switch(scene, "Sales")
-        _check(all(workspaces.panel_hidden(scene, "FRESING_PT_" + n) for n in ("import", "structure", "motion"))
-               and not workspaces.panel_hidden(scene, "FRESING_PT_web3d"), "Sales shows structure or motion, or no 3D page")
+        _check(all(workspaces.panel_hidden(scene, "FRESING_PT_" + n) for n in ("import", "structure"))   # 0321: joints
+               and not workspaces.panel_hidden(scene, "FRESING_PT_web3d"), "Sales shows the structure, or no 3D page")
         if p is not None:                       # favourites on top (set and put back here: nothing written)
             p.workspace_stars = W.stars_json(["Reviewer", "Animator"])
             p.default_workspace = "Sales"
@@ -1076,6 +1076,55 @@ def workspace_essentials(ctx):
             p.default_workspace, p.workspace_stars = kept
         if env is not None:
             os.environ[workspaces.ENV_START] = env
+        try:
+            workspaces.switch(scene, W.DEFAULT)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+@line("workspace.round3", "Workspaces round 3: Welding, Machine builder, Video producer, Houses; Sales moves joints",
+      "0.2.238",
+      what="Each new workspace shows exactly its functions (Welding: welds and the render options, no motion); in "
+           "Sales the crane's boom joint moves by its slider while adding joints stays hidden; the project is never "
+           "locked")
+def workspace_round3(ctx):
+    import bpy
+
+    from ..blender import joints, ui_motion, workspaces
+    from ..core import functions as FN
+    from ..core import workspaces as W
+    scene = ctx.fresh(CRANE_A)
+    jb = _boom_joint(scene)                 # Sales moves the joints a project has: the crane's boom
+    counts = []
+    try:
+        for key in ("welding", "builder", "video", "houses"):
+            workspaces.switch(scene, W.NAMES[key])
+            shown = workspaces._state(scene)[1]
+            _check(set(shown) == set(FN.TASK_WORKSPACES[key]) - set(workspaces.PERSONAL["hide"]),
+                   f"{W.NAMES[key]} does not show exactly its functions")
+            _check(not workspaces.locked(scene), f"{W.NAMES[key]} locks the project")
+            _check(workspaces.icon_of(W.NAMES[key]) == W.ICONS[key], f"{W.NAMES[key]} has no icon of its own")
+            counts.append(f"{W.NAMES[key]} {len(shown)}")
+        workspaces.switch(scene, "Welding")
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_welds")
+               and workspaces.panel_hidden(scene, "FRESING_PT_motion"), "Welding hides Welds or shows 4 Motion")
+        workspaces.switch(scene, "Machine builder")
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_cylinders")
+               and workspaces.panel_hidden(scene, "FRESING_PT_web3d"), "Machine builder hides Cylinders or shows the 3D page")
+        # Sales (owner 24 Nov): the joints move, adding them stays hidden
+        workspaces.switch(scene, "Sales")
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_joints") and not ui_motion.can_edit_joints(bpy.context)
+               and workspaces.panel_hidden(scene, "FRESING_PT_structure"),
+               "Sales does not show moving joints only (or shows the structure)")
+        before = _tip(scene).copy()
+        joints.set_value(jb, math.radians(20))
+        _update()
+        moved = (_tip(scene) - before).length
+        joints.set_value(jb, 0.0)
+        _update()
+        _check(moved > 1.0, f"the boom did not move in Sales (tip moved {moved * 1000:.0f} mm)")
+        return ", ".join(counts) + f" functions; in Sales the boom's tip moved {moved * 1000:.0f} mm at 20°"
+    finally:
         try:
             workspaces.switch(scene, W.DEFAULT)
         except Exception:  # noqa: BLE001

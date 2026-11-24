@@ -30,7 +30,12 @@ WORK = (("cnc", "CNC & machining", "cnc", "Machining"),
         ("sales", "Sales / presentations", "sales", "Output"),
         ("animator", "Animation", "animator", "Motion"),
         ("quick", "Just pictures of my models", "quick", "Output"),
-        ("reviewer", "Looking at models others made", "reviewer", "Look"))
+        ("reviewer", "Looking at models others made", "reviewer", "Look"),
+        # task 0321: the workspaces of round 3
+        ("welding", "Welding and fabrication", "welding", "Look"),
+        ("builder", "Making machines move", "builder", "Motion"),
+        ("video", "Videos of machines", "video", "Output"),
+        ("houses", "Houses from House Planner", "houses", "Output"))
 WORK_KEYS = tuple(w[0] for w in WORK)
 BY_WORK = {w[0]: w for w in WORK}
 

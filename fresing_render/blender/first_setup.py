@@ -488,7 +488,7 @@ def draw_welcome(layout, context, v) -> None:
 
 def draw_work(layout, context, v) -> None:
     layout.label(text="What do you do? Tick all that fit", icon="USER")
-    col = layout.column(align=True)
+    col = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)   # 13 ticks (task 0321)
     for k, title, _ws, _ch in core.WORK:
         col.prop(v, "work_" + k, text=title)
     ui.gap(layout)

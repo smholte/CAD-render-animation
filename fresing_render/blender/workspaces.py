@@ -87,6 +87,13 @@ def forget_scan() -> None:
     _hidden.cache_clear()
 
 
+def icon_of(name: str) -> str:
+    """Task 0321: the icon of a workspace in the drop-down (an own workspace: one for all)."""
+    if is_own(name):
+        return W.OWN_ICON
+    return W.ICONS.get(W.key_of(name), "BLANK1")
+
+
 def names() -> list:
     """Every workspace the switcher lists: (name, note, own) – the built-in ones first, then the user's own. A
     built-in whose name an own workspace took is left out (the own one wins)."""
