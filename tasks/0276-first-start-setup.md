@@ -1,6 +1,6 @@
 # 0276 – First-start set-up: one window that walks a new user through the app's set-up (replaces Blender's own)
 
-**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0276-loioex` (the web session's branch)
+**Who:** worker · **Status:** done (0.2.235) · **Branch:** `claude/cad-render-animation-0276-loioex` (the web session's branch)
 progress window) · **Branch:** `task/0276-first-start-setup`
 **Started by:** lead, 21 Nov 2026 (owner 17:45: "maybe there should be a set-up menu when a user opens the app for the
 first time?"; owner's picks 17:50: **full set-up** – **replace Blender's own first-start window**) ·
@@ -121,7 +121,10 @@ New settings; online accounts or sign-in; collecting anything about the user (no
 - PC-check lines `app.first_setup` and `app.start_here`: OK (bpy module).
 - The probe's real time with all five lines (import + HD render on a card) was not measured here (no graphics card);
   the brief's "~20 s on the owner's PC" is an expectation.
-- GitHub runs: see below.
+- GitHub: 3 full runs. Run 45381623192 red on three things the new code touched elsewhere (the Client view listed
+  the new function but greys its button → `workspaces=` without client; the left-panel test counted the set-up page;
+  the licence copy of COMPANY-USE.md). Run 45386853776 green, but 0.2.233 and then 0.2.234 were taken by tasks 0291
+  and 0315 meanwhile: renumbered twice. Run 45391413321 (0.2.235) green: every job incl. Windows install A + B.
 
 **Owner's check (on your PC, without losing your settings):**
 1. Close Fresing Render. Open the app folder (Fresing > Tools and checks > Open the app folder), go to
