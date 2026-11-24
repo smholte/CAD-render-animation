@@ -626,7 +626,7 @@ def decals_add(ctx):
     return f"{len(shown)} decals; render {info['seconds']} s"
 
 
-@line("looks.welds", "Welds: two picked faces give a bead", "0.2.221",
+@line("looks.welds", "Welds: two picked faces give a bead", "0.2.222",
       what="The base plate's top and one side of the fin picked as in Inventor: one fillet 200 mm long; then every joint "
            "of the test weldment welded with another look (painted, MAG, rusty, stainless, pickled, aluminium, ground); "
            "rendered small")

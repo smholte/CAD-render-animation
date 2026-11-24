@@ -5,6 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.222 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
+
+- **3 Looks > Welds** (new): **Add weld…**, click the faces of the first part (Shift-click: more), Enter, click the
+  faces of the part it is welded to – a bead is laid on every line where the two sets meet, shown green in the view
+  before you press Done; untick the seams you do not want. **Weld two parts**: select two parts, every line where
+  they meet gets a bead. Right-click a face: **Weld to another part…**.
+- Found the same way: a plate on a plate (one side or both), a gusset in a corner, a lap joint, a butt joint (two
+  plates edge to edge), a tube in a plate's hole (all round), a coped tube on a tube (the saddle), a tube pushed through
+  a plate. Touching, or with a gap up to 2 mm (**Gap up to**). A square post: the four sides join round its corners.
+- **Shape**: fillet (size a, as on a drawing; it starts at half the thinner plate) or butt (cap width), end craters,
+  intermittent (piece and pitch). **Look**: steel MAG (blue-grey oxide, spatter), stick, stainless TIG with straw /
+  purple / blue heat tint (or **Pickled**), aluminium MIG with its sooty band or TIG; **As welded**, **Painted** (a
+  part's paint over the bead, the ripples show through, worn first at the bead's edges) or **Ground flush**. **Rust**
+  where it would be: bare steel welds first, painted ones only where Wear took the paint off, galvanised parts unless
+  zinc sprayed after welding, stainless only a faint tea stain, aluminium never. Two different metals: a calm note.
+- **Kept with the parts**: the bead moves, hides, fades, takes the X-ray look and is sliced with its part; a model
+  update finds the picked faces again (a weld whose faces are gone says "Weld lost its faces – pick again" and is named
+  in the report); welded parts that a joint moves apart get a note with **Make them move as one**. The web 3D model has
+  the beads in their colour; the clash check leaves welds out; the Client view shows them but cannot change them.
+- Measured on the 4-core test machine: 300 welds (900 seams, 87 m of bead) on an invented frame in about 100 s,
+  0.06 s to find one weld's seams and 0.03 s to build its bead; the project saves in 0.5 s; renders take no longer.
+- New test model, test tour stop "Welds" and PC check line "Welds: two picked faces give a bead".
+
 ## 0.2.221 – 23 Nov 2026 – Always the graphics card (task 0296)
 
 - **Renders use only the graphics card.** On a PC with an AMD processor and an AMD card, the processor's small built-in

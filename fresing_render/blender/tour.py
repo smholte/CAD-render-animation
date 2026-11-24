@@ -1003,7 +1003,7 @@ def build_decals(b: Build):
     _shot(b, "@decals")
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.221")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.222")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -4446,7 +4446,7 @@ stop("welds", LOOK, "welds", "Welds",
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
      "the branch meets the tube and a butt joint ground flush to the extension plate.",
-     where="3 Looks > Welds", check=_check_welds, since="0.2.221")
+     where="3 Looks > Welds", check=_check_welds, since="0.2.222")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
