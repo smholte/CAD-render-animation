@@ -195,7 +195,7 @@ DUPLICATES: list = []
 # ----- the side panel itself (task 0062) -----
 fn(id="panel.workspace", headline=True, title="Workspaces: show only the functions a kind of work needs", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="workspaces", tour=("workspace",), pccheck=("panel.workspaces",),
-   since="0.2.152", changed="0.2.222")
+   since="0.2.152", changed="0.2.223")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
    panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
@@ -208,13 +208,13 @@ fn(id="panel.client_view", headline=True, title="Client view: the project locked
 # task 0294: Essentials as the start, the task workspaces, favourites on top of the drop-down
 fn(id="panel.essentials", headline=True, title="Essentials: where a new user starts – a first picture and a simple motion",
    family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="essentials", tour=("workspace",),
-   pccheck=("workspace.essentials",), since="0.2.222")
+   pccheck=("workspace.essentials",), since="0.2.223")
 fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick render, Animator, Reviewer", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="task-workspaces", tour=("workspace",),
-   pccheck=("workspace.essentials",), since="0.2.222")
+   pccheck=("workspace.essentials",), since="0.2.223")
 fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
-   pccheck=("workspace.essentials",), since="0.2.222")
+   pccheck=("workspace.essentials",), since="0.2.223")
 fn(id="panel.sections", headline=True, title="Sections start folded; section tabs; Ctrl+click", family="panel",
    panel="FRESING_PT_tabs", button="fresing.panel_tab", guide="sections", tour=("workspace",), since="0.2.152", changed="0.2.197")
 fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_next", button="fresing.next_hide",
@@ -263,7 +263,7 @@ fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that w
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
-   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), lesson="crane:1", since="0.1.0")
+   pccheck=("import.crane", "import.machine", "import.materials", "import.shapes", "project.reopen"), lesson="crane:1", since="0.1.0")
 fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")

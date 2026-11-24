@@ -1309,7 +1309,16 @@ into groups by itself, with the project's **rule set** (at the top of 3 Looks, s
 - **part types** by name: profiles, shafts, chrome rods, cylinders, bearings, hoses, cables, cable
   chains, motors, sensors, guards and many more – also Dutch and German names and supplier order
   codes (Misumi, SMC, Festo, igus, HIWIN, THK, SKF, Sick, Omron and many more), also when the code
-  sits inside a longer name such as "PSFJ20-300_SHAFT" or "_LMUW20_1";
+  sits inside a longer name such as "PSFJ20-300_SHAFT" or "_LMUW20_1". Since 0.2.222 also hose ends and tube
+  fittings ("Schneidring", "SNIJRING", "HOSE TAIL"), test points, rotary unions, compressors, coolers,
+  receivers, pressure and temperature sensors, linear scales, claw and bellows couplings, crossed roller
+  guides, wire rope ends and lifting points ("Kausche", "PERSHULS", "Lastöse"), rod seals and wipers,
+  index plungers, magnet catches, thrust washers and more, and the German and Dutch one-word fasteners
+  ("Federscheibe", "Nutmutter", "SLEUFMOER", "Senkniet");
+- the **shape**, only for parts whose name says nothing ("Part123", "Onderdeel4", a drawing number): a
+  thin flat ring with a round hole is a **washer**, a hexagon with a bore about as high as a nut is a
+  **hex nut** (both go to the fasteners), a torus is an **O-ring** (Seals & O-rings). Anything else
+  keeps the group its CAD material or colour gives it;
 - the **material name** in the STEP file (Fusion writes it);
 - the **CAD colour**.
 
@@ -1602,7 +1611,9 @@ the unsorted parts** (above, in red) shows what still needs a group.
 <img class="panel" src="img/panel_3_rules.png" alt="Sorting rules">
 
 The rules decide each part's group. They are checked from the top, and the first rule that fits a part
-decides. The order is: fasteners → part type → CAD material → CAD colour → Unsorted.
+decides. The order is: fasteners → part type → CAD material → CAD colour → Unsorted. A washer or nut known
+only by its shape counts as a fastener (type "Washer" / "Hex nut", no finish), an O-ring known only by its
+shape as part type "Seals & O-rings".
 
 - The tick switches a rule on or off; the number shows how many parts it caught.
 - Click a rule to change it: **If** [*what*: part name, assembly path, CAD colour, finish, part type,
