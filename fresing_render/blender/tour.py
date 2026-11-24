@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.236")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.238")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1007,7 +1007,7 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_r.step", added="0.2.47", changed="0.2.238")
+@tour_set("faces", "Painted faces", "test_faces_r.step", added="0.2.47", changed="0.2.239")
 def build_faces(b: Build):
     import bpy
 
@@ -1035,7 +1035,7 @@ def _check_faces(scene):
     return "2 CAD faces, 1 by hand"
 
 
-@tour_set("decals", "Logos and stickers", "test_decals_r.step", added="0.2.47", changed="0.2.238")
+@tour_set("decals", "Logos and stickers", "test_decals_r.step", added="0.2.47", changed="0.2.239")
 def build_decals(b: Build):
     from . import decals, welds
     sc = b.scene
@@ -5556,6 +5556,11 @@ def _check_web3d(scene):
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
     _check(film and len(st.get("films") or []) == 1, "the page has no Film (the camera animation is built)")
+    lead = st.get("lead") or {}                         # task 0310: the crane's lead motions as sliders
+    want = [lm.name for lm in scene.fresing.lead_motions]
+    _check([m["name"] for m in lead.get("motions", [])] == want,
+           f"the page's Motions are {[m['name'] for m in lead.get('motions', [])]}, not {want}")
+    _check(len(lead.get("joints", [])) == 2, "the page has no clip for the boom and the trolley")
     from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø100)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
@@ -5565,6 +5570,7 @@ def _check_web3d(scene):
            open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
             f"{len(st['views'])} saved views; Film {out.get('film_keys', 0)} of {out.get('film_frames', 0)} frames; "
+            f"Motions: {len(lead['motions'])} sliders; "
             f"faces for measuring in {len(faces)} meshes, "
             f"{sum(len(e) for e in edges.values())} edges")
 
@@ -5655,9 +5661,12 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "rest (click a part: the rest goes see-through). The animation 'Camera rides and flies' is built, so the page "
      "plays it with a Film button (a film camera) at the end of the play bar: pressed, the page shows the motion through "
      "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
-     "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
+     "Film (the motion plays on, the button gets an orange ring), press it again to glide back. Bottom left, above the "
+     "views: Motions (3) opens a slider per lead motion – 'Boom up and out', 'Boom up', 'Trolley out' – with ▶ and Back "
+     "to start: drag 'Boom up and out' and the boom goes up, then the trolley runs out; then drag 'Boom up' – the boom "
+     "follows and the trolley stays out. A slider pauses the animation; Play gives it back.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
-     check=_check_web3d, changed="0.2.203")
+     check=_check_web3d, changed="0.2.238")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "

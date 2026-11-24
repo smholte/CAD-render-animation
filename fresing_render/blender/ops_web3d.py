@@ -101,7 +101,8 @@ class FRESING_OT_web3d_export(bpy.types.Operator):
                               surroundings=web3d_env.choice(scene), light=w.light, light_quality=w.light_quality,
                               light_texels=w.light_texels, marine_detail=w.marine_detail,
                               faces=w.measure_faces, view_names=w.view_names, film_captions=w.film_captions,
-                              film_labels=w.film_labels, film_cards=w.film_cards)
+                              film_labels=w.film_labels, film_cards=w.film_cards,
+                              lead_motions=w.lead_sliders)
         if not self.modal_run or context.window is None:
             try:
                 out = self._job.run()

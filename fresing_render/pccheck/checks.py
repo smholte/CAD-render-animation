@@ -3531,6 +3531,96 @@ def web3d_film(ctx):
     return f"{text}; the page's camera is the app's at the ride and holds before the cut in {os.path.basename(browser)}"
 
 
+@line("web3d.lead_motions", "Web 3D model: the lead motions as sliders", "0.2.238",
+      what="Task 0310: the crane with its Film animation built and three lead motions ('Boom up and out' in two "
+           "windows, 'Boom up', 'Trolley out'), saved as a web 3D model with its animation: the file holds one clip per "
+           "joint (the boom, the trolley), kept out of the animation, and the page's Motions; the slider of 'Boom up "
+           "and out' at 50 % gives the app's places (within 0.5 mm), and so does 'Boom up' at 50 % after it (the "
+           "trolley stays out, as in the app); opened in Edge or Chrome without a window at that 50 %, the page gives "
+           "the joint values of the app's lead motion and the app's places, and the animation is paused")
+def web3d_lead_motions(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import joints, lead_motions, tour, web3d, web3d_film as film_b
+    from ..core import lead_motions as lm
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    from ..core import web3d_lead as lead
+    scene = ctx.fresh(CRANE_A)
+    film_b.set_up_test(scene, extras=False)
+    lead_motions.add(scene, "Boom up and out", [lm.Row("Boom", 0.0, math.radians(30), 0, 60),
+                                                lm.Row("Trolley", 0.0, tour.TROLLEY_RUN, 40, 100, "LINEAR")])
+    lead_motions.add(scene, "Boom up", [lm.Row("Boom", 0.0, math.radians(35))], seconds=3.0)
+    lead_motions.add(scene, "Trolley out", [lm.Row("Trolley", 0.0, tour.TROLLEY_RUN, easing="LINEAR")], seconds=3.0)
+    for x in scene.fresing.lead_motions:
+        x["position"] = 0.0
+    t0 = time.perf_counter()
+    job = web3d.Job(scene, os.path.join(ctx.work, "web3d", "Crane lead motions.glb"), size=512, animation=True)
+    out = job.run()
+    seconds = time.perf_counter() - t0
+    data = open(out["path"], "rb").read()
+    _check(not core.problems(data), f"the file is not valid glTF: {core.problems(data)[:1]}")
+    doc, binary = core.read_glb(data)
+    with open(out["html"], encoding="utf-8") as fh:
+        st = env.page_settings(fh.read())
+    block = st.get("lead") or {}
+    names = [m["name"] for m in block.get("motions", [])]
+    _check(names == ["Boom up and out", "Boom up", "Trolley out"], f"the page's Motions are {names}")
+    _check(len(block.get("joints", [])) == 2 and len(doc.get("animations", [])) == 3,
+           f"{len(block.get('joints', []))} joint clips and {len(doc.get('animations', []))} clips in the file "
+           "(want 2 and the animation)")
+    ids = [n for _ob, n in job._nodes]
+
+    def app(moves):                           # the app's places after these slider moves, then back
+        keep = {j.name: joints.get_value(j) for j in scene.fresing.joints}
+        for name, p in moves:
+            lead_motions.apply(scene, scene.fresing.lead_motions[name], p, refresh=True)
+        bpy.context.view_layer.update()
+        got = np.array([np.array(ob.matrix_world) for ob, _n in job._nodes], np.float64)
+        for name, v in keep.items():
+            joints.set_value(joints.find(scene, name), v, use_limits=False)
+        bpy.context.view_layer.update()
+        return got
+
+    worst = 0.0
+    for moves in ([("Boom up and out", 50.0)], [("Boom up and out", 100.0), ("Boom up", 50.0)]):
+        want = app(moves)
+        got = lead.page_places(doc, binary, block, ids, [(names.index(n), p) for n, p in moves])
+        off = float(np.abs(got[:, :3, 3] - want[:, :3, 3]).max())
+        worst = max(worst, off)
+        _check(off <= 5e-4 and float(np.abs(got[:, :3, :3] - want[:, :3, :3]).max()) <= 2e-4,
+               f"after {moves} the page's parts are {off * 1000:.2f} mm off the app's")
+    text = (f"{len(names)} sliders, {len(block['joints'])} joint clips, {out.get('lead_keys', 0)} keys; worst "
+            f"{worst * 1000:.2f} mm; export {seconds:.1f} s")
+    ctx.metric("lead_export", seconds, "s")
+    browser = env.find_browser()
+    if not browser:
+        return f"{text}; no Edge or Chrome on this PC: the page was not opened"
+    try:
+        got = env.read_page(out["html"], browser, "auto=0&frames=2&places=1&lead=0:50", seconds=90)
+    except RuntimeError as exc:
+        return f"{text}; {os.path.basename(browser)} gave no answer ({exc}); not counted"
+    if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
+        return f"{text}; no WebGL in the browser without a window; not counted"
+    _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
+    _check(got["state"] != "loading", "the page was still loading after a second, longer opening")
+    ls = (got.get("player") or {}).get("lead") or {}
+    _check(ls.get("on") and (got.get("player") or {}).get("paused"), "the slider did not pause the animation")
+    want_v = lead.joint_values(block["motions"], [50.0, 0.0, 0.0], [1, 0, 0])
+    for j, v in want_v.items():
+        _check(ls["joints"][j] is not None and abs(ls["joints"][j] - v) <= 1e-9,
+               f"the page's joint {j + 1} is at {ls['joints'][j]}, the app's lead motion gives {v}")
+    want = app([("Boom up and out", 50.0)])
+    places = got.get("places") or {}
+    for k, n in enumerate(ids):
+        if str(n) in places:
+            x = np.array(places[str(n)], np.float64)
+            off = float(np.abs(x[:3] - want[k][:3, 3]).max())
+            _check(off <= 5e-4, f"the page's part {n} at 50 % is {off * 1000:.2f} mm off the app's")
+    return f"{text}; the page at 50 % gives the app's joint values and places in {os.path.basename(browser)}"
+
+
 def _player_check(page_path: str, ctx) -> str:
     """Task 0134: the page's player in this PC's Edge or Chrome without a window (software drawing): the settings
     menu, the keys help and the link work, Space pauses and plays a page with motion, and the page says it draws

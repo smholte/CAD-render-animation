@@ -43,8 +43,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.236",
-   "fp": "775131a25de56cb7"
+   "changed": "0.2.238",
+   "fp": "53b19e33a29ad020"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -63,7 +63,7 @@
   },
   "decals": {
    "added": "0.2.47",
-   "changed": "0.2.238",
+   "changed": "0.2.239",
    "fp": "dc1696cbf8c3075e"
   },
   "doublearm": {
@@ -73,7 +73,7 @@
   },
   "faces": {
    "added": "0.2.47",
-   "changed": "0.2.238",
+   "changed": "0.2.239",
    "fp": "f4941960f74755e3"
   },
   "finishes": {
