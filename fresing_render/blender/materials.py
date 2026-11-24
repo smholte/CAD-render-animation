@@ -342,6 +342,22 @@ def _bump(b: _Nodes, height, strength: float, distance: float, normal, x: float,
     return n.outputs["Normal"]
 
 
+def _clear_shadows(b: _Nodes, out, bsdf, spec: dict, lin) -> None:
+    """Task 0318: glass and clear plastic let light through to what lies behind them. Cycles finds the light bent
+    through glass only by chance (caustics), so a window, a guard or a glass block cast a black shadow and looked dark
+    themselves. Shadow rays now pass straight through, tinted by the glass's colour (and a little dimmed by a frosted
+    one): clear guards and windows look clear, as in a photo. The rays the camera sees still refract."""
+    lp = b.node("ShaderNodeLightPath", -100, 500)
+    rough = float(spec.get("roughness", 0.0))
+    tint = tuple(c * (1.0 - 0.5 * min(rough, 1.0)) for c in lin)
+    tr = b.node("ShaderNodeBsdfTransparent", 50, 400, Color=(*tint, 1.0))
+    mix = b.node("ShaderNodeMixShader", 420, 150)
+    b.put(mix.inputs[0], lp.outputs["Is Shadow Ray"])
+    b.put(mix.inputs[1], bsdf.outputs["BSDF"])
+    b.put(mix.inputs[2], tr.outputs[0])
+    b.put(out.inputs["Surface"], mix.outputs[0])
+
+
 def _eevee_glass(b: _Nodes, out, spec: dict, lin) -> None:
     """EEVEE shows refraction only with screen-space ray tracing, so glass there came out dark grey. EEVEE
     gets its own output instead: see-through (tinted) plus reflections that grow towards grazing angles,
@@ -407,6 +423,9 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
     if spec.get("sheen"):
         _set(bsdf, "Sheen Weight", spec["sheen"])
         _set(bsdf, "Sheen Roughness", spec.get("sheen_roughness", 0.5))
+    if spec.get("thin_film"):                    # task 0318: yellow zinc's passivation film
+        _set(bsdf, "Thin Film Thickness", float(spec["thin_film"].get("thickness", 400.0)))
+        _set(bsdf, "Thin Film IOR", float(spec["thin_film"].get("ior", 1.5)))
     if spec.get("emission"):
         _set(bsdf, "Emission Color", (*lin, 1.0))
         _set(bsdf, "Emission Strength", spec.get("emission_strength", 5.0))
@@ -509,6 +528,7 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
         if hasattr(mat, "surface_render_method"):
             mat.surface_render_method = "BLENDED"
         _eevee_glass(b, out, spec, lin)
+        _clear_shadows(b, out, bsdf, spec, lin)
     mat["fr_material"] = material_id
     mat["fr_color"] = color_text
     mat["fr_wear"] = float(wear)

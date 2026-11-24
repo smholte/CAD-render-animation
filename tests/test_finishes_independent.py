@@ -241,7 +241,7 @@ def test_odd_meshes_through_the_face_data(blender):
     me.from_pydata([(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (0.5, 1.5, 0)], [], [(0, 1, 2, 4, 3)])
     assert finishes.ensure_faces(me) and finishes.has_faces(me)
     empty = bpy.data.meshes.new("ind empty")
-    assert finishes.prepare_faces(empty) == {"round": 0, "bore": 0, "end": 0, "other": 0}
+    assert finishes.prepare_faces(empty) == {"round": 0, "bore": 0, "end": 0, "sphere": 0, "other": 0}
     assert finishes.has_faces(empty)
     edges = bpy.data.meshes.new("ind edges")
     edges.from_pydata([(0, 0, 0), (1, 0, 0)], [(0, 1)], [])
@@ -340,7 +340,7 @@ def test_the_tour_set_reopened_passes_its_check_and_needs_no_rebuild(board):
     sc = bpy.context.scene
     st = tour.find("finishes")
     assert tour.apply(st, sc) == []
-    assert "23 finishes" in st.check(sc)
+    assert f"{len(fc.FINISHES)} finishes" in st.check(sc)          # 23 + carbon, perlage (task 0318)
     assert logic.upgrade_looks(sc) == 0                       # every material still current after the reopen
     assert sc[fc.PIXEL_PROP] == pytest.approx(cameras.pixel_angle(sc), rel=0.011)
 

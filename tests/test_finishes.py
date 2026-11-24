@@ -23,12 +23,12 @@ FINISHES = os.path.join(HERE, "test_finishes.step")
 # without Blender
 # ---------------------------------------------------------------------------------------------------------------
 
-def test_the_23_finishes_are_library_materials():
+def test_the_25_finishes_are_library_materials():
     with_finish = {k for k, v in materials_lib.MATERIALS.items() if v.get("finish")}
-    assert with_finish == set(fc.FINISHES) and len(fc.FINISHES) == 23
-    # the study's numbers that were picked for this task (0270: carbon, weld, rust and perlage go to 0318 / 0319)
-    assert sorted(f["n"] for f in fc.FINISHES.values()) == sorted(
-        set(range(1, 27)) - {17, 21, 23})
+    assert with_finish == set(fc.FINISHES) and len(fc.FINISHES) == 25
+    # the study's numbers (0270): 23 in task 0274, carbon (17) and perlage (27) in 0318; welds (21) are 0319's own
+    # objects, rust (23) is the groups' Rust slider
+    assert sorted(f["n"] for f in fc.FINISHES.values()) == sorted(set(range(1, 28)) - {21, 23})
     numbers = list(materials_lib.UIDS.values())
     assert len(numbers) == len(set(numbers)) == len(materials_lib.MATERIALS)
     assert all(materials_lib.UIDS[k] >= 62 for k in fc.FINISHES)          # new numbers only, none reused
@@ -209,7 +209,8 @@ def test_every_finish_builds_into_a_material(blender):
             web = finishes.web_numbers(mat)
             assert web["mode"] == fc.FINISHES[k]["web"] and 0.0 <= web["roughness"] <= 1.0
             n = finishes.node_count(mat)
-            assert 15 <= n <= 160, (k, n)                    # the study: 11 - 115 nodes; wear adds ~25
+            # the study: 11 - 115 nodes; wear adds ~25; the weave's own frame per face (carbon, perlage) ~70
+            assert 15 <= n <= (240 if fc.FINISHES[k]["kind"] in ("carbon", "perlage") else 160), (k, n)
             bsdf = next(nd for nd in mat.node_tree.nodes if nd.type == "BSDF_PRINCIPLED")
             assert bsdf.inputs["Alpha"].is_linked == bool(fc.FINISHES[k].get("see_through")), k
             assert bsdf.inputs["Normal"].is_linked, k

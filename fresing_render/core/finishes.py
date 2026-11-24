@@ -193,7 +193,7 @@ FINISHES: dict[str, dict] = {
         n=22, kind="as_cast", pat=dict(grain=0.0006, wave=0.03, roughness=0.62),
         kinds=("CAST_AL", "CAST_FE"), web="tile", far_rough=0.0, period=lambda p: p["grain"],
         what="a sand-cast surface: sand grain, a soft waviness, darker blotches"),
-    "carbon": dict(
+    "carbon_fibre": dict(
         n=17, kind="carbon", faces=True, pat=dict(tow=0.002, roughness=0.3, anisotropic=0.75, gloss=1.0, twill=1.0),
         size=("Tow width", "tow", 0.002, 0.001, 0.008), amount=("Gloss", 1.0, "gloss"), kinds=("TWILL", "PLAIN"),
         web="average", far_rough=0.05, period=lambda p: p["tow"],

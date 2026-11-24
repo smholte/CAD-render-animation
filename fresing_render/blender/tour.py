@@ -1311,9 +1311,10 @@ def finishes_demo(scene) -> dict:
     return groups
 
 
-@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.229")
+@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.229", changed="0.2.233")
 def build_finishes(b: Build):
-    """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front."""
+    """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front; task 0318: the
+    carbon fibre and perlage samples and the rust row in front of them."""
     sc = b.scene
     _look("PRODUCT")
     finishes_demo(sc)
@@ -1334,8 +1335,17 @@ def _check_finishes(scene):
     wrong = [n for n, (m, _c) in FINISH_BOARD.items()
              if parts[n].active_material is None or parts[n].active_material.get("fr_material") != m]
     _check(not wrong, f"without their finish: {', '.join(wrong)}")
-    built = {parts[n].active_material.get(finishes.PROP_FINISH) for n in FINISH_BOARD}
+    built = {parts[n].active_material.get(finishes.PROP_FINISH) for n in FINISH_BOARD} - {None}
     _check(len(built) == len(fin_core.FINISHES), f"{len(built)} finishes built, not {len(fin_core.FINISHES)}")
+    # task 0318: the rust row rusts where it is logical, the carbon dome is a sphere, the tube has a closed ring
+    from . import rust
+    rusty = [n for n in RUST_BOARD if float(parts[n].active_material.get(rust.PROP, 0.0)) > 0]
+    _check(sorted(rusty) == sorted(n for n in RUST_BOARD if "STAINLESS" not in n and "ALUMINIUM" not in n),
+           f"rusty: {', '.join(rusty)}")
+    cup = parts["CUP CARBON"].data
+    kc = np.empty(len(cup.polygons), np.float32)
+    cup.attributes["fr_fx_k"].data.foreach_get("value", kc)
+    _check((np.abs(kc) == 3).any(), "the carbon cup's dome was not read as a sphere")
     knob = parts["KNOB DIAMOND KNURL"].data
     _check(finishes.has_faces(knob), "the knurled knob has no face data")
     k = np.empty(len(knob.polygons), np.float32)
@@ -1348,7 +1358,8 @@ def _check_finishes(scene):
     angle = scene.get(fin_core.PIXEL_PROP, 0.0)
     _check(abs(angle - cameras.pixel_angle(scene)) <= 0.011 * angle, "the fade's pixel angle is not the camera's")
     n = fin_core.teeth(radius, 0.0008, 30.0)
-    return f"{len(built)} finishes; knob Ø{radius * 2000:.1f} mm: {n} teeth round it; pixel angle {angle:.2e} rad"
+    return (f"{len(built)} finishes; knob Ø{radius * 2000:.1f} mm: {n} teeth round it; pixel angle {angle:.2e} rad; "
+            f"{len(rusty)} rusty groups")
 
 
 @tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.203")
@@ -4800,15 +4811,19 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
            "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
      check=_check_marine, changed="0.2.196")
-stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains",
+stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains, carbon, rust",
      "A board of 23 samples in their finishes, from the back row: diamond and straight knurled knobs, a rubber grip, a "
      "spun cap, a shaft with a faced end, a honed half bushing; a blue cross-hatch cup, speaker cloth, a black grille "
      "with holes, tread, perforated and expanded plates; scraped way, soft-touch arch, bead- and shot-blasted, "
-     "hammertone and wrinkle blocks; anti-skid plate, VDI and leather cups, a spangled plate, an as-cast block. On "
-     "the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, leather cushions. Look in rendered view "
-     "and zoom in: the patterns show up close and fade calmly further away.",
+     "hammertone and wrinkle blocks; anti-skid plate, VDI and leather cups, a spangled plate, an as-cast block. In "
+     "front of them: carbon fibre on a cup, a tube with a cone, a U-shaped folded panel (plain weave, matte), a "
+     "free-form hood and a plate – the weave runs on round the curves and across the folds without a seam – and a "
+     "perlage disc; then the rust row: rusty bare steel, a cast iron block with rust patches, a blue painted block "
+     "rusting at its worn edges with short streaks below, a galvanized block with white rust, and stainless and "
+     "aluminium plates that stay clean. On the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, "
+     "leather cushions. Look in rendered view and zoom in: the patterns show up close and fade calmly further away.",
      where="3 Looks: a group's Material (Metal, Plastic & rubber, Paint …) and its own settings under it (Pitch, "
-           "Angle, Metal, Kind …)", since="0.2.229", check=_check_finishes)
+           "Angle, Metal, Kind …); Rust under Wear", since="0.2.229", changed="0.2.233", check=_check_finishes)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "

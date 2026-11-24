@@ -784,6 +784,68 @@ def looks_finishes(ctx):
             f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
 
+@line("looks.rust", "Rust slider and carbon fibre", "0.2.233",
+      what="The finishes test model's rust row and carbon parts: moving a steel group's Rust slider changes its "
+           "material (the rust value in its nodes, the welds' value on it); a stainless group has no Rust (the panel "
+           "says why) and its look stays the same; the carbon cup's dome and its tube get their weave from their own "
+           "faces (a sphere with its axis, a ring with a whole number of tows round it); a close-up of the rust row "
+           "rendered small (processor, draft): judge the rusty bare steel, cast iron, the painted block with rust at "
+           "its worn edges and streaks, galvanized with white rust, and plain stainless and aluminium")
+def looks_rust(ctx):
+    import numpy as np
+
+    from ..blender import build, finishes, logic, materials, render, rust, tour
+    scene = ctx.fresh(FINISHES)
+    s = scene.fresing
+    groups = tour.finishes_demo(scene)
+    g = s.groups[groups["PLATE RUST BARE STEEL"]]
+    mat = materials.group_material(g)
+    _check(materials.group_rust_kind(g) == "BARE", "bare steel does not rust")
+    nodes = mat.node_tree.nodes
+    _check(nodes.get(rust.NODE_MASK) is not None, "the bare steel's material has no rust in it")
+    before = float(mat.get(rust.PROP, 0.0))
+    g.rust = 0.2
+    mat = materials.group_material(g)
+    _check(abs(float(mat.get(rust.PROP, -1)) - 0.2) < 1e-4 and abs(before - 0.2) > 0.1,
+           f"the slider did not change the material (rust {mat.get(rust.PROP)})")
+    g.rust = 0.0
+    _check(materials.group_material(g).node_tree.nodes.get(rust.NODE_MASK) is None, "Rust 0 still draws rust")
+    g.rust = 0.7
+    st = s.groups[groups["PLATE RUST STAINLESS"]]
+    _check(materials.group_rust_kind(st) == "" and "stainless" in materials.group_no_rust_why(st).lower(),
+           "stainless steel offers a Rust slider")
+    smat = materials.group_material(st)
+    _check(smat.node_tree.nodes.get(rust.NODE_MASK) is None and float(smat.get(rust.PROP, 0.0)) == 0.0,
+           "the stainless group rusts")
+    parts = {ob.get(build.PROP_NAME, ""): ob for ob in build.iter_parts(scene)}
+    cup = parts["CUP CARBON"].data
+    _check(finishes.has_faces(cup), "the carbon cup has no face data")
+    k = np.empty(len(cup.polygons), np.float32)
+    cup.attributes["fr_fx_k"].data.foreach_get("value", k)
+    _check((np.abs(k) == 3).any(), "the carbon cup's dome was not read as a sphere")
+    tube = parts["TUBE CARBON"].data
+    b = np.empty(len(tube.polygons) * 3, np.float32)
+    tube.attributes["fr_cw_b"].data.foreach_get("vector", b)
+    _check((b.reshape(-1, 3)[:, 2] < -0.5).any(), "the carbon tube has no closed ring")
+    logic.refresh_group_materials(scene)
+    row = [parts[n] for n in tour.RUST_BOARD]
+    from mathutils import Vector
+    mn, mx = build.world_bounds(row)
+    c = (Vector(mn) + Vector(mx)) / 2
+    cam = tour.marine_camera(scene, 0.0, name="Rust close-up")
+    cam.matrix_world = tour.Matrix_look(c + Vector((0.15, -1.0, 0.55)).normalized() * 0.75, c)
+    cam.data.lens = 50.0
+    cam.data.clip_start = 0.005
+    scene.camera = cam
+    _small_output(s, 640, 360)
+    s.use_gpu = False
+    path = os.path.join(ctx.work, "rust.png")
+    info = render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "rust", "Rust: bare steel, cast iron, painted, galvanized, stainless, aluminium (processor, draft)",
+                model_check=False)
+    return f"rust slider OK, stainless without; carbon cup dome and tube ring; render {info['seconds']} s"
+
+
 @line("looks.served_cable", "Served cable look: yarn and marker bands", "0.2.116",
       what="The test carousel's power cable with Look = Served cable (yarn): black yarn served almost straight round "
            "it and two yellow painted marker lines winding round it as a spiral, on the cable and on its coil; built, the bands run with the cable. "

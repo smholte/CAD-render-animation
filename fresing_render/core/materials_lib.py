@@ -16,6 +16,7 @@ CATEGORIES = ("Paint", "Metal", "Fastener finish", "Plastic & rubber", "Glass", 
 #   emission, emission_strength, specular, anisotropic, needs_color,
 #   sheen, sheen_roughness, variation: {scale, roughness_min, roughness_max, color_amount}
 #   bump: {scale, strength}   a fine noise relief (scale = features per metre)
+#   thin_film: {thickness, ior}   an oxide / passivation film (nm): colours that change with the angle (task 0318)
 #   peel: {scale, strength}   orange peel of sprayed paint (also under the clear coat)
 #   marks: {kind, scale, rough, bump, along}   machining marks without UV maps (task 0046), read from the
 #       part's own axes (``blender/materials.part_axes``), so every copy of a part looks the same:
@@ -75,13 +76,17 @@ MATERIALS: dict[str, dict] = {
                               base_color=(0.82, 0.83, 0.84), metallic=1.0, roughness=0.44, coat=0.25,
                               coat_roughness=0.45, anisotropic=0.2,
                               marks=dict(kind="brushed", scale=2500.0, along=4.0, rough=0.05, bump=0.006)),
-    "cast_iron": dict(label="Cast iron", category="Metal", base_color=(0.24, 0.24, 0.25), metallic=0.5, roughness=0.75,
+    # task 0318: a casting is metal with a dull oxide skin, not half plastic: lighter, more metallic
+    "cast_iron": dict(label="Cast iron", category="Metal", base_color=(0.31, 0.31, 0.32), metallic=0.75, roughness=0.72,
                       variation=dict(scale=25.0, roughness_min=0.62, roughness_max=0.88, color_amount=0.22),
                       bump=dict(scale=1500.0, strength=0.14)),
-    "chrome": dict(label="Chrome", category="Metal", base_color=(0.95, 0.95, 0.96), metallic=1.0, roughness=0.03),
-    "copper": dict(label="Copper", category="Metal", base_color=(0.955, 0.638, 0.538), metallic=1.0, roughness=0.25),
-    "brass": dict(label="Brass", category="Metal", base_color=(0.91, 0.78, 0.42), metallic=1.0, roughness=0.24),
-    "bronze": dict(label="Bronze", category="Metal", base_color=(0.80, 0.55, 0.35), metallic=1.0, roughness=0.32),
+    # task 0318: chrome a darker, slightly blue mirror than polished stainless (its measured reflectance); copper, brass
+    # and bronze had their measured linear reflectances written as sRGB (too dark, too orange): now between the
+    # measurement and a little more colour (a studio has none of the warm reflections a workshop gives them)
+    "chrome": dict(label="Chrome", category="Metal", base_color=(0.80, 0.81, 0.83), metallic=1.0, roughness=0.015),
+    "copper": dict(label="Copper", category="Metal", base_color=(0.96, 0.74, 0.63), metallic=1.0, roughness=0.25),
+    "brass": dict(label="Brass", category="Metal", base_color=(0.94, 0.84, 0.57), metallic=1.0, roughness=0.24),
+    "bronze": dict(label="Bronze", category="Metal", base_color=(0.84, 0.66, 0.46), metallic=1.0, roughness=0.32),
 
     # ---- fastener finishes ----------------------------------------------------
     "galvanized": dict(label="Hot-dip galvanized", category="Fastener finish", base_color=(0.60, 0.61, 0.62),
@@ -90,8 +95,9 @@ MATERIALS: dict[str, dict] = {
                        bump=dict(scale=600.0, strength=0.04)),
     "zinc_plated": dict(label="Zinc plated", category="Fastener finish", base_color=(0.80, 0.81, 0.83), metallic=1.0,
                         roughness=0.22),
-    "zinc_yellow": dict(label="Zinc plated, yellow", category="Fastener finish", base_color=(0.85, 0.74, 0.42),
-                        metallic=1.0, roughness=0.24),
+    # task 0318: yellow passivation is a thin film on bright zinc: gold-green with a rainbow sheen at an angle
+    "zinc_yellow": dict(label="Zinc plated, yellow", category="Fastener finish", base_color=(0.86, 0.80, 0.56),
+                        metallic=1.0, roughness=0.24, thin_film=dict(thickness=300.0, ior=1.55)),
     "zinc_flake": dict(label="Zinc flake (Geomet/Delta)", category="Fastener finish", base_color=(0.55, 0.56, 0.57),
                        metallic=0.7, roughness=0.55),
     "black_oxide": dict(label="Black oxide", category="Fastener finish", base_color=(0.045, 0.045, 0.05),
@@ -160,7 +166,7 @@ MATERIALS: dict[str, dict] = {
     "cast_iron_painted": dict(label="Cast iron, painted", category="Paint", needs_color=True, roughness=0.42,
                               coat=0.12, coat_roughness=0.3, specular=0.5, bump=dict(scale=180.0, strength=0.1),
                               variation=dict(scale=900.0, roughness_min=0.38, roughness_max=0.48, color_amount=0.0)),
-    "chrome_rod": dict(label="Hydraulic chrome rod", category="Metal", base_color=(0.95, 0.95, 0.96), metallic=1.0,
+    "chrome_rod": dict(label="Hydraulic chrome rod", category="Metal", base_color=(0.80, 0.81, 0.83), metallic=1.0,
                        roughness=0.045, anisotropic=0.3,
                        marks=dict(kind="ground", scale=9000.0, along=10.0, rough=0.02, bump=0.0)),
 
@@ -287,7 +293,7 @@ MATERIALS: dict[str, dict] = {
     # ---- task 0318: carbon fibre (the weave follows each CAD face) and perlage --------------------------------------
     "carbon_fibre": dict(label="Carbon fibre (twill / plain weave)", category="Other", base_color=(0.022, 0.022, 0.025),
                          roughness=0.3, specular=0.6, coat=1.0, coat_roughness=0.03, anisotropic=0.75,
-                         finish="carbon"),
+                         finish="carbon_fibre"),
     "perlage": dict(label="Perlage (engine-turned spots)", category="Metal", base_color=(0.72, 0.72, 0.73),
                     metallic=1.0, roughness=0.2, finish="perlage"),
 }
