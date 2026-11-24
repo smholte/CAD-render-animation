@@ -154,10 +154,10 @@ fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_
    guide="whats-next", since="0.2.152", changed="0.2.197")
 fn(id="panel.make", title="Make: every picture, video and 3D page, each in a window of its own", family="panel",
    panel="FRESING_PT_make", button="fresing.make_window", guide="make", tour=("make",), pccheck=("panel.two",),
-   since="0.2.152", changed="0.2.221")
+   since="0.2.152", changed="0.2.222")
 fn(id="scene.render_view", short="Render this view", title="Render this view: what the 3D view shows, no camera needed",
    family="scene", panel="FRESING_PT_make", button="fresing.render_view", guide="render-this-view",
-   tour=("render_view",), pccheck=("scene.render_view",), since="0.2.221")
+   tour=("render_view",), pccheck=("scene.render_view",), since="0.2.222")
 fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
    panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")
@@ -665,6 +665,10 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="export-places", tour=("locations",),
    pccheck=("settings.locations",), since="0.2.210")
 
+fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
+   "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
+   "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.221")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")

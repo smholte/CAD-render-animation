@@ -37,6 +37,9 @@ def draw_general(layout, context) -> None:
     if p is None:
         return _no_prefs(layout)
     prefs.draw_general(layout, p)
+    layout.separator()
+    from . import gpu_choice
+    gpu_choice.draw_settings(layout)                # task 0296: which GPU draws, which renders
 
 
 def draw_locations(layout, context) -> None:

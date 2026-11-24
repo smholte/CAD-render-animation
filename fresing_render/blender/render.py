@@ -11,7 +11,7 @@ import time
 import bpy
 import numpy as np
 
-from ..core import presets
+from ..core import gpu_choice, presets
 
 QUALITY = {
     # samples, resolution %, adaptive threshold
@@ -21,32 +21,69 @@ QUALITY = {
     "best": (2048, 100, 0.005),
 }
 
-_DEVICE_ORDER = ("OPTIX", "CUDA", "HIP", "ONEAPI", "METAL")
+_DEVICE_ORDER = gpu_choice.ORDER              # OPTIX, CUDA, HIP, ONEAPI, METAL
+_SEEN: dict = {}                              # task 0296: Cycles' devices, read once per start
+LAST: dict = {"plan": None}                   # the last plan setup_gpu used (Settings > General > Graphics)
 
 
-def setup_gpu() -> str:
-    """Use the best available GPU backend. Returns a short description."""
+def _refresh(prefs) -> None:
     try:
-        prefs = bpy.context.preferences.addons["cycles"].preferences
-    except KeyError:
-        return "CPU (Cycles add-on not loaded)"
+        prefs.refresh_devices()
+    except Exception:  # noqa: BLE001 - older Cycles add-ons
+        prefs.get_devices()
+
+
+def cycles_devices(prefs=None, fresh: bool = False) -> list:
+    """Every GPU device Cycles can use, of every backend, as ``gpu_choice.Device`` (read once per start: switching
+    through the backends starts their libraries)."""
+    if "devices" in _SEEN and not fresh:
+        return list(_SEEN["devices"])
+    if prefs is None:
+        try:
+            prefs = bpy.context.preferences.addons["cycles"].preferences
+        except KeyError:
+            return []
+    found = []
     for backend in _DEVICE_ORDER:
         try:
             prefs.compute_device_type = backend
         except TypeError:
             continue
+        _refresh(prefs)
+        found += [gpu_choice.Device(backend, d.name, d.id) for d in prefs.devices if d.type == backend]
+    _SEEN["devices"] = found
+    return list(found)
+
+
+def known_devices() -> list | None:
+    """Cycles' devices when they were read in this start, else None (a panel's draw must not read them)."""
+    return list(_SEEN["devices"]) if "devices" in _SEEN else None
+
+
+def setup_gpu(choice: str | None = None, prefs=None) -> str:
+    """Use the graphics card (task 0296): the plan of ``core/gpu_choice.render_plan`` – only graphics cards when the
+    PC has one (an AMD processor's built-in Radeon and the AMD card are both HIP devices, and Cycles ticks both), else
+    what there is; or the device picked in Settings > General > Graphics. Returns a short description: "GPU (HIP):
+    AMD Radeon RX 6700 XT (built-in AMD Radeon Graphics left out)" or "CPU"."""
+    if prefs is None:
         try:
-            prefs.refresh_devices()
-        except Exception:
-            prefs.get_devices()
-        gpus = [d for d in prefs.devices if d.type == backend]
-        if gpus:
-            for d in prefs.devices:
-                d.use = d.type == backend
-            names = ", ".join(sorted({d.name for d in gpus}))
-            return f"GPU ({backend}): {names}"
+            prefs = bpy.context.preferences.addons["cycles"].preferences
+        except KeyError:
+            return "CPU (Cycles add-on not loaded)"
+    if choice is None:
+        from . import gpu_choice as gpu_state
+        choice = gpu_state.render_choice()
+    plan = gpu_choice.render_plan(cycles_devices(prefs), choice)
+    LAST["plan"] = plan
+    if plan.gpu:
+        if prefs.compute_device_type != plan.backend:
+            prefs.compute_device_type = plan.backend
+        _refresh(prefs)
+        for d in prefs.devices:
+            _set(d, "use", d.id in plan.ids)
+        return plan.text()
     try:
-        prefs.compute_device_type = "NONE"
+        _set(prefs, "compute_device_type", "NONE")
     except TypeError:
         pass
     return "CPU"

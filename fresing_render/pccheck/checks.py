@@ -172,6 +172,18 @@ def gpu_device(ctx):
     return ctx.gpu
 
 
+@line("pc.gpu", "Graphics card used: window and renders", "0.2.221", (Q, F),
+      what="The graphics card draws the window and renders – not the processor's built-in graphics (task 0296)")
+def pc_gpu(ctx):
+    from ..blender import gpu_choice
+    from .runner import NO_GPU_TEXT, no_gpu_expected
+    status, text = gpu_choice.check(no_gpu_expected())
+    if status == "skip":
+        raise Skipped(f"skipped: {NO_GPU_TEXT}")
+    _check(status == "ok", text)
+    return text
+
+
 # ---------------------------------------------------------------------------
 # import and sorting
 # ---------------------------------------------------------------------------
@@ -3589,7 +3601,7 @@ def scene_looks(ctx):
     return f"{len(studio.LOOKS)} looks; render {info['seconds']} s"
 
 
-@line("scene.render_view", "Render this view", "0.2.221",
+@line("scene.render_view", "Render this view", "0.2.222",
       what="Render this view from a set view of the crane matches Render image from a camera at the same place; no "
            "camera is left behind")
 def scene_render_view(ctx):

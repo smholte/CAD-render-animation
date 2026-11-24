@@ -81,10 +81,73 @@ start after it is merged and use its helper).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 24 Nov 2026.
 
 **What changed:**
+- **Make row** (`ui_top.draw_make`): 1.6 high (was 1.2) with **large icons**. Measured in Blender 5.2.3: no setting makes
+  an ordinary icon larger in a button (`scale_y` / `scale_x`, picture icons from `bpy.utils.previews`, expanded enum rows
+  – all 16 px; `template_icon(scale=)` and `template_icon_view` draw larger but are a label and a drop-down). Only a
+  **geometry icon** (triangles, as Blender's own toolbar uses) is drawn larger – 2x, but started where a 16 px icon starts,
+  so it stuck out to the right; with `text=" "` it sits at the button's left edge and shows whole. So the six icons are
+  drawn as triangles (`core/make_icons.py`: frame + hills, film strip + play, box on a turning plate, browser + cube,
+  clapperboard, job list; one blue detail each), made at registration (`blender/make_icons.py`; Blender's own icons when
+  that fails). No two sizes to pick from: the largest that shows whole in a narrow panel at UI scale 1.5 (guide picture
+  `panel_top_make.png`) – about 24 px at UI scale 1 instead of 16.
+- **Outputs strip** (`ops_make.py`): `FRESING_PT_make_strip` in the output window's toolbar region (left), one button per
+  output (the window's own pressed, same order and filter as Make); `fresing.make_switch` switches this window (its kept
+  size and, on Windows, its handle move to the new output – `winplace.rekey`); another window already showing that output
+  comes to the front instead. One icon wide (46 px) when it opens (`settle_strip`: the side panel is off while the strip,
+  copied at the left panel's 240 px, is made narrow – both at once squeezed the settings to 94 px for good); window 58 px
+  wider than before. Dragged wider than 100 px: icon + name, and the settings shrink to the room left (`keep_filled` /
+  `fill` + `ui_left.fit_side`; a side panel that does not fit is drawn EMPTY by Blender, measured – 12 px are left).
+- **Blender's tabs and tools hidden** in output windows (`ops_settings.quiet_panels`): its tool buttons and every
+  top-level Python panel of the tabs Item / Tool / View / Animation get a poll that hides them there (their sub-panels
+  registered again under them; the inherited poll is kept – the old code dropped a poll that came from a base class).
+  **Item stays while an object is active**: its Transform panel is no Python class. Owner's screenshot had Item, Tool,
+  View, Animation beside Make; now Make (+ Item with a selection).
+- **Render this view** (`ops_render_view.py`, `fresing.render_view`; under the Make row and in the header's Make list;
+  allowed in the Client view like Render image). **Frame rule:** same centre and zoom as the view; the Picture's shape
+  is fitted **round** the view (`core/view_camera.fit_halves`), so nothing the view shows is cut off – a wider picture
+  shows more at the sides, a taller one more above and below. The angle is read from the view's projection matrix (not
+  its lens setting), so it is what is on screen. Orthographic views: the camera stands half the clip distance back.
+  Camera view renders that camera (local camera first). The temporary camera is deleted and the scene's put back after
+  the render, on cancel (`cancel` + Render image's cancelled path), on an error; a leftover after a crash is removed at
+  the next load / render. File `<project>_View_<YYYY-MM-DD>_<HHMMSS>.png|jpg` (`render.view_output_path`). Refused with a
+  plain line while a render, the queue or a long job runs. Render image's work became a mixin (`ops_main.RenderStill`):
+  subclassing the registered operator broke it ("unable to get Python class", its execute did nothing).
+- Function entry `scene.render_view` (+ `panel.make` changed), tour stop `render_view` (+ `make` text), PC-check Full line
+  `scene.render_view` (MIN_LINES_FULL 132), MIN_LINES_TOUR 101, `MIN_CHECKS["left"]` 55, guide (Make: the strip with a
+  narrow and a wide picture, Render this view), CLAUDE.md (layout + two things learned), CHANGELOG 0.2.222.
+- No lesson step: Render image (`scene.still`) has none either; Render this view is not a crane-lesson step.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, test crane):
+- `tests/test_render_view.py` (26): fit rule (4 shapes), lens / ortho scale from a projection, every icon on its grid,
+  **the same picture as Render image from a camera at the same place** (largest difference < 0.02), a 4:3 view in the
+  16:9 Picture (wider camera), orthographic stand-back, camera view (no camera made), error / cancel / leftover /
+  refusals leave nothing behind, the strip's switch, the handle rekey, Blender's tab panels hidden in output windows only.
+- Real app (`tools/ui_test_left.py`, 55/55): strip 46 px, settings 292 px beside it, Blender's tool buttons and tab
+  panels not there, a strip button switches the window, dragged to 150 px the names show and the settings shrink to 184
+  px (shown), Render this view saves `_View_` and leaves camera count and active camera as they were.
+- PC check `scene.render_view` (bpy module): OK, difference 0.004, 0.9 s for a 160 x 90 draft.
+- Locally also: test_functions, test_panels, test_places, test_quiet, test_user_guide, test_usage(_blender),
+  test_form_window, test_settings_blender, test_workspaces_independent, test_toolmarks, test_left_folds, test_tour.
+- Pictures: `docs/img/panel_top_make.png`, `sidebar_sections.png` (guide_screens), `make_strip_narrow.png`,
+  `make_strip_wide.png` (ui_test_left with GUIDE_OUT).
 
 **Open points / follow-up tasks:**
+- The tab **Item** stays in output windows while an object is active (Blender's Transform panel is C code).
+- The strip's width is not remembered: a window opens one icon wide each time.
+- With the strip wide, long settings (3D page) wrap narrow; the user can drag the window wider (Blender gives a script
+  no way to grow a window).
+- `winplace.rekey` is a plain dict change (no Windows call): no separate Windows review.
+
+**Owner's test steps (on your PC, after Update now):**
+1. Open any project with a model. At the top of the Fresing panel the Make row is taller, with six larger icons.
+2. Click the first icon (Picture). A small window opens; on its left is a strip of six icons, Picture blue.
+3. Click the 3D page icon in that strip: the same window now shows the 3D page settings. Click Picture again: back.
+4. Drag the strip's right edge (between the icons and the settings) to the right: the names appear beside the icons;
+   the settings get narrower. Drag it back.
+5. Close the window (× at its top). In the 3D view, turn and zoom to a view you like (no camera needed).
+6. Click **Render this view** under the Make row. The render window shows exactly your view; the file name ends in
+   _View_ and the date and time (5 Scene & Render > Image size & render: Open / Show in folder).
+7. Check 5 Scene & Render > Cameras: no new camera, the active camera is the same as before.
