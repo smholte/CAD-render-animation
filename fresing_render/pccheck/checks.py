@@ -5604,7 +5604,8 @@ def app_keys(ctx):
     app = {(k, bool(m.get("ctrl"))): op for _km, _sp, k, m, op, _p in lock.APP_KEYS}
     _check(app.get(("F12", False)) == "fresing.key_render" and app.get(("F12", True)) == "fresing.key_render",
            "F12 / Ctrl+F12 are not bound to the app's render")
-    _check(app.get(("M", False)) == "fresing.measure_key", "the key M does not open Measure (task 0322)")
+    plain_m = [op for _km, _sp, k, m, op, _p in lock.APP_KEYS if k == "M" and not m]
+    _check(plain_m == ["fresing.measure_key"], "the key M does not open Measure (task 0322)")
     cls = bpy.types.VIEW3D_MT_object_context_menu
     _check(quiet._own(cls, quiet.draw_funcs(cls)) >= 0 or quiet.blender_draw(cls) is not None,
            "Blender's own right-click menu is not found: the Fresing menu cannot replace it")
