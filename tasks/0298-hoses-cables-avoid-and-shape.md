@@ -1,6 +1,6 @@
 # 0298 – Hoses and cables round 3: Avoid other parts (collision on / off) and a route you can shape between the two ends
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0298-hoses-avoid-and-shape`
+**Who:** worker · **Status:** running · **Branch:** `task/0298-hoses-avoid-and-shape`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Hoses and cables improvements. A collision active button,
 for collision with other objects. And able to adjust the path it takes, between the two points.") · **Model:** Opus ·
 effort High

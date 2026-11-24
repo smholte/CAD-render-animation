@@ -665,6 +665,10 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="export-places", tour=("locations",),
    pccheck=("settings.locations",), since="0.2.210")
 
+fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
+   "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
+   "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.221")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")
