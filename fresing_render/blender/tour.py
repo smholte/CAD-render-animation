@@ -1274,7 +1274,7 @@ def finishes_demo(scene) -> dict:
     return groups
 
 
-@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.222")
+@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.223")
 def build_finishes(b: Build):
     """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front."""
     sc = b.scene
@@ -4537,7 +4537,7 @@ stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains",
      "the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, leather cushions. Look in rendered view "
      "and zoom in: the patterns show up close and fade calmly further away.",
      where="3 Looks: a group's Material (Metal, Plastic & rubber, Paint …) and its own settings under it (Pitch, "
-           "Angle, Metal, Kind …)", since="0.2.222", check=_check_finishes)
+           "Angle, Metal, Kind …)", since="0.2.223", check=_check_finishes)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "

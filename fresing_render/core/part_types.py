@@ -28,7 +28,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-from . import cad_materials
+from . import cad_materials, fasteners
 from . import part_types_data as D
 
 LEVELS = ("product", "component", "shape")
@@ -341,6 +341,16 @@ def type_of(name: str, path: str = "", assembly: str = "") -> str | None:
         if mine is None or TYPES[mine].level == "shape" or c.absorb == "all":
             return ctx
     return mine
+
+
+@lru_cache(maxsize=65536)
+def shape_may_decide(name: str, path: str = "", assembly: str = "") -> bool:
+    """True when the name says nothing the library can use (task 0302): no part type from the name or its
+    parent assemblies, no material in the name, no standard part. Only then may the part's shape decide
+    (``shape_hints``): "Part123", "Onderdeel4", "Teil1" or a drawing number."""
+    if type_of(name, path, assembly) is not None or analyse(name).material:
+        return False
+    return fasteners.parse(name) is None
 
 
 # --------------------------------------------------------------------------------------------
