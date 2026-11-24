@@ -174,6 +174,7 @@ def s_left_parts():
              and getattr(c, "bl_space_type", "") == "VIEW_3D"      # task 0272: not the file browser's STEP folders
              and c.__name__ not in ("FRESING_PT_settings_window",   # task 0271: shows only in the Settings window
                                     "FRESING_PT_form_window",        # task 0282: only in a function window
+                                    "FRESING_PT_first_setup",        # task 0276: only in the set-up window
                                     "FRESING_PT_make_strip")]        # task 0308: only in an output window
     check("the left panel's parts in order", order[:3] == ["FRESING_PT_left_quick", "FRESING_PT_update",
                                                            "FRESING_PT_workspace"] and order[-1] == "FRESING_PT_next",

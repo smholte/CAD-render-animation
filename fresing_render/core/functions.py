@@ -729,7 +729,8 @@ fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the L
 fn(id="help.first_setup", headline=True, short="Set up again",
    title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
          "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
-   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.233")
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.233",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
    tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
