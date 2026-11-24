@@ -45,7 +45,7 @@ from mathutils import Matrix, Vector
 from ..core.words import plural
 from . import build, joints, logic
 
-CLIP = {"names": [], "scene": ""}      # what Copy remembered (object names)
+CLIP = {"names": [], "uids": [], "scene": ""}   # what Copy remembered (object names, their part IDs)
 LAST: dict = {}                        # the last paste's result (tests, the PC check, the Place window's note)
 NOTE = [""]                            # the last Copy / Paste message
 GROUP = "fr_copy_group"                # on model roots: a whole model and its copies (a model update updates them all)
@@ -64,12 +64,13 @@ def remember(scene, objs) -> None:
     """Copy: remember these objects (by name) for Paste. Opening a project or a new one forgets them (``_on_load``),
     so a Paste never takes objects of the same name in another project; Ctrl+Z keeps them."""
     CLIP["names"] = [o.name for o in objs]
+    CLIP["uids"] = [_uid(o) for o in objs]      # a model update makes new objects: found again by their part IDs
     CLIP["scene"] = scene.name
 
 
 @persistent
 def _on_load(_dummy=None):
-    CLIP["names"], CLIP["scene"] = [], ""
+    CLIP["names"], CLIP["uids"], CLIP["scene"] = [], [], ""
     LAST.clear()
 
 
@@ -431,8 +432,8 @@ def _joint_specs(scene, one, uids) -> tuple:
             else:
                 sp["follows"] = ""
                 sp["table_owner"], sp["table"] = "", None
-        if sp.get("table_owner") and sp.get("table"):            # a drum's or cable's table: they stay behind
-            sp["follows"], sp["table_owner"], sp["table"] = "", "", None
+        if sp.get("follows") and sp.get("table_owner") and sp.get("table"):
+            sp["table_owner"] = next_name(sp["table_owner"], ())     # its own owner: the original's never rewrites it
         tags = dict(sp.get("tags") or {})
         tags.pop("fr_cable", None)
         tags.pop("fr_track", None)
@@ -444,12 +445,65 @@ def _joint_specs(scene, one, uids) -> tuple:
 def paste(scene, objs, at=None) -> dict:
     """Copy ``objs`` (models, subassemblies, parts) with what comes along; each copy beside its original, or with its
     box's middle over the world point ``at`` (standing on it). Returns the plan with ``"roots"`` (the copies' root
-    names), ``"names"`` and ``"notes"``. One undo step is the operator's."""
-    from . import animation, cylinders, linkages, sequence, vessel_motion
+    names), ``"names"`` and ``"notes"``. One undo step is the operator's. A paste that fails half-way takes back what it
+    made and raises RuntimeError."""
     p = plan(scene, objs)
     p["roots"], p["names"], p["notes"] = [], [], []
     if not p["copies"]:
         return p
+    before = _snapshot(scene, p)
+    try:
+        return _paste(scene, p, at)
+    except Exception as exc:
+        try:
+            _roll_back(scene, before)
+        except Exception as exc2:  # noqa: BLE001
+            raise RuntimeError(f"the paste failed ({exc or type(exc).__name__}) and could not be undone "
+                               f"({exc2 or type(exc2).__name__}): reopen the project without saving") from exc
+        raise RuntimeError(f"the paste failed ({exc or type(exc).__name__}); nothing was added") from exc
+
+
+def _snapshot(scene, p) -> dict:
+    s = scene.fresing
+    return {"objects": set(bpy.data.objects.keys()), "collections": set(bpy.data.collections.keys()),
+            "joints": [j.name for j in s.joints], "cylinders": [c.name for c in s.cylinders],
+            "mechanisms": [m.name for m in s.mechanisms], "flex": len(s.flex), "callouts": len(s.callouts),
+            "waycovers": len(s.waycovers),
+            "groups": {c["root"]: bpy.data.objects[c["root"]].get(GROUP) for c in p["copies"]}}
+
+
+def _roll_back(scene, before: dict) -> None:
+    """A paste failed half-way: everything it made goes again (an operator that fails pushes no undo step)."""
+    from . import cylinders, flex, linkages
+    s = scene.fresing
+    for c in [c for c in s.cylinders if c.name not in before["cylinders"]]:
+        cylinders.remove(scene, cylinders.find(scene, c.name))
+    for m in [m.name for m in s.mechanisms if m.name not in before["mechanisms"]]:
+        linkages.remove(scene, linkages.find(scene, m))
+    for name in reversed([j.name for j in s.joints if j.name not in before["joints"]]):
+        j = joints.find(scene, name)
+        if j is not None:
+            joints.remove(scene, j)
+    for i in reversed(range(before["flex"], len(s.flex))):
+        flex.remove(scene, i)
+    for coll, n in ((s.callouts, before["callouts"]), (s.waycovers, before["waycovers"])):
+        for i in reversed(range(n, len(coll))):
+            coll.remove(i)
+    new = [o for o in bpy.data.objects if o.name not in before["objects"]]
+    if new:
+        bpy.data.batch_remove(new)
+    for c in [c for c in bpy.data.collections if c.name not in before["collections"]]:
+        if not len(c.objects) and not len(c.children):
+            bpy.data.collections.remove(c)
+    for name, g in before["groups"].items():
+        ob = bpy.data.objects.get(name)
+        if ob is not None and not g and GROUP in ob:
+            del ob[GROUP]
+    _tidy(scene)
+
+
+def _paste(scene, p, at) -> dict:
+    from . import animation, cylinders, linkages, sequence, vessel_motion
     s = scene.fresing
     sequence.end_preview(scene)
     p["built"] = animation.has_keys(scene)
@@ -551,8 +605,8 @@ def _covers(scene, one, names_j, copies, uids) -> list:
     s = scene.fresing
     taken = {w.name for w in s.waycovers}
     for i in one["_covers"]:
+        dst = s.waycovers.add()                 # (an item held across add() is no longer valid: CLAUDE.md 8)
         src = s.waycovers[i]
-        dst = s.waycovers.add()
         _copy_raw(src, dst)
         dst["name"] = next_name(src.name, taken)
         taken.add(dst.name)
@@ -580,8 +634,8 @@ def _flex(scene, one, copies, uids, by_uid) -> list:
     taken = {it.name for it in s.flex}
     keep = set()
     for i in one["_flex"]:
+        dst = s.flex.add()                      # (an item held across add() is no longer valid: CLAUDE.md 8)
         src = s.flex[i]
-        dst = s.flex.add()
         _copy_raw(src, dst)
         dst["name"] = next_name(src.name, taken)
         taken.add(dst["name"])
@@ -610,8 +664,8 @@ def _flex(scene, one, copies, uids, by_uid) -> list:
 def _labels(scene, one, copies) -> None:
     s = scene.fresing
     for i in one["_labels"]:
+        dst = s.callouts.add()                  # (an item held across add() is no longer valid: CLAUDE.md 8)
         src = s.callouts[i]
-        dst = s.callouts.add()
         _copy_raw(src, dst)
         dst.part = copies[src.part.name]
 

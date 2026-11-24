@@ -23,8 +23,16 @@ def clipboard(scene) -> list:
     """The objects Copy remembered that are still in this project (never the same names in another project)."""
     if copy.CLIP.get("scene") != scene.name:
         return []
-    return [bpy.data.objects[n] for n in copy.CLIP["names"] if n in bpy.data.objects
-            and bpy.data.objects[n].name in scene.objects]
+    out = []
+    uids = list(copy.CLIP.get("uids") or [])
+    for k, n in enumerate(copy.CLIP["names"]):
+        ob = scene.objects.get(n)
+        u = uids[k] if k < len(uids) else ""
+        if ob is None or (u and ob.get(build.PROP_UID) != u):     # replaced by a model update: by its part ID
+            ob = next((o for o in scene.objects if u and o.get(build.PROP_UID) == u), None)
+        if ob is not None and ob not in out:
+            out.append(ob)
+    return out
 
 
 def can_paste(scene) -> bool:
@@ -42,7 +50,11 @@ def do_paste(op, context, at=None, open_place: bool = True) -> set:
     if not objs:
         _say(op, context, "Nothing to paste: copy a model, subassembly or part first", "WARNING")
         return {"CANCELLED"}
-    p = copy.paste(scene, objs, at=at)
+    try:
+        p = copy.paste(scene, objs, at=at)
+    except RuntimeError as exc:
+        _say(op, context, f"Paste: {exc}", "ERROR")
+        return {"CANCELLED"}
     if not p["roots"]:
         _say(op, context, "; ".join(p["left"]) or "Nothing was copied", "WARNING")
         return {"CANCELLED"}
