@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.224")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.226")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1781,7 +1781,7 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.226")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.227")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
@@ -1993,7 +1993,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.226")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.227")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -2231,7 +2231,7 @@ def check_drawn_replace(scene) -> str:
 SPOOL_ANIM = "Spooling"
 
 
-@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.226")
+@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.227")
 def build_spool(b: Build):
     from . import spool
     sc = b.scene
@@ -2284,7 +2284,7 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.226")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.227")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -4571,7 +4571,7 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      "round the whole cable as one spiral, once round per metre, with ragged edges, the paint thinner in the grooves. "
      "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
-     since="0.2.116", check=_check_served, auto="clip", changed="0.2.226")
+     since="0.2.116", check=_check_served, auto="clip", changed="0.2.227")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
@@ -4670,7 +4670,7 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "top layer gets shorter wrap by wrap, and both sheaves and both rollers turn with it. Meanwhile the A-frame "
      "leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
-     auto="clip", changed="0.2.226")
+     auto="clip", changed="0.2.227")
 stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
      "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
      "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
@@ -4695,7 +4695,7 @@ stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
      where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
-     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.226")
+     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.227")
 stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 24 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
@@ -4720,7 +4720,7 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "anchor; the carousel pays its cable all out (every layer cable, one after the other, down to its core) and "
      "winds it back in. No grey sleeve or ring under the top layer.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
-     auto="clip", changed="0.2.226")
+     auto="clip", changed="0.2.227")
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
@@ -5356,6 +5356,13 @@ def _check_workspace(scene):
         _check(not lock.ON[0] and lock.marked() == 0
                and state == {ob.name: (ob.hide_select, tuple(ob.lock_location)) for ob in scene.objects},
                "Full access did not put the parts back as they were")
+        # task 0294: Essentials first, the task workspaces, a star on every row of the list
+        _check(workspaces.names()[0][0] == "Essentials", "Essentials is not first in the Workspace list")
+        workspaces.switch(scene, "Sales")
+        _check(workspaces.panel_hidden(scene, "FRESING_PT_motion") and not workspaces.panel_hidden(scene, "FRESING_PT_shots")
+               and not lock.ON[0], "Sales does not hide motion, show saved scenes and leave the project unlocked")
+        _check(hasattr(bpy.types, "FRESING_MT_workspaces") and hasattr(bpy.ops.fresing, "workspace_star"),
+               "the Workspace list with its stars is missing")
     finally:
         s.ws_name, s.ws_data, s.ws_ticks = was
         workspaces.apply(scene)
@@ -5390,9 +5397,12 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
+     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator and Reviewer for "
+     "one job each; the star beside a workspace puts it on top of the list, above a line (click it again to take it "
+     "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.226", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
