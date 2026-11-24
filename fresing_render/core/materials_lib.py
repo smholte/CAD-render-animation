@@ -284,6 +284,12 @@ MATERIALS: dict[str, dict] = {
                     metallic=1.0, roughness=0.35, finish="spangle"),
     "as_cast": dict(label="As-cast (sand-cast aluminium / iron)", category="Metal", base_color=(0.62, 0.62, 0.62),
                     metallic=0.9, roughness=0.62, finish="as_cast"),
+    # ---- task 0318: carbon fibre (the weave follows each CAD face) and perlage --------------------------------------
+    "carbon_fibre": dict(label="Carbon fibre (twill / plain weave)", category="Other", base_color=(0.022, 0.022, 0.025),
+                         roughness=0.3, specular=0.6, coat=1.0, coat_roughness=0.03, anisotropic=0.75,
+                         finish="carbon"),
+    "perlage": dict(label="Perlage (engine-turned spots)", category="Metal", base_color=(0.72, 0.72, 0.73),
+                    metallic=1.0, roughness=0.2, finish="perlage"),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -373,6 +379,8 @@ UIDS: dict[str, int] = {
     "leather": 82,
     "spangle": 83,
     "as_cast": 84,
+    "carbon_fibre": 85,
+    "perlage": 86,
 }
 
 DEFAULT_COLOR = "RAL 7035"

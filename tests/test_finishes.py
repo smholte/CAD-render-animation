@@ -264,6 +264,16 @@ def test_face_data_on_the_test_model_copies_share_it(board):
     assert (_attr(bush, "fr_fx_k") == -1).any()                  # the bore
     cups = parts["HEADSET CUP"]                                    # two copies, turned left and right
     assert len(cups) == 2 and cups[0].data is cups[1].data
+    cap = parts["CAP SPUN"][0].data                               # task 0318: a domed cap is a sphere with its axis
+    k, r = _attr(cap, "fr_fx_k"), _attr(cap, "fr_fx_r")
+    assert (k == 3).any() and np.median(r[k == 3]) == pytest.approx(0.101, abs=2e-4)
+    d = np.empty(len(cap.polygons) * 3, np.float32)
+    cap.attributes["fr_fx_d"].data.foreach_get("vector", d)
+    assert np.allclose(d.reshape(-1, 3)[k == 3], (0.0, 0.0, 1.0), atol=1e-4)      # its pole: up, through its middle
+    cup = cups[0].data                                             # the cup: outer sphere out, inner sphere in
+    finishes.prepare_faces(cup)
+    k = _attr(cup, "fr_fx_k")
+    assert (k == 3).any() and (k == -3).any()
     plate = parts["PLATE TREAD"][0].data                           # a box pattern needs no face data
     assert not finishes.has_faces(plate)
     # face data taken off (an older project): giving the parts their materials again writes it

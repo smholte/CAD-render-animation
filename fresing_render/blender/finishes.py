@@ -39,7 +39,9 @@ from .materials import _Nodes
 
 #: what the mesh's face data was written from (``signature``: a model update that changes the part: written again)
 FX_COUNT = "fr_fx_n"
-FX_NAMES = ("fr_fx_o", "fr_fx_d", "fr_fx_r", "fr_fx_k")
+FX_NAMES = ("fr_fx_o", "fr_fx_d", "fr_fx_r", "fr_fx_k", "fr_cw_a", "fr_cw_b")
+#: FACE attributes read as vectors (the others as numbers)
+FX_VECTORS = ("fr_fx_o", "fr_fx_d", "fr_cw_a", "fr_cw_b")
 #: on a finish material: the finish id, its settings key and its numbers for the web model (JSON)
 PROP_FINISH, PROP_WEB = "fr_finish", "fr_finish_web"
 
@@ -74,8 +76,9 @@ def prepare_faces(me) -> dict:
     o, d, r, k = core.face_frames(co, tri, me.get("fr_axes", []), me.get("fr_axis_faces", []),
                                   list(me.get("fr_face_starts", [])), me.get(materials.AX_CENTRE),
                                   me.get(materials.AX_ROUND))
+    wa, wb = core.weave_frames(co, tri, o, d, r, k, list(me.get("fr_face_starts", [])))     # task 0318: carbon
     for name, arr, kind in (("fr_fx_o", o, "FLOAT_VECTOR"), ("fr_fx_d", d, "FLOAT_VECTOR"), ("fr_fx_r", r, "FLOAT"),
-                            ("fr_fx_k", k, "FLOAT")):
+                            ("fr_fx_k", k, "FLOAT"), ("fr_cw_a", wa, "FLOAT_VECTOR"), ("fr_cw_b", wb, "FLOAT_VECTOR")):
         at = me.attributes.get(name)
         if at is not None and (at.domain != "FACE" or at.data_type != kind):
             me.attributes.remove(at)
@@ -85,7 +88,7 @@ def prepare_faces(me) -> dict:
         at.data.foreach_set("vector" if kind == "FLOAT_VECTOR" else "value", arr.astype(np.float32).ravel())
     me[FX_COUNT] = signature(me)
     return {"round": int((k == 1).sum()), "bore": int((k == -1).sum()), "end": int((k == 2).sum()),
-            "other": int((k == 0).sum())}
+            "sphere": int((np.abs(k) == 3).sum()), "other": int((k == 0).sum())}
 
 
 def signature(me) -> str:
@@ -166,7 +169,7 @@ class F(_Nodes):
             a.attribute_name = name
             self._geo[name] = a
         a = self._geo[name]
-        return a.outputs["Vector"] if name in ("fr_fx_o", "fr_fx_d") else a.outputs["Fac"]
+        return a.outputs["Vector"] if name in FX_VECTORS else a.outputs["Fac"]
 
     def sep(self, v):
         n = self.node("ShaderNodeSeparateXYZ")
@@ -213,8 +216,12 @@ class F(_Nodes):
             th = self.math("ARCTAN2", self.vmath("DOT_PRODUCT", rad, w), self.vmath("DOT_PRODUCT", rad, u))
             th = self.math("ADD", th, math.pi)
             tang = self.vmath("NORMALIZE", self.vmath("CROSS_PRODUCT", d, rad))       # round the axis
-            self._cyl = dict(z=z, rho=rho, th=th, r=self.gattr("fr_fx_r"), k=self.gattr("fr_fx_k"), d=d,
-                             tang=tang, rad=rad)
+            r = self.gattr("fr_fx_r")
+            k = self.gattr("fr_fx_k")
+            sph = self.math("GREATER_THAN", self.math("ABSOLUTE", k), 2.5)              # task 0318: a sphere
+            phi = self.math("ARCTAN2", rho, z)                                         # from its pole
+            self._cyl = dict(z=z, rho=rho, th=th, r=r, k=k, d=d, tang=tang, rad=rad, u=u, w=w, sph=sph, phi=phi,
+                             s=self.math("MULTIPLY", r, phi))
         return self._cyl
 
     def metres_per_pixel(self):
@@ -321,6 +328,7 @@ def _rings(b: F, s: dict, ring_k: float):
     c = b.cyl()
     end = b.cmp(c["k"], 2.0)
     w = b.mix("FLOAT", end, c["z"], c["rho"])
+    w = b.mix("FLOAT", c["sph"], w, c["s"])          # a dome (task 0318): rings evenly along it from its middle
     f1 = b.noise(w=b.math("MULTIPLY", w, ring_k), scale=1.0, detail=3.0)
     f2 = b.noise(w=b.math("MULTIPLY", w, ring_k / 23.0), scale=1.0, detail=1.0)
     vis = b.lod(8.0 / ring_k)
@@ -696,10 +704,152 @@ def as_cast(b: F, s: dict):
     return dict(color=col, roughness=rough, normal=b.bump(h, g * 0.35))
 
 
+def weave_coords(b: F, closed_count: float = 4.0, tow=None):
+    """Task 0318: every CAD face's weave coordinates (metres) and the two fibre directions (object space).
+
+    The face's own coordinates (``core.finishes._native``): its plane (k 0, 2), (theta r, z) round its axis (k +-1;
+    a closed ring is stretched to a whole multiple of ``closed_count`` tows round it, so the weave meets itself) or
+    the dome draped from its pole (k +-3); then turned / mirrored and shifted by ``fr_cw_a`` / ``fr_cw_b``
+    (``core.finishes.weave_frames``) so that it continues its neighbour across a fold. Returns (U, V, dirU, dirV)."""
+    c = b.cyl()
+    p = b.p()
+    wa, wb = b.sep(b.gattr("fr_cw_a")), b.sep(b.gattr("fr_cw_b"))
+    cs, sn, det = wa[0], wa[1], wa[2]
+    th0 = wb[2]
+    absk = b.math("ABSOLUTE", c["k"])
+    rnd = b.cmp(absk, 1.0)
+    sph = c["sph"]
+    # plane
+    up, vp = b.vmath("DOT_PRODUCT", p, c["u"]), b.vmath("DOT_PRODUCT", p, c["w"])
+    # round: theta from the middle of the face's gap; a closed ring (theta0 < 0): a whole number of tows round
+    closed = b.math("LESS_THAN", th0, -0.5)
+    th = b.math("WRAP", b.math("SUBTRACT", c["th"], b.math("MAXIMUM", th0, 0.0)), 2 * math.pi, 0.0)
+    circ = b.math("MULTIPLY", c["r"], 2 * math.pi)
+    if tow is not None:
+        per = float(tow) * closed_count
+        n = b.math("MAXIMUM", b.math("ROUND", b.math("DIVIDE", circ, per)), 1.0)
+        snap = b.math("DIVIDE", b.math("MULTIPLY", n, per), b.math("MAXIMUM", circ, 1e-9))
+        snap = b.mix("FLOAT", closed, 1.0, snap)
+    else:
+        snap = 1.0
+    ur = b.math("MULTIPLY", b.math("MULTIPLY", th, c["r"]), snap)
+    vr = c["z"]
+    # sphere: (s cos theta, s sin theta)
+    cth, sth = b.math("COSINE", c["th"]), b.math("SINE", c["th"])
+    us, vs = b.math("MULTIPLY", c["s"], cth), b.math("MULTIPLY", c["s"], sth)
+    un = b.mix("FLOAT", sph, b.mix("FLOAT", rnd, up, ur), us)
+    vn = b.mix("FLOAT", sph, b.mix("FLOAT", rnd, vp, vr), vs)
+    vn = b.math("MULTIPLY", vn, det)
+    U = b.math("ADD", b.math("SUBTRACT", b.math("MULTIPLY", cs, un), b.math("MULTIPLY", sn, vn)), wb[0])
+    V = b.math("ADD", b.math("ADD", b.math("MULTIPLY", sn, un), b.math("MULTIPLY", cs, vn)), wb[1])
+    # the native directions: plane (u, w); round (round the axis, along it); sphere (along U, along V of the drape)
+    rhat = b.vmath("NORMALIZE", c["rad"])
+    shat = b.vmath("SUBTRACT", b.vmath("SCALE", rhat, scale=b.math("COSINE", c["phi"])),
+                   b.vmath("SCALE", c["d"], scale=b.math("SINE", c["phi"])))
+    tus = b.vmath("SUBTRACT", b.vmath("SCALE", shat, scale=cth), b.vmath("SCALE", c["tang"], scale=sth))
+    tvs = b.vmath("ADD", b.vmath("SCALE", shat, scale=sth), b.vmath("SCALE", c["tang"], scale=cth))
+    tu = b.mix("VECTOR", sph, b.mix("VECTOR", rnd, c["u"], c["tang"]), tus)
+    tv = b.mix("VECTOR", sph, b.mix("VECTOR", rnd, c["w"], c["d"]), tvs)
+    tv = b.vmath("SCALE", tv, scale=det)
+    du = b.vmath("SUBTRACT", b.vmath("SCALE", tu, scale=cs), b.vmath("SCALE", tv, scale=sn))
+    dv = b.vmath("ADD", b.vmath("SCALE", tu, scale=sn), b.vmath("SCALE", tv, scale=cs))
+    return U, V, du, dv
+
+
+def carbon(b: F, s: dict):
+    """Carbon fibre (task 0318): a 2x2 twill or a plain weave of tows ``tow`` wide in every CAD face's own weave
+    coordinates (``weave_coords``: no switch between projections, so no 45° seam); each tow's highlight runs along its
+    fibres (the alternating sheen), fine fibre streaks, a little brightness per tow; under a smooth clear coat
+    (``gloss``: 1 = glossy, 0 = matte). Far away: an even dark grey with a soft sheen."""
+    t = float(s["tow"])
+    twill = s.get("twill", 1.0) > 0.5
+    U, V, du, dv = weave_coords(b, 4.0 if twill else 2.0, tow=t)
+    u, v = b.math("DIVIDE", U, t), b.math("DIVIDE", V, t)
+    iu, iv = b.math("FLOOR", u), b.math("FLOOR", v)
+    per = 4.0 if twill else 2.0   # twill: a tow goes over two, under two, one tow on per row; plain: over one
+    m = b.math("FLOORED_MODULO", b.math("ADD", iu, iv), per)
+    warp = b.math("LESS_THAN", m, per / 2)
+    au = b.tri(u)                                                 # 0 at a tow's edge, 1 in its middle
+    av = b.tri(v)
+    across = b.mix("FLOAT", warp, av, au)                         # the warp runs along V: across it is U
+    # where along its float (the cells it lies on top of: two in a twill) a point is: it dips only at the float's ends
+    fu = b.math("SUBTRACT", u, iu)
+    fv = b.math("SUBTRACT", v, iv)
+    fl = b.mix("FLOAT", warp, b.math("ADD", b.math("SUBTRACT", m, per / 2), fu), b.math("ADD", m, fv))
+    along = b.tri(b.math("DIVIDE", fl, per / 2))
+    h = b.math("MULTIPLY", b.math("SQRT", across), b.math("ADD", 0.7, b.math("MULTIPLY", b.math("SQRT", along),
+                                                                               0.3)))
+    vis = b.lod(t)
+    fib_w = b.mix("FLOAT", warp, V, U)                            # fibre streaks: a noise across the fibres
+    fib = b.noise(w=b.math("MULTIPLY", fib_w, 3500.0), scale=1.0, detail=2.0)
+    n = b.node("ShaderNodeTexWhiteNoise")
+    n.noise_dimensions = "3D"
+    b.put(n.inputs["Vector"], b.comb(iu, iv, warp))
+    tone = b.math("MULTIPLY", b.math("SUBTRACT", n.outputs["Value"], 0.5), 0.5)    # each tow a little different
+    base = lin(s["color"])
+    lite = (*[min(1.0, x * 2.6 + 0.012) for x in base], 1.0)
+    shade = b.math("MULTIPLY", b.math("ADD", b.math("MULTIPLY", fib, 0.55), b.math("MULTIPLY", tone, 0.45)), vis)
+    col = b.mix("RGBA", b.math("ADD", shade, 0.2), (*base, 1.0), lite)
+    tang = b.world_tangent(b.mix("VECTOR", warp, du, dv))
+    gloss = float(s.get("gloss", 1.0))
+    rough = b.math("ADD", s["roughness"] + (1.0 - gloss) * 0.12,
+                   b.math("MULTIPLY", b.math("SUBTRACT", fib, 0.5), 0.08), clamp=True)
+    return dict(color=col, roughness=rough, normal=b.bump(b.math("MULTIPLY", h, vis), t * 0.05),
+                tangent=tang, anisotropic=b.math("MULTIPLY", vis, s.get("anisotropic", 0.75)),
+                coat_roughness=0.03 + (1.0 - gloss) * 0.32, coat_normal=False)
+
+
+def perlage(b: F, s: dict):
+    """Perlage / engine turning (task 0318): a brushed circle every ``spacing`` in rows on each CAD face (its own weave
+    coordinates: flat on a plate, round a shaft, draped over a dome); a later spot covers the earlier ones (along the
+    row, then the next row), so every spot shows a whole edge on one side and is cut by its neighbours on the other.
+    Each spot: fine circular scratches round its own centre, the highlight stretched across them (a radial streak
+    that turns from spot to spot), its own shade, a faint step at its edge."""
+    S = float(s["spacing"])
+    R = 0.8 * S
+    U, V, du, dv = weave_coords(b)
+    iu = b.math("FLOOR", b.math("DIVIDE", U, S))
+    iv = b.math("FLOOR", b.math("DIVIDE", V, S))
+    fu = b.math("SUBTRACT", U, b.math("MULTIPLY", iu, S))
+    fv = b.math("SUBTRACT", V, b.math("MULTIPLY", iv, S))
+    bu, bv, bid = None, None, None
+    for cu, cv in ((0, 0), (1, 0), (0, 1), (1, 1)):         # in the order they were made: the last one on top
+        ou = b.math("SUBTRACT", fu, cu * S)
+        ov = b.math("SUBTRACT", fv, cv * S)
+        inside = b.math("LESS_THAN", b.math("ADD", b.math("MULTIPLY", ou, ou), b.math("MULTIPLY", ov, ov)), R * R)
+        sid = b.comb(b.math("ADD", iu, float(cu)), b.math("ADD", iv, float(cv)), 0.0)
+        if bu is None:
+            bu, bv, bid = ou, ov, sid
+        else:
+            bu = b.mix("FLOAT", inside, bu, ou)
+            bv = b.mix("FLOAT", inside, bv, ov)
+            bid = b.mix("VECTOR", inside, bid, sid)
+    rr = b.math("SQRT", b.math("ADD", b.math("MULTIPLY", bu, bu), b.math("MULTIPLY", bv, bv)))
+    wn = b.node("ShaderNodeTexWhiteNoise")
+    wn.noise_dimensions = "3D"
+    b.put(wn.inputs["Vector"], bid)
+    rnd = wn.outputs["Value"]
+    # the scratches: rings round the spot's centre, each spot's own (its random number shifts the noise)
+    rings = b.noise(w=b.math("ADD", b.math("MULTIPLY", rr, 14000.0), b.math("MULTIPLY", rnd, 97.0)), scale=1.0,
+                    detail=3.0)
+    vis = b.lod(S)
+    edge = b.smooth(rr, R * 0.9, R)                                # the spot's rim, just inside it
+    h = b.math("MULTIPLY", b.math("ADD", b.math("MULTIPLY", rings, 0.6), b.math("MULTIPLY", edge, -0.5)), vis)
+    t_obj = b.vmath("ADD", b.vmath("SCALE", du, scale=b.math("MULTIPLY", bv, -1.0)), b.vmath("SCALE", dv, scale=bu))
+    tang = b.world_tangent(t_obj)                                  # round the spot: its highlight runs out from it
+    shade = b.math("MULTIPLY", b.math("SUBTRACT", rnd, 0.5), b.math("MULTIPLY", vis, 0.18))
+    col = b.vmath("SCALE", lin(s["color"]), scale=b.math("ADD", 1.0, shade))
+    rough = b.math("ADD", s["roughness"], b.math("ADD", b.math("MULTIPLY", b.math("SUBTRACT", rings, 0.5), 0.06),
+                                                  b.math("MULTIPLY", b.math("SUBTRACT", 1.0, vis), 0.06)), clamp=True)
+    return dict(color=col, roughness=rough, normal=b.bump(h, 0.000015), tangent=tang,
+                anisotropic=b.math("MULTIPLY", vis, s.get("anisotropic", 0.85)))
+
+
 BUILDERS = {"knurl": knurl, "spun": spun, "faced": faced, "honed": honed, "crosshatch": crosshatch, "fabric": fabric,
             "grille": grille, "perforated": perforated, "expanded": expanded, "tread": tread, "scraped": scraped,
             "soft_touch": soft_touch, "blasted": blasted, "hammertone": hammertone, "wrinkle": wrinkle,
-            "antiskid": antiskid, "vdi": vdi, "leather": leather, "spangle": spangle, "as_cast": as_cast}
+            "antiskid": antiskid, "vdi": vdi, "leather": leather, "spangle": spangle, "as_cast": as_cast,
+            "carbon": carbon, "perlage": perlage}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -728,8 +878,10 @@ def apply(b: _Nodes, mat, bsdf, material_id: str, spec: dict, settings: dict, sr
         rough = got["roughness"]
     if got.get("normal") is not None:
         normal = got["normal"]
-        if spec.get("coat"):
+        if spec.get("coat") and got.get("coat_normal", True):    # carbon: its clear coat lies smooth over the weave
             fb.nt.links.new(got["normal"], bsdf.inputs["Coat Normal"])
+    if got.get("coat_roughness") is not None:
+        fb.put(bsdf.inputs["Coat Roughness"], got["coat_roughness"])
     if got.get("tangent") is not None:
         fb.nt.links.new(got["tangent"], bsdf.inputs["Tangent"])
     if got.get("anisotropic") is not None:

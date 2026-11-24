@@ -20,6 +20,7 @@ import argparse
 import io
 import json
 import os
+import math
 import pickle
 import queue
 import struct
@@ -63,9 +64,10 @@ FACETS = {
     "fine": {"cap_mm": 0.2, "small_mm": 200.0, "small_gap": 0.1, "small_ang": 0.39},
 }
 
-CACHE_VERSION = 6          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
+CACHE_VERSION = 7          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
                            # 5: triangle range of every face (f<mesh>), appearance names of face colours;
-                           # 6: facets by size (FACETS): capped in mm for big parts, fewer for small ones
+                           # 6: facets by size (FACETS): capped in mm for big parts, fewer for small ones;
+                           # 7: spheres have an axis too (task 0318: domed caps, carbon on a cup)
 MM_TO_M = 0.001
 
 
@@ -187,8 +189,12 @@ def _face_colors(occ, stool, ctool, label):
 MAX_AXES = 400   # per unique part
 
 
-def _face_axis(occ, face):
-    """Axis of a round face (cylinder, cone, torus, revolved surface) as (origin, direction, radius) in mm."""
+def _face_axis(occ, face, pts=None):
+    """Axis of a round face (cylinder, cone, torus, revolved surface, sphere) as (origin, direction, radius) in mm.
+
+    A sphere (task 0318) has no axis of its own: a domed cap's axis runs from the sphere's centre through the middle
+    of the face (``pts``: the face's points, mm, where the caller has them); a face round its centre (a whole ball)
+    takes the sphere's own pole axis from the CAD."""
     try:
         surf = occ["BRepAdaptor_Surface"](face, True)
         st = occ["GeomAbs_SurfaceType"]
@@ -204,6 +210,20 @@ def _face_axis(occ, face):
             ax, r = c.Axis(), c.MajorRadius()
         elif t == st.GeomAbs_SurfaceOfRevolution:
             ax, r = surf.AxeOfRevolution(), 0.0
+        elif t == st.GeomAbs_Sphere:
+            c = surf.Sphere()
+            r = c.Radius()
+            lo = c.Location()
+            centre = np.array((lo.X(), lo.Y(), lo.Z()))
+            pd = c.Position().Direction()
+            d = np.array((pd.X(), pd.Y(), pd.Z()))
+            if pts is not None and len(pts):
+                m = np.asarray(pts, np.float64).reshape(-1, 3).mean(0) - centre
+                if np.linalg.norm(m) > 0.2 * r:          # a cap: its axis points at its middle …
+                    m = m / np.linalg.norm(m)
+                    if abs(float(m @ d)) < math.cos(math.radians(15.0)):   # … the CAD's own pole axis when near it
+                        d = m                            # (exact for a revolved dome; the points' mean is not)
+            return centre, d, float(r)
         else:
             return None
     except Exception:
@@ -487,7 +507,7 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=Fals
                     palette.append(colr)
                 cidx = palette.index(colr)
         if axes is not None:
-            fa = _face_axis(occ, face)
+            fa = _face_axis(occ, face, pts)
             if fa is not None:
                 axes.add(fa[0], fa[1], fa[2], tri_offset, n_tris)
         if face_starts is not None:

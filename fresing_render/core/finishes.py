@@ -67,6 +67,10 @@ KINDS: dict[str, tuple] = {
                 dict(color=(0.62, 0.62, 0.62), metallic=0.9, roughness=0.62)),
     "CAST_FE": (12, "Iron", "Sand-cast iron: dark grey, a little coarser and duller",
                 dict(color=(0.30, 0.30, 0.31), metallic=0.75, roughness=0.72, grain=0.0008)),
+    # task 0318
+    "TWILL": (13, "2x2 twill", "The usual carbon look: each tow goes over two and under two, one tow on per row, so the "
+                               "weave shows diagonal lines", dict(twill=1.0)),
+    "PLAIN": (14, "Plain weave", "Each tow goes over one and under one: a calm chequer, no diagonal", dict(twill=0.0)),
 }
 
 STEELS = ("STEEL", "STAINLESS", "ALUMINIUM", "BRASS")
@@ -189,6 +193,19 @@ FINISHES: dict[str, dict] = {
         n=22, kind="as_cast", pat=dict(grain=0.0006, wave=0.03, roughness=0.62),
         kinds=("CAST_AL", "CAST_FE"), web="tile", far_rough=0.0, period=lambda p: p["grain"],
         what="a sand-cast surface: sand grain, a soft waviness, darker blotches"),
+    "carbon": dict(
+        n=17, kind="carbon", faces=True, pat=dict(tow=0.002, roughness=0.3, anisotropic=0.75, gloss=1.0, twill=1.0),
+        size=("Tow width", "tow", 0.002, 0.001, 0.008), amount=("Gloss", 1.0, "gloss"), kinds=("TWILL", "PLAIN"),
+        web="average", far_rough=0.05, period=lambda p: p["tow"],
+        what="carbon fibre: a 2x2 twill or plain weave under a clear coat (Gloss 1 = glossy, 0 = matte), each tow's "
+             "highlight along its fibres; the weave follows every CAD face – round the round ones, draped over domes, "
+             "on across folds – so it has no seam a real part would not have"),
+    "perlage": dict(
+        n=27, kind="perlage", faces=True, pat=dict(spacing=0.004, roughness=0.2, anisotropic=0.85),
+        size=("Spot size", "spacing", 0.004, 0.0015, 0.012), bases=("STAINLESS", "ALUMINIUM", "BRASS"),
+        web="average", far_rough=0.06, period=lambda p: p["spacing"],
+        what="perlage (engine turning): overlapping brushed circles laid row after row, each later spot over the "
+             "earlier ones, each with its own swirl of fine scratches and its own highlight"),
     "scraped": dict(
         n=25, kind="scraped", pat=dict(cell=0.012, roughness=0.2),
         size=("Cell size", "cell", 0.012, 0.005, 0.03), bases=("STEEL", "CAST_IRON"), web="tile", far_rough=0.05,
@@ -441,7 +458,10 @@ def face_frames(co, tri, axes=(), axis_faces=(), starts=(), part_centre=None, pa
     axis (``materials.part_axes``) for faces with no axis of their own.
 
     Round faces keep their axis and get their own radius (the median distance of their points: the stored radius is the
-    largest on that axis line) and k = 1 (outside) or -1 (inside: a bore, the normals point to the axis). Every other
+    largest on that axis line) and k = 1 (outside) or -1 (inside: a bore, the normals point to the axis). A sphere
+    (task 0318: a domed cap, a cup; its points all one distance from a centre on the axis, over more than
+    ``SPHERE_SPAN``) gets k = 3 (outside) or -3 (inside), ``o`` = its centre, ``d`` = the axis towards the face's
+    middle (its pole), ``r`` = the sphere's radius. Every other
     CAD face whose mean normal lies along an axis of the part and whose centre lies on it is an end face (k = 2,
     radius = its farthest point). The rest: k = 0, the face's own centre and normal."""
     import numpy as np
@@ -484,6 +504,13 @@ def face_frames(co, tri, axes=(), axis_faces=(), starts=(), part_centre=None, pa
         inside = float(np.sum(np.einsum("ij,ij->i", nrm[sl], radf) * area[sl])) < 0
         o[sl], d[sl], r[sl], k[sl] = oo, dd, rr, (-1.0 if inside else 1.0)
         has_axis[sl] = True
+        # the triangles' middles too: a cylinder has points only at its two ends, all one distance from its middle
+        sph = _sphere(np.vstack([co[vid], cen[sl]]), oo, dd) if len(vid) >= 6 else None
+        if sph is not None:                                    # task 0318: a sphere (a domed cap, a cup)
+            c_s, R_s = sph
+            dd_s = dd if float(((cen[sl] - c_s) @ dd) @ area[sl]) >= 0 else -dd     # the pole: the cap's middle
+            out = float(np.sum(np.einsum("ij,ij->i", nrm[sl], cen[sl] - c_s) * area[sl])) >= 0
+            o[sl], d[sl], r[sl], k[sl] = c_s, dd_s, R_s, (3.0 if out else -3.0)
     cand = [(ax[:3], ax[3:6] / max(np.linalg.norm(ax[3:6]), 1e-12)) for ax in axes]
     if part_centre is not None and part_round is not None:
         lo, hi = co.min(0), co.max(0)
@@ -524,7 +551,200 @@ def face_frames(co, tri, axes=(), axis_faces=(), starts=(), part_centre=None, pa
     return o, d, r, k
 
 
+#: a round face is a sphere when its points lie within this share of the radius of one centre on its axis, and much
+#: closer to that sphere than to any cylinder round the axis (a short band of a cylinder fits a sphere too)
+SPHERE_TOL = 0.02
+SPHERE_VS_CYLINDER = 0.25
+
+
+def _sphere(pts, o, d):
+    """(centre, radius) of the sphere centred on the axis (o, d) that the points lie on, or None.
+
+    |p - o|^2 = R^2 - t^2 + 2 t z with c = o + t d and z = (p - o).d: a least-squares line in z gives t. It is a
+    sphere when the points' distances from c vary much less than their distances from the axis (a cylinder's)."""
+    import numpy as np
+    pc = pts - o
+    z = pc @ d
+    q = np.einsum("ij,ij->i", pc, pc)
+    if np.ptp(z) < 1e-12:
+        return None
+    A = np.vstack([np.ones_like(z), z]).T
+    (_a0, a1), *_ = np.linalg.lstsq(A, q, rcond=None)
+    t = a1 / 2.0
+    c = o + d * t
+    dist = np.linalg.norm(pts - c, axis=1)
+    R = float(np.median(dist))
+    rho = np.sqrt(np.maximum(q - z * z, 0.0))
+    s_dev = float(np.max(np.abs(dist - R)))
+    c_dev = float(np.max(np.abs(rho - np.median(rho))))
+    if not np.isfinite(R) or R <= 0 or s_dev > SPHERE_TOL * R or s_dev > SPHERE_VS_CYLINDER * c_dev:
+        return None
+    return c, R
+
+
 def teeth(radius: float, pitch: float, angle_deg: float = 0.0) -> int:
     """Whole teeth round a face of this radius (the knurl has no seam): round(2 pi r cos(angle) / pitch)."""
     v = 2 * math.pi * radius * math.cos(math.radians(angle_deg)) / max(pitch, 1e-12)
     return int(round(v)) if math.isfinite(v) else 0
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# the weave's frame per face (task 0318: carbon fibre without a seam a real part would not have)
+# ---------------------------------------------------------------------------------------------------------------
+
+#: a face's own weave coordinates (metres), from its kind ``k`` of ``face_frames``:
+#:   plane (k 0, 2):   (p.u, p.w) in the face's own plane – u, w from its normal ``d`` (``plane_basis``), measured
+#:                     from the part's origin, so faces in one plane continue each other
+#:   round (k +-1):    (theta r, z) round the face's axis – theta from ``theta0`` (the middle of the face's gap, so an
+#:                     open bend has no jump); a closed ring gets a whole number of tows round it in the shader
+#:   sphere (k +-3):   (s cos theta, s sin theta), s = r x the angle from the pole: a dome draped from its middle
+#: then turned / mirrored and shifted (``weave_frames``) so that a face continues the weave of a neighbour it shares an
+#: edge with (a fold of a sheet, a bend into a flat): the weave runs on across the edge as a draped ply would.
+#: Closed rings and spheres keep their own frame (they are seamless on their own); where a face cannot continue its
+#: neighbour (the end of a tube against its round side), the weave meets it as at a ply joint.
+WEAVE_FIT = 2e-5          # m: a face continues its neighbour when their weaves meet within this along the edge
+
+
+def plane_basis(d):
+    """(u, w) of a face with normal / axis ``d`` – the same formula as the shader (``blender/finishes.F.cyl``)."""
+    import numpy as np
+    d = np.asarray(d, float)
+    ref = np.array([1.0, 0.0, 0.0]) if abs(d[2]) > 0.9 else np.array([0.0, 0.0, 1.0])
+    u = np.cross(d, ref)
+    u /= max(np.linalg.norm(u), 1e-12)
+    return u, np.cross(d, u)
+
+
+def _theta(pc, d):
+    """theta 0 … 2 pi round the axis d of points pc (relative to a point on it), as the shader works it out."""
+    import numpy as np
+    u, w = plane_basis(d)
+    rad = pc - np.outer(pc @ d, d)
+    return np.arctan2(rad @ w, rad @ u) + math.pi
+
+
+def _native(kind: int, pts, o, d, r, theta0):
+    """A face's own weave coordinates of ``pts`` (n, 3) -> (n, 2), metres."""
+    import numpy as np
+    if abs(kind) == 3:
+        pc = pts - o
+        z = pc @ d
+        rho = np.linalg.norm(pc - np.outer(z, d), axis=1)
+        s = r * np.arctan2(rho, z)
+        th = _theta(pc, d)
+        return np.stack([s * np.cos(th), s * np.sin(th)], 1)
+    if abs(kind) == 1:
+        pc = pts - o
+        th = np.mod(_theta(pc, d) - max(theta0, 0.0), 2 * math.pi)
+        return np.stack([th * r, pc @ d], 1)
+    u, w = plane_basis(d)
+    return np.stack([pts @ u, pts @ w], 1)
+
+
+def _fit(b, g, det: float):
+    """The turn (c, s) and shift that put the 2-D points ``b`` on ``g`` (``b`` mirrored first when det < 0), and the
+    largest miss. None when the points do not fix it (fewer than two apart)."""
+    import numpy as np
+    if len(b) < 2:
+        return None
+    b = np.array(b, float)
+    if det < 0:
+        b[:, 1] = -b[:, 1]
+    bc, gc = b.mean(0), g.mean(0)
+    B, G = b - bc, g - gc
+    if float(np.max(np.linalg.norm(B, axis=1))) < 1e-6:
+        return None
+    sxx = float(np.sum(B[:, 0] * G[:, 0] + B[:, 1] * G[:, 1]))
+    sxy = float(np.sum(B[:, 0] * G[:, 1] - B[:, 1] * G[:, 0]))
+    ang = math.atan2(sxy, sxx)
+    c, s = math.cos(ang), math.sin(ang)
+    Rb = np.stack([c * B[:, 0] - s * B[:, 1], s * B[:, 0] + c * B[:, 1]], 1)
+    off = gc - np.array([c * bc[0] - s * bc[1], s * bc[0] + c * bc[1]])
+    miss = float(np.max(np.linalg.norm(Rb - G, axis=1)))
+    return c, s, off, miss
+
+
+def weave_frames(co, tri, o, d, r, k, starts=()):
+    """Per triangle (a (n, 3), b (n, 3)): a = (cos, sin, mirror) of the turn of the face's own weave coordinates, b =
+    (shift u, shift v, theta0). The shader: (U, V) = R(turn) (Un, mirror Vn) + shift.
+
+    ``o, d, r, k``: ``face_frames``; ``starts`` the CAD faces' first triangles. Faces are visited largest first; a face
+    that shares an edge with one already placed continues its weave when the edge's points meet within ``WEAVE_FIT``
+    (a fold, a bend, a face split in two) – turned, and mirrored when its own frame is the other way round."""
+    import numpy as np
+    co = np.asarray(co, np.float64).reshape(-1, 3)
+    tri = np.asarray(tri, np.int64).reshape(-1, 3)
+    P = len(tri)
+    A = np.zeros((P, 3))
+    A[:, 0] = 1.0
+    A[:, 2] = 1.0
+    Bv = np.zeros((P, 3))
+    if P == 0 or len(co) == 0:
+        return A, Bv
+    bounds = [int(x) for x in starts] if len(starts) else [0]
+    bounds = sorted({x for x in bounds if 0 <= x < P} | {0}) + [P]
+    faces = [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1) if bounds[i + 1] > bounds[i]]
+    o, d, r, k = (np.asarray(x, np.float64) for x in (o, d, r, k))
+    tri = np.clip(tri, 0, len(co) - 1)
+    a_, b_, c_ = co[tri[:, 0]], co[tri[:, 1]], co[tri[:, 2]]
+    area = np.linalg.norm(np.cross(b_ - a_, c_ - a_), axis=1) / 2
+    info = []
+    key_faces: dict = {}
+    scale = 1e6                                                   # points the same within a micrometre are one
+    for fi, (t0, t1) in enumerate(faces):
+        vid = np.unique(tri[t0:t1].ravel())
+        kind = int(round(float(k[t0])))
+        oo, dd, rr = o[t0], d[t0], float(r[t0])
+        th0, closed = 0.0, False
+        if abs(kind) == 1 and len(vid):
+            th = np.sort(_theta(co[vid] - oo, dd))
+            gaps = np.diff(np.concatenate([th, th[:1] + 2 * math.pi]))
+            g = int(np.argmax(gaps))
+            closed = float(gaps[g]) < math.radians(30.0)
+            th0 = -1.0 if closed else float(np.mod(th[g] + gaps[g] / 2, 2 * math.pi))   # -1: closed
+        anchor = abs(kind) == 3 or closed
+        hand = 1.0 if kind in (0, 2) else float(np.sign(kind) or 1.0)
+        keys = np.round(co[vid] * scale).astype(np.int64)
+        kv = {tuple(x): int(v) for x, v in zip(keys, vid)}
+        for kk in kv:
+            key_faces.setdefault(kk, []).append(fi)
+        info.append(dict(t=(t0, t1), kind=kind, o=oo, d=dd, r=rr, th0=th0, anchor=anchor, hand=hand, keys=kv,
+                         area=float(area[t0:t1].sum())))
+    nb: dict = {}
+    for kk, fs in key_faces.items():
+        if len(fs) > 1:
+            for f1 in fs:
+                for f2 in fs:
+                    if f1 != f2:
+                        nb.setdefault(f1, {}).setdefault(f2, []).append(kk)
+    placed = [None] * len(info)                                   # (c, s, det, off)
+    for root in sorted(range(len(info)), key=lambda i: -info[i]["area"]):
+        if placed[root] is not None:
+            continue
+        placed[root] = (1.0, 0.0, 1.0, np.zeros(2))
+        queue = [root]
+        while queue:
+            fa = queue.pop(0)
+            ia = info[fa]
+            ca, sa, da, offa = placed[fa]
+            for fb, kks in sorted(nb.get(fa, {}).items()):
+                ib = info[fb]
+                if placed[fb] is not None or ib["anchor"] or len(kks) < 2:
+                    continue
+                pts = np.array([co[ia["keys"][kk]] for kk in kks])
+                na = _native(ia["kind"], pts, ia["o"], ia["d"], ia["r"], ia["th0"])
+                na[:, 1] *= da
+                ga = np.stack([ca * na[:, 0] - sa * na[:, 1], sa * na[:, 0] + ca * na[:, 1]], 1) + offa
+                nbp = _native(ib["kind"], pts, ib["o"], ib["d"], ib["r"], ib["th0"])
+                det = da * ia["hand"] * ib["hand"]
+                got = _fit(nbp, ga, det)
+                if got is None or got[3] > WEAVE_FIT:
+                    continue
+                placed[fb] = (got[0], got[1], det, got[2])
+                queue.append(fb)
+    for fi, inf in enumerate(info):
+        t0, t1 = inf["t"]
+        c, s, det, off = placed[fi]
+        A[t0:t1] = (c, s, det)
+        Bv[t0:t1] = (off[0], off[1], inf["th0"])
+    return A, Bv

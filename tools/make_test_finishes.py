@@ -13,6 +13,13 @@ Sizes in mm, Z up. Each sample sits on a 140 mm grid (6 columns, 4 rows, the boa
   GRIP …     a handle Ø30 x 110                 DISC …     a disc Ø52 x 1 (grille, speaker cloth)
   BAND …     an arch 30 mm wide standing on its ends (soft-touch)
 
+Task 0318 adds two rows: carbon fibre on a cup, a tube with a cone, a U-shaped folded panel, a free-form hood and a flat
+plate; perlage on a disc; and a rust row (bare steel, cast iron, painted, galvanized, stainless, aluminium).
+
+  TUBE …     a tube Ø40 / Ø36 x 90 with a cone to Ø28 over 30 mm, lying along x
+  PANEL …    a U-shaped folded sheet 2 mm thick: a 44 mm base, two 32 mm legs, bends R 6 / 8 mm, 70 mm long
+  HOOD …     a free-form shell 2 mm thick, 100 x 80, curved both ways (one smooth B-spline face on top)
+
 The headset (front left of the board): a headband, two yokes, cups, cushions, grilles, caps and a knob.
 Each part is ONE solid (a part of several solids loses its colour in the importer)."""
 
@@ -119,6 +126,36 @@ def disc():
     return g.cyl(26, 1.0)
 
 
+def tube():
+    return g.revolve([(18, 0), (20, 0), (20, 90), (14, 120), (12, 120), (18, 90)], p=(-60, 0, 20), d=(1, 0, 0))
+
+
+def panel():
+    """A U-shaped folded sheet: base 44 mm between the bends, legs up to 40 mm, bends R 6 inside / 8 outside."""
+    s45 = math.sin(math.radians(45))
+
+    def arc(cx, cy, r, sx):
+        return (cx + sx * r * s45, cy - r * s45)
+    prof = [(-22, 0), (22, 0), ("arc", arc(22, 8, 8, 1), (30, 8)), (30, 40), (28, 40), (28, 8),
+            ("arc", arc(22, 8, 6, 1), (22, 2)), (-22, 2), ("arc", arc(-22, 8, 6, -1), (-28, 8)), (-28, 40), (-30, 40),
+            (-30, 8), ("arc", arc(-22, 8, 8, -1), (-22, 0))]
+    return g.xform(g.prism(prof, 70.0), g.T(0, 35, 0) @ g.Rot((1, 0, 0), 90))
+
+
+def hood():
+    """A free-form shell 2 mm thick: arched sections of changing height lofted smooth (one double-curved top face)."""
+    from OCP.BRepOffsetAPI import BRepOffsetAPI_ThruSections
+    from OCP.gp import gp_Pnt
+    ts = BRepOffsetAPI_ThruSections(True, False, 1e-6)
+    for x in (-50.0, -25.0, 0.0, 25.0, 50.0):
+        top = 6.0 + 20.0 * (1.0 - (x / 62.0) ** 2) + 3.0 * math.sin(x / 30.0)
+        w = 40.0 - 6.0 * (x / 50.0) ** 2
+        prof = [(-w, 0.0), ("arc", (0.0, top), (w, 0.0)), (w, -2.0), ("arc", (0.0, top - 2.0), (-w, -2.0))]
+        ts.AddWire(g._wire2d(prof, plane=lambda u, v, x=x: gp_Pnt(x, u, v + 2.0)))
+    ts.Build()
+    return ts.Shape()
+
+
 #: the board: (part name, shape, colour, z lift, turn) in grid order (6 per row); the tour gives each its finish
 BOARD = [
     ("KNOB DIAMOND KNURL", knob), ("KNOB STRAIGHT KNURL", knob), ("GRIP HANDLE", grip), ("CAP SPUN", cap),
@@ -129,13 +166,19 @@ BOARD = [
     ("BLOCK HAMMERTONE", block), ("BLOCK WRINKLE", block),
     ("PLATE ANTI-SKID", plate), ("CUP VDI 30", cup), ("CUP LEATHER", cup), ("PLATE SPANGLE", plate),
     ("BLOCK AS-CAST", block),
+    # task 0318
+    ("CUP CARBON", cup), ("TUBE CARBON", tube), ("PANEL CARBON", panel), ("HOOD CARBON", hood),
+    ("PLATE CARBON", plate), ("DISC PERLAGE", lambda: g.cyl(40, 3.0)),
+    ("PLATE RUST BARE STEEL", plate), ("BLOCK RUST CAST IRON", block), ("PLATE RUST PAINTED", plate),
+    ("PLATE RUST GALVANIZED", plate), ("PLATE RUST STAINLESS", plate), ("PLATE RUST ALUMINIUM", plate),
 ]
 PITCH = 140.0
 COLOURS = {"KNOB": (0.47, 0.47, 0.47), "CAP": (0.78, 0.78, 0.78), "CUP": (0.16, 0.27, 0.55),
            "BLOCK": (0.71, 0.71, 0.71), "SHAFT": (0.71, 0.71, 0.71), "PLATE": (0.59, 0.59, 0.59),
            "BUSHING": (0.67, 0.67, 0.67), "WAY": (0.67, 0.67, 0.67), "GRIP": (0.12, 0.12, 0.12),
            "BAND": (0.16, 0.16, 0.16), "DISC": (0.08, 0.08, 0.08), "YOKE": (0.75, 0.75, 0.75),
-           "CUSHION": (0.12, 0.12, 0.12)}
+           "CUSHION": (0.12, 0.12, 0.12), "TUBE": (0.1, 0.1, 0.1), "PANEL": (0.1, 0.1, 0.1),
+           "HOOD": (0.1, 0.1, 0.1)}
 
 
 def headset():
@@ -160,7 +203,8 @@ def headset():
 def make(path: str) -> None:
     root = g.Asm("TEST.FINISHES")
     for i, (name, fn) in enumerate(BOARD):
-        x, y = PITCH * (i % 6), PITCH * (3 - i // 6)
+        j = i if i < 23 else i + 1                     # task 0318's two rows start on a row of their own
+        x, y = PITCH * (j % 6), PITCH * (3 - j // 6)
         root.add(g.Part(name, fn(), COLOURS[name.split()[0]]), g.T(x, y, 0.0))
     root.add(headset(), g.T(-260.0, 200.0, 140.0) @ g.Rot((0, 0, 1), -20))
     g.write_step(root, path)
