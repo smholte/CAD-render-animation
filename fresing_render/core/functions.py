@@ -154,7 +154,10 @@ fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_
    guide="whats-next", since="0.2.152", changed="0.2.197")
 fn(id="panel.make", title="Make: every picture, video and 3D page, each in a window of its own", family="panel",
    panel="FRESING_PT_make", button="fresing.make_window", guide="make", tour=("make",), pccheck=("panel.two",),
-   since="0.2.152", changed="0.2.197")
+   since="0.2.152", changed="0.2.223")
+fn(id="scene.render_view", short="Render this view", title="Render this view: what the 3D view shows, no camera needed",
+   family="scene", panel="FRESING_PT_make", button="fresing.render_view", guide="render-this-view",
+   tour=("render_view",), pccheck=("scene.render_view",), since="0.2.223")
 fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
    panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")
@@ -174,7 +177,7 @@ fn(id="learn.hub", short="Learning hub", title="Learning hub: View, Show me or B
 # task 0208: learn as you go
 fn(id="learn.question", title="Learn what you never use: show it in the guide or the Learning hub, or list it for later",
    family="panel", panel="FRESING_PT_favourites", button="fresing.learn_show", guide="learn-as-you-go",
-   tour=("learn",), pccheck=("app.learning",), since="0.2.160", changed="0.2.223")
+   tour=("learn",), pccheck=("app.learning",), since="0.2.160", changed="0.2.224")
 fn(id="learn.list", title="My learning list: guide, Learning hub and done, ticked by itself after use on 3 days",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.learn_window", guide="learning-list", tour=("learn",),
    pccheck=("app.learning",), since="0.2.160", changed="0.2.197")
