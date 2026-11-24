@@ -1,6 +1,6 @@
 # 0309 – Lead motions: one slider per machine function, in a drop-down on the top bar, live and in the animation
 
-**Who:** worker · **Status:** open – waits for 0282, 0290 and 0307 · **Branch:** `task/0309-lead-motions`
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0309-i8zuvl`
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "a machine has 5 motions, but each motion needs 5 joints. Then you can
 set lead motions, that come to a separate menu … a menu on the top bar that when clicked drops down with sliders to show
 off the lead movements … when animating these lead motions are easy to access and for live viewing. The other
