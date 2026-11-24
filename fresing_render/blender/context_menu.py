@@ -40,8 +40,9 @@ ON = [False]                 # Blender's menu drawing is swapped for ours
 # what the menu shows (tests, the guide, the PC check)
 ON_PART = ("Zoom to it", "Show in 2 Structure", "Hide", "Show only this", "Show all", "Add a label here",
            "Add joint here…", "Unlock so it can move",          # "Lock in place" once unlocked (task 0307)
-           "Move / turn…", "Remove…",                            # task 0292
-           "Copy", "Paste here")                                 # task 0293 (Paste here once something was copied)
+           "Move / turn…",                                        # task 0292
+           "Copy", "Paste here",                                  # task 0293 (Paste here once something was copied)
+           "Remove…")                                             # task 0292
 ON_EMPTY = ("Zoom to all", "Show all", "Paste")
 CLIENT_DROPS = ("Add a label here", "Add joint here…", "Unlock so it can move", "Move / turn…", "Remove…", "Copy",
                 "Paste here", "Paste")

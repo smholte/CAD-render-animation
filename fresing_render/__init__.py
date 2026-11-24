@@ -198,6 +198,8 @@ def register():
     hover.register()
     from .blender import waycover
     waycover.register()                      # task 0035: one-cover projects open with it in the list
+    from .blender import copy as copy_paste
+    copy_paste.register()                    # task 0293: a new or opened project forgets what was copied
     vessel_motion.register()
     from .blender import flex
     flex.register()                          # hoses and drag chains (task 0058): live shapes, clash hook
@@ -287,6 +289,8 @@ def unregister():
     web3d.unregister()
     from .blender import waycover
     waycover.unregister()
+    from .blender import copy as copy_paste
+    copy_paste.unregister()
     linkages.unregister()
     coolant.unregister()
     machining.unregister()

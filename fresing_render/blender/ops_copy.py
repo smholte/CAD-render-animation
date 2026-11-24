@@ -20,19 +20,18 @@ def _poll(cls, context) -> bool:
 
 
 def clipboard(scene) -> list:
-    """The objects Copy remembered that are still in this scene's project."""
-    if CLIP_SCENE() != scene.name:
+    """The objects Copy remembered that are still in this project (never the same names in another project)."""
+    if copy.CLIP.get("scene") != scene.name:
         return []
     return [bpy.data.objects[n] for n in copy.CLIP["names"] if n in bpy.data.objects
             and bpy.data.objects[n].name in scene.objects]
 
 
-def CLIP_SCENE() -> str:                                   # noqa: N802 - reads like the constant it stands for
-    return copy.CLIP.get("scene", "")
-
-
 def can_paste(scene) -> bool:
     return bool(clipboard(scene))
+
+
+OPENED = [""]                          # what opening Move / turn after a paste gave (tests)
 
 
 def do_paste(op, context, at=None, open_place: bool = True) -> set:
@@ -58,7 +57,7 @@ def do_paste(op, context, at=None, open_place: bool = True) -> set:
     _say(op, context, copy.summary(p)[0] + ". Ctrl+Z takes it away")
     if open_place and not bpy.app.background and getattr(context, "window", None) is not None:
         try:
-            bpy.ops.fresing.place_window("INVOKE_DEFAULT")
+            OPENED[0] = str(bpy.ops.fresing.place_window("INVOKE_DEFAULT"))
         except RuntimeError as exc:          # a window opening already: the copy is made all the same
             print("Fresing Render: Paste: Move / turn not opened:", exc)
     return {"FINISHED"}
@@ -93,8 +92,7 @@ class FRESING_OT_copy(bpy.types.Operator):
             _say(self, context, "Select a model, subassembly or part first: click it in the view or a row of "
                                 "2 Structure", "WARNING")
             return {"CANCELLED"}
-        copy.CLIP["names"] = [o.name for o in top]
-        copy.CLIP["scene"] = scene.name
+        copy.remember(scene, top)
         what = top[0].get(build.PROP_NAME, top[0].name) + (f" and {len(top) - 1} more" if len(top) > 1 else "")
         _say(self, context, f"Copied '{what}': Paste (or Ctrl+V) puts a copy beside it, right-click > Paste here "
                             "where you click")

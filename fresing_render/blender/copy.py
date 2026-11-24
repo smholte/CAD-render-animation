@@ -39,6 +39,7 @@ import re
 import uuid
 
 import bpy
+from bpy.app.handlers import persistent
 from mathutils import Matrix, Vector
 
 from ..core.words import plural
@@ -57,6 +58,29 @@ _STRIP = (build.PROP_CAD_PARENT, "fr_cable", "fr_track", "fr_spool", "fr_mill_hi
           "fr_place_frame")
 _FLEX_TAGS = ("fr_flex", "fr_flex_local", "fr_flex_guide_a", "fr_flex_guide_b")   # kept where the hose comes along
 _ROOT_STRIP = ("fr_lift_groups", "fr_lifting")
+
+
+def remember(scene, objs) -> None:
+    """Copy: remember these objects (by name) for Paste. Opening a project or a new one forgets them (``_on_load``),
+    so a Paste never takes objects of the same name in another project; Ctrl+Z keeps them."""
+    CLIP["names"] = [o.name for o in objs]
+    CLIP["scene"] = scene.name
+
+
+@persistent
+def _on_load(_dummy=None):
+    CLIP["names"], CLIP["scene"] = [], ""
+    LAST.clear()
+
+
+def register():
+    if _on_load not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load)
+
+
+def unregister():
+    while _on_load in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_on_load)
 
 
 def _name(ob) -> str:
@@ -264,6 +288,8 @@ def summary(p: dict) -> list:
         lines.append("A copy of a whole model follows a model update of the original (and the other way round)")
     if any(not c.get("whole") for c in p.get("copies", ())):
         lines.append("A copy of a subassembly or parts is a model of its own: a model update leaves it as it is")
+    if p.get("built"):
+        lines.append("The built animation was taken off: Build again")
     return lines
 
 
@@ -426,6 +452,7 @@ def paste(scene, objs, at=None) -> dict:
         return p
     s = scene.fresing
     sequence.end_preview(scene)
+    p["built"] = animation.has_keys(scene)
     animation.clear_keys(scene)
     build.ensure_bases(scene)
     tree = logic.Tree(scene)

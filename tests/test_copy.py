@@ -126,6 +126,11 @@ def test_the_crane_copied_with_its_joints_and_cylinder(crane):
     scene.frame_set(info["frames"])
     assert _close(c0, b2.matrix_world) and not _close(f0, b1.matrix_world)
     animation.clear_keys(scene)
+    # a paste with a built animation takes it off and says so
+    animation.bake(scene, a)
+    p = copy.paste(scene, [b1])
+    assert not animation.has_keys(scene) and "Build again" in copy.summary(p)[-1]
+    remove.remove(scene, [bpy.data.objects[p["roots"][0]]])
     # a step of the copy's own joint moves the copy
     s.joints_index = [j.name for j in s.joints].index("Boom (2)")
     s.animations_index = 0
@@ -359,6 +364,7 @@ def test_the_operators_keys_and_menu(crane):
     assert not bpy.ops.fresing.paste.poll()
     assert bpy.ops.fresing.copy() == {"FINISHED"}
     assert copy.CLIP["names"] == [root.name] and "Copied 'TEST.CRANE'" in scene.fresing.last_message
+    assert copy.CLIP["scene"] == scene.name
     assert bpy.ops.fresing.paste.poll()
     assert bpy.ops.fresing.paste() == {"FINISHED"}
     r2 = roots(scene)["TEST.CRANE (2)"]
@@ -383,6 +389,9 @@ def test_the_operators_keys_and_menu(crane):
         assert lock.ON[0] and not bpy.ops.fresing.copy.poll() and not bpy.ops.fresing.paste.poll()
     finally:
         workspaces.switch(scene, "All functions")
+    # a new project forgets what was copied (the same names there are other objects)
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    assert not copy.CLIP["names"] and not ops_copy.can_paste(bpy.context.scene)
 
 
 def test_labels_and_logos_come_along(crane):
