@@ -681,12 +681,12 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
 # task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
 fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
    family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_play", guide="lead-motions",
-   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.234", headline=True,
+   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.235", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
    panel="FRESING_PT_animation", prop="lead", guide="lead-motion-step", tour=("lead_motions",),
-   pccheck=("motion.lead_motion",), since="0.2.234", workspaces=_WORK + ("lifting",))
+   pccheck=("motion.lead_motion",), since="0.2.235", workspaces=_WORK + ("lifting",))
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
@@ -726,7 +726,7 @@ fn(id="queue.schemes", short="Every scheme", title="Every paint scheme", family=
 fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", button="fresing.update_check",
    guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16", changed="0.2.220")
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
-   guide="pc-check", pccheck=("app.start",), since="0.2.24")
+   guide="pc-check", pccheck=("app.start",), since="0.2.24", changed="0.2.234")
 fn(id="help.tour", title="Learning hub", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.212")
 fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",

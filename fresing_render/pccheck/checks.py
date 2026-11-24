@@ -63,9 +63,10 @@ Q, F, OWN, H = "quick", "full", "own", "heavy"
 
 
 def line(id: str, title: str, since: str, modes=(F,), requires=(), what: str = "", expected: int = 0,
-         shows: str = "", not_shown: str = ""):
+         shows: str = "", not_shown: str = "", limit: float = 0.0):
     def deco(fn):
-        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown))
+        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown,
+                          limit))
         return fn
     return deco
 
@@ -2457,7 +2458,7 @@ def couplings_motor(ctx):
     return "motor → trolley → wheel; 12 rpm × 5 s = 1 turn"
 
 
-@line("motion.lead_motion", "Lead motions: one slider per function", "0.2.234",
+@line("motion.lead_motion", "Lead motions: one slider per function", "0.2.235",
       what="A lead motion of two joints in two stages: its slider at 50 % gives the joints the values the plan says, "
            "the slider is quick, and a Lead motion step gives the same values half way through")
 def lead_motion(ctx):
@@ -6582,3 +6583,4 @@ def own_time_eevee(ctx):
 
 
 from . import heavy  # noqa: E402,F401 - registers the Heavy lines (task 0033)
+from . import stress  # noqa: E402,F401 - registers the Stress lines (task 0315)

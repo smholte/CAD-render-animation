@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.234")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.235")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1416,7 +1416,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.234")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.235")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -4949,7 +4949,7 @@ stop("lead_motions", MOTION, HUB_SET, "Lead motions: a slider each",
      "'Trolley out', each out and back, its name as a caption. Then click Lead motions on the top bar (right of the "
      "Fresing menu): one slider per function. Drag 'Boom up and out' – the boom goes up first, the trolley follows; "
      "▶ plays it, ▶ again plays it back; Back to start puts all at 0 %.", where="Top bar > Lead motions; 6 Animation "
-     "(Lead motion step)", since="0.2.234", animation=LEAD_ANIM, play=True, check=_check_lead, auto="clip")
+     "(Lead motion step)", since="0.2.235", animation=LEAD_ANIM, play=True, check=_check_lead, auto="clip")
 stop("explode", MOTION, HUB_SET, "Exploded view",
      "The crane's subassemblies are pulled apart outwards; Reset pose puts them back.",
      where="4 Motion > Poses & exploded views", check=_check_explode, since="0.2.47")
