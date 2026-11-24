@@ -708,6 +708,26 @@ def draw_rule_set(layout, context) -> None:
     gap(layout)
 
 
+def draw_finish(col, g) -> None:
+    """Task 0274: a finish's own settings (Metal, Kind, Pitch / Feed / Hole size …, Angle, Strength) under the
+    group's material – only the ones it uses."""
+    from ..core import finishes as fin_core
+    f = fin_core.get(g.material)
+    if f is None:
+        return
+    for name in fin_core.settings_of(g.material):
+        if name == "base":
+            col.prop(g, "fin_base", text="Metal")
+        elif name == "kind":
+            col.prop(g, "fin_kind", text="Kind")
+        elif name == "size":
+            col.prop(g, "fin_size", text=f["size"][0])
+        elif name == "angle":
+            col.prop(g, "fin_angle", text=f["angle"][0])
+        elif name == "amount":
+            col.prop(g, "fin_amount", text=f["amount"][0], slider=True)
+
+
 class FRESING_PT_looks(_Panel, bpy.types.Panel):
     bl_label = "3  Looks"
     bl_order = 2
@@ -759,6 +779,7 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
                 row = col.row(align=True)
                 row.prop(g, "color", text="Colour")
                 row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
+            draw_finish(col, g)
             col.prop(g, "wear", text="Wear", slider=True)
             row = box.row(align=True)
             row.operator("fresing.group_select", text="Select its parts", icon="RESTRICT_SELECT_OFF")

@@ -342,6 +342,10 @@ def assign(ob, mats: dict) -> None:
     link_slots(ob)
     for k, g in enumerate(groups, 1):
         mat = mats.get(g)
+        if mat is not None and mat.get("fr_finish"):     # task 0274: a painted face with a knurl, spun rings …
+            from . import finishes
+            if finishes.needs_faces(mat):
+                finishes.ensure_faces(ob.data)
         if mat is not None and ob.material_slots[k].material is not mat:
             ob.material_slots[k].material = mat
 

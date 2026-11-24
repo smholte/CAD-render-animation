@@ -83,7 +83,7 @@ RES_ITEMS = [(k, v["label"], "") for k, v in presets.RESOLUTIONS.items()]
 
 def _group_look_changed(self, context):
     from . import materials
-    mat = materials.ensure_material(self.name, self.material, self.color, self.wear)
+    mat = materials.group_material(self)
     if context is not None and context.scene is not None:
         from . import build                      # task 0117: to and from "From file" the parts change material
         for ob in build.iter_parts(context.scene):
@@ -94,6 +94,44 @@ def _group_look_changed(self, context):
             machining.cut_look_changed(context.scene)
         except Exception as exc:
             print("Fresing Render: cut faces' look not updated:", exc)
+
+
+def _group_material_changed(self, context):
+    """Task 0274: a group that gets a finish starts with that finish's own settings (size, angle, metal, kind)."""
+    from ..core import finishes as fin_core
+    fid = fin_core.finish_id(self.material)
+    if fid and self.get("fin_of") != fid:
+        d = fin_core.defaults(self.material)
+        self["fin_size"] = d["size"]                     # written as ID properties: no update (one rebuild below)
+        self["fin_angle"] = math.radians(d["angle"])
+        self["fin_amount"] = d["amount"]
+        self["fin_base"] = fin_core.BASES[d["base"]][0] if d["base"] else 0
+        self["fin_kind"] = fin_core.KINDS[d["kind"]][0] if d["kind"] else 0
+        self["fin_of"] = fid
+    _group_look_changed(self, context)
+
+
+_FIN_ITEMS: dict = {}            # Blender keeps only references to enum item strings: the lists live here
+
+
+def _fin_base_items(self, context):
+    from ..core import finishes as fin_core
+    f = fin_core.get(getattr(self, "material", "")) or {}
+    key = ("base", tuple(f.get("bases") or ()))
+    if key not in _FIN_ITEMS:
+        _FIN_ITEMS[key] = [(b, fin_core.BASES[b][1], f"The metal under the finish: {fin_core.BASES[b][1].lower()}",
+                            fin_core.BASES[b][0]) for b in key[1]] or [("NONE", "–", "This material has no metal choice", 0)]
+    return _FIN_ITEMS[key]
+
+
+def _fin_kind_items(self, context):
+    from ..core import finishes as fin_core
+    f = fin_core.get(getattr(self, "material", "")) or {}
+    key = ("kind", tuple(f.get("kinds") or ()))
+    if key not in _FIN_ITEMS:
+        _FIN_ITEMS[key] = [(k, fin_core.KINDS[k][1], fin_core.KINDS[k][2], fin_core.KINDS[k][0])
+                           for k in key[1]] or [("NONE", "–", "This material has no kinds", 0)]
+    return _FIN_ITEMS[key]
 
 
 def _remember_rename(scene, old: str, new: str) -> None:
@@ -374,7 +412,7 @@ def _blur_set(self, value):
 class FRMaterialGroup(bpy.types.PropertyGroup):
     name: StringProperty(name="Name", update=_group_renamed,
                          description="Name of the group. Rename it freely: the rules keep sorting parts into it")
-    material: EnumProperty(name="Material", items=material_items, update=_group_look_changed,
+    material: EnumProperty(name="Material", items=material_items, update=_group_material_changed,
                            description="Material of every part (and painted face) in this group. "
                                        "All of them change at once")
     color: StringProperty(name="Colour", update=_group_look_changed,
@@ -384,6 +422,28 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
                         description="How used the parts of this group look: 0 = new (clean, for marketing), "
                                     "1 = used. Sharp edges turn lighter or bare metal and corners get a little "
                                     "dirt. Shows in Cycles renders; Fast preview (EEVEE) shows only the dirt")
+    # task 0274: the settings of a finish (knurl, spun, cross-hatch, tread plate, blasted …); a finish shows only
+    # the ones it uses, with its own name for Size (Pitch, Feed, Hole size, Grain size …)
+    fin_size: FloatProperty(name="Size", default=0.001, min=0.00005, max=0.2, precision=2, step=1,
+                            subtype="DISTANCE", unit="LENGTH", update=_group_look_changed,
+                            description="The size of the finish's pattern (its name says which: the pitch of a "
+                                        "knurl, the feed of a faced end, the thread of a fabric, the holes of a "
+                                        "perforated sheet, the grain of leather …). Smaller is finer; a pattern too "
+                                        "fine to see from the camera fades to its average by itself")
+    fin_angle: FloatProperty(name="Angle", default=math.radians(30.0), min=0.0, max=math.radians(90.0),
+                             subtype="ANGLE", update=_group_look_changed,
+                             description="The angle of the finish's pattern: of a diamond knurl's grooves to the "
+                                         "part's axis (30° is usual), of a honing cross-hatch (the included angle) "
+                                         "or of a moulded grid")
+    fin_amount: FloatProperty(name="Strength", default=0.8, min=0.0, max=1.0, subtype="FACTOR",
+                              update=_group_look_changed,
+                              description="How strongly the finish shows: for spun metal how far its highlight "
+                                          "stretches round the centre (0 = a plain shine, 1 = a long radial streak)")
+    fin_base: EnumProperty(name="Metal", items=_fin_base_items, update=_group_look_changed,
+                           description="The metal the finish is on: its colour and shine")
+    fin_kind: EnumProperty(name="Kind", items=_fin_kind_items, update=_group_look_changed,
+                           description="Which kind of this finish: the blasting medium, the hole shape, the "
+                                       "VDI 3400 class or the cast metal")
     count: IntProperty(name="Parts", default=0)
     faces: IntProperty(name="Face sets", default=0,
                        description="Painted faces of parts in this group (faces with a look of their own)")
