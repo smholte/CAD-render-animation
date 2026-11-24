@@ -470,6 +470,11 @@ if ($Uninstall) {
             $checks["Extension $Expected installed (found '$ver')"] = ($ver -eq $Expected)
             $checks["App template"] = Test-Path -LiteralPath (Join-Path $portable "scripts\startup\bl_app_templates_user\fresing_render\__init__.py")
             $checks["Preferences saved"] = Test-Path -LiteralPath (Join-Path $portable "config\userpref.blend")
+            # task 0276: Blender's own quick set-up cannot come (preferences saved) and the template hands the first
+            # start to the app's set-up (first_setup.at_load)
+            $tpl = Join-Path $portable "scripts\startup\bl_app_templates_user\fresing_render\__init__.py"
+            $checks["No Blender quick set-up: the template hands the first start to the Fresing set-up"] = (Test-Path -LiteralPath $tpl) -and
+                ((Get-Content -LiteralPath $tpl -Raw) -match "first_setup")
             # task 0206: the licence files, Blender's own licence folder, Blender's extension sync off
             $licDir = Join-Path $InstallDir "licenses"
             $checks["Licence files next to the app"] = (Test-Path -LiteralPath (Join-Path $licDir "LICENSE")) -and

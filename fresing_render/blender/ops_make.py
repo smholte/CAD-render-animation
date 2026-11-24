@@ -37,7 +37,7 @@ from bpy.app.handlers import persistent
 from bpy.props import StringProperty
 
 from . import ops_setup, panels, ui, ui_top
-from .ops_setup import FORM_MARK, OUTPUT_MARK, OUTPUT_TAB, SETTINGS_MARK, STRIP, STRIP_SETTLE
+from .ops_setup import FIRST_SETUP_MARK, FORM_MARK, OUTPUT_MARK, OUTPUT_TAB, SETTINGS_MARK, STRIP, STRIP_SETTLE
 
 PLACES_FILE = "fresing_make_windows.json"
 NAMES_FROM = 100              # task 0308: a strip at least this wide (px at UI scale 1) shows the outputs' names
@@ -169,6 +169,8 @@ def place_key(win) -> str:
             return "settings"
         if screen.get(FORM_MARK):
             return "form:" + str(screen.get(FORM_MARK))
+        if screen.get(FIRST_SETUP_MARK):
+            return "first_setup"                        # task 0276: the first-start set-up
         return str(screen.get(OUTPUT_MARK) or "")
     except (AttributeError, ReferenceError):
         return ""

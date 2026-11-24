@@ -19,9 +19,9 @@ def _starts(state, version, n):
     return shown, state
 
 
-def test_a_new_user_sees_the_welcome_three_starts_then_never():
+def test_a_new_user_sees_the_set_up_three_starts_then_never():
     shown, state = _starts(S.fresh(), "0.2.153", 5)
-    assert shown == ["welcome"] * 3 + ["", ""]
+    assert shown == ["setup"] * 3 + ["", ""]                # task 0276: the set-up in place of the welcome
     assert state["last_run"] == "0.2.153"                   # updates bring What's new from now on
     assert S.decide(state, "0.2.154") == "whats_new"
 
@@ -29,7 +29,7 @@ def test_a_new_user_sees_the_welcome_three_starts_then_never():
 def test_later_counts_once_per_start_and_never_or_the_tour_stop_it():
     state = S.started(S.fresh(), "0.2.153", "welcome")
     state = S.answer_welcome(state, "0.2.153", "later")
-    assert state["welcome"]["later"] == 1 and S.decide(state, "0.2.153") == "welcome"
+    assert state["welcome"]["later"] == 1 and S.decide(state, "0.2.153") == "setup"
     for choice in ("never", "tour"):
         st = S.answer_welcome(S.started(S.fresh(), "0.2.153", "welcome"), "0.2.153", choice)
         assert S.decide(st, "0.2.153") == "" and st["last_run"] == "0.2.153", choice

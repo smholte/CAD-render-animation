@@ -692,7 +692,8 @@ def differences() -> list:
     if p is None:
         return []
     spec = settings_store.spec()
-    skip = {"settings_tab", "live_preview", "knows_ctrl_click", "make_open", "lifting_understood", "library_path"}
+    skip = {"settings_tab", "live_preview", "knows_ctrl_click", "make_open", "lifting_understood", "library_path",
+            "window_places"}           # task 0276: where the app's windows were is no setting anyone chose
     values = {n: v for n, v in settings_store.current(p).items() if n not in skip}
     defaults = {n: k.default for n, k in spec.items()}
     return L.differences(values, defaults, setups(), state())

@@ -224,7 +224,9 @@ SETTINGS_MARK = "fr_settings"  # task 0271: the Fresing Settings window (ops_set
 SETTINGS_TAB = "Settings"
 FORM_MARK = "fr_form"          # task 0282: a function window (form_window.py): screen ID property = the operator's id
 FORM_TAB = "Window"
-PAGE_MARKS = (SETTINGS_MARK, FORM_MARK)    # windows whose page is drawn in the toolbar region (no tab strip there)
+FIRST_SETUP_MARK = "fr_first_setup"   # task 0276: the first-start set-up window (first_setup.py)
+FIRST_SETUP_TAB = "Set up"
+PAGE_MARKS = (SETTINGS_MARK, FORM_MARK, FIRST_SETUP_MARK)    # windows whose page is in the toolbar region (no tab strip)
 STRIP_SETTLE = "fr_strip_settle"           # task 0308: an output window whose strip is being made narrow
 STRIP = 46                     # task 0308: the outputs strip of an output window, px at UI scale 1 (one large icon)
 STRIP_GAP = 12                 # … and the room a side panel needs beside it (one that only just fits is drawn empty)
@@ -254,6 +256,8 @@ def tab_of(window) -> str:
             return SETTINGS_TAB
         if screen.get(FORM_MARK):
             return FORM_TAB
+        if screen.get(FIRST_SETUP_MARK):
+            return FIRST_SETUP_TAB
         return TAB if screen.get(MARK) else (OUTPUT_TAB if screen.get(OUTPUT_MARK) else "")
     except (AttributeError, ReferenceError):
         return ""

@@ -79,6 +79,7 @@ _COMMON = (
     "panel.make", "panel.left", "usage.favourites", "usage.declutter", "learn.hub", "learn.question", "learn.list",
     "learn.next", "learn.window", "learn.show_me", "learn.build",
     "help.updates", "help.pc_check", "help.tour", "help.demo", "help.start_here", "help.welcome", "help.whats_new",
+    "help.first_setup",
     "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
     "help.right_click", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
     "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
@@ -725,6 +726,10 @@ fn(id="help.start_here", headline=True, title="Fresing menu: Learning hub, What'
    pccheck=("app.start_here",), since="0.2.155", changed="0.2.197")
 fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the Learning hub", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
+fn(id="help.first_setup", headline=True, short="Set up again",
+   title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
+         "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.233")
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
    tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
