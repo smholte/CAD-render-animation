@@ -37,14 +37,14 @@
    "fp": "54bbe571bac4c965"
   },
   "copy": {
-   "added": "0.2.223",
-   "changed": "0.2.223",
+   "added": "0.2.224",
+   "changed": "0.2.224",
    "fp": "3e57aeff72e84eec"
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.217",
-   "fp": "4ae97be97acdedfe"
+   "changed": "0.2.223",
+   "fp": "cc45319e5de0d50c"
   },
   "crane_setup": {
    "added": "0.2.161",

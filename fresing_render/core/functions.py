@@ -154,7 +154,10 @@ fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_
    guide="whats-next", since="0.2.152", changed="0.2.197")
 fn(id="panel.make", title="Make: every picture, video and 3D page, each in a window of its own", family="panel",
    panel="FRESING_PT_make", button="fresing.make_window", guide="make", tour=("make",), pccheck=("panel.two",),
-   since="0.2.152", changed="0.2.197")
+   since="0.2.152", changed="0.2.223")
+fn(id="scene.render_view", short="Render this view", title="Render this view: what the 3D view shows, no camera needed",
+   family="scene", panel="FRESING_PT_make", button="fresing.render_view", guide="render-this-view",
+   tour=("render_view",), pccheck=("scene.render_view",), since="0.2.223")
 fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
    panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")
@@ -236,7 +239,7 @@ fn(id="structure.remove", short="Remove", title="Remove a model, subassembly or 
 fn(id="structure.copy", short="Copy", title="Copy and paste a model, subassembly or parts with its joints, cylinders, "
    "mechanisms, way covers, hoses and labels (Ctrl+C / Ctrl+V, right-click > Copy / Paste here)", family="import",
    panel="FRESING_PT_place", button="fresing.paste", guide="copy-paste", tour=("copy",), pccheck=("place.copy",),
-   since="0.2.223", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.224", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))

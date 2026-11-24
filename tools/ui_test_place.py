@@ -296,7 +296,17 @@ def s_mouse_done():
     S["joints"], S["cyl"] = len(scene().fresing.joints), len(scene().fresing.cylinders)
     move(S["xy"])                                # (task 0293: the view gets the key, not what had the mouse before)
     tap("DEL")
+    S["t_del"] = time.time()
     return 1.5
+
+
+@step
+def s_window_wait():
+    """The Remove window opens a moment later (a function window is split off the view on timers): on a busy machine
+    1.5 s was not always enough (task 0308's runs)."""
+    if not mod("blender.form_window").is_open("fresing.remove") and time.time() - S["t_del"] < 12:
+        return "wait"
+    return 0.3
 
 
 @step
