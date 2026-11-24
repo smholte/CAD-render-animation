@@ -255,6 +255,11 @@ fresing_render/            the Blender extension (Python package)
                            can come – `footprint`, `local_points` –, `repeats` turned, `symmetry_order`),
                            vessel_motion.py (task 0085: heave / pitch / roll from the sea's own waves + a long swell;
                            hull averaging, a damped roll at its natural period, scaled so each sea state has its table),
+                           finishes.py (task 0274: the 23 finishes of study 0270 – knurls, spun / faced ends, honed
+                           bores, cross-hatch, fabric, grille, tread / perforated / expanded plate, scraped ways, blasted,
+                           hammertone, wrinkle, anti-skid, VDI, leather, spangle, as-cast: settings, metal bases, kinds,
+                           ``key`` = a group's settings as text, ``face_frames`` = the face data, ``shown`` = the far fade,
+                           ``far`` = the web model's numbers),
                            toolmarks.py (tool marks on cut faces, task 0061: the contract between the milled mesh and
                            the cut-face material – four per-face attributes ``fr_mk_o/d/a/p``, six kinds of marks – and
                            the formula in plain Python the tests compare a render with; strengths per material),
@@ -362,6 +367,11 @@ fresing_render/            the Blender extension (Python package)
                            it last -> the attributes of core/toolmarks.py written with the mesh; ``gcode.feeds`` (F and S
                            per frame, stored at Build); quick normals while the frame changes, exact ones when it stands
                            still and in renders (``refresh(quick=)``, ``make_fine``)
+    finishes.py            task 0274: the finishes' shader nodes (``apply`` from ``materials.build_nodes`` for a library
+                           material with ``finish``); face data ``fr_fx_o/d/r/k`` (FACE attributes, written by
+                           ``materials.assign`` when the mesh's ``signature`` changed); the far fade reads the scene's
+                           ``fr_pixel_angle`` (Attribute node, View Layer) kept up by ``cameras.update_pixel_angle``
+                           (render_init / depsgraph / load handlers); a group's settings ``fin_size/angle/amount/base/kind``
     toolmarks.py           the node group "FR tool marks" (shader nodes only: reads the attributes, draws the marks as a
                            lean of the normal + the anisotropic tangent; inputs Size, Strength, Pixel angle), wired into a
                            material by ``materials.build_nodes`` when its spec has ``toolmarks``
