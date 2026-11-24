@@ -1493,6 +1493,68 @@ Good to know:
 - A [template](#schemes) keeps the decals with the names of their parts: used on another machine, it
   puts them on parts with the same name, where the spot lies on the part.
 
+<a id="welds"></a>
+### Welds
+
+<img class="panel" src="img/panel_3_welds.png" alt="3 Looks > Welds with a weld opened: its seams, size, metal and finish">
+
+Lays a real weld bead where two parts meet – picked like Inventor's welds: the faces of one part, then the faces
+of the other, and a bead is laid on every line where the two sets meet. Steel, stainless or aluminium, painted
+over or bare, rusty where it would be. The bead moves, hides, fades and is sliced with its part.
+
+<img class="wide" src="img/welds.jpg" alt="Welds on the test weldment: painted, MAG with spatter, rusty, stainless with heat tint, pickled, aluminium and ground flush">
+
+1. Click **Add weld…**, then click the faces of the **first part** – the bead moves with this part.
+   A click picks that face; <kbd>Shift</kbd>-click adds a face or takes it away again. Picked faces turn blue,
+   the face under the mouse magenta.
+2. Press <kbd>Enter</kbd> (or **Next** in the panel), then click the faces of the **part it is welded to**
+   (orange). The seams where the two sets meet show in the view at once, in green.
+3. The panel lists the seams with a tick each (length, fillet / butt / all round, the corner's angle). Untick
+   the ones you do not want – for a fillet on one side only, untick the other side. Press <kbd>Enter</kbd> or
+   **Done**. <kbd>Esc</kbd> or a right-click cancels.
+
+**The quick way**: select two parts (click one, <kbd>Shift</kbd>-click the other) and press **Weld two parts**:
+every line where they meet gets a bead, each seam with a tick. Or right-click a face and choose **Weld to another
+part…**: that face is the first part's face.
+
+Where the parts meet: faces that touch, or with a gap up to 2 mm (a root gap, a loose fit in the CAD model; change
+it with **Gap up to** under Seams). A plate on a plate, a gusset in a corner, a tube in a plate's hole (all round),
+a coped tube on a tube (the saddle), a tube pushed through a plate without a hole, two plates edge to edge (a butt
+weld) – each is found the same way. Faces lying on each other (the inside of the joint) never get a bead.
+
+Click a weld in the list to see its settings:
+
+- **Seams**: the ticks, **Gap up to**, **Find seams again** (after you moved a part) and **Pick again**.
+- **Kind**: As found (a fillet in a corner, a butt where two faces lie flush), Fillet or Butt. **Size a**: the
+  throat of a fillet, as on a drawing ("a5"); it starts at half the thinner plate. **Cap width** for a butt weld.
+  **End craters**: a small dip where the bead starts and stops. **Intermittent**: pieces of **Piece** length every
+  **Pitch**.
+- **Metal**: From the parts (their looks: stainless, aluminium, else steel), or chosen. **Process**: MAG for steel
+  (even ripples, a blue-grey oxide), TIG for stainless and thin aluminium (fine ripples), MIG for aluminium (wide
+  "stacked coins", a sooty band beside it), Stick for steel (coarse, darker).
+- **Finish**: **As welded**; **Painted** – the bead and its heat zone take the paint of the part you choose under
+  **Paint of** (it starts painted when a part is painted); the ripples show through the paint, and with Wear the
+  paint goes first at the bead's edges; **Ground flush** – no ripples, a brushed band.
+- **Heat tint**: the colours the heat leaves beside the bead – stainless straw, purple and blue bands, steel a
+  narrow blue-grey. **Pickled** (stainless): cleaned after welding, no tint, a matt bead. **Spatter** (MAG, stick):
+  small drops beside the bead.
+- **Rust**: a bare steel weld and its heat zone rust first, more than the plate; a painted weld only where Wear
+  took the paint off; galvanised parts rust where the weld burnt the zinc, unless **Zinc sprayed after welding**;
+  stainless only gets a faint tea stain (none when pickled); aluminium never rusts.
+- Two different metals welded: a calm note says so. The eye in the list hides a weld; **Remove** takes it away.
+
+Good to know:
+
+- **Motion**: the bead goes with the first part. When a joint moves one welded part and not the other, the weld says
+  "These parts are welded but move apart" with **Make them move as one**: the second part joins the first part's
+  joint (or leaves its own when the first part stands still).
+- **Model update**: a weld finds its faces again on the new parts. A weld whose faces or part are gone stays in the
+  list, marked "Weld lost its faces – pick again", and is named in the update report: press **Pick again**.
+- Hidden parts, the X-ray look, fades and the [Slice](#slice) take the weld along. The clash check leaves welds out.
+- The [web 3D model](#web3d) has the beads in their colour (and paint); the ripples and the heat tint are only in
+  renders.
+- In the Client view welds show but cannot be changed.
+
 <a id="xray"></a>
 ### X-ray look
 

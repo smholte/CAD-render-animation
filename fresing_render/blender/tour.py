@@ -1003,6 +1003,27 @@ def build_decals(b: Build):
     _shot(b, "@decals")
 
 
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.221")
+def build_welds(b: Build):
+    from . import welds
+    sc = b.scene
+    _look("PRODUCT")
+    welds.set_up_test_model(sc)
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@welds")
+
+
+def _check_welds(scene):
+    from . import welds
+    st = welds.stats(scene)
+    _check(st["welds"] == len(welds.TEST_WELDS), f"{st['welds']} welds, not {len(welds.TEST_WELDS)}")
+    _check(st["lost"] == 0, f"{st['lost']} welds lost their faces")
+    beads = sum(1 for it in welds.items(scene) for o in welds.objects_of(it) if o.get("fr_kind") == welds.KIND)
+    _check(beads == st["welds"], f"only {beads} of {st['welds']} welds have a bead")
+    _check(2.0 < st["metres"] < 2.5, f"{st['metres']:.2f} m of bead, not about 2.2 m")
+    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead"
+
+
 def _check_decals(scene):
     import bpy
 
@@ -4420,6 +4441,12 @@ stop("faces", LOOK, "faces", "Painted faces",
 stop("decals", LOOK, "decals", "Logos and stickers",
      "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
      "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
+stop("welds", LOOK, "welds", "Welds",
+     "A small invented weldment: a blue painted fillet along the fin's foot (the paint over the ripples), a grey MAG "
+     "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
+     "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
+     "the branch meets the tube and a butt joint ground flush to the extension plate.",
+     where="3 Looks > Welds", check=_check_welds, since="0.2.221")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "

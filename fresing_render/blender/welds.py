@@ -177,6 +177,9 @@ class FRWeld(PropertyGroup):
     seams: CollectionProperty(type=FRWeldSeam)
     seam_index: IntProperty(default=0)
     found_metal: StringProperty(default="")      # what the looks said when the weld was made (shown in the panel)
+    seam_data: StringProperty(default="")        # the seams where they were found (core.welds.pack_seams)
+    rel: FloatVectorProperty(size=16, default=(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
+    #                                            the second part in the first part's coordinates when they were found
 
 
 class FRWeldSettings(PropertyGroup):
@@ -321,6 +324,8 @@ def mesh_tables(me):
 def side_of(ob, faces: list | None, to_a: np.ndarray) -> core.Side:
     pts, tris, face = mesh_tables(ob.data)
     pts = pts @ to_a[:3, :3].T + to_a[:3, 3]
+    if np.linalg.det(to_a[:3, :3]) < 0:                      # a mirrored placement: the faces turned back the right way
+        tris = tris[:, ::-1]
     picked = None if not faces else np.isin(face, faces)
     return core.Side(pts, tris, face, picked)
 
@@ -343,15 +348,37 @@ def find_raw(part_a, faces_a, part_b, faces_b, gap: float = core.GAP):
 
 
 def find(item, force: bool = False):
-    """(seams, side A, side B) of a weld, from the cache when nothing changed."""
+    """(seams, side A, side B) of a weld: the seams kept in the project (``seam_data``) with the second part where it
+    was when they were found (``rel``) – never where it happens to stand now (an exploded view, a pose). ``force`` or no
+    kept seams: found now and kept (``refind``)."""
     fa, fb = _faces(item.faces_a), _faces(item.faces_b)
-    sig = _signature(item, fa, fb, item.whole, item.gap)
+    if force or not item.seam_data:
+        rel = _np(item.part_a.matrix_world.inverted() @ item.part_b.matrix_world)
+        got = find_raw(item.part_a, None if item.whole else fa, item.part_b, None if item.whole else fb, item.gap)
+        _keep(item, got[0], rel)
+        return got
+    sig = (item.seam_data, item.part_a.data.name, item.part_b.data.name, len(item.part_a.data.vertices),
+           len(item.part_b.data.vertices), tuple(fa), tuple(fb), item.whole)
     hit = _CACHE.get(item.key)
-    if hit is not None and hit[0] == sig and not force:
+    if hit is not None and hit[0] == sig:
         return hit[1]
-    got = find_raw(item.part_a, None if item.whole else fa, item.part_b, None if item.whole else fb, item.gap)
+    rel = np.array(item.rel, np.float64).reshape(4, 4)
+    sa = side_of(item.part_a, None if item.whole else fa, np.eye(4)).prepare()
+    sb = side_of(item.part_b, None if item.whole else fb, rel).prepare()
+    got = (core.unpack_seams(item.seam_data), sa, sb)
     _CACHE[item.key] = (sig, got)
     return got
+
+
+def _keep(item, seams, rel) -> None:
+    was = _BUSY[0]
+    _BUSY[0] = True
+    try:
+        item.seam_data = core.pack_seams(seams)
+        item.rel = tuple(float(x) for x in np.asarray(rel).ravel())
+    finally:
+        _BUSY[0] = was
+    _CACHE.pop(item.key, None)
 
 
 def store_seams(coll, seams, keep=None) -> None:
@@ -538,16 +565,19 @@ def rebuild(item, refind_seams: bool = False) -> bool:
         return False
     _BUSY[0] = True
     try:
-        if len(item.seams) != len(seams):
+        if len(item.seams) != len(seams):                 # (an older or damaged list: the ticks follow the seams)
             keep = [(tuple(s.mid), s.kind, s.enabled) for s in item.seams]
             store_seams(item.seams, seams, keep)
+        ticked = [t.enabled for t in item.seams]
         verts_b, faces_b, uv_b = [], [], []
         verts_h, faces_h, uv_h, end_h = [], [], [], []
         length = 0.0
         for s, tick in zip(seams, item.seams):
             if not tick.enabled:
                 continue
-            m = core.bead(s, look_of(item, s.kind), sa, sb)
+            ends = tuple(seams[j[0]].corners[0 if j[1] == 0 else -1]
+                         if j is not None and j[0] < len(seams) and ticked[j[0]] else None for j in s.joins)
+            m = core.bead(s, look_of(item, s.kind), sa, sb, ends=ends)
             length += m.length
             k = 0
             remap_b, remap_h = {}, {}
@@ -641,7 +671,7 @@ def refind(item) -> bool:
     if item.part_a is None or item.part_b is None:
         return rebuild(item)
     _CACHE.pop(item.key, None)
-    seams, _sa, _sb = find(item)
+    seams, _sa, _sb = find(item, force=True)
     keep = [(tuple(s.mid), s.kind, s.enabled) for s in item.seams]
     _BUSY[0] = True
     try:
@@ -712,7 +742,7 @@ def make(scene, part_a, faces_a, part_b, faces_b, whole: bool = False, ticks=Non
                 it.enabled = bool(on)
     finally:
         _BUSY[0] = False
-    _CACHE[item.key] = (_signature(item, faces_a, faces_b, whole, gap), (seams, sa, sb))
+    _keep(item, seams, _np(part_a.matrix_world.inverted() @ part_b.matrix_world))
     s.index = len(s.items) - 1
     count(scene)
     rebuild(item)
@@ -954,3 +984,69 @@ def stats(scene=None) -> dict:
             tris += sum(len(p.vertices) - 2 for p in ob.data.polygons)
     return {"welds": len(s.items), "seams": seams, "metres": sum(float(it.get("fr_length", 0.0)) for it in s.items),
             "lost": sum(1 for it in s.items if it.lost), "triangles": tris}
+
+
+# ---------------------------------------------------------------------------
+# the test weldment (tour stop, PC check, guide pictures, tests): one set-up for all
+# ---------------------------------------------------------------------------
+
+def part_named(scene, name: str):
+    return next((o for o in build.iter_parts(scene) if o.get(build.PROP_NAME) == name), None)
+
+
+def face_at(ob, point, normal) -> int:
+    """The CAD face of ``ob`` through this world point (m) facing this way (-1: none)."""
+    p, t, f = mesh_tables(ob.data)
+    m = _np(ob.matrix_world)
+    w = p @ m[:3, :3].T + m[:3, 3]
+    v = w[t]
+    n = np.cross(v[:, 1] - v[:, 0], v[:, 2] - v[:, 0])
+    n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-18)
+    q = np.asarray(point, float)
+    ok = (n @ np.asarray(normal, float) > 0.99) & (np.abs(((q - v[:, 0]) * n).sum(1)) < 1e-4)
+    return int(np.bincount(f[ok]).argmax()) if ok.any() else -1
+
+
+def pick_test_weld(scene):
+    """The test weldment's base plate top + the fin's +y side, picked as a user picks them (``ops_welds.Picker``):
+    one fillet 200 mm long. Returns the weld."""
+    from . import ops_welds
+    base, fin = part_named(scene, "BASE PLATE"), part_named(scene, "FIN")
+    if base is None or fin is None:
+        raise RuntimeError("the test weldment is not in the project")
+    pk = ops_welds.start(scene)
+    try:
+        for ob, pt, nrm in ((base, (0.10, 0.10, 0.012), (0, 0, 1)), (fin, (0.15, 0.155, 0.05), (0, 1, 0))):
+            why = pk.click(ob, face_at(ob, pt, nrm))
+            if why:
+                raise RuntimeError(why)
+            why = pk.next()
+            if why:
+                raise RuntimeError(why)
+        return pk.item
+    finally:
+        ops_welds.finish(scene)
+
+
+TEST_WELDS = (   # (first part, second part, settings): every look once
+    ("BASE PLATE", "FIN", {"finish": "PAINTED"}),
+    ("BASE PLATE", "GUSSET", {"finish": "AS_WELDED", "spatter": True}),
+    ("FIN", "GUSSET", {"finish": "AS_WELDED", "rust": 0.6}),
+    ("BASE PLATE", "POST", {"finish": "AS_WELDED", "metal": "STAINLESS"}),
+    ("BASE PLATE", "BRANCH", {"finish": "AS_WELDED", "metal": "STAINLESS", "pickled": True}),
+    ("BRANCH", "MAIN TUBE", {"finish": "AS_WELDED", "metal": "ALUMINIUM"}),
+    ("BASE PLATE", "EXTENSION PLATE", {"finish": "GROUND"}),
+)
+
+
+def set_up_test_model(scene) -> list:
+    """Every joint of the test weldment welded the quick way, each with another look (``TEST_WELDS``). Returns the
+    weld keys in that order."""
+    keys = []
+    for a, b, _kw in TEST_WELDS:
+        keys.append(make(scene, part_named(scene, a), [], part_named(scene, b), [], whole=True).key)
+    for key, (_a, _b, kw) in zip(keys, TEST_WELDS):
+        it = find_item(scene, key)
+        for k, v in kw.items():
+            setattr(it, k, v)
+    return keys

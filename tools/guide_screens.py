@@ -58,6 +58,9 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   cables_panel   the panel 4 Motion > Cables and paths (panel_cables; as "panels", on test_paths_a.step, task 0078).
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
+
+  welds_panel   the panel 3 Looks > Welds (panel_3_welds; as "panels", on test_weldment.step, task 0319): every joint
+      welded, the stainless weld round the post chosen.
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
   people_panel   6 Animation > People (panel_6_people; as "panels", the example "two people meet" on the crane, Anna
       selected, task 0157).
@@ -1158,7 +1161,7 @@ elif MODE == "update":
     step(w_shot_help)
 
 elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel",
-              "spools_panel", "tracks_panel", "sea_panel", "vessel_work_panel"):
+              "spools_panel", "tracks_panel", "sea_panel", "vessel_work_panel", "welds_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -1172,6 +1175,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step"),
                 "cables_panel": os.path.join(DATA, "test_paths_a.step"),
                 "spools_panel": os.path.join(DATA, "test_spool.step"),
+                "welds_panel": os.path.join(DATA, "test_weldment.step"),
                 "tracks_panel": os.path.join(DATA, "test_tracks.step"),
                 "sea_panel": os.path.join(DATA, "test_sea.step"),
                 "vessel_work_panel": os.path.join(DATA, "test_thrusters.step")}[MODE]
@@ -1306,6 +1310,21 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             return 1.0
         step(_spools_setup)
         _grab("panel_spools", [("FRESING_PT_spools", False, True)])
+
+    elif MODE == "welds_panel":
+        # task 0319: 3 Looks > Welds on the test weldment, every joint welded, the stainless weld round the post chosen
+        def _welds_setup():
+            sc = bpy.context.scene
+            with override():
+                keys = mod("blender.welds").set_up_test_model(sc)
+            st = sc.fresing_welds
+            st.index = 3
+            mod("blender.ui")._OPEN_FOLDS = True
+            sc.fresing.last_message = ""
+            select_only()
+            return 1.0
+        step(_welds_setup)
+        _grab("panel_3_welds", [("FRESING_PT_welds", False, True)])
 
     elif MODE == "tracks_panel":
         # task 0079: 4 Motion > Tracks and belts on the tracks test model, "Bottom track" chosen

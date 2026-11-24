@@ -188,10 +188,9 @@ def test_defaults_from_the_parts(scene):
 
 def test_ticks_and_sizes_rebuild_the_bead(scene):
     it = welds.make(scene, part(scene, "BASE PLATE"), [], part(scene, "FIN"), [], whole=True)
-    n0 = len(beads(it)[0].data.polygons)
+    l0 = it["fr_length"]
     it.seams[0].enabled = False
-    n1 = len(beads(it)[0].data.polygons)
-    assert n1 < n0
+    assert it["fr_length"] == pytest.approx(l0 - 0.2, abs=1e-4)
     def top():
         b = beads(it)[0]
         return max((b.matrix_world @ v.co).z for v in b.data.vertices)
@@ -408,3 +407,16 @@ def test_remove_weld(scene):
     assert bpy.ops.fresing.weld_remove(key=key) == {"FINISHED"}
     assert len(welds.items(scene)) == 0
     assert not [o for o in bpy.data.objects if welds.is_weld(o)]
+
+
+def test_the_bead_moves_with_its_first_part(scene):
+    """Exploded views, animations and Place move the part: its bead (a child) goes along."""
+    from mathutils import Matrix
+    it = welds.make(scene, part(scene, "BASE PLATE"), [], part(scene, "FIN"), [], whole=True)
+    b = beads(it)[0]
+    bpy.context.view_layer.update()
+    before = b.matrix_world.copy()
+    base = part(scene, "BASE PLATE")
+    base.matrix_basis = Matrix.Translation((0.0, 0.0, 0.3)) @ base.matrix_basis
+    bpy.context.view_layer.update()
+    assert (b.matrix_world.translation - before.translation).z == pytest.approx(0.3, abs=1e-6)

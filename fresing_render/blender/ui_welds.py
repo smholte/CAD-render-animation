@@ -17,8 +17,6 @@ class FRESING_UL_welds(bpy.types.UIList):
             sub.alert = True
             sub.label(text="", icon="ERROR")
         row.prop(item, "name", text="", emboss=False)
-        on = sum(1 for s in item.seams if s.enabled)
-        row.label(text=plural(on, "seam"))
         row.prop(item, "hidden", text="", icon="HIDE_ON" if item.hidden else "HIDE_OFF", emboss=False)
 
 
@@ -146,7 +144,7 @@ class FRESING_PT_welds(_Panel, bpy.types.Panel):
         gap(layout)
         big(layout, "fresing.weld_add", "Add weld…", "MOD_BEVEL")
         row = layout.row(align=True)
-        row.operator("fresing.weld_parts", text="Weld two parts", icon="SNAP_FACE")
+        row.operator("fresing.weld_parts", text="Weld two parts", icon="LINKED")
         if len(s.items):
             gap(layout)
             layout.template_list("FRESING_UL_welds", "", s, "items", s, "index", rows=3)

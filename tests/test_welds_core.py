@@ -297,3 +297,24 @@ def test_heat_zone_never_dips_under_a_curved_part():
             d, q, t = side_.distance(mid[None])
             if d[0] < 0.002:
                 assert float((mid - q[0]) @ side_.n[t[0]]) > -1e-6
+
+
+def test_the_shipped_test_weldment_is_the_tests_copy():
+    import os
+    here = os.path.dirname(__file__)
+    with open(os.path.join(here, "data", "test_weldment.step"), "rb") as a, \
+            open(os.path.join(here, "..", "fresing_render", "data", "test_weldment.step"), "rb") as b:
+        assert a.read() == b.read(), "copy tests/data/test_weldment.step to fresing_render/data/"
+
+
+def test_seams_kept_as_text_come_back_the_same():
+    a, b = side(box(*PLATE)), side(box((0.1, 0.05, 0.01), (0.15, 0.1, 0.2)))
+    seams = W.find_seams(a, b) + W.find_seams(side(plate_with_hole(0.1, 0.03, 0.0, 0.01, 24)),
+                                             side(cylinder(0.03, -0.05, 0.1, 24)))
+    back = W.unpack_seams(W.pack_seams(seams))
+    assert [(s.kind, s.closed, s.joins) for s in back] == [(s.kind, s.closed, s.joins) for s in seams]
+    look = W.Look(size=0.004)
+    for s, r in zip(seams, back):
+        m1, m2 = W.bead(s, look), W.bead(r, look)
+        assert m1.verts.shape == m2.verts.shape and np.abs(m1.verts - m2.verts).max() < 1e-6
+        assert r.length == pytest.approx(s.length, abs=1e-6)

@@ -79,11 +79,17 @@ class Hover:
 
 def cast(scene, depsgraph, origin, direction):
     """The ray every axis picker uses: (part object, polygon, location, normal) or (hit object or None, -1, None,
-    None) when no part is there. A sticker counts as the part under it (``decals.through``)."""
-    hit, loc, normal, index, ob, _m = scene.ray_cast(depsgraph, Vector(origin), Vector(direction))
-    if not hit or ob is None:
-        return None, -1, None, None
-    ob = getattr(ob, "original", ob)
+    None) when no part is there. A sticker counts as the part under it (``decals.through``); a weld is looked through
+    (task 0319)."""
+    o, d = Vector(origin), Vector(direction)
+    for _k in range(6):                                      # task 0319: a weld's bead and heat zone are looked through
+        hit, loc, normal, index, ob, _m = scene.ray_cast(depsgraph, o, d)
+        if not hit or ob is None:
+            return None, -1, None, None
+        ob = getattr(ob, "original", ob)
+        if ob.get(build.PROP_KIND) not in ("weld", "weld_heat"):
+            break
+        o = Vector(loc) + d.normalized() * 1e-5
     from . import decals
     ob, index, loc, normal = decals.through(ob, index, loc, normal)
     if ob.get(build.PROP_KIND) != "part":

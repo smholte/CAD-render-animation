@@ -12,7 +12,7 @@ and a picked face of side B meet with air between them – the corner a welder f
 2. *The corner at every sample*: in the plane square to the line, each face of both parts near the point is a ray from
    the line (one way, or both ways when the face runs on past it), with its outward normal. Sorted round the line, two
    neighbouring rays leave an *air* sector when the sector lies on the outside of both their faces. A sector bounded by
-   a picked face of A and a picked face of B is a weld corner: 20°–160° a **fillet**, 160°–200° a **butt** (two plates
+   a picked face of A and a picked face of B is a weld corner: a **fillet** (35°–160°), 160°–200° a **butt** (two plates
    edge to edge, flush). This decides one-sided, both sides, lap, T, butt, tube in a hole and saddle the same way, and
    leaves out the inside of the joint (the faces in contact).
 3. *Seams*: neighbouring samples with the same kind of corner are chained across edges (a hole's rim of 32 edges is one
@@ -41,14 +41,17 @@ from dataclasses import dataclass, field
 import numpy as np
 
 GAP = 0.002               # m: a face this close to the other part counts as meeting it (a root gap, a loose fit)
-STEP = 0.020              # m: candidate edges are looked at at least this often (transitions found by bisection)
-SHARP = 35.0              # degrees: a seam turning more than this starts a new seam
+STEP = 0.020              # m: the corner is looked at at least this often along a seam (its ends found by bisection)
+FINE = 0.001              # m: how finely an edge is tested for lying on the other part
+SHARP = 50.0              # degrees: a seam turning more than this starts a new seam (an octagon is still one)
 FILLET = (35.0, 160.0)    # degrees: the air corner of a fillet (sharper corners are not welded: slivers)
 BUTT = (160.0, 200.0)     # degrees: two faces flush, edge to edge
 MIN_LEN = 0.003           # m: shorter pieces are left out
 TUCK = 0.0001             # m: toes go this far into the parts
 LIFT = 0.00005            # m: heat strips float this far off the part's surface
 MERGE = 1e-6              # m: points this close are one point (the importer's faces do not share points)
+SHEET = 0.0003            # m: faces of one part farther from the line than its nearest face + this are not at the corner
+EPS = 2e-6                # m: "within the gap" allows this much rounding (32-bit points from Blender)
 CONTACT_DEG = 20.0        # two crossing triangles closer to parallel than this are faces in contact, not a crossing
 EDGE_DEG = 30.0           # mesh edges bent more than this are edges even without CAD face data
 
@@ -146,6 +149,14 @@ class Side:
         ok = area2 > 1e-14
         self.tris, self.face, self.picked = tris[ok], face[ok], picked[ok]
         self.v, self.n = v[ok], unit(nrm[ok])
+        if len(self.v):                      # an inside-out mesh (a mirrored part): its faces turned the right way
+            c = self.v.reshape(-1, 3).mean(0)
+            w = self.v - c
+            vol = float(np.einsum("ij,ij->i", w[:, 0], np.cross(w[:, 1], w[:, 2])).sum()) / 6.0
+            if vol < 0:
+                self.tris = self.tris[:, ::-1]
+                self.v = self.v[:, ::-1]
+                self.n = -self.n
         self.lo = self.v.min(1) if len(self.v) else np.zeros((0, 3))
         self.hi = self.v.max(1) if len(self.v) else np.zeros((0, 3))
         # weld points by place: the importer gives every CAD face its own points
@@ -183,9 +194,36 @@ class Side:
             self.edges, self.edge_tris = np.zeros((0, 2), np.int64), np.zeros((0, 2), np.int64)
         return self
 
+    _act: np.ndarray | None = field(default=None, repr=False)   # ``restrict``: only these triangles are looked at
+
+    def restrict(self, lo=None, hi=None) -> None:
+        """Look only at the triangles whose box meets lo..hi (the region where two parts meet); None: all again."""
+        if lo is None:
+            self._act = None
+            return
+        self._act = np.flatnonzero(np.all(self.lo <= np.asarray(hi), 1) & np.all(self.hi >= np.asarray(lo), 1))
+
     def near(self, lo, hi, pad: float) -> np.ndarray:
         """Triangles whose box meets the box lo..hi grown by ``pad``."""
+        if self._act is not None:
+            a = self._act
+            return a[np.all(self.lo[a] <= np.asarray(hi) + pad, 1) & np.all(self.hi[a] >= np.asarray(lo) - pad, 1)]
         return np.flatnonzero(np.all(self.lo <= np.asarray(hi) + pad, 1) & np.all(self.hi >= np.asarray(lo) - pad, 1))
+
+    def nearest_local(self, pts: np.ndarray, reach: float, chunk: int = 24):
+        """``distance`` for points that only care about the surface within ``reach`` (projections): the points in small
+        runs (they come in order along a seam), each against the triangles near it. Points farther than ``reach`` from
+        every triangle get distance inf and triangle -1."""
+        pts = np.asarray(pts, np.float64).reshape(-1, 3)
+        d = np.full(len(pts), np.inf)
+        q = np.zeros((len(pts), 3))
+        t = np.full(len(pts), -1, np.int64)
+        for s in range(0, len(pts), chunk):
+            c = pts[s:s + chunk]
+            idx = self.near(c.min(0), c.max(0), reach)
+            if len(idx):
+                d[s:s + chunk], q[s:s + chunk], t[s:s + chunk] = self.distance(c, idx)
+        return d, q, t
 
     def distance(self, pts: np.ndarray, tri_idx: np.ndarray | None = None, chunk: int = 200000):
         """(distance, nearest point, triangle) from each point to this side's surface (``tri_idx``: only these)."""
@@ -228,6 +266,8 @@ class Corner:
     db: np.ndarray
     nb: np.ndarray
     tb: int
+    sa: float = 1.0                # a mitred end (two seams meeting at a turn): the toe lies this much further out
+    sb: float = 1.0
 
     @property
     def mid(self) -> np.ndarray:
@@ -252,36 +292,45 @@ def _rays(side: Side, p: np.ndarray, t: np.ndarray, reach: float):
     idx, v, n = idx[keep], v[keep], n[keep]
     if not len(idx):
         return out
-    # the triangle cut by the plane through p square to t: a segment
+    # the triangle cut by the plane through p square to t: a segment (all triangles at once)
     h = (v - p) @ t                                          # (k, 3) heights of the corners above the plane
-    for i in range(len(idx)):
-        hi_ = h[i]
-        pts = []
-        for a, b in ((0, 1), (1, 2), (2, 0)):
-            ha, hb = hi_[a], hi_[b]
-            if abs(ha) < 1e-12:
-                pts.append(v[i, a])
-            if (ha < -1e-12 and hb > 1e-12) or (ha > 1e-12 and hb < -1e-12):
-                s = ha / (ha - hb)
-                pts.append(v[i, a] + (v[i, b] - v[i, a]) * s)
-        if len(pts) < 2:
-            continue
-        pts = np.array(pts)
-        d = unit(np.cross(t, n[i]))
-        s = (pts - p) @ d
-        s0, s1 = s.min(), s.max()
-        q0 = pts[int(np.argmin(s))]                          # the segment runs from q0 along d for s1 - s0
-        foot = q0 + d * (np.clip(0.0, s0, s1) - s0)          # its point nearest to p
-        off = p - foot
-        off -= t * (off @ t)
-        if np.linalg.norm(off) > reach:
-            continue
-        span = s1 - s0
-        eps = min(1e-5, 0.05 * span)
-        if s1 > eps + 0.0 and s1 > max(s0, 0.0) + eps:
-            out.append((d, foot, n[i], int(idx[i]), bool(side.picked[idx[i]])))
-        if s0 < -eps and s0 < min(s1, 0.0) - eps:
-            out.append((-d, foot, n[i], int(idx[i]), bool(side.picked[idx[i]])))
+    k = len(idx)
+    cand = np.full((k, 6, 3), np.nan)                        # up to 3 corners on the plane + 3 edge crossings
+    on = np.abs(h) < 1e-12
+    cand[:, :3][on] = v[on]
+    for e, (ia, ib) in enumerate(((0, 1), (1, 2), (2, 0))):
+        ha, hb = h[:, ia], h[:, ib]
+        cross = ((ha < -1e-12) & (hb > 1e-12)) | ((ha > 1e-12) & (hb < -1e-12))
+        if cross.any():
+            f = ha[cross] / (ha[cross] - hb[cross])
+            cand[cross, 3 + e] = v[cross, ia] + (v[cross, ib] - v[cross, ia]) * f[:, None]
+    valid = ~np.isnan(cand[:, :, 0])
+    ok = valid.sum(1) >= 2
+    if not ok.any():
+        return out
+    idx, v, n, cand, valid = idx[ok], v[ok], n[ok], cand[ok], valid[ok]
+    d = unit(np.cross(t, n))                                 # (k, 3)
+    sv = np.einsum("kcj,kj->kc", np.nan_to_num(cand - p), d)
+    s0 = np.where(valid, sv, np.inf).min(1)
+    s1 = np.where(valid, sv, -np.inf).max(1)
+    q0 = cand[np.arange(len(idx)), np.argmin(np.where(valid, sv, np.inf), 1)]
+    foot = q0 + d * (np.clip(0.0, s0, s1) - s0)[:, None]     # the segment's point nearest to p
+    off = p - foot
+    off -= np.outer(off @ t, t)
+    dist = np.linalg.norm(off, axis=1)
+    # only the part's face(s) nearest the line: a thin sheet's far side (1 – 2 mm away, within the search radius)
+    # is not a face of this corner
+    near = (dist <= reach) & (dist <= (dist.min() if len(dist) else 0.0) + SHEET)
+    span = s1 - s0
+    eps = np.minimum(1e-5, 0.05 * span)
+    fwd = near & (s1 > eps) & (s1 > np.maximum(s0, 0.0) + eps)
+    back = near & (s0 < -eps) & (s0 < np.minimum(s1, 0.0) - eps)
+    picked = side.picked[idx]
+    for i in np.flatnonzero(fwd | back):
+        if fwd[i]:
+            out.append((d[i], foot[i], n[i], int(idx[i]), bool(picked[i])))
+        if back[i]:
+            out.append((-d[i], foot[i], n[i], int(idx[i]), bool(picked[i])))
     return out
 
 
@@ -342,7 +391,7 @@ def _edge_candidates(x: Side, y: Side, gap: float, step: float):
     if not len(x.edges) or not len(y.v):
         return out
     p0, p1 = x.wp[x.edges[:, 0]], x.wp[x.edges[:, 1]]
-    ylo, yhi = y.lo.min(0) - gap, y.hi.max(0) + gap
+    ylo, yhi = y.lo.min(0) - gap - EPS, y.hi.max(0) + gap + EPS
     elo, ehi = np.minimum(p0, p1), np.maximum(p0, p1)
     near = np.all(elo <= yhi, 1) & np.all(ehi >= ylo, 1)
     for i in np.flatnonzero(near):
@@ -350,14 +399,14 @@ def _edge_candidates(x: Side, y: Side, gap: float, step: float):
         L = np.linalg.norm(b - a)
         if L < 1e-9:
             continue
-        idx = y.near(np.minimum(a, b), np.maximum(a, b), gap + 1e-6)
+        idx = y.near(np.minimum(a, b), np.maximum(a, b), gap + EPS)
         if not len(idx):
             continue
-        n = max(2, int(math.ceil(L / step)) + 1)
+        n = max(2, min(2000, int(math.ceil(L / FINE)) + 1))     # finely: a thin part crossing a long edge is seen
         s = np.linspace(0.0, 1.0, n)
         pts = a + (b - a) * s[:, None]
         d, _q, _t = y.distance(pts, idx)
-        on = d <= gap
+        on = d <= gap + EPS
         if not on.any():
             continue
         # sharpen the ends of the pieces that lie on y (bisection between a point on and one off)
@@ -380,7 +429,7 @@ def _edge_candidates(x: Side, y: Side, gap: float, step: float):
             j = k + 1
         t = (b - a) / L
         for s0, s1 in segs:
-            m = max(2, int(math.ceil((s1 - s0) * L / step)) + 1)
+            m = max(5, int(math.ceil((s1 - s0) * L / step)) + 1)      # a short piece: still a few looks inside it
             ss = np.linspace(s0, s1, m)
             out.append((a + (b - a) * ss[:, None], t))
     return out
@@ -390,7 +439,7 @@ def _bisect(y: Side, idx, a, b, s_off, s_on, gap, rounds: int = 12) -> float:
     for _ in range(rounds):
         sm = 0.5 * (s_off + s_on)
         d, _q, _t = y.distance((a + (b - a) * sm)[None], idx)
-        if d[0] <= gap:
+        if d[0] <= gap + EPS:
             s_on = sm
         else:
             s_off = sm
@@ -477,6 +526,8 @@ class Seam:
     corners: list                  # Corner per point
     closed: bool = False
     kind: str = "FILLET"
+    joins: list = field(default_factory=lambda: [None, None])   # [start, end]: (seam number, 0 start / 1 end) of a
+    #                                                             seam meeting it there at a turn (mitred ends)
 
     @property
     def length(self) -> float:
@@ -508,11 +559,26 @@ def find_seams(a: Side, b: Side, gap: float = GAP, step: float = STEP) -> list[S
         if s.v is None:
             s.prepare()
     reach = gap + 0.0005
+    lo = np.maximum(a.lo.min(0), b.lo.min(0)) - (gap + 0.002) if len(a.v) and len(b.v) else None
+    hi = np.minimum(a.hi.max(0), b.hi.max(0)) + (gap + 0.002) if len(a.v) and len(b.v) else None
+    if lo is None or np.any(lo > hi):
+        return []
+    a.restrict(lo, hi)                       # only the region where the two parts can meet
+    b.restrict(lo, hi)
+    try:
+        return _find(a, b, gap, step, reach)
+    finally:
+        a.restrict()
+        b.restrict()
+
+
+def _find(a: Side, b: Side, gap: float, step: float, reach: float) -> list[Seam]:
     sources = [_edge_candidates(b, a, gap, step), _edge_candidates(a, b, gap, step), _crossings(a, b, step)]
     runs = []                     # (points, corners) pieces with one corner kind each
     dup = gap + 0.0006
     cos_s = math.cos(math.radians(SHARP))
-    for cands in sources:
+    for si, cands in enumerate(sources):
+        crossing = si == 2
         # what the earlier sources found: a seam found again (from the other part's edge, or as a crossing) is skipped
         seg_a, seg_b, seg_m = [], [], []
         for rp, rc in runs:
@@ -521,78 +587,105 @@ def find_seams(a: Side, b: Side, gap: float = GAP, step: float = STEP) -> list[S
             seg_m.extend(c.mid for c in rc[:-1])
         seg_a, seg_b, seg_m = np.array(seg_a).reshape(-1, 3), np.array(seg_b).reshape(-1, 3), np.array(seg_m).reshape(-1, 3)
 
-        def seen(p, c, t):
-            """Found before: an earlier seam runs here, the same way, with a corner facing the same way."""
+        def close_along(p, t):
+            """Earlier seams that run here the same way (a bool per segment)."""
             if not len(seg_a):
-                return False
+                return np.zeros(0, bool)
             ab = seg_b - seg_a
             L2 = np.maximum((ab * ab).sum(1), 1e-18)
             s = np.clip(((p - seg_a) * ab).sum(1) / L2, 0.0, 1.0)
             d = np.linalg.norm(seg_a + ab * s[:, None] - p, axis=1)
             along = np.abs(ab @ t) / np.sqrt(L2)
-            close = (d < dup) & (along > cos_s)
+            return (d < dup) & (along > cos_s)
+
+        def seen(p, c, t):
+            """Found before: an earlier seam runs here, the same way, with a corner facing the same way."""
+            close = close_along(p, t)
             return bool(close.any() and (seg_m[close] @ c.mid > cos_s).any())
 
         for pts, t in cands:
-            cur_p, cur_c = [], []
-
-            def flush():
-                if len(cur_p) >= 2:
-                    runs.append((np.array(cur_p), list(cur_c)))
-                cur_p.clear()
-                cur_c.clear()
-
-            inset = min(5e-4, 0.1 * float(np.linalg.norm(pts[-1] - pts[0])))
-
-            def corner(j, p, like=None):
-                q = p
-                if j == 0:
-                    q = p + t * inset
-                elif j == len(pts) - 1:
-                    q = p - t * inset
-                cs = corners_at(a, b, q, t, reach)
-                if not cs:
-                    return None
-                c = max(cs, key=lambda x: float(x.mid @ like.mid)) if like is not None else cs[0]
-                if like is not None and not _similar(like, c):
-                    return None
-                return None if seen(p, c, t) else c
-
-            def edge(p_on, c_on, p_off, rounds=10):
-                """Where the corner of p_on stops on the way to p_off: (point, corner) as near to it as found."""
-                for _ in range(rounds):
-                    pm = 0.5 * (p_on + p_off)
-                    cm = corner(-1, pm, c_on)
-                    if cm is not None:
-                        p_on, c_on = pm, cm
-                    else:
-                        p_off = pm
-                return p_on, c_on
-
-            prev = None                                         # (point, corner or None) of the sample before
-            for j, p in enumerate(pts):
-                c = corner(j, p, cur_c[-1] if cur_c else None)
-                if c is None and not cur_c:
-                    cs = corner(j, p)
-                    c = cs
-                if c is None or (cur_c and not _similar(cur_c[-1], c)):
-                    if cur_c and np.linalg.norm(p - cur_p[-1]) > 1e-5:
-                        pe, ce = edge(cur_p[-1], cur_c[-1], p)
-                        if np.linalg.norm(pe - cur_p[-1]) > 1e-5:
-                            cur_p.append(pe)
-                            cur_c.append(ce)
-                    flush()
-                if c is not None:
-                    if not cur_c and prev is not None and prev[1] is None:
-                        ps, cs_ = edge(p, c, prev[0])
-                        if np.linalg.norm(ps - p) > 1e-5:
-                            cur_p.append(ps)
-                            cur_c.append(cs_)
-                    cur_p.append(p)
-                    cur_c.append(c)
-                prev = (p, c)
-            flush()
+            # pass 0 follows one corner along the candidate; where a point has two corners (two blocks touching along
+            # one edge: two air sectors), pass 1 follows the other
+            first: dict = {}
+            multi = _follow(a, b, pts, t, reach, crossing, close_along, seen, runs, first, None)
+            if multi:
+                _follow(a, b, pts, t, reach, crossing, close_along, seen, runs, None, first)
     return _chain(runs)
+
+
+def _follow(a, b, pts, t, reach, crossing, close_along, seen, runs, record, exclude) -> bool:
+    """Walk a candidate's points, following one weld corner; append its runs (points, corners) to ``runs``. ``record``:
+    a dict that gets the corner taken at each point; ``exclude``: such a dict – corners like those are not taken.
+    Returns whether some point had more than one corner."""
+    cur_p, cur_c = [], []
+    multi = [False]
+
+    def flush():
+        if len(cur_p) >= 2:
+            runs.append((np.array(cur_p), list(cur_c)))
+        cur_p.clear()
+        cur_c.clear()
+
+    inset = min(5e-4, 0.1 * float(np.linalg.norm(pts[-1] - pts[0])))
+
+    def corner(j, p, like=None):
+        if crossing and close_along(p, t).any():
+            return None                      # a faceted round face poking through its neighbour along a seam found
+        q = p
+        if j == 0:
+            q = p + t * inset
+        elif j == len(pts) - 1:
+            q = p - t * inset
+        cs = corners_at(a, b, q, t, reach)
+        if len(cs) > 1:
+            multi[0] = True
+        if exclude is not None and j in exclude and exclude[j] is not None:
+            cs = [x for x in cs if not _similar(x, exclude[j])]
+        if not cs:
+            return None
+        c = max(cs, key=lambda x: float(x.mid @ like.mid)) if like is not None else cs[0]
+        if like is not None and not _similar(like, c):
+            return None
+        if q is not p:                       # measured a little inside the end: it belongs to the end point itself
+            c = Corner(c.kind, c.theta, c.oa + (p - q), c.da, c.na, c.ta, c.ob + (p - q), c.db, c.nb, c.tb)
+        return None if seen(p, c, t) else c
+
+    def edge(p_on, c_on, p_off, rounds=10):
+        """Where the corner of p_on stops on the way to p_off: (point, corner) as near to it as found."""
+        for _ in range(rounds):
+            pm = 0.5 * (p_on + p_off)
+            cm = corner(-1, pm, c_on)
+            if cm is not None:
+                p_on, c_on = pm, cm
+            else:
+                p_off = pm
+        return p_on, c_on
+
+    prev = None                                         # (point, corner or None) of the sample before
+    for j, p in enumerate(pts):
+        c = corner(j, p, cur_c[-1] if cur_c else None)
+        if c is None and not cur_c:
+            c = corner(j, p)
+        if record is not None:
+            record[j] = c
+        if c is None or (cur_c and not _similar(cur_c[-1], c)):
+            if cur_c and np.linalg.norm(p - cur_p[-1]) > 1e-5:
+                pe, ce = edge(cur_p[-1], cur_c[-1], p)
+                if np.linalg.norm(pe - cur_p[-1]) > 1e-5:
+                    cur_p.append(pe)
+                    cur_c.append(ce)
+            flush()
+        if c is not None:
+            if not cur_c and prev is not None and prev[1] is None:
+                ps, cs_ = edge(p, c, prev[0])
+                if np.linalg.norm(ps - p) > 1e-5:
+                    cur_p.append(ps)
+                    cur_c.append(cs_)
+            cur_p.append(p)
+            cur_c.append(c)
+        prev = (p, c)
+    flush()
+    return multi[0]
 
 
 def _chain(runs) -> list[Seam]:
@@ -655,7 +748,31 @@ def _chain(runs) -> list[Seam]:
         if s.length >= MIN_LEN:
             out.append(s)
     out.sort(key=lambda s: (-s.length, tuple(np.round(s.mid, 4))))
+    _joins(out, tol)
     return out
+
+
+def _joins(seams: list, tol: float) -> None:
+    """Open seams whose ends meet at a turn (the corners of a square post, a fin's foot) are joined: their beads get
+    mitred ends there instead of tapers, so the weld runs round the corner without a notch."""
+    ends = []
+    for i, s in enumerate(seams):
+        if not s.closed:
+            ends.append((i, 0, s.points[0], s.corners[0]))
+            ends.append((i, 1, s.points[-1], s.corners[-1]))
+    for x in range(len(ends)):
+        i, e, p, c = ends[x]
+        if seams[i].joins[e] is not None:
+            continue
+        for y in range(len(ends)):
+            j, f, q, d = ends[y]
+            if j == i or seams[j].joins[f] is not None or np.linalg.norm(p - q) > max(tol, 1e-3):
+                continue
+            if miter(c, d) is None:
+                continue
+            seams[i].joins[e] = (j, f)
+            seams[j].joins[f] = (i, e)
+            break
 
 
 # ---------------------------------------------------------------------------
@@ -713,10 +830,10 @@ def simplify(points: np.ndarray, corners: list, closed: bool, tol: float = 5e-5,
 def legs(c: Corner, look: Look, kind: str) -> tuple[float, float]:
     """(toe distance along A, along B) from the root."""
     if kind == "BUTT":
-        return look.size / 2, look.size / 2
+        return look.size / 2 * c.sa, look.size / 2 * c.sb
     half = math.radians(min(c.theta, 150.0)) / 2
     z = look.size / max(math.cos(half), 0.25)
-    return z, z
+    return z * c.sa, z * c.sb
 
 
 def _ring(c: Corner, look: Look, kind: str, scale: float = 1.0, dip: float = 0.0):
@@ -752,12 +869,19 @@ def _arc_len(points: np.ndarray, closed: bool) -> np.ndarray:
 
 
 def pieces_of(total: float, look: Look, closed: bool) -> list[tuple[float, float]]:
-    """(start, end) in metres along a seam: the whole seam, or the pieces of an intermittent weld."""
-    if not look.intermittent or look.pitch <= look.length + 1e-6 or total <= look.length:
+    """(start, end) in metres along a seam: the whole seam, or the pieces of an intermittent weld. Gaps under 1 mm are
+    no gaps (continuous). On a closed seam the pieces are spread evenly round it (the pitch rounded so they fit)."""
+    if not look.intermittent or look.pitch < look.length + 0.001 or total <= look.length:
         return [(0.0, total)]
+    if closed:
+        n = max(1, int(round(total / look.pitch)))
+        pitch = total / n
+        if pitch < look.length + 0.001:
+            return [(0.0, total)]
+        return [(k * pitch, k * pitch + look.length) for k in range(n)]
     n = max(1, int((total - look.length) // look.pitch) + 1)
     used = (n - 1) * look.pitch + look.length
-    s0 = 0.0 if closed else 0.5 * (total - used)            # centred on an open seam
+    s0 = 0.5 * (total - used)                               # centred on an open seam
     return [(s0 + k * look.pitch, s0 + k * look.pitch + look.length) for k in range(n)]
 
 
@@ -766,7 +890,34 @@ def _interp_corner(c1: Corner, c2: Corner, s: float) -> Corner:
         return x + (y - x) * s
     return Corner(c1.kind, lerp(c1.theta, c2.theta), lerp(c1.oa, c2.oa), unit(lerp(c1.da, c2.da)),
                   unit(lerp(c1.na, c2.na)), c1.ta, lerp(c1.ob, c2.ob), unit(lerp(c1.db, c2.db)),
-                  unit(lerp(c1.nb, c2.nb)), c1.tb)
+                  unit(lerp(c1.nb, c2.nb)), c1.tb, lerp(c1.sa, c2.sa), lerp(c1.sb, c2.sb))
+
+
+def miter(c: Corner, other: Corner) -> Corner | None:
+    """The corner at the end of a seam that meets ``other``'s end at a turn (a square post's corner): the face both
+    share keeps its direction, the turning one takes the direction half way between the two, its toe stretched onto
+    where the two toe lines meet. None when they do not share a face (no mitre)."""
+    if c.kind != other.kind:
+        return None
+    same_a, same_b = float(c.da @ other.da) > 0.95, float(c.db @ other.db) > 0.95
+    if same_a == same_b:
+        return None
+    out = Corner(c.kind, c.theta, c.oa, c.da, c.na, c.ta, c.ob, c.db, c.nb, c.tb, c.sa, c.sb)
+    if same_b:
+        m = c.da + other.da
+        if np.linalg.norm(m) < 1e-6:
+            return None
+        out.da = unit(m)
+        out.sa = c.sa / max(float(out.da @ c.da), 0.3)
+        out.nb = unit(c.nb + other.nb)       # the shared part's corner edge: tucked in along both its faces
+    else:
+        m = c.db + other.db
+        if np.linalg.norm(m) < 1e-6:
+            return None
+        out.db = unit(m)
+        out.sb = c.sb / max(float(out.db @ c.db), 0.3)
+        out.na = unit(c.na + other.na)
+    return out
 
 
 def _cut_piece(points, corners, closed, s0, s1):
@@ -801,12 +952,23 @@ class BeadMesh:
     #                                              (closed: (-1000, 1000)); with u the shader knows how far an end is
 
 
-def bead(seam: Seam, look: Look, surface_a: Side | None = None, surface_b: Side | None = None) -> BeadMesh:
-    """The bead (and heat-zone strips when surfaces are given and ``look.heat`` > 0) of one seam."""
+def bead(seam: Seam, look: Look, surface_a: Side | None = None, surface_b: Side | None = None,
+         ends: tuple = (None, None)) -> BeadMesh:
+    """The bead (and heat-zone strips when surfaces are given and ``look.heat`` > 0) of one seam. ``ends``: the corner
+    of the seam joined at its start / end (``Seam.joins``, when that one is welded too): a mitred end there, no taper."""
     kind = seam.kind if look.kind == "AUTO" else look.kind
     keep = simplify(seam.points, seam.corners, seam.closed)
     pts = seam.points[keep]
     cs = [seam.corners[i] for i in keep]
+    mit = [None, None]
+    if not seam.closed and not look.intermittent:
+        for e, other in enumerate(ends):
+            if other is not None:
+                mit[e] = miter(cs[0 if e == 0 else -1], other)
+        if mit[0] is not None:
+            cs[0] = mit[0]
+        if mit[1] is not None:
+            cs[-1] = mit[1]
     closed = seam.closed
     total = float(_arc_len(np.concatenate([pts, pts[:1]]) if closed else pts, False)[-1])
     verts, faces, uvs, mats = [], [], [], []
@@ -814,7 +976,7 @@ def bead(seam: Seam, look: Look, surface_a: Side | None = None, surface_b: Side 
     n_uv = 0
     ends = []
     pieces = pieces_of(total, look, closed)
-    whole = len(pieces) == 1 and closed
+    whole = closed and len(pieces) == 1 and pieces[0][1] - pieces[0][0] >= total - 1e-9
     for s0, s1 in pieces:
         if whole:
             pp, pc = pts, cs
@@ -823,21 +985,25 @@ def bead(seam: Seam, look: Look, surface_a: Side | None = None, surface_b: Side 
         if len(pp) < 2:
             continue
         length += (total if whole else s1 - s0)
-        _bead_piece(pp, pc, look, kind, whole, s0, verts, faces, uvs, mats)
+        _bead_piece(pp, pc, look, kind, whole, s0, verts, faces, uvs, mats,
+                    taper=(not (mit[0] is not None and s0 <= 1e-9), not (mit[1] is not None and s1 >= total - 1e-9)))
         if surface_a is not None and surface_b is not None and look.heat > 0:
             _heat(pp, pc, look, kind, whole, s0, surface_a, surface_b, verts, faces, uvs, mats)
         span = (s0, s0 + float(_arc_len(pp, False)[-1])) if not whole else (-1000.0, 1000.0)
+        if not whole:                         # a mitred end does not fade: the joined seam's tint goes on round it
+            span = (-1000.0 if (mit[0] is not None and s0 <= 1e-9) else span[0],
+                    1000.0 if (mit[1] is not None and s1 >= total - 1e-9) else span[1])
         ends.extend([span] * (len(uvs) - n_uv))
         n_uv = len(uvs)
     v = np.array(verts, np.float64).reshape(-1, 3) if verts else np.zeros((0, 3))
     return BeadMesh(v, faces, uvs, mats, length, ends)
 
 
-def _bead_piece(pp, pc, look, kind, closed, s0, verts, faces, uvs, mats):
+def _bead_piece(pp, pc, look, kind, closed, s0, verts, faces, uvs, mats, taper=(True, True)):
     k = look.across
     u = s0 + _arc_len(pp, False)
     rings, us = [], []
-    if not closed:                                            # the start: a taper (and a crater) before the first point
+    if not closed and taper[0]:                               # the start: a taper (and a crater) before the first point
         z = legs(pc[0], look, kind)[0]
         t = unit(pp[1] - pp[0])
         for f, sc in ((0.75, 0.05), (0.45, 0.55), (0.18, 0.88)):
@@ -849,7 +1015,7 @@ def _bead_piece(pp, pc, look, kind, closed, s0, verts, faces, uvs, mats):
     for p, c, uu in zip(pp, pc, u):
         rings.append(_ring(c, look, kind))
         us.append(uu)
-    if not closed:
+    if not closed and taper[1]:
         z = legs(pc[-1], look, kind)[0]
         t = unit(pp[-1] - pp[-2])
         for f, sc in ((0.18, 0.88), (0.45, 0.55), (0.75, 0.05)):
@@ -874,7 +1040,7 @@ def _bead_piece(pp, pc, look, kind, closed, s0, verts, faces, uvs, mats):
 
 
 def _project(side: Side, pts: np.ndarray, lift: float):
-    d, q, t = side.distance(pts, side.near(pts.min(0), pts.max(0), 0.03))
+    d, q, t = side.nearest_local(pts, 0.01)
     ok = t >= 0
     out = pts.copy()
     out[ok] = q[ok] + side.n[t[ok]] * lift
@@ -891,10 +1057,10 @@ def _heat_rows(pts, cs, look, kind, which, side):
         za, zb = legs(c, look, kind)
         root = 0.5 * (c.oa + c.ob)
         if which == "A":
-            toe, d, n = root + c.da * za * 0.92, c.da, c.na
+            toe, d, n, st = root + c.da * za * 0.92, c.da, c.na, c.sa
         else:
-            toe, d, n = root + c.db * zb * 0.92, c.db, c.nb
-        rows.append([toe + d * (look.heat * f) + n * LIFT for f in HEAT_COLS])
+            toe, d, n, st = root + c.db * zb * 0.92, c.db, c.nb, c.sb
+        rows.append([toe + d * (look.heat * st * f) + n * LIFT for f in HEAT_COLS])
     rows = np.array(rows)
     flat, _d = _project(side, rows.reshape(-1, 3), LIFT)
     return flat.reshape(rows.shape)
@@ -903,7 +1069,7 @@ def _heat_rows(pts, cs, look, kind, which, side):
 def _sunk(side: Side, pts: np.ndarray) -> np.ndarray:
     """Which points lie less than half the lift above the part's surface (a strip's chord dipping under a curved,
     faceted face): bool per point."""
-    d, q, t = side.distance(pts, side.near(pts.min(0), pts.max(0), 0.03))
+    d, q, t = side.nearest_local(pts, 0.01)
     ok = t >= 0
     h = np.full(len(pts), LIFT)
     h[ok] = ((pts[ok] - q[ok]) * side.n[t[ok]]).sum(1)
@@ -925,12 +1091,13 @@ def _heat(pp, pc, look, kind, closed, s0, sa, sb, verts, faces, uvs, mats):
             bad = _sunk(side, mids.reshape(-1, 3)).reshape(len(pairs), len(cols)).any(1)
             if not bad.any():
                 break
-            for k in sorted(np.flatnonzero(bad), reverse=True):
+            ks = sorted(np.flatnonzero(bad), reverse=True)
+            new_p = [0.5 * (pts[pairs[k][0]] + pts[pairs[k][1]]) for k in ks]
+            new_c = [_interp_corner(cs[pairs[k][0]], cs[pairs[k][1]], 0.5) for k in ks]
+            new_rows = _heat_rows(new_p, new_c, look, kind, which, side)          # one projection for all of them
+            for k, p, c, row in zip(ks, new_p, new_c, new_rows):
                 i, j = pairs[k]
-                p = 0.5 * (pts[i] + pts[j])
-                c = _interp_corner(cs[i], cs[j], 0.5)
                 uu = u[i] + 0.5 * float(np.linalg.norm(pts[j] - pts[i]))
-                row = _heat_rows([p], [c], look, kind, which, side)[0]
                 pts.insert(i + 1, p)
                 cs.insert(i + 1, c)
                 u.insert(i + 1, uu)
@@ -1101,4 +1268,55 @@ def match_faces(prints: dict, points: np.ndarray, tris: np.ndarray, face: np.nda
             continue
         j = np.flatnonzero(ok)[np.argmin(dc[ok])]
         out[int(f)] = int(keys[j])
+    return out
+
+
+# ---------------------------------------------------------------------------
+# keeping seams in the project
+# ---------------------------------------------------------------------------
+
+KIND_CODE = {"FILLET": 0, "BUTT": 1}
+_ROW = 26                 # floats per point: p, oa, da, na, ob, db, nb (3 each), theta, sa, sb, ta, tb
+
+
+def pack_seams(seams: list) -> str:
+    """The seams as text for the project (base64 of 32-bit numbers), simplified as the bead uses them; ``unpack_seams``
+    gives them back. A weld keeps its seams where they were found, so a change of a setting never looks for them again
+    where the parts happen to stand (an exploded view, a pose)."""
+    import base64
+    out = [np.array([len(seams)], np.float32)]
+    for s in seams:
+        keep = simplify(s.points, s.corners, s.closed)
+        j0 = s.joins[0] or (-1, -1)
+        j1 = s.joins[1] or (-1, -1)
+        out.append(np.array([len(keep), float(s.closed), KIND_CODE.get(s.kind, 0), j0[0], j0[1], j1[0], j1[1]],
+                            np.float32))
+        rows = []
+        for i in keep:
+            c = s.corners[i]
+            rows.append(np.concatenate([s.points[i], c.oa, c.da, c.na, c.ob, c.db, c.nb,
+                                        [c.theta, c.sa, c.sb, c.ta, c.tb]]))
+        out.append(np.asarray(rows, np.float32).ravel())
+    return base64.b64encode(np.concatenate(out).tobytes()).decode("ascii")
+
+
+def unpack_seams(text: str) -> list:
+    import base64
+    a = np.frombuffer(base64.b64decode(text.encode("ascii")), np.float32).astype(np.float64)
+    n = int(a[0])
+    at = 1
+    out = []
+    kinds = {v: k for k, v in KIND_CODE.items()}
+    for _ in range(n):
+        k, closed, kind = int(a[at]), bool(a[at + 1]), kinds.get(int(a[at + 2]), "FILLET")
+        j = [int(x) for x in a[at + 3:at + 7]]
+        at += 7
+        rows = a[at:at + k * _ROW].reshape(k, _ROW)
+        at += k * _ROW
+        cs = [Corner(kind, float(r[21]), r[3:6].copy(), unit(r[6:9]), unit(r[9:12]), int(r[24]),
+                     r[12:15].copy(), unit(r[15:18]), unit(r[18:21]), int(r[25]), float(r[22]), float(r[23]))
+              for r in rows]
+        s = Seam(rows[:, :3].copy(), cs, closed, kind)
+        s.joins = [(j[0], j[1]) if j[0] >= 0 else None, (j[2], j[3]) if j[2] >= 0 else None]
+        out.append(s)
     return out

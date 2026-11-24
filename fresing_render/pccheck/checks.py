@@ -33,6 +33,7 @@ MILL = os.path.join(DATA, "test_mill.step")
 MILL_CABINET = os.path.join(DATA, "test_mill_cabinet.step")
 TOOLPATH = os.path.join(DATA, "test_toolpath.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
+WELDMENT = os.path.join(DATA, "test_weldment.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
@@ -611,6 +612,33 @@ def decals_add(ctx):
     _small_output(scene.fresing)
     info = _cpu_still(ctx, scene, "decals", "Decals (processor, draft)")
     return f"{len(shown)} decals; render {info['seconds']} s"
+
+
+@line("looks.welds", "Welds: two picked faces give a bead", "0.2.221",
+      what="The base plate's top and one side of the fin picked as in Inventor: one fillet 200 mm long; then every joint "
+           "of the test weldment welded with another look (painted, MAG, rusty, stainless, pickled, aluminium, ground); "
+           "rendered small")
+def looks_welds(ctx):
+    import time
+
+    from ..blender import welds
+    scene = ctx.fresh(WELDMENT)
+    t0 = time.perf_counter()
+    it = welds.pick_test_weld(scene)
+    ms = (time.perf_counter() - t0) * 1000.0
+    seams = [s.length for s in it.seams if s.enabled]
+    _check(len(seams) == 1 and abs(seams[0] - 0.2) < 0.002, f"the picked faces gave seams of {seams} m, not one of 0.2 m")
+    _check(abs(float(it.get("fr_length", 0.0)) - 0.2) < 0.002, "the bead is not 200 mm long")
+    _check(len(welds.objects_of(it)) == 2, "the weld has no bead or no heat zone")
+    welds.remove(scene, it)
+    welds.set_up_test_model(scene)
+    st = welds.stats(scene)
+    _check(st["welds"] == len(welds.TEST_WELDS) and st["lost"] == 0, f"{st['welds']} welds, {st['lost']} lost")
+    ctx.metric("weld_pick_ms", round(ms), "ms")
+    _small_output(scene.fresing)
+    info = _cpu_still(ctx, scene, "welds", "Welds (processor, draft)")
+    return f"200 mm fillet from two picked faces in {ms:.0f} ms; {st['welds']} welds, {st['metres']:.2f} m; " \
+           f"render {info['seconds']} s"
 
 
 @line("looks.materials", "Materials: the material sheet", "0.2.39",
