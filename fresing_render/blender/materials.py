@@ -282,13 +282,18 @@ def _eevee_glass(b: _Nodes, out, spec: dict, lin) -> None:
 
 
 def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "", wear: float = 0.0,
-                tweak: dict | None = None) -> None:
+                tweak: dict | None = None, finish: str = "") -> None:
     """``tweak``: settings that replace the library's for this material only (milled faces, task 0051). Its
     ``toolmarks`` (a dict, may be empty: ``size``, ``strength`` and single values of ``core.toolmarks.look``) puts
-    the tool marks of task 0061 on faces that know their move (``blender/toolmarks.py``)."""
+    the tool marks of task 0061 on faces that know their move (``blender/toolmarks.py``). ``finish``: the group's
+    settings of a finish (task 0274, ``core.finishes.key``; "" = its defaults)."""
+    from ..core import finishes as fin_core
     spec = materials_lib.get(material_id)
     if tweak:
         spec = {**spec, **tweak}
+    fin_settings = fin_core.parse(material_id, finish) if spec.get("finish") else {}
+    if spec.get("finish"):                      # the finish's metal base / kind: colour, metallic, roughness
+        spec = {**spec, **fin_core.base(material_id, fin_settings)}
     if spec.get("needs_color"):
         lin, srgb = color_to_linear(color_text or materials_lib.DEFAULT_COLOR)
     else:
@@ -374,6 +379,14 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
         from . import cable_looks
         color, metallic, rough, normal = cable_looks.apply(b, bsdf, spec["cable"], color, metallic, rough, normal)
 
+    for k in ("fr_finish", "fr_finish_web"):        # a finish leaves its numbers on the material; another look not
+        if k in mat:
+            del mat[k]
+    if spec.get("finish"):  # task 0274: knurls, spun, cross-hatch, tread plate, blasted … (blender/finishes.py)
+        from . import finishes
+        color, metallic, rough, normal = finishes.apply(b, mat, bsdf, material_id, spec, fin_settings, srgb, color,
+                                                        metallic, rough, normal)
+
     if spec.get("marine"):  # steel at sea (task 0116): growth below the waterline, splash zone, run-down streaks
         from . import marine_looks
         if marine_looks.kind_name(spec["marine"].get("kind", "GROWTH")) == "GROWTH":
@@ -409,6 +422,7 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
     mat["fr_material"] = material_id
     mat["fr_color"] = color_text
     mat["fr_wear"] = float(wear)
+    mat["fr_finish_set"] = fin_core.key(material_id, **fin_settings) if spec.get("finish") else ""
     mat[PROP_LOOK] = LOOK_VERSION
     if mat.get("fr_weather_wrap"):              # wet / snow look (task 0109), innermost: keep it after a rebuild
         from . import weather_look
@@ -472,15 +486,19 @@ def _grid_holes(nt, bsdf, grid: dict) -> None:
     nt.links.new(alpha, bsdf.inputs["Alpha"])
 
 
-def is_current(mat, material_id: str, color_text: str = "", wear: float = 0.0) -> bool:
-    """The material already shows this look, built by this version."""
+def is_current(mat, material_id: str, color_text: str = "", wear: float = 0.0, finish: str = "") -> bool:
+    """The material already shows this look, built by this version (``finish``: a finish's settings key)."""
+    from ..core import finishes as fin_core
+    want = fin_core.key(material_id, **fin_core.parse(material_id, finish)) if fin_core.get(material_id) else ""
     return (mat.get("fr_material") == material_id and mat.get("fr_color") == color_text
             and abs(float(mat.get("fr_wear", 0.0)) - float(wear)) < 1e-4
+            and mat.get("fr_finish_set", "") == want
             and int(mat.get(PROP_LOOK, 1)) >= LOOK_VERSION
             and mat.node_tree is not None and bool(mat.node_tree.nodes))
 
 
-def ensure_material(group: str, material_id: str, color_text: str = "", wear: float = 0.0) -> bpy.types.Material:
+def ensure_material(group: str, material_id: str, color_text: str = "", wear: float = 0.0,
+                    finish: str = "") -> bpy.types.Material:
     name = material_name(group)
     mat = bpy.data.materials.get(name)
     if mat is None:
@@ -491,9 +509,24 @@ def ensure_material(group: str, material_id: str, color_text: str = "", wear: fl
             pass
     if mat.node_tree is None:
         mat.use_nodes = True
-    if not is_current(mat, material_id, color_text, wear):
-        build_nodes(mat, material_id, color_text, wear)
+    if not is_current(mat, material_id, color_text, wear, finish):
+        build_nodes(mat, material_id, color_text, wear, finish=finish)
     return mat
+
+
+def group_finish(g) -> str:
+    """A material group's finish settings as ``core.finishes.key`` text ("" for a material without a finish)."""
+    from ..core import finishes as fin_core
+    if fin_core.get(g.material) is None:
+        return ""
+    import math
+    return fin_core.key(g.material, size=g.fin_size, angle=math.degrees(g.fin_angle), amount=g.fin_amount,
+                        base=g.fin_base, kind=g.fin_kind)
+
+
+def group_material(g) -> bpy.types.Material:
+    """``ensure_material`` for a material group (its material, colour, wear and finish settings)."""
+    return ensure_material(g.name, g.material, g.color, g.wear, group_finish(g))
 
 
 def assign(ob: bpy.types.Object, mat: bpy.types.Material) -> None:
@@ -503,6 +536,10 @@ def assign(ob: bpy.types.Object, mat: bpy.types.Material) -> None:
         from . import mesh_import
         mat = mesh_import.file_material(ob) or mat
     ensure_axes(ob.data)
+    if mat is not None and mat.get("fr_finish"):         # task 0274: a finish that follows the CAD faces' axes
+        from . import finishes
+        if finishes.needs_faces(mat):
+            finishes.ensure_faces(ob.data)
     if not ob.material_slots:
         ob.data.materials.append(None)
     slot = ob.material_slots[0]

@@ -1452,6 +1452,59 @@ material and colour.
 - **Sort parts into groups** sorts everything again with the rules. Parts you put in a group yourself
   stay there.
 
+<a id="finishes"></a>
+### Finishes: knurls, spun ends, plate patterns, blasted metal, textures
+
+<img src="img/finishes_sheet.jpg" alt="The 23 finishes close up on the finishes test model">
+
+**Finishes** are ready-made materials with a pattern of their own: a knurled knob, the rings of a spun
+cap, a tread plate, a perforated sheet, a moulded plastic texture. Pick one as a group's **Material**
+(they are in the lists with the other metals, plastics and paints, or under **Ready-made material…**).
+Nothing else to set up: the pattern finds its own direction and size on every part, without UV maps,
+and looks the same on every copy of a part and after a model update.
+
+- **On round parts** – the pattern follows each round face of the part: **Knurled, diamond** and
+  **Knurled, straight** (knobs, thumb screws, handles; the end faces get fine rings), **Rubber, moulded
+  grip pattern** (handles), **Spun metal** (rings round the centre of caps and discs: the radial highlight
+  moves round as the light moves), **Faced end, spiral** (the faced end of a turned part, turned rings on
+  its round faces), **Honed bore** (the honing cross-hatch inside bores, turned rings outside).
+- **Sheet and plate patterns** – in the part's own directions: **Tread plate**, **Perforated sheet** (round
+  holes or slots, see-through), **Expanded metal** (see-through), **Scraped machine ways** (the half-moon
+  flaking), **Plastic grille, fine holes** (see-through), **Plastic, moulded cross-hatch** (follows curved
+  shells), **Fabric, woven** (speaker cloth).
+- **Grains** – a 3-D grain without a direction: **Bead-blasted metal**, **Steel, shot-blasted** (before
+  paint), **Paint, hammertone**, **Paint, wrinkle finish**, **Paint, anti-skid** (decks, walkways),
+  **Plastic, spark-eroded texture (VDI 3400)**, **Plastic, leather grain**, **Plastic, soft-touch**,
+  **Hot-dip galvanized, spangle** (large zinc crystals), **As-cast** (sand-cast aluminium or iron).
+
+**A finish's own settings** sit under the group's material – only the ones it has:
+
+- **Metal** – the metal under the finish (a knurl on steel, stainless, aluminium or brass; tread plate on
+  aluminium, galvanized or steel …). Paints and plastics take the group's **Colour** instead.
+- **Kind** – bead-blasting **Fine / Medium / Coarse**, **Round holes / Slotted holes**, the **VDI 3400 class**
+  (24 fine … 36 coarse), the cast metal (**Aluminium / Iron**).
+- **Pitch**, **Feed**, **Hole size**, **Grain size**, **Mark size**, **Crystal size** … – the size of the
+  pattern in mm (a diamond knurl 0.8 mm, a tread plate 25 mm). Tread plate and scraped ways keep a size that
+  fits the web 3D model's tiles (25 mm stays 25 mm, 12 mm becomes 11.8 mm).
+- **Angle** – of a diamond knurl's grooves (30° is usual), of the honing cross-hatch, of a moulded grid.
+- **Strength** – how far spun metal's highlight stretches.
+
+**Far away a pattern fades by itself** to the look it averages to: a 0.8 mm knurl is crisp in a close-up
+and a calm, slightly duller metal on a machine 10 m away – no flicker, no moiré. The app works this out from
+the camera and the picture size; nothing to set.
+
+Good to know:
+
+- The round-part finishes use the round faces the STEP file has. A knob made of flat facets in CAD gets no
+  knurl on them (the end faces still get their rings).
+- Tread plate, expanded metal and the grille are relief in the material: the plate's outline stays flat.
+  The see-through finishes show the part's back face through the holes.
+- In the **web 3D model** the fine finishes (knurls, spun, blasted, VDI, fabric …) are exported as their
+  average colour and shine; the coarser ones (tread plate, perforated, expanded, hammertone, spangle,
+  leather, scraped …) as a texture.
+- A rule set or a paint scheme keeps a group's material and colour; a finish's own settings start at their
+  defaults there.
+
 <a id="rule-sets"></a>
 ### Rule sets
 

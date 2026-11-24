@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.229"
+__version__ = "0.2.230"
 
 _modules = []
 
@@ -203,6 +203,8 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
     clash.register()
+    from .blender import finishes
+    finishes.register()                      # task 0274: the finishes' far-away fade follows the camera
     from .blender import web3d
     web3d.register()                         # task 0189: the Web 3D panel's estimates kept until a change
     from .blender import section
@@ -277,6 +279,8 @@ def unregister():
     updates.unregister()
     from .blender import section
     section.unregister()
+    from .blender import finishes
+    finishes.unregister()
     hover.unregister()
     from .blender import joint_show
     joint_show.unregister()

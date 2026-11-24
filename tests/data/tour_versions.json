@@ -13,7 +13,7 @@
   },
   "cables": {
    "added": "0.2.80",
-   "changed": "0.2.229",
+   "changed": "0.2.230",
    "fp": "87803b1de64a7824"
   },
   "chains": {
@@ -76,6 +76,11 @@
    "changed": "0.2.217",
    "fp": "fec01e7a7e9895cf"
   },
+  "finishes": {
+   "added": "0.2.229",
+   "changed": "",
+   "fp": "6a263195f2f0eef6"
+  },
   "flex_avoid": {
    "added": "0.2.225",
    "changed": "0.2.225",
@@ -83,7 +88,7 @@
   },
   "flex_drawn": {
    "added": "0.2.180",
-   "changed": "0.2.229",
+   "changed": "0.2.230",
    "fp": "02640fecc7dc7520"
   },
   "gantry": {
@@ -203,12 +208,12 @@
   },
   "served": {
    "added": "0.2.116",
-   "changed": "0.2.229",
+   "changed": "0.2.230",
    "fp": "0f0627f4961fe9b7"
   },
   "spool": {
    "added": "0.2.85",
-   "changed": "0.2.229",
+   "changed": "0.2.230",
    "fp": "c8342a3831502350"
   },
   "swivel": {

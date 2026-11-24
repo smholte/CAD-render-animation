@@ -1223,6 +1223,97 @@ def _check_marine(scene):
             f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
 
 
+# task 0274: the finishes on the sample board of test_finishes.step (tools/make_test_finishes.py): part name -> (the
+# library material, its colour); the headset shows the owner's photo of study 0270 (knurled knob, spun cap, moulded
+# cross-hatch shell, soft-touch band, speaker cloth, leather cushions)
+FINISH_BOARD = {
+    "KNOB DIAMOND KNURL": ("knurl_diamond", ""), "KNOB STRAIGHT KNURL": ("knurl_straight", ""),
+    "GRIP HANDLE": ("rubber_grip", "RAL 9005"), "CAP SPUN": ("spun", ""), "SHAFT FACED": ("faced", ""),
+    "BUSHING HONED": ("honed", ""), "CUP CROSS-HATCH": ("crosshatch", "RAL 5010"),
+    "DISC SPEAKER CLOTH": ("fabric", "RAL 7016"), "DISC GRILLE": ("grille", "RAL 9005"), "PLATE TREAD": ("tread", ""),
+    "PLATE PERFORATED": ("perforated", ""), "PLATE EXPANDED": ("expanded", ""), "WAY SCRAPED": ("scraped", ""),
+    "BAND SOFT-TOUCH": ("soft_touch", "RAL 7021"), "BLOCK BEAD-BLASTED": ("bead_blasted", ""),
+    "BLOCK SHOT-BLASTED": ("shot_blasted", ""), "BLOCK HAMMERTONE": ("hammertone", "RAL 6011"),
+    "BLOCK WRINKLE": ("wrinkle", "RAL 9005"), "PLATE ANTI-SKID": ("antiskid", "RAL 7040"),
+    "CUP VDI 30": ("vdi", "RAL 7012"), "CUP LEATHER": ("leather", "RAL 8017"), "PLATE SPANGLE": ("spangle", ""),
+    "BLOCK AS-CAST": ("as_cast", ""),
+    "HEADSET BAND": ("soft_touch", "RAL 9005"), "HEADSET YOKE": ("bead_blasted", ""),
+    "HEADSET CUP": ("crosshatch", "RAL 5010"), "HEADSET CUSHION": ("leather", "RAL 9005"),
+    "HEADSET DISC": ("fabric", "RAL 9005"), "HEADSET CAP": ("spun", ""), "HEADSET KNOB": ("knurl_diamond", ""),
+}
+
+
+def finishes_demo(scene) -> dict:
+    """Task 0274: every part of the finishes test model in a group of its own with its finish (the board's 23 and the
+    headset's). Returns {part name: group}. Used by the test tour and the PC check."""
+    from . import build, logic
+    s = scene.fresing
+    by_name: dict = {}
+    for ob in build.iter_parts(scene):
+        by_name.setdefault(ob.get(build.PROP_NAME, ""), []).append(ob)
+    groups = {}
+    for name, (mat_id, colour) in FINISH_BOARD.items():
+        obs = by_name.get(name)
+        if not obs:
+            continue
+        group = f"Finish: {name.title()}"
+        for ob in obs:
+            ob["fr_group_manual"] = group
+        logic.ensure_group(s, group)
+        groups[name] = group
+    logic.apply_rules(scene)
+    for name, group in groups.items():
+        g = s.groups[group]
+        mat_id, colour = FINISH_BOARD[name]
+        g.material = mat_id
+        if colour:
+            g.color = colour
+    logic.refresh_group_materials(scene)
+    from . import cameras
+    cameras.update_pixel_angle(scene)
+    return groups
+
+
+@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.229")
+def build_finishes(b: Build):
+    """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front."""
+    sc = b.scene
+    _look("PRODUCT")
+    finishes_demo(sc)
+    _camera(b, "HIGH", "Tour finishes", lens=50.0)
+    _shot(b, "@finishes")
+
+
+def _check_finishes(scene):
+    """Every board part has its finish; the knurled knob carries the face data (round faces with a whole number of
+    teeth, end faces on its axis); the fade's pixel angle follows the camera."""
+    import numpy as np
+
+    from ..core import finishes as fin_core
+    from . import build, cameras, finishes
+    parts = {ob.get(build.PROP_NAME, ""): ob for ob in build.iter_parts(scene)}
+    missing = [n for n in FINISH_BOARD if n not in parts]
+    _check(not missing, f"missing parts: {', '.join(missing)}")
+    wrong = [n for n, (m, _c) in FINISH_BOARD.items()
+             if parts[n].active_material is None or parts[n].active_material.get("fr_material") != m]
+    _check(not wrong, f"without their finish: {', '.join(wrong)}")
+    built = {parts[n].active_material.get(finishes.PROP_FINISH) for n in FINISH_BOARD}
+    _check(len(built) == len(fin_core.FINISHES), f"{len(built)} finishes built, not {len(fin_core.FINISHES)}")
+    knob = parts["KNOB DIAMOND KNURL"].data
+    _check(finishes.has_faces(knob), "the knurled knob has no face data")
+    k = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_k"].data.foreach_get("value", k)
+    r = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_r"].data.foreach_get("value", r)
+    _check((k == 1).any() and (k == 2).any(), "the knob's round face or end faces were not found")
+    radius = float(np.median(r[k == 1]))
+    _check(abs(radius - 0.010) < 0.0003, f"the knob's round face has radius {radius * 1000:.2f} mm, not 10")
+    angle = scene.get(fin_core.PIXEL_PROP, 0.0)
+    _check(abs(angle - cameras.pixel_angle(scene)) <= 0.011 * angle, "the fade's pixel angle is not the camera's")
+    n = fin_core.teeth(radius, 0.0008, 30.0)
+    return f"{len(built)} finishes; knob Ø{radius * 2000:.1f} mm: {n} teeth round it; pixel angle {angle:.2e} rad"
+
+
 @tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.203")
 def build_cutaway(b: Build):
     from mathutils import Vector
@@ -1781,7 +1872,7 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.229")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.230")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
@@ -1993,7 +2084,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.229")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.230")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -2231,7 +2322,7 @@ def check_drawn_replace(scene) -> str:
 SPOOL_ANIM = "Spooling"
 
 
-@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.229")
+@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.230")
 def build_spool(b: Build):
     from . import spool
     sc = b.scene
@@ -2284,7 +2375,7 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.229")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.230")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -4666,13 +4757,22 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
            "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
      check=_check_marine, changed="0.2.196")
+stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains",
+     "A board of 23 samples in their finishes, from the back row: diamond and straight knurled knobs, a rubber grip, a "
+     "spun cap, a shaft with a faced end, a honed half bushing; a blue cross-hatch cup, speaker cloth, a black grille "
+     "with holes, tread, perforated and expanded plates; scraped way, soft-touch arch, bead- and shot-blasted, "
+     "hammertone and wrinkle blocks; anti-skid plate, VDI and leather cups, a spangled plate, an as-cast block. On "
+     "the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, leather cushions. Look in rendered view "
+     "and zoom in: the patterns show up close and fade calmly further away.",
+     where="3 Looks: a group's Material (Metal, Plastic & rubber, Paint …) and its own settings under it (Pitch, "
+           "Angle, Metal, Kind …)", since="0.2.229", check=_check_finishes)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
      "round the whole cable as one spiral, once round per metre, with ragged edges, the paint thinner in the grooves. "
      "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
-     since="0.2.116", check=_check_served, auto="clip", changed="0.2.229")
+     since="0.2.116", check=_check_served, auto="clip", changed="0.2.230")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
@@ -4798,7 +4898,7 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "top layer gets shorter wrap by wrap, and both sheaves and both rollers turn with it. Meanwhile the A-frame "
      "leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
-     auto="clip", changed="0.2.229")
+     auto="clip", changed="0.2.230")
 stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
      "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
      "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
@@ -4823,7 +4923,7 @@ stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
      where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
-     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.229")
+     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.230")
 stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 24 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
@@ -4848,7 +4948,7 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "anchor; the carousel pays its cable all out (every layer cable, one after the other, down to its core) and "
      "winds it back in. No grey sleeve or ring under the top layer.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
-     auto="clip", changed="0.2.229")
+     auto="clip", changed="0.2.230")
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
