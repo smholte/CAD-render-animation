@@ -117,7 +117,7 @@ start after it is merged and use its helper).
   subclassing the registered operator broke it ("unable to get Python class", its execute did nothing).
 - Function entry `scene.render_view` (+ `panel.make` changed), tour stop `render_view` (+ `make` text), PC-check Full line
   `scene.render_view` (MIN_LINES_FULL 132), MIN_LINES_TOUR 101, `MIN_CHECKS["left"]` 55, guide (Make: the strip with a
-  narrow and a wide picture, Render this view), CLAUDE.md (layout + two things learned), CHANGELOG 0.2.222.
+  narrow and a wide picture, Render this view), CLAUDE.md (layout + two things learned), CHANGELOG 0.2.223.
 - No lesson step: Render image (`scene.still`) has none either; Render this view is not a crane-lesson step.
 
 **Tested and measured** (4-core web machine, test crane):
@@ -133,6 +133,12 @@ start after it is merged and use its helper).
   test_form_window, test_settings_blender, test_workspaces_independent, test_toolmarks, test_left_folds, test_tour.
 - Pictures: `docs/img/panel_top_make.png`, `sidebar_sections.png` (guide_screens), `make_strip_narrow.png`,
   `make_strip_wide.png` (ui_test_left with GUIDE_OUT).
+
+- GitHub runs: run 1 red in two real-app tests. `ui_test_lesson.py`: the taller top moved "3/4 hero, high" into the
+  bottom 40 px of the side panel, where the lesson scrolls it in – the test read the button's place before that scroll
+  and clicked 40 px low (a race of the test; a user clicks where the button is): it now waits until the button is out of
+  the side panel's edge. `ui_test_place.py` (task 0292): Delete's Remove window opens on timers and 1.5 s was not always
+  enough (it failed on main's code here too): the test waits up to 12 s for it. Renumbered 0.2.222 → 0.2.223 (0302).
 
 **Open points / follow-up tasks:**
 - The tab **Item** stays in output windows while an object is active (Blender's Transform panel is C code).

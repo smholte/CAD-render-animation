@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.222")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.223")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -5264,7 +5264,7 @@ stop("make", OUT, HUB_SET, "Make: each output in a window",
      "page's settings. Drag the strip's right edge wider: the names show beside the icons. Drag the window anywhere, "
      "click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no second window. "
      "The same list is under Make in the header of the 3D view.",
-     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.222",
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.223",
      shot="Tour view", check=_check_make, auto=lambda ctx, scene, st: "")
 
 
@@ -5299,7 +5299,7 @@ stop("render_view", OUT, HUB_SET, "Render this view",
      "fitted round the view, nothing of the view cut off), and the picture is saved as <project>_View_<date>_<time>. "
      "The active camera in 5 Scene & Render is the same as before and no new camera is in the list. In camera view "
      "(Numpad 0) it renders that camera.",
-     where="Make, at the top of the Fresing panel (under the icons); Make in the 3D view's header", since="0.2.222",
+     where="Make, at the top of the Fresing panel (under the icons); Make in the 3D view's header", since="0.2.223",
      shot="Tour view", check=_check_render_view, auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
