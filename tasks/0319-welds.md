@@ -115,7 +115,7 @@ session's own branch name, not `task/0319-welds`).
   preview with ticks, its own draw handler: first part blue, second orange, seams green / grey), Weld two parts,
   Remove, Find seams again, Pick again, Tick all, Make them move as one, the right-click **Weld to another part…**;
   3 Looks > Welds.
-- Additive: `__init__.py` (registration), `core/places.py`, `core/functions.py` (`looks.welds`, since 0.2.228),
+- Additive: `__init__.py` (registration), `core/places.py`, `core/functions.py` (`looks.welds`, since 0.2.229),
   `context_menu.py` (entry, `ON_PART`, `CLIENT_DROPS`), `hover.py` (a click looks through a weld), `reimport.py` (welds
   carried over, rolled back), `remove.py` (a weld to a removed part is marked lost), `section.py` / `fade.py` /
   `weather_look.py` / `logic.py` (welds go with their part, like decals; left out of the structure tree), `web3d.py`
@@ -147,7 +147,7 @@ session's own branch name, not `task/0319-welds`).
   with one piece welded all round, two corners on one line, mirrored parts, clicks blocked by an existing weld. A
   second subagent wrote the test model maker.
 
-**Owner's test steps** (on your PC, after Update now to 0.2.228):
+**Owner's test steps** (on your PC, after Update now to 0.2.229):
 1. Help > Make test tour project, open it, go to the stop **Welds** and press **Go**: a small weldment with
    seven welds – blue painted fillet, grey MAG with spatter, a rusty one, stainless with straw-purple-blue tint, a
    matt pickled one, a bright aluminium saddle, a ground-flush butt. Look in Rendered view.

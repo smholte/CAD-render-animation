@@ -19,6 +19,8 @@ equinox (sunrise 6:00, sunset 18:00); with a date and a latitude it follows that
 
 from __future__ import annotations
 
+import bisect
+import functools
 import math
 from dataclasses import asdict, dataclass, fields, replace
 
@@ -85,6 +87,11 @@ class State:
     flood_strength: float = 1.0     # x the floodlights' own power
     bow_az: float = 180.0           # scene azimuth the vessel's bow points to (task 0125: 180 = -x, 0 = +x); not a
     #                                 panel setting – the app reads it from the scene (``surroundings.bow_az``)
+    # task 0299
+    lightning: float = 0.0          # how often lightning flashes, 0 … 1 (1: about every LIGHTNING_GAP s)
+    mist: float = 0.0               # mist lying low over the water or the ground, 0 … 1 (1: ~120 m at the surface)
+    hail: float = 0.0               # falling hail (or sleet with rain), 0 … 1
+    heat: float = 0.0               # hot air: a bright haze and heat shimmer over the distance, 0 … 1
 
 
 # the presets of the panel: (id, label, tooltip, what differs from State())
@@ -106,8 +113,33 @@ PRESETS = {
     "NIGHT_SHIFT": ("Night shift", "Late evening in the dark: stars and the moon, floodlights on the deck or "
                     "the quay, a damp sheen",
                     dict(hour=23.0, clouds=0.25, visibility=15000.0, wet=0.35, wind=3.0, floodlights="ON")),
+    # task 0299 (owner's picks 23 Nov)
+    "THUNDERSTORM": ("Thunderstorm", "Dark storm clouds, a downpour in a near gale (Bft 7) and lightning: bolts "
+                     "in the distance and flashes that light the whole scene",
+                     dict(hour=16.0, clouds=1.0, low_clouds=0.95, visibility=4000.0, rain=1.0, drop_size=4.0,
+                          wet=1.0, wind=7.0, lightning=0.7)),
+    "SEA_MIST": ("Fog / sea mist", "Thick mist lying on the water and drifting with a light air: about 200 m "
+                 "visibility, the machine fades in and out",
+                 dict(hour=9.0, clouds=0.7, low_clouds=0.3, visibility=1500.0, wet=0.4, wind=1.0, mist=0.75)),
+    "SUNRISE": ("Sunrise", "The sun just up in the east: golden low light, long shadows, a few clouds lit from "
+                "below, dew on the machine",
+                dict(hour=6.35, clouds=0.25, visibility=20000.0, wet=0.15, wind=2.0, floodlights="OFF")),
+    "SUNSET": ("Sunset", "The sun low in the west: golden to orange light, long shadows, clouds lit from below",
+               dict(hour=17.65, clouds=0.3, visibility=25000.0, wind=3.0, floodlights="OFF")),
+    "HAIL": ("Hail / sleet", "A cold shower: hail stones and sleet falling and bouncing on the deck, low grey "
+             "clouds, everything wet",
+             dict(hour=14.0, clouds=1.0, low_clouds=0.6, visibility=3500.0, rain=0.4, drop_size=2.5, wet=0.9,
+                  snow=0.15, snow_cover=0.1, wind=6.0, hail=0.8)),
+    "HOT_CALM": ("Hot and calm", "A hot afternoon without wind: bright haze, heat shimmer over the distance, a "
+                 "flat sea (when the sea follows the wind)",
+                 dict(hour=14.0, clouds=0.0, visibility=12000.0, wind=0.5, heat=1.0)),
 }
-PRESET_ORDER = ("CLEAR_DAY", "GREY_NORTH_SEA", "STORM", "SNOW_QUAY", "NIGHT_SHIFT")
+# the order in the panel (picture grid and lists)
+PRESET_ORDER = ("CLEAR_DAY", "SUNRISE", "SUNSET", "GREY_NORTH_SEA", "SEA_MIST", "STORM", "THUNDERSTORM", "HAIL",
+                "SNOW_QUAY", "HOT_CALM", "NIGHT_SHIFT")
+# the number each preset has in project files (props' enum): never change one, new presets get the next free
+PRESET_NUMBER = {"CLEAR_DAY": 1, "GREY_NORTH_SEA": 2, "STORM": 3, "SNOW_QUAY": 4, "NIGHT_SHIFT": 5,
+                 "THUNDERSTORM": 6, "SEA_MIST": 7, "SUNRISE": 8, "SUNSET": 9, "HAIL": 10, "HOT_CALM": 11}
 
 
 def preset(name: str, base: State | None = None) -> State:
@@ -115,7 +147,7 @@ def preset(name: str, base: State | None = None) -> State:
     base = base or State()
     keep = dict(hour=State.hour, clouds=State.clouds, low_clouds=State.low_clouds, visibility=State.visibility,
                 rain=0.0, drop_size=State.drop_size, wet=0.0, snow=0.0, snow_cover=0.0, wind=State.wind,
-                floodlights="AUTO", flood_strength=State.flood_strength)
+                floodlights="AUTO", flood_strength=State.flood_strength, lightning=0.0, mist=0.0, hail=0.0, heat=0.0)
     keep.update(PRESETS[name][2])
     return replace(base, **keep)
 
@@ -275,21 +307,95 @@ def _lerp(a, b, f):
     return a + (b - a) * f
 
 
+CLOCK_SAMPLES = 240          # steps of the clock's way from a step's start to its end (clock_at)
+CLOCK_EVEN = 0.3             # share of a step's time the clock runs evenly; the rest goes where the light changes
+
+
+SUN_TURN = 0.8               # how much the sun's own movement counts in the clock's pace (per radian it moves)
+
+
+def _light_parts(el: float, bearing: float) -> tuple:
+    """What of the light follows the sun: daylight, darkness, direct sun, the sky's brightness, the floodlights (Auto)
+    and the golden light – the channels that switched within a few frames before task 0299 – and where the sun stands
+    (its direction, so the shadows do not swing while the clock hurries through the middle of the day)."""
+    e, b = math.radians(el), math.radians(bearing)
+    return (daylight(el), darkness(el), smoothstep(-1.0, 2.0, el), sky_light(el), 1.0 - smoothstep(-2.0, 6.0, el),
+            warmth(el, 0.0), SUN_TURN * math.cos(e) * math.cos(b), SUN_TURN * math.cos(e) * math.sin(b),
+            SUN_TURN * math.sin(e))
+
+
+@functools.lru_cache(maxsize=512)
+def _clock_table(h0: float, h1: float, day: int, latitude: float) -> tuple:
+    """(hours, share of the step) along the clock's way ``h0`` → ``h1`` (h1 ≥ h0): each piece of the way gets time
+    by how much the light changes on it, plus an even part."""
+    n = CLOCK_SAMPLES
+    hours = [h0 + (h1 - h0) * i / n for i in range(n + 1)]
+    parts = [_light_parts(*sun_position(h % 24.0, day, latitude)) for h in hours]
+    work = [0.0]
+    for i in range(1, n + 1):
+        work.append(work[-1] + sum(abs(x - y) for x, y in zip(parts[i], parts[i - 1])))
+    total = work[-1]
+    if total < 1e-9:
+        share = [i / n for i in range(n + 1)]
+    else:
+        share = [CLOCK_EVEN * i / n + (1.0 - CLOCK_EVEN) * work[i] / total for i in range(n + 1)]
+    return tuple(hours), tuple(share)
+
+
+def clock_at(h0: float, h1: float, f: float, day: int = EQUINOX_DAY, latitude: float = DEFAULT_LATITUDE) -> float:
+    """The clock a share ``f`` (0 … 1) through a step from ``h0`` to ``h1``. It goes the shorter way round the clock
+    (task 0299: 22:00 → 02:00 forward through midnight, 15:00 → 14:00 back an hour – before, every earlier time ran on
+    through a whole night; 12 hours apart: forward). Not even in time: through sunrise and sunset the clock slows down
+    so the light changes at an even pace – a step of 12 hours in 5 s switched the sun on or off within 1–3 frames
+    before; through the night and the middle of the day it runs faster."""
+    f = min(max(float(f), 0.0), 1.0)
+    a = float(h0) % 24.0
+    d = (float(h1) - a) % 24.0
+    if d > 12.0 + 1e-9:
+        d -= 24.0                                   # back: the shorter way
+    if abs(d) < 1e-9:
+        return a
+    b = a + d
+    lo, hi = (a, b) if d > 0 else (b, a)
+    hours, share = _clock_table(round(lo, 6), round(hi, 6), int(day), round(float(latitude), 4))
+    if d < 0:                                       # the same table, walked from its end
+        f = 1.0 - f
+    i = bisect.bisect_left(share, f)
+    if i <= 0:
+        return _day_hour(hours[0])
+    if i >= len(share):
+        return _day_hour(hours[-1])
+    s0, s1 = share[i - 1], share[i]
+    t = 0.0 if s1 - s0 < 1e-15 else (f - s0) / (s1 - s0)
+    return _day_hour(hours[i - 1] + (hours[i] - hours[i - 1]) * t)
+
+
+def _day_hour(h: float) -> float:
+    """``h`` on the clock, 0 ≤ h < 24 (float rounding can make ``% 24`` give 24.0: found by the independent tester)."""
+    r = float(h) % 24.0
+    return 0.0 if r >= 24.0 else r
+
+
 def mix(a: State, b: State, f: float) -> State:
-    """The weather a fraction ``f`` of the way from ``a`` to ``b``. The clock runs forward (22:00 → 02:00 goes
-    through midnight); visibility changes evenly in log scale (the fog closes in evenly); the wind direction turns
-    the short way; choices switch half way."""
+    """The weather a fraction ``f`` of the way from ``a`` to ``b``. The clock goes the shorter way round (22:00 →
+    02:00 through midnight) and slows down through sunrise and sunset (:func:`clock_at`); visibility changes evenly in log
+    scale (the fog closes in evenly); the wind direction turns the short way; choices switch half way."""
     f = min(max(float(f), 0.0), 1.0)
     if f <= 0.0:
         return a
     if f >= 1.0:
         return b
-    h1 = b.hour if b.hour >= a.hour else b.hour + 24.0
     d_dir = ((b.wind_from - a.wind_from + 180.0) % 360.0) - 180.0
     pick = (lambda x, y: y if f >= 0.5 else x)
+    # the date goes day by day (the shorter way round the year; no date = the equinox): switching it half way moved
+    # the sun by up to 40° in one frame (found by the independent tester of task 0299)
+    da = a.day if a.use_date else EQUINOX_DAY
+    db = b.day if b.use_date else EQUINOX_DAY
+    d_day = (db - da + 183) % 366 - 183
+    day = int(round(da + d_day * f - 1)) % 366 + 1
     return State(
-        hour=_lerp(a.hour, h1, f) % 24.0 if f < 1.0 else b.hour,
-        use_date=pick(a.use_date, b.use_date), day=pick(a.day, b.day),
+        hour=clock_at(a.hour, b.hour, f, da, a.latitude),
+        use_date=a.use_date or b.use_date, day=day,
         latitude=_lerp(a.latitude, b.latitude, f), north=a.north + ((b.north - a.north + 180.0) % 360.0 - 180.0) * f,
         clouds=_lerp(a.clouds, b.clouds, f), low_clouds=_lerp(a.low_clouds, b.low_clouds, f),
         visibility=math.exp(_lerp(math.log(max(a.visibility, 1.0)), math.log(max(b.visibility, 1.0)), f)),
@@ -297,7 +403,9 @@ def mix(a: State, b: State, f: float) -> State:
         snow=_lerp(a.snow, b.snow, f), snow_cover=_lerp(a.snow_cover, b.snow_cover, f),
         wind=_lerp(a.wind, b.wind, f), wind_from=(a.wind_from + d_dir * f) % 360.0,
         wind_ref=pick(a.wind_ref, b.wind_ref), floodlights=pick(a.floodlights, b.floodlights),
-        flood_strength=_lerp(a.flood_strength, b.flood_strength, f), bow_az=a.bow_az)
+        flood_strength=_lerp(a.flood_strength, b.flood_strength, f), bow_az=a.bow_az,
+        lightning=_lerp(a.lightning, b.lightning, f), mist=_lerp(a.mist, b.mist, f), hail=_lerp(a.hail, b.hail, f),
+        heat=_lerp(a.heat, b.heat, f))
 
 
 # ---------------------------------------------------------------------------
@@ -335,6 +443,13 @@ CHANNELS = {
     "wind_x": (-1.0, 1.0, "direction the wind blows towards, x"),
     "wind_y": (-1.0, 1.0, "direction the wind blows towards, y"),
     "foam": (0.0, 10.0, "white-cap threshold of the sea's foam field (core/sea.foam_threshold): lower = more foam"),
+    # task 0299
+    "lightning": (0.0, 1.0, "how often lightning flashes, 0 … 1"),
+    "flash": (0.0, 1.0, "a lightning flash now, 0 (none) … 1 (the brightest); keyed by Build"),
+    "bolt": (0.0, 3.0, "which of the four bolts in the sky the flash shows (0 … 3)"),
+    "mist": (0.0, 60.0, "density of the mist at the water or the ground, per km (thinner higher up)"),
+    "hail": (0.0, 1.0, "falling hail"),
+    "heat": (0.0, 1.0, "hot air: bright haze, heat shimmer"),
 }
 CHANNEL_NAMES = tuple(CHANNELS)
 
@@ -344,12 +459,24 @@ def prop(name: str) -> str:
     return PREFIX + name
 
 
+FOAM_STEP = 0.5             # Bft: the sea's white-cap threshold is worked out exactly at these and interpolated between
+
+
 def _foam_threshold(bft: float) -> float:
+    """The sea's white-cap threshold (``core/sea.foam_threshold``) – exact on every half Beaufort, straight between:
+    each new wind took 0.1 s to work out, and a step whose wind changes asked for a new one at every frame (task 0299:
+    12 s of a Build)."""
     try:
         from . import sea
-        return float(sea.foam_threshold(bft))
-    except (ImportError, AttributeError):          # (before core/sea.py exists)
+    except ImportError:                             # (before core/sea.py exists)
         return 1.0 - 0.1 * min(max(bft, 0.0), 10.0)
+    b = min(max(float(bft), 0.0), 12.0)
+    lo = math.floor(b / FOAM_STEP + 1e-9) * FOAM_STEP
+    if b - lo < 1e-9:
+        return float(sea.foam_threshold(lo))
+    hi = min(lo + FOAM_STEP, 12.0)
+    t = (b - lo) / FOAM_STEP
+    return float(sea.foam_threshold(lo)) * (1.0 - t) + float(sea.foam_threshold(hi)) * t
 
 
 # The haze's colour (normalised to brightness about 1) by day, at a low sun and at night. The channels fog_r/g/b
@@ -367,6 +494,9 @@ MOON_SKY = 0.002              # what a full moon adds to the night sky
 SUN_W = 13.0                 # the sky texture's sun overhead in Sun-lamp units (W/m², measured on a white plane)
 MOON_W = 0.03                # moonlight (Sun lamp, W/m²) at moon 1: with the night's +4 EV a dim blue light
 NIGHT_EV = 2.0               # EV added in the dark on top of the +2 of dusk (+4 in all)
+MIST_KM = 3.912 / 0.15       # mist 1: density at the surface per km (150 m visibility at the water)
+MIST_HEIGHT = 25.0           # m: the mist's density falls to 1/e this far above the water or the ground
+HEAT_HAZE = (1.10, 1.04, 0.92)   # the haze on a hot day: brighter and a little warm (x the day haze colour)
 
 
 def sky_light(sun_el: float) -> float:
@@ -414,7 +544,9 @@ def derive(st: State, place: str = "sky") -> dict:
     warm = warmth(el, clouds)
     lit = fog_level(el, clouds, low)
     dark = NIGHT_SKY * night + MOON_SKY * moon
-    fog_col = tuple((FOG_DAY[i] + (FOG_DUSK[i] - FOG_DAY[i]) * warm) * lit + FOG_NIGHT[i] * dark for i in range(3))
+    heat = min(max(st.heat, 0.0), 1.0)
+    fog_col = tuple((FOG_DAY[i] + (FOG_DUSK[i] - FOG_DAY[i]) * warm) * (1.0 + (HEAT_HAZE[i] - 1.0) * heat) * lit
+                    + FOG_NIGHT[i] * dark for i in range(3))
     flood = {"ON": 1.0, "OFF": 0.0}.get(st.floodlights, 1.0 - smoothstep(-2.0, 6.0, el))
     wx, wy = wind_vector(st)
     ch = {
@@ -426,16 +558,21 @@ def derive(st: State, place: str = "sky") -> dict:
         "exposure": exposure_for(el, clouds),
         "flood": flood * min(max(st.flood_strength, 0.0), 4.0),
         "rain": min(max(st.rain, 0.0), 1.0), "drop": min(max(st.drop_size, 0.2), 8.0),
-        "wet": min(max(max(st.wet, st.rain), 0.0), 1.0),
+        "wet": min(max(max(st.wet, st.rain, 0.8 * st.hail), 0.0), 1.0),
         "snow": min(max(st.snow, 0.0), 1.0), "cover": min(max(st.snow_cover, 0.0), 1.0),
         "wind": bft_to_ms(st.wind), "wind_x": wx, "wind_y": wy,
         "foam": _foam_threshold(st.wind),
+        "lightning": min(max(st.lightning, 0.0), 1.0), "flash": 0.0, "bolt": 0.0,
+        "mist": MIST_KM * min(max(st.mist, 0.0), 1.0),
+        "hail": min(max(st.hail, 0.0), 1.0), "heat": heat,
     }
     if place == "photo":                     # the photo keeps its own sky and light
-        ch.update(sun_el=45.0, day=1.0, night=0.0, sun=1.0, stars=0.0, moon=0.0, exposure=0.0, flood=0.0)
+        ch.update(sun_el=45.0, day=1.0, night=0.0, sun=1.0, stars=0.0, moon=0.0, exposure=0.0, flood=0.0,
+                  lightning=0.0, mist=0.0, heat=0.0)
     elif place == "indoor":
         ch.update(sun_el=45.0, day=1.0, night=0.0, sun=1.0, stars=0.0, moon=0.0, exposure=0.0, flood=0.0,
-                  fog=0.0, rain=0.0, wet=0.0, snow=0.0, cover=0.0, wind=0.0)
+                  fog=0.0, rain=0.0, wet=0.0, snow=0.0, cover=0.0, wind=0.0, lightning=0.0, mist=0.0, hail=0.0,
+                  heat=0.0)
     return {k: float(v) for k, v in ch.items()}
 
 
@@ -480,6 +617,10 @@ def words(st: State, place: str = "sky") -> str:
         bits.append("overcast" if st.clouds >= 0.8 else "cloudy" if st.clouds >= 0.4 else "clear")
     if place != "indoor":
         bits.append(f"Bft {st.wind:.0f}")
+        if st.lightning > 0.01:
+            bits.append("lightning")
+        if st.hail > 0.01:
+            bits.append("hail")
         if st.rain > 0.01:
             bits.append("rain")
         if st.snow > 0.01:
@@ -488,6 +629,10 @@ def words(st: State, place: str = "sky") -> str:
             bits.append("snow on the ground")
         if st.wet > 0.01 and st.rain <= 0.01:
             bits.append("wet")
+        if place == "sky" and st.mist > 0.01:
+            bits.append("sea mist")
+        if place == "sky" and st.heat > 0.01:
+            bits.append("heat haze")
         if place == "sky" and st.visibility < 15000.0:
             bits.append(visibility_words(st.visibility))
     return " · ".join(bits) if bits else "indoors"

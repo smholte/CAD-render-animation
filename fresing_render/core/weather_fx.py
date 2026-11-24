@@ -323,3 +323,151 @@ def flag_place(lo, hi, stern_x: bool) -> tuple:
     if stern_x:
         return float(hi[0] - 0.04 * (hi[0] - lo[0])), float(0.5 * (lo[1] + hi[1]))
     return float(hi[0] - 0.05 * (hi[0] - lo[0])), float(hi[1] - 0.05 * (hi[1] - lo[1]))
+
+
+# ---------------------------------------------------------------------------
+# lightning (task 0299)
+# ---------------------------------------------------------------------------
+
+SEED_FLASH, SEED_BOLT, SEED_HAIL = 4091, 5091, 6091
+LIGHTNING_GAP = 3.0                # s: the mean time between two flashes at lightning 1 (it grows as 1 / lightning)
+FLASH_MIN_GAP = 1.0                # s: two flashes never come closer than this
+# One flash in steps of 0.04 s: a lightning flash is a few return strokes 40–60 ms apart down the same channel
+# (Rakov & Uman, "Lightning", 2003: 3–5 strokes, ~60 ms apart); the light flickers and dies within ~0.2 s.
+FLASH_SHAPE = (1.0, 0.3, 0.85, 0.25, 0.6, 0.12, 0.0)
+FLASH_STEP = 0.04
+FLASH_LIFE = FLASH_STEP * (len(FLASH_SHAPE) - 1)
+N_BOLTS = 4                        # bolts in the sky; a flash shows one of them (the ``bolt`` channel)
+BOLT_DISTANCE = 900.0              # m from the model: inside the storm's 4 km visibility, far enough to look far
+BOLT_TOP = 650.0                   # m: where the bolt leaves the cloud base
+BOLT_SPREAD = 32.0                 # degrees: the bolts stand within ±this of the camera's view
+
+
+def flash_shape(seconds) -> np.ndarray:
+    """A flash's brightness ``seconds`` after it began (0 before it and after FLASH_LIFE), linear between the steps."""
+    t = np.asarray(seconds, dtype=float) / FLASH_STEP
+    out = np.interp(t, np.arange(len(FLASH_SHAPE), dtype=float), np.asarray(FLASH_SHAPE, dtype=float),
+                    left=0.0, right=0.0)
+    return np.where(t < 0.0, 0.0, out)
+
+
+def flash_moments(rate, fps: float, seed: int = SEED_FLASH) -> list:
+    """The frames (index into ``rate``, from 0) where a random flash starts, and its strength. ``rate`` = the
+    ``lightning`` channel per frame (0 … 1). A flash may start in a frame with probability rate / mean gap (a Poisson
+    process thinned by the rate, so the flashes thin out as the lightning fades and stop where it is 0); never two
+    closer than FLASH_MIN_GAP. Strength 0.55 … 1, higher with more lightning. Same rates, same seed: same flashes."""
+    r = np.clip(np.asarray(rate, dtype=float), 0.0, 1.0)
+    rng = np.random.default_rng(int(seed))
+    draw = rng.random(len(r))
+    amp = rng.random(len(r))
+    dt = 1.0 / max(float(fps), 1.0)
+    p = r * dt / LIGHTNING_GAP
+    out = []
+    last = -1.0e9
+    for i in range(len(r)):
+        if r[i] <= 0.0 or (i - last) * dt < FLASH_MIN_GAP:
+            continue
+        if draw[i] < p[i]:
+            out.append((i, 0.55 + 0.45 * r[i] * (0.6 + 0.4 * amp[i])))
+            last = i
+    return out
+
+
+def flash_track(rate, fps: float, fixed=(), seed: int = SEED_FLASH) -> tuple:
+    """(flash, bolt) per frame: the brightness of the flash now (0 … 1) and which bolt it shows (0 … N_BOLTS-1, held
+    until the next flash). ``rate``: lightning per frame; ``fixed``: frame indices where a flash is wanted (set
+    moments, strength 1, whatever the rate)."""
+    n = len(rate)
+    fps = max(float(fps), 1.0)                       # (fps 0 gave NaN: the independent tester)
+    flash = np.zeros(n)
+    bolt = np.zeros(n)
+    starts = [(i, a) for i, a in flash_moments(rate, fps, seed)]
+    starts += [(int(i), 1.0) for i in fixed if 0 <= int(i) < n]
+    starts.sort()
+    rng = np.random.default_rng(int(seed) + 1)
+    which = rng.integers(0, N_BOLTS, size=max(len(starts), 1))
+    frames = np.arange(n, dtype=float)
+    for k, (i, a) in enumerate(starts):
+        flash = np.maximum(flash, a * flash_shape((frames - i) / float(fps)))
+        bolt[i:] = which[k]
+    return np.clip(flash, 0.0, 1.0), bolt
+
+
+def bolt_path(seed: int, height: float = BOLT_TOP) -> list:
+    """One bolt as polylines in its own frame (x sideways, z up; the channel from z = ``height`` at the cloud base
+    down to z = 0): the main channel of ~70 pieces, a random walk that keeps heading down, and 2–4 branches that
+    leave it and die out half way. Seeded: the same seed, the same bolt."""
+    rng = np.random.default_rng(int(seed))
+    n = 70
+    seg = height / n
+    pts = [np.array([0.0, 0.0, height])]
+    heading = np.array([0.0, 0.0, -1.0])
+    for _ in range(n):
+        turn = rng.normal(0.0, 0.55, 3)
+        turn[2] = 0.0
+        d = heading + turn
+        d[2] = -abs(d[2]) - 0.35                     # always on the way down
+        d = d / np.linalg.norm(d)
+        p = pts[-1] + d * seg * (0.6 + 0.8 * rng.random())
+        pts.append(p)
+        if p[2] <= 0.0:
+            break
+    main = np.array(pts)
+    main[-1, 2] = 0.0
+    lines = [main]
+    for _ in range(int(rng.integers(2, 5))):
+        k = int(rng.integers(4, max(5, len(main) // 2)))
+        q = [main[k]]
+        side = rng.choice((-1.0, 1.0))
+        for _ in range(int(rng.integers(8, 20))):
+            d = np.array([side * (0.6 + 0.6 * rng.random()), rng.normal(0.0, 0.4), -(0.4 + rng.random())])
+            q.append(q[-1] + d / np.linalg.norm(d) * seg * (0.5 + 0.7 * rng.random()))
+            if q[-1][2] <= 0.0:
+                break
+        lines.append(np.array(q))
+    return lines
+
+
+def bolt_places(centre, view_az: float, base_z: float, n: int = N_BOLTS, distance: float = BOLT_DISTANCE) -> list:
+    """Where the bolts stand: (x, y, z of the foot, the azimuth they are seen at) round ``centre`` (x, y) in a fan of
+    ±BOLT_SPREAD about ``view_az`` (scene azimuth the camera looks along, degrees), each a little further than the
+    one before, their feet at ``base_z``."""
+    out = []
+    for i in range(n):
+        az = float(view_az) + (-1.0 + 2.0 * i / max(n - 1, 1)) * BOLT_SPREAD
+        d = distance * (0.85 + 0.12 * i)
+        a = math.radians(az)
+        out.append((float(centre[0]) + d * math.cos(a), float(centre[1]) + d * math.sin(a), float(base_z), az))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# hail (task 0299)
+# ---------------------------------------------------------------------------
+
+HAIL_MM = 8.0                      # a hail stone's size (mm): small hail and ice pellets 5 … 10 mm
+HAIL_DENSITY = 4.0                 # falling stones per m3 at hail 1
+HAIL_BOX = (30.0, 30.0, 16.0)
+BOUNCE_PERIOD = 0.9                # s between two stones hopping on one spot (at full hail)
+BOUNCE_LIFE = 0.4                  # s a stone hops (one bounce up and down again)
+GRAVITY = 9.81
+
+
+def hail_speed(mm: float = HAIL_MM) -> float:
+    """Fall speed (m/s) of a hail stone of ``mm`` diameter: Matson & Huggins (1980), v = 11.45 D^0.5 (D in cm):
+    6 mm → 8.9 m/s, 10 mm → 11.5 m/s."""
+    return 11.45 * math.sqrt(max(float(mm), 1.0) / 10.0)
+
+
+def bounce_height(life: float = BOUNCE_LIFE) -> float:
+    """How high a stone hops when it is in the air ``life`` seconds: v0 = g life / 2, h = v0² / 2g."""
+    v0 = GRAVITY * life / 2.0
+    return v0 * v0 / (2.0 * GRAVITY)
+
+
+def bounce_z(age_s) -> np.ndarray:
+    """A hopping stone's height (m) over its spot ``age_s`` seconds into its hop (0 outside 0 … BOUNCE_LIFE)."""
+    t = np.asarray(age_s, dtype=float)
+    v0 = GRAVITY * BOUNCE_LIFE / 2.0
+    z = v0 * t - 0.5 * GRAVITY * t * t
+    return np.where((t >= 0.0) & (t <= BOUNCE_LIFE), np.maximum(z, 0.0), 0.0)

@@ -1,4 +1,5 @@
-"""Operators of 5 Scene & Render > Weather & time (task 0109): work lights."""
+"""Operators of 5 Scene & Render > Weather & time (task 0109): work lights; task 0299: a preset from the picture
+grid, Change to ▸ a preset at the playhead."""
 
 from __future__ import annotations
 
@@ -70,4 +71,56 @@ class FRESING_OT_work_light_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_work_light_add, FRESING_OT_work_light_remove)
+def _preset_items(self, context):
+    from ..core import weather as core
+    return [(k, core.PRESETS[k][0], core.PRESETS[k][1]) for k in core.PRESET_ORDER]
+
+
+class FRESING_OT_weather_preset(bpy.types.Operator):
+    """Sets this weather: every control below follows (switches Weather & time on). Change any of them afterwards"""
+
+    bl_idname = "fresing.weather_preset"
+    bl_label = "Use this weather"
+    bl_options = {"REGISTER", "UNDO"}
+
+    name: bpy.props.EnumProperty(name="Weather", items=_preset_items,
+                                 description="The ready-made weather to use")
+
+    @classmethod
+    def description(cls, context, props):
+        from ..core import weather as core
+        if props is not None and props.name in core.PRESETS:
+            return f"{core.PRESETS[props.name][0]}: {core.PRESETS[props.name][1]}. Sets every control below"
+        return cls.__doc__
+
+    def execute(self, context):
+        from . import weather
+        w = context.scene.fresing.weather
+        if not w.enabled:
+            w.enabled = True
+        weather.use_preset(context.scene, self.name)
+        return {"FINISHED"}
+
+
+class FRESING_OT_weather_change(bpy.types.Operator):
+    """Adds a Weather & time step to the animation at the playhead: the weather changes to the picked one over the
+    seconds set. Move the playhead later and add another change; Build & play shows it"""
+
+    bl_idname = "fresing.weather_change"
+    bl_label = "Add at playhead"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        from . import weather
+        from ..core import weather as core
+        scene = context.scene
+        w = scene.fresing.weather
+        anim, b, made = weather.change_at_playhead(scene, w.change_to, w.change_seconds)
+        verb = "Added" if made else "Changed"
+        self.report({"INFO"}, f"{verb}: {core.PRESETS[w.change_to][0]} over {w.change_seconds:g} s from "
+                              f"{b.start:g} s in '{anim.name}'. Build & play shows it")
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_work_light_add, FRESING_OT_work_light_remove, FRESING_OT_weather_preset,
+           FRESING_OT_weather_change)

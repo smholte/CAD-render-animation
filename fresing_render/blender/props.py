@@ -906,8 +906,20 @@ EASE_ITEMS = [("SMOOTH", "Smooth", "Slow start and slow stop (a motor speeds up 
               ("EASE_OUT", "Slow stop", "Starts at full speed, slows down to a stop")]
 
 WEATHER_PRESET_ITEMS = [("CUSTOM", "Own settings", "The settings below, as you set them", 0)] + [
-    (k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1] + ". Sets the controls below", i + 1)
-    for i, k in enumerate(weather_core.PRESET_ORDER)]
+    (k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1] + ". Sets the controls below",
+     weather_core.PRESET_NUMBER[k]) for k in weather_core.PRESET_ORDER]
+# Change to ▸ (task 0299): the presets only (no "Own settings")
+WEATHER_CHANGE_ITEMS = [(k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1], weather_core.PRESET_NUMBER[k])
+                        for k in weather_core.PRESET_ORDER]
+
+
+def _wx_new_field(self, context):
+    """A value of task 0299 changed on a Weather & time step made before it (task 0299): the step's other new values
+    start from the weather before it, then it counts all of them."""
+    if self.get("fr_wx_v", 1) >= 2 or context is None or context.scene is None:
+        return
+    from . import weather
+    weather.upgrade_step(context.scene, self)
 
 
 def _wx_step_preset(self, context):
@@ -1454,6 +1466,23 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                                        "white caps follow it (the waves themselves keep the wind of the start)")
     wx_wind_from: FloatProperty(name="Wind from", default=225.0, min=-360.0, max=360.0, precision=0,
                                 description="Where the wind comes from at the end of the step (as in Weather & time)")
+    # task 0299
+    wx_drop_size: FloatProperty(name="Drop size", default=2.0, min=0.5, max=6.0, precision=1, update=_wx_new_field,
+                                description="Size of the rain drops (mm) at the end of the step")
+    wx_lightning: FloatProperty(name="Lightning", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                                description="How often lightning flashes at the end of the step (0 = none). Flashes "
+                                            "come at random while it is above 0, more often the higher it is")
+    wx_flash_at: StringProperty(
+        name="Flash at", default="",
+        description="Lightning flashes at these moments, in seconds from the step's start (e.g. 1.5, 3). Added to the "
+                    "random flashes; leave empty for random flashes only")
+    wx_mist: FloatProperty(name="Sea mist", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                           description="Mist lying low on the water or the ground at the end of the step (it rolls "
+                                       "in or lifts over the step)")
+    wx_hail: FloatProperty(name="Hail", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                           description="Falling hail at the end of the step: the stones bounce on the deck")
+    wx_heat: FloatProperty(name="Heat", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                           description="Hot air at the end of the step: a bright haze and heat shimmer in the distance")
 
     # ---- Vessel at work step (task 0154): what the vessel does at the step's end (it starts from what it did) ----
     vw_mode: EnumProperty(
@@ -3955,6 +3984,32 @@ class FRWeather(bpy.types.PropertyGroup):
     flood_strength: FloatProperty(
         name="Floodlight strength", default=1.0, min=0.0, max=4.0, subtype="FACTOR", update=_weather_changed,
         description="How bright the floodlights are: 1 is normal, 2 twice as bright")
+    lightning: FloatProperty(
+        name="Lightning", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="How often lightning flashes: 0.3 now and then, 1 every few seconds. In a video the flashes light "
+                    "the whole scene for a moment and bolts strike in the distance (Build & play); a picture shows a "
+                    "flash with 'Flash in the picture'")
+    flash_still: BoolProperty(
+        name="Flash in the picture", default=False, update=_weather_changed,
+        description="A still picture (and the view now) shows a lightning flash: the scene lit up, a bolt in the sky. "
+                    "Videos have their own flashes")
+    mist: FloatProperty(
+        name="Sea mist", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Mist lying low on the water or the ground, thinner higher up: banks of it drift with the wind, so "
+                    "the machine fades in and out. 1 is thick (about 120 m at the water)")
+    hail: FloatProperty(
+        name="Hail", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Falling hail: small ice stones that bounce on the deck and the machine's top faces. With rain and "
+                    "a little snow it is sleet")
+    heat: FloatProperty(
+        name="Heat", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Hot air: a bright, slightly warm haze and heat shimmer that makes the distance waver (in renders)")
+    change_to: EnumProperty(
+        name="Change to", items=WEATHER_CHANGE_ITEMS, default="THUNDERSTORM",
+        description="The weather an animation changes to at the playhead (Add at playhead)")
+    change_seconds: FloatProperty(
+        name="Over", default=5.0, min=0.5, max=120.0, precision=1, unit="TIME_ABSOLUTE",
+        description="How long the change takes, in seconds of the video")
     spray: BoolProperty(
         name="Spray", default=True, update=_weather_changed,
         description="Spray blown off the wave tops and thrown up at the bow in strong wind (from Bft 6)")

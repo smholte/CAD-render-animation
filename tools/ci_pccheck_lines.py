@@ -33,7 +33,9 @@ TOUR = os.path.join(ROOT, "fresing_render", "blender", "tour.py")
 LINUX2 = ("video.labels", "queue.time_test", "render.eevee", "queue.eevee", "weather.time", "weather.rain", "weather.snow",
           "weather.fog", "house.toolbox",      # task 0217: a small house bake (~40 s); pccheck ran past 15 min
           "queue.video",                       # task 0279: ~100 s; pccheck ran past 15 min again (14.5 min runs before)
-          "scene.turntable")                   # task 0282: ~60 s; pccheck reached 15.0 min and then ran past it
+          "scene.turntable",                   # task 0282: ~60 s; pccheck reached 15.0 min and then ran past it
+          "weather.thunderstorm", "weather.mist", "weather.sunrise", "weather.sunset", "weather.hail",
+          "weather.heat")                      # task 0299: ~32 s; pccheck ran past 15 min once more
 # Not run on Windows (they run on Linux, in `pccheck` / `pccheck2`): long renders of the app's own code. The
 # Windows-specific parts stay: install, start, import, a CPU render, the queue's background Blender (queue.frame_shown),
 # the update check, the launch from the Tools-folder shortcut and the report.
