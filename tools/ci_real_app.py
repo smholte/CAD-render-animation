@@ -73,6 +73,9 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 14, "importagain": 18, "place": 22, "jointfold": 11}
+# Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
+# took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on).
+LONG_MIN = {"pccheck": 25, "pccheck2": 25}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -356,7 +359,6 @@ def main(argv=None) -> int:
 
     base_env = dict(os.environ, BLENDER_USER_RESOURCES=user_res, PYTHONUNBUFFERED="1",
                     TOOLBOX_HOME=os.path.join(work, "Toolbox é"))   # task 0217: never the runner's own home folder
-    timeout = args.timeout_min * 60
     rows = []
     keys = GROUPS[args.group] if args.group else [k.strip() for k in args.only.split(",") if k.strip()]
     for key in keys:
@@ -408,14 +410,15 @@ def main(argv=None) -> int:
         for cf in crash_files:
             if os.path.isfile(cf):
                 os.remove(cf)
-        code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
+        minutes = max(args.timeout_min, LONG_MIN.get(key, 0))
+        code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), minutes * 60)
         if code not in (0, 1):                       # Blender itself stopped (139 = it crashed): show where
             import glob
             for cf in sorted(set(crash_files + glob.glob(os.path.join(tempfile.gettempdir(), "*.crash.txt")))):
                 if os.path.isfile(cf):
                     with open(cf, encoding="utf-8", errors="replace") as fh:
                         print(f"-- Blender's crash file {cf} (exit code {code}):\n" + fh.read()[:6000], flush=True)
-        verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
+        verdict, detail, fails = judge(key, code, text, minutes, bool(os.environ.get("UITEST_QUICK")))
         if gui == "pccheck":                         # skips only for "no graphics card", every line there
             import ci_check_pccheck
             block = os.path.join(folder, "history", "last_run.txt")
