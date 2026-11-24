@@ -2935,8 +2935,9 @@ Good to know:
 - A joint may be in several lead motions: the last one moved wins (above).
 - Saved with the project, in backups and Save as. A **model update** keeps them; a renamed joint is followed, a joint
   that is gone leaves its row marked **missing** in red (the rest still works).
-- On a big model only the joints of the lead motion you drag are touched (measured: under 1 ms per slider change on
-  the test crane, the test mill and the PC check's Heavy machine without the view's own drawing).
+- Only the joints of the lead motion you drag are touched: a slider change costs what moving those joints by hand
+  costs (measured on a 4-core test machine, without drawing the view: 0.2 ms on the test crane and the test mill,
+  about 21 ms on the PC check's Heavy machine of 3,000 parts).
 
 <a id="milling"></a>
 ### Milling

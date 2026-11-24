@@ -75,10 +75,11 @@ def test_a_broken_entry_is_caught(repo, kw, words):
 
 
 def test_a_lesson_step_that_does_not_exist_is_caught(repo):
-    repo = dict(repo, lessons=dict(repo["lessons"], crane=11), lesson_steps=None)
+    n = repo["lessons"]["crane"]                          # (task 0309 added step 12: read the count, not 11)
+    repo = dict(repo, lesson_steps=None)
     assert F.problems(_with(lesson="crane:3"), **repo) == []
-    found = F.problems(_with(lesson="crane:12"), **repo)
-    assert any("lesson step 'crane:12' does not exist" in p for p in found)
+    found = F.problems(_with(lesson=f"crane:{n + 1}"), **repo)
+    assert any(f"lesson step 'crane:{n + 1}' does not exist" in p for p in found)
 
 
 def test_a_stop_line_or_section_nobody_names_is_caught(repo):

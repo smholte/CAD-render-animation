@@ -157,7 +157,8 @@ def apply(scene, lm, pct: float | None = None, refresh: bool | None = None) -> i
         refresh = bpy.app.background
     if refresh and n:
         follow(scene)
-    scene.fresing.bounds_valid = False
+    if n and scene.fresing.bounds_valid:          # (a scene setting written only when it changes: a write costs an
+        scene.fresing.bounds_valid = False        # update of the scene on a big model)
     TIMING["last_ms"] = (time.perf_counter() - t0) * 1000.0
     TIMING["count"] += 1
     return n

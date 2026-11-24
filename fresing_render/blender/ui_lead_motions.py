@@ -84,11 +84,14 @@ class TOPBAR_PT_fresing_lead(bpy.types.Panel):
 
 
 DRAWN = {"menu": 0, "button": 0}     # how often the drop-down and its button were drawn (tests)
+HIDE = [False]                       # the real-app test finds the button by drawing the top bar without it once
 
 
 def draw_button(layout, context) -> None:
     """The top bar's button (``ui_topbar`` calls it right after the Fresing menu)."""
     DRAWN["button"] += 1
+    if HIDE[0]:
+        return
     layout.popover(panel=TOPBAR_PT_fresing_lead.__name__, text="Lead motions", icon="CON_ACTION")
 
 

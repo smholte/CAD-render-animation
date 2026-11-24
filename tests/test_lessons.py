@@ -24,7 +24,7 @@ LESSONS = os.path.join(ROOT, "fresing_render", "blender", "lessons")
 def test_the_lessons_are_read_without_blender_and_every_link_is_right():
     steps = functions.read_lessons(LESSONS)
     assert set(steps) == {"crane", "mill", "weather"}
-    assert len(steps["crane"]) == 11 and 10 <= len(steps["mill"]) <= 13 and len(steps["weather"]) == 4
+    assert len(steps["crane"]) == 12 and 10 <= len(steps["mill"]) <= 13 and len(steps["weather"]) == 4
     assert steps["crane"][0] == steps["mill"][0] == steps["weather"][0] == "import.step"
     linked = {f.id: f.lesson for f in functions.FUNCTIONS.values() if f.lesson}
     for fid, link in linked.items():
@@ -52,7 +52,7 @@ def test_a_broken_lesson_link_is_refused():
 
 def test_the_precheck_reads_the_lessons():
     got = functions.read_repo(ROOT)
-    assert got["lessons"] == {"crane": 11, "mill": len(got["lesson_steps"]["mill"]), "weather": 4}
+    assert got["lessons"] == {"crane": 12, "mill": len(got["lesson_steps"]["mill"]), "weather": 4}
     assert functions.problems(**got) == []
 
 

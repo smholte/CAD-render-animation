@@ -54,6 +54,19 @@ class FRESING_OT_lead_play(bpy.types.Operator):
     def poll(cls, context):
         return context.scene is not None and len(context.scene.fresing.lead_motions) > 0
 
+    @classmethod
+    def description(cls, context, props):
+        """The lead motion's own description first (its tooltip, task 0309), then what ▶ does."""
+        doc = " ".join((cls.__doc__ or "").split())
+        try:
+            s = context.scene.fresing
+            lm = s.lead_motions[props.index] if 0 <= props.index < len(s.lead_motions) else None
+            if lm is not None and lm.description.strip():
+                return f"{lm.name}: {lm.description.strip()}. {doc}"
+        except (AttributeError, IndexError):
+            pass
+        return doc
+
     def _legs(self, lm):
         if self.TEST:
             return [(lm.position, 100.0), (100.0, 0.0)]
@@ -237,7 +250,7 @@ class FRESING_OT_lead_edit(bpy.types.Operator):
 
     def invoke(self, context, event):
         from . import form_window
-        return form_window.open(self, context, width=560, height=640, title="Lead motions", confirm=None,
+        return form_window.open(self, context, width=560, height=900, title="Lead motions", confirm=None,
                                 icon="CON_ACTION")
 
     def execute(self, context):

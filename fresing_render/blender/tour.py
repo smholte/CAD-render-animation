@@ -4944,7 +4944,7 @@ stop("camera", MOTION, HUB_SET, "Camera rides and flies",
      "keeping the trolley in the middle of the picture. The thin line in the view is the path (never in renders).",
      where="6 Animation (Camera step: Ride along, Fly a path, Watch part)", since="0.2.62", animation=CAMERA_ANIM,
      play=True, check=_check_camera, auto="clip")
-stop("lead_motions", MOTION, HUB_SET, "Lead motions: one slider per function",
+stop("lead_motions", MOTION, HUB_SET, "Lead motions: a slider each",
      "The crane shows every function: 'Boom up and out' (the boom goes up, then the trolley runs out), 'Boom up' and "
      "'Trolley out', each out and back, its name as a caption. Then click Lead motions on the top bar (right of the "
      "Fresing menu): one slider per function. Drag 'Boom up and out' – the boom goes up first, the trolley follows; "

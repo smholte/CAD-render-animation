@@ -82,6 +82,7 @@ _COMMON = (
     "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
     "help.right_click", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
     "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
+    "motion.lead_motions",           # task 0309: the top bar's Lead motions, one click away in every workspace
 )
 TASK_WORKSPACES = {
     # a first good picture and a simple motion
@@ -98,6 +99,7 @@ TASK_WORKSPACES = {
         "scene.light", "scene.weather", "scene.props", "scene.camera", "scene.blur", "scene.still", "scene.shapes",
         "scene.turntable", "animation.product_video", "animation.build", "animation.finishing", "animation.brand",
         "animation.watermark", "animation.music", "queue.still", "queue.video", "queue.schemes",
+        "animation.lead_motion_step",
         "web.export", "web.surroundings", "web.light", "web.player", "web.view_names", "web.phone", "web.film",
     ),
     # import a STEP, sort + looks, surroundings, light, one picture or a turntable
@@ -116,6 +118,7 @@ TASK_WORKSPACES = {
         "looks.light_look", "scene.surroundings", "scene.camera", "scene.blur", "scene.still",
         "animation.labels", "animation.finishing", "animation.cards", "animation.music", "animation.brand",
         "animation.watermark", "queue.still", "queue.video", "queue.time_test", "queue.start_later",
+        "animation.lead_motion_step",
     ),
     # look at a finished model
     "reviewer": _COMMON + (
@@ -676,14 +679,13 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
    prop="vw_mode", guide="vessel-work-step", tour=("vessel_work",), since="0.2.127")
 # task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
 fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
-   family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_edit", guide="lead-motions",
+   family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_play", guide="lead-motions",
    tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.233", headline=True,
-   workspaces=tuple(k for k in WORKSPACE_KEYS if k not in EVERYTHING),
+   workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
    panel="FRESING_PT_animation", prop="lead", guide="lead-motion-step", tour=("lead_motions",),
-   pccheck=("motion.lead_motion",), since="0.2.233",
-   workspaces=("cnc", "offshore", "product", "education", "lifting", "sales", "animator"))
+   pccheck=("motion.lead_motion",), since="0.2.233", workspaces=_WORK + ("lifting",))
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
