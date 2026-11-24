@@ -128,7 +128,12 @@ session's own branch name, not `task/0319-welds`).
 **Tested and measured** (4-core web machine):
 - `tests/test_welds_core.py` (37), `tests/test_welds.py` (34), `tests/test_welds_independent.py` (57, written by an
   independent tester); the tour stop (Go + check), the PC check line (OK, 7.9 s; pick to bead 51 ms), the real-app test
-  (16/16), the tests of the shared files touched (251 passed locally); GitHub: see below.
+  (16/16), the tests of the shared files touched (251 passed locally).
+- **GitHub: 9 full runs.** 1 green at 0.2.222; then nine other tasks released first (0302, 0308, 0290, 0298, 0294, 0293,
+  0299, 0274, 0263 took 0.2.222 … 0.2.230), each time main merged and the version renumbered. Real faults found on the way:
+  the test tour's stop-count cap (100) and its halves' 15-minute box (one new stop moved 0299's weather stops into the
+  second half: both halves now get 25 min, like the PC check's). Two one-off misses that passed locally on the same
+  merge: the lessons test's undo (38/38 locally) and a click in the Place test (22/22 locally). Released as 0.2.231.
 - Test weldment, quick way, every pair right: fin 2 × 200 + 2 × 10 mm fillets; post 2 closed rings 189 mm (π × 60.3 =
   189.4); branch 152 + bore 126 mm; saddle 155 mm closed (corner 78–135°); butt 2 × 300 + 2 × 12 mm.
 - **~300 welds** (invented frame, 150 cells, 450 parts, normal quality): 300 welds, 900 seams, 87 m of bead made in
@@ -166,7 +171,8 @@ session's own branch name, not `task/0319-welds`).
   and the weld's own Rust).
 - **0293 (copy)**: not merged when this was built. A copied subassembly should copy each weld whose two parts are
   inside it: a new `FRWeld` with the copies as `part_a` / `part_b`, the same faces, `seam_data`, `rel` and settings,
-  then `welds.rebuild` (add as a hook in 0293).
+  then `welds.rebuild` (add as a hook in 0293). 0293 is now merged: Copy leaves the welds with the original (it copies model objects
+  only); the right-click menu has both entries.
 - **Web 3D model**: the beads are exported in their colour / paint; the ripples and the heat tint are not (the page
   bakes 0.2 m tiles in the part's space, they live on the weld's own UVs); the heat-zone strips are left out.
 - **No Heavy PC-check line**: the weld time grows with the number of welds, measured above with the invented 300-weld
