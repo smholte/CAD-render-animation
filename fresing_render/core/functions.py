@@ -314,6 +314,13 @@ fn(id="flex.draw_chain", title="Draw a drag chain between two brackets", family=
 fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simplified CAD part", family="machines",
    panel="FRESING_PT_flex", button="fresing.drawn_replace", guide="replace-cad", tour=("drawn_replace",),
    pccheck=("motion.drawn",), since="0.2.180")
+fn(id="flex.avoid", title="Hoses and cables avoid other parts: they lie on them instead of going through",
+   family="machines", panel="FRESING_PT_flex", prop="avoid", text="Avoid other parts", guide="flex-avoid",
+   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.221",
+   manual_estimate=("use", 1800, "reshape the hose by hand at every key frame where it would go through a part"))
+fn(id="flex.route", title="Shape a hose's route: drag via points between its ends", family="machines",
+   panel="FRESING_PT_flex", button="fresing.flex_route", text="Shape the route", guide="flex-route",
+   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.221")
 fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
    panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
    pccheck=("motion.flex_kinds",), since="0.2.182")

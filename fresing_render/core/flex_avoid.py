@@ -26,6 +26,7 @@ import numpy as np
 
 FAR = np.inf                    # the distance of a point no body is near
 MARGIN = 0.005                  # m: points this much further from a body's box than ``clear`` are not asked
+DEEP = 0.25                     # a point further inside a body than this share of ``clear`` leaves it ``toward``
 
 
 class Body:
@@ -120,8 +121,8 @@ class Field:
 
     ``field(ids, pts, clear, toward=None)``: ``ids`` (b,) the batch rows of ``pts`` (b, P, 3) -> (signed distance
     (b, P), unit direction out (b, P, 3)) to the nearest body of each row (``FAR`` and 0 where none is near).
-    ``toward`` (b, P, 3) unit directions: a point inside a body leaves it that way instead of through the nearest
-    face – its "distance" is then minus how far it has to go that way, its direction out that one (the hose comes
+    ``toward`` (b, P, 3) unit directions: a point more than ``DEEP`` × clear inside a body leaves it that way instead
+    of through the nearest face (one nearer the surface leaves square to it) – its "distance" is then minus how far it has to go that way, its direction out that one (the hose comes
     out of a part the side it went in, see ``core/flex._avoid``)."""
 
     def __init__(self, bodies, rows, which, places, reach=None, margin: float = MARGIN, clear=None):
@@ -160,13 +161,27 @@ class Field:
         out = np.zeros((b, p, 3))
         if not len(self.rows) or not b:
             return dist, out
+        reach = np.broadcast_to(np.asarray(clear, dtype=float).reshape(-1), (b,)) if np.ndim(clear) else \
+            np.full(b, float(clear))
+        _u, first = np.unique(ids, return_index=True)
+        if len(first) < b:                              # one row asked twice: each place on its own
+            rest = np.setdiff1d(np.arange(b), first)
+            for part in (np.sort(first), rest):
+                d, w = self(ids[part], pts[part], reach[part], None if toward is None else toward[part])
+                dist[part], out[part] = d, w
+            return dist, out
+        ok = ids >= 0                                   # (a row that is no row has no bodies)
+        if not ok.all():
+            if ok.any():
+                k = np.flatnonzero(ok)
+                d, w = self(ids[k], pts[k], reach[k], None if toward is None else toward[k])
+                dist[k], out[k] = d, w
+            return dist, out
         pos_of = np.full(max(int(self.rows.max()), int(ids.max())) + 1, -1, dtype=np.int64)
         pos_of[ids] = np.arange(b)
         es = np.flatnonzero(pos_of[self.rows] >= 0) if self.rows.max() < len(pos_of) else np.zeros(0, int)
         if not len(es):
             return dist, out
-        reach = np.broadcast_to(np.asarray(clear, dtype=float).reshape(-1), (b,)) if np.ndim(clear) else \
-            np.full(b, float(clear))
         for k in np.unique(self.which[es]):
             ek = es[self.which[es] == k]
             body = self.bodies[k]
@@ -182,7 +197,7 @@ class Field:
             d, n_local = body.distance(local[e_i, p_i])
             n_world = np.einsum("mij,mj->mi", self.places[ek][e_i, :3, :3], n_local)
             if toward is not None:
-                deep = np.flatnonzero(d < 0.0)
+                deep = np.flatnonzero(d < -DEEP * reach[pos[e_i]])
                 if len(deep):
                     u = toward[pos[e_i[deep]], p_i[deep]]
                     rot = self.places[ek][e_i[deep], :3, :3]

@@ -45,6 +45,7 @@ WAYCOVER_TWO = os.path.join(DATA, "test_waycover_c.step")
 CLASH = os.path.join(DATA, "test_clash.step")
 FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
 FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
+FLEX_AVOID = os.path.join(DATA, "test_flex_avoid_a.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
 SPOOL = os.path.join(DATA, "test_spool.step")
 TRACKS = os.path.join(DATA, "test_tracks.step")
@@ -1126,6 +1127,71 @@ def motion_drawn(ctx):
            "not every sheave and roller turns with the drawn cable")
     return (f"hose through 2 clips on its parts to {worst * 1000:.3f} mm; chain links to {chord * 1000:.4f} mm; "
             "cable route: 6 contacts, 5 turning")
+
+
+@line("motion.flex_avoid", "A hose avoids other parts; a route shaped by a via point", "0.2.221",
+      what="Task 0298: on the avoid model (a block in a Ø20 hose's way, a lift that goes 400 mm down) the hose with "
+           "'Avoid other parts' on stays out of the block at five lift heights (without it, it sags 85 mm into it), "
+           "and in a built animation at every frame. Then a via point is set beside the block: the hose runs through "
+           "it and it rides with the lift; the clash check with 'Check hoses that avoid parts' lists nothing for it")
+def motion_flex_avoid(ctx):
+    import numpy as np
+
+    from ..blender import animation, build, clash, flex, flex_avoid, flex_route, joints, tour
+    from ..core import flex as fcore
+    scene = ctx.fresh(FLEX_AVOID)
+    made = flex.set_up_test_avoid(scene, avoid=False)
+    it = flex.find(scene, made["items"][0])
+    block = next(o for o in scene.objects if o.get(build.PROP_NAME) == "BLOCK")
+    body = flex_avoid.body_of(block)
+
+    def gap():
+        inv = np.linalg.inv(flex_avoid._rigid(np.array(block.matrix_world)))
+        pts = fcore.resample(flex.shape_now(scene, it), 400)
+        return float(body.distance(pts @ inv[:3, :3].T + inv[:3, 3])[0].min()) - 0.5 * it.diameter
+
+    def lift(v):
+        joints.set_value(joints.find(scene, "Lift"), v)
+        _update()
+        flex.refresh(scene)
+    lift(-0.4)
+    off = gap()
+    _check(off < -0.05, f"without 'Avoid other parts' the hose should sag into the block (it is {off * 1000:.0f} mm off)")
+    it.avoid = True
+    t0 = time.time()
+    worst = 1.0
+    for v in (-0.4, -0.3, -0.15, 0.0, 0.1):
+        lift(v)
+        worst = min(worst, gap())
+    ctx.metric("a hose that avoids a block, five lift heights", time.time() - t0, "s")
+    _check(worst > -0.0025, f"with 'Avoid other parts' the hose still goes {-worst * 1000:.1f} mm into the block")
+    lift(0.0)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = "Lift", 0.0, "25"
+    tour.avoid_motion(a)
+    t0 = time.time()
+    r = animation.bake(scene, a)
+    ctx.metric("build the avoid animation", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"]))
+    built = 1.0
+    for f in range(scene.frame_start, scene.frame_end + 1, 5):
+        scene.frame_set(f)
+        built = min(built, gap())
+    _check(built > -0.0025, f"in the built animation the hose goes {-built * 1000:.1f} mm into the block")
+    scene.fresing.clash.hoses = True
+    run = clash.check(scene, store=False)
+    _check(not [x for x in run.rows if it.part.name in x.names], "the clash check lists the hose that avoids parts")
+    tour._route_on(scene)
+    it = flex.find(scene, made["items"][0])
+    _check(flex_route.count(it) == 1, "the via point was not set")
+    miss = 0.0
+    for f in range(scene.frame_start, scene.frame_end + 1, 10):
+        scene.frame_set(f)
+        via = flex_route.stops_now(it)[1][0]
+        miss = max(miss, float(np.linalg.norm(flex.shape_now(scene, it) - via, axis=1).min()))
+    _check(miss < 1e-4, f"the hose misses its via point by {miss * 1000:.2f} mm")
+    return (f"off: {-off * 1000:.0f} mm in the block; on: at most {max(-worst, -built, 0.0) * 1000:.2f} mm (live and "
+            f"built); through its via point to {miss * 1000:.3f} mm")
 
 
 @line("motion.flex_kinds", "Hose and cable kinds, chain types and standard sizes", "0.2.182",

@@ -130,9 +130,9 @@ def parts_for(scene, item) -> list:
         names = _find(scene, item)
         _STATE["parts"][key] = names
     out = []
-    for n in names:
+    for n in names:                              # (shown is asked every time: a part hidden later no longer counts)
         ob = scene.objects.get(n)
-        if ob is not None:
+        if ob is not None and _shown(ob):
             out.append(ob)
     return out
 
@@ -154,7 +154,7 @@ def _find(scene, item) -> list:
     lo, hi = np.minimum(pa, pb) - reach, np.maximum(pa, pb) + reach
     found = []
     for ob in build.iter_parts(scene):
-        if ob.name in skip or ob.get("fr_drawn") or ob.type != "MESH" or not _shown(ob):
+        if ob.name in skip or ob.get("fr_drawn") or ob.type != "MESH" or ob.get(build.PROP_EXCLUDED):
             continue
         if ob.data is None or not len(ob.data.vertices):
             continue

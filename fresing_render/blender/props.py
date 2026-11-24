@@ -2579,7 +2579,8 @@ class FRFlex(bpy.types.PropertyGroup):
     avoid: BoolProperty(
         name="Avoid other parts", default=False, update=_flex_avoid_changed,
         description="On: the hose stays outside the other parts near it – it lies on them and slides along, while "
-                    "you move the machine and in the built animation. Off: it may pass through parts (quicker)")
+                    "you move the machine and in the built animation (slower while it lies on a part). Off: it may "
+                    "pass through parts")
     length_auto: BoolProperty(
         name="Automatic length", default=False, update=_flex_length_auto_changed,
         description="On: the app works out the length from the route (its ends, clips and via points) every time "
