@@ -63,9 +63,10 @@ Q, F, OWN, H = "quick", "full", "own", "heavy"
 
 
 def line(id: str, title: str, since: str, modes=(F,), requires=(), what: str = "", expected: int = 0,
-         shows: str = "", not_shown: str = ""):
+         shows: str = "", not_shown: str = "", limit: float = 0.0):
     def deco(fn):
-        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown))
+        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown,
+                          limit))
         return fn
     return deco
 
@@ -784,7 +785,7 @@ def looks_finishes(ctx):
             f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
 
-@line("looks.rust", "Rust slider and carbon fibre", "0.2.234",
+@line("looks.rust", "Rust slider and carbon fibre", "0.2.235",
       what="The finishes test model's rust row and carbon parts: moving a steel group's Rust slider changes its "
            "material (the rust value in its nodes, the welds' value on it); a stainless group has no Rust (the panel "
            "says why) and its look stays the same; the carbon cup's dome and its tube get their weave from their own "
@@ -6594,3 +6595,4 @@ def own_time_eevee(ctx):
 
 
 from . import heavy  # noqa: E402,F401 - registers the Heavy lines (task 0033)
+from . import stress  # noqa: E402,F401 - registers the Stress lines (task 0315)

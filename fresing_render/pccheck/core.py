@@ -19,15 +19,18 @@ from typing import Callable
 import numpy as np
 
 OK, FAILED, SKIPPED, RUNNING = "OK", "FAILED", "skipped", "running"
-MODES = ("quick", "full", "heavy", "tour")
-MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy", "tour": "Learning hub"}
+MODES = ("quick", "full", "heavy", "tour", "stress")
+MODE_TITLES = {"quick": "Quick", "full": "Full", "heavy": "Heavy", "tour": "Learning hub", "stress": "Stress"}
 # the PC-check shortcuts in the Tools folder of the install (task 0212; Install.bat and appicon.tools_specs)
 SHORTCUT_TEXT = {"quick": "Check every main function quickly (about 3 minutes). Drop a STEP file on it to test "
                           "your own model too",
                  "full": "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it "
                          "to test your own model too",
                  "heavy": "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about "
-                          "10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"}
+                          "10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check",
+                 "stress": "Stress test with a made-up 10,000-part model: every heavy action timed and compared with "
+                           "the last Stress run (takes long: about 10 to 20 minutes). Cancel it in the app: Help > "
+                           "Cancel Fresing Render PC check"}
 
 
 def shortcut_arguments(launcher: str, desktop: str, mode: str) -> str:
@@ -39,6 +42,9 @@ MIN_SLOWER_S = 1.0       # ...and at least this many seconds slower (short steps
 MIN_SLOWER_METRIC_S = 0.2
 FASTER = 0.75            # shown as "faster" below this share of the earlier time
 REFERENCE_RUNS = 3       # the reference is the median of this many earlier runs
+# Stress (task 0315): compared with the previous Stress run only, and flagged from 15 % slower
+SLOWER_BY_MODE = {"stress": 1.15}
+REFERENCE_RUNS_BY_MODE = {"stress": 1}
 KEEP_RUNS_PER_KEY = 5
 KEEP_RUNS = 40
 PICTURE_DIFF = 0.06      # mean difference (0..1) above which a picture is flagged "look at this"
@@ -73,6 +79,7 @@ class Line:
     expected: int = 0       # seconds the line is expected to take on the owner's PC (Heavy: shown while it runs)
     shows: str = ""         # Heavy: one sentence "what this shows"
     not_shown: str = ""     # Heavy: one sentence "what this does not show"
+    limit: float = 0.0      # Stress: seconds above which the line is marked "slow" (0: no limit)
 
 
 @dataclass
@@ -109,6 +116,7 @@ class Result:
     started: float = 0.0                             # time.time() when the line began (progress line)
     shows: str = ""
     not_shown: str = ""
+    limit: float = 0.0                               # Stress: seconds above which it is "slow"
 
 
 @dataclass
@@ -212,9 +220,21 @@ def earlier_runs(history: dict, key: str) -> list:
     return [r for r in reversed(history.get("runs", [])) if r.get("key") == key]
 
 
+def _mode_of(key: str) -> str:
+    return key.split("+", 1)[0]
+
+
+def reference_runs(key: str) -> int:
+    return REFERENCE_RUNS_BY_MODE.get(_mode_of(key), REFERENCE_RUNS)
+
+
+def slower_factor(key: str) -> float:
+    return SLOWER_BY_MODE.get(_mode_of(key), SLOWER)
+
+
 def reference_time(history: dict, key: str, line_id: str) -> float | None:
     vals = [r["lines"][line_id]["seconds"] for r in earlier_runs(history, key)
-            if r.get("lines", {}).get(line_id, {}).get("status") == OK][:REFERENCE_RUNS]
+            if r.get("lines", {}).get(line_id, {}).get("status") == OK][:reference_runs(key)]
     return statistics.median(vals) if vals else None
 
 
@@ -224,12 +244,12 @@ def reference_metric(history: dict, key: str, line_id: str, name: str) -> float 
         ln = r.get("lines", {}).get(line_id, {})
         if ln.get("status") == OK and name in ln.get("metrics", {}):
             vals.append(ln["metrics"][name])
-    vals = vals[:REFERENCE_RUNS]
+    vals = vals[:reference_runs(key)]
     return statistics.median(vals) if vals else None
 
 
-def is_slower(seconds: float, reference: float | None, min_s: float = MIN_SLOWER_S) -> bool:
-    return reference is not None and seconds > reference * SLOWER and seconds - reference >= min_s
+def is_slower(seconds: float, reference: float | None, min_s: float = MIN_SLOWER_S, factor: float = SLOWER) -> bool:
+    return reference is not None and seconds > reference * factor and seconds - reference >= min_s
 
 
 def is_faster(seconds: float, reference: float | None, min_s: float = MIN_SLOWER_S) -> bool:
@@ -245,20 +265,23 @@ def change_text(seconds: float, reference: float | None) -> str:
 
 def compare(run: Run, history: dict) -> None:
     """Fill in references, speed flags and "new in this version" from the earlier runs on this PC."""
+    factor = slower_factor(run.key)
     for r in run.results:
-        r.flags = [f for f in r.flags if f not in ("slower", "failed")]
+        r.flags = [f for f in r.flags if f not in ("slower", "failed", "over limit")]
         if r.status == FAILED:
             r.flags.append("failed")
         if r.status != OK:
             continue
+        if r.limit and r.seconds > r.limit:
+            r.flags.append("over limit")
         r.reference = reference_time(history, run.key, r.id)
-        slow = is_slower(r.seconds, r.reference)
+        slow = is_slower(r.seconds, r.reference, factor=factor)
         for name, (value, unit) in r.metrics.items():
             if not isinstance(value, (int, float)) or not str(unit).startswith("s"):
                 continue
             ref = reference_metric(history, run.key, r.id, name)
             r.metric_refs[name] = ref
-            slow = slow or is_slower(float(value), ref, MIN_SLOWER_METRIC_S)
+            slow = slow or is_slower(float(value), ref, MIN_SLOWER_METRIC_S, factor)
         for name, (value, unit) in r.metrics.items():          # milliseconds per frame (playback): 2 ms is a jump
             if isinstance(value, (int, float)) and str(unit).startswith("ms"):
                 ref = reference_metric(history, run.key, r.id, name)
@@ -423,6 +446,66 @@ def text_block(run: Run, secrets=()) -> str:
         if flags:
             row += " | FLAG: " + ", ".join(sorted(set(flags)))
         out.append(row)
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# the Stress table (task 0315): one row per line, next to the report
+# ---------------------------------------------------------------------------
+
+STRESS_TABLE_NAME = "Fresing Render stress table.csv"
+TABLE_COLUMNS = ("line", "title", "mark", "seconds", "limit s", "peak memory MB", "previous s", "change",
+                 "slower than before", "numbers")
+
+
+def mark_of(r: Result) -> str:
+    """pass / slow / failed / skipped: "slow" = over its limit or more slower than the previous run allows."""
+    if r.status == FAILED:
+        return "failed"
+    if r.status != OK:
+        return "skipped"
+    return "slow" if ("over limit" in r.flags or "slower" in r.flags) else "pass"
+
+
+def stress_rows(run: Run) -> list:
+    """The table's rows (after ``compare``): plain values, no names of the owner's files."""
+    rows = []
+    for r in run.results:
+        if r.status == RUNNING:
+            continue
+        mem = r.metrics.get("peak memory", (None, ""))[0]
+        nums = "; ".join(f"{k} {v[0]} {v[1]}".strip() for k, v in r.metrics.items() if k != "peak memory")
+        rows.append({"line": r.id, "title": r.title, "mark": mark_of(r), "seconds": round(r.seconds, 1),
+                     "limit s": r.limit or "", "peak memory MB": "" if mem is None else mem,
+                     "previous s": "" if r.reference is None else round(r.reference, 1),
+                     "change": change_text(r.seconds, r.reference),
+                     "slower than before": "yes" if "slower" in r.flags else "",
+                     "numbers": nums if r.status == OK else (r.reason or "")})
+    return rows
+
+
+def _csv_cell(v) -> str:
+    t = str(v)
+    if any(c in t for c in ',"\n;') or t != t.strip():
+        t = '"' + t.replace('"', '""') + '"'
+    return t
+
+
+def stress_csv(run: Run) -> str:
+    """The table as CSV (opens in Excel): a header line, then one row per line."""
+    out = [",".join(TABLE_COLUMNS)]
+    for row in stress_rows(run):
+        out.append(",".join(_csv_cell(row[c]) for c in TABLE_COLUMNS))
+    return "\n".join(out) + "\n"
+
+
+def stress_text(run: Run) -> str:
+    """The table as plain text for the text block and the console."""
+    rows = stress_rows(run)
+    out = [f"{'line':24} {'mark':7} {'s':>8} {'limit':>6} {'MB':>7} {'before':>8} {'change':>7}"]
+    for row in rows:
+        out.append(f"{row['line']:24} {row['mark']:7} {row['seconds']:>8} {str(row['limit s']):>6} "
+                   f"{str(row['peak memory MB']):>7} {str(row['previous s']):>8} {row['change']:>7}")
     return "\n".join(out)
 
 

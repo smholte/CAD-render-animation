@@ -185,7 +185,7 @@ def test_shortcut_paths(tmp_path):
 def test_one_shortcut_only_names():
     """Task 0212: only "Fresing Render" on the Desktop; six extras in the Tools folder; old names are not new ones."""
     assert ai.DESKTOP_NAMES == ("Fresing Render.lnk",) and ai.APP_LNK == "Fresing Render.lnk"
-    assert sorted(ai.TOOLS) == ["full", "guide", "heavy", "quick", "safe", "selftest"]
+    assert sorted(ai.TOOLS) == ["full", "guide", "heavy", "quick", "safe", "selftest", "stress"]
     assert ai.TOOLS["safe"] == ai.SAFE_START
     assert not set(ai.TOOLS.values()) & set(ai.OLD_DESKTOP + ai.OLD_START_MENU)
     assert ai.OLD_SAFE_START in ai.OLD_START_MENU
@@ -251,13 +251,13 @@ def test_tools_specs(tmp_path):
         assert spec["path"] == os.path.join(str(inst), "Tools", ai.TOOLS[kind]) and spec["description"]
     assert specs["selftest"]["target"] == str(blender)
     assert specs["selftest"]["arguments"] == f'--background --python "{inst / "selftest_launcher.py"}" -- "{desk}"'
-    for mode in ("quick", "full", "heavy"):
+    for mode in ("quick", "full", "heavy", "stress"):
         assert specs[mode]["target"] == str(blender)
         assert specs[mode]["arguments"] == \
             f'--background --python "{ext / "pccheck" / "launcher.py"}" -- "{desk}" {mode}'
     assert specs["safe"]["target"] == str(bdir / "blender-launcher.exe") and specs["safe"]["arguments"] == ai.APP_ARGS
     assert specs["guide"]["target"] == str(ext / "guide" / "user_guide.html") and specs["guide"]["arguments"] == ""
-    # the installer makes the same six with the same names
+    # the installer makes the same seven with the same names
     ps = open(os.path.join(ROOT, "installer", "Install-FresingRender.ps1"), encoding="utf-8").read()
     for name in ai.TOOLS.values():
         assert f'Join-Path $Tools "{name}"' in ps, name

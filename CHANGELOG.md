@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.234 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
+## 0.2.235 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or
   matte clear coat (**Kind**, **Tow width**, **Gloss**). The weave lies on every CAD face of its own – round a tube
@@ -33,6 +33,20 @@ installer of that version was built from.
   - **Marine paint, growth below the waterline** and **Marine paint, run-down streaks**: their rust streaks take the
     new rust colours.
   - Every project's group materials are made again once when it opens (they keep their material, colour and Wear).
+## 0.2.234 – 24 Nov 2026 – PC check Stress: a made-up 11,000-part model, every heavy action timed (task 0315)
+
+- **PC check > Stress (10 to 20 minutes)** – new, in **Fresing > Tools and checks > PC check…** and as **PC check
+  (stress)** in the app's Tools folder. It makes a made-up offshore substation topside of about 11,000 parts (2,000
+  unique, 44 % bolts, nuts and washers, long cables, a crane, a davit and doors with joints; deleted afterwards) and
+  times every heavy action on it: import at Draft and Normal, sorting, the Structure list and search, select all and
+  the hover highlight, the Solid view and the first Live-preview picture, joints and Build, dragging a joint, the clash
+  check, save and open, a backup, Undo, Render image at 4K, the web 3D model and a model update with about 1 % of the
+  parts changed.
+- Each step shows its time, the most memory the app used during it and a mark: **pass**, **slow** (over its limit, or
+  more than 15 % slower than your last Stress run) or **failed**. The table is saved next to the report as **Fresing
+  Render stress table.csv** (opens in Excel) and is in the text block for the lead chat.
+- Not needed after every update: run it when you want to know how the app copes with a very big model on your PC.
+
 ## 0.2.233 – 24 Nov 2026 – A new project is named after its first model; Save As offers "name (1)" (task 0291)
 
 - **The first save of a new project** (Ctrl+S, File > Save or File > Save As…) opens the file browser with a name

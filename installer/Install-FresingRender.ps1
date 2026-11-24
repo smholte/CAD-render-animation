@@ -14,7 +14,7 @@
        Blender's online access: the app looks for updates on GitHub at start-up and installs
        them with one click (Update now); see docs/UPDATES.md
     5. creates the "Fresing Render" shortcut on the Desktop and in the Start menu (the only ones, task 0212) and,
-       in the Tools folder of the install folder, "Self test", "PC check (quick)" / "(full)" / "(heavy)",
+       in the Tools folder of the install folder, "Self test", "PC check (quick)" / "(full)" / "(heavy)" / "(stress)",
        "Safe start" and "User guide"; an older install's extra shortcuts are removed
 
   Running it again repairs or upgrades an installation; projects and renders are not touched.
@@ -380,6 +380,8 @@ if (Test-Path -LiteralPath $PcCheck) {
     MakeShortcut (Join-Path $Tools "PC check (full).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" full" "Check every function of the app on this PC (about 15 minutes). Drop a STEP file on it to test your own model too"
     # Heavy (task 0033): a big generated machine, 4K pictures and a 10 s video; 10-20 minutes. Started on purpose.
     MakeShortcut (Join-Path $Tools "PC check (heavy).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" heavy" "Load this PC like real work: a big machine, 4K pictures and a 10 second video (about 10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"
+    # Stress (task 0315): a made-up 10,000-part model, every heavy action timed; 10-20 minutes. Started on purpose.
+    MakeShortcut (Join-Path $Tools "PC check (stress).lnk") $BlenderExe "--background --python `"$PcCheck`" -- `"$Desktop`" stress" "Stress test with a made-up 10,000-part model: every heavy action timed and compared with the last Stress run (takes long: about 10 to 20 minutes). Cancel it in the app: Help > Cancel Fresing Render PC check"
 }
 
 # The user guide lives inside the installed extension (Help > Fresing Render user guide opens the same

@@ -1,0 +1,112 @@
+name: Stress run
+
+# The PC check "Stress" (task 0315) on GitHub's Linux machine: a made-up topside of about 11,000 parts is made at run
+# time and every heavy action of the app is timed (tools/ci_stress.py: the same launcher as the Tools-folder shortcut
+# "PC check (stress)"). No graphics card here: the Solid view is skipped when it cannot start and the render is a small
+# one on the processor. Optionally the model is put on the DRAFT release "stress-model" for the owner to import by hand.
+# Only by hand (Actions > Stress run > Run workflow): never on a push, never part of the normal test run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: "Model size: full (about 11,000 parts, about an hour) or small (a few hundred parts, minutes)"
+        type: choice
+        options: [full, small]
+        default: full
+      publish_model:
+        description: "Also put the model (zip) on the draft release stress-model"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stress-run
+  cancel-in-progress: true
+
+env:
+  OCP_VERSION: "8.0.1.1.0"
+  MANIFOLD_VERSION: "3.5.4"         # as tests.yml and tools/build_release.py
+
+jobs:
+  stress:
+    name: Linux - PC check Stress (${{ inputs.size }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: tools/requirements-dev.txt
+
+      - name: Blender version (pinned in the installer)
+        id: pin
+        run: |
+          v=$(sed -nE 's/^\$BlenderVersion *= *"([^"]+)".*/\1/p' installer/Install-FresingRender.ps1)
+          test -n "$v"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Blender from the cache
+        id: cache-blender
+        uses: actions/cache@v6
+        with:
+          path: ~/blender
+          key: blender-${{ steps.pin.outputs.version }}-linux-x64
+
+      - name: Download Blender (only when not cached)
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        env:
+          v: ${{ steps.pin.outputs.version }}
+        run: |
+          s=${v%.*}; f=blender-$v-linux-x64.tar.xz
+          cd "$RUNNER_TEMP"
+          curl -sSfL --retry 3 -o "$f" "https://download.blender.org/release/Blender$s/$f"
+          curl -sSfL --retry 3 "https://download.blender.org/release/Blender$s/blender-$v.sha256" | grep " $f\$" > blender.sha256
+          sha256sum -c blender.sha256
+          mkdir -p ~/blender && tar -xJf "$f" -C ~/blender
+
+      - name: Virtual screen
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends xvfb xauth libgl1 libglx-mesa0 libgl1-mesa-dri libegl1 \
+            libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libvulkan1
+
+      - name: Stress run (tools/ci_stress.py)
+        env:
+          BLENDER_VERSION: ${{ steps.pin.outputs.version }}
+        run: |
+          python -m pip install "$(grep -E '^markdown==' tools/requirements-dev.txt)"   # the guide goes into the zip
+          python -m pip download "cadquery-ocp-novtk==$OCP_VERSION" "cadquery-ocp-proxy==$OCP_VERSION" "manifold3d==$MANIFOLD_VERSION" \
+            --no-deps --only-binary=:all: --platform manylinux_2_28_x86_64 --python-version 3.13 \
+            -d "$RUNNER_TEMP/linux-wheels"
+          python tools/ci_stress.py --blender ~/blender/blender-$BLENDER_VERSION-linux-x64/blender \
+            --wheels "$RUNNER_TEMP/linux-wheels" --out stress-results ${{ inputs.size == 'small' && '--small' || '' }}
+
+      - name: Make the model and put it on the draft release stress-model
+        if: ${{ inputs.publish_model }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install "$(grep -E '^cadquery-ocp==' tools/requirements-dev.txt)" "$(grep -E '^numpy==' tools/requirements-dev.txt)"
+          python tools/make_test_stress.py "$RUNNER_TEMP/model" --zip ${{ inputs.size == 'small' && '--small' || '' }} | tee -a "$GITHUB_STEP_SUMMARY"
+          python tools/make_test_stress.py --publish "$RUNNER_TEMP/model/FresingStressModel.zip" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: stress-run-${{ inputs.size }}
+          path: stress-results/
+          retention-days: 14
+
+      - name: Minutes
+        if: always()
+        run: |
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Stress run: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"

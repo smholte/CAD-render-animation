@@ -251,7 +251,7 @@ def test_every_line_is_complete():
     assert len(ids) == len(set(ids)), "line ids must be unique"
     for ln in checks.LINES:
         assert ln.title and ln.what, ln.id
-        assert set(ln.modes) <= {"quick", "full", "own", "heavy", "ownheavy"} and ln.modes, ln.id
+        assert set(ln.modes) <= {"quick", "full", "own", "heavy", "ownheavy", "stress"} and ln.modes, ln.id
         assert core.version_tuple(ln.since) <= core.version_tuple(__version__), (ln.id, "since a later version")
         for r in ln.requires:
             assert r in ids and ids.index(r) < ids.index(ln.id), (ln.id, r)
