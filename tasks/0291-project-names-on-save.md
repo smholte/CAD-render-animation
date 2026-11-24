@@ -1,6 +1,6 @@
 # 0291 – Project names: a new project is named after its first model; Save as offers "name (1)" to rename; backups too
 
-**Who:** worker · **Status:** open – can start after 0282 is merged · **Branch:** `task/0291-project-names`
+**Who:** worker · **Status:** running · **Branch:** `task/0291-project-names`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "When saving a project now, the file name is empty, but
 it should automatically be the name of the first part you added in the project. When save as a previously saved
 project it saves it as the same name with (1) and letting user rename before saving. (this also goes for auto saves).
