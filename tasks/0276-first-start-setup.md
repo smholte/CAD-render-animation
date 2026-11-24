@@ -78,10 +78,66 @@ New settings; online accounts or sign-in; collecting anything about the user (no
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 24 Nov 2026. Released as **0.2.233**.
 
 **What changed:**
+- **New `blender/first_setup.py`** – the set-up window (made like Fresing Settings: screen mark `fr_first_setup`, its
+  page in the toolbar region, in `PAGE_MARKS` and `panels.SIDE_MARKS`, place kept as `first_setup`). Six steps
+  (`core/first_setup.STEPS`), step bar, Back / Next, **Skip set-up** top right on every step. Step 1 language of
+  Blender's menus (English / Nederlands / Deutsch – the app's texts stay English); step 2 nine work ticks →
+  `prefs.default_workspace` (no tick '' = Essentials, one = its workspace, two+ = All functions; only a click writes,
+  opening never overwrites a user's own choice) + the hub's first chapter (`ui_tour` opens it when nothing is picked);
+  step 3 runs the PC check's Quick lines `app.start, gpu.device, pc.gpu, import.crane, render.gpu` in a background
+  Blender (`first_setup_probe.py`, own history folder, no report, no browser; CREATE_NO_WINDOW on Windows), says it
+  in plain words (`core.pc_summary`) and sets Live preview's remembered choice; step 4 the set-up file in use with
+  "Different from standard" (what the set-up files set), Open set-up file… (drop works: the 3D view's file handler),
+  Add my STEP models folder…, where renders go; step 5 Make it now (`tour_make` in the main window → 0275's card);
+  step 6 Import your first STEP… / Open the Learning hub (greyed while made) / Open (or Make) the demo project / Save
+  my set-up as a file… / Close.
+- **Blender's quick set-up never shows:** the app template's load_post calls `first_setup.at_load` before Blender makes
+  its splash – Blender's keys (Blender), theme (default) saved with `save_userpref` when there is no `userpref.blend`;
+  on the start that shows the set-up the splash is off for that start only. Measured on the web machine with a
+  settings folder without `userpref.blend`: old template → Blender's "Quick Setup" (language/theme/keymap/Continue);
+  new → the set-up window only.
+- **Start file** (`core/start.py`): a new user's start shows `"setup"` (was `"welcome"`), at most 3 starts; a part
+  `setup` = state ''/done/skipped, step, work ticks, version, by "it". An existing user (last_run set) gets What's new.
+  The welcome stays as Fresing > Welcome screen…. `.frsetup`: `"first_setup": "skip"` (top level or in
+  `first_start`) → skipped by IT; `first_start.workspace / work / language` pre-fill.
+- **Fresing > Set up again…** (greyed in the Client view with the reason; the set-up never opens there).
+- Small fix: Settings > Locations' "Different from standard" no longer lists `window_places`.
+- Guide chapter **First start: the set-up** (`#first-start`, 6 pictures from the real-app test), the welcome section
+  rewritten, the Fresing menu list; `COMPANY-USE.md` (what IT can pre-set / skip); function `help.first_setup`
+  (tour stop `start_here`), PC-check line `app.first_setup` (MIN_LINES_FULL 146), `app.start_here` expects the set-up;
+  Windows install part A checks the installed template hands the first start to the set-up (and "Preferences saved").
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no graphics card, real Blender 5.2.3 under xvfb):
+- `tests/test_first_setup.py` 35 tests; `test_start.py`, functions, places, form windows, locations, apptools,
+  editors, ci tools, workspaces essentials, tour versions, user guide: all pass. `tooltip_report.py --strict` OK.
+- Real app `ui_test_first_setup.py` (new group member of paths-heavy, ~1 min): **42/42** – prefs saved by the app,
+  splash left out, the window shows only its page, Next clicked through all six steps (real clicks found by the
+  button's blue), ticks → workspaces, the PC lines (shortened to 2 lines in the test), a company set-up file, the hub
+  started and cancelled, Close → "done", Set up again…, a click on Skip → "skipped", IT skip, update from 0.2.195 →
+  What's new, Client view refused. `ui_test_start.py` **75/75** (a new user now gets the set-up).
+- PC-check lines `app.first_setup` and `app.start_here`: OK (bpy module).
+- The probe's real time with all five lines (import + HD render on a card) was not measured here (no graphics card);
+  the brief's "~20 s on the owner's PC" is an expectation.
+- GitHub runs: see below.
+
+**Owner's check (on your PC, without losing your settings):**
+1. Close Fresing Render. Open the app folder (Fresing > Tools and checks > Open the app folder), go to
+   `…\portable\config\` and **rename** `fresing_start.json` to `fresing_start.json.keep` (your settings are in other
+   files and stay).
+2. Start Fresing Render. You should see the window **Set up Fresing Render** and no start-up screen. Click through
+   with **Next**; on **Your PC** it looks at your RTX 3090 (about 20 s to a minute) and should say "Graphics card
+   found", "Renders on: the graphics card" and how long one HD picture took.
+3. Anything you change there is a real setting (workspace for new projects, Live preview, folders). On **Done** press
+   **Close**.
+4. To get back to exactly where you were: close the app, delete the new `fresing_start.json` and rename
+   `fresing_start.json.keep` back. (Or simply use Fresing > Set up again… any time – no file needed.)
 
 **Open points / follow-up tasks:**
+- No independent review helper ran: the only Windows-only line is the `CREATE_NO_WINDOW` flag of the probe (the same
+  pattern as the Learning hub's build); the owner's check step 2 confirms it on Windows.
+- The Windows installer already saved Blender's preferences before this task, so a fresh Windows install never showed
+  Blender's quick set-up; the app's own save covers a settings folder without them (dev machines, a deleted folder).
+- Languages: only English, Dutch, German are offered (Blender's menus); Fresing's own texts are English only.
