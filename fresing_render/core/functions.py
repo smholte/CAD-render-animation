@@ -195,7 +195,7 @@ DUPLICATES: list = []
 # ----- the side panel itself (task 0062) -----
 fn(id="panel.workspace", headline=True, title="Workspaces: show only the functions a kind of work needs", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="workspaces", tour=("workspace",), pccheck=("panel.workspaces",),
-   since="0.2.152", changed="0.2.221")
+   since="0.2.152", changed="0.2.222")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
    panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
@@ -208,13 +208,13 @@ fn(id="panel.client_view", headline=True, title="Client view: the project locked
 # task 0294: Essentials as the start, the task workspaces, favourites on top of the drop-down
 fn(id="panel.essentials", headline=True, title="Essentials: where a new user starts – a first picture and a simple motion",
    family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="essentials", tour=("workspace",),
-   pccheck=("workspace.essentials",), since="0.2.221")
+   pccheck=("workspace.essentials",), since="0.2.222")
 fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick render, Animator, Reviewer", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="task-workspaces", tour=("workspace",),
-   pccheck=("workspace.essentials",), since="0.2.221")
+   pccheck=("workspace.essentials",), since="0.2.222")
 fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
-   pccheck=("workspace.essentials",), since="0.2.221")
+   pccheck=("workspace.essentials",), since="0.2.222")
 fn(id="panel.sections", headline=True, title="Sections start folded; section tabs; Ctrl+click", family="panel",
    panel="FRESING_PT_tabs", button="fresing.panel_tab", guide="sections", tour=("workspace",), since="0.2.152", changed="0.2.197")
 fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_next", button="fresing.next_hide",
@@ -729,6 +729,10 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="export-places", tour=("locations",),
    pccheck=("settings.locations",), since="0.2.210")
 
+fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
+   "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
+   "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.221")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")

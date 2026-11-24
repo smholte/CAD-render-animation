@@ -35,7 +35,7 @@ FOLDER = "Workspaces"
 MAX_NAME = 60
 DEFAULT = "All functions"            # the app's own projects (test tour, demo, PC check) and "Show everything"
 START = "Essentials"                 # task 0294: new projects of anyone who has not chosen a workspace
-START_SINCE = "0.2.221"              # task 0294: the first version with Essentials
+START_SINCE = "0.2.222"              # task 0294: the first version with Essentials
 
 # key -> (name, what it is for, locks the model, shows Blender's own tabs / toolbar / menus)
 BUILTIN = {

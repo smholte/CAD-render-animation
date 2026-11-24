@@ -172,6 +172,18 @@ def gpu_device(ctx):
     return ctx.gpu
 
 
+@line("pc.gpu", "Graphics card used: window and renders", "0.2.221", (Q, F),
+      what="The graphics card draws the window and renders – not the processor's built-in graphics (task 0296)")
+def pc_gpu(ctx):
+    from ..blender import gpu_choice
+    from .runner import NO_GPU_TEXT, no_gpu_expected
+    status, text = gpu_choice.check(no_gpu_expected())
+    if status == "skip":
+        raise Skipped(f"skipped: {NO_GPU_TEXT}")
+    _check(status == "ok", text)
+    return text
+
+
 # ---------------------------------------------------------------------------
 # import and sorting
 # ---------------------------------------------------------------------------
@@ -840,7 +852,7 @@ def panel_workspaces(ctx):
 
 
 @line("workspace.essentials", "Workspaces round 2: Essentials as the start, Sales, Quick render, Animator, Reviewer, "
-      "favourites on top", "0.2.221",
+      "favourites on top", "0.2.222",
       what="A user who has not chosen starts new projects in Essentials; each task workspace shows exactly its "
            "functions; starred workspaces and the one for new projects sit on top of the list. Your own choice and "
            "stars are put back as they were")
