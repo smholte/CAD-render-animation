@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.223 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
+## 0.2.224 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
 
 - **23 new finishes** in 3 Looks (pick one as a group's **Material**): **Knurled, diamond** and **straight**
   (knobs, handles), **Rubber, moulded grip pattern**, **Spun metal** (rings round the centre of caps and discs),
@@ -29,6 +29,18 @@ installer of that version was built from.
   perforated, expanded, hammertone, spangle …) as a texture.
 - Test tour: a new stop **Finishes** (a board of 23 samples and a headphone-like set). PC check: a new line
   **Finishes**. User guide: 3 Looks > Finishes, with a picture of all 23.
+
+## 0.2.223 – 24 Nov 2026 – Make: larger icons, switch outputs in their window, Render this view (task 0308)
+
+- **Make's row is taller, with larger icons** – easier to hit; still one row at the top of the Fresing panel.
+- **Every output window has a strip of all outputs on its left.** Picture, Product video, Turntable, 3D page, Animation
+  and Queue, the one the window shows in blue: one click shows another output in the same window. Drag the strip wider
+  and the names show beside the icons. Blender's own side-panel tabs (Tool, View, Animation) no longer show in these
+  windows.
+- **Render this view** (under the Make row, and in Make in the 3D view's header): renders exactly what the 3D view
+  shows – its angle and zoom – at the Picture's size, quality and file type, without adding or picking a camera. The
+  picture is fitted round the view, so nothing you see is cut off, and saved as *project*_View_*date*_*time*. The
+  active camera and your saved cameras stay as they were. In camera view it renders that camera.
 
 ## 0.2.222 – 24 Nov 2026 – More part kinds; unnamed washers, nuts and O-rings found by their shape (task 0302)
 

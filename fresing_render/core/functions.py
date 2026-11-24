@@ -154,7 +154,10 @@ fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_
    guide="whats-next", since="0.2.152", changed="0.2.197")
 fn(id="panel.make", title="Make: every picture, video and 3D page, each in a window of its own", family="panel",
    panel="FRESING_PT_make", button="fresing.make_window", guide="make", tour=("make",), pccheck=("panel.two",),
-   since="0.2.152", changed="0.2.197")
+   since="0.2.152", changed="0.2.223")
+fn(id="scene.render_view", short="Render this view", title="Render this view: what the 3D view shows, no camera needed",
+   family="scene", panel="FRESING_PT_make", button="fresing.render_view", guide="render-this-view",
+   tour=("render_view",), pccheck=("scene.render_view",), since="0.2.223")
 fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
    panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
    since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.197")
@@ -248,7 +251,7 @@ fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="l
    button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains", family="looks",
    panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
-   pccheck=("looks.finishes",), since="0.2.223")
+   pccheck=("looks.finishes",), since="0.2.224")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",

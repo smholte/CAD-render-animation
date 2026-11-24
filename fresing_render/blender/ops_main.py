@@ -952,17 +952,26 @@ def _remove_render_handlers():
             lst.remove(h)
 
 
-class FRESING_OT_render(bpy.types.Operator):
-    """Renders the picture of the active camera at the size and quality above and saves it.
-    Open it or show it in its folder in the box that appears below"""
-
-    bl_idname = "fresing.render"
-    bl_label = "Render image"
+class RenderStill:
+    """Render image's work (task 0308: shared with Render this view, ``ops_render_view.py``): renders the active camera
+    at the Picture's settings, saves it, shows it."""
 
     quality: EnumProperty(items=[("draft", "Draft", ""), ("preview", "Preview", ""), ("final", "Final", ""),
                                  ("best", "Best", ""), ("SETTING", "From settings", "")], default="SETTING")
 
     _timer = None
+
+    def _file(self, scene, s):
+        """The file to save to (None: ``render.output_path``'s name). Render this view (task 0308) names its own."""
+        return None
+
+    def _prepare(self, scene, s, quality):
+        final, target, device = render.prepare_still(scene, s, quality)
+        name = self._file(scene, s)
+        if name:
+            final = name
+            target = final + ".tmp.png" if render.needs_composite(s) else final
+        return final, target, device
 
     def execute(self, context):
         context.scene.fresing.rendered_once = True       # task 0062: the What's next card is done
@@ -973,14 +982,14 @@ class FRESING_OT_render(bpy.types.Operator):
             return {"CANCELLED"}
         quality = s.quality if self.quality == "SETTING" else self.quality
         if bpy.app.background or context.window is None:  # no UI / scripted
-            info = render.render_still(scene, s, quality)
+            info = render.render_still(scene, s, quality, filepath=self._file(scene, s))
             s.last_render = info["path"]
             self.report({"INFO"}, f"Saved {info['path']} ({info['seconds']} s, {info['device']})")
             return {"FINISHED"}
         if bpy.app.is_job_running("RENDER"):
             self.report({"WARNING"}, "A render is already running")
             return {"CANCELLED"}
-        final, target, device = render.prepare_still(scene, s, quality)
+        final, target, device = self._prepare(scene, s, quality)
         self._final, self._target = final, target
         _RENDER_STATE.clear()
         _remove_render_handlers()
@@ -1024,6 +1033,14 @@ class FRESING_OT_render(bpy.types.Operator):
             s.last_message += " (and a copy to " + locations.also_name() + ")"
         self.report({"INFO"}, s.last_message)
         return {"FINISHED"}
+
+
+class FRESING_OT_render(RenderStill, bpy.types.Operator):
+    """Renders the picture of the active camera at the size and quality above and saves it.
+    Open it or show it in its folder in the box that appears below"""
+
+    bl_idname = "fresing.render"
+    bl_label = "Render image"
 
 
 class FRESING_OT_open_folder(bpy.types.Operator):

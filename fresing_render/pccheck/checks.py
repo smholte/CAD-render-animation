@@ -701,7 +701,7 @@ def looks_marine(ctx):
     return f"growth band {lo:+.2f} … {hi:+.2f} m round the waterline; render {info['seconds']} s"
 
 
-@line("looks.finishes", "Finishes: knurls, spun, plates, blasted, grains", "0.2.223",
+@line("looks.finishes", "Finishes: knurls, spun, plates, blasted, grains", "0.2.224",
       what="The finishes test model (23 sample parts and a headphone-like set) with every finish: a knurled knob gets "
            "its face data (its round face, a whole number of teeth, its end faces), the far-away fade follows the "
            "camera; a close-up of the headset's right-hand cup rendered small (processor, draft): judge the knurled "
@@ -3683,6 +3683,52 @@ def scene_looks(ctx):
     _small_output(scene.fresing)
     info = _cpu_still(ctx, scene, "look_product", "Product studio look (processor, draft)")
     return f"{len(studio.LOOKS)} looks; render {info['seconds']} s"
+
+
+@line("scene.render_view", "Render this view", "0.2.223",
+      what="Render this view from a set view of the crane matches Render image from a camera at the same place; no "
+           "camera is left behind")
+def scene_render_view(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import ops_render_view, render
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s, 160, 90)
+    bpy.ops.fresing.camera_add(view="HIGH")                # a perspective view (the isometric one is orthographic)
+    _update()
+    shot = scene.camera
+    _check(shot is not None, "no camera for the comparison")
+    before = (scene.camera, len(bpy.data.objects), len(bpy.data.cameras))
+    by_camera = os.path.join(ctx.work, "render_view_camera.png")
+    render.render_still(scene, s, "draft", filepath=by_camera)
+    state = ops_render_view.setup(scene, bpy.context, view=ops_render_view.stand_in(shot, 160 / 90))
+    try:
+        _check(scene.camera != shot and scene.camera.get(ops_render_view.VIEW_MARK), "no view camera was made")
+        by_view = render.view_output_path(scene, s)
+        t0 = time.time()
+        render.render_still(scene, s, "draft", filepath=by_view)
+        seconds = round(time.time() - t0, 1)
+    finally:
+        ops_render_view.undo(scene, state)
+    _check((scene.camera, len(bpy.data.objects), len(bpy.data.cameras)) == before,
+           "Render this view left a camera behind or changed the active camera")
+    _check("_View_" in os.path.basename(by_view), f"the file is called {os.path.basename(by_view)}")
+
+    def pixels(path):
+        img = bpy.data.images.load(path)
+        px = np.empty(img.size[0] * img.size[1] * 4, np.float32)
+        img.pixels.foreach_get(px)
+        bpy.data.images.remove(img)
+        return px
+    a, b = pixels(by_camera), pixels(by_view)
+    diff = float(np.abs(a - b).max()) if a.shape == b.shape else 1.0
+    _check(a.shape == b.shape and diff < 0.05,
+           f"Render this view differs from Render image from the same place (largest difference {diff:.3f})")
+    ctx.picture(by_view, "render_view", "Render this view (processor, draft) – the same as from the camera")
+    return f"same picture as from the camera (difference {diff:.3f}); {seconds} s"
 
 
 @line("scene.views", "Camera views", "0.2.17", what="Every one-click view frames the whole model")
