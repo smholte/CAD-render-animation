@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 
 import bpy
 import numpy as np
@@ -28,6 +29,7 @@ PROP_CAD_MATERIAL = "fr_cad_material"  # material/appearance name from the CAD f
 PROP_GROUP = "fr_group"        # material group name
 PROP_ROOT = "fr_root"          # set on the model root empty
 PROP_SOURCE = "fr_source"      # STEP path on the root
+PROP_IMPORTED = "fr_imported"  # when the model was imported (seconds; task 0291: the first one names the project)
 PROP_LOCKED = "fr_locked"      # subassembly locked (moves with parent only)
 PROP_EXCLUDED = "fr_excluded"  # hidden for good (clean-up)
 PROP_INSTANCE = "fr_instance"  # occurrence name in the CAD file (e.g. "Frame:1"), may be ''
@@ -294,6 +296,7 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
         mesh_import.take_root_info(root_obj, info)
     if root_obj is not None:
         root_obj[PROP_ROOT] = True
+        root_obj[PROP_IMPORTED] = time.time()            # task 0291: the first model names a new project
         root_obj[PROP_UID_SCOPE] = scope
         root_obj[PROP_SOURCE] = info.get("source", "")
         root_obj["fr_cache"] = cache_dir

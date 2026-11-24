@@ -14,6 +14,7 @@ from fresing_render.core import settings_file as sf  # noqa: E402
 CHANGES = {
     "default_rule_set": "Offshore",            # General
     "hover_highlight": False,                  # General
+    "new_project_name": "empty",               # General (task 0291)
     "default_workspace": "CNC milling",        # General
     "library_path": "C:/Läbrary folder/",      # General
     "keep_sections": True,                     # Side panel

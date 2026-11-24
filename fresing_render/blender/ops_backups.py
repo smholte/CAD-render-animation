@@ -153,8 +153,8 @@ class FRESING_OT_backup_offer(bpy.types.Operator):
             st = os.stat(self.path)
         except OSError:
             return None
-        when = core.parse(os.path.basename(self.path), core.project_name(bpy.data.filepath)) or \
-            datetime.fromtimestamp(st.st_mtime)
+        got = core.parse_any(os.path.basename(self.path))       # task 0291: an unsaved project's backup has its name
+        when = (got[1] if got else None) or datetime.fromtimestamp(st.st_mtime)
         return core.Backup(self.path, when, st.st_size, st.st_mtime)
 
     def invoke(self, context, event):
