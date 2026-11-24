@@ -62,7 +62,7 @@ Arms / hoses (0261), routers / chains / way covers (0262), mechanisms (0264), th
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (4-core web machine), 23 Nov 2026 · version 0.2.221 · branch
+**Chat / date:** Claude Code on the web (4-core web machine), 23 Nov 2026 · version 0.2.222 · branch
 `task/0263-winch-spool-real-size`. No subagents (test models and their numbers; the independent checks of the numbers
 were scripts written for this, see below).
 
@@ -102,7 +102,7 @@ spool function).
   the drawn route's four clicks, "Drum turn" in `drawn_cable_setup`, `_check_cables` for the winch, `_check_spool`'s
   carousel turn), PC check `motion.paths`, `ui_test_paths.py` / `ui_test_spool.py` (views, the click finder's sample,
   coil radii).
-- Tour: `changed="0.2.221"` on the sets cables, spool, served, flex_drawn and the stops cables (text: the drum full of
+- Tour: `changed="0.2.222"` on the sets cables, spool, served, flex_drawn and the stops cables (text: the drum full of
   wire), drawn_cable, spool, served; `tour_versions.py --record`.
 - Guide pictures made again: `view_cables_rope`, `view_cables_luffed`, `view_cables_looks`, **new**
   `view_cables_winch.jpg` (+ its line in the guide), `view_drawn_cable`, `view_spools`, `view_spools_full` (the carousel
@@ -142,7 +142,8 @@ spool function).
 - GitHub: 3 full runs. Run 45292265199 stopped in the precheck: 0.2.220 had gone to task 0316 (renumbered to
   0.2.221). Run 45292487479: everything green but one test that came with main (`test_remove_independent.py`, task
   0292's): it removed WINCH DRUM to see the cable named – the rope runs over WIRE ON DRUM now, so that part is removed
-  instead. Third run: see the merge.
+  instead. Run 45296284849 green, but main had moved with code and 0.2.221 had gone to task 0296: merged once more,
+  renumbered to 0.2.222, a fourth full run (see below).
 
 **Open points / follow-up tasks:**
 - The cable panel shows a spool start as "Start on: Joint Drum turn (motion)" (the joint's empty): a plain-words text
