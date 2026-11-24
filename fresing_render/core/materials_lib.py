@@ -292,7 +292,7 @@ MATERIALS: dict[str, dict] = {
                     metallic=0.9, roughness=0.62, finish="as_cast"),
     # ---- task 0318: carbon fibre (the weave follows each CAD face) and perlage --------------------------------------
     "carbon_fibre": dict(label="Carbon fibre (twill / plain weave)", category="Other", base_color=(0.022, 0.022, 0.025),
-                         roughness=0.3, specular=0.6, coat=1.0, coat_roughness=0.03, anisotropic=0.75,
+                         roughness=0.3, specular=0.6, coat=1.0, coat_roughness=0.03,
                          finish="carbon_fibre"),
     "perlage": dict(label="Perlage (engine-turned spots)", category="Metal", base_color=(0.72, 0.72, 0.73),
                     metallic=1.0, roughness=0.2, finish="perlage"),
@@ -413,9 +413,10 @@ def items_by_category():
 #: bare carbon steel and cast iron: they rust all over
 RUST_BARE = {"steel_machined", "steel_raw", "steel_ground", "steel_turned", "cast_iron", "black_oxide", "shot_blasted"}
 #: zinc on steel: red rust only where the zinc is worn, white rust on the zinc
+#: (``wire_rope``: its wires are bright galvanised, see its entry; ``wire_rope_galv`` the duller, heavier coat)
 RUST_ZINC = {"galvanized", "zinc_plated", "zinc_yellow", "zinc_flake", "spangle", "wire_rope", "wire_rope_galv"}
 #: a hard plating on steel: red rust only where it is worn
-RUST_PLATED = {"chrome", "chrome_rod", "nickel_plated"}
+RUST_PLATED = {"chrome", "chrome_rod"}       # nickel_plated is on brass (fittings): no red rust
 #: painted, but not on steel
 PAINT_NOT_STEEL = {"paint_blade_eroded"}
 #: a finish's metal base -> its rust kind
@@ -461,7 +462,7 @@ def no_rust_why(material_id: str, base: str = "", kind: str = "") -> str:
         return NO_RUST_WHY["STAINLESS"]
     if material_id.startswith("aluminium") or (material_id == "as_cast" and kind != "CAST_FE"):
         return NO_RUST_WHY["ALUMINIUM"]
-    if material_id in ("brass", "bronze"):
+    if material_id in ("brass", "bronze", "nickel_plated"):
         return NO_RUST_WHY["BRASS"]
     if material_id == "copper":
         return NO_RUST_WHY["COPPER"]

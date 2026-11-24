@@ -627,7 +627,7 @@ def is_current(mat, material_id: str, color_text: str = "", wear: float = 0.0, f
     want = fin_core.key(material_id, **fin_core.parse(material_id, finish)) if fin_core.get(material_id) else ""
     return (mat.get("fr_material") == material_id and mat.get("fr_color") == color_text
             and abs(float(mat.get("fr_wear", 0.0)) - float(wear)) < 1e-4
-            and abs(float(mat.get("fr_rust", 0.0)) - (float(rust) if rust_kind_of(
+            and abs(float(mat.get("fr_rust", 0.0)) - (min(max(float(rust), 0.0), 1.0) if rust_kind_of(
                 material_id, fin_core.parse(material_id, finish) if fin_core.get(material_id) else {}) else 0.0)) < 1e-4
             and mat.get("fr_finish_set", "") == want
             and int(mat.get(PROP_LOOK, 1)) >= LOOK_VERSION

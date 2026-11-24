@@ -833,7 +833,7 @@ def looks_rust(ctx):
     mn, mx = build.world_bounds(row)
     c = (Vector(mn) + Vector(mx)) / 2
     cam = tour.marine_camera(scene, 0.0, name="Rust close-up")
-    cam.matrix_world = tour.Matrix_look(c + Vector((0.15, -1.0, 0.55)).normalized() * 0.75, c)
+    cam.matrix_world = tour.Matrix_look(c + Vector((0.0, -1.0, 1.0)).normalized() * 1.15, c)
     cam.data.lens = 50.0
     cam.data.clip_start = 0.005
     scene.camera = cam

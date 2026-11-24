@@ -505,7 +505,8 @@ def face_frames(co, tri, axes=(), axis_faces=(), starts=(), part_centre=None, pa
         o[sl], d[sl], r[sl], k[sl] = oo, dd, rr, (-1.0 if inside else 1.0)
         has_axis[sl] = True
         # the triangles' middles too: a cylinder has points only at its two ends, all one distance from its middle
-        sph = _sphere(np.vstack([co[vid], cen[sl]]), oo, dd) if len(vid) >= 6 else None
+        sph = _sphere(np.vstack([co[vid], cen[sl]]), oo, dd, _circumcentres(a[sl], b[sl], c[sl]),
+                      nrm[sl]) if len(vid) >= 6 else None
         if sph is not None:                                    # task 0318: a sphere (a domed cap, a cup)
             c_s, R_s = sph
             dd_s = dd if float(((cen[sl] - c_s) @ dd) @ area[sl]) >= 0 else -dd     # the pole: the cap's middle
@@ -552,21 +553,40 @@ def face_frames(co, tri, axes=(), axis_faces=(), starts=(), part_centre=None, pa
 
 
 #: a round face is a sphere when its points lie within this share of the radius of one centre on its axis, and much
-#: closer to that sphere than to any cylinder round the axis (a short band of a cylinder fits a sphere too)
+#: closer to that sphere than to any cone or cylinder round the axis (a straight line in the (z, rho) profile: a
+#: chamfer or a short band of a cylinder fits a sphere too)
 SPHERE_TOL = 0.02
-SPHERE_VS_CYLINDER = 0.25
+SPHERE_VS_CONE = 0.25
 
 
-def _sphere(pts, o, d):
+def _circumcentres(a, b, c):
+    """The centre of each triangle's circumscribed circle (a, b, c: (n, 3) corners)."""
+    import numpy as np
+    u, v = b - a, c - a
+    w = np.cross(u, v)
+    ww = np.maximum(np.einsum("ij,ij->i", w, w), 1e-30)
+    num = np.einsum("i,ij->ij", np.einsum("ij,ij->i", u, u), np.cross(v, w)) + \
+        np.einsum("i,ij->ij", np.einsum("ij,ij->i", v, v), np.cross(w, u))
+    return a + num / (2.0 * ww[:, None])
+
+
+def _sphere(pts, o, d, cen=None, nrm=None):
     """(centre, radius) of the sphere centred on the axis (o, d) that the points lie on, or None.
 
     |p - o|^2 = R^2 - t^2 + 2 t z with c = o + t d and z = (p - o).d: a least-squares line in z gives t. It is a
-    sphere when the points' distances from c vary much less than their distances from the axis (a cylinder's)."""
+    sphere when the points' distances from c vary much less than their distances from the best straight profile line
+    rho = a + b z (a cone; b = 0 a cylinder). With the triangles' circumcentres ``cen`` and normals ``nrm`` (the
+    importer's meshes) the facets must also face the centre: the normal of a flat facet cut from a sphere, through its
+    circumcentre, passes through the sphere's centre exactly; a cone's facets cross the axis all along it (independent
+    review of task 0318: chamfers were read as spheres)."""
     import numpy as np
+    pts = np.asarray(pts, float).reshape(-1, 3)
+    if len(pts) < 4:
+        return None
     pc = pts - o
     z = pc @ d
     q = np.einsum("ij,ij->i", pc, pc)
-    if np.ptp(z) < 1e-12:
+    if not np.all(np.isfinite(q)) or np.ptp(z) < 1e-12:
         return None
     A = np.vstack([np.ones_like(z), z]).T
     (_a0, a1), *_ = np.linalg.lstsq(A, q, rcond=None)
@@ -575,10 +595,22 @@ def _sphere(pts, o, d):
     dist = np.linalg.norm(pts - c, axis=1)
     R = float(np.median(dist))
     rho = np.sqrt(np.maximum(q - z * z, 0.0))
+    (b0, b1), *_ = np.linalg.lstsq(A, rho, rcond=None)
+    line_dev = float(np.max(np.abs(rho - (b0 + b1 * z))))
     s_dev = float(np.max(np.abs(dist - R)))
-    c_dev = float(np.max(np.abs(rho - np.median(rho))))
-    if not np.isfinite(R) or R <= 0 or s_dev > SPHERE_TOL * R or s_dev > SPHERE_VS_CYLINDER * c_dev:
+    if not np.isfinite(R) or R <= 0 or s_dev > SPHERE_TOL * R or s_dev > SPHERE_VS_CONE * line_dev:
         return None
+    if cen is not None and nrm is not None and len(cen):
+        w0 = np.asarray(cen, float).reshape(-1, 3) - o
+        n = np.asarray(nrm, float).reshape(-1, 3)
+        bd = n @ d
+        nn = np.einsum("ij,ij->i", n, n)
+        ok = ((1.0 - bd * bd) > 1e-4) & (np.abs(nn - 1.0) < 1e-3) & np.all(np.isfinite(w0), axis=1)
+        # (facets at the pole face along the axis: any point; slivers have no normal)
+        if ok.any():
+            tt = ((w0 @ d) - bd * np.einsum("ij,ij->i", n, w0))[ok] / (1.0 - bd[ok] ** 2)
+            if float(np.max(np.abs(tt - t))) > max(0.05 * float(np.ptp(z)), 1e-9):
+                return None
     return c, R
 
 
@@ -603,6 +635,7 @@ def teeth(radius: float, pitch: float, angle_deg: float = 0.0) -> int:
 #: Closed rings and spheres keep their own frame (they are seamless on their own); where a face cannot continue its
 #: neighbour (the end of a tube against its round side), the weave meets it as at a ply joint.
 WEAVE_FIT = 2e-5          # m: a face continues its neighbour when their weaves meet within this along the edge
+SMOOTH_EDGE = math.cos(math.radians(20.0))   # … and their normals along it differ by less than this angle
 
 
 def plane_basis(d):
@@ -691,6 +724,20 @@ def weave_frames(co, tri, o, d, r, k, starts=()):
     info = []
     key_faces: dict = {}
     scale = 1e6                                                   # points the same within a micrometre are one
+    tn = np.cross(b_ - a_, c_ - a_)
+    tn /= np.maximum(np.linalg.norm(tn, axis=1), 1e-30)[:, None]
+    # round faces on one axis with one radius are one surface: a tube stored as two half faces is still closed
+    rings: dict = {}
+    for fi, (t0, t1) in enumerate(faces):
+        if abs(int(round(float(k[t0])))) == 1:
+            key = (tuple(np.round(o[t0], 6)), tuple(np.round(d[t0], 5)), round(float(r[t0]), 6))
+            th = _theta(co[np.unique(tri[t0:t1].ravel())] - o[t0], d[t0])
+            rings.setdefault(key, []).append(th)
+    ring_closed = {}
+    for key, ths in rings.items():
+        th = np.sort(np.concatenate(ths))
+        gaps = np.diff(np.concatenate([th, th[:1] + 2 * math.pi]))
+        ring_closed[key] = len(th) > 0 and float(np.max(gaps)) < math.radians(30.0)
     for fi, (t0, t1) in enumerate(faces):
         vid = np.unique(tri[t0:t1].ravel())
         kind = int(round(float(k[t0])))
@@ -700,16 +747,20 @@ def weave_frames(co, tri, o, d, r, k, starts=()):
             th = np.sort(_theta(co[vid] - oo, dd))
             gaps = np.diff(np.concatenate([th, th[:1] + 2 * math.pi]))
             g = int(np.argmax(gaps))
-            closed = float(gaps[g]) < math.radians(30.0)
+            closed = ring_closed.get((tuple(np.round(oo, 6)), tuple(np.round(dd, 5)), round(rr, 6)), False)
             th0 = -1.0 if closed else float(np.mod(th[g] + gaps[g] / 2, 2 * math.pi))   # -1: closed
         anchor = abs(kind) == 3 or closed
         hand = 1.0 if kind in (0, 2) else float(np.sign(kind) or 1.0)
         keys = np.round(co[vid] * scale).astype(np.int64)
         kv = {tuple(x): int(v) for x, v in zip(keys, vid)}
+        # the face's normal at each of its points (the mean of its triangles there): only smooth edges are joined
+        vn = np.zeros((len(co), 3))
+        np.add.at(vn, tri[t0:t1].ravel(), np.repeat(tn[t0:t1], 3, axis=0))
+        vnk = {kk: vn[v] / max(np.linalg.norm(vn[v]), 1e-30) for kk, v in kv.items()}
         for kk in kv:
             key_faces.setdefault(kk, []).append(fi)
         info.append(dict(t=(t0, t1), kind=kind, o=oo, d=dd, r=rr, th0=th0, anchor=anchor, hand=hand, keys=kv,
-                         area=float(area[t0:t1].sum())))
+                         vn=vnk, area=float(area[t0:t1].sum())))
     nb: dict = {}
     for kk, fs in key_faces.items():
         if len(fs) > 1:
@@ -730,6 +781,10 @@ def weave_frames(co, tri, o, d, r, k, starts=()):
             for fb, kks in sorted(nb.get(fa, {}).items()):
                 ib = info[fb]
                 if placed[fb] is not None or ib["anchor"] or len(kks) < 2:
+                    continue
+                # a smooth edge only (a bend into a flat, a face split in two): across a sharp edge – a sheet's cut
+                # edge, a corner – a real layup has a ply joint (independent review: the folded panel's end faces)
+                if min(float(ia["vn"][kk] @ ib["vn"][kk]) for kk in kks) < SMOOTH_EDGE:
                     continue
                 pts = np.array([co[ia["keys"][kk]] for kk in kks])
                 na = _native(ia["kind"], pts, ia["o"], ia["d"], ia["r"], ia["th0"])

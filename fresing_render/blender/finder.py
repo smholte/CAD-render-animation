@@ -223,4 +223,7 @@ PRESETS = [
     ("hammertone", "Paint, hammertone RAL 7031 blue grey", "hammertone", "RAL 7031"),
     ("crosshatch", "Plastic housing, moulded cross-hatch, black", "crosshatch", "RAL 9005"),
     ("antiskid", "Deck paint, anti-skid RAL 7040 grey", "antiskid", "RAL 7040"),
+    # task 0318
+    ("carbon", "Carbon fibre, 2x2 twill, glossy", "carbon_fibre", ""),
+    ("perlage", "Perlage, stainless (engine-turned spots)", "perlage", ""),
 ]

@@ -1404,6 +1404,7 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
 4. **Wear** (slider under the material, 0 = new): how used the parts look. Sharp edges turn lighter or
    bare metal in places and corners get a little dirt. 0 is right for marketing pictures; 0.2–0.4 looks
    "in service". The edges show in Cycles renders; Fast preview (EEVEE) shows only the dirt in corners.
+5. **Rust** (slider under Wear, 0 = none): see [Rust](#rust) – only steel and iron have it.
 
 **What the materials look like**
 
@@ -1474,6 +1475,9 @@ and looks the same on every copy of a part and after a model update.
   holes or slots, see-through), **Expanded metal** (see-through), **Scraped machine ways** (the half-moon
   flaking), **Plastic grille, fine holes** (see-through), **Plastic, moulded cross-hatch** (follows curved
   shells), **Fabric, woven** (speaker cloth).
+- **Carbon fibre** and **Perlage** – see [Carbon fibre](#carbon) below. Perlage (engine turning): brushed
+  circles laid in rows, each later spot over the earlier ones, each with its own swirl and highlight; on
+  stainless, aluminium or brass, **Spot size** 4 mm.
 - **Grains** – a 3-D grain without a direction: **Bead-blasted metal**, **Steel, shot-blasted** (before
   paint), **Paint, hammertone**, **Paint, wrinkle finish**, **Paint, anti-skid** (decks, walkways),
   **Plastic, spark-eroded texture (VDI 3400)**, **Plastic, leather grain**, **Plastic, soft-touch**,
@@ -1501,11 +1505,51 @@ Good to know:
   knurl on them (the end faces still get their rings).
 - Tread plate, expanded metal and the grille are relief in the material: the plate's outline stays flat.
   The see-through finishes show the part's back face through the holes.
-- In the **web 3D model** the fine finishes (knurls, spun, blasted, VDI, fabric …) are exported as their
-  average colour and shine; the coarser ones (tread plate, perforated, expanded, hammertone, spangle,
+- In the **web 3D model** the fine finishes (knurls, spun, blasted, VDI, fabric, carbon, perlage …) are exported
+  as their average colour and shine; the coarser ones (tread plate, perforated, expanded, hammertone, spangle,
   leather, scraped …) as a texture.
 - A rule set or a paint scheme keeps a group's material and colour; a finish's own settings start at their
   defaults there.
+
+<a id="carbon"></a>
+### Carbon fibre
+
+<img src="img/carbon.jpg" alt="Carbon fibre on a cup, a tube with a cone, a folded U-panel and a free-form hood">
+
+**Carbon fibre (twill / plain weave)** is a material like the others (in **Other**, or **Ready-made
+material…** > Carbon fibre). The weave lies on **every CAD face of its own**: round the round faces (a whole
+number of tows round a tube, so they meet without a seam), draped over a dome from its middle, flat on flat
+faces – and it runs on across a fold or a bend into the next face, as a draped ply would. It never switches
+direction in the middle of a curved face (the 45° seam other programs show). Where two faces cannot continue
+each other (the end of a tube against its round side, the flat top of a cup) the weave meets as at a ply
+joint, where a real part has one too.
+
+- **Kind** – **2x2 twill** (the usual diagonal look) or **Plain weave** (a calm chequer).
+- **Tow width** – 2 mm for the common 3K cloth; 1–8 mm.
+- **Gloss** – 1 = a glossy clear coat, 0 = matte. The weave shows under the clear coat; each tow's
+  highlight runs along its fibres, so neighbouring tows shine in turn as the part or the light moves.
+- Far away it becomes an even dark grey with a soft sheen.
+- It needs the part's CAD faces (a STEP model); a mesh model shows the weave on its own flat faces.
+
+<a id="rust"></a>
+### Rust
+
+<img src="img/rust.jpg" alt="Rust on bare steel, cast iron, painted and galvanized steel; stainless and aluminium stay clean">
+
+**Rust** is a slider under a group's **Wear** (0 = none, 1 = heavy), only where it is logical:
+
+- **Bare steel and cast iron** (machined, ground, raw, cast iron, a steel knurl …): rust patches 10–40 mm
+  that start in the corners; a little gives a thin brown film (flash rust), a lot flaking rust.
+- **Painted steel**: rust only where the paint is worn through – at the edges and scratches Wear makes (a
+  higher Rust wears a little more off) – with short streaks running down the sides below.
+- **Galvanized and zinc-plated steel**: red rust only where the zinc is worn, dull white rust on the zinc.
+  Chrome and nickel plating: red rust only where worn.
+- **Stainless steel, aluminium, brass, copper, plastics, glass**: no slider – the row says why (stainless
+  steel does not rust, aluminium only greys …).
+
+It is the same rust as the marine streaks and the welds: welds on the group's parts follow the slider (a
+bare steel weld and its heat zone rust first). Rust in corners and at worn edges shows in Cycles; in the
+web 3D model the rust patches of bare steel keep their colour, the corners and edges do not.
 
 <a id="rule-sets"></a>
 ### Rule sets

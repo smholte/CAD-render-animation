@@ -27,7 +27,7 @@ sys.path.insert(0, ROOT)
 SHAPES = {"cup": "CUP CARBON", "tube": "TUBE CARBON", "panel": "PANEL CARBON", "hood": "HOOD CARBON",
           "plate": "PLATE CARBON"}
 #: camera direction (from the part's centre) and distance factor of its size
-VIEW = {"cup": ((0.9, -1.0, 0.55), 1.5), "tube": ((0.3, -1.0, 0.75), 1.15), "panel": ((0.9, -1.1, 0.8), 1.5),
+VIEW = {"cup": ((0.9, -1.0, 0.55), 1.5), "tube": ((0.3, -1.0, 0.75), 1.6), "panel": ((0.9, -1.1, 0.8), 1.5),
         "hood": ((1.0, -0.9, 0.9), 1.35), "plate": ((0.4, -1.0, 1.2), 1.0)}
 WAYS = ("old", "blend", "uv", "faces")
 #: close-ups ("<shape>_close"): where to look (a share of the part's box from its low corner) and from how far (m)

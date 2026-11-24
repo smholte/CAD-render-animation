@@ -67,6 +67,26 @@ quality step as the new finishes.
 The 23 finishes of 0274 (only fix them if you find a fault – say so), welds (0319), the picker (0273), Adjust (0314),
 painted steel from CAD colours (0287).
 
+## Design (worker, 24 Nov 2026)
+
+- **Carbon: the weave per CAD face, continued across edges.** Every CAD face gets its own weave coordinates (metres):
+  a plane in its own plane (from the part's origin, so coplanar faces continue), a round face (theta r, z) round its
+  axis – a closed ring stretched to a whole multiple of 4 tows round it, so it meets itself –, a sphere draped from its
+  pole ((s cos theta, s sin theta), s = R x angle from the pole). Then, largest face first, every face that shares an
+  edge with a placed one is turned / mirrored and shifted (2-D Procrustes on the edge's points, handedness from the
+  face normals) so its weave continues across the edge when it meets within 20 µm (a fold, a bend, a split face).
+  Closed rings and spheres keep their own frame. Python: `core/finishes.weave_frames` (face attributes `fr_cw_a` =
+  (cos, sin, mirror), `fr_cw_b` = (shift u, shift v, theta0; -1 = closed)); shader: `blender/finishes.weave_coords`.
+- **Spheres** (`core/finishes._sphere`, k = ±3): a round face whose points (corners + triangle middles) lie on one
+  sphere centred on its axis, much closer than on a cylinder round it. The importer gives spheres an axis (the CAD's
+  pole when it points at the face's middle, else the middle's direction); `CACHE_VERSION` 7.
+- **Rust:** `core/materials_lib.rust_kind` (BARE / PAINTED / ZINC / PLATED / none, a finish's Metal / Kind decide),
+  `materials._weather` = Wear + Rust with one Ambient Occlusion node; `blender/rust.py` = the one rust colour ramp
+  (marine streaks, welds, groups). The group material carries `fr_rust`; welds read it and get new materials
+  (`welds.follow_rust` / `restyle`, no new bead).
+- **Comparison tool** `tools/carbon_compare.py` (old projection, blend, UV unwrap, per-face; `--diag` black/white
+  weave), close-ups `tools/look_shots.py`.
+
 ---
 
 ## Report (filled in by the chat that did the task)

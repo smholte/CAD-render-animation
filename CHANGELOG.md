@@ -5,6 +5,35 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.233 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
+
+- **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or
+  matte clear coat (**Kind**, **Tow width**, **Gloss**). The weave lies on every CAD face of its own – round a tube
+  with a whole number of tows (no seam), draped over a dome, flat on flat faces – and runs on across folds and bends.
+  It no longer breaks at 45° on a curved part.
+- **Perlage** (new finish): overlapping brushed circles laid row after row (engine turning), on stainless, aluminium
+  or brass, **Spot size** 4 mm.
+- **Rust** (new slider under **Wear**, only where it is logical): bare steel and cast iron rust in patches that start
+  in the corners (a thin film at a low value, flaking rust at 1); painted steel only where Wear took the paint off,
+  with short streaks running down; galvanized steel where the zinc is worn, with white rust on the zinc. Stainless,
+  aluminium, brass, plastics and glass have no slider – the row says why. Welds on those parts follow it.
+- **One rust look** for the whole app: the marine run-down streaks and splash zone and the welds now use the same rust
+  colours as the slider.
+- **Domed caps and cups** (spheres in the CAD) now have their own axis: a spun cap's rings are even from its middle.
+  STEP models are read again once after the update (the stored import is renewed).
+- **Looks that changed** – an old render made with these looks will differ after the update:
+  - **Glass, clear; Polycarbonate, clear; Glass / PC, tinted; Acrylic, frosted; Polyurethane tube, clear**: they no
+    longer cast black shadows and no longer look dark – light passes through them as in a photo.
+  - **Chrome** and **Hydraulic chrome rod**: a darker, crisper mirror (the real reflectance of chrome), now clearly
+    different from polished stainless.
+  - **Copper, Brass, Bronze**: lighter, truer colours (they were too dark and too orange).
+  - **Zinc plated, yellow**: the yellow passivation is now a thin film on bright zinc – gold-green with a rainbow
+    sheen at an angle, as on real yellow-zinc bolts.
+  - **Cast iron**: a little lighter and more metallic (a casting's dull metal skin, not a half-plastic grey).
+  - **Marine paint, growth below the waterline** and **Marine paint, run-down streaks**: their rust streaks take the
+    new rust colours.
+  - Every project's group materials are made again once when it opens (they keep their material, colour and Wear).
+
 ## 0.2.232 – 24 Nov 2026 – The question about an unused panel stays open after Show me (task 0317)
 
 - **"Show me in the guide", "… in the Learning hub" and "… in a lesson" no longer close the question.** It stays on the
