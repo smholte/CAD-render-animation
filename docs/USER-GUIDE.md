@@ -711,8 +711,8 @@ small model with its own surroundings). There are three ways to learn on each of
 
 <img class="panel" src="img/learn_window.png" alt="The Learn window: Crane and Milling a slot with View, Show me and Build it yourself, the other samples with View">
 
-**Crane** (11 steps: a light look, a rotate joint and a joint on it, a camera, a saved scene, an animation with a step,
-Build & play, an exploded view and a picture in the render queue) and **Milling a slot** (13 steps: three slide axes, the
+**Crane** (12 steps: a light look, a rotate joint and a joint on it, a camera, a saved scene, an animation with a step,
+Build & play, an exploded view, a picture in the render queue and a lead motion) and **Milling a slot** (13 steps: three slide axes, the
 bit and the workpiece, raw steel, chips, a close-up, the cut as two steps, Build & play and a picture of the cut) have a
 lesson now. The other samples have **View**; their lessons follow with later updates.
 

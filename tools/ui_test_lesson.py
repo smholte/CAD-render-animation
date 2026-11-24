@@ -307,6 +307,7 @@ def s_stop_playing():
 
 _do_step(10)
 _click_step(11, "Queue this")
+_do_step(12)                       # task 0309: a lead motion (its editor is a window of its own: Do it for me)
 
 
 @step
@@ -315,7 +316,8 @@ def s_build_end():
     check("Build it yourself reaches the end", les().step() is None, les().state())
     check("... the project has the lesson's joints, scenes, animation, Build and the queued picture",
           len(s.joints) >= 2 and len(s.shots) >= 2 and len(s.animations) == 1 and bool(s.anim_baked)
-          and len(s.queue) == 1, f"{len(s.joints)} joints, {len(s.shots)} scenes, queue {len(s.queue)}")
+          and len(s.queue) == 1 and len(s.lead_motions) == 1,
+          f"{len(s.joints)} joints, {len(s.shots)} scenes, queue {len(s.queue)}, {len(s.lead_motions)} lead motions")
     with override():
         bpy.ops.fresing.lesson_stop()
     check("Stop: nothing of the lesson or the highlight runs", les().handlers_left() == []

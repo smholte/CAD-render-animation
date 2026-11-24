@@ -5779,6 +5779,9 @@ def app_fr_mark(ctx):
         def separator(self, *a, **kw):
             pass
 
+        def popover(self, panel="", **kw):             # task 0309: Lead motions, right of the Fresing menu
+            self.menus.append((panel, kw))
+
     class _Area:
         show_menus = True
 
@@ -5797,6 +5800,7 @@ def app_fr_mark(ctx):
     _check(names[:1] == [ui_topbar.MARK_MENU], f"the top bar's first item is {names[:1]}")
     _check(names[1:7] == ["TOPBAR_MT_file", "TOPBAR_MT_edit", "TOPBAR_MT_render", "TOPBAR_MT_window",
                           "TOPBAR_MT_help", ui_topbar.MENU], f"the top bar's menus after the mark: {names[1:]}")
+    _check(names[7:8] == ["TOPBAR_PT_fresing_lead"], f"Lead motions is not right after the Fresing menu: {names[7:8]}")
     _check(bpy.app.background or ui_topbar.mark_icon() > 0, "the Fr mark's picture did not load")
     _check(ui_topbar.mark_entries() == ["fresing.about", "fresing.settings", "TOPBAR_MT_blender"],
            f"the Fr menu's lines: {ui_topbar.mark_entries()}")
@@ -6153,8 +6157,8 @@ def app_learning(ctx):
 
 @line("app.lessons", "Lessons: the crane in Build it yourself to the end, Show me's first three steps", "0.2.189",
       what="Fresing > Learn… is there; the crane lesson in Build it yourself does every step with Do it for me and goes "
-           "on by itself once the project shows each done (11 steps: joints, camera, scene, animation, Build, exploded "
-           "view, the queue); Show me points, does steps 2 to 4 itself and waits for Next; nothing of the lesson runs "
+           "on by itself once the project shows each done (12 steps: joints, camera, scene, animation, Build, exploded "
+           "view, the queue, a lead motion); Show me points, does steps 2 to 4 itself and waits for Next; nothing of the lesson runs "
            "after Stop")
 def app_lessons(ctx):
     import time
@@ -6164,7 +6168,7 @@ def app_lessons(ctx):
     from ..blender import highlight, lesson, ui_topbar
     _check("fresing.learn_lessons" in ui_topbar.entries(), "Learn… is not in the Fresing menu")
     les = lesson.LESSONS.get("crane")
-    _check(les is not None and len(les.steps) == 11, "the crane lesson is missing or not 11 steps")
+    _check(les is not None and len(les.steps) == 12, "the crane lesson is missing or not 12 steps")
     t0 = time.time()
     scene = ctx.fresh(CRANE_A)
     lesson.start(scene, "crane", "BUILD")
@@ -6181,8 +6185,9 @@ def app_lessons(ctx):
             _check(lesson.state()["step"] == k or lesson.step() is None, f"the lesson did not go on after step {k}")
         build_s = time.time() - t0
         s = scene.fresing
-        _check(len(s.joints) >= 2 and len(s.shots) >= 2 and s.anim_baked and len(s.queue) == 1,
-               "the crane lesson's project misses its joints, scenes, built animation or queued picture")
+        _check(len(s.joints) >= 2 and len(s.shots) >= 2 and s.anim_baked and len(s.queue) == 1
+               and len(s.lead_motions) == 1,
+               "the crane lesson's project misses its joints, scenes, built animation, queued picture or lead motion")
     finally:
         lesson.stop(forget=True)
     _check(lesson.handlers_left() == [] and highlight.handlers_left() == [],

@@ -25,6 +25,9 @@ class _Rec:
     def separator(self, **kw):
         self.calls.append(("sep",))
 
+    def popover(self, panel="", **kw):                 # task 0309: Lead motions, right of the Fresing menu
+        self.calls.append(("popover", panel, kw))
+
 
 class _Area:
     show_menus = True
@@ -61,6 +64,8 @@ def test_the_first_item_is_the_fr_mark_and_the_rest_stay_blenders():
     assert menus[1:] == ["TOPBAR_MT_file", "TOPBAR_MT_edit", "TOPBAR_MT_render", "TOPBAR_MT_window",
                          "TOPBAR_MT_help", ui_topbar.MENU]
     assert "TOPBAR_MT_blender" not in menus
+    i = next(k for k, c in enumerate(calls) if c[0] == "menu" and c[1] == ui_topbar.MENU)
+    assert calls[i + 1][:2] == ("popover", "TOPBAR_PT_fresing_lead")      # task 0309: Lead motions right after it
 
 
 def test_without_header_menus_the_mark_menu_has_a_name():
