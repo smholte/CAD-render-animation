@@ -122,14 +122,28 @@ class PartFacts:
         }
 
 
-def facts_for(name: str, path: str = "", color: str = "", assembly: str = "", cad_material: str = "") -> PartFacts:
+def facts_for(name: str, path: str = "", color: str = "", assembly: str = "", cad_material: str = "",
+              shape: str = "") -> PartFacts:
     """Facts about one part. ``cad_material``: the material or appearance name the CAD file
     gives the part; only names the library knows are kept ("Default", "Generic" and unknown
-    names count as no material, so the CAD colour still decides)."""
+    names count as no material, so the CAD colour still decides). ``shape``: what the part's mesh
+    is (``shape_hints.hint``: "washer", "hex_nut", "o_ring" or ""); it counts only when the name
+    says nothing (``part_types.shape_may_decide``, task 0302)."""
     cad = cad_material if cad_material and cad_materials.lookup(cad_material) else ""
+    part_type = part_types.classify(name, path, assembly, cad, color)
+    fastener = fasteners.parse(name)
+    if shape and part_types.shape_may_decide(name, path, assembly):
+        if shape == "o_ring":
+            part_type = part_types.group_for_type("seal")
+        else:
+            fastener = fasteners.from_shape(shape)
     return PartFacts(name=name, path=path, assembly=assembly, color=color, cad_material=cad,
-                     part_type=part_types.classify(name, path, assembly, cad, color),
-                     fastener=fasteners.parse(name))
+                     part_type=part_type, fastener=fastener)
+
+
+def shape_wanted(name: str, path: str = "", assembly: str = "") -> bool:
+    """True when ``facts_for`` would use a shape hint for this part: work out its shape only then."""
+    return part_types.shape_may_decide(name, path, assembly)
 
 
 def face_facts(color: str = "", cad_material: str = "") -> PartFacts:

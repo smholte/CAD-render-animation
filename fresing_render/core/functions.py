@@ -196,7 +196,7 @@ fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that w
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
-   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), lesson="crane:1", since="0.1.0")
+   pccheck=("import.crane", "import.machine", "import.materials", "import.shapes", "project.reopen"), lesson="crane:1", since="0.1.0")
 fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
@@ -253,7 +253,7 @@ fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_face
 fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_PT_decals",
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
-   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.222")
+   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.223")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
