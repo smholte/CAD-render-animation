@@ -255,6 +255,11 @@ fresing_render/            the Blender extension (Python package)
                            can come – `footprint`, `local_points` –, `repeats` turned, `symmetry_order`),
                            vessel_motion.py (task 0085: heave / pitch / roll from the sea's own waves + a long swell;
                            hull averaging, a damped roll at its natural period, scaled so each sea state has its table),
+                           finishes.py (task 0274: the 23 finishes of study 0270 – knurls, spun / faced ends, honed
+                           bores, cross-hatch, fabric, grille, tread / perforated / expanded plate, scraped ways, blasted,
+                           hammertone, wrinkle, anti-skid, VDI, leather, spangle, as-cast: settings, metal bases, kinds,
+                           ``key`` = a group's settings as text, ``face_frames`` = the face data, ``shown`` = the far fade,
+                           ``far`` = the web model's numbers),
                            toolmarks.py (tool marks on cut faces, task 0061: the contract between the milled mesh and
                            the cut-face material – four per-face attributes ``fr_mk_o/d/a/p``, six kinds of marks – and
                            the formula in plain Python the tests compare a render with; strengths per material),
@@ -362,6 +367,11 @@ fresing_render/            the Blender extension (Python package)
                            it last -> the attributes of core/toolmarks.py written with the mesh; ``gcode.feeds`` (F and S
                            per frame, stored at Build); quick normals while the frame changes, exact ones when it stands
                            still and in renders (``refresh(quick=)``, ``make_fine``)
+    finishes.py            task 0274: the finishes' shader nodes (``apply`` from ``materials.build_nodes`` for a library
+                           material with ``finish``); face data ``fr_fx_o/d/r/k`` (FACE attributes, written by
+                           ``materials.assign`` when the mesh's ``signature`` changed); the far fade reads the scene's
+                           ``fr_pixel_angle`` (Attribute node, View Layer) kept up by ``cameras.update_pixel_angle``
+                           (render_init / depsgraph / load handlers); a group's settings ``fin_size/angle/amount/base/kind``
     toolmarks.py           the node group "FR tool marks" (shader nodes only: reads the attributes, draws the marks as a
                            lean of the normal + the anisotropic tangent; inputs Size, Strength, Pixel angle), wired into a
                            material by ``materials.build_nodes`` when its spec has ``toolmarks``
@@ -498,6 +508,12 @@ fresing_render/            the Blender extension (Python package)
                            arrow and motion); the CAD coil hidden by an empty modifier; ``set_up_test_model``
                            (test_spool.step from tools/make_test_spool.py); ops_spool.py, ui_spool.py (4 Motion > Drums
                            and carousels)
+    flex_avoid.py          hoses that avoid other parts (task 0298): which parts (shown, near, not its fittings), their
+                           meshes as bodies for core/flex_avoid.py (BVH + clash.Mesh's inside test); flex_route.py = via
+                           points (clips with ``via`` on, carried between the two end parts by a share of the screw);
+                           ops_route.py = Shape the route (modal: drag dots, click the line, X); flex.clash_rows =
+                           clash.ROW_HOOKS ("Check hoses that avoid parts"); core/flex_avoid.py = the field (boxes,
+                           balls, any body), core/flex.py ``avoid=`` = a contact penalty on the fine level
     tracks.py              tracks and belts (task 0079): wheels clicked, one link (its copies by name), pads/plates
                            riding on the nearest link; per track a hidden table "FR track loop <name>" (the loop every
                            2 mm, carrier coordinates = the first wheel's joint arrow) and a run object "FR track run

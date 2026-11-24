@@ -41,7 +41,7 @@ BOLT = "ISO 4017 M16 x 30 - 8.8 HDG"
 # task 0122: where the hold-down bolts' heads stand (the bearing blocks' feet, the gearbox's foot, the slew post's
 # flange); an M16 hex head is 24 across flats (x), 27.7 across corners (y), 10 high; the shank goes 30 down
 BOLT_HEADS = [(105, 290, 330), (-105, 290, 330), (105, -290, 330), (-105, -290, 330), (168, -372.5, 90),
-              (-168, -372.5, 90), (4460, 0, 30), (4300, 160, 30), (4140, 0, 30), (4300, -160, 30)]
+              (-168, -372.5, 90), (6760, 0, 30), (6600, 160, 30), (6440, 0, 30), (6600, -160, 30)]
 # the key parts' boxes (mm), worked out from the brief's numbers by hand
 BOXES = {
     "BASE FRAME": ((-400, -420, 0), (1100, 420, 300)),
@@ -54,19 +54,20 @@ BOXES = {
     "FAIRLEAD SHEAVE": ((675, -20, 419.641), (925, 20, 669.641)),
     "WEIGHT": ((870, -80, 60), (930, 80, 200)),
     "WIRE ROPE": ((-204.641, -10, 200), (910, 10, 654.641)),
-    "CAROUSEL BASE": ((2050, -950, 0), (3950, 950, 100)),             # task 0122: on a foot ring r 950
-    "TURNTABLE": ((2000, -1000, 100), (4000, 1000, 140)),
-    "INNER CORE": ((2700, -300, 140), (3300, 300, 520)),
-    "RIM FENCE": ((2000, -1000, 140), (4000, 1000, 250)),      # (task 0174: lower, the guide clears it)
-    "CABLE COIL": ((2140, -860, 140), (3860, 860, 300)),
-    "SLEW POST": ((4100, -200, 0), (4500, 200, 1000)),                # task 0122: on a foot flange r 200
-    "ARM": ((3540, -200, 390), (4400, 100, 1140)),
-    "GUIDE PIN": ((3530, -15, 415), (3670, 15, 445)),
-    "GUIDE SHEAVE": ((3575, -170, 260), (3625, 170, 600)),
-    "CABLE CLAMP": ((3560, -190, 1000), (3640, -110, 1060)),
-    "POWER CABLE": ((3000, -170, 260), (3620, 620, 1000)),
+    # task 0263: the carousel x 2 in plan about its axis, now at x 4000; heights, the cable, the guide sheave kept
+    "CAROUSEL BASE": ((2100, -1900, 0), (5900, 1900, 100)),           # task 0122: on a foot ring (r 1900)
+    "TURNTABLE": ((2000, -2000, 100), (6000, 2000, 140)),
+    "INNER CORE": ((3360, -640, 140), (4640, 640, 520)),
+    "RIM FENCE": ((2000, -2000, 140), (6000, 2000, 250)),      # (task 0174: lower, the guide clears it)
+    "CABLE COIL": ((2300, -1700, 140), (5700, 1700, 300)),
+    "SLEW POST": ((6400, -200, 0), (6800, 200, 1000)),                # task 0122: on a foot flange r 200
+    "ARM": ((5140, -200, 390), (6700, 100, 1140)),
+    "GUIDE PIN": ((5130, -15, 415), (5270, 15, 445)),
+    "GUIDE SHEAVE": ((5175, -170, 260), (5225, 170, 600)),
+    "CABLE CLAMP": ((5160, -190, 1000), (5240, -110, 1060)),
+    "POWER CABLE": ((4000, -170, 260), (5220, 1220, 1000)),
     # task 0122
-    "DECK PLATE": ((-700, -1200, -30), (4700, 1200, 0)),
+    "DECK PLATE": ((-700, -2400, -30), (7000, 2400, 0)),
     "GEARBOX": ((-190, -425, 60), (190, -325, 600)),
     "HYDRAULIC MOTOR": ((-110, -625, 140), (110, -425, 360)),
     BOLT: None,                                                         # each bolt from BOLT_HEADS
@@ -169,21 +170,21 @@ def test_the_spools_numbers():
     assert (f["seat_radius"], f["surface_radius"], f["rim_radius"], f["width"]) == (100.0, 90.0, 125.0, 40.0)
     assert f["axis_point"][2] + f["seat_radius"] == r["leave_point"][2]           # its top at the rope's height
     s = K["spool"]
-    assert s["axis_point"] == (3000.0, 0.0, 0.0) and s["axis_direction"] == (0.0, 0.0, 1.0)
+    assert s["axis_point"] == (4000.0, 0.0, 0.0) and s["axis_direction"] == (0.0, 0.0, 1.0)
     assert (s["d"], s["r_in"], s["r_out"], s["a_bot"], s["full_layers"], s["turns_per_layer"]) == (
-        40.0, 340.0, 840.0, 140.0, 3, 12.5)
-    assert s["top_layer_z"] == 140.0 + 3.5 * 40.0 == 280.0 and s["leave_radius"] == s["top_layer_from"] == 600.0
+        40.0, 680.0, 1680.0, 140.0, 3, 25.0)
+    assert s["top_layer_z"] == 140.0 + 3.5 * 40.0 == 280.0 and s["leave_radius"] == s["top_layer_from"] == 1200.0
     c = K["cable"]
-    assert np.allclose(c["start"], (3000.0, 600.0, 280.0), atol=1e-3)
-    assert np.allclose(c["leave_point"], (3600.0, 0.0, 280.0), atol=1e-3) and c["leave_direction"] == (0.0, -1.0, 0.0)
-    assert np.allclose(c["end"], (3600.0, -150.0, 1000.0), atol=1e-3)
-    assert abs(c["length"] - (600.0 + 150.0) * math.pi / 2 - 570.0) < 1e-3 and "1748.097" in doc
+    assert np.allclose(c["start"], (4000.0, 1200.0, 280.0), atol=1e-3)
+    assert np.allclose(c["leave_point"], (5200.0, 0.0, 280.0), atol=1e-3) and c["leave_direction"] == (0.0, -1.0, 0.0)
+    assert np.allclose(c["end"], (5200.0, -150.0, 1000.0), atol=1e-3)
+    assert abs(c["length"] - (1200.0 + 150.0) * math.pi / 2 - 570.0) < 1e-3 and "2690.575" in doc
     g = K["guide"]
-    assert g["axis_point"] == (3600.0, 0.0, 430.0) and g["axis_direction"] == (1.0, 0.0, 0.0)
+    assert g["axis_point"] == (5200.0, 0.0, 430.0) and g["axis_direction"] == (1.0, 0.0, 0.0)
     assert (g["seat_radius"], g["surface_radius"], g["rim_radius"], g["width"]) == (150.0, 130.0, 170.0, 50.0)
     assert g["axis_point"][2] - g["seat_radius"] == c["leave_point"][2]           # its bottom on the top layer
     a = K["arm"]
-    assert a["pivot"] == (4300.0, 0.0, 0.0) and a["axis_direction"] == (0.0, 0.0, 1.0) and a["reach"] == 700.0
+    assert a["pivot"] == (6600.0, 0.0, 0.0) and a["axis_direction"] == (0.0, 0.0, 1.0) and a["reach"] == 1400.0
 
 
 def test_the_wound_estimates():
@@ -202,12 +203,12 @@ def test_the_wound_estimates():
             q = math.hypot(r, b)
             return (r * q + b * b * math.log(r + q)) / (2.0 * b)
         return abs(f(r1) - f(r0))
-    car = [spiral(340.0, 840.0, 12.5)] * 3 + [spiral(840.0, 600.0, 6.0)]
+    car = [spiral(680.0, 1680.0, 25.0)] * 3 + [spiral(1680.0, 1200.0, 12.0)]     # task 0263: x 2 (was 166168.543)
     assert np.allclose(K["wound_estimate"]["layers"], car, atol=1e-2)
-    assert abs(K["wound_estimate"]["total"] - sum(car)) < 0.05 and abs(sum(car) - 166168.543) < 0.05
-    assert abs(car[0] - 2.0 * math.pi * 12.5 * 590.0) < 5.0                     # ~ turns x 2 pi x the mean radius
+    assert abs(K["wound_estimate"]["total"] - sum(car)) < 0.05 and abs(sum(car) - 664645.050) < 0.05
+    assert abs(car[0] - 2.0 * math.pi * 25.0 * 1180.0) < 5.0                    # ~ turns x 2 pi x the mean radius
     doc = maker.__doc__
-    assert "48959.901" in doc and "166168.543" in doc
+    assert "48959.901" in doc and "664645.050" in doc
 
 
 def test_the_ropes_are_arcs_and_lines_without_a_kink():
@@ -215,7 +216,7 @@ def test_the_ropes_are_arcs_and_lines_without_a_kink():
     spools and sheaves at the numbers' radii; the centreline points are at most ``step`` apart."""
     on = {"WIRE ON DRUM": (W["drum"]["axis_point"], W["drum"]["axis_direction"], W["drum"]["layer_radii"][2]),
           "FAIRLEAD SHEAVE": (W["fairlead"]["axis_point"], W["fairlead"]["axis_direction"], 100.0),
-          "CABLE COIL": ((3000.0, 0.0, 280.0), K["spool"]["axis_direction"], 600.0),
+          "CABLE COIL": ((4000.0, 0.0, 280.0), K["spool"]["axis_direction"], 1200.0),
           "GUIDE SHEAVE": (K["guide"]["axis_point"], K["guide"]["axis_direction"], 150.0)}
     for which, numbers, kinds in (("wire", W["rope"], ["arc", "line", "arc", "line"]),
                                   ("cable", K["cable"], ["arc", "arc", "line"])):
@@ -357,21 +358,21 @@ def test_the_drum_groove_and_the_wound_solids(model):
     assert abs(v[:, 1].min() + 200.0) < 1e-3 and abs(v[:, 1].max() - 200.0) < 1e-3
     assert abs(v[r > 190.0, 1].max() - d["wire_layer3_to"]) < 1e-3 and d["wire_layer3_to"] == -10.0
     assert set(np.round(r[v[:, 1] > -9.0], 3)) <= {150.0, 187.321}
-    # the coil: r 320 .. 860, z 140 .. 300; the top layer (z 260 .. 300) from r 580 out
+    # the coil: r 660 .. 1700, z 140 .. 300; the top layer (z 260 .. 300) from r 1180 out (task 0263: x 2)
     s = K["spool"]
     v, _t = model.part("CABLE COIL")
     r = off_line(v, s["axis_point"], s["axis_direction"])
-    assert abs(r.min() - 320.0) < 1e-3 and abs(r.max() - 860.0) < 1e-3
+    assert abs(r.min() - 660.0) < 1e-3 and abs(r.max() - 1700.0) < 1e-3
     assert abs(v[:, 2].min() - 140.0) < 1e-3 and abs(v[:, 2].max() - 300.0) < 1e-3
     top = v[:, 2] > 260.0 + 1e-3
-    assert abs(r[top].min() - 580.0) < 1e-3
+    assert abs(r[top].min() - 1180.0) < 1e-3
     away = top & (v[:, 1] < -200.0)                         # away from the cable and the guide sheave
-    assert abs(r[away].min() - 580.0) < 0.5
-    # where the CAD cable lies (from +X to +Y, r 580 .. 620) the top layer is cut away
+    assert abs(r[away].min() - 1180.0) < 0.5
+    # where the CAD cable lies (from +X to +Y, r 1180 .. 1220) the top layer is cut away
     rel = v - s["axis_point"]
     around = np.degrees(np.arctan2(rel[:, 1], rel[:, 0]))
     quarter = top & (around > 1.0) & (around < 89.0)
-    assert quarter.sum() > 10 and r[quarter].min() > 620.0 - 1e-3
+    assert quarter.sum() > 10 and r[quarter].min() > 1220.0 - 1e-3
 
 def test_the_importer_finds_the_round_axes(model):
     """The axes of round faces in the cache: what the app's joint and spool picking use."""

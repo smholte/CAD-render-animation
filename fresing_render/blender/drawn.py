@@ -116,7 +116,7 @@ def look(scene, ob, group: str) -> None:
     g = logic.ensure_group(s, group)
     ob["fr_group_manual"] = group
     ob[build.PROP_GROUP] = group
-    materials.assign(ob, materials.ensure_material(g.name, g.material, g.color, g.wear))
+    materials.assign(ob, materials.group_material(g))
 
 
 def delete_object(ob) -> None:

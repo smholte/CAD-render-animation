@@ -52,12 +52,21 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   drawn   task 0240: a hose drawn through two clips (view_drawn_hose.jpg) and a cable route drawn over the drum,
       two sheaves and the chute (view_drawn_cable.jpg); Cycles on the processor, as "render".
 
+  avoid   task 0298: the avoid test model, lift down, the hose lying on the block (view_flex_avoid.jpg; as "render").
+
   kinds   task 0243: one drawn hose of each kind on the hoses model (view_flex_kinds.jpg) and the drawn drag chain as a
       closed chain on the gantry (view_chain_types.jpg); Cycles on the processor, as "render".
 
   cables_panel   the panel 4 Motion > Cables and paths (panel_cables; as "panels", on test_paths_a.step, task 0078).
+  cables   the cable paths test model (task 0263, real size): the whole machine (view_cables_rope.jpg), the A-frame
+      luffed 12° forward (view_cables_luffed.jpg), the winch drum full of wire close up (view_cables_winch.jpg) and
+      SHEAVE 1 close up as wire rope and with the power cable look (view_cables_looks.jpg); Cycles on the processor,
+      as "render".
 
   spools_panel   the panel 4 Motion > Drums and carousels (panel_spools; as "panels", on test_spool.step, task 0080).
+
+  welds_panel   the panel 3 Looks > Welds (panel_3_welds; as "panels", on test_weldment.step, task 0319): every joint
+      welded, the stainless weld round the post chosen.
   tracks_panel   the panel 4 Motion > Tracks and belts (panel_tracks; as "panels", on test_tracks.step, task 0079).
   people_panel   6 Animation > People (panel_6_people; as "panels", the example "two people meet" on the crane, Anna
       selected, task 0157).
@@ -99,6 +108,10 @@ import tempfile
 import sys
 import time
 import traceback
+
+# task 0294: a user who has not chosen a workspace starts in Essentials; these tests and pictures start in All
+# functions as before (ui_test_workspaces2.py sets it empty for its own checks)
+os.environ.setdefault("FRESING_WORKSPACE_START", "All functions")
 
 import bpy
 from mathutils import Matrix, Vector
@@ -1158,7 +1171,7 @@ elif MODE == "update":
     step(w_shot_help)
 
 elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chains_panel", "cables_panel",
-              "spools_panel", "tracks_panel", "sea_panel", "vessel_work_panel"):
+              "spools_panel", "tracks_panel", "sea_panel", "vessel_work_panel", "welds_panel"):
     # task 0044: panels that had no picture yet. Each run uses its own generic test model.
     #   waycover: Way covers panel with two covers + the covers in the view (test_waycover_c.step, task 0035)
     #   air:      CNC machine with Air blast open, and the G-code step with "Blow the part clean" (test_gantry.step)
@@ -1172,6 +1185,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 "flex_chains_panel": os.path.join(DATA, "test_flex_chains_a.step"),
                 "cables_panel": os.path.join(DATA, "test_paths_a.step"),
                 "spools_panel": os.path.join(DATA, "test_spool.step"),
+                "welds_panel": os.path.join(DATA, "test_weldment.step"),
                 "tracks_panel": os.path.join(DATA, "test_tracks.step"),
                 "sea_panel": os.path.join(DATA, "test_sea.step"),
                 "vessel_work_panel": os.path.join(DATA, "test_thrusters.step")}[MODE]
@@ -1254,11 +1268,11 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
         def _cables_setup():
             sc = bpy.context.scene
             with override():
-                mod("blender.paths").set_up_test_model(sc)
+                mod("blender.paths").set_up_test_model(sc, winch=True)  # task 0263: it starts on the winch
                 sc.fresing.cables[0].cable_kind = "ROPE"               # task 0243: Kind · Colour · Size shown
                 sc.fresing.cables[0].size = "R16"                      # (sheaves of Ø360: D >= 20 d)
             sc.fresing.cables_index = 0
-            sc.fresing.cables[0].contacts_index = 2
+            sc.fresing.cables[0].contacts_index = 1                    # SHEAVE 2
             select_only()
             return 1.0
         step(_cables_setup)
@@ -1306,6 +1320,21 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
             return 1.0
         step(_spools_setup)
         _grab("panel_spools", [("FRESING_PT_spools", False, True)])
+
+    elif MODE == "welds_panel":
+        # task 0319: 3 Looks > Welds on the test weldment, every joint welded, the stainless weld round the post chosen
+        def _welds_setup():
+            sc = bpy.context.scene
+            with override():
+                keys = mod("blender.welds").set_up_test_model(sc)
+            st = sc.fresing_welds
+            st.index = 3
+            mod("blender.ui")._OPEN_FOLDS = True
+            sc.fresing.last_message = ""
+            select_only()
+            return 1.0
+        step(_welds_setup)
+        _grab("panel_3_welds", [("FRESING_PT_welds", False, True)])
 
     elif MODE == "tracks_panel":
         # task 0079: 4 Motion > Tracks and belts on the tracks test model, "Bottom track" chosen
@@ -2293,6 +2322,93 @@ def render_drawn():
     one("test_paths_a.step", tour.drawn_cable_setup, "view_drawn_cable", view="FRONT")
 
 
+def render_cables():
+    """Task 0263: the cable paths test model at real size – the whole machine, the A-frame luffed 12° forward, and
+    SHEAVE 1 close up with the rope's two looks (view_cables_rope.jpg, view_cables_luffed.jpg, view_cables_looks.jpg;
+    Cycles on the processor)."""
+    import addon_utils
+    import numpy as np
+    addon_utils.enable(pkg(), default_set=True)
+    cams, paths, joints = mod("blender.cameras"), mod("blender.paths"), mod("blender.joints")
+
+    def one(name, w, h, luff=0.0, look="ROPE", close=None):
+        bpy.ops.wm.read_factory_settings(use_empty=False)
+        addon_utils.enable(pkg(), default_set=True)
+        assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_paths_a.step"),
+                                           quality="normal") == {"FINISHED"}
+        sc = bpy.context.scene
+        s = sc.fresing
+        made = paths.set_up_test_model(sc, winch=True)
+        it = paths.find(sc, made["cable"])
+        it.look = look
+        joints.set_value(joints.find(sc, "Luff"), math.radians(luff))
+        bpy.context.view_layer.update()
+        paths.refresh(sc)
+        bpy.context.view_layer.update()
+        s.background = "SKY"
+        s.floor = "VISIBLE"
+        s.floor_use_own_color = True
+        s.floor_color = (0.42, 0.42, 0.4)
+        if close:
+            o = ob(close)
+            mw = np.array(o.matrix_world)
+            bb = np.array([list(c) + [1.0] for c in o.bound_box])
+            cam = cams.add_camera(sc, "ISO", 50.0, name="Guide view", points=(mw @ bb.T).T[:, :3])
+        else:
+            cam = cams.add_camera(sc, "ISO", 50.0, name="Guide view")
+        sc.camera = cam
+        bpy.context.view_layer.update()
+        if not close:
+            cams.fit(cam, sc)
+        s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", w, h, False, SCRATCH
+        mod("blender.render").apply_output(sc, s)
+        t = time.time()
+        assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+        log("render", name, f"{time.time() - t:.0f} s")
+        path = os.path.join(OUT if not name.startswith("_") else SCRATCH, name.lstrip("_") + ".jpg")
+        subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", path], check=True)
+        return path
+
+    one("view_cables_rope", 660, 440)
+    one("view_cables_luffed", 660, 440, luff=12.0)
+    one("view_cables_winch", 660, 440, close="WINCH DRUM")         # the winch drum full of wire, the rope off it
+    rope = one("_looks_rope", 600, 600, close="SHEAVE 1")
+    power = one("_looks_power", 600, 600, look="POWER", close="SHEAVE 1")
+    out = os.path.join(OUT, "view_cables_looks.jpg")
+    subprocess.run(["montage", rope, power, "-tile", "2x1", "-geometry", "+0+0", out], check=True)
+    subprocess.run(["convert", out, "-strip", "-quality", "86", out], check=True)
+
+
+def render_avoid():
+    """Task 0298: the avoid test model with the lift down and 'Avoid other parts' on: the hose lies on the block
+    (view_flex_avoid.jpg; Cycles on the processor, as "render")."""
+    import addon_utils
+    addon_utils.enable(pkg(), default_set=True)
+    joints, cams, flex = mod("blender.joints"), mod("blender.cameras"), mod("blender.flex")
+    bpy.ops.wm.read_factory_settings(use_empty=False)
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_flex_avoid_a.step"),
+                                       quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    flex.set_up_test_avoid(sc, avoid=True)
+    joints.set_value(s.joints.get("Lift"), -0.4)
+    bpy.context.view_layer.update()
+    flex.refresh(sc, force=True)
+    s.background, s.env_detail = "FACTORY", "SIMPLE"
+    cam = cams.add_camera(sc, "FRONT", 50.0, name="Guide view")
+    sc.camera = cam
+    bpy.context.view_layer.update()
+    cams.fit(cam, sc)
+    s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 900, 600, False, SCRATCH
+    mod("blender.render").apply_output(sc, s)
+    t0 = time.time()
+    assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+    log("render", "view_flex_avoid", f"{time.time() - t0:.0f} s")
+    subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", os.path.join(OUT, "view_flex_avoid.jpg")],
+                   check=True)
+
+
 def render_kinds():
     """Task 0243: the test tour's row of six drawn hoses, one per kind (``tour.kind_row_setup``), and the drawn chain
     on the gantry as a closed chain (view_flex_kinds.jpg, view_chain_types.jpg; Cycles on the processor)."""
@@ -2356,7 +2472,7 @@ def render_spools(full: bool = False):
     if full:
         drum, car = spool.find(sc, "Drum"), spool.find(sc, "Carousel")
         pays = (("Wire", float(drum.wound) - float(spool.path_of(sc, drum).total) + 0.05),
-                ("Power cable", float(car.wound) - 70.0))
+                ("Power cable", float(car.wound) - 280.0))     # task 0263: layer 1 (185 m) + half of layer 2
     for cable, metres in pays:
         it = paths.find(sc, cable)
         joints.set_value(joints.find(sc, it.joint), -metres if it.reverse else metres, use_limits=False)
@@ -2507,9 +2623,21 @@ elif MODE == "people":
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)
+elif MODE == "avoid":
+    try:
+        render_avoid()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
 elif MODE == "kinds":
     try:
         render_kinds()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "cables":
+    try:
+        render_cables()
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

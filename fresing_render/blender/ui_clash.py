@@ -68,6 +68,7 @@ class FRESING_PT_clash(_Panel, bpy.types.Panel):
         col = split_props(layout)
         col.prop(c, "depth", text="Clash depth")
         layout.prop(c, "use_near", text="Warn about near misses")
+        layout.prop(c, "hoses", text="Check hoses that avoid parts")
         if c.use_near:
             col = split_props(layout)
             col.prop(c, "near_distance", text="Closer than")

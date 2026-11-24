@@ -291,7 +291,10 @@ def _plain(v):
 
 WEATHER_KEYS = ("enabled", "preset", "hour", "use_date", "day", "latitude", "north", "clouds", "low_clouds",
                 "visibility", "rain", "drop_size", "wet", "snow", "snow_cover", "wind", "wind_from", "wind_ref",
-                "floodlights", "flood_strength", "spray", "flag", "vessel_speed")
+                "floodlights", "flood_strength", "spray", "flag", "vessel_speed",
+                "lightning", "flash_still", "mist", "hail", "heat")
+# task 0299: what a scene saved before these existed means by them (none of it): a start scene puts them back too
+WEATHER_LATER = {"lightning": 0.0, "flash_still": False, "mist": 0.0, "hail": 0.0, "heat": 0.0}
 VESSEL_WORK_NAMES = {"mode": "The vessel", "side": "Push / turn to", "thrust": "Thrust"}    # (task 0154)
 
 
@@ -305,7 +308,8 @@ WEATHER_NAMES = {"enabled": "Weather", "preset": "Weather", "hour": "Time of day
                  "visibility": "Visibility", "rain": "Rain", "drop_size": "Drop size", "wet": "Wet surfaces",
                  "snow": "Snow", "snow_cover": "Snow cover", "wind": "Wind", "wind_from": "Wind from",
                  "wind_ref": "Wind measured", "floodlights": "Floodlights", "flood_strength": "Floodlight strength",
-                 "spray": "Spray", "flag": "Flag", "vessel_speed": "Vessel speed"}
+                 "spray": "Spray", "flag": "Flag", "vessel_speed": "Vessel speed", "lightning": "Lightning",
+                 "flash_still": "Flash in the picture", "mist": "Sea mist", "hail": "Hail", "heat": "Heat"}
 
 
 def _shown_value(key: str, v) -> str:
@@ -348,6 +352,7 @@ def start_scene_changes(scene, shot_name: str, keys=None) -> list[tuple]:
             out.append((k, name, _plain(getattr(s, k)), data[k]))
     w = data.get("weather")
     if isinstance(w, dict):
+        w = {**WEATHER_LATER, **w}
         now_on = bool(s.weather.enabled)
         then_on = bool(w.get("enabled", now_on))
         for k in WEATHER_KEYS:
@@ -452,6 +457,7 @@ def _apply_weather(w, data) -> None:
     """A saved scene's Weather & time (task 0109), set without one rebuild per control."""
     if not isinstance(data, dict):
         return
+    data = {**WEATHER_LATER, **data}
     w["_busy"] = True
     try:
         for k, v in data.items():

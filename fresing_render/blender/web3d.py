@@ -114,6 +114,8 @@ def objects(scene) -> tuple[list, list]:
     """(parts, decal objects) shown in the view: hidden parts and Show only are respected."""
     parts = [ob for ob in build.iter_parts(scene)
              if _visible(ob) and ob.data is not None and len(ob.data.polygons)]
+    from . import welds                        # task 0319: the beads (their own colour; ripples and heat tint stay out)
+    parts += welds.web_objects(scene)
     marks = [ob for ob in scene.objects
              if decals.is_decal(ob) and ob.type == "MESH" and _visible(ob) and ob.data is not None
              and len(ob.data.polygons) and ob.data.uv_layers]
@@ -303,6 +305,21 @@ class Look:
                     if self.src.pop(ch, None) is not None and ch != "normal":
                         sock = b.inputs.get(SOCKETS[ch])
                         self.const[ch] = float(sock.default_value) if sock is not None else 0.5
+
+        self.finish = ""                       # task 0274: a finish too fine for a 0.2 m tile goes as its average
+        from . import finishes
+        fin = finishes.web_numbers(mat) if not decal else None
+        if fin and fin.get("mode") == "average":
+            from ..core import ral
+            self.finish = "average"
+            for ch in ("color", "rough", "metal", "normal", "coat_normal", "alpha"):
+                self.src.pop(ch, None)
+            self.const["color"] = tuple(ral.srgb_to_linear(c) for c in fin["color"])
+            self.const["rough"] = float(fin["roughness"])
+            self.const["metal"] = float(fin["metallic"])
+            self.const["alpha"] = float(fin.get("alpha", 1.0))
+        elif fin:
+            self.finish = "tile"
 
         self.extra = {"coat": num("Coat Weight"), "coat_rough": num("Coat Roughness", 0.03),
                       "transmission": num("Transmission Weight"), "ior": num("IOR", 1.5),
@@ -548,6 +565,8 @@ class Baker:
             sc = bpy.data.scenes.new(BAKE_NAME)
             sc.render.engine = "CYCLES"
         sc["fr_bake"] = True                    # a working copy, not a project scene (task 0136)
+        from ..core import finishes as fin_core
+        sc[fin_core.PIXEL_PROP] = 1e-9          # task 0274: the finishes' patterns at full detail in a tile
         sc.cycles.samples = BAKE_SAMPLES
         sc.cycles.device = "CPU"
         sc.cycles.use_denoising = False

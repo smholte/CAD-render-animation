@@ -29,6 +29,7 @@ PLACES = {
     # 3 Looks
     "FRESING_PT_faces": ("FRESING_PT_looks", "Paint faces"),
     "FRESING_PT_decals": ("FRESING_PT_looks", "Logos & stickers"),
+    "FRESING_PT_welds": ("FRESING_PT_looks", "Welds"),
     "FRESING_PT_xray": ("FRESING_PT_looks", "X-ray look"),
     "FRESING_PT_cutaway": ("FRESING_PT_looks", "Slice"),
     "FRESING_PT_find": ("FRESING_PT_looks", "Find & sort parts"),

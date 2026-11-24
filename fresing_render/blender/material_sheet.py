@@ -83,10 +83,11 @@ def _label(scene, coll, text: str, x: float, y: float):
 
 
 def build(ids=None, columns: int = COLUMNS, wear: float = 0.0):
-    """Make (or remake) the sheet scene with ``ids`` (default: every library material), every material with
+    """Make (or remake) the sheet scene with ``ids`` (default: every library material but the finishes of task 0274,
+    which need CAD faces and have a picture of their own: the PC check's looks.finishes), every material with
     ``wear`` (0 = new). Returns it."""
     from . import materials
-    ids = list(ids or materials_lib.MATERIALS)
+    ids = list(ids or [k for k, v in materials_lib.MATERIALS.items() if not v.get("finish")])
     old = bpy.data.scenes.get(SCENE)
     if old is not None:
         for ob in list(old.collection.all_objects):

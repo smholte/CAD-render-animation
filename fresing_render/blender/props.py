@@ -83,7 +83,7 @@ RES_ITEMS = [(k, v["label"], "") for k, v in presets.RESOLUTIONS.items()]
 
 def _group_look_changed(self, context):
     from . import materials
-    mat = materials.ensure_material(self.name, self.material, self.color, self.wear)
+    mat = materials.group_material(self)
     if context is not None and context.scene is not None:
         from . import build                      # task 0117: to and from "From file" the parts change material
         for ob in build.iter_parts(context.scene):
@@ -94,6 +94,55 @@ def _group_look_changed(self, context):
             machining.cut_look_changed(context.scene)
         except Exception as exc:
             print("Fresing Render: cut faces' look not updated:", exc)
+
+
+def _group_material_changed(self, context):
+    """Task 0274: a group that gets a finish starts with that finish's own settings (size, angle, metal, kind)."""
+    from ..core import finishes as fin_core
+    fid = fin_core.finish_id(self.material)
+    if fid and self.get("fin_of") != fid:
+        d = fin_core.defaults(self.material)
+        self["fin_size"] = d["size"]                     # written as ID properties: no update (one rebuild below)
+        self["fin_angle"] = math.radians(d["angle"])
+        self["fin_amount"] = d["amount"]
+        self["fin_base"] = fin_core.BASES[d["base"]][0] if d["base"] else 0
+        self["fin_kind"] = fin_core.KINDS[d["kind"]][0] if d["kind"] else 0
+        self["fin_of"] = fid
+    _group_look_changed(self, context)
+
+
+def _fin_size_changed(self, context):
+    """The finish's own limits (a knurl 0.3 - 3 mm, a tread plate 10 - 50 mm): the field shows what is used."""
+    from ..core import finishes as fin_core
+    f = fin_core.get(self.material)
+    if f and f.get("size"):
+        v = min(max(float(self.fin_size), f["size"][3]), f["size"][4])
+        if abs(v - self.fin_size) > 1e-9:
+            self["fin_size"] = v
+    _group_look_changed(self, context)
+
+
+_FIN_ITEMS: dict = {}            # Blender keeps only references to enum item strings: the lists live here
+
+
+def _fin_base_items(self, context):
+    from ..core import finishes as fin_core
+    f = fin_core.get(getattr(self, "material", "")) or {}
+    key = ("base", tuple(f.get("bases") or ()))
+    if key not in _FIN_ITEMS:
+        _FIN_ITEMS[key] = [(b, fin_core.BASES[b][1], f"The metal under the finish: {fin_core.BASES[b][1].lower()}",
+                            fin_core.BASES[b][0]) for b in key[1]] or [("NONE", "–", "This material has no metal choice", 0)]
+    return _FIN_ITEMS[key]
+
+
+def _fin_kind_items(self, context):
+    from ..core import finishes as fin_core
+    f = fin_core.get(getattr(self, "material", "")) or {}
+    key = ("kind", tuple(f.get("kinds") or ()))
+    if key not in _FIN_ITEMS:
+        _FIN_ITEMS[key] = [(k, fin_core.KINDS[k][1], fin_core.KINDS[k][2], fin_core.KINDS[k][0])
+                           for k in key[1]] or [("NONE", "–", "This material has no kinds", 0)]
+    return _FIN_ITEMS[key]
 
 
 def _remember_rename(scene, old: str, new: str) -> None:
@@ -374,7 +423,7 @@ def _blur_set(self, value):
 class FRMaterialGroup(bpy.types.PropertyGroup):
     name: StringProperty(name="Name", update=_group_renamed,
                          description="Name of the group. Rename it freely: the rules keep sorting parts into it")
-    material: EnumProperty(name="Material", items=material_items, update=_group_look_changed,
+    material: EnumProperty(name="Material", items=material_items, update=_group_material_changed,
                            description="Material of every part (and painted face) in this group. "
                                        "All of them change at once")
     color: StringProperty(name="Colour", update=_group_look_changed,
@@ -384,6 +433,28 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
                         description="How used the parts of this group look: 0 = new (clean, for marketing), "
                                     "1 = used. Sharp edges turn lighter or bare metal and corners get a little "
                                     "dirt. Shows in Cycles renders; Fast preview (EEVEE) shows only the dirt")
+    # task 0274: the settings of a finish (knurl, spun, cross-hatch, tread plate, blasted …); a finish shows only
+    # the ones it uses, with its own name for Size (Pitch, Feed, Hole size, Grain size …)
+    fin_size: FloatProperty(name="Size", default=0.001, min=0.00005, max=0.2, precision=2, step=1,
+                            subtype="DISTANCE", unit="LENGTH", update=_fin_size_changed,
+                            description="The size of the finish's pattern (its name says which: the pitch of a "
+                                        "knurl, the feed of a faced end, the thread of a fabric, the holes of a "
+                                        "perforated sheet, the grain of leather …). Smaller is finer; a pattern too "
+                                        "fine to see from the camera fades to its average by itself")
+    fin_angle: FloatProperty(name="Angle", default=math.radians(30.0), min=0.0, max=math.radians(90.0),
+                             subtype="ANGLE", update=_group_look_changed,
+                             description="The angle of the finish's pattern: of a diamond knurl's grooves to the "
+                                         "part's axis (30° is usual), of a honing cross-hatch (the included angle) "
+                                         "or of a moulded grid")
+    fin_amount: FloatProperty(name="Strength", default=0.8, min=0.0, max=1.0, subtype="FACTOR",
+                              update=_group_look_changed,
+                              description="How strongly the finish shows: for spun metal how far its highlight "
+                                          "stretches round the centre (0 = a plain shine, 1 = a long radial streak)")
+    fin_base: EnumProperty(name="Metal", items=_fin_base_items, update=_group_look_changed,
+                           description="The metal the finish is on: its colour and shine")
+    fin_kind: EnumProperty(name="Kind", items=_fin_kind_items, update=_group_look_changed,
+                           description="Which kind of this finish: the blasting medium, the hole shape, the "
+                                       "VDI 3400 class or the cast metal")
     count: IntProperty(name="Parts", default=0)
     faces: IntProperty(name="Face sets", default=0,
                        description="Painted faces of parts in this group (faces with a look of their own)")
@@ -906,8 +977,20 @@ EASE_ITEMS = [("SMOOTH", "Smooth", "Slow start and slow stop (a motor speeds up 
               ("EASE_OUT", "Slow stop", "Starts at full speed, slows down to a stop")]
 
 WEATHER_PRESET_ITEMS = [("CUSTOM", "Own settings", "The settings below, as you set them", 0)] + [
-    (k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1] + ". Sets the controls below", i + 1)
-    for i, k in enumerate(weather_core.PRESET_ORDER)]
+    (k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1] + ". Sets the controls below",
+     weather_core.PRESET_NUMBER[k]) for k in weather_core.PRESET_ORDER]
+# Change to ▸ (task 0299): the presets only (no "Own settings")
+WEATHER_CHANGE_ITEMS = [(k, weather_core.PRESETS[k][0], weather_core.PRESETS[k][1], weather_core.PRESET_NUMBER[k])
+                        for k in weather_core.PRESET_ORDER]
+
+
+def _wx_new_field(self, context):
+    """A value of task 0299 changed on a Weather & time step made before it (task 0299): the step's other new values
+    start from the weather before it, then it counts all of them."""
+    if self.get("fr_wx_v", 1) >= 2 or context is None or context.scene is None:
+        return
+    from . import weather
+    weather.upgrade_step(context.scene, self)
 
 
 def _wx_step_preset(self, context):
@@ -1454,6 +1537,23 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                                        "white caps follow it (the waves themselves keep the wind of the start)")
     wx_wind_from: FloatProperty(name="Wind from", default=225.0, min=-360.0, max=360.0, precision=0,
                                 description="Where the wind comes from at the end of the step (as in Weather & time)")
+    # task 0299
+    wx_drop_size: FloatProperty(name="Drop size", default=2.0, min=0.5, max=6.0, precision=1, update=_wx_new_field,
+                                description="Size of the rain drops (mm) at the end of the step")
+    wx_lightning: FloatProperty(name="Lightning", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                                description="How often lightning flashes at the end of the step (0 = none). Flashes "
+                                            "come at random while it is above 0, more often the higher it is")
+    wx_flash_at: StringProperty(
+        name="Flash at", default="",
+        description="Lightning flashes at these moments, in seconds from the step's start (e.g. 1.5, 3). Added to the "
+                    "random flashes; leave empty for random flashes only")
+    wx_mist: FloatProperty(name="Sea mist", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                           description="Mist lying low on the water or the ground at the end of the step (it rolls "
+                                       "in or lifts over the step)")
+    wx_hail: FloatProperty(name="Hail", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                           description="Falling hail at the end of the step: the stones bounce on the deck")
+    wx_heat: FloatProperty(name="Heat", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
+                           description="Hot air at the end of the step: a bright haze and heat shimmer in the distance")
 
     # ---- Vessel at work step (task 0154): what the vessel does at the step's end (it starts from what it did) ----
     vw_mode: EnumProperty(
@@ -2409,6 +2509,23 @@ def _flex_changed(self, context):
     flex.changed(context.scene, self)
 
 
+def _flex_avoid_changed(self, context):
+    """Avoid other parts was switched (task 0298): the parts near it are looked for again, then as any setting."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import flex_avoid
+    flex_avoid.drop(context.scene, self)
+    _flex_changed(self, context)
+
+
+def _flex_length_auto_changed(self, context):
+    """Automatic length was switched (task 0298): on, the length follows the route at once."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import flex_route
+    flex_route.changed(context.scene, self)
+
+
 def _flex_renamed(self, context):
     """A drawn hose or chain was renamed (task 0240): its own object and the CAD parts it replaces follow."""
     old = self.get("name_was", "")
@@ -2484,11 +2601,15 @@ _SIZE_TIP = ("A standard size of this kind: it sets the diameter and the smalles
 
 
 class FRFlexClip(bpy.types.PropertyGroup):
-    """A clip a drawn hose runs through (task 0240): the part it is on and where, in that part's own coordinates."""
+    """A clip a drawn hose runs through (task 0240): the part it is on and where, in that part's own coordinates. Or
+    a via point set by hand (task 0298, ``via``): carried by the two end parts, see blender/flex_route.py."""
     part: PointerProperty(type=bpy.types.Object)
     uid: StringProperty()
     point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
     dir: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))
+    via: BoolProperty(default=False)
+    rel: FloatVectorProperty(size=16, default=(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
+    weight: FloatProperty(default=0.5)
 
 
 class FRFlex(bpy.types.PropertyGroup):
@@ -2566,6 +2687,15 @@ class FRFlex(bpy.types.PropertyGroup):
         description="The tightest bend the hose may make, as a radius in mm (from the hose maker's data sheet). "
                     "The hose keeps to it where it can; you get a warning when the motion forces a tighter bend. "
                     "0 = no limit")
+    avoid: BoolProperty(
+        name="Avoid other parts", default=False, update=_flex_avoid_changed,
+        description="On: the hose stays outside the other parts near it – it lies on them and slides along, while "
+                    "you move the machine and in the built animation (slower while it lies on a part). Off: it may "
+                    "pass through parts")
+    length_auto: BoolProperty(
+        name="Automatic length", default=False, update=_flex_length_auto_changed,
+        description="On: the app works out the length from the route (its ends, clips and via points) every time "
+                    "you change it, long enough for the joints' travel. Off: the length stays as typed")
     # ---- drag chain ----
     pitch: FloatProperty(
         name="Link length", unit="LENGTH", default=0.04, min=0.001, soft_max=0.5, precision=4, update=_flex_edited,
@@ -3245,6 +3375,11 @@ class FRClash(bpy.types.PropertyGroup):
         name="Closer than", unit="LENGTH", default=0.005, min=0.0001, soft_max=0.05, precision=1,
         description="A near miss: two parts come closer than this without touching. Used when 'Warn about near "
                     "misses' is ticked")
+    hoses: BoolProperty(
+        name="Check hoses that avoid parts", default=False,
+        description="Also list a hose or cable with 'Avoid other parts' on (4 Motion > Hoses and drag chains) when it "
+                    "goes further into one of those parts than the clash depth – where its ends or clips force it "
+                    "in. Other hoses bend on purpose and stay out of the check. Then press Check for clashes again")
     rows: CollectionProperty(type=FRClashRow)
     rows_index: IntProperty(
         default=-1, update=_clash_row_picked,
@@ -3920,6 +4055,32 @@ class FRWeather(bpy.types.PropertyGroup):
     flood_strength: FloatProperty(
         name="Floodlight strength", default=1.0, min=0.0, max=4.0, subtype="FACTOR", update=_weather_changed,
         description="How bright the floodlights are: 1 is normal, 2 twice as bright")
+    lightning: FloatProperty(
+        name="Lightning", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="How often lightning flashes: 0.3 now and then, 1 every few seconds. In a video the flashes light "
+                    "the whole scene for a moment and bolts strike in the distance (Build & play); a picture shows a "
+                    "flash with 'Flash in the picture'")
+    flash_still: BoolProperty(
+        name="Flash in the picture", default=False, update=_weather_changed,
+        description="A still picture (and the view now) shows a lightning flash: the scene lit up, a bolt in the sky. "
+                    "Videos have their own flashes")
+    mist: FloatProperty(
+        name="Sea mist", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Mist lying low on the water or the ground, thinner higher up: banks of it drift with the wind, so "
+                    "the machine fades in and out. 1 is thick (about 120 m at the water)")
+    hail: FloatProperty(
+        name="Hail", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Falling hail: small ice stones that bounce on the deck and the machine's top faces. With rain and "
+                    "a little snow it is sleet")
+    heat: FloatProperty(
+        name="Heat", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_weather_changed,
+        description="Hot air: a bright, slightly warm haze and heat shimmer that makes the distance waver (in renders)")
+    change_to: EnumProperty(
+        name="Change to", items=WEATHER_CHANGE_ITEMS, default="THUNDERSTORM",
+        description="The weather an animation changes to at the playhead (Add at playhead)")
+    change_seconds: FloatProperty(
+        name="Over", default=5.0, min=0.5, max=120.0, precision=1, unit="TIME_ABSOLUTE",
+        description="How long the change takes, in seconds of the video")
     spray: BoolProperty(
         name="Spray", default=True, update=_weather_changed,
         description="Spray blown off the wave tops and thrown up at the bow in strong wind (from Bft 6)")

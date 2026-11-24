@@ -138,6 +138,8 @@ def test_the_preferences_of_0_2_198_are_all_still_there_with_their_defaults():
         got = tuple(d.default_array) if getattr(d, "is_array", False) else d.default
         if isinstance(default, tuple):
             assert got == pytest.approx(default, abs=1e-6), name
+        elif name == "default_workspace":     # task 0294: '' = not chosen (Essentials); an existing user is moved
+            assert got == "", name           # to All functions once at the start (workspaces.keep_for_existing_user)
         else:
             assert got == default, name
     # values a user had saved keep their meaning: set, read back through the same names

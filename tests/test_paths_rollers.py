@@ -252,7 +252,7 @@ def _sheave_model(folder):
     b = a.blocks.add()
     b.kind, b.joint, b.start, b.duration, b.easing = "MOTOR", it.joint, 0.0, 6.0, "LINEAR"
     b.speed_mmin = 10.0
-    for start, to in ((1.0, 1.6), (4.0, 0.0)):
+    for start, to in ((1.0, 3.2), (4.0, 0.0)):          # (task 0263: 3.2 m on the real-size frame; was 1.6)
         b = a.blocks.add()
         b.kind, b.joint, b.start, b.duration, b.easing = "JOINT", "Away", start, 1.5, "SMOOTH"
         b.use_from, b.to_dist = True, to

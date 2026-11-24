@@ -174,14 +174,36 @@ the Fresing tab picks what the side panel shows:
 
 | Workspace | Shows | Hides |
 | --- | --- | --- |
-| **All functions** | everything (new projects start here) | – |
+| **Essentials** | what a first good picture and a simple motion need: import, sort into groups and materials, surroundings and light, camera views, a joint and a pose, Build & play, render a picture or a turntable, saved scenes (**new projects start here** until you choose another) | everything else |
+| **All functions** | everything | – |
 | **CNC & machining** | CNC machine, tools, tool changes, milling, way covers, clash check | sea, vessel, cables and drums, weather, exploded views |
 | **Offshore & cable laying** | sea and seabed, vessel motion, cables, drums and carousels, weather | CNC machine, milling, way covers |
 | **Product design & R&D** | looks, exploded views, assembly sequence, slice, turntable, web 3D model | CNC, milling, cables, sea, weather |
 | **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
 | **Education & training** | every kind of motion, animation, camera | web 3D model |
 | **Lifting plans** | 8 Lifting plan, import, structure, looks, scene, animation, render queue | CNC, milling, cables, sea, joints by hand |
+| **Sales** | saved scenes, looks and paint schemes, logos, surroundings and weather, pictures, turntable, product video, video finishing, 3D page, render queue | import, structure and all motion (the project is **not** locked: unlike the Client view you can still change looks, scenes and outputs) |
+| **Quick render** | import a STEP, sort into groups and looks, surroundings, light, camera, one picture or a turntable | everything else |
+| **Animator** | joints, cylinders, mechanisms, poses, animation steps, cameras and camera paths, labels, video finishing, render queue | CNC, milling, cables, sea, web 3D model |
+| **Reviewer** | saved scenes, slice, X-ray, poses and exploded views, labels, visibility sets, Build & play, clash check | import, joints, looks, outputs |
 | **Full access** | everything, plus Blender's own tabs, toolbar and menus | – |
+
+<a id="essentials"></a>
+**Essentials is the start.** Anyone who has not chosen a workspace yet starts new projects in Essentials. If you used
+the app before Essentials came, nothing changes for you: the update writes down **All functions** as your
+choice. A project keeps the workspace it was saved in.
+
+<a id="task-workspaces"></a>
+**Sales, Quick render, Animator and Reviewer** are made for one job each and show only that job's functions – hover
+over a name in the list to read what it is for. Need one more function? Tick its family under **Functions in this
+project**, or pick another workspace.
+
+<a id="workspace-stars"></a>
+**Favourites on top.** Every workspace in the list has a star. Click the star and that workspace moves to the top of
+the list, above a line, in the order you starred them; click it again to take the star away. The workspace for new
+projects ("· new projects") is always on top too. The stars are kept for you, also after a restart.
+
+<img class="panel" src="img/workspace_stars.png" alt="The Workspace list: Essentials for new projects, Reviewer and Sales starred on top, a line, then the others">
 
 **Hiding never deletes or switches off anything.** What is set up stays in the project and keeps working
 in renders, in the queue and after a model update; only the panels go away. Pick another workspace, or
@@ -192,7 +214,8 @@ workspace except **Full access**: the word "workspace" means only one thing in t
 
 The workspace is saved with the project. A project made before workspaces opens in your default
 workspace **with everything it uses shown**. To choose the workspace new projects start in: open the
-Workspace row (the small arrow) and press **Use for new projects**.
+Workspace row (the small arrow) and press **Use for new projects**, or pick it in **Fresing > Settings… > General >
+Workspace for new projects**.
 
 <a id="families"></a>
 ### Functions in this project: families on and off
@@ -570,6 +593,8 @@ Fresing > Show all of Blender gives you Blender's keys"*:
   **Alt+I**, **K** (keyframes – they would mix with the keys Build makes).
 - **Delete** and **X** (also with Shift) open the app's **Remove** window for what is selected: it lists what goes,
   and nothing is lost until you click Remove ([Remove](#remove-model)).
+- **Ctrl+C** copies what is selected and **Ctrl+V** pastes a copy beside it, with its joints and mechanisms
+  ([Copy and paste](#copy-paste)).
 - **These stay:** **G** / **R** move and turn what is selected ([Moving and turning parts](#moving-parts)), **H** hides the selected part, **Alt+H** shows everything again, **A** selects all, **Home** and the
   number pad move the view, **Z** and **Ctrl+Space** for the shading and a bigger view, **Space** plays, **Ctrl+Z**
   undoes, **F3** searches, **N** shows or hides the side panel, **Ctrl+S** saves, **Ctrl+O** opens.
@@ -579,7 +604,7 @@ Fresing > Show all of Blender gives you Blender's keys"*:
 **Right-click on a part** in the 3D view: the part becomes the selected one (as a left click makes it – with the pick
 mode "Subassembly", its subassembly) and a short menu opens:
 
-<img src="img/view_right_click.png" alt="A right-click on the boom: Zoom to it, Show in 2 Structure, Hide, Show only this, Add a label here, Add joint here">
+<img src="img/view_right_click.png" alt="A right-click on the boom: Zoom to it, Show in 2 Structure, Hide, Show only this, Add a label here, Add joint here, Unlock so it can move, Move / turn, Copy, Remove">
 
 - **Zoom to it** – the view fills with that part (the camera does not move).
 - **Show in 2 Structure** – the side panel opens 2 Structure at the part's row.
@@ -589,10 +614,13 @@ mode "Subassembly", its subassembly) and a short menu opens:
 - **Unlock so it can move** – unlocks the part's subassembly, so **G** moves it and **R** turns it
   ([Moving and turning parts](#moving-parts)); once unlocked the entry reads **Lock in place**.
 - **Move / turn…** – [Place](#place) in a window of its own: X / Y / Z, turns, steps, Put on the floor.
+- **Copy** – remembers the part's model, subassembly or parts (what is selected); **Paste here** – once something
+  was copied – puts a copy of it where you right-clicked ([Copy and paste](#copy-paste)).
 - **Remove…** – the window that lists what goes with it ([Remove](#remove-model)).
 
-**Right-click on empty space:** **Zoom to all** and **Show all**. In the **Client view** the menu has only Zoom, Show in
-2 Structure, Hide, Show only this and Show all (no Move / turn…, no Remove…) – and its Hide only hides in the view: renders, the built animation and
+**Right-click on empty space:** **Zoom to all** and **Show all** (and **Paste** once something was copied: the copy goes
+beside the original). In the **Client view** the menu has only Zoom, Show in
+2 Structure, Hide, Show only this and Show all (no Move / turn…, no Copy, no Remove…) – and its Hide only hides in the view: renders, the built animation and
 the project stay as they are, and leaving the Client view shows those parts again.
 
 **Blender's keys and menu back:** **Fresing > Show all of Blender** (or Workspace > Full access) gives every key and
@@ -1277,6 +1305,38 @@ back.
 (below) only takes parts out of the view and the renders – the joints and everything else stay, and **Restore all**
 brings them back at any time.
 
+<a id="copy-paste"></a>
+### Copy and paste a model, subassembly or parts
+
+**Copy** and **Paste** – at the bottom of 2 Structure > Place, in the right-click menu (**Copy**, **Paste here**), and
+outside Full access **Ctrl+C** / **Ctrl+V** – make a second one of a model, a subassembly or parts, **with its joints
+and mechanisms**:
+
+1. Select what you want twice (click it, or its row in 2 Structure) and click **Copy** (or press **Ctrl+C**).
+2. Click **Paste** (or **Ctrl+V**): the copy stands **beside the original**. Right-click a spot and **Paste here**:
+   it stands there (the middle of its box over the spot, on it).
+3. The copy is selected, free to move, and **Move / turn** opens for it: type where it goes, or drag its arrows.
+   At the bottom the window says what came along and what was left out. **Ctrl+Z** takes the copy away again.
+
+**What comes along:** its parts (they **share their shapes** with the original, so the project hardly grows), their
+looks and groups, its **joints** (limits, the pose it is in, couplings between them), **cylinders**, **mechanisms**,
+**way covers**, **hoses and drag chains** whose both ends are in the copy, **labels** on its parts and **logos and
+stickers**. Names count up: the copy of "TEST.CRANE" is "TEST.CRANE (2)", its joint "Boom (2)", the next one "(3)".
+
+**What reaches outside the copy is left out – the copy moves by itself:** a joint that also moves parts outside the
+copy, a cylinder, mechanism, hose or way cover with a piece outside, and a coupling to a joint outside the copy (the
+copied joint then moves on its own). A joint that sat on something outside sits on the copy. **Cables, drums,
+tracks**, trail lines, animation steps and cameras stay with the original: add them on the copy where you need them.
+
+**Model updates:**
+
+- A copy of a **whole model** is a second one of the same model: when you update the original to a new revision of
+  its STEP file (1 Import > Update model), the copy is updated too – and the other way round. Each keeps its own
+  place, joint positions and work.
+- A copy of a **subassembly or parts** becomes a model of its own (its own top row in 2 Structure) with its own parts.
+  It stays as it is when the original is updated, and it cannot be updated itself: update the original, then copy it
+  again.
+
 <a id="cleanup"></a>
 ### Clean-up
 
@@ -1393,6 +1453,59 @@ material and colour.
   and CAD material, with **Move selected to group…**.
 - **Sort parts into groups** sorts everything again with the rules. Parts you put in a group yourself
   stay there.
+
+<a id="finishes"></a>
+### Finishes: knurls, spun ends, plate patterns, blasted metal, textures
+
+<img src="img/finishes_sheet.jpg" alt="The 23 finishes close up on the finishes test model">
+
+**Finishes** are ready-made materials with a pattern of their own: a knurled knob, the rings of a spun
+cap, a tread plate, a perforated sheet, a moulded plastic texture. Pick one as a group's **Material**
+(they are in the lists with the other metals, plastics and paints, or under **Ready-made material…**).
+Nothing else to set up: the pattern finds its own direction and size on every part, without UV maps,
+and looks the same on every copy of a part and after a model update.
+
+- **On round parts** – the pattern follows each round face of the part: **Knurled, diamond** and
+  **Knurled, straight** (knobs, thumb screws, handles; the end faces get fine rings), **Rubber, moulded
+  grip pattern** (handles), **Spun metal** (rings round the centre of caps and discs: the radial highlight
+  moves round as the light moves), **Faced end, spiral** (the faced end of a turned part, turned rings on
+  its round faces), **Honed bore** (the honing cross-hatch inside bores, turned rings outside).
+- **Sheet and plate patterns** – in the part's own directions: **Tread plate**, **Perforated sheet** (round
+  holes or slots, see-through), **Expanded metal** (see-through), **Scraped machine ways** (the half-moon
+  flaking), **Plastic grille, fine holes** (see-through), **Plastic, moulded cross-hatch** (follows curved
+  shells), **Fabric, woven** (speaker cloth).
+- **Grains** – a 3-D grain without a direction: **Bead-blasted metal**, **Steel, shot-blasted** (before
+  paint), **Paint, hammertone**, **Paint, wrinkle finish**, **Paint, anti-skid** (decks, walkways),
+  **Plastic, spark-eroded texture (VDI 3400)**, **Plastic, leather grain**, **Plastic, soft-touch**,
+  **Hot-dip galvanized, spangle** (large zinc crystals), **As-cast** (sand-cast aluminium or iron).
+
+**A finish's own settings** sit under the group's material – only the ones it has:
+
+- **Metal** – the metal under the finish (a knurl on steel, stainless, aluminium or brass; tread plate on
+  aluminium, galvanized or steel …). Paints and plastics take the group's **Colour** instead.
+- **Kind** – bead-blasting **Fine / Medium / Coarse**, **Round holes / Slotted holes**, the **VDI 3400 class**
+  (24 fine … 36 coarse), the cast metal (**Aluminium / Iron**).
+- **Pitch**, **Feed**, **Hole size**, **Grain size**, **Mark size**, **Crystal size** … – the size of the
+  pattern in mm (a diamond knurl 0.8 mm, a tread plate 25 mm). Tread plate and scraped ways keep a size that
+  fits the web 3D model's tiles (25 mm stays 25 mm, 12 mm becomes 11.8 mm).
+- **Angle** – of a diamond knurl's grooves (30° is usual), of the honing cross-hatch, of a moulded grid.
+- **Strength** – how far spun metal's highlight stretches.
+
+**Far away a pattern fades by itself** to the look it averages to: a 0.8 mm knurl is crisp in a close-up
+and a calm, slightly duller metal on a machine 10 m away – no flicker, no moiré. The app works this out from
+the camera and the picture size; nothing to set.
+
+Good to know:
+
+- The round-part finishes use the round faces the STEP file has. A knob made of flat facets in CAD gets no
+  knurl on them (the end faces still get their rings).
+- Tread plate, expanded metal and the grille are relief in the material: the plate's outline stays flat.
+  The see-through finishes show the part's back face through the holes.
+- In the **web 3D model** the fine finishes (knurls, spun, blasted, VDI, fabric …) are exported as their
+  average colour and shine; the coarser ones (tread plate, perforated, expanded, hammertone, spangle,
+  leather, scraped …) as a texture.
+- A rule set or a paint scheme keeps a group's material and colour; a finish's own settings start at their
+  defaults there.
 
 <a id="rule-sets"></a>
 ### Rule sets
@@ -1529,6 +1642,68 @@ Good to know:
   with the mouse** and click its new spot.
 - A [template](#schemes) keeps the decals with the names of their parts: used on another machine, it
   puts them on parts with the same name, where the spot lies on the part.
+
+<a id="welds"></a>
+### Welds
+
+<img class="panel" src="img/panel_3_welds.png" alt="3 Looks > Welds with a weld opened: its seams, size, metal and finish">
+
+Lays a real weld bead where two parts meet – picked like Inventor's welds: the faces of one part, then the faces
+of the other, and a bead is laid on every line where the two sets meet. Steel, stainless or aluminium, painted
+over or bare, rusty where it would be. The bead moves, hides, fades and is sliced with its part.
+
+<img class="wide" src="img/welds.jpg" alt="Welds on the test weldment: painted, MAG with spatter, rusty, stainless with heat tint, pickled, aluminium and ground flush">
+
+1. Click **Add weld…**, then click the faces of the **first part** – the bead moves with this part.
+   A click picks that face; <kbd>Shift</kbd>-click adds a face or takes it away again. Picked faces turn blue,
+   the face under the mouse magenta.
+2. Press <kbd>Enter</kbd> (or **Next** in the panel), then click the faces of the **part it is welded to**
+   (orange). The seams where the two sets meet show in the view at once, in green.
+3. The panel lists the seams with a tick each (length, fillet / butt / all round, the corner's angle). Untick
+   the ones you do not want – for a fillet on one side only, untick the other side. Press <kbd>Enter</kbd> or
+   **Done**. <kbd>Esc</kbd> or a right-click cancels.
+
+**The quick way**: select two parts (click one, <kbd>Shift</kbd>-click the other) and press **Weld two parts**:
+every line where they meet gets a bead, each seam with a tick. Or right-click a face and choose **Weld to another
+part…**: that face is the first part's face.
+
+Where the parts meet: faces that touch, or with a gap up to 2 mm (a root gap, a loose fit in the CAD model; change
+it with **Gap up to** under Seams). A plate on a plate, a gusset in a corner, a tube in a plate's hole (all round),
+a coped tube on a tube (the saddle), a tube pushed through a plate without a hole, two plates edge to edge (a butt
+weld) – each is found the same way. Faces lying on each other (the inside of the joint) never get a bead.
+
+Click a weld in the list to see its settings:
+
+- **Seams**: the ticks, **Gap up to**, **Find seams again** (after you moved a part) and **Pick again**.
+- **Kind**: As found (a fillet in a corner, a butt where two faces lie flush), Fillet or Butt. **Size a**: the
+  throat of a fillet, as on a drawing ("a5"); it starts at half the thinner plate. **Cap width** for a butt weld.
+  **End craters**: a small dip where the bead starts and stops. **Intermittent**: pieces of **Piece** length every
+  **Pitch**.
+- **Metal**: From the parts (their looks: stainless, aluminium, else steel), or chosen. **Process**: MAG for steel
+  (even ripples, a blue-grey oxide), TIG for stainless and thin aluminium (fine ripples), MIG for aluminium (wide
+  "stacked coins", a sooty band beside it), Stick for steel (coarse, darker).
+- **Finish**: **As welded**; **Painted** – the bead and its heat zone take the paint of the part you choose under
+  **Paint of** (it starts painted when a part is painted); the ripples show through the paint, and with Wear the
+  paint goes first at the bead's edges; **Ground flush** – no ripples, a brushed band.
+- **Heat tint**: the colours the heat leaves beside the bead – stainless straw, purple and blue bands, steel a
+  narrow blue-grey. **Pickled** (stainless): cleaned after welding, no tint, a matt bead. **Spatter** (MAG, stick):
+  small drops beside the bead.
+- **Rust**: a bare steel weld and its heat zone rust first, more than the plate; a painted weld only where Wear
+  took the paint off; galvanised parts rust where the weld burnt the zinc, unless **Zinc sprayed after welding**;
+  stainless only gets a faint tea stain (none when pickled); aluminium never rusts.
+- Two different metals welded: a calm note says so. The eye in the list hides a weld; **Remove** takes it away.
+
+Good to know:
+
+- **Motion**: the bead goes with the first part. When a joint moves one welded part and not the other, the weld says
+  "These parts are welded but move apart" with **Make them move as one**: the second part joins the first part's
+  joint (or leaves its own when the first part stands still).
+- **Model update**: a weld finds its faces again on the new parts. A weld whose faces or part are gone stays in the
+  list, marked "Weld lost its faces – pick again", and is named in the update report: press **Pick again**.
+- Hidden parts, the X-ray look, fades and the [Slice](#slice) take the weld along. The clash check leaves welds out.
+- The [web 3D model](#web3d) has the beads in their colour (and paint); the ripples and the heat tint are only in
+  renders.
+- In the Client view welds show but cannot be changed.
 
 <a id="xray"></a>
 ### X-ray look
@@ -2108,6 +2283,54 @@ numbers at once.
 - The sizes without a public standard (cables, sleeves, drag chains) are invented round numbers, not a maker's
   catalogue.
 
+<a id="flex-avoid"></a>
+#### Avoid other parts
+
+A hose or cable bends between its ends and does not see the rest of the machine: where it would hang down, it goes
+straight through a part in its way. Tick **Avoid other parts** (under the list, below Length) and it stays outside
+the parts near it – it **lies on them and slides along** while you move the machine, and in the built animation.
+
+<img class="wide" src="img/view_flex_avoid.jpg" alt="The avoid test model: the lift is down, the hose lies on the grey block instead of sagging through it">
+
+- **Which parts count:** every part that shows near the hose – within its length of its two ends, in the pose it is in
+  when you tick it (and again at every Build). Not counted: the parts its ends and clips sit on (it goes into its
+  fittings), other hoses, cables and chains, and parts you have hidden. A part that comes near only later in a motion,
+  from further away, is not seen: tick the box again in that pose, or press Build & play again.
+- The hose keeps its **radius** (+ 0.5 mm) from their surfaces. Where it bends round a sharp edge it can cut the
+  corner by a millimetre or two (it is a row of short straight pieces).
+- It comes out of a part **on the side of its ends**: a hose that sagged into a block lands on top of it. Once it lies
+  somewhere it stays on that side while the machine moves.
+- It costs time: on the test model about 0.1–0.15 s per pose while the hose lies on a part (while it is clear of
+  them, as before: under 20 ms) and about 4 s for a 4-second animation. Switch it on only for the hoses that need it.
+- A wall about as thin as the hose (a sheet-metal guard) can still be crossed where the hose sags into it.
+- A hose that **must** go into a part (its fittings, clips or via points force it) shows where in the clash check:
+  tick **Check hoses that avoid parts** in 6 Animation > Clash check. Other hoses and cables bend on purpose and stay
+  out of the clash check, as before.
+
+<a id="flex-route"></a>
+#### Shape the route between the ends
+
+The hose takes the shape its ends, length and weight give it. To lead it another way – round the far side of a
+part, higher up, out of the camera's view – shape its route:
+
+1. Choose the hose in the list and press **Shape the route** (under Avoid other parts). Its middle line shows as a
+   thin white line, its ends and clips as grey dots.
+2. **Click on the line** where it should go elsewhere: a **via point** (a white dot) appears there. Keep the mouse
+   button down and **drag** it: the hose follows. A dot can be dragged again later; it moves square to your view, so
+   turn the view to move it in depth.
+3. **X** (or Delete) over a dot removes it. **Enter**, Space or a right-click: done – one step for Ctrl+Z. **Esc**:
+   the route as it was.
+
+The line under Avoid other parts says what the route runs through ("Route: 1 via point"); the **X** button beside
+Shape the route takes every via point off. A via point sits on no part: it moves along with the parts the two ends
+sit on – near end A with A's part, near end B with B's, in between part of each. The hose passes it smoothly, in the
+direction from the point before to the point after.
+
+**Automatic length** (ticked) works the length out again every time you change the route – long enough for the
+joints' travel, as a drawn hose's first length. Unticked, the **Length** stays as it is and only its split over the
+stretches between the points follows the route. Via points are kept when you save, and through a model update (where
+they were in the view).
+
 <a id="chain-types"></a>
 #### Drag chain types
 
@@ -2139,6 +2362,8 @@ you see it move. (A hose that hangs and bends is the other panel: **Hoses and dr
 <img class="panel" src="img/panel_cables.png" alt="Cables and paths: one wire rope in the list, the look, the list What it touches and the two ends">
 
 <img class="wide" src="img/view_cables_rope.jpg" alt="The test machine: a wire rope from the winch drum over two sheaves on an A-frame, two V rollers and a chute">
+
+<img class="wide" src="img/view_cables_winch.jpg" alt="Close up: the winch drum full of wire rope, layer on layer between its flanges, the rope coming off its top layer">
 
 **Add a cable**
 
@@ -3548,32 +3773,78 @@ the offshore surroundings take about as long as the studio; the halls 1.4 to 2.8
 
 <img class="panel" src="img/panel_5_weather.png" alt="Weather & time">
 
-Sets the time of day and the weather for a picture or a video in one place: sunrise to night, clouds, haze and fog,
-rain, snow and wind. Tick **Weather & time**; unticked, everything looks exactly as without it (only the sea itself
-is new in 0.2.88). The panel's header shows the time and what falls ("13:00 rain"); the line under Time says the
-part of the day and the sun's height.
+Sets the time of day and the weather for a picture or a video in one place: sunrise to night, clouds, haze, fog and
+sea mist, rain, hail, snow, lightning, heat and wind. Tick **Weather & time**; unticked, everything looks exactly as
+without it. The panel's header shows the time and what falls ("13:00 rain"); the line under Time says the part of the
+day and the sun's height.
 
-**Preset**: **Clear day**, **Grey North Sea** (overcast, Beaufort 6, drizzle, haze, the machine wet), **Storm**
-(a gale, heavy rain, low clouds, white water and spray, 2.5 km visibility), **Snow at the quay** (snow falling, a
-snow layer), **Night shift** (dark sky with stars and the moon, floodlights, a damp sheen). A preset sets all the
-controls; change any of them afterwards (the preset then shows **Own settings**).
+**How it works, step by step:**
+
+1. Tick **Weather & time**. The first time it starts from your project's own sky (Sun or Overcast, Sun height, Turn
+   sun), so nothing jumps. The weather shows outdoors: pick the **Open sea**, the **Vessel deck**, the **Quayside** or
+   **Sky** under Background & surroundings.
+2. Click a picture under **Presets**: a ready-made weather sets every value below it at once (the clock, clouds,
+   visibility, rain, wind …). The picture of the weather in use is pressed.
+3. Change anything you like: the clock, the clouds, the rain. The preset then reads **Own settings**. Live preview
+   shows it; a picture (Render image, the render queue) renders it.
+4. For a video: put the playhead where the weather should change, pick **Change to** (a preset) and **Over** (how many
+   seconds the change takes), click **Add at playhead**. Move the playhead later and add another change – the storm
+   comes and goes again. **Build & play** shows it.
+
+Behind the scenes every value is a number the app keys at Build for each frame, so the sky, the light, the rain and
+the lightning play the same way in the view, in a picture of one frame and in the render queue – also with "Auto Run
+Python Scripts" off.
+
+<a id="weather-presets"></a>
+**Presets** (the pictures are drawn from each preset's own values): **Clear day**; **Sunrise** (the sun just up in the
+east: golden low light, long shadows, dew); **Sunset** (the sun low in the west, orange light); **Grey sea** – Grey
+North Sea (overcast, Beaufort 6, drizzle, haze, the machine wet); **Sea mist** – Fog / sea mist (mist lying on the
+water, about 200 m, banks of it drifting by); **Storm** (a gale, heavy rain, low clouds, white water and spray, 2.5 km
+visibility); **Thunder** – Thunderstorm (dark storm clouds, a downpour, lightning); **Hail / sleet** (hail stones and
+sleet bouncing on the deck, grey and wet); **Snow** – Snow at the quay (snow falling, a snow layer); **Hot, calm** –
+Hot and calm (bright haze, heat shimmer, no wind: a flat sea when the sea follows the wind); **Night shift** (dark sky
+with stars and the moon, floodlights, a damp sheen). The **Preset** list above the pictures shows the same choice.
 
 **Time**: the clock (sun time: 12:00 is when the sun stands highest – no time zone or summer time needed). It sets
 the sun's height and direction and the sky's colour: sunrise, day, golden hour, dusk, night. **North** turns the
 sun's path (and the wind) around the machine: 90 means north is behind the machine, so the noon sun comes from the
 front. Without a date the sun rises at 6:00 and sets at 18:00; open **Date and place** and tick **Real sun path** for
 the sun of one day (**Day of the year**: 172 = 21 June) at a **Latitude** (the southern North Sea about 54) – the
-line under it gives sunrise and sunset. The first time you tick Weather & time it starts from your project's own
-sky (Sun or Overcast, Sun height, Turn sun), so nothing jumps.
+line under it gives sunrise and sunset.
 
 **Sky**: **Clouds** (0 a clear blue sky, 1 overcast: soft light, no sun), **Low clouds** (a dark, low deck), and
 **Visibility**: 40 km is clear air, 10 km haze, 2 km mist, below 1 km fog that hides the far sea and the quay.
 
-**Rain and snow**: **Rain** (0.1 drizzle … 1 a downpour) falls slanting with the wind and splashes on the deck, the
-quay and the sea; **Drop size** in mm. **Wet**: the machine and the deck look wet – darker and glossier, drops and
-run-off streaks on sloped faces, puddles on flat ones. It works without rain too (after the rain); rain makes things
-at least as wet as it is heavy. **Snow**: falling flakes that drift with the wind. **Snow layer**: snow on every face
-that looks up under the open sky; parts under a roof, a cover or a boom stay clear (best seen in Cycles).
+<a id="weather-mist"></a>
+**Sea mist**: mist lying low on the water (or on the ground on land): thick near the surface, thin 25 m up and more,
+so the top of a tall machine stands above it. Banks of it drift with the wind (at least a light air) and change
+slowly, so in a video the machine fades in and out. 1 is very thick: about 150 m at the water. It is laid over the
+picture after rendering (it costs next to no render time) and needs where each pixel is: the app switches the
+Position pass on while it is used and off again after.
+
+<a id="weather-heat"></a>
+**Heat**: a hot day – the haze turns bright and a little warm, and in a render the far distance wavers with heat
+shimmer (a few pixels, more the further away; nothing close by moves). Also laid over the picture after rendering.
+
+**Rain, snow and hail**: **Rain** (0.1 drizzle … 1 a downpour) falls slanting with the wind and splashes on the deck,
+the quay and the sea; **Drop size** in mm. **Wet**: the machine and the deck look wet – darker and glossier, drops and
+run-off streaks on sloped faces, puddles on flat ones. It works without rain too (after the rain); rain and hail make
+things at least as wet as they are heavy. **Snow**: falling flakes that drift with the wind. **Snow layer**: snow on
+every face that looks up under the open sky; parts under a roof, a cover or a boom stay clear (best seen in Cycles).
+<a id="weather-hail"></a>
+**Hail**: small ice stones (8 mm) fall at their own speed (about 10 m/s) and hop once on every face that looks up –
+the deck, the quay, the machine's top faces – but not on the sea. With some rain and a little snow it is sleet (the
+Hail / sleet preset).
+
+<a id="weather-lightning"></a>
+**Lightning**: how often lightning flashes (0.3 now and then, 1 every few seconds). In a video (Build & play) each
+flash lights the whole scene for a few frames – it flickers, as lightning does – the clouds light up from inside and a
+bolt strikes in the distance, one of four in the direction the camera looks. The flashes come at random while the
+lightning is above 0, more often and brighter the higher it is, and stop where it is 0: a storm that passes takes its
+lightning with it. A picture shows the storm between flashes; tick **Flash in the picture** for a picture of the
+moment of a flash. A Weather & time step can also flash at set moments: **Flash at** in the step (seconds from its
+start, e.g. "1.5, 3"). **Change to** a weather with lightning puts one flash near the end of the change, so a short
+video always has one.
 
 **Wind**: strength in **Beaufort** (the line above says what it is called and how many m/s), **From** (where it comes
 from) and **Measured**: **Compass** (0 = from the north, 90 = from the east) or **From the bow** of the vessel
@@ -3599,16 +3870,26 @@ it away. Work lights stay through a model update.
 **360° photo** the photo keeps its own sun and sky; rain, snow, wind and the wet look work. Indoors (halls,
 studios, a plain background) nothing falls and the sky is not seen: only work lights.
 
-**In a video:** add a **Weather & time** step in 6 Animation. It starts from the weather before it (the panel's, or
-the step before) and changes to the values in the step over its duration: **To** (a preset, or your own),
-**Time** (later than the start; an earlier time runs on through midnight), **Clouds**, **Low clouds**, **Visibility**,
-**Rain**, **Wet**, **Snow**, **Snow layer**, **Wind** and **Wind from**. The waves themselves keep the wind of the
-start; white caps, spray, rain and snow follow the wind of each moment. Saved scenes keep their weather; the render
-queue renders it, also for every paint scheme. An animation that starts from a saved scene (its start scene) gets
-that scene's weather back at **Build & play** – also "no weather" when the scene was saved before you set it.
-Build then says so ("The start scene … has no weather, so Build switched the weather off"): set the weather and save
-that scene again to keep it. Rain, snow, spray and the flag depend only on the frame, so a frame
-looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
+<a id="weather-change"></a>
+**In a video:** the quickest way is **Change to ▸ … Over … Add at playhead** (step 4 above): it adds a **Weather &
+time** step to the animation picked in 6 Animation (it makes one called "Weather" when there is none) starting at the
+playhead, or changes the step that already starts there. The step list shows it as "Weather to Thunderstorm (16:00)".
+You can also add a **Weather & time** step in 6 Animation by hand. A step starts from the weather before it (the
+panel's, or the step before) and changes to the values in the step over its duration: **To** (a preset, or your own),
+**Time**, **Clouds**, **Low clouds**, **Visibility**, **Rain**, **Wet**, **Snow**, **Snow layer**, **Wind**, **Wind
+from**, **Drop size**, **Hail**, **Sea mist**, **Heat**, **Lightning** and **Flash at**.
+
+Every value blends smoothly over the step: the rain starts and stops gradually, the snow layer grows, the fog rolls in,
+the lightning fades out, the sun moves with the clock. The clock goes the shorter way round (22:00 → 02:00 runs on
+through midnight, 15:00 → 14:00 goes back an hour) and slows down through sunrise and sunset, so even a change of
+twelve hours in five seconds turns the light on or off over many frames instead of one. New steps start and stop
+gently (Smooth). The waves themselves keep the wind of the start; white caps, spray, rain and snow follow the wind of
+each moment. Saved scenes keep their weather; the render queue renders it, also for every paint scheme. An animation
+that starts from a saved scene (its start scene) gets that scene's weather back at **Build & play** – also "no
+weather" when the scene was saved before you set it. Build then says so ("The start scene … has no weather, so Build
+switched the weather off"): set the weather and save that scene again to keep it. Rain, snow, hail, spray, the flag
+and the lightning depend only on the frame, so a frame looks the same every time it is rendered. Everything plays
+with "Auto Run Python Scripts" off.
 
 <a id="vessel-motion"></a>
 ### Vessel motion

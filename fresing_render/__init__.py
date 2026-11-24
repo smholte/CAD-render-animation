@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.225"
+__version__ = "0.2.232"
 
 _modules = []
 
@@ -26,6 +26,7 @@ def _classes():
     from .blender import ops_paths, ui_paths        # task 0078: 4 Motion > Cables and paths (after Hoses and drag chains)
     from .blender import ops_paths_sea              # task 0081: … > Into the sea, things on the cable
     from .blender import ops_drawn                  # task 0240: Draw hose / cable route / drag chain by clicking
+    from .blender import ops_route                  # task 0298: Shape the route of a hose (via points)
     from .blender import ops_product_video       # task 0101: 6 Animation > Make a product video
     from .blender import ops_spool, ui_spool        # task 0080: 4 Motion > Drums and carousels (after Cables and paths)
     from .blender import ops_tracks, ui_tracks      # task 0079: 4 Motion > Tracks and belts (after Drums and carousels)
@@ -50,6 +51,8 @@ def _classes():
     from .blender import form_window                # task 0282: function windows (forms that stay open)
     from .blender import place                      # task 0307: G / R / S say why something cannot move
     from .blender import ops_place, ui_place        # task 0292: 2 Structure > Place, Remove…
+    from .blender import ops_welds, ui_welds        # task 0319: 3 Looks > Welds
+    from .blender import ops_copy                   # task 0293: Copy / Paste with joints and mechanisms
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_structure) + 1
@@ -57,6 +60,8 @@ def _classes():
     at = looks.index(ui.FRESING_PT_faces) + 1
     looks[at:at] = ui_decals.PANELS
     at = looks.index(ui_decals.PANELS[-1]) + 1
+    looks[at:at] = ui_welds.PANELS               # 3 Looks > Welds (task 0319)
+    at = looks.index(ui_welds.PANELS[-1]) + 1
     looks[at:at] = ui_fade.PANELS                # 3 Looks > X-ray look (task 0073)
     at = looks.index(ui_fade.PANELS[-1]) + 1
     looks[at:at] = ui_section.PANELS             # 3 Looks > Slice (task 0086)
@@ -68,10 +73,10 @@ def _classes():
     looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
-    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + place.CLASSES + ops_place.CLASSES + ui_place.CLASSES + welcome.CLASSES + gpu_choice.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + place.CLASSES + ops_place.CLASSES + ops_copy.CLASSES + ui_place.CLASSES + welcome.CLASSES + gpu_choice.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + joint_show.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
-            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
+            + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_route.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
             + ui_gcode.CLASSES + ui_coolant.CLASSES + ui_waycover.CLASSES + ui_flex.CLASSES + ui_paths.CLASSES + ui_spool.CLASSES + ui_tracks.CLASSES + ui_video.CLASSES + ui_callouts.CLASSES
             + ops_people.CLASSES + ui_people.CLASSES + ui_clash.CLASSES + ui_fade.CLASSES + ops_queue_schemes.CLASSES + ops_vessel_motion.CLASSES + ops_vessel_work.CLASSES + ops_weather.CLASSES + ops_demo.CLASSES
@@ -79,7 +84,7 @@ def _classes():
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_render_view.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
-            + ops_locations.CLASSES + form_window.CLASSES)
+            + ops_locations.CLASSES + form_window.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES)
 
 
 def _all_classes():
@@ -143,6 +148,8 @@ def register():
     from .blender import vessel_motion
     props.register()
     decals.register()
+    from .blender import welds
+    welds.register()                         # task 0319: the welds' settings (before the panels that draw them)
     from .blender import panels
     panels.register()                        # task 0062: the section tab's setting, before the panels that draw it
     for cls in _all_classes():
@@ -155,6 +162,11 @@ def register():
     make_icons.register()                    # task 0308: the large icons of Make
     from .blender import settings_store
     settings_store.register()                # task 0283: every setting read from the app's own file, kept on change
+    try:
+        from .blender import workspaces as _ws
+        _ws.keep_for_existing_user()         # task 0294: an existing user keeps All functions; a new one gets Essentials
+    except Exception as exc:  # noqa: BLE001 - never stop the start over it
+        print("Fresing Render: workspace for new projects not checked:", exc)
     from .blender import locations
     locations.register()                     # task 0272: the folders per kind, set-ups, export places (after the settings)
     handlers.register()
@@ -196,6 +208,8 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
     clash.register()
+    from .blender import finishes
+    finishes.register()                      # task 0274: the finishes' far-away fade follows the camera
     from .blender import web3d
     web3d.register()                         # task 0189: the Web 3D panel's estimates kept until a change
     from .blender import section
@@ -205,6 +219,8 @@ def register():
     joint_show.register()                    # task 0290: a clicked joint shows its arrow and what it moves
     from .blender import waycover
     waycover.register()                      # task 0035: one-cover projects open with it in the list
+    from .blender import copy as copy_paste
+    copy_paste.register()                    # task 0293: a new or opened project forgets what was copied
     vessel_motion.register()
     from .blender import flex
     flex.register()                          # hoses and drag chains (task 0058): live shapes, clash hook
@@ -268,6 +284,8 @@ def unregister():
     updates.unregister()
     from .blender import section
     section.unregister()
+    from .blender import finishes
+    finishes.unregister()
     hover.unregister()
     from .blender import joint_show
     joint_show.unregister()
@@ -298,6 +316,8 @@ def unregister():
     web3d.unregister()
     from .blender import waycover
     waycover.unregister()
+    from .blender import copy as copy_paste
+    copy_paste.unregister()
     linkages.unregister()
     coolant.unregister()
     machining.unregister()
@@ -328,6 +348,11 @@ def unregister():
     ops_usage.unregister()
     from .blender import about
     about.unregister()
+    try:
+        from .blender import ui_weather
+        ui_weather.free_thumbs()             # task 0299: the presets' pictures
+    except Exception:  # noqa: BLE001
+        pass
     from .blender import lock, panels, ui_top, workspaces
     ui_top.unregister_header()
     workspaces.unregister()
@@ -342,5 +367,7 @@ def unregister():
         except RuntimeError:
             pass
     panels.unregister()
+    from .blender import welds
+    welds.unregister()
     decals.unregister()
     props.unregister()

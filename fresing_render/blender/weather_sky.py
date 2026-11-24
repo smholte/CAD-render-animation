@@ -63,6 +63,18 @@ MASTS = ("DECK", "QUAY")        # floodlights stand on masts here (on the open s
 # the expressions shared with core/weather.py (its tests check the two agree)
 SKY_LIGHT = "pow(smoothstep(-9, 30, sun_el), 1.5)"
 
+# lightning (task 0299)
+FLASH_SKY = 2.2                 # radiance a flash (1) adds to the sky – the clouds lit from inside
+FLASH_GROUND = 1.5              # ... and to the world's ground below the horizon (x world_ground)
+LIGHTNING_W = 6.0               # W/m² of the lightning lamp at flash 1 (the sky's sun overhead is SUN_W 13)
+LIGHTNING_EL = 28.0             # degrees: the flash's light comes down at this height from the bolt's side
+LIGHTNING_COLOUR = (0.82, 0.87, 1.0)
+BOLT_EMIT = 80.0                # emission strength of a bolt while it flashes
+BOLT_RADIUS = (1.6, 0.9)        # m: the main channel and the branches (a few pixels at 900 m in a 1920 picture)
+GROUND_Z = "fr_weather_ground_z"   # scene property: the water's or the ground's height the mist lies on
+POS_PASS = "fr_weather_had_position"     # the view layer's Position pass before the mist switched it on
+SHIMMER_PX = 2.2                # pixels the heat shimmer moves the far distance at heat 1 (in a 1000 px wide picture)
+
 
 # ---------------------------------------------------------------------------
 # drivers: simple expressions on the channels
@@ -286,17 +298,27 @@ def world_branch(nt, scene, s, y: float = 0.0):
     lights = b.vec("SCALE", (1.0, 0.97, 0.9), scale=b.math("ADD", star, moonrad))
     night = b.vec("SCALE", b.vec("ADD", night_col, lights), scale=under)
     sky_all = b.vec("ADD", day_sky, night)
+    # a lightning flash (task 0299): the clouds lit from inside, brightest where the cloud is thick
+    fl = b.value("flash sky", f"flash * {FLASH_SKY:g} * (0.35 + 0.65 * max(clouds, low))", dy=-1020)
+    sky_all = b.vec("ADD", sky_all, b.vec("SCALE", LIGHTNING_COLOUR, scale=fl))
 
     # below the horizon: today's neutral ground, as bright as the light
     gl = b.value("ground", f"{world_ground():g} * ({SKY_LIGHT} * (1 - 0.25 * clouds) * (1 - 0.4 * low) + "
-                           f"{core.NIGHT_SKY * 2:g} * night + {core.MOON_SKY * 2:g} * moon)", dy=-720)
+                           f"{core.NIGHT_SKY * 2:g} * night + {core.MOON_SKY * 2:g} * moon + "
+                           f"{FLASH_GROUND:g} * flash)", dy=-720)
     ground = b.vec("SCALE", GROUND, scale=gl)
     col = b.mix(below, sky_all, ground)
 
     # haze towards the horizon (only what is more than today's clear air): 1 - exp(-fog · path), a 0.6 km layer
     fx = b.value("haze per km", f"max(fog - {core.CLEAR_FOG:.6f}, 0)", dy=-780)
     path = b.math("MINIMUM", b.math("DIVIDE", 0.6, b.math("ADD", b.math("ABSOLUTE", z), 0.008)), 80.0)
-    h = b.math("SUBTRACT", 1.0, b.math("EXPONENT", b.math("MULTIPLY", b.math("MULTIPLY", fx, path), -1.0)))
+    tau = b.math("MULTIPLY", fx, path)
+    # the sea mist (task 0299): a layer MIST_HEIGHT thick seen through at a low angle – white at the horizon only
+    mk = b.value("mist per km", "mist", dy=-1080)
+    mpath = b.math("MINIMUM", b.math("DIVIDE", core.MIST_HEIGHT / 1000.0,
+                                     b.math("ADD", b.math("ABSOLUTE", z), 0.002)), 5.0)
+    tau = b.math("ADD", tau, b.math("MULTIPLY", mk, mpath))
+    h = b.math("SUBTRACT", 1.0, b.math("EXPONENT", b.math("MULTIPLY", tau, -1.0)))
     fogc = b.new("ShaderNodeCombineColor", label="fog colour")
     for i, ch in enumerate(("fog_r", "fog_g", "fog_b")):
         b.link(b.value(ch, ch, dy=-840 - 60 * i), fogc.inputs[i])
@@ -339,6 +361,7 @@ def _key(scene, place: str) -> str:
          list(map(lambda v: round(float(v), 4), root.get("fr_max", (0, 0, 0)))),
          [round(float(v), 4) for v in root.location]] if (floods and root is not None) else None,
         _flood_parent_name(scene) if floods else None,
+        _bolt_key(scene) if _lightning_wanted(scene, place) else None,
     ])
 
 
@@ -356,10 +379,16 @@ def _floods_wanted(scene, place: str) -> bool:
 
 
 def _fog_wanted(scene, place: str) -> bool:
-    return place == "sky" and _peak(scene, "fog") > core.CLEAR_FOG * 1.001
+    """The compositor's part: haze beyond clear air, sea mist or heat shimmer somewhere in the animation."""
+    return place == "sky" and (_peak(scene, "fog") > core.CLEAR_FOG * 1.001 or _peak(scene, "mist") > 1e-3
+                               or _peak(scene, "heat") > 1e-3)
 
 
-ROLES = ("moon", "floods", "flood", "mast", "fog")     # what this module makes (weather_fx shares the tag)
+def _lightning_wanted(scene, place: str) -> bool:
+    return place == "sky" and (_peak(scene, "lightning") > 1e-3 or _peak(scene, "flash") > 1e-3)
+
+
+ROLES = ("moon", "floods", "flood", "mast", "fog", "lightning", "bolt")   # made here (weather_fx shares the tag)
 
 
 def _objects(role: str | None = None) -> list:
@@ -391,9 +420,12 @@ def _apply(scene, place: str) -> None:
     _exposure_on(scene)
     key = _key(scene, place)
     floods = _floods_wanted(scene, place)
+    bolts = _lightning_wanted(scene, place)
     have = bool(_objects("moon")) == (place == "sky") and bool(_objects("flood")) == floods
+    have = have and bool(_objects("lightning")) == bolts
+    fog_ng = bpy.data.node_groups.get(FOG_GROUP)
     have = have and (_foreign_compositor(scene)
-                     or (bpy.data.node_groups.get(FOG_GROUP) is not None) == _fog_wanted(scene, place))
+                     or (fog_ng is not None and int(fog_ng.get("fr_v", 1)) == FOG_VERSION) == _fog_wanted(scene, place))
     if scene.get(KEY) == key and have:
         return
     _remove_objects(keep_work=True)
@@ -401,6 +433,9 @@ def _apply(scene, place: str) -> None:
         _moon(scene)
     if floods:
         _floodlights(scene)
+    if bolts:
+        _lightning(scene)
+    _ground_z(scene)
     if _fog_wanted(scene, place):
         fog_on(scene)
     else:
@@ -414,8 +449,9 @@ def remove(scene) -> None:
         _exposure_off(scene)
         fog_off(scene)
         _remove_objects(keep_work=True)
-        if KEY in scene:
-            del scene[KEY]
+        for k in (KEY, GROUND_Z):
+            if k in scene:
+                del scene[k]
     except Exception as exc:
         print("Fresing Render: weather sky not removed:", exc)
 
@@ -431,7 +467,7 @@ def _remove_objects(keep_work: bool = True) -> None:
     col = bpy.data.collections.get(COLLECTION)
     if col is not None and not col.objects and not col.children:
         bpy.data.collections.remove(col)
-    for name in ("FR weather mast", "FR weather lamp"):
+    for name in ("FR weather mast", "FR weather lamp", BOLT_MATERIAL):
         mat = bpy.data.materials.get(name)
         if mat is not None and mat.users == 0:
             bpy.data.materials.remove(mat)
@@ -473,6 +509,163 @@ def _moon(scene) -> None:
     drive(light, "energy", f"moon * {core.MOON_W:g}", scene)
     drive(ob, "rotation_euler", "radians(90 - moon_el)", scene, index=0)
     drive(ob, "rotation_euler", "radians(moon_az + 90)", scene, index=2)
+
+
+# ---- lightning (task 0299) -------------------------------------------------------------
+
+BOLT_MATERIAL = "FR weather bolt"
+
+
+def _view(scene):
+    """(model centre x, y; scene azimuth the active camera looks along; the ground's height)."""
+    from . import logic
+    mn, mx = logic.cached_bounds(scene)
+    cx, cy = (float(mn[0]) + float(mx[0])) / 2.0, (float(mn[1]) + float(mx[1])) / 2.0
+    az = 90.0
+    cam = scene.camera
+    if cam is not None:
+        f = cam.matrix_world.to_3x3() @ Vector((0.0, 0.0, -1.0))
+        if math.hypot(f.x, f.y) > 1e-6:
+            az = math.degrees(math.atan2(f.y, f.x))
+    return cx, cy, az, ground_height(scene)
+
+
+def _bolt_key(scene) -> list:
+    cx, cy, az, gz = _view(scene)
+    return [round(cx, 2), round(cy, 2), round(az, 1), round(gz, 2)]
+
+
+def ground_height(scene) -> float:
+    """World z the mist lies on and the bolts strike: the sea's surface, else the floor."""
+    sea = next((o for o in bpy.data.objects if o.get("fr_env") == "sea"), None)
+    if sea is not None:
+        return float(sea.matrix_world.translation.z)
+    try:
+        from . import surroundings
+        return float(surroundings.floor_height(scene))
+    except Exception:  # noqa: BLE001 - no model yet
+        return 0.0
+
+
+def _ground_z(scene) -> None:
+    z = ground_height(scene)
+    if scene.get(GROUND_Z) != z:
+        scene[GROUND_Z] = z
+
+
+def _bolt_material():
+    """Emission while its bolt flashes, see-through otherwise: reads the channels ``flash`` and ``bolt`` (View Layer
+    attributes, so the keys of a Build work) and the object's own ``fr_bolt`` (Object attribute)."""
+    mat = bpy.data.materials.get(BOLT_MATERIAL)
+    if mat is not None:
+        return mat
+    mat = bpy.data.materials.new(BOLT_MATERIAL)
+    mat[TAG] = "bolt"
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+
+    def attr(name, kind):
+        a = nt.nodes.new("ShaderNodeAttribute")
+        a.attribute_type = kind
+        a.attribute_name = name
+        return a.outputs["Fac"]
+
+    def math_(op, a, b):
+        m = nt.nodes.new("ShaderNodeMath")
+        m.operation = op
+        for i, v in enumerate((a, b)):
+            if isinstance(v, (int, float)):
+                m.inputs[i].default_value = float(v)
+            else:
+                nt.links.new(v, m.inputs[i])
+        return m.outputs[0]
+
+    # this bolt flashes when the channel 'bolt' is its number: 1 - min(|bolt - mine| * 4, 1)
+    near = math_("SUBTRACT", 1.0, math_("MINIMUM", math_("MULTIPLY", math_(
+        "ABSOLUTE", math_("SUBTRACT", attr(core.prop("bolt"), "VIEW_LAYER"), attr("fr_bolt", "OBJECT")), 0.0), 4.0),
+        1.0))
+    on = math_("MULTIPLY", near, attr(core.prop("flash"), "VIEW_LAYER"))
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Color"].default_value = (*LIGHTNING_COLOUR, 1.0)
+    nt.links.new(math_("MULTIPLY", on, BOLT_EMIT), em.inputs["Strength"])
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(math_("GREATER_THAN", on, 0.002), mix.inputs[0])
+    nt.links.new(tr.outputs[0], mix.inputs[1])
+    nt.links.new(em.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    if hasattr(mat, "surface_render_method"):
+        mat.surface_render_method = "BLENDED"
+    mat.diffuse_color = (*LIGHTNING_COLOUR, 0.3)
+    return mat
+
+
+def _tube_mesh(name: str, lines, radii) -> bpy.types.Mesh:
+    """Polylines as thin four-sided tubes (open ends)."""
+    import numpy as np
+    verts, faces = [], []
+    for line, r in zip(lines, radii):
+        line = np.asarray(line, dtype=float)
+        if len(line) < 2:
+            continue
+        base = len(verts)
+        for i, p in enumerate(line):
+            d = line[min(i + 1, len(line) - 1)] - line[max(i - 1, 0)]
+            d = d / max(np.linalg.norm(d), 1e-9)
+            a = np.cross(d, (0.0, 1.0, 0.0) if abs(d[1]) < 0.9 else (1.0, 0.0, 0.0))
+            a = a / np.linalg.norm(a)
+            c = np.cross(d, a)
+            taper = r * (1.0 - 0.5 * i / len(line))
+            for k in range(4):
+                ang = k * math.pi / 2.0
+                verts.append(tuple(p + taper * (math.cos(ang) * a + math.sin(ang) * c)))
+        for i in range(len(line) - 1):
+            for k in range(4):
+                j = (k + 1) % 4
+                faces.append((base + 4 * i + k, base + 4 * i + j, base + 4 * (i + 1) + j, base + 4 * (i + 1) + k))
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    me.update()
+    return me
+
+
+def _lightning(scene) -> None:
+    """The lightning lamp (a Sun lamp, energy = flash) and the bolts in the sky (task 0299)."""
+    from ..core import weather_fx as fx
+    col = _collection(scene)
+    cx, cy, view_az, gz = _view(scene)
+    places = fx.bolt_places((cx, cy), view_az, gz)
+    light = bpy.data.lights.new("FR weather lightning", "SUN")
+    light.color = LIGHTNING_COLOUR
+    light.angle = math.radians(8.0)                   # a long, bright channel: soft shadows
+    ob = bpy.data.objects.new("FR weather lightning", light)
+    ob[TAG] = "lightning"
+    ob["fr_kind"] = HELPER_KIND
+    ob.hide_select = True
+    col.objects.link(ob)
+    drive(light, "energy", f"flash * {LIGHTNING_W:g}", scene)
+    a0 = places[0][3]
+    da = (places[-1][3] - places[0][3]) / max(len(places) - 1, 1)
+    drive(ob, "rotation_euler", f"radians({90.0 - LIGHTNING_EL:g})", scene, index=0)
+    drive(ob, "rotation_euler", f"radians({a0 + 90.0:g} + bolt * {da:g})", scene, index=2)
+    mat = _bolt_material()
+    for i, (x, y, z, _az) in enumerate(places):
+        lines = fx.bolt_path(fx.SEED_BOLT + i)
+        me = _tube_mesh(f"FR weather bolt {i + 1}", lines, [BOLT_RADIUS[0]] + [BOLT_RADIUS[1]] * (len(lines) - 1))
+        me.materials.append(mat)
+        bob = bpy.data.objects.new(f"FR weather bolt {i + 1}", me)
+        bob[TAG] = "bolt"
+        bob["fr_bolt"] = float(i)
+        bob["fr_kind"] = HELPER_KIND
+        bob.hide_select = True
+        bob.location = (x, y, z)
+        bob.rotation_euler = (0.0, 0.0, math.radians(_az + 90.0))      # its zigzag across the line of sight
+        for vis in ("visible_shadow", "visible_diffuse", "visible_glossy", "visible_transmission",
+                    "visible_volume_scatter"):
+            setattr(bob, vis, False)
+        col.objects.link(bob)
 
 
 # ---- floodlights -------------------------------------------------------------------
@@ -644,10 +837,17 @@ def _floodlights(scene) -> None:
 
 # ---- fog (compositor) ----------------------------------------------------------------
 
+FOG_VERSION = 2                 # 2: with the sea mist and the heat shimmer (task 0299); an older group is made again
+
+
 def _fog_tree(scene):
     ng = bpy.data.node_groups.get(FOG_GROUP)
-    if ng is not None:
+    if ng is not None and int(ng.get("fr_v", 1)) == FOG_VERSION:
         return ng
+    if ng is not None:
+        if getattr(scene, "compositing_node_group", None) == ng:
+            scene.compositing_node_group = None
+        bpy.data.node_groups.remove(ng)
     ng = bpy.data.node_groups.new(FOG_GROUP, "CompositorNodeTree")
     try:
         _fog_nodes(scene, ng)
@@ -658,19 +858,30 @@ def _fog_tree(scene):
 
 
 def _fog_nodes(scene, ng) -> None:
+    """The picture's fog, sea mist and heat shimmer (task 0109; mist and shimmer task 0299).
+
+    * haze beyond clear air: ``T = exp(-fog · depth)`` (per km, the Z pass);
+    * sea mist: density ``mist · exp(-(z - ground) / MIST_HEIGHT)`` integrated along each pixel's ray from the camera
+      (its height by a driver) to the surface it sees (the Position pass): ``mist · d · a · (1 - e^-x) / x`` with
+      ``a`` the density factor at the camera's height and ``x`` the height difference in MIST_HEIGHTs; banks of it
+      (a 4D noise on the hit point, drifting with the wind and changing slowly) make it thicker and thinner – the
+      machine fades in and out;
+    * heat shimmer: the picture moved by an animated noise, a few pixels in the distance, nothing close by.
+    The sky itself gets its haze and mist in the world shader; here pixels of the sky are left as they are."""
     ng[TAG] = "fog"
+    ng["fr_v"] = FOG_VERSION
     ng.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
     N = ng.nodes
     L = ng.links
     rl = N.new("CompositorNodeRLayers")
-    rl.location = (-900, 0)
+    rl.location = (-1400, 0)
 
-    def node(kind, x, y, op=None, a=None, b=None):
+    def node(kind, x, y, op=None, a=None, b=None, c=None):
         n = N.new(kind)
         n.location = (x, y)
         if op:
             n.operation = op
-        for i, v in enumerate((a, b)):
+        for i, v in enumerate((a, b, c)):
             if v is None:
                 continue
             if isinstance(v, (int, float)):
@@ -679,26 +890,74 @@ def _fog_nodes(scene, ng) -> None:
                 L.new(v, n.inputs[i])
         return n
 
-    def value(label, expr, y):
+    def m(op, a, b=None, c=None, y=0):
+        return node("ShaderNodeMath", -600, y, op, a, b, c).outputs[0]
+
+    def value(label, expr, y, extra=None):
         n = N.new("ShaderNodeValue")
         n.label = n.name = "wx " + label
-        n.location = (-900, y)
-        drive(n.outputs[0], "default_value", expr, scene)
+        n.location = (-1400, y)
+        drive(n.outputs[0], "default_value", expr, scene, extra=extra)
         return n.outputs[0]
 
     depth = rl.outputs["Depth"]
-    km = node("ShaderNodeMath", -600, -200, "MULTIPLY", depth, 0.001).outputs[0]
+    km = m("MULTIPLY", depth, 0.001)
     fx = value("fog per km", f"max(fog - {core.CLEAR_FOG:.6f}, 0)", -350)
-    tau = node("ShaderNodeMath", -400, -250, "MULTIPLY", km, fx).outputs[0]
-    neg = node("ShaderNodeMath", -250, -250, "MULTIPLY", tau, -1.0).outputs[0]
-    t = node("ShaderNodeMath", -100, -250, "EXPONENT", neg).outputs[0]
-    sky = node("ShaderNodeMath", -100, -400, "GREATER_THAN", depth, 1.0e8).outputs[0]
-    keep = node("ShaderNodeMath", 50, -300, "MAXIMUM", t, sky).outputs[0]
+    tau = m("MULTIPLY", km, fx)
+
+    # -- the sea mist along the ray
+    pos = node("ShaderNodeSeparateXYZ", -1100, -700, None, rl.outputs["Position"]).outputs
+    cam = {"cx": "camera.matrix_world[3][0]", "cy": "camera.matrix_world[3][1]", "cz": "camera.matrix_world[3][2]"}
+    cx = value("camera x", "cx", -700, extra={"cx": cam["cx"]})
+    cy = value("camera y", "cy", -760, extra={"cy": cam["cy"]})
+    cz = value("camera z", "cz", -820, extra={"cz": cam["cz"]})
+    gz = value("ground z", "g", -880, extra={"g": f'["{GROUND_Z}"]'})
+    mk = value("mist per km", "mist", -940)
+    H = core.MIST_HEIGHT
+    zc = m("MAXIMUM", cz, m("SUBTRACT", gz, 10.0))
+    zp = m("MAXIMUM", pos[2], m("SUBTRACT", gz, 10.0))
+    dx, dy, dz = m("SUBTRACT", pos[0], cx), m("SUBTRACT", pos[1], cy), m("SUBTRACT", zp, zc)
+    dist = m("SQRT", m("ADD", m("ADD", m("MULTIPLY", dx, dx), m("MULTIPLY", dy, dy)), m("MULTIPLY", dz, dz)))
+    a = m("EXPONENT", m("MULTIPLY", m("SUBTRACT", zc, gz), -1.0 / H))
+    x = m("DIVIDE", dz, H)
+    # x kept away from 0 (the limit (1 - e^-x) / x -> 1 there): |x| >= 1e-4 with its sign
+    xs = m("ADD", x, m("MULTIPLY", m("SUBTRACT", m("GREATER_THAN", x, -1.0e-12), 0.5), 2.0e-4))
+    avg = m("MULTIPLY", a, m("DIVIDE", m("SUBTRACT", 1.0, m("EXPONENT", m("MULTIPLY", xs, -1.0))), xs))
+    # banks: a 4D noise on the hit point (60 m patches), drifting with the wind (at least 2.5 m/s) and changing
+    t = value("seconds", "frame / (f / fb)", -1000, extra={"f": "render.fps", "fb": "render.fps_base"})
+    drift = value("mist drift", "max(wind, 2.5)", -1060)
+    wx = value("wind x", "wind_x", -1120)
+    wy = value("wind y", "wind_y", -1180)
+    off_x = m("MULTIPLY", m("MULTIPLY", drift, wx), t)
+    off_y = m("MULTIPLY", m("MULTIPLY", drift, wy), t)
+    vec = node("ShaderNodeCombineXYZ", -300, -900, None, m("SUBTRACT", pos[0], off_x), m("SUBTRACT", pos[1], off_y),
+               0.0).outputs[0]
+    noise = N.new("ShaderNodeTexNoise")
+    noise.location = (-100, -900)
+    noise.noise_dimensions = "4D"
+    noise.inputs["Scale"].default_value = 1.0 / 60.0
+    noise.inputs["Detail"].default_value = 2.0
+    L.new(vec, noise.inputs["Vector"])
+    L.new(m("MULTIPLY", t, 0.08), noise.inputs["W"])
+    bank = node("ShaderNodeMapRange", 100, -900, None, noise.outputs["Fac"]).outputs[0]
+    mr = bank.node
+    mr.interpolation_type = "SMOOTHSTEP"
+    mr.inputs["From Min"].default_value = 0.32
+    mr.inputs["From Max"].default_value = 0.68
+    mr.inputs["To Min"].default_value = 0.25
+    mr.inputs["To Max"].default_value = 1.75
+    tau_m = m("MULTIPLY", m("MULTIPLY", m("MULTIPLY", mk, 0.001), dist), m("MULTIPLY", avg, bank))
+    tau = m("ADD", tau, tau_m)
+
+    neg = m("MULTIPLY", tau, -1.0)
+    t_keep = m("EXPONENT", neg)
+    sky = m("GREATER_THAN", depth, 1.0e8)
+    keep = m("MAXIMUM", t_keep, sky)
     fogc = N.new("CompositorNodeCombineColor")
     fogc.location = (-250, -550)
     strength = float(_settings(scene).light_strength)
     for i, ch in enumerate(("fog_r", "fog_g", "fog_b")):
-        L.new(value(ch, f"{ch} * {strength:g}", -500 - 80 * i), fogc.inputs[i])
+        L.new(value(ch, f"{ch} * {strength:g}", -500 - 60 * i), fogc.inputs[i])
     fogc.inputs["Alpha"].default_value = 1.0
     mix = N.new("ShaderNodeMix")
     mix.data_type = "RGBA"
@@ -707,12 +966,39 @@ def _fog_nodes(scene, ng) -> None:
     L.new(keep, sock(mix.inputs, "Factor"))
     L.new(fogc.outputs["Image"], sock(mix.inputs, "A"))
     L.new(rl.outputs["Image"], sock(mix.inputs, "B"))
+
+    # -- heat shimmer: an animated noise moves the far distance by a few pixels
+    px = value("shimmer px", f"heat * {SHIMMER_PX:g} * r * p / 100000",
+               -1240, extra={"r": "render.resolution_x", "p": "render.resolution_percentage"})
+    coords = N.new("CompositorNodeImageCoordinates")
+    coords.location = (-300, -1300)
+    L.new(rl.outputs["Image"], coords.inputs["Image"])
+    uv = node("ShaderNodeSeparateXYZ", -100, -1300, None, coords.outputs["Normalized"]).outputs
+    hv = node("ShaderNodeCombineXYZ", 50, -1300, None, m("MULTIPLY", uv[0], 9.0), m("MULTIPLY", uv[1], 70.0),
+              0.0).outputs[0]
+    hn = N.new("ShaderNodeTexNoise")
+    hn.location = (200, -1300)
+    hn.noise_dimensions = "4D"
+    hn.inputs["Scale"].default_value = 1.0
+    hn.inputs["Detail"].default_value = 1.0
+    L.new(hv, hn.inputs["Vector"])
+    L.new(m("MULTIPLY", t, 3.0), hn.inputs["W"])
+    far = node("ShaderNodeMapRange", 200, -1450, None, depth).outputs[0]
+    far.node.inputs["From Min"].default_value = 40.0
+    far.node.inputs["From Max"].default_value = 400.0
+    amp = m("MULTIPLY", m("MULTIPLY", px, far), m("SUBTRACT", m("MULTIPLY", hn.outputs["Fac"], 2.0), 1.0))
+    disp_v = node("ShaderNodeCombineXYZ", 400, -1300, None, m("MULTIPLY", amp, 0.35), amp, 0.0).outputs[0]
+    disp = N.new("CompositorNodeDisplace")
+    disp.location = (450, 0)
+    L.new(sock(mix.outputs, "Result"), disp.inputs["Image"])
+    L.new(disp_v, disp.inputs["Displacement"])
+
     alpha = N.new("CompositorNodeSetAlpha")
-    alpha.location = (450, 0)
-    L.new(sock(mix.outputs, "Result"), alpha.inputs["Image"])
+    alpha.location = (650, 0)
+    L.new(disp.outputs["Image"], alpha.inputs["Image"])
     L.new(rl.outputs["Alpha"], alpha.inputs["Alpha"])
     out = N.new("NodeGroupOutput")
-    out.location = (650, 0)
+    out.location = (850, 0)
     L.new(alpha.outputs["Image"], out.inputs[0])
 
 
@@ -730,6 +1016,9 @@ def fog_on(scene) -> None:
     if vl is not None and FOG_PASS_Z not in scene:
         scene[FOG_PASS_Z] = bool(vl.use_pass_z)
         vl.use_pass_z = True
+    if vl is not None and POS_PASS not in scene:          # the sea mist needs where each pixel is (task 0299)
+        scene[POS_PASS] = bool(vl.use_pass_position)
+        vl.use_pass_position = True
     scene.compositing_node_group = _fog_tree(scene)
     if FOG_COMPOSITING not in scene:
         scene[FOG_COMPOSITING] = bool(scene.render.use_compositing)
@@ -762,6 +1051,11 @@ def fog_off(scene) -> None:
         if vl is not None:
             vl.use_pass_z = bool(scene[FOG_PASS_Z])
         del scene[FOG_PASS_Z]
+    if POS_PASS in scene:
+        vl = scene.view_layers[0] if scene.view_layers else None
+        if vl is not None:
+            vl.use_pass_position = bool(scene[POS_PASS])
+        del scene[POS_PASS]
 
 
 # ---------------------------------------------------------------------------

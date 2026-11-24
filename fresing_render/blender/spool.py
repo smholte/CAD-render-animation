@@ -2191,8 +2191,8 @@ def set_up_test_model(scene) -> dict:
     with joints._batch(scene):
         joints.create(scene, "ROTATE", [named("DRUM.ASM")], at(0, 0, 450), way(0, 1, 0), name="Drum turn")
         joints.create(scene, "SLIDE", [named("LEVEL WIND.ASM")], at(800, 0, 300), way(0, 1, 0), name="Level wind")
-        joints.create(scene, "ROTATE", [named("CAROUSEL.ASM")], at(3000, 0, 0), way(0, 0, 1), name="Carousel turn")
-        joints.create(scene, "ROTATE", [named("ARM.ASM")], at(4300, 0, 0), way(0, 0, 1), name="Arm slew")
+        joints.create(scene, "ROTATE", [named("CAROUSEL.ASM")], at(4000, 0, 0), way(0, 0, 1), name="Carousel turn")
+        joints.create(scene, "ROTATE", [named("ARM.ASM")], at(6600, 0, 0), way(0, 0, 1), name="Arm slew")
     bpy.context.view_layer.update()
     out = {"joints": ["Drum turn", "Level wind", "Carousel turn", "Arm slew"], "notes": []}
     for cname, part, look in (("Wire", "WIRE ROPE", "ROPE"), ("Power cable", "POWER CABLE", "POWER")):

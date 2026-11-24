@@ -57,6 +57,10 @@ import tempfile
 import threading
 import time
 
+# task 0294: a user who has not chosen a workspace starts in Essentials; these tests and pictures start in All
+# functions as before (ui_test_workspaces2.py sets it empty for its own checks)
+os.environ.setdefault("FRESING_WORKSPACE_START", "All functions")
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import test_install_linux  # noqa: E402
@@ -67,12 +71,16 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 19, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 101, "tour2": 2, "tourui": 31, "layout": 66,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 112, "tour2": 2, "tourui": 31, "layout": 66,
               "panel": 39, "start": 56, "setup": 46, "highlight": 74, "usage": 33, "lesson": 41, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
-              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "backups": 23, "forms": 29,
-              "move": 14, "importagain": 18, "place": 22, "jointfold": 11}
+              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
+              "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 16}
+# Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
+# took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on). Task 0319:
+# the test tour's halves too – 0299's half took 15.0 min, and one new stop moved its weather stops into the other half.
+LONG_MIN = {"pccheck": 25, "pccheck2": 25, "tour": 25, "tour2": 25}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -87,10 +95,10 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
     "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move", "jointfold"],   # jointfold: task 0290 (~40 s)   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
-    "callouts": ["callouts", "importagain", "place"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s)
+    "callouts": ["callouts", "importagain", "place", "copy"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s); copy: task 0293 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
-    "tour": ["tour", "toolbox", "forms"],   # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
-    "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
+    "tour": ["tour", "toolbox", "forms", "welds"],   # welds: task 0319 (~40 s)     # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
+    "tour-b": ["tour2", "highlight", "start", "route", "workspaces2"],   # workspaces2: task 0294 (~1 min)   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout", "left", "settings", "locations"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271; locations: 0272 (~40 s)
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
@@ -100,6 +108,9 @@ GROUPS = {
 }
 
 TESTS = {
+    "workspaces2": ("Real app: workspaces round 2 – a new user starts in Essentials, the drop-down with stars on top, "
+                    "Sales, Use for new projects, kept over a restart (ui_test_workspaces2.py)", "ui_test_workspaces2.py",
+                    True),
     "importagain": ("Real app: a dropped STEP file comes in as with Import STEP…, Import again from the cache, a "
                     "model's Up axis + Undo, Remove from cache (ui_test_import_again.py)", "ui_test_import_again.py",
                     True),
@@ -108,6 +119,8 @@ TESTS = {
     "faces": ("Real app: painted faces (ui_test_faces.py)", "ui_test_faces.py", True),
     "decals": ("Real app: logos & stickers – add with a click, move with the mouse (ui_test_decals.py)",
                "ui_test_decals.py", True),
+    "welds": ("Real app: welds – Add weld…, clicks on the two parts' faces, Enter, Esc, the right-click entry, undo / "
+              "redo (ui_test_welds.py)", "ui_test_welds.py", True),
     "surroundings": ("Real app: surroundings, props, queue (ui_test_surroundings.py)",
                      "ui_test_surroundings.py", True),
     "rulesets": ("Real app: rule sets – copy, save, switch, undo (ui_test_rule_sets.py)",
@@ -130,6 +143,9 @@ TESTS = {
     "drawn": ("Real app: Draw hose – the picker's hover on the fittings, a click, Backspace, the clicks again, Enter; "
               "the CAD hose replaced, the arm luffs; one click and Esc; undo and redo (ui_test_drawn.py)",
               "ui_test_drawn.py", True),
+    "route": ("Real app: Avoid other parts and Shape the route – the hose lies on the block, a press on its line adds a "
+              "via point, a drag moves it, Enter; undo and redo; X over the dot, Esc (ui_test_route.py)",
+              "ui_test_route.py", True),
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
@@ -226,6 +242,11 @@ TESTS = {
               "stays; Delete opens the Remove window (nothing gone yet), Remove takes the crane with its joints and "
               "cylinder, Ctrl+Z brings everything back; the Client view swallows Delete (ui_test_place.py)",
               "ui_test_place.py", True),
+    "copy": ("Real app: Copy and Paste – Ctrl+C copies the crane, Ctrl+V pastes 'TEST.CRANE (2)' beside it with joints "
+             "'Boom (2)', 'Trolley (2)' and its cylinder, selected and free, the Move / turn window opens and says what "
+             "came along, the copy's boom moves by itself; Ctrl+Z takes the copy away in one step; the right-click "
+             "menu; Paste here puts it on the clicked spot; the Client view makes no copy (ui_test_copy.py)",
+             "ui_test_copy.py", True),
     "lesson": ("Real app: lessons – Fresing > Learn…, Build it yourself on the crane by clicking where the highlight "
                "points and Do it for me, a step done another way, Show me from the learning list at its step, Back, "
                "saved half-way and going on, nothing left after Stop (ui_test_lesson.py)", "ui_test_lesson.py", True),
@@ -353,7 +374,6 @@ def main(argv=None) -> int:
 
     base_env = dict(os.environ, BLENDER_USER_RESOURCES=user_res, PYTHONUNBUFFERED="1",
                     TOOLBOX_HOME=os.path.join(work, "Toolbox é"))   # task 0217: never the runner's own home folder
-    timeout = args.timeout_min * 60
     rows = []
     keys = GROUPS[args.group] if args.group else [k.strip() for k in args.only.split(",") if k.strip()]
     for key in keys:
@@ -361,6 +381,8 @@ def main(argv=None) -> int:
         folder = os.path.join(out, key)
         os.makedirs(folder, exist_ok=True)
         env = dict(base_env, UITEST_OUT=folder)
+        if key == "workspaces2":                     # task 0294: a real new user – not chosen means Essentials
+            env["FRESING_WORKSPACE_START"] = ""
         if key == "start":                           # task 0199: the welcome shows although events are simulated
             env.update(FRESING_WELCOME_TEST="1")
         if key == "backups":                         # task 0246: backups and the start question with simulated events
@@ -405,14 +427,15 @@ def main(argv=None) -> int:
         for cf in crash_files:
             if os.path.isfile(cf):
                 os.remove(cf)
-        code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
+        minutes = max(args.timeout_min, LONG_MIN.get(key, 0))
+        code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), minutes * 60)
         if code not in (0, 1):                       # Blender itself stopped (139 = it crashed): show where
             import glob
             for cf in sorted(set(crash_files + glob.glob(os.path.join(tempfile.gettempdir(), "*.crash.txt")))):
                 if os.path.isfile(cf):
                     with open(cf, encoding="utf-8", errors="replace") as fh:
                         print(f"-- Blender's crash file {cf} (exit code {code}):\n" + fh.read()[:6000], flush=True)
-        verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
+        verdict, detail, fails = judge(key, code, text, minutes, bool(os.environ.get("UITEST_QUICK")))
         if gui == "pccheck":                         # skips only for "no graphics card", every line there
             import ci_check_pccheck
             block = os.path.join(folder, "history", "last_run.txt")

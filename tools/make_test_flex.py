@@ -2,6 +2,7 @@
 
     python tools/make_test_flex.py hoses  out.step [A|B]    TEST.FLEX.HOSES   (tests/data/test_flex_hoses_a / _b.step)
     python tools/make_test_flex.py chains out.step          TEST.FLEX.GANTRY  (tests/data/test_flex_chains_a.step)
+    python tools/make_test_flex.py avoid  out.step [A|B]    TEST.FLEX.AVOID   (tests/data/test_flex_avoid_a / _b.step)
     python tools/make_test_flex.py numbers                  prints the numbers below from the geometry
 
 All sizes in mm, Z up. Every part is one solid. Each maker checks its own model before it writes it (``check_…``):
@@ -787,6 +788,64 @@ CHAIN_SIGN = {"CHAIN X": 1.0, "CHAIN Y": -1.0, "CHAIN Z": 1.0}
 
 
 # =====================================================================================================================
+# TEST.FLEX.AVOID (task 0298): a block in a hose's way
+# =====================================================================================================================
+#
+#   BASE            box x 0..1600, y -300..300, z 0..60
+#   BLOCK           box x 520..920, y -180..180, z 60..400: stands on the base in the hose's way
+#   FITTING BASE    hex stub (24 across flats) on the base at (260, 0), z 60..85; the hose leaves its face upwards
+#   TOWER           box x 1300..1400, y -100..100, z 60..1000
+#   LIFT.ASM        slides along Z beside the tower (3 mm off it), drawn at its middle; travel -400 .. +100
+#     LIFT CARRIAGE box x 1180..1297, y -120..120, z 560..680
+#     FITTING LIFT  hex stub on the carriage's side at (1180, 0, 620), x 1180 -> 1155; the hose arrives along +X
+#   HOSE            Ø20, from FITTING BASE up, over the block (its middle 100 above the block's top) and down into
+#                   FITTING LIFT; one solid (a round bar swept along straight pieces and arcs)
+#   LAMP            revision B only: a ball Ø120 on top of the tower
+#
+# Lowered (Lift -400) the lift's fitting is 180 below the block's top: the hose has room to spare and, solved as if
+# nothing were there, sags deep into the block; with "Avoid other parts" it lies on it.
+
+AVOID_BLOCK = ((520.0, -180.0, 60.0), (920.0, 180.0, 400.0))
+AVOID_HOSE_D = 20.0
+AVOID_TRAVEL = (-400.0, 100.0)
+
+
+def avoid_route():
+    return Route((260.0, 0.0, 85.0), Z, (1155.0, 0.0, 620.0), -X, 2.0 * AVOID_HOSE_D,
+                 [((720.0, 0.0, 500.0), (1.0, 0.0, 0.0))])
+
+
+def avoid_model(revision="A"):
+    root = Asm("TEST.FLEX.AVOID")
+    root.add(Part("BASE", G.box(0, -300, 0, 1600, 600, 60), YELLOW))
+    (x0, y0, z0), (x1, y1, z1) = AVOID_BLOCK
+    root.add(Part("BLOCK", G.box(x0, y0, z0, x1 - x0, y1 - y0, z1 - z0), GREY))
+    root.add(Part("FITTING BASE", _hex((260.0, 0.0, 60.0), Z, 24.0, 25.0), BRASS))
+    root.add(Part("TOWER", G.box(1300, -100, 60, 100, 200, 940), STEEL))
+    lift = Asm("LIFT.ASM")
+    lift.add(Part("LIFT CARRIAGE", G.box(1180, -120, 560, 117, 240, 120), BLUE))
+    lift.add(Part("FITTING LIFT", _hex((1180.0, 0.0, 620.0), -X, 24.0, 25.0), BRASS))
+    root.add(lift)
+    if revision == "B":
+        root.add(Part("LAMP", G.sphere(60.0, (1350.0, 0.0, 1060.0)), ORANGE))
+    root.add(Part("HOSE", G.route_solid(avoid_route(), AVOID_HOSE_D / 2.0), (0.03, 0.03, 0.03)))
+    return root
+
+
+def check_avoid(root, say=print):
+    """The hose as drawn keeps 30 mm and more off the block, and it is long enough for the lift's whole travel."""
+    route = avoid_route()
+    pts = route.points(2.0)
+    lo, hi = map(np.asarray, AVOID_BLOCK)
+    gap = np.linalg.norm(np.maximum(np.maximum(lo - pts, pts - hi), 0.0), axis=1).min() - AVOID_HOSE_D / 2.0
+    assert gap >= 30.0, f"the hose comes {gap:.1f} mm near the block"
+    for dz in AVOID_TRAVEL:
+        inner = np.linalg.norm(route.end1 + (0.0, 0.0, dz) + route.straight * route.out1
+                               - route.end0 - route.straight * route.out0)
+        spare = route.length - 2.0 * route.straight - inner
+        assert spare >= 30.0, f"the hose is too short at lift {dz:+.0f} ({spare:.1f} to spare)"
+    say(f"avoid: hose {route.length:.1f} long, {gap:.1f} off the block as drawn")
+
 
 def numbers(say=print):
     say(f"cylinder: pin to pin {CYL_L:.2f} at {CYL_ANGLE:.2f}°; {cylinder(-ARM_RANGE)[0]:.2f} .. "
@@ -830,8 +889,11 @@ def main(argv):
     elif what == "chains":
         root = chains_model()
         check_chains(root)
+    elif what == "avoid":
+        root = avoid_model(argv[3] if len(argv) > 3 else "A")
+        check_avoid(root)
     else:
-        raise SystemExit("usage: make_test_flex.py hoses|chains out.step [A|B]   or   make_test_flex.py numbers")
+        raise SystemExit("usage: make_test_flex.py hoses|chains|avoid out.step [A|B]   or   make_test_flex.py numbers")
     STEPControl_Writer()                                # (makes the setting below known)
     if not Interface_Static.SetIVal_s("write.surfacecurve.mode", 0):   # no curves-on-surface: a smaller file
         raise RuntimeError("the STEP writer does not know write.surfacecurve.mode")

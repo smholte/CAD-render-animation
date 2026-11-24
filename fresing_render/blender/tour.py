@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.225")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.232")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1003,6 +1003,27 @@ def build_decals(b: Build):
     _shot(b, "@decals")
 
 
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231")
+def build_welds(b: Build):
+    from . import welds
+    sc = b.scene
+    _look("PRODUCT")
+    welds.set_up_test_model(sc)
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@welds")
+
+
+def _check_welds(scene):
+    from . import welds
+    st = welds.stats(scene)
+    _check(st["welds"] == len(welds.TEST_WELDS), f"{st['welds']} welds, not {len(welds.TEST_WELDS)}")
+    _check(st["lost"] == 0, f"{st['lost']} welds lost their faces")
+    beads = sum(1 for it in welds.items(scene) for o in welds.objects_of(it) if o.get("fr_kind") == welds.KIND)
+    _check(beads == st["welds"], f"only {beads} of {st['welds']} welds have a bead")
+    _check(2.0 < st["metres"] < 2.5, f"{st['metres']:.2f} m of bead, not about 2.2 m")
+    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead"
+
+
 def _check_decals(scene):
     import bpy
 
@@ -1221,6 +1242,97 @@ def _check_marine(scene):
         _check(0.02 < v.x < 0.98 and 0.02 < v.y < 0.98 and v.z > 0, f"the pile's {n} is outside the picture")
     return (f"growth below the waterline at {water:+.2f} m (the sea's), streaks, concrete; the pile from its toe "
             f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
+
+
+# task 0274: the finishes on the sample board of test_finishes.step (tools/make_test_finishes.py): part name -> (the
+# library material, its colour); the headset shows the owner's photo of study 0270 (knurled knob, spun cap, moulded
+# cross-hatch shell, soft-touch band, speaker cloth, leather cushions)
+FINISH_BOARD = {
+    "KNOB DIAMOND KNURL": ("knurl_diamond", ""), "KNOB STRAIGHT KNURL": ("knurl_straight", ""),
+    "GRIP HANDLE": ("rubber_grip", "RAL 9005"), "CAP SPUN": ("spun", ""), "SHAFT FACED": ("faced", ""),
+    "BUSHING HONED": ("honed", ""), "CUP CROSS-HATCH": ("crosshatch", "RAL 5010"),
+    "DISC SPEAKER CLOTH": ("fabric", "RAL 7016"), "DISC GRILLE": ("grille", "RAL 9005"), "PLATE TREAD": ("tread", ""),
+    "PLATE PERFORATED": ("perforated", ""), "PLATE EXPANDED": ("expanded", ""), "WAY SCRAPED": ("scraped", ""),
+    "BAND SOFT-TOUCH": ("soft_touch", "RAL 7021"), "BLOCK BEAD-BLASTED": ("bead_blasted", ""),
+    "BLOCK SHOT-BLASTED": ("shot_blasted", ""), "BLOCK HAMMERTONE": ("hammertone", "RAL 6011"),
+    "BLOCK WRINKLE": ("wrinkle", "RAL 9005"), "PLATE ANTI-SKID": ("antiskid", "RAL 7040"),
+    "CUP VDI 30": ("vdi", "RAL 7012"), "CUP LEATHER": ("leather", "RAL 8017"), "PLATE SPANGLE": ("spangle", ""),
+    "BLOCK AS-CAST": ("as_cast", ""),
+    "HEADSET BAND": ("soft_touch", "RAL 9005"), "HEADSET YOKE": ("bead_blasted", ""),
+    "HEADSET CUP": ("crosshatch", "RAL 5010"), "HEADSET CUSHION": ("leather", "RAL 9005"),
+    "HEADSET DISC": ("fabric", "RAL 9005"), "HEADSET CAP": ("spun", ""), "HEADSET KNOB": ("knurl_diamond", ""),
+}
+
+
+def finishes_demo(scene) -> dict:
+    """Task 0274: every part of the finishes test model in a group of its own with its finish (the board's 23 and the
+    headset's). Returns {part name: group}. Used by the test tour and the PC check."""
+    from . import build, logic
+    s = scene.fresing
+    by_name: dict = {}
+    for ob in build.iter_parts(scene):
+        by_name.setdefault(ob.get(build.PROP_NAME, ""), []).append(ob)
+    groups = {}
+    for name, (mat_id, colour) in FINISH_BOARD.items():
+        obs = by_name.get(name)
+        if not obs:
+            continue
+        group = f"Finish: {name.title()}"
+        for ob in obs:
+            ob["fr_group_manual"] = group
+        logic.ensure_group(s, group)
+        groups[name] = group
+    logic.apply_rules(scene)
+    for name, group in groups.items():
+        g = s.groups[group]
+        mat_id, colour = FINISH_BOARD[name]
+        g.material = mat_id
+        if colour:
+            g.color = colour
+    logic.refresh_group_materials(scene)
+    from . import cameras
+    cameras.update_pixel_angle(scene)
+    return groups
+
+
+@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.229")
+def build_finishes(b: Build):
+    """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front."""
+    sc = b.scene
+    _look("PRODUCT")
+    finishes_demo(sc)
+    _camera(b, "HIGH", "Tour finishes", lens=50.0)
+    _shot(b, "@finishes")
+
+
+def _check_finishes(scene):
+    """Every board part has its finish; the knurled knob carries the face data (round faces with a whole number of
+    teeth, end faces on its axis); the fade's pixel angle follows the camera."""
+    import numpy as np
+
+    from ..core import finishes as fin_core
+    from . import build, cameras, finishes
+    parts = {ob.get(build.PROP_NAME, ""): ob for ob in build.iter_parts(scene)}
+    missing = [n for n in FINISH_BOARD if n not in parts]
+    _check(not missing, f"missing parts: {', '.join(missing)}")
+    wrong = [n for n, (m, _c) in FINISH_BOARD.items()
+             if parts[n].active_material is None or parts[n].active_material.get("fr_material") != m]
+    _check(not wrong, f"without their finish: {', '.join(wrong)}")
+    built = {parts[n].active_material.get(finishes.PROP_FINISH) for n in FINISH_BOARD}
+    _check(len(built) == len(fin_core.FINISHES), f"{len(built)} finishes built, not {len(fin_core.FINISHES)}")
+    knob = parts["KNOB DIAMOND KNURL"].data
+    _check(finishes.has_faces(knob), "the knurled knob has no face data")
+    k = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_k"].data.foreach_get("value", k)
+    r = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_r"].data.foreach_get("value", r)
+    _check((k == 1).any() and (k == 2).any(), "the knob's round face or end faces were not found")
+    radius = float(np.median(r[k == 1]))
+    _check(abs(radius - 0.010) < 0.0003, f"the knob's round face has radius {radius * 1000:.2f} mm, not 10")
+    angle = scene.get(fin_core.PIXEL_PROP, 0.0)
+    _check(abs(angle - cameras.pixel_angle(scene)) <= 0.011 * angle, "the fade's pixel angle is not the camera's")
+    n = fin_core.teeth(radius, 0.0008, 30.0)
+    return f"{len(built)} finishes; knob Ø{radius * 2000:.1f} mm: {n} teeth round it; pixel angle {angle:.2e} rad"
 
 
 @tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.203")
@@ -1636,6 +1748,116 @@ def _check_hoses(scene):
     return f"4 hoses, ends on their fittings to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
 
 
+AVOID_ANIM = "Lift down and up"
+AVOID_VIA = (0.72, 0.24, 0.66)          # world m: the via point of the route stop, beside the block on the camera side
+
+
+def avoid_motion(a) -> None:
+    """The steps of the avoid stops: the lift goes down 400 mm (its fitting below the block's top) and up again."""
+    _joint_step(a, "Lift", 0.0, 2.0, -0.4, slide=True, label="Lift down 400 mm")
+    _joint_step(a, "Lift", 2.5, 1.5, 0.1, slide=True, label="Lift up 500 mm")
+
+
+@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.225",
+          changed="0.2.225")
+def build_flex_avoid(b: Build):
+    """Task 0298: the hose of the avoid model (a block in its way, a lift that goes down) with Avoid other parts on."""
+    from . import flex
+    sc = b.scene
+    _look("PRODUCT")
+    made = flex.set_up_test_avoid(sc, avoid=True)
+    _check(len(made["items"]) == 1, "the hose was not made")
+    _update()
+    _surround(b, "FACTORY")
+    _camera(b, "FRONT", "Tour view")
+    shot = _shot(b, "Tour: avoid")
+    avoid_motion(_animation(b, AVOID_ANIM, shot.name))
+
+
+def _avoid_hose(scene):
+    from . import flex
+    it = next((x for x in scene.fresing.flex if x.kind == "HOSE"), None)
+    _check(it is not None, "the hose is missing")
+    return it
+
+
+def _route_off(scene) -> None:
+    """The avoid stop shows the hose without via points (the route stop's one taken off again)."""
+    from . import flex_route
+    it = _avoid_hose(scene)
+    if flex_route.count(it):
+        flex_route.clear(scene, it)
+
+
+def _route_on(scene) -> None:
+    """The route stop: one via point beside the block, on the camera's side (once)."""
+    import numpy as np
+
+    from . import flex, flex_route
+    it = _avoid_hose(scene)
+    if not flex_route.count(it):
+        flex.refresh(scene, force=True)
+        line = flex.shape_now(scene, it)
+        k = int(np.argmin(np.linalg.norm(line - np.array(AVOID_VIA), axis=1)))
+        at, weight = flex_route.where_on(it, line, k)
+        flex_route.add(scene, it, np.array(AVOID_VIA), at, weight)
+
+
+def _avoid_over_frames(scene, fn):
+    frames = sorted({scene.frame_start, scene.frame_end} |
+                    {round(scene.frame_start + k * (scene.frame_end - scene.frame_start) / 10) for k in range(1, 10)})
+    out = []
+    for f in frames:
+        scene.frame_set(f)
+        _update()
+        out.append(fn())
+    return out
+
+
+def check_flex_avoid(scene):
+    """The hose stays out of the block at every frame looked at (its surface at most 2.5 mm in where it bends round
+    an edge) and lies on it at the lowest point of the lift (its surface within 6 mm of the block's: the push of a
+    part grows from nothing over a little of the clearance, so it rests a few mm above)."""
+    from . import build, flex, flex_avoid
+    from ..core import flex as fcore
+    it = _avoid_hose(scene)
+    _check(it.avoid, "'Avoid other parts' is off")
+    block = next((o for o in scene.objects if o.get(build.PROP_NAME) == "BLOCK"), None)
+    _check(block is not None, "the block is missing")
+    _check(block.name in {o.name for o in flex_avoid.parts_for(scene, it)}, "the hose does not avoid the block")
+    import numpy as np
+    body = flex_avoid.body_of(block)
+
+    def gap():
+        inv = np.linalg.inv(flex_avoid._rigid(np.array(block.matrix_world)))
+        pts = fcore.resample(flex.shape_now(scene, it), 400)
+        return float(body.distance(pts @ inv[:3, :3].T + inv[:3, 3])[0].min()) - 0.5 * it.diameter
+    gaps = _avoid_over_frames(scene, gap)
+    worst = min(gaps)
+    _check(worst > -0.0025, f"the hose goes {-worst * 1000:.1f} mm into the block")
+    _check(worst < 0.006, f"the hose never comes down onto the block (nearest {worst * 1000:.1f} mm)")
+    return f"the hose's surface stays within {max(-worst, 0.0) * 1000:.2f} mm of the block's at every frame looked at"
+
+
+def check_flex_route(scene):
+    """The hose runs through its via point at every frame looked at; the via point rides down with the lift."""
+    import numpy as np
+
+    from . import flex, flex_route
+    it = _avoid_hose(scene)
+    _check(flex_route.count(it) == 1, f"the hose has {flex_route.count(it)} via points, not 1")
+
+    def miss():
+        via = flex_route.stops_now(it)[1][0]
+        return float(np.linalg.norm(flex.shape_now(scene, it) - via, axis=1).min()), via
+    got = _avoid_over_frames(scene, miss)
+    worst = max(m for m, _v in got)
+    travel = max(float(np.linalg.norm(v - got[0][1])) for _m, v in got)
+    _check(worst < 1e-4, f"the hose misses its via point by {worst * 1000:.2f} mm")
+    _check(travel > 0.05, f"the via point moved only {travel * 1000:.0f} mm with the lift")
+    return f"through its via point to {worst * 1000:.3f} mm; the via point rides {travel * 1000:.0f} mm with the lift"
+
+
 @tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78", changed="0.2.215")
 def build_chains(b: Build):
     from . import flex, gcode
@@ -1671,13 +1893,14 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.199")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.230")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
     _look("PRODUCT")
-    made = paths.set_up_test_model(sc)
-    _check(len(made["contacts"]) == 6, f"only {len(made['contacts'])} of the 6 things the rope touches were found")
+    made = paths.set_up_test_model(sc, winch=True)
+    # task 0263: the rope starts on the winch drum's wire (a drum of Drums and carousels), then 5 things it touches
+    _check(len(made["contacts"]) == 5, f"only {len(made['contacts'])} of the 5 things the rope touches were found")
     _check(made["animation"] == CABLE_ANIM, f"the animation is called '{made['animation']}'")
     _update()
     _surround(b, "WAREHOUSE")
@@ -1689,17 +1912,23 @@ def build_cables(b: Build):
 
 
 def _check_cables(scene):
-    """Along the built animation: the rope lies on every wheel it bends round, the drum, sheaves and rollers have
-    turned exactly as far as the rope ran, and the rope follows the luffing A-frame."""
+    """Along the built animation: the rope lies on every wheel it bends round, the sheaves and rollers have turned
+    exactly as far as the rope ran, the winch drum as far as that on its layer (task 0263: it winds the wire off
+    layer by layer), and the rope follows the luffing A-frame."""
     import numpy as np
 
-    from . import joints, paths
+    from . import joints, paths, spool
     its = list(paths.items(scene))
     _check(len(its) == 1, "the cable is missing")
     it = its[0]
     _check(paths.status(scene, it)[1] == "OK", f"the cable says: {paths.status(scene, it)[0]}")
     cab = joints.find(scene, it.joint)
     _check(cab is not None, "the cable's speed joint is missing")
+    sp = spool.of_cable(scene, it)
+    _check(sp is not None and not sp.problem, "the rope does not start on the winch drum"
+           if sp is None else f"the winch drum says: {sp.problem}")
+    drum = joints.find(scene, sp.joint)
+    drum0 = None
     off = slip = moved = pay = 0.0
     first = None
     for f in sorted(set(range(scene.frame_start, scene.frame_end + 1, 15)) | {scene.frame_end}):
@@ -1712,6 +1941,7 @@ def _check_cables(scene):
             rad = np.linalg.norm(d - np.outer(d @ ax, ax), axis=1)
             off = max(off, abs(float(rad.min()) - float(w.radius)))
         pay = joints.get_value(cab)
+        drum0 = joints.get_value(drum) if drum0 is None else drum0
         for c in it.contacts:
             if c.kind in paths.TURNING and c.turns and c.joint:
                 j = joints.find(scene, c.joint)
@@ -1723,13 +1953,17 @@ def _check_cables(scene):
         elif pts.shape == first.shape:
             moved = max(moved, float(np.abs(pts - first).max()))
     turning = sum(1 for c in it.contacts if c.kind in paths.TURNING and c.turns and c.joint)
+    turned = abs(joints.get_value(drum) - drum0)
     _check(pay > 0.9, f"only {pay:.2f} m of rope ran: the cable speed does not move it")
     _check(off < 5e-4, f"the rope is {off * 1000:.2f} mm off a sheave")
     _check(slip < 1e-3, f"a sheave or roller is {slip * 1000:.2f} mm behind the rope")
     _check(moved > 0.05, f"the rope moved only {moved * 1000:.0f} mm: it does not follow the A-frame")
-    _check(turning == 5, f"{turning} of the 5 turning parts turn")
+    _check(turning == 4, f"{turning} of the 4 turning sheaves and rollers turn")
+    # the drum: the rope comes off its 3rd layer (rope middle r 0.2536 m; on the 2nd 0.2328): pay / r radians
+    _check(pay / 0.2536 - 0.05 < turned < pay / 0.2328 + 0.05,
+           f"the winch drum turned {math.degrees(turned):.0f}° for {pay:.2f} m of rope")
     return (f"{len(it.contacts)} contacts, {pay:.2f} m of rope ran, the rope on its sheaves to {off * 1000:.2f} mm, "
-            f"{turning} parts turning with it to {slip * 1000:.3f} mm")
+            f"{turning} parts turning with it to {slip * 1000:.3f} mm, the winch drum {math.degrees(turned):.0f}°")
 
 
 # ---------------------------------------------------------------------------
@@ -1739,7 +1973,7 @@ def _check_cables(scene):
 DRAWN_ANIM = "Drawn hose, chain and cable"
 DRAWN_CHAINS_AT = (0.0, -1.5, 0.9)              # the gantry beside the hoses model (m; task 0261: the arm x 3; task
                                                 # 0262: the router x 2.5, its stand on the hoses model's floor)
-DRAWN_PATHS_AT = (0.0, 1.9, 0.0)                # the cable model on the other side
+DRAWN_PATHS_AT = (0.0, 2.5, 0.0)                # the cable model on the other side (task 0263: its base 1.9 m wide)
 DRAWN_HOSE, DRAWN_CHAIN, DRAWN_CABLE = "Hose 1", "Drag chain 1", "Drawn rope"
 #: task 0243: drawn hoses on the base's top behind the arm, past the rail's end (free of the CAD hoses and cable there), one
 #: per kind, in three rows of two: each an arch between two ends 300 mm apart along X, looking up
@@ -1814,20 +2048,24 @@ def drawn_chain_setup(scene, root) -> str:
 
 def drawn_cable_setup(scene, root) -> str:
     """On the cable model (test_paths_a.step, at ``root``): the joint "A-frame luff" and a cable route drawn by
-    clicking – the winch drum, SHEAVE 1, SHEAVE 2, the CHUTE, a free end –, replacing the CAD rope."""
+    clicking – the wire on the winch drum (task 0263; "Drum turn" turns the drum with it), SHEAVE 1, SHEAVE 2, the
+    CHUTE, a free end –, replacing the CAD rope."""
     from mathutils import Vector
 
     from . import joints, paths
     rope = _ob(scene, "WIRE ROPE")
-    start = _drawn_click(scene, root, (0.0, 0.0, 0.45), (1, 0, 0), "WINCH DRUM", (rope,))
-    wheels = []
-    for name, o, d in (("SHEAVE 1", (1.9104, 0.0, 3.0), (0, 0, -1)), ("SHEAVE 2", (1.5, 0.0, 0.5), (0, 0, 1)),
-                       ("CHUTE", (2.7, 0.0, 1.5), (0, 0, -1))):
+    m = root.matrix_world
+    # task 0263: the winch holds wire – the drum and the wire on it turn together; the route starts on the wire
+    joints.create(scene, "ROTATE", [_ob(scene, "WINCH DRUM"), _ob(scene, "WIRE ON DRUM")], m @ Vector((1.125, 0.0, 0.6)),
+                  (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="Drum turn")
+    start = _drawn_click(scene, root, (0.0, 0.0, 0.6), (1, 0, 0), "WIRE ON DRUM", (rope,))
+    wheels = []                 # (task 0263: A-frame and base x 2.5 – above SHEAVE 1, below SHEAVE 2, above the chute)
+    for name, o, d in (("SHEAVE 1", (4.776, 0.0, 6.0), (0, 0, -1)), ("SHEAVE 2", (3.75, 0.0, 1.0), (0, 0, 1)),
+                       ("CHUTE", (6.75, 0.0, 2.5), (0, 0, -1))):
         sp = _drawn_click(scene, root, o, d, name, (rope,))
         wheels.append((sp["part"], sp["hit"], False))
     item, _notes = paths.draw_cable(scene, start, wheels, None, name=DRAWN_CABLE, diameter=0.024, replace=rope)
-    m = root.matrix_world
-    luff = joints.create(scene, "ROTATE", [_ob(scene, "A-FRAME.ASM")], m @ Vector((1.5, 0.0, 0.73)),
+    luff = joints.create(scene, "ROTATE", [_ob(scene, "A-FRAME.ASM")], m @ Vector((3.75, 0.0, 1.825)),
                          (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="A-frame luff")
     luff.rot_min, luff.rot_max, luff.use_limits = -0.26, 0.26, True
     return item.name
@@ -1867,7 +2105,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.215")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.230")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -2105,7 +2343,7 @@ def check_drawn_replace(scene) -> str:
 SPOOL_ANIM = "Spooling"
 
 
-@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.139")
+@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.230")
 def build_spool(b: Build):
     from . import spool
     sc = b.scene
@@ -2158,7 +2396,7 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.199")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.230")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -2570,7 +2808,8 @@ def _check_spool(scene):
     _check(drum[six, 0] > 5.9 and car[six, 0] > 5.9, "the cables did not pay out 6 m")
     _check(abs(drum[six, 1]) > 30.0, f"the drum turned only {math.degrees(abs(drum[six, 1])):.0f}°")
     _check(np.ptp(drum[:six + 1, 2]) > 0.1, "the level wind did not go along the drum")
-    _check(abs(car[six, 1]) > 6.0, f"the carousel turned only {math.degrees(abs(car[six, 1])):.0f}°")
+    # 6 m off the top layer from r 1.20 outwards: 6 / 1.24 … 6 / 1.20 = 4.8 … 5.0 rad (task 0263: the carousel x 2)
+    _check(abs(car[six, 1]) > 4.5, f"the carousel turned only {math.degrees(abs(car[six, 1])):.0f}°")
     _check(np.ptp(car[:six + 1, 2]) > 0.05, "the arm did not swing out with the layer")
     _check(off < 5e-4, f"a cable leaves its spool {off * 1000:.2f} mm off the circle of its layer")
     full = _check_full_spools(scene, sps)
@@ -3779,10 +4018,22 @@ def _check_people(scene):
     return people.check_example(scene)
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.203")
+# task 0299: the new presets, each a saved scene of the quay (stop id, preset)
+WEATHER_PRESET_STOPS = (("wx_sunrise", "SUNRISE"), ("wx_sunset", "SUNSET"), ("wx_mist", "SEA_MIST"),
+                        ("wx_hail", "HAIL"), ("wx_heat", "HOT_CALM"))
+STORM_SHOT = "Storm coming"
+# where Go shows the thunderstorm: its set flash (Change to puts it at 80 % of the 4 s change: 3.2 s) in 4 s + 1 s tail
+STORM_AT = 3.2 / 5.0
+
+
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.228")
 def build_weather(b: Build):
-    from . import weather
+    """The weather lesson's steps first (``lessons/weather.py``, task 0299: Weather & time on, a preset, Change to
+    Thunderstorm at the playhead), then the tour's own scenes."""
+    from . import lesson, weather
+    from .lessons import weather as wx_lesson
     sc, s = b.scene, b.s
+    lesson.run(sc, "weather")
     _look("PRODUCT")
     s.env_detail = "SIMPLE"
     s.background = "QUAY"
@@ -3796,6 +4047,20 @@ def build_weather(b: Build):
     s.weather.flood_strength = 4.0               # task 0233: at 400 px the picture was almost black
     _update()
     _shot(b, "@night")
+    for stop_id, preset in WEATHER_PRESET_STOPS:            # task 0299
+        weather.use_preset(sc, preset)
+        _update()
+        _shot(b, "@" + stop_id)
+    # the lesson's thunderstorm: from a clear day (the weather the project is left in, so Go puts back nothing), seen
+    # low so the sky (and the bolts) show
+    quay = sc.camera
+    _camera(b, "LOW", "Tour storm", lens=22.0)
+    weather.use_preset(sc, "CLEAR_DAY")
+    _update()
+    storm = s.animations[wx_lesson.ANIM]
+    storm.tail, storm.quality, storm.out_resolution, storm.out_format = 1.0, "draft", "preview", "presentation"
+    storm.start_shot = _shot(b, STORM_SHOT).name
+    sc.camera = quay
     weather.use_preset(sc, "CLEAR_DAY")
     _update()
     a = _animation(b, WEATHER_ANIM)
@@ -3850,6 +4115,81 @@ def _check_night(scene):
     lamps = [o for o in scene.objects if o.type == "LIGHT" and o.get("fr_weather")]
     _check(len(lamps) >= 2, f"only {len(lamps)} night lamps")
     return weather.header(scene)
+
+
+def _check_preset(name: str, extra=None):
+    """A stop's check for a weather preset (task 0299): Weather & time on with the preset's values, its channels as
+    the preset says, and ``extra(scene)`` -> a few words."""
+    def check(scene):
+        from ..core import weather as core
+        from . import weather
+        _check(weather.enabled(scene), "Weather & time is off")
+        w = scene.fresing.weather
+        _check(w.preset == name, f"the preset is {w.preset}, not {name}")
+        want = core.derive(core.preset(name, weather.state(scene)), weather.place(scene))
+        for ch in ("sun_el", "rain", "hail", "mist", "heat", "lightning"):
+            _check(abs(_channel(scene, ch) - want[ch]) < 1e-3, f"{ch} is {_channel(scene, ch):.3f}, not "
+                                                             f"{want[ch]:.3f}")
+        words = extra(scene) if extra is not None else ""
+        return weather.header(scene) + (f" · {words}" if words else "")
+    return check
+
+
+def _sun_low(morning: bool):
+    def extra(scene):
+        el = _channel(scene, "sun_el")
+        _check(0.0 < el < 8.0, f"the sun stands at {el:.1f}°, not low over the horizon")
+        hour = scene.fresing.weather.hour
+        _check((hour < 12.0) == morning, f"{hour:.2f} h is not in the {'morning' if morning else 'evening'}")
+        _check(_channel(scene, "flood") < 0.01, "the floodlights are on")
+        return f"sun {el:.1f}° up"
+    return extra
+
+
+def _mist_on(scene):
+    from . import weather_sky
+    ng = scene.compositing_node_group
+    _check(ng is not None and ng.name == weather_sky.FOG_GROUP, "the mist is not laid over the picture")
+    _check(scene.view_layers[0].use_pass_position, "the mist has no Position pass")
+    return f"mist {_channel(scene, 'mist'):.0f} per km at the water"
+
+
+def _hail_on(scene):
+    roles = {o.get("fr_weather") for o in scene.objects}
+    _check("hail" in roles and "bounce" in roles, "the falling or bouncing hail is missing")
+    return "hail falls and bounces"
+
+
+def _heat_on(scene):
+    from . import weather_sky
+    ng = scene.compositing_node_group
+    _check(ng is not None and ng.name == weather_sky.FOG_GROUP, "no heat shimmer over the picture")
+    return "heat shimmer on"
+
+
+def _check_storm(scene):
+    """The lesson's thunderstorm video: the storm comes, lightning flashes only once it is there (task 0299)."""
+    from . import weather
+    from .lessons import weather as wx_lesson
+    _check(weather.enabled(scene), "Weather & time is off")
+    a = scene.fresing.animations.get(wx_lesson.ANIM)
+    _check(a is not None and any(b.kind == "WEATHER" for b in a.blocks), "the thunderstorm video has no weather step")
+    _check(scene.fresing.anim_baked == wx_lesson.ANIM, "the thunderstorm video is not built")
+    frames = range(scene.frame_start, scene.frame_end + 1)
+    rows = []
+    shown = scene.frame_current
+    for f in frames:
+        scene.frame_set(f)
+        rows.append((_channel(scene, "lightning"), _channel(scene, "flash"), _channel(scene, "rain")))
+    scene.frame_set(shown)                       # (the stop's picture is the flash)
+    flashes = [f for f, r in zip(frames, rows) if r[1] > 0.3]
+    _check(frame_for(scene, find("wx_thunder")) in flashes, "Go does not show the flash")
+    _check(rows[0][0] < 0.01 and rows[-1][0] > 0.5, f"lightning {rows[0][0]:.2f} -> {rows[-1][0]:.2f}")
+    _check(flashes, "no lightning flash")
+    _check(all(rows[f - scene.frame_start][0] > 0.0 for f in flashes), "a flash before the storm came")
+    roles = [o.get("fr_weather") for o in scene.objects]
+    _check(roles.count("bolt") == 4 and "lightning" in roles, "the bolts or the lightning lamp are missing")
+    return f"{len(flashes)} frames with a flash; rain {rows[0][2]:.2f} -> {rows[-1][2]:.2f}"
 
 
 # ----- a house from House Planner (task 0114) -----
@@ -4420,6 +4760,12 @@ stop("faces", LOOK, "faces", "Painted faces",
 stop("decals", LOOK, "decals", "Logos and stickers",
      "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
      "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
+stop("welds", LOOK, "welds", "Welds",
+     "A small invented weldment: a blue painted fillet along the fin's foot (the paint over the ripples), a grey MAG "
+     "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
+     "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
+     "the branch meets the tube and a butt joint ground flush to the extension plate.",
+     where="3 Looks > Welds", check=_check_welds, since="0.2.231")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
@@ -4438,13 +4784,22 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
            "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
      check=_check_marine, changed="0.2.196")
+stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains",
+     "A board of 23 samples in their finishes, from the back row: diamond and straight knurled knobs, a rubber grip, a "
+     "spun cap, a shaft with a faced end, a honed half bushing; a blue cross-hatch cup, speaker cloth, a black grille "
+     "with holes, tread, perforated and expanded plates; scraped way, soft-touch arch, bead- and shot-blasted, "
+     "hammertone and wrinkle blocks; anti-skid plate, VDI and leather cups, a spangled plate, an as-cast block. On "
+     "the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, leather cushions. Look in rendered view "
+     "and zoom in: the patterns show up close and fade calmly further away.",
+     where="3 Looks: a group's Material (Metal, Plastic & rubber, Paint …) and its own settings under it (Pitch, "
+           "Angle, Metal, Kind …)", since="0.2.229", check=_check_finishes)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "
      "round the whole cable as one spiral, once round per metre, with ragged edges, the paint thinner in the grooves. "
      "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
-     since="0.2.116", check=_check_served, auto="clip", changed="0.2.123")
+     since="0.2.116", check=_check_served, auto="clip", changed="0.2.230")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
@@ -4469,6 +4824,33 @@ stop("start_scene", LOOK, "weather", "Save into start scene",
 stop("night", LOOK, "weather", "Night shift",
      "The quay at night: a dark sky with stars and the moon, floodlights on masts light the crane, a damp sheen "
      "on the quay (turned up to 4 for the picture).", where="5 Scene & Render > Weather & time (Night shift)", since="0.2.88", check=_check_night, changed="0.2.199")
+stop("wx_thunder", LOOK, "weather", "Thunderstorm in a video",
+     "Change to Thunderstorm at the playhead (the weather lesson's last step): a clear day over the sea turns into a "
+     "thunderstorm over four seconds – dark clouds, a downpour – and a lightning flash lights the whole quay while a "
+     "bolt strikes in the distance. Go shows the moment of the flash.",
+     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.228",
+     animation="Weather", at=STORM_AT, play=True, check=_check_storm, auto="clip")
+stop("wx_sunrise", LOOK, "weather", "Sunrise",
+     "The quay just after sunrise: a low golden sun from the east, long shadows across the quay, a few clouds lit "
+     "from below, dew on the crane.", where="5 Scene & Render > Weather & time > Presets (Sunrise)",
+     since="0.2.228", check=_check_preset("SUNRISE", _sun_low(True)))
+stop("wx_sunset", LOOK, "weather", "Sunset",
+     "The quay at sunset: the sun low in the west, orange light on the crane's boom, long shadows.",
+     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.228",
+     check=_check_preset("SUNSET", _sun_low(False)))
+stop("wx_mist", LOOK, "weather", "Fog / sea mist",
+     "Thick mist lying on the quay and the water: the far quay and the sea are gone, the crane's far end is paler "
+     "than its foot. In a video banks of it drift by and the crane fades in and out.",
+     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.228",
+     check=_check_preset("SEA_MIST", _mist_on))
+stop("wx_hail", LOOK, "weather", "Hail / sleet",
+     "A cold shower: white hail stones and sleet falling, small stones bouncing on the quay and the crane's top "
+     "faces, grey light, everything wet, a little slush.", where="5 Scene & Render > Weather & time > Presets "
+     "(Hail / sleet); Hail", since="0.2.228", check=_check_preset("HAIL", _hail_on))
+stop("wx_heat", LOOK, "weather", "Hot and calm",
+     "A hot afternoon without wind: bright sun, a pale warm haze over the far sea; in a render the horizon wavers "
+     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.228",
+     check=_check_preset("HOT_CALM", _heat_on))
 stop("props", LOOK, "props", "Props for scale and people",
      "In a warehouse, beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
      "offshore coverall with reflective bands and gloves, one with both hands forward in office clothes and a "
@@ -4538,11 +4920,22 @@ stop("chains", MOTION, "chains", "Drag chains roll with the axes",
      "moving end stays on its bracket.", where="4 Motion > Hoses and drag chains", animation=CHAINS_ANIM, play=True,
      since="0.2.78", changed="0.2.215", check=_check_chains, auto="clip")
 stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
-     "The wire rope comes off the winch drum, goes over the two sheaves of the A-frame, through the V rollers and "
-     "over the chute at 10 m/min: its strands run along, and the drum, both sheaves and both rollers turn with it. "
-     "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
+     "The winch drum is full of wire rope, layer on layer. The rope comes off it, goes over the two sheaves of the "
+     "A-frame, through the V rollers and over the chute at 10 m/min: its strands run along, the drum turns and its "
+     "top layer gets shorter wrap by wrap, and both sheaves and both rollers turn with it. Meanwhile the A-frame "
+     "leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
-     auto="clip")
+     auto="clip", changed="0.2.230")
+stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
+     "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
+     "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
+     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.225",
+     check=check_flex_avoid, setup=_route_off, auto="clip")
+stop("flex_route", MOTION, "flex_avoid", "A route shaped by a via point",
+     "The same hose with one via point set by hand beside the block (Shape the route): it runs through that point "
+     "at every frame, and the point rides down and up with the lift, part of the way, as the end it is nearer to.",
+     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.225",
+     check=check_flex_route, setup=_route_on, auto="clip")
 stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
      "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
@@ -4557,7 +4950,7 @@ stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
      where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
-     since="0.2.180", check=check_drawn_cable, auto="clip")
+     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.230")
 stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 24 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
@@ -4582,7 +4975,7 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "anchor; the carousel pays its cable all out (every layer cable, one after the other, down to its core) and "
      "winds it back in. No grey sleeve or ring under the top layer.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
-     auto="clip", changed="0.2.139")
+     auto="clip", changed="0.2.230")
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
@@ -4797,6 +5190,71 @@ stop("remove", MOTION, "place", "Remove: the trolley is gone",
      "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
      where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: crane moved and "
      "turned", select=("TEST.CRANE",), check=_check_remove)
+
+# ---------------------------------------------------------------------------
+# task 0293: Copy and paste with joints and mechanisms
+# ---------------------------------------------------------------------------
+
+@tour_set("copy", "Copy and paste", "test_crane_a.step", added="0.2.227", changed="0.2.227")
+def build_copy(b: Build):
+    """The crane with the crane lesson's joints, cylinder and animation, copied with Copy / Paste: a second crane
+    beside it with its own joints "Boom (2)" and "Trolley (2)" and its own cylinder; the copy's boom is up 25°, the
+    original's at its CAD place, so the two show they move by themselves."""
+    import math
+
+    from . import animation, copy, joints, lesson, ops_place
+    sc = b.scene
+    lesson.run(sc, "crane")
+    animation.clear_keys(sc)
+    _studio(b)
+    p = copy.paste(sc, [_ob(sc, "TEST.CRANE")])
+    ops_place.set_lock(_ob(sc, "TEST.CRANE (2)"), False)            # as Paste leaves it: ready for Place
+    joints.set_value(joints.find(sc, "Boom (2)"), math.radians(25.0))
+    copy.LAST.clear()
+    copy.LAST.update(p)
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@copy")
+
+
+def _copy_setup(scene):
+    from . import panels
+    try:
+        panels.open_to("FRESING_PT_place")
+    except Exception:  # noqa: BLE001 - the stop still opens
+        pass
+
+
+def _check_copy(scene):
+    import math
+
+    from . import build, copy, cylinders, joints
+    s = scene.fresing
+    roots = {r.get(build.PROP_NAME): r for r in build.model_roots(scene)}
+    _check(set(roots) == {"TEST.CRANE", "TEST.CRANE (2)"}, f"the models are {sorted(roots)}, not the crane and its copy")
+    names = [j.name for j in s.joints]
+    _check(names == ["Boom", "Trolley", "Boom (2)", "Trolley (2)"], f"the joints are {names}")
+    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 2
+           and all(cylinders.is_valid(c) for c in s.cylinders), "a joint or cylinder of the copy is broken")
+    a, c = roots["TEST.CRANE"], roots["TEST.CRANE (2)"]
+    boom = [o for o in build.iter_parts(scene) if o.get(build.PROP_NAME) == "BOOM"]
+    _check(len(boom) == 2 and boom[0].data is boom[1].data, "the copy's boom does not share its shape")
+    up = math.degrees(joints.get_value(joints.find(scene, "Boom (2)")))
+    _check(abs(up - 25.0) < 0.05 and abs(joints.get_value(joints.find(scene, "Boom"))) < 1e-6,
+           f"the copy's boom is at {up:.1f}°, not 25° (the original's at 0°)")
+    dx = c.matrix_world.translation.x - a.matrix_world.translation.x
+    _check(dx > 1.0, f"the copy stands {dx * 1000:.0f} mm from the crane, not beside it")
+    _check(c.get(copy.GROUP) and c.get(copy.GROUP) == a.get(copy.GROUP), "the copy is not in the crane's copy group")
+    return f"2 cranes {dx * 1000:.0f} mm apart, joints {names}, copy's boom {up:.0f}°"
+
+
+stop("copy", MOTION, "copy", "Copy: crane and its own joints",
+     "Two cranes side by side: the right one is a copy made with Copy and Paste (right-click > Copy, then Paste or "
+     "Ctrl+V). It has its own joints 'Boom (2)' and 'Trolley (2)' and its own cylinder 'Luffing cylinder (2)' (4 "
+     "Motion): its boom is up 25°, the original's is down – they move by themselves. 2 Structure shows two models, "
+     "'TEST.CRANE' and 'TEST.CRANE (2)'. Its parts share their shapes with the original.",
+     where=places.where("FRESING_PT_place") + " > Copy / Paste", since="0.2.227", select=("TEST.CRANE (2)",),
+     check=_check_copy, setup=_copy_setup)
 
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
@@ -5218,6 +5676,13 @@ def _check_workspace(scene):
         _check(not lock.ON[0] and lock.marked() == 0
                and state == {ob.name: (ob.hide_select, tuple(ob.lock_location)) for ob in scene.objects},
                "Full access did not put the parts back as they were")
+        # task 0294: Essentials first, the task workspaces, a star on every row of the list
+        _check(workspaces.names()[0][0] == "Essentials", "Essentials is not first in the Workspace list")
+        workspaces.switch(scene, "Sales")
+        _check(workspaces.panel_hidden(scene, "FRESING_PT_motion") and not workspaces.panel_hidden(scene, "FRESING_PT_shots")
+               and not lock.ON[0], "Sales does not hide motion, show saved scenes and leave the project unlocked")
+        _check(hasattr(bpy.types, "FRESING_MT_workspaces") and hasattr(bpy.ops.fresing, "workspace_star"),
+               "the Workspace list with its stars is missing")
     finally:
         s.ws_name, s.ws_data, s.ws_ticks = was
         workspaces.apply(scene)
@@ -5252,9 +5717,12 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
+     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator and Reviewer for "
+     "one job each; the star beside a workspace puts it on top of the list, above a line (click it again to take it "
+     "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.226", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
@@ -5538,7 +6006,7 @@ stop("learn", OUT, HUB_SET, "Learn as you go",
      "may have one quiet line \"Next to learn: …\" with Learn and Not interested. My learning list opens in a window "
      "of its own that stays open beside your work; Esc with the mouse over it closes it.",
      where="Fresing menu > My learning list…; the question and the What's next card on the left panel",
-     since="0.2.160", changed="0.2.225", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+     since="0.2.160", changed="0.2.232", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
 def _check_lessons(scene):
     """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""
@@ -5549,7 +6017,7 @@ def _check_lessons(scene):
     for op in ("learn_lessons", "lesson_start", "lesson_next", "lesson_do", "lesson_back", "lesson_stop"):
         _check(hasattr(bpy.ops.fresing, op), f"the button fresing.{op} is missing")
     _check("fresing.learn_lessons" in ui_topbar.entries(), "Learn… is not in the Fresing menu")
-    for lid in ("crane", "mill"):
+    for lid in ("crane", "mill", "weather"):
         les = lesson.LESSONS.get(lid)
         _check(les is not None, f"the {lid} lesson is missing")
         for k, st in enumerate(les.steps, 1):
@@ -5558,18 +6026,18 @@ def _check_lessons(scene):
     done = sum(1 for st in les.steps if lesson.is_done(scene, st))
     _check(done >= len(les.steps) - 1, f"only {done} of the crane lesson's {len(les.steps)} steps are in this project")
     return (f"crane lesson {len(les.steps)} steps ({done} done in this project), mill lesson "
-            f"{len(lesson.LESSONS['mill'].steps)} steps")
+            f"{len(lesson.LESSONS['mill'].steps)} steps, weather lesson {len(lesson.LESSONS['weather'].steps)} steps")
 
 
 stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
-     "Fresing > Learn… lists the learning sets. Crane and Milling a slot have three buttons: View opens this test "
+     "Fresing > Learn… lists the learning sets. Crane, Milling a slot and Weather have three buttons: View opens this test "
      "tour at the set, Show me opens a new project with the plain model and the app does each step itself – the "
      "button glows, a card beside the part says what happens, Next goes on (or tick Play on) – and Build it yourself "
      "lets you do each step: it goes on by itself once the project shows the step done. The other sets say 'Lesson "
      "coming'. Learn… is a window of its own: click in the main window and it stays open, drag it onto another "
      "screen, close it with Close or its X.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.217", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.228", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 

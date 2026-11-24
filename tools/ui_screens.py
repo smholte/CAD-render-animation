@@ -15,6 +15,10 @@ import subprocess
 import time
 import traceback
 
+# task 0294: a user who has not chosen a workspace starts in Essentials; these tests and pictures start in All
+# functions as before (ui_test_workspaces2.py sets it empty for its own checks)
+os.environ.setdefault("FRESING_WORKSPACE_START", "All functions")
+
 import bpy
 from mathutils import Vector
 
@@ -181,6 +185,9 @@ def s_state():
     s.last_render = CRANE
     mod("blender.tree").follow_view(sc, ob("BOOM.PIN"))      # tree opened down to a part
     s.find_text = "boom"                                     # a search in Find & sort parts
+    fin = os.environ.get("UISHOT_FINISH")                    # task 0274: UISHOT_FINISH=knurl_diamond: the selected
+    if fin and 0 <= s.groups_index < len(s.groups):          # group gets that finish (its own settings show)
+        s.groups[s.groups_index].material = fin
     active = os.environ.get("UISHOT_ACTIVE", "BOOM.ASM")       # UISHOT_ACTIVE=BOOM.PIN: a part clicked
     if os.environ.get("UISHOT_STACK"):
         # UISHOT_STACK=1: a second joint on the trolley rides on "Trolley"; the trolley is selected,

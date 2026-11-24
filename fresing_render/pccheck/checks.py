@@ -33,6 +33,7 @@ MILL = os.path.join(DATA, "test_mill.step")
 MILL_CABINET = os.path.join(DATA, "test_mill_cabinet.step")
 TOOLPATH = os.path.join(DATA, "test_toolpath.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
+WELDMENT = os.path.join(DATA, "test_weldment.step")
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
@@ -45,6 +46,7 @@ WAYCOVER_TWO = os.path.join(DATA, "test_waycover_c.step")
 CLASH = os.path.join(DATA, "test_clash.step")
 FLEX_HOSES = os.path.join(DATA, "test_flex_hoses_a.step")
 FLEX_CHAINS = os.path.join(DATA, "test_flex_chains_a.step")
+FLEX_AVOID = os.path.join(DATA, "test_flex_avoid_a.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
 SPOOL = os.path.join(DATA, "test_spool.step")
 TRACKS = os.path.join(DATA, "test_tracks.step")
@@ -54,6 +56,7 @@ SWIVEL = os.path.join(DATA, "test_swivel.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 SEQUENCE_FRAME = os.path.join(DATA, "test_sequence_frame.step")
 MESH_CRANE = os.path.join(DATA, "test_mesh_crane.glb")
+FINISHES = os.path.join(DATA, "test_finishes.step")    # task 0274: the finishes' sample board and headset
 
 LINES: list[Line] = []
 Q, F, OWN, H = "quick", "full", "own", "heavy"
@@ -654,6 +657,33 @@ def decals_add(ctx):
     return f"{len(shown)} decals; render {info['seconds']} s"
 
 
+@line("looks.welds", "Welds: two picked faces give a bead", "0.2.231",
+      what="The base plate's top and one side of the fin picked as in Inventor: one fillet 200 mm long; then every joint "
+           "of the test weldment welded with another look (painted, MAG, rusty, stainless, pickled, aluminium, ground); "
+           "rendered small")
+def looks_welds(ctx):
+    import time
+
+    from ..blender import welds
+    scene = ctx.fresh(WELDMENT)
+    t0 = time.perf_counter()
+    it = welds.pick_test_weld(scene)
+    ms = (time.perf_counter() - t0) * 1000.0
+    seams = [s.length for s in it.seams if s.enabled]
+    _check(len(seams) == 1 and abs(seams[0] - 0.2) < 0.002, f"the picked faces gave seams of {seams} m, not one of 0.2 m")
+    _check(abs(float(it.get("fr_length", 0.0)) - 0.2) < 0.002, "the bead is not 200 mm long")
+    _check(len(welds.objects_of(it)) == 2, "the weld has no bead or no heat zone")
+    welds.remove(scene, it)
+    welds.set_up_test_model(scene)
+    st = welds.stats(scene)
+    _check(st["welds"] == len(welds.TEST_WELDS) and st["lost"] == 0, f"{st['welds']} welds, {st['lost']} lost")
+    ctx.metric("weld_pick_ms", round(ms), "ms")
+    _small_output(scene.fresing)
+    info = _cpu_still(ctx, scene, "welds", "Welds (processor, draft)")
+    return f"200 mm fillet from two picked faces in {ms:.0f} ms; {st['welds']} welds, {st['metres']:.2f} m; " \
+           f"render {info['seconds']} s"
+
+
 @line("looks.materials", "Materials: the material sheet", "0.2.39",
       what="Every ready-made material on a block with a chamfer, a disc and a shaft, rendered with Cycles: "
            "judge metals, paint, rubber and glass in one picture")
@@ -698,6 +728,60 @@ def looks_marine(ctx):
     info = render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "marine_looks", "Marine looks (processor, draft)", model_check=False)
     return f"growth band {lo:+.2f} … {hi:+.2f} m round the waterline; render {info['seconds']} s"
+
+
+@line("looks.finishes", "Finishes: knurls, spun, plates, blasted, grains", "0.2.229",
+      what="The finishes test model (23 sample parts and a headphone-like set) with every finish: a knurled knob gets "
+           "its face data (its round face, a whole number of teeth, its end faces), the far-away fade follows the "
+           "camera; a close-up of the headset's right-hand cup rendered small (processor, draft): judge the knurled "
+           "knob, the spun cap, the blue cross-hatch cup and the leather cushion")
+def looks_finishes(ctx):
+    import numpy as np
+
+    from ..blender import build, cameras, finishes, render, tour
+    from ..core import finishes as fin_core
+    scene = ctx.fresh(FINISHES)
+    s = scene.fresing
+    tour.finishes_demo(scene)
+    parts = {ob.get(build.PROP_NAME, ""): ob for ob in build.iter_parts(scene)}
+    wrong = [n for n, (m, _c) in tour.FINISH_BOARD.items()
+             if n not in parts or parts[n].active_material is None or parts[n].active_material.get("fr_material") != m]
+    _check(not wrong, f"without their finish: {', '.join(wrong)}")
+    knob = parts["KNOB DIAMOND KNURL"].data
+    _check(finishes.has_faces(knob), "the knurled knob has no face data")
+    k = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_k"].data.foreach_get("value", k)
+    r = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_r"].data.foreach_get("value", r)
+    _check((k == 1).any() and (k == 2).any(), "the knob's round face or its end faces were not found")
+    radius = float(np.median(r[k == 1]))
+    _check(abs(radius - 0.010) < 0.0003, f"the knob's round face has radius {radius * 1000:.2f} mm, not 10 mm")
+    cam = tour.marine_camera(scene, 0.0, name="Finishes close-up")
+    from mathutils import Vector
+    knob_ob = next(ob for ob in build.iter_parts(scene) if ob.get(build.PROP_NAME) == "HEADSET KNOB")
+    mn, mx = build.world_bounds([knob_ob])
+    c = (Vector(mn) + Vector(mx)) / 2                         # the right-hand cup: knurled knob, spun cap, cross-hatch
+    eye = c + Vector((0.9, -1.0, 0.5)).normalized() * 0.2
+    cam.matrix_world = tour.Matrix_look(eye, c)
+    cam.data.lens = 50.0
+    cam.data.clip_start = 0.005
+    _small_output(s)
+    cameras.update_pixel_angle(scene)
+    a_small = scene[fin_core.PIXEL_PROP]
+    _small_output(s, 1280, 720)
+    cameras.update_pixel_angle(scene)
+    a_big = scene[fin_core.PIXEL_PROP]
+    _check(a_big < a_small * 0.3, "the fade's pixel angle did not follow the picture size")
+    near = fin_core.shown(0.0008, 0.3, a_big)
+    far = fin_core.shown(0.0008, 15.0, a_big)
+    _check(near == 1.0 and far == 0.0, "the knurl does not show close up and fade far away")
+    _small_output(s, 640, 360)
+    s.use_gpu = False
+    path = os.path.join(ctx.work, "finishes.png")
+    info = render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "finishes", "Finishes: the headset's cup close up (processor, draft)", model_check=False)
+    return (f"{len(fin_core.FINISHES)} finishes; knob Ø{radius * 2000:.1f} mm, "
+            f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
 
 @line("looks.served_cable", "Served cable look: yarn and marker bands", "0.2.116",
@@ -878,6 +962,61 @@ def panel_workspaces(ctx):
             os.environ[workspaces.ENV_FOLDER] = old_env
         workspaces.forget_scan()
         shutil.rmtree(os.path.dirname(os.path.dirname(folder)), ignore_errors=True)
+
+
+@line("workspace.essentials", "Workspaces round 2: Essentials as the start, Sales, Quick render, Animator, Reviewer, "
+      "favourites on top", "0.2.226",
+      what="A user who has not chosen starts new projects in Essentials; each task workspace shows exactly its "
+           "functions; starred workspaces and the one for new projects sit on top of the list. Your own choice and "
+           "stars are put back as they were")
+def workspace_essentials(ctx):
+    import bpy
+
+    from ..blender import prefs, workspaces
+    from ..core import functions as FN
+    from ..core import workspaces as W
+    scene = ctx.fresh(MACHINE)
+    p = prefs.get()
+    kept = (p.default_workspace, p.workspace_stars) if p is not None else None
+    env = os.environ.pop(workspaces.ENV_START, None)
+    try:
+        if p is not None:                       # a user who has not chosen: Essentials (never written to the file)
+            p.default_workspace = ""
+            _check(workspaces.default_name() == "Essentials", "a user who has not chosen does not start in Essentials")
+        _check(W.start_choice("", "0.2.150", since=W.START_SINCE) == W.DEFAULT and W.start_choice("", "") == "",
+               "an existing user would not keep All functions (or a new one would not start in Essentials)")
+        counts = []
+        for key in ("essentials", "sales", "quick", "animator", "reviewer"):
+            workspaces.switch(scene, W.NAMES[key])
+            shown = workspaces._state(scene)[1]
+            _check(set(shown) == set(FN.TASK_WORKSPACES[key]) - set(workspaces.PERSONAL["hide"]),
+                   f"{W.NAMES[key]} does not show exactly its functions")
+            _check(not workspaces.locked(scene), f"{W.NAMES[key]} locks the project")
+            counts.append(f"{W.NAMES[key]} {len(shown)}")
+        workspaces.switch(scene, "Essentials")
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_import") and workspaces.panel_hidden(scene, "FRESING_PT_cnc"),
+               "Essentials hides 1 Import or shows the CNC machine")
+        _check(bpy.types.FRESING_PT_import.poll(bpy.context) and not bpy.types.FRESING_PT_cnc.poll(bpy.context),
+               "the side panel does not follow Essentials")
+        workspaces.switch(scene, "Sales")
+        _check(all(workspaces.panel_hidden(scene, "FRESING_PT_" + n) for n in ("import", "structure", "motion"))
+               and not workspaces.panel_hidden(scene, "FRESING_PT_web3d"), "Sales shows structure or motion, or no 3D page")
+        if p is not None:                       # favourites on top (set and put back here: nothing written)
+            p.workspace_stars = W.stars_json(["Reviewer", "Animator"])
+            p.default_workspace = "Sales"
+            top, rest = workspaces.menu()
+            _check([r[0] for r in top] == ["Sales", "Reviewer", "Animator"] and "Animator" not in [r[0] for r in rest],
+                   "the starred workspaces are not on top of the list")
+        return ", ".join(counts) + " functions"
+    finally:
+        if p is not None and kept is not None:
+            p.default_workspace, p.workspace_stars = kept
+        if env is not None:
+            os.environ[workspaces.ENV_START] = env
+        try:
+            workspaces.switch(scene, W.DEFAULT)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -1194,6 +1333,71 @@ def motion_drawn(ctx):
             "cable route: 6 contacts, 5 turning")
 
 
+@line("motion.flex_avoid", "A hose avoids other parts; a route shaped by a via point", "0.2.225",
+      what="Task 0298: on the avoid model (a block in a Ø20 hose's way, a lift that goes 400 mm down) the hose with "
+           "'Avoid other parts' on stays out of the block at five lift heights (without it, it sags 85 mm into it), "
+           "and in a built animation at every frame. Then a via point is set beside the block: the hose runs through "
+           "it and it rides with the lift; the clash check with 'Check hoses that avoid parts' lists nothing for it")
+def motion_flex_avoid(ctx):
+    import numpy as np
+
+    from ..blender import animation, build, clash, flex, flex_avoid, flex_route, joints, tour
+    from ..core import flex as fcore
+    scene = ctx.fresh(FLEX_AVOID)
+    made = flex.set_up_test_avoid(scene, avoid=False)
+    it = flex.find(scene, made["items"][0])
+    block = next(o for o in scene.objects if o.get(build.PROP_NAME) == "BLOCK")
+    body = flex_avoid.body_of(block)
+
+    def gap():
+        inv = np.linalg.inv(flex_avoid._rigid(np.array(block.matrix_world)))
+        pts = fcore.resample(flex.shape_now(scene, it), 400)
+        return float(body.distance(pts @ inv[:3, :3].T + inv[:3, 3])[0].min()) - 0.5 * it.diameter
+
+    def lift(v):
+        joints.set_value(joints.find(scene, "Lift"), v)
+        _update()
+        flex.refresh(scene)
+    lift(-0.4)
+    off = gap()
+    _check(off < -0.05, f"without 'Avoid other parts' the hose should sag into the block (it is {off * 1000:.0f} mm off)")
+    it.avoid = True
+    t0 = time.time()
+    worst = 1.0
+    for v in (-0.4, -0.3, -0.15, 0.0, 0.1):
+        lift(v)
+        worst = min(worst, gap())
+    ctx.metric("a hose that avoids a block, five lift heights", time.time() - t0, "s")
+    _check(worst > -0.0025, f"with 'Avoid other parts' the hose still goes {-worst * 1000:.1f} mm into the block")
+    lift(0.0)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = "Lift", 0.0, "25"
+    tour.avoid_motion(a)
+    t0 = time.time()
+    r = animation.bake(scene, a)
+    ctx.metric("build the avoid animation", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"]))
+    built = 1.0
+    for f in range(scene.frame_start, scene.frame_end + 1, 5):
+        scene.frame_set(f)
+        built = min(built, gap())
+    _check(built > -0.0025, f"in the built animation the hose goes {-built * 1000:.1f} mm into the block")
+    scene.fresing.clash.hoses = True
+    run = clash.check(scene, store=False)
+    _check(not [x for x in run.rows if it.part.name in x.names], "the clash check lists the hose that avoids parts")
+    tour._route_on(scene)
+    it = flex.find(scene, made["items"][0])
+    _check(flex_route.count(it) == 1, "the via point was not set")
+    miss = 0.0
+    for f in range(scene.frame_start, scene.frame_end + 1, 10):
+        scene.frame_set(f)
+        via = flex_route.stops_now(it)[1][0]
+        miss = max(miss, float(np.linalg.norm(flex.shape_now(scene, it) - via, axis=1).min()))
+    _check(miss < 1e-4, f"the hose misses its via point by {miss * 1000:.2f} mm")
+    return (f"off: {-off * 1000:.0f} mm in the block; on: at most {max(-worst, -built, 0.0) * 1000:.2f} mm (live and "
+            f"built); through its via point to {miss * 1000:.3f} mm")
+
+
 @line("motion.flex_kinds", "Hose and cable kinds, chain types and standard sizes", "0.2.182",
       what="Task 0243: on the hoses model six hoses are drawn and each gets a kind – hydraulic, steel-braided, "
            "pneumatic, protective sleeve, machine cable, power cable: a size pick sets its diameter and smallest bend, "
@@ -1266,21 +1470,23 @@ def motion_flex_kinds(ctx):
 
 
 @line("motion.paths", "A cable runs over sheaves, rollers and a chute", "0.2.80",
-      what="A winch drum, an A-frame with two grooved sheaves, a V-roller cradle and a chute: the wire rope is read "
-           "from its CAD solid and lies in the grooves; a Run motor step moves it at 10 m/min and the drum, the "
-           "sheaves and the rollers turn exactly with it; the rope follows the luffing A-frame, and its strands "
-           "have moved by the length that ran")
+      what="A winch drum full of wire rope, an A-frame with two grooved sheaves, a V-roller cradle and a chute (task "
+           "0263: real size): the wire rope is read from its CAD solid and comes off the drum, a winch drum of Drums "
+           "and carousels, layer by layer; it lies in the grooves; a Run motor step moves it at 10 m/min, the "
+           "sheaves and the rollers turn exactly with it and the drum as far as that on its layer; the rope follows "
+           "the luffing A-frame, and its strands have moved by the length that ran")
 def motion_paths(ctx):
     from ..blender import animation, cable_looks, cameras, joints, paths, render, tour
     scene = ctx.fresh(PATHS)
     s = scene.fresing
     t0 = time.time()
-    made = paths.set_up_test_model(scene)
+    made = paths.set_up_test_model(scene, winch=True)
     ctx.metric("read the cable", time.time() - t0, "s")
     item = paths.find(scene, made["cable"])
     kinds = [c.kind for c in item.contacts]
-    _check(kinds == ["SHEAVE", "SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"],
-           f"the rope should touch a drum, 2 sheaves, 2 rollers and a chute; found: {', '.join(kinds) or 'nothing'}")
+    _check(kinds == ["SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"] and item.a_kind == "SPOOL",
+           f"the rope should come off the winch drum and touch 2 sheaves, 2 rollers and a chute; found: "
+           f"{', '.join(kinds) or 'nothing'}")
     _check(abs(item.diameter - 0.024) < 0.0005, f"the rope's diameter was read as {item.diameter * 1000:.1f} mm (24)")
     # posed by hand (no animation): the rope follows the A-frame at once
     before = paths.shape_now(scene, item).copy()
@@ -2807,6 +3013,118 @@ def weather_step(ctx):
     animation.clear_keys(scene)
     _check(not weather.keyed(scene), "Clear keys left weather keys")
     return f"{res['frames']} frames; daylight {day0:.2f} -> {day1:.2f}, rain {rain0:.2f} -> {rain1:.2f}"
+
+
+# weather round 2 (task 0299): one line per new preset, a small picture each
+
+def _weather_preset_still(ctx, preset, key, title, background="QUAY", low=False):
+    """The crane with a weather preset picked from its picture (the button), rendered small (processor, draft)."""
+    import bpy
+
+    from ..blender import cameras, weather
+    from ..core import weather as core
+    scene = _weather_scene(ctx, background=background)
+    if low:                                       # a camera low over the water: the sky and the horizon show
+        scene.camera = cameras.add_camera(scene, "LOW", 22.0, "PC check sky")
+    res = bpy.ops.fresing.weather_preset(name=preset)
+    _check(res == {"FINISHED"}, f"the preset button returned {res}")
+    w = scene.fresing.weather
+    _check(w.preset == preset, f"the preset is {w.preset}")
+    want = core.derive(core.preset(preset, weather.state(scene)), weather.place(scene))
+    for ch in ("sun_el", "rain", "hail", "mist", "heat", "lightning", "fog"):
+        _check(abs(_wx(scene, ch) - want[ch]) < 1e-3, f"{ch} is {_wx(scene, ch):.3f}, not {want[ch]:.3f}")
+    info = _cpu_still(ctx, scene, key, title)
+    ctx.metric(key, info["seconds"], "s")
+    return scene, info
+
+
+@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.228",
+      what="Change to Thunderstorm over 2 s at the playhead (5 Scene & Render > Weather & time) on the open sea: the "
+           "Build keys the storm coming and lightning flashes only once it is there; the frame of the first flash is "
+           "rendered small (processor, draft) – the scene lit up, a bolt in the sky")
+def weather_thunderstorm(ctx):
+    import bpy
+
+    from ..blender import animation, cameras, weather
+    scene = _weather_scene(ctx, background="SEA", preset="GREY_NORTH_SEA")
+    s = scene.fresing
+    scene.camera = cameras.add_camera(scene, "LOW", 22.0, "PC check sky")
+    scene.frame_set(1)
+    s.weather.change_to, s.weather.change_seconds = "THUNDERSTORM", 2.0
+    res = bpy.ops.fresing.weather_change()
+    _check(res == {"FINISHED"}, f"Add at playhead returned {res}")
+    a = s.animations[s.animations_index]
+    a.tail, a.quality = 1.0, "draft"
+    t0 = time.time()
+    animation.bake(scene, a)
+    s.anim_baked = a.name
+    ctx.metric("build", time.time() - t0, "s")
+    rows = []
+    for f in range(scene.frame_start, scene.frame_end + 1):
+        scene.frame_set(f)
+        rows.append((f, _wx(scene, "lightning"), _wx(scene, "flash")))
+    flashes = [f for f, lt, fl in rows if fl > 0.3]
+    _check(flashes, "no lightning flash in the video")
+    _check(all(lt > 0.0 for f, lt, fl in rows if fl > 0.0), "a flash before the storm came")
+    bolts = [o for o in scene.objects if o.get("fr_weather") == "bolt"]
+    _check(len(bolts) == 4, f"{len(bolts)} bolts in the sky, not 4")
+    scene.frame_set(flashes[0])
+    info = _cpu_still(ctx, scene, "weather_thunder", "Thunderstorm: a lightning flash (processor, draft)")
+    ctx.metric("flash frame", info["seconds"], "s")
+    return f"{len(flashes)} frames with a flash, first at frame {flashes[0]}; rendered in {info['seconds']} s"
+
+
+@line("weather.mist", "Weather: fog and sea mist", "0.2.228",
+      what="The preset Fog / sea mist on the open sea: mist lies on the water (thick low down, thin higher up) and the "
+           "far sea is gone. Rendered small (processor, draft)")
+def weather_mist(ctx):
+    scene, info = _weather_preset_still(ctx, "SEA_MIST", "weather_mist", "Fog / sea mist (processor, draft)", "SEA",
+                                        low=True)
+    _check(scene.view_layers[0].use_pass_position, "the mist has no Position pass")
+    return f"mist {_wx(scene, 'mist'):.0f} per km at the water; rendered in {info['seconds']} s"
+
+
+@line("weather.sunrise", "Weather: sunrise", "0.2.228",
+      what="The preset Sunrise on the quay: the sun just up (0–8°) in the morning, golden low light, long shadows; "
+           "no floodlights. Rendered small (processor, draft)")
+def weather_sunrise(ctx):
+    scene, info = _weather_preset_still(ctx, "SUNRISE", "weather_sunrise", "Sunrise (processor, draft)")
+    el = _wx(scene, "sun_el")
+    _check(0.0 < el < 8.0 and scene.fresing.weather.hour < 12.0, f"the sun stands at {el:.1f}°")
+    _check(_wx(scene, "flood") < 0.01, "the floodlights are on")
+    return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
+
+
+@line("weather.sunset", "Weather: sunset", "0.2.228",
+      what="The preset Sunset on the quay: the sun low (0–8°) in the evening, orange light on the crane. Rendered small "
+           "(processor, draft)")
+def weather_sunset(ctx):
+    scene, info = _weather_preset_still(ctx, "SUNSET", "weather_sunset", "Sunset (processor, draft)")
+    el = _wx(scene, "sun_el")
+    _check(0.0 < el < 8.0 and scene.fresing.weather.hour > 12.0, f"the sun stands at {el:.1f}°")
+    return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
+
+
+@line("weather.hail", "Weather: hail and sleet", "0.2.228",
+      what="The preset Hail / sleet on the quay: hail and sleet fall, stones bounce on the quay and the crane's top "
+           "faces, everything wet. Rendered small (processor, draft)")
+def weather_hail(ctx):
+    scene, info = _weather_preset_still(ctx, "HAIL", "weather_hail", "Hail / sleet (processor, draft)")
+    roles = {o.get("fr_weather") for o in scene.objects}
+    _check("hail" in roles and "bounce" in roles, "the falling or bouncing hail is missing")
+    return f"rendered in {info['seconds']} s"
+
+
+@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.228",
+      what="The preset Hot and calm on the open sea: bright haze, heat shimmer over the distance (the compositor moves "
+           "the far picture a few pixels). Rendered small (processor, draft)")
+def weather_heat(ctx):
+    from ..blender import weather_sky
+    scene, info = _weather_preset_still(ctx, "HOT_CALM", "weather_heat", "Hot and calm (processor, draft)", "SEA",
+                                        low=True)
+    ng = scene.compositing_node_group
+    _check(ng is not None and ng.name == weather_sky.FOG_GROUP, "no heat shimmer over the picture")
+    return f"rendered in {info['seconds']} s"
 
 
 @line("house.bake", "House from House Planner: import, bake, export", "0.2.92",
@@ -5055,7 +5373,9 @@ def app_keys(ctx):
 
         lay = Layout()
         context_menu._draw(type("Menu", (), {"layout": lay})(), bpy.context)
-        _check(tuple(lay.texts) == context_menu.ON_EMPTY, f"the right-click menu on empty space shows {lay.texts}")
+        from ..blender import ops_copy                 # task 0293: Paste only once something was copied
+        want = tuple(t for t in context_menu.ON_EMPTY if t != "Paste" or ops_copy.can_paste(scene))
+        _check(tuple(lay.texts) == want, f"the right-click menu on empty space shows {lay.texts}")
         workspaces.switch(scene, "Client view")
         sw = lock.SWALLOWED[0]
         bpy.ops.fresing.blender_key(key="Shift+D")
@@ -5181,6 +5501,62 @@ def place_move(ctx):
     _update()
     _check((joints.axis_world(j)[0] - o0).length < 1e-5, "Back to the CAD place did not put the joint back")
     return "crane moved 1 m + 90°: same motion; boom +100 mm: joint along, kept by Build; back again"
+
+
+@line("place.copy", "Copy and paste: the crane copied with its joints and cylinder, both move by themselves",
+      "0.2.227",
+      what="On the test crane with the crane lesson's set-up: Copy + Paste makes 'TEST.CRANE (2)' beside it with joints "
+           "'Boom (2)', 'Trolley (2)' and its own cylinder, shapes shared; the copy's boom moves without the original's; "
+           "Build plays; the boom alone copied is a model of its own whose cylinder is left out (the window says so); "
+           "Remove of the copy leaves the original whole")
+def place_copy(ctx):
+    import math
+    import time
+
+    import bpy
+
+    from ..blender import animation, build, copy, joints, lesson, remove
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    lesson.run(scene, "crane")
+    animation.clear_keys(scene)
+    s = scene.fresing
+
+    def ob(name, root=None):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == name
+                    and (root is None or build.model_root_of(o) is root))
+
+    root = ob("TEST.CRANE")
+    for o in scene.objects:
+        o.select_set(False)
+    root.select_set(True)
+    bpy.context.view_layer.objects.active = root
+    meshes = len(bpy.data.meshes)
+    _check(bpy.ops.fresing.copy() == {"FINISHED"}, "Copy failed")
+    t0 = time.time()
+    _check(bpy.ops.fresing.paste() == {"FINISHED"}, "Paste failed")
+    ctx.metric("paste", time.time() - t0, "s")
+    names = [j.name for j in s.joints]
+    _check(names == ["Boom", "Trolley", "Boom (2)", "Trolley (2)"] and len(s.cylinders) == 2,
+           f"after Paste the joints are {names}, {len(s.cylinders)} cylinders")
+    _check(len(bpy.data.meshes) == meshes, f"the copy made {len(bpy.data.meshes) - meshes} new shapes (should share)")
+    r2 = ob("TEST.CRANE (2)")
+    b1, b2 = ob("BOOM", root), ob("BOOM", r2)
+    w1 = b1.matrix_world.copy()
+    joints.set_value(joints.find(scene, "Boom (2)"), math.radians(30.0))
+    _update()
+    _check(all(abs(w1[r][c] - b1.matrix_world[r][c]) < 1e-6 for r in range(4) for c in range(4)),
+           "moving the copy's boom moved the original's")
+    _check(abs(b2.matrix_world.to_euler().y + math.radians(30.0)) < 1e-4, "the copy's boom did not turn 30°")
+    _check(animation.bake(scene, s.animations[0])["frames"] > 1, "Build with the two cranes failed")
+    animation.clear_keys(scene)
+    p = copy.paste(scene, [ob("BOOM.ASM", root)])
+    _check(p["names"] == ["BOOM.ASM (2)"] and p["joints"] == 1 and p["cylinders"] == 0
+           and any("Luffing cylinder" in x for x in p["left"]), f"the boom's copy: {p['names']}, {p['left']}")
+    remove.remove(scene, [r2, ob("BOOM.ASM (2)")])
+    _check([j.name for j in s.joints] == ["Boom", "Trolley"] and len(s.cylinders) == 1
+           and all(joints.is_valid(j) for j in s.joints), "removing the copies broke the original")
+    _check(b1.data is not None and len(b1.data.vertices) > 0, "removing the copy took the original's shape")
+    return "crane copied with 2 joints + cylinder, moves by itself, builds; boom copy frozen; copies removed cleanly"
 
 
 @line("place.remove", "Remove: a subassembly and a model with what lives on them; nothing left pointing at nothing",

@@ -31,7 +31,7 @@ ROPE = "WIRE ROPE"
 SPEED = "Cable WIRE ROPE"
 OPS = ("cable_add", "cable_add_all", "cable_remove", "cable_read", "cable_select", "cable_motor_step",
        "cable_contact_add", "cable_contact_remove", "cable_contact_flip", "cable_end")
-FIRST = "Cable 'WIRE ROPE': 3 sheaves, 2 rollers, 1 chute; Ø 24 mm, 7.02 m; the path is at most "
+FIRST = "Cable 'WIRE ROPE': 3 sheaves, 2 rollers, 1 chute; Ø 24 mm, 14.84 m; the path is at most "
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -157,7 +157,7 @@ def test_add_cable_reads_the_selected_part(model):
     assert names(sc) == [ROPE] and it.part == rope and it.joint == SPEED and it.made_joint
     assert contacts(sc) == T.ORDER and [c.kind for c in it.contacts] == T.KINDS
     assert said(sc).startswith(FIRST) and said(sc).endswith(" mm off the cable as drawn in CAD")
-    assert paths.status(sc, it) == ("7.02 m over 6 contacts", "OK")
+    assert paths.status(sc, it) == ("14.84 m over 6 contacts", "OK")
     assert it.look == "ROPE" and it.pitch == pytest.approx(paths.ROPE_LAY * it.diameter, rel=1e-6)   # named a rope
     assert rope.modifiers.get(paths.MOD) is not None
     T.update()
@@ -360,7 +360,7 @@ def test_flip_side_and_its_refusal(folder):
     assert cable(sc).contacts[k].side == -1 and np.abs(T.rings(cable(sc).part)[0] - before).max() < 1e-6
     # a side the cable cannot take: with the A-frame laid back over the drum no rope crosses over to sheave 2's top
     joints.find(sc, "Luff").use_limits = False
-    joints.set_value(joints.find(sc, "Luff"), math.radians(-110.0))
+    joints.set_value(joints.find(sc, "Luff"), math.radians(-135.0))     # (task 0263: -135 on the 3 m legs)
     T.update()
     refused(bpy.ops.fresing.cable_contact_flip, "The cable cannot go round the other side of 'SHEAVE 2': ")
     assert cable(sc).contacts[k].side == -1 and said(sc).startswith("The cable cannot go round the other side")
@@ -370,7 +370,7 @@ def test_an_end_on_a_part_and_free_again(added):
     sc = added
     T.update()
     before = T.rings(cable(sc).part)[0]
-    assert ui_paths.end_text(cable(sc), "A") == ("Start: lies on WINCH DRUM", False)
+    assert ui_paths.end_text(cable(sc), "A") == ("Start: lies on WIRE ON DRUM", False)
     assert ui_paths.end_text(cable(sc), "B") == ("End: free, stays with CHUTE", False)
     stand = T.ob(sc, "CHUTE STAND")
     assert bpy.ops.fresing.cable_end(end="B", part=stand.name) == {"FINISHED"}
@@ -476,7 +476,7 @@ def test_the_panel_draws_empty_and_with_a_cable(model):
     texts, head, rows, touched = draw_panel()
     joined = " ".join(texts)
     assert head == ["1 cable"] and rows == [] and ui_paths.counts(sc) == ("1 cable", False)
-    assert "7.02 m over 6 contacts" in texts and "Cable speed: joint 'Cable WIRE ROPE'" in joined
+    assert "14.84 m over 6 contacts" in texts and "Cable speed: joint 'Cable WIRE ROPE'" in joined
     assert "Animate it in 6 Animation with the step Run motor: speed in m/min" in joined
     for label in ("Add cable", "Add a Run motor step", "Look", "Lay length", "From CAD cable again",
                   "What it touches (6)", "Add", "Remove", "Flip side", "More", "Diameter", "Min. bend (MBR)",
@@ -484,15 +484,17 @@ def test_the_panel_draws_empty_and_with_a_cable(model):
                   "Runs the other way", "Stays as drawn", "Turns with the cable"):
         assert label in texts, label
     assert not any(t in texts for t in ("Stripe distance", "Free at start", "Add all 1 found by name"))
-    assert "Start: lies on WINCH DRUM" in texts and "End: free, stays with CHUTE" in joined
+    # (task 0263: "WIRE ON DRUM" is longer: both end rows wrap at the default width, nothing cut off)
+    assert "Start: lies on WIRE ON" in texts and "End: free, stays with" in texts
+    assert "DRUM" in texts and "CHUTE" in texts
     # the rows of "What it touches": name, Ø at the rope's middle, wrap; and where the rope lies on each
-    assert touched == ["WINCH DRUM", "Ø 424", "147°", "SHEAVE 1", "Ø 500", "192°", "SHEAVE 2", "Ø 360", "135°",
+    assert touched == ["WIRE ON DRUM", "Ø 514", "143°", "SHEAVE 1", "Ø 500", "172°", "SHEAVE 2", "Ø 360", "119°",
                        "V ROLLER", "Ø 144", "–", "V ROLLER", "Ø 144", "–", "CHUTE", "Ø 1200", "50°"]
     assert ui_paths.passes(sc, it) == ["under", "over", "under", "over", "over", "over"]
     # the chosen contact under the list: the drum first
     assert "Sheave: the cable bends round it and turns it; the cable runs under it" in joined
-    for line in ("Ø 424 mm at the cable's middle", "Wrap 147°", "Turns 0.270° per mm",
-                 "Its joint: WINCH DRUM rotate"):
+    for line in ("Ø 514 mm at the cable's middle", "Wrap 143°", "Turns 0.223° per mm",     # (task 0263: on the wire)
+                 "Its joint: WIRE ON DRUM rotate"):
         assert line in texts, line
     choose(sc, "CHUTE")
     texts = draw_panel()[0]
@@ -547,7 +549,7 @@ def test_every_warning_has_its_word_in_the_list(added, monkeypatch):
     sc = added
     it = cable(sc)
     for text, level, word in (
-            ("7.02 m over 6 contacts", "OK", ("", False)), ("off", "OFF", ("off", False)),
+            ("14.84 m over 6 contacts", "OK", ("", False)), ("off", "OFF", ("off", False)),
             ("its part is gone", "ERROR", ("no path", True)),
             ("bends tighter than its smallest bend (MBR 250 mm) at 'SHEAVE 2': 180 mm", "WARN", ("tight bend", True)),
             ("no longer touches 'SHEAVE 1' at frame 40", "WARN", ("lifted off", True)),

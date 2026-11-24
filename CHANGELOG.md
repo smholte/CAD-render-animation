@@ -5,13 +5,147 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.225 – 24 Nov 2026 – The question about an unused panel stays open after Show me (task 0317)
+## 0.2.232 – 24 Nov 2026 – The question about an unused panel stays open after Show me (task 0317)
 
 - **"Show me in the guide", "… in the Learning hub" and "… in a lesson" no longer close the question.** It stays on the
   left panel with a tick on the button you pressed, so you can come back and choose: **Add to my learning list**,
   **Hide it**, **Not now** or **Don't ask again**. Show me no longer puts the function on your learning list by
   itself there – **Add to my learning list** does. Show me from the learning list window or What's new works as before.
   After a restart the question is asked again by the usual rules until you answer it.
+
+## 0.2.231 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
+
+- **3 Looks > Welds** (new): **Add weld…**, click the faces of the first part (Shift-click: more), Enter, click the
+  faces of the part it is welded to – a bead is laid on every line where the two sets meet, shown green in the view
+  before you press Done; untick the seams you do not want. **Weld two parts**: select two parts, every line where
+  they meet gets a bead. Right-click a face: **Weld to another part…**.
+- Found the same way: a plate on a plate (one side or both), a gusset in a corner, a lap joint, a butt joint (two
+  plates edge to edge), a tube in a plate's hole (all round), a coped tube on a tube (the saddle), a tube pushed through
+  a plate. Touching, or with a gap up to 2 mm (**Gap up to**). A square post: the four sides join round its corners.
+- **Shape**: fillet (size a, as on a drawing; it starts at half the thinner plate) or butt (cap width), end craters,
+  intermittent (piece and pitch). **Look**: steel MAG (blue-grey oxide, spatter), stick, stainless TIG with straw /
+  purple / blue heat tint (or **Pickled**), aluminium MIG with its sooty band or TIG; **As welded**, **Painted** (a
+  part's paint over the bead, the ripples show through, worn first at the bead's edges) or **Ground flush**. **Rust**
+  where it would be: bare steel welds first, painted ones only where Wear took the paint off, galvanised parts unless
+  zinc sprayed after welding, stainless only a faint tea stain, aluminium never. Two different metals: a calm note.
+- **Kept with the parts**: the bead moves, hides, fades, takes the X-ray look and is sliced with its part; a model
+  update finds the picked faces again (a weld whose faces are gone says "Weld lost its faces – pick again" and is named
+  in the report); welded parts that a joint moves apart get a note with **Make them move as one**. The web 3D model has
+  the beads in their colour; the clash check leaves welds out; the Client view shows them but cannot change them.
+- Measured on the 4-core test machine: 300 welds (900 seams, 87 m of bead) on an invented frame in about 100 s,
+  0.06 s to find one weld's seams and 0.03 s to build its bead; the project saves in 0.5 s; renders take no longer.
+- New test model, test tour stop "Welds" and PC check line "Welds: two picked faces give a bead".
+
+## 0.2.230 – 24 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
+
+- **The cable test machine** (test tour "Cable over sheaves", the PC check, the user guide) is now real size: its
+  A-frame stands about 5 m tall on an 8 m base. The winch drum, the sheaves, the V rollers, the chute and the 24 mm
+  wire rope kept their real size – the rope's way is longer.
+- **The winch drum is full of wire rope**, layer on layer, and works as a winch drum (4 Motion > Drums and carousels):
+  when the rope runs, it winds off and on the drum wrap by wrap. A new picture in the user guide shows it close up.
+- **The spooling test model's carousel** is twice as big: 4 m across with a 1.28 m core, so the 40 mm power cable
+  bends round it as a real one would. It holds 665 m of cable now (was 166 m). The winch beside it is unchanged.
+- **Web 3D model:** a cable coming off a drum or carousel could show one ring more at its end than the app; the page
+  now ends it exactly where the app does.
+
+## 0.2.229 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
+
+- **23 new finishes** in 3 Looks (pick one as a group's **Material**): **Knurled, diamond** and **straight**
+  (knobs, handles), **Rubber, moulded grip pattern**, **Spun metal** (rings round the centre of caps and discs),
+  **Faced end, spiral**, **Honed bore**; **Tread plate**, **Perforated sheet** (round or slotted holes) and
+  **Expanded metal** (both see-through), **Scraped machine ways**, **Plastic grille, fine holes**, **Plastic,
+  moulded cross-hatch**, **Fabric, woven** (speaker cloth); **Bead-blasted metal**, **Steel, shot-blasted (Sa 2½)**,
+  **Paint, hammertone**, **Paint, wrinkle finish**, **Paint, anti-skid**, **Plastic, spark-eroded texture (VDI
+  3400)**, **Plastic, leather grain**, **Plastic, soft-touch**, **Hot-dip galvanized, spangle**, **As-cast**
+  (aluminium or iron). Eight of them are also under **Ready-made material…**.
+- **No set-up**: the pattern finds its own direction and size on every part – round-part finishes follow each round
+  face of the STEP part (a whole number of knurl teeth round it, no seam), plate patterns follow the part's own
+  directions, grains need none. Every copy of a part looks the same, also turned or mirrored, and after a model
+  update.
+- **Each finish's own settings** under the group's material, only the ones it has: **Metal** (steel, stainless,
+  aluminium, brass, galvanized …), **Kind** (Fine / Medium / Coarse blasting, Round / Slotted holes, VDI 24 … 36,
+  Aluminium / Iron), the pattern's size (**Pitch**, **Feed**, **Hole size**, **Grain size** …), **Angle**,
+  **Strength**.
+- **Far away a pattern fades by itself** to the look it averages to: crisp in a close-up, calm on a whole machine –
+  no flicker, no moiré. It follows the camera and the picture size.
+- The **web 3D model** takes the fine finishes as their average colour and shine and the coarser ones (tread plate,
+  perforated, expanded, hammertone, spangle …) as a texture.
+- Test tour: a new stop **Finishes** (a board of 23 samples and a headphone-like set). PC check: a new line
+  **Finishes**. User guide: 3 Looks > Finishes, with a picture of all 23.
+
+## 0.2.228 – 24 Nov 2026 – Weather round 2: thunderstorm, sea mist, sunrise, sunset, hail, heat; change it in two clicks (task 0299)
+
+- **Six new weathers**, each with a picture you click (5 Scene & Render > Weather & time > Presets): **Thunderstorm**
+  (dark storm clouds, a downpour, lightning), **Fog / sea mist** (mist lying on the water, the machine fades in and
+  out), **Sunrise** and **Sunset** (golden low sun, long shadows), **Hail / sleet** (stones bouncing on the deck) and
+  **Hot and calm** (bright haze, heat shimmer in the distance).
+- **Lightning**: in a video each flash lights the whole scene for a moment and a bolt strikes in the distance. Flashes
+  come at random while there is lightning, or at moments you set in a Weather & time step ("Flash at"). Tick **Flash in
+  the picture** for a still of a flash.
+- **New values** under Weather & time (and in the Weather & time step): **Sea mist**, **Heat**, **Hail**,
+  **Lightning**.
+- **Change the weather in two clicks**: put the playhead where it should change, pick **Change to** (and **Over**, the
+  seconds), click **Add at playhead**. It adds a Weather & time step (or changes the one already there); the step list
+  shows "Weather to Thunderstorm (16:00)". Then Build & play.
+- **Smoother changes**: a step that ran the clock through sunset switched the sun, the daylight and the floodlights
+  on or off within 1–3 frames; the clock now slows down through sunrise and sunset, so the light changes over many
+  frames. The clock also goes the shorter way round (15:00 → 14:00 goes back an hour instead of running through a
+  whole night). New Weather & time steps start and stop gently (Smooth). A step whose wind changes builds faster (the
+  white caps' number no longer takes 0.1 s per frame).
+- **Learn**: a new lesson "Weather: a storm rolls in" (Fresing > Learn…: View, Show me, Build it yourself), and the
+  user guide explains the weather step by step.
+
+## 0.2.227 – 24 Nov 2026 – Copy and paste with joints (task 0293)
+
+- **Copy and paste a model, a subassembly or parts – with its joints and mechanisms.** Select it and click **Copy**
+  (2 Structure > Place, the right-click menu, or **Ctrl+C**), then **Paste** (or **Ctrl+V**): a second one stands
+  beside the original. Right-click a spot and **Paste here** to put it there. The copy comes with its joints (and the
+  pose they are in), cylinders, mechanisms, way covers, hoses and drag chains, labels and logos, and **Move / turn**
+  opens for it at once. Names count up: "Crane (2)", "Boom (2)" … The parts share their shapes with the original, so
+  the project hardly grows. **Ctrl+Z** takes the copy away.
+- **What reaches outside the copy is left out**, so the copy always moves by itself: a joint that also moves other
+  parts, a cylinder or hose with an end outside, a coupling to a joint outside. The Move / turn window says what was
+  left out. Cables, drums and tracks are not copied yet: add them on the copy.
+- **Model updates:** a copy of a whole model is updated together with the original (and the other way round), each
+  keeping its own place and work. A copy of a subassembly or parts is a model of its own and stays as it is.
+
+## 0.2.226 – 24 Nov 2026 – Essentials as the start, workspaces for one job, favourite workspaces on top (task 0294)
+
+- **Essentials** (new, first in the Workspace list): only what a first good picture and a simple motion need – import,
+  sort into groups and materials, surroundings and light, camera views, a joint and a pose, Build & play, render a
+  picture or a turntable, saved scenes. **New projects start here until you choose another workspace.** If you used
+  the app before, nothing changes for you: this update keeps **All functions** as your choice. A project keeps the
+  workspace it was saved in.
+- **Four workspaces for one job** (new): **Sales** (saved scenes, looks and paint schemes, logos, surroundings and
+  weather, pictures, turntable, product video, 3D page, render queue – import, structure and motion are not shown; not
+  locked like the Client view), **Quick render** (import, looks, surroundings, light, one picture or a turntable),
+  **Animator** (joints, cylinders, mechanisms, poses, animation steps, camera paths, labels, video finishing, render
+  queue) and **Reviewer** (saved scenes, slice, X-ray, exploded views, labels, play, clash check). Hover over a name in
+  the list to read what it is for.
+- **A star beside every workspace** in the list: starred ones move to the top, above a line, in the order you starred
+  them, together with your workspace for new projects. Kept for you, also after a restart.
+- **Fresing > Settings… > General > Workspace for new projects** says "Essentials (not chosen yet)" until you pick one.
+## 0.2.225 – 24 Nov 2026 – Hoses avoid other parts, and a route you can shape (task 0298)
+
+- **Avoid other parts** (4 Motion > Hoses and drag chains, under the chosen hose's Length): ticked, a hose or cable
+  no longer sags through the parts in its way – it **lies on them and slides along**, while you move a joint and in
+  the built animation. It keeps its radius from their surfaces (where it bends round a sharp edge it can cut the
+  corner by a millimetre or two). The parts it avoids are those that show near it; its own fittings, other hoses
+  and hidden parts do not count. On the new test model a Ø20 hose that sagged 85 mm into a block now stays on top of
+  it at every frame. It costs time (on the test model about 0.1–0.15 s per pose while the hose lies on a part, about
+  4 s for a 4-second animation): switch it on only where it is needed. A wall about as thin as the hose can still be
+  crossed.
+- **Shape the route**: a new button under the hose. Its middle line shows in the 3D view; click on it to add a
+  **via point**, drag the white dot and the hose follows, X removes one, Enter is done, Esc puts it back. Via points
+  ride along with the parts the two ends sit on, and they are kept when you save and through a model update. The X
+  beside the button takes them all off. Works for hoses read from CAD and drawn ones.
+- **Automatic length**: ticked, the length is worked out again from the route whenever it changes (long enough for
+  the joints' travel); unticked it stays as typed.
+- **Clash check**: a new tick box **Check hoses that avoid parts** lists such a hose where its fittings, clips or via
+  points force it into a part (other hoses stay out of the check, as before).
+- A **drawn cable route** is laid again over the new parts at a model update (it kept the route as clicked before).
+- Test tour: new set "A hose avoids a block, a route shaped by hand" with the stops **A hose lies on a block** and **A route shaped by a via point**; PC check line `motion.flex_avoid`; user guide
+  sections "Avoid other parts" and "Shape the route between the ends".
 
 ## 0.2.224 – 24 Nov 2026 – Joints in a fold, several parts per cylinder item, a clicked joint shows what it moves (task 0290)
 

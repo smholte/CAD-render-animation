@@ -159,7 +159,7 @@ def apply_rules(scene) -> dict:
         g.faces = per_face_group.get(g.name, 0)
         if g.by_rules != (g.name in by_rules):
             g.by_rules = g.name in by_rules
-    mats = {g.name: materials.ensure_material(g.name, g.material, g.color, g.wear) for g in s.groups}
+    mats = {g.name: materials.group_material(g) for g in s.groups}
     for ob in parts:
         materials.assign(ob, mats[ob[build.PROP_GROUP]])
         faces.assign(ob, mats)
@@ -169,7 +169,7 @@ def apply_rules(scene) -> dict:
 
 def refresh_group_materials(scene) -> None:
     s = scene.fresing
-    mats = {g.name: materials.ensure_material(g.name, g.material, g.color, g.wear) for g in s.groups}
+    mats = {g.name: materials.group_material(g) for g in s.groups}
     for ob in build.iter_parts(scene):
         g = ob.get(build.PROP_GROUP)
         if g in mats:
@@ -184,7 +184,8 @@ def upgrade_looks(scene) -> int:
     old = 0
     for g in s.groups:
         mat = bpy.data.materials.get(materials.material_name(g.name))
-        if mat is not None and not materials.is_current(mat, g.material, g.color, g.wear):
+        if mat is not None and not materials.is_current(mat, g.material, g.color, g.wear,
+                                                                    materials.group_finish(g)):
             old += 1
     if old:
         refresh_group_materials(scene)
@@ -243,8 +244,8 @@ class Tree:
         scene = scene or bpy.context.scene
         self.kids: dict[str, list] = {}
         for ob in scene.objects:
-            if ob.get(build.PROP_KIND) in build.JOINT_KINDS or ob.get(build.PROP_KIND) in ("decal", "cnc", "spool"):
-                continue                       # joints, decals (0024), the CNC set-up's objects (0026), spools' (0080)
+            if ob.get(build.PROP_KIND) in build.JOINT_KINDS or ob.get(build.PROP_KIND) in ("decal", "cnc", "spool", "weld", "weld_heat"):
+                continue                       # joints, decals (0024), the CNC set-up's objects (0026), spools' (0080), welds (0319)
             p = build.logical_parent(ob)
             if p is not None:
                 self.kids.setdefault(p.name, []).append(ob)

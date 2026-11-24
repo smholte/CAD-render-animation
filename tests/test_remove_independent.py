@@ -247,7 +247,8 @@ def test_a_cable_over_a_sheave_that_goes_is_named_in_the_window():
     from fresing_render.blender import paths
     scene = _import(PATHS)
     paths.set_up_test_model(scene)
-    drum = ob(scene, "WINCH DRUM")
+    # (task 0263: the drum holds wire now and the rope runs over WIRE ON DRUM: that is the part that goes)
+    drum = ob(scene, "WIRE ON DRUM")
     p = remove.plan(scene, [drum])
     nj = len(scene.fresing.joints)
     r = remove.remove(scene, [drum])

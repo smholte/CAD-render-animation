@@ -123,7 +123,7 @@ def test_mix_ends_and_short_ways():
     assert core.mix(a, b, 0.0) == a and core.mix(a, b, 1.0) == b
     assert core.mix(a, b, -2.0) == a and core.mix(a, b, 7.0) == b
     m = core.mix(a, b, 0.5)
-    assert m.hour == pytest.approx(21.5)               # 10:00 -> 09:00 runs forward 23 h
+    assert 9.0 < m.hour < 10.0                         # 10:00 -> 09:00 goes back an hour (task 0299: the shorter way)
     assert m.wind_from % 360.0 == pytest.approx(0.0, abs=1e-9) or m.wind_from % 360.0 == pytest.approx(360.0)
     assert abs(((m.north - 180.0) + 180.0) % 360.0 - 180.0) < 1e-9     # 170 -> -170 through 180
     assert m.floodlights == "ON" and core.mix(a, b, 0.49).floodlights == "AUTO"

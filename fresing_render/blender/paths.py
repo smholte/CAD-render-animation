@@ -1336,17 +1336,9 @@ def _route(start, wheels: list, end, on_drum: bool) -> tuple:
     return good[0]
 
 
-def draw_cable(scene, start: dict, wheels: list, end: dict | None = None, name: str = "", joint: str = "",
-               look: str = "ROPE", diameter: float = 0.0, replace=None, wind: bool = False) -> tuple:
-    """A cable whose route the user clicked: ``start`` (``drawn.spot`` of the click: on a drum or carousel – a part
-    round all the way – the cable starts on it and wraps it; else at that point), ``wheels`` = [(part, the point
-    clicked (world), flip)] in order – sheaves, rollers, drums, chutes; the cable passes on the side clicked, ``flip``
-    the other –, ``end`` (a spot: the cable ends there; None: a free end hanging ``FREE_DROP`` below the last wheel).
-    The route is solved as a tight cable (``core/paths.solve``), drawn as the app's own object and read like a CAD
-    cable (``read_cad``): it runs, turns its wheels and pays out as one. ``wind``: a drum or carousel at the start
-    also gets its layers (4 Motion > Drums and carousels). Returns (item, notes). Raises PathError; nothing stays."""
-    from . import drawn
-    cable_r = 0.5 * float(diameter or DRAWN_DIAMETER)
+def _lay(scene, start: dict, wheels: list, end, cable_r: float) -> tuple:
+    """The route of clicked stops (see ``draw_cable``): (the path, the wheel rows, starts on a drum). Raises
+    PathError."""
     if start is None or start.get("part") is None:
         raise PathError("Click where the cable starts: a drum, or a point on a part.")
     wheels = list(wheels or [])
@@ -1395,13 +1387,99 @@ def draw_cable(scene, start: dict, wheels: list, end: dict | None = None, name: 
         raise PathError("Click where the cable ends, or a wheel it runs over first.")
     if not rows and float(np.linalg.norm(b_point - a_point)) < 0.01:
         raise PathError("The cable's start and end are the same place: click two places apart.")
-    path, sides = _route(a_point, rows, b_point, on_drum)
+    path, _sides = _route(a_point, rows, b_point, on_drum)
+    return path, rows, on_drum
+
+
+ROUTE = "fr_route"                      # on a drawn cable item: its clicks, each in its part's coordinates (json)
+
+
+def _route_local(ob, p) -> list:
+    m = np.linalg.inv(np.array(ob.matrix_world, dtype=float))
+    return [float(x) for x in m[:3, :3] @ np.asarray(p, dtype=float) + m[:3, 3]]
+
+
+def _route_local_dir(ob, d) -> list:
+    m = np.linalg.inv(np.array(ob.matrix_world, dtype=float))
+    return [float(x) for x in m[:3, :3] @ np.asarray(d, dtype=float)]
+
+
+def _route_world(ob, p, direction=False) -> np.ndarray:
+    m = np.array(ob.matrix_world, dtype=float)
+    v = m[:3, :3] @ np.asarray(p, dtype=float)
+    return v if direction else v + m[:3, 3]
+
+
+def _store_route(item, start: dict, wheels: list, end) -> None:
+    """Keep the clicks of a drawn route in their parts' own coordinates (task 0298: a model update lays it again)."""
+    def spot(sp):
+        ob = sp["part"]
+        return {"uid": _uid(ob), "point": _route_local(ob, sp["point"]), "dir": _route_local_dir(ob, sp["dir"]),
+                "hit": _route_local(ob, sp.get("hit", sp["point"])), "round": bool(sp.get("round")),
+                "flip": bool(sp.get("flip")), "diameter": float(sp.get("diameter", 0.0))}
+    data = {"start": spot(start), "end": spot(end) if end is not None else None,
+            "wheels": [{"uid": _uid(ob), "hit": _route_local(ob, hit), "flip": bool(flip)} for ob, hit, flip in wheels
+                       if ob is not None]}
+    if all(x["uid"] for x in [data["start"]] + data["wheels"] + ([data["end"]] if data["end"] else [])):
+        item[ROUTE] = json.dumps(data)
+
+
+def relay(scene, item, find_part=None) -> bool:
+    """Lay a drawn cable's route again from its clicks, on the parts as they are now (task 0298: after a model update
+    moved a sheave, the route goes over it where it is now; 0240 kept it as clicked). ``find_part(uid)``: the part of
+    a click (default: by its part ID in the scene). Its tube is drawn anew and read again as at drawing; the cable's
+    settings stay. False when it has no clicks kept (drawn before) or a clicked part is gone. Raises PathError."""
+    raw = item.get(ROUTE)
+    if not raw or not _alive(scene, item.part):
+        return False
+    data = json.loads(raw)
+    find_part = find_part or (lambda uid: next((o for o in scene.objects if o.get(build.PROP_UID) == uid), None))
+
+    def spot(d):
+        ob = find_part(d["uid"])
+        if ob is None:
+            return None
+        return {"part": ob, "point": _route_world(ob, d["point"]), "dir": _route_world(ob, d["dir"], True),
+                "hit": _route_world(ob, d["hit"]), "round": d["round"], "flip": d["flip"], "diameter": d["diameter"]}
+    start = spot(data["start"])
+    end = spot(data["end"]) if data.get("end") else None
+    wheels = []
+    for w in data["wheels"]:
+        ob = find_part(w["uid"])
+        if ob is None:
+            return False
+        wheels.append((ob, _route_world(ob, w["hit"]), w["flip"]))
+    if start is None or (data.get("end") and end is None):
+        return False
+    from . import drawn
+    r = 0.5 * float(item.diameter or DRAWN_DIAMETER)
+    path, _rows, _on = _lay(scene, start, wheels, end, r)
+    drawn.set_tube(item.part, path.points, r)
+    read_cad(scene, item, item.part, update=True)
+    return True
+
+
+def draw_cable(scene, start: dict, wheels: list, end: dict | None = None, name: str = "", joint: str = "",
+               look: str = "ROPE", diameter: float = 0.0, replace=None, wind: bool = False) -> tuple:
+    """A cable whose route the user clicked: ``start`` (``drawn.spot`` of the click: on a drum or carousel – a part
+    round all the way – the cable starts on it and wraps it; else at that point), ``wheels`` = [(part, the point
+    clicked (world), flip)] in order – sheaves, rollers, drums, chutes; the cable passes on the side clicked, ``flip``
+    the other –, ``end`` (a spot: the cable ends there; None: a free end hanging ``FREE_DROP`` below the last wheel).
+    The route is solved as a tight cable (``core/paths.solve``), drawn as the app's own object and read like a CAD
+    cable (``read_cad``): it runs, turns its wheels and pays out as one. ``wind``: a drum or carousel at the start
+    also gets its layers (4 Motion > Drums and carousels). Returns (item, notes). Raises PathError; nothing stays."""
+    cable_r = 0.5 * float(diameter or DRAWN_DIAMETER)
+    from . import drawn
+    if start is None or start.get("part") is None:
+        raise PathError("Click where the cable starts: a drum, or a point on a part.")
+    path, rows, on_drum = _lay(scene, start, wheels, end, cable_r)
     item = add_cable(scene, name or "Cable 1", joint)
     iname = item.name
     with _quiet(item):
         item.look = look
         item.drawn = True
     item["look_was"] = look
+    _store_route(item, start, list(wheels or []), end)
     part = drawn.make_object(scene, "CABLE", iname, path.points, cable_r)
     with _quiet(find(scene, iname)):
         find(scene, iname).part = part          # (so that removing it on a failure takes the object too)
@@ -4531,8 +4609,13 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                 continue
             who = f"Cable '{label(it)}'"
             try:
-                if it.drawn or same_model(scene, by_uid) or cable_kept(scene, by_uid, it):
-                    _keep_after_update(scene, name)     # (a drawn route is not read again: it was clicked)
+                if it.drawn and it.get(ROUTE):  # task 0298: laid again from its clicks over the new parts
+                    if not relay(scene, it, lambda uid: flex._new_object(scene, uid, by_uid, mapping)):
+                        notes.append(f"{who}: a part it was drawn over is gone in the new revision – it keeps its "
+                                     "route as drawn")
+                        _keep_after_update(scene, name)
+                elif it.drawn or same_model(scene, by_uid) or cable_kept(scene, by_uid, it):
+                    _keep_after_update(scene, name)     # (a drawn route from before 0298 is kept as clicked)
                 else:
                     read_cad(scene, it, it.part, update=True)
             except PathError as exc:
@@ -4750,11 +4833,13 @@ def unregister() -> None:
 TEST_ANIMATION = "Cable over sheaves"
 
 
-def set_up_test_model(scene) -> dict:
+def set_up_test_model(scene, winch: bool = False) -> dict:
     """The set-up of the cable paths test model (test_paths_a.step, tools/make_test_paths.py), already imported:
-    the rotate joint "Luff" on the A-frame (-15° … +15°, + leans it forward), the cable "Wire rope" read from
-    the part WIRE ROPE (steel wire rope look), and the animation "Cable over sheaves" – the cable runs at
-    10 m/min for 6 s while the A-frame luffs to +12° and back. Not built. Returns the names of what was made."""
+    the rotate joint "Luff" on the A-frame (-15° … +15°, + leans it forward), the rotate joint "Drum turn" that turns
+    the winch drum with the wire wound on it (task 0263), the cable "Wire rope" read from the part WIRE ROPE (steel
+    wire rope look), and the animation "Cable over sheaves" – the cable runs at 10 m/min for 6 s while the A-frame
+    luffs to +12° and back. ``winch``: the drum is also a winch drum (4 Motion > Drums and carousels, ``TEST_DRUM``):
+    the wire winds off and on it layer by layer. Not built. Returns the names of what was made."""
     def named(name):
         for ob in scene.objects:
             if ob.get(build.PROP_NAME) == name:
@@ -4764,11 +4849,15 @@ def set_up_test_model(scene) -> dict:
     frame = named("A-FRAME.ASM")
     root = build.model_root_of(frame) or frame
     m = root.matrix_world
-    luff = joints.create(scene, "ROTATE", [frame], m @ Vector((1.5, 0.0, 0.73)),
+    luff = joints.create(scene, "ROTATE", [frame], m @ Vector((3.75, 0.0, 1.825)),
                          (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="Luff")
     luff.rot_min, luff.rot_max = math.radians(-15.0), math.radians(15.0)
     luff.use_limits = True
     luff_name = luff.name
+    # task 0263: the winch holds wire (WIRE ON DRUM): the drum and its wire turn together, and the drum is a spool
+    drum = joints.create(scene, "ROTATE", [named("WINCH DRUM"), named("WIRE ON DRUM")], m @ Vector((1.125, 0.0, 0.6)),
+                         (m.to_3x3() @ Vector((0.0, 1.0, 0.0))).normalized(), name="Drum turn")
+    drum_name = drum.name
     bpy.context.view_layer.update()
     item = add_cable(scene, "Wire rope")
     name = item.name
@@ -4776,6 +4865,9 @@ def set_up_test_model(scene) -> dict:
         item.look = "ROPE"
     item["look_was"] = "ROPE"
     notes = read_cad(scene, item, named("WIRE ROPE"))
+    if winch:
+        from . import spool as _spool_mod
+        _spool_mod.add(scene, "DRUM", named("WINCH DRUM"), name, name=TEST_DRUM, coil=named("WIRE ON DRUM"))
     item = find(scene, name)
     a = scene.fresing.animations.add()
     a.name, a.tail, a.fps = TEST_ANIMATION, 0.0, "25"
@@ -4788,10 +4880,11 @@ def set_up_test_model(scene) -> dict:
         b.use_from = True
         b.to_angle = math.radians(to)
     scene.fresing.animations_index = len(scene.fresing.animations) - 1
-    return {"joints": [luff_name, item.joint], "cable": name, "animation": TEST_ANIMATION,
-            "contacts": [c.name for c in item.contacts], "notes": notes}
+    return {"joints": [luff_name, drum_name, item.joint], "cable": name, "animation": TEST_ANIMATION,
+            "contacts": [c.name for c in item.contacts], "notes": notes, "spool": TEST_DRUM if winch else ""}
 
 
+TEST_DRUM = "Winch drum"                # task 0263: the cable paths test model's drum (``set_up_test_model``)
 MOVING_ANIMATION = "Over the stern"
 MOVING_CABLE, MOVING_WIRE = "Cable end", "Lift wire"
 MOVING_LET_GO = 9.2                     # s: the cable end and the sheave are let go (the block lies near the seabed)

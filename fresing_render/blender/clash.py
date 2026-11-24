@@ -41,6 +41,8 @@ from . import build
 MARK = "Clash: "                        # timeline markers this check makes start with it
 RED = (1.0, 0.08, 0.05, 0.5)
 HOOKS: list = []                        # fn(scene) -> (objects to add, objects to leave out); see the docstring
+ROW_HOOKS: list = []                    # fn(check) -> [core Row]: rows another module works out itself (task 0298: hoses
+#                                         that avoid parts, blender/flex.py ``clash_rows``)
 CLASH_MESH = "fr_clash_mesh"            # on an object: a mesh the check uses instead of its own (task 0156)
 NO_CLASH = "fr_no_clash"                # on an object: it and everything under it is left out (task 0247)
 _RUNTIME: dict = {}                     # per scene: the signature cache, the parts shown red, the progress
@@ -1702,6 +1704,11 @@ class Check:
                         self._deepest(p, q, r)
                     rows.append(r)
         rows += self._program_rows()
+        for fn in ROW_HOOKS:
+            try:
+                rows += list(fn(self) or ())
+            except Exception as exc:            # noqa: BLE001 - never break the check over another module's rows
+                print("Fresing Render: clash rows hook failed:", exc)
         self.rows = core.sort_rows(rows)
         self.stats = {"seconds": time.perf_counter() - t_start, "read_s": t_read,
                       "check_s": time.perf_counter() - t1, "moments": T, "between": subs, "parts": P,

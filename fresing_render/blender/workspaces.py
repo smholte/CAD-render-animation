@@ -101,12 +101,85 @@ def names() -> list:
     return out
 
 
-def default_name() -> str:
-    """The workspace new projects start in (Preferences); the built-in default when that one is gone."""
+ENV_START = "FRESING_WORKSPACE_START"     # real-app tests: the start of a user who has not chosen (default Essentials)
+
+
+def start_name() -> str:
+    """Task 0294: where a user who has not chosen a workspace starts – Essentials. Without the app's preferences (Blender
+    as a Python module, a script) there is no user: All functions, as before."""
+    from . import prefs
+    if prefs.get() is None:
+        return W.DEFAULT
+    return os.environ.get(ENV_START) or W.START
+
+
+def chosen() -> str:
+    """The user's "Workspace for new projects" ('' = not chosen yet)."""
     from . import prefs
     p = prefs.get()
-    name = (p.default_workspace if p is not None else "") or W.DEFAULT
-    return name if W.find(name, library()) is not None else W.DEFAULT
+    return p.default_workspace if p is not None else ""
+
+
+def default_name() -> str:
+    """The workspace new projects start in (Settings > General); Essentials when the user has not chosen one
+    (task 0294); the start one when the chosen one is gone."""
+    name = chosen() or start_name()
+    if W.find(name, library()) is not None:
+        return name
+    return start_name() if W.find(start_name(), library()) is not None else W.DEFAULT
+
+
+def keep_for_existing_user() -> str:
+    """Task 0294, once at the start (before What's new remembers this version): a user who ran a version before
+    Essentials and never chose a workspace keeps All functions (written into the settings file). Returns the
+    choice it wrote ('' = nothing changed)."""
+    from . import prefs, settings_store, welcome
+    p = prefs.get()
+    if p is None or p.default_workspace or not settings_store.usable():
+        return ""
+    want = W.start_choice(p.default_workspace, welcome.load().get("last_run", ""))
+    if want:
+        p.default_workspace = want
+        settings_store.save(p)
+    return want
+
+
+# ---------------------------------------------------------------------------
+# task 0294: starred workspaces on top of the drop-down (kept per user in the settings file)
+# ---------------------------------------------------------------------------
+
+def stars() -> list:
+    from . import prefs
+    p = prefs.get()
+    return W.parse_stars(p.workspace_stars) if p is not None else []
+
+
+def _set_stars(value: list) -> None:
+    from . import prefs, settings_store
+    p = prefs.get()
+    if p is None:
+        return
+    p.workspace_stars = W.stars_json(value)
+    settings_store.save(p)
+
+
+def starred(name: str) -> bool:
+    return any(n.casefold() == (name or "").casefold() for n in stars())
+
+
+def toggle_star(name: str) -> bool:
+    """Star or unstar a workspace; True when it is starred now."""
+    _set_stars(W.toggle_star(stars(), name))
+    return starred(name)
+
+
+def menu() -> tuple:
+    """(top, rest) of the Workspace drop-down: [(name, note, own)], the workspace for new projects and the starred
+    ones on top."""
+    rows = names()
+    by_name = {r[0]: r for r in rows}
+    top, rest = W.menu_order([r[0] for r in rows], stars(), default_name())
+    return [by_name[n] for n in top], [by_name[n] for n in rest]
 
 
 # ---------------------------------------------------------------------------
@@ -528,6 +601,12 @@ def rename_own(scene, old: str, new: str) -> str:
     path = W.rename_in(here, inner, new)
     forget_scan()
     library(force=True)
+    if any(n.casefold() == old.casefold() for n in stars()):          # task 0294: its star and the choice
+        _set_stars(W.rename_star(stars(), old, new))                    # for new projects follow it
+    from . import prefs
+    p = prefs.get()
+    if p is not None and p.default_workspace == old:
+        p.default_workspace = new
     s = _settings(scene)
     if s is not None and s.ws_name == old:
         s.ws_name = new
