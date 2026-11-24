@@ -1704,7 +1704,8 @@ def _avoid_over_frames(scene, fn):
 
 def check_flex_avoid(scene):
     """The hose stays out of the block at every frame looked at (its surface at most 2.5 mm in where it bends round
-    an edge) and lies on it at the lowest point of the lift."""
+    an edge) and lies on it at the lowest point of the lift (its surface within 6 mm of the block's: the push of a
+    part grows from nothing over a little of the clearance, so it rests a few mm above)."""
     from . import build, flex, flex_avoid
     from ..core import flex as fcore
     it = _avoid_hose(scene)
@@ -1722,7 +1723,7 @@ def check_flex_avoid(scene):
     gaps = _avoid_over_frames(scene, gap)
     worst = min(gaps)
     _check(worst > -0.0025, f"the hose goes {-worst * 1000:.1f} mm into the block")
-    _check(worst < 0.002, f"the hose never comes down onto the block (nearest {worst * 1000:.1f} mm)")
+    _check(worst < 0.006, f"the hose never comes down onto the block (nearest {worst * 1000:.1f} mm)")
     return f"the hose's surface stays within {max(-worst, 0.0) * 1000:.2f} mm of the block's at every frame looked at"
 
 
@@ -4652,7 +4653,7 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
      auto="clip")
-stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block instead of going through it",
+stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
      "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
      "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
      where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.222",

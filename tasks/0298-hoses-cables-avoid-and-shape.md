@@ -100,7 +100,7 @@ points: a drawn route is not re-laid when its sheaves move, clips hold the hose 
 
 **Owner's check on your PC:**
 1. Help > Make test tour project, open the set "A hose avoids a block, a route shaped by hand", press Go on "A hose
-   lies on a block instead of going through it": the lift goes down, the black hose lies on the grey block.
+   lies on a block": the lift goes down, the black hose lies on the grey block.
 2. In 4 Motion > Hoses and drag chains choose HOSE, untick **Avoid other parts**: it sags through the block; tick it
    again.
 3. Press **Shape the route**, click on the white line beside the block, drag the dot sideways, press Enter: the hose

@@ -24,8 +24,7 @@ installer of that version was built from.
 - **Clash check**: a new tick box **Check hoses that avoid parts** lists such a hose where its fittings, clips or via
   points force it into a part (other hoses stay out of the check, as before).
 - A **drawn cable route** is laid again over the new parts at a model update (it kept the route as clicked before).
-- Test tour: new set "A hose avoids a block, a route shaped by hand" with the stops **A hose lies on a block instead
-  of going through it** and **A route shaped by a via point**; PC check line `motion.flex_avoid`; user guide
+- Test tour: new set "A hose avoids a block, a route shaped by hand" with the stops **A hose lies on a block** and **A route shaped by a via point**; PC check line `motion.flex_avoid`; user guide
   sections "Avoid other parts" and "Shape the route between the ends".
 ## 0.2.221 – 23 Nov 2026 – Always the graphics card (task 0296)
 
