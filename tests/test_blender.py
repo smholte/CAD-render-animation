@@ -251,6 +251,9 @@ class FakeLayout:
     def separator(self, *a, **k):
         pass
 
+    def template_icon(self, *a, **k):          # task 0273: the material pictures
+        pass
+
     def prop(self, data, name, *a, **k):
         if data is None:
             return

@@ -318,5 +318,5 @@ def test_no_reader_builds_its_own_library_path():
 def test_the_settings_window_has_locations_and_exports_after_general():
     from fresing_render.blender import ui_settings
     assert ui_settings.KEYS[:3] == ("general", "locations", "exports")
-    assert ui_settings.LATER == ("materials",)
+    assert ui_settings.LATER == () and "materials" in ui_settings.KEYS      # task 0273 added its page
     assert "locations" in ui_settings.draw_all(bpy.context) and "exports" in ui_settings.draw_all(bpy.context)
