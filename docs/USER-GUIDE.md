@@ -2129,6 +2129,54 @@ numbers at once.
 - The sizes without a public standard (cables, sleeves, drag chains) are invented round numbers, not a maker's
   catalogue.
 
+<a id="flex-avoid"></a>
+#### Avoid other parts
+
+A hose or cable bends between its ends and does not see the rest of the machine: where it would hang down, it goes
+straight through a part in its way. Tick **Avoid other parts** (under the list, below Length) and it stays outside
+the parts near it – it **lies on them and slides along** while you move the machine, and in the built animation.
+
+<img class="wide" src="img/view_flex_avoid.jpg" alt="The avoid test model: the lift is down, the hose lies on the grey block instead of sagging through it">
+
+- **Which parts count:** every part that shows near the hose – within its length of its two ends, in the pose it is in
+  when you tick it (and again at every Build). Not counted: the parts its ends and clips sit on (it goes into its
+  fittings), other hoses, cables and chains, and parts you have hidden. A part that comes near only later in a motion,
+  from further away, is not seen: tick the box again in that pose, or press Build & play again.
+- The hose keeps its **radius** (+ 0.5 mm) from their surfaces. Where it bends round a sharp edge it can cut the
+  corner by a millimetre or two (it is a row of short straight pieces).
+- It comes out of a part **on the side of its ends**: a hose that sagged into a block lands on top of it. Once it lies
+  somewhere it stays on that side while the machine moves.
+- It costs time: on the test model about 0.1–0.15 s per pose while the hose lies on a part (while it is clear of
+  them, as before: under 20 ms) and about 4 s for a 4-second animation. Switch it on only for the hoses that need it.
+- A wall about as thin as the hose (a sheet-metal guard) can still be crossed where the hose sags into it.
+- A hose that **must** go into a part (its fittings, clips or via points force it) shows where in the clash check:
+  tick **Check hoses that avoid parts** in 6 Animation > Clash check. Other hoses and cables bend on purpose and stay
+  out of the clash check, as before.
+
+<a id="flex-route"></a>
+#### Shape the route between the ends
+
+The hose takes the shape its ends, length and weight give it. To lead it another way – round the far side of a
+part, higher up, out of the camera's view – shape its route:
+
+1. Choose the hose in the list and press **Shape the route** (under Avoid other parts). Its middle line shows as a
+   thin white line, its ends and clips as grey dots.
+2. **Click on the line** where it should go elsewhere: a **via point** (a white dot) appears there. Keep the mouse
+   button down and **drag** it: the hose follows. A dot can be dragged again later; it moves square to your view, so
+   turn the view to move it in depth.
+3. **X** (or Delete) over a dot removes it. **Enter**, Space or a right-click: done – one step for Ctrl+Z. **Esc**:
+   the route as it was.
+
+The line under Avoid other parts says what the route runs through ("Route: 1 via point"); the **X** button beside
+Shape the route takes every via point off. A via point sits on no part: it moves along with the parts the two ends
+sit on – near end A with A's part, near end B with B's, in between part of each. The hose passes it smoothly, in the
+direction from the point before to the point after.
+
+**Automatic length** (ticked) works the length out again every time you change the route – long enough for the
+joints' travel, as a drawn hose's first length. Unticked, the **Length** stays as it is and only its split over the
+stretches between the points follows the route. Via points are kept when you save, and through a model update (where
+they were in the view).
+
 <a id="chain-types"></a>
 #### Drag chain types
 

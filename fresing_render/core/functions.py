@@ -195,7 +195,7 @@ DUPLICATES: list = []
 # ----- the side panel itself (task 0062) -----
 fn(id="panel.workspace", headline=True, title="Workspaces: show only the functions a kind of work needs", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="workspaces", tour=("workspace",), pccheck=("panel.workspaces",),
-   since="0.2.152", changed="0.2.225")
+   since="0.2.152", changed="0.2.226")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
    panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
@@ -208,13 +208,13 @@ fn(id="panel.client_view", headline=True, title="Client view: the project locked
 # task 0294: Essentials as the start, the task workspaces, favourites on top of the drop-down
 fn(id="panel.essentials", headline=True, title="Essentials: where a new user starts – a first picture and a simple motion",
    family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="essentials", tour=("workspace",),
-   pccheck=("workspace.essentials",), since="0.2.225")
+   pccheck=("workspace.essentials",), since="0.2.226")
 fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick render, Animator, Reviewer", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="task-workspaces", tour=("workspace",),
-   pccheck=("workspace.essentials",), since="0.2.225")
+   pccheck=("workspace.essentials",), since="0.2.226")
 fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
-   pccheck=("workspace.essentials",), since="0.2.225")
+   pccheck=("workspace.essentials",), since="0.2.226")
 fn(id="panel.sections", headline=True, title="Sections start folded; section tabs; Ctrl+click", family="panel",
    panel="FRESING_PT_tabs", button="fresing.panel_tab", guide="sections", tour=("workspace",), since="0.2.152", changed="0.2.197")
 fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_next", button="fresing.next_hide",
@@ -388,6 +388,13 @@ fn(id="flex.draw_chain", title="Draw a drag chain between two brackets", family=
 fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simplified CAD part", family="machines",
    panel="FRESING_PT_flex", button="fresing.drawn_replace", guide="replace-cad", tour=("drawn_replace",),
    pccheck=("motion.drawn",), since="0.2.180")
+fn(id="flex.avoid", title="Hoses and cables avoid other parts: they lie on them instead of going through",
+   family="machines", panel="FRESING_PT_flex", prop="avoid", text="Avoid other parts", guide="flex-avoid",
+   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.225",
+   manual_estimate=("use", 1800, "reshape the hose by hand at every key frame where it would go through a part"))
+fn(id="flex.route", title="Shape a hose's route: drag via points between its ends", family="machines",
+   panel="FRESING_PT_flex", button="fresing.flex_route", text="Shape the route", guide="flex-route",
+   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.225")
 fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
    panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
    pccheck=("motion.flex_kinds",), since="0.2.182")
