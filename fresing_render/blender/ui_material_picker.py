@@ -122,6 +122,8 @@ def _short(text: str, n: int) -> str:
 
 
 def tag_line(e) -> str:
+    if e.is_blend:
+        return "Made in Blender's shader editor: its own colour and look"
     looks = ", ".join(ML.LOOK_LABELS.get(x, x).lower() for x in e.looks)
     return f"{e.kind} · {ML.COLOUR_LABELS.get(e.colour, e.colour)} · {looks}"
 
