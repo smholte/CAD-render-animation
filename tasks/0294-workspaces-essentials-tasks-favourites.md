@@ -1,6 +1,6 @@
 # 0294 – Workspaces round 2: Essentials as the start, task workspaces (Sales, Quick render, Animator, Reviewer), favourites on top
 
-**Who:** worker · **Status:** done (0.2.224) · **Branch:**
+**Who:** worker · **Status:** done (0.2.225) · **Branch:**
 `task/0294-workspaces-round-2`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "More Workspaces for the functions. And some very
 specified simple workspaces, where a user has to only do very specific task, like a sales person." – "Favorite
@@ -64,7 +64,7 @@ workspace All functions" is changed by the owner: new users start in **Essential
   not chosen → new projects start in Essentials (`workspaces.default_name()`). An **existing user** keeps All
   functions: at the start (`workspaces.keep_for_existing_user`, called right after the settings file is read, before
   What's new writes this version into `fresing_start.json`), a user whose `last_run` is older than
-  `W.START_SINCE` (0.2.224) and who has nothing chosen gets "All functions" written down – once; a choice is never
+  `W.START_SINCE` (0.2.225) and who has nothing chosen gets "All functions" written down – once; a choice is never
   changed. A user of a version before 0.2.155 (no start file) counts as new. Projects keep their own workspace.
   Settings > General shows "Essentials (not chosen yet)".
 - **Task workspaces** as lists of functions (`TASK_WORKSPACES`; a function built later adds itself with
@@ -81,7 +81,7 @@ workspace All functions" is changed by the owner: new users start in **Essential
   own workspace keeps its star and its "for new projects" place.
 - 0276's brief has the line for its "Your work" step (no tick → Essentials).
 - Function entries `panel.essentials`, `panel.task_workspaces`, `panel.workspace_stars` (+ guide anchors), PC check line
-  `workspace.essentials`, tour stop `workspace` + crane set `changed=0.2.224`, guide (Workspaces table, Essentials, the
+  `workspace.essentials`, tour stop `workspace` + crane set `changed=0.2.225`, guide (Workspaces table, Essentials, the
   four task workspaces, the stars, picture `docs/img/workspace_stars.png`), CHANGELOG.
 - **Tests keep All functions:** `tests/conftest.py`, `tools/ci_real_app.py`, `tools/ui_screens.py` and
   `tools/guide_screens.py` set `FRESING_WORKSPACE_START=All functions` (the start of a user who has not chosen), so the
@@ -121,7 +121,7 @@ workspace All functions" is changed by the owner: new users start in **Essential
   drop-down from the real-app test.
 
 **Owner's check on your PC:**
-1. Update to 0.2.224, open the app. The Workspace row (left panel) still says what you had – All functions, unless you
+1. Update to 0.2.225, open the app. The Workspace row (left panel) still says what you had – All functions, unless you
    had chosen another.
 2. Click the Workspace row: Essentials is first; every row has a star on the right. Click the star of **Sales**: it
    jumps to the top, above a line. Close and start the app again: Sales is still on top.

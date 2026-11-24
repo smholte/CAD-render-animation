@@ -27,7 +27,7 @@ window (language, keys, theme) no longer comes first.
 2. **Your work** – tick what you do (CNC & machining · Offshore & cable laying · Product design & R&D · Lifting plans ·
    Education & training · Sales / presentations · Animation): sets the **workspace for new projects** (0062;
    several ticks → the nearest workspace or All functions – say the rule) and what the Learning hub suggests first.
-   **From task 0294 (0.2.224):** the ticks map to the built-in workspaces – Sales / presentations → **Sales**,
+   **From task 0294 (0.2.225):** the ticks map to the built-in workspaces – Sales / presentations → **Sales**,
    Animation → **Animator**, the others to their area workspace (a "just a picture" tick may map to **Quick render**,
    "looking at models" to **Reviewer**); **no tick → Essentials** (leave "Workspace for new projects" empty: '' is
    "not chosen" = Essentials, `workspaces.chosen()` / `default_name()`). Set the choice with

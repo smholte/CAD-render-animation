@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.224")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.225")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -4490,12 +4490,12 @@ stop("import_again", LOOK, "import", "Import again and Up axis",
 stop("joint", MOTION, HUB_SET, "Joint: the boom turns",
      "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it. The luffing "
      "cylinder under it follows: its rod slides out and its eye stays on the pin under the boom.",
-     where="4 Motion (joints); 6 Animation", animation="Boom up", play=True, select=("BOOM",), check=_check_boom,
-     auto="clip", since="0.2.47", changed="0.2.101")
+     where="4 Motion > Joints; 6 Animation", animation="Boom up", play=True, select=("BOOM",), check=_check_boom,
+     auto="clip", since="0.2.47", changed="0.2.224")
 stop("stack", MOTION, HUB_SET, "Stacked joints: boom + trolley",
      "The boom turns up while the trolley slides out along it: the two moves add up, the trolley stays on the "
-     "boom.", where="4 Motion (the trolley's joint rides on the boom)", animation="Boom and trolley", play=True,
-     select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47")
+     "boom.", where="4 Motion > Joints (the trolley's joint rides on the boom)", animation="Boom and trolley",
+     play=True, select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47", changed="0.2.224")
 stop("fade", MOTION, HUB_SET, "Fade, X-ray and trail",
      "The boom turns up while the trolley runs out along it; meanwhile the cover fades into a light-blue X-ray "
      "(see-through, glowing edges) and a green line draws the path of the trolley's centre behind it. Look in "
@@ -4514,7 +4514,7 @@ stop("explode", MOTION, HUB_SET, "Exploded view",
 stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
      "The rod comes out of the cylinder 450 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
-     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.211")
+     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.224")
 stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
@@ -5264,7 +5264,7 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.224", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.225", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
