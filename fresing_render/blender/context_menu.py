@@ -39,10 +39,12 @@ ON = [False]                 # Blender's menu drawing is swapped for ours
 
 # what the menu shows (tests, the guide, the PC check)
 ON_PART = ("Zoom to it", "Show in 2 Structure", "Hide", "Show only this", "Show all", "Add a label here",
-           "Add joint here…", "Unlock so it can move",          # "Lock in place" once unlocked (task 0307)
+           "Add joint here…", "Weld to another part…",           # task 0319
+           "Unlock so it can move",                              # "Lock in place" once unlocked (task 0307)
            "Move / turn…", "Remove…")                            # task 0292
 ON_EMPTY = ("Zoom to all", "Show all")
-CLIENT_DROPS = ("Add a label here", "Add joint here…", "Unlock so it can move", "Move / turn…", "Remove…")
+CLIENT_DROPS = ("Add a label here", "Add joint here…", "Weld to another part…", "Unlock so it can move", "Move / turn…",
+                "Remove…")
 
 
 def _quiet() -> bool:
@@ -157,6 +159,8 @@ def _draw(self, context):
     op.part, op.point = HIT["part"], HIT["point"]
     layout.operator_context = "INVOKE_DEFAULT"
     layout.operator("fresing.ctx_joint", text="Add joint here…", icon="CON_PIVOT").part = ob.name
+    op = layout.operator("fresing.ctx_weld", text="Weld to another part…", icon="MOD_BEVEL")   # task 0319
+    op.part, op.point = HIT["part"] or ob.name, HIT["point"]
     from . import place                          # task 0307: G / R move it once it is unlocked
     layout.operator_context = "EXEC_DEFAULT"
     text = place.menu_text(ob)

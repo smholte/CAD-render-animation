@@ -159,8 +159,9 @@ def materials_of(ob) -> list:
 
 
 def decals_of(ob) -> list:
+    """The decals and welds (task 0319) that ride on ``ob``: they fade and take the X-ray look with it."""
     from . import decals
-    return [c for c in ob.children if c.get("fr_kind") == decals.KIND]
+    return [c for c in ob.children if c.get("fr_kind") in (decals.KIND, "weld", "weld_heat")]
 
 
 def prepare(ob) -> list:

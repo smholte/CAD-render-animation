@@ -354,7 +354,7 @@ def remove(scene, objs) -> dict:
                 root[REMOVED] = json.dumps(sorted(set(was) | {_uid(o) for o in goners if _uid(o)}))
             meshes = {o.data for o in goners if o.type == "MESH" and o.data is not None}
             others = [o for o in bpy.data.objects if o.parent is not None and o.parent in set(goners)
-                      and o not in set(goners) and o.get(build.PROP_KIND) == "decal"]
+                      and o not in set(goners) and o.get(build.PROP_KIND) in ("decal", "weld", "weld_heat")]
             bpy.data.batch_remove(goners + others)
             orphans = [me for me in meshes if me.users == 0]
             if orphans:
@@ -371,6 +371,9 @@ def remove(scene, objs) -> dict:
         if c.name.startswith("FR removing") and not len(c.objects):
             bpy.data.collections.remove(c)
     notes += vessel_motion.after_model_update(scene, mapping_all) or []
+    from . import welds                       # task 0319: a weld to a removed part says so (never dropped silently)
+    if welds.lost_parts(scene):
+        notes.append("Welds to a removed part are listed in 3 Looks > Welds: pick their faces again or remove them")
     _tidy(scene)
     p["notes"] = notes
     LAST.clear()

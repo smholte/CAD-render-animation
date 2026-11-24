@@ -114,6 +114,8 @@ def objects(scene) -> tuple[list, list]:
     """(parts, decal objects) shown in the view: hidden parts and Show only are respected."""
     parts = [ob for ob in build.iter_parts(scene)
              if _visible(ob) and ob.data is not None and len(ob.data.polygons)]
+    from . import welds                        # task 0319: the beads (their own colour; ripples and heat tint stay out)
+    parts += welds.web_objects(scene)
     marks = [ob for ob in scene.objects
              if decals.is_decal(ob) and ob.type == "MESH" and _visible(ob) and ob.data is not None
              and len(ob.data.polygons) and ob.data.uv_layers]

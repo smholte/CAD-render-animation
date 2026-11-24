@@ -519,6 +519,7 @@ class _State:
         self.old_objs: list = []
         self.mapping: dict = {}
         self.decals_moved = False
+        self.welds_undo = None                    # task 0319: puts the welds back on the old parts
         self.rebuilding = False
         self.pairs: list = []                  # (old object, new object)
         self.aside: list = []                  # old collections out of the scene: (collection, parents)
@@ -695,6 +696,8 @@ def _roll_back(scene, st) -> None:
     if st.decals_moved:
         from . import decals
         decals.sync([ob for ob in old if ob.type == "MESH" and ob.get(build.PROP_KIND) == "part"])
+    if st.welds_undo is not None:
+        st.welds_undo()
     logic.rebuild_tree(scene)
 
 
@@ -810,6 +813,8 @@ def _carry_over(context, st) -> dict:
     from . import decals
     st.decals_moved = True
     decal_notes = decals.carry_over([(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"], old_objs)
+    from . import welds                          # task 0319: welds find their faces again on the new parts
+    weld_notes, st.welds_undo = welds.carry_over(scene, [(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"])
 
     matched_new = {id(n) for _o, n in pairs}
     matched_old = {id(o) for o, _n in pairs}
@@ -870,6 +875,8 @@ def _carry_over(context, st) -> dict:
     for name in lost_faces:
         s.report_notes.add().text = f"{name}: its faces changed, the faces painted on it are gone (paint them again)"
     for n in decal_notes:
+        s.report_notes.add().text = n
+    for n in weld_notes:
         s.report_notes.add().text = n
     kept = sum(1 for o, _n in pairs if o["kind"] == "part")
     s.report_title = f"Model updated: {plural(kept, 'part')} kept, {len(new_parts)} new, {len(missing)} missing"

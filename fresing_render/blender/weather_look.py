@@ -533,7 +533,7 @@ def target_materials(scene) -> list:
             if ob.type != "MESH":
                 continue
             _give_material(ob)
-        elif not (kind in ("part", "decal", "spool") or env in ENV_ROLES or ob.get(surroundings.PROP_TAG)):
+        elif not (kind in ("part", "decal", "spool", "weld", "weld_heat") or env in ENV_ROLES or ob.get(surroundings.PROP_TAG)):
             continue
         for m in _materials(ob):
             if m.name not in seen and wanted(m):

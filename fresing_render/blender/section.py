@@ -112,7 +112,8 @@ def _parts_under(scene, ob, tree=None) -> list:
 
 
 def _decals_of(ob) -> list:
-    return [c for c in ob.children if c.get(build.PROP_KIND) == "decal"]
+    """Decals and welds (task 0319) on a part: they are cut with it, never capped (thin sheets / open shells)."""
+    return [c for c in ob.children if c.get(build.PROP_KIND) in ("decal", "weld", "weld_heat")]
 
 
 def target_parts(scene, cut, tree=None) -> list:
@@ -594,7 +595,7 @@ def sync(scene) -> int:
         ob = scene.objects.get(name)
         if ob is None:
             continue
-        if ob.get(build.PROP_KIND) == "decal" and not ob.get(NOCAP):
+        if ob.get(build.PROP_KIND) in ("decal", "weld", "weld_heat") and not ob.get(NOCAP):
             ob[NOCAP] = 1.0
         _wrap_object(ob, ng)
     if any(c.enabled for c in s.cuts):

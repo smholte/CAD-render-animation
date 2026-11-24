@@ -48,6 +48,7 @@ def _classes():
     from .blender import form_window                # task 0282: function windows (forms that stay open)
     from .blender import place                      # task 0307: G / R / S say why something cannot move
     from .blender import ops_place, ui_place        # task 0292: 2 Structure > Place, Remove…
+    from .blender import ops_welds, ui_welds        # task 0319: 3 Looks > Welds
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_structure) + 1
@@ -55,6 +56,8 @@ def _classes():
     at = looks.index(ui.FRESING_PT_faces) + 1
     looks[at:at] = ui_decals.PANELS
     at = looks.index(ui_decals.PANELS[-1]) + 1
+    looks[at:at] = ui_welds.PANELS               # 3 Looks > Welds (task 0319)
+    at = looks.index(ui_welds.PANELS[-1]) + 1
     looks[at:at] = ui_fade.PANELS                # 3 Looks > X-ray look (task 0073)
     at = looks.index(ui_fade.PANELS[-1]) + 1
     looks[at:at] = ui_section.PANELS             # 3 Looks > Slice (task 0086)
@@ -77,7 +80,7 @@ def _classes():
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
-            + ops_locations.CLASSES + form_window.CLASSES)
+            + ops_locations.CLASSES + form_window.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES)
 
 
 def _all_classes():
@@ -141,6 +144,8 @@ def register():
     from .blender import vessel_motion
     props.register()
     decals.register()
+    from .blender import welds
+    welds.register()                         # task 0319: the welds' settings (before the panels that draw them)
     from .blender import panels
     panels.register()                        # task 0062: the section tab's setting, before the panels that draw it
     for cls in _all_classes():
@@ -328,5 +333,7 @@ def unregister():
         except RuntimeError:
             pass
     panels.unregister()
+    from .blender import welds
+    welds.unregister()
     decals.unregister()
     props.unregister()

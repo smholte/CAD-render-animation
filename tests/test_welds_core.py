@@ -269,3 +269,31 @@ def test_faces_lost_when_they_changed():
     assert W.match_faces(prints, p2, t2, f2) == {2: None}
     p3 = p + 0.0002                                                         # moved 0.2 mm: still found
     assert W.match_faces(prints, p3, t, f) == {2: 2}
+
+
+def test_hollow_tube_in_a_hole_its_bore_does_not_count():
+    """A tube with a bore 5 mm inside its outer face: the bore is near the line but never 'touches' it (found by the
+    test weldment: the bore cut the rim seam into pieces)."""
+    out_ = cylinder(0.03015, -0.02, 0.15, 40, caps=False)
+    bore = cylinder(0.02515, -0.02, 0.15, 36, inside=True, caps=False)
+    p = np.concatenate([out_[0], bore[0]])
+    t = np.concatenate([out_[1], bore[1] + len(out_[0])])
+    f = np.concatenate([out_[2], bore[2] + 1])
+    s = W.find_seams(side(plate_with_hole(0.1, 0.03015, 0.0, 0.012, 48)), side((p, t, f)))
+    assert len(s) == 2 and all(x.closed for x in s)
+
+
+def test_heat_zone_never_dips_under_a_curved_part():
+    """A flat strip between two rows cuts under a round, faceted face (seen as streaks in a render): more rows there."""
+    a, b = side(plate_with_hole(0.1, 0.03, 0.0, 0.01, 24)), side(cylinder(0.03, -0.05, 0.1, 24))
+    seam = W.find_seams(a, b)[0]
+    m = W.bead(seam, W.Look(size=0.004, heat=0.012), a, b)
+    for k, f in enumerate(m.faces):
+        if m.mat[k] != 1:
+            continue
+        v = m.verts[list(f)]
+        mid = v.mean(0)
+        for side_ in (a, b):
+            d, q, t = side_.distance(mid[None])
+            if d[0] < 0.002:
+                assert float((mid - q[0]) @ side_.n[t[0]]) > -1e-6

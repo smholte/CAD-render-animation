@@ -270,7 +270,8 @@ def _rays(side: Side, p: np.ndarray, t: np.ndarray, reach: float):
         d = unit(np.cross(t, n[i]))
         s = (pts - p) @ d
         s0, s1 = s.min(), s.max()
-        foot = p + d * np.clip(0.0, s0, s1)                  # nearest point of the segment to p (along d)
+        q0 = pts[int(np.argmin(s))]                          # the segment runs from q0 along d for s1 - s0
+        foot = q0 + d * (np.clip(0.0, s0, s1) - s0)          # its point nearest to p
         off = p - foot
         off -= t * (off @ t)
         if np.linalg.norm(off) > reach:
@@ -520,14 +521,16 @@ def find_seams(a: Side, b: Side, gap: float = GAP, step: float = STEP) -> list[S
             seg_m.extend(c.mid for c in rc[:-1])
         seg_a, seg_b, seg_m = np.array(seg_a).reshape(-1, 3), np.array(seg_b).reshape(-1, 3), np.array(seg_m).reshape(-1, 3)
 
-        def seen(p, c):
+        def seen(p, c, t):
+            """Found before: an earlier seam runs here, the same way, with a corner facing the same way."""
             if not len(seg_a):
                 return False
             ab = seg_b - seg_a
             L2 = np.maximum((ab * ab).sum(1), 1e-18)
             s = np.clip(((p - seg_a) * ab).sum(1) / L2, 0.0, 1.0)
             d = np.linalg.norm(seg_a + ab * s[:, None] - p, axis=1)
-            close = d < dup
+            along = np.abs(ab @ t) / np.sqrt(L2)
+            close = (d < dup) & (along > cos_s)
             return bool(close.any() and (seg_m[close] @ c.mid > cos_s).any())
 
         for pts, t in cands:
@@ -553,7 +556,7 @@ def find_seams(a: Side, b: Side, gap: float = GAP, step: float = STEP) -> list[S
                 c = max(cs, key=lambda x: float(x.mid @ like.mid)) if like is not None else cs[0]
                 if like is not None and not _similar(like, c):
                     return None
-                return None if seen(p, c) else c
+                return None if seen(p, c, t) else c
 
             def edge(p_on, c_on, p_off, rounds=10):
                 """Where the corner of p_on stops on the way to p_off: (point, corner) as near to it as found."""
@@ -878,36 +881,74 @@ def _project(side: Side, pts: np.ndarray, lift: float):
     return out, d
 
 
+HEAT_COLS = (0.0, 0.2, 0.45, 0.72, 1.0)
+
+
+def _heat_rows(pts, cs, look, kind, which, side):
+    """Rows of heat-strip points across the strip at each seam point, on the part's surface: (k, cols, 3)."""
+    rows = []
+    for c in cs:
+        za, zb = legs(c, look, kind)
+        root = 0.5 * (c.oa + c.ob)
+        if which == "A":
+            toe, d, n = root + c.da * za * 0.92, c.da, c.na
+        else:
+            toe, d, n = root + c.db * zb * 0.92, c.db, c.nb
+        rows.append([toe + d * (look.heat * f) + n * LIFT for f in HEAT_COLS])
+    rows = np.array(rows)
+    flat, _d = _project(side, rows.reshape(-1, 3), LIFT)
+    return flat.reshape(rows.shape)
+
+
+def _sunk(side: Side, pts: np.ndarray) -> np.ndarray:
+    """Which points lie less than half the lift above the part's surface (a strip's chord dipping under a curved,
+    faceted face): bool per point."""
+    d, q, t = side.distance(pts, side.near(pts.min(0), pts.max(0), 0.03))
+    ok = t >= 0
+    h = np.full(len(pts), LIFT)
+    h[ok] = ((pts[ok] - q[ok]) * side.n[t[ok]]).sum(1)
+    return h < 0.5 * LIFT
+
+
 def _heat(pp, pc, look, kind, closed, s0, sa, sb, verts, faces, uvs, mats):
-    cols = (0.0, 0.2, 0.45, 0.72, 1.0)
-    u = s0 + _arc_len(pp, False)
+    cols = HEAT_COLS
     for which, side in (("A", sa), ("B", sb)):
-        rows = []
-        for c in pc:
-            za, zb = legs(c, look, kind)
-            root = 0.5 * (c.oa + c.ob)
-            if which == "A":
-                toe, d, n = root + c.da * za * 0.92, c.da, c.na
-            else:
-                toe, d, n = root + c.db * zb * 0.92, c.db, c.nb
-            w = look.heat
-            rows.append(np.array([toe + d * (w * f) + n * LIFT for f in cols]))
-        rows = np.array(rows)                                  # (k, cols, 3)
-        flat, _dist = _project(side, rows.reshape(-1, 3), LIFT)
-        rows = flat.reshape(rows.shape)
+        pts, cs = list(pp), list(pc)
+        u = list(s0 + _arc_len(np.array(pts), False))
+        rows = list(_heat_rows(pts, cs, look, kind, which, side))
+        for _round in range(5):                                # more rows where the strip would dip under a curve
+            n = len(rows)
+            pairs = [(i, i + 1) for i in range(n - 1)] + ([(n - 1, 0)] if closed else [])
+            mids = np.array([0.5 * (rows[i] + rows[j]) for i, j in pairs]).reshape(-1, len(cols), 3)
+            if not len(mids):
+                break
+            bad = _sunk(side, mids.reshape(-1, 3)).reshape(len(pairs), len(cols)).any(1)
+            if not bad.any():
+                break
+            for k in sorted(np.flatnonzero(bad), reverse=True):
+                i, j = pairs[k]
+                p = 0.5 * (pts[i] + pts[j])
+                c = _interp_corner(cs[i], cs[j], 0.5)
+                uu = u[i] + 0.5 * float(np.linalg.norm(pts[j] - pts[i]))
+                row = _heat_rows([p], [c], look, kind, which, side)[0]
+                pts.insert(i + 1, p)
+                cs.insert(i + 1, c)
+                u.insert(i + 1, uu)
+                rows.insert(i + 1, row)
+        rows = np.array(rows)
         base = len(verts)
         verts.extend(rows.reshape(-1, 3).tolist())
         m = len(cols)
         nr = len(rows)
         for i in range(nr - 1 + (1 if closed else 0)):
             j = (i + 1) % nr
-            uj = u[j] if j > i else u[i] + float(np.linalg.norm(pp[0] - pp[-1]))
+            uj = u[j] if j > i else u[i] + float(np.linalg.norm(pts[0] - pts[-1]))
             for q in range(m - 1):
                 a, b = base + i * m + q, base + i * m + q + 1
                 c_, d_ = base + j * m + q + 1, base + j * m + q
                 # wound so the strip faces out of the part (its normal along the part's)
                 faces.append((a, d_, c_, b) if which == "A" else (a, b, c_, d_))
-                vv = [cols[q] * look.heat + 0.0, cols[q + 1] * look.heat]
+                vv = [cols[q] * look.heat, cols[q + 1] * look.heat]
                 if which == "A":
                     uvs.extend([(u[i], vv[0]), (uj, vv[0]), (uj, vv[1]), (u[i], vv[1])])
                 else:
