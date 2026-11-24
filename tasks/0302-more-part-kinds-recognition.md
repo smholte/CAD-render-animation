@@ -1,6 +1,6 @@
 # 0302 – More part kinds and better recognition: common machine parts from public catalogues, shape hints, "not recognised" made easy to teach
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0302-more-part-kinds`
+**Who:** worker · **Status:** running (24 Nov, web) · **Branch:** `task/0302-more-part-kinds`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "More parts, recognitions and materials.") · **Model:**
 Opus · effort Medium
 **Area:** Part library lane – `core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests; the
