@@ -183,6 +183,8 @@ def upgrade_looks(scene) -> int:
     s = scene.fresing
     old = 0
     for g in s.groups:
+        if g.material == "blender_material":          # task 0273: a copy of an own Blender material, not built here
+            continue
         mat = bpy.data.materials.get(materials.material_name(g.name))
         if mat is not None and not materials.is_current(mat, g.material, g.color, g.wear,
                                                                     materials.group_finish(g), g.rust):
@@ -208,6 +210,7 @@ def save_scheme(s, name: str):
     for g in s.groups:
         look = sch.looks.add()
         look.group, look.material, look.color = g.name, g.material, g.color
+        look.key = g.mat_key                            # task 0273: the material-picker entry it was
     return sch
 
 
@@ -223,6 +226,8 @@ def apply_scheme(scene, name: str) -> int:
             continue
         g.material = look.material
         g.color = look.color
+        if look.key != g.mat_key:                       # task 0273: back to the entry (its settings were set above)
+            g.mat_key = look.key
         n += 1
     refresh_group_materials(scene)
     return n

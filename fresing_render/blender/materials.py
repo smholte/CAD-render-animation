@@ -662,8 +662,47 @@ def group_finish(g) -> str:
 
 
 def group_material(g) -> bpy.types.Material:
-    """``ensure_material`` for a material group (its material, colour, wear and finish settings)."""
+    """``ensure_material`` for a material group (its material, colour, wear and finish settings); task 0273: a copy
+    of its own Blender material."""
+    if g.material == "blender_material":
+        mat = own_blend_material(g)
+        if mat is not None:
+            return mat
     return ensure_material(g.name, g.material, g.color, g.wear, group_finish(g), g.rust)
+
+
+OWN = "fr_own"              # task 0273: on a group's copy of an own Blender material: what it was copied from
+
+
+def blend_source(g):
+    """The appended own Blender material a group uses ("FRM <name>", kept in the project), or None."""
+    scene = g.id_data
+    pm = scene.fresing.project_materials.get(g.mat_key) if g.mat_key and hasattr(scene, "fresing") else None
+    return bpy.data.materials.get(pm.blend_mat) if pm is not None and pm.blend_mat else None
+
+
+def own_blend_material(g):
+    """Task 0273: the group's material "FR <group>" as a copy of its own Blender material (made again when that one
+    changed); None when the project does not have it (the group then shows the grey stand-in)."""
+    src = blend_source(g)
+    if src is None:
+        return None
+    name = material_name(g.name)
+    stamp = f"{src.name}|{src.get('fr_own_stamp', '')}"
+    mat = bpy.data.materials.get(name)
+    if mat is not None and mat.get("fr_material") == "blender_material" and mat.get(OWN) == stamp:
+        return mat
+    new = src.copy()
+    new.use_fake_user = False
+    new["fr_material"] = "blender_material"
+    new[OWN] = stamp
+    new[PROP_LOOK] = LOOK_VERSION
+    if mat is not None:
+        mat.user_remap(new)
+        mat.name = name + " (old)"
+        bpy.data.materials.remove(mat)
+    new.name = name
+    return new
 
 
 def assign(ob: bpy.types.Object, mat: bpy.types.Material) -> None:

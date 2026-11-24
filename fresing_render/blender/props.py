@@ -97,8 +97,12 @@ def _group_look_changed(self, context):
 
 
 def _group_material_changed(self, context):
-    """Task 0274: a group that gets a finish starts with that finish's own settings (size, angle, metal, kind)."""
+    """Task 0274: a group that gets a finish starts with that finish's own settings (size, angle, metal, kind).
+    Task 0273: a material picked in the drop-down ends the group's link to a material-picker entry of another base."""
     from ..core import finishes as fin_core
+    if self.mat_key:
+        from . import material_picker
+        material_picker.material_changed(self)
     fid = fin_core.finish_id(self.material)
     if fid and self.get("fin_of") != fid:
         d = fin_core.defaults(self.material)
@@ -468,6 +472,21 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
     # the rules put parts or faces in this group (False: only parts put in by hand). Its look then
     # belongs to the rule set; a group that only holds hand-picked parts belongs to the project
     by_rules: BoolProperty(default=False)
+    # task 0273: the material picker's entry the group got ("own:<id>", "preset:<id>", "builtin:<id>"); "" = chosen
+    # with the Material drop-down (every older project). Its settings are in the fields above; an own material's
+    # whole file is kept in the project (``FRSceneSettings.project_materials``)
+    mat_key: StringProperty()
+
+
+class FRProjectMaterial(bpy.types.PropertyGroup):
+    """Task 0273: a material of this project – on its short list (``listed``) and/or used by a group. ``name`` is the
+    entry's key (so the collection can be looked up by key); an own material keeps its whole material.json in ``data``
+    (the project renders on a PC without its folder); a Blender material its appended copy ``blend_mat``."""
+    name: StringProperty()
+    title: StringProperty()
+    data: StringProperty()
+    listed: BoolProperty(default=False)
+    blend_mat: StringProperty()
 
 
 def _renamer(kind: str):
@@ -533,6 +552,7 @@ class FRSchemeLook(bpy.types.PropertyGroup):
     group: StringProperty()
     material: StringProperty()
     color: StringProperty()
+    key: StringProperty()                # task 0273: the group's material-picker entry (FRMaterialGroup.mat_key)
 
 
 class FRScheme(bpy.types.PropertyGroup):
@@ -4678,6 +4698,8 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- looks ----
     groups: CollectionProperty(type=FRMaterialGroup)
     groups_index: IntProperty(default=0)
+    # task 0273: this project's materials (the short list in 3 Looks, copies of the own materials its groups use)
+    project_materials: CollectionProperty(type=FRProjectMaterial)
     find_text: StringProperty(name="Find parts", update=_find_changed,
                               description="Part names containing all these words (* = any text)")
     find_in_selected: BoolProperty(name="Only in the selected subassembly", default=False,
@@ -5175,7 +5197,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     bounds_max: FloatVectorProperty(size=3, default=(1.0, 1.0, 1.0))
 
 
-CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
+CLASSES = (FRMaterialGroup, FRProjectMaterial, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
            FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRLeadRow, FRLeadMotion, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
