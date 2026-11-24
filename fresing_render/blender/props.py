@@ -2398,6 +2398,23 @@ def _flex_changed(self, context):
     flex.changed(context.scene, self)
 
 
+def _flex_avoid_changed(self, context):
+    """Avoid other parts was switched (task 0298): the parts near it are looked for again, then as any setting."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import flex_avoid
+    flex_avoid.drop(context.scene, self)
+    _flex_changed(self, context)
+
+
+def _flex_length_auto_changed(self, context):
+    """Automatic length was switched (task 0298): on, the length follows the route at once."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import flex_route
+    flex_route.changed(context.scene, self)
+
+
 def _flex_renamed(self, context):
     """A drawn hose or chain was renamed (task 0240): its own object and the CAD parts it replaces follow."""
     old = self.get("name_was", "")
@@ -2473,11 +2490,15 @@ _SIZE_TIP = ("A standard size of this kind: it sets the diameter and the smalles
 
 
 class FRFlexClip(bpy.types.PropertyGroup):
-    """A clip a drawn hose runs through (task 0240): the part it is on and where, in that part's own coordinates."""
+    """A clip a drawn hose runs through (task 0240): the part it is on and where, in that part's own coordinates. Or
+    a via point set by hand (task 0298, ``via``): carried by the two end parts, see blender/flex_route.py."""
     part: PointerProperty(type=bpy.types.Object)
     uid: StringProperty()
     point: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0))
     dir: FloatVectorProperty(size=3, default=(1.0, 0.0, 0.0))
+    via: BoolProperty(default=False)
+    rel: FloatVectorProperty(size=16, default=(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
+    weight: FloatProperty(default=0.5)
 
 
 class FRFlex(bpy.types.PropertyGroup):
@@ -2555,6 +2576,14 @@ class FRFlex(bpy.types.PropertyGroup):
         description="The tightest bend the hose may make, as a radius in mm (from the hose maker's data sheet). "
                     "The hose keeps to it where it can; you get a warning when the motion forces a tighter bend. "
                     "0 = no limit")
+    avoid: BoolProperty(
+        name="Avoid other parts", default=False, update=_flex_avoid_changed,
+        description="On: the hose stays outside the other parts near it – it lies on them and slides along, while "
+                    "you move the machine and in the built animation. Off: it may pass through parts (quicker)")
+    length_auto: BoolProperty(
+        name="Automatic length", default=False, update=_flex_length_auto_changed,
+        description="On: the app works out the length from the route (its ends, clips and via points) every time "
+                    "you change it, long enough for the joints' travel. Off: the length stays as typed")
     # ---- drag chain ----
     pitch: FloatProperty(
         name="Link length", unit="LENGTH", default=0.04, min=0.001, soft_max=0.5, precision=4, update=_flex_edited,
@@ -3234,6 +3263,11 @@ class FRClash(bpy.types.PropertyGroup):
         name="Closer than", unit="LENGTH", default=0.005, min=0.0001, soft_max=0.05, precision=1,
         description="A near miss: two parts come closer than this without touching. Used when 'Warn about near "
                     "misses' is ticked")
+    hoses: BoolProperty(
+        name="Check hoses that avoid parts", default=False,
+        description="Also list a hose or cable with 'Avoid other parts' on (4 Motion > Hoses and drag chains) when it "
+                    "goes further into one of those parts than the clash depth – where its ends or clips force it "
+                    "in. Other hoses bend on purpose and stay out of the check. Then press Check for clashes again")
     rows: CollectionProperty(type=FRClashRow)
     rows_index: IntProperty(
         default=-1, update=_clash_row_picked,
