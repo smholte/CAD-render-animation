@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.228 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
+## 0.2.229 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
 
 - **23 new finishes** in 3 Looks (pick one as a group's **Material**): **Knurled, diamond** and **straight**
   (knobs, handles), **Rubber, moulded grip pattern**, **Spun metal** (rings round the centre of caps and discs),
@@ -29,6 +29,28 @@ installer of that version was built from.
   perforated, expanded, hammertone, spangle …) as a texture.
 - Test tour: a new stop **Finishes** (a board of 23 samples and a headphone-like set). PC check: a new line
   **Finishes**. User guide: 3 Looks > Finishes, with a picture of all 23.
+
+## 0.2.228 – 24 Nov 2026 – Weather round 2: thunderstorm, sea mist, sunrise, sunset, hail, heat; change it in two clicks (task 0299)
+
+- **Six new weathers**, each with a picture you click (5 Scene & Render > Weather & time > Presets): **Thunderstorm**
+  (dark storm clouds, a downpour, lightning), **Fog / sea mist** (mist lying on the water, the machine fades in and
+  out), **Sunrise** and **Sunset** (golden low sun, long shadows), **Hail / sleet** (stones bouncing on the deck) and
+  **Hot and calm** (bright haze, heat shimmer in the distance).
+- **Lightning**: in a video each flash lights the whole scene for a moment and a bolt strikes in the distance. Flashes
+  come at random while there is lightning, or at moments you set in a Weather & time step ("Flash at"). Tick **Flash in
+  the picture** for a still of a flash.
+- **New values** under Weather & time (and in the Weather & time step): **Sea mist**, **Heat**, **Hail**,
+  **Lightning**.
+- **Change the weather in two clicks**: put the playhead where it should change, pick **Change to** (and **Over**, the
+  seconds), click **Add at playhead**. It adds a Weather & time step (or changes the one already there); the step list
+  shows "Weather to Thunderstorm (16:00)". Then Build & play.
+- **Smoother changes**: a step that ran the clock through sunset switched the sun, the daylight and the floodlights
+  on or off within 1–3 frames; the clock now slows down through sunrise and sunset, so the light changes over many
+  frames. The clock also goes the shorter way round (15:00 → 14:00 goes back an hour instead of running through a
+  whole night). New Weather & time steps start and stop gently (Smooth). A step whose wind changes builds faster (the
+  white caps' number no longer takes 0.1 s per frame).
+- **Learn**: a new lesson "Weather: a storm rolls in" (Fresing > Learn…: View, Show me, Build it yourself), and the
+  user guide explains the weather step by step.
 
 ## 0.2.227 – 24 Nov 2026 – Copy and paste with joints (task 0293)
 

@@ -17,6 +17,76 @@ PLACE_WORDS = {
 }
 
 
+# the presets' pictures (task 0299): drawn once from their numbers (core/weather_thumbs.py), kept as preview icons
+SHORT = {"CLEAR_DAY": "Clear day", "SUNRISE": "Sunrise", "SUNSET": "Sunset", "GREY_NORTH_SEA": "Grey sea",
+         "SEA_MIST": "Sea mist", "STORM": "Storm", "THUNDERSTORM": "Thunder", "HAIL": "Hail / sleet",
+         "SNOW_QUAY": "Snow", "HOT_CALM": "Hot, calm", "NIGHT_SHIFT": "Night shift"}
+GRID_COLUMNS = 3
+_THUMBS: dict = {}
+
+
+def thumb(name: str) -> int:
+    """The icon number of a preset's picture (0 when it cannot be made: a background Blender)."""
+    try:
+        coll = _THUMBS.get("coll")
+        if coll is None:
+            from bpy.utils import previews
+            from ..core import weather_thumbs
+            coll = previews.new()
+            for key, img in weather_thumbs.presets().items():
+                pv = coll.new(key)
+                h, w = img.shape[:2]
+                flat = weather_thumbs.for_blender(img)
+                pv.image_size = (w, h)
+                pv.image_pixels_float = flat
+                pv.icon_size = (w, h)
+                pv.icon_pixels_float = flat
+            _THUMBS["coll"] = coll
+        return coll[name].icon_id if name in coll else 0
+    except Exception:  # noqa: BLE001 - a picture never stops the panel
+        return 0
+
+
+def free_thumbs() -> None:
+    coll = _THUMBS.pop("coll", None)
+    if coll is not None:
+        from bpy.utils import previews
+        previews.remove(coll)
+
+
+def draw_presets(layout, w) -> None:
+    """The presets as a grid of pictures, each with its button (the one in use pressed)."""
+    flow = layout.grid_flow(row_major=True, columns=GRID_COLUMNS, even_columns=True, even_rows=True, align=True)
+    for name in core.PRESET_ORDER:
+        cell = flow.column(align=True)
+        icon = thumb(name)
+        if icon:
+            cell.template_icon(icon_value=icon, scale=3.2)
+        op = cell.operator("fresing.weather_preset", text=SHORT.get(name, core.PRESETS[name][0]),
+                           depress=w.preset == name)
+        op.name = name
+
+
+def draw_change(layout, context) -> None:
+    """Change to ▸ [preset] over [N s] at the playhead (task 0299): a Weather & time step in two clicks."""
+    from . import weather
+    scene = context.scene
+    s = scene.fresing
+    w = s.weather
+    box = layout.box()
+    box.label(text="Change in a video", icon="TIME")
+    col = split_props(box)
+    col.prop(w, "change_to", text="Change to")
+    col.prop(w, "change_seconds", text="Over")
+    box.operator("fresing.weather_change", text="Add at playhead", icon="ADD")
+    anim = s.animations[s.animations_index] if 0 <= s.animations_index < len(s.animations) else None
+    at = weather.seconds_at(anim, scene.frame_current) if anim is not None else (scene.frame_current - 1) / 25.0
+    n = sum(1 for b in anim.blocks if b.kind == "WEATHER") if anim is not None else 0
+    where_ = f"'{anim.name}'" if anim is not None else "a new animation 'Weather'"
+    hint(box, context, f"At {at:.1f} s of {where_}" + (f" ({n} weather changes)" if n else "") +
+         ". Then Build & play.", inset=12)
+
+
 _LIGHTS: dict = {"key": None, "n": 0, "at": 0.0}
 LIGHTS_AGE = 2.0                       # s: kept between redraws (an undo can change it behind our back)
 
@@ -82,9 +152,10 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         s = scene.fresing
         w = s.weather
         steps(layout, context, ["Tick 'Weather & time'",
-                                "Pick a preset (Clear day, Grey North Sea, Storm, Snow at the quay, Night shift)",
-                                "Set the clock and the weather; Live preview shows it",
-                                "For a video: 6 Animation > a Weather & time step (day to dusk, rain starting)"],
+                                "Click a picture: a ready-made weather (sunrise, storm, sea mist, thunderstorm …)",
+                                "Change the clock and any value; Live preview shows it",
+                                "For a video: put the playhead where the weather should change, pick 'Change to' "
+                                "and click Add at playhead; Build & play"],
               key="fr_how_weather", used=bool(w.enabled))
         gap(layout)
         layout.prop(w, "enabled", text="Weather & time")
@@ -97,6 +168,12 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         where = weather.place(scene)
         col = split_props(layout)
         col.prop(w, "preset", text="Preset")
+        body = fold(layout, "fr_weather_presets", "Presets", "IMAGE_DATA", closed=False,
+                    state=core.PRESETS[w.preset][0] if w.preset in core.PRESETS else "Own settings")
+        if body:
+            draw_presets(body, w)
+        gap(layout)
+        draw_change(layout, context)
         if where in PLACE_WORDS:
             wrap(layout, context, PLACE_WORDS[where], icon="INFO")
         st = weather.state(scene)
@@ -130,6 +207,8 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
             col.prop(w, "clouds", text="Clouds")
             col.prop(w, "low_clouds", text="Low clouds")
             col.prop(w, "visibility", text="Visibility (m)")
+            col.prop(w, "mist", text="Sea mist")
+            col.prop(w, "heat", text="Heat")
             layout.label(text=core.visibility_words(w.visibility).capitalize(), icon="BLANK1")
         if where == "indoor":
             gap(layout)
@@ -138,7 +217,7 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
 
         # -- rain and snow
         gap(layout)
-        layout.label(text="Rain and snow", icon="MOD_FLUIDSIM")
+        layout.label(text="Rain, snow, hail, lightning", icon="MOD_FLUIDSIM")
         col = split_props(layout)
         col.prop(w, "rain", text="Rain")
         sub = col.column(align=True)
@@ -147,6 +226,12 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
         col.prop(w, "wet", text="Wet")
         col.prop(w, "snow", text="Snow")
         col.prop(w, "snow_cover", text="Snow layer")
+        col.prop(w, "hail", text="Hail")
+        if where == "sky":
+            col.prop(w, "lightning", text="Lightning")
+            sub = col.column(align=True)
+            sub.active = w.lightning > 0.0
+            sub.prop(w, "flash_still", text="Flash in the picture")
 
         # -- wind
         gap(layout)
@@ -180,7 +265,8 @@ class FRESING_PT_weather(_Panel, bpy.types.Panel):
                          icon="INFO")
         _work_lights(layout, context)
         gap(layout)
-        hint(layout, context, "A video can change the weather: 6 Animation > add a Weather & time step.")
+        hint(layout, context, "A video can change the weather: Change in a video above, or 6 Animation > a Weather "
+                              "& time step.")
 
 
 PANELS = (FRESING_PT_weather,)

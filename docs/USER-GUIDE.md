@@ -3707,32 +3707,78 @@ the offshore surroundings take about as long as the studio; the halls 1.4 to 2.8
 
 <img class="panel" src="img/panel_5_weather.png" alt="Weather & time">
 
-Sets the time of day and the weather for a picture or a video in one place: sunrise to night, clouds, haze and fog,
-rain, snow and wind. Tick **Weather & time**; unticked, everything looks exactly as without it (only the sea itself
-is new in 0.2.88). The panel's header shows the time and what falls ("13:00 rain"); the line under Time says the
-part of the day and the sun's height.
+Sets the time of day and the weather for a picture or a video in one place: sunrise to night, clouds, haze, fog and
+sea mist, rain, hail, snow, lightning, heat and wind. Tick **Weather & time**; unticked, everything looks exactly as
+without it. The panel's header shows the time and what falls ("13:00 rain"); the line under Time says the part of the
+day and the sun's height.
 
-**Preset**: **Clear day**, **Grey North Sea** (overcast, Beaufort 6, drizzle, haze, the machine wet), **Storm**
-(a gale, heavy rain, low clouds, white water and spray, 2.5 km visibility), **Snow at the quay** (snow falling, a
-snow layer), **Night shift** (dark sky with stars and the moon, floodlights, a damp sheen). A preset sets all the
-controls; change any of them afterwards (the preset then shows **Own settings**).
+**How it works, step by step:**
+
+1. Tick **Weather & time**. The first time it starts from your project's own sky (Sun or Overcast, Sun height, Turn
+   sun), so nothing jumps. The weather shows outdoors: pick the **Open sea**, the **Vessel deck**, the **Quayside** or
+   **Sky** under Background & surroundings.
+2. Click a picture under **Presets**: a ready-made weather sets every value below it at once (the clock, clouds,
+   visibility, rain, wind …). The picture of the weather in use is pressed.
+3. Change anything you like: the clock, the clouds, the rain. The preset then reads **Own settings**. Live preview
+   shows it; a picture (Render image, the render queue) renders it.
+4. For a video: put the playhead where the weather should change, pick **Change to** (a preset) and **Over** (how many
+   seconds the change takes), click **Add at playhead**. Move the playhead later and add another change – the storm
+   comes and goes again. **Build & play** shows it.
+
+Behind the scenes every value is a number the app keys at Build for each frame, so the sky, the light, the rain and
+the lightning play the same way in the view, in a picture of one frame and in the render queue – also with "Auto Run
+Python Scripts" off.
+
+<a id="weather-presets"></a>
+**Presets** (the pictures are drawn from each preset's own values): **Clear day**; **Sunrise** (the sun just up in the
+east: golden low light, long shadows, dew); **Sunset** (the sun low in the west, orange light); **Grey sea** – Grey
+North Sea (overcast, Beaufort 6, drizzle, haze, the machine wet); **Sea mist** – Fog / sea mist (mist lying on the
+water, about 200 m, banks of it drifting by); **Storm** (a gale, heavy rain, low clouds, white water and spray, 2.5 km
+visibility); **Thunder** – Thunderstorm (dark storm clouds, a downpour, lightning); **Hail / sleet** (hail stones and
+sleet bouncing on the deck, grey and wet); **Snow** – Snow at the quay (snow falling, a snow layer); **Hot, calm** –
+Hot and calm (bright haze, heat shimmer, no wind: a flat sea when the sea follows the wind); **Night shift** (dark sky
+with stars and the moon, floodlights, a damp sheen). The **Preset** list above the pictures shows the same choice.
 
 **Time**: the clock (sun time: 12:00 is when the sun stands highest – no time zone or summer time needed). It sets
 the sun's height and direction and the sky's colour: sunrise, day, golden hour, dusk, night. **North** turns the
 sun's path (and the wind) around the machine: 90 means north is behind the machine, so the noon sun comes from the
 front. Without a date the sun rises at 6:00 and sets at 18:00; open **Date and place** and tick **Real sun path** for
 the sun of one day (**Day of the year**: 172 = 21 June) at a **Latitude** (the southern North Sea about 54) – the
-line under it gives sunrise and sunset. The first time you tick Weather & time it starts from your project's own
-sky (Sun or Overcast, Sun height, Turn sun), so nothing jumps.
+line under it gives sunrise and sunset.
 
 **Sky**: **Clouds** (0 a clear blue sky, 1 overcast: soft light, no sun), **Low clouds** (a dark, low deck), and
 **Visibility**: 40 km is clear air, 10 km haze, 2 km mist, below 1 km fog that hides the far sea and the quay.
 
-**Rain and snow**: **Rain** (0.1 drizzle … 1 a downpour) falls slanting with the wind and splashes on the deck, the
-quay and the sea; **Drop size** in mm. **Wet**: the machine and the deck look wet – darker and glossier, drops and
-run-off streaks on sloped faces, puddles on flat ones. It works without rain too (after the rain); rain makes things
-at least as wet as it is heavy. **Snow**: falling flakes that drift with the wind. **Snow layer**: snow on every face
-that looks up under the open sky; parts under a roof, a cover or a boom stay clear (best seen in Cycles).
+<a id="weather-mist"></a>
+**Sea mist**: mist lying low on the water (or on the ground on land): thick near the surface, thin 25 m up and more,
+so the top of a tall machine stands above it. Banks of it drift with the wind (at least a light air) and change
+slowly, so in a video the machine fades in and out. 1 is very thick: about 150 m at the water. It is laid over the
+picture after rendering (it costs next to no render time) and needs where each pixel is: the app switches the
+Position pass on while it is used and off again after.
+
+<a id="weather-heat"></a>
+**Heat**: a hot day – the haze turns bright and a little warm, and in a render the far distance wavers with heat
+shimmer (a few pixels, more the further away; nothing close by moves). Also laid over the picture after rendering.
+
+**Rain, snow and hail**: **Rain** (0.1 drizzle … 1 a downpour) falls slanting with the wind and splashes on the deck,
+the quay and the sea; **Drop size** in mm. **Wet**: the machine and the deck look wet – darker and glossier, drops and
+run-off streaks on sloped faces, puddles on flat ones. It works without rain too (after the rain); rain and hail make
+things at least as wet as they are heavy. **Snow**: falling flakes that drift with the wind. **Snow layer**: snow on
+every face that looks up under the open sky; parts under a roof, a cover or a boom stay clear (best seen in Cycles).
+<a id="weather-hail"></a>
+**Hail**: small ice stones (8 mm) fall at their own speed (about 10 m/s) and hop once on every face that looks up –
+the deck, the quay, the machine's top faces – but not on the sea. With some rain and a little snow it is sleet (the
+Hail / sleet preset).
+
+<a id="weather-lightning"></a>
+**Lightning**: how often lightning flashes (0.3 now and then, 1 every few seconds). In a video (Build & play) each
+flash lights the whole scene for a few frames – it flickers, as lightning does – the clouds light up from inside and a
+bolt strikes in the distance, one of four in the direction the camera looks. The flashes come at random while the
+lightning is above 0, more often and brighter the higher it is, and stop where it is 0: a storm that passes takes its
+lightning with it. A picture shows the storm between flashes; tick **Flash in the picture** for a picture of the
+moment of a flash. A Weather & time step can also flash at set moments: **Flash at** in the step (seconds from its
+start, e.g. "1.5, 3"). **Change to** a weather with lightning puts one flash near the end of the change, so a short
+video always has one.
 
 **Wind**: strength in **Beaufort** (the line above says what it is called and how many m/s), **From** (where it comes
 from) and **Measured**: **Compass** (0 = from the north, 90 = from the east) or **From the bow** of the vessel
@@ -3758,16 +3804,26 @@ it away. Work lights stay through a model update.
 **360° photo** the photo keeps its own sun and sky; rain, snow, wind and the wet look work. Indoors (halls,
 studios, a plain background) nothing falls and the sky is not seen: only work lights.
 
-**In a video:** add a **Weather & time** step in 6 Animation. It starts from the weather before it (the panel's, or
-the step before) and changes to the values in the step over its duration: **To** (a preset, or your own),
-**Time** (later than the start; an earlier time runs on through midnight), **Clouds**, **Low clouds**, **Visibility**,
-**Rain**, **Wet**, **Snow**, **Snow layer**, **Wind** and **Wind from**. The waves themselves keep the wind of the
-start; white caps, spray, rain and snow follow the wind of each moment. Saved scenes keep their weather; the render
-queue renders it, also for every paint scheme. An animation that starts from a saved scene (its start scene) gets
-that scene's weather back at **Build & play** – also "no weather" when the scene was saved before you set it.
-Build then says so ("The start scene … has no weather, so Build switched the weather off"): set the weather and save
-that scene again to keep it. Rain, snow, spray and the flag depend only on the frame, so a frame
-looks the same every time it is rendered. Everything plays with "Auto Run Python Scripts" off.
+<a id="weather-change"></a>
+**In a video:** the quickest way is **Change to ▸ … Over … Add at playhead** (step 4 above): it adds a **Weather &
+time** step to the animation picked in 6 Animation (it makes one called "Weather" when there is none) starting at the
+playhead, or changes the step that already starts there. The step list shows it as "Weather to Thunderstorm (16:00)".
+You can also add a **Weather & time** step in 6 Animation by hand. A step starts from the weather before it (the
+panel's, or the step before) and changes to the values in the step over its duration: **To** (a preset, or your own),
+**Time**, **Clouds**, **Low clouds**, **Visibility**, **Rain**, **Wet**, **Snow**, **Snow layer**, **Wind**, **Wind
+from**, **Drop size**, **Hail**, **Sea mist**, **Heat**, **Lightning** and **Flash at**.
+
+Every value blends smoothly over the step: the rain starts and stops gradually, the snow layer grows, the fog rolls in,
+the lightning fades out, the sun moves with the clock. The clock goes the shorter way round (22:00 → 02:00 runs on
+through midnight, 15:00 → 14:00 goes back an hour) and slows down through sunrise and sunset, so even a change of
+twelve hours in five seconds turns the light on or off over many frames instead of one. New steps start and stop
+gently (Smooth). The waves themselves keep the wind of the start; white caps, spray, rain and snow follow the wind of
+each moment. Saved scenes keep their weather; the render queue renders it, also for every paint scheme. An animation
+that starts from a saved scene (its start scene) gets that scene's weather back at **Build & play** – also "no
+weather" when the scene was saved before you set it. Build then says so ("The start scene … has no weather, so Build
+switched the weather off"): set the weather and save that scene again to keep it. Rain, snow, hail, spray, the flag
+and the lightning depend only on the frame, so a frame looks the same every time it is rendered. Everything plays
+with "Auto Run Python Scripts" off.
 
 <a id="vessel-motion"></a>
 ### Vessel motion

@@ -23,9 +23,9 @@ LESSONS = os.path.join(ROOT, "fresing_render", "blender", "lessons")
 
 def test_the_lessons_are_read_without_blender_and_every_link_is_right():
     steps = functions.read_lessons(LESSONS)
-    assert set(steps) == {"crane", "mill"}
-    assert len(steps["crane"]) == 11 and 10 <= len(steps["mill"]) <= 13
-    assert steps["crane"][0] == steps["mill"][0] == "import.step"
+    assert set(steps) == {"crane", "mill", "weather"}
+    assert len(steps["crane"]) == 11 and 10 <= len(steps["mill"]) <= 13 and len(steps["weather"]) == 4
+    assert steps["crane"][0] == steps["mill"][0] == steps["weather"][0] == "import.step"
     linked = {f.id: f.lesson for f in functions.FUNCTIONS.values() if f.lesson}
     for fid, link in linked.items():
         name, _, k = link.partition(":")
@@ -52,7 +52,7 @@ def test_a_broken_lesson_link_is_refused():
 
 def test_the_precheck_reads_the_lessons():
     got = functions.read_repo(ROOT)
-    assert got["lessons"] == {"crane": 11, "mill": len(got["lesson_steps"]["mill"])}
+    assert got["lessons"] == {"crane": 11, "mill": len(got["lesson_steps"]["mill"]), "weather": 4}
     assert functions.problems(**got) == []
 
 
@@ -101,7 +101,8 @@ def fingerprint(scene) -> dict:
     joints = sorted((j.name, j.kind, tuple(sorted(m.obj.get("fr_name", "") for m in j.members if m.obj)))
                     for j in s.joints)
     anims = [(a.name, a.start_shot, [(b.kind, b.joint, round(b.start, 3), round(b.duration, 3),
-                                      round(b.to_angle, 4), round(b.to_dist, 5)) for b in a.blocks])
+                                      round(b.to_angle, 4), round(b.to_dist, 5), b.wx_preset,
+                                      round(b.wx_lightning, 4)) for b in a.blocks])
              for a in s.animations]
     m = machining.settings(scene)
     return {"joints": joints, "shots": sorted(sh.name for sh in s.shots), "anims": anims,
@@ -109,7 +110,8 @@ def fingerprint(scene) -> dict:
             "queue": sorted(j.kind for j in s.queue), "product": studio.look_matches("PRODUCT", s),
             "baked": s.anim_baked, "bits": sorted(ob.name for _it, ob in machining.bits(scene)),
             "workpiece": m.workpiece.name if m.workpiece else "", "chips": m.chips,
-            "materials": sorted((g.name, g.material) for g in s.groups)}
+            "materials": sorted((g.name, g.material) for g in s.groups),
+            "weather": (s.weather.enabled, s.weather.preset, s.background)}
 
 
 def _show_me_to_the_end(bpy, scene, lesson):
@@ -143,7 +145,7 @@ def _build_to_the_end(scene, lesson):
         assert lesson.state()["step"] > k or lesson.step() is None
 
 
-@pytest.mark.parametrize("lesson_id", ["crane", "mill"])
+@pytest.mark.parametrize("lesson_id", ["crane", "mill", "weather"])
 def test_view_show_me_and_build_it_yourself_make_the_same_project(blender, lesson_id):
     bpy = blender
     from fresing_render.blender import highlight, lesson

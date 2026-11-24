@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.228"
+__version__ = "0.2.229"
 
 _modules = []
 
@@ -343,6 +343,11 @@ def unregister():
     ops_usage.unregister()
     from .blender import about
     about.unregister()
+    try:
+        from .blender import ui_weather
+        ui_weather.free_thumbs()             # task 0299: the presets' pictures
+    except Exception:  # noqa: BLE001
+        pass
     from .blender import lock, panels, ui_top, workspaces
     ui_top.unregister_header()
     workspaces.unregister()

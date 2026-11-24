@@ -43,8 +43,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.226",
-   "fp": "15f08cf5d6d80df4"
+   "changed": "0.2.228",
+   "fp": "c26cfceb4cac7499"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -77,7 +77,7 @@
    "fp": "fec01e7a7e9895cf"
   },
   "finishes": {
-   "added": "0.2.228",
+   "added": "0.2.229",
    "changed": "",
    "fp": "6a263195f2f0eef6"
   },
@@ -263,8 +263,8 @@
   },
   "weather": {
    "added": "0.2.88",
-   "changed": "0.2.203",
-   "fp": "d3ec1ec576c1fd30"
+   "changed": "0.2.228",
+   "fp": "e86fe33ff8324fbd"
   }
  }
 }
