@@ -220,7 +220,7 @@ def import_machine(ctx):
     return f"{len(parts)} parts, {len(groups)} groups"
 
 
-@line("import.shapes", "Unnamed washer, nut and O-ring sorted by their shape", "0.2.221",
+@line("import.shapes", "Unnamed washer, nut and O-ring sorted by their shape", "0.2.222",
       what="Parts called Part1 … Part4: the washer and the nut go to the fasteners, the O-ring to the seals")
 def import_shapes(ctx):
     """Task 0302: a small STEP written now with OpenCascade (made-up parts, nothing of anyone's), imported and

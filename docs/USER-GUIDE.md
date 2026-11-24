@@ -1286,7 +1286,7 @@ into groups by itself, with the project's **rule set** (at the top of 3 Looks, s
 - **part types** by name: profiles, shafts, chrome rods, cylinders, bearings, hoses, cables, cable
   chains, motors, sensors, guards and many more – also Dutch and German names and supplier order
   codes (Misumi, SMC, Festo, igus, HIWIN, THK, SKF, Sick, Omron and many more), also when the code
-  sits inside a longer name such as "PSFJ20-300_SHAFT" or "_LMUW20_1". Since 0.2.NN also hose ends and tube
+  sits inside a longer name such as "PSFJ20-300_SHAFT" or "_LMUW20_1". Since 0.2.222 also hose ends and tube
   fittings ("Schneidring", "SNIJRING", "HOSE TAIL"), test points, rotary unions, compressors, coolers,
   receivers, pressure and temperature sensors, linear scales, claw and bellows couplings, crossed roller
   guides, wire rope ends and lifting points ("Kausche", "PERSHULS", "Lastöse"), rod seals and wipers,
