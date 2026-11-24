@@ -314,6 +314,8 @@ def s_held_after_undo():
     st = les().state()
     check("after Ctrl+Z Show me waits for Next (nothing built again by itself)", st["phase"] == "point"
           and not bpy.context.scene.fresing.anim_baked, st)
+    fast(False)     # Next builds at once; held, Show me does not go on to the next step before the undo below (a
+    #               # run where it moved the crane apart first undid that instead of the Build: 0.2.224's branch)
     with override():
         bpy.ops.fresing.lesson_next()
     return 0.3
