@@ -79,6 +79,8 @@ ALLOWED = {
     "fresing.lesson_stop", "fresing.lesson_more", "fresing.lesson_mode",   # task 0230: a lesson can always be stopped
     "fresing.left_fold", "fresing.hub_mode",     # task 0260: the left panel folds; the Learning hub only opens projects
     "fresing.blender_key", "fresing.key_render",  # task 0253: a swallowed key; F12 / Ctrl+F12 = render (allowed above)
+    "fresing.lead_play", "fresing.lead_test", "fresing.lead_back_to_start",   # task 0309: the lead motions' sliders
+    "fresing.lead_keep_open",                    # move the model in the Client view (nothing else is changed)
     "fresing.view_menu", "fresing.ctx_zoom", "fresing.ctx_tree",   # task 0253: the right-click menu's viewing entries
     "fresing.ctx_hide", "fresing.ctx_only", "fresing.ctx_show_all",   # (in the Client view they hide in the view only)
 }

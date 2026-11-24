@@ -24,7 +24,7 @@ LESSONS = os.path.join(ROOT, "fresing_render", "blender", "lessons")
 def test_the_lessons_are_read_without_blender_and_every_link_is_right():
     steps = functions.read_lessons(LESSONS)
     assert set(steps) == {"crane", "mill", "weather"}
-    assert len(steps["crane"]) == 11 and 10 <= len(steps["mill"]) <= 13 and len(steps["weather"]) == 4
+    assert len(steps["crane"]) == 12 and 10 <= len(steps["mill"]) <= 13 and len(steps["weather"]) == 4
     assert steps["crane"][0] == steps["mill"][0] == steps["weather"][0] == "import.step"
     linked = {f.id: f.lesson for f in functions.FUNCTIONS.values() if f.lesson}
     for fid, link in linked.items():
@@ -52,7 +52,7 @@ def test_a_broken_lesson_link_is_refused():
 
 def test_the_precheck_reads_the_lessons():
     got = functions.read_repo(ROOT)
-    assert got["lessons"] == {"crane": 11, "mill": len(got["lesson_steps"]["mill"]), "weather": 4}
+    assert got["lessons"] == {"crane": 12, "mill": len(got["lesson_steps"]["mill"]), "weather": 4}
     assert functions.problems(**got) == []
 
 
@@ -111,7 +111,10 @@ def fingerprint(scene) -> dict:
             "baked": s.anim_baked, "bits": sorted(ob.name for _it, ob in machining.bits(scene)),
             "workpiece": m.workpiece.name if m.workpiece else "", "chips": m.chips,
             "materials": sorted((g.name, g.material) for g in s.groups),
-            "weather": (s.weather.enabled, s.weather.preset, s.background)}
+            "weather": (s.weather.enabled, s.weather.preset, s.background),
+            "leads": [(lm.name, round(lm.position, 3), [(r.joint, round(r.v0, 5), round(r.v1, 5), round(r.start, 3),
+                                                         round(r.end, 3), r.stage) for r in lm.rows])
+                      for lm in s.lead_motions]}
 
 
 def _show_me_to_the_end(bpy, scene, lesson):

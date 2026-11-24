@@ -16,6 +16,8 @@ Block kinds
             length follows from the program; tool changes can play the tool changer's animation
     WEATHER  change the weather and the time of day over the step (task 0109, weather.py): keys on the scene's
              weather channels
+    LEAD     move one of the machine's lead motions from a slider position to another (task 0309, lead_motions.py):
+             every joint of it gets a key per frame, the same values the slider gives
     VESSEL   change what the vessel does (still, ahead, sideways, turning; task 0154, vessel_work.py): keys on the
              scene's ``fr_vw_*`` channels, the propellers' and the azimuths' steer joints
     SEQUENCE take a subassembly apart part by part, or put it together (task 0100, sequence.py); its length
@@ -121,6 +123,9 @@ def block_label(b, scene=None) -> str:
     if b.kind == "VESSEL":
         from . import vessel_work
         return vessel_work.step_label(b)
+    if b.kind == "LEAD":
+        from . import lead_motions
+        return lead_motions.step_label(b)
     target = b.target_name or "?"
     if b.kind == "FADE_OUT":
         return f"Fade {target} to X-ray" if b.fade_xray else f"Fade out {target}"
@@ -877,6 +882,7 @@ def bake(scene, anim) -> dict:
     cam_blocks = []
     wx_blocks = []                           # Weather & time steps (task 0109): keyed after the loop
     vw_blocks = []                           # Vessel at work steps (task 0154): keyed after the loop
+    lead_pos: dict = {}                      # Lead motion steps (task 0309): each lead motion's slider along the way
     blocks = sorted((b for b in anim.blocks if b.enabled), key=lambda b: b.start)
     last_key = 0.0
     for b in sorted(blocks + atc_blocks, key=lambda b: b.start):
@@ -895,6 +901,9 @@ def bake(scene, anim) -> dict:
             motor_run(j, b, f0, f1)
         elif b.kind == "CYLINDER":
             cylinder_move(b, f0, f1)
+        elif b.kind == "LEAD":
+            from . import lead_motions
+            lead_motions.bake_step(scene, anim, b, f0, f1, jstate, jkeys, busy_until, warnings, _merge, lead_pos)
         elif b.kind == "MECHANISM":
             mechanism_move(b, f0, f1)
         elif b.kind == "GCODE":

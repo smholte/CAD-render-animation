@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.236 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
+## 0.2.237 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or
   matte clear coat (**Kind**, **Tow width**, **Gloss**). The weave lies on every CAD face of its own – round a tube
@@ -33,6 +33,27 @@ installer of that version was built from.
   - **Marine paint, growth below the waterline** and **Marine paint, run-down streaks**: their rust streaks take the
     new rust colours.
   - Every project's group materials are made again once when it opens (they keep their material, colour and Wear).
+## 0.2.236 – 24 Nov 2026 – Lead motions: one slider per function of the machine (task 0309)
+
+- **Lead motions on the top bar.** Right of the Fresing menu: **Lead motions ▾**. One click shows one slider per function
+  of the machine – "Boom up", "Outriggers", "Table X travel" – and dragging it moves the whole function, live, every
+  joint in it in its own part of the slider (outriggers first, then the boom). **▶** plays it, again plays it back;
+  **Back to start** puts all at 0 %; **Keep open** shows the sliders in a small window that stays open. It is there in
+  every workspace and in the **Client view** – a client can move the machine's functions without unlocking anything.
+- **Making one** (Lead motions > Edit lead motions…, a window of its own): from **two saved poses** (every joint that
+  differs), by **recording** (Set start, move the joints, Set end), or by **picking joints** and typing their values.
+  Each joint gets its part of the slider (Starts at / Ends at %) and its motion (smooth, constant speed …); **Order by
+  stages** sets those parts for you (stage 1, then 2 …). Joints that follow another joint move along by themselves.
+  A joint in two lead motions: the last one moved wins, the other slider says "moved by …".
+- **In the animation:** a new step **Lead motion** (6 Animation): pick from the short list, From % → To %, seconds.
+  **+** next to a slider adds it to the animation; **Show every function** adds every lead motion out and back, one
+  after another – a film of all functions in one click, each named in a caption when Captions are on. Build gives the
+  joints exactly the slider's values. A Lead motion step and another step moving the same joint at the same time: the
+  later-starting one takes over from its start (the step says so in red, Build warns).
+- **Kept** with the project, in backups and through a model update; a renamed joint is followed, a joint that is gone
+  is marked "missing" in its row.
+- The test crane's lesson has a 12th step (a lead motion in two stages), the test tour a stop "Lead motions", the PC
+  check a line "Lead motions: one slider per function".
 ## 0.2.235 – 24 Nov 2026 – A set-up for new users in place of Blender's own first-start window (task 0276)
 
 - **New: a set-up for new users.** The first time the app starts on a PC, one window **Set up Fresing Render** walks

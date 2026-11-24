@@ -1623,6 +1623,8 @@ def rename(scene, j, old: str) -> None:
     from . import spool, tracks                   # drums, carousels, their followers; tracks (task 0160)
     spool.joint_renamed(scene, old, j.name)
     tracks.joint_renamed(scene, old, j.name)
+    from . import lead_motions                    # lead motions' rows (task 0309)
+    lead_motions.joint_renamed(scene, old, j.name)
 
 
 def reset_all(scene) -> None:

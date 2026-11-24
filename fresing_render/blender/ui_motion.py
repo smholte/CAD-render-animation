@@ -830,7 +830,7 @@ _KIND_ICON = {"JOINT": "CON_PIVOT", "POSE": "ARMATURE_DATA", "CAMERA": "VIEW_CAM
               "HIDE": "HIDE_ON", "MOTOR": "FORCE_VORTEX", "CYLINDER": "CON_STRETCHTO", "MECHANISM": "SORT_DESC",
               "GCODE": "FILE_SCRIPT", "FADE_OUT": "MOD_OPACITY", "FADE_IN": "MATSHADERBALL",
               "SEQUENCE": "MOD_EXPLODE", "WEATHER": "OUTLINER_DATA_LIGHTPROBE", "CAD": "LOOP_BACK",
-              "VESSEL": "MOD_OCEAN"}
+              "VESSEL": "MOD_OCEAN", "LEAD": "CON_ACTION"}
 
 
 def _follower_note(context, box, scene, j) -> bool:
@@ -1172,6 +1172,9 @@ class FRESING_PT_animation(_Panel, bpy.types.Panel):
                 draw_step(context, box, scene, a, b)
             elif b.kind == "POSE":
                 col.prop_search(b, "pose", s, "poses", text="Pose", icon="ARMATURE_DATA")
+            elif b.kind == "LEAD":                       # task 0309
+                from .ui_lead_motions import draw_step
+                draw_step(context, box, scene, a, b)
             elif b.kind == "CAMERA":
                 _draw_camera_step(context, box, b)
             elif b.kind == "WEATHER":

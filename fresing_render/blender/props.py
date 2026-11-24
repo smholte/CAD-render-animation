@@ -520,6 +520,11 @@ def _renamer(kind: str):
                 for b in a.blocks:
                     if b.gcode_atc == old:
                         b.gcode_atc = new
+        elif kind == "lead":                         # task 0309: Lead motion steps find theirs by its name
+            for a in s.animations:
+                for b in a.blocks:
+                    if b.lead == old:
+                        b.lead = new
 
     return update
 
@@ -1034,6 +1039,9 @@ BLOCK_KINDS = [
      "has it, and moved parts back to their places, over the step's duration: undoes a pose", "LOOP_BACK", 13),    ("VESSEL", "Vessel at work", "Changes what the vessel does over the step: sail ahead, push sideways on its "
      "thrusters, turn, or lie still. The propellers, the wake and the thrusters' jets follow (5 Scene & Render > "
      "Vessel at work)", "MOD_OCEAN", 14),
+    ("LEAD", "Lead motion", "Moves a whole function of the machine – one of its lead motions (Boom up, Outriggers) – "
+     "from one slider position to another: every joint in it moves, each in its own part of the slider",
+     "CON_ACTION", 15),
 ]
 
 
@@ -1211,6 +1219,81 @@ def _speed_mmin_get(self):
 
 def _speed_mmin_set(self, value):
     self.speed_mms = float(value) / 0.06
+
+
+# ---- lead motions (task 0309) ----
+
+def _lead_raw_get(attr):
+    return lambda self: float(self.get(attr, 0.0))
+
+
+def _lead_raw_set(attr):
+    def setter(self, value):
+        self[attr] = float(value)
+        _lead_rows_changed(self, None)
+    return setter
+
+
+def _lead_rows_changed(self, context):
+    """A row of a lead motion changed: the model follows at once where its slider stands (live editing)."""
+    from . import lead_motions
+    lead_motions.row_changed(self)
+
+
+def _lead_position_changed(self, context):
+    from . import lead_motions
+    lead_motions.position_changed(self)
+
+
+class FRLeadRow(bpy.types.PropertyGroup):
+    joint: StringProperty(name="Joint", update=_lead_rows_changed,
+                          description="The joint this row moves. Joints that follow another joint (couplings, "
+                                      "cylinders, mechanisms) move with it and need no row of their own")
+    # the joint's values at the window's start and end, in its own units inside the app (rad / m); the panel shows
+    # the pair that fits the joint (angle in degrees, or length in mm)
+    v0: FloatProperty(default=0.0)
+    v1: FloatProperty(default=0.0)
+    v0_angle: FloatProperty(name="At 0 %", subtype="ANGLE", get=_lead_raw_get("v0"), set=_lead_raw_set("v0"),
+                            description="The joint's angle when the slider is at 0 %, in degrees (0 = CAD position)")
+    v1_angle: FloatProperty(name="At 100 %", subtype="ANGLE", get=_lead_raw_get("v1"), set=_lead_raw_set("v1"),
+                            description="The joint's angle when the slider is at 100 %, in degrees (0 = CAD position)")
+    v0_dist: FloatProperty(name="At 0 %", unit="LENGTH", get=_lead_raw_get("v0"), set=_lead_raw_set("v0"),
+                           description="The joint's position when the slider is at 0 %, in mm (0 = CAD position)")
+    v1_dist: FloatProperty(name="At 100 %", unit="LENGTH", get=_lead_raw_get("v1"), set=_lead_raw_set("v1"),
+                           description="The joint's position when the slider is at 100 %, in mm (0 = CAD position)")
+    start: FloatProperty(name="Starts at", subtype="PERCENTAGE", default=0.0, min=0.0, max=100.0, precision=0,
+                         update=_lead_rows_changed,
+                         description="Where on the slider this joint starts to move, in %. Before it, the joint "
+                                     "stands at its 0 % value: so one slider can do things one after another")
+    end: FloatProperty(name="Ends at", subtype="PERCENTAGE", default=100.0, min=0.0, max=100.0, precision=0,
+                       update=_lead_rows_changed,
+                       description="Where on the slider this joint has arrived, in %. After it, the joint stands at "
+                                   "its 100 % value")
+    easing: EnumProperty(name="Motion", items=EASE_ITEMS, default="SMOOTH", update=_lead_rows_changed,
+                         description="How this joint starts and stops inside its part of the slider: smooth, "
+                                     "constant speed, slow start or slow stop")
+    stage: IntProperty(name="Stage", default=1, min=1, max=9,
+                       description="Which stage this joint moves in (1 first, then 2, 3 …). Set the stages, then "
+                                   "Order by stages gives every stage its part of the slider")
+
+
+class FRLeadMotion(bpy.types.PropertyGroup):
+    name: StringProperty(name="Name", default="Lead motion", update=_renamer("lead"),
+                         description="The name of this lead motion, as the Lead motions menu and animation steps "
+                                     "show it (Boom up, Slew, Outriggers). Double-click to rename")
+    description: StringProperty(name="Description",
+                                description="A short line about what it does: shown as the slider's tooltip and as "
+                                            "the caption of Show every function")
+    seconds: FloatProperty(name="Seconds", default=4.0, min=0.1, soft_max=60.0, step=10, precision=1,
+                           description="How long ▶ takes to play it from 0 to 100 %, and how long the step Add to "
+                                       "animation makes")
+    position: FloatProperty(name="Position", subtype="PERCENTAGE", default=0.0, min=0.0, max=100.0, precision=0,
+                            update=_lead_position_changed,
+                            description="Drag to move the whole function: every joint of this lead motion moves "
+                                        "together, in its own part of the slider")
+    rows: CollectionProperty(type=FRLeadRow)
+    rows_index: IntProperty(default=0)
+
 
 
 class FRAnimBlock(bpy.types.PropertyGroup):
@@ -1561,6 +1644,17 @@ class FRAnimBlock(bpy.types.PropertyGroup):
                            description="Falling hail at the end of the step: the stones bounce on the deck")
     wx_heat: FloatProperty(name="Heat", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_wx_new_field,
                            description="Hot air at the end of the step: a bright haze and heat shimmer in the distance")
+
+    # ---- Lead motion step (task 0309) ----
+    lead: StringProperty(name="Lead motion", description="The lead motion this step moves (made with the Lead "
+                                                         "motions menu on the top bar)")
+    lead_use_from: BoolProperty(name="From where it is", default=True,
+                                description="Starts from where the lead motion's slider is when this step begins "
+                                            "(after the steps before it). Off: from the % you set in From")
+    lead_from: FloatProperty(name="From", subtype="PERCENTAGE", default=0.0, min=0.0, max=100.0, precision=0,
+                             description="The slider position the step starts at, in % (0 = start, 100 = end)")
+    lead_to: FloatProperty(name="To", subtype="PERCENTAGE", default=100.0, min=0.0, max=100.0, precision=0,
+                           description="The slider position the step moves to, in % (0 = start, 100 = end)")
 
     # ---- Vessel at work step (task 0154): what the vessel does at the step's end (it starts from what it did) ----
     vw_mode: EnumProperty(
@@ -4888,6 +4982,18 @@ class FRSceneSettings(bpy.types.PropertyGroup):
                             description="What kind of mechanism to add; the steps below change with it")
     poses: CollectionProperty(type=FRPose)
     poses_index: IntProperty(default=0)
+    # lead motions (task 0309): the short list of the machine's functions, one slider each
+    lead_motions: CollectionProperty(type=FRLeadMotion)
+    lead_index: IntProperty(name="Lead motion", default=0,
+                            description="Click a lead motion to see and change its joints below")
+    lead_pose_a: StringProperty(name="Start pose", description="The saved pose the lead motion starts at (0 %)")
+    lead_pose_b: StringProperty(name="End pose", description="The saved pose the lead motion ends at (100 %)")
+    lead_pick: StringProperty(name="Joint", description="A joint to add as a row: type its values in the row")
+    lead_overlap: FloatProperty(name="Overlap", subtype="PERCENTAGE", default=10.0, min=0.0, max=50.0, precision=0,
+                                description="How far each stage runs into the next one, in % of the slider (0: one "
+                                            "stage ends, then the next starts)")
+    lead_rec: StringProperty(default="")       # Record: the joints' values at Set start (JSON), '' = not recording
+    lead_last: StringProperty(default="")      # the lead motions moved last, newest first (JSON): "moved by …"
     explode_factor: FloatProperty(name="Distance", default=0.5, min=0.0, soft_max=3.0,
                                   description="How far the pieces move apart (0.5 = half their distance from the "
                                               "centre). Then press Explode")
@@ -5070,7 +5176,7 @@ class FRSceneSettings(bpy.types.PropertyGroup):
 
 
 CLASSES = (FRMaterialGroup, FRSchemeLook, FRScheme, FRRule, FRGroupAlias, FRTreeItem, FRFoundPart,
-           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
+           FRObjectRef, FRJoint, FRPoseJoint, FRPlace, FRPose, FRLeadRow, FRLeadMotion, FRCylinder, FRMechLink, FRMechanism, FRUid, FRVisSet,
            FRShot, FRPictureCard, FRCallout, FRTrail, FRCamPathPoint, FRAnimBlock,
            FRAnimation, FRQueueJob, FRReportLine, FRMillBit, FRMilling, FRWayCoverSection, FRWayCover, FRCncTool,
            FRCncPocket, FRCoolantNozzle, FRCoolant, FRCnc, FRClashRow, FRClash, FRToolpath, FRVesselStill, FRVessel, FRVesselThruster, FRVesselWork, FRWeb3D, FRWeather,

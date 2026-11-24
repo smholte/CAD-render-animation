@@ -71,13 +71,14 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 19, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 112, "tour2": 2, "tourui": 31, "layout": 66,
-              "panel": 39, "start": 56, "setup": 46, "highlight": 74, "usage": 33, "lesson": 41, "lessoni": 38,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 113, "tour2": 2, "tourui": 31, "layout": 66,
+              "panel": 39, "start": 56, "setup": 46, "highlight": 74, "usage": 33, "lesson": 43, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 16, "names": 19,
-              "firstsetup": 42}
+              "firstsetup": 42,
+              "leadmotions": 24}
 # Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
 # took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on). Task 0319:
 # the test tour's halves too – 0299's half took 15.0 min, and one new stop moved its weather stops into the other half.
@@ -103,12 +104,16 @@ GROUPS = {
     "ui": ["ui1", "spool", "layout", "left", "settings", "locations"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271; locations: 0272 (~40 s)
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
-    "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake"],   # lifting: 0201; liftingmake: 0204
+    "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake", "leadmotions"],   # leadmotions: 0309 (~1.5 min)   # lifting: 0201; liftingmake: 0204
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
                  "cables", "paths", "undorebake"],
 }
 
 TESTS = {
+    "leadmotions": ("Real app: the Lead motions drop-down – drawn on the top bar in every workspace and the Client view, "
+                    "one click opens it, a slider moves the joints, ▶ plays, Keep open and Edit lead motions… open their "
+                    "windows, the Client view moves the sliders but cannot edit (ui_test_lead_motions.py)",
+                    "ui_test_lead_motions.py", True),
     "names": ("Real app: project names – Ctrl+S on a new project proposes the crane's name in its folder, Blender's own "
               "Save too, Leave empty, Ctrl+Shift+S on a saved project proposes \"(1)\" selected to type over "
               "(ui_test_names.py)", "ui_test_names.py", True),

@@ -83,6 +83,7 @@ _COMMON = (
     "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
     "help.right_click", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
     "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
+    "motion.lead_motions",           # task 0309: the top bar's Lead motions, one click away in every workspace
 )
 TASK_WORKSPACES = {
     # a first good picture and a simple motion
@@ -99,6 +100,7 @@ TASK_WORKSPACES = {
         "scene.light", "scene.weather", "scene.props", "scene.camera", "scene.blur", "scene.still", "scene.shapes",
         "scene.turntable", "animation.product_video", "animation.build", "animation.finishing", "animation.brand",
         "animation.watermark", "animation.music", "queue.still", "queue.video", "queue.schemes",
+        "animation.lead_motion_step",
         "web.export", "web.surroundings", "web.light", "web.player", "web.view_names", "web.phone", "web.film",
     ),
     # import a STEP, sort + looks, surroundings, light, one picture or a turntable
@@ -117,6 +119,7 @@ TASK_WORKSPACES = {
         "looks.light_look", "scene.surroundings", "scene.camera", "scene.blur", "scene.still",
         "animation.labels", "animation.finishing", "animation.cards", "animation.music", "animation.brand",
         "animation.watermark", "queue.still", "queue.video", "queue.time_test", "queue.start_later",
+        "animation.lead_motion_step",
     ),
     # look at a finished model
     "reviewer": _COMMON + (
@@ -135,6 +138,7 @@ MENUS = {
     "TOPBAR_MT_file": "File menu",                  # task 0291: Save / Save As
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
+    "TOPBAR_PT_fresing_lead": "Lead motions (top bar)",
 }
 
 # Guide sections that are only reading (no function of their own): no entry needs to name them.
@@ -319,20 +323,20 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
 # ----- 3 Looks -----
 fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
-   changed="0.2.236", manual_estimate=("part", 5, "pick the part and give it its material"))
+   changed="0.2.237", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
-   changed="0.2.236")
+   changed="0.2.237")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains, perlage", family="looks",
    panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
-   pccheck=("looks.finishes",), since="0.2.229", changed="0.2.236")
+   pccheck=("looks.finishes",), since="0.2.229", changed="0.2.237")
 # task 0318: carbon fibre that follows every CAD face, the group's Rust slider, better existing looks
 fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (no seam)", family="looks",
    panel="FRESING_PT_looks", prop="material", guide="carbon", tour=("finishes",), pccheck=("looks.rust",),
-   since="0.2.236")
+   since="0.2.237")
 fn(id="looks.rust", title="Rust: a slider per group, only where steel rusts", family="looks",
    panel="FRESING_PT_looks", prop="rust", guide="rust", tour=("finishes",), pccheck=("looks.rust",),
-   since="0.2.236")
+   since="0.2.237")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -340,7 +344,7 @@ fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_face
 fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_PT_decals",
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
-   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.236")
+   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.237")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -683,6 +687,15 @@ fn(id="animation.weather_step", title="Weather & time step", family="animation",
    prop="wx_preset", guide="weather", tour=("weather_step",), pccheck=("weather.step",), since="0.2.88")
 fn(id="animation.vessel_step", title="Vessel at work step", family="animation", panel="FRESING_PT_animation",
    prop="vw_mode", guide="vessel-work-step", tour=("vessel_work",), since="0.2.127")
+# task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
+fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
+   family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_play", guide="lead-motions",
+   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.236", headline=True,
+   workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
+   manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
+fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
+   panel="FRESING_PT_animation", prop="lead", guide="lead-motion-step", tour=("lead_motions",),
+   pccheck=("motion.lead_motion",), since="0.2.236", workspaces=_WORK + ("lifting",))
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",

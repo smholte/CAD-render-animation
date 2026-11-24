@@ -785,7 +785,7 @@ def looks_finishes(ctx):
             f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
 
-@line("looks.rust", "Rust slider and carbon fibre", "0.2.236",
+@line("looks.rust", "Rust slider and carbon fibre", "0.2.237",
       what="The finishes test model's rust row and carbon parts: moving a steel group's Rust slider changes its "
            "material (the rust value in its nodes, the welds' value on it); a stainless group has no Rust (the panel "
            "says why) and its look stays the same; the carbon cup's dome and its tube get their weave from their own "
@@ -2518,6 +2518,51 @@ def couplings_motor(ctx):
     animation.clear_keys(scene)
     _check(abs(turns - 1.0) < 0.01, f"12 rpm for 5 s gave {turns:.2f} turns, not 1")
     return "motor → trolley → wheel; 12 rpm × 5 s = 1 turn"
+
+
+@line("motion.lead_motion", "Lead motions: one slider per function", "0.2.236",
+      what="A lead motion of two joints in two stages: its slider at 50 % gives the joints the values the plan says, "
+           "the slider is quick, and a Lead motion step gives the same values half way through")
+def lead_motion(ctx):
+    import time
+
+    import bpy
+
+    from ..blender import animation, joints, lead_motions
+    from ..blender.lessons import crane
+    from ..core import lead_motions as core
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    _boom_joint(scene)
+    crane._trolley(scene)
+    lm = lead_motions.add(scene, "Boom up and out", [core.Row("Boom", 0.0, math.radians(30), 0, 60),
+                                                     core.Row("Trolley", 0.0, 1.5, 40, 100, "LINEAR")])
+    times = []
+    for pct in (10.0, 25.0, 50.0):
+        t0 = time.perf_counter()
+        lm.position = pct
+        _update()
+        times.append((time.perf_counter() - t0) * 1000.0)
+    want = core.values(lead_motions.to_core(lm), 50.0)
+    for name, v in want.items():
+        got = joints.get_value(joints.find(scene, name))
+        _check(abs(got - v) < 1e-6, f"at 50 % '{name}' is at {got:.5f}, the lead motion says {v:.5f}")
+    _check(abs(joints.get_value(joints.find(scene, "Trolley")) - 0.25) < 1e-6,
+           "the trolley did not wait for its part of the slider (40 … 100 %)")
+    ctx.metric("slider", max(times), "ms")
+    lm.position = 0.0
+    _check(bpy.ops.fresing.anim_add() == {"FINISHED"}, "New animation failed")
+    a = s.animations[s.animations_index]
+    a.fps = "25"
+    b = lead_motions.add_step(scene, a, lm, 0.0, 100.0)
+    _check(bpy.ops.fresing.anim_build() == {"FINISHED"}, "Build & play failed")
+    f0, f1 = animation.frame_of(a, b.start), animation.frame_of(a, b.start + b.duration)
+    scene.frame_set((f0 + f1) // 2)
+    p = core.step_position(0.0, 100.0, b.easing, ((f0 + f1) // 2 - f0) / (f1 - f0))
+    want = core.values(lead_motions.to_core(lm), p)
+    err = max(abs(joints.get_value(joints.find(scene, n)) - v) for n, v in want.items())
+    _check(err < 1e-5, f"half way through the step the joints are {err:.6f} off the slider's values")
+    return f"slider {max(times):.1f} ms; the step half way = the slider at {p:.0f} %"
 
 
 @line("states.poses", "Poses, explode, visibility, saved scenes", "0.2.0",
@@ -5882,6 +5927,9 @@ def app_fr_mark(ctx):
         def separator(self, *a, **kw):
             pass
 
+        def popover(self, panel="", **kw):             # task 0309: Lead motions, right of the Fresing menu
+            self.menus.append((panel, kw))
+
     class _Area:
         show_menus = True
 
@@ -5900,6 +5948,7 @@ def app_fr_mark(ctx):
     _check(names[:1] == [ui_topbar.MARK_MENU], f"the top bar's first item is {names[:1]}")
     _check(names[1:7] == ["TOPBAR_MT_file", "TOPBAR_MT_edit", "TOPBAR_MT_render", "TOPBAR_MT_window",
                           "TOPBAR_MT_help", ui_topbar.MENU], f"the top bar's menus after the mark: {names[1:]}")
+    _check(names[7:8] == ["TOPBAR_PT_fresing_lead"], f"Lead motions is not right after the Fresing menu: {names[7:8]}")
     _check(bpy.app.background or ui_topbar.mark_icon() > 0, "the Fr mark's picture did not load")
     _check(ui_topbar.mark_entries() == ["fresing.about", "fresing.settings", "TOPBAR_MT_blender"],
            f"the Fr menu's lines: {ui_topbar.mark_entries()}")
@@ -6256,8 +6305,8 @@ def app_learning(ctx):
 
 @line("app.lessons", "Lessons: the crane in Build it yourself to the end, Show me's first three steps", "0.2.189",
       what="Fresing > Learn… is there; the crane lesson in Build it yourself does every step with Do it for me and goes "
-           "on by itself once the project shows each done (11 steps: joints, camera, scene, animation, Build, exploded "
-           "view, the queue); Show me points, does steps 2 to 4 itself and waits for Next; nothing of the lesson runs "
+           "on by itself once the project shows each done (12 steps: joints, camera, scene, animation, Build, exploded "
+           "view, the queue, a lead motion); Show me points, does steps 2 to 4 itself and waits for Next; nothing of the lesson runs "
            "after Stop")
 def app_lessons(ctx):
     import time
@@ -6267,7 +6316,7 @@ def app_lessons(ctx):
     from ..blender import highlight, lesson, ui_topbar
     _check("fresing.learn_lessons" in ui_topbar.entries(), "Learn… is not in the Fresing menu")
     les = lesson.LESSONS.get("crane")
-    _check(les is not None and len(les.steps) == 11, "the crane lesson is missing or not 11 steps")
+    _check(les is not None and len(les.steps) == 12, "the crane lesson is missing or not 12 steps")
     t0 = time.time()
     scene = ctx.fresh(CRANE_A)
     lesson.start(scene, "crane", "BUILD")
@@ -6284,8 +6333,9 @@ def app_lessons(ctx):
             _check(lesson.state()["step"] == k or lesson.step() is None, f"the lesson did not go on after step {k}")
         build_s = time.time() - t0
         s = scene.fresing
-        _check(len(s.joints) >= 2 and len(s.shots) >= 2 and s.anim_baked and len(s.queue) == 1,
-               "the crane lesson's project misses its joints, scenes, built animation or queued picture")
+        _check(len(s.joints) >= 2 and len(s.shots) >= 2 and s.anim_baked and len(s.queue) == 1
+               and len(s.lead_motions) == 1,
+               "the crane lesson's project misses its joints, scenes, built animation, queued picture or lead motion")
     finally:
         lesson.stop(forget=True)
     _check(lesson.handlers_left() == [] and highlight.handlers_left() == [],

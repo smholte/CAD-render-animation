@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.236"
+__version__ = "0.2.237"
 
 _modules = []
 
@@ -55,6 +55,7 @@ def _classes():
     from .blender import ops_place, ui_place        # task 0292: 2 Structure > Place, Remove…
     from .blender import ops_welds, ui_welds        # task 0319: 3 Looks > Welds
     from .blender import ops_copy                   # task 0293: Copy / Paste with joints and mechanisms
+    from .blender import ops_lead_motions, ui_lead_motions   # task 0309: lead motions (top bar, editor, step)
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_structure) + 1
@@ -87,7 +88,8 @@ def _classes():
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
             + project_name.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_render_view.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
-            + ops_locations.CLASSES + form_window.CLASSES + first_setup.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES)
+            + ops_locations.CLASSES + form_window.CLASSES + first_setup.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES
+            + ops_lead_motions.CLASSES + ui_lead_motions.CLASSES)
 
 
 def _all_classes():

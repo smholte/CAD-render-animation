@@ -87,6 +87,8 @@ class TOPBAR_MT_fresing(bpy.types.Menu):
 
 def _draw_in_editor_menus(self, context):
     self.layout.menu(MENU)
+    from . import ui_lead_motions                  # task 0309: the Lead motions drop-down, right of the Fresing menu
+    ui_lead_motions.draw_button(self.layout, context)
 
 
 def mark_icon() -> int:
