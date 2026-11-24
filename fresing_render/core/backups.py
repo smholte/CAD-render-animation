@@ -91,6 +91,25 @@ def free_name(folder: str, name: str, when: datetime) -> str:
     return path
 
 
+def unsaved_name(model_name: str) -> str:
+    """Task 0291: the name a never-saved project's backups carry – the name its first save would propose (the first
+    model's), else "Unsaved project"."""
+    return (model_name or "").strip() or UNSAVED_NAME
+
+
+def parse_any(file_name: str):
+    """(project name, time) of any backup's file name, or None (task 0291: the unsaved folder holds backups of
+    projects named after their first model)."""
+    if not file_name.endswith(EXT):
+        return None
+    i = file_name.rfind(WORD)
+    if i <= 0:
+        return None
+    name = file_name[:i]
+    when = parse(file_name, name)
+    return (name, when) if when is not None else None
+
+
 def parse(file_name: str, name: str) -> datetime | None:
     """The time in a backup's file name, or None when the file is not a backup of the project ``name``."""
     prefix = f"{name}{WORD}"
@@ -150,15 +169,20 @@ def folders(project_path: str, documents: str) -> list[str]:
     return [folder_next_to(project_path), fallback_folder(documents, project_path)]
 
 
-def listing(folder: str, name: str) -> list[Backup]:
-    """The backups of the project ``name`` in ``folder``, newest first. Other files are not looked at."""
+def listing(folder: str, name: str | None) -> list[Backup]:
+    """The backups of the project ``name`` in ``folder``, newest first. Other files are not looked at. ``name`` None:
+    the backups of every project there (the unsaved folder, task 0291)."""
     out = []
     try:
         entries = list(os.scandir(folder))
     except OSError:
         return out
     for e in entries:
-        when = parse(e.name, name)
+        if name is None:
+            got = parse_any(e.name)
+            when = got[1] if got else None
+        else:
+            when = parse(e.name, name)
         if when is None:
             continue
         try:
@@ -174,7 +198,7 @@ def listing(folder: str, name: str) -> list[Backup]:
 
 def all_backups(project_path: str, documents: str) -> list[Backup]:
     out = []
-    name = project_name(project_path)
+    name = project_name(project_path) if project_path else None      # unsaved: whatever name they carry
     for f in folders(project_path, documents):
         out += listing(f, name)
     out.sort(key=lambda b: (b.when, b.mtime), reverse=True)

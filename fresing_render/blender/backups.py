@@ -221,12 +221,21 @@ def target_folder(project_path: str) -> tuple[str, str]:
     return "", f"Backups cannot be written next to the project nor to {fb}"
 
 
+def unsaved_name(scene=None) -> str:
+    """Task 0291: a never-saved project's backups carry the name its first save proposes (the first model's)."""
+    try:
+        from . import project_name
+        return core.unsaved_name(project_name.model_name(scene if scene is not None else bpy.context.scene))
+    except Exception:  # noqa: BLE001 - a backup never fails over its name
+        return core.UNSAVED_NAME
+
+
 def project_size(project_path: str, folder: str) -> int:
     try:
         return os.path.getsize(project_path)
     except OSError:
         pass
-    found = core.listing(folder, core.project_name(project_path)) if folder else []
+    found = core.listing(folder, core.project_name(project_path) if project_path else None) if folder else []
     return found[0].size if found else 0
 
 
@@ -297,7 +306,7 @@ def make(scene=None, force: bool = False, now: datetime | None = None, note: boo
                               f"of {folder}")
         return ""
     when = now or datetime.now()
-    name = core.project_name(project)
+    name = core.project_name(project) if project else unsaved_name(scene)
     path = core.free_name(folder, name, when)
     changes_before = _S["changes"]
     t0 = time.perf_counter()
@@ -445,7 +454,7 @@ def keep_unsaved_work(scene=None) -> str:
         mt = saved_mtime(project) or 0.0
         names = [b.path for b in project_backups(project) if b.mtime > mt]
     else:
-        names = [b.path for b in core.listing(core.unsaved_folder(documents()), core.UNSAVED_NAME)
+        names = [b.path for b in core.listing(core.unsaved_folder(documents()), None)
                  if b.mtime >= _S.get("opened_at", 0.0)]
     if path:
         names.append(path)
@@ -577,7 +586,7 @@ def _on_save(_dummy=None):
     try:                                 # an unsaved project saved as a project: its unsaved backups are dealt with
         if _S.get("was_unsaved") and bpy.data.filepath:
             folder = core.unsaved_folder(documents())
-            mine = [b.path for b in core.listing(folder, core.UNSAVED_NAME) if b.mtime >= _S.get("opened_at", 0)]
+            mine = [b.path for b in core.listing(folder, None) if b.mtime >= _S.get("opened_at", 0)]
             if mine:
                 core.mark_handled(state_path(), mine)
     except Exception:  # noqa: BLE001

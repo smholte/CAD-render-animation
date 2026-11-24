@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.232"
+__version__ = "0.2.233"
 
 _modules = []
 
@@ -43,6 +43,7 @@ def _classes():
     from .blender import ops_usage, ui_usage      # task 0181: the usage tracker, favourites bar, My usage
     from .blender import about                    # task 0206: About Fresing Render, the licence files
     from .blender import apptools                 # task 0212: Fresing > Tools and checks
+    from .blender import project_name             # task 0291: Save / Save as propose the project's name
     from .blender import ops_backups              # task 0246: Fresing > Restore a backup…, the start question
     from .blender import ui_left, ops_make        # task 0260: the left panel, the output windows of Make
     from .blender import ops_render_view          # task 0308: Render this view
@@ -83,6 +84,7 @@ def _classes():
             + ops_house.CLASSES + ops_toolbox.CLASSES + ops_tc_person.CLASSES + ops_lifting.CLASSES + ops_lifting_rig.CLASSES + ui_lifting.CLASSES
             + ui_lifting_make.CLASSES + ops_lifting_make.CLASSES
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
+            + project_name.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_render_view.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
             + ops_locations.CLASSES + form_window.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES)
 
@@ -204,6 +206,8 @@ def register():
     project_lock.register()
     from .blender import ops_backups
     ops_backups.register()                   # task 0246: the backup timer, the start question
+    from .blender import project_name
+    project_name.register()                  # task 0291: Ctrl+S / Ctrl+Shift+S, File > Save / Save As, the save browser
     machining.register()
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     linkages.register()
@@ -321,6 +325,8 @@ def unregister():
     linkages.unregister()
     coolant.unregister()
     machining.unregister()
+    from .blender import project_name
+    project_name.unregister()
     from .blender import ops_backups
     ops_backups.unregister()
     project_lock.unregister()

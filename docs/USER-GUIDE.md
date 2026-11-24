@@ -627,6 +627,26 @@ the project stay as they are, and leaving the Client view shows those parts agai
 Blender's own right-click menu back at once; **Back to the Fresing window** takes them away again. If you moved one of
 these actions to another key in Blender's Preferences, that key is not swallowed: only the keys above are.
 
+<a id="saving"></a>
+### Saving a project – its name
+
+- **The first save of a new project** (**Ctrl+S**, **File > Save** or **File > Save As…**) opens the file browser with
+  the name already filled in: the name of the **first model you imported**, without an Inventor version such as " v8"
+  and without its file ending (characters Windows does not allow in a file name become "_"). It opens in the folder
+  of that model's STEP file (no model file there: your Documents). Nothing imported yet: **Untitled project**. Change
+  the name or the folder if you like, then **Save As**.
+- **Save As… on a saved project** (**Ctrl+Shift+S** or **File > Save As…**) opens a small box with the name and **(1)**
+  – the next number free in the project's folder: (2), (3) …; a project called "Crane (1)" proposes "Crane (2)". The
+  name is already selected: type a new one over it, or keep it, and press **Save** (or Return twice). **Other
+  folder…** opens Blender's file browser with that name. A name that is there already is never overwritten: the file
+  browser opens so you choose. The project then goes on under its new name; the old file stays as it was.
+- **A saved project keeps its name:** Ctrl+S saves it where it is. The app never renames it.
+- **Setting:** Fresing > Settings… > **General** > **Name of a new project**: **First model's name** (standard) or
+  **Leave empty** (the browser opens without a name and you type one). Kept over a restart.
+- The backups of a project you never saved carry the same name (below). Blender's own auto-save (File > Recover >
+  Auto Save) keeps its own names – a number, not the project's name: Blender does not let an add-on choose it.
+- In the Client view only Save is there (Save As is off).
+
 <a id="backups"></a>
 ### Automatic backups – your work is saved every few minutes
 
@@ -635,7 +655,9 @@ changed since the last backup or since you saved. Your project itself is not tou
 mark and Ctrl+Z stay as they were. The bottom line of the Fresing tab says **Backup saved 14:35**.
 
 - **Where:** in a folder **Backups** next to the project file, named `<project> backup 2026-11-20 14-35.blend`. A
-  project you never saved gets its backups in **Documents\Fresing Render\Backups\Unsaved projects**. When the folder
+  project you never saved gets its backups in **Documents\Fresing Render\Backups\Unsaved projects**, named after its
+  first model (as its first save would be – see [Saving a project](#saving)); with nothing imported yet "Unsaved
+  project". When the folder
   next to the project cannot be written (a read-only network folder), they go to
   Documents\Fresing Render\Backups\Projects\<project> … and the app says so once; the same when a colleague has
   the project open (their backups next to it are theirs: not offered to you, not cleaned by you) or when the path next

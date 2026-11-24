@@ -131,6 +131,7 @@ MENUS = {
     "TOPBAR_MT_help": "Help menu",
     "TOPBAR_MT_fresing": "Fresing menu (top bar)",
     "TOPBAR_MT_fresing_mark": "Fr mark (top bar, far left)",
+    "TOPBAR_MT_file": "File menu",                  # task 0291: Save / Save As
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
 }
@@ -788,6 +789,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
    "Fresing > Restore a backup… puts one back", family="help", panel="TOPBAR_MT_fresing", button="fresing.backups_window",
    guide="backups", tour=("backups",), pccheck=("backups.makes_one",), since="0.2.187",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
+fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
+   "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
+   guide="saving", pccheck=("files.name",), since="0.2.233")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")
