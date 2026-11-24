@@ -1001,6 +1001,8 @@ def build_materials(b: Build):
     from . import material_picker
     for key in PICKER_LIST:
         material_picker.add_to_project(sc, material_files.builtin(key))
+    s.groups_index = next((i for i, g in enumerate(s.groups) if g.name.startswith("Welded frames")), 0)
+    _shot(b, "@material_picker")
 
 
 PICKER_LIST = ("builtin:chrome", "preset:paint_5010", "builtin:knurl_diamond", "builtin:rubber_black")

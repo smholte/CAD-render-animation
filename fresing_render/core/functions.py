@@ -323,7 +323,7 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
 # ----- 3 Looks -----
 fn(id="looks.materials", short="Materials", title="Material groups and their materials", family="looks", panel="FRESING_PT_looks",
    button="fresing.materials", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
-   changed="0.2.237", manual_estimate=("part", 5, "pick the part and give it its material"))
+   changed="0.2.238", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
    button="fresing.materials", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
    changed="0.2.237")
