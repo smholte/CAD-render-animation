@@ -221,6 +221,35 @@ def import_machine(ctx):
     return f"{len(parts)} parts, {len(groups)} groups"
 
 
+@line("import.shapes", "Unnamed washer, nut and O-ring sorted by their shape", "0.2.222",
+      what="Parts called Part1 … Part4: the washer and the nut go to the fasteners, the O-ring to the seals")
+def import_shapes(ctx):
+    """Task 0302: a small STEP written now with OpenCascade (made-up parts, nothing of anyone's), imported and
+    sorted with the built-in rules."""
+    import math as _m
+
+    from ..blender import build
+    from ..demo_model import geom as g
+    from OCP.BRepPrimAPI import BRepPrimAPI_MakeTorus
+    root = g.Asm("SHAPES")
+    corner = 13.0 / _m.sqrt(3.0)
+    hexagon = [(corner * _m.cos(_m.radians(30 + 60 * k)), corner * _m.sin(_m.radians(30 + 60 * k))) for k in range(6)]
+    for name, shape, x in (("Part1", g.cut(g.cyl(8.0, 1.6), g.cyl(4.3, 4.0, (0, 0, -1))), 0.0),
+                           ("Part2", g.cut(g.polygon_prism(hexagon, 6.8), g.cyl(4.25, 9.0, (0, 0, -1))), 30.0),
+                           ("Part3", BRepPrimAPI_MakeTorus(20.0, 2.0).Shape(), 80.0),
+                           ("Part4", g.box(0, 0, 0, 40, 20, 10), 140.0)):
+        root.add(g.Part(name, shape, (0.6, 0.6, 0.6)), g.T(x, 0, 0))
+    path = os.path.join(ctx.work, "unnamed_shapes.step")
+    g.write_step(root, path)
+    scene = ctx.fresh(path)
+    got = {n: _ob(scene, n)[build.PROP_GROUP] for n in ("Part1", "Part2", "Part3", "Part4")}
+    _check(got["Part1"] == "Fasteners default", f"the unnamed washer went to '{got['Part1']}'")
+    _check(got["Part2"] == "Fasteners default", f"the unnamed nut went to '{got['Part2']}'")
+    _check(got["Part3"] == "Seals & O-rings", f"the unnamed O-ring went to '{got['Part3']}'")
+    _check(got["Part4"] not in ("Fasteners default", "Seals & O-rings"), "the plain block was taken for a fastener")
+    return "washer, nut and O-ring found by their shape"
+
+
 @line("import.materials", "CAD material names", "0.2.8", what="Material and appearance names read from STEP")
 def import_materials(ctx):
     from ..blender import build
@@ -1141,7 +1170,7 @@ def motion_drawn(ctx):
             "cable route: 6 contacts, 5 turning")
 
 
-@line("motion.flex_avoid", "A hose avoids other parts; a route shaped by a via point", "0.2.222",
+@line("motion.flex_avoid", "A hose avoids other parts; a route shaped by a via point", "0.2.223",
       what="Task 0298: on the avoid model (a block in a Ø20 hose's way, a lift that goes 400 mm down) the hose with "
            "'Avoid other parts' on stays out of the block at five lift heights (without it, it sags 85 mm into it), "
            "and in a built animation at every frame. Then a via point is set beside the block: the hose runs through "

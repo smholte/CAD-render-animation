@@ -196,7 +196,7 @@ fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that w
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
-   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), lesson="crane:1", since="0.1.0")
+   pccheck=("import.crane", "import.machine", "import.materials", "import.shapes", "project.reopen"), lesson="crane:1", since="0.1.0")
 fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
@@ -316,11 +316,11 @@ fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simpl
    pccheck=("motion.drawn",), since="0.2.180")
 fn(id="flex.avoid", title="Hoses and cables avoid other parts: they lie on them instead of going through",
    family="machines", panel="FRESING_PT_flex", prop="avoid", text="Avoid other parts", guide="flex-avoid",
-   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.222",
+   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.223",
    manual_estimate=("use", 1800, "reshape the hose by hand at every key frame where it would go through a part"))
 fn(id="flex.route", title="Shape a hose's route: drag via points between its ends", family="machines",
    panel="FRESING_PT_flex", button="fresing.flex_route", text="Shape the route", guide="flex-route",
-   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.222")
+   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.223")
 fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
    panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
    pccheck=("motion.flex_kinds",), since="0.2.182")

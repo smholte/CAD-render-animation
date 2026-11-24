@@ -1646,8 +1646,8 @@ def avoid_motion(a) -> None:
     _joint_step(a, "Lift", 2.5, 1.5, 0.1, slide=True, label="Lift up 500 mm")
 
 
-@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.222",
-          changed="0.2.222")
+@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.223",
+          changed="0.2.223")
 def build_flex_avoid(b: Build):
     """Task 0298: the hose of the avoid model (a block in its way, a lift that goes down) with Avoid other parts on."""
     from . import flex
@@ -4656,12 +4656,12 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
 stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
      "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
      "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
-     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.222",
+     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.223",
      check=check_flex_avoid, setup=_route_off, auto="clip")
 stop("flex_route", MOTION, "flex_avoid", "A route shaped by a via point",
      "The same hose with one via point set by hand beside the block (Shape the route): it runs through that point "
      "at every frame, and the point rides down and up with the lift, part of the way, as the end it is nearer to.",
-     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.222",
+     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.223",
      check=check_flex_route, setup=_route_on, auto="clip")
 stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
