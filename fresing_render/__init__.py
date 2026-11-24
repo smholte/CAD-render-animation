@@ -48,6 +48,7 @@ def _classes():
     from .blender import form_window                # task 0282: function windows (forms that stay open)
     from .blender import place                      # task 0307: G / R / S say why something cannot move
     from .blender import ops_place, ui_place        # task 0292: 2 Structure > Place, Remove…
+    from .blender import ops_copy                   # task 0293: Copy / Paste with joints and mechanisms
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_structure) + 1
@@ -66,7 +67,7 @@ def _classes():
     looks[at:at] = ui_house.CLASSES              # 5 Scene & Render > House from House Planner (task 0114)
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
-    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + place.CLASSES + ops_place.CLASSES + ui_place.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
+    return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + place.CLASSES + ops_place.CLASSES + ops_copy.CLASSES + ui_place.CLASSES + welcome.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
             + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES

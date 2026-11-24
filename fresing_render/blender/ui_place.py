@@ -11,7 +11,7 @@ from mathutils import Matrix, Vector
 
 from ..core import place as core
 from . import build, panels, place
-from .ui import _Panel, gap, header_status, hint, missing, steps
+from .ui import _Panel, gap, header_status, hint, missing, steps, wrap
 
 PANEL = "FRESING_PT_place"
 
@@ -85,9 +85,25 @@ def draw_place(layout, context, window: bool = False) -> None:
         col.operator("fresing.place_back", text="Back to where it was imported", icon="LOOP_BACK")
     else:
         col.operator("fresing.place_back", text="Back to the CAD place", icon="LOOP_BACK")
+    gap(layout)
+    row = layout.row(align=True)                 # task 0293: Copy / Paste with joints and mechanisms
+    row.operator("fresing.copy", text="Copy", icon="COPYDOWN")
+    row.operator("fresing.paste", text="Paste", icon="PASTEDOWN")
     if not window:
-        gap(layout)
         layout.operator("fresing.remove", text="Remove…", icon="TRASH")
+    note = copy_note(ob)
+    if note:                                     # the copy just pasted: what came along and what was left out
+        box = layout.box()
+        for line in note:
+            wrap(box, context, line)
+
+
+def copy_note(ob) -> list:
+    """The lines of the last paste while its copy is what Place shows (at the bottom: the panel stays still)."""
+    from . import copy
+    if ob is None or not copy.LAST.get("roots") or ob.name not in copy.LAST["roots"]:
+        return []
+    return copy.summary(copy.LAST)
 
 
 class FRESING_PT_place(_Panel, bpy.types.Panel):

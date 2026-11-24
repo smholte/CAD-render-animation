@@ -524,7 +524,10 @@ APP_KEYS = (("Screen", "EMPTY", "F12", {}, "fresing.key_render", {"animation": F
             ("Object Mode", "EMPTY", "S", {}, "fresing.move_key", {"mode": "RESIZE"}),
             # task 0292: Delete / X open the app's Remove window (it lists what goes; Remove or Cancel)
             ("Object Mode", "EMPTY", "X", {"any": True}, "fresing.remove_key", {}),
-            ("Object Mode", "EMPTY", "DEL", {"any": True}, "fresing.remove_key", {}))
+            ("Object Mode", "EMPTY", "DEL", {"any": True}, "fresing.remove_key", {}),
+            # task 0293: Ctrl+C / Ctrl+V copy and paste a model, subassembly or parts with its joints (Copy / Paste)
+            ("Object Mode", "EMPTY", "C", {"ctrl": True}, "fresing.copy_key", {}),
+            ("Object Mode", "EMPTY", "V", {"ctrl": True}, "fresing.paste_key", {}))
 
 
 def key_label(key: str, mods: dict) -> str:
