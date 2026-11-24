@@ -26,8 +26,9 @@ VIEWS = [{"name": "Front", "eye": [1.5, -8.0, 1.0], "target": [1.5, 0.0, 0.3], "
          {"name": "Top", "eye": [1.5, 0.0, 9.0], "target": [1.5, 0.01, 0.0], "vfov": 30.0, "hfov": 45.0}]
 
 
-def model(animated=True) -> bytes:
-    """Two grey quads side by side (three's y = 0); with an animation the second one bobs for 4 s."""
+def model(animated=True, lead=False) -> bytes:
+    """Two grey quads side by side (three's y = 0); with an animation the second one bobs for 4 s; ``lead``: a joint's
+    clip (task 0310) that lifts the first one 1 m over its value 0 … 1 (``LEAD``)."""
     g = web3d.Gltf()
     look = g.material({"pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1.0], "metallicFactor": 0.0,
                                                 "roughnessFactor": 0.9}})
@@ -39,20 +40,36 @@ def model(animated=True) -> bytes:
     if animated:
         times = np.linspace(0, 4, 9)
         g.animation("Anim", times, [(1, "translation", np.array([[3.0, 0.5 * np.sin(t), 0.0] for t in times]))])
+    if lead:
+        g.animation("Joint 1", np.array([0.0, 1.0]), [(0, "translation", np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0]]))])
     return g.glb()
+
+
+def lead_block(animated: bool, n: int = 3) -> dict:
+    """Task 0310: the page's Motions – ``n`` lead motions on one joint (the first quad up), names long and short."""
+    names = ["Lift", "Lift the whole first plate a long way up over its neighbour", "Half"][:n]
+    return {"t": 0.0, "joints": [{"clip": 1 if animated else 0, "lo": 0.0, "hi": 1.0, "apply": 0, "kind": "SLIDE",
+                                  "parts": 1}],
+            "motions": [{"name": nm, "about": "Moves the first plate" if k == 0 else "", "seconds": 1.0,
+                         "rows": [{"j": 0, "v0": 0.0, "v1": 1.0 if k < 2 else 0.5, "start": 0.0, "end": 100.0,
+                                   "easing": "LINEAR"}], "at": 0.0, "ends": ["0 mm", "1000 mm"]}
+                        for k, nm in enumerate(names)]}
 
 
 SEA = {"state": "CALM", "level": -0.5, "origin": [0.0, 0.0], "near": 50.0, "waves": [[0.2, 1.0, 0.0, 0.3, 0.0]],
        "own": 1, "bump": 0.3, "foam": None, "moving": True}
 
 
-def write(path, kind="plain", animated=True, light=None, views=VIEWS, shadows=False, auto=True, quality="BALANCED"):
+def write(path, kind="plain", animated=True, light=None, views=VIEWS, shadows=False, auto=True, quality="BALANCED",
+          lead=0):
     sea = kind == "sea"
     ch = dict(env.default_choice(), shadows=shadows, auto=auto, quality=quality, sea=sea, haze=sea, rain=sea)
     st = env.settings(ch, [-1.0, -1.0, 0.0], [4.0, 1.0, 0.6], sky={"kind": "SKY", "sun": env.sun_vector(40, 30)},
                       plain=kind == "plain", sea=SEA if sea else None, light=light)
     st["views"] = views
-    glb = model(animated)
+    if lead:
+        st["lead"] = lead_block(animated, lead)
+    glb = model(animated, lead=bool(lead))
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(env.page_html("Player test", glb, st, animated=animated, note="Made with Fresing Render"))
     import gzip
@@ -597,3 +614,86 @@ def test_part_tool_panel_leaves_the_bottom_stack_free(tmp_path):
         for c in (out["out"][2], out["out"][5]):
             assert "part tool panel" in c["items"], (size, c["items"])
             _no_overlaps(c, size)
+
+
+@browser_test
+def test_motions_control_at_every_size(tmp_path):
+    """Task 0310: the Motions button above the saved views, its panel open – on every tested screen (phones upright and
+    sideways, tablet, laptop, big screen), animated and still: no two controls overlap, all inside the safe areas; on
+    a wide screen the panel lies above the stack between the tool columns; upright it is a sheet from the bottom."""
+    for animated in (True, False):
+        path, _n = write(tmp_path / f"m{'a' if animated else 's'}.html", animated=animated, views=views_of(9), lead=3)
+        for sizes, mobile in ((PHONES, True), (WIDE, False)):
+            steps = [{"click": "#fr-motions .fr-mbtn"}]
+            for size in sizes:
+                steps += [{"size": size}, {"eval": CHECK},
+                          {"eval": "(function () { var r = document.getElementById('fr-mpanel').getBoundingClientRect();"
+                                   " return [r.left, r.top, r.right, r.bottom, innerWidth, innerHeight,"
+                                   " frPage.motionsOpen]; })()"}]
+            out = probe(path, steps, size=sizes[0], mobile=mobile, query="soft=0")
+            assert out["ok"], out
+            for k, size in enumerate(sizes):
+                c, r = out["out"][1 + 3 * k + 1], out["out"][1 + 3 * k + 2]
+                what = (animated, size)
+                _no_overlaps(c, what)
+                assert "motions" in c["items"] and r[6] is True, what
+                if int(size.split("x")[0]) < 600:                      # upright: a sheet over the bottom
+                    assert r[0] == 0 and abs(r[3] - r[5]) < 1 and r[2] == r[4], (what, r)
+                else:
+                    assert "motions panel" in c["items"], what
+                    assert r[1] > c["free"]["top"] - 1 and r[3] < r[5], (what, r)
+
+
+@browser_test
+def test_motions_sliders_play_and_close(tmp_path):
+    """Task 0310: a slider moves the part and pauses the animation, ▶ plays to 100 % over the seconds and back, the
+    last one moved wins the shared joint ("moved by …"), Back to start, Play gives the part back; Esc and the phone's
+    Back close the panel and the page stays; the help names the button."""
+    path, _n = write(tmp_path / "m.html", lead=3)
+    slider = "#fr-mpanel .fr-mrow:nth-child(1) input"
+    out = probe(path, [
+        {"click": "#fr-motions .fr-mbtn"},
+        {"eval": "[frPage.motionsOpen, [...document.querySelectorAll('#fr-mpanel .fr-mname')].map(e => e.textContent),"
+                 " [...document.querySelectorAll('#fr-mpanel .fr-mend')].map(e => e.textContent).slice(0, 2)]"},
+        {"eval": f"(function () {{ var s = document.querySelector('{slider}'); s.value = '50';"
+                 " s.dispatchEvent(new Event('input')); return frPage.leadState(); })()"},
+        {"wait": 200}, {"eval": "[frPage.paused, frPage.leadState().joints[0]]"},
+        {"eval": "frPage.setMotion(2, 100), [frPage.leadState().joints[0], frPage.leadState().motions[0].movedBy,"
+                 " document.querySelector('#fr-mpanel .fr-mrow .fr-mby').textContent]"},
+        {"click": "#fr-mpanel .fr-mrow:nth-child(2) .fr-mline button"}, {"wait": 450},
+        {"eval": "[frPage.leadState().playing, frPage.leadState().motions[1].pos]"}, {"wait": 1000},
+        {"eval": "[frPage.leadState().playing, frPage.leadState().motions[1].pos, frPage.leadState().joints[0]]"},
+        {"click": "#fr-mpanel .fr-mfoot button"},
+        {"eval": "[frPage.leadState().motions.map(m => m.pos), frPage.leadState().joints[0]]"},
+        {"key": " "}, {"eval": "[frPage.paused, frPage.leadState().on]"},
+        {"key": "Escape"}, {"eval": "frPage.motionsOpen"},
+        {"key": "?"}, {"eval": "document.getElementById('fr-help').textContent.indexOf('Motions: one slider') >= 0"},
+        {"key": "Escape"},
+    ], query="soft=0", size="900x600")
+    assert out["ok"], out
+    o = out["out"]
+    assert o[1][0] is True and o[1][1][1].startswith("Lift the whole") and o[1][2] == ["0 mm", "1000 mm"]
+    assert o[2]["on"] is True and o[2]["motions"][0]["pos"] == 50
+    assert o[4] == [True, 0.5]                                     # paused; the joint at 50 %
+    assert o[5][0] == 0.5 and o[5][1] == "Half" and o[5][2] == "moved by Half"   # 'Half' at 100 % = 0.5
+    assert o[8][0] == 1 and 10 < o[8][1] < 90                      # playing, under way after 0.45 s of 1 s
+    assert o[10][0] == -1 and o[10][1] == 100 and o[10][2] == 1.0
+    assert o[12] == [[0, 0, 0], 0.0]
+    assert o[14] == [False, False]                                 # Play: the animation rules, the sliders let go
+    assert o[16] is False and o[18] is True
+    path, _n = write(tmp_path / "mp.html", lead=1)
+    alive = "[!!window.frPage && frPage.ready, !!frPage.motionsOpen, location.href.indexOf('mp.html') > 0]"
+    out = probe(path, [{"click": "#fr-motions .fr-mbtn"}, {"eval": alive}, {"back": True}, {"eval": alive},
+                       {"click": "#fr-motions .fr-mbtn"}, {"click": "#fr-mpanel .fr-x"}, {"eval": alive}],
+                size="360x780", mobile=True, query="soft=0")
+    assert out["ok"], out
+    assert out["out"][1] == [True, True, True] and out["out"][3] == [True, False, True]
+    assert out["out"][6] == [True, False, True]
+
+
+@browser_test
+def test_a_page_without_lead_motions_has_no_motions_button(tmp_path):
+    path, _n = write(tmp_path / "n.html")
+    out = probe(path, [{"eval": "[!!document.querySelector('#fr-motions .fr-mbtn'), frPage.leadState(), frPage.motions.length]"}],
+                query="soft=0")
+    assert out["out"][0] == [False, None, 0]

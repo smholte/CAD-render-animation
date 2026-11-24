@@ -346,13 +346,13 @@ fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_P
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
    guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.237")
 fn(id="looks.weld_copy", short="Weld copies", title="Copies take their welds along", family="import", panel="FRESING_PT_place",
-   button="fresing.paste", guide="weld-copies", pccheck=("looks.weld_symbols",), since="0.2.238",
+   button="fresing.paste", guide="weld-copies", pccheck=("looks.weld_symbols",), since="0.2.239",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="looks.weld_symbols", short="Weld symbols", title="Weld symbols (ISO 2553): one switch, off by default", family="looks",
    panel="FRESING_PT_welds", prop="symbols", guide="weld-symbols", tour=("welds",), pccheck=("looks.weld_symbols",),
-   since="0.2.238")
+   since="0.2.239")
 fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="looks", panel="FRESING_PT_welds", button="fresing.weld_list",
-   guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.238")
+   guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.239")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -662,6 +662,9 @@ fn(id="web.phone", short="Web 3D, phone", title="Web 3D page on a phone: one vie
 fn(id="web.film", short="Web 3D Film", title="Web 3D page: Film – the motion seen through the video's camera, with captions, labels and cards",
    family="web", panel="FRESING_PT_web3d", prop="film_captions", guide="web3d-film", tour=("web3d",),
    pccheck=("web3d.film",), since="0.2.194")
+fn(id="web.lead_motions", short="Web 3D Motions", title="Web 3D page: the lead motions as sliders (Motions)",
+   family="web", panel="FRESING_PT_web3d", prop="lead_sliders", guide="web3d-motions", tour=("web3d",),
+   pccheck=("web3d.lead_motions",), since="0.2.238")
 fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a face or X/Y/Z), fade the rest",
    family="web", panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",),
    pccheck=("web3d.export",), since="0.2.131", changed="0.2.175")

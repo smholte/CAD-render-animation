@@ -64,6 +64,14 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
             sub.prop(w, "film_cards", text="Film: title and end card")
             wrap(col, context, "The page gets a Film button: the motion seen through the video's camera"
                  + ("" if w.animation else " (tick Include animation)") + ".", icon="SEQUENCE")
+        from . import web3d_lead                  # task 0310: the lead motions as sliders on the page
+        lms = web3d_lead.wanted(scene)
+        if lms:
+            col.prop(w, "lead_sliders", text="Lead motions as sliders")
+            if w.lead_sliders:
+                from ..core.words import plural
+                shown = ", ".join(lm.name for lm in lms[:3]) + (", …" if len(lms) > 3 else "")
+                wrap(col, context, f"Motions on the page ({plural(len(lms), 'slider')}): {shown}", icon="OPTIONS")
         gap(layout)
         draw_surroundings(context, layout, w)
         draw_light(context, layout, w)
@@ -117,6 +125,8 @@ PLAYER = (                                # task 0134: what the page offers the 
     ("PLAY", "Motion: Space plays and pauses, a time line to drag, speed ½× 1× 2×"),
     ("SEQUENCE", "Film: the motion seen through the video's camera (only with Include animation and a built "
                  "Animation camera); a drag leaves it, Film takes you back"),
+    ("OPTIONS", "Motions: one slider per lead motion (top bar > Lead motions) with ▶ and Back to start; a slider "
+                "pauses the animation, Play gives it back"),
     ("CAMERA_DATA", "Saved views: one per camera of the project, by its name or numbered (View names); "
                     "a phone held upright shows one ‹ name › control and a list of all"),
     ("FULLSCREEN_ENTER", "Fullscreen (F), Reset view (R), Screenshot (S), Copy link to this view (L), keys (?)"),
