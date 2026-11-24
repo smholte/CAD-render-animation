@@ -1003,7 +1003,7 @@ def build_decals(b: Build):
     _shot(b, "@decals")
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.225")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.226")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -1655,6 +1655,116 @@ def _check_hoses(scene):
     _check(end < 1e-4, f"a hose end is {end * 1000:.2f} mm off its fitting")
     _check(stretch < 0.005, f"a hose changed its length by {stretch * 100:.2f} %")
     return f"4 hoses, ends on their fittings to {end * 1000:.3f} mm, length kept to {stretch * 100:.2f} %"
+
+
+AVOID_ANIM = "Lift down and up"
+AVOID_VIA = (0.72, 0.24, 0.66)          # world m: the via point of the route stop, beside the block on the camera side
+
+
+def avoid_motion(a) -> None:
+    """The steps of the avoid stops: the lift goes down 400 mm (its fitting below the block's top) and up again."""
+    _joint_step(a, "Lift", 0.0, 2.0, -0.4, slide=True, label="Lift down 400 mm")
+    _joint_step(a, "Lift", 2.5, 1.5, 0.1, slide=True, label="Lift up 500 mm")
+
+
+@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.225",
+          changed="0.2.225")
+def build_flex_avoid(b: Build):
+    """Task 0298: the hose of the avoid model (a block in its way, a lift that goes down) with Avoid other parts on."""
+    from . import flex
+    sc = b.scene
+    _look("PRODUCT")
+    made = flex.set_up_test_avoid(sc, avoid=True)
+    _check(len(made["items"]) == 1, "the hose was not made")
+    _update()
+    _surround(b, "FACTORY")
+    _camera(b, "FRONT", "Tour view")
+    shot = _shot(b, "Tour: avoid")
+    avoid_motion(_animation(b, AVOID_ANIM, shot.name))
+
+
+def _avoid_hose(scene):
+    from . import flex
+    it = next((x for x in scene.fresing.flex if x.kind == "HOSE"), None)
+    _check(it is not None, "the hose is missing")
+    return it
+
+
+def _route_off(scene) -> None:
+    """The avoid stop shows the hose without via points (the route stop's one taken off again)."""
+    from . import flex_route
+    it = _avoid_hose(scene)
+    if flex_route.count(it):
+        flex_route.clear(scene, it)
+
+
+def _route_on(scene) -> None:
+    """The route stop: one via point beside the block, on the camera's side (once)."""
+    import numpy as np
+
+    from . import flex, flex_route
+    it = _avoid_hose(scene)
+    if not flex_route.count(it):
+        flex.refresh(scene, force=True)
+        line = flex.shape_now(scene, it)
+        k = int(np.argmin(np.linalg.norm(line - np.array(AVOID_VIA), axis=1)))
+        at, weight = flex_route.where_on(it, line, k)
+        flex_route.add(scene, it, np.array(AVOID_VIA), at, weight)
+
+
+def _avoid_over_frames(scene, fn):
+    frames = sorted({scene.frame_start, scene.frame_end} |
+                    {round(scene.frame_start + k * (scene.frame_end - scene.frame_start) / 10) for k in range(1, 10)})
+    out = []
+    for f in frames:
+        scene.frame_set(f)
+        _update()
+        out.append(fn())
+    return out
+
+
+def check_flex_avoid(scene):
+    """The hose stays out of the block at every frame looked at (its surface at most 2.5 mm in where it bends round
+    an edge) and lies on it at the lowest point of the lift (its surface within 6 mm of the block's: the push of a
+    part grows from nothing over a little of the clearance, so it rests a few mm above)."""
+    from . import build, flex, flex_avoid
+    from ..core import flex as fcore
+    it = _avoid_hose(scene)
+    _check(it.avoid, "'Avoid other parts' is off")
+    block = next((o for o in scene.objects if o.get(build.PROP_NAME) == "BLOCK"), None)
+    _check(block is not None, "the block is missing")
+    _check(block.name in {o.name for o in flex_avoid.parts_for(scene, it)}, "the hose does not avoid the block")
+    import numpy as np
+    body = flex_avoid.body_of(block)
+
+    def gap():
+        inv = np.linalg.inv(flex_avoid._rigid(np.array(block.matrix_world)))
+        pts = fcore.resample(flex.shape_now(scene, it), 400)
+        return float(body.distance(pts @ inv[:3, :3].T + inv[:3, 3])[0].min()) - 0.5 * it.diameter
+    gaps = _avoid_over_frames(scene, gap)
+    worst = min(gaps)
+    _check(worst > -0.0025, f"the hose goes {-worst * 1000:.1f} mm into the block")
+    _check(worst < 0.006, f"the hose never comes down onto the block (nearest {worst * 1000:.1f} mm)")
+    return f"the hose's surface stays within {max(-worst, 0.0) * 1000:.2f} mm of the block's at every frame looked at"
+
+
+def check_flex_route(scene):
+    """The hose runs through its via point at every frame looked at; the via point rides down with the lift."""
+    import numpy as np
+
+    from . import flex, flex_route
+    it = _avoid_hose(scene)
+    _check(flex_route.count(it) == 1, f"the hose has {flex_route.count(it)} via points, not 1")
+
+    def miss():
+        via = flex_route.stops_now(it)[1][0]
+        return float(np.linalg.norm(flex.shape_now(scene, it) - via, axis=1).min()), via
+    got = _avoid_over_frames(scene, miss)
+    worst = max(m for m, _v in got)
+    travel = max(float(np.linalg.norm(v - got[0][1])) for _m, v in got)
+    _check(worst < 1e-4, f"the hose misses its via point by {worst * 1000:.2f} mm")
+    _check(travel > 0.05, f"the via point moved only {travel * 1000:.0f} mm with the lift")
+    return f"through its via point to {worst * 1000:.3f} mm; the via point rides {travel * 1000:.0f} mm with the lift"
 
 
 @tour_set("chains", "Drag chains", "test_flex_chains_a.step", added="0.2.78", changed="0.2.215")
@@ -4446,7 +4556,7 @@ stop("welds", LOOK, "welds", "Welds",
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
      "the branch meets the tube and a butt joint ground flush to the extension plate.",
-     where="3 Looks > Welds", check=_check_welds, since="0.2.225")
+     where="3 Looks > Welds", check=_check_welds, since="0.2.226")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
@@ -4570,6 +4680,16 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "Meanwhile the A-frame leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
      auto="clip")
+stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
+     "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
+     "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
+     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.225",
+     check=check_flex_avoid, setup=_route_off, auto="clip")
+stop("flex_route", MOTION, "flex_avoid", "A route shaped by a via point",
+     "The same hose with one via point set by hand beside the block (Shape the route): it runs through that point "
+     "at every frame, and the point rides down and up with the lift, part of the way, as the end it is nearer to.",
+     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.225",
+     check=check_flex_route, setup=_route_on, auto="clip")
 stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
      "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
