@@ -52,6 +52,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   drawn   task 0240: a hose drawn through two clips (view_drawn_hose.jpg) and a cable route drawn over the drum,
       two sheaves and the chute (view_drawn_cable.jpg); Cycles on the processor, as "render".
 
+  avoid   task 0298: the avoid test model, lift down, the hose lying on the block (view_flex_avoid.jpg; as "render").
+
   kinds   task 0243: one drawn hose of each kind on the hoses model (view_flex_kinds.jpg) and the drawn drag chain as a
       closed chain on the gantry (view_chain_types.jpg); Cycles on the processor, as "render".
 
@@ -2293,6 +2295,36 @@ def render_drawn():
     one("test_paths_a.step", tour.drawn_cable_setup, "view_drawn_cable", view="FRONT")
 
 
+def render_avoid():
+    """Task 0298: the avoid test model with the lift down and 'Avoid other parts' on: the hose lies on the block
+    (view_flex_avoid.jpg; Cycles on the processor, as "render")."""
+    import addon_utils
+    addon_utils.enable(pkg(), default_set=True)
+    joints, cams, flex = mod("blender.joints"), mod("blender.cameras"), mod("blender.flex")
+    bpy.ops.wm.read_factory_settings(use_empty=False)
+    addon_utils.enable(pkg(), default_set=True)
+    assert bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_flex_avoid_a.step"),
+                                       quality="normal") == {"FINISHED"}
+    sc = bpy.context.scene
+    s = sc.fresing
+    flex.set_up_test_avoid(sc, avoid=True)
+    joints.set_value(s.joints.get("Lift"), -0.4)
+    bpy.context.view_layer.update()
+    flex.refresh(sc, force=True)
+    s.background, s.env_detail = "FACTORY", "SIMPLE"
+    cam = cams.add_camera(sc, "FRONT", 50.0, name="Guide view")
+    sc.camera = cam
+    bpy.context.view_layer.update()
+    cams.fit(cam, sc)
+    s.out_format, s.out_custom_w, s.out_custom_h, s.use_gpu, s.out_folder = "custom", 900, 600, False, SCRATCH
+    mod("blender.render").apply_output(sc, s)
+    t0 = time.time()
+    assert bpy.ops.fresing.render(quality="preview") == {"FINISHED"}
+    log("render", "view_flex_avoid", f"{time.time() - t0:.0f} s")
+    subprocess.run(["convert", s.last_render, "-strip", "-quality", "86", os.path.join(OUT, "view_flex_avoid.jpg")],
+                   check=True)
+
+
 def render_kinds():
     """Task 0243: the test tour's row of six drawn hoses, one per kind (``tour.kind_row_setup``), and the drawn chain
     on the gantry as a closed chain (view_flex_kinds.jpg, view_chain_types.jpg; Cycles on the processor)."""
@@ -2504,6 +2536,12 @@ elif MODE == "operator":
 elif MODE == "people":
     try:
         render_people()
+    except Exception:
+        log("ERROR", traceback.format_exc())
+        sys.exit(1)
+elif MODE == "avoid":
+    try:
+        render_avoid()
     except Exception:
         log("ERROR", traceback.format_exc())
         sys.exit(1)

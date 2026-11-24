@@ -251,7 +251,7 @@ fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="l
    button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains", family="looks",
    panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
-   pccheck=("looks.finishes",), since="0.2.225")
+   pccheck=("looks.finishes",), since="0.2.226")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -324,6 +324,13 @@ fn(id="flex.draw_chain", title="Draw a drag chain between two brackets", family=
 fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simplified CAD part", family="machines",
    panel="FRESING_PT_flex", button="fresing.drawn_replace", guide="replace-cad", tour=("drawn_replace",),
    pccheck=("motion.drawn",), since="0.2.180")
+fn(id="flex.avoid", title="Hoses and cables avoid other parts: they lie on them instead of going through",
+   family="machines", panel="FRESING_PT_flex", prop="avoid", text="Avoid other parts", guide="flex-avoid",
+   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.225",
+   manual_estimate=("use", 1800, "reshape the hose by hand at every key frame where it would go through a part"))
+fn(id="flex.route", title="Shape a hose's route: drag via points between its ends", family="machines",
+   panel="FRESING_PT_flex", button="fresing.flex_route", text="Shape the route", guide="flex-route",
+   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.225")
 fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
    panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
    pccheck=("motion.flex_kinds",), since="0.2.182")

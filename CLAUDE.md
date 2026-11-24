@@ -508,6 +508,12 @@ fresing_render/            the Blender extension (Python package)
                            arrow and motion); the CAD coil hidden by an empty modifier; ``set_up_test_model``
                            (test_spool.step from tools/make_test_spool.py); ops_spool.py, ui_spool.py (4 Motion > Drums
                            and carousels)
+    flex_avoid.py          hoses that avoid other parts (task 0298): which parts (shown, near, not its fittings), their
+                           meshes as bodies for core/flex_avoid.py (BVH + clash.Mesh's inside test); flex_route.py = via
+                           points (clips with ``via`` on, carried between the two end parts by a share of the screw);
+                           ops_route.py = Shape the route (modal: drag dots, click the line, X); flex.clash_rows =
+                           clash.ROW_HOOKS ("Check hoses that avoid parts"); core/flex_avoid.py = the field (boxes,
+                           balls, any body), core/flex.py ``avoid=`` = a contact penalty on the fine level
     tracks.py              tracks and belts (task 0079): wheels clicked, one link (its copies by name), pads/plates
                            riding on the nearest link; per track a hidden table "FR track loop <name>" (the loop every
                            2 mm, carrier coordinates = the first wheel's joint arrow) and a run object "FR track run

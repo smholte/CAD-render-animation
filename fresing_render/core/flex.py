@@ -195,6 +195,22 @@ _MOST_SAG = 1e6            # beyond these nothing changes any more but the arith
 _SIDE = 3000.0             # how firmly a guide holds the hose's belly in its plane (× bending stiffness / length
                            # for a belly of length² off the plane)
 _TINY = 1e-300
+# other parts (task 0298)
+_CONTACT = 1e3             # how firmly a part pushes a sample out, × what bending and weight push with
+_CONTACT_STEPS = ((True, 0.01), (True, 0.1), (False, 0.1), (False, 1.0), (False, 1.0))   # … reached in these steps from the
+#                            shape without the parts: first lifted out (a sample whose centre is well inside a part,
+#                            ``core/flex_avoid.DEEP``, leaves it towards the line of the hose's ends), then pushed out
+#                            square to the surfaces: the hose lies on the part and slides along (the last step twice:
+#                            a hose lifted far settles for longer)
+_CONTACT_SMOOTH = 0.1      # the push grows over this share of the clearance (see ``_Contact.depth``)
+_CONTACT_PER = 4           # samples on every segment (a polyline cuts the corner of a part between two of them)
+_CONTACT_SKIP = 1.0        # samples this many clearances from the end segments are left free (the fittings' stretch)
+_CONTACT_TOL = 0.02        # a hose this share of its clearance in (or less) is not settled again
+_CONTACT_TOL_STEP = 1e-3   # Newton step (radians) at which a contact step is done …
+_WARM_OK = 0.3            # … taken when no sample's centre is further than this share of the clearance in
+_WARM_IT = 60              # steps from an earlier answer (the frame before)
+_CONTACT_IT = 60           # … or after this many steps (a sample that touches and lets go can keep it from settling
+                           # exactly: the shape is then within a fraction of a millimetre of it)
 
 
 @dataclass
@@ -312,7 +328,7 @@ class _Level:
     """What the solver knows about a batch of hoses on one level (q free segments). Lengths are in units of
     the free segment, the energy in units of weight per length × segment²."""
 
-    __slots__ = ("q", "t0", "t1", "s", "kj", "bg", "ism", "rho", "pen", "emax", "shift", "side")
+    __slots__ = ("q", "t0", "t1", "s", "kj", "bg", "ism", "rho", "pen", "emax", "shift", "side", "con")
 
     def take(self, keep) -> "_Level":
         out = _Level()
@@ -322,7 +338,71 @@ class _Level:
         out.ism = self.ism[keep] if self.pen else None
         out.rho = self.rho[keep] if self.pen else None
         out.side = None if self.side is None else self.side[keep]
+        out.con = None if self.con is None else self.con.take(keep)
         return out
+
+
+class _Contact:
+    """Other parts the hose keeps out of (task 0298), on the fine level: the hose is sampled ``_CONTACT_PER`` times
+    along every free segment (``A``: the share of each segment's direction in each sample), and a sample nearer to
+    a surface than ``clear`` costs energy ``kc``/2 · (how far it is in / segment)². ``field(ids, points)`` gives the
+    signed distance and the way out (``core/flex_avoid.Field``); ``ids`` are the rows of the caller's batch."""
+
+    __slots__ = ("ids", "base", "hc", "kc", "clear", "on", "field", "a", "lift", "p0", "p1", "up")
+
+    def take(self, keep) -> "_Contact":
+        out = _Contact()
+        out.field, out.a, out.lift = self.field, self.a, self.lift
+        for name in ("ids", "base", "hc", "kc", "clear", "on", "p0", "p1", "up"):
+            setattr(out, name, getattr(self, name)[keep])
+        return out
+
+    def toward(self, x) -> np.ndarray:
+        """Which way a sample deep in a part leaves it while the hose is lifted out (``lift``): towards the line
+        between the hose's ends, where it hangs from; a sample on that line: up (against its weight)."""
+        ab = self.p1 - self.p0
+        ll = np.einsum("bk,bk->b", ab, ab)
+        t = np.clip(np.einsum("bpk,bk->bp", x - self.p0[:, None], ab) / np.where(ll > 0.0, ll, 1.0)[:, None], 0.0, 1.0)
+        v = self.p0[:, None] + t[..., None] * ab[:, None] - x
+        ln = _norm(v)
+        far = ln > self.clear[:, None]
+        return np.where(far[..., None], v / np.where(far, ln, 1.0)[..., None], self.up[:, None, :])
+
+    def points(self, d) -> np.ndarray:
+        return self.base[:, None, :] + self.hc[:, None, None] * np.einsum("pq,bqk->bpk", self.a, d)
+
+    def depth(self, d) -> tuple:
+        """(how far each sample is inside its clearance, smoothed (b, P) – ``_CONTACT_SMOOTH``: the push grows from
+        nothing over a few tenths of the clearance, so a sample that touches and lets go does not keep the hose
+        from settling –, the way out (b, P, 3), the smoothed depth's slope (b, P), the plain depth (b, P): 0 where it
+        is clear)."""
+        x = self.points(d)
+        dist, way = self.field(self.ids, x, self.clear, self.toward(x) if self.lift else None)
+        w = (_CONTACT_SMOOTH * self.clear)[:, None]
+        with np.errstate(invalid="ignore", over="ignore"):
+            inn = self.clear[:, None] - dist
+            root = np.sqrt(inn * inn + w * w)
+            near = self.on & np.isfinite(dist)
+            pen = np.where(near, 0.5 * (inn + root), 0.0)
+            slope = np.where(near, 0.5 * (1.0 + inn / root), 0.0)
+            raw = np.where(near, np.maximum(inn, 0.0), 0.0)
+        return np.nan_to_num(pen), way, np.nan_to_num(slope), np.nan_to_num(raw)
+
+
+@lru_cache(maxsize=16)
+def _samples(q, per=None):
+    """(per · q − 1, q): ``per`` samples on every free segment, evenly along it (the last ends it; the end of the
+    last free segment is fixed by the ends and left out)."""
+    per = _CONTACT_PER if per is None else per
+    a = np.zeros((per * q - 1, q))
+    for j in range(q):
+        for k in range(per):
+            row = per * j + k
+            if row >= per * q - 1:
+                break
+            a[row, :j] = 1.0
+            a[row, j] = (k + 1) / per
+    return a
 
 
 def _make_level(q, a, free, t0, t1, rel, ell3, sagv, rmin, pen, guide=None) -> _Level:
@@ -349,7 +429,7 @@ def _make_level(q, a, free, t0, t1, rel, ell3, sagv, rmin, pen, guide=None) -> _
     lv.bg = c[None, :, None] * sagv[:, None, :]
     lv.emax = 2.0 * lv.kj.sum(axis=1) + _norm(lv.bg).sum(axis=1) + _TINY
     lv.shift = _SHIFT * lv.emax
-    lv.ism = lv.rho = lv.side = None
+    lv.ism = lv.rho = lv.side = lv.con = None
     if guide is not None:
         line = lv.s / (_norm(lv.s) + _TINY)[:, None]
         belly = np.einsum("q,bqk->bk", c, guide)
@@ -386,6 +466,9 @@ def _energy(d, s, lv):
     if lv.pen:
         v = np.maximum(s * lv.ism - 1.0, 0.0)
         e = e + np.einsum("bj,bj->b", lv.rho, v * v * v) * (1.0 / 3.0)
+    if lv.con is not None:
+        pen = lv.con.depth(d)[0] / lv.con.hc[:, None]
+        e = e + 0.5 * lv.con.kc * np.einsum("bp,bp->b", pen, pen)
     return e
 
 
@@ -538,6 +621,10 @@ def _system(d, lam, lv, gamma=None):
     grad = m[:, :-1] - m[:, 1:] - lv.bg                                   # dE/dd_i, (b, q, 3)
     if lv.side is not None:
         grad += np.einsum("bqk,bqk->b", d, lv.side)[:, None, None] * lv.side
+    if lv.con is not None:                                                # other parts push the samples out
+        pen, way, slope, _raw = lv.con.depth(d)
+        push = -(lv.con.kc / lv.con.hc)[:, None] * pen * slope
+        grad += np.einsum("pq,bp,bpk->bqk", lv.con.a, push, way)
     tn = _tangents(d)
     gt = np.einsum("bqka,bqk->bqa", tn, grad).reshape(b, nq)
     mu = np.einsum("bqk,bk->bq", d, lam) - np.einsum("bqk,bqk->bq", d, grad)
@@ -563,6 +650,11 @@ def _system(d, lam, lv, gamma=None):
     if lv.side is not None:                                               # the belly's term couples all segments
         v = np.einsum("bqka,bqk->bqa", tn, lv.side).reshape(b, nq)
         mat[:, :nq, :nq] += v[:, :, None] * v[:, None, :]
+    if lv.con is not None:                                                # … and so does a sample in contact
+        touch = slope * slope * lv.con.kc[:, None]
+        if touch.any():
+            v = np.einsum("pq,bpk,bqka->bpqa", lv.con.a, way, tn).reshape(b, -1, nq)
+            mat[:, :nq, :nq] += np.einsum("bp,bpi,bpj->bij", touch, v, v)
     jac = tn.transpose(0, 2, 1, 3).reshape(b, 3, nq)
     mat[:, nq:, :nq] = jac
     mat[:, :nq, nq:] = jac.transpose(0, 2, 1)
@@ -800,6 +892,9 @@ def _force(d, lv):
     grad = m[:, :-1] - m[:, 1:] - lv.bg
     if lv.side is not None:
         grad += np.einsum("bqk,bqk->b", d, lv.side)[:, None, None] * lv.side
+    if lv.con is not None:
+        pen, way, slope, _raw = lv.con.depth(d)
+        grad += np.einsum("pq,bp,bpk->bqk", lv.con.a, -(lv.con.kc / lv.con.hc)[:, None] * pen * slope, way)
     along = np.einsum("bqk,bqk->bq", d, grad)
     rhs = (grad - d * along[..., None]).sum(axis=1)
     mat = lv.q * (1.0 + 1e-9) * _EYE3 - np.matmul(d.transpose(0, 2, 1), d)
@@ -882,6 +977,83 @@ def _solve(n, t0, t1, rel, length, ell3, sagv, rmin, start, guide):
         fine = (res <= 1e-10) & np.isfinite(new).all(axis=(1, 2))
         d[over[fine]] = new[fine]
     return d, which
+
+
+def _contact(n, lv, p0, t0, length, ell3, sagv, ids, field, clear) -> _Contact:
+    """The other parts on the fine level ``lv`` (q = n − 3): see ``_Contact``. How hard a sample is pushed out: a
+    share of what the hose's bending and weight can push against it (``_CONTACT``), so a stiff hose and a heavy one go
+    in about as little."""
+    q = lv.q
+    seg = length / (n - 1)
+    hc = (length - 2.0 * seg) / q
+    con = _Contact()
+    con.ids, con.field, con.a, con.lift = ids, field, _samples(q), False
+    con.p0 = p0
+    con.p1 = p0 + seg[:, None] * t0 + lv.s * hc[:, None] + seg[:, None] * lv.t1
+    con.up = -_unit_or(sagv, np.broadcast_to(np.array([0.0, 0.0, -1.0]), sagv.shape))
+    con.base = p0 + seg[:, None] * t0
+    con.hc = hc
+    con.clear = clear
+    con.kc = _CONTACT * (2.0 * lv.kj.max(axis=1) + _norm(sagv) * q)
+    per = _CONTACT_PER
+    at = seg[:, None] + hc[:, None] * ((1.0 + np.arange(per * q - 1)) / per)[None, :]    # along the hose, metres
+    keep = seg + _CONTACT_SKIP * clear                    # (the fittings' own stretch: the hose may go in there)
+    con.on = (at > keep[:, None]) & (length[:, None] - at > keep[:, None])
+    return con
+
+
+def _avoid(n, d, p0, t0, t1, rel, length, ell3, sagv, rmin, guide, ids, field, clear, seed=None, seed_first=True):
+    """The hoses of a chunk that come nearer to another part than ``clear`` settle again with the parts pushing
+    them out (on the fine level). From their shape without the parts it is done in steps (``_CONTACT_STEPS``): first
+    softly and lifted out towards the line of their ends – a hose that sagged deep into a part comes out on top of
+    it, not through the nearest face –, then firmly and square to the surfaces. ``seed`` (b, n − 3, 3)
+    or None: the directions of an earlier answer (the frame before, the last pose; NaN rows: none): such a hose
+    starts from it and only settles firmly (``_WARM_IT`` steps), so it stays on the side of a part it lay on; if it
+    is still in a part after that, it is done from its own shape after all (``seed_first`` False: a hose whose own
+    shape is clear of the parts takes it, seed or not). Returns the directions (b, n − 3, 3); a hose that cannot be
+    settled keeps its shape."""
+    q = n - 3
+    seg = length / (n - 1)
+    g = None
+    if guide is not None:
+        g = _guide_dirs(np.where(np.isfinite(guide).all(axis=(1, 2))[:, None, None], guide, 0.0), n, q)[0]
+    pen = bool((rmin > 0.0).any())
+    lv = _make_level(q, seg, length - 2.0 * seg, t0, t1, rel, ell3, sagv, rmin, pen, g)
+    lv.con = _contact(n, lv, p0, t0, length, ell3, sagv, ids, field, clear)
+    full = lv.con.kc.copy()
+    out = d.copy()
+    todo = np.ones(len(d), dtype=bool)
+    inside = lv.con.depth(d)[3]
+    clear_now = inside.max(axis=1) <= _CONTACT_TOL * clear
+    if seed is not None:
+        warm = np.flatnonzero(np.isfinite(seed).all(axis=(1, 2)) & (seed_first | ~clear_now))
+        if len(warm):
+            lvw = lv.take(warm)
+            dw, res = _close_safe(seed[warm], lvw.s)
+            ok = (res <= 1e-10) & np.isfinite(dw).all(axis=(1, 2))
+            if ok.any():
+                w2 = warm[ok]
+                lvw = lv.take(w2)
+                dw, _lam = _newton(dw[ok], _force(dw[ok], lvw), lvw, _CONTACT_TOL_STEP, _WARM_IT)
+                dw, res = _close(dw, lvw.s, iters=3, tol=1e-15)
+                inside = lvw.con.depth(dw)[3].max(axis=1)
+                fine = (res <= 1e-10) & np.isfinite(dw).all(axis=(1, 2)) & (inside <= _WARM_OK * clear[w2])
+                out[w2[fine]] = dw[fine]
+                todo[w2[fine]] = False
+    hit = np.flatnonzero(todo & ~clear_now)
+    if not len(hit):
+        return out
+    lvh = lv.take(hit)
+    dh = d[hit]
+    lam = _force(dh, lvh)
+    for lift, share in _CONTACT_STEPS:
+        lvh.con.kc = full[hit] * share
+        lvh.con.lift = lift
+        dh, lam = _newton(dh, lam, lvh, _CONTACT_TOL_STEP, _CONTACT_IT)
+    new, res = _close(dh, lvh.s, iters=3, tol=1e-15)
+    fine = (res <= 1e-10) & np.isfinite(new).all(axis=(1, 2))
+    out[hit[fine]] = new[fine]
+    return out
 
 
 def _finer(n, qc, qf, d, t0, t1, lv, sagv):
@@ -991,7 +1163,7 @@ def _solve_plain(n, t0, t1, rel, length, ell3, sagv, rmin, start):
 # ---------------------------------------------------------------------------
 
 def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=(0.0, 0.0, -1.0), n=33,
-                start=None, guide=None) -> Hoses:
+                start=None, guide=None, avoid=None, clear=0.0, seed=None) -> Hoses:
     """The shapes of B hoses at once.
 
     p0, p1 (B, 3) the ends; t0, t1 (B, 3) the directions along the hose at end 0 and end 1 (both from end 0
@@ -1014,24 +1186,53 @@ def solve_hoses(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=
     hose's centreline in the pose it was drawn in, carried along by the part of end 0 and by the part of end 1,
     going over from the one to the other along the hose (``carried``).
 
+    avoid: None, or other parts the hoses keep out of (task 0298): a callable ``avoid(ids, points, clear, toward)`` ->
+    (signed distance (b, P), unit direction out (b, P, 3)) for points (b, P, 3) of the batch rows ``ids``; ``toward``
+    (b, P, 3) or None is the way a point deep inside a part should leave it (``core/flex_avoid.Field`` says how); clear: one number or (B,), how far the centreline keeps from a surface (the hose's radius). The hose is
+    solved as without them; where it comes nearer than ``clear`` (outside the stretch next to its fittings) it settles
+    again with the parts pushing it out: it lies on them and slides along. Each segment is sampled 4 times. A wall about as thin as
+    the hose's diameter (or thinner) can still be crossed: the samples on its two sides are pushed apart (measured:
+    a Ø20 hose crosses a 20 mm wall, not a 15 or 30 mm one where it sags into it, task 0298's independent tests). seed: None, or
+    (B, n, 3) points of an earlier answer of the same hoses (the pose before; NaN rows: none): a hose with parts to
+    avoid starts from it, so it stays on the side of a part it already lay on (and it is much quicker).
+
     Result (``Hoses``): n points per hose with exact ends; unless ``short``, all n − 1 segments are length/(n − 1)
     long, the first along t0, the last along t1; ``start`` says which start each answer came from. Nothing is
     remembered between calls.
     """
-    return _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide)[0]
+    return _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide, avoid, clear, seed)[0]
 
 
 class _Batch:
     """What ``_run`` worked out about a batch on the way (for ``solve_motion``, which goes on from there)."""
 
 
-def _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide=None):
+def _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide=None, avoid=None, clear=0.0,
+         seed=None):
     """``solve_hoses``, and the batch as it was prepared and solved."""
     with np.errstate(all="ignore"):                       # (numbers that are not numbers are dealt with below)
-        return _run_quietly(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide)
+        return _run_quietly(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide, avoid, clear,
+                            seed)
 
 
-def _run_quietly(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide):
+def _seed_dirs(seed, n, b):
+    """Unit directions (b, n − 3, 3) of the free segments of earlier points (b, n, 3); NaN rows where there are
+    none or they do not fit."""
+    if seed is None:
+        return None
+    pts = np.array(seed, dtype=float)
+    if pts.ndim == 2:
+        pts = pts[None]
+    if pts.shape != (b, n, 3):
+        return None
+    d = pts[:, 2:-1] - pts[:, 1:-2]
+    ln = _norm(d)
+    with np.errstate(all="ignore"):
+        return np.where((ln > 0.0)[..., None], d / ln[..., None], np.nan)
+
+
+def _run_quietly(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, start, guide, avoid=None, clear=0.0,
+                 seed=None):
     n = int(n)
     if n < MIN_POINTS:
         raise ValueError("a hose needs at least %d points (n=%d)" % (MIN_POINTS, n))
@@ -1052,7 +1253,9 @@ def _run_quietly(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, sta
                              % (guide.shape,))
         sizes.append(len(guide))
     b = 0 if 0 in sizes else max(sizes)                   # (no hoses: an empty result)
+    clear = np.nan_to_num(np.maximum(_col(clear), 0.0), posinf=0.0)
     try:
+        clear = np.broadcast_to(clear, (b,))
         p0, t0, p1, t1, grav = (np.broadcast_to(x, (b, 3)) for x in (p0, t0, p1, t1, grav))
         length, stiff, sag, rmin, want = (np.broadcast_to(x, (b,)) for x in (length, stiff, sag, rmin, want))
         if guide is not None:
@@ -1107,6 +1310,7 @@ def _run_quietly(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, sta
     pr.rmin, pr.short, pr.work, pr.need = rmin, short, work, need
     pr.led = np.zeros(b, dtype=bool)
     pr.ell3, pr.sagv = np.zeros(b), np.zeros((b, 3))
+    seed = _seed_dirs(seed, n, b) if avoid is not None else None
     if work.any():
         idx = np.flatnonzero(work)
         ell3 = stiff[idx] ** 3 + (_FLOOR * length[idx]) ** 3
@@ -1124,8 +1328,19 @@ def _run_quietly(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, sta
             k = slice(lo, lo + CHUNK)
             dirs[c, 1:-1], came[c] = _solve(n, t0[c], t1[c], rel[c], length[c], ell3[k], sagv[k], rmin[c], want[c],
                                             None if guide is None else guide[c])
+            if avoid is not None and (clear[c] > 0.0).any():
+                a = c[clear[c] > 0.0]
+                dirs[a, 1:-1] = _avoid(n, dirs[a, 1:-1], p0[a], t0[a], t1[a], rel[a], length[a], pr.ell3[a], pr.sagv[a],
+                                       rmin[a], None if guide is None else _led_only(guide[a], came[a]), a, avoid,
+                                       clear[a], None if seed is None else seed[a])
+    pr.avoid, pr.clear = avoid, clear
     pr.dirs, pr.came, pr.led, pr.guide = dirs, came, came == 3, guide
     return _finish(pr, dirs, came), pr
+
+
+def _led_only(guide, came):
+    """The guides of the hoses that were solved from their guide (start 3); NaN rows for the others."""
+    return np.where((came == 3)[:, None, None], guide, np.nan)
 
 
 def _finish(pr, dirs, came) -> Hoses:
@@ -1173,7 +1388,7 @@ def largest_move(points) -> float:
 
 
 def solve_motion(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity=(0.0, 0.0, -1.0), n=33,
-                 guide=None) -> Hoses:
+                 guide=None, avoid=None, clear=0.0) -> Hoses:
     """ONE hose at the F frames of a motion, in their order (inputs (F, 3), numbers or (F,); ``guide`` (F, m, 3),
     one line per frame): as ``solve_hoses``, but the hose keeps the shape it has over the motion where it can.
 
@@ -1201,17 +1416,55 @@ def solve_motion(p0, t0, p1, t1, length, stiff, sag=1.0, min_radius=0.0, gravity
     when there was a jump."""
     first, pr = _run(p0, t0, p1, t1, length, stiff, sag, min_radius, gravity, n, None, guide)
     f = len(first.points)
+    best = first
     with np.errstate(all="ignore"):
-        if f < 2 or not _jumps(first.points, pr):
-            return first
-        best, least = first, (_jumps(first.points, pr), largest_move(first.points))
-        for order in (range(f), range(f - 1, -1, -1)):
-            cand = _finish(pr, *_follow(pr, order))
-            score = (_jumps(cand.points, pr), largest_move(cand.points))
-            if score < least:
-                best, least = cand, score
-            if not score[0]:
-                break
+        if f >= 2 and _jumps(first.points, pr):
+            least = (_jumps(first.points, pr), largest_move(first.points))
+            for order in (range(f), range(f - 1, -1, -1)):
+                cand = _finish(pr, *_follow(pr, order))
+                score = (_jumps(cand.points, pr), largest_move(cand.points))
+                if score < least:
+                    best, least = cand, score
+                if not score[0]:
+                    break
+        if avoid is not None:
+            best = _avoid_motion(pr, best, avoid, clear)
+    return best
+
+
+def _avoid_motion(pr, free, avoid, clear) -> Hoses:
+    """The other parts along a motion (task 0298): frame after frame, a hose whose own shape comes into a part
+    starts from its answer at the frame before (``_avoid``'s seed), so it stays on the side of the part it lay on and
+    slides along; the first frame, and a frame after one that was not solved, from its own shape. If that jumps
+    somewhere (a frame solved from its own shape can lie another way: an arch over a part where the next frame
+    drapes), the motion is done once more from the last frame backwards, and the one with fewer jumps is kept."""
+    n = pr.n
+    f = len(pr.seg)
+    clear = np.broadcast_to(np.nan_to_num(np.maximum(_col(clear), 0.0), posinf=0.0), (f,))
+    seg = np.where(pr.seg > 0.0, pr.seg, 1.0)
+    dirs = (free.points[:, 1:] - free.points[:, :-1]) / seg[:, None, None]
+
+    def run(order):
+        out = dirs.copy()
+        prev = None
+        for k in order:
+            if not pr.work[k] or not clear[k] > 0.0:
+                prev = None
+                continue
+            r = slice(k, k + 1)
+            guide = None if pr.guide is None else _led_only(pr.guide[r], free.start[r])
+            d = _avoid(n, dirs[r, 1:-1], pr.p0[r], pr.t0[r], pr.t1[r], pr.rel[r], pr.length[r], pr.ell3[r],
+                       pr.sagv[r], pr.rmin[r], guide, np.array([k]), avoid, clear[r],
+                       None if prev is None else prev[None], seed_first=False)
+            out[k, 1:-1] = d[0]
+            prev = d[0]
+        return _finish(pr, out, free.start)
+    best = run(range(f))
+    jumps = _jumps(best.points, pr) if f >= 2 else 0
+    if jumps:
+        back = run(range(f - 1, -1, -1))
+        if _jumps(back.points, pr) < jumps:
+            best = back
     return best
 
 

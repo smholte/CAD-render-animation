@@ -112,6 +112,26 @@ def _end_row(layout, context, item, end: str) -> None:
     row.operator("fresing.flex_set_end", text="", icon="EYEDROPPER").end = end
 
 
+def route_text(item) -> str:
+    """'Route: straight from end to end' / 'Route: through 2 clips and 1 via point' (task 0298)."""
+    from . import flex_route
+    vias = flex_route.count(item)
+    clips = len(item.clips) - vias
+    parts = ([plural(clips, "clip")] if clips else []) + ([plural(vias, "via point")] if vias else [])
+    return "Route: " + (" and ".join(parts) if parts else "straight from end to end")
+
+
+def _route_row(layout, context, item) -> None:
+    """The route: what it runs through, Shape the route…, Clear (task 0298). Always drawn: the panel stays still."""
+    from . import flex_route
+    wrap(layout, context, route_text(item), icon="BLANK1")
+    row = layout.row(align=True)
+    row.operator("fresing.flex_route", text="Shape the route", icon="CURVE_PATH")
+    sub = row.row(align=True)
+    sub.enabled = flex_route.count(item) > 0
+    sub.operator("fresing.flex_route_clear", text="", icon="X")
+
+
 def _draw_buttons(layout) -> None:
     """Draw hose · Draw cable / Draw drag chain (task 0240): for what the CAD model does not have."""
     row = big_row(layout, MEDIUM)
@@ -257,8 +277,9 @@ class FRESING_PT_flex(_Panel, bpy.types.Panel):
             if cad > 0.0 and abs(fx.length - cad) > DIFFERS * cad:
                 layout.label(text=f"{'As drawn' if fx.drawn else 'In the CAD file'}: {cad * 1000.0:.1f} mm",
                              icon="BLANK1")
-            if fx.drawn and len(fx.clips):
-                layout.label(text=f"Runs through {plural(len(fx.clips), 'clip')}", icon="BLANK1")
+            col.prop(fx, "length_auto", text="Automatic length")
+            col.prop(fx, "avoid", text="Avoid other parts")
+            _route_row(layout, context, fx)
 
         gap(layout)
         _end_row(layout, context, fx, "A")
