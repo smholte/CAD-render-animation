@@ -1,6 +1,6 @@
 # 0273 – Material picker with pictures, this project's short list, own / department / company materials, filters by material, colour and look
 
-**Who:** worker · **Status:** running (0272, 0274, 0318 merged) · **Branch:** `ccr-f130bd57-9cwtzc`
+**Who:** worker · **Status:** done – 0.2.238 · **Branch:** `ccr-f130bd57-9cwtzc`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "I want a material selector with pictures. A user can select a material
 for the group it is currently working on, but also add more materials to the current project that it can later add
 from a short list. The preset materials should also be able to add from a user's own materials and the organisation's,
@@ -154,10 +154,73 @@ Subagents: one (Sonnet) writes the tags and one-line descriptions of every built
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 24 Nov 2026, branch `ccr-f130bd57-9cwtzc` (the session's branch), released as
+0.2.238.
 
 **What changed:**
+- **Materials window** (`ops_material_picker.py`, `ui_material_picker.py`, screen mark `fr_materials` added to
+  `ops_setup.PAGE_MARKS` and `panels.SIDE_MARKS`): filters Find / Source / Material / Colour / Look, a grid of
+  pictures (`template_icon` + the name as button, star = Add to this project), the picked material large on the right
+  with badge, tags, description, the group's colour and wear, **Use for <group>**, Add to / Take off this project,
+  **Save as my material…**, **From a Blender material…** (both function windows, `form_window.WINDOWS`), Make the
+  picture again, Show in folder. Click = pick, a second click within 1 s = use. Follows 3 Looks' group; size and place
+  kept like the Settings window. `ui_left.fit_width` may now make a page up to 2,400 px wide (was 900: the window is
+  980 px).
+- **Entries and files** (`core/material_files.py`): built-ins (`builtin:<id>`, 87 library materials but
+  `blender_material`) + the old ready-made presets with a colour (`preset:<id>`, 15; `materials_lib.PRESETS`, moved
+  from `finder.py`) = 102 entries; own materials = one folder (`material.json` + `picture.png` + optional
+  `material.blend`), format "fresing-material" 1.0 with the lifting library's version rules; broken folders are entries
+  with their problems; the same material in two folders lists twice (`own:<id>`, `own:<id>@<badge>`).
+- **Tags + descriptions** for every library material (`materials_lib.KINDS / COLOURS / LOOKS / TAGS / DESCRIPTIONS`,
+  written by a subagent, `tests/test_material_tags.py`).
+- **Pictures**: `tools/material_pictures.py` + `material_picture_runner.py` + `blender/material_pictures.py` (study
+  0270's swatch – block, knurled knob, spun cap – meshed with CAD face data so finishes show; Cycles 32 samples +
+  denoise, 256 px JPEG; finishes finer than 4 mm drawn 2.5 x coarser in the picture only, judged as if twice as large);
+  `data/material_pictures/` 102 pictures, 0.9 MB, `hashes.json`; colour-taking ones get a chip of the group's colour
+  drawn into the preview.
+- **Project data** (`props.py`, additive): `FRMaterialGroup.mat_key`, `FRProjectMaterial` / `project_materials` (short
+  list + a copy of every own material used), `FRSchemeLook.key`. A Blender material is appended as "FRM <name>" (fake
+  user) and the group's "FR <group>" is a copy (`materials.own_blend_material`); library entry `blender_material`
+  (UID 87) is its name in the drop-down.
+- **3 Looks group box**: "This project's materials" (listed + the group's own, a count of the others), More
+  materials…; **Ready-made material… (`fresing.group_preset`) removed** – its presets are entries.
+- Templates keep the short list (`Template.materials`); paint schemes keep the entry and bring back an own material's
+  wear / rust / finish; Fresing Settings got its **Materials** tab (0271's `LATER`).
+- Function list (`looks.picker`, `looks.own_materials`; `looks.materials` points at More materials…), guide (The
+  material picker, own materials; pictures `material_picker.png`, `panel_3_looks.png`), tour stop `material_picker`
+  (set `looks`), PC-check line `looks.picker`, mill lesson step 6 points at More materials…, CHANGELOG.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Linux):
+- `tests/test_material_picker.py` (24), `tests/test_material_picker_independent.py` (253, the independent tester's),
+  `tests/test_material_pictures.py` (3), `tests/test_material_tags.py` (7): all pass. Covered: file round trip, broken
+  / hostile files, built-in + preset + own entries used for a group, a project rendering after its material's folder
+  was deleted (settings-based and Blender material), company / department / Mine badges, the short list, templates,
+  paint schemes, **a project saved by 0.2.195** (`tests/data/old_project_0_2_195.blend`, made by
+  `tools/make_old_project.py`) opening with every group's material / colour / wear unchanged and rendering,
+  the Web 3D export of a project with both kinds of own material (independent tester), every built-in applied in turn.
+- Real app (`tools/ui_test_material_picker.py`, group "callouts"): 23/23 – window opens in 2.2–3.8 s after the click
+  (cold, pictures load after the first draw), a click picks and a second click uses, star, Use + Ctrl+Z, filters,
+  Save as my material… with its picture from a background Blender **7–8 s** after Save, From a Blender material…,
+  draw **3.0–3.3 ms** median with 102 materials (brief: < 20 ms), Close.
+- Pictures: 102 in ~3 min wall (10.7 CPU-minutes), 1.4–5 s each.
+- PC check `looks.picker` (bpy module): OK in 8 s. Test tour: the new stop and the `looks` set build and check.
+- Not run here: the Windows part (the background Blender for an own picture on Windows: `CREATE_NO_WINDOW`; the PC
+  check's line runs it on GitHub's Windows job), anything on a graphics card.
+- Subagents: a Sonnet subagent wrote the tags and descriptions; an independent tester (Opus) wrote 253 tests and found
+  11 faults (texts Blender cannot store crashed the window; rust lost on steel finishes; schemes lost a Blender
+  material taken off the list and did not bring back an own material's wear; nested / damaged template data
+  crashed; the same material in two folders could not be told apart; a save during a background read vanished;
+  Windows reserved names with a dot; a NUL in a name; a template's id mismatch) – all fixed; while fixing them a
+  real bug showed: a group's copy of a Blender material kept the source's mark, so a later rebuild could be taken for
+  the source (fixed in `materials.py` / `material_picker.py`). Two of its expectations were adjusted to the design
+  (Windows names get the "_" before the first dot; two copies of one material have different keys).
 
 **Open points / follow-up tasks:**
+- The picker in Paint faces and decals (brief: later, if the owner wants it).
+- "Adjust a look" (0314) adds shine / pattern sliders: the file's `changes` then needs those keys (a minor version).
+- Rule sets and template paint schemes keep only material + colour (an own material reduces to its base there).
+- Own material pictures are made on the processor (not the graphics card); a read-only company folder cannot get a
+  new picture (the button is greyed).
+- Owner's check: 1. Update. 2. Open a project, 3 Looks, pick a group, **More materials…** – the window with pictures
+  opens. 3. Click a name twice: the group changes. 4. Press a star: the material appears above Material in 3 Looks.
+  5. **Save as my material…**, name it, Save: after a few seconds its picture shows under Source "Mine".
