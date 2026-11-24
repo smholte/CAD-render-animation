@@ -1,6 +1,6 @@
 # 0318 – Carbon fibre on curved parts without the 45° seam, perlage, a Rust slider, and better existing looks
 
-**Who:** worker · **Status:** waits for 0274 · **Branch:** `task/0318-carbon-rust-better-looks`
+**Who:** worker · **Status:** running · **Branch:** `task/0318-carbon-rust-better-looks`
 **Started by:** lead, 24 Nov 2026 (owner 24 Nov 00:45: "for the carbon fibre could the worker find a fix for the weave
 at 45° (a seam you can see). And improve other materials as seen fit.") · **Model:** Opus · effort High
 **Area:** Looks lane – `blender/finishes.py` (0274's), `blender/materials.py`, `core/materials_lib.py`,
