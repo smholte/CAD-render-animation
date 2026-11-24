@@ -63,9 +63,10 @@ Q, F, OWN, H = "quick", "full", "own", "heavy"
 
 
 def line(id: str, title: str, since: str, modes=(F,), requires=(), what: str = "", expected: int = 0,
-         shows: str = "", not_shown: str = ""):
+         shows: str = "", not_shown: str = "", limit: float = 0.0):
     def deco(fn):
-        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown))
+        LINES.append(Line(id, title, since, tuple(modes), fn, tuple(requires), what, expected, shows, not_shown,
+                          limit))
         return fn
     return deco
 
@@ -5678,7 +5679,7 @@ def app_start_here(ctx):
 
 
 @line("app.first_setup", "First-start set-up: no Blender quick set-up, every step, Skip, a company's skip",
-      "0.2.234", what="Checks that Blender's own first-start window cannot come (the app template saves Blender's "
+      "0.2.235", what="Checks that Blender's own first-start window cannot come (the app template saves Blender's "
                        "preferences first), that a new user gets the set-up (three starts at most), Fresing > Set up "
                        "again…, that every step draws, the work ticks' workspace, the PC lines in plain words, and that "
                        "a company's set-up file with \"first_setup\": \"skip\" skips it")
@@ -6578,3 +6579,4 @@ def own_time_eevee(ctx):
 
 
 from . import heavy  # noqa: E402,F401 - registers the Heavy lines (task 0033)
+from . import stress  # noqa: E402,F401 - registers the Stress lines (task 0315)

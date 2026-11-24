@@ -6,7 +6,7 @@ belongs to the settings folder, as the owner's preferences do::
     {"last_run": "0.2.153",           the newest version started in this settings folder
      "welcome": {"later": 1, "never": false, "done": false},     later = starts that showed it
      "whats_new": {"from": "0.2.150", "to": "0.2.153", "opened": false},
-     "setup": {"state": "done", "step": "done", "work": ["cnc"], "version": "0.2.234", "by": ""}}
+     "setup": {"state": "done", "step": "done", "work": ["cnc"], "version": "0.2.235", "by": ""}}
 
 ``decide`` says what a start shows: ``"setup"`` (task 0276: the first-start set-up – no version ever ran here, at
 most ``WELCOME_STARTS`` starts, until the user finishes or skips it; before 0276 this was the welcome),

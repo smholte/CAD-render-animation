@@ -3,7 +3,7 @@
 The check runs in a second Blender in the background (``launcher.py``), like the self-test: the app
 stays free, and the report opens in the web browser when it is done.
 
-The installer makes the shortcuts "PC check (quick)" / "(full)" / "(heavy)" in the Tools folder of the install
+The installer makes the shortcuts "PC check (quick)" / "(full)" / "(heavy)" / "(stress)" in the Tools folder of the install
 (task 0212; before it they were in the Start menu and on the Desktop). A PC that got this version through Update
 now gets them from the app at start: ``appicon.refresh_installed`` (``appicon.ensure_tools``).
 """
@@ -72,7 +72,8 @@ class FRESING_OT_pc_check(bpy.types.Operator):
     mode: EnumProperty(name="Check", default="quick",
                        description="Quick tests the main functions in about 3 minutes; Full tests every function "
                                    "in about 15 minutes; Heavy loads the PC like real work (10 to 20 minutes); Test "
-                                   "tour renders a picture of every stop of the Learning hub (10 to 15 minutes)",
+                                   "tour renders a picture of every stop of the Learning hub (10 to 15 minutes); "
+                                   "Stress times every heavy action on a made-up 10,000-part model (10 to 20 minutes)",
                        items=[("quick", "Quick (about 3 minutes)", "Import, a joint, a picture on the graphics card "
                                                                    "and a short EEVEE video"),
                               ("full", "Full (about 15 minutes)", "Every function of the app, with pictures"),
@@ -81,7 +82,11 @@ class FRESING_OT_pc_check(bpy.types.Operator):
                                                                     "with real load"),
                               ("tour", "Learning hub (10 to 15 minutes)", "Goes through every stop of the Learning hub by "
                                                                        "itself: a picture of each stop with what you "
-                                                                       "should see, and the number checks")])
+                                                                       "should see, and the number checks"),
+                              ("stress", "Stress (10 to 20 minutes)", "A made-up 10,000-part model: import, lists, "
+                                                                     "joints, clash check, save, update, 4K and web "
+                                                                     "export timed, and compared with your last "
+                                                                     "Stress run in a table")])
     use_model: BoolProperty(name="Also test my own STEP file",
                             description="Also import one of your own STEP files and measure it: import time, parts, "
                                         "share sorted, a picture and the time per frame. The report stays on this "
@@ -93,7 +98,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         if not self.filepath:
             self.filepath = _model_of_project(context)
         from ..blender import form_window
-        return form_window.open(self, context, width=480, height=380, title="Fresing Render PC check",
+        return form_window.open(self, context, width=480, height=420, title="Fresing Render PC check",
                                 confirm="Start", icon="CHECKMARK")
 
     def draw(self, context):
@@ -102,7 +107,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         col.separator()
         col.prop(self, "use_model")
         sub = col.column()
-        sub.enabled = self.use_model and self.mode != "tour"
+        sub.enabled = self.use_model and self.mode not in ("tour", "stress")
         sub.prop(self, "filepath", text="")
         col.separator()
         col.label(text="Runs in the background; you can keep working.", icon="INFO")
@@ -111,6 +116,10 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         if self.mode == "heavy":
             col.label(text="Heavy uses the whole PC for a while. Stop it any time:")
             col.label(text="Help > Cancel Fresing Render PC check.")
+        if self.mode == "stress":
+            col.label(text="This takes long: about 10 to 20 minutes, and the whole PC.", icon="ERROR")
+            col.label(text="Stop it any time: Help > Cancel Fresing Render PC check.")
+            col.label(text="A table of the times goes on the Desktop next to the report.")
         col.label(text="The report opens in your web browser at the end.")
 
     def execute(self, context):
@@ -120,7 +129,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
             self.report({"WARNING"}, "A PC check is still running: wait for its report")
             return {"CANCELLED"}
         model = ""
-        if self.use_model and self.mode != "tour":
+        if self.use_model and self.mode not in ("tour", "stress"):
             model = bpy.path.abspath(self.filepath)
             if not (os.path.isfile(model) and model.lower().endswith((".step", ".stp"))):
                 self.report({"ERROR"}, "Pick a STEP file (.step or .stp) first")
@@ -142,7 +151,7 @@ class FRESING_OT_pc_check(bpy.types.Operator):
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start the PC check: {exc}")
             return {"CANCELLED"}
-        minutes = {"quick": "3", "full": "15", "heavy": "10 to 20", "tour": "10 to 15"}[self.mode]
+        minutes = {"quick": "3", "full": "15", "heavy": "10 to 20", "tour": "10 to 15", "stress": "10 to 20"}[self.mode]
         self.report({"INFO"}, f"PC check started ({core.MODE_TITLES[self.mode]}): the report opens in your web "
                               f"browser in about {minutes} minutes")
         return {"FINISHED"}

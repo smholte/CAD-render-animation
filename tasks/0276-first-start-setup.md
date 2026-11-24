@@ -78,7 +78,7 @@ New settings; online accounts or sign-in; collecting anything about the user (no
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker), 24 Nov 2026. Released as **0.2.234**.
+**Chat / date:** Claude Code on the web (worker), 24 Nov 2026. Released as **0.2.235**.
 
 **What changed:**
 - **New `blender/first_setup.py`** – the set-up window (made like Fresing Settings: screen mark `fr_first_setup`, its

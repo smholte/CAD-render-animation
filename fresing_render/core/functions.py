@@ -714,7 +714,7 @@ fn(id="queue.schemes", short="Every scheme", title="Every paint scheme", family=
 fn(id="help.updates", title="Updates", family="help", panel="TOPBAR_MT_help", button="fresing.update_check",
    guide="updates", pccheck=("updates.check", "updates.safe"), since="0.2.16", changed="0.2.220")
 fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", button="fresing.pc_check",
-   guide="pc-check", pccheck=("app.start",), since="0.2.24")
+   guide="pc-check", pccheck=("app.start",), since="0.2.24", changed="0.2.234")
 fn(id="help.tour", title="Learning hub", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.212")
 fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",
@@ -730,7 +730,7 @@ fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the L
 fn(id="help.first_setup", headline=True, short="Set up again",
    title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
          "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
-   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.234",
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.235",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
