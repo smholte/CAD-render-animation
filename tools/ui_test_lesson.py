@@ -140,12 +140,17 @@ def wait_until(name, cond, seconds=30.0):
     STEPS.append(fn)
 
 
+EDGE = 40                                        # lesson._scroll_to_target brings a button this near an edge in
+
+
 def found_button():
     f = hl().found()
     box = f.get("button") if f else None
     if box is None:
         return None
     reg = f.get("region")                        # task 0278: the region it was drawn in (Build & play: the left panel)
+    if reg and reg[0] == ui()[3].x and (box[1] < EDGE or box[3] > reg[3] - EDGE):   # (only the side panel scrolls)
+        return None                              # task 0308: at an edge the lesson scrolls it in first – click after
     if reg:
         return reg[0] + (box[0] + box[2]) // 2, reg[1] + (box[1] + box[3]) // 2
     _w, _a, _r, sb = ui()

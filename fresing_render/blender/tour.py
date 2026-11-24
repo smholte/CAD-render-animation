@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.217")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.223")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1646,8 +1646,8 @@ def avoid_motion(a) -> None:
     _joint_step(a, "Lift", 2.5, 1.5, 0.1, slide=True, label="Lift up 500 mm")
 
 
-@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.223",
-          changed="0.2.223")
+@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.224",
+          changed="0.2.224")
 def build_flex_avoid(b: Build):
     """Task 0298: the hose of the avoid model (a block in its way, a lift that goes down) with Avoid other parts on."""
     from . import flex
@@ -4656,12 +4656,12 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
 stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
      "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
      "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
-     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.223",
+     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.224",
      check=check_flex_avoid, setup=_route_off, auto="clip")
 stop("flex_route", MOTION, "flex_avoid", "A route shaped by a via point",
      "The same hose with one via point set by hand beside the block (Shape the route): it runs through that point "
      "at every frame, and the point rides down and up with the lift, part of the way, as the end it is nearer to.",
-     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.223",
+     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.224",
      check=check_flex_route, setup=_route_on, auto="clip")
 stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
@@ -5377,13 +5377,50 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
-     "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
+     "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
      "Animation and Queue (rest the mouse on one for its name; click Make for the list with names). Click Picture: a "
      "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "
-     "Drag it anywhere, click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no "
-     "second window. The same list is under Make in the header of the 3D view.",
-     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.197", shot="Tour view", check=_check_make,
-     auto=lambda ctx, scene, st: "")
+     "On its left is a strip with the same six icons, Picture pressed: click 3D page and the same window shows the 3D "
+     "page's settings. Drag the strip's right edge wider: the names show beside the icons. Drag the window anywhere, "
+     "click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no second window. "
+     "The same list is under Make in the header of the 3D view.",
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.223",
+     shot="Tour view", check=_check_make, auto=lambda ctx, scene, st: "")
+
+
+def _check_render_view(scene):
+    """Render this view (task 0308): a camera made where the view's eye is and taken away again – the scene's camera
+    and everything else as before."""
+    import bpy
+
+    from . import ops_render_view
+    _check(hasattr(bpy.ops.fresing, "render_view"), "the button Render this view is missing")
+    cam = scene.camera
+    _check(cam is not None and cam.type == "CAMERA", "the crane set has no camera to stand in for the view")
+    before = (scene.camera, len(bpy.data.objects), len(bpy.data.cameras))
+    aspect = scene.render.resolution_x / max(1, scene.render.resolution_y)
+    state = ops_render_view.setup(scene, bpy.context, view=ops_render_view.stand_in(cam, aspect))
+    try:
+        made = scene.camera
+        _check(made != cam and made.get(ops_render_view.VIEW_MARK), "no camera was made for the view")
+        off = (made.matrix_world.translation - cam.matrix_world.translation).length
+        _check(off < 1e-4, f"the view's camera stands {off * 1000:.1f} mm from the view's eye")
+        lens = made.data.lens
+    finally:
+        ops_render_view.undo(scene, state)
+    _check((scene.camera, len(bpy.data.objects), len(bpy.data.cameras)) == before,
+           "Render this view left a camera behind or changed the active camera")
+    return f"lens {lens:.1f} mm, nothing left behind"
+
+
+stop("render_view", OUT, HUB_SET, "Render this view",
+     "Under the Make row: Render this view. Turn and zoom the 3D view to any angle you like (no camera needed) and "
+     "click it: the render window shows exactly what the view showed, at the Picture's size and quality (its shape "
+     "fitted round the view, nothing of the view cut off), and the picture is saved as <project>_View_<date>_<time>. "
+     "The active camera in 5 Scene & Render is the same as before and no new camera is in the list. In camera view "
+     "(Numpad 0) it renders that camera.",
+     where="Make, at the top of the Fresing panel (under the icons); Make in the 3D view's header", since="0.2.223",
+     shot="Tour view", check=_check_render_view, auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "Help > Make demo project… opens a small window of its own; Make it there makes the demo 'Vessel in a wind park' "

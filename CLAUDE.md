@@ -570,6 +570,14 @@ fresing_render/            the Blender extension (Python package)
                            prefs.py (the Add-ons page only has Open Fresing Settings). ``FRESING_OT_presence`` in the
                            add-on keymap "Window" (mouse move / click / wheel, PASS_THROUGH) is the usage tracker's only
                            sign of the user besides clicks and panel openings (``usage.presence``)
+    ops_render_view.py     task 0308: **Render this view** (`fresing.render_view`, under Make and in the header's Make
+                           list): a temporary camera at the main 3D view's eye, as wide as the view (core/view_camera.py:
+                           the angle read from `RegionView3D.window_matrix`, the Picture's shape fitted round the view),
+                           Render image's work (`ops_main.RenderStill`, a mixin: subclassing a registered operator class
+                           broke the base's registration), then the camera deleted and the scene's put back – after the
+                           render, a cancel, an error; camera view renders that camera; `stand_in` = a view's matrices
+                           from a camera (PC check, tests). make_icons.py + core/make_icons.py: Make's large icons, drawn
+                           as triangles (geometry icons, `bpy.app.icons.new_triangles`); ops_make.py: the outputs strip
     form_window.py         task 0282: **function windows** – a function's form (Make a crane, Save as my own workspace,
                            the PC check …) in a window of its own instead of a dialog: ``invoke`` ends in
                            ``form_window.open(self, context, width=, height=, title=, confirm=)`` (``confirm=None``: only
@@ -1523,6 +1531,15 @@ the release → Delete); the next run on `main` publishes it again.
   Esc first (`screen.animation_cancel`, whose poll is always true): an Esc in the add-on's "Window" keymap, or in "3D View
   Generic", never ran (task 0282). The add-on's Esc sits in "Frames" with `head=True`; its poll lets it pass elsewhere.
   Return in "Window" works.
+- Blender 5.2.3 draws every ordinary icon at 16 px whatever the button's size (`scale_y`, `scale_x`, picture icons from
+  `bpy.utils.previews`, expanded enum rows: measured, task 0308); only a **geometry icon** (`bpy.app.icons.new_triangles`,
+  as Blender's toolbar uses) is drawn larger – twice as large, but started where a 16 px icon starts, so in a button
+  without text it sticks out to the right. With `text=" "` the icon goes to the button's left edge and shows whole
+  (`blender/make_icons.icon_button`); the `range` argument changes nothing. A side panel whose stored width does not fit
+  beside a toolbar region is squeezed AND drawn empty (no tabs, no panels) – leave ~12 px (`ops_setup.STRIP_GAP`).
+- Subclassing a registered operator class (`class B(A)` where `A` is a registered `bpy.types.Operator`) breaks `A`:
+  "unable to get Python class for RNA struct" and its execute no longer did its work (task 0308). Share the code as a
+  mixin (`ops_main.RenderStill`) that both classes take with `bpy.types.Operator`.
 - An operator called through `bpy.ops` from inside another operator pushes no undo step of its own, even with the undo
   argument True (Blender counts the outer call): a function window's Return first called `bpy.ops.fresing.form_ok`, and
   the pose it saved could not be undone. Both the button and the key call one plain function (`form_window.press_ok`),
