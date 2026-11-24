@@ -19,7 +19,7 @@ import bpy
 from . import ui
 from .ops_setup import SETTINGS_MARK
 
-LATER = ("materials",)     # 0273 puts Materials after Locations + Exports (task 0272)
+LATER = ()                 # (0273 put Materials after Locations + Exports)
 
 
 def _prefs():
@@ -50,6 +50,32 @@ def draw_locations(layout, context) -> None:
 def draw_exports(layout, context) -> None:
     from . import ui_locations
     ui_locations.draw_exports(layout, context)
+
+
+def draw_materials(layout, context) -> None:
+    """Task 0273: where own materials are kept, what the Materials folders hold, the ones that cannot be used."""
+    from . import locations
+    from . import material_picker as MP
+    layout.operator("fresing.materials", text="Open the Materials window", icon="MATERIAL")
+    layout.separator()
+    path = locations.save_folder(MP.KIND, make=False)
+    ui.wrap(layout, context, ("Save as my material… saves into: " + path) if path
+            else locations.no_folder_text(MP.KIND), icon="FILE_FOLDER" if path else "ERROR")
+    own = MP.own_entries()
+    counts: dict = {}
+    for e in own:
+        counts[e.badge] = counts.get(e.badge, 0) + 1
+    for badge, n in sorted(counts.items()):
+        layout.label(text=f"{badge}: {ui.plural(n, 'material')}", icon="FILE_FOLDER")
+    if not own:
+        ui.hint(layout, context, "No materials of your own yet. A material is a folder with material.json and a "
+                                 "picture: copy one into a Materials folder to share it")
+    broken = [e for e in own if not e.ok]
+    for e in broken[:8]:
+        ui.wrap(layout, context, f"{e.name}: {'; '.join(e.problems)}", icon="ERROR")
+    layout.separator()
+    ui.hint(layout, context, "More Materials folders (your company's, your department's): the Locations tab")
+    layout.operator("fresing.mat_refresh", text="Look in the folders again", icon="FILE_REFRESH")
 
 
 def draw_side_panel(layout, context) -> None:
@@ -101,6 +127,7 @@ TABS = (
     ("general", "General", "PREFERENCES", draw_general),
     ("locations", "Locations", "FILE_FOLDER", draw_locations),       # task 0272
     ("exports", "Exports", "EXPORT", draw_exports),                  # task 0272
+    ("materials", "Materials", "MATERIAL", draw_materials),          # task 0273
     ("panel", "Side panel", "MENU_PANEL", draw_side_panel),
     ("lessons", "Lessons", "LIGHT", draw_lessons),
     ("backups", "Backups", "FILE_BACKUP", draw_backups),

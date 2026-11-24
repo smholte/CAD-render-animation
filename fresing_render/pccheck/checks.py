@@ -706,6 +706,50 @@ def looks_materials(ctx):
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
 
 
+@line("looks.picker", "Material picker: pictures, this project's list, an own material", "0.2.238",
+      what="The built-in materials' pictures are there; a group's look saved as an own material (in the check's own "
+           "folder, not in your library) gets its picture from a background Blender, another group uses it, it goes "
+           "on this project's list and into a template; the project still knows it once its folder is gone. "
+           "Judge the own material's picture: blue satin paint on a block, a knob and a disc")
+def looks_picker(ctx):
+    import json
+
+    import bpy
+    import shutil
+    import time
+
+    from ..blender import material_picker as MP
+    from ..blender import ops_main
+    from ..core import material_files as F
+    from ..core.template import Template
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    missing = [k for k in F.builtin_keys() if not F.builtin(k).picture]
+    _check(not missing, f"{len(missing)} built-in materials have no picture: {', '.join(missing[:4])}")
+    _check(len(s.groups) >= 2, "the crane has fewer than two groups")
+    g, g2 = s.groups[0], s.groups[1]
+    g.material, g.color, g.wear = "paint_satin", "RAL 5015", 0.2
+    root = os.path.join(ctx.work, "Materials")
+    t0 = time.time()
+    e = MP.save_from_group(bpy.context, g, "PC check blue", "made by the PC check", root)
+    _check(e.ok and g.mat_key == e.key, f"the saved material cannot be used: {e.problems}")
+    MP.wait_pictures(300)
+    pic = os.path.join(e.folder, F.PICTURE_NAME)
+    _check(os.path.isfile(pic), "the own material's picture was not made (background Blender)")
+    ctx.metric("picture", round(time.time() - t0, 1), "s")
+    _check(bpy.ops.fresing.mat_use(key=e.key, group=g2.name) == {"FINISHED"}, "Use for the group failed")
+    _check((g2.material, g2.color) == ("paint_satin", "RAL 5015"), "the other group did not get the material")
+    MP.add_to_project(scene, e)
+    t = Template.from_dict(json.loads(json.dumps(ops_main._template_from_scene(scene).to_dict())))
+    _check([m["key"] for m in t.materials] == [e.key], "the template does not keep this project's list")
+    ctx.picture(pic, "material_picture", "An own material's picture", model_check=False, width=256)
+    shutil.rmtree(e.folder)
+    MP.refresh_own(force=True, wait=True)
+    found = MP.find(scene, e.key)
+    _check(found is not None and found.source == "project", "without its folder the project lost the material")
+    return f"{len(F.builtin_keys())} built-in pictures; own material saved, pictured, used, listed, kept"
+
+
 @line("looks.marine", "Marine looks: growth at the waterline, streaks, concrete", "0.2.94",
       what="A yellow pile 1.2 m across and 8 m tall standing 4 m deep in water (marine paint with growth), a grey wall "
            "with run-down streaks and a concrete block, rendered small (processor, draft): judge the dark "
