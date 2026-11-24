@@ -1,6 +1,6 @@
 # 0293 – Copy a model, subassembly or parts with its joints and mechanisms, and place the copy
 
-**Who:** worker · **Status:** running (Claude Code on the web, 23–24 Nov) · **Branch:** `task/0293-copy-with-joints`
+**Who:** worker · **Status:** done, 0.2.227 (Claude Code on the web, 23–24 Nov) · **Branch:** `task/0293-copy-with-joints`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "I want to be able to easily copy an entire assembly or
 selected parts, that allows me to place it somewhere else in the project. This also copies joints and mechanisms with
 it.") · **Model:** Opus · effort High
@@ -103,6 +103,11 @@ Model update: a whole-model copy follows the original (and back); a subassembly 
   along, Ctrl+Z takes it away in one step, right-click menu, Paste here on the clicked spot, Client view no copy.
 - PC check `place.copy` OK, paste 0.03 s on the crane; tour stop `copy` + its tour clash check (0 clashes); 0292's
   tests, model-update tests (35), right-click tests pass.
+- **GitHub runs: 6 full runs.** 1 real failure (the tour stop's title longer than 32 characters); 4 times another task
+  took the version while the run went (0.2.221 → 0.2.227: 0296/0302, 0308, 0290, 0298, 0294 – each a merge, recount of
+  the PC-check / tour lines and a new run); 1 run failed in `ui_test_lesson_independent.py` (Ctrl+Z after the lesson's
+  second Build stayed at step 10) – 38/38 twice locally, green on the runs before and after with the same code: a timing
+  flake of that test (lesson lane). The tour's stop cap in `tests/test_tour.py` raised to 150 (104 stops).
 
 **Open points / follow-up tasks:**
 - **Cables, drums and tracks are not copied** (their own joints, carriers and spools are much more set-up): the window
