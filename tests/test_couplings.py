@@ -637,20 +637,20 @@ def test_motion_panel_shows_couplings_and_motors(scene):
     joints.set_follows(scene, J(scene, "Wheel 1"), "Trolley")
     s = scene.fresing
     s.joints_index = 1                                          # Wheel 1: follows the trolley
-    text = _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    text = _texts(ui_motion.FRESING_PT_joints.draw, bpy.context)
     assert "Follows a joint" in text and "Moves by itself" in text and "° per mm" in text
     assert "a wheel of Ø100.0 mm" in text, text
     assert "CAD (0)" not in text, "a follower has no CAD/Min/Max buttons"
     s.joints_index = 0                                          # the trolley drives it
-    assert "Drives 'Wheel 1'" in _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    assert "Drives 'Wheel 1'" in _texts(ui_motion.FRESING_PT_joints.draw, bpy.context)
     s.joints_index = 3                                          # the motor: turns, no limits
     joints.set_value(J(scene, "Motor"), 2.5 * TURN)
-    text = _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    text = _texts(ui_motion.FRESING_PT_joints.draw, bpy.context)
     assert "= 2.50 turns" in text and "Limits" not in text, text
     # a refused choice shows why, under the field
     s.joints_index = 0
     J(scene, "Trolley").follows = "Wheel 1"
-    assert "cannot follow each other" in _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    assert "cannot follow each other" in _texts(ui_motion.FRESING_PT_joints.draw, bpy.context)
     for item in s.joints:
         _texts(lambda p, it: ui_motion.FRESING_UL_joints.draw_item(None, bpy.context, p.layout, s, it, 0, s, "", 0),
                item)
@@ -670,10 +670,10 @@ def test_panel_shows_a_followers_real_value(scene):
     s = scene.fresing
     names = [it.name for it in s.joints]
     s.joints_index = names.index("Jaw B")
-    text = _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    text = _texts(ui_motion.FRESING_PT_joints.draw, bpy.context)
     assert "Distance: -40.0 mm" in text, text
     s.joints_index = names.index("Wheel 2")
-    text = _texts(ui_motion.FRESING_PT_motion.draw, bpy.context)
+    text = _texts(ui_motion.FRESING_PT_joints.draw, bpy.context)
     assert "Angle: -15.0°" in text, text
     rows = {it.name: _texts(lambda p, it: ui_motion.FRESING_UL_joints.draw_item(None, bpy.context, p.layout, s, it,
                                                                                  0, s, "", 0), it) for it in s.joints}

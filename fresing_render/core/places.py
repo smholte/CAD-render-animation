@@ -35,6 +35,7 @@ PLACES = {
     "FRESING_PT_rules": ("FRESING_PT_looks", "Sorting rules"),
     "FRESING_PT_schemes": ("FRESING_PT_looks", "Paint schemes & templates"),
     # 4 Motion
+    "FRESING_PT_joints": ("FRESING_PT_motion", "Joints"),       # task 0290: a fold of its own, first
     "FRESING_PT_cylinders": ("FRESING_PT_motion", "Cylinders"),
     "FRESING_PT_mechanisms": ("FRESING_PT_motion", "Mechanisms"),
     "FRESING_PT_poses": ("FRESING_PT_motion", "Poses & exploded views"),
