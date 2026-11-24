@@ -96,6 +96,62 @@ class FRESING_OT_workspace_default(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_workspace_star(bpy.types.Operator):
+    """Stars this workspace: it moves to the top of the Workspace drop-down, above the line. Press the star again to
+    take it away. Kept for you, also over a restart"""
+
+    bl_idname = "fresing.workspace_star"
+    bl_label = "Star a workspace"
+
+    name: StringProperty(options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        name = properties.name
+        if workspaces.starred(name):
+            return f"Takes the star away from '{name}': it goes back to its place under the line"
+        return (f"Stars '{name}': it moves to the top of the Workspace drop-down, above the line. Kept for you, also "
+                "over a restart")
+
+    def execute(self, context):
+        if not self.name:
+            return {"CANCELLED"}
+        on = workspaces.toggle_star(self.name)
+        self.report({"INFO"}, f"'{self.name}' {'starred: on top of the list' if on else 'no longer starred'}")
+        panels.redraw()
+        return {"FINISHED"}
+
+
+class FRESING_MT_workspaces(bpy.types.Menu):
+    """The Workspace drop-down (task 0294): the workspace for new projects and the starred ones on top, a line, then
+    the others; a star beside each"""
+
+    bl_idname = "FRESING_MT_workspaces"
+    bl_label = "Workspace"
+    bl_description = ("Picks the workspace of this project: which functions the side panel shows. The star beside "
+                      "a workspace puts it on top of this list")
+
+    def draw(self, context):
+        layout = self.layout
+        cur = workspaces.name_of(context.scene)
+        new = workspaces.default_name()
+        top, rest = workspaces.menu()
+        col = layout.column(align=True)
+        for i, part in enumerate((top, rest)):
+            if i and top and rest:
+                col.separator()
+            for name, _note, own in part:
+                row = col.row(align=True)
+                label = name + ("  (your own)" if own else "") + ("  · new projects" if name == new else "")
+                op = row.operator("fresing.workspace_pick", text=label,
+                                  icon="CHECKMARK" if name == cur else ("LOCKED" if name == W.NAMES["client"]
+                                                                        else "BLANK1"))
+                op.name = name
+                star = row.operator("fresing.workspace_star", text="",
+                                    icon="SOLO_ON" if workspaces.starred(name) else "SOLO_OFF", emboss=False)
+                star.name = name
+
+
 class FRESING_OT_family_toggle(bpy.types.Operator):
     """Shows or hides this family of functions in the side panel, for this project. Hiding never deletes or
     switches off anything: what is set up stays in the project and keeps working in renders. A family the
@@ -356,7 +412,8 @@ class FRESING_OT_next_go(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_workspace_pick, FRESING_OT_workspace_default, FRESING_OT_family_toggle,
+CLASSES = (FRESING_OT_workspace_pick, FRESING_OT_workspace_default, FRESING_OT_workspace_star, FRESING_MT_workspaces,
+           FRESING_OT_family_toggle,
            FRESING_OT_workspace_show_used, FRESING_OT_workspace_all, FRESING_OT_workspace_save,
            FRESING_OT_workspace_rename, FRESING_OT_workspace_delete, FRESING_OT_workspace_refresh,
            FRESING_OT_workspace_folder, FRESING_OT_next_hide, FRESING_OT_next_go)
