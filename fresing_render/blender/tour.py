@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.217")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.221")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -5495,13 +5495,13 @@ def _check_learn(scene):
 
 stop("learn", OUT, HUB_SET, "Learn as you go",
      "An unused panel's question (after 10 starts) offers Show me in the guide, Show me in the Learning hub and Add to my "
-     "learning list beside Hide it. Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
+     "learning list beside Hide it (the Show me buttons leave the question open, with a tick, and do not list the function). Fresing > My learning list… shows the list: Guide, Tour, Done and a cross for each "
      "function, ticked by itself after you used it on 3 days. Right-click a button of any function > Add to my "
      "learning list. After an update, What's new has Add the new functions to my learning list. The What's next card "
      "may have one quiet line \"Next to learn: …\" with Learn and Not interested. My learning list opens in a window "
      "of its own that stays open beside your work; Esc with the mouse over it closes it.",
      where="Fresing menu > My learning list…; the question and the What's next card on the left panel",
-     since="0.2.160", changed="0.2.217", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
+     since="0.2.160", changed="0.2.221", shot="Tour view", check=_check_learn, auto=lambda ctx, scene, st: "")
 
 def _check_lessons(scene):
     """Lessons (task 0230): the Learn window, the two lessons, and the hub made of the crane lesson's steps."""

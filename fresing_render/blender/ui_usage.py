@@ -73,15 +73,18 @@ class FRESING_PT_favourites(LeftPanel, bpy.types.Panel):  # task 0260: on the le
             col = box.column(align=True)
             if q["fid"]:
                 row = col.row(align=True)
-                op = row.operator("fresing.learn_show", text="Show me in the guide")
+                op = row.operator("fresing.learn_show", text="Show me in the guide",
+                                  icon="CHECKMARK" if usage.shown("GUIDE") else "NONE")
                 op.fid, op.how = q["fid"], "GUIDE"
                 row.enabled = bool(q["guide"])
                 row = col.row(align=True)
-                op = row.operator("fresing.learn_show", text="Show me in the Learning hub")
+                op = row.operator("fresing.learn_show", text="Show me in the Learning hub",
+                                  icon="CHECKMARK" if usage.shown("TOUR") else "NONE")
                 op.fid, op.how = q["fid"], "TOUR"
                 row.enabled = bool(q["tour"])
                 if F.FUNCTIONS[q["fid"]].lesson:              # task 0230: the function's lesson, at its step
-                    op = col.operator("fresing.learn_lesson", text="Show me in a lesson")
+                    op = col.operator("fresing.learn_lesson", text="Show me in a lesson",
+                                      icon="CHECKMARK" if usage.shown("LESSON") else "NONE")
                     op.fid, op.mode = q["fid"], "SHOW"
                 col.operator("fresing.usage_declutter", text="Add to my learning list").choice = "learn"
             row = col.row(align=True)

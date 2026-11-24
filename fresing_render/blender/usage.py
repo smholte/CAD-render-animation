@@ -39,7 +39,7 @@ SAVE_SECONDS = 30.0
 USED_SECONDS = 2.0                       # personal hides are looked at again at most this often (task 0236)
 GO_SECONDS = 6.0                         # a favourite's button is pointed at this long
 
-_S: dict = {"state": None, "path": "", "dirty": False, "note": "", "started": False, "prompt": "", "prompted": "",
+_S: dict = {"state": None, "path": "", "dirty": False, "note": "", "started": False, "prompt": "", "prompted": "", "shown": set(),
             "go": "", "go_t": 0.0, "last_panel": "", "used_t": 0.0, "xy": None, "seen_t": -1.0e9, "marks": 0}
 PRESENCE_SECONDS = 1.0                   # input marks presence at most this often (a mouse move comes many times a second)
 CLOCK = core.Clock()
@@ -404,6 +404,7 @@ def project_changed(scene) -> None:
             used = set(workspaces.used_functions(scene))
             if any(fid in used for fid in core.panel_functions(_S["prompt"])):
                 _S["prompt"] = ""
+                _S["shown"] = set()
         return
     if not counting():
         return
@@ -415,6 +416,16 @@ def project_changed(scene) -> None:
                                     children=_children(), titles=set(places.PLACES))
     if cand:
         _S["prompt"] = _S["prompted"] = cand
+        _S["shown"] = set()
+
+
+def shown(how: str) -> bool:
+    """Task 0317: has this "Show me" of the open question been pressed (the box draws a tick)?"""
+    return how in _S["shown"]
+
+
+def mark_shown(how: str) -> None:
+    _S["shown"].add(how)
 
 
 def answer(scene, choice: str) -> None:
@@ -423,6 +434,7 @@ def answer(scene, choice: str) -> None:
         return
     core.answer_declutter(state(), panel, choice)
     _S["prompt"] = ""
+    _S["shown"] = set()
     changed()
     save()
     if choice == "hide":

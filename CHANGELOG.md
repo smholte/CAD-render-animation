@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.221 – 24 Nov 2026 – The question about an unused panel stays open after Show me (task 0317)
+
+- **"Show me in the guide", "… in the Learning hub" and "… in a lesson" no longer close the question.** It stays on the
+  left panel with a tick on the button you pressed, so you can come back and choose: **Add to my learning list**,
+  **Hide it**, **Not now** or **Don't ask again**. Show me no longer puts the function on your learning list by
+  itself there – **Add to my learning list** does. Show me from the learning list window or What's new works as before.
+  After a restart the question is asked again by the usual rules until you answer it.
+
 ## 0.2.220 – 23 Nov 2026 – Update now: save or not, also for a project that was never saved (task 0316)
 
 - **Update now no longer refuses a project that was never saved.** With unsaved changes it asks first, in one small

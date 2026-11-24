@@ -75,14 +75,35 @@ def test_add_to_my_learning_list_answers_the_question_and_hides_nothing(usage):
     assert "FRESING_PT_xray" in s["declutter"]["asked"]
 
 
-def test_show_me_in_the_guide_lists_it_and_answers(usage, monkeypatch):
+def test_show_me_in_the_guide_keeps_the_question_and_lists_nothing(usage, monkeypatch):
     from fresing_render.blender import learning
     opened = []
     monkeypatch.setattr(learning, "open_guide", lambda a: opened.append(a) or "file")
     _ask(usage)
+    assert not usage.shown("GUIDE")
     assert bpy.ops.fresing.learn_show(fid="looks.xray", how="GUIDE") == {"FINISHED"}
     assert opened == [F.FUNCTIONS["looks.xray"].guide]
-    assert L.find(usage.state(), "looks.xray") is not None and usage.prompt() == ""
+    assert L.find(usage.state(), "looks.xray") is None and usage.prompt() != ""     # task 0317
+    assert usage.shown("GUIDE") and not usage.shown("TOUR")
+    bpy.ops.fresing.usage_declutter(choice="learn")                                 # the answer lists it and closes
+    assert L.find(usage.state(), "looks.xray") is not None and usage.prompt() == "" and not usage.shown("GUIDE")
+
+
+def test_show_me_in_the_hub_keeps_the_question_too(usage, monkeypatch):
+    from fresing_render.blender import learning
+    fid = "looks.xray"
+    monkeypatch.setattr(learning, "show_in_tour", lambda ctx, f: "")
+    _ask(usage)
+    assert bpy.ops.fresing.learn_show(fid=fid, how="TOUR") == {"FINISHED"}
+    assert L.find(usage.state(), fid) is None and usage.prompt() != "" and usage.shown("TOUR")
+
+
+def test_show_me_from_elsewhere_still_lists_the_function(usage, monkeypatch):
+    from fresing_render.blender import learning
+    monkeypatch.setattr(learning, "open_guide", lambda a: "file")
+    assert usage.prompt() == ""
+    assert bpy.ops.fresing.learn_show(fid="looks.xray", how="GUIDE") == {"FINISHED"}
+    assert L.find(usage.state(), "looks.xray") is not None
 
 
 def test_the_guide_opens_the_installed_copy_or_else_the_web_page(usage, monkeypatch, tmp_path):
@@ -214,3 +235,18 @@ def test_the_menu_line_and_the_tooltips(usage):
     assert "fresing.learn_window" in ui_topbar.entries()
     for name in ("learn_show", "learn_add", "learn_add_new", "learn_done", "learn_remove", "learn_next", "learn_window"):
         assert getattr(bpy.ops.fresing, name).get_rna_type().description
+
+
+def test_show_me_in_a_lesson_keeps_the_question(usage, monkeypatch):
+    from fresing_render.blender import lesson, ops_learning
+    fid = next((f.id for f in F.FUNCTIONS.values() if f.lesson and L.teachable(f.id)), None)
+    if fid is None:
+        return
+    panel = next((p for p in __import__("fresing_render.core.places", fromlist=["x"]).PLACES
+                  if L.target_of_panel(p) == fid), None)
+    if panel is None:
+        return
+    monkeypatch.setattr(ops_learning, "_open_later", lambda *a, **k: None)
+    _ask(usage, panel)
+    assert bpy.ops.fresing.learn_lesson(fid=fid, mode="SHOW") == {"FINISHED"}
+    assert L.find(usage.state(), fid) is None and usage.prompt() == panel and usage.shown("LESSON")

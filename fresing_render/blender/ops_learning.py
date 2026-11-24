@@ -18,7 +18,7 @@ def _title(fid: str) -> str:
 
 class FRESING_OT_learn_show(bpy.types.Operator):
     """Shows a function you have not used: in the user guide, or in the Learning hub (its first stop is set up and the
-    button pointed at). The function is put on your learning list too"""
+    button pointed at). The function is put on your learning list too (not while the question is open: it stays)"""
 
     bl_idname = "fresing.learn_show"
     bl_label = "Show me"
@@ -37,8 +37,9 @@ class FRESING_OT_learn_show(bpy.types.Operator):
         if props.how == "TOUR":
             opts = core.options(props.fid)
             return ("Sets up the Learning hub's stop for this function and points at its button. The function goes on "
-                    "your learning list" if opts["tour"] else opts["why_no_tour"])
-        return "Opens the user guide at this function's section. The function goes on your learning list"
+                    "your learning list (from the question: the question stays open)" if opts["tour"] else opts["why_no_tour"])
+        return ("Opens the user guide at this function's section. The function goes on your learning list (from the "
+                "question: the question stays open, so you can come back and choose)")
 
     def execute(self, context):
         if self.fid not in F.FUNCTIONS:
@@ -54,7 +55,7 @@ class FRESING_OT_learn_show(bpy.types.Operator):
                 self.report({"ERROR"}, "This function has no guide section yet")
                 return {"CANCELLED"}
         if panel and core.target_of_panel(panel) == self.fid:
-            usage.answer(context.scene, "learn")                 # asked, and on the list
+            usage.mark_shown(self.how)                           # task 0317: the question stays, nothing is listed
         else:
             core.add(usage.state(), self.fid)
             learning.save()
@@ -212,8 +213,12 @@ class FRESING_OT_learn_lesson(bpy.types.Operator):
         if les is None:
             self.report({"INFO"}, "This function has no lesson yet")
             return {"CANCELLED"}
-        core.add(usage.state(), self.fid)
-        learning.save()
+        panel = usage.prompt()
+        if panel and core.target_of_panel(panel) == self.fid:
+            usage.mark_shown("LESSON")                           # task 0317: the question stays, nothing is listed
+        else:
+            core.add(usage.state(), self.fid)
+            learning.save()
         _open_later(les.id, self.mode, at=k)
         return {"FINISHED"}
 

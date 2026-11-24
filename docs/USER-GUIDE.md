@@ -760,7 +760,8 @@ in one line, and:
 
 <img class="panel" src="img/learn_question.png" alt="The question about an unused panel: Show me in the guide, Show me in the Learning hub, Add to my learning list, Hide it, Not now, Don't ask again">
 
-- **Show me in the guide** – opens the user guide at that function's section.
+- **Show me in the guide** – opens the user guide at that function's section. The question stays, with a tick on the
+  button, so you can come back and choose.
 - **Show me in the Learning hub** – sets up the Learning hub's stop for it and points at its button (greyed, with the reason,
   when the tour has no stop for it; if the tour is not made yet it says so).
 - **Add to my learning list** – you come back to it later ([the list](#learning-list)).
@@ -772,7 +773,8 @@ in one line, and:
 A panel that **What's new** has just listed is not asked about until 10 app starts have passed: you cannot have used
 what you have not seen yet. A panel you hid shows again by itself when the project starts using it.
 
-The first three also put the function on your learning list. At most one question per start, each panel once.
+The three **Show me** buttons leave the question open and do not put the function on your learning list: **Add to my
+learning list** does that. At most one question per start, each panel once.
 **Never about a panel the open project uses**: a project with a way cover shows Way covers even when you hid it, and
 is never asked about it. Hiding changes nothing in the project or in renders, and it does not change the workspace
 itself – it is your own layer on top. To undo it: **Workspace > Back as it came** (it shows how many panels you hid)
