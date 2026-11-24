@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.238 – 24 Nov 2026 – Four more workspaces: Welding, Machine builder, Video producer, Houses; Sales moves joints (task 0321)
+
+- **Welding** (new workspace): import, the parts' looks, **3 Looks > Welds** (placement, types, looks, finish, rust),
+  surroundings, light, camera, **Render a picture** and **Render this view**. Motion, animation, video and the render
+  queue are not shown. Weld symbols and the weld list will show here too when they come.
+- **Machine builder** (new workspace): import, structure and placing, joints, cylinders, mechanisms, way covers, hoses
+  and drag chains, tracks, the Set-up window, a first animation and the clash check.
+- **Video producer** (new workspace): every animation step, camera paths, labels, picture cards, music, brand kit,
+  watermark, title and captions, the render queue.
+- **Houses** (new workspace): House from House Planner, surroundings, weather and time of day, light, camera, picture,
+  turntable and the 3D page.
+- **Sales may move joints**: 4 Motion shows the joints as sliders (with CAD (0) / Min / Max), Poses and **Everything
+  back to CAD position**, so you can pose the machine for a client. Adding, removing and setting up joints stays
+  hidden; nothing is locked.
+- Every workspace has its own **icon** in the Workspace list. The first-start set-up has four more ticks under
+  **Your work** (Welding and fabrication, Making machines move, Videos of machines, Houses from House Planner).
+
 ## 0.2.237 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or

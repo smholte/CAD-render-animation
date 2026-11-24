@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.236")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.238")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1046,7 +1046,7 @@ def build_decals(b: Build):
     _shot(b, "@decals")
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.238")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -5855,12 +5855,13 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
-     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator and Reviewer for "
+     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator, Reviewer, Welding, "
+     "Machine builder, Video producer and Houses for "
      "one job each; the star beside a workspace puts it on top of the list, above a line (click it again to take it "
      "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.226", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.238", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
