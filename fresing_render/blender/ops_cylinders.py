@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import bpy
-from bpy.props import EnumProperty, StringProperty
+from bpy.props import EnumProperty, IntProperty, StringProperty
 
 from ..core.words import plural
 from . import build, cylinders, hover, joints, logic
@@ -32,40 +32,91 @@ def _say(context, op, text: str, level: str = "INFO") -> None:
     op.report({level}, text)
 
 
+def _overlaps(a, b) -> bool:
+    """The same object, or one inside the other (a subassembly and one of its parts)."""
+    return a is b or joints._is_cad_ancestor(a, b) or joints._is_cad_ancestor(b, a)
+
+
+def add_picks(target: list, other: list, movers: list) -> tuple[list, list, list]:
+    """Task 0290: several parts or subassemblies per item. ``movers`` added to ``target`` (objects): a pick that is
+    already there, or inside one that is, is skipped; a subassembly takes the place of picks inside it. Picks of
+    ``other`` that overlap a new one leave it (a part may not be in two items). Returns (target, other, taken from
+    other)."""
+    target, other = list(target), list(other)
+    for ob in movers:
+        if any(t is ob or joints._is_cad_ancestor(t, ob) for t in target):
+            continue
+        target = [t for t in target if not joints._is_cad_ancestor(ob, t)] + [ob]
+    taken = [o for o in other if any(_overlaps(o, ob) for ob in movers)]
+    other = [o for o in other if o not in taken]
+    return target, other, taken
+
+
+def _fill(coll, objs) -> None:
+    coll.clear()
+    for ob in objs:
+        coll.add().obj = ob
+
+
+SEVERAL = "Shift+click or Ctrl+click (in the view or in 2 Structure) selects several"
+
+
 class FRESING_OT_cylinder_pick_parts(bpy.types.Operator):
-    """Takes the selected subassembly (or parts) as the cylinder's barrel or rod. Click it in the view or in
-    2 Structure first"""
+    """Adds the selected subassemblies or parts to the cylinder's barrel or rod (each can be several). Click them in
+    the view or in 2 Structure first; Shift+click or Ctrl+click selects several"""
 
     bl_idname = "fresing.cylinder_pick_parts"
-    bl_label = "Use selected"
+    bl_label = "Add selected"
     bl_options = {"REGISTER", "UNDO"}
 
     role: EnumProperty(items=[("BARREL", "Barrel", ""), ("ROD", "Rod", "")], default="BARREL",
                        options={"SKIP_SAVE"})
+    action: EnumProperty(items=[("ADD", "Add selected", ""), ("DROP", "Drop", ""), ("CLEAR", "Clear", "")],
+                         default="ADD", options={"SKIP_SAVE"})
+    index: IntProperty(default=-1, options={"SKIP_SAVE"})
 
     @classmethod
     def description(cls, context, properties):
+        what = "rod" if properties.role == "ROD" else "barrel"
+        if properties.action == "DROP":
+            return f"Takes this one off the {what}: it stays where it is and does not move with the cylinder"
+        if properties.action == "CLEAR":
+            return f"Empties the {what}: pick its parts again with Add selected"
         if properties.role == "ROD":
-            return ("Takes the selected subassembly (or parts) as the cylinder's rod: the part that slides out, "
-                    "with its piston and eye. Click it in the view or in 2 Structure first")
-        return ("Takes the selected subassembly (or parts) as the cylinder's barrel: the tube with its end cap, "
-                "gland and eye. Click it in the view or in 2 Structure first")
+            return ("Adds the selected subassemblies or parts to the cylinder's rod: the part that slides out, with "
+                    f"its piston and eye. {SEVERAL}; press again to add more")
+        return ("Adds the selected subassemblies or parts to the cylinder's barrel: the tube with its end cap, "
+                f"gland and eye. {SEVERAL}; press again to add more")
 
     def execute(self, context):
         s = context.scene.fresing
-        movers = selected_movers(context)
-        if not movers:
-            _say(context, self, "Nothing selected: click the barrel (or rod) first", "WARNING")
-            return {"CANCELLED"}
+        word = "Rod" if self.role == "ROD" else "Barrel"
         target, other = (s.cyl_pick_rod, s.cyl_pick_barrel) if self.role == "ROD" else (s.cyl_pick_barrel,
                                                                                          s.cyl_pick_rod)
-        taken = {r.obj.name for r in other if r.obj is not None}
-        target.clear()
-        for ob in movers:
-            target.add().obj = ob
-        if taken & {ob.name for ob in movers}:
-            other.clear()                               # the same parts cannot be both
-        _say(context, self, f"{'Rod' if self.role == 'ROD' else 'Barrel'}: {_names(movers)}")
+        if self.action == "CLEAR":
+            target.clear()
+            _say(context, self, f"{word}: cleared")
+            return {"FINISHED"}
+        if self.action == "DROP":
+            objs = cylinders._objs(target)
+            if not 0 <= self.index < len(objs):
+                return {"CANCELLED"}
+            del objs[self.index]
+            _fill(target, objs)
+            _redraw(context)
+            return {"FINISHED"}
+        movers = selected_movers(context)
+        if not movers:
+            _say(context, self, f"Nothing selected: click the {word.lower()} first", "WARNING")
+            return {"CANCELLED"}
+        objs, rest, taken = add_picks(cylinders._objs(target), cylinders._objs(other), movers)
+        _fill(target, objs)
+        if taken:
+            _fill(other, rest)                          # the same parts cannot be both
+        text = f"{word}: {_names(objs, 3)}"
+        if taken:
+            text += f" (taken off the {'barrel' if self.role == 'ROD' else 'rod'}: {_names(taken)})"
+        _say(context, self, text)
         return {"FINISHED"}
 
 
@@ -373,16 +424,25 @@ class FRESING_OT_cylinder_parts(bpy.types.Operator):
 
     action: EnumProperty(items=[("BARREL", "Barrel", ""), ("ROD", "Rod", ""), ("STAGES", "Stages", ""),
                                 ("NO_STAGES", "No stages", ""), ("BARREL_PIN", "Barrel pin on", ""),
-                                ("ROD_PIN", "Rod pin on", ""), ("SELECT", "Select", "")],
+                                ("ROD_PIN", "Rod pin on", ""), ("SELECT", "Select", ""), ("DROP", "Drop", "")],
                          default="SELECT", options={"SKIP_SAVE"})
+    role: EnumProperty(items=[("BARREL", "Barrel", ""), ("ROD", "Rod", ""), ("STAGES", "Stages", "")],
+                       default="BARREL", options={"SKIP_SAVE"})
+    index: IntProperty(default=-1, options={"SKIP_SAVE"})
 
     @classmethod
     def description(cls, context, properties):
+        if properties.action == "DROP":
+            what = {"BARREL": "barrel", "ROD": "rod", "STAGES": "stages"}[properties.role]
+            return (f"Takes this one off the cylinder's {what}: it goes back to its CAD place and no longer moves "
+                    "with the cylinder (the barrel and the rod keep at least one)")
         return {
-            "BARREL": "Makes the selected subassembly (or parts) this cylinder's barrel instead",
-            "ROD": "Makes the selected subassembly (or parts) this cylinder's rod instead",
-            "STAGES": "Telescopic cylinder: the selected sections between the barrel and the rod slide out too, each "
-                      "the same share of the rod's travel (select them all, then press this)",
+            "BARREL": f"Adds the selected subassemblies or parts to this cylinder's barrel ({SEVERAL}). The travel "
+                      "is read again from all its parts",
+            "ROD": f"Adds the selected subassemblies or parts to this cylinder's rod ({SEVERAL}). The travel is read "
+                   "again from all its parts",
+            "STAGES": "Telescopic cylinder: adds the selected sections between the barrel and the rod; each slides out "
+                      f"the same share of the rod's travel ({SEVERAL})",
             "NO_STAGES": "No telescopic sections: they go back to their CAD place",
             "BARREL_PIN": "The barrel's pin sits in the selected part instead (a part on the machine side that does "
                           "not move with the arm)",
@@ -406,27 +466,49 @@ class FRESING_OT_cylinder_parts(bpy.types.Operator):
                     if d.visible_get() and not d.hide_select:
                         d.select_set(True)
             return {"FINISHED"}
+        now = {"barrel": cylinders.barrel_objs(c), "rod": cylinders.rod_objs(c), "stages": cylinders.stage_objs(c)}
         movers = selected_movers(context)
-        key = {"BARREL": "barrel", "ROD": "rod", "STAGES": "stages", "NO_STAGES": "stages",
-               "BARREL_PIN": "barrel_carrier", "ROD_PIN": "rod_carrier"}[self.action]
-        if self.action == "NO_STAGES":
-            value = []
-        elif not movers:
-            _say(context, self, "Nothing selected: click the part(s) first", "WARNING")
-            return {"CANCELLED"}
-        elif key.endswith("carrier"):
-            ob = context.active_object if context.active_object in movers else movers[0]
-            value = ob
+        if self.action == "DROP":
+            key = self.role.lower()
+            objs = now[key]
+            if not 0 <= self.index < len(objs):
+                return {"CANCELLED"}
+            if key != "stages" and len(objs) == 1:
+                _say(context, self, f"The {key} needs at least one part: add the new one first", "WARNING")
+                return {"CANCELLED"}
+            value = [o for i, o in enumerate(objs) if i != self.index]
         else:
-            value = movers
+            key = {"BARREL": "barrel", "ROD": "rod", "STAGES": "stages", "NO_STAGES": "stages",
+                   "BARREL_PIN": "barrel_carrier", "ROD_PIN": "rod_carrier"}[self.action]
+            if self.action == "NO_STAGES":
+                value = []
+            elif not movers:
+                _say(context, self, "Nothing selected: click the part(s) first", "WARNING")
+                return {"CANCELLED"}
+            elif key.endswith("carrier"):
+                ob = context.active_object if context.active_object in movers else movers[0]
+                value = ob
+            else:
+                value, _rest, _taken = add_picks(now[key], [], movers)
         try:
             c = cylinders.rebuild(scene, c, **{key: value})
         except RuntimeError as exc:
             _say(context, self, str(exc), "WARNING")
             return {"CANCELLED"}
+        if key in ("barrel", "rod"):
+            # the travel read again from all its parts – unless it was typed (not measured) and still cannot be read
+            name, was = c.name, (c.closed_length, c.full_stroke, c.measured)
+            with joints.cad_pose(scene):
+                now = cylinders.estimate(scene, cylinders.find(scene, name))
+            c = cylinders.find(scene, name)
+            if not (now or was[2]):
+                c["closed_length"], c["full_stroke"], c["measured"] = was
+            cylinders.sync_limits(scene, c)
         if self.action == "STAGES":
             _say(context, self, f"{plural(len(value), 'stage')}: each slides out "
                                 "the same share of the rod's travel")
+        elif key in ("barrel", "rod", "stages") and self.action != "NO_STAGES":
+            _say(context, self, f"{key.capitalize()}: {_names(value, 3)}" if value else "No stages")
         return {"FINISHED"}
 
 

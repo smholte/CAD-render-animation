@@ -215,7 +215,7 @@ def test_the_stop_marks_in_the_panel():
     st = tour.find("workspace")                              # came in 0.2.152
     assert ui_tour.stop_mark(st, "0.2.151") == "New"
     assert ui_tour.stop_mark(tour.find("finishing"), "0.2.150") == "Changed"
-    assert ui_tour.stop_mark(tour.find("joint"), "0.2.150") == ""
+    assert ui_tour.stop_mark(tour.find("faces"), "0.2.150") == ""
     assert ui_tour.stop_mark(st, "") == ""
 
 

@@ -655,7 +655,7 @@ def decals_add(ctx):
     return f"{len(shown)} decals; render {info['seconds']} s"
 
 
-@line("looks.welds", "Welds: two picked faces give a bead", "0.2.224",
+@line("looks.welds", "Welds: two picked faces give a bead", "0.2.225",
       what="The base plate's top and one side of the fin picked as in Inventor: one fillet 200 mm long; then every joint "
            "of the test weldment welded with another look (painted, MAG, rusty, stainless, pickled, aluminium, ground); "
            "rendered small")
@@ -952,6 +952,31 @@ def joints_stack(ctx):
     err = (trolley.matrix_world.translation - want).length
     _check(err < 1e-3, f"the trolley is {err * 1000:.1f} mm off where boom + slide put it")
     return "boom 30° + trolley 1000 mm"
+
+
+@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.224",
+      what="Clicking the boom's joint in 4 Motion > Joints lights up the boom, the trolley riding on it lighter")
+def joints_show(ctx):
+    from mathutils import Vector
+
+    from ..blender import joint_show, joints
+    scene = ctx.fresh(CRANE_A)
+    jb = _boom_joint(scene)
+    boom = jb.name
+    trolley_ob = _ob(scene, "TROLLEY.ASM")
+    joints.create(scene, "SLIDE", [trolley_ob], trolley_ob.matrix_world.translation.copy(), Vector((1, 0, 0)),
+                  base=_ob(scene, "BOOM.ASM"), name="Trolley")
+    s = scene.fresing
+    names = [j.name for j in s.joints]
+    s.joints_index = names.index(boom)                  # as a click on the list row
+    shown = joint_show.active()
+    joint_show.clear()
+    trolley = {o.name for o in _ob(scene, "TROLLEY.ASM").children_recursive if o.type == "MESH"}
+    _check(shown["name"] == boom and shown["main"], f"nothing shown for '{boom}': {shown}")
+    _check(trolley and trolley <= set(shown["riders"]) and not trolley & set(shown["main"]),
+           "the trolley riding on the boom is not shown in the lighter shade")
+    _check(not [o for o in scene.objects if o.select_get()], "showing a joint selected parts")
+    return f"{len(shown['main'])} parts lit, {len(shown['riders'])} riding on it"
 
 
 @line("joints.cylinder", "Cylinder: follows the arm, the stroke drives it", "0.2.25",

@@ -72,7 +72,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "backups": 23, "forms": 29,
-              "move": 14, "importagain": 18, "place": 22, "welds": 16}
+              "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "welds": 16}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -86,7 +86,7 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 # (tools/ci_precheck.py). The longest job sets the run's length (with the queued-render test of test_air.py, ~10 min).
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
-    "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move"],   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
+    "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move", "jointfold"],   # jointfold: task 0290 (~40 s)   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
     "callouts": ["callouts", "importagain", "place"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms", "welds"],   # welds: task 0319 (~40 s)   # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
@@ -180,6 +180,9 @@ TESTS = {
     "panel": ("Real app: the side panel – folded start, titles, Ctrl+click, tabs, workspaces, families, an own "
               "workspace, the Client view's lock with clicks and keys, an older project, Make (ui_test_panel.py)",
               "ui_test_panel.py", True),
+    "jointfold": ("Real app: 4 Motion's Joints fold opens with a click on its title, a clicked joint shows what it "
+                  "moves, 'Beyond limits' on the value row and the rows under it stay put (ui_test_joint_fold.py)",
+                  "ui_test_joint_fold.py", True),
     "highlight": ("Real app: the lesson highlight – six looks point at a button, a folded section and a part; "
                   "nothing left after clear (ui_test_highlight.py)", "ui_test_highlight.py", True),
     "start": ("Real app: Start here – the welcome of a new user (three starts, Later, never, Take the test tour), What's "
