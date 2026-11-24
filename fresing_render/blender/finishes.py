@@ -601,7 +601,8 @@ def hammertone(b: F, s: dict):
     """Hammer marks (Voronoi dents round a warped grid) and tiny metal flakes (a random value per 0.15 mm cell: the
     study's second Voronoi for the flakes cost more than all the rest)."""
     cell = s["cell"]
-    v = b.vor(b.vmath("ADD", b.p(), b.vmath("SCALE", b.ncol(60.0), scale=cell * 0.5)), 1.0 / cell, "SMOOTH_F1", 0.9)
+    # F1, not the study's Smooth F1 (which looks at 125 cells instead of 27): the squared map below rounds the dents
+    v = b.vor(b.vmath("ADD", b.p(), b.vmath("SCALE", b.ncol(60.0), scale=cell * 0.5)), 1.0 / cell, "F1", 0.9)
     vis = b.lod(cell)
     h = b.math("MULTIPLY", b.math("POWER", b.map(v[0], 0.0, 0.75, 0.0, 1.0), 2.0), vis)   # a round dimple per cell
     fl = b.cells(1.0 / 0.00015)
