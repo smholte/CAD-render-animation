@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.226"
+__version__ = "0.2.227"
 
 _modules = []
 
@@ -161,6 +161,11 @@ def register():
     make_icons.register()                    # task 0308: the large icons of Make
     from .blender import settings_store
     settings_store.register()                # task 0283: every setting read from the app's own file, kept on change
+    try:
+        from .blender import workspaces as _ws
+        _ws.keep_for_existing_user()         # task 0294: an existing user keeps All functions; a new one gets Essentials
+    except Exception as exc:  # noqa: BLE001 - never stop the start over it
+        print("Fresing Render: workspace for new projects not checked:", exc)
     from .blender import locations
     locations.register()                     # task 0272: the folders per kind, set-ups, export places (after the settings)
     handlers.register()

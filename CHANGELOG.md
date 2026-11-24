@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.226 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
+## 0.2.227 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
 
 - **3 Looks > Welds** (new): **Add weld…**, click the faces of the first part (Shift-click: more), Enter, click the
   faces of the part it is welded to – a bead is laid on every line where the two sets meet, shown green in the view
@@ -28,6 +28,22 @@ installer of that version was built from.
   0.06 s to find one weld's seams and 0.03 s to build its bead; the project saves in 0.5 s; renders take no longer.
 - New test model, test tour stop "Welds" and PC check line "Welds: two picked faces give a bead".
 
+## 0.2.226 – 24 Nov 2026 – Essentials as the start, workspaces for one job, favourite workspaces on top (task 0294)
+
+- **Essentials** (new, first in the Workspace list): only what a first good picture and a simple motion need – import,
+  sort into groups and materials, surroundings and light, camera views, a joint and a pose, Build & play, render a
+  picture or a turntable, saved scenes. **New projects start here until you choose another workspace.** If you used
+  the app before, nothing changes for you: this update keeps **All functions** as your choice. A project keeps the
+  workspace it was saved in.
+- **Four workspaces for one job** (new): **Sales** (saved scenes, looks and paint schemes, logos, surroundings and
+  weather, pictures, turntable, product video, 3D page, render queue – import, structure and motion are not shown; not
+  locked like the Client view), **Quick render** (import, looks, surroundings, light, one picture or a turntable),
+  **Animator** (joints, cylinders, mechanisms, poses, animation steps, camera paths, labels, video finishing, render
+  queue) and **Reviewer** (saved scenes, slice, X-ray, exploded views, labels, play, clash check). Hover over a name in
+  the list to read what it is for.
+- **A star beside every workspace** in the list: starred ones move to the top, above a line, in the order you starred
+  them, together with your workspace for new projects. Kept for you, also after a restart.
+- **Fresing > Settings… > General > Workspace for new projects** says "Essentials (not chosen yet)" until you pick one.
 ## 0.2.225 – 24 Nov 2026 – Hoses avoid other parts, and a route you can shape (task 0298)
 
 - **Avoid other parts** (4 Motion > Hoses and drag chains, under the chosen hose's Length): ticked, a hose or cable

@@ -47,7 +47,8 @@ FAMILIES = {
 # is empty, when its family's row here does. "all" (All functions) and "full" (Full access) show everything and are
 # never written down. A workspace a later lane adds (the Lifting lane: "lifting") puts its key on its own functions
 # and, where it wants whole families, here.
-WORKSPACE_KEYS = ("all", "cnc", "offshore", "product", "client", "education", "lifting", "full")
+WORKSPACE_KEYS = ("essentials", "all", "cnc", "offshore", "product", "client", "education", "lifting", "sales", "quick",
+                  "animator", "reviewer", "full")
 EVERYTHING = ("all", "full")
 _WORK = ("cnc", "offshore", "product", "education")
 FAMILY_WORKSPACES = {
@@ -67,6 +68,60 @@ FAMILY_WORKSPACES = {
     "lifting": ("lifting",),                 # task 0201: only its own workspace (and All functions, Full access)
     "help": _WORK + ("client", "lifting"),
     "panel": _WORK + ("client", "lifting"),
+}
+# Task 0294: **Essentials** and the **task workspaces** (Sales, Quick render, Animator, Reviewer) are lists of
+# functions, not of families: each shows exactly the functions named here (plus any function whose own
+# ``workspaces=`` names the key – a function built later adds itself there). Their rows in FAMILY_WORKSPACES stay empty.
+# What every one of them keeps: the side panel itself, learning, help, settings and Blender's safety (keys, backups).
+_COMMON = (
+    "panel.workspace", "panel.families", "panel.own_workspaces", "panel.client_view", "panel.essentials",
+    "panel.task_workspaces", "panel.workspace_stars", "panel.sections", "panel.next",
+    "panel.make", "panel.left", "usage.favourites", "usage.declutter", "learn.hub", "learn.question", "learn.list",
+    "learn.next", "learn.window", "learn.show_me", "learn.build",
+    "help.updates", "help.pc_check", "help.tour", "help.demo", "help.start_here", "help.welcome", "help.whats_new",
+    "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
+    "help.right_click", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
+    "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
+)
+TASK_WORKSPACES = {
+    # a first good picture and a simple motion
+    "essentials": _COMMON + (
+        "import.step", "import.mesh", "import.drop", "import.again", "structure.tree",
+        "looks.materials", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
+        "joints.rotate", "joints.slide", "joints.hover", "poses.pose",
+        "animation.add", "animation.joint_step", "animation.build",
+        "scene.still", "scene.turntable", "scene.save",
+    ),
+    # a finished project -> outputs; the model's structure and motion are not shown
+    "sales": _COMMON + (
+        "scene.save", "looks.materials", "looks.schemes", "looks.decals", "looks.light_look", "scene.surroundings",
+        "scene.light", "scene.weather", "scene.props", "scene.camera", "scene.blur", "scene.still", "scene.shapes",
+        "scene.turntable", "animation.product_video", "animation.build", "animation.finishing", "animation.brand",
+        "animation.watermark", "animation.music", "queue.still", "queue.video", "queue.schemes",
+        "web.export", "web.surroundings", "web.light", "web.player", "web.view_names", "web.phone", "web.film",
+    ),
+    # import a STEP, sort + looks, surroundings, light, one picture or a turntable
+    "quick": _COMMON + (
+        "import.step", "import.mesh", "import.drop", "import.again", "import.up_axis", "structure.tree",
+        "looks.materials", "looks.find", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
+        "scene.blur", "scene.still", "scene.shapes", "scene.turntable",
+    ),
+    # motion and the video
+    "animator": _COMMON + (
+        "import.step", "import.drop", "import.again", "structure.tree", "structure.visibility",
+        "joints.rotate", "joints.slide", "joints.stack", "joints.hover", "joints.couplings", "poses.pose",
+        "poses.explode", "machines.cylinder", "machines.mechanism", "panel.setup_window",
+        "animation.add", "animation.joint_step", "animation.build", "animation.motor", "animation.camera_path",
+        "animation.fade", "animation.trails", "animation.back_to_cad", "animation.sequence", "animation.product_video",
+        "looks.light_look", "scene.surroundings", "scene.camera", "scene.blur", "scene.still",
+        "animation.labels", "animation.finishing", "animation.cards", "animation.music", "animation.brand",
+        "animation.watermark", "queue.still", "queue.video", "queue.time_test", "queue.start_later",
+    ),
+    # look at a finished model
+    "reviewer": _COMMON + (
+        "scene.save", "structure.tree", "structure.visibility", "looks.cutaway", "looks.xray", "poses.pose",
+        "poses.explode", "animation.labels", "animation.build", "animation.clash", "scene.camera", "scene.still",
+    ),
 }
 # Families the side panel always shows (no tick): without them there is nothing to work on.
 ALWAYS = ("import", "looks", "scene", "help", "panel")
@@ -118,6 +173,8 @@ class Function:
         """Does the built-in workspace ``key`` show this function?"""
         if key in EVERYTHING:
             return True
+        if key in TASK_WORKSPACES:                  # task 0294: a list of functions, not of families
+            return self.id in TASK_WORKSPACES[key] or key in self.workspaces
         return key in (self.workspaces or FAMILY_WORKSPACES.get(self.family, ()))
 
 
@@ -138,7 +195,7 @@ DUPLICATES: list = []
 # ----- the side panel itself (task 0062) -----
 fn(id="panel.workspace", headline=True, title="Workspaces: show only the functions a kind of work needs", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="workspaces", tour=("workspace",), pccheck=("panel.workspaces",),
-   since="0.2.152", changed="0.2.197")
+   since="0.2.152", changed="0.2.226")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
    panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
@@ -148,6 +205,16 @@ fn(id="panel.own_workspaces", title="Your own workspaces, shared as files", fami
 fn(id="panel.client_view", headline=True, title="Client view: the project locked against changes", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="client-view", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
+# task 0294: Essentials as the start, the task workspaces, favourites on top of the drop-down
+fn(id="panel.essentials", headline=True, title="Essentials: where a new user starts – a first picture and a simple motion",
+   family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="essentials", tour=("workspace",),
+   pccheck=("workspace.essentials",), since="0.2.226")
+fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick render, Animator, Reviewer", family="panel",
+   panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="task-workspaces", tour=("workspace",),
+   pccheck=("workspace.essentials",), since="0.2.226")
+fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
+   panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
+   pccheck=("workspace.essentials",), since="0.2.226")
 fn(id="panel.sections", headline=True, title="Sections start folded; section tabs; Ctrl+click", family="panel",
    panel="FRESING_PT_tabs", button="fresing.panel_tab", guide="sections", tour=("workspace",), since="0.2.152", changed="0.2.197")
 fn(id="panel.next", title="What's next card", family="panel", panel="FRESING_PT_next", button="fresing.next_hide",
@@ -256,7 +323,7 @@ fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_face
 fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_PT_decals",
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
-   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.226")
+   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.227")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -728,6 +795,12 @@ def problems(functions=None, *, anchors=None, stops=None, lines=None, panels=Non
     items = list(funcs.values()) if isinstance(funcs, dict) else list(funcs)
     out = []
     seen = set()
+    known = {f.id for f in items}
+    for key, ids in TASK_WORKSPACES.items() if functions is None else ():   # task 0294: only real functions
+        for fid in ids:
+            if fid not in known:
+                out.append(f"workspace '{key}': '{fid}' is not a function id (TASK_WORKSPACES in "
+                           "fresing_render/core/functions.py)")
     for d in (DUPLICATES if duplicates is None else duplicates):
         out.append(f"{d}: two entries have this id in fresing_render/core/functions.py (ids must be unique)")
     for f in items:

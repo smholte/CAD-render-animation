@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.224")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.226")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1003,7 +1003,7 @@ def build_decals(b: Build):
     _shot(b, "@decals")
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.226")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.227")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -4556,7 +4556,7 @@ stop("welds", LOOK, "welds", "Welds",
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
      "the branch meets the tube and a butt joint ground flush to the extension plate.",
-     where="3 Looks > Welds", check=_check_welds, since="0.2.226")
+     where="3 Looks > Welds", check=_check_welds, since="0.2.227")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
@@ -5365,6 +5365,13 @@ def _check_workspace(scene):
         _check(not lock.ON[0] and lock.marked() == 0
                and state == {ob.name: (ob.hide_select, tuple(ob.lock_location)) for ob in scene.objects},
                "Full access did not put the parts back as they were")
+        # task 0294: Essentials first, the task workspaces, a star on every row of the list
+        _check(workspaces.names()[0][0] == "Essentials", "Essentials is not first in the Workspace list")
+        workspaces.switch(scene, "Sales")
+        _check(workspaces.panel_hidden(scene, "FRESING_PT_motion") and not workspaces.panel_hidden(scene, "FRESING_PT_shots")
+               and not lock.ON[0], "Sales does not hide motion, show saved scenes and leave the project unlocked")
+        _check(hasattr(bpy.types, "FRESING_MT_workspaces") and hasattr(bpy.ops.fresing, "workspace_star"),
+               "the Workspace list with its stars is missing")
     finally:
         s.ws_name, s.ws_data, s.ws_ticks = was
         workspaces.apply(scene)
@@ -5399,9 +5406,12 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
+     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator and Reviewer for "
+     "one job each; the star beside a workspace puts it on top of the list, above a line (click it again to take it "
+     "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.226", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
