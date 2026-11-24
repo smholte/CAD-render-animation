@@ -174,7 +174,7 @@ fn(id="learn.hub", short="Learning hub", title="Learning hub: View, Show me or B
 # task 0208: learn as you go
 fn(id="learn.question", title="Learn what you never use: show it in the guide or the Learning hub, or list it for later",
    family="panel", panel="FRESING_PT_favourites", button="fresing.learn_show", guide="learn-as-you-go",
-   tour=("learn",), pccheck=("app.learning",), since="0.2.160", changed="0.2.222")
+   tour=("learn",), pccheck=("app.learning",), since="0.2.160", changed="0.2.223")
 fn(id="learn.list", title="My learning list: guide, Learning hub and done, ticked by itself after use on 3 days",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.learn_window", guide="learning-list", tour=("learn",),
    pccheck=("app.learning",), since="0.2.160", changed="0.2.197")
@@ -196,7 +196,7 @@ fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that w
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
-   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), lesson="crane:1", since="0.1.0")
+   pccheck=("import.crane", "import.machine", "import.materials", "import.shapes", "project.reopen"), lesson="crane:1", since="0.1.0")
 fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")

@@ -753,3 +753,86 @@ def test_parts_inside_supplier_assemblies_found_on_real_models():
     # the block and rail of a Misumi miniature guide, and the halves of a floating joint
     assert part_types.classify("_EBNZ15_B", "M#1/SEBNZ15-80#1/_EBNZ15_B#1") == LIN
     assert part_types.classify("_F", "M#1/FJCZ12#1/_F#1") == "Rod ends & clevises"
+
+
+# ---- task 0302: catalogue names the library did not know -------------------------------------
+# Each new word of ``D.ADDED_0302`` with English, Dutch and German examples, as catalogues and Content Center
+# write them; and names next to them that must keep their group (a bare TANK, RACK or SCHIJF says too little).
+
+ADDED_0302 = [
+    # fittings: hose ends, tube fittings, test points, rotary unions, lubricators
+    ("PERSFITTING 1/2", FIT), ("Pressfitting DN12", FIT), ("Schlaucharmatur DKOL 12", FIT), ("HOSE TAIL 1/2", FIT),
+    ("HOSE BARB 8MM", FIT), ("HYDRAULIC HOSE END", FIT), ("SLANGTULE 10", FIT), ("VERLOOPSTUK G1/2-G1/4", FIT),
+    ("Reduzierstück 12-8", FIT), ("STRAIGHT ADAPTER", FIT), ("REDUCING ADAPTER", FIT), ("Verschlussstopfen", FIT),
+    ("Schneidring 12L", FIT), ("SNIJRING 10L", FIT), ("Überwurfmutter M22", FIT), ("SWIVEL NUT 12L", FIT),
+    ("MEASURING COUPLING M16x2", FIT), ("Messkupplung", FIT), ("MEETKOPPELING", FIT), ("ROTARY UNION G1/2", FIT),
+    ("Drehdurchführung", FIT), ("DRAAIDOORVOER", FIT), ("SWIVEL JOINT", FIT), ("Schmierstoffgeber 120", FIT),
+    ("SMEERPOT", FIT), ("OIL CUP", FIT),
+    # hydraulics and process: compressors, coolers, tank accessories, receivers
+    ("COMPRESSOR", HYD), ("Schraubenkompressor", HYD), ("HEAT EXCHANGER", HYD), ("Wärmetauscher", HYD),
+    ("WARMTEWISSELAAR", HYD), ("Belüftungsfilter", HYD), ("Ölstandsanzeige", HYD), ("PEILGLAS", HYD),
+    ("FILTERHUIS", HYD), ("Filtergehäuse", HYD), ("AIR RECEIVER 500L", HYD), ("Druckluftbehälter", HYD),
+    ("LUCHTKETEL", HYD), ("Blasenspeicher 4L", HYD), ("SUBPLATE NG6", HYD),
+    # sensors, encoders, scales
+    ("DRUKOPNEMER", SENS), ("Druckaufnehmer 0-250 bar", SENS), ("Temperaturfühler", SENS), ("TEMPERATUURVOELER", SENS),
+    ("FLOW METER", SENS), ("Durchflussmesser", SENS), ("DEBIETMETER", SENS), ("PULSGEVER", SENS),
+    ("LINEAR SCALE", SENS), ("Glasmaßstab", SENS), ("Längenmesssystem", SENS), ("LINEAIRE LINIAAL", SENS),
+    ("Lichttaster", SENS),
+    # drives
+    ("SLEW DRIVE", MOT), ("KLAUWKOPPELING", CPL), ("BALGKOPPELING", CPL), ("ASKOPPELING", CPL),
+    ("CLAMPING ELEMENT", CPL), ("CARDAN SHAFT", CPL), ("Gelenkwelle", CPL), ("ROLLENKETTING 08B-1", CHAIN),
+    ("BELT TENSIONER", PUL), ("Riemenspanner", PUL), ("GEAR RACK M2", GEAR),
+    # electrical
+    ("Rundsteckverbinder M12", ELEC), ("KLEMMENSTROOK", ELEC), ("BRAKE RESISTOR", ELEC), ("Bremswiderstand", ELEC),
+    ("BLOWER", ELEC), ("Gebläse", ELEC), ("CONTROL PANEL", ELEC), ("BEDIENINGSPANEEL", ELEC),
+    ("Handbediengerät", PB), ("TEACH PENDANT", PB), ("TIERAP 200", CAB), ("Bedienpult", ENC),
+    # hoses
+    ("Schlauchleitung", HOSE), ("SLANGLEIDING", HOSE),
+    # linear motion
+    ("CROSSED ROLLER GUIDE", LIN), ("Kreuzrollenführung", LIN), ("PROFILE RAIL GUIDE", LIN),
+    ("Profilschienenführung", LIN), ("LINEAIR LAGER 20", LIN), ("SHAFT END SUPPORT", LIN),
+    # lifting gear and wire rope ends
+    ("Kausche", LIFT), ("Seilendverbindung", LIFT), ("PERSHULS 12", LIFT), ("Drahtseilklemme", LIFT),
+    ("WIRE ROPE GRIP", LIFT), ("SPELTER SOCKET", LIFT), ("AANSLAGPUNT", LIFT), ("KRAANHAAK", LIFT),
+    ("Aufhängering", LIFT), ("Kettengehänge", LIFT), ("Augplatte", LIFT), ("OOGPLAAT", LIFT), ("Lastöse", LIFT),
+    ("Anschlagwirbel", LIFT), ("Klampe", LIFT),
+    # seals
+    ("AFSTREEPRING", SEAL), ("GELEIDERING", SEAL), ("USIT RING 1/2", SEAL), ("BONDED WASHER 1/4", SEAL),
+    ("Dichtscheibe", SEAL), ("Nutring", SEAL), ("MANCHET", SEAL), ("Manschette", SEAL),
+    # operator parts, feet, buffers, profile parts, catches, plain bearings, slide blocks
+    ("Kugelknopf", HANDLE), ("KOGELKNOP", HANDLE), ("Rastbolzen", HANDLE), ("INDEXEERPEN", HANDLE),
+    ("DEURKLINK", HANDLE), ("Gelenkteller", FOOT), ("SWIVEL PAD", FOOT), ("RUBBERBUFFER", RUB),
+    ("Würfelverbinder", CON), ("Standardverbindungssatz", CON), ("MAGNET CATCH", HINGE), ("Magnetschnapper", HINGE),
+    ("FLENSBUS", BUSH), ("KRAAGBUS", BUSH), ("THRUST WASHER 20X32", BUSH), ("Anlaufscheibe", BUSH),
+    ("Gleitstein", WEAR), ("GLIJSTEEN", WEAR),
+    # names next to the new words keep their group
+    ("HOSE BRACKET", PLATE), ("COMPRESSOR BRACKET", PLATE), ("ADAPTER PLATE", PLATE), ("MANIFOLD", PLATE),
+    ("SENSOR BRACKET", PLATE), ("TANK", ""), ("RACK", ""), ("SCHIJF", ""), ("BALLAST TANK", ""),
+]
+
+
+@pytest.mark.parametrize("name,group", ADDED_0302, ids=[n for n, _ in ADDED_0302])
+def test_added_0302_names(name, group):
+    assert part_types.classify(name) == group
+
+
+def test_every_added_0302_word_names_its_own_type():
+    """Each new keyword on its own gives the type it was added to; every row says where it came from."""
+    wrong = []
+    for tid, rows in D.ADDED_0302.items():
+        assert tid in part_types.TYPES
+        for words, source in rows:
+            assert source.strip(), f"{tid}: no source for {words}"
+            for kw in words.split("|"):
+                if kw.startswith("*"):
+                    kw = "SCHRAUBEN" + kw[1:]
+                if part_types.type_of(kw) != tid:
+                    wrong.append((kw, tid, part_types.type_of(kw)))
+    assert not wrong
+
+
+def test_added_0302_words_are_in_the_index():
+    for tid, rows in D.ADDED_0302.items():
+        words = next(t["words"] for t in D.TYPES if t["id"] == tid)
+        for added, _source in rows:
+            assert added in words
