@@ -90,7 +90,7 @@ def test_newer_minor_keeps_what_it_added_and_older_writes_are_refused(tmp_path):
 
 def test_folder_names_work_on_windows():
     assert F.folder_name('Blue: "gloss"/old') == "Blue_ _gloss__old"
-    assert F.folder_name("con") == "con_" and F.folder_name("COM1.x") == "COM1.x_"
+    assert F.folder_name("con") == "con_" and F.folder_name("COM1.x") == "COM1_.x"
     with pytest.raises(F.MaterialError):
         F.folder_name(" ..")
 

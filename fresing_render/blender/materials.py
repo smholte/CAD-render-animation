@@ -648,6 +648,8 @@ def ensure_material(group: str, material_id: str, color_text: str = "", wear: fl
         mat.use_nodes = True
     if not is_current(mat, material_id, color_text, wear, finish, rust):
         build_nodes(mat, material_id, color_text, wear, finish=finish, rust=rust)
+        if OWN in mat:                                  # task 0273: no longer a copy of an own Blender material
+            del mat[OWN]
     return mat
 
 
@@ -694,6 +696,9 @@ def own_blend_material(g):
         return mat
     new = src.copy()
     new.use_fake_user = False
+    for k in ("fr_own_key", "fr_own_stamp"):          # the source's marks: the copy is not the source
+        if k in new:
+            del new[k]
     new["fr_material"] = "blender_material"
     new[OWN] = stamp
     new[PROP_LOOK] = LOOK_VERSION

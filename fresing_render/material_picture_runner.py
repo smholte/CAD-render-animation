@@ -1,7 +1,8 @@
 """Makes material pictures in a background Blender (task 0273; see blender/material_pictures.py).
 
 Started as:
-    blender --background --factory-startup --python material_picture_runner.py -- <job.json> <package name> [<folder>]
+    blender --background [--factory-startup] --python material_picture_runner.py -- <job.json> <package name> [<folder>]
+(the app leaves out --factory-startup: its extension must load; tools/material_pictures.py passes it with <folder>)
 or, with Blender as a Python module (tests):
     python material_picture_runner.py <job.json> <package name> [<folder>]
 

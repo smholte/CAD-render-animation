@@ -388,8 +388,8 @@ def test_builtin_keys_unique_and_every_builtin_has_tags_and_a_picture():
 
 
 @pytest.mark.parametrize("name, ok", [
-    ("CON", "CON_"), ("con .txt", None), ("COM¹", "COM¹_"), ("LPT³.x", "LPT³.x_"), ("CONIN$", "CONIN$_"),
-    ("COM1 ", "COM1_"), ("nul.tar.gz", "nul.tar.gz_"), ("Clock$", "Clock$_"), ("N" * 10000, None),
+    ("CON", "CON_"), ("con .txt", None), ("COM¹", "COM¹_"), ("LPT³.x", "LPT³_.x"), ("CONIN$", "CONIN$_"),
+    ("COM1 ", "COM1_"), ("nul.tar.gz", "nul_.tar.gz"), ("Clock$", "Clock$_"), ("N" * 10000, None),
     ("a/b\\c:d*e?f\"g<h>i|j", "a_b_c_d_e_f_g_h_i_j"), ("tab\there", "tab_here"), ("ends with dots...", "ends with dots"),
     ("  spaces  ", "spaces"), ("x" * 79 + " .", None),
 ])
@@ -816,7 +816,7 @@ def test_the_same_material_in_two_folders_can_each_be_used(scene, loc, tmp_path)
     d2 = dict(d, changes={"color": "RAL 5015"})
     F.save_new(_mine(loc), d2)
     MP.refresh_own(force=True, wait=True)
-    both = [e for e in MP.all_entries(scene) if e.key == "own:same0001"]
+    both = [e for e in MP.all_entries(scene) if e.own_id == "same0001"]     # (worker: each copy has its own key)
     assert len(both) == 2 and {e.badge for e in both} == {"ACME", "Mine"}
     keys = [e.key for e in MP.all_entries(scene)]
     colours = set()

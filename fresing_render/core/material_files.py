@@ -123,7 +123,10 @@ class Entry:
 
     @property
     def own_id(self) -> str:
-        return self.key.split(":", 1)[1] if self.key.startswith("own:") else ""
+        """The material's own id (the same in every folder that has a copy; ``key`` is unique per listed copy)."""
+        ident = self.data.get("id") if isinstance(self.data, dict) else None
+        return ident if isinstance(ident, str) else (self.key.split(":", 1)[1].split("@")[0]
+                                                      if self.key.startswith("own:") else "")
 
     def label(self) -> str:
         return self.name if self.source == "builtin" else f"{self.name}  ·  {self.badge}"
@@ -294,40 +297,43 @@ def clean_changes(base: str, changes, problems: list | None = None) -> dict:
         if changes not in (None, {}) and problems is not None:
             problems.append("'changes' is not a list of settings: left out.")
         return out
-    for k, v in changes.items():
-        if k not in CHANGE_KEYS:
+    for k in changes:
+        if k not in CHANGE_KEYS and problems is not None:
+            problems.append(f"Unknown setting '{storable(k)}' in 'changes': left out.")
+    v = changes.get("finish")                       # first: a finish's Metal / Kind decide whether it rusts
+    if "finish" in changes and fin_core.get(base) is not None and isinstance(v, dict):
+        size = v.get("size") if _num(v.get("size")) else None
+        angle = v.get("angle") if _num(v.get("angle")) else None
+        amount = v.get("amount") if _num(v.get("amount")) else None
+        c = fin_core.clean(base, size=size, angle=angle, amount=amount,
+                           base=v.get("base") if isinstance(v.get("base"), str) else None,
+                           kind=v.get("kind") if isinstance(v.get("kind"), str) else None)
+        used = fin_core.settings_of(base)
+        out["finish"] = {n: (round(float(c[n]), 7) if n in ("size", "angle", "amount") else c[n])
+                         for n in ("size", "angle", "amount", "base", "kind") if n in used}
+    f = fin_core.get(base) or {}
+    fs = out.get("finish") or (fin_core.defaults(base) if f else {})
+    rusts = ML.rust_kind(base, fs.get("base", "") if f.get("bases") else "", fs.get("kind", "") if f.get("kinds") else "")
+    if "color" in changes:
+        v = changes["color"]
+        if not isinstance(v, str) or (v.strip() and ral.parse_colour(v) is None):
             if problems is not None:
-                problems.append(f"Unknown setting '{k}' in 'changes': left out.")
+                problems.append(f"The colour '{storable(v)}' is not a RAL code or a hex colour (#13447C): left out.")
+        elif v.strip() and ML.needs_color(base):
+            out["color"] = v.strip()
+    for k in ("wear", "rust"):
+        if k not in changes:
             continue
-        if k == "color":
-            if not isinstance(v, str) or (v.strip() and ral.parse_colour(v) is None):
-                if problems is not None:
-                    problems.append(f"The colour '{v}' is not a RAL code or a hex colour (#13447C): left out.")
-                continue
-            if v.strip() and ML.needs_color(base):
-                out["color"] = v.strip()
-        elif k in ("wear", "rust"):
-            if not _num(v):
-                if problems is not None:
-                    problems.append(f"'{k}' is not a number: left out.")
-                continue
-            val = min(max(float(v), 0.0), 1.0)
-            if k == "rust" and not ML.rust_kind(base):
-                continue
-            if val:
-                out[k] = round(val, 4)
-        elif k == "finish":
-            if fin_core.get(base) is None or not isinstance(v, dict):
-                continue
-            size = v.get("size") if _num(v.get("size")) else None
-            angle = v.get("angle") if _num(v.get("angle")) else None
-            amount = v.get("amount") if _num(v.get("amount")) else None
-            c = fin_core.clean(base, size=size, angle=angle, amount=amount,
-                               base=v.get("base") if isinstance(v.get("base"), str) else None,
-                               kind=v.get("kind") if isinstance(v.get("kind"), str) else None)
-            used = fin_core.settings_of(base)
-            out["finish"] = {n: (round(float(c[n]), 7) if n in ("size", "angle", "amount") else c[n])
-                             for n in ("size", "angle", "amount", "base", "kind") if n in used}
+        v = changes[k]
+        if not _num(v):
+            if problems is not None:
+                problems.append(f"'{k}' is not a number: left out.")
+            continue
+        val = min(max(float(v), 0.0), 1.0)
+        if k == "rust" and not rusts:
+            continue
+        if val:
+            out[k] = round(val, 4)
     return out
 
 
@@ -400,8 +406,31 @@ def _version(v):
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 
+def storable(text: str) -> str:
+    """A text Blender can keep in a string property and draw: no lone surrogates (JSON may escape one; Blender then
+    refuses the string), no control characters (a NUL cuts a Blender string short)."""
+    return "".join(c for c in str(text) if not (0xD800 <= ord(c) <= 0xDFFF) and (c >= " " or c in "\t\n"))
+
+
 def _text(v, limit: int = 400) -> str:
-    return " ".join(str(v).split())[:limit] if isinstance(v, (str, int, float)) and not isinstance(v, bool) else ""
+    if not isinstance(v, (str, int, float)) or isinstance(v, bool):
+        return ""
+    return " ".join(storable(v).split())[:limit]
+
+
+def _storable_data(data: dict) -> dict:
+    """The file's data as the project keeps it: texts Blender can store (a lone surrogate replaced); data nested too
+    deep to write again keeps only its plain known fields."""
+    try:
+        text = json.dumps(data, ensure_ascii=False)
+    except (ValueError, TypeError, RecursionError):
+        return {k: data[k] for k in FIELDS if k in data and isinstance(data[k], (str, int, float))}
+    if any(0xD800 <= ord(c) <= 0xDFFF for c in text):
+        try:
+            return json.loads(text.encode("utf-8", "replace").decode("utf-8"))
+        except (ValueError, RecursionError):
+            return {}
+    return data
 
 
 def entry_from_data(data, source: str = "mine", badge: str = "Mine", folder: str = "") -> Entry:
@@ -411,7 +440,7 @@ def entry_from_data(data, source: str = "mine", badge: str = "Mine", folder: str
     if not isinstance(data, dict):
         e.problems.append("The file is not a material (no settings in it).")
         return e
-    e.data = data
+    e.data = _storable_data(data)
     if data.get("format") != FORMAT:
         e.problems.append("Not a Fresing material file (its 'format' is not \"fresing-material\").")
         return e
@@ -539,8 +568,9 @@ def folder_name(name: str) -> str:
     s = _BAD_CHARS.sub("_", str(name)).strip().rstrip(". ")[:80].strip().rstrip(". ")
     if not s:
         raise MaterialError("The material needs a name.")
-    if s.split(".")[0].strip().upper() in _RESERVED:
-        s += "_"
+    stem, dot, rest = s.partition(".")
+    if stem.strip().upper() in _RESERVED:           # Windows reads the part before the first dot: CON, NUL.tar.gz …
+        s = stem.rstrip() + "_" + dot + rest
     return s
 
 
@@ -614,6 +644,23 @@ def matches(e: Entry, text: str = "", badge: str = "", kind: str = "", colour: s
 
 def filter_entries(entries, text: str = "", badge: str = "", kind: str = "", colour: str = "", look: str = "") -> list:
     return [e for e in entries if matches(e, text, badge, kind, colour, look)]
+
+
+def unique_keys(own: list) -> list:
+    """The same material (same id) in two folders: the first keeps ``own:<id>``, the others get ``own:<id>@<badge>``
+    so each copy can be picked and used. Changes the entries' keys in place; returns them."""
+    seen: set = set()
+    for e in own:
+        if not e.key.startswith("own:") or e.key == "own:":
+            continue
+        if e.key in seen:
+            base, n = f"{e.key.split('@')[0]}@{e.badge}", 2
+            key = base
+            while key in seen:
+                key, n = f"{base} {n}", n + 1
+            e.key = key
+        seen.add(e.key)
+    return own
 
 
 def merge(builtins: list, own: list, project: list) -> list:

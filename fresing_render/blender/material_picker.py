@@ -42,7 +42,7 @@ PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHIP = 0.34                            # the colour chip: this share of the picture's side, in its lower right corner
 
 _S: dict = {"previews": None, "icons": {}, "chips": {}, "chip_todo": [], "own": [], "own_time": -1e9,
-            "own_gen": None, "own_busy": False, "own_result": None, "jobs": [], "project": {}, "swatches": {}}
+            "own_gen": None, "own_busy": False, "own_result": None, "fresh": [], "jobs": [], "project": {}, "swatches": {}}
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -196,7 +196,7 @@ def _read(dirs) -> list:
     out = []
     for path, source, badge in dirs:
         out += F.list_folder(path, source, badge)
-    return out
+    return F.unique_keys(out)
 
 
 def refresh_own(force: bool = False, wait: bool = False) -> None:
@@ -210,7 +210,10 @@ def refresh_own(force: bool = False, wait: bool = False) -> None:
     _S["own_gen"] = gen
     _S["own_time"] = time.monotonic()
     if wait or bpy.app.background:
-        _S["own"] = _read(dirs)
+        got = _read(dirs)
+        have = {e.folder for e in got}
+        _S["own"] = F.unique_keys(got + [e for e in _S["fresh"] if e.folder not in have and os.path.isdir(e.folder)])
+        _S["fresh"] = []
         return
     _S["own_busy"] = True
 
@@ -232,7 +235,11 @@ def _take_own():
     if _S["own_busy"]:
         return 0.1
     if _S["own_result"] is not None:
-        _S["own"] = _S["own_result"]
+        got = _S["own_result"]
+        have = {e.folder for e in got}
+        # a material saved while this read was under way: kept (the read may have looked before it was there)
+        _S["own"] = F.unique_keys(got + [e for e in _S["fresh"] if e.folder not in have])
+        _S["fresh"] = [e for e in _S["fresh"] if e.folder not in have]
         _S["own_result"] = None
         redraw()
     return None
@@ -253,7 +260,7 @@ def project_entries(scene) -> list:
         if hit is None:
             try:
                 data = json.loads(pm.data)
-            except ValueError:
+            except (ValueError, RecursionError, TypeError):
                 data = None
             hit = F.entry_from_data(data, "project", BADGE_PROJECT)
             if len(_S["project"]) > 500:
@@ -317,13 +324,19 @@ def _pm(scene, key: str, make: bool = True):
 def remember(scene, e, listed: bool | None = None):
     """Keep an entry in the project (an own material: its whole file; a Blender material: appended)."""
     pm = _pm(scene, e.key)
-    pm.title = e.name
+    pm.title = F.storable(e.name)
     if e.key.startswith("own:") and e.data:
-        text = json.dumps(e.data, ensure_ascii=False, sort_keys=True)
+        try:
+            text = json.dumps(e.data, ensure_ascii=True, sort_keys=True)    # ASCII: always a storable text
+        except (ValueError, TypeError, RecursionError):
+            text = ""
         if pm.data != text:
             pm.data = text
     if e.is_blend and e.blend and os.path.isfile(e.blend):
-        mat = append_blend(e)
+        try:
+            mat = append_blend(e)
+        except (OSError, RuntimeError) as exc:
+            raise ValueError(f"'{e.name}' could not be taken from its Blender file ({exc})") from exc
         if mat is not None:
             pm.blend_mat = mat.name
     if listed is not None:
@@ -335,13 +348,14 @@ def append_blend(e):
     """The entry's Blender material appended into the project as "FRM <name>" (again when its file changed)."""
     stamp = _stamp(e.blend)
     for mat in bpy.data.materials:
-        if mat.get("fr_own_key") == e.key and mat.get("fr_own_stamp") == stamp:
+        if mat.get("fr_own_key") == e.key and mat.get("fr_own_stamp") == stamp and mat.get("fr_material") is None:
             return mat
     from . import material_pictures
     mat = material_pictures.blend_material(e.blend, e.blend_material)
     if mat is None:
         return None
-    for old in [m for m in bpy.data.materials if m.get("fr_own_key") == e.key and m != mat]:
+    for old in [m for m in bpy.data.materials if m.get("fr_own_key") == e.key and m != mat
+                and m.get("fr_material") is None]:
         old.use_fake_user = False
         if old.users == 0:
             bpy.data.materials.remove(old)
@@ -380,6 +394,12 @@ def short_list(scene) -> list:
     return out
 
 
+def used_by_project(scene) -> set:
+    """The keys the groups and the paint schemes use (their copies must stay in the project)."""
+    s = scene.fresing
+    return {g.mat_key for g in s.groups} | {lk.key for sch in s.schemes for lk in sch.looks}
+
+
 def is_listed(scene, key: str) -> bool:
     pm = scene.fresing.project_materials.get(key)
     return bool(pm is not None and pm.listed)
@@ -396,7 +416,7 @@ def remove_from_project(scene, key: str) -> None:
     if pm is None:
         return
     pm.listed = False
-    if key not in [g.mat_key for g in scene.fresing.groups]:
+    if key not in used_by_project(scene):
         if pm.blend_mat:
             mat = bpy.data.materials.get(pm.blend_mat)
             if mat is not None and mat.get("fr_own_key") == key:
@@ -416,13 +436,26 @@ def from_template(scene, items: list) -> int:
             continue
         if not key.startswith("own:") and F.builtin(key) is None:
             continue
+        data = None
+        if key.startswith("own:"):
+            try:
+                data = json.loads(str(it.get("data") or ""))
+            except (ValueError, RecursionError, TypeError):
+                data = None
+            ident = data.get("id") if isinstance(data, dict) else None
+            if ident != key[4:].split("@")[0]:
+                continue                                  # no file, or another material's: left out
         pm = _pm(scene, key)
-        pm.title = str(it.get("title", "")) or pm.title
-        if key.startswith("own:") and it.get("data"):
-            pm.data = str(it["data"])
+        pm.title = F.storable(str(it.get("title", ""))) or pm.title
+        if data is not None:
+            pm.data = json.dumps(data, ensure_ascii=True, sort_keys=True)
             e = find(scene, key)
             if e is not None and e.is_blend and e.blend and os.path.isfile(e.blend):
-                mat = append_blend(e)
+                try:
+                    mat = append_blend(e)
+                except (OSError, RuntimeError) as exc:     # a damaged Blender file: the material stays the stand-in
+                    print(f"Fresing Render: '{e.name}' could not be taken from its Blender file:", exc)
+                    mat = None
                 if mat is not None:
                     pm.blend_mat = mat.name
         pm.listed = True
@@ -562,16 +595,18 @@ def _level_of(root: str) -> tuple:
 
 
 def _added(e) -> None:
-    """A material just saved is in the list at once (the folders are read again later)."""
-    _S["own"] = [x for x in _S["own"] if x.folder != e.folder] + [e]
+    """A material just saved is in the list at once (the folders are read again later; a read under way keeps it)."""
+    _S["own"] = F.unique_keys([x for x in _S["own"] if x.folder != e.folder] + [e])
+    _S["fresh"] = [x for x in _S["fresh"] if x.folder != e.folder] + [e]
 
 
 def blender_materials() -> list:
     """The project's own Blender materials a user may save (not the app's group materials "FR …", not ones made from
     an own material "FRM …", nothing linked from another file)."""
     return [m for m in bpy.data.materials
-            if not m.name.startswith(("FR ", "FRM ")) and m.library is None and m.node_tree is not None
-            and not m.is_grease_pencil and m.get("fr_material") is None]
+            if m.get("fr_material") is None and m.get("fr_own_key") is None and m.library is None
+            and m.node_tree is not None and not m.is_grease_pencil
+            and not m.name.startswith(("FR sheet", "FR picture", "FR sticker", "FR decal"))]
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -584,7 +619,7 @@ def runner_command(job: str) -> tuple:
     env = dict(os.environ)
     if exe and winexe.is_blender_program(exe):
         return [exe, "--background", "--python", RUNNER, "--", job, PACKAGE], env
-    env["PYTHONPATH"] = os.path.dirname(PACKAGE_DIR)
+    env["PYTHONPATH"] = os.pathsep.join(p for p in (os.path.dirname(PACKAGE_DIR), env.get("PYTHONPATH", "")) if p)
     return [sys.executable, RUNNER, job, os.path.basename(PACKAGE_DIR)], env
 
 
@@ -611,9 +646,8 @@ def make_picture(e) -> bool:
     if sys.platform == "win32":
         kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
-        log = open(os.path.join(work, "log.txt"), "w", encoding="utf-8")
-        proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=work, **kwargs)
-        log.close()
+        with open(os.path.join(work, "log.txt"), "w", encoding="utf-8") as log:    # the child keeps its own handle
+            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=work, **kwargs)
     except OSError as exc:
         print("Fresing Render: the material picture was not started:", exc)
         return False
@@ -656,6 +690,9 @@ def _watch_jobs():
                 e.picture = pic if os.path.isfile(pic) else ""
         if j["proc"].returncode != 0:
             print(f"Fresing Render: the picture of '{j['name']}' was not made (log: {j['dir']})")
+        else:
+            import shutil
+            shutil.rmtree(j["dir"], ignore_errors=True)
     redraw()
     return 0.5 if _S["jobs"] else None
 

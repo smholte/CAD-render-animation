@@ -226,8 +226,16 @@ def apply_scheme(scene, name: str) -> int:
             continue
         g.material = look.material
         g.color = look.color
-        if look.key != g.mat_key:                       # task 0273: back to the entry (its settings were set above)
+        if look.key != g.mat_key:                       # task 0273: back to the entry
             g.mat_key = look.key
+        if look.key.startswith("own:"):                 # … with its wear, rust and finish (a scheme keeps only
+            from . import material_picker               # material and colour itself)
+            e = material_picker.find(scene, look.key)
+            if e is not None and e.ok and not e.is_blend:
+                material_picker.apply(bpy.context, g, e)
+                g.color = look.color
+            elif e is None:
+                g.mat_key = ""
         n += 1
     refresh_group_materials(scene)
     return n

@@ -240,7 +240,8 @@ def _details(col, context, st, g) -> None:
         row = col.row(align=True)
         op = row.operator("fresing.mat_picture", text="Make the picture again", icon="RENDER_STILL")
         op.key = e.key
-        row.enabled = e.ok and not MP.picture_busy(e.key)
+        from . import locations
+        row.enabled = e.ok and not MP.picture_busy(e.key) and locations._can_write(e.folder)   # (a read-only share: no)
         op = col.operator("fresing.mat_show", text="Show in folder", icon="FILE_FOLDER")
         op.key = e.key
 

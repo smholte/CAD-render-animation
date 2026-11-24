@@ -192,7 +192,7 @@ def use(op, context, key: str, group: str = "") -> set:
         return {"CANCELLED"}
     try:
         MP.apply(context, g, e)
-    except (ValueError, OSError, RuntimeError) as exc:
+    except (ValueError, TypeError, OSError, RuntimeError) as exc:
         return _report_error(op, exc)
     op.report({"INFO"}, f"{g.name}: {e.name}")
     MP.redraw()
@@ -222,7 +222,7 @@ class FRESING_OT_mat_star(bpy.types.Operator):
             return {"CANCELLED"}
         try:
             MP.add_to_project(scene, e)
-        except (OSError, RuntimeError) as exc:
+        except (ValueError, TypeError, OSError, RuntimeError) as exc:
             return _report_error(self, exc)
         self.report({"INFO"}, f"{e.name} is on this project's list (3 Looks)")
         MP.redraw()
