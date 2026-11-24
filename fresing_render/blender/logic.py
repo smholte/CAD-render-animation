@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
+
 import bpy
 from mathutils import Matrix, Vector
 
@@ -45,14 +47,45 @@ def ensure_default_rules(s) -> bool:
     return False
 
 
-def facts_for_object(ob) -> R.PartFacts:
+def shape_of_mesh(me) -> str:
+    """What a part's mesh is by its shape alone (task 0302, ``core/shape_hints``): "washer", "hex_nut",
+    "o_ring" or "". Big meshes are not looked at (no small standard part)."""
+    from ..core import shape_hints
+    if me is None or not hasattr(me, "loop_triangles") or len(me.polygons) > shape_hints.MAX_TRIS:
+        return ""
+    n_v = len(me.vertices)
+    tris = me.loop_triangles
+    if n_v < 6 or len(tris) < 8 or len(tris) > shape_hints.MAX_TRIS:
+        return ""
+    pts = np.empty(n_v * 3, dtype=np.float64)
+    me.vertices.foreach_get("co", pts)
+    idx = np.empty(len(tris) * 3, dtype=np.int64)
+    tris.foreach_get("vertices", idx)
+    return shape_hints.hint(pts.reshape(-1, 3), idx.reshape(-1, 3))
+
+
+def facts_for_object(ob, shapes: dict | None = None) -> R.PartFacts:
+    """``shapes``: a dict kept for one sorting pass, so every copy of a part's mesh is looked at once."""
     asm = build.parent_assembly(ob)
+    name = ob.get(build.PROP_NAME, ob.name)
+    path = build.path_of(ob)
+    assembly = asm.get(build.PROP_NAME, asm.name) if asm else ""
+    shape = ""
+    if ob.type == "MESH" and R.shape_wanted(name, path, assembly):
+        key = ob.data.name
+        if shapes is not None and key in shapes:
+            shape = shapes[key]
+        else:
+            shape = shape_of_mesh(ob.data)
+            if shapes is not None:
+                shapes[key] = shape
     return R.facts_for(
-        ob.get(build.PROP_NAME, ob.name),
-        path=build.path_of(ob),
+        name,
+        path=path,
         color=ob.get(build.PROP_COLOR, ""),
-        assembly=asm.get(build.PROP_NAME, asm.name) if asm else "",
+        assembly=assembly,
         cad_material=ob.get(build.PROP_CAD_MATERIAL, ""),
+        shape=shape,
     )
 
 
@@ -83,7 +116,8 @@ def sort_plan(scene, rules: list[R.Rule], aliases: dict, parts=None) -> dict:
     rule, 'unmatched': n, 'per_group': {group: parts}, 'face_groups': {object name: [group per face
     set]}, 'per_face_group': {group: face sets}, 'by_rules': groups the rules fill (not by hand)}."""
     parts = list(build.iter_parts(scene)) if parts is None else parts
-    facts = [facts_for_object(ob) for ob in parts]
+    shapes: dict = {}
+    facts = [facts_for_object(ob, shapes) for ob in parts]
     groups, counts, unmatched = R.classify(facts, rules)
     out: list[str] = []
     per_group: dict[str, int] = {}

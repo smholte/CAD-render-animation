@@ -196,7 +196,7 @@ fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that w
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
-   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), lesson="crane:1", since="0.1.0")
+   pccheck=("import.crane", "import.machine", "import.materials", "import.shapes", "project.reopen"), lesson="crane:1", since="0.1.0")
 fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
@@ -438,23 +438,23 @@ fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT
 # task 0299: weather round 2
 fn(id="scene.weather_presets", short="Weather presets", title="Weather presets with pictures", family="scene",
    panel="FRESING_PT_weather", fold="fr_weather_presets", button="fresing.weather_preset", guide="weather-presets",
-   tour=("wx_sunrise", "wx_sunset"), pccheck=("weather.sunrise", "weather.sunset"), lesson="weather:3", since="0.2.222",
+   tour=("wx_sunrise", "wx_sunset"), pccheck=("weather.sunrise", "weather.sunset"), lesson="weather:3", since="0.2.223",
    workspaces=("offshore", "education"))
 fn(id="animation.weather_change", short="Change weather", title="Change the weather at the playhead",
    family="animation", panel="FRESING_PT_weather", button="fresing.weather_change", guide="weather-change",
-   tour=("wx_thunder",), pccheck=("weather.thunderstorm",), lesson="weather:4", since="0.2.222",
+   tour=("wx_thunder",), pccheck=("weather.thunderstorm",), lesson="weather:4", since="0.2.223",
    workspaces=("offshore", "education"))
 fn(id="scene.lightning", title="Thunderstorm and lightning", family="scene", panel="FRESING_PT_weather",
-   prop="lightning", guide="weather-lightning", tour=("wx_thunder",), pccheck=("weather.thunderstorm",), since="0.2.222",
+   prop="lightning", guide="weather-lightning", tour=("wx_thunder",), pccheck=("weather.thunderstorm",), since="0.2.223",
    workspaces=("offshore", "education"))
 fn(id="scene.sea_mist", title="Fog and sea mist", family="scene", panel="FRESING_PT_weather", prop="mist",
-   guide="weather-mist", tour=("wx_mist",), pccheck=("weather.mist",), since="0.2.222",
+   guide="weather-mist", tour=("wx_mist",), pccheck=("weather.mist",), since="0.2.223",
    workspaces=("offshore", "education"))
 fn(id="scene.hail", title="Hail and sleet", family="scene", panel="FRESING_PT_weather", prop="hail",
-   guide="weather-hail", tour=("wx_hail",), pccheck=("weather.hail",), since="0.2.222",
+   guide="weather-hail", tour=("wx_hail",), pccheck=("weather.hail",), since="0.2.223",
    workspaces=("offshore", "education"))
 fn(id="scene.heat", title="Hot and calm: heat haze", family="scene", panel="FRESING_PT_weather", prop="heat",
-   guide="weather-heat", tour=("wx_heat",), pccheck=("weather.heat",), since="0.2.222",
+   guide="weather-heat", tour=("wx_heat",), pccheck=("weather.heat",), since="0.2.223",
    workspaces=("offshore", "education"))
 fn(id="scene.start_scene_save", short="Save start scene", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
    button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125",

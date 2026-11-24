@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.222 – 24 Nov 2026 – Weather round 2: thunderstorm, sea mist, sunrise, sunset, hail, heat; change it in two clicks (task 0299)
+## 0.2.223 – 24 Nov 2026 – Weather round 2: thunderstorm, sea mist, sunrise, sunset, hail, heat; change it in two clicks (task 0299)
 
 - **Six new weathers**, each with a picture you click (5 Scene & Render > Weather & time > Presets): **Thunderstorm**
   (dark storm clouds, a downpour, lightning), **Fog / sea mist** (mist lying on the water, the machine fades in and
@@ -26,6 +26,24 @@ installer of that version was built from.
   white caps' number no longer takes 0.1 s per frame).
 - **Learn**: a new lesson "Weather: a storm rolls in" (Fresing > Learn…: View, Show me, Build it yourself), and the
   user guide explains the weather step by step.
+
+## 0.2.222 – 24 Nov 2026 – More part kinds; unnamed washers, nuts and O-rings found by their shape (task 0302)
+
+- **About 230 more part names are recognised** when the parts are sorted into groups, in English, Dutch and German,
+  from public catalogues: hose ends and tube fittings ("Schneidring", "SNIJRING", "HOSE TAIL", "Überwurfmutter"), test
+  points, rotary unions, lubricators, compressors, heat exchangers, air receivers and tank accessories, pressure and
+  temperature sensors, flow meters, linear scales, claw / bellows couplings and cardan shafts, crossed roller guides,
+  wire rope ends and lifting points ("Kausche", "PERSHULS", "Lastöse", "KRAANHAAK"), rod seals and wipers, index
+  plungers, swivel feet, magnet catches, thrust washers, slide blocks, brake resistors, blowers, control panels.
+- **German and Dutch one-word fasteners** now count as fasteners too: "Federscheibe", "Zahnscheibe", "Passscheibe",
+  "Nutmutter", "Einschlagmutter", "SLEUFMOER", "BLINDKLINKMOER", "Senkniet", "BORGRING" and more. Bonded and thrust
+  washers are no longer taken for fasteners (they go to the seals and the plain bearings).
+- **Parts whose name says nothing** ("Part123", "Onderdeel4", a drawing number) are looked at once more by their
+  shape: a thin flat ring with a round hole goes to the fasteners as a washer, a hexagon with a bore about as high as a
+  nut as a hex nut, a torus to "Seals & O-rings". Only these three, and only when the shape leaves no doubt; every
+  other part keeps the group its CAD material or colour gives it.
+- On the test models only one part changes group: the test mill's "CONTROL PANEL" (a box with a screen) is now an
+  electrical part instead of a cover. New PC check line: **import.shapes**.
 
 ## 0.2.221 – 23 Nov 2026 – Always the graphics card (task 0296)
 

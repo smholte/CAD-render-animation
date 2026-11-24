@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.222")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.223")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -3787,7 +3787,7 @@ STORM_SHOT = "Storm coming"
 STORM_AT = 3.2 / 5.0
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.222")
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.223")
 def build_weather(b: Build):
     """The weather lesson's steps first (``lessons/weather.py``, task 0299: Weather & time on, a preset, Change to
     Thunderstorm at the playhead), then the tour's own scenes."""
@@ -4574,28 +4574,28 @@ stop("wx_thunder", LOOK, "weather", "Thunderstorm in a video",
      "Change to Thunderstorm at the playhead (the weather lesson's last step): a clear day over the sea turns into a "
      "thunderstorm over four seconds – dark clouds, a downpour – and a lightning flash lights the whole quay while a "
      "bolt strikes in the distance. Go shows the moment of the flash.",
-     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.222",
+     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.223",
      animation="Weather", at=STORM_AT, play=True, check=_check_storm, auto="clip")
 stop("wx_sunrise", LOOK, "weather", "Sunrise",
      "The quay just after sunrise: a low golden sun from the east, long shadows across the quay, a few clouds lit "
      "from below, dew on the crane.", where="5 Scene & Render > Weather & time > Presets (Sunrise)",
-     since="0.2.222", check=_check_preset("SUNRISE", _sun_low(True)))
+     since="0.2.223", check=_check_preset("SUNRISE", _sun_low(True)))
 stop("wx_sunset", LOOK, "weather", "Sunset",
      "The quay at sunset: the sun low in the west, orange light on the crane's boom, long shadows.",
-     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.222",
+     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.223",
      check=_check_preset("SUNSET", _sun_low(False)))
 stop("wx_mist", LOOK, "weather", "Fog / sea mist",
      "Thick mist lying on the quay and the water: the far quay and the sea are gone, the crane's far end is paler "
      "than its foot. In a video banks of it drift by and the crane fades in and out.",
-     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.222",
+     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.223",
      check=_check_preset("SEA_MIST", _mist_on))
 stop("wx_hail", LOOK, "weather", "Hail / sleet",
      "A cold shower: white hail stones and sleet falling, small stones bouncing on the quay and the crane's top "
      "faces, grey light, everything wet, a little slush.", where="5 Scene & Render > Weather & time > Presets "
-     "(Hail / sleet); Hail", since="0.2.222", check=_check_preset("HAIL", _hail_on))
+     "(Hail / sleet); Hail", since="0.2.223", check=_check_preset("HAIL", _hail_on))
 stop("wx_heat", LOOK, "weather", "Hot and calm",
      "A hot afternoon without wind: bright sun, a pale warm haze over the far sea; in a render the horizon wavers "
-     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.222",
+     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.223",
      check=_check_preset("HOT_CALM", _heat_on))
 stop("props", LOOK, "props", "Props for scale and people",
      "In a warehouse, beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
@@ -5660,7 +5660,7 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "coming'. Learn… is a window of its own: click in the main window and it stays open, drag it onto another "
      "screen, close it with Close or its X.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.222", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.223", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 
