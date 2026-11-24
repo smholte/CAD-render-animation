@@ -67,12 +67,15 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 19, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 107, "tour2": 2, "tourui": 31, "layout": 66,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 109, "tour2": 2, "tourui": 31, "layout": 66,
               "panel": 39, "start": 56, "setup": 46, "highlight": 74, "usage": 33, "lesson": 41, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
-              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "backups": 23, "forms": 29,
+              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 14, "importagain": 18, "place": 22, "jointfold": 11}
+# Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
+# took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on).
+LONG_MIN = {"pccheck": 25, "pccheck2": 25}
 MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "callouts": 8}   # UITEST_QUICK=1 skips renders and the queue
 
 # The real-app tests run on GitHub as parallel jobs, one per group (task 0036, regrouped in task 0063 so that no job
@@ -90,7 +93,7 @@ GROUPS = {
     "callouts": ["callouts", "importagain", "place"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms"],   # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
-    "tour-b": ["tour2", "highlight", "start"],   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
+    "tour-b": ["tour2", "highlight", "start", "route"],   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout", "left", "settings", "locations"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271; locations: 0272 (~40 s)
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
@@ -130,6 +133,9 @@ TESTS = {
     "drawn": ("Real app: Draw hose – the picker's hover on the fittings, a click, Backspace, the clicks again, Enter; "
               "the CAD hose replaced, the arm luffs; one click and Esc; undo and redo (ui_test_drawn.py)",
               "ui_test_drawn.py", True),
+    "route": ("Real app: Avoid other parts and Shape the route – the hose lies on the block, a press on its line adds a "
+              "via point, a drag moves it, Enter; undo and redo; X over the dot, Esc (ui_test_route.py)",
+              "ui_test_route.py", True),
     "cables": ("Real app: cables and paths – a mouse click on Add cable, a row of What it touches, Add (+) with a click "
                "in the view, Flip side, undo and redo; Build: the rope follows the luffing frame, the sheaves turn; "
                "save and open (ui_test_paths.py)", "ui_test_paths.py", True),
@@ -353,7 +359,6 @@ def main(argv=None) -> int:
 
     base_env = dict(os.environ, BLENDER_USER_RESOURCES=user_res, PYTHONUNBUFFERED="1",
                     TOOLBOX_HOME=os.path.join(work, "Toolbox é"))   # task 0217: never the runner's own home folder
-    timeout = args.timeout_min * 60
     rows = []
     keys = GROUPS[args.group] if args.group else [k.strip() for k in args.only.split(",") if k.strip()]
     for key in keys:
@@ -405,14 +410,15 @@ def main(argv=None) -> int:
         for cf in crash_files:
             if os.path.isfile(cf):
                 os.remove(cf)
-        code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), timeout)
+        minutes = max(args.timeout_min, LONG_MIN.get(key, 0))
+        code, secs, text = run(cmd, env, os.path.join(folder, "blender_output.log"), minutes * 60)
         if code not in (0, 1):                       # Blender itself stopped (139 = it crashed): show where
             import glob
             for cf in sorted(set(crash_files + glob.glob(os.path.join(tempfile.gettempdir(), "*.crash.txt")))):
                 if os.path.isfile(cf):
                     with open(cf, encoding="utf-8", errors="replace") as fh:
                         print(f"-- Blender's crash file {cf} (exit code {code}):\n" + fh.read()[:6000], flush=True)
-        verdict, detail, fails = judge(key, code, text, args.timeout_min, bool(os.environ.get("UITEST_QUICK")))
+        verdict, detail, fails = judge(key, code, text, minutes, bool(os.environ.get("UITEST_QUICK")))
         if gui == "pccheck":                         # skips only for "no graphics card", every line there
             import ci_check_pccheck
             block = os.path.join(folder, "history", "last_run.txt")

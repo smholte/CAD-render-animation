@@ -321,6 +321,13 @@ fn(id="flex.draw_chain", title="Draw a drag chain between two brackets", family=
 fn(id="flex.replace_cad", title="A drawn hose, chain or cable replaces the simplified CAD part", family="machines",
    panel="FRESING_PT_flex", button="fresing.drawn_replace", guide="replace-cad", tour=("drawn_replace",),
    pccheck=("motion.drawn",), since="0.2.180")
+fn(id="flex.avoid", title="Hoses and cables avoid other parts: they lie on them instead of going through",
+   family="machines", panel="FRESING_PT_flex", prop="avoid", text="Avoid other parts", guide="flex-avoid",
+   tour=("flex_avoid",), pccheck=("motion.flex_avoid",), since="0.2.225",
+   manual_estimate=("use", 1800, "reshape the hose by hand at every key frame where it would go through a part"))
+fn(id="flex.route", title="Shape a hose's route: drag via points between its ends", family="machines",
+   panel="FRESING_PT_flex", button="fresing.flex_route", text="Shape the route", guide="flex-route",
+   tour=("flex_route",), pccheck=("motion.flex_avoid",), since="0.2.225")
 fn(id="flex.kinds", title="Hose and cable kinds, colours and standard sizes", family="machines",
    panel="FRESING_PT_flex", prop="hose_kind", text="Kind", guide="flex-kinds", tour=("flex_kinds",),
    pccheck=("motion.flex_kinds",), since="0.2.182")
@@ -445,23 +452,23 @@ fn(id="scene.weather", title="Weather & time", family="scene", panel="FRESING_PT
 # task 0299: weather round 2
 fn(id="scene.weather_presets", short="Weather presets", title="Weather presets with pictures", family="scene",
    panel="FRESING_PT_weather", fold="fr_weather_presets", button="fresing.weather_preset", guide="weather-presets",
-   tour=("wx_sunrise", "wx_sunset"), pccheck=("weather.sunrise", "weather.sunset"), lesson="weather:3", since="0.2.225",
+   tour=("wx_sunrise", "wx_sunset"), pccheck=("weather.sunrise", "weather.sunset"), lesson="weather:3", since="0.2.226",
    workspaces=("offshore", "education"))
 fn(id="animation.weather_change", short="Change weather", title="Change the weather at the playhead",
    family="animation", panel="FRESING_PT_weather", button="fresing.weather_change", guide="weather-change",
-   tour=("wx_thunder",), pccheck=("weather.thunderstorm",), lesson="weather:4", since="0.2.225",
+   tour=("wx_thunder",), pccheck=("weather.thunderstorm",), lesson="weather:4", since="0.2.226",
    workspaces=("offshore", "education"))
 fn(id="scene.lightning", title="Thunderstorm and lightning", family="scene", panel="FRESING_PT_weather",
-   prop="lightning", guide="weather-lightning", tour=("wx_thunder",), pccheck=("weather.thunderstorm",), since="0.2.225",
+   prop="lightning", guide="weather-lightning", tour=("wx_thunder",), pccheck=("weather.thunderstorm",), since="0.2.226",
    workspaces=("offshore", "education"))
 fn(id="scene.sea_mist", title="Fog and sea mist", family="scene", panel="FRESING_PT_weather", prop="mist",
-   guide="weather-mist", tour=("wx_mist",), pccheck=("weather.mist",), since="0.2.225",
+   guide="weather-mist", tour=("wx_mist",), pccheck=("weather.mist",), since="0.2.226",
    workspaces=("offshore", "education"))
 fn(id="scene.hail", title="Hail and sleet", family="scene", panel="FRESING_PT_weather", prop="hail",
-   guide="weather-hail", tour=("wx_hail",), pccheck=("weather.hail",), since="0.2.225",
+   guide="weather-hail", tour=("wx_hail",), pccheck=("weather.hail",), since="0.2.226",
    workspaces=("offshore", "education"))
 fn(id="scene.heat", title="Hot and calm: heat haze", family="scene", panel="FRESING_PT_weather", prop="heat",
-   guide="weather-heat", tour=("wx_heat",), pccheck=("weather.heat",), since="0.2.225",
+   guide="weather-heat", tour=("wx_heat",), pccheck=("weather.heat",), since="0.2.226",
    workspaces=("offshore", "education"))
 fn(id="scene.start_scene_save", short="Save start scene", title="Save into start scene", family="scene", panel="FRESING_PT_weather",
    button="fresing.save_into_start_scene", guide="start-scene", tour=("start_scene",), since="0.2.125",

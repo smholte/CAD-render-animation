@@ -90,7 +90,7 @@ _INPUTS = (("Shapes", "NodeSocketObject"), ("First", "NodeSocketInt"), ("Frames"
 
 # runtime only: nothing here outlives undo, redo or a file load, and no Blender object is kept
 _STATE = {"busy": 0, "last": {}, "arrays": {}, "solves": 0, "steps": 0, "inputs": {}, "read": None, "solved": {},
-          "moved_rigid": 0, "motion_scene": None}
+          "moved_rigid": 0, "motion_scene": None, "seed": {}}
 RIGID_TOL = 2e-5                        # m (and rad): the two end parts kept their places to each other (float32)
 GRAVITY_TURN = math.radians(0.5)        # a hose moved as a whole may turn this far against gravity (task 0121)
 MOTION_WAIT = 0.4                       # s: a vessel-motion slider rests this long before the hoses are baked again
@@ -215,6 +215,16 @@ def broken(scene, item) -> str:
 def end_objects(item) -> list:
     """The parts the item's shape hangs on: end A, end B and (a drawn hose) every clip's part, in that order."""
     return [item.a_part, item.b_part] + ([c.part for c in item.clips] if item.kind == "HOSE" else [])
+
+
+def held_objects(scene, item) -> list:
+    """What the item's shape depends on: its end parts and clips (``end_objects``) and, with Avoid other parts on, the
+    parts it keeps out of (task 0298, ``flex_avoid.parts_for``)."""
+    out = end_objects(item)
+    if item.kind == "HOSE" and getattr(item, "avoid", False):
+        from . import flex_avoid
+        out = out + flex_avoid.parts_for(scene, item)
+    return out
 
 
 def hose_points(item) -> int:
@@ -675,12 +685,10 @@ def _dedupe(spots: list) -> list:
 
 
 def _stops(item) -> list:
-    """[(point, direction)] in the world now: end A, the clips, end B (directions along the hose, A -> B)."""
-    from . import drawn
-    out = [drawn.world_spot(item.a_part, item.a_point, item.a_dir)]
-    out += [drawn.world_spot(c.part, c.point, c.dir) for c in item.clips]
-    out.append(drawn.world_spot(item.b_part, item.b_point, item.b_dir))
-    return out
+    """[(point, direction)] in the world now: end A, the clips and via points, end B (directions along the hose,
+    A -> B; a via point's from the stops beside it, task 0298)."""
+    from . import flex_route
+    return flex_route.stops_now(item)
 
 
 def _natural_now(item) -> tuple:
@@ -1666,15 +1674,16 @@ def _sync(scene) -> None:
 # solving
 # ---------------------------------------------------------------------------
 
-def _end_names(its) -> list:
-    return sorted({ob.name for _i, it in its for ob in end_objects(it)})
+def _end_names(scene, its) -> list:
+    return sorted({ob.name for _i, it in its for ob in held_objects(scene, it)})
 
 
-def _places_now(its) -> dict:
-    """Object name -> its world matrix now, as (1, 4, 4), for the end parts of these items."""
+def _places_now(scene, its) -> dict:
+    """Object name -> its world matrix now, as (1, 4, 4), for the end parts of these items (and the parts they
+    avoid)."""
     out = {}
     for _i, it in its:
-        for ob in end_objects(it):
+        for ob in held_objects(scene, it):
             if ob.name not in out:
                 out[ob.name] = _np(_world(ob))[None]
     return out
@@ -1685,7 +1694,7 @@ def _mm(metres: float) -> str:
     return f"{mm:.1f}" if abs(mm) < 10.0 else f"{mm:.0f}"
 
 
-def _solve(its, mats: dict, frames: int):
+def _solve(its, mats: dict, frames: int, scene=None):
     """The shapes of these items at ``frames`` moments. ``mats``: end part name -> (frames, 4, 4) world matrices.
 
     Returns ({item index: (places, X axes, Z axes)}, {item index: (what, moment, number)}): arrays
@@ -1697,27 +1706,28 @@ def _solve(its, mats: dict, frames: int):
         from ..core import flex as HS
         # one row per segment: a hose without clips is one segment, a drawn hose through clips one per stretch
         # between them (task 0240), each with its share of the length and the clip's direction at both its ends
+        # (task 0298: via points set by hand are stops too, carried by the two end parts – blender/flex_route.py)
+        from . import flex_avoid, flex_route
         rows = []                               # (k of the hose, segment, from, to)
         for k, (_i, it) in enumerate(hoses):
-            obs = end_objects(it)
-            stops = [(obs[0], it.a_point, it.a_dir)] + [(c.part, c.point, c.dir) for c in it.clips] \
-                + [(obs[1], it.b_point, it.b_dir)]
+            stops = flex_route.stops_at(it, mats)
             for seg in range(len(stops) - 1):
                 rows.append((k, seg, stops[seg], stops[seg + 1]))
         h = len(rows)
         p0, t0, p1, t1 = (np.empty((frames, h, 3)) for _ in range(4))
         length, stiff, sag, rmin = (np.empty((frames, h)) for _ in range(4))
         guide = np.full((frames, h, GUIDE_POINTS, 3), np.nan)       # (a row of NaN: no guide for that row)
+        clear = np.zeros(h)
+        avoid_obs = []                          # per row: the parts it keeps out of (task 0298)
 
-        def at(ob, point, direction):
-            m = mats[ob.name]
-            return (np.array(point) @ m[:, :3, :3].transpose(0, 2, 1) + m[:, :3, 3],
-                    np.array(direction) @ m[:, :3, :3].transpose(0, 2, 1))
-
-        for r, (k, seg, (oa, pa, da), (ob_, pb, db)) in enumerate(rows):
+        for r, (k, seg, (pa, da), (pb, db)) in enumerate(rows):
             it = hoses[k][1]
-            p0[:, r], t0[:, r] = at(oa, pa, da)
-            p1[:, r], t1[:, r] = at(ob_, pb, db)
+            p0[:, r], t0[:, r] = pa, da
+            p1[:, r], t1[:, r] = pb, db
+            obs = flex_avoid.parts_for(scene, it) if scene is not None else []
+            avoid_obs.append(obs)
+            if obs:
+                clear[r] = flex_avoid.clear_of(it)
             length[:, r] = it.length * _share(it, seg)
             stiff[:, r] = HS.stiff_length(it.diameter, it.stiffness)
             sag[:, r] = it.sag
@@ -1733,14 +1743,30 @@ def _solve(its, mats: dict, frames: int):
             short, tight = (np.zeros((frames, h), dtype=bool) for _ in range(2))
             need = np.empty((frames, h))
             for r in range(h):
+                field = flex_avoid.field([(None, avoid_obs[r])], mats, frames) if avoid_obs[r] else None
                 res = HS.solve_motion(p0[:, r], t0[:, r], p1[:, r], t1[:, r], length[:, r], stiff[:, r], sag[:, r],
-                                      rmin[:, r], n=POINTS, guide=guide[:, r])
+                                      rmin[:, r], n=POINTS, guide=guide[:, r], avoid=field,
+                                      clear=clear[r] if field is not None else 0.0)
                 pts[:, r], short[:, r], need[:, r], tight[:, r] = res.points, res.short, res.need, res.tight
         else:
+            field = flex_avoid.field([(0, obs) for obs in avoid_obs], mats, 1) if any(avoid_obs) else None
+            seed = None
+            if field is not None:               # the last pose's answer: the hose stays on the side it lay on
+                seed = np.full((h, POINTS, 3), np.nan)
+                for k, (_i, it) in enumerate(hoses):
+                    mine = [r for r, row in enumerate(rows) if row[0] == k]
+                    got = _STATE["seed"].get((scene.name, it.name))
+                    if got is not None and got.shape == (len(mine), POINTS, 3):
+                        seed[mine] = got
             res = HS.solve_hoses(p0.reshape(-1, 3), t0.reshape(-1, 3), p1.reshape(-1, 3), t1.reshape(-1, 3),
                                  length.reshape(-1), stiff.reshape(-1), sag.reshape(-1), rmin.reshape(-1), n=POINTS,
-                                 guide=guide.reshape(-1, GUIDE_POINTS, 3))
+                                 guide=guide.reshape(-1, GUIDE_POINTS, 3), avoid=field, clear=clear, seed=seed)
             pts = res.points.reshape(frames, h, POINTS, 3)
+            if field is not None:
+                for k, (_i, it) in enumerate(hoses):
+                    mine = [r for r, row in enumerate(rows) if row[0] == k]
+                    if any(avoid_obs[r] for r in mine):
+                        _STATE["seed"][(scene.name, it.name)] = pts[0, mine].copy()
             short, need, tight = (x.reshape(frames, h) for x in (res.short, res.need, res.tight))
         _STATE["solves"] += frames * h
         missing = np.where(short, need - length, 0.0)
@@ -1868,7 +1894,7 @@ def _moved(scene) -> list:
     for i, it in enumerate(scene.fresing.flex):
         if not it.enabled:
             continue
-        obs = end_objects(it)
+        obs = held_objects(scene, it)
         if any(o is None for o in obs):
             continue
         key = b"".join(_np(_world(o)).tobytes() for o in obs)
@@ -1887,7 +1913,7 @@ def _down_in(m: np.ndarray) -> np.ndarray:
 def _remember(scene, i, it, mats: dict, arrays) -> None:
     """Keep what item i was solved for (its end parts' places) and its solved slice: moved as a whole later."""
     a = mats[it.a_part.name][0]
-    rel = np.stack([np.linalg.solve(a, mats[o.name][0]) for o in end_objects(it)[1:]])
+    rel = np.stack([np.linalg.solve(a, mats[o.name][0]) for o in held_objects(scene, it)[1:]])
     lo, n = int(it.offset), int(it.points)
     _STATE["solved"][(scene.name, i)] = (a, rel, _down_in(a),
                                          tuple(np.array(x[0, lo:lo + n], dtype=float) for x in arrays))
@@ -1904,7 +1930,7 @@ def _carried(scene, i, it, mats: dict):
     if co.shape[0] != int(it.points):
         return None
     a = mats[it.a_part.name][0]
-    rel = np.stack([np.linalg.solve(a, mats[o.name][0]) for o in end_objects(it)[1:]])
+    rel = np.stack([np.linalg.solve(a, mats[o.name][0]) for o in held_objects(scene, it)[1:]])
     if rel.shape != rel0.shape or not np.allclose(rel, rel0, rtol=0.0, atol=RIGID_TOL):
         return None
     if it.kind == "HOSE" and float(np.dot(_down_in(a), down0)) < math.cos(GRAVITY_TURN):
@@ -1937,7 +1963,7 @@ def _live(scene, force: bool = False) -> bool:
         _STATE["last"][(scene.name, i)] = key
     if not todo and not whole:
         return False
-    mats = _places_now(todo)
+    mats = _places_now(scene, todo)
     solve = []
     for i, it in todo:
         carried = None if whole else _carried(scene, i, it, mats)
@@ -1947,7 +1973,7 @@ def _live(scene, force: bool = False) -> bool:
             _patch(arrays, it, carried)
             _STATE["moved_rigid"] += 1
     if solve:
-        results, problems = _solve(solve, mats, 1)
+        results, problems = _solve(solve, mats, 1, scene)
         for i, it in solve:
             _patch(arrays, it, results[i])
             _remember(scene, i, it, mats, arrays)
@@ -1972,7 +1998,7 @@ def _read_places(scene, its, first: int, frames: int) -> dict:
             also += [ob for ob in (fn(scene) or ()) if ob is not None]
         except Exception as exc:                # never break a Build over another module's wish
             print("Fresing Render: read hook failed:", exc)
-    return read_places(scene, [ob for _i, it in its for ob in end_objects(it)], first, frames, also=also,
+    return read_places(scene, [ob for _i, it in its for ob in held_objects(scene, it)], first, frames, also=also,
                        keep=True)
 
 
@@ -2202,7 +2228,7 @@ def _bake(scene, step: bool, only: int | None = None) -> list[str]:
              for it in scene.fresing.flex if it.enabled and broken(scene, it)]
     first, end = int(scene.frame_start), int(max(scene.frame_start, scene.frame_end))
     frames = end - first + 1
-    names = _end_names(its)
+    names = _end_names(scene, its)
     mats = None if step else _stored_places(scene, names, first, frames)
     if mats is None:
         mats = _read_places(scene, its, first, frames)
@@ -2214,7 +2240,7 @@ def _bake(scene, step: bool, only: int | None = None) -> list[str]:
         todo = [(i, it) for i, it in its if i == only]
     else:
         arrays = tuple(np.zeros((frames, per, 3), np.float32) for _ in range(3))
-    results, problems = _solve(todo, mats, frames)
+    results, problems = _solve(todo, mats, frames, scene)
     for i, it in todo:
         _patch(arrays, it, results[i])
     _write_shapes(scene, arrays, first)
@@ -2228,6 +2254,9 @@ def _rebuild(scene, only: int | None = None) -> list[str]:
         return []
     _STATE["busy"] += 1
     try:
+        if only is None:
+            from . import flex_avoid
+            flex_avoid.drop(scene)
         if _baked(scene):
             return _bake(scene, step=False, only=only)
         if only is None:
@@ -2254,6 +2283,8 @@ def changed(scene, item) -> None:
     i = index_of(scene, item)
     if i < 0:
         return
+    from . import flex_avoid
+    flex_avoid.drop(scene, item)
     if item.kind == "CHAIN" and not item.made_links and item.count != len(item.links) and len(item.links):
         with _quiet(item):
             item.count = len(item.links)                  # CAD links: as many as there are
@@ -2523,6 +2554,70 @@ def _clash_hook(scene):
     return [], flex_parts(scene)
 
 
+def clash_rows(check) -> list:
+    """Task 0298: with 'Check hoses that avoid parts' on (6 Animation > Clash check), a hose with Avoid other parts on
+    gives a row for every stretch of frames in which it goes further into one of the parts it avoids than the clash
+    depth (its fittings or clips force it in, or the part came at it too fast), measured at every frame of the built
+    shapes. A near miss (closer than the distance set) when near misses are asked for."""
+    from . import clash, flex_avoid
+    from ..core import clash as CC
+    scene = check.scene
+    if not clash.settings(scene).hoses or not _baked(scene):
+        return []
+    sh = _shapes(scene)
+    if sh is None:
+        return []
+    frames, per, first = _layout_of(sh)
+    arrays = _arrays(scene, frames, per)
+    if arrays is None:
+        return []
+    out = []
+    keep = (scene.frame_current, scene.frame_subframe)
+    its = [it for _i, it in _usable(scene) if it.kind == "HOSE" and it.avoid and it.points]
+    if not its:
+        return []
+    obs = {ob.name: ob for it in its for ob in flex_avoid.parts_for(scene, it)}
+    if not obs:
+        return []
+    from ..core import flex as HS
+    mats = _stored_places(scene, sorted(obs), first, frames)          # (read at Build with the hose's other parts)
+    if mats is None:
+        mats = read_places(scene, list(obs.values()), first, frames)
+    try:
+        for it in its:
+            lo, n = int(it.offset), int(it.points)
+            r = 0.5 * float(it.diameter)
+            for ob in flex_avoid.parts_for(scene, it):
+                body = flex_avoid.body_of(ob)
+                if body is None or ob.name not in mats:
+                    continue
+                hits, near = [], []
+                for f in range(frames):
+                    line = arrays[0][f, lo:lo + n].astype(float)
+                    fine = HS.resample(line, max(n * flex_avoid.CHECK, 2))
+                    m = flex_avoid._rigid(mats[ob.name][f])
+                    inv = np.linalg.inv(m)
+                    local = fine @ inv[:3, :3].T + inv[:3, 3]
+                    grow = r + max(check.near, 0.0) + 0.01
+                    close = ((local >= body.lo - grow) & (local <= body.hi + grow)).all(axis=1)
+                    if not close.any():
+                        continue
+                    d, _w = body.distance(local[close])
+                    depth = r - float(d.min())              # how far the hose's surface is in the part
+                    if depth > check.depth:
+                        hits.append(CC.Hit(float(first + f), depth, depth))
+                    elif check.near > 0.0 and -depth < check.near:
+                        near.append(CC.Hit(float(first + f), -depth, 0.0))
+                for kind, found in (("CLASH", hits), ("NEAR", near)):
+                    if found:
+                        for row in CC.merge(found, kind, label(it), clash.label(ob)):
+                            row.names = (it.part.name, ob.name)
+                            out.append(row)
+    finally:
+        scene.frame_set(keep[0], subframe=keep[1])
+    return out
+
+
 # ---------------------------------------------------------------------------
 # model update
 # ---------------------------------------------------------------------------
@@ -2553,6 +2648,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
 
     todo = [it for it in s.flex if concerned(it)]
     last = {it.name: shape_now(scene, it) for it in todo if it.drawn}     # (task 0240: a part gone keeps its place)
+    from . import flex_route
+    vias = {it.name: flex_route.world_now(it) for it in todo if flex_route.count(it)}     # (task 0298)
     _STATE["busy"] += 1
     try:
         for it in todo:                         # first every item to its new parts, then read (ends never sit on
@@ -2569,6 +2666,8 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                     drawn.after_model_update(scene, it, by_uid, mapping)
                 elif it.kind == "HOSE" or it.made_links:
                     it.part = _new_object(scene, it.part_uid, by_uid, mapping)
+                    for c in it.clips:          # via points (task 0298) go with end A's part
+                        c.part = it.a_part
                 else:
                     uids = [u for u in it.link_uids.split("\n") if u]
                     links = [ob for ob in (_new_object(scene, u, by_uid, mapping) for u in uids) if ob is not None]
@@ -2581,6 +2680,9 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
             try:
                 if it.drawn:                    # nothing to read again: drawn by hand
                     why = broken(scene, it)
+                    if not why and it.name in vias:
+                        with _quiet(it):
+                            flex_route.put_back(it, vias[it.name])
                     if why:
                         notes.append(f"{name}: {why} in the new revision – it keeps its last place")
                         pts = last.get(it.name)
@@ -2594,6 +2696,10 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
                         notes.append(f"{name}: its part is gone in the new revision")
                     elif it.kind == "HOSE":
                         _store_hose(it, it.part, _read_hose(scene, it.part), keep_user=True)
+                        with _quiet(it):
+                            for c in it.clips:
+                                c.part, c.uid = it.a_part, it.a_uid
+                            flex_route.put_back(it, vias.get(it.name, []))
                     else:
                         _store_chain(it, _read_solid(scene, it.part, bool(it.get("swapped"))), it.part,
                                      keep_user=True)
@@ -2633,6 +2739,9 @@ def after_model_update(scene, by_uid: dict, mapping: dict) -> list[str]:
 
 def forget() -> None:
     """Drop what this module remembers between calls (undo, redo, file load, a changed list)."""
+    from . import flex_avoid
+    flex_avoid.forget()
+    _STATE["seed"].clear()
     _STATE["last"].clear()
     _STATE["solved"].clear()
     _STATE["arrays"].clear()
@@ -2724,6 +2833,8 @@ def register() -> None:
             lst.append(fn)
     if _clash_hook not in clash.HOOKS:
         clash.HOOKS.append(_clash_hook)
+    if clash_rows not in clash.ROW_HOOKS:
+        clash.ROW_HOOKS.append(clash_rows)
 
 
 def unregister() -> None:
@@ -2733,6 +2844,8 @@ def unregister() -> None:
             lst.remove(fn)
     while _clash_hook in clash.HOOKS:
         clash.HOOKS.remove(_clash_hook)
+    while clash_rows in clash.ROW_HOOKS:
+        clash.ROW_HOOKS.remove(clash_rows)
     from . import rebake
     for fn in (_settle, rebake._timer):
         if bpy.app.timers.is_registered(fn):
@@ -2774,6 +2887,24 @@ def set_up_test_hoses(scene) -> dict:
         item, _n = add_hose(scene, _named(scene, part), soft=soft)
         names.append(item.name)
     return {"joints": ["Luff", "Slide"], "cylinder": cylinder, "items": names}
+
+
+def set_up_test_avoid(scene, avoid: bool = True) -> dict:
+    """The set-up of the avoid test model (test_flex_avoid_a.step, tools/make_test_flex.py, task 0298): a slide joint
+    "Lift" on LIFT.ASM along Z (limits -400 … +100 mm) and the hose "HOSE" with Avoid other parts on (``avoid``).
+    Returns the names of what was made."""
+    from . import joints
+    lift = _named(scene, "LIFT.ASM")
+    j = joints.create(scene, "SLIDE", [lift], lift.matrix_world.translation.copy(), Vector((0.0, 0.0, 1.0)),
+                      name="Lift")
+    j = joints.find(scene, "Lift")
+    j.slide_min, j.slide_max, j.use_limits = -0.4, 0.1, True
+    bpy.context.view_layer.update()
+    item, _n = add_hose(scene, _named(scene, "HOSE"))
+    name = item.name
+    if avoid:
+        find(scene, name).avoid = True
+    return {"joints": ["Lift"], "items": [name]}
 
 
 def set_up_test_chains(scene) -> dict:
