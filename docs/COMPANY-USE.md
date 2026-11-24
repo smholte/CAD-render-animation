@@ -91,6 +91,16 @@ Locations). A company or department hands out its folders, export places and set
   app is read for what this version knows; what is left out is named.
 - **Export places** in a set-up show next to **Next to the project (Renders)** – the standard – and
   **Pictures\Fresing Render\<project>**; "project_sub" puts each project's outputs in a folder of its own.
+- **The first start** (task 0276): a new user gets a short set-up window (their work and the workspace new projects
+  start in, a look at the PC, the company's set-up file and their folders, the Learning hub). A set-up file can fill
+  it in or skip it, with `first_start` in `setup.json`:
+  `"first_start": {"workspace": "CNC & machining", "language": "en_US"}` pre-fills the workspace and the language of
+  Blender's own menus (`en_US`, `nl_NL`, `de_DE`; the app's own texts are English) – the user still sees the
+  set-up and can change them; **`"first_setup": "skip"`** (at the top of `setup.json` or inside `first_start`) makes
+  managed PCs start straight in, without the set-up. A setting in `settings` (as `default_workspace` above) is put
+  into Fresing Settings as always. The set-up's look at the PC runs a second Blender on the same PC (the PC check's
+  first lines) and reaches no network; the user's ticks stay in `…\portable\config\fresing_start.json`
+  (`blender/first_setup.py`, `core/first_setup.py`).
 
 ## Your files stay on your PC
 

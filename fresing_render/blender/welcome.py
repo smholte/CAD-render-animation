@@ -3,16 +3,17 @@
 At the start of the app (never in the background, the tests, the PC check or the kit: ``core/start.py``'s
 ``NO_POPUP_ENV``, or simulated events) the state in ``<config>/fresing_start.json`` says what to show:
 
-* **welcome** – the first starts in a settings folder: one line on the app, one on the test tour, Take the test tour /
-  Later / Don't show this again. Later asks again at the next start, at most three starts.
+* **setup** (task 0276; the welcome of 0199 before it) – the first starts in a settings folder: the first-start
+  set-up in a window of its own (``first_setup.py``), until it is finished or skipped, at most three starts. A
+  company's set-up file with ``"first_setup": "skip"`` skips it (managed PCs). The welcome stays in the Fresing menu.
 * **whats_new** – the first start of a newer version: the new functions (``since=`` / ``changed=`` of
   ``core/functions.py``), the new and changed test models (``added=`` / ``changed=`` of the tour sets) and the tour of
   only those. Later keeps it in the Fresing menu until it is opened once.
 
 Blender's splash shows at the start: the welcome and What's new then sit at the top of the splash (two windows on top
 of each other were hard to read). Without a splash (a project opened by a double-click, the splash switched off) the
-window shows once the project is open; on the very first start Blender's own quick set-up comes first and the welcome
-follows when it is closed with Continue.
+window shows once the project is open. Blender's own quick set-up never shows (task 0276: the app template saves
+Blender's preferences before the splash, ``first_setup.at_load``), and the start that shows the set-up has no splash.
 """
 
 from __future__ import annotations
@@ -155,10 +156,21 @@ def at_start(force: bool = False) -> str:
             state["last_run"] = hint
             state["welcome"]["done"] = True
     shows = core.decide(state, version())
+    if shows == "setup" and _it_skips():             # task 0276: a company's set-up file says "first_setup": "skip"
+        state = core.setup_finished(state, version(), "skipped", by="it")
+        shows = ""
     state = core.started(state, version(), shows)
     save(state)
     _RUN.update(shows=shows, since=state["whats_new"].get("from", ""), now=version())
     return shows
+
+
+def _it_skips() -> bool:
+    try:
+        from . import first_setup
+        return first_setup.from_setups()["skip"]
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _splash_expected() -> bool:
@@ -190,6 +202,12 @@ def show_popup(kind: str) -> bool:
     kw = _window_override()
     if kw is None:
         return False
+    if kind == "setup":                    # task 0276: the set-up's own window
+        from . import first_setup
+        why = first_setup.open_window(at_start=True)
+        if why:
+            print("Fresing Render: the set-up did not open:", why)
+        return not why
     op = "welcome" if kind == "welcome" else "whats_new"
     try:
         with bpy.context.temp_override(**kw):
@@ -208,6 +226,16 @@ def _tick():
             _RUN["quick_setup"] = _quick_setup_open()
         kind = _RUN["shows"]
         if not kind:
+            return None
+        if kind == "setup":                # task 0276: its own window, whether a splash shows or not
+            from . import editors, first_setup, ops_setup
+            if first_setup.client_view():
+                return None                # never in the Client view: asked again at the next start
+            wm = bpy.context.window_manager
+            if wm is None or not wm.windows or editors.busy() or ops_setup.busy():
+                _RUN["waits"] += 1
+                return 0.5 if _RUN["waits"] < 120 else None
+            show_popup(kind)
             return None
         if _RUN["splash"]:                 # the splash drew it: the user answers there
             return None
@@ -241,7 +269,11 @@ def _draw_splash(self, context):
     layout = self.layout
     box = layout.box()
     col = box.column()
-    if kind == "welcome":
+    if kind == "setup":                    # task 0276: the set-up opens in its own window
+        col.label(text="Welcome to Fresing Render", icon="INFO")
+        col.label(text="A short set-up opens in its own window: your work, your PC, your folders.")
+        col.label(text="Close this window to start; Skip set-up there skips it.")
+    elif kind == "welcome":
         col.label(text="Welcome to Fresing Render", icon="INFO")
         for line in WELCOME_TEXT(tour_minutes()):
             col.label(text=line)
@@ -264,7 +296,7 @@ def _draw_quick_setup(self, context):
         at_start()
         _RUN["quick_setup"] = True
     if _RUN["shows"]:
-        self.layout.label(text="Fresing Render: press Continue – a short welcome follows", icon="INFO")
+        self.layout.label(text="Fresing Render: press Continue – a short set-up follows", icon="INFO")
 
 
 # ---------------------------------------------------------------------------

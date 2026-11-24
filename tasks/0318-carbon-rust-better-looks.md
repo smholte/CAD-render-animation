@@ -1,6 +1,6 @@
 # 0318 – Carbon fibre on curved parts without the 45° seam, perlage, a Rust slider, and better existing looks
 
-**Who:** worker · **Status:** done (0.2.235) · **Branch:** `task/0318-carbon-rust-better-looks`
+**Who:** worker · **Status:** done (0.2.236) · **Branch:** `task/0318-carbon-rust-better-looks`
 **Started by:** lead, 24 Nov 2026 (owner 24 Nov 00:45: "for the carbon fibre could the worker find a fix for the weave
 at 45° (a seam you can see). And improve other materials as seen fit.") · **Model:** Opus · effort High
 **Area:** Looks lane – `blender/finishes.py` (0274's), `blender/materials.py`, `core/materials_lib.py`,
@@ -92,7 +92,7 @@ painted steel from CAD colours (0287).
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (worker), 24 Nov 2026. Branch `task/0318-carbon-rust-better-looks`, version
-0.2.235.
+0.2.236.
 
 **What changed:**
 - **Carbon fibre** (`carbon_fibre`, UID 85, finish n 17; Kind 2x2 twill / plain, Tow width 1–8 mm, Gloss): the weave per
@@ -128,7 +128,7 @@ painted steel from CAD colours (0287).
   cast iron lighter and more metallic; marine streaks' rust colour. Listed in What's new.
 - Test model `test_finishes.step`: two rows added (carbon cup, tube with a cone, U-panel, free-form hood, plate; perlage
   disc; rust: bare steel, cast iron, painted, galvanised, stainless, aluminium). Tour stop **finishes** extended
-  ("Finishes, carbon fibre and rust", set changed 0.2.235); PC-check line **looks.rust** (Full; MIN_LINES_FULL 147);
+  ("Finishes, carbon fibre and rust", set changed 0.2.236); PC-check line **looks.rust** (Full; MIN_LINES_FULL 148);
   functions `looks.carbon`, `looks.rust` (new), `looks.finishes`, `looks.materials`, `looks.marine`, `looks.welds`
   (changed); guide sections Carbon fibre and Rust with `carbon.jpg`, `rust.jpg`, a new `panel_3_looks.png` and
   `material_sheet.jpg`; Ready-made material: Carbon fibre, Perlage. Tools: `tools/carbon_compare.py`,
@@ -150,9 +150,9 @@ painted steel from CAD colours (0287).
   materials, marine, welds, web 3D, toolmarks, cable looks, guide, functions …), the tour stop's Go + check (3.8 min),
   PC-check lines looks.rust + looks.finishes (OK, 11 s each), the 3 Looks panel picture (real Blender).
 - GitHub: the first full run was red on two tests that pinned the import cache's version at 6 (test_facets,
-  test_step_meta: now 7); meanwhile 0315 took 0.2.234 (main merged, renumbered to 0.2.235); the second full run green.
+  test_step_meta: now 7); meanwhile 0315 took 0.2.234 and 0276 took 0.2.235 (main merged twice, renumbered to 0.2.236); the second full run was green (as 0.2.235), the third as 0.2.236.
 
-**Owner's test steps** (after Update now to 0.2.235; the first open of a STEP model reads it again once):
+**Owner's test steps** (after Update now to 0.2.236; the first open of a STEP model reads it again once):
 1. Help > **Make test tour project**, stop **Finishes, carbon fibre and rust**, **Go**, Rendered view: in front of the
    board the carbon cup, tube, folded U-panel, hood and plate – the weave runs round the curves and across the bends
    without a break –, a perlage disc, and the rust row (rusty bare steel, cast iron, a blue block rusting at its edges

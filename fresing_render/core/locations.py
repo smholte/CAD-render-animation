@@ -138,7 +138,7 @@ class Setup:
 
 
 KNOWN_KEYS = {"format", "format_version", "id", "name", "level", "label", "version", "date", "made_by", "app",
-              "settings", "locations", "exports", "first_start"}
+              "settings", "locations", "exports", "first_start", "first_setup"}
 
 
 def new_id() -> str:
@@ -280,7 +280,19 @@ def from_data(data: dict, base: str = "the set-up") -> Setup:
     return Setup(id=sid, name=str(data.get("name") or sid), level=level, label=str(data.get("label") or ""),
                  version=max(1, version), date=str(data.get("date") or ""), made_by=str(data.get("made_by") or ""),
                  app=str(data.get("app") or ""), settings=dict(settings), locations=locs, exports=exports,
-                 first_start=dict(data.get("first_start") or {}), notes=notes)
+                 first_start=_first_start(data), notes=notes)
+
+
+def _first_start(data: dict) -> dict:
+    """The first-start choices (task 0276): ``first_start`` = {"first_setup": "skip", "workspace": …, "work": […],
+    "language": …}; a ``"first_setup": "skip"`` at the top of setup.json counts as well (managed PCs start straight
+    in, docs/COMPANY-USE.md)."""
+    fs = data.get("first_start")
+    out = dict(fs) if isinstance(fs, dict) else {}
+    top = data.get("first_setup")
+    if isinstance(top, str) and top.strip() and "first_setup" not in out:
+        out["first_setup"] = top.strip()
+    return out
 
 
 def write_setup(path: str, setup: Setup, content: dict | None = None) -> str:

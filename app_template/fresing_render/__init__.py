@@ -87,14 +87,34 @@ def _show_fresing_tab():
     return None if done else 0.5            # timer: try again until the panel has been drawn
 
 
+def _no_blender_quick_setup(name: str) -> None:
+    """Task 0276: Blender shows its own first-start window (language, keys, theme) while its settings folder has no
+    saved preferences. The extension writes Blender's choices and saves them before the splash is made, so the Fresing
+    set-up is the first thing a new user sees (``first_setup.at_load``; it also leaves the splash out on the start
+    that shows the set-up)."""
+    import os
+    if bpy.app.background:
+        return
+    try:
+        if name:
+            import importlib
+            importlib.import_module(name + ".blender.first_setup").at_load(name)
+        elif not os.path.isfile(os.path.join(bpy.utils.user_resource("CONFIG"), "userpref.blend")):
+            bpy.ops.wm.save_userpref()
+    except Exception as exc:  # never stop Blender from starting
+        print("Fresing Render: the first-start set-up:", exc)
+
+
 @persistent
 def _after_load(_dummy=None):
     # runs once the start-up file is read and the extension system is ready
     # (too early in register(): the template's add-on list is set up after it)
+    name = ""
     try:
-        _enable_fresing_render()
+        name = _enable_fresing_render()
     except Exception as exc:  # never stop Blender from starting
         print("Fresing Render: could not enable the extension:", exc)
+    _no_blender_quick_setup(name)
     if not bpy.app.background and not bpy.data.filepath:     # a new project: start on the Fresing tab
         tries = {"n": 0}
 

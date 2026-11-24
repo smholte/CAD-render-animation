@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.235 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
+## 0.2.236 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or
   matte clear coat (**Kind**, **Tow width**, **Gloss**). The weave lies on every CAD face of its own – round a tube
@@ -33,6 +33,25 @@ installer of that version was built from.
   - **Marine paint, growth below the waterline** and **Marine paint, run-down streaks**: their rust streaks take the
     new rust colours.
   - Every project's group materials are made again once when it opens (they keep their material, colour and Wear).
+## 0.2.235 – 24 Nov 2026 – A set-up for new users in place of Blender's own first-start window (task 0276)
+
+- **New: a set-up for new users.** The first time the app starts on a PC, one window **Set up Fresing Render** walks
+  through what matters, six steps with Back / Next and **Skip set-up** on each: **Welcome** (the language of
+  Blender's menus – the app's own texts are English), **Your work** (tick CNC, offshore, product design, lifting,
+  sales … – it sets the workspace new projects start in: no tick Essentials, one tick its workspace, two or more All
+  functions; the Learning hub opens on your chapter), **Your PC** (a quick look in the background: graphics card,
+  what renders on, how long a picture takes, Live preview set to suit, a red line when big models will be slow),
+  **Your company and your folders** (a company's set-up file found by itself or opened / dropped, what it sets, your
+  STEP folder, where renders go), **Learning hub** (make it now in the background, or later) and **Done** (Import
+  your first STEP…, Open the Learning hub, Open the demo project, Save my set-up as a file… for a colleague).
+- **Blender's own first-start window** (language, keys, theme) no longer comes: the app sets Blender's keys and
+  theme itself and saves them, and leaves the start-up screen out on the start that shows the set-up.
+- **Fresing > Set up again…** runs it any time. You are set up already: after this update you see What's new, not the
+  set-up. It never shows in the Client view, and a company's set-up file can fill it in or skip it on managed PCs
+  (`"first_setup": "skip"`, see COMPANY-USE.md).
+- The welcome window stays in the Fresing menu (Welcome screen…). Settings > Locations' "Different from standard" no
+  longer lists where the app's windows were.
+
 ## 0.2.234 – 24 Nov 2026 – PC check Stress: a made-up 11,000-part model, every heavy action timed (task 0315)
 
 - **PC check > Stress (10 to 20 minutes)** – new, in **Fresing > Tools and checks > PC check…** and as **PC check

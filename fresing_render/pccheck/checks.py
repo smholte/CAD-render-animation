@@ -785,7 +785,7 @@ def looks_finishes(ctx):
             f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
 
-@line("looks.rust", "Rust slider and carbon fibre", "0.2.235",
+@line("looks.rust", "Rust slider and carbon fibre", "0.2.236",
       what="The finishes test model's rust row and carbon parts: moving a steel group's Rust slider changes its "
            "material (the rust value in its nodes, the welds' value on it); a stainless group has no Rust (the panel "
            "says why) and its look stays the same; the carbon cup's dome and its tube get their weave from their own "
@@ -5718,13 +5718,13 @@ def app_start_here(ctx):
     path = os.path.join(ctx.work, "Start é", start.FILE_NAME)          # the settings folder's file, with an accent
     state, now = start.load(path), welcome.version()
     shown = []
-    for _ in range(4):                                                   # a new user: the welcome three starts
+    for _ in range(4):                                                   # a new user: the set-up three starts (0276)
         kind = start.decide(state, now)
         shown.append(kind)
         state = start.started(state, now, kind)
         start.save(path, state)
         state = start.load(path)
-    _check(shown == ["welcome"] * 3 + [""], f"the welcome showed {shown} (expected three times, then not)")
+    _check(shown == ["setup"] * 3 + [""], f"the first-start set-up showed {shown} (expected three times, then not)")
     older = welcome.previous_version() or "0.2.0"
     state = dict(start.load(path), last_run=older)
     _check(start.decide(state, now) == "whats_new", "What's new does not show after an update")
@@ -5738,6 +5738,52 @@ def app_start_here(ctx):
         n_f = len(welcome.functions_new("0.2.0"))
     _check(n_f > 0 and n_s > 0, f"What's new lists {n_f} functions and {n_s} test models")
     return f"What's new since {older}: {n_f} functions"
+
+
+@line("app.first_setup", "First-start set-up: no Blender quick set-up, every step, Skip, a company's skip",
+      "0.2.235", what="Checks that Blender's own first-start window cannot come (the app template saves Blender's "
+                       "preferences first), that a new user gets the set-up (three starts at most), Fresing > Set up "
+                       "again…, that every step draws, the work ticks' workspace, the PC lines in plain words, and that "
+                       "a company's set-up file with \"first_setup\": \"skip\" skips it")
+def app_first_setup(ctx):
+    import bpy
+
+    from ..blender import first_setup, ui_settings, ui_topbar
+    from ..core import first_setup as core
+    from ..core import locations as L
+    from ..core import start
+    template = os.path.join(bpy.utils.user_resource("SCRIPTS"), "startup", "bl_app_templates_user", "fresing_render",
+                            "__init__.py")
+    if os.path.isfile(template):          # the installed app: its template saves Blender's preferences at once
+        with open(template, encoding="utf-8") as fh:
+            _check("first_setup" in fh.read(), "the app template does not skip Blender's own quick set-up: run "
+                                               "Install.bat again")
+    _check(ui_topbar._has("fresing.first_setup") and "fresing.first_setup" in ui_topbar.entries(),
+           "Fresing > Set up again… is missing")
+    st = start.fresh()
+    _check(start.decide(st, "9.9.9") == "setup", "a new user does not get the set-up")
+    _check(start.decide(start.setup_finished(st, "9.9.9", "skipped"), "9.9.9") == "",
+           "the set-up shows again after Skip")
+    _check(start.decide(dict(start.fresh(), last_run="0.2.150"), "9.9.9") == "whats_new",
+           "an update shows the set-up instead of What's new")
+    v = first_setup.values()
+    _check(v is not None, "the set-up's values are not there")
+    for key in core.STEP_KEYS:
+        first_setup.DRAW[key](ui_settings._Any(), bpy.context, v)
+    _check(core.workspace_for([])[0] == "" and core.workspace_for(["cnc"])[0] == "CNC & machining"
+           and core.workspace_for(["cnc", "sales"])[0] == "All functions", "the work ticks give the wrong workspace")
+    probe = {"pc": {"cpu": "Test CPU", "cores": 24, "ram_gb": 64},
+             "results": [{"id": "app.start", "status": "OK"}, {"id": "gpu.device", "status": "OK", "note": "GPU"},
+                         {"id": "render.gpu", "status": "OK", "metrics": {"render": [4.0, "s"]}}]}
+    summary = core.pc_summary(probe)
+    _check(summary["gpu"] and summary["live_preview"] and not summary["slow"], f"PC lines: {summary}")
+    _check(core.pc_summary({"pc": {"cores": 4, "ram_gb": 8}, "results": [{"id": "gpu.device", "status": "SKIPPED"}]})
+           ["slow"].startswith("Big models will be slow"), "a slow PC is not called slow")
+    path = os.path.join(ctx.work, "Skip é" + L.SETUP_EXT)
+    L.write_setup(path, L.from_data({"id": "pccheck-skip", "name": "Managed PCs", "first_setup": "skip"}))
+    _check(core.from_setups([L.read_setup(path).first_start])["skip"], "a set-up file's \"first_setup\": \"skip\" "
+                                                                        "is not read")
+    return f"{len(core.STEPS)} steps draw; skip read from a set-up file"
 
 
 @line("app.tools", "One shortcut only: Fresing Render on the Desktop and in the Start menu, the extras in the Tools folder "

@@ -87,10 +87,17 @@ class FRESING_PT_tour(LeftPanel, bpy.types.Panel):
             if sets:
                 ui.wrap(layout, context, f"New or changed since {since}: " + ", ".join(ts.title for ts in sets) + ".",
                         icon="ADD")
+        start_group = current.group
+        if not data.get("current"):           # task 0276: nothing picked yet – the chapter of the user's work first
+            from . import first_setup
+            suggested = first_setup.suggested_chapter()
+            if suggested in tour.GROUPS:
+                start_group = suggested
+                ui.hint(layout, context, f"Suggested for your work: {tour.GROUP_TITLES[suggested]}.")
         for group in tour.GROUPS:
             stops = [s for s in tour.STOPS if s.group == group]
             n_ok = sum(1 for s in stops if rows.get(s.id, {}).get("state"))
-            is_open = open_chapter(current.group) == group
+            is_open = open_chapter(start_group) == group
             head = layout.row(align=True)
             head.alignment = "LEFT"
             head.operator("fresing.tour_chapter", emboss=False, text=f"{tour.GROUP_TITLES[group]}  ({n_ok}/{len(stops)})",

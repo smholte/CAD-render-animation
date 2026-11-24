@@ -79,6 +79,7 @@ _COMMON = (
     "panel.make", "panel.left", "usage.favourites", "usage.declutter", "learn.hub", "learn.question", "learn.list",
     "learn.next", "learn.window", "learn.show_me", "learn.build",
     "help.updates", "help.pc_check", "help.tour", "help.demo", "help.start_here", "help.welcome", "help.whats_new",
+    "help.first_setup",
     "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
     "help.right_click", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
     "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
@@ -318,20 +319,20 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
 # ----- 3 Looks -----
 fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
-   changed="0.2.235", manual_estimate=("part", 5, "pick the part and give it its material"))
+   changed="0.2.236", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
    button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
-   changed="0.2.235")
+   changed="0.2.236")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains, perlage", family="looks",
    panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
-   pccheck=("looks.finishes",), since="0.2.229", changed="0.2.235")
+   pccheck=("looks.finishes",), since="0.2.229", changed="0.2.236")
 # task 0318: carbon fibre that follows every CAD face, the group's Rust slider, better existing looks
 fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (no seam)", family="looks",
    panel="FRESING_PT_looks", prop="material", guide="carbon", tour=("finishes",), pccheck=("looks.rust",),
-   since="0.2.235")
+   since="0.2.236")
 fn(id="looks.rust", title="Rust: a slider per group, only where steel rusts", family="looks",
    panel="FRESING_PT_looks", prop="rust", guide="rust", tour=("finishes",), pccheck=("looks.rust",),
-   since="0.2.235")
+   since="0.2.236")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -339,7 +340,7 @@ fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_face
 fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_PT_decals",
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
-   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.235")
+   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.236")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -734,6 +735,11 @@ fn(id="help.start_here", headline=True, title="Fresing menu: Learning hub, What'
    pccheck=("app.start_here",), since="0.2.155", changed="0.2.197")
 fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the Learning hub", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
+fn(id="help.first_setup", headline=True, short="Set up again",
+   title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
+         "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.235",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
    tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")

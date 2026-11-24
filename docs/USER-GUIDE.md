@@ -369,6 +369,7 @@ own things in one place, whatever workspace you are in (also in the Client view)
 - **Restore a backup…** – the automatic backups of the open project, and Restore ([below](#backups)).
 - **My usage…** – what the app counted about your work: Fresing Settings on its tab My usage ([below](#my-usage)).
 - **Settings…** – all of the app's own settings in one window ([below](#settings)).
+- **Set up again…** – the [first-start set-up](#first-start) again: your work, your PC, your folders, the Learning hub.
 - **Welcome screen…** – the welcome below, again.
 
 <a id="fr-mark"></a>
@@ -686,20 +687,66 @@ mark and Ctrl+Z stay as they were. The bottom line of the Fresing tab says **Bac
 
 Blender's own auto-save (File > Recover) still works as before.
 
+<a id="first-start"></a>
+### First start: the set-up
+
+The first time the app starts on a PC (in a new settings folder) a window **Set up Fresing Render** opens – instead
+of Blender's own first-start window (language, keys, theme), which no longer shows: the app sets Blender's keys and
+theme itself and saves them. Six steps, a step bar on top (click a number to jump), **Back** and **Next** at the
+bottom, and **Skip set-up** at the top right on every step. What you choose is kept as you go; every choice is also
+in **Fresing > Settings…**.
+
+1. **Welcome** – what the app is for, and the **language**. Fresing Render's own buttons and texts are in English;
+   Nederlands or Deutsch changes only Blender's own menus under them.
+
+   <img class="panel" src="img/first_setup_welcome.png" alt="Set up Fresing Render, step 1 Welcome: what the app is, the language, Back and Next">
+
+2. **Your work** – tick what you do (CNC & machining, Offshore & cable laying, Product design & R&D, Lifting plans,
+   Education & training, Sales / presentations, Animation, Just pictures of my models, Looking at models others
+   made). It sets the **workspace new projects start in**: no tick – **Essentials**; one tick – that kind of work's
+   own workspace; two or more – **All functions**. The Learning hub then opens on the chapter of your work (CNC
+   opens Machining). Your ticks stay on this PC.
+
+   <img class="panel" src="img/first_setup_work.png" alt="Step 2 Your work: nine ticks and the workspace new projects start in">
+
+3. **Your PC** – a second Blender in the background looks at your PC (the first lines of the PC check: the graphics
+   card, which card draws and renders, the test crane imported and one picture rendered on the card – about 20
+   seconds to a minute). Then in plain words: graphics card found or not, what renders on, how long the picture
+   took, the processor and memory, a suggestion for **Live preview** (set for you) and the render quality, and a red
+   line when big models will be slow on this PC. You can go on while it looks.
+
+   <img class="panel" src="img/first_setup_pc.png" alt="Step 3 Your PC: no graphics card found on the test machine, renders on the processor, the suggestion and a red line that big models will be slow">
+
+4. **Your company and your folders** – a Fresing **set-up file** (`.frsetup`) from your company, department or a
+   colleague: one your IT put next to the approved version is found by itself; else **Open set-up file…** or drop
+   it on the window. With one, **Different from standard** lists what it sets. Then your **STEP models** folder
+   (**Add my STEP models folder…**) and **where renders go** (standard: next to the project, in a folder Renders).
+
+   <img class="panel" src="img/first_setup_company.png" alt="Step 4 Your company and your folders: the set-up file in use and what it sets, your STEP models folder, where renders go">
+
+5. **The Learning hub** – **Make it now** makes it in the background (the card in the main window shows how far it
+   is; go on with Next meanwhile), or later with **Fresing > Open the Learning hub**.
+
+   <img class="panel" src="img/first_setup_hub.png" alt="Step 5 Learning hub: Making the Learning hub, project 1 of 54, go on with Next meanwhile">
+
+6. **Done** – **Import your first STEP…**, **Open the Learning hub** (greyed while it is being made) or **Open the
+   demo project** (**Make the demo project…** when it is not made yet), each closing the set-up. **Save my set-up as
+   a file…** writes your folders and settings into one `.frsetup` file for a colleague. **Close** just closes it.
+
+   <img class="panel" src="img/first_setup_done.png" alt="Step 6 Done: Import your first STEP, Open the Learning hub, Make the demo project, Save my set-up as a file, Close">
+
+**Fresing > Set up again…** runs it again any time. Closed with the window's own X or by opening a project, it opens
+again at the next start where you left it (at most three starts). **Skip set-up** closes it for good. It never shows
+after an update (you are set up already: What's new shows instead), in the Client view, or on a PC whose company
+set-up file says to skip it (see `docs/COMPANY-USE.md`).
+
 <a id="welcome"></a>
-### The welcome (the first starts)
+### The welcome window
 
-The first time the app starts on a PC (in a new settings folder) the start-up screen shows a short welcome at its
-top: what the app is for, and the Learning hub, with how long making it takes ("about 3 minutes" – measured on the
-4-core test machine; once you have made the tour, the time it took on your PC). Three buttons:
-
-- **Open the Learning hub** – makes the tour in the background and offers to open it when it is ready.
-- **Later** – asks again at the next start, at most three starts.
-- **Don't show this again** – never again at the start. It stays in **Fresing > Welcome screen…**.
-
-When the app opens a project you double-clicked, the welcome shows as a small window once the project is open.
-On the very first start Blender asks for language and keyboard first: the welcome follows when you press
-**Continue**.
+**Fresing > Welcome screen…** shows a short welcome: what the app is for, and the Learning hub with how long making
+it takes ("about 3 minutes" – measured on the 4-core test machine; once you have made the tour, the time it took on
+your PC). **Open the Learning hub** makes the tour in the background and offers to open it when it is ready. (Before
+0.2.235 this welcome showed at the first starts; the set-up above took its place.)
 
 <a id="whats-new-start"></a>
 ### What's new after an update
