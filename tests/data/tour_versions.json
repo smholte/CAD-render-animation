@@ -13,7 +13,7 @@
   },
   "cables": {
    "added": "0.2.80",
-   "changed": "0.2.228",
+   "changed": "0.2.229",
    "fp": "87803b1de64a7824"
   },
   "chains": {
@@ -43,8 +43,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.226",
-   "fp": "15f08cf5d6d80df4"
+   "changed": "0.2.228",
+   "fp": "c26cfceb4cac7499"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -83,7 +83,7 @@
   },
   "flex_drawn": {
    "added": "0.2.180",
-   "changed": "0.2.228",
+   "changed": "0.2.229",
    "fp": "02640fecc7dc7520"
   },
   "gantry": {
@@ -203,12 +203,12 @@
   },
   "served": {
    "added": "0.2.116",
-   "changed": "0.2.228",
+   "changed": "0.2.229",
    "fp": "0f0627f4961fe9b7"
   },
   "spool": {
    "added": "0.2.85",
-   "changed": "0.2.228",
+   "changed": "0.2.229",
    "fp": "c8342a3831502350"
   },
   "swivel": {
@@ -258,8 +258,8 @@
   },
   "weather": {
    "added": "0.2.88",
-   "changed": "0.2.203",
-   "fp": "d3ec1ec576c1fd30"
+   "changed": "0.2.228",
+   "fp": "e86fe33ff8324fbd"
   }
  }
 }

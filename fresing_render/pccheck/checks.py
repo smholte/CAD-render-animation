@@ -2932,6 +2932,118 @@ def weather_step(ctx):
     return f"{res['frames']} frames; daylight {day0:.2f} -> {day1:.2f}, rain {rain0:.2f} -> {rain1:.2f}"
 
 
+# weather round 2 (task 0299): one line per new preset, a small picture each
+
+def _weather_preset_still(ctx, preset, key, title, background="QUAY", low=False):
+    """The crane with a weather preset picked from its picture (the button), rendered small (processor, draft)."""
+    import bpy
+
+    from ..blender import cameras, weather
+    from ..core import weather as core
+    scene = _weather_scene(ctx, background=background)
+    if low:                                       # a camera low over the water: the sky and the horizon show
+        scene.camera = cameras.add_camera(scene, "LOW", 22.0, "PC check sky")
+    res = bpy.ops.fresing.weather_preset(name=preset)
+    _check(res == {"FINISHED"}, f"the preset button returned {res}")
+    w = scene.fresing.weather
+    _check(w.preset == preset, f"the preset is {w.preset}")
+    want = core.derive(core.preset(preset, weather.state(scene)), weather.place(scene))
+    for ch in ("sun_el", "rain", "hail", "mist", "heat", "lightning", "fog"):
+        _check(abs(_wx(scene, ch) - want[ch]) < 1e-3, f"{ch} is {_wx(scene, ch):.3f}, not {want[ch]:.3f}")
+    info = _cpu_still(ctx, scene, key, title)
+    ctx.metric(key, info["seconds"], "s")
+    return scene, info
+
+
+@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.228",
+      what="Change to Thunderstorm over 2 s at the playhead (5 Scene & Render > Weather & time) on the open sea: the "
+           "Build keys the storm coming and lightning flashes only once it is there; the frame of the first flash is "
+           "rendered small (processor, draft) – the scene lit up, a bolt in the sky")
+def weather_thunderstorm(ctx):
+    import bpy
+
+    from ..blender import animation, cameras, weather
+    scene = _weather_scene(ctx, background="SEA", preset="GREY_NORTH_SEA")
+    s = scene.fresing
+    scene.camera = cameras.add_camera(scene, "LOW", 22.0, "PC check sky")
+    scene.frame_set(1)
+    s.weather.change_to, s.weather.change_seconds = "THUNDERSTORM", 2.0
+    res = bpy.ops.fresing.weather_change()
+    _check(res == {"FINISHED"}, f"Add at playhead returned {res}")
+    a = s.animations[s.animations_index]
+    a.tail, a.quality = 1.0, "draft"
+    t0 = time.time()
+    animation.bake(scene, a)
+    s.anim_baked = a.name
+    ctx.metric("build", time.time() - t0, "s")
+    rows = []
+    for f in range(scene.frame_start, scene.frame_end + 1):
+        scene.frame_set(f)
+        rows.append((f, _wx(scene, "lightning"), _wx(scene, "flash")))
+    flashes = [f for f, lt, fl in rows if fl > 0.3]
+    _check(flashes, "no lightning flash in the video")
+    _check(all(lt > 0.0 for f, lt, fl in rows if fl > 0.0), "a flash before the storm came")
+    bolts = [o for o in scene.objects if o.get("fr_weather") == "bolt"]
+    _check(len(bolts) == 4, f"{len(bolts)} bolts in the sky, not 4")
+    scene.frame_set(flashes[0])
+    info = _cpu_still(ctx, scene, "weather_thunder", "Thunderstorm: a lightning flash (processor, draft)")
+    ctx.metric("flash frame", info["seconds"], "s")
+    return f"{len(flashes)} frames with a flash, first at frame {flashes[0]}; rendered in {info['seconds']} s"
+
+
+@line("weather.mist", "Weather: fog and sea mist", "0.2.228",
+      what="The preset Fog / sea mist on the open sea: mist lies on the water (thick low down, thin higher up) and the "
+           "far sea is gone. Rendered small (processor, draft)")
+def weather_mist(ctx):
+    scene, info = _weather_preset_still(ctx, "SEA_MIST", "weather_mist", "Fog / sea mist (processor, draft)", "SEA",
+                                        low=True)
+    _check(scene.view_layers[0].use_pass_position, "the mist has no Position pass")
+    return f"mist {_wx(scene, 'mist'):.0f} per km at the water; rendered in {info['seconds']} s"
+
+
+@line("weather.sunrise", "Weather: sunrise", "0.2.228",
+      what="The preset Sunrise on the quay: the sun just up (0–8°) in the morning, golden low light, long shadows; "
+           "no floodlights. Rendered small (processor, draft)")
+def weather_sunrise(ctx):
+    scene, info = _weather_preset_still(ctx, "SUNRISE", "weather_sunrise", "Sunrise (processor, draft)")
+    el = _wx(scene, "sun_el")
+    _check(0.0 < el < 8.0 and scene.fresing.weather.hour < 12.0, f"the sun stands at {el:.1f}°")
+    _check(_wx(scene, "flood") < 0.01, "the floodlights are on")
+    return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
+
+
+@line("weather.sunset", "Weather: sunset", "0.2.228",
+      what="The preset Sunset on the quay: the sun low (0–8°) in the evening, orange light on the crane. Rendered small "
+           "(processor, draft)")
+def weather_sunset(ctx):
+    scene, info = _weather_preset_still(ctx, "SUNSET", "weather_sunset", "Sunset (processor, draft)")
+    el = _wx(scene, "sun_el")
+    _check(0.0 < el < 8.0 and scene.fresing.weather.hour > 12.0, f"the sun stands at {el:.1f}°")
+    return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
+
+
+@line("weather.hail", "Weather: hail and sleet", "0.2.228",
+      what="The preset Hail / sleet on the quay: hail and sleet fall, stones bounce on the quay and the crane's top "
+           "faces, everything wet. Rendered small (processor, draft)")
+def weather_hail(ctx):
+    scene, info = _weather_preset_still(ctx, "HAIL", "weather_hail", "Hail / sleet (processor, draft)")
+    roles = {o.get("fr_weather") for o in scene.objects}
+    _check("hail" in roles and "bounce" in roles, "the falling or bouncing hail is missing")
+    return f"rendered in {info['seconds']} s"
+
+
+@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.228",
+      what="The preset Hot and calm on the open sea: bright haze, heat shimmer over the distance (the compositor moves "
+           "the far picture a few pixels). Rendered small (processor, draft)")
+def weather_heat(ctx):
+    from ..blender import weather_sky
+    scene, info = _weather_preset_still(ctx, "HOT_CALM", "weather_heat", "Hot and calm (processor, draft)", "SEA",
+                                        low=True)
+    ng = scene.compositing_node_group
+    _check(ng is not None and ng.name == weather_sky.FOG_GROUP, "no heat shimmer over the picture")
+    return f"rendered in {info['seconds']} s"
+
+
 @line("house.bake", "House from House Planner: import, bake, export", "0.2.92",
       what="The made-up sample house (sample-house.hpscene): File > Import > House Planner scene, then Bake and export "
            "of one moment (summer morning, 4 samples, no photo); the package's structure is checked (files, page "

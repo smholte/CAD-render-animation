@@ -981,9 +981,9 @@ def bake(scene, anim) -> dict:
                 if not stack:
                     seq_home.pop(name, None)
 
-    if wx_blocks:
+    if wx_blocks or s.weather.enabled:      # (task 0299: lightning flashes also without a Weather & time step)
         from . import weather
-        warnings += weather.bake(scene, anim, wx_blocks, lambda t: frame_of(anim, t), ease)
+        warnings += weather.bake(scene, anim, wx_blocks, lambda t: frame_of(anim, t), ease, f_end)
     if vw_blocks or len(s.vessel_work.thrusters):
         from . import vessel_work            # task 0154: the propellers turn, the channels follow the steps
         warnings += vessel_work.bake(scene, anim, vw_blocks, lambda t: frame_of(anim, t), ease, jkeys, jstate,

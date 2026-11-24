@@ -992,7 +992,7 @@ class FRESING_OT_block_add(bpy.types.Operator):
         elif self.kind == "WEATHER":
             from . import weather
             b.duration = 5.0
-            b.easing = "LINEAR"
+            b.easing = "SMOOTH"                       # task 0299: no kink where the change starts and ends
             weather.step_init(context.scene, a, b)
         elif self.kind == "VESSEL":                      # task 0154: what the vessel does
             from . import vessel_work

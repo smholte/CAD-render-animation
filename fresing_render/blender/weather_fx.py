@@ -35,9 +35,10 @@ from ..core import weather_fx as core
 
 COLLECTION = "FR Weather"
 TAG = "fr_weather"
-VERSION = 1
+VERSION = 2                                  # 2: hail (task 0299)
 PREFIX = "FR weather "
-NG = {"rain": PREFIX + "rain", "snow": PREFIX + "snow", "splash": PREFIX + "splash", "flag": PREFIX + "flag"}
+NG = {"rain": PREFIX + "rain", "snow": PREFIX + "snow", "splash": PREFIX + "splash", "flag": PREFIX + "flag",
+      "hail": PREFIX + "hail", "bounce": PREFIX + "hail bounce"}
 MOD = "FR weather"
 
 
@@ -75,11 +76,12 @@ def peak(scene, name: str) -> float:
 
 def needs(scene, place: str) -> dict:
     w = scene.fresing.weather
-    out = {"rain": False, "snow": False, "flag": False}
+    out = {"rain": False, "snow": False, "flag": False, "hail": False}
     if place not in ("sky", "photo"):
         return out
     out["rain"] = peak(scene, "rain") > 1e-4
     out["snow"] = peak(scene, "snow") > 1e-4
+    out["hail"] = peak(scene, "hail") > 1e-4
     out["flag"] = bool(getattr(w, "flag", False))
     return out
 
@@ -151,7 +153,7 @@ def _apply(scene, place: str) -> None:
     with vessel_motion.at_rest(scene):
         root = _root(scene)
         grid = None
-        if want["rain"] or want["snow"]:
+        if want["rain"] or want["snow"] or want["hail"]:
             grid = _tops(scene)
             _tops_object(scene, col, grid, root)
         if want["rain"]:
@@ -159,6 +161,9 @@ def _apply(scene, place: str) -> None:
             _splashes(scene, col, grid, root)
         if want["snow"]:
             _snow(scene, col)
+        if want["hail"]:
+            _falling(scene, col, "hail", "hail")
+            _bounces(scene, col, grid, root)
         if want["flag"]:
             _flag(scene, col, root)
     col["fr_key"] = key
@@ -166,8 +171,10 @@ def _apply(scene, place: str) -> None:
 
 def _roles(want: dict) -> list:
     out = []
-    if want["rain"] or want["snow"]:
+    if want["rain"] or want["snow"] or want.get("hail"):
         out.append("tops")
+    if want.get("hail"):
+        out += ["hail", "bounce"]
     if want["rain"]:
         out += ["rain", "splash"]
     if want["snow"]:
@@ -432,10 +439,10 @@ def _under_roof(g, gin, pos):
     return both.outputs[0]
 
 
-def _falling_group(role: str, snow: bool):
-    """Rain or snow: the points of the unit box (``fr_u``, ``fr_r``, ``fr_ph``, ``fr_s``) moved by Scene Time,
+def _falling_group(role: str, snow, hail: bool = False):
+    """Rain, snow or hail: the points of the unit box (``fr_u``, ``fr_r``, ``fr_ph``, ``fr_s``) moved by Scene Time,
     folded into the box in front of the active camera, the ones over the amount and under a roof dropped,
-    instanced as streaks or flakes."""
+    instanced as streaks, flakes or ice stones (hail falls straight at its fall speed, no sway)."""
     ins = [("Amount", "NodeSocketFloat", 0.0), ("Drop", "NodeSocketFloat", 2.0), ("Wind X", "NodeSocketFloat", 0.0),
            ("Wind Y", "NodeSocketFloat", 0.0), ("Box", "NodeSocketVector", None),
            ("Viewport", "NodeSocketFloat", core.VIEWPORT), ("Tops", "NodeSocketObject", None),
@@ -446,7 +453,9 @@ def _falling_group(role: str, snow: bool):
     r = g.attr("fr_r")
     view = g.node("GeometryNodeIsViewport").outputs[0]
     amount = g.math("MULTIPLY", gin.outputs["Amount"], g.switch("FLOAT", view, 1.0, gin.outputs["Viewport"]))
-    if snow:
+    if hail:
+        vz = -core.hail_speed()
+    elif snow:
         fall = core.SNOW_FALL
         vz = -fall
     else:   # Atlas et al. (1973): 9.65 - 10.3 exp(-0.6 D)
@@ -455,7 +464,7 @@ def _falling_group(role: str, snow: bool):
         vz = g.math("MINIMUM", vz, -0.5)
     vel = g.xyz(gin.outputs["Wind X"], gin.outputs["Wind Y"], vz)
     raw = g.vmath("ADD", g.vmath("MULTIPLY", u, gin.outputs["Box"]), g.vmath("SCALE", vel, scale=t))
-    if snow:
+    if snow and not hail:
         ph = g.attr("fr_ph")
         a = g.math("MULTIPLY_ADD", t, core.SNOW_OMEGA, g.math("MULTIPLY", ph, 2.0 * math.pi))
         sway = g.xyz(g.math("MULTIPLY", g.math("SINE", a), core.SNOW_WOBBLE),
@@ -486,7 +495,15 @@ def _falling_group(role: str, snow: bool):
     g.put(roof.inputs["Selection"], _under_roof(g, gin, p2))
     inst = g.node("GeometryNodeInstanceOnPoints")
     g.put(inst.inputs["Points"], roof.outputs[0])
-    if snow:
+    if hail:
+        ico = g.node("GeometryNodeMeshIcoSphere")
+        ico.inputs["Radius"].default_value = 1.0
+        ico.inputs["Subdivisions"].default_value = 1
+        g.put(inst.inputs["Instance"], ico.outputs["Mesh"])
+        size = g.math("MULTIPLY", g.attr("fr_s"), 0.5e-3 * core.HAIL_MM)
+        # a falling stone is seen as a short streak over the exposure, like a rain drop (but white and thick)
+        g.put(inst.inputs["Scale"], g.xyz(size, size, g.math("MAXIMUM", size, core.hail_speed() * core.EXPOSURE * 0.5)))
+    elif snow:
         ico = g.node("GeometryNodeMeshIcoSphere")
         ico.inputs["Radius"].default_value = 1.0
         ico.inputs["Subdivisions"].default_value = 1
@@ -545,6 +562,44 @@ def _splash_group():
     g.put(inst.inputs["Points"], dele.outputs[0])
     g.put(inst.inputs["Instance"], tr.outputs[0])
     g.put(inst.inputs["Scale"], g.xyz(rad, rad, hgt))
+    mat = g.node("GeometryNodeSetMaterial")
+    g.put(mat.inputs["Geometry"], inst.outputs[0])
+    g.put(mat.inputs["Material"], gin.outputs["Material"])
+    g.put(gout.inputs[0], mat.outputs[0])
+    return ng
+
+
+def _bounce_group():
+    """Hail stones hopping on the top faces (task 0299): on each spot a stone lands every BOUNCE_PERIOD s (spots over
+    the amount stay empty), hops once (core.weather_fx.bounce_z) and is gone – the same formula as the tests."""
+    ins = [("Amount", "NodeSocketFloat", 0.0), ("Viewport", "NodeSocketFloat", core.VIEWPORT),
+           ("Material", "NodeSocketMaterial", None)]
+    ng, g, gin, gout = _new_group("bounce", ins)
+    t = g.time()
+    r = g.attr("fr_r")
+    ph = g.attr("fr_ph")
+    view = g.node("GeometryNodeIsViewport").outputs[0]
+    amount = g.math("MULTIPLY", gin.outputs["Amount"], g.switch("FLOAT", view, 1.0, gin.outputs["Viewport"]))
+    age = g.math("FRACT", g.math("MULTIPLY_ADD", t, 1.0 / core.BOUNCE_PERIOD, ph))
+    tau = g.math("MULTIPLY", age, core.BOUNCE_PERIOD)                  # seconds into this stone's hop
+    dead = g.node("FunctionNodeBooleanMath", operation="OR")
+    g.put(dead.inputs[0], g.math("GREATER_THAN", r, amount))
+    g.put(dead.inputs[1], g.math("GREATER_THAN", tau, core.BOUNCE_LIFE))
+    dele = g.node("GeometryNodeDeleteGeometry", domain="POINT")
+    g.put(dele.inputs["Geometry"], gin.outputs[0])
+    g.put(dele.inputs["Selection"], dead.outputs[0])
+    v0 = core.GRAVITY * core.BOUNCE_LIFE / 2.0
+    z = g.math("MAXIMUM", g.math("SUBTRACT", g.math("MULTIPLY", tau, v0),
+                                 g.math("MULTIPLY", g.math("MULTIPLY", tau, tau), 0.5 * core.GRAVITY)), 0.0)
+    setp = g.node("GeometryNodeSetPosition")
+    g.put(setp.inputs["Geometry"], dele.outputs[0])
+    g.put(setp.inputs["Offset"], g.xyz(0.0, 0.0, g.math("ADD", z, 0.5e-3 * core.HAIL_MM)))
+    ico = g.node("GeometryNodeMeshIcoSphere")
+    ico.inputs["Radius"].default_value = 0.5e-3 * core.HAIL_MM
+    ico.inputs["Subdivisions"].default_value = 1
+    inst = g.node("GeometryNodeInstanceOnPoints")
+    g.put(inst.inputs["Points"], setp.outputs[0])
+    g.put(inst.inputs["Instance"], ico.outputs["Mesh"])
     mat = g.node("GeometryNodeSetMaterial")
     g.put(mat.inputs["Geometry"], inst.outputs[0])
     g.put(mat.inputs["Material"], gin.outputs["Material"])
@@ -730,25 +785,29 @@ def _tops_object(scene, col, grid, root):
     return ob
 
 
-def _falling(scene, col, role: str, snow: bool):
-    box = core.SNOW_BOX if snow else core.RAIN_BOX
-    lay = core.layout(core.SEED_SNOW if snow else core.SEED_RAIN,
-                      core.count(box, core.SNOW_DENSITY if snow else core.RAIN_DENSITY))
+def _falling(scene, col, role: str, snow):
+    """``snow``: True (snow), False (rain) or "hail"."""
+    hail = snow == "hail"
+    box = core.HAIL_BOX if hail else core.SNOW_BOX if snow else core.RAIN_BOX
+    lay = core.layout(core.SEED_HAIL if hail else core.SEED_SNOW if snow else core.SEED_RAIN,
+                      core.count(box, core.HAIL_DENSITY if hail else core.SNOW_DENSITY if snow else core.RAIN_DENSITY))
     me = _points_mesh(PREFIX + role, np.zeros((len(lay["r"]), 3)),
                       {"fr_u": lay["u"], "fr_r": lay["r"], "fr_ph": lay["ph"], "fr_s": lay["s"]}, role)
     ob = _new_object(col, PREFIX + role, role, me)
-    ng = _falling_group(role, snow)
+    ng = _falling_group(role, bool(snow), hail)
     mod = _modifier(ob, ng)
     _set_input(mod, ng, "Box", tuple(box))
     _set_input(mod, ng, "Tops", find("tops"))
     _set_input(mod, ng, "Cell", float(_tops_cell()))
-    if snow:
+    if hail:
+        mat = _material("hail", (0.86, 0.9, 0.95), 1.0, 0.25, 0.2)
+    elif snow:
         mat = _material("snow", (0.9, 0.9, 0.92), 1.0, 0.9, 0.3)
     else:
         mat = _material("rain", (0.75, 0.78, 0.8), 1.0, 0.2)
     _set_input(mod, ng, "Material", mat)
     ob.data.materials.append(mat)
-    _drive(ob, mod, _ident(ng, "Amount"), "a", {"a": "snow" if snow else "rain"}, scene)
+    _drive(ob, mod, _ident(ng, "Amount"), "a", {"a": "hail" if hail else "snow" if snow else "rain"}, scene)
     _drive(ob, mod, _ident(ng, "Drop"), "d", {"d": "drop"}, scene)
     _drive(ob, mod, _ident(ng, "Wind X"), "w * x", {"w": "wind", "x": "wind_x"}, scene)
     _drive(ob, mod, _ident(ng, "Wind Y"), "w * y", {"w": "wind", "y": "wind_y"}, scene)
@@ -788,6 +847,20 @@ def _splashes(scene, col, grid, root):
         me = _points_mesh(PREFIX + "splash", np.zeros((0, 3)), {}, "splash")
         made.append(_new_object(col, PREFIX + "splash", "splash", me, root))
     return made
+
+
+def _bounces(scene, col, grid, root):
+    """Hail stones hopping on every top face that rain would splash on (not on the sea: a stone sinks)."""
+    sp = core.splash_spots(grid["h"], grid["up"], grid["x0"], grid["y0"], grid["cell"], None, seed=core.SEED_HAIL)
+    mat = _material("hail stone", (0.86, 0.9, 0.95), 1.0, 0.25, 0.2)
+    ng = _bounce_group()
+    me = _points_mesh(PREFIX + "hail bounce", sp["p"], {"fr_r": sp["r"], "fr_ph": sp["ph"]}, "bounce")
+    ob = _new_object(col, PREFIX + "hail bounce", "bounce", me, root)
+    mod = _modifier(ob, ng)
+    _set_input(mod, ng, "Material", mat)
+    ob.data.materials.append(mat)
+    _drive(ob, mod, _ident(ng, "Amount"), "a", {"a": "hail"}, scene)
+    return ob
 
 
 # ---------------------------------------------------------------------------

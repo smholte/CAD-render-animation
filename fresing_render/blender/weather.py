@@ -20,10 +20,14 @@ from __future__ import annotations
 import bpy
 
 from ..core import weather as core
+from ..core import weather_fx as fx_core
 
 PROPS = ("hour", "use_date", "day", "latitude", "north", "clouds", "low_clouds", "visibility", "rain", "drop_size",
-         "wet", "snow", "snow_cover", "wind", "wind_from", "wind_ref", "floodlights", "flood_strength")
-EXTRA = ("spray", "flag", "vessel_speed")            # weather settings that are not part of a State (no fading)
+         "wet", "snow", "snow_cover", "wind", "wind_from", "wind_ref", "floodlights", "flood_strength",
+         "lightning", "mist", "hail", "heat")
+EXTRA = ("spray", "flag", "vessel_speed", "flash_still")   # weather settings that are not part of a State (no fading)
+STILL_FLASH = 0.9                  # 'Flash in the picture': how bright the flash of a still picture is
+STILL_BOLT = 1.0                   # ... and which bolt it shows (one near the middle of the view)
 _STATE = {"busy": False}
 
 
@@ -79,7 +83,10 @@ def channels(scene, st: core.State | None = None) -> dict:
     if st is not None and st.bow_az != bow_az(scene):
         from dataclasses import replace
         st = replace(st, bow_az=bow_az(scene))
-    return core.derive(st or state(scene), place(scene))
+    ch = core.derive(st or state(scene), place(scene))
+    if settings(scene).flash_still and ch["lightning"] > 0.0:      # task 0299: a still picture with a flash
+        ch.update(flash=STILL_FLASH, bolt=STILL_BOLT)
+    return ch
 
 
 def keyed(scene) -> set:
@@ -227,8 +234,9 @@ def short(scene) -> str:
     st = state(scene)
     bits = [core.clock(st.hour)] if place(scene) == "sky" else []
     if place(scene) != "indoor":
-        bits.append("snow" if st.snow > 0.01 else "rain" if st.rain > 0.01 else "fog" if st.visibility < 1000.0
-                    else "")
+        bits.append("lightning" if st.lightning > 0.01 else "hail" if st.hail > 0.01 else "snow" if st.snow > 0.01
+                    else "rain" if st.rain > 0.01 else "mist" if st.mist > 0.01 or st.visibility < 1000.0
+                    else "heat" if st.heat > 0.01 else "")
     return " ".join(b for b in bits if b) or "On"
 
 
@@ -244,19 +252,27 @@ def header(scene) -> str:
 
 STEP_FIELDS = (("wx_hour", "hour"), ("wx_clouds", "clouds"), ("wx_low_clouds", "low_clouds"),
                ("wx_visibility", "visibility"), ("wx_rain", "rain"), ("wx_wet", "wet"), ("wx_snow", "snow"),
-               ("wx_snow_cover", "snow_cover"), ("wx_wind", "wind"), ("wx_wind_from", "wind_from"))
+               ("wx_snow_cover", "snow_cover"), ("wx_wind", "wind"), ("wx_wind_from", "wind_from"),
+               ("wx_drop_size", "drop_size"), ("wx_lightning", "lightning"), ("wx_mist", "mist"), ("wx_hail", "hail"),
+               ("wx_heat", "heat"))
+# task 0299: the fields a step saved before 0.2.<this> did not have; such a step keeps the weather before it there
+# (its own value would be the property's default, e.g. drop size 2 mm or no mist, and would change it)
+NEW_STEP_FIELDS = ("wx_drop_size", "wx_lightning", "wx_mist", "wx_hail", "wx_heat")
+STEP_VERSION = "fr_wx_v"              # on a step: 2 = it has the fields of task 0299
 STEP_TAG = "fr_weather_keys"          # on the scene: a Build keyed its channels
 
 
 def step_state(start: core.State, b) -> core.State:
     """The weather at the end of a Weather & time step that starts from ``start``."""
     from dataclasses import replace
-    return replace(start, **{k: float(getattr(b, f)) for f, k in STEP_FIELDS})
+    new = int(b.get(STEP_VERSION, 1)) >= 2
+    return replace(start, **{k: float(getattr(b, f)) for f, k in STEP_FIELDS if new or f not in NEW_STEP_FIELDS})
 
 
 def put_step(b, st: core.State) -> None:
     for f, k in STEP_FIELDS:
         setattr(b, f, getattr(st, k))
+    b[STEP_VERSION] = 2
 
 
 def state_before(scene, anim, b) -> core.State:
@@ -274,19 +290,64 @@ def step_init(scene, anim, b) -> None:
     put_step(b, state_before(scene, anim, b))
 
 
+def upgrade_step(scene, b) -> None:
+    """A step saved before task 0299 gets the weather before it as its new values (then a change to one of them only
+    changes that one)."""
+    s = scene.fresing
+    anim = next((a for a in s.animations if any(x == b for x in a.blocks)), None)
+    keep = {f: float(getattr(b, f)) for f in NEW_STEP_FIELDS}
+    b[STEP_VERSION] = 2
+    if anim is None:
+        return
+    st = state_before(scene, anim, b)
+    defaults = {f: b.bl_rna.properties[f].default for f in NEW_STEP_FIELDS}
+    for f, k in STEP_FIELDS:
+        if f in NEW_STEP_FIELDS and abs(keep[f] - defaults[f]) < 1e-9:   # (not the value just set by hand)
+            setattr(b, f, getattr(st, k))
+
+
 def step_from_preset(scene, b, name: str) -> None:
     put_step(b, core.preset(name, state(scene)))
 
 
+def _is_preset(b) -> bool:
+    """The step's values are still its 'To' preset's (not changed by hand afterwards)."""
+    if b.wx_preset == "CUSTOM" or b.wx_preset not in core.PRESETS:
+        return False
+    want = core.preset(b.wx_preset)
+    return all(abs(float(getattr(b, f)) - float(getattr(want, k))) < 1e-3 for f, k in STEP_FIELDS
+               if k not in ("wind_from",))
+
+
 def step_label(b) -> str:
+    if _is_preset(b):
+        return f"Weather to {core.PRESETS[b.wx_preset][0]} ({core.clock(b.wx_hour)})"
     bits = [core.clock(b.wx_hour)]
+    if b.wx_lightning > 0.01 and int(b.get(STEP_VERSION, 1)) >= 2:
+        bits.append("lightning")
     if b.wx_rain > 0.01:
         bits.append("rain")
     if b.wx_snow > 0.01:
         bits.append("snow")
-    if b.wx_visibility < 4000.0:
+    if b.wx_hail > 0.01 and int(b.get(STEP_VERSION, 1)) >= 2:
+        bits.append("hail")
+    if b.wx_visibility < 4000.0 or (b.wx_mist > 0.01 and int(b.get(STEP_VERSION, 1)) >= 2):
         bits.append("fog" if b.wx_visibility < 1000.0 else "mist")
     return "Weather to " + ", ".join(bits)
+
+
+def flash_times(b) -> list[float]:
+    """The step's set moments of lightning ('Flash at': seconds from its start, commas or spaces between), within
+    its duration; text that is no number is left out."""
+    out = []
+    for part in (b.wx_flash_at or "").replace(";", ",").replace(" ", ",").split(","):
+        try:
+            t = float(part)
+        except ValueError:
+            continue
+        if 0.0 <= t <= float(b.duration) + 1e-9:
+            out.append(t)
+    return out
 
 
 def _scene_curves(scene) -> list:
@@ -302,10 +363,14 @@ def _scene_curves(scene) -> list:
     return out
 
 
-def bake(scene, anim, blocks, frame_of, ease) -> list[str]:
+def bake(scene, anim, blocks, frame_of, ease, f_end: int = 0) -> list[str]:
     """Keys of the Weather & time steps: every channel, every frame of a step (the clock, the sun and the fog
-    change non-linearly), constant before and after. Returns warnings."""
+    change non-linearly), constant before and after. Lightning (task 0299): the flashes of the whole animation
+    (``f_end``) – at random while lightning is above 0 (the panel's or a step's), and at a step's set moments. Returns
+    warnings."""
     if not blocks:
+        if f_end and enabled(scene) and state(scene).lightning > 0.0 and place(scene) == "sky":
+            return _bake_flashes(scene, anim, [], frame_of, f_end, None)
         return []
     from . import animation
     warnings = []
@@ -335,9 +400,16 @@ def bake(scene, anim, blocks, frame_of, ease) -> list[str]:
             st = core.mix(st, step_state(st, b), ease(b.easing, (f - f0) / (f1 - f0)))
         return st
 
-    for f in range(1, last + 1):
-        for n, v in core.derive(at(f), where).items():
+    end = max(last, int(f_end or 0))
+    for f in range(1, end + 1):
+        for n, v in core.derive(at(f) if f <= last else at(last), where).items():
             rows[n].append((f, v, "LINEAR", "AUTO"))
+    if where == "sky" and (max(v for _f, v, _i, _h in rows["lightning"]) > 0.0 or any(flash_times(b) for b in blocks)):
+        rate = [v for _f, v, _i, _h in rows["lightning"]]
+        fixed = [frame_of(b.start + t) - 1 for b in blocks for t in flash_times(b)]
+        flash, bolt = fx_core.flash_track(rate, animation.fps_of(anim), fixed, seed=_flash_seed(anim))
+        rows["flash"] = [(i + 1, float(v), "LINEAR", "AUTO") for i, v in enumerate(flash)]
+        rows["bolt"] = [(i + 1, float(v), "CONSTANT", "AUTO") for i, v in enumerate(bolt)]
     write_channels(scene, core.derive(state(scene), where))
     cb = animation._channelbag(scene, "SCENE")
     for n, keys in rows.items():
@@ -351,6 +423,78 @@ def bake(scene, anim, blocks, frame_of, ease) -> list[str]:
     after_world(scene)                       # rain / snow objects exist while any frame has rain or snow
     return warnings
 
+
+def _flash_seed(anim) -> int:
+    """The lightning's seed: one per animation (its name), so two animations do not flash at the same moments but the
+    same animation flashes the same way at every Build."""
+    import zlib
+    return fx_core.SEED_FLASH + zlib.crc32(anim.name.encode("utf-8")) % 100000
+
+
+def _bake_flashes(scene, anim, warnings, frame_of, f_end, _unused) -> list[str]:
+    """An animation without Weather & time steps under a panel with lightning: random flashes all through it."""
+    from . import animation
+    rate = [state(scene).lightning] * int(f_end)
+    flash, bolt = fx_core.flash_track(rate, animation.fps_of(anim), (), seed=_flash_seed(anim))
+    cb = animation._channelbag(scene, "SCENE")
+    write_channels(scene, channels(scene))
+    for n, vals, interp in (("flash", flash, "LINEAR"), ("bolt", bolt, "CONSTANT")):
+        keys = [(i + 1, float(v), interp, "AUTO") for i, v in enumerate(vals)]
+        keys = [k for i, k in enumerate(keys) if i in (0, len(keys) - 1)
+                or abs(k[1] - keys[i - 1][1]) > 1e-9 or abs(k[1] - keys[i + 1][1]) > 1e-9]
+        animation._write(cb, f'["{core.prop(n)}"]', 0, keys)
+    scene[STEP_TAG] = True
+    after_world(scene)
+    return warnings
+
+
+# ---------------------------------------------------------------------------
+# Change to ▸ a preset at the playhead (task 0299)
+# ---------------------------------------------------------------------------
+
+CHANGE_ANIM = "Weather"               # the animation made when there is none
+CHANGE_FLASH = 0.8                    # a change to lightning flashes once for sure, at this share of its time
+
+
+def seconds_at(anim, frame: int) -> float:
+    """The animation time (s) of a frame (frame 1 = 0 s)."""
+    from . import animation
+    return max(0.0, (int(frame) - 1) / float(animation.fps_of(anim)))
+
+
+def change_at_playhead(scene, name: str, seconds: float) -> tuple:
+    """Change to the preset ``name`` over ``seconds`` from the playhead: a Weather & time step in the active animation
+    (one is made when there is none) – the one that starts at the playhead is changed instead of adding another.
+    Returns (animation, step, made: True when a new step was added)."""
+    from . import animation
+    s = scene.fresing
+    if not s.weather.enabled:
+        s.weather.enabled = True
+    anim = s.animations[s.animations_index] if 0 <= s.animations_index < len(s.animations) else None
+    if anim is None:
+        anim = s.animations.add()
+        anim.name = CHANGE_ANIM if s.animations.get(CHANGE_ANIM) is None else animation.unique_name(scene)
+        if s.active_shot and s.active_shot in s.shots:
+            anim.start_shot = s.active_shot
+        s.animations_index = len(s.animations) - 1
+    t = round(seconds_at(anim, scene.frame_current), 2)
+    half = 0.5 / float(animation.fps_of(anim))
+    b = next((x for x in anim.blocks if x.kind == "WEATHER" and abs(x.start - t) <= half + 1e-9), None)
+    made = b is None
+    if made:
+        b = anim.blocks.add()
+        b.kind = "WEATHER"
+        b.start = t
+    b.duration = float(seconds)
+    b.easing = "SMOOTH"
+    b.enabled = True
+    step_init(scene, anim, b)
+    b.wx_preset = name                       # sets the values (props._wx_step_preset)
+    step_from_preset(scene, b, name)         # (also when the update did not run: a step from Python)
+    if b.wx_lightning > 0.0 and not b.wx_flash_at:
+        b.wx_flash_at = f"{round(CHANGE_FLASH * float(seconds), 2):g}"    # one flash for sure, as the storm arrives
+    anim.blocks_index = list(anim.blocks).index(b)
+    return anim, b, made
 
 def after_clear(scene) -> None:
     """'Clear keys': the channels go back to the panel's weather."""
