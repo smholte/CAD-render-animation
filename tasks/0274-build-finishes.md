@@ -1,6 +1,6 @@
 # 0274 – Build the new finishes from study 0270: knurls, spun, moulded, fabric, plate patterns, blasted, paints, grains
 
-**Who:** worker · **Status:** done (0.2.222) · **Branch:** `task/0274-build-finishes`
+**Who:** worker · **Status:** done (0.2.223) · **Branch:** `task/0274-build-finishes`
 **Started by:** lead, 24 Nov 2026 (owner's picks from the 0270 page, 24 Nov 00:45: **all 27 ticked**) ·
 **Model:** Opus · effort High
 **Area:** Looks lane – `core/materials_lib.py` (new looks + their settings), `blender/materials.py` (the face data hook
@@ -74,7 +74,7 @@ and thumbnails (0273 – but leave the study's swatch idea in your report for it
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (Opus, effort High), 24 Nov 2026. Branch `task/0274-build-finishes`, version
-0.2.222.
+0.2.223.
 
 **What changed:**
 - **23 finishes** as library materials (`core/materials_lib.py`, numbers 62–84) with a `finish` key; their table, settings,
@@ -139,9 +139,9 @@ knurl +6 %, here +23 %). Node counts 15–121. Perforated and expanded stay abov
   function, guide tests and test_core / part_types / toolmarks / lightbake / cable_looks (1,505 passed); the tour set
   builds in 4.7 s and its check passes; PC check line looks.finishes OK (8 s, render 5.2 s). UI checked with
   `tools/ui_screens.py` (UISHOT_TAB=3, UISHOT_FINISH=perforated: Metal, Kind, Hole size under the material).
-- GitHub: see the runs of the branch and of main for 0.2.222.
+- GitHub: 2 full runs on the branch – the first green (0.2.222), then 0302 had taken 0.2.222: merged main, renumbered to 0.2.223, one more full run.
 
-**Owner's test steps** (after Update now to 0.2.222):
+**Owner's test steps** (after Update now to 0.2.223):
 1. Open a project, go to **3 Looks**, click a group in the list.
 2. **Material** → in **Metal** pick **Knurled, diamond (knobs, handles)**. Under it you should see **Metal**, **Pitch**
    (0.8 mm) and **Angle** (30°).
@@ -159,4 +159,3 @@ knurl +6 %, here +23 %). Node counts 15–121. Perforated and expanded stay abov
 - 0273 (thumbnails): the study's swatch idea stands (the chamfered block with a knurled knob on top and a spun cap
   leaning in front, 256 px, 32 samples, ~3.5–5.4 s each on this machine).
 - 0318: carbon on curved parts, perlage, Rust slider, spheres in `_face_axis` – not touched.
-- Runs: see below.
