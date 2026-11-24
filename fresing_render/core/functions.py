@@ -134,6 +134,7 @@ MENUS = {
     "TOPBAR_MT_help": "Help menu",
     "TOPBAR_MT_fresing": "Fresing menu (top bar)",
     "TOPBAR_MT_fresing_mark": "Fr mark (top bar, far left)",
+    "TOPBAR_MT_file": "File menu",                  # task 0291: Save / Save As
     "TOPBAR_MT_file_import": "File > Import",
     "VIEW3D_HT_header": "3D view header",
     "TOPBAR_PT_fresing_lead": "Lead motions (top bar)",
@@ -680,12 +681,12 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
 # task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
 fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
    family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_play", guide="lead-motions",
-   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.233", headline=True,
+   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.234", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
    panel="FRESING_PT_animation", prop="lead", guide="lead-motion-step", tour=("lead_motions",),
-   pccheck=("motion.lead_motion",), since="0.2.233", workspaces=_WORK + ("lifting",))
+   pccheck=("motion.lead_motion",), since="0.2.234", workspaces=_WORK + ("lifting",))
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
@@ -801,6 +802,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
    "Fresing > Restore a backup… puts one back", family="help", panel="TOPBAR_MT_fresing", button="fresing.backups_window",
    guide="backups", tour=("backups",), pccheck=("backups.makes_one",), since="0.2.187",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
+fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
+   "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
+   guide="saving", pccheck=("files.name",), since="0.2.233")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")

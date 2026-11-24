@@ -407,7 +407,7 @@ def unsaved_checks(mod):
     check("without saving: Blender's 'Save changes?' is on again", bpy.context.preferences.view.use_save_prompt)
     bk = importlib.import_module(mod.__name__ + ".blender.backups")
     core_b = importlib.import_module(mod.__name__ + ".core.backups")
-    found = core_b.listing(core_b.unsaved_folder(bk.documents()), core_b.UNSAVED_NAME)
+    found = core_b.listing(core_b.unsaved_folder(bk.documents()), None)        # (task 0291: any name)
     check("without saving: one backup copy kept (Unsaved projects)", len(found) == 1, [b.path for b in found])
     check("without saving: the start offers no restore", bk.offer()[0] is None)
 

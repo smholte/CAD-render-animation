@@ -109,6 +109,16 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         description="Also keeps the newest backup of each of these last days (today counts as one). 0: only the "
                     "last backups above")
 
+    # ---- project names (task 0291) ----
+    new_project_name: EnumProperty(
+        name="Name of a new project",
+        items=(("model", "First model's name", "The first save of a new project proposes the name of the first model "
+                "you imported (without an Inventor version like \" v8\"), in that model's folder"),
+               ("empty", "Leave empty", "The first save of a new project proposes no name: you type one")),
+        default="model",
+        description="What the first save of a new project proposes as its file name. Save as on a saved project "
+                    "always proposes its name with (1), (2) …")
+
     left_folded: BoolProperty(
         name="Left panel folded", default=False, options={"HIDDEN"},
         description="The left panel is folded to its narrow strip (Live preview, Build & play, Fresing Settings, the unfold "
@@ -175,6 +185,10 @@ def draw_general(layout, p) -> None:
     row.label(text="Workspace for new projects")
     row.operator_menu_enum("fresing.workspace_default", "name", text=p.default_workspace or "Essentials (not chosen yet)",
                            icon="WORKSPACE")
+    col.separator()
+    row = col.row(align=True)
+    row.label(text="Name of a new project")
+    row.prop(p, "new_project_name", text="")
     col.separator()
     col.prop(p, "hover_highlight")
 
