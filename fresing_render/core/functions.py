@@ -196,7 +196,7 @@ fn(id="learn.build", short="Build it", title="Build it yourself: a lesson that w
 # ----- 1 Import, 2 Structure -----
 fn(id="import.step", short="Import STEP", title="Import a STEP file", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import",
-   pccheck=("import.crane", "import.machine", "import.materials", "project.reopen"), lesson="crane:1", since="0.1.0")
+   pccheck=("import.crane", "import.machine", "import.materials", "import.shapes", "project.reopen"), lesson="crane:1", since="0.1.0")
 fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ, FBX)", family="import", panel="FRESING_PT_import",
    button="fresing.import_mesh", text="Import mesh model…", guide="mesh-models", tour=("mesh_import",),
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
@@ -236,7 +236,7 @@ fn(id="structure.remove", short="Remove", title="Remove a model, subassembly or 
 fn(id="structure.copy", short="Copy", title="Copy and paste a model, subassembly or parts with its joints, cylinders, "
    "mechanisms, way covers, hoses and labels (Ctrl+C / Ctrl+V, right-click > Copy / Paste here)", family="import",
    panel="FRESING_PT_place", button="fresing.paste", guide="copy-paste", tour=("copy",), pccheck=("place.copy",),
-   since="0.2.222", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.223", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
