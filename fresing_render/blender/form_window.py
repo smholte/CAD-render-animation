@@ -55,6 +55,7 @@ WINDOWS = (
     "fresing.pc_check",
     "fresing.place_window", "fresing.remove",       # task 0292: Move / turn…, Remove…
     "fresing.lead_edit", "fresing.lead_keep_open",  # task 0309: Edit lead motions…, the sliders that stay open
+    "fresing.weld_list",                            # task 0320: the weld list
 )
 # … and the ones that stay small popups: a yes / no question or a short message that needs one click (a click
 # elsewhere is "no"), a search list, or a file that belongs to another task (``tests/test_form_window.py`` checks

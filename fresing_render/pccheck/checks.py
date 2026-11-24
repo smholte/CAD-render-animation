@@ -685,6 +685,40 @@ def looks_welds(ctx):
            f"render {info['seconds']} s"
 
 
+@line("looks.weld_symbols", "Welds: a copy takes its welds; ISO 2553 symbols; the weld list", "0.2.238",
+      what="The test weldment welded at every joint, then copied whole: the copy has the same welds on its own parts; "
+           "the symbols are off until switched on; the fin's weld reads 'a5 ◺/◸ 200 < 135' (fillet both sides, MAG); "
+           "the weld list as CSV")
+def looks_weld_symbols(ctx):
+    import time
+
+    from ..blender import build, copy, weld_symbols, welds
+    from ..core import weld_symbols as core_symbols
+    scene = ctx.fresh(WELDMENT)
+    welds.set_up_test_model(scene)
+    n = welds.count(scene)
+    _check(not welds.settings(scene).symbols, "the weld symbols are on in a new project (they start off)")
+    root = build.model_roots(scene)[0]
+    t0 = time.perf_counter()
+    p = copy.paste(scene, [root])
+    ms = (time.perf_counter() - t0) * 1000.0
+    _check(welds.count(scene) == 2 * n, f"{welds.count(scene)} welds after the copy, not {2 * n}")
+    copied = [it for it in welds.items(scene) if it.part_a is not None and it.part_a.name not in
+              {o.name for o in build.iter_parts(scene) if build.model_root_of(o) is root}]
+    _check(len(copied) == n and all(len(welds.objects_of(it)) == 2 for it in copied),
+           f"{len(copied)} welds on the copy, or one without its bead")
+    fin = welds.items(scene)[0]
+    text = core_symbols.one_line(weld_symbols.symbol_of(fin, 1))
+    _check(text == "a5 ◺/◸ 200 < 135", f"the fin's weld symbol reads '{text}', not 'a5 ◺/◸ 200 < 135'")
+    welds.settings(scene).symbols = True
+    path = weld_symbols.export_csv(scene, os.path.join(ctx.work, "weld list.csv"))
+    with open(path, encoding="utf-8-sig") as f:
+        rows = f.read().strip().splitlines()
+    _check(len(rows) == 2 * n + 1, f"the weld list has {len(rows) - 1} rows, not {2 * n}")
+    ctx.metric("weld_copy_ms", round(ms), "ms")
+    return f"copy with {n} welds in {ms:.0f} ms; {p['names'][0]}; symbol '{text}'; CSV {len(rows) - 1} rows"
+
+
 @line("looks.materials", "Materials: the material sheet", "0.2.39",
       what="Every ready-made material on a block with a chamfer, a disc and a shaft, rendered with Cycles: "
            "judge metals, paint, rubber and glass in one picture")

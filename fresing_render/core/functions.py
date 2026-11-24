@@ -345,6 +345,14 @@ fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_P
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
    guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.237")
+fn(id="looks.weld_copy", title="Copies take their welds along", family="import", panel="FRESING_PT_place",
+   button="fresing.paste", guide="weld-copies", pccheck=("looks.weld_symbols",), since="0.2.238",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
+fn(id="looks.weld_symbols", title="Weld symbols (ISO 2553): one switch, off by default", family="looks",
+   panel="FRESING_PT_welds", prop="symbols", guide="weld-symbols", tour=("welds",), pccheck=("looks.weld_symbols",),
+   since="0.2.238")
+fn(id="looks.weld_list", title="Weld list and CSV", family="looks", panel="FRESING_PT_welds", button="fresing.weld_list",
+   guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.238")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",

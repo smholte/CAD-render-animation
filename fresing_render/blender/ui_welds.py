@@ -91,6 +91,16 @@ def draw_details(layout, context, item) -> None:
         box.operator("fresing.weld_move_as_one", text="Make them move as one", icon="LINKED").key = item.key
 
 
+def draw_symbols(layout, s) -> None:
+    """Task 0320: the weld symbols' switch (off by default), Show in renders under it, and the weld list."""
+    row = layout.row(align=True)
+    row.prop(s, "symbols", text="Weld symbols", icon="FONT_DATA")
+    sub = row.row(align=True)
+    sub.active = s.symbols
+    sub.prop(s, "symbols_render", text="Show in renders", icon="RENDER_STILL")
+    layout.operator("fresing.weld_list", text="Weld list…", icon="PRESET")
+
+
 class FRESING_PT_welds(_Panel, bpy.types.Panel):
     bl_label = "Welds"
     bl_parent_id = "FRESING_PT_looks"
@@ -146,6 +156,8 @@ class FRESING_PT_welds(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.operator("fresing.weld_parts", text="Weld two parts", icon="LINKED")
         if len(s.items):
+            gap(layout)
+            draw_symbols(layout, s)                      # task 0320: symbols switch, Show in renders, Weld list
             gap(layout)
             layout.template_list("FRESING_UL_welds", "", s, "items", s, "index", rows=3)
             it = welds.active(context.scene)

@@ -1119,7 +1119,7 @@ def render_animation(scene, job: dict, progress, should_stop) -> str:
             progress(96, w)
         fin = video.finishing_for_animation(scene, anim, bool(job.get("watermark")))
         from . import callouts                    # task 0025: where the labels are in every frame
-        if scene.fresing.callouts_on and any(callouts.usable(c) for c in scene.fresing.callouts):
+        if callouts.any_labels(scene):           # labels, or weld symbols in renders (task 0320)
             progress(95, "Working out where the labels go")
             fps = int(anim.fps)
             fin.label_px = callouts.C.font_px(size.height, scene.fresing.callout_size)

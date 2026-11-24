@@ -108,6 +108,15 @@ def anchor_world(callout) -> Vector:
     return callout.part.matrix_world @ Vector(callout.local)
 
 
+def any_labels(scene) -> bool:
+    """Something to draw as labels in a render: labels that are on, or weld symbols with 'Show in renders' (0320)."""
+    s = scene.fresing
+    if s.callouts_on and any(usable(c) for c in s.callouts):
+        return True
+    from . import weld_symbols
+    return weld_symbols.in_renders(scene)
+
+
 def is_hidden(ob) -> bool:
     """A part that is hidden in the render, or sits in a subassembly that is."""
     seen = 0
@@ -257,14 +266,16 @@ def draws_at(scene, size, seconds: float | None = None, anim=None, font_path: st
     """The labels as they are drawn in the picture the camera sees now. ``seconds``/``anim``: a moment of an
     animation (labels tied to a step fade in and out); None: a still (every label that is on)."""
     s = scene.fresing
-    if not s.callouts_on:
+    from . import weld_symbols                          # task 0320: weld symbols with 'Show in renders'
+    welds_on = weld_symbols.in_renders(scene)
+    if not s.callouts_on and not welds_on:
         return []
     mat = camera_matrix(scene, size)
     if mat is None:
         return []
     px_size = C.font_px(size[1], s.callout_size)
     todo = []
-    for c in s.callouts:
+    for c in (s.callouts if s.callouts_on else ()):
         if not usable(c) or is_hidden(c.part):
             continue
         alpha = 1.0 if seconds is None else C.label_alpha(seconds, window_for(anim, c))
@@ -274,6 +285,8 @@ def draws_at(scene, size, seconds: float | None = None, anim=None, font_path: st
         if a is None or not (0 <= a[0] <= size[0] and 0 <= a[1] <= size[1]):
             continue                                    # the point is out of the picture
         todo.append((label_text(scene, c), a, alpha))
+    if welds_on:
+        todo += weld_symbols.label_todo(scene, size, mat)
     if not todo:
         return []
     sizes = []
@@ -290,7 +303,7 @@ def track_for_animation(scene, anim, body_frames: int, fps: int, size, font_path
     on their parts), so it must run after the animation is baked."""
     s = scene.fresing
     out: dict[int, list[C.LabelDraw]] = {}
-    if not s.callouts_on or not any(usable(c) for c in s.callouts):
+    if not any_labels(scene):
         return out
     boxes = PartBoxes(scene)
     for f in range(1, body_frames + 1):
