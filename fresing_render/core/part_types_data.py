@@ -993,6 +993,117 @@ TYPES = [
       "LAUNCH AND RECOVERY|LARS|TOWING PIN|SLEEPPEN|SHARK JAW|SHARKJAW"),
 ]
 
+# --------------------------------------------------------------------------------------------
+# Task 0302: common catalogue names the library did not know (or sorted wrongly), added per type.
+# One row = (keywords, where the names come from). Every word was checked in English, Dutch and German
+# and has examples in tests/test_part_types.py (ADDED_0302). Sources are public catalogues and
+# standards; "IC" = Autodesk Inventor Content Center family names.
+# --------------------------------------------------------------------------------------------
+
+ADDED_0302: dict[str, list[tuple[str, str]]] = {
+    "fitting": [
+        ("PERSFITTING|PRESSFITTING|PRESS FITTING|SCHLAUCHARMATUR|HOSE TAIL|HOSE BARB|HOSE END|HOSE INSERT|"
+         "HOSE CONNECTOR|SLANGTULE|SLANGAANSLUITING", "hose ends: Parker, Gates, Manuli catalogues (EN/DE/NL)"),
+        ("VERLOOPSTUK|REDUZIERSTUECK|REDUZIERSTUCK|STRAIGHT ADAPTER|REDUCING ADAPTER|HYDRAULIC ADAPTER|"
+         "THREAD ADAPTER|VERSCHLUSSSTOPFEN|SCHNEIDRING|SNIJRING|CUTTING RING|UEBERWURFMUTTER|UBERWURFMUTTER|"
+         "SWIVEL NUT", "tube fittings: DIN 2353 / ISO 8434 (Parker EO, Stauff, Voss)"),
+        ("MEASURING COUPLING|TEST COUPLING|MESSKUPPLUNG|MEETKOPPELING", "test points: Hydrotechnik Minimess, Stauff"),
+        ("ROTARY UNION|DREHDURCHFUEHRUNG|DREHDURCHFUHRUNG|DRAAIDOORVOER|SWIVEL JOINT|SWIVEL FITTING",
+         "rotary unions and swivels: Deublin, Rotoflux"),
+        ("SCHMIERSTOFFGEBER|SMEERPOT|OIL CUP|AUTOMATIC LUBRICATOR", "lubricators: perma, SKF (DE/NL/EN)"),
+    ],
+    "hydraulic": [
+        ("COMPRESSOR|COMPRESSOREN|KOMPRESSOR|*KOMPRESSOR|AIR COMPRESSOR", "compressors: Atlas Copco, Kaeser"),
+        ("HEAT EXCHANGER|WAERMETAUSCHER|WARMETAUSCHER|WARMTEWISSELAAR|PLATE HEAT EXCHANGER",
+         "coolers: HYDAC, Bowman"),
+        ("BELUEFTUNGSFILTER|BELUFTUNGSFILTER|AIR BREATHER|OELSTANDSANZEIGE|OLSTANDSANZEIGE|PEILGLAS|"
+         "FILTERHUIS|FILTERGEHAEUSE|FILTERGEHAUSE|FILTER HOUSING", "tank accessories: HYDAC, Elesa, Stauff"),
+        ("AIR RECEIVER|AIR TANK|DRUCKLUFTBEHAELTER|DRUCKLUFTBEHALTER|LUCHTKETEL|LUCHTTANK|HYDRAULIKTANK|"
+         "HYDRAULIEKTANK|BLASENSPEICHER|BLAASACCUMULATOR|BLADDER ACCUMULATOR|HYDRAULIC ACCUMULATOR|SUBPLATE",
+         "receivers and accumulators: HYDAC, Bosch Rexroth (a bare TANK stays out: ship and plant tanks)"),
+    ],
+    "sensor": [
+        ("DRUKOPNEMER|DRUCKAUFNEHMER|DRUCKMESSUMFORMER|TEMPERATURFUEHLER|TEMPERATURFUHLER|TEMPERATUURVOELER|"
+         "TEMPERATUURSENSOR|FLOW METER|FLOWMETER|FLOW SENSOR|DURCHFLUSSMESSER|DURCHFLUSSSENSOR|DEBIETMETER",
+         "process sensors: ifm, WIKA, Endress+Hauser (EN/DE/NL)"),
+        ("PULSGEVER|LINEAR SCALE|LINEAR ENCODER|GLASMASSSTAB|GLASMASSTAB|LAENGENMESSSYSTEM|LANGENMESSSYSTEM|"
+         "LINEAIRE LINIAAL|LICHTTASTER|REFLEXLICHTTASTER", "encoders and scales: Heidenhain, Sick, Leuze"),
+    ],
+    "motor": [
+        ("SLEW DRIVE|SLEWING DRIVE", "slewing drives: IMO, Kinematics"),
+    ],
+    "coupling": [
+        ("KLAUWKOPPELING|BALGKOPPELING|ASKOPPELING|LAMELLENKOPPELING|TANDKOPPELING|SCHIJFKOPPELING|"
+         "CLAMPING ELEMENT|CARDAN SHAFT|GELENKWELLE|KARDANWELLE", "couplings: KTR, R+W, Ringfeder; IC Shaft Parts"),
+    ],
+    "electrical": [
+        ("RUNDSTECKVERBINDER|KLEMMENSTROOK|BRAKE RESISTOR|BREMSWIDERSTAND|REMWEERSTAND|RESISTOR|BLOWER|"
+         "GEBLAESE|GEBLASE|SIDE CHANNEL BLOWER|CONTROL PANEL|BEDIENINGSPANEEL",
+         "control cabinet parts: Phoenix Contact, Weidmueller, Siemens; blowers: Elmo Rietschle"),
+    ],
+    "push_button": [
+        ("HANDBEDIENGERAET|HANDBEDIENGERAT|TEACH PENDANT", "pendants: Keba, Siemens"),
+    ],
+    "cable": [
+        ("TIERAP|TY RAP|TYRAP", "cable ties (NL trade name in common use)"),
+    ],
+    "hose": [
+        ("SCHLAUCHLEITUNG|SLANGLEIDING", "hose lines: Parker, Gates (DE/NL)"),
+    ],
+    "gear": [
+        ("GEAR RACK|TOOTHED RACK|RACK AND PINION", "racks: KHK, Atlanta; IC Shaft Parts (a bare RACK stays out)"),
+    ],
+    "chain": [
+        ("ROLLENKETTING|ROLKETTING", "roller chains: Renold, iwis (NL)"),
+    ],
+    "pulley": [
+        ("BELT TENSIONER|RIEMENSPANNER|RIEMSPANNER", "belt tensioners: Rosta, Gates"),
+    ],
+    "linear_guide": [
+        ("CROSSED ROLLER GUIDE|CROSS ROLLER GUIDE|KREUZROLLENFUEHRUNG|KREUZROLLENFUHRUNG|KRUISROLGELEIDING|"
+         "PROFILE RAIL GUIDE|PROFILSCHIENENFUEHRUNG|PROFILSCHIENENFUHRUNG|PROFIELRAILGELEIDING|LINEAIR LAGER|"
+         "LINEAIRE LAGER|LINEAIRE KOGELBUS|SHAFT END SUPPORT", "linear motion: Schaeffler, THK, Bosch Rexroth"),
+    ],
+    "lifting": [
+        ("KAUSCHE|SEILKAUSCHE|SEILENDVERBINDUNG|PERSHULS|DRAHTSEILKLEMME|STAALKABELKLEM|WIRE ROPE GRIP|SPELTER|"
+         "SPELTER SOCKET", "wire rope ends: Crosby, Pfeifer, Van Beest (EN/DE/NL)"),
+        ("AANSLAGPUNT|HIJSPUNT|KRAANHAAK|AUFHAENGERING|AUFHANGERING|KETTENGEHAENGE|KETTENGEHANGE|AUGPLATTE|"
+         "OOGPLAAT|LASTOESE|LASTOSE|ANSCHLAGWIRBEL|KLAMPE", "lifting points and chain slings: RUD, Pewag, Crosby"),
+    ],
+    "seal": [
+        ("AFSTREEPRING|AFSTREPER|GELEIDERING|GELEIDINGSRING|USIT RING|USIT|BONDED WASHER|SEALING WASHER|"
+         "DICHTSCHEIBE|NUTRING|MANCHET|MANSCHETTE", "hydraulic seals: Trelleborg, Hallite, Freudenberg"),
+    ],
+    "handle": [
+        ("KUGELKNOPF|KOGELKNOP|RASTBOLZEN|INDEXEERPEN|INDEXBOLZEN|DEURKLINK", "operating parts: Ganter, Elesa, Kipp"),
+    ],
+    "foot": [
+        ("GELENKTELLER|GELENKFUSS|SWIVEL FOOT|SWIVEL PAD", "levelling feet: Ganter, Elesa"),
+    ],
+    "rubber": [
+        ("RUBBERBUFFER|RUBBERDEMPER", "buffers: Paulstra, Elesa (NL)"),
+    ],
+    "profile_connector": [
+        ("WUERFELVERBINDER|WURFELVERBINDER|STANDARDVERBINDUNGSSATZ|STANDARD FASTENING SET", "item, Bosch Rexroth"),
+    ],
+    "hinge": [
+        ("MAGNET CATCH|MAGNETSCHNAPPER|MAGNEETSNAPPER|MAGNEETSLUITING", "door catches: Ganter, Elesa, item"),
+    ],
+    "bushing": [
+        ("FLENSBUS|KRAAGBUS|ANLAUFSCHEIBE|THRUST WASHER", "plain bearings: GGB, igus (thrust washers are bearings)"),
+    ],
+    "wear_strip": [
+        ("GLEITSTEIN|GLIJSTEEN", "slide blocks (DE/NL)"),
+    ],
+    "enclosure": [
+        ("BEDIENPULT|BEDIENINGSLESSENAAR", "control desks: Rittal"),
+    ],
+}
+
+for _t in TYPES:
+    for _words, _source in ADDED_0302.get(_t["id"], ()):
+        _t["words"] += "|" + _words
+
 # Names that look like a known type but are not (checked as whole phrases).
 NOT_PART_TYPE = {
     "PRODUCT INFO", "PART INFO", "INFO", "DRAWING", "TEKENING", "ZEICHNUNG", "SKETCH", "SCHETS", "SKIZZE",

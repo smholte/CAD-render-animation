@@ -56,7 +56,7 @@ linkages, way covers.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker), 23 Nov 2026 · branch `claude/inspiring-shannon-h7b896` · 0.2.222
+**Chat / date:** Claude Code on the web (worker), 23 Nov 2026 · branch `claude/inspiring-shannon-h7b896` · 0.2.223
 
 **What changed:**
 1. **Joint fold** – new sub-panel `FRESING_PT_joints` ("Joints", first under 4 Motion, `DEFAULT_CLOSED`, header "n joints"):
@@ -89,7 +89,7 @@ linkages, way covers.
 
 PC check line `joints.show` (MIN_LINES_FULL 126); tour stops joint / stack / cylinder `changed=`, crane set
 `changed=`; function entries `changed=`; guide (4 Motion, couplings, cylinders, Set up a crane) + pictures
-panel_4_motion(_start), panel_4_coupling, panel_4_cylinders; CHANGELOG 0.2.222.
+panel_4_motion(_start), panel_4_coupling, panel_4_cylinders; CHANGELOG 0.2.223.
 
 **Tested and measured** (4-core web machine, Linux, Blender 5.2.3 / bpy): `tests/test_cylinder_parts.py` 18 new tests
 (picks kept / added / skipped / ×, clear, never in both items, travel 1092.8 / 570 mm read from 3 + 2 parts, all parts

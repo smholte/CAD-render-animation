@@ -122,3 +122,31 @@ def test_describe():
     text = F.describe(F.parse("ISO 4017 M12 x 40 - 8.8 HDG"))
     assert "Hex bolt M12x40" in text and "8.8" in text and "galvanized" in text.lower()
     assert F.describe(None) == "Not a standard part"
+
+
+# task 0302: German / Dutch one-word compounds, and sealing / bearing washers that are not fasteners
+@pytest.mark.parametrize("name, kind", [
+    ("SLEUFMOER M6", "t_slot_nut"), ("Hammermutter 8 M5", "t_slot_nut"), ("NUTSTEIN 8 M6", "t_slot_nut"),
+    ("Ringmutter M12", "eye_nut"), ("Nutmutter KM6", "lock_nut"), ("Kreuzlochmutter M20", "nut"),
+    ("Einschlagmutter M6", "nut"), ("Nietmutter M6", "nut"), ("Blindnietmutter M5", "nut"), ("BLINDKLINKMOER M5", "nut"),
+    ("Federscheibe", "spring_washer"), ("Spannscheibe 8", "spring_washer"), ("Zahnscheibe 6", "lock_washer"),
+    ("Sperrkantring M10", "lock_washer"), ("Schnorr 8", "lock_washer"), ("Keilsicherungsscheibe M12", "lock_washer"),
+    ("Passscheibe 10x16x0.5", "washer"), ("Distanzscheibe", "washer"), ("Kotflügelscheibe M8", "washer"),
+    ("BORGRING 20", "circlip"), ("Halbrundniet 4x10", "rivet"), ("Senkniet", "rivet"), ("Spreizniet", "rivet"),
+    ("Wurmschraube M5x8", "set_screw"),
+])
+def test_compounds_0302(name, kind):
+    info = F.parse(name)
+    assert info is not None and info.kind == kind
+
+
+@pytest.mark.parametrize("name", ["BONDED WASHER 1/4", "SEALING WASHER M10", "THRUST WASHER 20X32", "USIT RING 1/2"])
+def test_sealing_and_bearing_washers_are_not_fasteners(name):
+    assert F.parse(name) is None
+
+
+def test_from_shape():
+    from_shape = F.from_shape
+    assert from_shape("washer").kind == "washer" and from_shape("washer").matched_by == "shape"
+    assert from_shape("hex_nut").label == "Hex nut" and from_shape("hex_nut").finish is None
+    assert from_shape("o_ring") is None and from_shape("") is None
