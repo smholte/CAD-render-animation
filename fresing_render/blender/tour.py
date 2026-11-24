@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.217")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.223")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1671,7 +1671,7 @@ def _check_chains(scene):
 CABLE_ANIM = "Cable over sheaves"
 
 
-@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.223")
+@tour_set("cables", "Cable over sheaves", "test_paths_a.step", added="0.2.80", changed="0.2.224")
 def build_cables(b: Build):
     from . import paths
     sc = b.scene
@@ -1883,7 +1883,7 @@ def drawn_motion(a, cable_joint: str) -> None:
 
 
 @tour_set("flex_drawn", "Hoses, a chain and a cable drawn by clicking", "test_flex_hoses_a.step",
-          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.223")
+          "test_flex_chains_a.step", "test_paths_a.step", added="0.2.180", changed="0.2.224")
 def build_flex_drawn(b: Build):
     from mathutils import Vector
 
@@ -2121,7 +2121,7 @@ def check_drawn_replace(scene) -> str:
 SPOOL_ANIM = "Spooling"
 
 
-@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.223")
+@tour_set("spool", "Drum and carousel spooling", "test_spool.step", added="0.2.85", changed="0.2.224")
 def build_spool(b: Build):
     from . import spool
     sc = b.scene
@@ -2174,7 +2174,7 @@ def served_demo_cable(scene) -> str:
     return next(i.name for i in paths.items(scene) if i.part.get(build.PROP_NAME) == SERVED_CABLE)
 
 
-@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.223")
+@tour_set("served", "Served cable look", "test_spool.step", added="0.2.116", changed="0.2.224")
 def build_served(b: Build):
     sc = b.scene
     _look("PRODUCT")
@@ -4461,7 +4461,7 @@ stop("served", LOOK, "served", "Served cable with marker bands",
      "round the whole cable as one spiral, once round per metre, with ragged edges, the paint thinner in the grooves. "
      "Played, the lines run along with the cable, also on the coil.",
      where="4 Motion > Cables and paths: Look = Served cable (yarn)", animation=SPOOL_ANIM, play=True,
-     since="0.2.116", check=_check_served, auto="clip", changed="0.2.223")
+     since="0.2.116", check=_check_served, auto="clip", changed="0.2.224")
 stop("vessel", LOOK, "vessel", "Vessel motion at sea",
      "The crane stands on the vessel deck in a calm beam sea, a person and an IBC tank beside it for scale: "
      "deck, containers, the person and the crane roll gently (about ±1.5°, once in 11 s), pitch a little and rise and "
@@ -4560,7 +4560,7 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
      "top layer gets shorter wrap by wrap, and both sheaves and both rollers turn with it. Meanwhile the A-frame "
      "leans forward and back and the rope stays in its grooves.",
      where="4 Motion > Cables and paths", animation=CABLE_ANIM, play=True, since="0.2.80", check=_check_cables,
-     auto="clip", changed="0.2.223")
+     auto="clip", changed="0.2.224")
 stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "
      "arm's fitting. The arm goes up and down: the hose bends along, stays in its two clips on the base and on both "
@@ -4575,7 +4575,7 @@ stop("drawn_cable", MOTION, "flex_drawn", "A drawn cable route",
      "Right: the wire rope was drawn by clicking the drum, the two sheaves and the chute. It runs at 10 m/min: the "
      "drum, the sheaves and the V rollers turn with it, and it stays in its grooves while the A-frame leans.",
      where="4 Motion > Cables and paths > Draw cable route", animation=DRAWN_ANIM, play=True, at=0.6,
-     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.223")
+     since="0.2.180", check=check_drawn_cable, auto="clip", changed="0.2.224")
 stop("drawn_replace", MOTION, "flex_drawn", "Replaced CAD parts are hidden",
      "The CAD hose, the gantry's 24 CAD chain links and the CAD rope do not show: the drawn ones replace them – also "
      "in renders, the clash check and the web 3D model. Remove a drawn one and its CAD part shows again.",
@@ -4600,7 +4600,7 @@ stop("spool", MOTION, "spool", "Drum and carousel spooling",
      "anchor; the carousel pays its cable all out (every layer cable, one after the other, down to its core) and "
      "winds it back in. No grey sleeve or ring under the top layer.",
      where="4 Motion > Drums and carousels", animation=SPOOL_ANIM, play=True, since="0.2.85", check=_check_spool,
-     auto="clip", changed="0.2.223")
+     auto="clip", changed="0.2.224")
 stop("tracks", MOTION, "tracks", "Tensioner tracks and a belt",
      "Front, the tensioner: the cable runs through at 15 m/min and the pads of both tracks run round their sprockets "
      "with it – the pads that hold the cable move exactly as fast as the cable. The top track lifts 150 mm (its pads "
@@ -5275,13 +5275,50 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
-     "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
+     "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
      "Animation and Queue (rest the mouse on one for its name; click Make for the list with names). Click Picture: a "
      "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "
-     "Drag it anywhere, click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no "
-     "second window. The same list is under Make in the header of the 3D view.",
-     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.197", shot="Tour view", check=_check_make,
-     auto=lambda ctx, scene, st: "")
+     "On its left is a strip with the same six icons, Picture pressed: click 3D page and the same window shows the 3D "
+     "page's settings. Drag the strip's right edge wider: the names show beside the icons. Drag the window anywhere, "
+     "click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no second window. "
+     "The same list is under Make in the header of the 3D view.",
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.223",
+     shot="Tour view", check=_check_make, auto=lambda ctx, scene, st: "")
+
+
+def _check_render_view(scene):
+    """Render this view (task 0308): a camera made where the view's eye is and taken away again – the scene's camera
+    and everything else as before."""
+    import bpy
+
+    from . import ops_render_view
+    _check(hasattr(bpy.ops.fresing, "render_view"), "the button Render this view is missing")
+    cam = scene.camera
+    _check(cam is not None and cam.type == "CAMERA", "the crane set has no camera to stand in for the view")
+    before = (scene.camera, len(bpy.data.objects), len(bpy.data.cameras))
+    aspect = scene.render.resolution_x / max(1, scene.render.resolution_y)
+    state = ops_render_view.setup(scene, bpy.context, view=ops_render_view.stand_in(cam, aspect))
+    try:
+        made = scene.camera
+        _check(made != cam and made.get(ops_render_view.VIEW_MARK), "no camera was made for the view")
+        off = (made.matrix_world.translation - cam.matrix_world.translation).length
+        _check(off < 1e-4, f"the view's camera stands {off * 1000:.1f} mm from the view's eye")
+        lens = made.data.lens
+    finally:
+        ops_render_view.undo(scene, state)
+    _check((scene.camera, len(bpy.data.objects), len(bpy.data.cameras)) == before,
+           "Render this view left a camera behind or changed the active camera")
+    return f"lens {lens:.1f} mm, nothing left behind"
+
+
+stop("render_view", OUT, HUB_SET, "Render this view",
+     "Under the Make row: Render this view. Turn and zoom the 3D view to any angle you like (no camera needed) and "
+     "click it: the render window shows exactly what the view showed, at the Picture's size and quality (its shape "
+     "fitted round the view, nothing of the view cut off), and the picture is saved as <project>_View_<date>_<time>. "
+     "The active camera in 5 Scene & Render is the same as before and no new camera is in the list. In camera view "
+     "(Numpad 0) it renders that camera.",
+     where="Make, at the top of the Fresing panel (under the icons); Make in the 3D view's header", since="0.2.223",
+     shot="Tour view", check=_check_render_view, auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "Help > Make demo project… opens a small window of its own; Make it there makes the demo 'Vessel in a wind park' "

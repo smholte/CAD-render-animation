@@ -1,6 +1,6 @@
 # 0263 – Real size, category C: the winch model's A-frame ×2.5, the spool model's carousel ×2 (rope parts kept)
 
-**Who:** worker · **Status:** done (0.2.223, 24 Nov 2026) · **Branch:**
+**Who:** worker · **Status:** done (0.2.224, 24 Nov 2026) · **Branch:**
 `task/0263-winch-spool-real-size`
 **Started by:** lead, 21 Nov 2026 (owner 14:20: every model at a realistic scale, one fix task per type; study **0258**
 category C) · **Model:** Opus · effort High
@@ -62,7 +62,7 @@ Arms / hoses (0261), routers / chains / way covers (0262), mechanisms (0264), th
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (4-core web machine), 23 Nov 2026 · version 0.2.223 · branch
+**Chat / date:** Claude Code on the web (4-core web machine), 23 Nov 2026 · version 0.2.224 · branch
 `task/0263-winch-spool-real-size`. No subagents (test models and their numbers; the independent checks of the numbers
 were scripts written for this, see below).
 
@@ -102,7 +102,7 @@ spool function).
   the drawn route's four clicks, "Drum turn" in `drawn_cable_setup`, `_check_cables` for the winch, `_check_spool`'s
   carousel turn), PC check `motion.paths`, `ui_test_paths.py` / `ui_test_spool.py` (views, the click finder's sample,
   coil radii).
-- Tour: `changed="0.2.223"` on the sets cables, spool, served, flex_drawn and the stops cables (text: the drum full of
+- Tour: `changed="0.2.224"` on the sets cables, spool, served, flex_drawn and the stops cables (text: the drum full of
   wire), drawn_cable, spool, served; `tour_versions.py --record`.
 - Guide pictures made again: `view_cables_rope`, `view_cables_luffed`, `view_cables_looks`, **new**
   `view_cables_winch.jpg` (+ its line in the guide), `view_drawn_cable`, `view_spools`, `view_spools_full` (the carousel
@@ -144,7 +144,8 @@ spool function).
   0292's): it removed WINCH DRUM to see the cable named – the rope runs over WIRE ON DRUM now, so that part is removed
   instead. Run 45296284849 green, but main had moved with code and 0.2.221 had gone to task 0296: merged once more,
   renumbered to 0.2.222, a fourth full run (45301254782, green) – meanwhile 0.2.222 went to task 0302: merged again,
-  renumbered to 0.2.223, a fifth run. (Five runs in all: three version clashes, one real failure.)
+  renumbered to 0.2.223, a fifth run (45309915972, green) – meanwhile 0.2.223 went to task 0308: merged again,
+  renumbered to 0.2.224, a sixth run. (Six runs in all: four version clashes, one real failure.)
 
 **Open points / follow-up tasks:**
 - The cable panel shows a spool start as "Start on: Joint Drum turn (motion)" (the joint's empty): a plain-words text

@@ -14,6 +14,15 @@ window to the front (Windows) instead of a second one. On Windows the window als
 ``prefs.window_places``; the old ``<config>/fresing_make_windows.json`` is read once). A window left open is saved
 with the project like the Set-up window and comes back with it; another project brings its own windows.
 
+**The outputs strip** (task 0308): the window's toolbar region (left, no tab strip there) holds
+``FRESING_PT_make_strip`` – one button per output, the window's own pressed; a click switches THIS window to that
+output (``switch``: the screen's mark changes, its size is kept under the new key). One icon wide when the window opens
+(``settle_strip``: the region was copied with the left panel's 240 px, so the side panel is off while it is made
+narrow); dragged wider than ``NAMES_FROM`` the names show, and the settings shrink to the room left (``keep_filled`` →
+``fill``; a side panel that does not fit is drawn empty by Blender). Blender's tool buttons and the panels of its tabs
+Item / Tool / View / Animation hide in output windows (``ops_settings.quiet_panels``); Blender's Transform panel is no
+Python class, so "Item" stays while an object is active.
+
 Client view: the windows open (``lock.ALLOWED_PREFIXES`` has ``fresing.make_``); the buttons in them follow the lock as
 they do in the side panel.
 """
@@ -28,9 +37,10 @@ from bpy.app.handlers import persistent
 from bpy.props import StringProperty
 
 from . import ops_setup, panels, ui, ui_top
-from .ops_setup import FORM_MARK, OUTPUT_MARK, OUTPUT_TAB, SETTINGS_MARK
+from .ops_setup import FORM_MARK, OUTPUT_MARK, OUTPUT_TAB, SETTINGS_MARK, STRIP, STRIP_SETTLE
 
 PLACES_FILE = "fresing_make_windows.json"
+NAMES_FROM = 100              # task 0308: a strip at least this wide (px at UI scale 1) shows the outputs' names
 WATCH_SECONDS = 2.0           # how often the sizes (and on Windows the places) of open app windows are read
 
 
@@ -212,6 +222,8 @@ def _watch():
 def _placed(win) -> None:
     """A new app window is open: where it was last time (Windows), and its size and place watched from now on."""
     from .. import winplace
+    if ops_setup._is_output(win):
+        settle_strip(win)
     if winplace.available():
         key = place_key(win)
         winplace.find(win, key)               # the handle, while the window is new and stands where Blender put it
@@ -225,6 +237,230 @@ def watch() -> None:
     """Keep reading the sizes and places of the open app windows – also of those a project brought back."""
     if placed_windows() and not bpy.app.timers.is_registered(_watch):
         bpy.app.timers.register(_watch, first_interval=WATCH_SECONDS)
+
+
+# ---------------------------------------------------------------------------
+# the outputs strip (task 0308)
+# ---------------------------------------------------------------------------
+
+def _view_area(win):
+    try:
+        return next((a for a in win.screen.areas if a.type == "VIEW_3D"), None)
+    except (AttributeError, ReferenceError):
+        return None
+
+
+def _region(area, kind: str):
+    return next((r for r in area.regions if r.type == kind), None) if area is not None else None
+
+
+def strip_width(win) -> float:
+    """The strip's width in px at UI scale 1 (0 when it is not shown)."""
+    area = _view_area(win)
+    tools = _region(area, "TOOLS")
+    if area is None or tools is None or not area.spaces.active.show_region_toolbar or tools.width <= 1:
+        return 0.0
+    return tools.width / (bpy.context.preferences.system.ui_scale or 1.0)
+
+
+def settle_strip(win) -> None:
+    """A new output window: its toolbar region – the strip – one icon wide. The region was copied from the main view
+    with the left panel's width (240 px) and would squeeze the settings, so the side panel is off while the strip is
+    shown and made narrow (``ui_left.set_width``, the only way a script can set a region's width), then back on. Each
+    step waits for a redraw (CLAUDE.md, 0221: nothing set on a 3D view before it was drawn)."""
+    if bpy.app.background:
+        return
+    job = {"step": 0, "tries": 0}
+    try:
+        win.screen[STRIP_SETTLE] = 1          # (ops_setup._finish set it already, before the window was dressed)
+    except (AttributeError, ReferenceError):
+        return
+
+    def tick():
+        return _settle_tick(win, job)
+
+    bpy.app.timers.register(tick, first_interval=0.2)
+
+
+def _settle_tick(win, job):
+    from . import editors, ui_left
+    job["tries"] += 1
+    try:
+        if not any(w == win for w in bpy.context.window_manager.windows):
+            return None
+        area = _view_area(win)
+        if area is None:
+            return None
+        sp = area.spaces.active
+        tools = _region(area, "TOOLS")
+        if job["tries"] > 100:
+            raise RuntimeError("the window was not drawn in time")
+        if not editors.settled():
+            return 0.1
+        if job["step"] == 0:                      # the side panel off, the strip on
+            if sp.show_region_ui:
+                sp.show_region_ui = False
+            if not sp.show_region_toolbar:
+                sp.show_region_toolbar = True
+            job["step"] = 1
+            return 0.1
+        if job["step"] == 1:                      # the strip drawn: make it narrow
+            if tools is None or tools.width <= 1:
+                return 0.1
+            scale = bpy.context.preferences.system.ui_scale or 1.0
+            if abs(tools.width / scale - STRIP) > 4 and not ui_left.set_width(area, STRIP):
+                print("Fresing Render: the outputs strip keeps its width (its width was not found)")
+            job["step"] = 2
+            return 0.1
+        if not sp.show_region_ui:
+            sp.show_region_ui = True              # the settings back
+            return 0.1
+        fill(win)                                 # … filling what the strip leaves (no empty view beside them)
+    except Exception as exc:  # noqa: BLE001 - the window works with any strip
+        print("Fresing Render: the outputs strip was not made narrow:", exc)
+        try:
+            area = _view_area(win)
+            if area is not None:
+                area.spaces.active.show_region_ui = True
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        if STRIP_SETTLE in win.screen:
+            del win.screen[STRIP_SETTLE]
+    except (AttributeError, ReferenceError, KeyError):
+        pass
+    ops_setup.restore_tabs()
+    return None
+
+
+FILL_SLACK = 6                 # px the settings may be off the room the strip leaves before they are fitted again
+FILL_GAP = ops_setup.STRIP_GAP # … and leave this many px: a side panel that only just fits is drawn empty (measured)
+_FILL = {"pending": set()}
+
+
+def fill(win) -> bool:
+    """The settings fill the room the strip leaves (the user dragged the strip wider or narrower). False when there
+    is nothing to change or it cannot be done."""
+    from . import ui_left
+    area = _view_area(win)
+    tools, side = _region(area, "TOOLS"), _region(area, "UI")
+    if area is None or tools is None or side is None or not area.spaces.active.show_region_ui:
+        return False
+    strip = tools.width if area.spaces.active.show_region_toolbar and tools.width > 1 else 0
+    want = area.width - strip - FILL_GAP
+    if abs(side.width - want) <= FILL_SLACK:
+        return False
+    return ui_left.fit_side(area, want)
+
+
+def keep_filled(win) -> None:
+    """Called while the strip draws: fit the settings a moment later (never while Blender draws)."""
+    key = win.as_pointer() if win is not None else 0
+    if not key or key in _FILL["pending"] or win.screen.get(STRIP_SETTLE):
+        return
+    area = _view_area(win)
+    tools, side = _region(area, "TOOLS"), _region(area, "UI")
+    if area is None or tools is None or side is None:
+        return
+    strip = tools.width if tools.width > 1 else 0
+    if abs(side.width - (area.width - strip - FILL_GAP)) <= FILL_SLACK:
+        return
+    _FILL["pending"].add(key)
+
+    def later():
+        _FILL["pending"].discard(key)
+        for w in output_windows():
+            if w.as_pointer() == key:
+                try:
+                    fill(w)
+                except Exception as exc:  # noqa: BLE001
+                    print("Fresing Render: the output window's settings not fitted:", exc)
+        return None
+
+    bpy.app.timers.register(later, first_interval=0.25)
+
+
+def switch(win, key: str) -> str:
+    """Show output ``key`` in this output window (the strip's buttons). Returns "" when switched, else why not."""
+    if key not in outputs():
+        return f"No output is called '{key}'"
+    try:
+        now = win.screen.get(OUTPUT_MARK)
+    except (AttributeError, ReferenceError):
+        return "This is no output window"
+    if not now:
+        return "This is no output window"
+    if now == key:
+        return ""
+    other = [w for w in output_windows(key) if w != win]
+    if other:
+        from .. import winplace
+        winplace.raise_window(other[0], key)
+        return f"The {title(key)} window is open already"
+    try:
+        remember(win)                             # the size under the output it showed until now
+    except Exception:  # noqa: BLE001
+        pass
+    win.screen[OUTPUT_MARK] = key
+    from .. import winplace
+    winplace.rekey(str(now), key)
+    for area in win.screen.areas:
+        area.tag_redraw()
+    return ""
+
+
+class FRESING_OT_make_switch(bpy.types.Operator):
+    """Shows another output in this window: its settings and its Make button. The strip on the left lists every
+    output; drag the strip wider to see their names"""
+
+    bl_idname = "fresing.make_switch"
+    bl_label = "Show this output"
+    bl_options = set()
+
+    key: StringProperty(name="Output", default="", options={"SKIP_SAVE"},
+                        description="Which output: still, product, turn, web, anim or queue")
+
+    @classmethod
+    def description(cls, context, properties):
+        key = getattr(properties, "key", "") or ""
+        o = outputs().get(key)
+        if o is None:
+            return " ".join(cls.__doc__.split())
+        return f"{o[0]}: {ui_top.MAKE_LINES.get(key, '')}. Shows its settings in this window"
+
+    def execute(self, context):
+        why = switch(context.window, self.key)
+        if why:
+            self.report({"INFO" if "open already" in why else "WARNING"}, why)
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
+class FRESING_PT_make_strip(bpy.types.Panel):
+    """Task 0308: every output of Make on the left of an output window – icons; names too when dragged wider."""
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "TOOLS"
+    bl_label = "Outputs"
+    bl_options = {"HIDE_HEADER"}
+
+    @classmethod
+    def poll(cls, context):
+        return ops_setup._is_output(getattr(context, "window", None))
+
+    def draw(self, context):
+        from . import make_icons
+        key = context.window.screen.get(OUTPUT_MARK)
+        region = context.region
+        scale = context.preferences.system.ui_scale or 1.0
+        wide = region is not None and region.width / scale >= NAMES_FROM
+        if not bpy.app.background:
+            keep_filled(context.window)
+        col = self.layout.column(align=True)
+        col.scale_y = ui_top.ROW_SCALE
+        for k, text, icon, *_rest in ui_top._outputs(context.scene):
+            op = make_icons.icon_button(col, "fresing.make_switch", k, icon, text=text if wide else "",
+                                        depress=(k == key))
+            op.key = k
 
 
 @persistent
@@ -418,4 +654,5 @@ class FRESING_PT_make_window(bpy.types.Panel):
         draw_output(self, context, key)
 
 
-CLASSES = (FRESING_OT_make_window, FRESING_OT_make_close, FRESING_OT_make_fold, FRESING_PT_make_window)
+CLASSES = (FRESING_OT_make_window, FRESING_OT_make_close, FRESING_OT_make_fold, FRESING_OT_make_switch,
+           FRESING_PT_make_window, FRESING_PT_make_strip)

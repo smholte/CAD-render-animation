@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.223 – 24 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
+## 0.2.224 – 24 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
 
 - **The cable test machine** (test tour "Cable over sheaves", the PC check, the user guide) is now real size: its
   A-frame stands about 5 m tall on an 8 m base. The winch drum, the sheaves, the V rollers, the chute and the 24 mm
@@ -16,6 +16,18 @@ installer of that version was built from.
   bends round it as a real one would. It holds 665 m of cable now (was 166 m). The winch beside it is unchanged.
 - **Web 3D model:** a cable coming off a drum or carousel could show one ring more at its end than the app; the page
   now ends it exactly where the app does.
+
+## 0.2.223 – 24 Nov 2026 – Make: larger icons, switch outputs in their window, Render this view (task 0308)
+
+- **Make's row is taller, with larger icons** – easier to hit; still one row at the top of the Fresing panel.
+- **Every output window has a strip of all outputs on its left.** Picture, Product video, Turntable, 3D page, Animation
+  and Queue, the one the window shows in blue: one click shows another output in the same window. Drag the strip wider
+  and the names show beside the icons. Blender's own side-panel tabs (Tool, View, Animation) no longer show in these
+  windows.
+- **Render this view** (under the Make row, and in Make in the 3D view's header): renders exactly what the 3D view
+  shows – its angle and zoom – at the Picture's size, quality and file type, without adding or picking a camera. The
+  picture is fitted round the view, so nothing you see is cut off, and saved as *project*_View_*date*_*time*. The
+  active camera and your saved cameras stay as they were. In camera view it renders that camera.
 
 ## 0.2.222 – 24 Nov 2026 – More part kinds; unnamed washers, nuts and O-rings found by their shape (task 0302)
 
