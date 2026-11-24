@@ -5,6 +5,15 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.238 – 24 Nov 2026 – Real-looking models for "Painted faces" and "Logos and stickers" (task 0235)
+
+- **Painted faces** now shows a gearbox housing (rounded corners, a base flange, an oil-filler boss) with its red top
+  and blue front painted in CAD, a sheet cover with screw holes that you paint by hand, and small plates with holes –
+  in a clean studio.
+- **Logos and stickers** now works on a real-size machine door panel (1.2 x 0.8 m) and two 200 l drums with a hot-surface
+  sticker wrapped round each, in a machine hall. The sticker's and the text's sizes fit the big parts.
+- The old small test models stay for the tests; only the two learning sets use the new ones.
+
 ## 0.2.237 – 24 Nov 2026 – Carbon fibre without a seam, perlage, a Rust slider, better metals and glass (task 0318)
 
 - **Carbon fibre** (new material, also under **Ready-made material…**): a 2x2 twill or a plain weave under a glossy or

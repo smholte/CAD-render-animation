@@ -9,12 +9,20 @@ TEST.FACES (revision "a")
   EVERY FACE   green box whose six faces all carry the part colour (some exporters do this):
                no extra face sets
 Revision "b": the same, but BLOCK is a cylinder now (its faces changed).
+Revision "r" (task 0235, the learning set "Painted faces"): the same parts, names and painted faces, but real-looking
+  HOUSING      300 x 200 x 100 gearbox housing: rounded corners, a base flange, an oil-filler boss, painted top (red)
+               and front (blue); BRACKET  x2  80 x 40 x 10 plate with two holes, orange end face; COVER  400 x 300
+               x 6 sheet cover with rounded corners and 8 screw holes (top face painted by hand); BLOCK  100 mm
+               block with chamfered edges; EVERY FACE  as before.
 
-usage: python make_test_faces.py out.step [a|b]
+usage: python make_test_faces.py out.step [a|b|r]
 """
 
+import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCylinder
 from OCP.gp import gp_Pnt, gp_Trsf, gp_Vec
@@ -48,6 +56,21 @@ HOUSING_TOP, HOUSING_FRONT = 5, 2      # box faces: 0 -X, 1 +X, 2 -Y, 3 +Y, 4 -Z
 BRACKET_END = 1
 
 
+def _real_parts():
+    """Revision "r": the shapes and the faces that get their own colour (picked by plane, not by number)."""
+    from _real_shapes import box, cylinder, find_face, fuse, holes, round_edges
+    body = round_edges(box(0, 0, 12, 300, 200, 88), 14, along=2)
+    flange = round_edges(box(-10, -10, 0, 320, 220, 12), 10, along=2)
+    housing = fuse(fuse(body, flange), cylinder(210, 100, 100, 22, 28))
+    h_faces = {find_face(housing, (0, 0, 1), 100): RED, find_face(housing, (0, -1, 0), 0): BLUE}
+    bracket = holes(round_edges(box(0, 0, 0, 80, 40, 10), 6, along=2), [(18, 20), (52, 20)], 4.5, -1, 11)
+    b_faces = {find_face(bracket, (1, 0, 0), 80): ORANGE}
+    cover = round_edges(box(0, 0, 0, 400, 300, 6), 20, along=2)
+    cover = holes(cover, [(x, y) for x in (25, 200, 375) for y in (25, 275)] + [(25, 150), (375, 150)], 4.5, -1, 7)
+    block = round_edges(box(0, 0, 0, 100, 100, 100), 3, chamfer=True)
+    return housing, h_faces, bracket, b_faces, cover, block
+
+
 def build(path: str, rev: str = "a") -> None:
     app = XCAFApp_Application.GetApplication_s()
     doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
@@ -72,12 +95,20 @@ def build(path: str, rev: str = "a") -> None:
             k += 1
         return lab
 
-    housing = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 300.0, 200.0, 100.0).Shape(), "HOUSING", GREY,
-                   {HOUSING_TOP: RED, HOUSING_FRONT: BLUE})
-    bracket = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 80.0, 40.0, 10.0).Shape(), "BRACKET", STEEL,
-                   {BRACKET_END: ORANGE})
-    cover = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 400.0, 300.0, 5.0).Shape(), "COVER", LIGHT)
-    if rev == "b":
+    if rev == "r":
+        r_housing, h_faces, r_bracket, b_faces, r_cover, r_block = _real_parts()
+        housing = part(r_housing, "HOUSING", GREY, h_faces)
+        bracket = part(r_bracket, "BRACKET", STEEL, b_faces)
+        cover = part(r_cover, "COVER", LIGHT)
+    else:
+        housing = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 300.0, 200.0, 100.0).Shape(), "HOUSING", GREY,
+                       {HOUSING_TOP: RED, HOUSING_FRONT: BLUE})
+        bracket = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 80.0, 40.0, 10.0).Shape(), "BRACKET", STEEL,
+                       {BRACKET_END: ORANGE})
+        cover = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 400.0, 300.0, 5.0).Shape(), "COVER", LIGHT)
+    if rev == "r":
+        block = part(r_block, "BLOCK", WHITE)
+    elif rev == "b":
         block = part(BRepPrimAPI_MakeCylinder(50.0, 100.0).Shape(), "BLOCK", WHITE)
     else:
         block = part(BRepPrimAPI_MakeBox(gp_Pnt(0, 0, 0), 100.0, 100.0, 100.0).Shape(), "BLOCK", WHITE)
