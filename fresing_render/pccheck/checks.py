@@ -2953,7 +2953,7 @@ def _weather_preset_still(ctx, preset, key, title, background="QUAY", low=False)
     return scene, info
 
 
-@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.227",
+@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.228",
       what="Change to Thunderstorm over 2 s at the playhead (5 Scene & Render > Weather & time) on the open sea: the "
            "Build keys the storm coming and lightning flashes only once it is there; the frame of the first flash is "
            "rendered small (processor, draft) – the scene lit up, a bolt in the sky")
@@ -2989,7 +2989,7 @@ def weather_thunderstorm(ctx):
     return f"{len(flashes)} frames with a flash, first at frame {flashes[0]}; rendered in {info['seconds']} s"
 
 
-@line("weather.mist", "Weather: fog and sea mist", "0.2.227",
+@line("weather.mist", "Weather: fog and sea mist", "0.2.228",
       what="The preset Fog / sea mist on the open sea: mist lies on the water (thick low down, thin higher up) and the "
            "far sea is gone. Rendered small (processor, draft)")
 def weather_mist(ctx):
@@ -2999,7 +2999,7 @@ def weather_mist(ctx):
     return f"mist {_wx(scene, 'mist'):.0f} per km at the water; rendered in {info['seconds']} s"
 
 
-@line("weather.sunrise", "Weather: sunrise", "0.2.227",
+@line("weather.sunrise", "Weather: sunrise", "0.2.228",
       what="The preset Sunrise on the quay: the sun just up (0–8°) in the morning, golden low light, long shadows; "
            "no floodlights. Rendered small (processor, draft)")
 def weather_sunrise(ctx):
@@ -3010,7 +3010,7 @@ def weather_sunrise(ctx):
     return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
 
 
-@line("weather.sunset", "Weather: sunset", "0.2.227",
+@line("weather.sunset", "Weather: sunset", "0.2.228",
       what="The preset Sunset on the quay: the sun low (0–8°) in the evening, orange light on the crane. Rendered small "
            "(processor, draft)")
 def weather_sunset(ctx):
@@ -3020,7 +3020,7 @@ def weather_sunset(ctx):
     return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
 
 
-@line("weather.hail", "Weather: hail and sleet", "0.2.227",
+@line("weather.hail", "Weather: hail and sleet", "0.2.228",
       what="The preset Hail / sleet on the quay: hail and sleet fall, stones bounce on the quay and the crane's top "
            "faces, everything wet. Rendered small (processor, draft)")
 def weather_hail(ctx):
@@ -3030,7 +3030,7 @@ def weather_hail(ctx):
     return f"rendered in {info['seconds']} s"
 
 
-@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.227",
+@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.228",
       what="The preset Hot and calm on the open sea: bright haze, heat shimmer over the distance (the compositor moves "
            "the far picture a few pixels). Rendered small (processor, draft)")
 def weather_heat(ctx):
@@ -5288,7 +5288,9 @@ def app_keys(ctx):
 
         lay = Layout()
         context_menu._draw(type("Menu", (), {"layout": lay})(), bpy.context)
-        _check(tuple(lay.texts) == context_menu.ON_EMPTY, f"the right-click menu on empty space shows {lay.texts}")
+        from ..blender import ops_copy                 # task 0293: Paste only once something was copied
+        want = tuple(t for t in context_menu.ON_EMPTY if t != "Paste" or ops_copy.can_paste(scene))
+        _check(tuple(lay.texts) == want, f"the right-click menu on empty space shows {lay.texts}")
         workspaces.switch(scene, "Client view")
         sw = lock.SWALLOWED[0]
         bpy.ops.fresing.blender_key(key="Shift+D")
@@ -5414,6 +5416,62 @@ def place_move(ctx):
     _update()
     _check((joints.axis_world(j)[0] - o0).length < 1e-5, "Back to the CAD place did not put the joint back")
     return "crane moved 1 m + 90°: same motion; boom +100 mm: joint along, kept by Build; back again"
+
+
+@line("place.copy", "Copy and paste: the crane copied with its joints and cylinder, both move by themselves",
+      "0.2.227",
+      what="On the test crane with the crane lesson's set-up: Copy + Paste makes 'TEST.CRANE (2)' beside it with joints "
+           "'Boom (2)', 'Trolley (2)' and its own cylinder, shapes shared; the copy's boom moves without the original's; "
+           "Build plays; the boom alone copied is a model of its own whose cylinder is left out (the window says so); "
+           "Remove of the copy leaves the original whole")
+def place_copy(ctx):
+    import math
+    import time
+
+    import bpy
+
+    from ..blender import animation, build, copy, joints, lesson, remove
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    lesson.run(scene, "crane")
+    animation.clear_keys(scene)
+    s = scene.fresing
+
+    def ob(name, root=None):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == name
+                    and (root is None or build.model_root_of(o) is root))
+
+    root = ob("TEST.CRANE")
+    for o in scene.objects:
+        o.select_set(False)
+    root.select_set(True)
+    bpy.context.view_layer.objects.active = root
+    meshes = len(bpy.data.meshes)
+    _check(bpy.ops.fresing.copy() == {"FINISHED"}, "Copy failed")
+    t0 = time.time()
+    _check(bpy.ops.fresing.paste() == {"FINISHED"}, "Paste failed")
+    ctx.metric("paste", time.time() - t0, "s")
+    names = [j.name for j in s.joints]
+    _check(names == ["Boom", "Trolley", "Boom (2)", "Trolley (2)"] and len(s.cylinders) == 2,
+           f"after Paste the joints are {names}, {len(s.cylinders)} cylinders")
+    _check(len(bpy.data.meshes) == meshes, f"the copy made {len(bpy.data.meshes) - meshes} new shapes (should share)")
+    r2 = ob("TEST.CRANE (2)")
+    b1, b2 = ob("BOOM", root), ob("BOOM", r2)
+    w1 = b1.matrix_world.copy()
+    joints.set_value(joints.find(scene, "Boom (2)"), math.radians(30.0))
+    _update()
+    _check(all(abs(w1[r][c] - b1.matrix_world[r][c]) < 1e-6 for r in range(4) for c in range(4)),
+           "moving the copy's boom moved the original's")
+    _check(abs(b2.matrix_world.to_euler().y + math.radians(30.0)) < 1e-4, "the copy's boom did not turn 30°")
+    _check(animation.bake(scene, s.animations[0])["frames"] > 1, "Build with the two cranes failed")
+    animation.clear_keys(scene)
+    p = copy.paste(scene, [ob("BOOM.ASM", root)])
+    _check(p["names"] == ["BOOM.ASM (2)"] and p["joints"] == 1 and p["cylinders"] == 0
+           and any("Luffing cylinder" in x for x in p["left"]), f"the boom's copy: {p['names']}, {p['left']}")
+    remove.remove(scene, [r2, ob("BOOM.ASM (2)")])
+    _check([j.name for j in s.joints] == ["Boom", "Trolley"] and len(s.cylinders) == 1
+           and all(joints.is_valid(j) for j in s.joints), "removing the copies broke the original")
+    _check(b1.data is not None and len(b1.data.vertices) > 0, "removing the copy took the original's shape")
+    return "crane copied with 2 joints + cylinder, moves by itself, builds; boom copy frozen; copies removed cleanly"
 
 
 @line("place.remove", "Remove: a subassembly and a model with what lives on them; nothing left pointing at nothing",

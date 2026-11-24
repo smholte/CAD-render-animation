@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.227")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.228")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -3897,7 +3897,7 @@ STORM_SHOT = "Storm coming"
 STORM_AT = 3.2 / 5.0
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.227")
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.228")
 def build_weather(b: Build):
     """The weather lesson's steps first (``lessons/weather.py``, task 0299: Weather & time on, a preset, Change to
     Thunderstorm at the playhead), then the tour's own scenes."""
@@ -4684,28 +4684,28 @@ stop("wx_thunder", LOOK, "weather", "Thunderstorm in a video",
      "Change to Thunderstorm at the playhead (the weather lesson's last step): a clear day over the sea turns into a "
      "thunderstorm over four seconds – dark clouds, a downpour – and a lightning flash lights the whole quay while a "
      "bolt strikes in the distance. Go shows the moment of the flash.",
-     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.227",
+     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.228",
      animation="Weather", at=STORM_AT, play=True, check=_check_storm, auto="clip")
 stop("wx_sunrise", LOOK, "weather", "Sunrise",
      "The quay just after sunrise: a low golden sun from the east, long shadows across the quay, a few clouds lit "
      "from below, dew on the crane.", where="5 Scene & Render > Weather & time > Presets (Sunrise)",
-     since="0.2.227", check=_check_preset("SUNRISE", _sun_low(True)))
+     since="0.2.228", check=_check_preset("SUNRISE", _sun_low(True)))
 stop("wx_sunset", LOOK, "weather", "Sunset",
      "The quay at sunset: the sun low in the west, orange light on the crane's boom, long shadows.",
-     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.227",
+     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.228",
      check=_check_preset("SUNSET", _sun_low(False)))
 stop("wx_mist", LOOK, "weather", "Fog / sea mist",
      "Thick mist lying on the quay and the water: the far quay and the sea are gone, the crane's far end is paler "
      "than its foot. In a video banks of it drift by and the crane fades in and out.",
-     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.227",
+     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.228",
      check=_check_preset("SEA_MIST", _mist_on))
 stop("wx_hail", LOOK, "weather", "Hail / sleet",
      "A cold shower: white hail stones and sleet falling, small stones bouncing on the quay and the crane's top "
      "faces, grey light, everything wet, a little slush.", where="5 Scene & Render > Weather & time > Presets "
-     "(Hail / sleet); Hail", since="0.2.227", check=_check_preset("HAIL", _hail_on))
+     "(Hail / sleet); Hail", since="0.2.228", check=_check_preset("HAIL", _hail_on))
 stop("wx_heat", LOOK, "weather", "Hot and calm",
      "A hot afternoon without wind: bright sun, a pale warm haze over the far sea; in a render the horizon wavers "
-     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.227",
+     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.228",
      check=_check_preset("HOT_CALM", _heat_on))
 stop("props", LOOK, "props", "Props for scale and people",
      "In a warehouse, beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
@@ -5045,6 +5045,71 @@ stop("remove", MOTION, "place", "Remove: the trolley is gone",
      "joint went with it; the boom's joint and the luffing cylinder still work. 2 Structure shows 17 parts.",
      where=places.where("FRESING_PT_structure") + " > Place > Remove…", since="0.2.219", shot="Place: crane moved and "
      "turned", select=("TEST.CRANE",), check=_check_remove)
+
+# ---------------------------------------------------------------------------
+# task 0293: Copy and paste with joints and mechanisms
+# ---------------------------------------------------------------------------
+
+@tour_set("copy", "Copy and paste", "test_crane_a.step", added="0.2.227", changed="0.2.227")
+def build_copy(b: Build):
+    """The crane with the crane lesson's joints, cylinder and animation, copied with Copy / Paste: a second crane
+    beside it with its own joints "Boom (2)" and "Trolley (2)" and its own cylinder; the copy's boom is up 25°, the
+    original's at its CAD place, so the two show they move by themselves."""
+    import math
+
+    from . import animation, copy, joints, lesson, ops_place
+    sc = b.scene
+    lesson.run(sc, "crane")
+    animation.clear_keys(sc)
+    _studio(b)
+    p = copy.paste(sc, [_ob(sc, "TEST.CRANE")])
+    ops_place.set_lock(_ob(sc, "TEST.CRANE (2)"), False)            # as Paste leaves it: ready for Place
+    joints.set_value(joints.find(sc, "Boom (2)"), math.radians(25.0))
+    copy.LAST.clear()
+    copy.LAST.update(p)
+    _update()
+    _camera(b, "ISO", "Tour view")
+    _shot(b, "@copy")
+
+
+def _copy_setup(scene):
+    from . import panels
+    try:
+        panels.open_to("FRESING_PT_place")
+    except Exception:  # noqa: BLE001 - the stop still opens
+        pass
+
+
+def _check_copy(scene):
+    import math
+
+    from . import build, copy, cylinders, joints
+    s = scene.fresing
+    roots = {r.get(build.PROP_NAME): r for r in build.model_roots(scene)}
+    _check(set(roots) == {"TEST.CRANE", "TEST.CRANE (2)"}, f"the models are {sorted(roots)}, not the crane and its copy")
+    names = [j.name for j in s.joints]
+    _check(names == ["Boom", "Trolley", "Boom (2)", "Trolley (2)"], f"the joints are {names}")
+    _check(all(joints.is_valid(j) for j in s.joints) and len(s.cylinders) == 2
+           and all(cylinders.is_valid(c) for c in s.cylinders), "a joint or cylinder of the copy is broken")
+    a, c = roots["TEST.CRANE"], roots["TEST.CRANE (2)"]
+    boom = [o for o in build.iter_parts(scene) if o.get(build.PROP_NAME) == "BOOM"]
+    _check(len(boom) == 2 and boom[0].data is boom[1].data, "the copy's boom does not share its shape")
+    up = math.degrees(joints.get_value(joints.find(scene, "Boom (2)")))
+    _check(abs(up - 25.0) < 0.05 and abs(joints.get_value(joints.find(scene, "Boom"))) < 1e-6,
+           f"the copy's boom is at {up:.1f}°, not 25° (the original's at 0°)")
+    dx = c.matrix_world.translation.x - a.matrix_world.translation.x
+    _check(dx > 1.0, f"the copy stands {dx * 1000:.0f} mm from the crane, not beside it")
+    _check(c.get(copy.GROUP) and c.get(copy.GROUP) == a.get(copy.GROUP), "the copy is not in the crane's copy group")
+    return f"2 cranes {dx * 1000:.0f} mm apart, joints {names}, copy's boom {up:.0f}°"
+
+
+stop("copy", MOTION, "copy", "Copy: crane and its own joints",
+     "Two cranes side by side: the right one is a copy made with Copy and Paste (right-click > Copy, then Paste or "
+     "Ctrl+V). It has its own joints 'Boom (2)' and 'Trolley (2)' and its own cylinder 'Luffing cylinder (2)' (4 "
+     "Motion): its boom is up 25°, the original's is down – they move by themselves. 2 Structure shows two models, "
+     "'TEST.CRANE' and 'TEST.CRANE (2)'. Its parts share their shapes with the original.",
+     where=places.where("FRESING_PT_place") + " > Copy / Paste", since="0.2.227", select=("TEST.CRANE (2)",),
+     check=_check_copy, setup=_copy_setup)
 
 stop("operator", MACH, "operator", "A person changes the tool",
      "The test mill stands in its own enclosure. Before the tool change the operator walks up, opens the two sliding "
@@ -5827,7 +5892,7 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "coming'. Learn… is a window of its own: click in the main window and it stays open, drag it onto another "
      "screen, close it with Close or its X.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.227", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.228", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 

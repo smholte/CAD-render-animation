@@ -36,9 +36,14 @@
    "changed": "0.2.203",
    "fp": "54bbe571bac4c965"
   },
+  "copy": {
+   "added": "0.2.227",
+   "changed": "0.2.227",
+   "fp": "3e57aeff72e84eec"
+  },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.227",
+   "changed": "0.2.228",
    "fp": "c26cfceb4cac7499"
   },
   "crane_setup": {
@@ -253,7 +258,7 @@
   },
   "weather": {
    "added": "0.2.88",
-   "changed": "0.2.227",
+   "changed": "0.2.228",
    "fp": "e86fe33ff8324fbd"
   }
  }

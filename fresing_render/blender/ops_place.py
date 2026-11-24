@@ -421,7 +421,7 @@ class FRESING_OT_place_window(bpy.types.Operator):
         return getattr(context.scene, "fresing", None) is not None and not lock.ON[0]
 
     def invoke(self, context, event):
-        return form_window.open(self, context, width=360, height=470, title="Move / turn", confirm=None)
+        return form_window.open(self, context, width=360, height=560, title="Move / turn", confirm=None)
 
     def execute(self, context):
         return {"FINISHED"}

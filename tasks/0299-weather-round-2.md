@@ -79,7 +79,7 @@ Thunderstorm); `tour.build_weather` runs it first.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 24 Nov 2026 – version 0.2.227.
+**Chat / date:** Claude Code on the web, 24 Nov 2026 – version 0.2.228.
 
 **What changed:**
 - Six new presets (Thunderstorm, Fog / sea mist, Sunrise, Sunset, Hail / sleet, Hot and calm); old presets keep their
