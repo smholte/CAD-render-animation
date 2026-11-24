@@ -202,6 +202,10 @@ def sync(scene) -> float:
 
 # ---- the nodes -----------------------------------------------------------------------------------------------------
 
+#: the streak colours the looks had before task 0318 (a look that still has one gets the shared rust instead)
+DEFAULT_RUSTS = {(0.34, 0.15, 0.06), (0.36, 0.17, 0.07)}
+
+
 def _linear(srgb) -> tuple:
     from ..core import ral
     return (*(ral.srgb_to_linear(c) for c in srgb), 1.0)
@@ -242,6 +246,15 @@ def _lines(b, up, k: float, along: float, lo: float, hi: float, x: float, y: flo
     return b.map(n, lo, hi, 0.0, 1.0, x=x + 750, y=y)
 
 
+def _rust(b, d: dict, x: float, y: float):
+    """The streaks' rust: the app's one rust look (``blender/rust.py``, task 0318) – the same as a group's Rust slider
+    and the welds'. A look whose ``rust`` colour was set to something else keeps that colour."""
+    from . import rust as rs
+    if tuple(d.get("rust", ())) not in DEFAULT_RUSTS:
+        return _linear(d["rust"])
+    return rs.color(b, 600.0, x=x, y=y)
+
+
 def _height(b, y: float):
     """Height above the waterline (m, world)."""
     geo = b.node("ShaderNodeNewGeometry", -3300, y)
@@ -273,7 +286,7 @@ def _growth(b, bsdf, d: dict, coat: float, color, metallic, rough, normal):
                                   _upright(b, x0 + 600, y - 1300), x=x0 + 1350, y=y - 900),
                     float(d["rust_amount"]), x=x0 + 1500, y=y - 900, clamp=True), NODE_STREAKS, "Rust streaks")
     color = b.mix("RGBA", slime, color, _linear(d["slime"]), x=x0 + 1700, y=y - 400)
-    color = b.mix("RGBA", rust, color, _linear(d["rust"]), x=x0 + 1850, y=y - 600)
+    color = b.mix("RGBA", rust, color, _rust(b, d, x0 + 1600, y - 1300), x=x0 + 1850, y=y - 600)
     rough = b.mix("FLOAT", slime, rough, float(d["slime_roughness"]), x=x0 + 1700, y=y - 700)
 
     # the growth: a patchy upper edge, two colours, pale barnacles, a rough bumpy relief
@@ -327,7 +340,7 @@ def _streaks(b, d: dict, color, metallic, rough, normal):
                            x=x0 + 1050, y=y - 400), float(d["rust_amount"]), x=x0 + 1200, y=y - 400, clamp=True)
     both = _named(m("MAXIMUM", dirt, rust, x=x0 + 1350, y=y - 200), NODE_STREAKS, "Streaks")
     color = b.mix("RGBA", dirt, color, _linear(d["dirt"]), x=x0 + 1500, y=y)
-    color = b.mix("RGBA", rust, color, _linear(d["rust"]), x=x0 + 1650, y=y - 200)
+    color = b.mix("RGBA", rust, color, _rust(b, d, x0 + 1400, y - 700), x=x0 + 1650, y=y - 200)
     rough = m("ADD", rough, m("MULTIPLY", both, float(d["roughness"]) / max(float(d["dirt_amount"]), 1e-6),
                               x=x0 + 1500, y=y - 500), x=x0 + 1650, y=y - 500, clamp=True)
     return color, metallic, rough, normal

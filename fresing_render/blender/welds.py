@@ -444,6 +444,7 @@ def resolved(item) -> dict:
     rust = max(item.rust, min(1.0, group_rust))
     r = core.rust_of(metal, item.finish, rust, wear, zinc, item.zinc_sprayed, item.pickled)
     return {"metal": metal, "process": process, "finish": item.finish, "rust": r, "wear": wear, "zinc": zinc,
+            "group_rust": group_rust,
             "paint_src": mat if item.finish == "PAINTED" else None, "kinds": (ka, kb)}
 
 
@@ -549,6 +550,51 @@ def look_of(item, seam_kind: str = "FILLET") -> core.Look:
                      length=item.length, pitch=item.pitch, heat=heat)
 
 
+def _materials(item):
+    """The bead's and the heat zone's materials for the weld's settings and its parts' looks (wear, group Rust)."""
+    from . import weld_looks
+    r = resolved(item)
+    item["fr_rust_seen"] = round(float(r.get("group_rust", 0.0)), 4)
+    if item.finish == "PAINTED":
+        bead_mat = weld_looks.painted(r["paint_src"], r["process"], r["rust"])
+    else:
+        bead_mat = weld_looks.bead_material(weld_looks.bead_look(r["metal"], r["process"], item.finish,
+                                                                 item.pickled, item.heat_tint, r["rust"]))
+    heat_mat = weld_looks.heat_material(weld_looks.heat_look(
+        r["metal"], r["process"], item.finish, item.pickled, item.heat_tint, item.spatter, r["rust"],
+        core.heat_width(r["metal"], item.size), r["wear"]))
+    return bead_mat, heat_mat
+
+
+def restyle(item) -> bool:
+    """Task 0318: only the materials again (the group's Rust slider moved): the bead's shape stays."""
+    if item.lost:
+        return False
+    bead_mat, heat_mat = _materials(item)
+    done = False
+    for heat, mat in ((False, bead_mat), (True, heat_mat)):
+        ob = _object(item, heat)
+        if ob is not None and ob.data is not None:
+            if ob.data.materials:
+                ob.data.materials[0] = mat
+            else:
+                ob.data.materials.append(mat)
+            done = True
+    return done
+
+
+def follow_rust(scene) -> int:
+    """Task 0318: welds whose part's group Rust changed since their materials were made get them again."""
+    n = 0
+    for it in items(scene):
+        if it.lost:
+            continue
+        want = round(float(resolved(it).get("group_rust", 0.0)), 4)
+        if abs(float(it.get("fr_rust_seen", 0.0)) - want) > 1e-4 and restyle(it):
+            n += 1
+    return n
+
+
 def rebuild(item, refind_seams: bool = False) -> bool:
     """Make the weld's bead and heat zone again from its seams and settings. False when it cannot (lost)."""
     from . import weld_looks
@@ -600,15 +646,7 @@ def rebuild(item, refind_seams: bool = False) -> bool:
                     idx.append(rm[i])
                 ff.append(idx)
                 uu.extend(corners)
-        r = resolved(item)
-        if item.finish == "PAINTED":
-            bead_mat = weld_looks.painted(r["paint_src"], r["process"], r["rust"])
-        else:
-            bead_mat = weld_looks.bead_material(weld_looks.bead_look(r["metal"], r["process"], item.finish,
-                                                                     item.pickled, item.heat_tint, r["rust"]))
-        heat_mat = weld_looks.heat_material(weld_looks.heat_look(
-            r["metal"], r["process"], item.finish, item.pickled, item.heat_tint, item.spatter, r["rust"],
-            core.heat_width(r["metal"], item.size), r["wear"]))
+        bead_mat, heat_mat = _materials(item)
         for heat, (vv, ff, uu) in ((False, (verts_b, faces_b, uv_b)), (True, (verts_h, faces_h, uv_h))):
             ob = _object(item, heat)
             if not ff:
@@ -970,6 +1008,7 @@ def _depsgraph(scene, depsgraph):
     _LAST["t"] = now
     try:
         sync_paint(scene)
+        follow_rust(scene)                       # task 0318: the group's Rust slider
     except Exception:  # noqa: BLE001 - never break an update
         pass
 

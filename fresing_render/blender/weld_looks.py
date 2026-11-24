@@ -41,7 +41,7 @@ UV_END = "fr_weld_end"
 PREFIX = "FR weld "
 TAG = "fr_weld_look"           # on a weld material: the JSON of its look (the same look = the same material)
 SRC = "fr_weld_src"            # on a painted copy: the source material's name and what it looked like
-LOOK_VERSION = 2
+LOOK_VERSION = 3                # 3: task 0318 – the app's one rust look (blender/rust.py)
 
 CHEVRON = {"MAG": 0.8, "TIG": 0.55, "MIG": 1.4, "STICK": 0.9}
 
@@ -99,10 +99,10 @@ def _rust_mask(b: _Nodes, amount: float, scale: float = 260.0, y: float = -900.0
 
 
 def _rust_color(b: _Nodes, y: float = -1050.0):
-    """Rust is not one orange: dark brown pits, red-brown and a little orange where it is loose."""
-    n = b.noise(None, 900.0, 4.0, x=-1400, y=y)
-    return _ramp(b, n, [(0.0, (0.06, 0.03, 0.02)), (0.45, (0.17, 0.07, 0.03)), (0.75, (0.30, 0.11, 0.035)),
-                        (1.0, (0.42, 0.18, 0.06))], x=-1100, y=y)
+    """Rust is not one orange: the app's one rust look (``blender/rust.py``, task 0318), the same as the group's Rust
+    slider and the marine streaks."""
+    from . import rust as rs
+    return rs.color(b, 900.0, x=-1100, y=y)
 
 
 def _ripple_height(b: _Nodes, u, v, pitch: float, chevron: float):

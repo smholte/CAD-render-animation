@@ -401,3 +401,64 @@ def items_by_category():
     for cat in CATEGORIES:
         out.append((cat, [(k, v["label"]) for k, v in MATERIALS.items() if v["category"] == cat]))
     return out
+
+
+# ---- task 0318: where a group's Rust slider is logical ------------------------------------------------------------
+#: bare carbon steel and cast iron: they rust all over
+RUST_BARE = {"steel_machined", "steel_raw", "steel_ground", "steel_turned", "cast_iron", "black_oxide", "shot_blasted"}
+#: zinc on steel: red rust only where the zinc is worn, white rust on the zinc
+RUST_ZINC = {"galvanized", "zinc_plated", "zinc_yellow", "zinc_flake", "spangle", "wire_rope", "wire_rope_galv"}
+#: a hard plating on steel: red rust only where it is worn
+RUST_PLATED = {"chrome", "chrome_rod", "nickel_plated"}
+#: painted, but not on steel
+PAINT_NOT_STEEL = {"paint_blade_eroded"}
+#: a finish's metal base -> its rust kind
+RUST_OF_BASE = {"STEEL": "BARE", "CAST_IRON": "BARE", "GALVANIZED": "ZINC"}
+#: why a material never gets red rust (shown in the group instead of the slider)
+NO_RUST_WHY = {"STAINLESS": "Stainless steel does not rust", "ALUMINIUM": "Aluminium does not rust (it only greys)",
+               "BRASS": "Brass and bronze turn brown or green, not red", "TITANIUM": "Titanium does not rust",
+               "COPPER": "Copper turns brown or green, not red", "NONMETAL": "Only steel and iron rust",
+               "PLASTIC": "Plastic, rubber and glass do not rust", "FILE": "Uses the model's own look"}
+
+
+def rust_kind(material_id: str, base: str = "", kind: str = "") -> str:
+    """How a group of this material rusts: "BARE", "PAINTED", "ZINC", "PLATED" or "" (never: stainless, aluminium,
+    brass, plastics …). ``base`` / ``kind``: a finish's Metal / Kind setting (a steel knurl rusts, a stainless one
+    does not; sand-cast iron rusts, sand-cast aluminium does not)."""
+    spec = MATERIALS.get(material_id)
+    if spec is None:
+        return ""
+    if base:
+        return RUST_OF_BASE.get(base, "")
+    if material_id == "as_cast":
+        return "BARE" if kind == "CAST_FE" else ""
+    if material_id in RUST_BARE:
+        return "BARE"
+    if material_id in RUST_ZINC:
+        return "ZINC"
+    if material_id in RUST_PLATED:
+        return "PLATED"
+    if spec.get("category") == "Paint" and material_id not in PAINT_NOT_STEEL:
+        return "PAINTED"
+    return ""
+
+
+def no_rust_why(material_id: str, base: str = "", kind: str = "") -> str:
+    """Why a material has no Rust slider ("" when it has one)."""
+    if rust_kind(material_id, base, kind):
+        return ""
+    if base in NO_RUST_WHY:
+        return NO_RUST_WHY[base]
+    if material_id == "from_file":
+        return NO_RUST_WHY["FILE"]
+    if material_id.startswith("stainless") or material_id == "hose_braided":
+        return NO_RUST_WHY["STAINLESS"]
+    if material_id.startswith("aluminium") or (material_id == "as_cast" and kind != "CAST_FE"):
+        return NO_RUST_WHY["ALUMINIUM"]
+    if material_id in ("brass", "bronze"):
+        return NO_RUST_WHY["BRASS"]
+    if material_id == "copper":
+        return NO_RUST_WHY["COPPER"]
+    if get(material_id).get("category") in ("Plastic & rubber", "Glass"):
+        return NO_RUST_WHY["PLASTIC"]
+    return NO_RUST_WHY["NONMETAL"]

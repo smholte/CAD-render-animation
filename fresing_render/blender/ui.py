@@ -728,6 +728,18 @@ def draw_finish(col, g) -> None:
             col.prop(g, "fin_amount", text=f["amount"][0], slider=True)
 
 
+def draw_rust(col, g) -> None:
+    """Task 0318: the group's Rust slider where it is logical; otherwise the same row says why not (the panel stays
+    still when the material changes)."""
+    from . import materials
+    if materials.group_rust_kind(g):
+        col.prop(g, "rust", text="Rust", slider=True)
+    else:
+        row = col.row()
+        row.active = False
+        row.label(text=f"Rust: none – {materials.group_no_rust_why(g).lower()}", icon="INFO")
+
+
 class FRESING_PT_looks(_Panel, bpy.types.Panel):
     bl_label = "3  Looks"
     bl_order = 2
@@ -781,6 +793,7 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
                 row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
             draw_finish(col, g)
             col.prop(g, "wear", text="Wear", slider=True)
+            draw_rust(col, g)
             row = box.row(align=True)
             row.operator("fresing.group_select", text="Select its parts", icon="RESTRICT_SELECT_OFF")
             row.operator("fresing.show_only_group", text="Show only these", icon="HIDE_OFF").group = g.name

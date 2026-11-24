@@ -830,11 +830,11 @@ def perlage(b: F, s: dict):
     b.put(wn.inputs["Vector"], bid)
     rnd = wn.outputs["Value"]
     # the scratches: rings round the spot's centre, each spot's own (its random number shifts the noise)
-    rings = b.noise(w=b.math("ADD", b.math("MULTIPLY", rr, 14000.0), b.math("MULTIPLY", rnd, 97.0)), scale=1.0,
+    rings = b.noise(w=b.math("ADD", b.math("MULTIPLY", rr, 7000.0), b.math("MULTIPLY", rnd, 97.0)), scale=1.0,
                     detail=3.0)
     vis = b.lod(S)
     edge = b.smooth(rr, R * 0.9, R)                                # the spot's rim, just inside it
-    h = b.math("MULTIPLY", b.math("ADD", b.math("MULTIPLY", rings, 0.6), b.math("MULTIPLY", edge, -0.5)), vis)
+    h = b.math("MULTIPLY", b.math("ADD", b.math("MULTIPLY", rings, 0.6), b.math("MULTIPLY", edge, -0.25)), vis)
     t_obj = b.vmath("ADD", b.vmath("SCALE", du, scale=b.math("MULTIPLY", bv, -1.0)), b.vmath("SCALE", dv, scale=bu))
     tang = b.world_tangent(t_obj)                                  # round the spot: its highlight runs out from it
     shade = b.math("MULTIPLY", b.math("SUBTRACT", rnd, 0.5), b.math("MULTIPLY", vis, 0.18))

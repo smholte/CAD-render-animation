@@ -1261,7 +1261,19 @@ FINISH_BOARD = {
     "HEADSET BAND": ("soft_touch", "RAL 9005"), "HEADSET YOKE": ("bead_blasted", ""),
     "HEADSET CUP": ("crosshatch", "RAL 5010"), "HEADSET CUSHION": ("leather", "RAL 9005"),
     "HEADSET DISC": ("fabric", "RAL 9005"), "HEADSET CAP": ("spun", ""), "HEADSET KNOB": ("knurl_diamond", ""),
+    # task 0318: carbon fibre on curved parts and folds, perlage, the Rust slider on six metals
+    "CUP CARBON": ("carbon_fibre", ""), "TUBE CARBON": ("carbon_fibre", ""), "PANEL CARBON": ("carbon_fibre", ""),
+    "HOOD CARBON": ("carbon_fibre", ""), "PLATE CARBON": ("carbon_fibre", ""), "DISC PERLAGE": ("perlage", ""),
+    "PLATE RUST BARE STEEL": ("steel_raw", ""), "BLOCK RUST CAST IRON": ("cast_iron", ""),
+    "BLOCK RUST PAINTED": ("paint_satin", "RAL 5010"), "BLOCK RUST GALVANIZED": ("galvanized", ""),
+    "PLATE RUST STAINLESS": ("stainless_brushed", ""), "PLATE RUST ALUMINIUM": ("aluminium_machined", ""),
 }
+#: task 0318: the rust row's Wear and Rust (stainless and aluminium have no Rust slider: the value stays unused)
+RUST_BOARD = {"PLATE RUST BARE STEEL": (0.0, 0.7), "BLOCK RUST CAST IRON": (0.3, 0.45), "BLOCK RUST PAINTED": (0.5, 0.8),
+              "BLOCK RUST GALVANIZED": (0.4, 0.6), "PLATE RUST STAINLESS": (0.0, 0.8),
+              "PLATE RUST ALUMINIUM": (0.0, 0.8)}
+#: the carbon panel and hood show the plain weave, matte; the rest the 2x2 twill, glossy
+CARBON_PLAIN = ("PANEL CARBON",)
 
 
 def finishes_demo(scene) -> dict:
@@ -1289,6 +1301,10 @@ def finishes_demo(scene) -> dict:
         g.material = mat_id
         if colour:
             g.color = colour
+        if name in RUST_BOARD:
+            g.wear, g.rust = RUST_BOARD[name]
+        if name in CARBON_PLAIN:
+            g.fin_kind, g.fin_amount = "PLAIN", 0.0
     logic.refresh_group_materials(scene)
     from . import cameras
     cameras.update_pixel_angle(scene)

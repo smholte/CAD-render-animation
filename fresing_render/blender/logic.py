@@ -185,7 +185,7 @@ def upgrade_looks(scene) -> int:
     for g in s.groups:
         mat = bpy.data.materials.get(materials.material_name(g.name))
         if mat is not None and not materials.is_current(mat, g.material, g.color, g.wear,
-                                                                    materials.group_finish(g)):
+                                                                    materials.group_finish(g), g.rust):
             old += 1
     if old:
         refresh_group_materials(scene)

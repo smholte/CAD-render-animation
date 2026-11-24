@@ -433,6 +433,13 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
                         description="How used the parts of this group look: 0 = new (clean, for marketing), "
                                     "1 = used. Sharp edges turn lighter or bare metal and corners get a little "
                                     "dirt. Shows in Cycles renders; Fast preview (EEVEE) shows only the dirt")
+    # task 0318: rust, only where it is logical (core.materials_lib.rust_kind); stainless, aluminium … show why not
+    rust: FloatProperty(name="Rust", default=0.0, min=0.0, max=1.0, subtype="FACTOR", update=_group_look_changed,
+                        description="How rusty the parts of this group are: 0 = none, a little = a thin brown film "
+                                    "(flash rust), 1 = heavy, flaking rust. Bare steel and cast iron rust in patches "
+                                    "that start in corners; painted steel only where Wear took the paint off, with "
+                                    "short streaks running down; galvanized steel where the zinc is worn (and white "
+                                    "rust on the zinc). Welds on these parts follow it")
     # task 0274: the settings of a finish (knurl, spun, cross-hatch, tread plate, blasted …); a finish shows only
     # the ones it uses, with its own name for Size (Pitch, Feed, Hole size, Grain size …)
     fin_size: FloatProperty(name="Size", default=0.001, min=0.00005, max=0.2, precision=2, step=1,

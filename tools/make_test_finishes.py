@@ -169,8 +169,8 @@ BOARD = [
     # task 0318
     ("CUP CARBON", cup), ("TUBE CARBON", tube), ("PANEL CARBON", panel), ("HOOD CARBON", hood),
     ("PLATE CARBON", plate), ("DISC PERLAGE", lambda: g.cyl(40, 3.0)),
-    ("PLATE RUST BARE STEEL", plate), ("BLOCK RUST CAST IRON", block), ("PLATE RUST PAINTED", plate),
-    ("PLATE RUST GALVANIZED", plate), ("PLATE RUST STAINLESS", plate), ("PLATE RUST ALUMINIUM", plate),
+    ("PLATE RUST BARE STEEL", plate), ("BLOCK RUST CAST IRON", block), ("BLOCK RUST PAINTED", block),
+    ("BLOCK RUST GALVANIZED", block), ("PLATE RUST STAINLESS", plate), ("PLATE RUST ALUMINIUM", plate),
 ]
 PITCH = 140.0
 COLOURS = {"KNOB": (0.47, 0.47, 0.47), "CAP": (0.78, 0.78, 0.78), "CUP": (0.16, 0.27, 0.55),
