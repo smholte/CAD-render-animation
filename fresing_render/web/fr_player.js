@@ -10,6 +10,9 @@
 //                                    scrolls sideways, "All views" at its end when they do not fit); a phone held
 //                                    upright: one pill ‹ name › – the arrows step, the name opens the list of all
 //                                    views from the bottom (closes on a pick, a tap outside, Esc or Back). Keys 1 … 9
+//   lead motions (task 0310)         one Motions button above the saved views: a panel (wide: above the stack between
+//                                    the tool columns, the model free to turn; a phone: a sheet from the bottom) with a
+//                                    row per lead motion – name, slider between its end labels, ▶ – and Back to start
 //   view tools                       Settings (M), Fullscreen (F), Reset view (R), Help and keys (?), Screenshot (S),
 //                                    Copy link to this view (L), Clean look (H: hides every control; a faint button
 //                                    brings them back). When the column has no room (a phone: at most 5 upright) the
@@ -134,6 +137,40 @@
     '#fr-film-card div { position: absolute; left: 7.5%; right: 7.5%; transform: translateY(50%); line-height: 1.15;',
     '  overflow-wrap: anywhere; }',
     '#fr-film-card img { position: absolute; object-fit: contain; }',
+    // task 0310: the Motions button and its panel (one row per lead motion)
+    '#fr-motions { display: flex; }',
+    '#fr-bottom > #fr-motions { pointer-events: none; }',
+    '#fr-motions > * { pointer-events: auto; }',
+    '#fr-motions .fr-mbtn { min-height: 40px; }',
+    '#fr-motions .fr-mbtn[aria-expanded="true"] { background: #2F6A1B; border-color: #2F6A1B; }',
+    '#fr-motions .fr-count { font-weight: 400; color: #D5DBE0; font-size: 12px; font-variant-numeric: tabular-nums; }',
+    '#fr-mpanel { position: absolute; z-index: 4; display: none; flex-direction: column; box-sizing: border-box;',
+    '  left: calc(' + (12 + BTN + 10) + 'px + var(--sa-l)); bottom: calc(var(--fr-stack, 90px) + 6px);',
+    '  width: min(420px, calc(100% - 2 * (' + (12 + BTN + 10) + 'px + max(var(--sa-l), var(--sa-r)))));',
+    '  max-height: calc(100% - var(--fr-head, 50px) - var(--fr-stack, 90px) - 12px);',
+    '  background: rgba(20,28,34,.94); color: #F4F6F8; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.35);',
+    '  font: 13px ' + FONT + '; }',
+    'html.fr-narrow #fr-mpanel { position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; width: auto;',
+    '  max-height: min(55%, 520px); border-radius: 14px 14px 0 0; padding-bottom: var(--sa-b);',
+    '  background: #141C22; box-shadow: 0 -6px 24px rgba(0,0,0,.35);',
+    '  padding-left: var(--sa-l); padding-right: var(--sa-r); }',
+    '#fr-mpanel .fr-vhead { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 2px 14px;',
+    '  border-bottom: 1px solid rgba(255,255,255,.12); }',
+    '#fr-mpanel h2 { font-size: 14px; margin: 0; font-weight: 600; }',
+    '#fr-mpanel .fr-x { background: transparent; border: 0; width: 44px; height: 44px; padding: 0; }',
+    '#fr-mpanel .fr-mlist { overflow-y: auto; overscroll-behavior: contain; padding: 4px 0; }',
+    '#fr-mpanel .fr-mrow { padding: 4px 12px 2px 14px; }',
+    '#fr-mpanel .fr-mtop { display: flex; align-items: baseline; gap: 8px; min-width: 0; }',
+    '#fr-mpanel .fr-mname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }',
+    '#fr-mpanel .fr-mby { color: #F2A900; font-size: 12px; white-space: nowrap; margin-left: auto; }',
+    '#fr-mpanel .fr-mabout { color: #D5DBE0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+    '#fr-mpanel .fr-mline { display: flex; align-items: center; gap: 6px; }',
+    '#fr-mpanel .fr-mline .fr-btn { width: 40px; min-height: 40px; padding: 0; flex: none; background: transparent; border: 0; }',
+    '#fr-mpanel .fr-mline .fr-btn[aria-pressed="true"] { background: rgba(255,255,255,.18); }',
+    '#fr-mpanel input[type=range] { flex: 1 1 auto; min-width: 60px; accent-color: #F2A900; height: 32px; margin: 0; }',
+    '#fr-mpanel .fr-mend { flex: none; font-size: 12px; color: #D5DBE0; font-variant-numeric: tabular-nums; white-space: nowrap; }',
+    '#fr-mpanel .fr-mfoot { display: flex; justify-content: flex-end; padding: 4px 8px 8px; border-top: 1px solid rgba(255,255,255,.12); }',
+    '#fr-mpanel .fr-mfoot .fr-btn { min-height: 40px; }',
     // the list of all views: a sheet from the bottom (a phone), a panel above the stack (wide)
     '#fr-vback { position: fixed; inset: 0; z-index: 7; background: rgba(0,0,0,.28); display: none; }',
     '#fr-vlist { position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; display: none; flex-direction: column;',
@@ -210,7 +247,7 @@
     '#fr-show:hover, #fr-show:focus-visible { opacity: .9; }',
     'html.fr-clean header, html.fr-clean .note, html.fr-clean #quality, html.fr-clean #fr-tools,',
     'html.fr-clean #fr-bottom, html.fr-clean .fr-menu, html.fr-clean #fr-help, html.fr-clean #fr-warn,',
-    'html.fr-clean #fr-site, html.fr-clean #fr-vlist, html.fr-clean #fr-vback, html.fr-clean #fr-more,',
+    'html.fr-clean #fr-site, html.fr-clean #fr-vlist, html.fr-clean #fr-vback, html.fr-clean #fr-more, html.fr-clean #fr-mpanel,',
     'html.fr-clean #fr-first, html.fr-clean #fr-tip { display: none !important; }',
     'html.fr-clean #fr-show { display: inline-flex; }',
     '@media (max-width: 600px), (max-height: 480px) { #fr-help { left: 0; right: 0; top: auto; bottom: 0; transform: none;',
@@ -237,7 +274,8 @@
     right: '<path d="M9 5l7 7-7 7"/>',
     list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
-    film: '<rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3"/>'
+    film: '<rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3"/>',
+    sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'
   };
   function svg(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[name] + '</svg>'; }
   function el(tag, attrs, html) {
@@ -542,7 +580,7 @@
   // ---------------------------------------------------------------- Back closes what is open
   // (Android's back gesture, the browser's button): one history entry while a sheet, a menu or the list is open
   var pushed = false, ignorePop = 0, popping = false;
-  function anyOpen() { return !!(page.listOpen || page.helpOpen || page.menuOpen || page.moreOpen); }
+  function anyOpen() { return !!(page.listOpen || page.helpOpen || page.menuOpen || page.moreOpen || page.motionsOpen); }
   function opened() {
     if (pushed || popping) return;
     try { history.pushState({ frSheet: 1 }, ''); pushed = true; } catch (e) { pushed = false; }
@@ -558,7 +596,8 @@
     if (!pushed) return;
     pushed = false;
     popping = true;
-    try { toggleMenu(false); toggleHelp(false); toggleMore(false); openList(false); } finally { popping = false; }
+    try { toggleMenu(false); toggleHelp(false); toggleMore(false); openList(false); openMotions(false); }
+    finally { popping = false; }
   });
 
   // ---------------------------------------------------------------- the settings menu
@@ -566,7 +605,7 @@
   document.body.appendChild(menu);
   function toggleMenu(on) {
     page.menuOpen = on == null ? !page.menuOpen : !!on;
-    if (page.menuOpen) { toggleHelp(false); toggleMore(false); openList(false); fillMenu(); }
+    if (page.menuOpen) { toggleHelp(false); toggleMore(false); openList(false); openMotions(false); fillMenu(); }
     menu.style.display = page.menuOpen ? 'block' : 'none';
     menuBtn.setAttribute('aria-expanded', page.menuOpen ? 'true' : 'false');
     menuBtn.setAttribute('aria-pressed', page.menuOpen ? 'true' : 'false');
@@ -685,6 +724,8 @@
         ? 'Saved views: ‹ › the previous / next one, tap the name for the list of all ' + page.views.length
         : 'Saved views: one button each' + (page.views.length > 3 ? ', All views for the list' : '')) + '</td></tr>';
     }
+    if (mBtn) html += '<tr><td>' + svg('sliders') + '</td><td>Motions: one slider per function of the machine, ' +
+      '▶ plays it, Back to start puts them all at 0 %</td></tr>';
     html += '</table>';
     var rows = [];
     if (!TOUCH) {
@@ -708,7 +749,7 @@
   }
   function toggleHelp(on) {
     page.helpOpen = on == null ? !page.helpOpen : !!on;
-    if (page.helpOpen) { fillHelp(); toggleMenu(false); toggleMore(false); openList(false); }
+    if (page.helpOpen) { fillHelp(); toggleMenu(false); toggleMore(false); openList(false); openMotions(false); }
     help.style.display = page.helpOpen ? 'block' : 'none';
     if (page.helpOpen) opened(); else closed();
   }
@@ -718,6 +759,9 @@
   var bottom = el('div', { id: 'fr-bottom' });
   var viewsBox = el('div', { id: 'fr-views', role: 'group', 'aria-label': 'Saved views' });
   var play = el('div', { id: 'fr-playbar' });
+  var motionsBox = el('div', { id: 'fr-motions' });          // task 0310
+  motionsBox.style.display = 'none';
+  bottom.appendChild(motionsBox);
   bottom.appendChild(viewsBox);
   bottom.appendChild(play);
   document.body.appendChild(bottom);
@@ -736,6 +780,7 @@
     built = true;
     wrapViews();
     buildViews();
+    buildMotions();
     if (!page.animated) return;
     play.style.display = 'flex';
     playBtn = button('pause', 'Play / pause', 'Space', function () { page.paused = !page.paused; }, play);
@@ -930,7 +975,7 @@
     if (on === !!page.listOpen) return;
     page.listOpen = on;
     if (on) {
-      toggleMenu(false); toggleHelp(false); toggleMore(false);
+      toggleMenu(false); toggleHelp(false); toggleMore(false); openMotions(false);
       var ol = fillList();
       vback.style.display = 'block';
       vlist.style.display = 'flex';
@@ -945,6 +990,81 @@
     }
   }
   page.openViews = openList;
+
+  // ---------------------------------------------------------------- task 0310: lead motions as sliders
+  // One Motions button above the saved views; its panel has a row per lead motion: the name (and "moved by …" when
+  // another lead motion set one of its joints since, as in the app), the slider between its two end labels (the
+  // joint's own values for a lead motion of one joint, else 0 % / 100 %), ▶ (plays it over its seconds; at 100 % back
+  // to 0 %; pressed while playing: stops). Back to start puts every slider at 0 %. Moving one pauses the animation.
+  var mBtn = null, mpanel = el('div', { id: 'fr-mpanel', role: 'dialog', 'aria-label': 'Motions' }), mRows = [];
+  document.body.appendChild(mpanel);
+  function buildMotions() {
+    var ms = page.motions || [];
+    if (!ms.length) return;
+    motionsBox.style.display = 'flex';
+    mBtn = button('sliders', 'Motions: one slider per function', '', function () { openMotions(!page.motionsOpen); }, motionsBox);
+    mBtn.classList.add('fr-mbtn');
+    mBtn.appendChild(el('span', { 'class': 'fr-txt', text: 'Motions' }));
+    mBtn.appendChild(el('span', { 'class': 'fr-count', text: String(ms.length) }));
+    mBtn.setAttribute('aria-expanded', 'false');
+    var head = el('div', { 'class': 'fr-vhead' });
+    head.appendChild(el('h2', { text: 'Motions (' + ms.length + ')' }));
+    var x = button('close', 'Close', '', function () { openMotions(false); }, head);
+    x.classList.add('fr-x');
+    mpanel.appendChild(head);
+    var list = el('div', { 'class': 'fr-mlist' });
+    ms.forEach(function (m, k) {
+      var row = el('div', { 'class': 'fr-mrow' }), top = el('div', { 'class': 'fr-mtop' });
+      top.appendChild(el('span', { 'class': 'fr-mname', text: m.name, title: m.about || m.name }));
+      var by = el('span', { 'class': 'fr-mby' });
+      top.appendChild(by);
+      row.appendChild(top);
+      if (m.about) row.appendChild(el('div', { 'class': 'fr-mabout', text: m.about, title: m.about }));
+      var line = el('div', { 'class': 'fr-mline' });
+      var pb = button('play', 'Play ' + m.name, '', function () { page.playMotion(k); }, line);
+      line.appendChild(el('span', { 'class': 'fr-mend', text: m.ends[0] }));
+      var sl = el('input', { type: 'range', min: '0', max: '100', step: '0.1', 'aria-label': m.name + ': slider, 0 to 100 %' });
+      sl.value = String(m.pos);
+      var drag = false;
+      sl.addEventListener('pointerdown', function () { drag = true; });
+      sl.addEventListener('input', function () { page.setMotion(k, +sl.value); });
+      sl.addEventListener('change', function () { drag = false; page.setMotion(k, +sl.value); });
+      line.appendChild(sl);
+      line.appendChild(el('span', { 'class': 'fr-mend', text: m.ends[1] }));
+      row.appendChild(line);
+      list.appendChild(row);
+      mRows.push({ play: pb, slider: sl, by: by, dragging: function () { return drag; } });
+    });
+    mpanel.appendChild(list);
+    var foot = el('div', { 'class': 'fr-mfoot' });
+    button('', 'Back to start', '', function () { page.motionsBack(); }, foot).title = 'Every slider to 0 %';
+    mpanel.appendChild(foot);
+    refreshMotions();
+  }
+  function refreshMotions() {
+    var st = page.leadState && page.leadState();
+    if (!st || !mRows.length) return;
+    st.motions.forEach(function (m, k) {
+      var r = mRows[k];
+      if (!r) return;
+      if (!r.dragging()) r.slider.value = String(m.pos);
+      var on = st.playing === k;
+      r.play.innerHTML = svg(on ? 'pause' : 'play');
+      r.play.setAttribute('aria-pressed', on ? 'true' : 'false');
+      r.play.setAttribute('aria-label', (on ? 'Stop ' : m.pos >= 99.95 ? 'Play back ' : 'Play ') + m.name);
+      r.by.textContent = m.movedBy ? 'moved by ' + m.movedBy : '';
+    });
+  }
+  function openMotions(on) {
+    on = !!on && !!mBtn;
+    if (on === !!page.motionsOpen) return;
+    page.motionsOpen = on;
+    if (on) { toggleMenu(false); toggleHelp(false); toggleMore(false); openList(false); }
+    mpanel.style.display = on ? 'flex' : 'none';
+    if (mBtn) mBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    if (on) { refreshMotions(); opened(); } else closed();
+  }
+  page.openMotions = openMotions;
 
   // ---------------------------------------------------------------- layout: header, columns, stack, free area
   var headerEl = document.querySelector('header');
@@ -1011,6 +1131,8 @@
     [].forEach.call(document.querySelectorAll('#fr-parts > .fr-btn'), function (b) { add('parts: ' + b.getAttribute('aria-label'), b); });
     if (mode === 'pill') [].forEach.call(viewsBox.children, function (b) { add('views: ' + b.getAttribute('aria-label'), b); });
     else if (scroller) { add('views row', scroller); add('views: All views', allBtn); }
+    add('motions', mBtn);                                            // task 0310
+    if (!narrow) add('motions panel', page.motionsOpen ? mpanel : null);
     add('play bar', play.style.display === 'none' ? null : play);
     if (filmBtn) items.push({ name: 'play: Film', r: filmBtn.getBoundingClientRect(), inner: true });
     add('note', noteLine);
@@ -1035,7 +1157,7 @@
         }
       }
     });
-    var small = items.filter(function (a) { return /^(tools|parts|views|play):/.test(a.name) && (a.r.width < 39.5 || a.r.height < 39.5); })
+    var small = items.filter(function (a) { return /^(tools|parts|views|play):|^motions$/.test(a.name) && (a.r.width < 39.5 || a.r.height < 39.5); })
       .map(function (a) { return a.name; });
     return { size: [W, H], safe: sa, items: items.map(function (a) { return a.name; }), overlaps: overlaps,
              outside: outside, small: small, mode: mode, tools: page.toolsShown, free: page.freeArea ? page.freeArea() : null };
@@ -1287,7 +1409,7 @@
     else if (k === 'h' || k === 'H') clean(!page.clean);
     else if (k === 'm' || k === 'M') toggleMenu();
     else if (k === '?') toggleHelp();
-    else if (k === 'Escape') { toggleMenu(false); toggleHelp(false); toggleMore(false); openList(false); }
+    else if (k === 'Escape') { toggleMenu(false); toggleHelp(false); toggleMore(false); openList(false); openMotions(false); }
     else if ((k === 'ArrowLeft' || k === 'ArrowRight') && page.animated && tag !== 'INPUT') {
       page.setTime(Math.max(0, page.time + (k === 'ArrowLeft' ? -2 : 2)));
     } else if (/^[1-9]$/.test(k) && +k <= page.views.length) { openList(false); page.goView(+k - 1); }
@@ -1302,6 +1424,7 @@
   // ---------------------------------------------------------------- follow the page
   page.listeners.push(function (what) {
     if (what === 'time' || what === 'paused' || what === 'speed' || what === 'film') refreshPlay();
+    if (what === 'motions') refreshMotions();
     if (what === 'film' || what === 'card' || what === 'time') filmOverlays();
     else if (what === 'ready') { buildBottom(); showWarn(); layout(); showHint(); }
     else if (what === 'warned') showWarn();

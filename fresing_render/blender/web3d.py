@@ -1104,7 +1104,7 @@ class Job:
                  surroundings: dict | None = None, light: str = "LIVE", light_quality: str = "NORMAL",
                  light_texels: float = 0.0, light_samples: int = 0, marine_detail: str = "NORMAL",
                  faces: bool = True, view_names: str = "CAMERA", film_captions: bool = False,
-                 film_labels: bool = False, film_cards: bool = False):
+                 film_labels: bool = False, film_cards: bool = False, lead_motions: bool = True):
         from . import lightbake
         self.scene = scene
         self.marine_detail = marine_detail if marine_detail in core.MARINE_DETAILS else "NORMAL"
@@ -1144,6 +1144,9 @@ class Job:
         self.film_want = {"captions": bool(film_captions), "labels": bool(film_labels), "cards": bool(film_cards)}
         self._film = None
         self._film_block = None
+        self.lead_motions = bool(lead_motions)  # task 0310: one clip per lead motion, sliders on the page
+        self.lead_time = 0.0                   # the main animation's moment of the frame shown (s)
+        self._lead_block = None
 
     # -- names
     def _name(self, ob, k: int, what: str = "Part") -> str:
@@ -1459,6 +1462,14 @@ class Job:
             from . import animation
             if animation.has_keys(scene):
                 anim = yield from self._motion()
+        if anim:                               # task 0310: the sliders' parts stand as at the frame shown
+            fps = scene.render.fps / scene.render.fps_base
+            self.lead_time = max(0.0, (scene.frame_current - scene.frame_start) / fps)
+        if self.lead_motions:
+            from . import web3d_lead
+            self.text = "Reading the lead motions"
+            yield 0.985
+            self._lead_block = web3d_lead.read(self)
         if not self._tubes_done:               # task 0142: the drawn tubes at the frame shown (their looks' stripes)
             self._drawn.read(bpy.context.evaluated_depsgraph_get(), {})
             self._tubes(np.zeros(1))
@@ -1877,6 +1888,8 @@ class Job:
                 self.result["film_bytes"] = web3d_film.size_bytes(self._film_block)
                 self.result["film_keys"] = len(self._film_block["k"])
                 self.result["film_frames"] = self._film_block["n"]
+            if self._lead_block is not None:              # task 0310: the lead motions' sliders
+                st["lead"] = self._lead_block
             text = env.page_html(title, data, st, pictures, note="Made with Fresing Render", animated=animated)
             if self.surroundings is not None:
                 # what the surroundings add: the same page in its plain form, without pictures
@@ -1899,6 +1912,9 @@ class Job:
                                                  compressed=self.gltf.compress))
         if self.surroundings is not None and self.page:
             self.result["text"] += " · " + core.surroundings_line(extra)
+        if self.result.get("lead_motions"):             # task 0310
+            from ..core.words import plural
+            self.result["text"] += f" · {plural(self.result['lead_motions'], 'lead motion')} as sliders"
         if self.result.get("film_bytes"):               # task 0252
             self.result["text"] += f" · Film: the video's camera, {self.result['film_bytes'] / 1000:.0f} KB"
         if self._lit is not None:
