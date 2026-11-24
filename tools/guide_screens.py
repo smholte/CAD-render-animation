@@ -599,7 +599,7 @@ if MODE == "panels":
     def p_motion_start():
         bpy.context.scene.fresing.pick_mode = "SUBASSEMBLY"
         select_only(ob("BOOM.ASM"))
-        show_only([("FRESING_PT_motion", False, True)])
+        show_only([("FRESING_PT_joints", False, True)])
         wiggle()
         return 2.5
 
@@ -649,10 +649,10 @@ if MODE == "panels":
         ("panel_3_faces", [("FRESING_PT_faces", False, True)]),
         ("panel_3_decals", [("FRESING_PT_decals", False, True)]),
         ("panel_3_xray", [("FRESING_PT_xray", False, True)]),             # the cover in X-ray (task 0073)
-        ("panel_4_motion", [("FRESING_PT_motion", False, True)]),
+        ("panel_4_motion", [("FRESING_PT_joints", False, True)]),
         ("panel_4_poses", [("FRESING_PT_poses", False, True)]),
         ("panel_4_cylinders", [("FRESING_PT_cylinders", False, True)]),   # the luffing cylinder (build_state)
-        ("panel_4_coupling", [("FRESING_PT_motion", False, True)]),     # a wheel follows the trolley
+        ("panel_4_coupling", [("FRESING_PT_joints", False, True)]),     # a wheel follows the trolley
         ("panel_5_scene", [("FRESING_PT_scene", False, True)]),
         ("panel_5_surroundings", [("FRESING_PT_scene", False, True)]),
         ("panel_5_camera", [("FRESING_PT_camera", False, True)]),

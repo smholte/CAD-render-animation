@@ -1,6 +1,6 @@
 # 0298 – Hoses and cables round 3: Avoid other parts (collision on / off) and a route you can shape between the two ends
 
-**Who:** worker · **Status:** done (0.2.224) · **Branch:** `task/0298-hoses-avoid-and-shape`
+**Who:** worker · **Status:** done (0.2.225) · **Branch:** `task/0298-hoses-avoid-and-shape`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Hoses and cables improvements. A collision active button,
 for collision with other objects. And able to adjust the path it takes, between the two points.") · **Model:** Opus ·
 effort High
@@ -39,7 +39,7 @@ points: a drawn route is not re-laid when its sheaves move, clips hold the hose 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 24 Nov 2026 (branch `task/0298-hoses-avoid-and-shape`; release 0.2.224)
+**Chat / date:** Claude Code on the web, 24 Nov 2026 (branch `task/0298-hoses-avoid-and-shape`; release 0.2.225)
 
 **What changed:**
 - **Avoid other parts** (`FRFlex.avoid`, a tick under Length): `core/flex_avoid.py` (new, NumPy: a *field* of bodies –
@@ -94,7 +94,7 @@ points: a drawn route is not re-laid when its sheaves move, clips hold the hose 
 - A stiff hose with a lot of slack between fittings in line can come to rest as a high arch over a part rather than
   draped on it (both are shapes the model allows; a frame solved alone picks by its start).
 - Parts that come near only during a motion, from further than the hose's length, are not avoided.
-- A drawn cable from before 0.2.224 keeps its route as clicked at a model update (its clicks were not kept). Sliding a
+- A drawn cable from before 0.2.225 keeps its route as clicked at a model update (its clicks were not kept). Sliding a
   hose through a clip is not built. A drag of a via point solves the hose at every mouse move (0.1 s while it lies
   on a part: the dot can lag a little behind the mouse).
 

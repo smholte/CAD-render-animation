@@ -886,7 +886,7 @@ def _model(layout, context):
     col.prop(cs, "name", text="Name")
     col.prop(cs, "cls", text="Class")
     ui.hint(layout, context, "Its name in your library. The crane's joints are made in the next steps; they show in "
-                             f"{ui.where('motion')} too.")
+                             f"{ui.where('joints')} too.")
 
 
 def _cylinder_done(context) -> str:
@@ -901,10 +901,13 @@ def _cylinder_part(layout, context, role: str):
     n = len(context.scene.fresing.cylinders)
     if n:
         _done(layout, context, plural(n, "cylinder") + f" in {ui.where('cylinders')}")
+    from .ui_motion import draw_cyl_picks
+    draw_cyl_picks(layout, context)                 # task 0290: several parts per barrel / rod, as in 4 Motion
     op = ui.big(layout, "fresing.crane_cylinder", "Add the cylinder (barrel | rod)", "MOD_SIMPLEDEFORM")
     op.role = role
-    ui.hint(layout, context, "Pick the barrel and then the rod above (in that order) and press it: the pins are "
-                             "the round faces at their eyes.")
+    ui.hint(layout, context, "Select the barrel's parts and press Add selected under Barrel, then the rod's under "
+                             "Rod (Shift+click selects several) – or pick the barrel and then the rod above. The pins "
+                             "are the round faces at their eyes.")
 
 
 def _with_cylinder(step, role):
@@ -1379,10 +1382,13 @@ def _nearest_on(o, d, p) -> Vector:
     return o + d * (p - o).dot(d)
 
 
-def make_cylinder(scene, role: str, barrel: bpy.types.Object, rod: bpy.types.Object) -> str:
+def make_cylinder(scene, role: str, barrel, rod) -> str:
     """The cylinder that drives a role's joint (``cylinders.create``): each pin is the eye's round face parallel to
     the joint's axis at the far end of its part; the barrel's eye sits on the part the joint rides on, the rod's on
-    the part it moves (or the other way round, when the rod's eye lies on the base)."""
+    the part it moves (or the other way round, when the rod's eye lies on the base). ``barrel`` / ``rod``: an object
+    or a list of them (task 0290: several parts or subassemblies each)."""
+    barrel = list(barrel) if isinstance(barrel, (list, tuple)) else [barrel]
+    rod = list(rod) if isinstance(rod, (list, tuple)) else [rod]
     from . import cylinders
     j = first(scene, role)
     if j is None:
@@ -1390,13 +1396,13 @@ def make_cylinder(scene, role: str, barrel: bpy.types.Object, rod: bpy.types.Obj
     _o, axis = joints.axis_world(j)
     axis = Vector(axis)
     pins = []
-    for ob in (barrel, rod):
-        cand = [a for p in parts_of([ob]) for a in _level_axes(p, axis)]
+    for obs in (barrel, rod):
+        cand = [(a, p) for p in parts_of(obs) for a in _level_axes(p, axis)]
         if not cand:
-            raise RuntimeError(f"{name_of(ob)} has no eye (a round face parallel to the joint's axis)")
-        c = centre([ob])
-        far = max(cand, key=lambda a: (_nearest_on(a[0], a[1], c) - c).length)
-        pins.append((_nearest_on(far[0], far[1], c), far[1]))
+            raise RuntimeError(f"{name_of(obs[0])} has no eye (a round face parallel to the joint's axis)")
+        c = centre(obs)
+        far, held = max(cand, key=lambda ap: (_nearest_on(ap[0][0], ap[0][1], c) - c).length)
+        pins.append((_nearest_on(far[0], far[1], c), far[1], held))
     moved = joints.members(j)[0]
     below = joints.rides_on(scene, j)
     base = joints.members(below)[0] if below is not None and joints.members(below) else build.logical_parent(moved)
@@ -1407,7 +1413,7 @@ def make_cylinder(scene, role: str, barrel: bpy.types.Object, rod: bpy.types.Obj
         carriers = (base, moved)
     name = cylinders.unique_name(scene, f"{ROLE_WORDS[role]} cylinder") if hasattr(cylinders, "unique_name") \
         else f"{ROLE_WORDS[role]} cylinder"
-    got = cylinders.create(scene, [barrel], [rod], (pins[0][0], pins[0][1], barrel), (pins[1][0], pins[1][1], rod),
+    got = cylinders.create(scene, barrel, rod, (pins[0][0], pins[0][1], pins[0][2]), (pins[1][0], pins[1][1], pins[1][2]),
                            barrel_carrier=carriers[0], rod_carrier=carriers[1], name=name)
     c = got[0] if isinstance(got, tuple) else got
     changed(scene)

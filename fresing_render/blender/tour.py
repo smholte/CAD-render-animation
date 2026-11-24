@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.223")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.224")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1646,8 +1646,8 @@ def avoid_motion(a) -> None:
     _joint_step(a, "Lift", 2.5, 1.5, 0.1, slide=True, label="Lift up 500 mm")
 
 
-@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.224",
-          changed="0.2.224")
+@tour_set("flex_avoid", "A hose avoids a block, a route shaped by hand", "test_flex_avoid_a.step", added="0.2.225",
+          changed="0.2.225")
 def build_flex_avoid(b: Build):
     """Task 0298: the hose of the avoid model (a block in its way, a lift that goes down) with Avoid other parts on."""
     from . import flex
@@ -4600,12 +4600,12 @@ stop("import_again", LOOK, "import", "Import again and Up axis",
 stop("joint", MOTION, HUB_SET, "Joint: the boom turns",
      "The boom turns up 35° about its pin and stops smoothly; everything on the boom goes with it. The luffing "
      "cylinder under it follows: its rod slides out and its eye stays on the pin under the boom.",
-     where="4 Motion (joints); 6 Animation", animation="Boom up", play=True, select=("BOOM",), check=_check_boom,
-     auto="clip", since="0.2.47", changed="0.2.101")
+     where="4 Motion > Joints; 6 Animation", animation="Boom up", play=True, select=("BOOM",), check=_check_boom,
+     auto="clip", since="0.2.47", changed="0.2.224")
 stop("stack", MOTION, HUB_SET, "Stacked joints: boom + trolley",
      "The boom turns up while the trolley slides out along it: the two moves add up, the trolley stays on the "
-     "boom.", where="4 Motion (the trolley's joint rides on the boom)", animation="Boom and trolley", play=True,
-     select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47")
+     "boom.", where="4 Motion > Joints (the trolley's joint rides on the boom)", animation="Boom and trolley",
+     play=True, select=("TROLLEY",), check=_check_stack, auto="clip", since="0.2.47", changed="0.2.224")
 stop("fade", MOTION, HUB_SET, "Fade, X-ray and trail",
      "The boom turns up while the trolley runs out along it; meanwhile the cover fades into a light-blue X-ray "
      "(see-through, glowing edges) and a green line draws the path of the trolley's centre behind it. Look in "
@@ -4624,7 +4624,7 @@ stop("explode", MOTION, HUB_SET, "Exploded view",
 stop("cylinder", MOTION, "cylinder", "Cylinder: stroke drives the arm",
      "The rod comes out of the cylinder 450 mm and pushes the arm up; the rod's eye stays on its pin all the way and "
      "the barrel, with its oil ports and pipe, tilts about its own pin.",
-     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.211")
+     where="4 Motion > Cylinders", animation="Stroke out", play=True, check=_check_cylinder, auto="clip", since="0.2.47", changed="0.2.224")
 stop("mechanism", MOTION, "linkage", "Mechanisms: lift, 4-bar, crank",
      "The scissor lift rises to 1.5 m with every arm following; in the middle the four-bar's crank turns once and "
      "its coupler, with the tool block, swings the rocker; on the right the crank turns once and the piston "
@@ -4656,12 +4656,12 @@ stop("cables", MOTION, "cables", "Cable over sheaves and rollers",
 stop("flex_avoid", MOTION, "flex_avoid", "A hose lies on a block",
      "Front: the lift goes down 400 mm and up again. The hose has 'Avoid other parts' on: where it would sag through "
      "the grey block it lies on its top and slides along it; its ends stay on their fittings and it keeps its length.",
-     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.224",
+     where="4 Motion > Hoses and drag chains > Avoid other parts", animation=AVOID_ANIM, play=True, since="0.2.225",
      check=check_flex_avoid, setup=_route_off, auto="clip")
 stop("flex_route", MOTION, "flex_avoid", "A route shaped by a via point",
      "The same hose with one via point set by hand beside the block (Shape the route): it runs through that point "
      "at every frame, and the point rides down and up with the lift, part of the way, as the end it is nearer to.",
-     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.224",
+     where="4 Motion > Hoses and drag chains > Shape the route", animation=AVOID_ANIM, at=0.4, since="0.2.225",
      check=check_flex_route, setup=_route_on, auto="clip")
 stop("drawn_hose", MOTION, "flex_drawn", "A drawn hose through two clips",
      "Front: a hydraulic hose that was drawn with four clicks – the valve block's fitting, two clips on the base, the "

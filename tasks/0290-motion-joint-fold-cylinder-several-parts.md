@@ -50,18 +50,70 @@ linkages, way covers.
 
 - [ ] Tests (several picks kept, × drops one, travel read from all, Set-up window steps); crane lesson passes
 - [ ] Real-app test of the fold; guide text + pictures of 4 Motion; tour stop `changed=`; function entries `changed=`
-- [ ] Full suite + GitHub run green; report filled in; merged, version, release
+- [x] Full suite + GitHub run green; report filled in; merged, version, release
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 23 Nov 2026 · branch `claude/inspiring-shannon-h7b896` · 0.2.224
 
 **What changed:**
+1. **Joint fold** – new sub-panel `FRESING_PT_joints` ("Joints", first under 4 Motion, `DEFAULT_CLOSED`, header "n joints"):
+   how-to, Selected, Add rotate / Add slide, the list and the joint box moved into it. 4 Motion's own body keeps only
+   the "animation is built" box and Everything back to CAD position (new function entry `joints.cad_position`, so the
+   Client view still hides 4 Motion). `core/places.py`, the `joints.*` entries' `panel`, two texts that name the
+   place (`where('joints')`) and the guide pictures follow. Lessons / highlight find the buttons through the function
+   list (crane + mill lesson tests pass).
+2. **Several parts per cylinder item** – `fresing.cylinder_pick_parts` is now **Add selected** (adds; a subassembly
+   takes the place of picks inside it, a part inside a picked subassembly is skipped; overlaps leave the other item
+   and the message says so), `action=DROP` (×) and `CLEAR` (bin icon). `ui_motion.pick_item` / `draw_cyl_picks` draw an
+   item as a title row + one row per pick. A made cylinder's Set-up fold: Add selected per item (barrel, rod, stages),
+   × per pick (`fresing.cylinder_parts action=DROP role= index=`; barrel and rod keep ≥ 1), the travel read again from
+   all parts (kept when it was typed and still cannot be read). Set up a crane's cylinder step draws the same lists;
+   `fresing.crane_cylinder` uses them (else the old ordered pick), `setup_crane.make_cylinder` takes lists (eyes from
+   all parts; each pin kept on the part that holds the eye). `core/cylinders.py` already read lists.
+3. **Panel stays still** – a follower's warning is a short red "Beyond limits" on its value row (`fresing.limits_note`,
+   tooltip = the long text, room kept). In the rest of `ui_motion.py`: the cylinder's "beyond its stroke" line moved
+   onto the Stroke row the same way ("Beyond stroke"). Left as they are (state changes, not while dragging / playing,
+   or already the last line of their box): the mechanism's status line (bottom of its box), the queue job box's
+   progress bar (comes with Running), `_follow_error` (after a button). Other files not changed.
+4. **Show what a joint moves** – new `blender/joint_show.py`: `joints_index` / `mechanisms_index` got an update that
+   shows the clicked joint's arrow (own GPU lines, ring for rotate; also with arrows off) and tints its parts
+   (Fresing Green; parts that also move by another joint – stack riders or a joint inside its subassembly – lighter).
+   No selection; hidden parts stay hidden ("n parts hidden" on the box's title row). Ends on another click in the
+   list, a selection change, the fold closed, playback, a load; drawn only with overlays on (never in renders / web
+   export). **List row tooltip:** set through the index properties' `description` (Blender shows it for the rows).
+5. **Test model** – `make_test_cylinder.py C` → `tests/data/test_cylinder_c.step`: SPLIT.ASM, barrel 3 parts in
+   2 subassemblies, rod 2 loose parts.
 
-**Tested and measured** (name the machine and the model):
+PC check line `joints.show` (MIN_LINES_FULL 134); tour stops joint / stack / cylinder `changed=`, crane set
+`changed=`; function entries `changed=`; guide (4 Motion, couplings, cylinders, Set up a crane) + pictures
+panel_4_motion(_start), panel_4_coupling, panel_4_cylinders; CHANGELOG 0.2.224.
+
+**Tested and measured** (4-core web machine, Linux, Blender 5.2.3 / bpy): `tests/test_cylinder_parts.py` 18 new tests
+(picks kept / added / skipped / ×, clear, never in both items, travel 1092.8 / 570 mm read from 3 + 2 parts, all parts
+move together, Set-up fold add / × / last kept / refused overlap, Pins again, Remove, crane step takes the lists,
+make_cylinder with lists, the fold's place, joint show + riders + hidden count, ends on selection change, arrow lines,
+row tooltips, "Beyond limits" on the value row with the same row structure inside / beyond). Real app
+`tools/ui_test_joint_fold.py` (group pccheck-b): 12/12 – the Joints title clicked open, Add rotate joint on screen,
+the follower clicked shows 3 parts without selecting, the arm moved past the limit: the Limits row stays at the same
+pixels, "Beyond limits" above it and not cut off, another selection ends the show. GitHub: the branch's last full run green (run 45319267696), main fast-forwarded to it.
+**Runs:** about 10 full runs – six version clashes (0289, 0292, 0316, 0296, 0302, 0308 merged first: 0.2.218 → 0.2.224),
+one real failure fixed (callouts group, a test order effect) and the Place test's "Delete opens the Remove window"
+(flaky, also on other branches; re-run of the failed job passed).
+No subagents (Medium effort, one area).
 
 **Open points / follow-up tasks:**
+- The tooltip report calls `fresing.limits_note` "weak" (its text is a variable it cannot read); the real tooltip is
+  the long sentence.
+- The tint is drawn with depth test: parts behind others are not seen through (as in the view itself).
+- The owner should check on his PC that the list rows show the new tooltip (Blender shows the index property's
+  description; not checked with a hover in the real app here).
 
 **Owner's check on your PC:**
+1. Open a project with joints. 4 Motion > click **Joints**: the fold opens with Add rotate joint / Add slide joint.
+2. Click a joint in the list: its arrow and the parts it moves light up green in the view; click a part: it goes.
+3. A follower with Limits: move the joint it follows past them – "Beyond limits" appears next to the Distance, the
+   rows under it stay put.
+4. 4 Motion > Cylinders: select two parts (Shift+click), **Add selected** under Barrel – both listed with ×.

@@ -38,8 +38,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.223",
-   "fp": "cc45319e5de0d50c"
+   "changed": "0.2.224",
+   "fp": "ed1934011cba23a3"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -72,8 +72,8 @@
    "fp": "fec01e7a7e9895cf"
   },
   "flex_avoid": {
-   "added": "0.2.224",
-   "changed": "0.2.224",
+   "added": "0.2.225",
+   "changed": "0.2.225",
    "fp": "b23b3ece203a8ad7"
   },
   "flex_drawn": {
