@@ -475,7 +475,7 @@ def test_motion_panel_shows_the_stack(scene):
     def draw():
         texts.clear()
         fake = type("P", (), {"layout": FL(errors)})()
-        ui_motion.FRESING_PT_motion.draw(fake, bpy.context)
+        ui_motion.FRESING_PT_joints.draw(fake, bpy.context)
         return " ".join(texts)                          # wrapped lines read as one sentence again
 
     # selection that already moves with a joint: Add says it goes on top

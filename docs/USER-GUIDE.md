@@ -1652,7 +1652,9 @@ shape as part type "Seals & O-rings".
 
 <img class="panel" src="img/panel_4_motion_start.png" alt="4 Motion before the first joint">
 
-A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a cylinder rod).
+A **joint** lets a subassembly rotate (a boom on its pin) or slide (a trolley, a cylinder rod). Joints
+have their own fold, **4 Motion > Joints**, like Cylinders and Mechanisms under it; open it with a click on
+its title. **Everything back to CAD position** stays at the top of 4 Motion.
 
 **Add a joint**
 
@@ -1687,6 +1689,11 @@ Fresing > Settings… > General > "Highlight what is under the mouse when pickin
   position in the CAD file.
 - **CAD (0)**, **Min** and **Max** jump to those positions. **Limits** keeps the joint between the two
   values next to it.
+- **Click a joint in the list** to see what it moves: its arrow shows in the view (also when the arrows are
+  switched off) and the parts it moves turn green; parts that also ride on another joint (a stack, a trolley on
+  the boom) are a lighter green. Nothing gets selected by it, so a following click or <kbd>G</kbd> still acts on
+  what you selected yourself. Hidden parts stay hidden: the box says "2 parts hidden". Clicking elsewhere in the
+  view ends it. A click on a mechanism in 4 Motion > Mechanisms does the same for its moving links.
 - **Show joint arrows in the view** shows or hides the joints' axes (and the cylinders' pin markers).
 - **Set-up** (the fold): what moves (**Add** and **Remove** use the selected parts, **Select** selects
   what the joint moves), the axis (eyedropper: click a new pivot; ⇆ turns the direction around; **X Y Z**), the type (**Rotate**
@@ -1744,7 +1751,9 @@ drives a whole mechanism – and one animation step moves it all.
 - Two joints that follow each other are refused, with the reason in red under the field.
 - A following joint is not moved by hand, by poses or by animation steps: move the joint it follows.
   Poses only store the joints that move by themselves.
-- Its **Limits** do not stop it: they warn ("Beyond its limits now"), and so does Build & play.
+- Its **Limits** do not stop it: they warn – a short red **Beyond limits** on its Distance / Angle row (rest the
+  mouse on it for the whole text) – and so does Build & play. The rows under it do not move, so the field you are
+  dragging stays where it is.
 - **Moves by itself** ends the coupling; the joint stays where it is. The leading joint shows
   "Drives '…'".
 
@@ -1770,8 +1779,12 @@ the arm moves, the barrel turns about its pin and the rod slides in or out.
 
 1. Make the joint for the arm first (Add rotate joint above, on the arm's pivot).
 2. In 4 Motion > **Cylinders**: click the barrel (the tube with its end cap and eye – in the view, or its
-   row in 2 Structure) and press **Barrel**. Then click the rod (with its piston and eye) and press **Rod**.
-   A tick shows what is picked.
+   row in 2 Structure) and press **Add selected** under **Barrel**. Then click the rod (with its piston and eye)
+   and press **Add selected** under **Rod**.
+   **Each can be several parts or subassemblies** (a barrel drawn as a tube subassembly plus a loose gland):
+   Shift+click or Ctrl+click selects several, and Add selected adds to what is already there. Each pick shows
+   as a row with **×** to drop it; the bin icon empties the item. A part is never in both: adding it to the
+   rod takes it off the barrel.
 3. Press **Add cylinder** and click the **barrel's pin** (on the machine side), then the **rod's pin**
    (on the moving part). Click the pin itself or the hole it sits in; the line at the bottom of the
    window says which one is next. <kbd>Esc</kbd> cancels.
@@ -1794,9 +1807,12 @@ cylinder). A cylinder that pushes a carriage on a slide works the same way.
 - When drive mode is not possible, the reason is shown in red (for example: nothing moves the rod's pin
   yet, or the arm's joint does not turn about the pins' direction).
 
-**Set-up** (the fold): other parts for the barrel or rod; **Stages** for a telescopic cylinder (select its
-sections between the barrel and the rod, then press it: each section slides out the same share of the
-travel); which part holds each pin (select the part, then **Barrel pin** or **Rod pin**); **Pins again**
+A rod out further than its stroke allows shows a short red **Beyond stroke** on the Stroke row.
+
+**Set-up** (the fold): the barrel's, rod's and stages' parts, each with **Add selected** and **×** per part (the
+stroke is read again from all of them; the barrel and the rod keep at least one); **Stages** for a telescopic
+cylinder (select its sections between the barrel and the rod, then press Add selected: each section slides out
+the same share of the travel); which part holds each pin (select the part, then **Barrel pin** or **Rod pin**); **Pins again**
 (click both pins again); **Select parts**. The cylinder's pin markers show and hide with **Show joint
 arrows in the view**.
 
@@ -5084,7 +5100,8 @@ exactly as on the built-in cranes.
 **The steps per kind**
 
 - **Mobile telescopic crane:** Model → Slew (the superstructure; the slewing ring's round face, upright) → Luff (the
-  boom base and its foot pin; then its cylinder: pick the barrel, then the rod, **Add the cylinder**) → Telescope
+  boom base and its foot pin; then its cylinder: pick the barrel, then the rod, **Add the cylinder** – or, for a
+  barrel or rod of several parts, **Add selected** under Barrel and Rod first, as in 4 Motion > Cylinders) → Telescope
   (the sections from the base outwards: one joint each, riding on the one before and sharing the stroke) → Fly jib
   (optional) → Hoist (the head sheave; the number of falls; the rope drawn in the CAD, if any) → Hook block (the app
   makes the hoist straight down from the sheave and the hook swing joints that keep the block plumb, and guesses the
