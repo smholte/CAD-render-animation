@@ -312,8 +312,9 @@ class FRESING_OT_crane_remove(bpy.types.Operator):
 
 
 class FRESING_OT_crane_cylinder(bpy.types.Operator):
-    """Adds the cylinder that drives this joint: pick its barrel, then its rod (in that order). The pins are the
-    round faces at their eyes; it shows in 4 Motion > Cylinders"""
+    """Adds the cylinder that drives this joint: the barrel and rod added below (each one part or several), or else
+    the barrel and then the rod picked above. The pins are the round faces at their eyes; it shows in 4 Motion >
+    Cylinders"""
 
     bl_idname = "fresing.crane_cylinder"
     bl_label = "Add the cylinder"
@@ -328,16 +329,23 @@ class FRESING_OT_crane_cylinder(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         cs = SC.settings(scene)
-        objs, bad = SC.objects_of(scene, cs.pick)
-        if bad or len(objs) < 2:
-            self.report({"WARNING"}, "; ".join(bad) or "Pick the barrel, then the rod")
-            return {"CANCELLED"}
+        s = scene.fresing
+        barrel = [r.obj for r in s.cyl_pick_barrel if r.obj is not None]
+        rod = [r.obj for r in s.cyl_pick_rod if r.obj is not None]
+        if not (barrel and rod):                    # task 0290: the barrel / rod lists, else the pick above
+            objs, bad = SC.objects_of(scene, cs.pick)
+            if bad or len(objs) < 2:
+                self.report({"WARNING"}, "; ".join(bad) or "Pick the barrel, then the rod (or add them below)")
+                return {"CANCELLED"}
+            barrel, rod = [objs[0]], [objs[1]]
         try:
-            c = SC.make_cylinder(scene, self.role, objs[0], objs[1])
+            c = SC.make_cylinder(scene, self.role, barrel, rod)
         except RuntimeError as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         cs.pick = ""
+        s.cyl_pick_barrel.clear()
+        s.cyl_pick_rod.clear()
         _say(context, f"Cylinder '{c}' added")
         _redraw()
         return {"FINISHED"}

@@ -64,7 +64,7 @@ Model update: a whole-model copy follows the original (and back); a subassembly 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 23–24 Nov 2026 · version 0.2.224
+**Chat / date:** Claude Code on the web, 23–24 Nov 2026 · version 0.2.225
 
 **What changed:**
 - **Copy / Paste** (`blender/copy.py`, `ops_copy.py`): right-click > **Copy** / **Paste here** (on empty space
@@ -114,7 +114,7 @@ Model update: a whole-model copy follows the original (and back); a subassembly 
 - `main`'s run of 0.2.221 failed only in "Landing page" publishing (two "github-pages" artifacts in one run, a GitHub
   Pages hiccup); the release itself was published and offered.
 
-**Owner's check on your PC** (after Update now to 0.2.224):
+**Owner's check on your PC** (after Update now to 0.2.225):
 1. Open a project with a model that has joints (or the test crane from Help > Make test tour project).
 2. Click the model's top row in 2 Structure, press **Ctrl+C**, then **Ctrl+V**: a second model "… (2)" stands beside
    it, and the **Move / turn** window opens; at its bottom it says what came along.

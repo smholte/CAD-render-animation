@@ -6,12 +6,13 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.224"
+__version__ = "0.2.225"
 
 _modules = []
 
 
 def _classes():
+    from .blender import joint_show
     from .blender import (ops_callouts, ops_clash, ops_coolant, ops_cylinders, ops_decals, ops_doublearm, ops_fade, ops_gcode,
                           ops_import, ops_linkages, ops_machining, ops_main, ops_motion, ops_panels, ops_waycover,
                           ops_demo, ops_rule_sets, ops_scene, ops_surroundings, ops_toolpath, ops_tour, ops_video, prefs, ui, ui_callouts,
@@ -69,7 +70,7 @@ def _classes():
     # the update notice first: a panel registered first sits on top of the Fresing tab; then the test tour (task
     # 0059, only in a tour project)
     return (updates.CLASSES + ui_header.CLASSES + ui_topbar.CLASSES + editors.CLASSES + quiet.CLASSES + context_menu.CLASSES + place.CLASSES + ops_place.CLASSES + ops_copy.CLASSES + ui_place.CLASSES + welcome.CLASSES + gpu_choice.CLASSES + ui_tour.CLASSES + ui_lesson.CLASSES + ops_tour.CLASSES + prefs.CLASSES + ops_import.CLASSES + ops_main.CLASSES + ops_motion.CLASSES
-            + ops_cylinders.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
+            + ops_cylinders.CLASSES + joint_show.CLASSES + ops_linkages.CLASSES + ops_panels.CLASSES + ops_rule_sets.CLASSES
             + ops_surroundings.CLASSES + ops_scene.CLASSES + ops_machining.CLASSES + ops_gcode.CLASSES
             + ops_doublearm.CLASSES + ops_coolant.CLASSES + ops_waycover.CLASSES + ops_flex.CLASSES + ops_drawn.CLASSES + ops_paths.CLASSES + ops_paths_sea.CLASSES + ops_spool.CLASSES + ops_tracks.CLASSES + ops_decals.CLASSES + ops_video.CLASSES
             + ops_callouts.CLASSES + ops_clash.CLASSES + ops_fade.CLASSES + ops_section.CLASSES + ui_section.CLASSES + ops_toolpath.CLASSES + ops_web3d.CLASSES + ops_product_video.CLASSES + tuple(looks) + ui_web3d.CLASSES + ui_motion.CLASSES + ui_machining.CLASSES
@@ -201,6 +202,8 @@ def register():
     from .blender import section
     section.register()                       # cutaways (task 0086): new materials of cut parts get wrapped
     hover.register()
+    from .blender import joint_show
+    joint_show.register()                    # task 0290: a clicked joint shows its arrow and what it moves
     from .blender import waycover
     waycover.register()                      # task 0035: one-cover projects open with it in the list
     from .blender import copy as copy_paste
@@ -269,6 +272,8 @@ def unregister():
     from .blender import section
     section.unregister()
     hover.unregister()
+    from .blender import joint_show
+    joint_show.unregister()
     from .blender import people
     people.unregister()
     from .blender import tc_person

@@ -926,6 +926,31 @@ def joints_stack(ctx):
     return "boom 30° + trolley 1000 mm"
 
 
+@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.224",
+      what="Clicking the boom's joint in 4 Motion > Joints lights up the boom, the trolley riding on it lighter")
+def joints_show(ctx):
+    from mathutils import Vector
+
+    from ..blender import joint_show, joints
+    scene = ctx.fresh(CRANE_A)
+    jb = _boom_joint(scene)
+    boom = jb.name
+    trolley_ob = _ob(scene, "TROLLEY.ASM")
+    joints.create(scene, "SLIDE", [trolley_ob], trolley_ob.matrix_world.translation.copy(), Vector((1, 0, 0)),
+                  base=_ob(scene, "BOOM.ASM"), name="Trolley")
+    s = scene.fresing
+    names = [j.name for j in s.joints]
+    s.joints_index = names.index(boom)                  # as a click on the list row
+    shown = joint_show.active()
+    joint_show.clear()
+    trolley = {o.name for o in _ob(scene, "TROLLEY.ASM").children_recursive if o.type == "MESH"}
+    _check(shown["name"] == boom and shown["main"], f"nothing shown for '{boom}': {shown}")
+    _check(trolley and trolley <= set(shown["riders"]) and not trolley & set(shown["main"]),
+           "the trolley riding on the boom is not shown in the lighter shade")
+    _check(not [o for o in scene.objects if o.select_get()], "showing a joint selected parts")
+    return f"{len(shown['main'])} parts lit, {len(shown['riders'])} riding on it"
+
+
 @line("joints.cylinder", "Cylinder: follows the arm, the stroke drives it", "0.2.25",
       what="The luffer's arm turns: the cylinder's rod eye stays on its pin; a set stroke turns the arm to the "
            "angle of the triangle pivot – barrel pin – rod pin")
@@ -5161,7 +5186,7 @@ def place_move(ctx):
 
 
 @line("place.copy", "Copy and paste: the crane copied with its joints and cylinder, both move by themselves",
-      "0.2.224",
+      "0.2.225",
       what="On the test crane with the crane lesson's set-up: Copy + Paste makes 'TEST.CRANE (2)' beside it with joints "
            "'Boom (2)', 'Trolley (2)' and its own cylinder, shapes shared; the copy's boom moves without the original's; "
            "Build plays; the boom alone copied is a model of its own whose cylinder is left out (the window says so); "
