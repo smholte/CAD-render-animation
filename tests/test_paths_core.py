@@ -1434,8 +1434,8 @@ def test_model(tmp_path_factory):
 
 @pytest.mark.parametrize("quality", ["normal", "draft"])
 def test_the_test_models_wire_rope_is_read(test_model, quality):
-    """Finding 1: the test model's WIRE ROPE (Ø 24, 7 m) as the importer meshes it, its centreline from
-    ``centreline``: on the drum from its start, round sheave 1 (192°) and sheave 2 the other way, over both V
+    """Finding 1: the test model's WIRE ROPE (Ø 24, 14.7 m) as the importer meshes it, its centreline from
+    ``centreline``: on the drum from its start, round sheave 1 (172°) and sheave 2 the other way, over both V
     rollers, through the chute – with the maker's radii, wraps and sides."""
     maker = test_model["maker"]
     n = maker.NUMBERS
@@ -1456,7 +1456,7 @@ def test_the_test_models_wire_rope_is_read(test_model, quality):
     assert tube.length == pytest.approx(n["rope"]["length"] / 1000, abs=3e-3)
     rd = P.read_cable(pts, tube.radius, rounds)
     assert rd.ok, rd.problem
-    names = ["WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER 1", "V ROLLER 2", "CHUTE"]
+    names = ["WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER 1", "V ROLLER 2", "CHUTE"]
     want = [n["contacts"][k]["uid"] if k in n["contacts"] else maker.UID[k] for k in names]
     assert [c.key for c in rd.contacts] == want
     assert [c.kind for c in rd.contacts] == ["WRAP", "WRAP", "WRAP", "TOUCH", "TOUCH", "WRAP"]
@@ -1698,16 +1698,17 @@ def test_is_round_by_the_outside_itself():
 
 
 def test_round_parts_of_the_test_model(test_model):
-    """Finding 3 on real OpenCascade meshes (Normal and Draft): drum, sheaves and V rollers are round, the chute
+    """Finding 3 on real OpenCascade meshes (Normal and Draft): drum, its wire, sheaves and V rollers are round, the chute
     and the frames are not."""
     for quality in ("normal", "draft"):
         seen = {}
         for r in test_model[quality][1]:
             name = r.key.split("/")[-1].split("#")[0]
-            if name in ("WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER", "CHUTE", "BASE FRAME", "A-FRAME"):
+            if name in ("WINCH DRUM", "WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER", "CHUTE", "BASE FRAME",
+                        "A-FRAME"):
                 big = float(np.linalg.norm(np.cross(r.verts - r.centre, r.axis), axis=1).max())
                 seen.setdefault(name, []).append((big, P.is_round(r.verts, r.centre, r.axis, r.tris)))
-        for name in ("WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER"):
+        for name in ("WINCH DRUM", "WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "V ROLLER"):
             assert min(seen[name])[1], (quality, name)               # about its own (the nearest) axis
         for name in ("CHUTE", "BASE FRAME", "A-FRAME"):
             assert not any(flag for _, flag in seen[name]), (quality, name)

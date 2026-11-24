@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.230 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
+## 0.2.231 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
 
 - **3 Looks > Welds** (new): **Add weld…**, click the faces of the first part (Shift-click: more), Enter, click the
   faces of the part it is welded to – a bead is laid on every line where the two sets meet, shown green in the view
@@ -27,6 +27,18 @@ installer of that version was built from.
 - Measured on the 4-core test machine: 300 welds (900 seams, 87 m of bead) on an invented frame in about 100 s,
   0.06 s to find one weld's seams and 0.03 s to build its bead; the project saves in 0.5 s; renders take no longer.
 - New test model, test tour stop "Welds" and PC check line "Welds: two picked faces give a bead".
+
+## 0.2.230 – 24 Nov 2026 – The winch and spool test models at real size; the winch drum is full of wire (task 0263)
+
+- **The cable test machine** (test tour "Cable over sheaves", the PC check, the user guide) is now real size: its
+  A-frame stands about 5 m tall on an 8 m base. The winch drum, the sheaves, the V rollers, the chute and the 24 mm
+  wire rope kept their real size – the rope's way is longer.
+- **The winch drum is full of wire rope**, layer on layer, and works as a winch drum (4 Motion > Drums and carousels):
+  when the rope runs, it winds off and on the drum wrap by wrap. A new picture in the user guide shows it close up.
+- **The spooling test model's carousel** is twice as big: 4 m across with a 1.28 m core, so the 40 mm power cable
+  bends round it as a real one would. It holds 665 m of cable now (was 166 m). The winch beside it is unchanged.
+- **Web 3D model:** a cable coming off a drum or carousel could show one ring more at its end than the app; the page
+  now ends it exactly where the app does.
 
 ## 0.2.229 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
 

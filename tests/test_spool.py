@@ -63,7 +63,7 @@ def test_set_up(made):
     assert d.r1 == pytest.approx(0.160, abs=1e-3)
     assert abs(d.a_hi - d.a_lo) == pytest.approx(0.4, abs=1e-3)
     c = spool.find(sc, "Carousel")
-    assert c.r_in == pytest.approx(0.34, abs=2e-3) and c.r_out == pytest.approx(0.84, abs=2e-3)
+    assert c.r_in == pytest.approx(0.68, abs=2e-3) and c.r_out == pytest.approx(1.68, abs=2e-3)   # (task 0263: x 2)
     assert paths.find(sc, "Wire").a_kind == "SPOOL" and paths.find(sc, "Power cable").a_kind == "SPOOL"
 
 

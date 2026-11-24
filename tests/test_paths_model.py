@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 import make_test_paths as maker  # noqa: E402
 from fresing_render.core import clash as C  # noqa: E402
-from fresing_render.core.flex_fit import tube_centreline  # noqa: E402
+from fresing_render.core.paths import centreline as cable_centreline  # noqa: E402
 from fresing_render.importer import step_reader  # noqa: E402
 
 A = os.path.join(HERE, "data", "test_paths_a.step")
@@ -32,6 +32,7 @@ GREY, YELLOW, STEEL, CHROME = (0.3, 0.3, 0.3), (0.976, 0.659, 0.0), (0.55, 0.57,
 COLOURS = {"BASE FRAME": GREY, "BEARING BLOCK": GREY, "CRADLE STAND": GREY, "CHUTE STAND": GREY, "A-FRAME": YELLOW,
            "WINCH DRUM": STEEL, "SHEAVE 1": STEEL, "SHEAVE 2": STEEL, "V ROLLER": STEEL, "CHUTE": STEEL,
            "HINGE PIN": CHROME, "SHEAVE PIN 1": CHROME, "SHEAVE PIN 2": CHROME, "WIRE ROPE": (0.13, 0.13, 0.14),
+           "WIRE ON DRUM": (0.13, 0.13, 0.14),
            "GUARD": (0.9, 0.35, 0.05)}
 Y = np.array([0.0, 1.0, 0.0])
 
@@ -88,7 +89,9 @@ def rope(model_a):
     """The rope's middle read from its mesh: (the Tube, its points in the model's coordinates in mm)."""
     i = model_a.by_uid[N["rope"]["uid"]]
     mid = model_a.nodes[i]["mesh"]
-    tube = tube_centreline(model_a.arrays[f"p{mid}"], model_a.arrays[f"t{mid}"].reshape(-1, 3), 2049)
+    # (task 0263: the rope is 14.7 m long now, 1,227 radii: read as the app reads a cable – in overlapping pieces –,
+    # a point every 3.5 mm as before; one ``tube_centreline`` stops at 1,024 cuts, 14 mm apart)
+    tube = cable_centreline(model_a.arrays[f"p{mid}"], model_a.arrays[f"t{mid}"].reshape(-1, 3), 0.0035)
     assert tube.ok, tube.problem
     m = model_a.world[i]
     return tube, (tube.points @ m[:3, :3].T + m[:3, 3]) * 1000.0
@@ -133,7 +136,7 @@ def test_the_rope_is_lines_and_arcs_without_a_kink():
     its wheel at the seat radius (surface + the rope's radius) on the side the numbers give."""
     route = maker.Route()
     assert [s.kind for s in route.segments] == ["arc", "line"] * 4
-    assert [a.name for a in route.contacts] == list(N["contacts"]) == ["WINCH DRUM", "SHEAVE 1", "SHEAVE 2", "CHUTE"]
+    assert [a.name for a in route.contacts] == list(N["contacts"]) == ["WIRE ON DRUM", "SHEAVE 1", "SHEAVE 2", "CHUTE"]
     for a, b in zip(route.segments[:-1], route.segments[1:]):
         assert np.linalg.norm(a.end - b.start) < 1e-9
         assert angle(a.end_tangent, b.start_tangent) < 1e-5
@@ -165,28 +168,31 @@ def test_the_numbers_of_the_docstring():
     doc = maker.__doc__
     r = N["rope"]
     assert N["rope_radius"] == 12.0 and N["lean"] == 20.0 and N["luff_range"] == (-15.0, 15.0)
-    assert N["luff_axis"]["point"] == (1500.0, 0.0, 730.0) and N["luff_axis"]["direction"] == (0.0, 1.0, 0.0)
-    assert np.allclose(r["start"], (238.0, 0.0, 450.0), atol=1e-3)
-    assert np.allclose(r["end"], (3481.020, 0.0, 52.650), atol=1e-3)
-    assert abs(r["length"] - 7022.212) < 1e-3 and "7022.212" in doc
-    want = {"WINCH DRUM": ((450.0, 0.0, 450.0), 200.0, 212.0, 147.111),
-            "SHEAVE 1": ((1910.424, 0.0, 1857.631), 238.0, 250.0, 191.749),
-            "SHEAVE 2": ((1500.0, 0.0, 830.0), 168.0, 180.0, 134.638),
-            "CHUTE": ((2700.0, 0.0, 50.0), 588.0, 600.0, 50.0)}
+    assert N["luff_axis"]["point"] == (3750.0, 0.0, 1825.0) and N["luff_axis"]["direction"] == (0.0, 1.0, 0.0)
+    assert np.allclose(r["start"], (868.215, 0.0, 600.0), atol=1e-3)
+    assert np.allclose(r["end"], (8013.111, 0.0, 573.117), atol=1e-3)
+    assert abs(r["length"] - 14841.509) < 1e-3 and "14841.509" in doc
+    # task 0263 (real size): worked out again from the layout alone – the runs by the tangent condition solved by
+    # bisection, not the maker's closed form – and it agrees to the last digit
+    # (task 0263: the rope lies on the wire on the drum: two layers, 212 + 24 cos 30° + 12 = 244.785, its middle 12 out)
+    want = {"WIRE ON DRUM": ((1125.0, 0.0, 600.0), 244.785, 256.785, 143.261),
+            "SHEAVE 1": ((4776.060, 0.0, 4644.078), 238.0, 250.0, 172.444),
+            "SHEAVE 2": ((3750.0, 0.0, 1925.0), 168.0, 180.0, 119.183),
+            "CHUTE": ((6750.0, 0.0, 1145.0), 588.0, 600.0, 50.0)}
     for name, (axis, surface, seat, wrap) in want.items():
         c = N["contacts"][name]
         assert np.allclose(c["axis_point"], axis, atol=1e-3), name
-        assert (c["surface_radius"], c["seat_radius"]) == (surface, seat)
+        assert c["surface_radius"] == pytest.approx(surface, abs=1e-3) and c["seat_radius"] == pytest.approx(seat, abs=1e-3)
         assert abs(c["wrap"] - wrap) < 1e-3 and (name == "CHUTE" or f"{wrap:.3f}" in doc)
     # a quarter turn and more on the drum, the two sheaves on different sides, the run through the cradle level
-    assert N["contacts"]["WINCH DRUM"]["wrap"] >= 90.0
+    assert N["contacts"]["WIRE ON DRUM"]["wrap"] >= 90.0
     assert N["contacts"]["SHEAVE 1"]["side"] == -N["contacts"]["SHEAVE 2"]["side"] == 1
     assert N["contacts"]["SHEAVE 2"]["tangent_out"][2] == N["contacts"]["CHUTE"]["tangent_in"][2] == N["level_run_z"]
-    assert N["level_run_z"] == 650.0
-    for k, (axis, direction, touch) in enumerate((((2400.0, 46.281, 594.845), (0.0, 0.766044, 0.642788),
-                                                   (2400.0, 7.713, 640.807)),
-                                                  ((2540.0, -46.281, 594.845), (0.0, -0.766044, 0.642788),
-                                                   (2540.0, -7.713, 640.807)))):
+    assert N["level_run_z"] == 1745.0
+    for k, (axis, direction, touch) in enumerate((((6000.0, 46.281, 1689.845), (0.0, 0.766044, 0.642788),
+                                                   (6000.0, 7.713, 1735.807)),
+                                                  ((6350.0, -46.281, 1689.845), (0.0, -0.766044, 0.642788),
+                                                   (6350.0, -7.713, 1735.807)))):
         roller = N["rollers"][k]
         assert np.allclose(roller["axis_point"], axis, atol=1e-3)
         assert np.allclose(roller["axis_direction"], direction, atol=1e-6)
@@ -213,20 +219,20 @@ def test_the_luff_range():
             assert np.linalg.norm(a.end - b.start) < 1e-9 and angle(a.end_tangent, b.start_tangent) < 1e-5
         assert all(s.length > 300.0 for s in route.segments)
         assert all(40.0 < c["wrap"] < 210.0 for c in n["contacts"].values())
-        assert n["contacts"]["WINCH DRUM"]["wrap"] >= 90.0
+        assert n["contacts"]["WIRE ON DRUM"]["wrap"] >= 90.0
         turn = maker.RotY(float(luff), hinge)                    # + about +Y: the top goes towards +X
         for name in ("SHEAVE 1", "SHEAVE 2"):
             drawn = np.r_[N["contacts"][name]["axis_point"], 1.0]
             assert np.allclose((turn @ drawn)[:3], n["contacts"][name]["axis_point"], atol=1e-3)
-        for name in ("WINCH DRUM", "CHUTE"):
+        for name in ("WIRE ON DRUM", "CHUTE"):
             assert n["contacts"][name]["axis_point"] == N["contacts"][name]["axis_point"]
         assert n["rope"]["start"] == N["rope"]["start"] and n["rope"]["end"] == N["rope"]["end"]
         gaps = [r["gap"] for r in n["rollers"]]
         assert -0.7 < min(gaps) and max(gaps) <= 1e-9, (luff, gaps)
         # the run between the two sheaves rides on the frame: always as long
         assert abs(n["rope"]["segments"][3]["length"] - N["rope"]["segments"][3]["length"]) < 1e-3
-    for luff, length, wraps, top in ((-15.0, 6849.652, (156.232, 185.870, 119.798, 50.159), (1604.587, 1925.434)),
-                                     (15.0, 7162.170, (138.417, 198.055, 149.805, 50.166), (2188.292, 1712.982))):
+    for luff, length, wraps, top in ((-15.0, 14483.249, (151.282, 165.465, 104.247, 50.065), (4011.467, 4813.584)),
+                                     (15.0, 15107.289, (135.381, 179.564, 134.249, 50.066), (5470.729, 4282.456))):
         n = maker.numbers_at(luff)
         assert abs(n["rope"]["length"] - length) < 1e-3
         assert np.allclose([c["wrap"] for c in n["contacts"].values()], wraps, atol=1e-3)
@@ -251,8 +257,8 @@ def test_parts_names_and_colours(model_a):
     nodes = model_a.nodes
     assert sorted(n["name"] for n in nodes) == sorted(maker.PARTS + maker.ASSEMBLIES)
     assert sorted(n["name"] for n in nodes if n["kind"] == "part") == sorted(maker.PARTS)
-    assert model_a.info["stats"]["placed_parts"] == 17 and model_a.info["stats"]["unique_parts"] == 14
-    assert _solids_in(A) == 17, "every part is one solid"
+    assert model_a.info["stats"]["placed_parts"] == 18 and model_a.info["stats"]["unique_parts"] == 15
+    assert _solids_in(A) == 18, "every part is one solid"
     for i in model_a.parts:
         n = nodes[i]
         assert n["color"] is not None, (n["name"], "has no colour (a part of several solids loses it)")
@@ -327,13 +333,20 @@ def test_the_rope_rests_on_both_v_rollers(rope, model_a):
 def test_the_surfaces_under_the_rope(model_a):
     """From the meshes (their corners lie on the CAD surfaces): the drum's barrel, the sheaves' round grooves
     (radius 13, bottom and flanges where the numbers say), the chute's trough."""
-    drum = N["contacts"]["WINCH DRUM"]
+    drum = N["winch"]
     v, _t = model_a.mesh(model_a.by_uid[drum["uid"]])
     r = off_line(v, drum["axis_point"], Y)
-    between = np.abs(v[:, 1]) < 200.0 + 1e-3                                     # between the flanges: the barrel
+    between = np.abs(v[:, 1]) < 150.0 + 1e-3                                     # between the flanges: the barrel
     assert between.sum() > 20 and abs(r[between].min() - 200.0) < 1e-3
     assert set(np.round(r[between], 3)) == {200.0, 300.0}                        # … plain, and the flanges' rims
     assert abs(r.max() - 300.0) < 1e-3 and abs(np.abs(v[:, 1]).max() - 340.0) < 1e-3
+    # task 0263: the wire on it – from the barrel to layer 2's outside (r 244.785) over the whole width; 212 + k x 24 x
+    # cos 30° are the layers' middles
+    assert np.allclose(drum["layer_radii"], [212.0, 212.0 + 24 * math.cos(math.radians(30)),
+                                             212.0 + 48 * math.cos(math.radians(30))], atol=1e-4)
+    v, _t = model_a.mesh(model_a.by_uid[drum["wire_uid"]])
+    r = off_line(v, drum["axis_point"], Y)
+    assert set(np.round(r, 3)) == {200.0, 244.785} and abs(np.abs(v[:, 1]).max() - 150.0) < 1e-3
     for name in ("SHEAVE 1", "SHEAVE 2"):
         c = N["contacts"][name]
         v, _t = model_a.mesh(model_a.by_uid[c["uid"]])
@@ -481,7 +494,7 @@ def test_no_part_is_drawn_through_another(model_a, model_b):
     meshes = {i: model_a.mesh(i) for i in model_a.parts}
     rope_i = model_a.by_uid[N["rope"]["uid"]]
     roller = meshes[model_a.by_uid[N["rollers"][0]["uid"]]]
-    assert depth_in(samples(meshes[rope_i]), (roller[0] + (0.0, 0.0, 5.0), roller[1])) > 2.5
+    assert depth_in(samples(meshes[rope_i], most=30000), (roller[0] + (0.0, 0.0, 5.0), roller[1])) > 2.5
     sheave = meshes[model_a.by_uid[N["contacts"]["SHEAVE 2"]["uid"]]]
     assert depth_in(samples((sheave[0] + (0.0, 10.0, 0.0), sheave[1])), meshes[model_a.named("A-FRAME")[0]]) > 2.5
 
@@ -494,8 +507,8 @@ def test_revision_b_is_a_with_a_guard_in_another_order(model_a, model_b):
     """Every part of A is in B under the same ID, at the same place, with the same shape; B has GUARD more."""
     assert set(model_b.by_uid) - set(model_a.by_uid) == {"TEST.PATHS#1/GUARD#1"}
     assert set(model_a.by_uid) <= set(model_b.by_uid)
-    assert model_b.info["stats"]["placed_parts"] == 18 and model_b.info["stats"]["unique_parts"] == 15
-    assert _solids_in(B) == 18
+    assert model_b.info["stats"]["placed_parts"] == 19 and model_b.info["stats"]["unique_parts"] == 16
+    assert _solids_in(B) == 19
     for uid, i in model_a.by_uid.items():
         j = model_b.by_uid[uid]
         na, nb = model_a.nodes[i], model_b.nodes[j]

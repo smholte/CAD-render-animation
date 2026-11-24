@@ -409,8 +409,8 @@ def test_a_sheave_lifted_and_touched_again_three_times(blender):
     """SHEAVE 2 carried out of the rope's way and back three times while the rope runs: it stands still at every
     frame it is off and turns with the rope at every frame it is on; Clear keys puts its coupling back."""
     from fresing_render.blender import animation, joints, paths_rollers
-    sc, it, a = _model(blender, [(0.5, 0.6, 1.6), (1.5, 0.6, 0.0), (2.5, 0.6, 1.6), (3.5, 0.6, 0.0),
-                                 (4.5, 0.6, 1.6)])
+    sc, it, a = _model(blender, [(0.5, 0.6, 3.2), (1.5, 0.6, 0.0), (2.5, 0.6, 3.2), (3.5, 0.6, 0.0),
+                                 (4.5, 0.6, 3.2)])
     c2 = next(c for c in it.contacts if c.name == "SHEAVE 2")
     ratio, follows = joints.find(sc, c2.joint).couple_ratio, joints.find(sc, c2.joint).follows
     _frames, pay, v2, on = _built(sc, it, a)
@@ -428,7 +428,7 @@ def test_a_sheave_lifted_at_the_first_frame(blender):
     """SHEAVE 2 already out of the rope's way when the animation starts, brought back at 2 s: still until then,
     turning with the rope after."""
     from fresing_render.blender import joints
-    sc, it, a = _model(blender, [(2.0, 1.0, 0.0)], start_away=1.6)
+    sc, it, a = _model(blender, [(2.0, 1.0, 0.0)], start_away=3.2)
     c2 = next(c for c in it.contacts if c.name == "SHEAVE 2")
     ratio = joints.find(sc, c2.joint).couple_ratio
     _frames, pay, v2, on = _built(sc, it, a)
@@ -441,7 +441,7 @@ def test_a_sheave_never_touched_has_one_key_and_never_turns(blender):
     """SHEAVE 2 out of the rope's way the whole animation: it never turns (one key), its coupling put aside, and back
     after Clear keys."""
     from fresing_render.blender import animation, joints, paths, paths_rollers
-    sc, it, a = _model(blender, [], start_away=1.6)
+    sc, it, a = _model(blender, [], start_away=3.2)
     c2 = next(c for c in it.contacts if c.name == "SHEAVE 2")
     follows = joints.find(sc, c2.joint).follows
     _frames, pay, v2, _on = _built(sc, it, a)
@@ -457,7 +457,7 @@ def test_a_sheave_never_touched_has_one_key_and_never_turns(blender):
 
 def test_build_twice_and_clear_then_build_give_the_same_turns(blender):
     from fresing_render.blender import animation, joints, paths_rollers
-    sc, it, a = _model(blender, [(0.5, 0.6, 1.6), (2.5, 0.6, 0.0)])
+    sc, it, a = _model(blender, [(0.5, 0.6, 3.2), (2.5, 0.6, 0.0)])
     c2 = next(c for c in it.contacts if c.name == "SHEAVE 2")
     follows = joints.find(sc, c2.joint).follows
     _f, _p, first, _on = _built(sc, it, a)
@@ -474,7 +474,7 @@ def test_a_sheave_turned_by_something_else_is_left_alone(blender):
     """SHEAVE 2's joint made to follow "Luff" (not its rope): Build leaves its coupling alone although the rope
     leaves it."""
     from fresing_render.blender import joints, paths_rollers
-    sc, it, a = _model(blender, [(0.5, 0.6, 1.6), (2.5, 0.6, 0.0)])
+    sc, it, a = _model(blender, [(0.5, 0.6, 3.2), (2.5, 0.6, 0.0)])
     c2 = next(c for c in it.contacts if c.name == "SHEAVE 2")
     joints.set_follows(sc, joints.find(sc, c2.joint), "Luff")
     j2 = joints.find(sc, c2.joint)

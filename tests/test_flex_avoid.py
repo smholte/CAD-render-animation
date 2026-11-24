@@ -341,6 +341,9 @@ PATHS_A = os.path.join(HERE, "data", "test_paths_a.step")
 PATHS_B = os.path.join(HERE, "data", "test_paths_b.step")
 
 
+S2_X = 3.75                       # SHEAVE 2's x on the cable paths model (task 0263: real size, was 1.5)
+
+
 def test_a_drawn_cable_route_is_laid_again_over_a_moved_sheave(folder):
     from mathutils import Vector
 
@@ -356,10 +359,10 @@ def test_a_drawn_cable_route_is_laid_again_over_a_moved_sheave(folder):
         ob, index, loc, normal = hover.cast(sc, bpy.context.evaluated_depsgraph_get(), Vector(o), Vector(d))
         assert ob.get(build.PROP_NAME) == want
         return drawn.spot(ob, index, loc, normal)
-    start = click((0.0, 0.0, 0.45), (1, 0, 0), "WINCH DRUM")
+    start = click((0.0, 0.0, 0.6), (1, 0, 0), "WIRE ON DRUM")    # (task 0263: the drum full of wire, real size)
     wheels = []
-    for name, o, d in (("SHEAVE 1", (1.9104, 0.0, 3.0), (0, 0, -1)), ("SHEAVE 2", (1.5, 0.0, 0.5), (0, 0, 1)),
-                       ("CHUTE", (2.7, 0.0, 1.5), (0, 0, -1))):
+    for name, o, d in (("SHEAVE 1", (4.776, 0.0, 6.0), (0, 0, -1)), ("SHEAVE 2", (3.75, 0.0, 1.0), (0, 0, 1)),
+                       ("CHUTE", (6.75, 0.0, 2.5), (0, 0, -1))):
         sp = click(o, d, name)
         wheels.append((sp["part"], sp["hit"], False))
     logic.exclude([rope], False)
@@ -374,8 +377,8 @@ def test_a_drawn_cable_route_is_laid_again_over_a_moved_sheave(folder):
     assert item is not None and paths.broken(sc, item) == "" and len(item.contacts) == n_contacts
     assert not [n.text for n in sc.fresing.report_notes if "Drawn rope" in n.text]
     final = np.array([tuple(v.co) for v in item.part.data.vertices])
-    near = np.abs(final[:, 0] - 1.5) < 0.05
-    assert final[near, 2].min() == pytest.approx(before[np.abs(before[:, 0] - 1.5) < 0.05, 2].min(), abs=0.002)
+    near = np.abs(final[:, 0] - S2_X) < 0.05
+    assert final[near, 2].min() == pytest.approx(before[np.abs(before[:, 0] - S2_X) < 0.05, 2].min(), abs=0.002)
     # the sheave the rope goes under is moved down 150 mm: laid again, the rope goes under it where it is now
     before = np.array([tuple(v.co) for v in item.part.data.vertices])
     s2 = named(sc, "SHEAVE 2")
@@ -386,8 +389,8 @@ def test_a_drawn_cable_route_is_laid_again_over_a_moved_sheave(folder):
     item = paths.find(sc, "Drawn rope")
     after = np.array([tuple(v.co) for v in item.part.data.vertices])
 
-    def under_s2(v):                                               # the rope where it passes under SHEAVE 2 (x 1.5)
-        near = np.abs(v[:, 0] - 1.5) < 0.05
+    def under_s2(v):                                               # the rope where it passes under SHEAVE 2
+        near = np.abs(v[:, 0] - S2_X) < 0.05
         return v[near, 2].min()
     assert under_s2(after) == pytest.approx(under_s2(before) - 0.15, abs=0.01)     # under the sheave where it is now
     # (moved by hand here, not in a new revision: its CAD place is still the old one, so the contacts – read in the

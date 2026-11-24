@@ -657,7 +657,7 @@ def decals_add(ctx):
     return f"{len(shown)} decals; render {info['seconds']} s"
 
 
-@line("looks.welds", "Welds: two picked faces give a bead", "0.2.230",
+@line("looks.welds", "Welds: two picked faces give a bead", "0.2.231",
       what="The base plate's top and one side of the fin picked as in Inventor: one fillet 200 mm long; then every joint "
            "of the test weldment welded with another look (painted, MAG, rusty, stainless, pickled, aluminium, ground); "
            "rendered small")
@@ -1470,21 +1470,23 @@ def motion_flex_kinds(ctx):
 
 
 @line("motion.paths", "A cable runs over sheaves, rollers and a chute", "0.2.80",
-      what="A winch drum, an A-frame with two grooved sheaves, a V-roller cradle and a chute: the wire rope is read "
-           "from its CAD solid and lies in the grooves; a Run motor step moves it at 10 m/min and the drum, the "
-           "sheaves and the rollers turn exactly with it; the rope follows the luffing A-frame, and its strands "
-           "have moved by the length that ran")
+      what="A winch drum full of wire rope, an A-frame with two grooved sheaves, a V-roller cradle and a chute (task "
+           "0263: real size): the wire rope is read from its CAD solid and comes off the drum, a winch drum of Drums "
+           "and carousels, layer by layer; it lies in the grooves; a Run motor step moves it at 10 m/min, the "
+           "sheaves and the rollers turn exactly with it and the drum as far as that on its layer; the rope follows "
+           "the luffing A-frame, and its strands have moved by the length that ran")
 def motion_paths(ctx):
     from ..blender import animation, cable_looks, cameras, joints, paths, render, tour
     scene = ctx.fresh(PATHS)
     s = scene.fresing
     t0 = time.time()
-    made = paths.set_up_test_model(scene)
+    made = paths.set_up_test_model(scene, winch=True)
     ctx.metric("read the cable", time.time() - t0, "s")
     item = paths.find(scene, made["cable"])
     kinds = [c.kind for c in item.contacts]
-    _check(kinds == ["SHEAVE", "SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"],
-           f"the rope should touch a drum, 2 sheaves, 2 rollers and a chute; found: {', '.join(kinds) or 'nothing'}")
+    _check(kinds == ["SHEAVE", "SHEAVE", "ROLLER", "ROLLER", "CHUTE"] and item.a_kind == "SPOOL",
+           f"the rope should come off the winch drum and touch 2 sheaves, 2 rollers and a chute; found: "
+           f"{', '.join(kinds) or 'nothing'}")
     _check(abs(item.diameter - 0.024) < 0.0005, f"the rope's diameter was read as {item.diameter * 1000:.1f} mm (24)")
     # posed by hand (no animation): the rope follows the A-frame at once
     before = paths.shape_now(scene, item).copy()
