@@ -1,6 +1,6 @@
 # 0310 – 3D page: the lead motions as sliders
 
-**Who:** worker · **Status:** open – waits for 0309 · **Branch:** `task/0310-web-lead-motion-sliders`
+**Who:** worker · **Status:** running · **Branch:** `ccr-e50b9f63-gy57vr`
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "these sliders for movement could also come to web 3D viewer") ·
 **Model:** Opus · effort Medium
 **Area:** Web 3D lane – `core/web3d.py` / `blender/web3d.py` (export: one glTF clip per lead motion),

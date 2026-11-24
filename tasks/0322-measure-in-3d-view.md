@@ -1,6 +1,6 @@
 # 0322 – Measure in the 3D view: a Measure menu in the top bar and a key
 
-**Who:** worker · **Status:** waits for 0291 (both change `lock.py`'s keys) · **Branch:** `task/0322-measure-in-3d-view`
+**Who:** worker · **Status:** running · **Branch:** `ccr-b4de08d0-he2cht` (the web session's branch)
 **Started by:** lead, 24 Nov 2026 (owner 11:44: "Yes measuring in the 3D viewer. This should open from a separate menu
 from the top bar of the app or with a keybind.") · **Model:** Opus · effort High
 **Area:** new **Measure lane** – new files `core/measure.py` (no Blender: distances, angles, radius, units),
