@@ -839,6 +839,61 @@ def panel_workspaces(ctx):
         shutil.rmtree(os.path.dirname(os.path.dirname(folder)), ignore_errors=True)
 
 
+@line("workspace.essentials", "Workspaces round 2: Essentials as the start, Sales, Quick render, Animator, Reviewer, "
+      "favourites on top", "0.2.221",
+      what="A user who has not chosen starts new projects in Essentials; each task workspace shows exactly its "
+           "functions; starred workspaces and the one for new projects sit on top of the list. Your own choice and "
+           "stars are put back as they were")
+def workspace_essentials(ctx):
+    import bpy
+
+    from ..blender import prefs, workspaces
+    from ..core import functions as FN
+    from ..core import workspaces as W
+    scene = ctx.fresh(MACHINE)
+    p = prefs.get()
+    kept = (p.default_workspace, p.workspace_stars) if p is not None else None
+    env = os.environ.pop(workspaces.ENV_START, None)
+    try:
+        if p is not None:                       # a user who has not chosen: Essentials (never written to the file)
+            p.default_workspace = ""
+            _check(workspaces.default_name() == "Essentials", "a user who has not chosen does not start in Essentials")
+        _check(W.start_choice("", "0.2.150", since=W.START_SINCE) == W.DEFAULT and W.start_choice("", "") == "",
+               "an existing user would not keep All functions (or a new one would not start in Essentials)")
+        counts = []
+        for key in ("essentials", "sales", "quick", "animator", "reviewer"):
+            workspaces.switch(scene, W.NAMES[key])
+            shown = workspaces._state(scene)[1]
+            _check(set(shown) == set(FN.TASK_WORKSPACES[key]) - set(workspaces.PERSONAL["hide"]),
+                   f"{W.NAMES[key]} does not show exactly its functions")
+            _check(not workspaces.locked(scene), f"{W.NAMES[key]} locks the project")
+            counts.append(f"{W.NAMES[key]} {len(shown)}")
+        workspaces.switch(scene, "Essentials")
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_import") and workspaces.panel_hidden(scene, "FRESING_PT_cnc"),
+               "Essentials hides 1 Import or shows the CNC machine")
+        _check(bpy.types.FRESING_PT_import.poll(bpy.context) and not bpy.types.FRESING_PT_cnc.poll(bpy.context),
+               "the side panel does not follow Essentials")
+        workspaces.switch(scene, "Sales")
+        _check(all(workspaces.panel_hidden(scene, "FRESING_PT_" + n) for n in ("import", "structure", "motion"))
+               and not workspaces.panel_hidden(scene, "FRESING_PT_web3d"), "Sales shows structure or motion, or no 3D page")
+        if p is not None:                       # favourites on top (set and put back here: nothing written)
+            p.workspace_stars = W.stars_json(["Reviewer", "Animator"])
+            p.default_workspace = "Sales"
+            top, rest = workspaces.menu()
+            _check([r[0] for r in top] == ["Sales", "Reviewer", "Animator"] and "Animator" not in [r[0] for r in rest],
+                   "the starred workspaces are not on top of the list")
+        return ", ".join(counts) + " functions"
+    finally:
+        if p is not None and kept is not None:
+            p.default_workspace, p.workspace_stars = kept
+        if env is not None:
+            os.environ[workspaces.ENV_START] = env
+        try:
+            workspaces.switch(scene, W.DEFAULT)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 # ---------------------------------------------------------------------------
 # motion
 # ---------------------------------------------------------------------------

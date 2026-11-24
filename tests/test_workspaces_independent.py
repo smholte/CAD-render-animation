@@ -43,8 +43,9 @@ CRANE_B = os.path.join(DATA, "test_crane_b.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
 PATHS = os.path.join(DATA, "test_paths_a.step")
 
-BUILT_IN = ("All functions", "CNC & machining", "Offshore & cable laying", "Product design & R&D", "Client view",
-            "Education & training", "Lifting plans", "Full access")      # Lifting plans: task 0201
+BUILT_IN = ("Essentials", "All functions", "CNC & machining", "Offshore & cable laying", "Product design & R&D",
+            "Client view", "Education & training", "Lifting plans", "Sales", "Quick render", "Animator", "Reviewer",
+            "Full access")      # Lifting plans: task 0201; Essentials and the task workspaces: task 0294
 _BEFORE: dict = {}           # Blender as it was before the extension was registered (handlers, the patched draws)
 
 
@@ -599,6 +600,11 @@ def test_make_lists_only_outputs_whose_settings_can_be_shown():
               "product": "animation"}
     for name in BUILT_IN:
         workspaces.switch(sc, name)
+        if W.key_of(name) in F.TASK_WORKSPACES:      # task 0294: a list of functions – an output shows when its
+            listed = {o[0] for o in ui_top._outputs(sc)}         # function is on the list, whatever its family
+            for key, _text, _icon, _popover, fid, _op_id, _t in ui_top.OUTPUTS:
+                assert (key in listed) == (fid in F.TASK_WORKSPACES[W.key_of(name)]), (name, key)
+            continue
         for fam in [None] + W.tickable():
             if fam is not None:
                 workspaces.set_tick(sc, fam, not workspaces.family_on(sc, fam))
@@ -1298,7 +1304,7 @@ def test_nothing_on_the_allow_list_edits_the_model_by_its_name():
     saved views, turntable, render; plus help, updates, the panel itself)."""
     workspaces, panels, lock = _mods()
     allowed = sorted(i for i in _operators() if lock.allowed(i))
-    assert len(allowed) < 127         # task 0316: + Update now's box Cancel (1); task 0282: + a function window's OK, Close and Esc / Return (3; OK runs the function's own poll, refused stays refused); task 0275: + hub_show (1); task 0281: + tour_chapter (1); task 0253: + a swallowed Blender key, F12, the right-click menu and its 5 viewing entries (hide in the view only) (8); task 0271: + Fresing Settings open / tab / close and the presence mark (4); task 0260: + fold the left panel, the Learning hub's switch, What's next's fold, the output windows' open / close / Make's fold (6); task 0230: + Learn…, its View / Show me / Build (a new project, never the locked one) and the lesson's Stop, More, mode (6); task 0217: + the Toolbox status line and Not now (2); task 0213: + camera, saved scene, paint schemes (4); task 0208: + the learning buttons (8); task 0181: + the usage tracker's 9 buttons (they change nothing in the model)
+    assert len(allowed) < 128         # task 0294: + the workspace's star (a setting of the user, not of the model) (1); task 0316: + Update now's box Cancel (1); task 0282: + a function window's OK, Close and Esc / Return (3; OK runs the function's own poll, refused stays refused); task 0275: + hub_show (1); task 0281: + tour_chapter (1); task 0253: + a swallowed Blender key, F12, the right-click menu and its 5 viewing entries (hide in the view only) (8); task 0271: + Fresing Settings open / tab / close and the presence mark (4); task 0260: + fold the left panel, the Learning hub's switch, What's next's fold, the output windows' open / close / Make's fold (6); task 0230: + Learn…, its View / Show me / Build (a new project, never the locked one) and the lesson's Stop, More, mode (6); task 0217: + the Toolbox status line and Not now (2); task 0213: + camera, saved scene, paint schemes (4); task 0208: + the learning buttons (8); task 0181: + the usage tracker's 9 buttons (they change nothing in the model)
     edits = ("_add", "_remove", "_delete", "_clear", "_save", "_set", "_move", "_assign", "_apply_", "explode",
              "exclude", "hide_", "joint", "pose", "group", "rule", "scheme", "decal", "bake", "build")
     ok = {"fresing.queue_add", "fresing.queue_remove", "fresing.report_clear", "fresing.workspace_save",

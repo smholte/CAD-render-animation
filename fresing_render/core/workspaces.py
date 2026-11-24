@@ -33,10 +33,16 @@ MARKER = "fresing_render_workspace"
 VERSION = 1
 FOLDER = "Workspaces"
 MAX_NAME = 60
-DEFAULT = "All functions"
+DEFAULT = "All functions"            # the app's own projects (test tour, demo, PC check) and "Show everything"
+START = "Essentials"                 # task 0294: new projects of anyone who has not chosen a workspace
+START_SINCE = "0.2.221"              # task 0294: the first version with Essentials
 
 # key -> (name, what it is for, locks the model, shows Blender's own tabs / toolbar / menus)
 BUILTIN = {
+    "essentials": ("Essentials", "The start: what a first good picture and a simple motion need – import, sort into "
+                                 "groups and materials, surroundings and light, camera views, a joint and a pose, "
+                                 "Build & play, render a picture or a turntable, saved scenes. Pick another workspace "
+                                 "for more", False, False),
     "all": ("All functions", "Every function of the app. Blender's own tabs and toolbar stay out of the way", False,
             False),
     "cnc": ("CNC & machining", "G-code, toolpaths, axis set-up, tools, milling, way covers, clash check. Hides the "
@@ -53,6 +59,16 @@ BUILTIN = {
     "lifting": ("Lifting plans", "Lifting plans with ready-rigged cranes from the library: place, load and CoG, "
                                  "hook to here, crane use. Also import, structure, looks, scene, animation and the "
                                  "render queue. Hides CNC, milling, cables and the sea", False, False),
+    "sales": ("Sales", "Make outputs from a finished project: saved scenes, looks and paint schemes, logos, "
+                       "surroundings and weather, pictures, turntable, product video, 3D page. The model's import, "
+                       "structure and motion are not shown. Unlike the Client view the project is not locked: looks, "
+                       "scenes and outputs can be changed", False, False),
+    "quick": ("Quick render", "Import a STEP, sort into groups and looks, surroundings, light and camera, then one "
+                              "picture or a turntable. Nothing else", False, False),
+    "animator": ("Animator", "Motion and video: joints, cylinders, mechanisms, poses, animation steps, cameras and "
+                             "camera paths, labels, video finishing, render queue", False, False),
+    "reviewer": ("Reviewer", "Look at a finished model: saved scenes, slice, X-ray, poses and exploded views, labels, "
+                             "visibility sets, play the animation, clash check", False, False),
     "full": ("Full access", "Every function, plus Blender's own workspace tabs, toolbar and menus. Also undoes the "
                             "Client view's lock", False, True),
 }
@@ -453,3 +469,69 @@ def make_own(name: str, base: Workspace, ticks: dict | None = None, note: str = 
     return Workspace(name=clean_name(name), key="", note=note or f"Based on '{base.name}'", families=fam,
                      hide=tuple(sorted(hide)), lock=base.lock, blender_ui=base.blender_ui,
                      based_on=base.key or base.based_on)
+
+
+# ---------------------------------------------------------------------------
+# task 0294: favourites on top of the drop-down, and the start of a new user
+# ---------------------------------------------------------------------------
+
+def parse_stars(text: str) -> list:
+    """The starred workspaces (names, in the order they were starred) from the settings file's text."""
+    try:
+        d = json.loads(text) if text else []
+    except ValueError:
+        return []
+    out = []
+    for n in d if isinstance(d, list) else []:
+        n = clean_name(n) if isinstance(n, str) else ""
+        if n and n.casefold() not in {o.casefold() for o in out}:
+            out.append(n)
+    return out
+
+
+def stars_json(stars) -> str:
+    return json.dumps(list(stars), ensure_ascii=False) if stars else ""
+
+
+def toggle_star(stars, name: str) -> list:
+    """Star a workspace (it goes last among the starred ones) or take its star away."""
+    low = (name or "").casefold()
+    if any(n.casefold() == low for n in stars):
+        return [n for n in stars if n.casefold() != low]
+    return list(stars) + [clean_name(name)]
+
+
+def rename_star(stars, old: str, new: str) -> list:
+    """An own workspace was renamed: its star follows it (at the same place)."""
+    return [new if n.casefold() == (old or "").casefold() else n for n in stars]
+
+
+def menu_order(names, stars=(), default: str = "") -> tuple:
+    """(top, rest) of the drop-down: on top the workspace for new projects, then the starred ones in the order they
+    were starred; under the line the others in the list's own order. Names that are not in ``names`` (a deleted own
+    workspace) are left out."""
+    by_low = {n.casefold(): n for n in names}
+    top = []
+    for n in ([default] if default else []) + list(stars):
+        hit = by_low.get((n or "").casefold())
+        if hit and hit not in top:
+            top.append(hit)
+    return top, [n for n in names if n not in top]
+
+
+def start_choice(chosen: str, last_run: str, since: str = START_SINCE) -> str:
+    """Task 0294: what "Workspace for new projects" holds after this start. '' = not chosen (new projects start in
+    Essentials). A user who ran a version before Essentials and never chose one worked in All functions: he keeps it
+    (written down, so it counts as his choice from now on). A choice already made is never changed."""
+    if chosen:
+        return chosen
+    if last_run and _vt(last_run) and _vt(last_run) < _vt(since):
+        return DEFAULT
+    return ""
+
+
+def _vt(v: str) -> tuple:
+    try:
+        return tuple(int(x) for x in str(v).strip().split("."))
+    except ValueError:
+        return ()
