@@ -36,9 +36,14 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
 
     # ---- the side panel (task 0062) ----
     default_workspace: StringProperty(
-        name="Workspace for new projects", default="All functions",
+        name="Workspace for new projects", default="",
         description="The workspace a new project starts in, and the one a project from before workspaces opens in "
-                    "(with everything it uses shown). Pick it in the Fresing tab: Workspace > Use for new projects")
+                    "(with everything it uses shown). Empty: not chosen yet – new projects start in Essentials. "
+                    "Pick it in the Fresing tab: Workspace > Use for new projects")
+    workspace_stars: StringProperty(
+        default="", options={"HIDDEN"},
+        description="Task 0294: the workspaces you starred, in the order you starred them – they sit at the top of "
+                    "the Workspace drop-down")
     keep_sections: BoolProperty(
         name="Keep sections as I left them", default=False,
         description=f"Off: sections 1 to {len(places.SECTIONS)} start folded every time the app starts or a project opens, so the side "
@@ -168,7 +173,7 @@ def draw_general(layout, p) -> None:
     row.operator_menu_enum("fresing.rule_set_default", "name", text=p.default_rule_set or "Standard", icon="FILTER")
     row = col.row(align=True)
     row.label(text="Workspace for new projects")
-    row.operator_menu_enum("fresing.workspace_default", "name", text=p.default_workspace or "All functions",
+    row.operator_menu_enum("fresing.workspace_default", "name", text=p.default_workspace or "Essentials (not chosen yet)",
                            icon="WORKSPACE")
     col.separator()
     col.prop(p, "hover_highlight")

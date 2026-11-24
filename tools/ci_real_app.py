@@ -57,6 +57,10 @@ import tempfile
 import threading
 import time
 
+# task 0294: a user who has not chosen a workspace starts in Essentials; these tests and pictures start in All
+# functions as before (ui_test_workspaces2.py sets it empty for its own checks)
+os.environ.setdefault("FRESING_WORKSPACE_START", "All functions")
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import test_install_linux  # noqa: E402
@@ -72,7 +76,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
-              "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "copy": 16}
+              "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16}
 # Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
 # took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on).
 LONG_MIN = {"pccheck": 25, "pccheck2": 25}
@@ -93,7 +97,7 @@ GROUPS = {
     "callouts": ["callouts", "importagain", "place", "copy"],      # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s); copy: task 0293 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup"],   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms"],   # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
-    "tour-b": ["tour2", "highlight", "start", "route"],   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
+    "tour-b": ["tour2", "highlight", "start", "route", "workspaces2"],   # workspaces2: task 0294 (~1 min)   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout", "left", "settings", "locations"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271; locations: 0272 (~40 s)
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
@@ -103,6 +107,9 @@ GROUPS = {
 }
 
 TESTS = {
+    "workspaces2": ("Real app: workspaces round 2 – a new user starts in Essentials, the drop-down with stars on top, "
+                    "Sales, Use for new projects, kept over a restart (ui_test_workspaces2.py)", "ui_test_workspaces2.py",
+                    True),
     "importagain": ("Real app: a dropped STEP file comes in as with Import STEP…, Import again from the cache, a "
                     "model's Up axis + Undo, Remove from cache (ui_test_import_again.py)", "ui_test_import_again.py",
                     True),
@@ -371,6 +378,8 @@ def main(argv=None) -> int:
         folder = os.path.join(out, key)
         os.makedirs(folder, exist_ok=True)
         env = dict(base_env, UITEST_OUT=folder)
+        if key == "workspaces2":                     # task 0294: a real new user – not chosen means Essentials
+            env["FRESING_WORKSPACE_START"] = ""
         if key == "start":                           # task 0199: the welcome shows although events are simulated
             env.update(FRESING_WELCOME_TEST="1")
         if key == "backups":                         # task 0246: backups and the start question with simulated events

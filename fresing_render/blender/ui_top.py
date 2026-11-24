@@ -49,7 +49,7 @@ class FRESING_PT_workspace(LeftPanel, bpy.types.Panel):   # task 0260: on the le
                            icon="DOWNARROW_HLT" if opened else "RIGHTARROW")
         op.name = "FRESING_PT_workspace"
         left.label(text="", icon="LOCKED" if ws.lock else "WORKSPACE")
-        row.operator_menu_enum("fresing.workspace_pick", "name", text=name)
+        row.menu("FRESING_MT_workspaces", text=name)       # task 0294: favourites on top, a star beside each
         hidden = workspaces.hidden_in_use(scene)
         if hidden and not ws.lock:
             row = layout.row(align=True)
