@@ -45,7 +45,8 @@ PATHS = os.path.join(DATA, "test_paths_a.step")
 
 BUILT_IN = ("Essentials", "All functions", "CNC & machining", "Offshore & cable laying", "Product design & R&D",
             "Client view", "Education & training", "Lifting plans", "Sales", "Quick render", "Animator", "Reviewer",
-            "Full access")      # Lifting plans: task 0201; Essentials and the task workspaces: task 0294
+            "Welding", "Machine builder", "Video producer", "Houses",
+            "Full access")      # Lifting plans: task 0201; Essentials and the task workspaces: task 0294; 0321: +4
 _BEFORE: dict = {}           # Blender as it was before the extension was registered (handlers, the patched draws)
 
 
