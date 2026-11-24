@@ -1,6 +1,6 @@
 # 0299 – Weather round 2: thunderstorm, fog / sea mist, sunrise and sunset, hail / sleet, hot and calm; change the weather in a few clicks
 
-**Who:** worker · **Status:** running · **Branch:** `task/0299-weather-round-2`
+**Who:** worker · **Status:** done (0.2.228) · **Branch:** `task/0299-weather-round-2`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "More weather options, like a thunderstorm. And how does
 the current weather function work, should be very easy to change between weather and time for an animation using a few
 clicks, with smooth animations."; owner's click box 23 Nov: also fog / sea mist, sunrise / sunset, hail / sleet, hot
@@ -114,7 +114,7 @@ Thunderstorm); `tour.build_weather` runs it first.
 - Independent tester (a subagent that did not write the code, 278 tests in
   `tests/test_weather_round2_independent.py`): found 3 faults – a date change switched the sun half way (sun 7.9° →
   50.9° in one step), the clock could return 24.0, flash_track with fps 0 gave NaN – all fixed, all its tests pass.
-- GitHub runs: see below.
+- GitHub runs (all full): 7 on the branch – 2345c08 green; then six merges of `main`, because five other tasks released while each run went (0.2.222 → 0.2.228): 0a31dd0 green, 96492bb red (the PC check's first job ran past its 15 minutes with the six new lines; they now run in the second job, `ci_pccheck_lines.py` LINUX2), a16353d, ab409e1, 4be258a, 468bafa green (run 45351021488, 30.8 min). `main` fast-forwarded to the merge with 0293's report (a docs run), release v0.2.228.
 
 **Open points / follow-up tasks:**
 - No Heavy line: the new presets cost like Storm / Snow (already in heavy.weather); Thunderstorm and Hail roughly 2x
