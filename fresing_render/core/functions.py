@@ -303,6 +303,10 @@ fn(id="structure.remove", short="Remove", title="Remove a model, subassembly or 
    "lists what goes; Delete / X open it)", family="import", panel="FRESING_PT_place", button="fresing.remove",
    guide="remove-model", tour=("remove",), pccheck=("place.remove",), since="0.2.219",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
+fn(id="structure.copy", short="Copy", title="Copy and paste a model, subassembly or parts with its joints, cylinders, "
+   "mechanisms, way covers, hoses and labels (Ctrl+C / Ctrl+V, right-click > Copy / Paste here)", family="import",
+   panel="FRESING_PT_place", button="fresing.paste", guide="copy-paste", tour=("copy",), pccheck=("place.copy",),
+   since="0.2.227", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
@@ -323,7 +327,7 @@ fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_face
 fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_PT_decals",
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
-   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.227")
+   guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.228")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",

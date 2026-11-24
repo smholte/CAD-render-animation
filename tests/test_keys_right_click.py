@@ -165,14 +165,22 @@ def _right_click(scene, ob, point=(0.0, 0.0, 1.0)):
 def test_the_menu_on_a_part_on_empty_space_and_in_the_client_view(crane):
     workspaces.switch(crane, "All functions")
     bpy.ops.fresing.ctx_show_all()
+    from fresing_render.blender import copy
+    copy.CLIP["names"] = []                                       # task 0293: Paste (here) once something was copied
     _right_click(crane, boom(crane))
     texts, items = drawn(crane)
-    assert texts == [t for t in context_menu.ON_PART if t != "Show all"]
+    assert texts == [t for t in context_menu.ON_PART if t not in ("Show all", "Paste here")]
     target = context_menu.target_of(crane, boom(crane))         # as a left click: its subassembly by default
     assert items[0] == ("label", target.get(build.PROP_NAME)) and context_menu.HIT["target"] == target.name
     assert boom(crane).select_get() and bpy.context.view_layer.objects.active == boom(crane)
     _right_click(crane, None)
+    assert drawn(crane)[0] == [t for t in context_menu.ON_EMPTY if t != "Paste"]
+    copy.remember(crane, [target])
+    _right_click(crane, boom(crane))
+    assert drawn(crane)[0] == [t for t in context_menu.ON_PART if t != "Show all"]
+    _right_click(crane, None)
     assert drawn(crane)[0] == list(context_menu.ON_EMPTY)
+    copy.CLIP["names"] = []
     workspaces.switch(crane, "Client view")
     try:
         _right_click(crane, boom(crane))

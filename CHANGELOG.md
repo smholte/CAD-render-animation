@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.227 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
+## 0.2.228 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
 
 - **3 Looks > Welds** (new): **Add weld…**, click the faces of the first part (Shift-click: more), Enter, click the
   faces of the part it is welded to – a bead is laid on every line where the two sets meet, shown green in the view
@@ -27,6 +27,20 @@ installer of that version was built from.
 - Measured on the 4-core test machine: 300 welds (900 seams, 87 m of bead) on an invented frame in about 100 s,
   0.06 s to find one weld's seams and 0.03 s to build its bead; the project saves in 0.5 s; renders take no longer.
 - New test model, test tour stop "Welds" and PC check line "Welds: two picked faces give a bead".
+
+## 0.2.227 – 24 Nov 2026 – Copy and paste with joints (task 0293)
+
+- **Copy and paste a model, a subassembly or parts – with its joints and mechanisms.** Select it and click **Copy**
+  (2 Structure > Place, the right-click menu, or **Ctrl+C**), then **Paste** (or **Ctrl+V**): a second one stands
+  beside the original. Right-click a spot and **Paste here** to put it there. The copy comes with its joints (and the
+  pose they are in), cylinders, mechanisms, way covers, hoses and drag chains, labels and logos, and **Move / turn**
+  opens for it at once. Names count up: "Crane (2)", "Boom (2)" … The parts share their shapes with the original, so
+  the project hardly grows. **Ctrl+Z** takes the copy away.
+- **What reaches outside the copy is left out**, so the copy always moves by itself: a joint that also moves other
+  parts, a cylinder or hose with an end outside, a coupling to a joint outside. The Move / turn window says what was
+  left out. Cables, drums and tracks are not copied yet: add them on the copy.
+- **Model updates:** a copy of a whole model is updated together with the original (and the other way round), each
+  keeping its own place and work. A copy of a subassembly or parts is a model of its own and stays as it is.
 
 ## 0.2.226 – 24 Nov 2026 – Essentials as the start, workspaces for one job, favourite workspaces on top (task 0294)
 

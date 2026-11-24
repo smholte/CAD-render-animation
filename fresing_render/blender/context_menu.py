@@ -41,10 +41,12 @@ ON = [False]                 # Blender's menu drawing is swapped for ours
 ON_PART = ("Zoom to it", "Show in 2 Structure", "Hide", "Show only this", "Show all", "Add a label here",
            "Add joint here…", "Weld to another part…",           # task 0319
            "Unlock so it can move",                              # "Lock in place" once unlocked (task 0307)
-           "Move / turn…", "Remove…")                            # task 0292
-ON_EMPTY = ("Zoom to all", "Show all")
+           "Move / turn…",                                        # task 0292
+           "Copy", "Paste here",                                  # task 0293 (Paste here once something was copied)
+           "Remove…")                                             # task 0292
+ON_EMPTY = ("Zoom to all", "Show all", "Paste")
 CLIENT_DROPS = ("Add a label here", "Add joint here…", "Weld to another part…", "Unlock so it can move", "Move / turn…",
-                "Remove…")
+                "Remove…", "Copy", "Paste here", "Paste")
 
 
 def _quiet() -> bool:
@@ -142,6 +144,10 @@ def _draw(self, context):
     if ob is None:
         layout.operator("fresing.ctx_zoom", text="Zoom to all", icon="VIEWZOOM").part = ""
         layout.operator("fresing.ctx_show_all", text="Show all", icon="HIDE_OFF")
+        from . import ops_copy                   # task 0293: a copy beside the original
+        if not HIT["client"] and ops_copy.can_paste(context.scene):
+            layout.separator()
+            layout.operator("fresing.paste", text="Paste", icon="PASTEDOWN")
         return None
     layout.label(text=ob.get(build.PROP_NAME, ob.name), icon="OBJECT_DATA")
     layout.separator()
@@ -168,6 +174,13 @@ def _draw(self, context):
                     ).part = ob.name
     layout.operator_context = "INVOKE_DEFAULT"     # task 0292: Place in a window of its own, Remove… (lists what goes)
     layout.operator("fresing.place_window", text="Move / turn…", icon="OBJECT_ORIGIN")
+    layout.operator_context = "EXEC_DEFAULT"     # task 0293: Copy, Paste here (where the right-click was)
+    layout.operator("fresing.copy", text="Copy", icon="COPYDOWN")
+    from . import ops_copy
+    if ops_copy.can_paste(context.scene):
+        op = layout.operator("fresing.paste", text="Paste here", icon="PASTEDOWN")
+        op.here, op.point = True, HIT["point"]
+    layout.operator_context = "INVOKE_DEFAULT"
     layout.separator()
     layout.operator("fresing.remove", text="Remove…", icon="TRASH")
     return None

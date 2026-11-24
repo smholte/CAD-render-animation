@@ -593,6 +593,8 @@ Fresing > Show all of Blender gives you Blender's keys"*:
   **Alt+I**, **K** (keyframes – they would mix with the keys Build makes).
 - **Delete** and **X** (also with Shift) open the app's **Remove** window for what is selected: it lists what goes,
   and nothing is lost until you click Remove ([Remove](#remove-model)).
+- **Ctrl+C** copies what is selected and **Ctrl+V** pastes a copy beside it, with its joints and mechanisms
+  ([Copy and paste](#copy-paste)).
 - **These stay:** **G** / **R** move and turn what is selected ([Moving and turning parts](#moving-parts)), **H** hides the selected part, **Alt+H** shows everything again, **A** selects all, **Home** and the
   number pad move the view, **Z** and **Ctrl+Space** for the shading and a bigger view, **Space** plays, **Ctrl+Z**
   undoes, **F3** searches, **N** shows or hides the side panel, **Ctrl+S** saves, **Ctrl+O** opens.
@@ -602,7 +604,7 @@ Fresing > Show all of Blender gives you Blender's keys"*:
 **Right-click on a part** in the 3D view: the part becomes the selected one (as a left click makes it – with the pick
 mode "Subassembly", its subassembly) and a short menu opens:
 
-<img src="img/view_right_click.png" alt="A right-click on the boom: Zoom to it, Show in 2 Structure, Hide, Show only this, Add a label here, Add joint here">
+<img src="img/view_right_click.png" alt="A right-click on the boom: Zoom to it, Show in 2 Structure, Hide, Show only this, Add a label here, Add joint here, Unlock so it can move, Move / turn, Copy, Remove">
 
 - **Zoom to it** – the view fills with that part (the camera does not move).
 - **Show in 2 Structure** – the side panel opens 2 Structure at the part's row.
@@ -612,10 +614,13 @@ mode "Subassembly", its subassembly) and a short menu opens:
 - **Unlock so it can move** – unlocks the part's subassembly, so **G** moves it and **R** turns it
   ([Moving and turning parts](#moving-parts)); once unlocked the entry reads **Lock in place**.
 - **Move / turn…** – [Place](#place) in a window of its own: X / Y / Z, turns, steps, Put on the floor.
+- **Copy** – remembers the part's model, subassembly or parts (what is selected); **Paste here** – once something
+  was copied – puts a copy of it where you right-clicked ([Copy and paste](#copy-paste)).
 - **Remove…** – the window that lists what goes with it ([Remove](#remove-model)).
 
-**Right-click on empty space:** **Zoom to all** and **Show all**. In the **Client view** the menu has only Zoom, Show in
-2 Structure, Hide, Show only this and Show all (no Move / turn…, no Remove…) – and its Hide only hides in the view: renders, the built animation and
+**Right-click on empty space:** **Zoom to all** and **Show all** (and **Paste** once something was copied: the copy goes
+beside the original). In the **Client view** the menu has only Zoom, Show in
+2 Structure, Hide, Show only this and Show all (no Move / turn…, no Copy, no Remove…) – and its Hide only hides in the view: renders, the built animation and
 the project stay as they are, and leaving the Client view shows those parts again.
 
 **Blender's keys and menu back:** **Fresing > Show all of Blender** (or Workspace > Full access) gives every key and
@@ -1297,6 +1302,38 @@ back.
 **Remove or Clean-up?** Remove takes things out of the project for good (only Ctrl+Z brings them back). **Clean-up**
 (below) only takes parts out of the view and the renders – the joints and everything else stay, and **Restore all**
 brings them back at any time.
+
+<a id="copy-paste"></a>
+### Copy and paste a model, subassembly or parts
+
+**Copy** and **Paste** – at the bottom of 2 Structure > Place, in the right-click menu (**Copy**, **Paste here**), and
+outside Full access **Ctrl+C** / **Ctrl+V** – make a second one of a model, a subassembly or parts, **with its joints
+and mechanisms**:
+
+1. Select what you want twice (click it, or its row in 2 Structure) and click **Copy** (or press **Ctrl+C**).
+2. Click **Paste** (or **Ctrl+V**): the copy stands **beside the original**. Right-click a spot and **Paste here**:
+   it stands there (the middle of its box over the spot, on it).
+3. The copy is selected, free to move, and **Move / turn** opens for it: type where it goes, or drag its arrows.
+   At the bottom the window says what came along and what was left out. **Ctrl+Z** takes the copy away again.
+
+**What comes along:** its parts (they **share their shapes** with the original, so the project hardly grows), their
+looks and groups, its **joints** (limits, the pose it is in, couplings between them), **cylinders**, **mechanisms**,
+**way covers**, **hoses and drag chains** whose both ends are in the copy, **labels** on its parts and **logos and
+stickers**. Names count up: the copy of "TEST.CRANE" is "TEST.CRANE (2)", its joint "Boom (2)", the next one "(3)".
+
+**What reaches outside the copy is left out – the copy moves by itself:** a joint that also moves parts outside the
+copy, a cylinder, mechanism, hose or way cover with a piece outside, and a coupling to a joint outside the copy (the
+copied joint then moves on its own). A joint that sat on something outside sits on the copy. **Cables, drums,
+tracks**, trail lines, animation steps and cameras stay with the original: add them on the copy where you need them.
+
+**Model updates:**
+
+- A copy of a **whole model** is a second one of the same model: when you update the original to a new revision of
+  its STEP file (1 Import > Update model), the copy is updated too – and the other way round. Each keeps its own
+  place, joint positions and work.
+- A copy of a **subassembly or parts** becomes a model of its own (its own top row in 2 Structure) with its own parts.
+  It stays as it is when the original is updated, and it cannot be updated itself: update the original, then copy it
+  again.
 
 <a id="cleanup"></a>
 ### Clean-up
