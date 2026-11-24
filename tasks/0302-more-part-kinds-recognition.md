@@ -1,6 +1,6 @@
 # 0302 – More part kinds and better recognition: common machine parts from public catalogues, shape hints, "not recognised" made easy to teach
 
-**Who:** worker · **Status:** running (24 Nov, web) · **Branch:** `task/0302-more-part-kinds`
+**Who:** worker · **Status:** done (0.2.222) · **Branch:** `task/0302-more-part-kinds`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "More parts, recognitions and materials.") · **Model:**
 Opus · effort Medium
 **Area:** Part library lane – `core/part_types_data.py`, `core/part_types.py`, `core/fasteners.py`, their tests; the
@@ -29,9 +29,9 @@ part names are never committed – he may paste a few unrecognised names in this
 
 ## Done when
 
-- [ ] Every new keyword checked in EN / NL / DE with examples in `tests/test_part_types.py`; the test models' groups
+- [x] Every new keyword checked in EN / NL / DE with examples in `tests/test_part_types.py`; the test models' groups
       unchanged except where intended (listed in the report)
-- [ ] Guide (part kinds) updated; full suite + GitHub run green; report; merged, version, release
+- [x] Guide (part kinds) updated; full suite + GitHub run green; report; merged, version, release
 
 ---
 
@@ -81,7 +81,7 @@ part names are never committed – he may paste a few unrecognised names in this
   the demo ship, lifting cranes, site projects and test-model makers: only that same name changes. No test-model part
   is named so that a shape hint applies, so the hints change nothing there (their own model is in the PC check line).
 - PC check `import.shapes` + `import.machine` in Blender as a module: both OK (2.9 s / 2.0 s).
-- GitHub: see the run below.
+- GitHub: 2 runs. Run 45296857153 (full): all green except the real-app Place/Remove test ("Delete opens the Remove window", a key in the callouts group, task 0292's test; the job ran 11.6 min instead of 5.8, main was green with the same test, nothing of this task touches keys or windows) – green after one re-run of that job. Then main fast-forwarded to it (release by reuse).
 
 **Open points / follow-up tasks:**
 - The owner did not paste own unrecognised names in this session; a few of his would show what is still missing
