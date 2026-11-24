@@ -104,7 +104,10 @@ workspace All functions" is changed by the owner: new users start in **Essential
 - `test_workspaces.py`, `test_workspaces_independent.py`, `test_functions.py`, `test_settings_store.py`,
   `test_settings_blender.py`, `test_quiet.py`: green after updating the list of built-ins, the allow-list count (+1:
   the star), the 0.2.198 default of `default_workspace` and the Make test for list workspaces. Tooltip check strict: OK.
-- GitHub: see the runs below.
+- GitHub: 6 full runs. Run 1 failed (the real-app test started as an existing user after the welcome's test in the same
+  settings folder; a test file named a module as a word, so lane plans changed) – fixed. Runs 2–5 green, but each time
+  another task had taken the version first (0302, 0308, 0290, 0298): merge `main`, renumber, run again. Run 45337730883
+  (0.2.226) green; `main` fast-forwarded to it.
 
 **Open points / follow-up tasks:**
 - **Measuring in the 3D view:** the app has none (only the 3D page's measure tool, `web.tools`): Reviewer has no
