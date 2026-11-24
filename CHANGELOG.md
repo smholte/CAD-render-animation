@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.229 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
+## 0.2.230 – 24 Nov 2026 – Welds: pick two sets of faces like Inventor, a real bead where they meet (task 0319)
 
 - **3 Looks > Welds** (new): **Add weld…**, click the faces of the first part (Shift-click: more), Enter, click the
   faces of the part it is welded to – a bead is laid on every line where the two sets meet, shown green in the view
@@ -27,6 +27,31 @@ installer of that version was built from.
 - Measured on the 4-core test machine: 300 welds (900 seams, 87 m of bead) on an invented frame in about 100 s,
   0.06 s to find one weld's seams and 0.03 s to build its bead; the project saves in 0.5 s; renders take no longer.
 - New test model, test tour stop "Welds" and PC check line "Welds: two picked faces give a bead".
+
+## 0.2.229 – 24 Nov 2026 – 23 new finishes: knurls, spun ends, plate patterns, blasted metal, textures (task 0274)
+
+- **23 new finishes** in 3 Looks (pick one as a group's **Material**): **Knurled, diamond** and **straight**
+  (knobs, handles), **Rubber, moulded grip pattern**, **Spun metal** (rings round the centre of caps and discs),
+  **Faced end, spiral**, **Honed bore**; **Tread plate**, **Perforated sheet** (round or slotted holes) and
+  **Expanded metal** (both see-through), **Scraped machine ways**, **Plastic grille, fine holes**, **Plastic,
+  moulded cross-hatch**, **Fabric, woven** (speaker cloth); **Bead-blasted metal**, **Steel, shot-blasted (Sa 2½)**,
+  **Paint, hammertone**, **Paint, wrinkle finish**, **Paint, anti-skid**, **Plastic, spark-eroded texture (VDI
+  3400)**, **Plastic, leather grain**, **Plastic, soft-touch**, **Hot-dip galvanized, spangle**, **As-cast**
+  (aluminium or iron). Eight of them are also under **Ready-made material…**.
+- **No set-up**: the pattern finds its own direction and size on every part – round-part finishes follow each round
+  face of the STEP part (a whole number of knurl teeth round it, no seam), plate patterns follow the part's own
+  directions, grains need none. Every copy of a part looks the same, also turned or mirrored, and after a model
+  update.
+- **Each finish's own settings** under the group's material, only the ones it has: **Metal** (steel, stainless,
+  aluminium, brass, galvanized …), **Kind** (Fine / Medium / Coarse blasting, Round / Slotted holes, VDI 24 … 36,
+  Aluminium / Iron), the pattern's size (**Pitch**, **Feed**, **Hole size**, **Grain size** …), **Angle**,
+  **Strength**.
+- **Far away a pattern fades by itself** to the look it averages to: crisp in a close-up, calm on a whole machine –
+  no flicker, no moiré. It follows the camera and the picture size.
+- The **web 3D model** takes the fine finishes as their average colour and shine and the coarser ones (tread plate,
+  perforated, expanded, hammertone, spangle …) as a texture.
+- Test tour: a new stop **Finishes** (a board of 23 samples and a headphone-like set). PC check: a new line
+  **Finishes**. User guide: 3 Looks > Finishes, with a picture of all 23.
 
 ## 0.2.228 – 24 Nov 2026 – Weather round 2: thunderstorm, sea mist, sunrise, sunset, hail, heat; change it in two clicks (task 0299)
 

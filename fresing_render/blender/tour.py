@@ -1003,7 +1003,7 @@ def build_decals(b: Build):
     _shot(b, "@decals")
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.229")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.230")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -1242,6 +1242,97 @@ def _check_marine(scene):
         _check(0.02 < v.x < 0.98 and 0.02 < v.y < 0.98 and v.z > 0, f"the pile's {n} is outside the picture")
     return (f"growth below the waterline at {water:+.2f} m (the sea's), streaks, concrete; the pile from its toe "
             f"{OFFSHORE_DEPTH + OFFSHORE_EMBED:.0f} m down to the platform in the picture")
+
+
+# task 0274: the finishes on the sample board of test_finishes.step (tools/make_test_finishes.py): part name -> (the
+# library material, its colour); the headset shows the owner's photo of study 0270 (knurled knob, spun cap, moulded
+# cross-hatch shell, soft-touch band, speaker cloth, leather cushions)
+FINISH_BOARD = {
+    "KNOB DIAMOND KNURL": ("knurl_diamond", ""), "KNOB STRAIGHT KNURL": ("knurl_straight", ""),
+    "GRIP HANDLE": ("rubber_grip", "RAL 9005"), "CAP SPUN": ("spun", ""), "SHAFT FACED": ("faced", ""),
+    "BUSHING HONED": ("honed", ""), "CUP CROSS-HATCH": ("crosshatch", "RAL 5010"),
+    "DISC SPEAKER CLOTH": ("fabric", "RAL 7016"), "DISC GRILLE": ("grille", "RAL 9005"), "PLATE TREAD": ("tread", ""),
+    "PLATE PERFORATED": ("perforated", ""), "PLATE EXPANDED": ("expanded", ""), "WAY SCRAPED": ("scraped", ""),
+    "BAND SOFT-TOUCH": ("soft_touch", "RAL 7021"), "BLOCK BEAD-BLASTED": ("bead_blasted", ""),
+    "BLOCK SHOT-BLASTED": ("shot_blasted", ""), "BLOCK HAMMERTONE": ("hammertone", "RAL 6011"),
+    "BLOCK WRINKLE": ("wrinkle", "RAL 9005"), "PLATE ANTI-SKID": ("antiskid", "RAL 7040"),
+    "CUP VDI 30": ("vdi", "RAL 7012"), "CUP LEATHER": ("leather", "RAL 8017"), "PLATE SPANGLE": ("spangle", ""),
+    "BLOCK AS-CAST": ("as_cast", ""),
+    "HEADSET BAND": ("soft_touch", "RAL 9005"), "HEADSET YOKE": ("bead_blasted", ""),
+    "HEADSET CUP": ("crosshatch", "RAL 5010"), "HEADSET CUSHION": ("leather", "RAL 9005"),
+    "HEADSET DISC": ("fabric", "RAL 9005"), "HEADSET CAP": ("spun", ""), "HEADSET KNOB": ("knurl_diamond", ""),
+}
+
+
+def finishes_demo(scene) -> dict:
+    """Task 0274: every part of the finishes test model in a group of its own with its finish (the board's 23 and the
+    headset's). Returns {part name: group}. Used by the test tour and the PC check."""
+    from . import build, logic
+    s = scene.fresing
+    by_name: dict = {}
+    for ob in build.iter_parts(scene):
+        by_name.setdefault(ob.get(build.PROP_NAME, ""), []).append(ob)
+    groups = {}
+    for name, (mat_id, colour) in FINISH_BOARD.items():
+        obs = by_name.get(name)
+        if not obs:
+            continue
+        group = f"Finish: {name.title()}"
+        for ob in obs:
+            ob["fr_group_manual"] = group
+        logic.ensure_group(s, group)
+        groups[name] = group
+    logic.apply_rules(scene)
+    for name, group in groups.items():
+        g = s.groups[group]
+        mat_id, colour = FINISH_BOARD[name]
+        g.material = mat_id
+        if colour:
+            g.color = colour
+    logic.refresh_group_materials(scene)
+    from . import cameras
+    cameras.update_pixel_angle(scene)
+    return groups
+
+
+@tour_set("finishes", "Finishes", "test_finishes.step", added="0.2.229")
+def build_finishes(b: Build):
+    """Task 0274: the 23 finishes on the sample board and the headphone-like set, seen from the front."""
+    sc = b.scene
+    _look("PRODUCT")
+    finishes_demo(sc)
+    _camera(b, "HIGH", "Tour finishes", lens=50.0)
+    _shot(b, "@finishes")
+
+
+def _check_finishes(scene):
+    """Every board part has its finish; the knurled knob carries the face data (round faces with a whole number of
+    teeth, end faces on its axis); the fade's pixel angle follows the camera."""
+    import numpy as np
+
+    from ..core import finishes as fin_core
+    from . import build, cameras, finishes
+    parts = {ob.get(build.PROP_NAME, ""): ob for ob in build.iter_parts(scene)}
+    missing = [n for n in FINISH_BOARD if n not in parts]
+    _check(not missing, f"missing parts: {', '.join(missing)}")
+    wrong = [n for n, (m, _c) in FINISH_BOARD.items()
+             if parts[n].active_material is None or parts[n].active_material.get("fr_material") != m]
+    _check(not wrong, f"without their finish: {', '.join(wrong)}")
+    built = {parts[n].active_material.get(finishes.PROP_FINISH) for n in FINISH_BOARD}
+    _check(len(built) == len(fin_core.FINISHES), f"{len(built)} finishes built, not {len(fin_core.FINISHES)}")
+    knob = parts["KNOB DIAMOND KNURL"].data
+    _check(finishes.has_faces(knob), "the knurled knob has no face data")
+    k = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_k"].data.foreach_get("value", k)
+    r = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_r"].data.foreach_get("value", r)
+    _check((k == 1).any() and (k == 2).any(), "the knob's round face or end faces were not found")
+    radius = float(np.median(r[k == 1]))
+    _check(abs(radius - 0.010) < 0.0003, f"the knob's round face has radius {radius * 1000:.2f} mm, not 10")
+    angle = scene.get(fin_core.PIXEL_PROP, 0.0)
+    _check(abs(angle - cameras.pixel_angle(scene)) <= 0.011 * angle, "the fade's pixel angle is not the camera's")
+    n = fin_core.teeth(radius, 0.0008, 30.0)
+    return f"{len(built)} finishes; knob Ø{radius * 2000:.1f} mm: {n} teeth round it; pixel angle {angle:.2e} rad"
 
 
 @tour_set("cutaway", "Slice", "test_crane_a.step", added="0.2.64", changed="0.2.203")
@@ -4657,7 +4748,7 @@ stop("welds", LOOK, "welds", "Welds",
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
      "the branch meets the tube and a butt joint ground flush to the extension plate.",
-     where="3 Looks > Welds", check=_check_welds, since="0.2.229")
+     where="3 Looks > Welds", check=_check_welds, since="0.2.230")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
@@ -4676,6 +4767,15 @@ stop("marine", LOOK, "marine", "Marine growth, streaks, concrete",
      where="3 Looks: Ready-made material… (Marine paint, growth below the waterline; Marine paint, run-down "
            "streaks; Concrete); 5 Scene & Render > Background: Open sea, cut-away with the ground", since="0.2.94",
      check=_check_marine, changed="0.2.196")
+stop("finishes", LOOK, "finishes", "Finishes: knurls, plates, grains",
+     "A board of 23 samples in their finishes, from the back row: diamond and straight knurled knobs, a rubber grip, a "
+     "spun cap, a shaft with a faced end, a honed half bushing; a blue cross-hatch cup, speaker cloth, a black grille "
+     "with holes, tread, perforated and expanded plates; scraped way, soft-touch arch, bead- and shot-blasted, "
+     "hammertone and wrinkle blocks; anti-skid plate, VDI and leather cups, a spangled plate, an as-cast block. On "
+     "the left a headphone-like set: knurled knob, spun cap, cross-hatch cups, leather cushions. Look in rendered view "
+     "and zoom in: the patterns show up close and fade calmly further away.",
+     where="3 Looks: a group's Material (Metal, Plastic & rubber, Paint …) and its own settings under it (Pitch, "
+           "Angle, Metal, Kind …)", since="0.2.229", check=_check_finishes)
 stop("served", LOOK, "served", "Served cable with marker bands",
      "Close up where the power cable leaves the carousel: black yarn served almost straight round the cable – fine "
      "grooves, some strands darker or lighter, a little dust – and two yellow painted marker lines that wind "

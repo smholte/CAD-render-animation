@@ -76,6 +76,11 @@
    "changed": "0.2.217",
    "fp": "fec01e7a7e9895cf"
   },
+  "finishes": {
+   "added": "0.2.229",
+   "changed": "",
+   "fp": "6a263195f2f0eef6"
+  },
   "flex_avoid": {
    "added": "0.2.225",
    "changed": "0.2.225",
@@ -262,7 +267,7 @@
    "fp": "e86fe33ff8324fbd"
   },
   "welds": {
-   "added": "0.2.229",
+   "added": "0.2.230",
    "changed": "",
    "fp": "f5a3b77246e05e68"
   }

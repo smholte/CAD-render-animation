@@ -214,4 +214,13 @@ PRESETS = [
     ("paint_1003", "Paint RAL 1003 yellow", "paint_satin", "RAL 1003"),
     ("paint_6018", "Paint RAL 6018 green", "paint_satin", "RAL 6018"),
     ("led", "Light / LED (glowing)", "emission_light", "RAL 9010"),
+    # task 0274: finishes (their own settings – pitch, metal, kind … – are under the material in the group box)
+    ("knurl", "Knurled knob, diamond (steel)", "knurl_diamond", ""),
+    ("spun", "Spun aluminium (caps, discs)", "spun", ""),
+    ("tread", "Tread plate, aluminium", "tread", ""),
+    ("perforated", "Perforated sheet, galvanised (see-through)", "perforated", ""),
+    ("shot_blasted", "Steel, shot-blasted (before paint)", "shot_blasted", ""),
+    ("hammertone", "Paint, hammertone RAL 7031 blue grey", "hammertone", "RAL 7031"),
+    ("crosshatch", "Plastic housing, moulded cross-hatch, black", "crosshatch", "RAL 9005"),
+    ("antiskid", "Deck paint, anti-skid RAL 7040 grey", "antiskid", "RAL 7040"),
 ]

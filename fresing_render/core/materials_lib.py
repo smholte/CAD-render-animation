@@ -27,6 +27,9 @@ CATEGORIES = ("Paint", "Metal", "Fastener finish", "Plastic & rubber", "Glass", 
 #       kind "POWER" (black sheath, yellow stripes at an angle) or "ROPE" (steel wire rope: strands with their
 #       lay). Drawn where the mesh has the ``fr_cable`` attribute, the plain material elsewhere; pitch (m), starts
 #       and width are the look of a cable that gives none. ``blender/cable_looks.py`` has the nodes and every key.
+#   finish: id of core/finishes.FINISHES   a finish of task 0274 (knurl, spun, cross-hatch, tread plate, blasted …):
+#       its pattern, settings (Size, Angle, Strength, Metal, Kind) and web export are there, its nodes in
+#       blender/finishes.py. A finish has no marks / variation / bump of its own.
 #   marine: {kind, …}   weathering of steel at sea (task 0116), drawn over the paint by ``blender/marine_looks.py``:
 #       kind "GROWTH" (marine growth below the waterline, a splash zone with slime and thin rust streaks above it;
 #       the waterline is a WORLD height: the scene's ``fr_waterline_z``, 0 when it has none) "STREAKS" (light
@@ -231,6 +234,56 @@ MATERIALS: dict[str, dict] = {
                                variation=dict(scale=8.0, roughness_min=0.22, roughness_max=0.34,
                                               color_amount=0.03),
                                marine=dict(kind="EROSION")),
+    # ---- task 0274: finishes of study 0270 (blender/finishes.py builds them, core/finishes.py has their settings) --
+    # face-axis finishes: the pattern follows each CAD face's own axis (knurls, spun / faced ends, honed bores)
+    "knurl_diamond": dict(label="Knurled, diamond (knobs, handles)", category="Metal", base_color=(0.63, 0.63, 0.64),
+                          metallic=1.0, roughness=0.28, finish="knurl_diamond"),
+    "knurl_straight": dict(label="Knurled, straight", category="Metal", base_color=(0.63, 0.63, 0.64), metallic=1.0,
+                           roughness=0.26, finish="knurl_straight"),
+    "rubber_grip": dict(label="Rubber, moulded grip pattern", category="Plastic & rubber", needs_color=True,
+                        roughness=0.7, specular=0.35, sheen=0.35, sheen_roughness=0.5, finish="rubber_grip"),
+    "spun": dict(label="Spun metal (rings round the centre)", category="Metal", base_color=(0.91, 0.92, 0.93),
+                 metallic=1.0, roughness=0.18, finish="spun"),
+    "faced": dict(label="Faced end, spiral (turned parts)", category="Metal", base_color=(0.63, 0.63, 0.64),
+                  metallic=1.0, roughness=0.22, finish="faced"),
+    "honed": dict(label="Honed bore (cross-hatch)", category="Metal", base_color=(0.63, 0.63, 0.64), metallic=1.0,
+                  roughness=0.18, finish="honed"),
+    # box-axis finishes: a pattern in the part's own axes
+    "crosshatch": dict(label="Plastic, moulded cross-hatch", category="Plastic & rubber", needs_color=True,
+                       roughness=0.42, specular=0.5, finish="crosshatch"),
+    "fabric": dict(label="Fabric, woven (speaker cloth)", category="Plastic & rubber", needs_color=True,
+                   roughness=0.85, specular=0.3, sheen=0.8, sheen_roughness=0.35, finish="fabric"),
+    "grille": dict(label="Plastic grille, fine holes (see-through)", category="Plastic & rubber", needs_color=True,
+                   roughness=0.45, specular=0.5, finish="grille"),
+    "tread": dict(label="Tread plate (lens pattern)", category="Metal", base_color=(0.91, 0.92, 0.93), metallic=1.0,
+                  roughness=0.34, finish="tread"),
+    "perforated": dict(label="Perforated sheet (see-through)", category="Metal", base_color=(0.62, 0.63, 0.64),
+                       metallic=1.0, roughness=0.36, finish="perforated"),
+    "expanded": dict(label="Expanded metal (see-through)", category="Metal", base_color=(0.62, 0.63, 0.64),
+                     metallic=1.0, roughness=0.42, finish="expanded"),
+    "scraped": dict(label="Scraped machine ways", category="Metal", base_color=(0.63, 0.63, 0.64), metallic=1.0,
+                    roughness=0.2, finish="scraped"),
+    # grain finishes: a 3-D grain in the part's own space
+    "soft_touch": dict(label="Plastic, soft-touch", category="Plastic & rubber", needs_color=True, roughness=0.62,
+                       specular=0.32, sheen=0.45, sheen_roughness=0.3, finish="soft_touch"),
+    "bead_blasted": dict(label="Bead-blasted metal", category="Metal", base_color=(0.91, 0.92, 0.93), metallic=1.0,
+                         roughness=0.46, finish="bead_blasted"),
+    "shot_blasted": dict(label="Steel, shot-blasted (Sa 2½, before paint)", category="Metal",
+                         base_color=(0.42, 0.42, 0.43), metallic=0.9, roughness=0.62, finish="shot_blasted"),
+    "hammertone": dict(label="Paint, hammertone", category="Paint", needs_color=True, metallic=0.45, roughness=0.3,
+                       coat=0.3, coat_roughness=0.15, finish="hammertone"),
+    "wrinkle": dict(label="Paint, wrinkle finish", category="Paint", needs_color=True, roughness=0.55, specular=0.45,
+                    finish="wrinkle"),
+    "antiskid": dict(label="Paint, anti-skid (decks, walkways)", category="Paint", needs_color=True, roughness=0.78,
+                     specular=0.4, finish="antiskid"),
+    "vdi": dict(label="Plastic, spark-eroded texture (VDI 3400)", category="Plastic & rubber", needs_color=True,
+                roughness=0.5, specular=0.45, finish="vdi"),
+    "leather": dict(label="Plastic, leather grain", category="Plastic & rubber", needs_color=True, roughness=0.5,
+                    specular=0.4, sheen=0.25, sheen_roughness=0.5, finish="leather"),
+    "spangle": dict(label="Hot-dip galvanized, spangle", category="Fastener finish", base_color=(0.78, 0.79, 0.80),
+                    metallic=1.0, roughness=0.35, finish="spangle"),
+    "as_cast": dict(label="As-cast (sand-cast aluminium / iron)", category="Metal", base_color=(0.62, 0.62, 0.62),
+                    metallic=0.9, roughness=0.62, finish="as_cast"),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -297,6 +350,29 @@ UIDS: dict[str, int] = {
     "hose_sleeve": 59,
     "pu_tube_clear": 60,
     "wire_rope_galv": 61,
+    "knurl_diamond": 62,
+    "knurl_straight": 63,
+    "rubber_grip": 64,
+    "spun": 65,
+    "faced": 66,
+    "honed": 67,
+    "crosshatch": 68,
+    "fabric": 69,
+    "grille": 70,
+    "tread": 71,
+    "perforated": 72,
+    "expanded": 73,
+    "scraped": 74,
+    "soft_touch": 75,
+    "bead_blasted": 76,
+    "shot_blasted": 77,
+    "hammertone": 78,
+    "wrinkle": 79,
+    "antiskid": 80,
+    "vdi": 81,
+    "leather": 82,
+    "spangle": 83,
+    "as_cast": 84,
 }
 
 DEFAULT_COLOR = "RAL 7035"

@@ -513,3 +513,85 @@ def turntable_camera(scene, az_deg: float, el_deg: float, lens: float = 50.0, bl
 def frame_matrix_for_view(direction) -> Matrix:
     q = Vector(direction).normalized()
     return (-q).to_track_quat("-Z", "Y").to_matrix().to_4x4()
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# task 0274: the picture's pixel angle for the finishes' far-away fade
+# ---------------------------------------------------------------------------------------------------------------
+
+def pixel_angle(scene) -> float:
+    """The angle one pixel of the picture covers through the scene's camera (rad): the finishes fade a pattern whose
+    period covers fewer than ~2 pixels (``core.finishes.shown``). An orthographic camera: its pixel size over the
+    distance to the model's middle. No camera: the default (1920 px, 50 mm lens)."""
+    from ..core import finishes as fin_core
+    cam = scene.camera
+    if cam is None or cam.type != "CAMERA":
+        return fin_core.PIXEL_ANGLE
+    cd = cam.data
+    r = scene.render
+    w = max(1.0, r.resolution_x * r.resolution_percentage / 100.0)
+    h = max(1.0, r.resolution_y * r.resolution_percentage / 100.0)
+    fit = cd.sensor_fit if cd.sensor_fit != "AUTO" else ("HORIZONTAL" if w >= h else "VERTICAL")
+    px = w if fit == "HORIZONTAL" else h
+    if cd.type == "ORTHO":
+        try:
+            dist = max((cam.matrix_world.translation - _model_middle(scene)).length, 1e-3)
+        except Exception:
+            dist = 10.0
+        return float(cd.ortho_scale) / px / dist
+    if cd.type != "PERSP":
+        return fin_core.PIXEL_ANGLE
+    sensor = cd.sensor_width if (cd.sensor_fit == "AUTO" or fit == "HORIZONTAL") else cd.sensor_height
+    return fin_core.pixel_angle(int(px), cd.lens, sensor)
+
+
+def update_pixel_angle(scene) -> bool:
+    """Keep the scene's ``fr_pixel_angle`` (read by every finish material) at the camera's pixel angle. Set only when
+    it changed by more than 1 % (a set redraws the materials). True when it was set."""
+    from ..core import finishes as fin_core
+    if scene is None:
+        return False
+    try:
+        a = float(f"{pixel_angle(scene):.3g}")
+    except Exception:
+        return False
+    old = scene.get(fin_core.PIXEL_PROP)
+    if isinstance(old, (int, float)) and old > 0 and abs(old - a) <= 0.01 * a:
+        return False
+    try:
+        scene[fin_core.PIXEL_PROP] = a
+    except (AttributeError, TypeError, RuntimeError):     # a scene that cannot be written now (drawing, rendering)
+        return False
+    return True
+
+
+@bpy.app.handlers.persistent
+def _pixel_angle_handler(scene, *_args):
+    try:
+        update_pixel_angle(scene)
+    except Exception:
+        pass
+
+
+@bpy.app.handlers.persistent
+def _pixel_angle_on_load(*_args):
+    for sc in bpy.data.scenes:
+        _pixel_angle_handler(sc)
+
+
+_PIXEL_HANDLERS = (("render_init", _pixel_angle_handler), ("depsgraph_update_post", _pixel_angle_handler),
+                   ("load_post", _pixel_angle_on_load))
+
+
+def register_pixel_angle() -> None:
+    for name, fn in _PIXEL_HANDLERS:
+        lst = getattr(bpy.app.handlers, name)
+        if fn not in lst:
+            lst.append(fn)
+
+
+def unregister_pixel_angle() -> None:
+    for name, fn in _PIXEL_HANDLERS:
+        lst = getattr(bpy.app.handlers, name)
+        while fn in lst:
+            lst.remove(fn)

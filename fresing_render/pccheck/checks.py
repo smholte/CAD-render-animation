@@ -56,6 +56,7 @@ SWIVEL = os.path.join(DATA, "test_swivel.step")
 SEQUENCE = os.path.join(DATA, "test_sequence.step")
 SEQUENCE_FRAME = os.path.join(DATA, "test_sequence_frame.step")
 MESH_CRANE = os.path.join(DATA, "test_mesh_crane.glb")
+FINISHES = os.path.join(DATA, "test_finishes.step")    # task 0274: the finishes' sample board and headset
 
 LINES: list[Line] = []
 Q, F, OWN, H = "quick", "full", "own", "heavy"
@@ -656,7 +657,7 @@ def decals_add(ctx):
     return f"{len(shown)} decals; render {info['seconds']} s"
 
 
-@line("looks.welds", "Welds: two picked faces give a bead", "0.2.229",
+@line("looks.welds", "Welds: two picked faces give a bead", "0.2.230",
       what="The base plate's top and one side of the fin picked as in Inventor: one fillet 200 mm long; then every joint "
            "of the test weldment welded with another look (painted, MAG, rusty, stainless, pickled, aluminium, ground); "
            "rendered small")
@@ -727,6 +728,60 @@ def looks_marine(ctx):
     info = render.render_still(scene, s, "draft", filepath=path)
     ctx.picture(path, "marine_looks", "Marine looks (processor, draft)", model_check=False)
     return f"growth band {lo:+.2f} … {hi:+.2f} m round the waterline; render {info['seconds']} s"
+
+
+@line("looks.finishes", "Finishes: knurls, spun, plates, blasted, grains", "0.2.229",
+      what="The finishes test model (23 sample parts and a headphone-like set) with every finish: a knurled knob gets "
+           "its face data (its round face, a whole number of teeth, its end faces), the far-away fade follows the "
+           "camera; a close-up of the headset's right-hand cup rendered small (processor, draft): judge the knurled "
+           "knob, the spun cap, the blue cross-hatch cup and the leather cushion")
+def looks_finishes(ctx):
+    import numpy as np
+
+    from ..blender import build, cameras, finishes, render, tour
+    from ..core import finishes as fin_core
+    scene = ctx.fresh(FINISHES)
+    s = scene.fresing
+    tour.finishes_demo(scene)
+    parts = {ob.get(build.PROP_NAME, ""): ob for ob in build.iter_parts(scene)}
+    wrong = [n for n, (m, _c) in tour.FINISH_BOARD.items()
+             if n not in parts or parts[n].active_material is None or parts[n].active_material.get("fr_material") != m]
+    _check(not wrong, f"without their finish: {', '.join(wrong)}")
+    knob = parts["KNOB DIAMOND KNURL"].data
+    _check(finishes.has_faces(knob), "the knurled knob has no face data")
+    k = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_k"].data.foreach_get("value", k)
+    r = np.empty(len(knob.polygons), np.float32)
+    knob.attributes["fr_fx_r"].data.foreach_get("value", r)
+    _check((k == 1).any() and (k == 2).any(), "the knob's round face or its end faces were not found")
+    radius = float(np.median(r[k == 1]))
+    _check(abs(radius - 0.010) < 0.0003, f"the knob's round face has radius {radius * 1000:.2f} mm, not 10 mm")
+    cam = tour.marine_camera(scene, 0.0, name="Finishes close-up")
+    from mathutils import Vector
+    knob_ob = next(ob for ob in build.iter_parts(scene) if ob.get(build.PROP_NAME) == "HEADSET KNOB")
+    mn, mx = build.world_bounds([knob_ob])
+    c = (Vector(mn) + Vector(mx)) / 2                         # the right-hand cup: knurled knob, spun cap, cross-hatch
+    eye = c + Vector((0.9, -1.0, 0.5)).normalized() * 0.2
+    cam.matrix_world = tour.Matrix_look(eye, c)
+    cam.data.lens = 50.0
+    cam.data.clip_start = 0.005
+    _small_output(s)
+    cameras.update_pixel_angle(scene)
+    a_small = scene[fin_core.PIXEL_PROP]
+    _small_output(s, 1280, 720)
+    cameras.update_pixel_angle(scene)
+    a_big = scene[fin_core.PIXEL_PROP]
+    _check(a_big < a_small * 0.3, "the fade's pixel angle did not follow the picture size")
+    near = fin_core.shown(0.0008, 0.3, a_big)
+    far = fin_core.shown(0.0008, 15.0, a_big)
+    _check(near == 1.0 and far == 0.0, "the knurl does not show close up and fade far away")
+    _small_output(s, 640, 360)
+    s.use_gpu = False
+    path = os.path.join(ctx.work, "finishes.png")
+    info = render.render_still(scene, s, "draft", filepath=path)
+    ctx.picture(path, "finishes", "Finishes: the headset's cup close up (processor, draft)", model_check=False)
+    return (f"{len(fin_core.FINISHES)} finishes; knob Ø{radius * 2000:.1f} mm, "
+            f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
 
 @line("looks.served_cable", "Served cable look: yarn and marker bands", "0.2.116",
