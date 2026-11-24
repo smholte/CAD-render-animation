@@ -79,6 +79,7 @@ _COMMON = (
     "panel.make", "panel.left", "usage.favourites", "usage.declutter", "learn.hub", "learn.question", "learn.list",
     "learn.next", "learn.window", "learn.show_me", "learn.build",
     "help.updates", "help.pc_check", "help.tour", "help.demo", "help.start_here", "help.welcome", "help.whats_new",
+    "help.first_setup",
     "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
     "help.right_click", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
     "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
@@ -681,12 +682,12 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
 # task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
 fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
    family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_play", guide="lead-motions",
-   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.235", headline=True,
+   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.236", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
    panel="FRESING_PT_animation", prop="lead", guide="lead-motion-step", tour=("lead_motions",),
-   pccheck=("motion.lead_motion",), since="0.2.235", workspaces=_WORK + ("lifting",))
+   pccheck=("motion.lead_motion",), since="0.2.236", workspaces=_WORK + ("lifting",))
 fn(id="animation.finishing", title="Video finishing: title, end card, captions", family="video",
    panel="FRESING_PT_finishing", prop="fin_title_on", guide="finishing", tour=("finishing",), since="0.2.23")
 fn(id="animation.cards", short="Picture cards", title="Picture cards in a video", family="video", panel="FRESING_PT_cards",
@@ -739,6 +740,11 @@ fn(id="help.start_here", headline=True, title="Fresing menu: Learning hub, What'
    pccheck=("app.start_here",), since="0.2.155", changed="0.2.197")
 fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the Learning hub", family="help", panel="TOPBAR_MT_fresing",
    button="fresing.welcome", guide="welcome", tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")
+fn(id="help.first_setup", headline=True, short="Set up again",
+   title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
+         "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup",), since="0.2.235",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
    tour=("start_here",), pccheck=("app.start_here",), since="0.2.155")

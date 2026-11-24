@@ -5,11 +5,14 @@ belongs to the settings folder, as the owner's preferences do::
 
     {"last_run": "0.2.153",           the newest version started in this settings folder
      "welcome": {"later": 1, "never": false, "done": false},     later = starts that showed it
-     "whats_new": {"from": "0.2.150", "to": "0.2.153", "opened": false}}
+     "whats_new": {"from": "0.2.150", "to": "0.2.153", "opened": false},
+     "setup": {"state": "done", "step": "done", "work": ["cnc"], "version": "0.2.235", "by": ""}}
 
-``decide`` says what a start shows: ``"welcome"`` (no version ever ran here, at most ``WELCOME_STARTS`` starts, until
-the user takes the tour or says never), ``"whats_new"`` (the version went up since the last start; never after a
-downgrade or the same version again), or ``""``.
+``decide`` says what a start shows: ``"setup"`` (task 0276: the first-start set-up – no version ever ran here, at
+most ``WELCOME_STARTS`` starts, until the user finishes or skips it; before 0276 this was the welcome),
+``"whats_new"`` (the version went up since the last start; never after a downgrade or the same version again), or
+``""``. ``setup.state`` is "" (not finished), "done" or "skipped"; ``by`` = "it" when a company's set-up file skipped
+it; ``step`` = where the user left it; ``work`` = the ticks of its step 2 (they stay here, on this PC).
 """
 
 from __future__ import annotations
@@ -53,9 +56,16 @@ def _version(v) -> str:
     return v.strip() if isinstance(v, str) and vtuple(v) else ""
 
 
+SETUP_STATES = ("", "done", "skipped")
+
+
+def fresh_setup() -> dict:
+    return {"state": "", "step": "", "work": [], "version": "", "by": ""}
+
+
 def fresh() -> dict:
     return {"last_run": "", "welcome": {"later": 0, "never": False, "done": False},
-            "whats_new": {"from": "", "to": "", "opened": True}}
+            "whats_new": {"from": "", "to": "", "opened": True}, "setup": fresh_setup()}
 
 
 def load(path: str) -> dict:
@@ -75,6 +85,13 @@ def load(path: str) -> dict:
     if isinstance(wn, dict):
         out["whats_new"].update({"from": _version(wn.get("from")), "to": _version(wn.get("to")),
                                  "opened": wn.get("opened") is not False})
+    su = data.get("setup")
+    if isinstance(su, dict):                 # task 0276
+        work = su.get("work")
+        out["setup"].update(state=su.get("state") if su.get("state") in SETUP_STATES else "",
+                            step=su.get("step") if isinstance(su.get("step"), str) else "",
+                            work=[w for w in work if isinstance(w, str)][:20] if isinstance(work, list) else [],
+                            version=_version(su.get("version")), by="it" if su.get("by") == "it" else "")
     return out
 
 
@@ -88,13 +105,15 @@ def save(path: str, state: dict) -> None:
 
 
 def decide(state: dict, version: str) -> str:
-    """What this start of ``version`` shows: "welcome", "whats_new" or "". Does not change the state."""
+    """What this start of ``version`` shows: "setup", "whats_new" or "". Does not change the state."""
     last = state.get("last_run", "")
     w = state.get("welcome", {})
     if not last:
         if w.get("never") or w.get("done") or _int(w.get("later")) >= WELCOME_STARTS:
             return ""
-        return "welcome"
+        if (state.get("setup") or {}).get("state") in ("done", "skipped"):
+            return ""
+        return "setup"
     if newer(version, last):
         return "whats_new"
     return ""
@@ -106,7 +125,7 @@ def started(state: dict, version: str, shows: str) -> dict:
     The welcome keeps ``last_run`` empty until the user answers it (so a user who closes the app at once is welcomed
     again); What's new remembers the versions and stays in the Fresing menu until it is opened once."""
     state = json.loads(json.dumps(state))
-    if shows == "welcome":               # every start that shows it counts: at most WELCOME_STARTS starts
+    if shows in ("setup", "welcome"):     # every start that shows it counts: at most WELCOME_STARTS starts
         w = state["welcome"]
         w["later"] = _int(w.get("later")) + 1
         if w["later"] >= WELCOME_STARTS:
@@ -135,6 +154,24 @@ def answer_welcome(state: dict, version: str, choice: str) -> dict:
         w["done"] = True
     if not state.get("last_run") or newer(version, state["last_run"]):
         state["last_run"] = version
+    return state
+
+
+def setup_finished(state: dict, version: str, how: str, step: str = "", work=None, by: str = "") -> dict:
+    """The first-start set-up ended: ``how`` "done" (the user went through it), "skipped" (Skip set-up, or a company's
+    set-up file said so: ``by`` "it") or "" (closed on the way: asked again at the next start, at most
+    ``WELCOME_STARTS`` starts). From a finished set-up on, updates bring What's new."""
+    state = json.loads(json.dumps(state))
+    su = state.setdefault("setup", fresh_setup())
+    if step:
+        su["step"] = step
+    if work is not None:
+        su["work"] = list(work)
+    if how in ("done", "skipped"):
+        su.update(state=how, version=version, by="it" if by == "it" else "")
+        state["welcome"]["done"] = True
+        if not state.get("last_run") or newer(version, state["last_run"]):
+            state["last_run"] = version
     return state
 
 

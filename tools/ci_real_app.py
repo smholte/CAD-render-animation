@@ -77,6 +77,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 16, "names": 19,
+              "firstsetup": 42,
               "leadmotions": 24}
 # Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
 # took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on). Task 0319:
@@ -97,13 +98,13 @@ GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
     "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move", "jointfold"],   # jointfold: task 0290 (~40 s)   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
     "callouts": ["callouts", "importagain", "place", "copy", "names"],      # names: task 0291 (~40 s)   # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s); copy: task 0293 (~40 s)
-    "paths-heavy": ["pccheckheavy", "panel", "setup", "leadmotions"],   # leadmotions: task 0309 (~1 min)   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
+    "paths-heavy": ["pccheckheavy", "panel", "setup", "firstsetup"],   # firstsetup: task 0276 (~1 min)   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms", "welds"],   # welds: task 0319 (~40 s)     # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start", "route", "workspaces2"],   # workspaces2: task 0294 (~1 min)   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
     "ui": ["ui1", "spool", "layout", "left", "settings", "locations"],     # spool: task 0080, about 1 minute; left: task 0260; settings: 0271; locations: 0272 (~40 s)
     "scenes": ["surroundings", "vessel", "rulesets", "decals", "usage", "setupcrane", "backups", "lessoni"],   # backups: 0246 (~1.5 min); lessoni: 0230 (~3 min)   # usage: task 0181 (~1 min);
     # setupcrane: task 0203 (~4 min)
-    "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake"],   # lifting: 0201; liftingmake: 0204
+    "motion": ["video", "studio", "update", "ui2", "faces", "lifting", "liftingmake", "leadmotions"],   # leadmotions: 0309 (~1.5 min)   # lifting: 0201; liftingmake: 0204
     "machines": ["milling", "cylinder", "linkage", "waycover", "gcode", "tourui", "doublearm", "clash", "flex",
                  "cables", "paths", "undorebake"],
 }
@@ -210,6 +211,11 @@ TESTS = {
     "start": ("Real app: Start here – the welcome of a new user (three starts, Later, never, Take the test tour), What's "
               "new after an update (functions, the tour of only the new and changed models), the Fresing menu in "
               "every workspace (ui_test_start.py)", "ui_test_start.py", True),
+    "firstsetup": ("Real app: the first-start set-up – a settings folder without Blender's saved preferences: no "
+                   "quick set-up, no splash, the set-up's window; Next clicked through every step (work ticks -> "
+                   "workspace, the PC lines, a company's set-up file, the Learning hub started), Close, Set up again…, "
+                   "Skip clicked; a company's skip, an update shows What's new, never in the Client view "
+                   "(ui_test_first_setup.py)", "ui_test_first_setup.py", True),
     "settings": ("Real app: Fresing Settings – Fresing > Settings… opens one window, each tab clicked draws its page, "
                  "it stays open, opens again on the last tab, My usage… opens it on My usage, the Client view opens it; "
                  "a played animation with no input adds no time to My usage; a setting of each tab kept over a restart "
@@ -393,6 +399,17 @@ def main(argv=None) -> int:
             env["FRESING_WORKSPACE_START"] = ""
         if key == "start":                           # task 0199: the welcome shows although events are simulated
             env.update(FRESING_WELCOME_TEST="1")
+        if key == "firstsetup":                      # task 0276: a new settings folder of its own – no Blender
+            first = os.path.join(work, "first setup é")         # preferences, no start file –, the PC lines shortened
+            shutil.rmtree(first, ignore_errors=True)
+            shutil.copytree(user_res, first, symlinks=True)
+            for name in ("userpref.blend", "fresing_start.json"):
+                try:
+                    os.remove(os.path.join(first, "config", name))
+                except OSError:
+                    pass
+            env.update(FRESING_WELCOME_TEST="1", BLENDER_USER_RESOURCES=first,
+                       FRESING_SETUP_PROBE_LINES="app.start,gpu.device")
         if key == "backups":                         # task 0246: backups and the start question with simulated events
             env.update(FRESING_BACKUP_TEST="1")
         if key in ("usage", "settings"):             # task 0181 / 0271: the usage tracker counts although events are simulated

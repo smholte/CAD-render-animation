@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.235"
+__version__ = "0.2.236"
 
 _modules = []
 
@@ -50,6 +50,7 @@ def _classes():
     from .blender import ops_settings, ui_settings  # task 0271: the Fresing Settings window
     from .blender import ops_locations              # task 0272: Locations, Exports, Save to, set-up files
     from .blender import form_window                # task 0282: function windows (forms that stay open)
+    from .blender import first_setup                # task 0276: the first-start set-up window
     from .blender import place                      # task 0307: G / R / S say why something cannot move
     from .blender import ops_place, ui_place        # task 0292: 2 Structure > Place, Remove…
     from .blender import ops_welds, ui_welds        # task 0319: 3 Looks > Welds
@@ -87,7 +88,7 @@ def _classes():
             + ops_usage.CLASSES + ui_usage.CLASSES + about.CLASSES + apptools.CLASSES + ops_backups.CLASSES
             + project_name.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_render_view.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
-            + ops_locations.CLASSES + form_window.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES
+            + ops_locations.CLASSES + form_window.CLASSES + first_setup.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES
             + ops_lead_motions.CLASSES + ui_lead_motions.CLASSES)
 
 
@@ -203,6 +204,8 @@ def register():
     ops_settings.register()                  # task 0271: the presence marks in the keymap (only real input counts)
     from .blender import form_window
     form_window.register()                   # task 0282: Esc / Return in a function window, close them at a load
+    from .blender import first_setup
+    first_setup.register()                   # task 0276: the first-start set-up's values, its window closed at a load
     from .blender import about
     about.register()                         # task 0206: About Fresing Render in the Help menu
     project_lock.register()
@@ -350,6 +353,8 @@ def unregister():
     quiet.unregister()                       # task 0241: Blender's own drawing back
     from .blender import form_window
     form_window.unregister()                 # task 0282: (after the classes go, its property groups go)
+    from .blender import first_setup
+    first_setup.unregister()                 # task 0276
     from .blender import ops_settings
     ops_settings.unregister()
     from .blender import ops_usage

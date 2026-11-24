@@ -4,8 +4,9 @@ Run with a settings folder that has no start file yet and with FRESING_WELCOME_T
 app's own start decides what to show, the splash shows it, then this script plays more starts on the same start file
 (``welcome.at_start(force=True)`` = what the next start of the app does) and drives the real windows with keys:
 
-* a new user: the welcome at three starts, then never; Esc (Later) and Don't show this again; Take the test tour
-  (Enter) starts the tour build, Cancel stops it;
+* a new user (task 0276): the first-start set-up at three starts, then never (its own test: ui_test_first_setup.py);
+  the welcome window of the Fresing menu: Esc (Later) and Don't show this again; Take the test tour (Enter) starts the
+  tour build, Cancel stops it;
 * an existing user whose last version (written by this test) is older: What's new once with the right functions and
   test models; Make the tour (Enter) makes only the new and changed sets (count and time in the log); the next start
   and the same version again show nothing;
@@ -94,22 +95,29 @@ def step(fn):
 # a new user
 # ---------------------------------------------------------------------------
 
+def setup_windows():
+    return mod("blender.first_setup").windows()
+
+
 @step
 def s_first_start():
     w = mod("blender.welcome")
     check("the extension is on", pkg() is not None)
-    check("the first start in a new settings folder shows the welcome", w._RUN["shows"] == "welcome", w._RUN)
-    check("... in the splash (or as its own window when there is no splash)",
-          w._RUN["splash"] > 0 or not w._splash_expected(), w._RUN)
+    check("the first start in a new settings folder shows the set-up (task 0276)", w._RUN["shows"] == "setup", w._RUN)
     check("the start was counted", state()["welcome"]["later"] == 1, state())
-    shot("01_splash_welcome")
-    return 0.3
+    STATE["t0"] = time.time()
+    return 0.5
 
 
 @step
-def s_close_splash():
-    key("ESC")                                   # closes the splash without an answer: as Later
-    return 0.8
+def s_setup_window():
+    if not setup_windows() and time.time() - STATE["t0"] < 20:
+        return -0.3
+    check("... in a window of its own", bool(setup_windows()), len(bpy.context.window_manager.windows))
+    shot("01_first_setup")
+    mod("blender.first_setup").remember("")      # closed on the way: as Later
+    mod("blender.first_setup").close_window()
+    return 1.0
 
 
 @step
@@ -132,9 +140,10 @@ def s_dialog_later_shot():
 @step
 def s_two_more_starts():
     w = mod("blender.welcome")
-    check("Esc on the window = Later: asked again", w.core.decide(state(), w.version()) == "welcome", state())
+    check("the set-up closed on the way: asked again", w.core.decide(state(), w.version()) == "setup", state())
+    check("... its window is closed", not setup_windows())
     shown = [w.at_start(force=True) for _ in range(3)]   # the 2nd, 3rd and 4th start of the app
-    check("Later: the welcome at three starts, then never", shown == ["welcome", "welcome", ""], shown)
+    check("Later: the set-up at three starts, then never", shown == ["setup", "setup", ""], shown)
     check("... after that updates bring What's new", state()["last_run"] == w.version(), state())
     return 0.3
 
@@ -364,6 +373,12 @@ def s_client_view():
             check("Client view: Restore a backup… is greyed, with the reason", not lock.allowed(idname)
                   and not bpy.ops.fresing.backups_window.poll()
                   and ob.FRESING_OT_backups_window.description(bpy.context, None).startswith(ob.LOCKED_TEXT))
+            continue
+        if idname == "fresing.first_setup":      # task 0276: the set-up never opens in the Client view – greyed
+            fs = mod("blender.first_setup")
+            check("Client view: Set up again… is greyed, with the reason", not lock.allowed(idname)
+                  and not bpy.ops.fresing.first_setup.poll()
+                  and fs.FRESING_OT_first_setup.description(bpy.context, None).startswith(fs.LOCKED_TEXT))
             continue
         check(f"Client view: {idname} is not refused by the lock", lock.allowed(idname))
     check("Client view: a change of the project is still refused", not lock.allowed("fresing.joint_add"))
