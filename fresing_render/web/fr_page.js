@@ -11,6 +11,7 @@
 // ?turn=1 (auto-turn) ?soft=0 (tests: never judge the browser as drawing without a graphics card) ?fov=<deg>.
 // Task 0175: ?places=1 (the animated nodes' places into data-fr-places).
 // Task 0142: ?tubes=1 (the drawn cables' centre lines after each frame into data-fr-tubes, Blender world, for tests).
+// Task 0310: ?lead=<k>:<%>,… (lead motion k's slider at that position, as a link to it; the list order of ST.lead).
 //
 // Drawing (task 0134): at most 60 pictures a second (30 without a graphics card); a picture only when something
 // changed – the view moves, the animation, sea, vessel or rain plays, a menu choice, the window's size – and none
@@ -75,7 +76,8 @@
                                      items: page.items, fps: Math.round(page.fps * 10) / 10, raised: page.raised,
                                      lowered: page.lowered, frames: page.frames,
                                      under: page.underState ? page.underState() : null,
-                                     film: page.filmState ? page.filmState() : null });
+                                     film: page.filmState ? page.filmState() : null,
+                                     lead: page.leadState ? page.leadState() : null });
   }
   page.mark = mark;
   window.addEventListener('error', function (e) { page.errors.push(String(e.message || e)); mark(); });
@@ -1457,7 +1459,8 @@
     });
     if (gltf.animations && gltf.animations.length) {
       mixer = new T.AnimationMixer(top);
-      gltf.animations.forEach(function (clip) {
+      gltf.animations.forEach(function (clip, ci) {
+        if (LEAD_CLIPS[ci]) return;          // task 0310: a lead motion's clip is played by its own slider
         mixer.clipAction(clip).play();
         page.duration = Math.max(page.duration, clip.duration);
       });
@@ -1470,6 +1473,7 @@
       var a = assoc.get(o);
       if (a && a.nodes !== undefined && !(a.nodes in page.nodes)) page.nodes[a.nodes] = o;
     });
+    if (LEAD) prepareLead(gltf);      // task 0310
     if (FILM) {                       // a film whose camera moves round a machine that stands still plays too
       page.duration = Math.max(page.duration, FILM.duration);
       page.animated = !!ST.animated && page.duration > 0;
@@ -1559,6 +1563,10 @@
              vfov: +v.vfov || FOV, hfov: +v.hfov || 0 };
   });
   // task 0252: the Film's data (below: how it plays)
+  // task 0310: the lead motions' clips (their sliders play them, never the animation's mixer)
+  var LEAD = ST.lead && ST.lead.motions && ST.lead.motions.length ? ST.lead : null, LEAD_CLIPS = {};
+  if (LEAD) (LEAD.joints || []).forEach(function (j) { LEAD_CLIPS[j.clip] = true; });
+  page.motions = [];
   var FILM = (function () {
     var f = Array.isArray(ST.films) ? ST.films[0] : null;
     if (!f || !Array.isArray(f.k) || !f.k.length || !(+f.fps > 0) || !(+f.n > 1)) return null;
@@ -1712,6 +1720,7 @@
     on = !!on;
     if (on === filmOn) return filmOn;
     if (on) {
+      leadOff();                           // task 0310: the Film shows the animation: the sliders go back
       fly = null; onView = false; moved = true;
       filmGlide = glide ? { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov,
                             t0: performance.now(), ms: 600 } : null;
@@ -1756,6 +1765,181 @@
   };
   controls.addEventListener('start', function () { if (filmOn) page.setFilm(false); });   // a drag or zoom leaves it
 
+  // ---------------------------------------------------------------- task 0310: lead motions as sliders
+  // ST.lead (blender/web3d_lead.py, core/web3d_lead.py): {t, joints: [{clip, lo, hi, apply, kind}], motions: [{name,
+  // about, seconds, rows: [{j, v0, v1, start, end, easing}], at, ends}]}. One glTF clip per joint (time 0 … 1 s =
+  // (value − lo) / (hi − lo)), kept out of the animation's mixer. The sliders give each joint its value with the app's
+  // formulas (core/lead_motions.py: windows, easing; a joint in two lead motions takes the one moved last) and the
+  // joints' clips are put together as moves of the world – a part's place is M_j(v) · M0⁻¹ · … · M0, the joints in
+  // ``apply`` order (the carrier last). A slider moved: the sliders rule – the animation pauses and its parts stand as
+  // in the file (the frame shown). Play, the time line or the Film give the parts back to the animation and the
+  // sliders go back to where they started.
+  var leadMotions = [], leadJoints = [], leadNodes = [], mainNodes = [], leadOn = false, leadPlay = null, leadUsed = 0;
+  var jointVal = {};
+  var lmA = new T.Matrix4(), lmB = new T.Matrix4(), lmP = new T.Vector3(), lmQ = new T.Quaternion();
+  function ease(kind, p) {                 // core/lead_motions.ease
+    p = Math.min(Math.max(p, 0), 1);
+    if (kind === 'LINEAR') return p;
+    if (kind === 'EASE_IN') return 1 - Math.cos(p * Math.PI / 2);
+    if (kind === 'EASE_OUT') return Math.sin(p * Math.PI / 2);
+    return 0.5 - 0.5 * Math.cos(Math.PI * p);
+  }
+  function rowWindow(r) {
+    var a = Math.min(Math.max(+r.start, 0), 100), b = Math.min(Math.max(+r.end, 0), 100);
+    return a <= b ? [a, b] : [b, a];
+  }
+  function rowValue(r, pct) {              // core/lead_motions.value
+    var w = rowWindow(r), sh;
+    pct = Math.min(Math.max(+pct, 0), 100);
+    if (w[1] - w[0] < 1e-9) sh = pct >= w[1] ? 1 : 0;
+    else sh = ease(r.easing, (pct - w[0]) / (w[1] - w[0]));
+    return r.v0 + (r.v1 - r.v0) * sh;
+  }
+  function motionValues(m, pct, out) {     // core/lead_motions.values: of two rows on a joint, the one further along
+    var rows = m.rows.slice().sort(function (a, b) { return rowWindow(a)[0] - rowWindow(b)[0]; }), seen = {};
+    rows.forEach(function (r) {
+      if (seen[r.j] && rowWindow(r)[0] > pct + 1e-9) return;
+      seen[r.j] = true;
+      out[r.j] = rowValue(r, pct);
+    });
+    return out;
+  }
+  function nodeOf(track) {
+    var pb = T.PropertyBinding.parseTrackName(track.name);
+    return { o: T.PropertyBinding.findNode(top, pb.nodeName), what: pb.propertyName };
+  }
+  function restOf(o, list, seen) {
+    if (seen.has(o)) return seen.get(o);
+    var e = { o: o, pos: o.position.clone(), quat: o.quaternion.clone(), scale: o.scale.clone(), by: [] };
+    e.rest = new T.Matrix4().compose(e.pos, e.quat, e.scale);
+    e.inv = e.rest.clone().invert();
+    seen.set(o, e);
+    list.push(e);
+    return e;
+  }
+  function prepareLead(gltf) {
+    var seen = new Map(), mseen = new Map();
+    LEAD.joints.forEach(function (jd, j) {
+      var J = { j: j, lo: +jd.lo, hi: +jd.hi, apply: +jd.apply || 0, parts: 0 };
+      var clip = gltf.animations[jd.clip];
+      if (clip) clip.tracks.forEach(function (tr) {
+        var n = nodeOf(tr);
+        if (!n.o || (n.what !== 'position' && n.what !== 'quaternion')) return;
+        var e = restOf(n.o, leadNodes, seen), c = null;
+        for (var i = 0; i < e.by.length; i++) if (e.by[i].J === J) c = e.by[i];
+        if (!c) { c = { J: J, p: null, q: null }; e.by.push(c); J.parts++; }
+        c[n.what === 'position' ? 'p' : 'q'] = tr.createInterpolant();
+      });
+      leadJoints.push(J);
+    });
+    leadNodes.forEach(function (e) { e.by.sort(function (a, b) { return a.J.apply - b.J.apply; }); });
+    LEAD.motions.forEach(function (m, k) {
+      var mo = { k: k, name: m.name, about: m.about || '', seconds: Math.max(0.1, +m.seconds || 4),
+                 rows: (m.rows || []).filter(function (r) { return leadJoints[r.j]; }),
+                 ends: m.ends || ['0 %', '100 %'], at0: m.at == null ? 0 : +m.at, used: 0 };
+      mo.j = mo.rows.map(function (r) { return r.j; });
+      mo.pos = mo.at0;
+      leadMotions.push(mo);
+    });
+    gltf.animations.forEach(function (clip, ci) {      // the animation's parts: back to the file's place
+      if (LEAD_CLIPS[ci]) return;
+      clip.tracks.forEach(function (tr) { var n = nodeOf(tr); if (n.o) restOf(n.o, mainNodes, mseen); });
+    });
+    page.motions = leadMotions;
+  }
+  function jointValues() {                 // core/web3d_lead.joint_values: the one moved last wins a joint
+    var out = {};
+    leadMotions.filter(function (m) { return m.used; }).sort(function (a, b) { return a.used - b.used; })
+      .forEach(function (m) { motionValues(m, m.pos, out); });
+    return out;
+  }
+  function toRest(list) {
+    list.forEach(function (e) { e.o.position.copy(e.pos); e.o.quaternion.copy(e.quat); e.o.scale.copy(e.scale); });
+  }
+  function leadPose() {                    // core/web3d_lead.mixed
+    jointVal = jointValues();
+    for (var i = 0; i < leadNodes.length; i++) {
+      var e = leadNodes[i];
+      lmA.copy(e.rest);
+      for (var r = 0; r < e.by.length; r++) {
+        var c = e.by[r], v = jointVal[c.J.j];
+        if (v === undefined) continue;
+        var t = c.J.hi - c.J.lo < 1e-12 ? 0 : Math.min(Math.max((v - c.J.lo) / (c.J.hi - c.J.lo), 0), 1);
+        if (c.p) lmP.fromArray(c.p.evaluate(t)); else lmP.copy(e.pos);
+        if (c.q) lmQ.fromArray(c.q.evaluate(t)).normalize(); else lmQ.copy(e.quat);
+        lmB.compose(lmP, lmQ, e.scale).multiply(e.inv);      // the joint's move of the world
+        lmA.premultiply(lmB);
+      }
+      lmA.decompose(e.o.position, e.o.quaternion, e.o.scale);
+    }
+  }
+  function leadSetOn() {
+    if (leadOn) return;
+    leadOn = true;
+    toRest(mainNodes);                     // the animation's parts as in the file (the frame shown)
+  }
+  function leadOff() {
+    if (!leadOn) return;
+    leadOn = false;
+    leadPlay = null;
+    jointVal = {};
+    leadMotions.forEach(function (m) { m.pos = m.at0; m.used = 0; });
+    toRest(leadNodes);                     // the mixer puts the animation's own parts where they belong
+    wake();
+    changed('motions');
+  }
+  page.setMotion = function (k, pct, playing) {
+    var mo = leadMotions[k];
+    if (!mo) return false;
+    if (!playing) leadPlay = null;
+    mo.pos = Math.min(Math.max(+pct || 0, 0), 100);
+    if (!mo.used || mo.used !== leadUsed) mo.used = ++leadUsed;    // moved last
+    leadSetOn();
+    if (page.animated && !paused) page.paused = true;
+    wake();
+    changed('motions');
+    return true;
+  };
+  page.playMotion = function (k) {         // ▶: to 100 % over the lead motion's seconds; at 100 % back to 0 %
+    var mo = leadMotions[k];
+    if (!mo) return false;
+    if (leadPlay && leadPlay.k === k) { leadPlay = null; changed('motions'); return false; }   // ▶ again: stop
+    var to = mo.pos >= 99.95 ? 0 : 100, ms = Math.abs(to - mo.pos) / 100 * mo.seconds * 1000;
+    page.setMotion(k, mo.pos);
+    if (ms <= 1) { page.setMotion(k, to); return false; }
+    leadPlay = { k: k, from: mo.pos, to: to, t0: performance.now(), ms: ms };
+    wake();
+    changed('motions');
+    return true;
+  };
+  function stepLead(now) {
+    var lp = leadPlay, f = Math.min(1, (now - lp.t0) / lp.ms);
+    page.setMotion(lp.k, lp.from + (lp.to - lp.from) * f, true);
+    if (f >= 1 && leadPlay === lp) { leadPlay = null; changed('motions'); }
+  }
+  page.motionsBack = function () {         // Back to start: every slider to 0 %, the first one's values win (the app)
+    leadPlay = null;
+    for (var k = leadMotions.length - 1; k >= 0; k--) page.setMotion(k, 0);
+  };
+  page.movedBy = function (k) {            // the lead motion that set one of k's joints after it ('' = none)
+    var mo = leadMotions[k], who = null;
+    if (!mo || !mo.used) return '';
+    leadMotions.forEach(function (o) {
+      if (o !== mo && o.used > mo.used && (!who || o.used > who.used) &&
+          o.j.some(function (x) { return mo.j.indexOf(x) >= 0; })) who = o;
+    });
+    return who ? who.name : '';
+  };
+  page.leadState = function () {           // tests, the PC check: the sliders and the joints' values now
+    if (!LEAD) return null;
+    var jv = leadOn ? jointValues() : {};
+    return { on: leadOn, playing: leadPlay ? leadPlay.k : -1, nodes: leadNodes.length,
+             joints: leadJoints.map(function (J) { return jv[J.j] === undefined ? null : jv[J.j]; }),
+             motions: leadMotions.map(function (m, k) {
+               return { name: m.name, pos: Math.round(m.pos * 1000) / 1000, used: m.used, movedBy: page.movedBy(k) };
+             }) };
+  };
+
   // the view as a link: camera, moment and menu choices in the address (task 0134)
   page.viewLink = function () {
     var off = camera.position.clone().sub(controls.target), d = Math.max(off.length(), 1e-9);
@@ -1767,6 +1951,11 @@
     if (page.paused) p.push('paused=1');
     if (page.speed !== 1) p.push('speed=' + page.speed);
     if (filmOn) p.push('film=1');
+    if (leadOn) {                                      // task 0310: the sliders moved, in the order they were moved
+      var lp = leadMotions.filter(function (m) { return m.used; }).sort(function (a, b) { return a.used - b.used; })
+        .map(function (m) { return m.k + ':' + (Math.round(m.pos * 100) / 100); });
+      if (lp.length) p.push('lead=' + lp.join(','));
+    }
     if (!auto) p.push('quality=' + level, 'auto=0');
     var off_ = page.items.filter(function (n) { return on[n] === false && !pageOff[n]; });
     if (off_.length) p.push('off=' + off_.join(','));
@@ -2097,12 +2286,17 @@
   var paused = Q.get('paused') === '1';
   Object.defineProperty(page, 'paused', {           // the site's own button (task 0111) sets it directly
     get: function () { return paused; },
-    set: function (v) { paused = !!v; chain = false; wake(); changed('paused'); }, enumerable: true });
+    set: function (v) {
+      paused = !!v; chain = false;
+      if (!paused) leadOff();                          // task 0310: playing gives the parts back to the animation
+      wake(); changed('paused');
+    }, enumerable: true });
   var sp = parseFloat(Q.get('speed'));
   if (sp === 0.5 || sp === 1 || sp === 2) page.speed = sp;
   else if (PREF.speed === 0.5 || PREF.speed === 2) page.speed = PREF.speed;
   page.setTime = function (s) {
     elapsed = Math.max(0, +s || 0); page.time = elapsed; chain = false;
+    leadOff();                                         // task 0310: the time line shows the animation again
     if (card) { card = null; changed('card'); }          // task 0252: moving the time line skips the Film's cards
     wake(); changed('time');
   };
@@ -2196,10 +2390,11 @@
       }
       if (camera.position.y < lowest) camera.position.y = lowest;
     }
-    if (mixer) mixer.setTime(ST.animated ? t : 0);
+    if (leadOn) leadPose();                // task 0310: the sliders rule (the animation's parts at the frame shown)
+    else if (mixer) mixer.setTime(ST.animated ? t : 0);
     if (wantPlaces) placeProbe();
     if (tubes.length) {            // the moment the mixer shows: the animation repeats (t = its length is its start)
-      var tt = ST.animated ? t : 0;
+      var tt = leadOn ? LEAD.t : ST.animated ? t : 0;
       if (page.duration > 0) tt = tt % page.duration;
       updateTubes(tt);
       if (wantTubes) tubeProbe();
@@ -2353,7 +2548,8 @@
   function tick(now) {
     scheduled = false;
     if (document.hidden) { chain = false; return; }        // visibilitychange wakes it again
-    var run = moving() || page.turning || !!fly || !!filmGlide || (probes.length > 0 && page.frames < (maxFrames || 4));
+    var run = moving() || page.turning || !!fly || !!filmGlide || !!leadPlay ||
+      (probes.length > 0 && page.frames < (maxFrames || 4));
     // at most page.cap pictures a second (a 165 Hz screen asked for 165)
     if (lastDraw && now - lastDraw < 1000 / page.cap - 2) {
       if (run || dirty || chain) { scheduled = true; requestAnimationFrame(tick); }
@@ -2362,6 +2558,7 @@
     var dt = chain ? Math.min((now - lastDraw) / 1000, 0.1) : 0;
     if (moving()) advance(dt * page.speed);
     if (fly) stepFly(now);
+    if (leadPlay) stepLead(now);                           // task 0310: ▶ of a lead motion
     if (spin && dt > 0) {                                  // task 0256: the flick eases to the auto-turn speed / a stop
       spin.t += dt;
       var kk = Math.min(1, spin.t / FLICK_EASE), rest = (1 - kk) * (1 - kk);
@@ -2402,6 +2599,10 @@
     applyItems(true);
     firstView();
     if (Q.get('film') === '1') page.setFilm(true, false);    // task 0252: a link to the Film
+    if (LEAD && Q.has('lead')) Q.get('lead').split(',').forEach(function (kp) {   // task 0310: a link to the sliders
+      var a = kp.split(':'), k = parseInt(a[0], 10), p = parseFloat(a[1]);
+      if (isFinite(k) && isFinite(p)) page.setMotion(k, p);
+    });
     var sh = parseFloat(Q.get('sun'));
     if (page.sunLive && isFinite(sh)) page.setSunHour(sh, true);
     page.time = elapsed;

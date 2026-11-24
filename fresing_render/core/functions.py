@@ -656,6 +656,9 @@ fn(id="web.phone", short="Web 3D, phone", title="Web 3D page on a phone: one vie
 fn(id="web.film", short="Web 3D Film", title="Web 3D page: Film – the motion seen through the video's camera, with captions, labels and cards",
    family="web", panel="FRESING_PT_web3d", prop="film_captions", guide="web3d-film", tour=("web3d",),
    pccheck=("web3d.film",), since="0.2.194")
+fn(id="web.lead_motions", short="Web 3D Motions", title="Web 3D page: the lead motions as sliders (Motions)",
+   family="web", panel="FRESING_PT_web3d", prop="lead_sliders", guide="web3d-motions", tour=("web3d",),
+   pccheck=("web3d.lead_motions",), since="0.2.238")
 fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a face or X/Y/Z), fade the rest",
    family="web", panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",),
    pccheck=("web3d.export",), since="0.2.131", changed="0.2.175")
@@ -698,7 +701,7 @@ fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slid
 # task 0322: measuring in the 3D view – on the top bar in every workspace and in the Client view, keys M / Alt+M
 fn(id="view.measure", short="Measure", title="Measure in the 3D view: distance, edge, gap, angle, Ø, point to axis",
    family="scene", panel="TOPBAR_PT_fresing_measure", button="fresing.measure", guide="measure", tour=("measure",),
-   pccheck=("view.measure",), since="0.2.238", headline=True,
+   pccheck=("view.measure",), since="0.2.239", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 90, "read the size off the drawing or measure it in the CAD program and type it in"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",
