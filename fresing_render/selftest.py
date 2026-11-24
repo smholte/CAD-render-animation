@@ -288,6 +288,19 @@ def main(report_path: str | None = None) -> bool:
 
     check("Graphics card", _gpu)
 
+    def _gpu_used():
+        """Task 0296: the graphics card draws the window (as the app's last start saw it) and renders, not the
+        processor's built-in graphics."""
+        from .blender import gpu_choice
+        status, text = gpu_choice.check(_no_gpu_expected())
+        if status == "skip":
+            raise Skipped("skipped: no graphics card")
+        if status == "problem":
+            raise RuntimeError(text)
+        return text
+
+    check("Graphics card used", _gpu_used)
+
     def _import():
         bpy.ops.wm.read_homefile(use_empty=True)
         from .blender import prefs as fr_prefs

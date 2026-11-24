@@ -1,6 +1,6 @@
 # 0308 – Make: a taller row with larger icons, an outputs strip in every output window, and "Render this view"
 
-**Who:** worker · **Status:** open – waits for 0282 · **Branch:** `task/0308-make-strip-render-view`
+**Who:** worker · **Status:** running · **Branch:** `task/0308-make-strip-render-view`
 **Started by:** lead, 23 Nov 2026 (owner 20:49, with three screenshots: the Make row, the Picture window with its empty
 left side marked in purple – one icon per output, names beside them in orange when the strip is dragged wider) ·
 **Model:** Opus · effort Medium

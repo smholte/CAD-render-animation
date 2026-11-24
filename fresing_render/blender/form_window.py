@@ -70,6 +70,8 @@ POPUPS = {
     "fresing.family_toggle": "a question: hide a family the project uses",
     "fresing.welcome": "the welcome – task 0276 makes it the first-start set-up (welcome.py is its file)",
     "fresing.whats_new": "What's new after an update – welcome.py belongs to task 0276",
+    "fresing.gpu_notice": "task 0296: the calm graphics-card notice at the start – Use the graphics card / not now",
+    "fresing.gpu_how": "task 0296: Show me how – steps to read, with two buttons",
 }
 
 _FORMS: dict = {}                   # idname -> {"cls", "title", "confirm", "icon", "extra": {...}, "error": str}

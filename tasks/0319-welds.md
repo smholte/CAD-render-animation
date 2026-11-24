@@ -1,6 +1,6 @@
 # 0319 – Welds: pick two sets of faces (like Inventor), a real bead where they meet – steel, stainless, aluminium, painted or bare, rust where it belongs
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0319-welds`
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0319-fwlaf1` (the web session's branch)
 **Started by:** lead, 24 Nov 2026 (owner 24 Nov 00:45, ticking study 0270's #21: "for the weld, should be easy to select
 place, maybe like Inventor, two different face selections, allowing you to lay down welds the places those faces
 intersect. And allow to paint over the weld and different weld for steel, stainless and aluminium… Also allow rust on
