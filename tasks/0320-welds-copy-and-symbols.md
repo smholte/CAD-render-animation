@@ -1,6 +1,6 @@
 # 0320 – Welds round 2: a copy takes its welds along; weld symbols (ISO 2553) with one switch, and a weld list
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0320-welds-copy-and-symbols`
+**Who:** worker · **Status:** running · **Branch:** `task/0320-welds-copy-and-symbols`
 **Started by:** lead, 24 Nov 2026 (owner 11:44: "when making a copy of an assembly I want welds to also come with";
 "the weld symbols can come in. A simple toggle to activate these and deactivate (standard it's deactivated)") ·
 **Model:** Opus · effort Medium
