@@ -50,7 +50,7 @@ linkages, way covers.
 
 - [ ] Tests (several picks kept, × drops one, travel read from all, Set-up window steps); crane lesson passes
 - [ ] Real-app test of the fold; guide text + pictures of 4 Motion; tour stop `changed=`; function entries `changed=`
-- [ ] Full suite + GitHub run green; report filled in; merged, version, release
+- [x] Full suite + GitHub run green; report filled in; merged, version, release
 
 ---
 
@@ -87,7 +87,7 @@ linkages, way covers.
 5. **Test model** – `make_test_cylinder.py C` → `tests/data/test_cylinder_c.step`: SPLIT.ASM, barrel 3 parts in
    2 subassemblies, rod 2 loose parts.
 
-PC check line `joints.show` (MIN_LINES_FULL 126); tour stops joint / stack / cylinder `changed=`, crane set
+PC check line `joints.show` (MIN_LINES_FULL 134); tour stops joint / stack / cylinder `changed=`, crane set
 `changed=`; function entries `changed=`; guide (4 Motion, couplings, cylinders, Set up a crane) + pictures
 panel_4_motion(_start), panel_4_coupling, panel_4_cylinders; CHANGELOG 0.2.224.
 
@@ -98,8 +98,10 @@ make_cylinder with lists, the fold's place, joint show + riders + hidden count, 
 row tooltips, "Beyond limits" on the value row with the same row structure inside / beyond). Real app
 `tools/ui_test_joint_fold.py` (group pccheck-b): 12/12 – the Joints title clicked open, Add rotate joint on screen,
 the follower clicked shows 3 parts without selecting, the arm moved past the limit: the Limits row stays at the same
-pixels, "Beyond limits" above it and not cut off, another selection ends the show. Local runs of the affected suites
-and the real-app cylinder / setupcrane tests: see the push; GitHub runs the rest.
+pixels, "Beyond limits" above it and not cut off, another selection ends the show. GitHub: the branch's last full run green (run 45319267696), main fast-forwarded to it.
+**Runs:** about 10 full runs – six version clashes (0289, 0292, 0316, 0296, 0302, 0308 merged first: 0.2.218 → 0.2.224),
+one real failure fixed (callouts group, a test order effect) and the Place test's "Delete opens the Remove window"
+(flaky, also on other branches; re-run of the failed job passed).
 No subagents (Medium effort, one area).
 
 **Open points / follow-up tasks:**
