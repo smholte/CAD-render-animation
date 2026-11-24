@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.221 – 24 Nov 2026 – Joints in a fold, several parts per cylinder item, a clicked joint shows what it moves (task 0290)
+## 0.2.222 – 24 Nov 2026 – Joints in a fold, several parts per cylinder item, a clicked joint shows what it moves (task 0290)
 
 - **4 Motion > Joints** is now a fold of its own, like Cylinders and Mechanisms: Add rotate joint, Add slide joint,
   the joint list and the selected joint's settings sit in it. "Everything back to CAD position" stays at the top of
@@ -22,6 +22,23 @@ installer of that version was built from.
   tinted green in the view, joints riding on it in a lighter green. Nothing gets selected, hidden parts stay hidden
   (the box says how many). Clicking a mechanism shows its moving links. A click elsewhere ends it. The list rows have
   a real tooltip now.
+## 0.2.221 – 23 Nov 2026 – Always the graphics card (task 0296)
+
+- **Renders use only the graphics card.** On a PC with an AMD processor and an AMD card, the processor's small built-in
+  Radeon and the card were both used for renders, and the built-in one slowed the card down. Now only the card renders
+  (NVIDIA, AMD Radeon RX / Pro, Intel Arc). A PC without a card keeps using what it has.
+- **The window on the graphics card.** Windows picks which GPU draws each program; Blender only asks NVIDIA's driver
+  for the card, not AMD's. The installer, Update now and the app's start now set Windows' graphics preference for
+  Fresing Render to High performance (Settings > System > Display > Graphics) – only where you have not chosen
+  yourself. It counts from the next start. The uninstaller removes it again.
+- **A calm notice** when the window is still drawn by the built-in graphics although the PC has a card, or when the 3D
+  view is clearly slow: **Use the graphics card**, **Show me how** (Windows' Graphics settings, NVIDIA Control Panel,
+  the monitor cable in the card, not the motherboard), Cancel = not now, **Don't ask again**. At most once per start.
+- **Fresing > Settings > General > Graphics:** which GPU draws the window, which renders, and **Render on** to pick
+  the device (or the processor).
+- Self-test line "Graphics card used", PC check line `pc.gpu`; the PC check's report names the GPU that draws and the
+  one that renders. New guide section "Graphics card" (Troubleshooting).
+
 ## 0.2.220 – 23 Nov 2026 – Update now: save or not, also for a project that was never saved (task 0316)
 
 - **Update now no longer refuses a project that was never saved.** With unsaved changes it asks first, in one small

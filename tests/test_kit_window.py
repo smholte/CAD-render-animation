@@ -237,9 +237,11 @@ def test_estimate_json_for_the_window(kit, kr, tmp_path, monkeypatch):
     monkeypatch.setenv("FRESING_KIT_STANDARD", str(tmp_path / "std" / "site_kit.json"))
     kr_kit = kit.kit_run
     kr_kit.save_standard({"load": 70, "quiet_on": True})
-    models_dir = tmp_path / "kit" / "models"          # its own kit folder: no other test's "models" beside it
-    models_dir.mkdir(parents=True)
-    (models_dir / "a.step").write_bytes(b"x" * 1_000_000)
+    # the kit in a folder of its own: find_model also looks in "models" folders of the kit's siblings (an older kit),
+    # and tmp_path's siblings are other tests' folders – one of them held a b.step on GitHub (task 0296's run 3)
+    mdir = tmp_path / "kit" / "models"
+    mdir.mkdir(parents=True)
+    (mdir / "a.step").write_bytes(b"x" * 1_000_000)
     ini = tmp_path / "m.ini"
     ini.write_text("[a]\nfile = a.step\ntitle = Model A\ncredit = c\nviews = LOW, HIGH\nvideo = turntable\n"
                    "[b]\nfile = b.step\ncredit = c\nviews = LOW\n", encoding="utf-8")
@@ -248,19 +250,19 @@ def test_estimate_json_for_the_window(kit, kr, tmp_path, monkeypatch):
     st = kr_kit.RunState.new(str(out), models, {"load": 70})
     st.record("a", "still:low", {"file": "a_low.jpg"})
     js = tmp_path / "est.json"
-    assert kit.main(["x", str(models_dir), str(out), str(ini), f"--estimate-json={js}"]) == 0
+    assert kit.main(["x", str(mdir), str(out), str(ini), f"--estimate-json={js}"]) == 0
     raw = js.read_bytes()
     assert raw.isascii()
     info = json.loads(raw)
     a, b = info["models"]
     assert a["id"] == "a" and a["title"] == "Model A" and a["found"] and not b["found"]
-    parts = kit.estimate_parts(models[0], general, str(models_dir))
+    parts = kit.estimate_parts(models[0], general, str(mdir))
     assert a["gpu"] == pytest.approx(parts["gpu"], abs=0.1) and a["cpu"] == pytest.approx(parts["cpu"], abs=0.1)
     assert info["standard"]["load"] == 70 and info["standard"]["quiet_on"] is True
     assert info["factory"] == kr.DEFAULT_STANDARD and info["step"] == kr.STEP
     r = info["resume"]
     assert r["done"] == 1 and r["total"] == 4 and r["text"].startswith("Continue the run of")
-    b_parts = kit.estimate_parts(models[1], general, str(tmp_path / "models"))
+    b_parts = kit.estimate_parts(models[1], general, str(mdir))
     assert r["gpu"] == pytest.approx(parts["gpu"] - parts["still"] + b_parts["gpu"], abs=0.2)
 
 

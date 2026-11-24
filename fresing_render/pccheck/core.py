@@ -398,7 +398,9 @@ def text_block(run: Run, secrets=()) -> str:
            f"{'' if run.finished else ' - DID NOT FINISH'}{' - CANCELLED' if run.cancelled else ''}"
            f"{' - SCALED DOWN' if run.scaled else ''}",
            f"PC: {pc.get('cpu', '?')}, {pc.get('cores', '?')} cores, {pc.get('ram_gb', '?')} GB; "
-           f"{pc.get('gpu', '?')}; driver {pc.get('driver', '?')}; {pc.get('os', '?')}; Blender {run.blender}",
+           f"renders on {pc.get('gpu', '?')}; driver {pc.get('driver', '?')}"
+           + (f"; window drawn by {pc['draws']}" if pc.get("draws") else "")
+           + f"; {pc.get('os', '?')}; Blender {run.blender}",
            f"Result: {c[OK]} OK, {c[FAILED]} FAILED, {c[SKIPPED]} skipped in {run.seconds:.0f} s; "
            + (f"compared with {run.compared_with}" if run.compared_with else "first run of this kind on this PC")]
     order = sorted(run.results, key=lambda r: (r.id not in run.new_ids,))
@@ -571,7 +573,9 @@ def html_report(run: Run, block: str) -> str:
         f"<h1>Fresing Render {'Learning hub' if run.mode == 'tour' else 'PC check'} {_e(run.app_version)}</h1>",
         f"<div class='sub'>{_e(MODE_TITLES.get(run.mode, run.mode))}{' + your own model' if run.own_model else ''}"
         f" · {_e(run.date)} · {run.seconds:.0f} s · {_e(pc.get('cpu', '?'))}, {_e(pc.get('cores', '?'))} cores · "
-        f"{_e(pc.get('gpu', '?'))}, driver {_e(pc.get('driver', '?'))} · Blender {_e(run.blender)}</div>",
+        f"renders on {_e(pc.get('gpu', '?'))}, driver {_e(pc.get('driver', '?'))}"
+        + (f" · window drawn by {_e(pc['draws'])}" if pc.get("draws") else "")
+        + f" · Blender {_e(run.blender)}</div>",
         f"<div class='card' style='margin-top:14px'><div class='big'>{head}</div>",
         f"<div>{c[OK]} OK · {c[FAILED]} failed · {c[SKIPPED]} skipped"
         + (f" · <span class='flag'>{flags} to look at</span>" if flags else "")

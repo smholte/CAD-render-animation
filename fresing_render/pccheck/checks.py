@@ -172,6 +172,18 @@ def gpu_device(ctx):
     return ctx.gpu
 
 
+@line("pc.gpu", "Graphics card used: window and renders", "0.2.221", (Q, F),
+      what="The graphics card draws the window and renders – not the processor's built-in graphics (task 0296)")
+def pc_gpu(ctx):
+    from ..blender import gpu_choice
+    from .runner import NO_GPU_TEXT, no_gpu_expected
+    status, text = gpu_choice.check(no_gpu_expected())
+    if status == "skip":
+        raise Skipped(f"skipped: {NO_GPU_TEXT}")
+    _check(status == "ok", text)
+    return text
+
+
 # ---------------------------------------------------------------------------
 # import and sorting
 # ---------------------------------------------------------------------------
@@ -885,7 +897,7 @@ def joints_stack(ctx):
     return "boom 30° + trolley 1000 mm"
 
 
-@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.221",
+@line("joints.show", "Joints: a clicked joint shows what it moves", "0.2.222",
       what="Clicking the boom's joint in 4 Motion > Joints lights up the boom, the trolley riding on it lighter")
 def joints_show(ctx):
     from mathutils import Vector

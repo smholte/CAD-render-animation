@@ -1,6 +1,6 @@
 # 0299 – Weather round 2: thunderstorm, fog / sea mist, sunrise and sunset, hail / sleet, hot and calm; change the weather in a few clicks
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0299-weather-round-2`
+**Who:** worker · **Status:** running · **Branch:** `task/0299-weather-round-2`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "More weather options, like a thunderstorm. And how does
 the current weather function work, should be very easy to change between weather and time for an animation using a few
 clicks, with smooth animations."; owner's click box 23 Nov: also fog / sea mist, sunrise / sunset, hail / sleet, hot

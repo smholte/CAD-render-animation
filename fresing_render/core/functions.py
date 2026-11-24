@@ -266,13 +266,13 @@ fn(id="looks.schemes", short="Paint schemes", title="Paint schemes & templates",
 # ----- 4 Motion: joints, poses -----
 fn(id="joints.rotate", title="Rotate joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", tour=("joint",),
-   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.221")
+   pccheck=("joints.rotate",), lesson="crane:3", since="0.2.0", changed="0.2.222")
 fn(id="joints.slide", title="Slide joint", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", lesson="mill:3", since="0.2.0",
-   changed="0.2.221")
+   changed="0.2.222")
 fn(id="joints.stack", title="Joint on a joint (stacked)", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add slide joint", guide="motion", tour=("stack",),
-   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.221")
+   pccheck=("joints.stack", "joints.show"), lesson="crane:4", since="0.2.10", changed="0.2.222")
 fn(id="joints.hover", title="Hover highlight when picking an axis", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_pick_axis", text="Add rotate joint", guide="motion", pccheck=("motion.hover",),
    since="0.2.63")
@@ -280,7 +280,7 @@ fn(id="joints.cad_position", short="Back to CAD", title="Everything back to CAD 
    button="fresing.pose_reset", guide="motion", since="0.2.5")
 fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18",
-   changed="0.2.221")
+   changed="0.2.222")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
@@ -292,7 +292,7 @@ fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT
 fn(id="machines.cylinder", title="Cylinders", family="machines", panel="FRESING_PT_cylinders",
    button="fresing.cylinder_add", guide="cylinders", tour=("cylinder",), pccheck=("joints.cylinder",),
    since="0.2.25",
-   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.221")
+   manual_estimate=("use", 600, "barrel and rod pivots, constraints and limits"), changed="0.2.222")
 fn(id="machines.mechanism", title="Mechanisms: scissor lift, crank", family="machines",
    panel="FRESING_PT_mechanisms", button="fresing.mechanism_add", guide="mechanisms", tour=("mechanism",),
    pccheck=("joints.mechanism",), since="0.2.26")
@@ -666,6 +666,10 @@ fn(id="settings.exports", short="Export places", title="Export places: where pic
    panel="TOPBAR_MT_fresing", button="fresing.settings", guide="export-places", tour=("locations",),
    pccheck=("settings.locations",), since="0.2.210")
 
+fn(id="settings.graphics", headline=True, short="Graphics card", title="Always the graphics card: NVIDIA, AMD or Intel "
+   "Arc before the processor's built-in graphics – for the window and for renders; a calm notice with Show me how when "
+   "not; Settings > General > Graphics", family="help", panel="TOPBAR_MT_fresing", button="fresing.gpu_how",
+   guide="graphics-card", pccheck=("pc.gpu",), since="0.2.221")       # task 0296
 fn(id="help.fr_mark", short="Fr mark", title="The Fr mark at the left of the top bar: About Fresing Render, "
    "Fresing Settings and Blender's own menu", family="help", panel="TOPBAR_MT_fresing_mark", button="fresing.about",
    guide="fr-mark", tour=("fr_mark",), pccheck=("app.fr_mark",), since="0.2.209")
