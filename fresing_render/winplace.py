@@ -112,6 +112,12 @@ def forget() -> None:
     _HWND.clear()
 
 
+def rekey(old: str, new: str) -> None:
+    """Task 0308: an output window now shows another output – its handle is kept under the new key."""
+    if old in _HWND and old != new:
+        _HWND[new] = _HWND.pop(old)
+
+
 def _alive(hwnd) -> bool:
     if not hwnd:
         return False

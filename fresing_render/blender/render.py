@@ -206,16 +206,36 @@ def _safe(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("_") or "render"
 
 
-def output_path(scene, s, suffix: str = "") -> str:
-    folder = default_output_dir(scene)
-    os.makedirs(folder, exist_ok=True)
+def _stem(scene) -> str:
+    """The project's name for output files: the saved file's name, else the model's."""
     stem = os.path.splitext(os.path.basename(bpy.data.filepath))[0]
     if not stem:
         from . import build
         roots = build.model_roots(scene)
         src = roots[0].get(build.PROP_SOURCE, "") if roots else ""
         stem = os.path.splitext(os.path.basename(src))[0] or "model"
-    stem = _safe(stem)
+    return _safe(stem)
+
+
+def view_output_path(scene, s, when: float | None = None) -> str:
+    """Task 0308: the file of Render this view – ``<project>_View_<date>-<time>`` in the outputs' folder, never an
+    earlier file."""
+    folder = default_output_dir(scene)
+    os.makedirs(folder, exist_ok=True)
+    ext = ".jpg" if s.out_file_type == "JPEG" else ".png"
+    base = f"{_stem(scene)}_View_{time.strftime('%Y-%m-%d_%H%M%S', time.localtime(when))}"
+    path = os.path.join(folder, base + ext)
+    n = 2
+    while os.path.exists(path):
+        path = os.path.join(folder, f"{base}_{n:03d}{ext}")
+        n += 1
+    return path
+
+
+def output_path(scene, s, suffix: str = "") -> str:
+    folder = default_output_dir(scene)
+    os.makedirs(folder, exist_ok=True)
+    stem = _stem(scene)
     cam = _safe(scene.camera.name) if scene.camera else "view"
     ext = ".jpg" if s.out_file_type == "JPEG" else ".png"
     pct = scene.render.resolution_percentage
