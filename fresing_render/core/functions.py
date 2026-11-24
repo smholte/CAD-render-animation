@@ -322,13 +322,13 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
 
 # ----- 3 Looks -----
 fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
-   button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
+   button="fresing.materials", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
    changed="0.2.237", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
-   button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
+   button="fresing.materials", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
    changed="0.2.237")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains, perlage", family="looks",
-   panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
+   panel="FRESING_PT_looks", button="fresing.materials", guide="finishes", tour=("finishes",),
    pccheck=("looks.finishes",), since="0.2.229", changed="0.2.237")
 # task 0318: carbon fibre that follows every CAD face, the group's Rust slider, better existing looks
 fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (no seam)", family="looks",

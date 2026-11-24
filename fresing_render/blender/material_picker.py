@@ -50,8 +50,8 @@ _S: dict = {"previews": None, "icons": {}, "chips": {}, "chip_todo": [], "own": 
 
 def previews():
     if _S["previews"] is None:
-        import bpy.utils.previews
-        _S["previews"] = bpy.utils.previews.new()
+        from bpy.utils import previews as pv
+        _S["previews"] = pv.new()
     return _S["previews"]
 
 
@@ -404,6 +404,30 @@ def remove_from_project(scene, key: str) -> None:
         pms.remove(pms.find(key))
 
 
+def from_template(scene, items: list) -> int:
+    """A template's short list into the project (an own material with its file: it renders without the folder; its
+    Blender material is appended when its folder is there). Returns how many were added."""
+    n = 0
+    for it in items:
+        key = str(it.get("key", ""))
+        if not key.startswith(("builtin:", "preset:", "own:")):
+            continue
+        if not key.startswith("own:") and F.builtin(key) is None:
+            continue
+        pm = _pm(scene, key)
+        pm.title = str(it.get("title", "")) or pm.title
+        if key.startswith("own:") and it.get("data"):
+            pm.data = str(it["data"])
+            e = find(scene, key)
+            if e is not None and e.is_blend and e.blend and os.path.isfile(e.blend):
+                mat = append_blend(e)
+                if mat is not None:
+                    pm.blend_mat = mat.name
+        pm.listed = True
+        n += 1
+    return n
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # using an entry
 
@@ -544,7 +568,7 @@ def blender_materials() -> list:
     """The project's own Blender materials a user may save (not the app's group materials "FR …", not ones made from
     an own material "FRM …", nothing linked from another file)."""
     return [m for m in bpy.data.materials
-            if not m.name.startswith(("FR ", "FRM ")) and m.library is None and m.use_nodes
+            if not m.name.startswith(("FR ", "FRM ")) and m.library is None and m.node_tree is not None
             and not m.is_grease_pencil and m.get("fr_material") is None]
 
 
@@ -646,9 +670,9 @@ def unregister() -> None:
         if bpy.app.timers.is_registered(fn):
             bpy.app.timers.unregister(fn)
     if _S["previews"] is not None:
-        import bpy.utils.previews
+        from bpy.utils import previews as pv
         try:
-            bpy.utils.previews.remove(_S["previews"])
+            pv.remove(_S["previews"])
         except Exception:  # noqa: BLE001
             pass
     _S.update(previews=None, icons={}, chips={}, chip_todo=[], project={})

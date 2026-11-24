@@ -202,8 +202,9 @@ def test_show_only_unsorted_and_group(scene):
 def test_ready_made_material_and_move_to_group(scene):
     s = scene.fresing
     s.groups_index = 0
-    assert bpy.ops.fresing.group_preset(preset="rubber") == {"FINISHED"}
-    assert s.groups[0].material == "rubber_black"
+    # task 0273: the ready-made menu became the Materials window's entries (Use for the group)
+    assert bpy.ops.fresing.mat_use(key="builtin:rubber_black") == {"FINISHED"}
+    assert s.groups[0].material == "rubber_black" and s.groups[0].mat_key == "builtin:rubber_black"
     for o in bpy.context.selected_objects:
         o.select_set(False)
     lamp = _part(scene, "SIGNAL.LAMP")

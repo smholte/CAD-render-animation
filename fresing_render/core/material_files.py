@@ -156,7 +156,7 @@ def colour_family(rgb) -> str:
     deg = h * 360.0
     if deg < 15 or deg >= 340:
         return "brown" if v < 0.45 else "red"
-    if deg < 45:
+    if deg < 38:
         return "brown" if v < 0.55 or (s < 0.5 and l < 0.5) else "orange"
     if deg < 70:
         return "brown" if v < 0.45 else "yellow"
