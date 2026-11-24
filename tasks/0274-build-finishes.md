@@ -1,6 +1,6 @@
 # 0274 – Build the new finishes from study 0270: knurls, spun, moulded, fabric, plate patterns, blasted, paints, grains
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0274-build-finishes`
+**Who:** worker · **Status:** running · **Branch:** `task/0274-build-finishes`
 **Started by:** lead, 24 Nov 2026 (owner's picks from the 0270 page, 24 Nov 00:45: **all 27 ticked**) ·
 **Model:** Opus · effort High
 **Area:** Looks lane – `core/materials_lib.py` (new looks + their settings), `blender/materials.py` (the face data hook
