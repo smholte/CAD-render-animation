@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.223")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.224")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -3787,7 +3787,7 @@ STORM_SHOT = "Storm coming"
 STORM_AT = 3.2 / 5.0
 
 
-@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.223")
+@tour_set("weather", "Weather and time of day", "test_crane_a.step", added="0.2.88", changed="0.2.224")
 def build_weather(b: Build):
     """The weather lesson's steps first (``lessons/weather.py``, task 0299: Weather & time on, a preset, Change to
     Thunderstorm at the playhead), then the tour's own scenes."""
@@ -4574,28 +4574,28 @@ stop("wx_thunder", LOOK, "weather", "Thunderstorm in a video",
      "Change to Thunderstorm at the playhead (the weather lesson's last step): a clear day over the sea turns into a "
      "thunderstorm over four seconds – dark clouds, a downpour – and a lightning flash lights the whole quay while a "
      "bolt strikes in the distance. Go shows the moment of the flash.",
-     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.223",
+     where="5 Scene & Render > Weather & time > Change to … Add at playhead", since="0.2.224",
      animation="Weather", at=STORM_AT, play=True, check=_check_storm, auto="clip")
 stop("wx_sunrise", LOOK, "weather", "Sunrise",
      "The quay just after sunrise: a low golden sun from the east, long shadows across the quay, a few clouds lit "
      "from below, dew on the crane.", where="5 Scene & Render > Weather & time > Presets (Sunrise)",
-     since="0.2.223", check=_check_preset("SUNRISE", _sun_low(True)))
+     since="0.2.224", check=_check_preset("SUNRISE", _sun_low(True)))
 stop("wx_sunset", LOOK, "weather", "Sunset",
      "The quay at sunset: the sun low in the west, orange light on the crane's boom, long shadows.",
-     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.223",
+     where="5 Scene & Render > Weather & time > Presets (Sunset)", since="0.2.224",
      check=_check_preset("SUNSET", _sun_low(False)))
 stop("wx_mist", LOOK, "weather", "Fog / sea mist",
      "Thick mist lying on the quay and the water: the far quay and the sea are gone, the crane's far end is paler "
      "than its foot. In a video banks of it drift by and the crane fades in and out.",
-     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.223",
+     where="5 Scene & Render > Weather & time > Presets (Sea mist); Sea mist", since="0.2.224",
      check=_check_preset("SEA_MIST", _mist_on))
 stop("wx_hail", LOOK, "weather", "Hail / sleet",
      "A cold shower: white hail stones and sleet falling, small stones bouncing on the quay and the crane's top "
      "faces, grey light, everything wet, a little slush.", where="5 Scene & Render > Weather & time > Presets "
-     "(Hail / sleet); Hail", since="0.2.223", check=_check_preset("HAIL", _hail_on))
+     "(Hail / sleet); Hail", since="0.2.224", check=_check_preset("HAIL", _hail_on))
 stop("wx_heat", LOOK, "weather", "Hot and calm",
      "A hot afternoon without wind: bright sun, a pale warm haze over the far sea; in a render the horizon wavers "
-     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.223",
+     "with heat shimmer.", where="5 Scene & Render > Weather & time > Presets (Hot, calm); Heat", since="0.2.224",
      check=_check_preset("HOT_CALM", _heat_on))
 stop("props", LOOK, "props", "Props for scale and people",
      "In a warehouse, beside the crane: three people – one standing in navy overalls and a yellow helmet, one pointing in an orange "
@@ -5385,13 +5385,50 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      where="The Workspace row on the left panel", since="0.2.152", changed="0.2.197", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
-     "At the top of the Fresing panel is Make: one row of six icons – Picture, Product video, Turntable, 3D page, "
+     "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
      "Animation and Queue (rest the mouse on one for its name; click Make for the list with names). Click Picture: a "
      "small window opens with the settings of 5 Scene & Render > Image size & render and a blue Render image button. "
-     "Drag it anywhere, click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no "
-     "second window. The same list is under Make in the header of the 3D view.",
-     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.197", shot="Tour view", check=_check_make,
-     auto=lambda ctx, scene, st: "")
+     "On its left is a strip with the same six icons, Picture pressed: click 3D page and the same window shows the 3D "
+     "page's settings. Drag the strip's right edge wider: the names show beside the icons. Drag the window anywhere, "
+     "click in the 3D view: it stays open until you close it (× at its top). Click Picture again: no second window. "
+     "The same list is under Make in the header of the 3D view.",
+     where="Make, at the top of the Fresing panel; Make in the 3D view's header", since="0.2.152", changed="0.2.223",
+     shot="Tour view", check=_check_make, auto=lambda ctx, scene, st: "")
+
+
+def _check_render_view(scene):
+    """Render this view (task 0308): a camera made where the view's eye is and taken away again – the scene's camera
+    and everything else as before."""
+    import bpy
+
+    from . import ops_render_view
+    _check(hasattr(bpy.ops.fresing, "render_view"), "the button Render this view is missing")
+    cam = scene.camera
+    _check(cam is not None and cam.type == "CAMERA", "the crane set has no camera to stand in for the view")
+    before = (scene.camera, len(bpy.data.objects), len(bpy.data.cameras))
+    aspect = scene.render.resolution_x / max(1, scene.render.resolution_y)
+    state = ops_render_view.setup(scene, bpy.context, view=ops_render_view.stand_in(cam, aspect))
+    try:
+        made = scene.camera
+        _check(made != cam and made.get(ops_render_view.VIEW_MARK), "no camera was made for the view")
+        off = (made.matrix_world.translation - cam.matrix_world.translation).length
+        _check(off < 1e-4, f"the view's camera stands {off * 1000:.1f} mm from the view's eye")
+        lens = made.data.lens
+    finally:
+        ops_render_view.undo(scene, state)
+    _check((scene.camera, len(bpy.data.objects), len(bpy.data.cameras)) == before,
+           "Render this view left a camera behind or changed the active camera")
+    return f"lens {lens:.1f} mm, nothing left behind"
+
+
+stop("render_view", OUT, HUB_SET, "Render this view",
+     "Under the Make row: Render this view. Turn and zoom the 3D view to any angle you like (no camera needed) and "
+     "click it: the render window shows exactly what the view showed, at the Picture's size and quality (its shape "
+     "fitted round the view, nothing of the view cut off), and the picture is saved as <project>_View_<date>_<time>. "
+     "The active camera in 5 Scene & Render is the same as before and no new camera is in the list. In camera view "
+     "(Numpad 0) it renders that camera.",
+     where="Make, at the top of the Fresing panel (under the icons); Make in the 3D view's header", since="0.2.223",
+     shot="Tour view", check=_check_render_view, auto=lambda ctx, scene, st: "")
 
 stop("demo", OUT, HUB_SET, "Demo: Vessel in a wind park",
      "Help > Make demo project… opens a small window of its own; Make it there makes the demo 'Vessel in a wind park' "
@@ -5660,7 +5697,7 @@ stop("lessons", OUT, HUB_SET, "Learn: Show me, Build it",
      "coming'. Learn… is a window of its own: click in the main window and it stays open, drag it onto another "
      "screen, close it with Close or its X.",
      where="Fresing menu > Learn…; the Learning hub switch and the Lesson panel on the left panel",
-     since="0.2.189", changed="0.2.223", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
+     since="0.2.189", changed="0.2.224", shot="Tour view", check=_check_lessons, auto=lambda ctx, scene, st: "")
 
 
 

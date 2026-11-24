@@ -2807,7 +2807,7 @@ def _weather_preset_still(ctx, preset, key, title, background="QUAY", low=False)
     return scene, info
 
 
-@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.223",
+@line("weather.thunderstorm", "Weather: thunderstorm, lightning", "0.2.224",
       what="Change to Thunderstorm over 2 s at the playhead (5 Scene & Render > Weather & time) on the open sea: the "
            "Build keys the storm coming and lightning flashes only once it is there; the frame of the first flash is "
            "rendered small (processor, draft) – the scene lit up, a bolt in the sky")
@@ -2843,7 +2843,7 @@ def weather_thunderstorm(ctx):
     return f"{len(flashes)} frames with a flash, first at frame {flashes[0]}; rendered in {info['seconds']} s"
 
 
-@line("weather.mist", "Weather: fog and sea mist", "0.2.223",
+@line("weather.mist", "Weather: fog and sea mist", "0.2.224",
       what="The preset Fog / sea mist on the open sea: mist lies on the water (thick low down, thin higher up) and the "
            "far sea is gone. Rendered small (processor, draft)")
 def weather_mist(ctx):
@@ -2853,7 +2853,7 @@ def weather_mist(ctx):
     return f"mist {_wx(scene, 'mist'):.0f} per km at the water; rendered in {info['seconds']} s"
 
 
-@line("weather.sunrise", "Weather: sunrise", "0.2.223",
+@line("weather.sunrise", "Weather: sunrise", "0.2.224",
       what="The preset Sunrise on the quay: the sun just up (0–8°) in the morning, golden low light, long shadows; "
            "no floodlights. Rendered small (processor, draft)")
 def weather_sunrise(ctx):
@@ -2864,7 +2864,7 @@ def weather_sunrise(ctx):
     return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
 
 
-@line("weather.sunset", "Weather: sunset", "0.2.223",
+@line("weather.sunset", "Weather: sunset", "0.2.224",
       what="The preset Sunset on the quay: the sun low (0–8°) in the evening, orange light on the crane. Rendered small "
            "(processor, draft)")
 def weather_sunset(ctx):
@@ -2874,7 +2874,7 @@ def weather_sunset(ctx):
     return f"sun {el:.1f}° up; rendered in {info['seconds']} s"
 
 
-@line("weather.hail", "Weather: hail and sleet", "0.2.223",
+@line("weather.hail", "Weather: hail and sleet", "0.2.224",
       what="The preset Hail / sleet on the quay: hail and sleet fall, stones bounce on the quay and the crane's top "
            "faces, everything wet. Rendered small (processor, draft)")
 def weather_hail(ctx):
@@ -2884,7 +2884,7 @@ def weather_hail(ctx):
     return f"rendered in {info['seconds']} s"
 
 
-@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.223",
+@line("weather.heat", "Weather: hot and calm, heat shimmer", "0.2.224",
       what="The preset Hot and calm on the open sea: bright haze, heat shimmer over the distance (the compositor moves "
            "the far picture a few pixels). Rendered small (processor, draft)")
 def weather_heat(ctx):
@@ -3740,6 +3740,52 @@ def scene_looks(ctx):
     _small_output(scene.fresing)
     info = _cpu_still(ctx, scene, "look_product", "Product studio look (processor, draft)")
     return f"{len(studio.LOOKS)} looks; render {info['seconds']} s"
+
+
+@line("scene.render_view", "Render this view", "0.2.223",
+      what="Render this view from a set view of the crane matches Render image from a camera at the same place; no "
+           "camera is left behind")
+def scene_render_view(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import ops_render_view, render
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    s.use_gpu = False
+    _small_output(s, 160, 90)
+    bpy.ops.fresing.camera_add(view="HIGH")                # a perspective view (the isometric one is orthographic)
+    _update()
+    shot = scene.camera
+    _check(shot is not None, "no camera for the comparison")
+    before = (scene.camera, len(bpy.data.objects), len(bpy.data.cameras))
+    by_camera = os.path.join(ctx.work, "render_view_camera.png")
+    render.render_still(scene, s, "draft", filepath=by_camera)
+    state = ops_render_view.setup(scene, bpy.context, view=ops_render_view.stand_in(shot, 160 / 90))
+    try:
+        _check(scene.camera != shot and scene.camera.get(ops_render_view.VIEW_MARK), "no view camera was made")
+        by_view = render.view_output_path(scene, s)
+        t0 = time.time()
+        render.render_still(scene, s, "draft", filepath=by_view)
+        seconds = round(time.time() - t0, 1)
+    finally:
+        ops_render_view.undo(scene, state)
+    _check((scene.camera, len(bpy.data.objects), len(bpy.data.cameras)) == before,
+           "Render this view left a camera behind or changed the active camera")
+    _check("_View_" in os.path.basename(by_view), f"the file is called {os.path.basename(by_view)}")
+
+    def pixels(path):
+        img = bpy.data.images.load(path)
+        px = np.empty(img.size[0] * img.size[1] * 4, np.float32)
+        img.pixels.foreach_get(px)
+        bpy.data.images.remove(img)
+        return px
+    a, b = pixels(by_camera), pixels(by_view)
+    diff = float(np.abs(a - b).max()) if a.shape == b.shape else 1.0
+    _check(a.shape == b.shape and diff < 0.05,
+           f"Render this view differs from Render image from the same place (largest difference {diff:.3f})")
+    ctx.picture(by_view, "render_view", "Render this view (processor, draft) – the same as from the camera")
+    return f"same picture as from the camera (difference {diff:.3f}); {seconds} s"
 
 
 @line("scene.views", "Camera views", "0.2.17", what="Every one-click view frames the whole model")

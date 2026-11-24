@@ -104,6 +104,41 @@ def set_side_width(area, px: int) -> bool:
     return True
 
 
+_SIDE: dict = {}             # task 0308: side panel (region pointer) -> (address of its stored width, px per stored unit)
+
+
+def fit_side(area, px: int) -> bool:
+    """Task 0308: make a 3D view's side panel ``px`` real pixels wide (at least 160 px at UI scale 1) – the settings
+    of an output window fill what its strip leaves. Blender hides a side panel that no longer fits (the user dragged
+    the strip wider): then the address found while it was shown is used, after checking that the bytes beside it
+    still say "side panel, on the right"."""
+    region = next((r for r in area.regions if r.type == "UI"), None)
+    if region is None:
+        return False
+    key = region.as_pointer()
+    addr = sizex_address(region)
+    if addr is not None:
+        stored = ctypes.c_short.from_address(addr).value
+        if stored <= 0:
+            return False
+        _SIDE[key] = (addr, region.width / stored)
+    elif key in _SIDE:
+        addr = _SIDE[key][0]
+        if (ctypes.c_short.from_address(addr - 6).value != RGN_UI
+                or ctypes.c_short.from_address(addr - 4).value != RGN_RIGHT):
+            _SIDE.pop(key, None)
+            return False
+    else:
+        return False
+    ratio = _SIDE[key][1] or 1.0
+    ctypes.c_short.from_address(addr).value = int(max(160, min(900, px / ratio)))
+    space = area.spaces.active
+    space.show_region_ui = False
+    space.show_region_ui = True
+    area.tag_redraw()
+    return True
+
+
 def fit_width(area, px: int) -> bool:
     """Task 0271: make the toolbar region ``px`` real pixels wide. Blender scales a stored width by its own DPI factor
     (not only the UI scale): the factor is read from the region as it is now (its pixels / its stored width). A
