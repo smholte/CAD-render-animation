@@ -248,7 +248,7 @@ fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="l
    button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains", family="looks",
    panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
-   pccheck=("looks.finishes",), since="0.2.221")
+   pccheck=("looks.finishes",), since="0.2.222")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",

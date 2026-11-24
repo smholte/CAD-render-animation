@@ -672,11 +672,11 @@ def looks_marine(ctx):
     return f"growth band {lo:+.2f} … {hi:+.2f} m round the waterline; render {info['seconds']} s"
 
 
-@line("looks.finishes", "Finishes: knurls, spun, plates, blasted, grains", "0.2.221",
+@line("looks.finishes", "Finishes: knurls, spun, plates, blasted, grains", "0.2.222",
       what="The finishes test model (23 sample parts and a headphone-like set) with every finish: a knurled knob gets "
            "its face data (its round face, a whole number of teeth, its end faces), the far-away fade follows the "
-           "camera; a close-up of the headset rendered small (processor, draft): judge the knurled knob, the spun "
-           "cap, the blue cross-hatch cup and the leather cushions")
+           "camera; a close-up of the headset's right-hand cup rendered small (processor, draft): judge the knurled "
+           "knob, the spun cap, the blue cross-hatch cup and the leather cushion")
 def looks_finishes(ctx):
     import numpy as np
 
@@ -699,11 +699,11 @@ def looks_finishes(ctx):
     radius = float(np.median(r[k == 1]))
     _check(abs(radius - 0.010) < 0.0003, f"the knob's round face has radius {radius * 1000:.2f} mm, not 10 mm")
     cam = tour.marine_camera(scene, 0.0, name="Finishes close-up")
-    head = [ob for n, ob in parts.items() if n.startswith("HEADSET")]
-    mn, mx = build.world_bounds(head)
     from mathutils import Vector
-    c = (Vector(mn) + Vector(mx)) / 2
-    eye = c + Vector((0.55, -1.0, 0.45)).normalized() * 0.42
+    knob_ob = next(ob for ob in build.iter_parts(scene) if ob.get(build.PROP_NAME) == "HEADSET KNOB")
+    mn, mx = build.world_bounds([knob_ob])
+    c = (Vector(mn) + Vector(mx)) / 2                         # the right-hand cup: knurled knob, spun cap, cross-hatch
+    eye = c + Vector((0.9, -1.0, 0.5)).normalized() * 0.2
     cam.matrix_world = tour.Matrix_look(eye, c)
     cam.data.lens = 50.0
     cam.data.clip_start = 0.005
@@ -717,11 +717,11 @@ def looks_finishes(ctx):
     near = fin_core.shown(0.0008, 0.3, a_big)
     far = fin_core.shown(0.0008, 15.0, a_big)
     _check(near == 1.0 and far == 0.0, "the knurl does not show close up and fade far away")
-    _small_output(s)
+    _small_output(s, 640, 360)
     s.use_gpu = False
     path = os.path.join(ctx.work, "finishes.png")
     info = render.render_still(scene, s, "draft", filepath=path)
-    ctx.picture(path, "finishes", "Finishes: the headset close up (processor, draft)", model_check=False)
+    ctx.picture(path, "finishes", "Finishes: the headset's cup close up (processor, draft)", model_check=False)
     return (f"{len(fin_core.FINISHES)} finishes; knob Ø{radius * 2000:.1f} mm, "
             f"{fin_core.teeth(radius, 0.0008, 30.0)} teeth; render {info['seconds']} s")
 
