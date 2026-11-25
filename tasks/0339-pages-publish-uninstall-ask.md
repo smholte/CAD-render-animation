@@ -85,8 +85,13 @@ no longer removes the app without a question.
   (`asks`), the rest noted below.
 
 **Open points / follow-up tasks:**
-- The Pages proof on `main` (the release run's landing-page job and the push run of "Landing page" for this merge, close
-  together) is in the lead's hands to read: runs after this merge.
+- **Pages proof on `main` (done):** the merge started "Landing page" run 45647013036 (push) and the release run
+  45647011658 at the same moment; the push run published green (try 1). The release run's own publish job failed twice
+  on GitHub's side (HTTP 500 on creating the release, then 422 on an asset; GitHub then answered 500/502 to re-run
+  requests for 30 min) and went through on its third attempt: release v0.2.252 made, Windows update check green,
+  offered to the apps; its landing-page job showed the old fault on try 1 ("No artifacts named github-pages-3", the
+  list lagging) and **published on try 2** – deployment 8063065119 success at 16:26 UTC. The landing page shows 0.2.252
+  (could not open github.io from the web machine; read from the Pages deployment and the latest release).
 - deploy-pages reads the artifact list through the runner's own service, not the REST list the wait step reads; the
   second try covers a longer lag. If it still fails twice in a row, raise the pause.
 - Answering Y while the app is open: the uninstaller then says "close it first" (harmless).
