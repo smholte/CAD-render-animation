@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.252 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
+## 0.2.253 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
 
 - **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
   model). After an export they are right where you clicked – in the small Make window the result used to be below the
@@ -18,6 +18,16 @@ installer of that version was built from.
 - **On a phone held sideways** the page's saved views are one ‹ name › control, as upright, and the settings menu ends
   above the views and the play bar (it scrolls) – it covered the time line, the speed and Film.
 - **Smaller file**: its tooltip and the guide no longer name the packing method.
+## 0.2.252 – 25 Nov 2026 – Uninstall shortcut asks first; landing page publishes again (task 0339)
+
+- **"Uninstall Fresing Render" asks first.** The shortcut in the install folder and next to Fresing Render.exe, and
+  Uninstall.bat, now ask "Remove Fresing Render from this PC? Your projects, renders and backups are kept. (Y/N)".
+  Press **Y** to remove it; **N**, Esc or closing the window changes nothing – a mis-click is harmless. Uninstall in
+  Windows Settings > Apps > Installed apps asks its own question and goes on as before. Your shortcuts get the
+  question at the app's next start.
+- **The landing page shows every release again.** Its publish step failed on and off since 25 Nov (GitHub listed the
+  page's files a moment too late); it now waits for them and tries once more.
+
 ## 0.2.251 – 25 Nov 2026 – Welds from the CAD file (task 0323)
 
 - **A STEP file with solid welds brings them along.** At the import every weld bead in the file becomes a weld in

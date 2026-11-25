@@ -34,7 +34,7 @@ Fix 0328's rows **14, 15, 21 (0179 open point), 31 + the meshopt word of row 32*
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25 Nov 2026 (0.2.252)
+**Chat / date:** Claude Code on the web, 25 Nov 2026 (0.2.253)
 
 **What changed:**
 - **Row 14** – Open page and the folder button sit on Export's own row (`ui_web3d.py`), greyed until an export; the
@@ -53,7 +53,7 @@ Fix 0328's rows **14, 15, 21 (0179 open point), 31 + the meshopt word of row 32*
 - **Row 32, meshopt** – the Smaller file tooltip (one string in `props.py`, outside the Area list – the word was only
   there) and the guide no longer name it.
 - PC check `web3d.export`: a Turntable camera is made and must stay off the page; function entry `web.page_views`
-  (since 0.2.252), `web.export` / `web.phone` changed 0.2.252; guide sections Web 3D model, Saved views, On a phone;
+  (since 0.2.253), `web.export` / `web.phone` changed 0.2.253; guide sections Web 3D model, Saved views, On a phone;
   picture `panel_5_web3d.png` made again. `tools/guide_screens.py` now ticks the web family for that picture – it showed
   Blender's Item tab (the web family is off until used; the picture of 23 Nov must have come from an older state).
 

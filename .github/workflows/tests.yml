@@ -793,6 +793,7 @@ jobs:
     if: ${{ !cancelled() && needs.release-latest.result == 'success' }}
     permissions:
       contents: read
+      actions: read        # task 0339: pages.yml waits until the run lists its artifact
       pages: write
       id-token: write
     uses: ./.github/workflows/pages.yml
