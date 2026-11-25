@@ -1578,6 +1578,12 @@ the release → Delete); the next run on `main` publishes it again.
   Its Lead motions button is found by drawing the top bar with and without it and comparing the pixels
   (``tools/ui_test_lead_motions.py``); a click on it needed a second click after a workspace switch (the first only
   focused the bar).
+- A bare `ob.update_tag()` tells Blender 5.2.3 that *everything* of the object changed, its shading too, and Blender then
+  goes over every object of the scene again: on the 11,228-part stress model a joint drag step cost 75–82 ms with it,
+  15 ms with `update_tag(refresh={"OBJECT", "DATA"})` (what Blender's own slider tags; task 0326) – whatever the
+  joint's size. Any scene update there costs ~15 ms by itself (a lone empty moved costs the same): Blender's floor for
+  that many objects. On a per-move path tag only what changed (`joints.tag_moved`); followers, mechanisms, cables and
+  hoses follow just the same.
 - `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
   report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
   run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs
