@@ -195,7 +195,9 @@ def test_propose_reaches_the_set_down_point(name, target):
     assert np.linalg.norm(rig.hook(pr.end) - np.array(target)) < 5.0
     kinds = [s.kind for s in pr.steps]
     assert kinds[-1] == "lower" and kinds.index("slew") < kinds.index("lower")
-    assert all(P.MIN_S <= s.seconds <= P.MAX_S for s in pr.steps)
+    assert all(P.MIN_S <= s.seconds <= P.MAX_S for s in pr.steps if s.kind != "luff")
+    luff = [s for s in pr.steps if s.kind == "luff"]
+    assert len(luff) in (0, 1, P.SUB) and P.MIN_S - 0.05 <= sum(s.seconds for s in luff) <= P.MAX_S + 0.05
     # the hook stays at least the clearance above the pick and the set-down while the crane slews and luffs
     now = dict(vals)
     up = rig.up
@@ -203,7 +205,7 @@ def test_propose_reaches_the_set_down_point(name, target):
     for s in pr.steps[:-1]:
         now.update(s.values)
         if s.kind != "hoist":
-            assert float(rig.hook(now) @ up) >= floor - 50.0 or "top" in " ".join(pr.notes)
+            assert float(rig.hook(now) @ up) >= floor - 50.0
 
 
 def test_propose_a_crawler_travels_when_out_of_reach():

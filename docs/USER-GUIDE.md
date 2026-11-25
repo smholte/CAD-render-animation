@@ -5858,7 +5858,8 @@ Before you plan a real lift, copy the class nearest your crane into your library
 The box also shows the **line pull**: the pull in the hoist rope at the winch for the gross load on the crane's falls
 (check C10, below), against the winch's maximum line pull from the crane's file.
 
-The lift path with checks along it, ground pressure and the printed plan come in later versions.
+The lift path with the checks along it and the ground pressure: [Lift path & checks](#lifting-path). The printed
+plan comes in a later version.
 
 <a id="lifting-rigging"></a>
 ### Rigging: lift points, slings, shackles, spreader
@@ -5924,6 +5925,65 @@ E = (K^N − 1) / (K^S · N · (K − 1)) with N falls, S sheaves the rope runs 
 sheave friction factor K = 1.04 for roller bearings (1.09 for plain bushings). Example: 10 t on 8 falls: E = 84.2 %,
 line pull 1.49 t – 22.9 % of the AT-100's winch (6.5 t). It leaves out the rope's own weight, acceleration and the
 drum's layers.
+
+<a id="lifting-path"></a>
+### Lift path & checks: the whole lift, its worst moment
+
+<img class="panel" src="img/panel_8_lifting_path.png" alt="Lift path & checks: the set-down point, the proposed path, the ground, the table of checks with their worst use and frame">
+
+8 Lifting plan > **Lift path & checks** works out the lift from where the load hangs to where it goes, and checks it
+**along the whole path**, not only where the crane stands now.
+
+1. **Pick**: the load where it hangs now (Rigging > **Hang on the hook**). Without a hung load the path is the hook's.
+2. **Hoist clear**: how far the load goes up first – that far above the higher of the pick and the set-down point.
+3. **Set-down point…**: click where the load goes (the ground, a deck, a truck bed; the crane and the load itself are
+   looked through). The app proposes the steps: **hoist clear**, **slew**, **luff / telescope** (a knuckle-boom crane
+   folds its booms; the hook keeps its height), **travel** (a crawler, only when the point is out of reach from where
+   it stands) and **lower** – so the load stands on the point. They are ordinary **Move joint** steps of an
+   animation "Lift <load>" in 6 Animation: change a duration, a value or the order there, or drag their keys in the
+   timeline (Build keeps your own keys). **Propose again** works it out once more after a change of the clearance,
+   the crane's pose or the load.
+4. Or **Use an animation**: any animation of your own – Go to pose steps, joint steps, lead motions – is the path.
+5. **Ground**: the **allowable ground pressure** under the mats or tracks (kPa – from the site's ground survey or a
+   competent person; 0 = not entered, the pressure is then not checked) and the **mat** under each outrigger pad
+   (0 = the pad itself).
+6. **Check along the path**: the app builds the animation and works out every check at its keys and **between them**,
+   where it looks for each check's worst moment (a golden-section search round the highest points) – not at every
+   frame: on the test tour's lift 55 moments in about 50 ms instead of 813 frames in 0.7–0.9 s, with the same worst
+   values.
+
+**The table** – one row per check, its colour, its worst use in % and the **frame** of that moment; the magnifier
+(**Go there**) puts the timeline on it, so the crane and the load stand where it is worst. **In words** says each in
+a sentence, for example *"Crane at 82 % of its chart at 23.4 m – amber, your limit is 75 %."* or *"Outrigger front
+left carries 31.3 t: 213 kPa on its 1.2 × 1.2 m mat, 85 % of the 250 kPa entered – amber, your limit is 90 %."*
+
+- **Crane use** (C1) at the radius of every moment; **Hoist line pull** (C10).
+- **Set up (beams and jacks)**: the outrigger beams out to the spread the chart is for, and the **jacks down**. A crane
+  that lifts with its jacks up (standing on its wheels) is **red** – the chart is for the jacks down.
+- **Outriggers and mats** (C5) or **Crawler tracks** (C6): the crane's masses and centres of gravity from its file
+  (carrier, superstructure, your counterweight, the boom – its CoG moved out by half the telescope's run, an
+  estimate –, the hook block) and the load plumb under the hook, at the slew angle of the moment. An outrigger that
+  lifts off is amber.
+- **Backward stability**: only when the crane carries **more counterweight than the chart** it is picked for (a
+  counterweight between two charts takes the lower chart). Then the crane without its load – set down, or lost – must
+  keep its centre of gravity at least 15 % of its base inside the outriggers or tracks. With the chart's own
+  counterweight it is grey: the chart covers it.
+- **Sling legs, shackles, spreader** (C2–C4) from the hang – the same all along, as the load hangs rigidly on the hook.
+- **Grey** = not checked, with the reason in its line (no allowable pressure entered, the load not hung …).
+
+When the path, the crane's set-up, the load or the ground change, the line above the table says **Changed since it
+was checked**: check again. **Now (the pose shown)** lists the same checks for the pose you see, live as you move a
+joint or the load; the 3D view shows a small **use bar** beside the hook (the crane use, coloured by the worst check
+now; the white tick is your 75 % limit). It is worked out at most five times a second while you drag, so the drag is
+not slower (measured on the test crane: 9.6 → 9.7 ms per mouse move).
+
+<a id="lifting-data-box"></a>
+**Lift data box.** One tick – **Lift data box in renders and videos** – puts a label on the hook block that shows, at
+every frame of a render or video, the **load**, the **radius**, the **crane use** and the **worst status so far**
+along the path. It is an ordinary label (5 Scene & Render > Labels): move it, or untick to take it away.
+
+Fresing Render checks the plan against the data entered in it – the chart, the masses, the gear, the ground – never
+against the real crane or ground: the lift must be checked and approved by a competent person.
 
 <a id="lifting-own-crane"></a>
 ### Set up your own crane

@@ -7,7 +7,7 @@ import pytest
 
 from fresing_render.blender import tour
 
-LIFTING_STOPS = ("lifting_place", "lifting_cog", "lifting_hook", "lifting_rig")
+LIFTING_STOPS = ("lifting_place", "lifting_cog", "lifting_hook", "lifting_rig", "lifting_path")
 RIG_STOPS = ("lifting_spreader",)       # task 0232 (lifting_rig is in LIFTING_STOPS: its CoG is the skid's)
 
 

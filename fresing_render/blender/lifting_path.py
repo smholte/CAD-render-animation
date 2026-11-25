@@ -255,13 +255,13 @@ def _write(scene, crane, load, pr):
             b.name = PREFIX + st.label
             b.joint = j.name
             b.start, b.duration = round(t, 2), st.seconds
-            b.easing = "SMOOTH"
+            b.easing = st.easing
             b.use_from = True
             if j.kind == "ROTATE":
                 b.to_angle = math.radians(v)
             else:
                 b.to_dist = v / 1000.0
-        t += st.seconds
+        t = round(t + st.seconds, 2)
     a.blocks_index = 0
     s.animations_index = list(s.animations).index(a)
     return a
@@ -350,7 +350,8 @@ def check(scene, crane=None, load=None, build: bool = True, reference: bool = Fa
     at_vals, keys, (f0, f1) = reader(scene, crane)
     ck = checks(scene, crane, load)
     t0 = time.perf_counter()
-    found = P.search(lambda t: ck.at(at_vals(t)), f0, f1, keys=keys, step=0.01)
+    found = P.search(lambda t: ck.at(at_vals(t)), f0, f1, keys=keys, step=0.01, inner=1,
+                     spacing=max(float(a.fps) / 5.0, 1.0))          # the grid at least every 0.2 s
     t_search = time.perf_counter() - t0
     out = {"key": _key_now(scene, crane, load, a), "anim": a.name, "crane": crane.name,
            "load": load.name if load is not None else "", "frames": [f0, f1],

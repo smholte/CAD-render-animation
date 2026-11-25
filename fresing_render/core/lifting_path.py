@@ -11,7 +11,7 @@
   travel (a crawler, only when the point is out of reach from where it stands), lower – as joint values per step.
 
 Units: the crane's file frame in mm and degrees (as ``lifting_reach``); masses in kg; the words in t, m and kPa. The
-plan's words only (study 0180 section 8): within / near / over the entered limits, never "safe".
+plan's words only (study 0180 section 8): within / near / over the entered limits (lifting.FORBIDDEN_WORDS never).
 """
 
 from __future__ import annotations
@@ -31,9 +31,8 @@ BACK_RESERVE = 0.15        # share of the base the unloaded crane's CoG keeps in
 JACK_TOL = 0.02            # share of a jack's run: a jack this close to its down end counts as down
 BEAM_TOL = 0.001           # m: beams this close to the chart's spread count as out to it
 ORDER = ("C1", "C10", "SETUP", "C5", "C6", "BACK", "C2", "C3", "C4")
-TITLES = {"C1": "Crane use", "C10": "Hoist line pull", "SETUP": "Set up (beams and jacks)",
-          "C5": "Outriggers and mats", "C6": "Crawler tracks", "BACK": "Backward stability",
-          "C2": "Sling legs (2 legs)", "C3": "Sling legs (3 / 4 legs)", "C4": "Shackles, slings, spreader"}
+TITLES = {"C1": "Crane use", "C10": "Line pull", "SETUP": "Set-up", "C5": "Outriggers", "C6": "Tracks",
+          "BACK": "Back stability", "C2": "Sling legs", "C3": "Sling legs", "C4": "Shackles, gear"}
 
 
 def _pct(u) -> str:
@@ -66,7 +65,7 @@ class Row:
 
     @property
     def key(self) -> tuple:
-        return (RANK[self.status], self.use if self.use is not None else -1.0,
+        return (RANK.get(self.status, 1), self.use if self.use is not None else -1.0,
                 self.measure if self.measure is not None else -1.0)
 
     def to_dict(self) -> dict:
@@ -318,11 +317,16 @@ class Checks:
         self.plan = plan
         self.rig = LR.Rig(data)
         self.sup = Supports(self.rig, data)
+        # the counterweight the crane carries: the plan's, else the file's own (charts and masses agree)
+        self.cw = plan.counterweight_kg
+        if self.cw is None:
+            g = next((kg for name, kg, _c, _m in self.sup.groups if name == "counterweight"), None)
+            self.cw = g
 
     def setup(self, values: dict) -> dict:
         out = {}
-        if self.plan.counterweight_kg is not None:
-            out["counterweight"] = float(self.plan.counterweight_kg)
+        if self.cw is not None:
+            out["counterweight"] = float(self.cw)
         sp = self.plan.spread if self.plan.spread is not None else LR.outrigger_spread(self.data, values)
         if sp is not None:
             out["outriggers"] = float(sp)
@@ -359,10 +363,10 @@ class Checks:
         else:
             row.limit = "no capacity"
             row.words = f"Crane at {ro.radius:.1f} m: {ro.reason or ro.chart_note}".rstrip(".") + " – red."
-        if self.plan.counterweight_kg is not None and ro.chart is not None:
+        if self.cw is not None and ro.chart is not None:
             cw = ro.chart.config.get("counterweight")
-            if LR._number(cw) and float(self.plan.counterweight_kg) > float(cw) + 1e-6:
-                row.words += (f" The crane carries {_t(self.plan.counterweight_kg)} of counterweight, the chart is for "
+            if LR._number(cw) and float(self.cw) > float(cw) + 1e-6:
+                row.words += (f" The crane carries {_t(self.cw)} of counterweight, the chart is for "
                               f"{_t(cw)}: see Backward stability.")
         return row
 
@@ -393,7 +397,7 @@ class Checks:
         o, trk = sup.outr, sup.trk
         if o is None and trk is None:
             return [grey("C5", "the crane's file has no outriggers or tracks")]
-        cw = p.counterweight_kg
+        cw = self.cw
         if o is not None:
             out.append(self._setup_row(values, ro))
         if sup.problem:
@@ -469,7 +473,7 @@ class Checks:
 
     def _back_row(self, empty, base, ro) -> Row:
         p = self.plan
-        cw = p.counterweight_kg
+        cw = self.cw
         chart_cw = ro.chart.config.get("counterweight") if ro.chart is not None else None
         if cw is None or not LR._number(chart_cw) or cw <= float(chart_cw) + 1e-6:
             return grey("BACK", "the crane carries the chart's counterweight: the chart covers its backward "
@@ -495,7 +499,7 @@ class Checks:
             chk = {"title": parts[0]["title"]}
             worst = max(parts, key=lambda x: (RANK.get(x.get("status"), 1),
                                               x.get("use") if x.get("use") is not None else -1.0))
-            row = Row(cid, TITLES.get(cid, chk.get("title", cid)), worst.get("status", lifting.NOT_CHECKED),
+            row = Row(cid, TITLES.get(cid, chk.get("title", cid)), worst.get("status") or lifting.NOT_CHECKED,
                       worst.get("use"), amber_at=p.limits.rigging)
             row.value = _pct(worst["use"]) if worst.get("use") is not None else ""
             row.limit = "WLL"
@@ -560,11 +564,14 @@ def _golden(f, lo: float, hi: float, rounds: int):
 
 
 def search(at, t0: float, t1: float, keys=(), inner: int = 3, rounds: int = 14, peaks: int = 2,
-           step: float | None = None) -> Found:
+           step: float | None = None, spacing: float | None = None) -> Found:
     """The worst moment of every check between ``t0`` and ``t1``: ``at(t)`` -> [Row] (one per check id). Evaluated at
     ``keys`` (and the ends), ``inner`` points evenly in each gap, then a golden-section search of ``rounds`` round each
     check's ``peaks`` highest local peaks (between the neighbouring grid points). ``step``: round the moments to it
-    (frames: 1/100)."""
+    (frames: 1/100). ``spacing``: the grid's points at most this far apart (a narrow peak shorter than that can still
+    be missed – the reference ``every`` cannot miss one longer than a frame)."""
+    if t1 < t0:
+        t0, t1 = t1, t0
     cache: dict = {}
 
     def ev(t):
@@ -581,7 +588,10 @@ def search(at, t0: float, t1: float, keys=(), inner: int = 3, rounds: int = 14, 
     T = sorted({float(t0), float(t1)} | {float(k) for k in keys if t0 <= k <= t1})
     grid = []
     for a, b in zip(T, T[1:]):
-        grid += [a + (b - a) * i / (inner + 1) for i in range(inner + 1)]
+        n = inner + 1
+        if spacing:
+            n = max(n, int(math.ceil((b - a) / spacing - 1e-9)))
+        grid += [a + (b - a) * i / n for i in range(n)]
     grid.append(T[-1])
     grid = sorted({ev(t)[0] for t in grid})
     ids = []
@@ -664,6 +674,7 @@ class Step:
     label: str
     values: dict                   # joint (file name) -> value at the step's end (deg / mm)
     seconds: float
+    easing: str = "SMOOTH"         # the animation step's motion (SMOOTH, LINEAR, EASE_IN, EASE_OUT)
 
 
 @dataclass
@@ -675,6 +686,10 @@ class Proposal:
     end: dict = field(default_factory=dict)       # the joints' values at the end
 
 
+SUB = 6                            # a luff / telescope move in this many pieces: the hook keeps its height (± a few cm)
+STRAIGHT_MM = 10.0                 # a set-down point this close (level) to the hook: only the hoist moves
+
+
 def _seconds(rig: LR.Rig, before: dict, after: dict) -> float:
     s = MIN_S
     roles = {v: k for k, v in rig.role.items()}
@@ -683,6 +698,16 @@ def _seconds(rig: LR.Rig, before: dict, after: dict) -> float:
         sp = SPEEDS.get(role, SPEEDS["hoist"])
         s = max(s, abs(float(v) - float(before.get(n, 0.0))) / sp)
     return round(min(s, MAX_S), 1)
+
+
+def _hoist_for(rig: LR.Rig, values: dict, z: float) -> float:
+    """The hoist value that puts the hook at height ``z`` (mm along the up axis) with the other joints as given."""
+    hoist = rig.role["hoist"]
+    v0 = dict(values)
+    v0[hoist] = 0.0
+    up = rig.up
+    dz = -float(rig.hook_dir(v0) @ up)
+    return (float(rig.hook(v0) @ up) - z) / max(dz, 0.5)
 
 
 def _travel_for(rig: LR.Rig, data: dict, values: dict, target, radius_mm: float):
@@ -715,32 +740,53 @@ def _travel_for(rig: LR.Rig, data: dict, values: dict, target, radius_mm: float)
 def propose(rig: LR.Rig, data: dict, values: dict, target, clearance_mm: float = 2000.0, charts=(),
             setup: dict | None = None, load_kg: float = 0.0, hook_block_kg: float = 0.0) -> Proposal:
     """Steps from the hook where it is (the pick) to ``target`` (model frame, mm: where the hook ends). The hook goes
-    up ``clearance_mm`` above the higher of the two first and stays there while the crane slews, luffs and telescopes
-    (and travels), then lowers."""
+    up ``clearance_mm`` above the higher of the two first (the boom helps when the hoist is at its top) and keeps that
+    height while the crane slews, luffs and telescopes (in ``SUB`` pieces) and travels, then lowers. A target straight
+    below or above the hook: the hoist only."""
     cur = {k: float(v) for k, v in values.items()}
     T = np.asarray(target, float)
     up = rig.up
     hoist = rig.role["hoist"]
-    h0 = float(rig.hook(cur) @ up)
+    lo, hi = rig.solve_range(hoist)
+    pick = rig.hook(cur)
+    h0 = float(pick @ up)
     zt = float(T @ up)
     notes = []
-    z_clear = max(h0, zt) + max(float(clearance_mm), 0.0)
-    dz = -float(rig.hook_dir(cur) @ up)
-    if dz < 0.5:
+    if -float(rig.hook_dir(cur) @ up) < 0.5:
         return Proposal(False, reason="The hoist does not lower the hook (its direction does not point down).")
-    lo, hi = rig.solve_range(hoist)
+    level = (T - pick) - float((T - pick) @ up) * up
+    if float(np.linalg.norm(level)) < STRAIGHT_MM:          # straight down (or up): the hoist only
+        v = _hoist_for(rig, cur, zt)
+        if not lo - 1e-6 <= v <= hi + 1e-6:
+            return Proposal(False, reason="The hoist cannot reach the set-down point straight "
+                                          + ("above" if v < lo else "below") + " the hook.")
+        nxt = {hoist: v}
+        st = Step("lower" if zt < h0 else "hoist", "Lower" if zt < h0 else "Hoist", nxt, _seconds(rig, cur, nxt))
+        now = dict(cur, **nxt)
+        return Proposal(True, [st] if abs(v - cur.get(hoist, 0.0)) > 1.0 else [], "", notes, now)
+    z_clear = max(h0, zt) + max(float(clearance_mm), 0.0)
     steps = []
-    # 1. hoist clear
-    v_up = cur.get(hoist, 0.0) - (z_clear - h0) / dz
-    if v_up < lo - 1e-6:
-        notes.append(f"The hook goes up only {(cur.get(hoist, 0.0) - lo) * dz / 1000.0:.2f} m: the hoist is at its top.")
-        v_up = lo
-        z_clear = h0 + (cur.get(hoist, 0.0) - lo) * dz
     now = dict(cur)
-    if abs(v_up - cur.get(hoist, 0.0)) > 1.0:
-        nxt = {hoist: v_up}
-        steps.append(Step("hoist", "Hoist clear", nxt, _seconds(rig, now, nxt)))
-        now.update(nxt)
+    # 1. hoist clear (the boom raises the rest when the hoist is at its top)
+    v_up = _hoist_for(rig, now, z_clear)
+    if v_up >= lo - 1e-6:
+        if abs(v_up - now.get(hoist, 0.0)) > 1.0:
+            nxt = {hoist: v_up}
+            steps.append(Step("hoist", "Hoist clear", nxt, _seconds(rig, now, nxt)))
+            now.update(nxt)
+    else:
+        a0 = LR.hook_to(rig, pick + (z_clear - h0) * up, now, charts, setup, load_kg=load_kg,
+                        hook_block_kg=hook_block_kg)
+        if a0.ok:
+            nxt = {n: v for n, v in a0.values.items() if abs(v - now.get(n, 0.0)) > 1e-3}
+            notes.append("The hoist is near its top: the boom raises the load clear.")
+        else:
+            z_clear = h0 + (now.get(hoist, 0.0) - lo) * -float(rig.hook_dir(now) @ up)
+            notes.append(f"The hook goes up only {(z_clear - h0) / 1000.0:.2f} m: the hoist is at its top.")
+            nxt = {hoist: lo}
+        if nxt:
+            steps.append(Step("hoist", "Hoist clear", nxt, _seconds(rig, now, nxt)))
+            now.update(nxt)
     # 2. where the hook goes, at the clearance height
     T_clear = T + (z_clear - zt) * up
     a = LR.hook_to(rig, T_clear, now, charts, setup, load_kg=load_kg, hook_block_kg=hook_block_kg)
@@ -765,28 +811,39 @@ def propose(rig: LR.Rig, data: dict, values: dict, target, clearance_mm: float =
         nxt = {slew: vals[slew]}
         steps.append(Step("slew", "Slew", nxt, _seconds(rig, now, nxt)))
         now.update(nxt)
-    nxt = {}
+    # 3. luff / telescope in pieces, the hoist keeping the hook at the clearance height
+    boom = {}
     for r in ("luff", "second", "tele"):
         n = role.get(r)
         if n and n in vals and abs(vals[n] - now.get(n, 0.0)) > 1e-3:
-            nxt[n] = vals[n]
-    if hoist in vals and abs(vals[hoist] - now.get(hoist, 0.0)) > 1.0:
-        nxt[hoist] = vals[hoist]
-    if nxt:
-        words = "Luff / telescope" if "tele" in role else ("Luff / fold" if "second" in role else "Luff")
+            boom[n] = vals[n]
+    words = "Luff / telescope" if "tele" in role else ("Luff / fold" if "second" in role else "Luff")
+    if boom:
+        total = _seconds(rig, now, dict(boom, **({hoist: vals[hoist]} if hoist in vals else {})))
+        start = dict(now)
+        for k in range(1, SUB + 1):
+            f = k / SUB
+            nxt = {n: start.get(n, 0.0) + f * (v - start.get(n, 0.0)) for n, v in boom.items()}
+            q = dict(now, **nxt)
+            hv = vals[hoist] if k == SUB and hoist in vals else _hoist_for(rig, q, z_clear)
+            nxt[hoist] = min(max(hv, lo), hi)
+            ease = "EASE_IN" if k == 1 else ("EASE_OUT" if k == SUB else "LINEAR")
+            steps.append(Step("luff", words, nxt, round(max(total / SUB, 0.3), 2), ease))
+            now.update(nxt)
+    elif hoist in vals and abs(vals[hoist] - now.get(hoist, 0.0)) > 1.0:
+        nxt = {hoist: vals[hoist]}
         steps.append(Step("luff", words, nxt, _seconds(rig, now, nxt)))
         now.update(nxt)
     if travel is not None:
         nxt = {travel[0]: travel[1]}
         steps.append(Step("travel", "Travel", nxt, _seconds(rig, now, nxt)))
         now.update(nxt)
-    # 5. lower onto the set-down point
-    dz2 = -float(rig.hook_dir(now) @ up)
-    v_down = now.get(hoist, 0.0) + (z_clear - zt) / max(dz2, 0.5)
-    hlo, hhi = rig.solve_range(hoist)
-    if v_down > hhi + 1e-6:
+    # 4. lower onto the set-down point
+    v_down = _hoist_for(rig, now, zt)
+    if v_down > hi + 1e-6:
+        dz2 = -float(rig.hook_dir(now) @ up)
         return Proposal(False, reason=f"The hook cannot go down to the set-down point: the hoist runs out "
-                                      f"{(v_down - hhi) * dz2 / 1000.0:.2f} m above it.", notes=notes)
+                                      f"{(v_down - hi) * dz2 / 1000.0:.2f} m above it.", notes=notes)
     if abs(v_down - now.get(hoist, 0.0)) > 1.0:
         nxt = {hoist: v_down}
         steps.append(Step("lower", "Lower", nxt, _seconds(rig, now, nxt)))

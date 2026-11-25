@@ -604,6 +604,55 @@ def lifting_reeve(ctx):
     return msg + f"; {lp.message}"
 
 
+@line("lifting.path", "Lifting plan: lift path and the checks along it", "0.2.259",
+      what="The pump skid hung on the AT-40 (as lifting.hang), a set-down point 5 m away clicked: the proposed steps "
+           "(hoist clear, slew, luff / telescope, lower) land the skid on it; Check along the path finds every "
+           "check's worst moment – the same as frame by frame, with far fewer moments worked out; Go there; the "
+           "lift data box's numbers")
+def lifting_path(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import build, callouts, lifting, lifting_path as LP, lifting_rig, logic
+    scene = ctx.fresh(LOADS)
+    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE), (1.0, 7.6, 0.0), math.pi)
+    lifting.apply_pose(scene, c, "Set up")
+    part = next(o for o in logic.descendants(build.model_roots(scene)[0]) if o.get(build.PROP_NAME) == "PUMP SKID.ASM")
+    ld = lifting.new_load(scene, [part], "Pump skid")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", 6.0, "ESTIMATE"
+    _check(lifting_rig.find_named(scene, ld) == 4, "the skid's four padeyes were not found by their names")
+    ld.leg_length, ld.clearance = 4.0, 3.2
+    a = lifting.hook_to(scene, c, lifting.above_load(scene, ld), ld)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    lifting_rig.hang(scene, c, ld)
+    L = lifting.plan(scene)
+    L.allowable_kpa, L.mat_size = 250.0, (1.2, 1.2)
+    hook = lifting.hook_world(scene, c)
+    pt = np.array((hook[0] + 3.0, hook[1] - 4.0, 0.0))
+    pr = LP.propose(scene, point=tuple(pt))
+    _check(pr.ok, f"Propose: {pr.reason}")
+    out = LP.check(scene, reference=True)
+    every = {r["id"]: r for r in out["every"]["rows"]}
+    for r in out["rows"]:
+        e = every[r["id"]]
+        if r["use"] is not None and e["use"] is not None:
+            _check(r["use"] >= e["use"] - 1e-6,
+                   f"{r['title']}: the search found {r['use']:.3f}, frame by frame {e['use']:.3f}")
+    scene.frame_set(int(out["frames"][1]))
+    _check(abs(LP.load_bottom(ld) - pt[2]) < 0.02, "the skid does not end on the set-down point")
+    c1 = next(r for r in out["rows"] if r["id"] == "C1")
+    _check(LP.go_to(scene, "C1") is not None and scene.frame_current == int(c1["t"]), "Go there did not go there")
+    L.data_box = True
+    rows = callouts.label_text(scene, LP.data_box_label(scene)).split("\n")
+    _check(len(rows) == 5 and rows[1].startswith("Load 6.") and "–" not in rows[3], f"the data box reads {rows}")
+    ctx.metric("checks along the path", round(out["seconds"] * 1000.0), "ms")
+    ctx.metric("frame by frame", round(out["every"]["seconds"] * 1000.0), "ms")
+    from ..core import lifting as core
+    worst = core.worst_status(r["status"] for r in out["rows"])
+    return (f"{len(pr.steps)} steps, {len(out['rows'])} checks, {out['evaluations']} moments against "
+            f"{out['every']['evaluations']} frames; worst {worst}")
+
+
 @line("lifting.make", "Lifting plan: make a crane from numbers", "0.2.159",
       what="Make a crane…: the AT-100's numbers with 5 boom sections and a 50 m boom made in the background into a "
            "library folder (model, equipment file with a SAMPLE chart, picture), placed beside the test crane, every "

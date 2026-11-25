@@ -587,7 +587,7 @@ class FRESING_PT_lifting_path(_Panel, bpy.types.Panel):
         else:
             hint(layout, context, "No path yet.")
         gap(layout)
-        layout.label(text="Ground", icon="MESH_PLANE")
+        layout.label(text="Ground under the mats or tracks", icon="WORLD")
         col = split_props(layout)
         col.prop(L, "allowable_kpa", text="Allowable (kPa)")
         col.prop(L, "mat_size", text="Mat (m)")
@@ -600,7 +600,7 @@ class FRESING_PT_lifting_path(_Panel, bpy.types.Panel):
         elif stale:
             state = "Changed since it was checked: Check along the path again."
         else:
-            state = f"Along '{r['anim']}': {r['evaluations']} moments worked out."
+            state = f"Checked: {r['evaluations']} moments."
         row = layout.row()
         row.alert = stale
         row.label(text=state, icon="ERROR" if stale else "INFO")
@@ -637,7 +637,7 @@ def _draw_rows(layout, context, rows, go: bool, stale: bool = False):
             sub.label(text=f"f {_short(r.t)}")
             op = sub.operator("fresing.lifting_path_go", text="", icon="VIEWZOOM")
             op.check = r.id
-    body = fold(layout, "fr_lifting_words" if go else "fr_lifting_words_now", "In words", icon="TEXT", closed=not go)
+    body = fold(layout, "fr_lifting_words" if go else "fr_lifting_words_now", "In words", icon="TEXT", closed=True)
     if body is not None:
         for r in rows:
             wrap(body, context, r.words, icon=STATUS_ICON[r.status], alert=r.status == core.RED and not stale)

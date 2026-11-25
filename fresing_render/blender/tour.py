@@ -4710,7 +4710,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.192")
+          changed="0.2.259")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4744,6 +4744,14 @@ def build_lifting(b: Build):
     _update()
     _camera(b, LIFT_VIEW, "Tour lifting spreader", lens=35.0, points=_lifting_points(sc, LIFT_CONTAINER))
     _shot(b, "@lifting_spreader")
+    # task 0348: the skid lifted onto a set-down point beside it – the proposed steps, the checks along them
+    import numpy as np
+
+    from . import animation
+    _lift_path(sc)
+    _camera(b, LIFT_VIEW, "Tour lifting path", lens=35.0, points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc)]))
+    _shot(b, "@lifting_path")
+    animation.clear_keys(sc)
     _lift_rest(sc)
     sc.fresing.lifting.load_index = 0
 
@@ -4804,6 +4812,42 @@ def _hang_one(scene, name: str) -> None:
 
 def _lift_rig(scene) -> None:
     _hang_one(scene, "Pump skid")
+
+
+PATH_DOWN = (-3.5, 2.5, 0.0)        # m: where the skid is set down (clear of the IBC and the crane's mats)
+PATH_GROUND = (200.0, 1.44)         # kPa entered for the yard; the tour's crane mats (m, square)
+
+
+def _lift_path(scene) -> None:
+    """Task 0348: the skid on the hook, the lift to PATH_DOWN proposed and checked, the worst moment shown, the lift
+    data box on."""
+    from . import lifting, lifting_path
+    _hang_one(scene, "Pump skid")
+    L = lifting.plan(scene)
+    L.allowable_kpa, L.mat_size = PATH_GROUND[0], (PATH_GROUND[1], PATH_GROUND[1])
+    pr = lifting_path.propose(scene, point=PATH_DOWN)
+    _check(pr.ok, f"Propose the lift: {pr.reason}")
+    out = lifting_path.check(scene)
+    worst = max(lifting_path.rows(scene), key=lambda r: r.key)
+    lifting_path.go_to(scene, worst.id)
+    L.data_box = True
+    _update()
+    return out
+
+
+def _path_points(scene) -> list:
+    """The hook's places along the lift (the camera sees the whole path)."""
+    import numpy as np
+
+    from . import lifting, lifting_path
+    c = lifting.plan(scene).cranes[0]
+    at, _keys, (f0, f1) = lifting_path.reader(scene, c)
+    rig = lifting.rig_of(c)
+    pts = []
+    for f in np.linspace(f0, f1, 12):
+        h = lifting.to_world(c, rig.hook(at(float(f))))
+        pts += [tuple(h), tuple(h - np.array((0.0, 0.0, 2.0)))]
+    return pts
 
 
 def _lift_spreader(scene) -> None:
@@ -5001,6 +5045,25 @@ def _check_lifting_rig(scene):
     msg = lifting_rig.check_hang(scene, L.cranes[0], ld)
     return (msg + f"; most: leg {near['name']}; " + lifting_rope.check(scene, L.cranes[0]) + "; "
             + _cog_in_view(scene, with_hook=True, load=ld))
+
+
+def _check_lifting_path(scene):
+    from . import callouts, lifting, lifting_path
+    r = lifting_path.result(scene)
+    _check(r is not None and not lifting_path.stale(scene), "the lift path was not checked")
+    ids = [x["id"] for x in r["rows"]]
+    _check(ids[:4] == ["C1", "C10", "SETUP", "C5"] and "C3" in ids and "C4" in ids,
+           f"the checks along the path are {ids}")
+    worst = max(lifting_path.rows(scene), key=lambda x: x.key)
+    _check(abs(scene.frame_current + scene.frame_subframe - worst.t) < 0.02,
+           f"the frame shown is not the worst moment ({worst.t:.1f})")
+    lab = lifting_path.data_box_label(scene)
+    _check(lab is not None, "no lift data box")
+    rows = callouts.label_text(scene, lab).split("\n")
+    _check(len(rows) == 5 and "–" not in rows[3], f"the lift data box reads {rows}")
+    ld = _lift_loads(scene)["Pump skid"]
+    return (f"{len(ids)} checks, worst {worst.title} {worst.status} at frame {worst.t:.0f}, {r['evaluations']} "
+            f"moments; " + rows[3] + "; " + _cog_in_view(scene, with_hook=True, load=ld))
 
 
 def _check_lifting_spreader(scene):
@@ -5378,6 +5441,15 @@ stop("lifting_spreader", MOTION, "lifting", "Lifting: container on a frame",
      "and shackle (C4); none red.",
      where="8 Lifting plan > Rigging", since="0.2.192", check=_check_lifting_spreader, setup=_lift_spreader)
 
+stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
+     "The pump skid is lifted onto a spot on the quay beside it: 8 Lifting plan > Lift path & checks proposed the "
+     "steps (hoist 2 m clear, slew, luff / telescope, lower) as an animation 'Lift Pump skid' and checked it along the "
+     "whole path. The table lists every check with its worst use, colour and frame – crane use, line pull, set-up "
+     "(beams out, jacks down), outriggers on their 1.44 m mats against 200 kPa, sling legs and shackles; backward "
+     "stability grey (the chart's counterweight). The timeline stands at the worst moment (Go there); the lift data "
+     "box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
+     "sits beside the hook in the 3D view.",
+     where="8 Lifting plan > Lift path & checks", since="0.2.259", check=_check_lifting_path, setup=_lift_path)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
