@@ -143,9 +143,9 @@ class FRESING_MT_workspaces(bpy.types.Menu):
             for name, _note, own in part:
                 row = col.row(align=True)
                 label = name + ("  (your own)" if own else "") + ("  · new projects" if name == new else "")
+                # task 0321: each workspace its own icon; the one in use a tick
                 op = row.operator("fresing.workspace_pick", text=label,
-                                  icon="CHECKMARK" if name == cur else ("LOCKED" if name == W.NAMES["client"]
-                                                                        else "BLANK1"))
+                                  icon="CHECKMARK" if name == cur else workspaces.icon_of(name))
                 op.name = name
                 star = row.operator("fresing.workspace_star", text="",
                                     icon="SOLO_ON" if workspaces.starred(name) else "SOLO_OFF", emboss=False)

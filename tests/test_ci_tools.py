@@ -105,8 +105,11 @@ def test_pytest_summary_does_not_count_skips_this_machine_cannot_help(tmp_path, 
     the 8 groups turned it red. They no longer count against --max-skipped; any other skip still does."""
     xml = tmp_path / "pytest.xml"
     xml.write_text(
-        '<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" tests="4" '
-        'failures="0" errors="0" skipped="3" time="1.0">'
+        '<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" tests="5" '
+        'failures="0" errors="0" skipped="4" time="1.0">'
+        '<testcase classname="tests.test_web3d_lead_blender" name="test_page" time="0.1"><skipped type="pytest.skip" '
+        'message="no browser (GitHub&apos;s Linux runners): the page&apos;s sum is checked above in Python">x</skipped>'
+        '</testcase>'
         '<testcase classname="tests.test_fade" name="test_eevee" time="0.1"><skipped type="pytest.skip" '
         'message="EEVEE cannot start here (no GL context)">x</skipped></testcase>'
         '<testcase classname="tests.test_section" name="test_eevee" time="0.1"><skipped type="pytest.skip" '
@@ -118,7 +121,7 @@ def test_pytest_summary_does_not_count_skips_this_machine_cannot_help(tmp_path, 
     summary = tmp_path / "summary.md"
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
     assert ci_pytest_summary.main([str(xml), "--max-skipped", "0"]) == 0
-    assert "1 passed, 0 failed, 0 skipped (+ 3 that need a GL context or a real Blender), 4 in all" in \
+    assert "1 passed, 0 failed, 0 skipped (+ 4 that need a GL context, a real Blender or a browser), 5 in all" in \
         summary.read_text(encoding="utf-8")
     xml.write_text(xml.read_text(encoding="utf-8").replace(
         '<testcase classname="tests.test_core" name="test_good" time="0.1"/>',

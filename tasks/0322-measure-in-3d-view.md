@@ -56,7 +56,7 @@ The 3D page's tool, 2D drawings, weld symbols (0320), the Keys tab (0295).
 
 **Chat / date:** Claude Code on the web, 24 Nov 2026 (branch `ccr-b4de08d0-he2cht`, the web session's branch).
 
-**What changed** (0.2.242):
+**What changed** (0.2.243):
 
 - **Top bar > Measure ▾** (right of Lead motions, every workspace and the Client view; `ui_measure.py`): a big
   **Measure** (result by what you click = the 3D page's `measure(a, b, 'faces')`) and the six kinds Distance (+ X / Y /
@@ -109,7 +109,9 @@ The 3D page's tool, 2D drawings, weld symbols (0320), the Keys tab (0295).
   maps 200 MB of fresh pages (task 0315's file, a test-only fix). Meanwhile 0320 took 0.2.240 and 0273 0.2.241: merged,
   renumbered to 0.2.242. Run 5 (45527809997) red: 0310's new browser test (skipped on GitHub by design) was not in
   `tools/ci_groups.py` `SKIPS_ON_GITHUB` and the shifted split put it in one job with 0298's xfail (2 skips, 1
-  allowed): added to the list. Run 6 on that.
+  allowed): added to the list. Run 6 (45531413756): job 4 ran into GitHub's 40-minute limit (busy runners; other
+  branches' job 4 took ~30 min that hour), and 0321 took 0.2.242: merged, renumbered to 0.2.243, the pytest jobs
+  rebalanced from a green run's times (`tools/ci_times.json`), run 7.
 
 **Open points / follow-up tasks:**
 

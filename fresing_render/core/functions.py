@@ -48,7 +48,7 @@ FAMILIES = {
 # never written down. A workspace a later lane adds (the Lifting lane: "lifting") puts its key on its own functions
 # and, where it wants whole families, here.
 WORKSPACE_KEYS = ("essentials", "all", "cnc", "offshore", "product", "client", "education", "lifting", "sales", "quick",
-                  "animator", "reviewer", "full")
+                  "animator", "reviewer", "welding", "builder", "video", "houses", "full")
 EVERYTHING = ("all", "full")
 _WORK = ("cnc", "offshore", "product", "education")
 FAMILY_WORKSPACES = {
@@ -69,7 +69,8 @@ FAMILY_WORKSPACES = {
     "help": _WORK + ("client", "lifting"),
     "panel": _WORK + ("client", "lifting"),
 }
-# Task 0294: **Essentials** and the **task workspaces** (Sales, Quick render, Animator, Reviewer) are lists of
+# Task 0294: **Essentials** and the **task workspaces** (Sales, Quick render, Animator, Reviewer; task 0321: Welding,
+# Machine builder, Video producer, Houses) are lists of
 # functions, not of families: each shows exactly the functions named here (plus any function whose own
 # ``workspaces=`` names the key – a function built later adds itself there). Their rows in FAMILY_WORKSPACES stay empty.
 # What every one of them keeps: the side panel itself, learning, help, settings and Blender's safety (keys, backups).
@@ -91,12 +92,14 @@ TASK_WORKSPACES = {
     "essentials": _COMMON + (
         "import.step", "import.mesh", "import.drop", "import.again", "structure.tree",
         "looks.materials", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
-        "joints.rotate", "joints.slide", "joints.hover", "poses.pose",
+        "joints.rotate", "joints.slide", "joints.hover", "joints.move", "poses.pose",
         "animation.add", "animation.joint_step", "animation.build",
         "scene.still", "scene.turntable", "scene.save",
     ),
-    # a finished project -> outputs; the model's structure and motion are not shown
+    # a finished project -> outputs; the model's structure is not shown. Task 0321 (owner 24 Nov): Sales may MOVE the
+    # joints (sliders, poses, back to CAD) to pose the machine for a client – adding or changing joints stays hidden
     "sales": _COMMON + (
+        "joints.move", "joints.cad_position", "poses.pose",
         "scene.save", "looks.materials", "looks.schemes", "looks.decals", "looks.light_look", "scene.surroundings",
         "scene.light", "scene.weather", "scene.props", "scene.camera", "scene.blur", "scene.still", "scene.shapes",
         "scene.turntable", "animation.product_video", "animation.build", "animation.finishing", "animation.brand",
@@ -113,7 +116,7 @@ TASK_WORKSPACES = {
     # motion and the video
     "animator": _COMMON + (
         "import.step", "import.drop", "import.again", "structure.tree", "structure.visibility",
-        "joints.rotate", "joints.slide", "joints.stack", "joints.hover", "joints.couplings", "poses.pose",
+        "joints.rotate", "joints.slide", "joints.stack", "joints.hover", "joints.couplings", "joints.move", "poses.pose",
         "poses.explode", "machines.cylinder", "machines.mechanism", "panel.setup_window",
         "animation.add", "animation.joint_step", "animation.build", "animation.motor", "animation.camera_path",
         "animation.fade", "animation.trails", "animation.back_to_cad", "animation.sequence", "animation.product_video",
@@ -126,6 +129,49 @@ TASK_WORKSPACES = {
     "reviewer": _COMMON + (
         "scene.save", "structure.tree", "structure.visibility", "looks.cutaway", "looks.xray", "poses.pose",
         "poses.explode", "animation.labels", "animation.build", "animation.clash", "scene.camera", "scene.still",
+    ),
+    # task 0321 (owner 24 Nov 11:44): welds on a model and pictures of them – import, the parts' looks, the welds, scene,
+    # light, camera, picture. The tree is there to pick the two parts of a weld and hide what is in the way. Weld
+    # symbols and the weld list (task 0320) add themselves with workspaces=("welding",); 2D drawings come later
+    "welding": _COMMON + (
+        "import.step", "import.mesh", "import.drop", "import.again", "import.update", "import.up_axis",
+        "structure.tree", "looks.materials", "looks.find", "looks.rules", "looks.rule_sets", "looks.finishes",
+        "looks.rust", "looks.faces", "looks.welds", "looks.weld_symbols", "looks.weld_list", "looks.weld_copy",
+        "looks.light_look", "scene.surroundings", "scene.light",
+        "scene.camera", "scene.blur", "scene.still", "scene.render_view", "scene.shapes", "scene.save",
+    ),
+    # task 0321: making a machine move – import, structure, place, joints, cylinders, mechanisms, way covers, hoses and
+    # drag chains, tracks, the Set-up window, the clash check (0294's proposal)
+    "builder": _COMMON + (
+        "import.step", "import.mesh", "import.drop", "import.again", "import.update", "import.two_copies",
+        "import.up_axis", "structure.tree", "structure.move", "structure.place", "structure.remove", "structure.copy",
+        "structure.cleanup", "structure.visibility", "looks.materials", "looks.find",
+        "joints.rotate", "joints.slide", "joints.stack", "joints.hover", "joints.cad_position", "joints.couplings",
+        "joints.move", "poses.pose",
+        "machines.cylinder", "machines.mechanism", "machines.waycover", "machines.waycover_two", "machines.hoses",
+        "machines.chains", "flex.draw_hose", "flex.draw_chain", "flex.replace_cad", "flex.avoid", "flex.route",
+        "flex.kinds", "flex.chain_types", "machines.tracks", "panel.setup_window",
+        "animation.add", "animation.joint_step", "animation.motor", "animation.build", "animation.clash",
+        "scene.camera", "scene.render_view",
+    ),
+    # task 0321: the video from a model that already moves – animation steps, camera paths, labels, picture cards, music,
+    # brand kit, watermark, captions, render queue (0294's proposal)
+    "video": _COMMON + (
+        "scene.save", "poses.pose", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
+        "scene.blur", "scene.shapes", "scene.still",
+        "animation.add", "animation.joint_step", "animation.build", "animation.motor", "animation.camera_path",
+        "animation.fade", "animation.trails", "animation.back_to_cad", "animation.sequence", "animation.product_video",
+        "animation.lead_motion_step", "animation.weather_step", "animation.people",
+        "animation.labels", "animation.finishing", "animation.cards", "animation.music", "animation.brand",
+        "animation.watermark", "queue.still", "queue.video", "queue.time_test", "queue.start_later", "queue.schemes",
+    ),
+    # task 0321: a house from House Planner shown in its place – surroundings, weather and time, light, camera, picture,
+    # turntable, 3D page (0294's proposal)
+    "houses": _COMMON + (
+        "house.import", "house.toolbox", "scene.surroundings", "scene.weather", "scene.weather_presets", "scene.night",
+        "scene.props", "looks.light_look", "scene.light", "scene.camera", "scene.blur", "scene.still",
+        "scene.render_view", "scene.shapes", "scene.turntable", "scene.save", "queue.still",
+        "web.export", "web.surroundings", "web.light", "web.player", "web.view_names", "web.phone", "web.tools",
     ),
 }
 # Families the side panel always shows (no tick): without them there is nothing to work on.
@@ -220,6 +266,9 @@ fn(id="panel.essentials", headline=True, title="Essentials: where a new user sta
 fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick render, Animator, Reviewer", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="task-workspaces", tour=("workspace",),
    pccheck=("workspace.essentials",), since="0.2.226")
+fn(id="panel.more_workspaces", title="Workspaces for one job, round 3: Welding, Machine builder, Video producer, Houses",
+   family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="more-workspaces",
+   tour=("workspace_welding",), pccheck=("workspace.round3",), since="0.2.242")
 fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
    pccheck=("workspace.essentials",), since="0.2.226")
@@ -392,6 +441,9 @@ fn(id="joints.cad_position", short="Back to CAD", title="Everything back to CAD 
 fn(id="joints.couplings", short="Couplings", title="Couplings and motors", family="motion", panel="FRESING_PT_joints",
    button="fresing.joint_follow", guide="couplings", tour=("cables",), pccheck=("couplings.motor",), since="0.2.18",
    changed="0.2.224")
+fn(id="joints.move", title="Move a joint: its slider, CAD (0) / Min / Max – also where adding joints is hidden (Sales)",
+   family="motion", panel="FRESING_PT_joints", button="fresing.joint_value", text="CAD (0)", guide="move-joints",
+   pccheck=("workspace.round3",), since="0.2.242")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
@@ -717,7 +769,7 @@ fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slid
 # task 0322: measuring in the 3D view – on the top bar in every workspace and in the Client view, keys M / Alt+M
 fn(id="view.measure", short="Measure", title="Measure in the 3D view: distance, edge, gap, angle, Ø, point to axis",
    family="scene", panel="TOPBAR_PT_fresing_measure", button="fresing.measure", guide="measure", tour=("measure",),
-   pccheck=("view.measure",), since="0.2.242", headline=True,
+   pccheck=("view.measure",), since="0.2.243", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 90, "read the size off the drawing or measure it in the CAD program and type it in"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",

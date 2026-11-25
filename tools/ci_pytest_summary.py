@@ -6,7 +6,7 @@ Writes the totals and every failing test (with the first lines of its error) to 
 ($GITHUB_STEP_SUMMARY) and as error annotations. pytest's own exit code decides about failures;
 this script exits 1 only when more tests were skipped than allowed: the Blender and OpenCascade
 tests skip themselves when bpy/OCP do not import, which would otherwise look green. Skips whose reason is one of
-EXPECTED_SKIPS (what GitHub's machines cannot do: EEVEE needs a GL context, one test needs a real Blender) do not count:
+EXPECTED_SKIPS (what GitHub's machines cannot do: EEVEE needs a GL context, one test needs a real Blender, some a browser) do not count:
 task 0108 made 8 groups, and two such tests landed in one group.
 
 It also prints one line `PYTEST_FILE_SECS {"tests/test_x.py": seconds, ...}`: the time of each test file,
@@ -21,7 +21,10 @@ import sys
 import xml.etree.ElementTree as ET
 
 
-EXPECTED_SKIPS = ("EEVEE cannot start here (no GL context)", "no real Blender here")
+# task 0321: + the web 3D page tests that need a browser (task 0310's test_web3d_lead_blender.py): GitHub's Linux
+# runners have none – with the groups balanced anew it shared a group with another skip and failed the run
+EXPECTED_SKIPS = ("EEVEE cannot start here (no GL context)", "no real Blender here",
+                  "no browser (GitHub's Linux runners)")
 
 
 def file_seconds(path: str) -> dict[str, float]:
@@ -62,7 +65,7 @@ def summarize(path: str, title: str = "") -> tuple[str, list[tuple[str, str]], i
     passed = total - len(failed) - skipped - expected
     head = (f"### Test suite (pytest){' - ' + title if title else ''}: {'passed' if not failed else 'FAILED'}\n\n"
             f"{passed} passed, {len(failed)} failed, {skipped} skipped"
-            f"{f' (+ {expected} that need a GL context or a real Blender)' if expected else ''}, {total} in all, "
+            f"{f' (+ {expected} that need a GL context, a real Blender or a browser)' if expected else ''}, {total} in all, "
             f"{seconds / 60:.1f} min\n")
     if failed:
         head += "\n| Failing test | Error |\n| --- | --- |\n"

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.242 – 25 Nov 2026 – Measure in the 3D view (task 0322)
+## 0.2.243 – 25 Nov 2026 – Measure in the 3D view (task 0322)
 
 - **Measure** (new, on the top bar right of Lead motions, or the key **M** over the 3D view – **Alt+M** in Full
   access, where M stays Blender's own): click the model and read the value, the way the 3D page's measure tool does.
@@ -20,6 +20,22 @@ installer of that version was built from.
   labels are never in a picture or video unless you tick it.
 - Works through a **Slice** (measures on the cut face) and in the **Client view** (there it is never saved).
 
+## 0.2.242 – 25 Nov 2026 – Four more workspaces: Welding, Machine builder, Video producer, Houses; Sales moves joints (task 0321)
+
+- **Welding** (new workspace): import, the parts' looks, **3 Looks > Welds** (placement, types, looks, finish, rust),
+  surroundings, light, camera, **Render a picture** and **Render this view**. Motion, animation, video and the render
+  queue are not shown. The new weld symbols and weld list are there too.
+- **Machine builder** (new workspace): import, structure and placing, joints, cylinders, mechanisms, way covers, hoses
+  and drag chains, tracks, the Set-up window, a first animation and the clash check.
+- **Video producer** (new workspace): every animation step, camera paths, labels, picture cards, music, brand kit,
+  watermark, title and captions, the render queue.
+- **Houses** (new workspace): House from House Planner, surroundings, weather and time of day, light, camera, picture,
+  turntable and the 3D page.
+- **Sales may move joints**: 4 Motion shows the joints as sliders (with CAD (0) / Min / Max), Poses and **Everything
+  back to CAD position**, so you can pose the machine for a client. Adding, removing and setting up joints stays
+  hidden; nothing is locked.
+- Every workspace has its own **icon** in the Workspace list. The first-start set-up has four more ticks under
+  **Your work** (Welding and fabrication, Making machines move, Videos of machines, Houses from House Planner).
 ## 0.2.241 – 25 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
 
 - **More materials…** (3 Looks, in the box of the picked group) opens the new **Materials** window: a picture of every

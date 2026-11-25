@@ -43,8 +43,8 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.238",
-   "fp": "53b19e33a29ad020"
+   "changed": "0.2.242",
+   "fp": "40c403c0269496d3"
   },
   "crane_setup": {
    "added": "0.2.161",
@@ -142,7 +142,7 @@
    "fp": "9f1396fda5e391e4"
   },
   "measure": {
-   "added": "0.2.242",
+   "added": "0.2.243",
    "changed": "",
    "fp": "f559df64b4f9a615"
   },
@@ -273,8 +273,8 @@
   },
   "welds": {
    "added": "0.2.231",
-   "changed": "0.2.240",
-   "fp": "6c83f8c14a23adeb"
+   "changed": "0.2.242",
+   "fp": "e204d313b80b7217"
   }
  }
 }

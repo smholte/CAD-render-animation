@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.238")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.242")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1091,7 +1091,7 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.240")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.242")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -1118,6 +1118,42 @@ def _check_welds(scene):
     _check(texts[0] == "a5 ◺/◸ 200 < 135", f"weld 1's symbol reads '{texts[0]}'")
     _check(sum(t.startswith("○") for t in texts) == 3, f"{sum(t.startswith('○') for t in texts)} all-round symbols, not 3")
     return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead; symbols {', '.join(texts[:2])} …"
+
+
+WELDING = "Welding"
+WELDING_SHOWS = ("FRESING_PT_welds", "FRESING_PT_looks", "FRESING_PT_import", "FRESING_PT_scene", "FRESING_PT_camera",
+                 "FRESING_PT_output")
+WELDING_HIDES = ("FRESING_PT_motion", "FRESING_PT_animation", "FRESING_PT_cnc", "FRESING_PT_cables",
+                 "FRESING_PT_queue", "FRESING_PT_web3d")
+
+
+def _welding_open(scene):
+    """Task 0321: the stop switches the welds project to the workspace Welding, its Workspace row open."""
+    from . import panels, workspaces
+    workspaces.switch(scene, WELDING)
+    panels.set_open("FRESING_PT_workspace", True)
+    panels.set_open("FRESING_PT_welds", True)
+
+
+def _check_workspace_welding(scene):
+    """Workspaces round 3 (task 0321): Welding shows the welds and the render options, hides motion and the rest; the
+    welds stay as they are."""
+    from ..core import workspaces as W
+    from . import lock, welds, workspaces
+    before = welds.stats(scene)["welds"]
+    if workspaces.name_of(scene) != WELDING:
+        workspaces.switch(scene, WELDING)
+    for p in WELDING_SHOWS:
+        _check(not workspaces.panel_hidden(scene, p), f"Welding hides {p[11:]}")
+    for p in WELDING_HIDES:
+        _check(workspaces.panel_hidden(scene, p), f"Welding shows {p[11:]}")
+    _check(not lock.ON[0], "Welding locks the project")
+    _check(welds.stats(scene)["welds"] == before, "switching the workspace changed the welds")
+    names = [n for n, _note, _own in workspaces.names()]
+    for key in ("welding", "builder", "video", "houses"):
+        _check(W.NAMES[key] in names, f"{W.NAMES[key]} is not in the Workspace list")
+    n = len(workspaces._state(scene)[1])
+    return f"Welding: {n} functions; the list has {len(names)} workspaces"
 
 
 def _check_decals(scene):
@@ -1496,7 +1532,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("measure", "Measure", "test_crane_a.step", added="0.2.242")
+@tour_set("measure", "Measure", "test_crane_a.step", added="0.2.243")
 def build_measure(b: Build):
     """Task 0322: the crane's base measured – its thickness, two bolt holes, a hole's Ø and, through a slice that takes
     the base's front half away, the cut face to the back face (``measure.set_up_test``, shared with the PC check).
@@ -4941,6 +4977,14 @@ stop("welds", LOOK, "welds", "Welds",
      "symbol with its number 1–7: 'a5' and a triangle on both sides of the line for the fin, a circle at the bend for "
      "the three all-round welds, the process number (135, 141, 131) in the tail. They show in the view only.",
      where="3 Looks > Welds (Weld symbols, Weld list…)", check=_check_welds, since="0.2.231", changed="0.2.240")
+stop("workspace_welding", LOOK, "welds", "The workspace Welding",
+     "The same weldment, the Workspace row on the left panel now says 'Welding' (its small arrow open). The side "
+     "panel shows only what welding needs: 1 Import, 2 Structure, 3 Looks with Welds open, 5 Scene & Render (light, "
+     "camera, picture). 4 Motion, 6 Animation, the render queue and the CNC machine are gone; the welds are all still "
+     "there, with their symbols. Open the Workspace list: Welding, Machine builder, Video producer and Houses are new, each with its own "
+     "icon and a star. Pick All functions to have everything back.",
+     where="The Workspace row on the left panel", since="0.2.242", shot="Welds", setup=_welding_open,
+     check=_check_workspace_welding, auto=lambda ctx, scene, st: "")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
@@ -4952,7 +4996,7 @@ stop("measure", LOOK, "measure", "Measure in the 3D view",
      "4 500.00 mm' with X / Y / Z, a hole's 'Ø 33.00 mm', and through the slice (the base's front half is gone) the cut "
      "face to the back face '1 500.00 mm'. Then click Measure on the top bar (or press M), click a face, another face: "
      "a new label. Corners, edge middles and hole centres snap; Shift does not.", where="Top bar > Measure (key M)",
-     since="0.2.242", check=_check_measure)
+     since="0.2.243", check=_check_measure)
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",
@@ -5879,8 +5923,11 @@ def _check_workspace(scene):
         # task 0294: Essentials first, the task workspaces, a star on every row of the list
         _check(workspaces.names()[0][0] == "Essentials", "Essentials is not first in the Workspace list")
         workspaces.switch(scene, "Sales")
-        _check(workspaces.panel_hidden(scene, "FRESING_PT_motion") and not workspaces.panel_hidden(scene, "FRESING_PT_shots")
-               and not lock.ON[0], "Sales does not hide motion, show saved scenes and leave the project unlocked")
+        # task 0321: Sales moves joints (4 Motion > Joints shows) but does not add them; the project is not locked
+        _check(not workspaces.panel_hidden(scene, "FRESING_PT_joints") and not workspaces.shows(scene, "joints.rotate")
+               and workspaces.panel_hidden(scene, "FRESING_PT_structure")
+               and not workspaces.panel_hidden(scene, "FRESING_PT_shots") and not lock.ON[0],
+               "Sales does not show moving joints without adding them, saved scenes, an unlocked project")
         _check(hasattr(bpy.types, "FRESING_MT_workspaces") and hasattr(bpy.ops.fresing, "workspace_star"),
                "the Workspace list with its stars is missing")
     finally:
@@ -5917,12 +5964,13 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "'Functions in this project' every family of functions has a tick. Untick 'CNC machine' and 'Milling': their "
      "panels leave 4 Motion, the project stays as it is; tick them again and they are back. Pick 'Client view' in the "
      "list: only looking and rendering are left and no part can be clicked or deleted; pick 'All functions' again. "
-     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator and Reviewer for "
+     "The list starts with Essentials (where a new user starts) and has Sales, Quick render, Animator, Reviewer, Welding, "
+     "Machine builder, Video producer and Houses for "
      "one job each; the star beside a workspace puts it on top of the list, above a line (click it again to take it "
      "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.226", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.242", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "

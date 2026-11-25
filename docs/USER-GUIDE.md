@@ -182,10 +182,14 @@ the Fresing tab picks what the side panel shows:
 | **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
 | **Education & training** | every kind of motion, animation, camera | web 3D model |
 | **Lifting plans** | 8 Lifting plan, import, structure, looks, scene, animation, render queue | CNC, milling, cables, sea, joints by hand |
-| **Sales** | saved scenes, looks and paint schemes, logos, surroundings and weather, pictures, turntable, product video, video finishing, 3D page, render queue | import, structure and all motion (the project is **not** locked: unlike the Client view you can still change looks, scenes and outputs) |
+| **Sales** | saved scenes, looks and paint schemes, logos, surroundings and weather, pictures, turntable, product video, video finishing, 3D page, render queue; **moving the joints** (sliders, poses, back to CAD) to show the machine working | import, structure, adding and setting up joints (the project is **not** locked: unlike the Client view you can still move joints and change looks, scenes and outputs) |
 | **Quick render** | import a STEP, sort into groups and looks, surroundings, light, camera, one picture or a turntable | everything else |
 | **Animator** | joints, cylinders, mechanisms, poses, animation steps, cameras and camera paths, labels, video finishing, render queue | CNC, milling, cables, sea, web 3D model |
 | **Reviewer** | saved scenes, slice, X-ray, poses and exploded views, labels, visibility sets, Build & play, clash check | import, joints, looks, outputs |
+| **Welding** | import, structure, the parts' looks, Welds, surroundings, light, camera, picture, Render this view | motion, animation, video, queue |
+| **Machine builder** | import, structure, place, joints, cylinders, mechanisms, way covers, hoses and drag chains, tracks, Set-up window, clash check | looks beyond materials, video finishing, 3D page |
+| **Video producer** | animation steps, camera paths, labels, picture cards, music, brand kit, watermark, captions, render queue | import, structure, making joints |
+| **Houses** | House from House Planner, surroundings, weather and time, light, camera, picture, turntable, 3D page | machine motion, CNC, cables |
 | **Full access** | everything, plus Blender's own tabs, toolbar and menus | – |
 
 <a id="essentials"></a>
@@ -194,16 +198,29 @@ the app before Essentials came, nothing changes for you: the update writes down 
 choice. A project keeps the workspace it was saved in.
 
 <a id="task-workspaces"></a>
-**Sales, Quick render, Animator and Reviewer** are made for one job each and show only that job's functions – hover
+**Sales, Quick render, Animator and Reviewer** (and the four below) are made for one job each and show only that job's functions – hover
 over a name in the list to read what it is for. Need one more function? Tick its family under **Functions in this
 project**, or pick another workspace.
+
+<a id="more-workspaces"></a>
+**Welding, Machine builder, Video producer and Houses** (new in 0.2.242) are four more workspaces for one job, each
+with its own icon in the list:
+
+| Workspace | Shows | Does not show |
+| --- | --- | --- |
+| **Welding** | Import, the structure (to pick the two parts of a weld and hide what is in the way), 3 Looks with **Welds** (placement, types, looks, finish, rust), finishes, rust, paint faces, sorting rules; surroundings, light look, light, camera, background blur, **Render a picture**, **Render this view**, saved scenes | Motion, animation, video, the render queue, CNC, cables |
+| **Machine builder** | Import, structure, move and place, copy, clean-up; joints, couplings, poses; cylinders, mechanisms, way covers, hoses and drag chains, tracks; the Set-up window; a first animation (Move joint, Run motor, Build & play) and the **Clash check** | Looks beyond the materials, surroundings, video finishing, render queue, 3D page |
+| **Video producer** | Saved scenes, poses, surroundings, light, camera; every animation step, camera paths, fades, trails, assembly sequence, product video, labels, title and captions, picture cards, music, brand kit, watermark, the render queue | Import, structure, adding joints and cylinders |
+| **Houses** | **House from House Planner** (also by itself through the Toolbox folder), surroundings, weather and time of day, night, props for scale, light, camera, picture, Render this view, turntable, saved scenes, the 3D page | Machine motion, CNC, cables, video finishing |
+
+The weld symbols and the weld list show in Welding too; 2D drawings come later.
 
 <a id="workspace-stars"></a>
 **Favourites on top.** Every workspace in the list has a star. Click the star and that workspace moves to the top of
 the list, above a line, in the order you starred them; click it again to take the star away. The workspace for new
 projects ("· new projects") is always on top too. The stars are kept for you, also after a restart.
 
-<img class="panel" src="img/workspace_stars.png" alt="The Workspace list: Essentials for new projects, Reviewer and Sales starred on top, a line, then the others">
+<img class="panel" src="img/workspace_stars.png" alt="The Workspace list: Essentials for new projects, Reviewer and Sales starred on top, a line, then the others – each with its icon, Welding, Machine builder, Video producer and Houses among them">
 
 **Hiding never deletes or switches off anything.** What is set up stays in the project and keeps working
 in renders, in the queue and after a model update; only the panels go away. Pick another workspace, or
@@ -703,7 +720,7 @@ in **Fresing > Settings…**.
 
 2. **Your work** – tick what you do (CNC & machining, Offshore & cable laying, Product design & R&D, Lifting plans,
    Education & training, Sales / presentations, Animation, Just pictures of my models, Looking at models others
-   made). It sets the **workspace new projects start in**: no tick – **Essentials**; one tick – that kind of work's
+   made, Welding and fabrication, Making machines move, Videos of machines, Houses from House Planner). It sets the **workspace new projects start in**: no tick – **Essentials**; one tick – that kind of work's
    own workspace; two or more – **All functions**. The Learning hub then opens on the chapter of your work (CNC
    opens Machining). Your ticks stay on this PC.
 
@@ -2072,6 +2089,7 @@ Fresing > Settings… > General > "Highlight what is under the mouse when pickin
 
 <img class="panel" src="img/panel_4_motion.png" alt="4 Motion with two joints">
 
+<a id="move-joints"></a>
 **Use a joint**
 
 - Drag its slider in the list, or the big **Angle** / **Distance** field, or type a value. 0 is the
@@ -2092,6 +2110,10 @@ Fresing > Settings… > General > "Highlight what is under the mouse when pickin
   followed it stay where they are and move by themselves from then on.
 - **Everything back to CAD position** puts every joint and moved subassembly back. A whole model moved by its
   top row stays where you put it.
+
+In the workspace **Sales** the Joints fold shows only the list, the selected joint's slider and **CAD (0)** / **Min** /
+**Max**: you can pose the machine for a client, and **Poses** (Go to pose) and **Everything back to CAD position** are
+there too. Adding, removing and setting up joints is not shown – pick **Machine builder** or **All functions** for that.
 
 **Two or more joints on one subassembly**
 
