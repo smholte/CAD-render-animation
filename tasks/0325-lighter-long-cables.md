@@ -1,6 +1,6 @@
 # 0325 – Lighter long cables (+ 0328 row 23, two small notes)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0325-lighter-long-cables`
+**Who:** worker · **Status:** running · **Branch:** `task/0325-lighter-long-cables`
 **Started by:** lead, 25 Nov 2026 (from 0315's slow place 2 and the owner's Stress run on his PC) · **Model:** Opus · effort High
 **Area:** Import lane – `importer/step_reader.py` (meshing of long thin faces), `importer/runner.py` (the prune note only),
 `blender/reimport.py` (row 23 only), `tools/make_test_stress.py` (README words), `pccheck/stress.py` (limits only), their
