@@ -3034,6 +3034,41 @@ def project_reopen(ctx):
     return f"{size:.1f} MB"
 
 
+@line("project.newer", "A project from a newer app is only looked at", "0.2.261",
+      what="A project stamped by a newer Fresing Render opens with a plain message; Save is refused, Blender's own "
+           "save keeps the newer file aside first, and no backup is made of it")
+def project_newer(ctx):
+    import bpy
+
+    from ..blender import backups, compat
+    from ..core import compat as core
+    scene = ctx.fresh(CRANE_A)
+    path = os.path.join(ctx.work, "PC check newer project.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=path)
+    scene = bpy.context.scene
+    scene[core.STAMP], scene[core.STAMP_APP] = core.FORMAT + 1, "9.9.9"
+    bpy.app.handlers.save_pre.remove(compat._before_save)     # written as a newer app would
+    try:
+        bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+    finally:
+        bpy.app.handlers.save_pre.insert(0, compat._before_save)
+    with open(path, "rb") as fh:
+        original = fh.read()
+    bpy.ops.wm.open_mainfile(filepath=path)
+    note = compat.blocked()
+    _check("newer than this one" in note, "the project from a newer app opened without its message")
+    _check(bpy.ops.fresing.save("EXEC_DEFAULT") == {"CANCELLED"}, "Save wrote over a project from a newer app")
+    _check(backups.wait_reason(bpy.context.scene) == "a project from a newer Fresing Render",
+           "a backup would be made of a project from a newer app")
+    bpy.ops.wm.save_mainfile()
+    aside = core.aside_name(path, "9.9.9", exists=lambda _p: False)
+    with open(aside, "rb") as fh:
+        _check(fh.read() == original, "the newer file was not kept aside before Blender's own save")
+    bpy.ops.wm.read_homefile(use_empty=True)
+    compat.check_open()
+    return "look only; the newer file kept aside"
+
+
 # ---------------------------------------------------------------------------
 # scene: surroundings, light, cameras
 # ---------------------------------------------------------------------------

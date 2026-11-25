@@ -225,6 +225,20 @@ def check_functions() -> list[str]:
     return [f"function list: {p}" for p in functions.problems(**functions.read_repo(ROOT))]
 
 
+def check_compat(root: str = ROOT) -> list[str]:
+    """Task 0352: the upgrade chain is sound, and from the baseline on every format number from the baseline to FORMAT
+    has its kept test project (tests/data/compat/format_<n>/summary.json) and its chain step."""
+    from fresing_render.core import compat
+    problems = [f"core/compat.py: {p}" for p in compat.chain_problems()]
+    if compat.BASELINE_FORMAT is not None:
+        for n in range(compat.BASELINE_FORMAT, compat.FORMAT + 1):
+            if not os.path.isfile(os.path.join(root, "tests", "data", "compat", f"format_{n}", "summary.json")):
+                problems.append(f"FORMAT is {compat.FORMAT} but tests/data/compat/format_{n}/ is missing: run "
+                                "tools/make_compat_project.py tests/data/compat in the version that raised it and "
+                                "commit the folder (tests/data/compat/README.md)")
+    return problems
+
+
 def check_tour_versions(version: str, *, raised: bool, main_ref: str = "origin/main") -> tuple[list[str], list[str]]:
     """Task 0199: a test tour set that changed on this branch has its changed= (added= when new) raised to the
     branch's version, every stop has since=, tests/data/tour_versions.json matches (tools/tour_versions.py)."""
@@ -570,6 +584,7 @@ def main(argv=None) -> int:
     problems += check_counts()
     problems += check_groups()
     problems += check_functions()
+    problems += check_compat()
     version = init_version(read(INIT))
     p, n = check_tour_versions(version, raised=on_main or version != (version_at(base) if base else main_v))
     problems += p

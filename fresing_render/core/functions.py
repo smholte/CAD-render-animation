@@ -928,6 +928,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
 fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
    "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
    guide="saving", pccheck=("files.name",), since="0.2.233")
+fn(id="help.newer_project", short="Newer projects", title="A project saved by a newer Fresing Render opens to look at "
+   "only: a plain message, Save is off, nothing in it is lost", family="help", panel="TOPBAR_MT_file",
+   button="fresing.save", guide="newer-project", pccheck=("project.newer",), since="0.2.261")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")
