@@ -323,7 +323,7 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
 # ----- 3 Looks -----
 fn(id="looks.materials", short="Materials", title="Material groups and their materials", family="looks", panel="FRESING_PT_looks",
    button="fresing.materials", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
-   changed="0.2.239", manual_estimate=("part", 5, "pick the part and give it its material"))
+   changed="0.2.240", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
    button="fresing.materials", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
    changed="0.2.237")
@@ -341,10 +341,10 @@ fn(id="looks.rust", title="Rust: a slider per group, only where steel rusts", fa
 fn(id="looks.picker", short="Material picker",
    title="Material picker: pictures, filters, this project's list, your own and your company's materials",
    family="looks", panel="FRESING_PT_looks", button="fresing.materials", guide="material-picker",
-   tour=("material_picker",), pccheck=("looks.picker",), since="0.2.239")
+   tour=("material_picker",), pccheck=("looks.picker",), since="0.2.240")
 fn(id="looks.own_materials", title="Your own materials: Save as my material, From a Blender material", family="looks",
    panel="FRESING_PT_looks", button="fresing.mat_save", guide="own-materials", pccheck=("looks.picker",),
-   since="0.2.239")
+   since="0.2.240")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",

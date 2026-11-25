@@ -706,7 +706,7 @@ def looks_materials(ctx):
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
 
 
-@line("looks.picker", "Material picker: pictures, this project's list, an own material", "0.2.239",
+@line("looks.picker", "Material picker: pictures, this project's list, an own material", "0.2.240",
       what="The built-in materials' pictures are there; a group's look saved as an own material (in the check's own "
            "folder, not in your library) gets its picture from a background Blender, another group uses it, it goes "
            "on this project's list and into a template; the project still knows it once its folder is gone. "

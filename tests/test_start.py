@@ -190,7 +190,7 @@ def test_whats_new_lists_and_the_tour_of_only_the_new_and_changed(tmp_path):
     from fresing_render.blender import tour, welcome
     sets = welcome.sets_new("0.2.141")
     ids = [ts.id for ts, _k in sets]
-    assert "gantry" in ids and "house" in ids and "decals" not in ids   # changed in 0.2.152; the decals never
+    assert "gantry" in ids and "house" in ids and "decals" in ids   # changed in 0.2.152 / 0.2.238 (task 0235)
     assert welcome.summary("0.2.141").count("new test model") == 1
     page = welcome.guide_link_file("whats-new-start")
     assert "#whats-new-start" in open(page, encoding="utf-8").read()

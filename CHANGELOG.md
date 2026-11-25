@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.239 – 24 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
+## 0.2.240 – 25 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
 
 - **More materials…** (3 Looks, in the box of the picked group) opens the new **Materials** window: a picture of every
   material on the same small block with a knurled knob and a round cap. On the left **Find** and the filters
@@ -24,6 +24,14 @@ installer of that version was built from.
 - A project keeps a copy of every own material it uses: it renders on a PC that does not have the folder.
 - **Ready-made material…** is gone: its materials are in the Materials window (paint RAL 7035, black matte plastic …).
 - **Fresing Settings > Materials**: where your materials are saved, how many each folder has, folders with a problem.
+## 0.2.239 – 24 Nov 2026 – Real-looking models for "Painted faces" and "Logos and stickers" (task 0235)
+
+- **Painted faces** now shows a gearbox housing (rounded corners, a base flange, an oil-filler boss) with its red top
+  and blue front painted in CAD, a sheet cover with screw holes that you paint by hand, and small plates with holes –
+  in a clean studio.
+- **Logos and stickers** now works on a real-size machine door panel (1.2 x 0.8 m) and two 200 l drums with a hot-surface
+  sticker wrapped round each, in a machine hall. The sticker's and the text's sizes fit the big parts.
+- The old small test models stay for the tests; only the two learning sets use the new ones.
 ## 0.2.238 – 24 Nov 2026 – The lead motions as sliders on the web 3D page (task 0310)
 
 - **Motions on the web 3D page:** a project with lead motions (top bar > Lead motions) puts them on its exported page.

@@ -1,6 +1,6 @@
 # 0273 – Material picker with pictures, this project's short list, own / department / company materials, filters by material, colour and look
 
-**Who:** worker · **Status:** done – 0.2.239 · **Branch:** `ccr-f130bd57-9cwtzc`
+**Who:** worker · **Status:** done – 0.2.240 · **Branch:** `ccr-f130bd57-9cwtzc`
 **Started by:** lead, 21 Nov 2026 (owner 17:27: "I want a material selector with pictures. A user can select a material
 for the group it is currently working on, but also add more materials to the current project that it can later add
 from a short list. The preset materials should also be able to add from a user's own materials and the organisation's,
@@ -155,7 +155,7 @@ Subagents: one (Sonnet) writes the tags and one-line descriptions of every built
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web, 24 Nov 2026, branch `ccr-f130bd57-9cwtzc` (the session's branch), released as
-0.2.239.
+0.2.240.
 
 **What changed:**
 - **Materials window** (`ops_material_picker.py`, `ui_material_picker.py`, screen mark `fr_materials` added to
