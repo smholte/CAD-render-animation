@@ -2189,6 +2189,14 @@ def _coolant_look_changed(self, context):
     coolant.look_changed(context.scene)
 
 
+def _liquid_changed(self, context):
+    """A setting of the liquid on the machine changed (task 0346): shown, or worked out again soon."""
+    if context is None or context.scene is None or self.get("_busy"):
+        return
+    from . import liquid
+    liquid.settings_changed(context.scene)
+
+
 class FRCoolantNozzle(bpy.types.PropertyGroup):
     """A coolant nozzle that is a part of the model (on the spindle head): where the liquid comes out and which
     way, in the part's own space."""
@@ -2259,6 +2267,25 @@ class FRCoolant(bpy.types.PropertyGroup):
     draft: BoolProperty(
         name="Draft", default=False, update=_coolant_look_changed,
         description="Quick look for the view: plain streams, no splash or drops. Switch off for the final video")
+    liquid_on: BoolProperty(
+        name="Liquid on the machine", default=False, update=_liquid_changed,
+        description="The coolant collects on the machine: it fills the cut pockets and slots, runs over the table "
+                    "and along its slots, off its ends into the chip tray and down the drain. Worked out after "
+                    "Build & play (a while for a long program; you can keep working meanwhile)")
+    liquid_detail: EnumProperty(
+        name="Detail", default="NORMAL", update=_liquid_changed,
+        items=[("DRAFT", "Draft", "Cells of 4 mm on the table, 10 mm in the tray: about 8 times quicker, narrow "
+                                  "slots look blocky"),
+               ("NORMAL", "Normal", "Cells of 2 mm on the table, 5 mm in the tray: for the final video")],
+        description="How fine the liquid is worked out: Draft to try things, Normal for the final video")
+    liquid_eevee: EnumProperty(
+        name="EEVEE look", default="MILKY", update=_liquid_changed,
+        items=[("CLEAR", "Clear", "See-through with ray-traced refraction, the closest to Cycles (may look grainy "
+                                  "at few samples)"),
+               ("MILKY", "Milky", "Milky white without refraction: smooth at any sample count"),
+               ("BLENDED", "Blended", "See-through drawn blended: smooth, the table shows through faintly")],
+        description="How the pooled liquid looks in EEVEE renders (Cycles always shows it see-through and milky). "
+                    "Pick the one that looks best on your graphics card")
 
 
 CHANGE_MODE_ITEMS = [("STAY", "Where it is", "The head stays where the program left it; the tool is swapped there"),
