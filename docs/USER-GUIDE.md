@@ -179,18 +179,27 @@ the Fresing tab picks what the side panel shows:
 | **CNC & machining** | CNC machine, tools, tool changes, milling, way covers, clash check | sea, vessel, cables and drums, weather, exploded views |
 | **Offshore & cable laying** | sea and seabed, vessel motion, cables, drums and carousels, weather | CNC machine, milling, way covers |
 | **Product design & R&D** | looks, exploded views, assembly sequence, slice, turntable, web 3D model | CNC, milling, cables, sea, weather |
-| **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
+| **Client view** | surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
 | **Education & training** | every kind of motion, animation, camera | web 3D model |
 | **Lifting plans** | 8 Lifting plan, import, structure, looks, scene, animation, render queue | CNC, milling, cables, sea, joints by hand |
 | **Sales** | saved scenes, looks and paint schemes, logos, surroundings and weather, pictures, turntable, product video, video finishing, 3D page, render queue; **moving the joints** (sliders, poses, back to CAD) to show the machine working | import, structure, adding and setting up joints (the project is **not** locked: unlike the Client view you can still move joints and change looks, scenes and outputs) |
 | **Quick render** | import a STEP, sort into groups and looks, surroundings, light, camera, one picture or a turntable | everything else |
-| **Animator** | joints, cylinders, mechanisms, poses, animation steps, cameras and camera paths, labels, video finishing, render queue | CNC, milling, cables, sea, web 3D model |
+| **Animator** | joints, cylinders, mechanisms, poses, animation steps, cameras and camera paths, light, saved scenes, weather, turntable, labels, video finishing, render queue | CNC, milling, cables, sea, web 3D model |
 | **Reviewer** | saved scenes, slice, X-ray, poses and exploded views, labels, visibility sets, Build & play, clash check | import, joints, looks, outputs |
 | **Welding** | import, structure, the parts' looks, Welds, surroundings, light, camera, picture, Render this view | motion, animation, video, queue |
 | **Machine builder** | import, structure, place, joints, cylinders, mechanisms, way covers, hoses and drag chains, tracks, Set-up window, clash check | looks beyond materials, video finishing, 3D page |
-| **Video producer** | animation steps, camera paths, labels, picture cards, music, brand kit, watermark, captions, render queue | import, structure, making joints |
+| **Video producer** | animation steps, camera paths, weather and time (with its presets and the change at the playhead), turntable, Render this view, the joint sliders, Save start scene, labels, picture cards, music, brand kit, watermark, captions, render queue | import, structure, making joints |
 | **Houses** | House from House Planner, surroundings, weather and time, light, camera, picture, turntable, 3D page | machine motion, CNC, cables |
 | **Full access** | everything, plus Blender's own tabs, toolbar and menus | – |
+
+<a id="colleague-project"></a>
+**A colleague's project opens in your workspace.** A project that someone else saved in another workspace opens in
+**your own** workspace (the one you chose for new projects), so a sales person is never greeted by a machine builder's
+panels. A small window says whose workspace it was and offers **Switch to theirs**; **OK** keeps yours. Tick
+**Don't show this again**, or turn the window off in **Fresing Settings > General > Say when a colleague's project opens
+in my workspace**. A Client view project stays locked and keeps its own workspace. The right-click menu and **Make**
+follow the workspace as well: Sales sees no *Add joint here…*, Make has **Render animation**, and the Client view
+has a **Play** button once the animation is built.
 
 <a id="essentials"></a>
 **Essentials is the start.** Anyone who has not chosen a workspace yet starts new projects in Essentials. If you used

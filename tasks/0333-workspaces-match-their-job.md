@@ -1,6 +1,6 @@
 # 0333 – Workspaces match their job (0328 F4)
 
-**Who:** worker · **Status:** open – waits for 0295 (`ui_topbar.py`, `core/functions.py`, the Settings files) ·
+**Who:** worker · **Status:** done (0.2.259) ·
 **Branch:** `task/0333-workspaces-match-their-job`
 **Started by:** lead, 25 Nov 2026 (from 0328's report; owner's answers 25 Nov 10:5x below) · **Model:** Sonnet · effort Medium
 **Area:** Workspaces – `core/functions.py`, `core/workspaces.py`, `blender/workspaces.py`, `blender/context_menu.py`,
@@ -49,10 +49,24 @@ these files. **The owner's answers (25 Nov):**
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 25 Nov 2026.
 
-**What changed:**
+**What changed:** 0328 rows 9 (right-click menu draws an entry only when `workspaces.shows` its function), 10 (Video
+producer: weather + presets + change, start scene, turntable, Render this view, joint sliders; Animator: light, saved
+scenes, weather, turntable; `looks.picker` beside `looks.materials`; finishes + update in Essentials / Machine builder;
+the Client view's `import.*` functions hidden by `NO_CLIENT`; Make's Animation output also where `queue.video` shows – Sales;
+the Product video note), 11 (grey one-line "N hidden, in use"), 16 (Play beside Build & play in the Client view when built),
+26 (the "animation is built" box moved under Back to CAD), 33 (no greyed Lead motions buttons when locked). Owner's answer 3:
+`workspaces.take_in` opens a project saved by another person (new hidden project field `saved_by`, written at every save) in
+the user's workspace; popup `fresing.colleague_workspace` with Switch to theirs / OK / Don't show again;
+Settings > General switch `ask_colleague_workspace` (on by default). Function `panel.colleague_workspace`, guide section,
+PC-check addition to `workspace.round3`, tests `tests/test_workspaces_match_job.py` (+ right-click test, 5 old tests updated).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no graphics card): the touched tests locally (workspaces, functions, form
+window, guide, lead motions, tour, PC check: 415 passed; `test_zz_switching_the_extension_off…` fails alone on `main` too);
+`ui_test_place.py` 22/22 locally. GitHub: 4 runs – popup not named in `form_window.POPUPS` (fixed); version clash with 0332
+(renumbered 0.2.259); `ui_test_place.py`'s first click failed once on a slow runner, passed locally and on a re-run of that
+job; final run green. Not done: screenshots with `tools/ui_screens.py` were not looked at; no real-app test of the popup.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** Old projects have no `saved_by`, so they open as they were (no popup). "Who" is the PC
+user name, not a person's name. Row 32's other words (status bar, cut texts) are untouched. 0295's Keys tab untouched.

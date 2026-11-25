@@ -1,6 +1,6 @@
 # 0346 – Coolant liquid B1: liquid on the 3-axis machine, the tray and the drain
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0346-coolant-liquid-b1`
+**Who:** worker · **Status:** running · **Branch:** `task/0346-coolant-liquid-b1`
 **Started by:** lead, 25 Nov 2026 (Machining lane: 0251 study → 0255 core A → 0257 → **B1** → B2 = 0347) ·
 **Model:** Opus · effort High · Claude Code on the web, environment "CAD-render-animation"
 **Area:** Machining lane – new `blender/liquid.py` (+ `ops_liquid.py` / `ui_liquid.py` if you need them, or additions to

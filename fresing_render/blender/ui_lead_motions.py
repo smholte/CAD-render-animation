@@ -28,10 +28,13 @@ def draw_menu(layout, context, in_window: bool = False) -> None:
     """The rows of the drop-down (and of the Keep open window)."""
     scene = context.scene
     s = scene.fresing
+    from . import workspaces
+    locked = workspaces.locked(scene)
     col = layout.column()
     if not len(s.lead_motions):
         col.label(text="No lead motions yet: one slider per function of the machine.", icon="INFO")
-        col.operator("fresing.lead_make_one", text="Make one…", icon="ADD")
+        if not locked:
+            col.operator("fresing.lead_make_one", text="Make one…", icon="ADD")
         return
     for i, lm in enumerate(s.lead_motions):
         box = col.box() if not in_window else col.column()
@@ -57,13 +60,16 @@ def draw_menu(layout, context, in_window: bool = False) -> None:
         b.label(text=hi)
         op = row.operator("fresing.lead_play", text="", icon="PLAY_REVERSE" if lm.position >= 99.95 else "PLAY")
         op.index = i
-        op = row.operator("fresing.lead_add_step", text="", icon="ADD")
-        op.index = i
+        if not locked:                          # task 0333: nothing greyed in the Client view
+            op = row.operator("fresing.lead_add_step", text="", icon="ADD")
+            op.index = i
     col.separator()
     row = col.row(align=True)
     row.operator("fresing.lead_back_to_start", text="Back to start", icon="LOOP_BACK")
     if not in_window:
         row.operator("fresing.lead_keep_open", text="Keep open", icon="WINDOW")
+    if locked:
+        return
     row = col.row(align=True)
     row.operator("fresing.lead_show_all", text="Show every function", icon="SEQUENCE")
     row.operator("fresing.lead_edit", text="Edit lead motions…", icon="PREFERENCES")
