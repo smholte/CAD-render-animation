@@ -393,6 +393,30 @@ def test_pages_workflow():
     assert "!cancelled()" in job and "uses: ./.github/workflows/pages.yml" in job
 
 
+def test_pages_workflow_publishes_one_artifact_per_attempt():
+    """Task 0339: deploy-pages did not see the artifact uploaded a second before ("No artifacts named github-pages"),
+    and a re-run saw the first attempt's too ("Multiple artifacts"). One name per attempt, a wait until the run lists
+    it, a second deploy try, one deploy at a time; the caller grants what the wait needs."""
+    wf = open(os.path.join(ROOT, ".github", "workflows", "pages.yml"), encoding="utf-8").read()
+    top, job = wf[:wf.index("\njobs:")], wf[wf.index("\njobs:"):]
+    assert "concurrency:" not in top                                # the job's group, not the workflow's
+    assert "    concurrency:\n      group: pages\n      cancel-in-progress: false\n" in job
+    assert "PAGES_ARTIFACT: github-pages-${{ github.run_attempt }}" in job
+    assert "  actions: read" in top
+    assert job.count("uses: actions/upload-pages-artifact@") == 1 and job.count("uses: actions/deploy-pages@") == 2
+    assert "          name: ${{ env.PAGES_ARTIFACT }}" in job
+    assert job.count("          artifact_name: ${{ env.PAGES_ARTIFACT }}") == 2
+    first, second = job.split("uses: actions/deploy-pages@")[0], job.split("uses: actions/deploy-pages@")[1]
+    assert "id: deploy1\n        continue-on-error: true\n" in first      # the first try may fail ...
+    assert "if: ${{ steps.deploy1.outcome == 'failure' }}" in second   # ... the second runs only then, and may not
+    assert job.count("continue-on-error") == 1
+    assert job.index("name: Wait until the run lists the artifact") < job.index("id: deploy1")
+    tests = open(os.path.join(ROOT, ".github", "workflows", "tests.yml"), encoding="utf-8").read()
+    caller = tests[tests.index("\n  pages:"):]
+    caller = caller[:caller.index("uses: ./.github/workflows/pages.yml")]
+    assert "actions: read" in caller and "pages: write" in caller and "id-token: write" in caller
+
+
 def test_fcstd_to_step(tmp_path):
     """tools/fcstd_to_step.py: shapes stored in a FreeCAD file become named, placed parts of a STEP assembly."""
     pytest.importorskip("OCP")

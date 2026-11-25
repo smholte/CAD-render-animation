@@ -15,7 +15,8 @@
      and copies its report to -OutDir. The report is judged afterwards by tools/ci_check_selftest.py.
   6. Starts the PC check (Full) exactly as its Tools-folder shortcut does and copies its report and its
      text block (pccheck_last_run.txt) to -OutDir; judged afterwards by tools/ci_check_pccheck.py.
-  With -Uninstall it instead runs the Installed-apps entry's UninstallString and checks that everything is gone.
+  With -Uninstall it first answers N to the "Uninstall Fresing Render" shortcut's question (task 0339: nothing goes),
+  then runs the Installed-apps entry's UninstallString (no question) and checks that everything is gone.
 
   -Part (task 0171: GitHub runs two parts at once, each on its own Windows machine):
     all  everything below (the default; the owner's or a chat's own run)
@@ -150,7 +151,7 @@ function Check-AppsEntry([string]$when, [string]$expectVersion) {
 }
 
 # Task 0329: "Uninstall Fresing Render" in the install folder and next to Fresing Render.exe (Blender's folder): it runs
-# exactly the Installed-apps entry's UninstallString (powershell.exe + its arguments).
+# exactly the Installed-apps entry's UninstallString (powershell.exe + its arguments) + -Ask (task 0339: it asks Y/N).
 $UninstallLnk = "Uninstall Fresing Render.lnk"
 function Uninstall-Links {
     $dirs = @($InstallDir) + @(Get-ChildItem -LiteralPath $InstallDir -Directory -Filter "blender-*-windows-x64" -ErrorAction SilentlyContinue |
@@ -169,8 +170,9 @@ function Check-UninstallLinks([string]$when) {
         $cmd = "powershell.exe " + $l.Arguments
         $where = Split-Path -Leaf (Split-Path -Parent $path)
         if ((Split-Path -Leaf $l.TargetPath) -ne "powershell.exe" -or -not (Test-Path -LiteralPath $l.TargetPath)) { $bad += "${where}: starts '$($l.TargetPath)'" }
-        if (-not $e -or $cmd -cne $e.UninstallString) { $bad += "${where}: runs '$cmd', the entry '$($e.UninstallString)'" }
-        if ($l.Arguments -notlike "*-Pause") { $bad += "${where}: no -Pause" }
+        if (-not $e -or $cmd -cne ($e.UninstallString + " -Ask")) { $bad += "${where}: runs '$cmd', the entry '$($e.UninstallString)' + -Ask" }
+        if ($l.Arguments -notlike "*-Pause -Ask") { $bad += "${where}: no -Pause -Ask" }
+        if ($e -and ($e.UninstallString -like "*-Ask*" -or $e.QuietUninstallString -like "*-Ask*")) { $bad += "the entry asks: '$($e.UninstallString)'" }
         if ($l.Description -cne "Removes Fresing Render from this PC. Your projects, renders and backups are kept") { $bad += "${where}: tooltip '$($l.Description)'" }
         if ($l.WorkingDirectory -and $l.WorkingDirectory.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) { $bad += "${where}: works in '$($l.WorkingDirectory)'" }
         Write-Host "   ($when) $where\$UninstallLnk -> `"$($l.TargetPath)`" $($l.Arguments) (icon $($l.IconLocation))"
@@ -203,10 +205,11 @@ function Check-GpuPref([string]$when) {
     $script:Summary += "| Graphics preference High performance ($when) | $(if (-not $bad) { '✅ ' + $prefs.Count + ' program(s)' } else { '❌ ' + ($bad -join '; ') }) | |"
 }
 
-function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Arguments = "") {   # measured: 3-21 s
-    # The .bat ends with "pause": an empty file as keyboard input ends the pause at once.
+function Run-Bat([string]$Bat, [string]$LogName, [int]$Minutes = 10, [string]$Arguments = "", [string]$Answer = "") {   # measured: 3-21 s
+    # The .bat ends with "pause": an empty file as keyboard input ends the pause at once. $Answer: what is typed
+    # (task 0339: the uninstaller's Y/N question reads the first line)
     $empty = Join-Path $WorkDir "no_keyboard.txt"
-    Set-Content -LiteralPath $empty -Value "" -NoNewline
+    if ($Answer) { Set-Content -LiteralPath $empty -Value $Answer } else { Set-Content -LiteralPath $empty -Value "" -NoNewline }
     $log = Join-Path $OutDir "$LogName.log"
     $err = Join-Path $OutDir "$LogName.stderr.log"
     $t0 = Get-Date
@@ -300,9 +303,10 @@ if (`$errs.Count) { `$errs | ForEach-Object { 'PARSE line ' + `$_.Extent.StartLi
 }
 
 if ($Uninstall) {
-    # task 0265: what Settings > Apps > Installed apps > Uninstall runs - the key's own UninstallString, not Uninstall.bat;
-    # task 0329: started as a double-click on "Uninstall Fresing Render" in the install folder does it - the shortcut's
-    # own program, arguments and working folder (checked equal to the UninstallString first)
+    # task 0339: a double-click on "Uninstall Fresing Render" in the install folder - the shortcut's own program,
+    # arguments and working folder (checked: the UninstallString + -Ask) - answered "N" changes nothing; then what
+    # Settings > Apps > Installed apps > Uninstall runs - the key's own UninstallString, with no keyboard input: it must
+    # not ask (an unanswered question removes nothing) and removes everything
     $e = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction SilentlyContinue
     if (-not $e -or -not $e.UninstallString) { throw "no Installed-apps entry to uninstall from (run the install part first)" }
     Check-UninstallLinks "before uninstall"
@@ -314,8 +318,25 @@ if ($Uninstall) {
     $Documents = [Environment]::GetFolderPath("MyDocuments")
     $project = Join-Path $Documents "Fresing uninstall test project.blend"
     Set-Content -LiteralPath $project -Value "a project of mine"
-    Note "Uninstall Fresing Render in the install folder: `"$($l.TargetPath)`" $($l.Arguments) (in $($l.WorkingDirectory))"
-    $r = Run-Bat $l.TargetPath "uninstall" 5 $l.Arguments
+    Note "Uninstall Fresing Render in the install folder, answered N: `"$($l.TargetPath)`" $($l.Arguments) (in $($l.WorkingDirectory))"
+    $no = Run-Bat $l.TargetPath "uninstall-no" 2 $l.Arguments "n"
+    $kept = @()
+    if ($no.Code -ne 2) { $kept += "exit code $($no.Code), expected 2" }
+    if ($no.Text -notmatch "Remove Fresing Render from this PC\? Your projects, renders and backups are kept\. \(Y/N\)") { $kept += "no question" }
+    if ($no.Text -notmatch "Nothing was removed") { $kept += "did not say 'Nothing was removed'" }
+    if (-not (Test-Path -LiteralPath (Join-Path $InstallDir "installed.txt"))) { $kept += "installed.txt gone" }
+    if (-not (Test-Path -LiteralPath (Join-Path $InstallDir "Tools\Uninstall-FresingRender.ps1"))) { $kept += "the uninstaller gone" }
+    if (-not (Test-Path -LiteralPath $AppsKey)) { $kept += "the Installed-apps entry gone" }
+    if (-not (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk"))) { $kept += "the Desktop shortcut gone" }
+    foreach ($p in $links) { if (-not (Test-Path -LiteralPath $p)) { $kept += "$p gone" } }
+    if (@(Get-ChildItem -LiteralPath $InstallDir -Directory -Filter "blender-*-windows-x64" -ErrorAction SilentlyContinue).Count -ne 1) { $kept += "Blender's folder gone" }
+    foreach ($k in $kept) { Problem "Uninstall answered N: $k" }
+    $Summary += "| Uninstall shortcut answered N: asks, nothing removed | $(if (-not $kept) { '✅' } else { '❌ ' + ($kept -join '; ') }) | $($no.Seconds) s |"
+    $cmdLine = [string]$e.UninstallString
+    $psArgs = $cmdLine.Substring($cmdLine.IndexOf(" ") + 1)
+    Note "Settings > Installed apps > Uninstall (no keyboard input): $cmdLine"
+    $r = Run-Bat $l.TargetPath "uninstall" 5 $psArgs
+    if ($r.Text -match "\(Y/N\)") { Problem "Settings' Uninstall asked Y/N (Windows asks there itself)" }
     if (-not (Test-Path -LiteralPath $project)) { Problem "Uninstall removed a project in Documents" }
     Remove-Item -LiteralPath $project -Force -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $AppsKey) { Problem "Uninstall left the entry in Installed apps" }
@@ -332,7 +353,7 @@ if ($Uninstall) {
     # task 0217: only the app's own folder of the Toolbox folder goes
     if (Test-Path -LiteralPath (Join-Path $ToolboxHome "tools\nl.fresing.render")) { Problem "Uninstall left tools\nl.fresing.render in the Toolbox folder" }
     if (-not (Test-Path -LiteralPath (Join-Path $ToolboxHome "toolbox-folder.json"))) { Problem "Uninstall removed the Toolbox folder itself" }
-    $Summary += "| Uninstall (the install folder's shortcut = the Installed-apps command) | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
+    $Summary += "| Uninstall (the Installed-apps command, no question) | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
     # a second run when the folder is already gone says so plainly (Uninstall.bat, the repository's uninstaller)
     $again = Run-Bat $l.TargetPath "uninstall-again" 2 ("-NoProfile -ExecutionPolicy Bypass -File `"" + (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "installer\Uninstall-FresingRender.ps1") + "`" -InstallDir `"$InstallDir`"")
     $plain = ($again.Code -eq 0) -and ($again.Text -match "the folder is gone")
