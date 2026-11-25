@@ -28,3 +28,11 @@ def _many(one: str) -> str:
 def verb(n: int, one: str, many: str) -> str:
     """The verb that goes with a count: verb(1, 'matches', 'match') -> 'matches'."""
     return one if n == 1 else many
+
+
+def triangles(n: float) -> str:
+    """"12,345 triangles" below 100,000, else "1.4 M triangles" (task 0334: never "0.0 M triangles")."""
+    n = int(n)
+    if n < 100_000:
+        return f"{n:,} triangle" + ("" if n == 1 else "s")
+    return f"{n / 1e6:.1f} M triangles"
