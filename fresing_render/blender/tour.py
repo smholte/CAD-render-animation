@@ -970,7 +970,7 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.241")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.245")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
@@ -1003,6 +1003,36 @@ def build_materials(b: Build):
         material_picker.add_to_project(sc, material_files.builtin(key))
     s.groups_index = next((i for i, g in enumerate(s.groups) if g.name.startswith("Welded frames")), 0)
     _shot(b, "@material_picker")
+    # task 0314: the blue covers adjusted – duller, dusty, a clear coat
+    cov = next(g for g in s.groups if g.name.startswith("Covers"))
+    for k, v in ADJUST.items():
+        setattr(cov, "adj_" + k, v)
+
+
+ADJUST = {"shine": -0.5, "dirt": 0.6, "coat": 0.8}
+
+
+def _set_up_adjust(scene):
+    s = scene.fresing
+    s.groups_index = next((i for i, g in enumerate(s.groups) if g.name.startswith("Covers")), s.groups_index)
+
+
+def _check_adjust(scene):
+    """Task 0314: the Covers group's material has the node "FR adjust" with the stop's values; the picker draws its
+    Adjust box for it."""
+    import bpy
+
+    from . import look_adjust, materials, ui_material_picker, ui_settings
+    g = next(g for g in scene.fresing.groups if g.name.startswith("Covers"))
+    mat = materials.group_material(g)
+    n = look_adjust.node_of(mat)
+    _check(n is not None, "the Covers' material has no FR adjust node")
+    for k, v in ADJUST.items():
+        got = n.inputs[look_adjust.label(k)].default_value
+        _check(abs(got - v) < 1e-4, f"{look_adjust.label(k)} is {got:.2f}, not {v}")
+    ui_material_picker.draw_adjust(ui_settings._Any(), bpy.context, g,
+                                   ui_material_picker.MP.find(scene, ui_material_picker.MP.group_key(g)))
+    return ", ".join(f"{look_adjust.label(k)} {v:+.1f}" for k, v in ADJUST.items())
 
 
 PICKER_LIST = ("builtin:chrome", "preset:paint_5010", "builtin:knurl_diamond", "builtin:rubber_black")
@@ -1091,7 +1121,7 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.245")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.246")
 def build_welds(b: Build):
     import bpy
 
@@ -4996,6 +5026,13 @@ stop("material_picker", LOOK, "looks", "Material picker, project list",
      "opens the Materials window: a picture of every material, filters Source / Material / Colour / Look on the left, "
      "the picked one large on the right with Use for <group>, Add to this project and Save as my material….",
      where="3 Looks > a group > This project's materials, More materials…", check=_check_picker, since="0.2.241")
+stop("look_adjust", LOOK, "looks", "Adjust a look",
+     "The blue anodised covers look duller and dusty, with a clear coat on top (Shine −0.5, Dirt 0.6, Clear coat "
+     "0.8; render to see it). 3 Looks > Covers > More materials…: under 'Use for Covers' the box Adjust shows Shine, "
+     "Metal ↔ paint, Wear and edges, Dirt, Relief and Clear coat with these values, and Reset; the picture on the right "
+     "is made again a moment after a slider moves.",
+     where="3 Looks > a group > More materials… > Adjust", check=_check_adjust, setup=_set_up_adjust,
+     shot="Material picker, project list", since="0.2.245")
 stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
@@ -5017,7 +5054,7 @@ stop("welds_cad", LOOK, "welds", "Welds from the CAD file",
      "unequal legs at the stiffener and a V groove with its cap between the two blue plates. Each keeps its CAD shape "
      "and has the app's looks: painted blue like the plate, ripples showing through, a narrow tint strip beside it. "
      "In the list they have the import icon; open one: 'From the CAD file (by its name) · fillet a4 · legs 10 × 6 mm'.",
-     where="3 Looks > Welds (From the CAD file)", check=_check_welds_cad, since="0.2.245")
+     where="3 Looks > Welds (From the CAD file)", check=_check_welds_cad, since="0.2.246")
 stop("workspace_welding", LOOK, "welds", "The workspace Welding",
      "The same weldment, the Workspace row on the left panel now says 'Welding' (its small arrow open). The side "
      "panel shows only what welding needs: 1 Import, 2 Structure, 3 Looks with Welds open, 5 Scene & Render (light, "

@@ -466,10 +466,11 @@ def from_template(scene, items: list) -> int:
 # ---------------------------------------------------------------------------------------------------------------------
 # using an entry
 
-def apply(context, g, e) -> None:
+def apply(context, g, e, full: bool = False) -> None:
     """Give group ``g`` the entry's look: its library material and settings (one rebuild of the group's material).
     A built-in keeps the group's colour (when it has none of its own), wear and rust; a finish of the same kind
-    keeps the group's finish settings."""
+    keeps the group's finish settings. ``full`` (Reset, task 0314): Wear, Rust and the finish's settings from the
+    entry too."""
     if not e.ok:
         raise ValueError("; ".join(e.problems))
     scene = g.id_data
@@ -484,12 +485,12 @@ def apply(context, g, e) -> None:
     if v["color"] is not None:
         g["color"] = v["color"]
     ch = e.changes or {}
-    if "wear" in ch or e.key.startswith("own:"):
+    if "wear" in ch or e.key.startswith("own:") or full:
         g["wear"] = v["wear"]
-    if "rust" in ch or e.key.startswith("own:"):
+    if "rust" in ch or e.key.startswith("own:") or full:
         g["rust"] = v["rust"]
     fin = v["finish"]
-    if fin is not None and not (same and "finish" not in ch):
+    if fin is not None and not (same and "finish" not in ch and not full):
         g["fin_size"] = fin["size"]
         g["fin_angle"] = math.radians(fin["angle"])
         g["fin_amount"] = fin["amount"]
@@ -498,9 +499,26 @@ def apply(context, g, e) -> None:
         g["fin_of"] = fin_core.finish_id(v["material"])
     elif fin is not None:
         g["fin_of"] = fin_core.finish_id(v["material"])
+    from . import look_adjust
+    look_adjust.write(g, v["adjust"])               # task 0314: the entry's own Adjust values (built-ins: none)
     g["mat_key"] = e.key
     from . import props
     props._group_look_changed(g, context)
+    forget_adjusted(g)
+
+
+def reset(context, g) -> None:
+    """Task 0314: the group's look back to its entry as made – the Adjust sliders, Wear, Rust and the finish's
+    settings from the entry (a colour-taking entry keeps the group's colour). A group without an entry: the sliders."""
+    from . import look_adjust
+    e = find(g.id_data, group_key(g))
+    if e is None or not e.ok or e.is_blend:
+        look_adjust.write(g, {})
+        from . import props
+        props._group_look_changed(g, context)
+        forget_adjusted(g)
+        return
+    apply(context, g, e, full=True)
 
 
 def group_finish_dict(g) -> dict | None:
@@ -530,7 +548,9 @@ def save_from_group(context, g, name: str, description: str, root: str):
         if src is None:
             raise F.MaterialError("This group's Blender material is not in the project")
         return save_from_blender(context, src, name, description, root, group=g)
-    data = F.new_material(name, g.material, F.changes_of(g.material, g.color, g.wear, g.rust, group_finish_dict(g)),
+    from . import look_adjust
+    data = F.new_material(name, g.material, F.changes_of(g.material, g.color, g.wear, g.rust, group_finish_dict(g),
+                                                         look_adjust.values_of(g)),
                           description, author(), app_version())
     folder = F.save_new(root, data)
     e = F.read_folder(folder, *_level_of(root))
@@ -698,6 +718,114 @@ def _watch_jobs():
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+# task 0314: the large picture of an adjusted look, made again in the background 0.8 s after the last change
+
+ADJUST_WAIT = 0.8
+
+
+def window_open() -> bool:
+    from .ops_setup import MATERIALS_MARK
+    wm = getattr(bpy.context, "window_manager", None)
+    for win in (wm.windows if wm is not None else ()):
+        try:
+            if win.screen.get(MATERIALS_MARK):
+                return True
+        except (AttributeError, ReferenceError):
+            continue
+    return False
+
+
+def group_item(g, out: str) -> dict | None:
+    """The picture runner's job for what a group shows now (None: a Blender material, not pictured here)."""
+    if g.material in ("blender_material", "from_file"):
+        return None
+    from . import look_adjust
+    ch = F.changes_of(g.material, g.color, g.wear, g.rust, group_finish_dict(g), look_adjust.values_of(g))
+    if not ch.get("color") and ML.needs_color(g.material):
+        ch["color"] = F.PICTURE_COLOURS.get(g.material, F.DEFAULT_PICTURE_COLOUR)
+    return {"out": out, "base": g.material, "changes": ch, "samples": 24}
+
+
+def look_stamp(g) -> str:
+    it = group_item(g, "")
+    return json.dumps(it, sort_keys=True) if it else ""
+
+
+def adjusted(g) -> None:
+    """A group's look changed while the Materials window may show it: its large picture is made again soon."""
+    if bpy.app.background or not window_open():
+        return
+    a = _S.setdefault("adj", {})
+    st = a.setdefault(g.name, {})
+    st["due"] = time.monotonic() + ADJUST_WAIT
+    st["stamp"] = look_stamp(g)
+    st["scene"] = g.id_data.name
+    if not bpy.app.timers.is_registered(_adjust_tick):
+        bpy.app.timers.register(_adjust_tick, first_interval=0.2)
+
+
+def forget_adjusted(g) -> None:
+    _S.setdefault("adj", {}).pop(g.name, None)
+
+
+def adjusted_icon(g) -> tuple:
+    """(icon id or 0, busy): the latest picture of the group's adjusted look."""
+    st = _S.setdefault("adj", {}).get(g.name)
+    if not st:
+        return 0, False
+    busy = bool(st.get("proc") is not None or st.get("due"))
+    return st.get("icon", 0), busy
+
+
+def _adjust_tick():
+    a = _S.setdefault("adj", {})
+    now = time.monotonic()
+    for name, st in list(a.items()):
+        proc = st.get("proc")
+        if proc is not None:
+            if proc.poll() is None:
+                continue
+            st["proc"] = None
+            pic = st.get("out", "")
+            if proc.returncode == 0 and os.path.isfile(pic):
+                pc = previews()
+                k = "adj|" + _stamp(pic)
+                if k not in pc:
+                    pc.load(k, pic, "IMAGE")
+                old = st.get("key")
+                if old and old != k and old in pc:
+                    del pc[old]
+                st["key"], st["icon"] = k, pc[k].icon_id
+            redraw()
+        if st.get("due") and now >= st["due"] and st.get("proc") is None:
+            sc = bpy.data.scenes.get(st.get("scene", ""))
+            g = sc.fresing.groups.get(name) if sc is not None and hasattr(sc, "fresing") else None
+            st["due"] = None
+            if g is None:
+                continue
+            work = st.get("dir") or tempfile.mkdtemp(prefix="fr_adjust_")
+            st["dir"] = work
+            st["n"] = st.get("n", 0) + 1
+            item = group_item(g, os.path.join(work, f"look_{st['n']}.png"))
+            if item is None:
+                continue
+            job = os.path.join(work, "job.json")
+            with open(job, "w", encoding="utf-8") as fh:
+                json.dump({"items": [item]}, fh)
+            cmd, env = runner_command(job)
+            kwargs = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)} if sys.platform == "win32" else {}
+            try:
+                log = open(os.path.join(work, "log.txt"), "w", encoding="utf-8")
+                st["proc"] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=work, **kwargs)
+                log.close()
+                st["out"] = item["out"]
+            except OSError as exc:
+                print("Fresing Render: the adjusted look's picture was not started:", exc)
+    busy = any(st.get("proc") is not None or st.get("due") for st in a.values())
+    return 0.25 if busy else None
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 
 def forget() -> None:
     """A project was opened: the project's copies are read again (the folders' list stays)."""
@@ -705,7 +833,7 @@ def forget() -> None:
 
 
 def unregister() -> None:
-    for fn in (_make_chips, _take_own, _watch_jobs):
+    for fn in (_make_chips, _take_own, _watch_jobs, _adjust_tick):
         if bpy.app.timers.is_registered(fn):
             bpy.app.timers.unregister(fn)
     if _S["previews"] is not None:
@@ -714,4 +842,4 @@ def unregister() -> None:
             pv.remove(_S["previews"])
         except Exception:  # noqa: BLE001
             pass
-    _S.update(previews=None, icons={}, chips={}, chip_todo=[], project={})
+    _S.update(previews=None, icons={}, chips={}, chip_todo=[], project={}, adj={})

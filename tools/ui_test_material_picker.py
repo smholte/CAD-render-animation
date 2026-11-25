@@ -299,6 +299,84 @@ def s_star():
 
 
 @step
+def s_adjust():
+    """Task 0314: a slider of the Adjust box moves the group's look live; the large picture is made again."""
+    g = group()
+    LA = mod("blender.look_adjust")
+    g.adj_shine = 0.5                                   # as the slider in the window writes it
+    g.adj_dirt = 0.4
+    mat = mod("blender.materials").group_material(g)
+    n = LA.node_of(mat)
+    check("Adjust: Shine and Dirt go into the group's material (node FR adjust)", n is not None
+          and abs(n.inputs["Shine"].default_value - 0.5) < 1e-4 and abs(n.inputs["Dirt"].default_value - 0.4) < 1e-4,
+          mat.name if mat else None)
+    S["adj_nodes"] = len(mat.node_tree.nodes)
+    g.adj_coat = 0.6
+    check("the next slider changes the node, the material is not built again",
+          len(mat.node_tree.nodes) == S["adj_nodes"] and abs(LA.node_of(mat).inputs["Clear coat"].default_value
+                                                             - 0.6) < 1e-4)
+    state().picked = mod("blender.material_picker").group_key(g)       # the window shows the group's own: Adjust
+    redraw()
+    return 0.5
+
+
+wait_until("the large picture of the adjusted look is made in the background",
+           lambda: mod("blender.material_picker").adjusted_icon(group())[0] != 0
+           and not mod("blender.material_picker").adjusted_icon(group())[1], 120)
+
+
+@step
+def s_nodes_full():
+    S["adjust_shot"] = shot("15_adjust")
+    W = mod("core.workspaces")
+    S["ws_before"] = mod("blender.workspaces").name_of(bpy.context.scene)
+    with override():
+        S["nodes_refused"] = not bpy.ops.fresing.look_nodes.poll() if not mod("blender.workspaces").blender_ui(
+            bpy.context.scene) else True
+        mod("blender.workspaces").switch(bpy.context.scene, W.NAMES["full"])
+    return 1.0
+
+
+@step
+def s_nodes():
+    S["wins_before"] = len(bpy.context.window_manager.windows)
+    with override():
+        r = bpy.ops.fresing.look_nodes("EXEC_DEFAULT", True, group=group().name)
+    check("Open in the shader editor: refused outside Full access, runs in Full access",
+          S["nodes_refused"] and r == {"FINISHED"}, r)
+    return 1.0
+
+
+def _node_win():
+    mat = mod("blender.materials").group_material(group())
+    for w in bpy.context.window_manager.windows:
+        for a in w.screen.areas:
+            if a.type == "NODE_EDITOR" and getattr(a.spaces.active, "node_tree", None) == mat.node_tree:
+                return w
+    return None
+
+
+wait_until("a window opens with the shader editor on the group's material", lambda: _node_win() is not None, 15)
+
+
+@step
+def s_nodes_close():
+    w = _node_win()
+    if w is not None:
+        with bpy.context.temp_override(window=w):
+            bpy.ops.wm.window_close()
+    return 1.0
+
+
+@step
+def s_nodes_back():
+    W = mod("core.workspaces")
+    with override():
+        mod("blender.workspaces").switch(bpy.context.scene, S.get("ws_before") or W.NAMES["all"])
+    return 1.0
+
+
+@step
 def s_filters():
     UI = mod("blender.ui_material_picker")
     st = state()

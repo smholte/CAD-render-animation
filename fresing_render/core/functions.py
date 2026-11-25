@@ -396,6 +396,11 @@ fn(id="looks.picker", short="Material picker",
 fn(id="looks.own_materials", title="Your own materials: Save as my material, From a Blender material", family="looks",
    panel="FRESING_PT_looks", button="fresing.mat_save", guide="own-materials", pccheck=("looks.picker",),
    since="0.2.241")
+# task 0314: adjust a look – plain sliders per material, live; Reset; the shader editor; "slower" looks marked
+fn(id="looks.adjust", short="Adjust a look",
+   title="Adjust a look: Shine, Metal ↔ paint, Dirt, Relief, Clear coat – live, Reset, Open in the shader editor",
+   family="looks", panel="FRESING_PT_looks", button="fresing.look_reset", guide="adjust-a-look",
+   tour=("look_adjust",), pccheck=("looks.adjust",), since="0.2.245")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -414,7 +419,7 @@ fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="l
    guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.weld_cad", short="Welds from CAD", title="Welds from the CAD file: solid beads in a STEP become welds",
    family="looks", panel="FRESING_PT_welds", button="fresing.weld_cad_find", guide="welds-from-cad", tour=("welds_cad",),
-   pccheck=("looks.weld_cad",), since="0.2.245")
+   pccheck=("looks.weld_cad",), since="0.2.246")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
