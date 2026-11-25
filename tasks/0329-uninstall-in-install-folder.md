@@ -109,3 +109,10 @@ uninstall after a partial removal; a gone folder's leftover entry), the rest is 
   keyboard for `-Pause`): the working-folder line and the retries are proven only by reading.
 - `shortcut_needs` compares the arguments case-sensitively (as the entry's `changes()` does): an app started through a
   path of other letter case would rewrite both shortcuts once.
+- **Runs:** 3 full runs (the first cancelled by the review fixes, the second green at 0.2.245, the third after
+  renumbering to 0.2.246 because task 0314 took 0.2.245 meanwhile), then the docs run on `main` that published
+  v0.2.246, passed the old-version update check and offered it to the apps.
+- **Not this task, for the lead:** the landing-page job "Publish" (actions/deploy-pages@v4) fails on `main` on and off
+  since 25 Nov ~00:10 – 7 of the last 10 runs, also the stand-alone "Landing page" workflow: "No artifacts named
+  github-pages" or, on a re-run, "Multiple artifacts named github-pages … count is 2". One re-run of 0.2.246's job failed
+  the same way; the landing page still shows an older version. Needs its own small task (`.github/workflows/pages.yml`).
