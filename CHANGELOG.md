@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.258 – 25 Nov 2026 – Workspaces match their job (task 0333)
+## 0.2.259 – 25 Nov 2026 – Workspaces match their job (task 0333)
 
 - **A colleague's project opens in your own workspace.** A small window says whose workspace it was and offers **Switch to
   theirs**; you can tick *Don't show this again* or turn it off in Fresing Settings > General.

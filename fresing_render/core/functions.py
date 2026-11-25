@@ -261,7 +261,7 @@ fn(id="panel.workspace", headline=True, title="Workspaces: show only the functio
    since="0.2.152", changed="0.2.226")
 fn(id="panel.colleague_workspace", title="A colleague's project opens in your own workspace, and says so once",
    family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_theirs", guide="colleague-project",
-   pccheck=("workspace.round3",), since="0.2.258")
+   pccheck=("workspace.round3",), since="0.2.259")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
    panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
