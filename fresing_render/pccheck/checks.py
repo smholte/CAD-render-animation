@@ -3034,7 +3034,7 @@ def project_reopen(ctx):
     return f"{size:.1f} MB"
 
 
-@line("project.newer", "A project from a newer app is only looked at", "0.2.261",
+@line("project.newer", "A project from a newer app is only looked at", "0.2.262",
       what="A project stamped by a newer Fresing Render opens with a plain message; Save is refused, Blender's own "
            "save keeps the newer file aside first, and no backup is made of it")
 def project_newer(ctx):

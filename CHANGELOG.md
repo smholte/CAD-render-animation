@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.262 – 25 Nov 2026 – Projects remember which version saved them (task 0352)
+
+- **A project from a newer Fresing Render opens safely.** Open a project that a newer version saved, and the app says
+  so plainly: "Saved by Fresing Render 0.2.X, newer than this one. Update the app to work on it – Fresing > Check for
+  updates. Saving is off so nothing in it is lost." You can look at it; Save is off, no automatic backup is made, the
+  render queue and the model update wait. Save As… makes a copy under a new name. If the file is written over anyway
+  (Blender's own "Save changes?" when closing), the file as the newer version saved it is kept next to it first.
+- Behind the scenes, every save now notes the project's format and the version that saved it. From the coming
+  "baseline" version on, this is what keeps every saved project opening, with the same data and the same look, in
+  every later version: each change in what a project stores gets one upgrade step, and test projects check it at
+  every release.
+
 ## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
 
 - **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
