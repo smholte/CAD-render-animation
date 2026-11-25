@@ -720,7 +720,7 @@ def looks_weld_symbols(ctx):
     return f"copy with {n} welds in {ms:.0f} ms; {p['names'][0]}; symbol '{text}'; CSV {len(rows) - 1} rows"
 
 
-@line("looks.weld_cad", "Welds from the CAD file: the beads of an Inventor-like STEP become welds", "0.2.249",
+@line("looks.weld_cad", "Welds from the CAD file: the beads of an Inventor-like STEP become welds", "0.2.250",
       what="An invented weldment exported as Inventor does (all solid welds one part 'Welds'): at the import it gives "
            "6 welds – a5 200 mm, a4 4 × 30 (20), a4 all round the tube and round the box post, a4 with legs 10 × 6, "
            "a V groove with a 15.5 mm cap – painted like the blue plate, the welds part left out. Judge the picture: "

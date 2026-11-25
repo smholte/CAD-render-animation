@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.249 – 25 Nov 2026 – Welds from the CAD file (task 0323)
+## 0.2.250 – 25 Nov 2026 – Welds from the CAD file (task 0323)
 
 - **A STEP file with solid welds brings them along.** At the import every weld bead in the file becomes a weld in
   3 Looks > Welds – with the app's looks on it (ripples, heat tint beside it, paint, rust) and its size in the weld
@@ -26,6 +26,12 @@ installer of that version was built from.
 - A **model update** keeps your changes on a weld whose bead came back in the same place, takes its new size and
   length, lists a weld whose bead is gone ("Weld lost in the new model") and adds a new bead as a new weld.
 - New PC-check line **looks.weld_cad**; new test tour stop **Welds from the CAD file** in the Welds set.
+## 0.2.249 – 25 Nov 2026 – Removing a crane or a load's model (task 0337)
+
+- **Remove… on a placed crane takes all of it.** The hoist rope, drum, sheaves, joints, poses and its entry in
+  8 Lifting plan went on showing; now they go with the crane, and the Remove window says it is a lifting crane.
+- **A load with no parts left says so.** Remove the load's model and the load showed a stale centre of gravity and a
+  green "within limits". Now a red line says "has no parts left" and the load is not used.
 ## 0.2.248 – 25 Nov 2026 – One undo step per action, messages beside their own button (task 0334)
 - Ctrl+Z now undoes one thing at a time after picking a RAL colour, loading a template (also from the library) and
   picking a 360° photo – before, one Ctrl+Z took the colour pick back together with the step before it.

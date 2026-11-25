@@ -1121,7 +1121,7 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.249")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.250")
 def build_welds(b: Build):
     import bpy
 
@@ -5054,7 +5054,7 @@ stop("welds_cad", LOOK, "welds", "Welds from the CAD file",
      "unequal legs at the stiffener and a V groove with its cap between the two blue plates. Each keeps its CAD shape "
      "and has the app's looks: painted blue like the plate, ripples showing through, a narrow tint strip beside it. "
      "In the list they have the import icon; open one: 'From the CAD file (by its name) · fillet a4 · legs 10 × 6 mm'.",
-     where="3 Looks > Welds (From the CAD file)", check=_check_welds_cad, since="0.2.249")
+     where="3 Looks > Welds (From the CAD file)", check=_check_welds_cad, since="0.2.250")
 stop("workspace_welding", LOOK, "welds", "The workspace Welding",
      "The same weldment, the Workspace row on the left panel now says 'Welding' (its small arrow open). The side "
      "panel shows only what welding needs: 1 Import, 2 Structure, 3 Looks with Welds open, 5 Scene & Render (light, "

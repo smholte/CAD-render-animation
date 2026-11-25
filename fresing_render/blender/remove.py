@@ -73,6 +73,17 @@ def _refs(coll) -> list:
 # what goes (the window's list)
 # ---------------------------------------------------------------------------
 
+def _cranes_in(scene, top) -> list:
+    """The placed lifting cranes among the chosen model roots (their whole set-up goes through ``lifting.remove``)."""
+    from . import lifting
+    out = []
+    for o in top:
+        c = lifting.crane_of_root(scene, o) if o.get(build.PROP_ROOT) else None
+        if c is not None and c not in out:
+            out.append(c)
+    return out
+
+
 def plan(scene, objs) -> dict:
     """What a Remove of ``objs`` takes with it: counts under the keys of ``core.place.GOES``, the indices of the items
     to take off (``"_flex"`` …), the names of the joints / cylinders / mechanisms that go, and the lines of what only
@@ -96,6 +107,10 @@ def plan(scene, objs) -> dict:
         if r is not None and r not in roots:
             roots.append(r)
     out["roots"] = [r.name for r in roots]
+    out["_cranes"] = [c.name for c in _cranes_in(scene, top)]          # task 0337 (0328 row 22)
+    for cn in out["_cranes"]:
+        out["loses"].append(f"'{cn}' is a lifting crane: its rope, drum, joints, poses and its entry in 8 Lifting plan "
+                            f"go with it")
 
     # joints
     j_gone, loses = [], out["loses"]
@@ -318,6 +333,13 @@ def remove(scene, objs) -> dict:
     """Remove ``objs`` (models, subassemblies, parts) with everything that lives on them. Returns the plan with
     ``"notes"`` (what the rebuild said)."""
     from . import animation, joints, reimport, sequence, states, vessel_motion
+    from . import lifting
+    cranes = _cranes_in(scene, chosen(scene, objs))
+    if cranes:                                # task 0337: a crane goes whole, with its rope and plan entry
+        keep = [o.name for o in objs if o is not None and o.name not in {c.root.name for c in cranes if c.root}]
+        for c in cranes:
+            lifting.remove(scene, c)
+        objs = [bpy.data.objects[n] for n in keep if n in bpy.data.objects]
     p = plan(scene, objs)
     if not p["objects"]:
         return p
