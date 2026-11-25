@@ -79,7 +79,7 @@ def _install(tmp_path, monkeypatch, blender="blender-5.2.3-windows-x64", script=
     (bdir / "blender.exe").write_bytes(b"x")
     (bdir / "Fresing Render.exe").write_bytes(b"x")
     if script:
-        (folder / "Tools" / ia.UNINSTALLER).write_text("# uninstaller")
+        (folder / "Tools" / ia.UNINSTALLER).write_text("# uninstaller\nparam([switch]$Pause, [switch]$Ask)")
     win = tmp_path / "Windows"
     ps = win / "System32" / "WindowsPowerShell" / "v1.0"
     ps.mkdir(parents=True)
@@ -201,3 +201,15 @@ def test_uninstall_bat_asks_and_the_entry_does_not():
     t = _text("installer", "Install-FresingRender.ps1")
     assert 'UninstallString = "$uninstallCmd -Pause"' in t and "QuietUninstallString = $uninstallCmd" in t
     assert "-Ask" not in t[t.index("$uninstallArgs = "):t.index("QuietUninstallString = $uninstallCmd")]
+
+
+def test_an_older_uninstaller_in_tools_gets_no_ask(tmp_path):
+    """Reviewer of 0339: a Tools copy that could not be refreshed has no -Ask; passing it would fail at once."""
+    folder = str(tmp_path / "FresingRender")
+    os.makedirs(os.path.join(folder, "Tools"))
+    script = ia.uninstaller_path(folder)
+    open(script, "w").write("param([string]$InstallDir, [switch]$Pause, [switch]$FromTemp)\n")
+    assert not ia.asks(folder) and not ia.shortcut_spec(folder)["arguments"].endswith(ia.ASK)
+    open(script, "w").write(_text("installer", "Uninstall-FresingRender.ps1"))
+    assert ia.asks(folder) and ia.shortcut_spec(folder)["arguments"].endswith(ia.ASK)
+    assert ia.asks(str(tmp_path / "none"))                          # no copy yet: the shipped one comes
