@@ -74,7 +74,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 119, "tour2": 2, "tourui": 31, "layout": 66,
               "panel": 39, "start": 56, "setup": 48, "highlight": 74, "usage": 33, "lesson": 43, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
-              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 125, "left": 55, "settings": 64, "locations": 17, "toolbox": 19,
+              "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 125, "menus": 34, "left": 55, "settings": 64, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 27, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 23, "names": 19, "measure": 16,
               "firstsetup": 43,
@@ -97,7 +97,7 @@ MIN_CHECKS_QUICK = {"ui1": 27, "surroundings": 17, "studio": 20, "video": 9, "ca
 GROUPS = {
     "pccheck": ["pccheck"],             # the PC check (Full) in two halves, task 0063: lines of tools/ci_pccheck_lines.py
     "pccheck-b": ["pccheck2", "lock", "clientkeys", "keys", "demokits", "drawn", "quiet", "lesson", "move", "jointfold"],   # jointfold: task 0290 (~40 s)   # move: task 0307 (~40 s)   # lesson: task 0230 (~1.5 min)   # quiet: task 0241 (~40 s)   # drawn: task 0240 (~0.5 min); demokits: task 0228 (~1 min)   # lock: task 0213 (~1 min); clientkeys: task 0227 (~40 s)          # task 0108: + the two EEVEE lines (~495 s); its small tests moved below
-    "callouts": ["callouts", "importagain", "place", "copy", "names", "materials", "measure"],   # measure: task 0322 (~40 s)   # materials: task 0273 (~1 min)      # names: task 0291 (~40 s)   # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s); copy: task 0293 (~40 s)
+    "callouts": ["callouts", "importagain", "place", "copy", "names", "materials", "measure", "menus"],   # menus: task 0367 (~40 s)   # measure: task 0322 (~40 s)   # materials: task 0273 (~1 min)      # names: task 0291 (~40 s)   # importagain: task 0289 (~0.5 min); place: task 0292 (~40 s); copy: task 0293 (~40 s)
     "paths-heavy": ["pccheckheavy", "panel", "setup", "firstsetup"],   # firstsetup: task 0276 (~1 min)   # task 0062: + the side panel and the Set-up window (~2.5 min)     # task 0108: paths (~130 s) moved to machines (this job took 9.4-11.7 min)
     "tour": ["tour", "toolbox", "forms", "welds"],   # welds: task 0319 (~40 s)     # forms: task 0282 (~1 min); toolbox: task 0217 (~2 min: two small house bakes); the automatic test tour (task 0060: with paths-heavy it took 18 min);
     "tour-b": ["tour2", "highlight", "start", "route", "workspaces2"],   # workspaces2: task 0294 (~1 min)   # route: task 0298 (~30 s)   # task 0062: + the lesson highlight (~1.5 min)                # task 0108: in two halves (729 s of stops in one job, 10-13 min)
@@ -282,6 +282,10 @@ TESTS = {
                 "on another tab, Blender's column shown and hidden, another project opened, saved half-way, the Client "
                 "view, both lessons to the end with Play on (ui_test_lesson_independent.py)",
                 "ui_test_lesson_independent.py", True),
+    "menus": ("Real app: shorter top-bar menus and Blender's side-panel tabs hidden – File / Render / Window / Help drawn "
+              "quiet, Help's sub-menu Blender, the Item tab gone with a part selected, another add-on's tab kept, Full "
+              "access and back, the Client view's File menu and greyed key settings (ui_test_menus.py)",
+              "ui_test_menus.py", True),
     "quiet": ("Real app: a quiet window – the 3D view header, tool header, top bar, splash and File > New / Ctrl+N "
               "without Blender's editing parts; Fresing > Show all of Blender / Back, Full access, the Client view, "
               "Edit Mode, a dummy add-on's items kept, projects open quiet, header width measured (ui_test_quiet.py)",

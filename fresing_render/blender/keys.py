@@ -361,6 +361,22 @@ class FRESING_OT_key_sheet(bpy.types.Operator):
         return {"FINISHED"}
 
 
+CLIENT_TEXT = ("Not in the Client view: Blender's key settings are in Blender's Preferences, which the Client view keeps "
+               "closed – Workspace > Full access unlocks it")
+
+
+def client_view(context) -> bool:
+    """Is the project in the Client view (its lock on)? Task 0367: Blender's key settings are greyed there."""
+    scene = getattr(context, "scene", None)
+    if scene is None or getattr(scene, "fresing", None) is None:
+        return False
+    try:
+        from . import workspaces
+        return bool(workspaces.locked(scene))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 class FRESING_OT_keys_blender(bpy.types.Operator):
     """Opens Blender's own key settings (Preferences > Keymap). That is Blender's list: there you change Blender's
     keys, not Fresing's – those are in Fresing Settings > Keys"""
@@ -368,6 +384,19 @@ class FRESING_OT_keys_blender(bpy.types.Operator):
     bl_idname = "fresing.keys_blender"
     bl_label = "Blender's own key settings"
     bl_options = {"INTERNAL"}
+
+    @classmethod
+    def poll(cls, context):
+        """Task 0367 (0332's open point): not in the Client view – Blender's Preferences could switch the app off."""
+        if client_view(context):
+            cls.poll_message_set(CLIENT_TEXT)
+            return False
+        return True
+
+    @classmethod
+    def description(cls, context, props):
+        doc = " ".join((cls.__doc__ or "").split())
+        return CLIENT_TEXT + ". " + doc if client_view(context) else doc
 
     def execute(self, context):
         context.preferences.active_section = "KEYMAP"

@@ -178,8 +178,9 @@ PAGES = ("FRESING_PT_settings_window", "FRESING_PT_form_window",     # the pages
 # windows and (task 0308) the output windows, whose toolbar region holds the outputs strip
 QUIET_PANELS = ("VIEW3D_PT_tools_active",)
 # task 0308: the side-panel tabs of Blender's own an output window shows beside "Make" – their Python panels hide there.
-# (Blender's Transform panel of the tab Item is not a Python class: with an active object that tab stays.)
-QUIET_TABS = ("Item", "Tool", "View", "Animation")
+# (Blender's Transform panel of the tab Item is not a Python class: task 0367 hides it through its poll, panels.py.)
+# Task 0367: + the glTF importer's "glTF Variants" tab (Blender's own add-on); every other add-on's tab stays.
+QUIET_TABS = ("Item", "Tool", "View", "Animation", "glTF Variants")
 _QUIET: dict = {}                 # class name -> (class, its own poll in its __dict__ or None, its children)
 
 

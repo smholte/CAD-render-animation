@@ -81,7 +81,7 @@ _COMMON = (
     "learn.next", "learn.window", "learn.show_me", "learn.build",
     "help.updates", "help.pc_check", "help.tour", "help.demo", "help.start_here", "help.welcome", "help.whats_new",
     "help.first_setup",
-    "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
+    "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys", "help.quiet_menus",
     "help.right_click", "settings.keys", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
     "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
     "motion.lead_motions",           # task 0309: the top bar's Lead motions, one click away in every workspace
@@ -873,6 +873,11 @@ fn(id="help.quiet_window", headline=True, short="Quiet window", title="A quiet w
 fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of Blender / Back to the Fresing window", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
    since="0.2.184", changed="0.2.258", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0367: the top-bar menus File, Render, Window, Help and the side panel's Blender tabs (study 0222 package C)
+fn(id="help.quiet_menus", short="Shorter menus", title="Shorter top-bar menus (File, Render, Window, Help with a "
+   "sub-menu Blender) and only the Fresing tab in the side panel outside Full access", family="help",
+   panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-menus", pccheck=("app.menus",),
+   since="0.2.262", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "

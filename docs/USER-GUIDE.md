@@ -604,11 +604,27 @@ are hidden, so the window shows only what you need to look at your model and mak
   not shown.
 - **File > New** (and **Ctrl+N**) offers only **New project**: a new project starts exactly like the app does –
   millimetres, Cycles and the app's layout. (Blender's **General** template opened in metres with another render engine.)
-- **The Edit menu** has **Undo**, **Redo**, **Undo History**, **Menu Search** and **Fresing Settings…** – no Rename,
-  Batch Rename or Blender's Preferences (<kbd>F2</kbd>, <kbd>Ctrl</kbd>+<kbd>F2</kbd> and <kbd>Ctrl</kbd>+<kbd>,</kbd> do
-  nothing either). <kbd>F4</kbd>'s file menu has New, Open and Open Recent.
-- **The side panel** shows only the **Fresing** tab: Blender's tabs Tool, View and Animation are hidden. (Blender's
-  **Item** tab still appears while a part is selected – Blender draws it itself.)
+<a id="quiet-menus"></a>
+- **The top-bar menus** hold what the app uses:
+  - **File**: **New project**, **Open…**, **Open Recent**, **Revert**, **Recover**, **Save**, **Save As…**,
+    **Save Copy…**, the app's **Import STEP…** and **Import mesh model…**, **Quit**. Blender's Link, Append, Data
+    Previews, its own Import / Export lists, External Data, Clean Up and Defaults are not shown. (The Client view has its
+    own, shorter File menu.)
+  - **Edit**: **Undo**, **Redo**, **Undo History**, **Menu Search** and **Fresing Settings…** – no Rename, Batch Rename
+    or Blender's Preferences (<kbd>F2</kbd>, <kbd>Ctrl</kbd>+<kbd>F2</kbd> and <kbd>Ctrl</kbd>+<kbd>,</kbd> do nothing
+    either). <kbd>F4</kbd>'s file menu has New, Open and Open Recent.
+  - **Render**: the app's **Render Image** (the blue Render image button, <kbd>F12</kbd>), **Render Animation** (the
+    selected animation through the render queue, <kbd>Ctrl</kbd>+<kbd>F12</kbd>), **Render Queue…** (Make's queue window)
+    and **View Last Render** (<kbd>F11</kbd>).
+  - **Window**: **Toggle Window Fullscreen**, **Show Status Bar** and **Save Screenshot…** – no new windows and no Next /
+    Previous Workspace.
+  - **Help**: Fresing's lines as before; Blender's own (Manual, Support, User Communities, Release Notes, Report a Bug,
+    Save System Info …) are in the sub-menu **Blender** at the bottom.
+
+  <img class="wide" src="img/quiet_menus.png" alt="The File, Render, Window and Help menus in the quiet window">
+
+- **The side panel** shows only the **Fresing** tab: Blender's tabs Tool, View, Animation, **Item** (also while a part
+  is selected) and glTF Variants are hidden. A tab of another add-on you installed still shows.
 - **No "Adjust Last Operation" box** at the bottom left of the 3D view after a button (picking a workspace, Build & play
   …): it only offered the same choice again.
 - **After a render** (the blue **Render image** button or <kbd>F12</kbd>) the picture shows whole, fitted into its
@@ -619,8 +635,8 @@ are hidden, so the window shows only what you need to look at your model and mak
 <img src="img/quiet_splash.png" alt="The start-up screen with the app's own lines">
 
 **To get it all back:** **Fresing > Show all of Blender**. It switches the project to the workspace **Full access**:
-Blender's menus, tools, workspace tabs, the Scene and View Layer fields, its start-up screen and File > New list come
-back at once. Nothing in your project is changed. The entry then says **Back to the Fresing window**: it hides them
+Blender's menus (also its full File, Edit, Render, Window and Help menus), tools, workspace tabs, side-panel tabs, the
+Scene and View Layer fields, its start-up screen and File > New list come back at once. Nothing in your project is changed. The entry then says **Back to the Fresing window**: it hides them
 again and puts the project back in the workspace it was in before – and the window back in the app's layout, also
 when you picked one of Blender's own tabs (Animation, Shading …) meanwhile. Picking **Workspace > Full access** at the
 top of the Fresing tab does the same; leaving it hides everything again.
@@ -704,7 +720,8 @@ like every other setting). **Esc** or a click elsewhere leaves it as it was.
 browser: print it there or save it as a PDF.
 
 **Blender's own key settings** opens Blender's Preferences > Keymap. That is Blender's list: it changes Blender's keys
-(used in Full access), not Fresing's.
+(used in Full access), not Fresing's. In the Client view the button is greyed: Blender's Preferences stay closed there
+(Workspace > Full access unlocks it).
 
 <a id="saving"></a>
 ### Saving a project – its name
@@ -1306,7 +1323,8 @@ A model you did not draw yourself – a vessel or a truck downloaded from Sketch
 comes in like a STEP model: an explorer tree, groups and looks, joints, poses, animation, clash check, renders
 and the web 3D model.
 
-1. **File > Import > Mesh model (glTF, OBJ, FBX)…**, the button **Import mesh model…** under
+1. **File > Import mesh model…** (in Full access: File > Import > Mesh model (glTF, OBJ, FBX)…), the button
+   **Import mesh model…** under
    Import STEP, or drag a .glb, .gltf, .obj or .fbx file onto the view.
 2. In the file browser (the gear at the top right) three settings:
    - **Units**: glTF is always in metres and FBX says its own units. An OBJ file does not: **Auto** guesses
@@ -4553,7 +4571,8 @@ The example below is the made-up sample house that comes with the app (`sample-h
 folder): two storeys, a stair, a window, a table under a ceiling lamp, a terrace, four moments in summer and winter.
 
 1. In House Planner: **Export to Fresing Render**. It saves a `.hpscene` file.
-2. In Fresing Render: **File > Import > House Planner scene (.hpscene)…** and pick that file. The house comes in
+2. In Fresing Render: **File > Import House Planner scene…** (in Full access: File > Import > House Planner scene
+   (.hpscene)…) and pick that file. The house comes in
    with its rooms, furniture, lamps and plot; it is saved next to your project in a folder "<house> house". Save the
    project first, so the files land next to it. Importing again replaces the house (a new export of the same house
    lines up with the old one).

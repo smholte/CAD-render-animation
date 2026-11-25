@@ -5343,7 +5343,7 @@ stop("mesh_import", MOTION, "mesh", "Mesh model: joint on a ring",
      "An invented crane read from a glTF mesh file (no CAD faces): its base shows the file's own grey checker "
      "texture, the other parts the file's colours. The 48-sided slewing ring was clicked like a round CAD face: the "
      "joint 'Slew' turns the turret (cab, boom) 120° about the ring's centre, without wobble. 1 Import shows the "
-     "file and its credit line.", where="File > Import > Mesh model (glTF, OBJ, FBX); 1 Import; 4 Motion > Add "
+     "file and its credit line.", where="File > Import mesh model (Full access: File > Import > Mesh model); 1 Import; 4 Motion > Add "
      "joint", since="0.2.99", changed="0.2.211", animation=MESH_ANIM, at=1.0, play=True, check=_check_mesh, auto="clip")
 
 stop("lifting_place", MOTION, "lifting", "Lifting: a crane placed",
@@ -5963,7 +5963,7 @@ stop("house", OUT, "house", "House from House Planner",
      "shadows across the plot, the terrace in front. 5 Scene & Render > House from House Planner lists the seasons "
      "and moments (Preview shows each one) and the bake of the summer morning this tour made (Show in folder: "
      "sample-house.hpbake next to the tour, for House Planner).",
-     where="File > Import > House Planner scene; 5 Scene & Render > House from House Planner", since="0.2.92",
+     where="File > Import House Planner scene (Full access: File > Import > …); 5 Scene & Render > House from House Planner", since="0.2.92",
      check=_check_house, changed="0.2.152")
 stop("house_toolbox", OUT, "house", "A house arrives by itself",
      "A house sent from House Planner waits at the top of 5 Scene & Render > House from House Planner: \"From House "

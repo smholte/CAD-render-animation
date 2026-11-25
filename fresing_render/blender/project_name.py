@@ -288,7 +288,13 @@ def _has(idname: str) -> bool:
 
 
 def file_menu_draw(self, context):
-    """Blender's own File menu, drawn with the stand-in layout."""
+    """Blender's own File menu, drawn with the stand-in layout – or (task 0367) the quiet window's shorter one."""
+    from . import quiet
+    try:
+        if quiet.file_menu(self, context):
+            return None
+    except Exception as exc:  # noqa: BLE001 - Blender's own then
+        print("Fresing Render: quiet File menu not drawn:", exc)
     orig = _S["menu"][0] if _S["menu"] else None
     if orig is None:
         return None

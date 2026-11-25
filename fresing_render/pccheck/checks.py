@@ -5944,6 +5944,63 @@ def app_keys(ctx):
     return f"{len(lock.BLENDER_KEYS)} Blender keys swallowed outside Full access, back in Full access; F12 = the app's render"
 
 
+@line("app.menus", "Shorter top-bar menus: File, Render, Window and Help hold what the app uses (Blender's help in a "
+      "sub-menu Blender); Blender's side-panel tabs Tool, View, Animation, Item, glTF Variants hidden; Blender's key "
+      "settings greyed in the Client view", "0.2.262",
+      what="Checks that Blender's own drawing of File, Render, Window and Help is found (the quiet window can replace "
+           "it and an add-on's items stay), what the quiet File / Render / Window menus hold and leave out, the Help "
+           "menu's sub-menu Blender, Blender's side-panel tabs (their Python panels hidden, another add-on's tab "
+           "kept; the Item tab's Transform panel – C code – where the check runs with a window) and the Keys tab's "
+           "Blender button greyed in the Client view")
+def app_menus(ctx):
+    import types
+
+    import bpy
+
+    from ..blender import keys, ops_settings, panels, project_name, quiet, workspaces
+    for cls in (bpy.types.TOPBAR_MT_render, bpy.types.TOPBAR_MT_window, bpy.types.TOPBAR_MT_help):
+        _check(quiet._own(cls, quiet.draw_funcs(cls)) >= 0 or quiet.blender_draw(cls) is not None,
+               f"Blender's own drawing of {cls.__name__} is not found: the quiet window cannot replace it")
+    _check(project_name.menu_swapped() or quiet._own(bpy.types.TOPBAR_MT_file,
+                                                     quiet.draw_funcs(bpy.types.TOPBAR_MT_file)) >= 0,
+           "Blender's own File menu is not found")
+    screen = types.SimpleNamespace(show_statusbar=True)
+    for name, fn, keeps, drops in (("File", quiet._file, quiet.FILE_KEEPS, quiet.FILE_DROPS),
+                                   ("Render", quiet._render, quiet.RENDER_KEEPS, quiet.RENDER_DROPS),
+                                   ("Window", quiet._window, quiet.WINDOW_KEEPS, quiet.WINDOW_DROPS)):
+        seen = quiet.lines(fn, types.SimpleNamespace(screen=screen, scene=bpy.context.scene))
+        _check(seen == list(keeps), f"the quiet {name} menu holds {seen}, not {list(keeps)}")
+        _check(not set(seen) & set(drops), f"the quiet {name} menu still has {sorted(set(seen) & set(drops))}")
+    _check(quiet.lines(quiet._help) == [], "the quiet Help menu still draws Blender's own lines at the top")
+    _check(hasattr(bpy.types, quiet.HELP_MENU), "the Help menu's sub-menu Blender is not registered")
+    blender_help = quiet.lines(getattr(bpy.types, quiet.HELP_MENU).draw)
+    _check("wm.sysinfo" in blender_help and "wm.url_open_preset" in blender_help,
+           f"the sub-menu Blender does not hold Blender's help lines ({blender_help})")
+    _check(set(ops_settings.QUIET_TABS) >= {"Item", "Tool", "View", "Animation", "glTF Variants"},
+           f"Blender's tabs hidden: {ops_settings.QUIET_TABS}")
+    shown = [c.__name__ for c in ops_settings.tab_panels() if c.__name__ not in ops_settings._QUIET]
+    _check(not shown, f"Blender's side-panel panels without the hiding poll: {shown}")
+    scene = bpy.context.scene
+    before = workspaces.name_of(scene)
+    try:
+        workspaces.switch(scene, "Client view")
+        _check(not bpy.ops.fresing.keys_blender.poll(), "Blender's key settings are not greyed in the Client view")
+        workspaces.switch(scene, "Full access")
+        _check(bpy.ops.fresing.keys_blender.poll(), "Blender's key settings are greyed in Full access")
+    finally:
+        try:
+            workspaces.switch(scene, before if before != "Client view" else "All functions")
+        except KeyError:
+            workspaces.switch(scene, "All functions")
+    if bpy.app.background:
+        item = "the Item tab's Transform panel not checked here (no window)"
+    elif panels.C_PANEL["transform"]:
+        item = "Item tab: " + ("hidden" if panels.c_panels_hidden() else "Blender's own (Full access)")
+    else:
+        item = "Item tab: Blender's Transform panel not found – the tab stays"
+    return f"{len(ops_settings._QUIET)} Blender side-panel panels with the hiding poll; {item}"
+
+
 @line("structure.move", "Move and turn with G / R: what is locked in place says so, Unlock so it can move, the move "
       "stays", "0.2.216",
       what="On the test crane: G / R / S bound to the app's check; the fresh import is locked in place and G says how "

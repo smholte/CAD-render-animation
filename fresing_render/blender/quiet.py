@@ -17,6 +17,16 @@ model and the app's own buttons:
 * **Edit** (task 0332, 0328 row 7): Undo, Redo, Undo History, Menu Search and Fresing Settings – no Rename Active Item,
   Batch Rename, Lock Object Modes or Blender's Preferences (F2 / Ctrl+F2 / Ctrl+, are swallowed in lock.py); the F4
   file menu likewise without Preferences, Link, Append, Import and Export;
+* **File, Render, Window, Help** (task 0367, study 0222 package C): File keeps New project, Open, Open Recent, Revert,
+  Recover, Save, Save As, Save Copy, the app's Import STEP… / Import mesh model… / Import House Planner scene… (the
+  last two were in Blender's File > Import list) and Quit (no Link, Append, Data Previews,
+  Export, External Data, Clean Up, Defaults; the Client view keeps lock.py's shorter one); Render = the app's Render
+  image, Render animation, Render queue and View last render (F11); Window = Toggle Window Fullscreen, Show Status Bar,
+  Save Screenshot (Ctrl+Page Up / Down are swallowed in lock.py); Help = Fresing's lines, Blender's own (Manual,
+  Support … Report a Bug, Save System Info) in one sub-menu "Blender" at the bottom;
+* **the side panel's tabs** (task 0332 + 0367): Blender's Tool, View, Animation, Item and glTF Variants are hidden
+  (``ops_settings.quiet_panels`` for their Python panels, ``panels.hide_c_panels`` for the Item tab's C panel
+  "Transform"); another add-on's tab stays;
 * **the picture after a render** (task 0332, row 13): the image editor's header of a Render Result says what was saved
   in the app's words – Open, Show in folder, Close – instead of slots, view layer and passes; Blender's text over the
   finished picture ("Frame:1 | Time … | Mem …") is switched off (it shows while the render runs);
@@ -47,13 +57,27 @@ from .panels import side_window
 ON = [False]                  # the quiet window is drawn
 _SEEN_LOUD = [False]          # task 0332: Blender's own drawing was on since the start (Full access was used)
 KEEP = "fr_ws_before_all"     # per scene: the workspace Show all of Blender came from (JSON of the three fields)
-DRAWN = {"header": 0, "header_blender": 0, "splash": 0, "file_new": 0, "edit": 0, "file_context": 0, "image": 0}   # draws counted (tests, the PC check)
+DRAWN = {"header": 0, "header_blender": 0, "splash": 0, "file_new": 0, "edit": 0, "file_context": 0, "image": 0,
+         "file": 0, "render": 0, "window": 0, "help": 0, "help_blender": 0}   # draws counted (tests, the PC check)
 LOCKED_TEXT = "Not in the Client view – Workspace > Full access unlocks it"
 SHOW_TEXT = "Show all of Blender"
 BACK_TEXT = "Back to the Fresing window"
 APP_LAYOUT = "Layout"         # the Blender workspace that holds the app's layout (a fresh start's, the app template's)
 EDIT_KEEPS = ("ed.undo", "ed.redo", "TOPBAR_MT_undo_history", "wm.search_menu", "fresing.settings")
 EDIT_DROPS = ("wm.call_panel", "wm.batch_rename", "lock_object_mode", "screen.userpref_show")
+# task 0367: what the quiet File / Render / Window menus hold, in order (tests, the PC check) and what they leave out
+FILE_KEEPS = ("wm.read_homefile", "wm.open_mainfile", "TOPBAR_MT_file_open_recent", "wm.revert_mainfile",
+              "TOPBAR_MT_file_recover", "fresing.save", "fresing.save_as", "wm.save_as_mainfile",
+              "fresing.import_step", "fresing.import_mesh", "fresing.house_import", "wm.quit_blender")
+FILE_DROPS = ("wm.link", "wm.append", "TOPBAR_MT_file_previews", "TOPBAR_MT_file_import", "TOPBAR_MT_file_export",
+              "wm.collection_export_all", "TOPBAR_MT_file_external_data", "TOPBAR_MT_file_cleanup",
+              "TOPBAR_MT_file_defaults")
+RENDER_KEEPS = ("fresing.render", "fresing.key_render", "fresing.make_window", "render.view_show")
+RENDER_DROPS = ("render.render", "sound.mixdown", "render.play_rendered_anim", "use_lock_interface")
+WINDOW_KEEPS = ("wm.window_fullscreen_toggle", "show_statusbar", "screen.screenshot")
+WINDOW_DROPS = ("wm.window_new", "wm.window_new_main", "screen.workspace_cycle", "screen.screenshot_area",
+                "wm.console_toggle", "wm.set_stereo_3d")
+HELP_MENU = "TOPBAR_MT_fresing_help_blender"
 
 # what the quiet 3D view header keeps (tests, the PC check)
 HEADER_KEEPS = ("editor type", "View menu", "gizmos", "overlays", "X-ray", "shading")
@@ -232,6 +256,159 @@ def _file_context(self, context):
     layout.menu("TOPBAR_MT_file_open_recent")
 
 
+def _op(layout, idname: str, **kw):
+    """An app operator line; left out when the operator is not registered (the extension without the app)."""
+    if idname.startswith("fresing.") and not _has(idname):
+        return None
+    return layout.operator(idname, **kw)
+
+
+def _file(self, context):
+    """File (task 0367): open, save and quit, and the app's two imports – no Link, Append, Blender's Import / Export
+    lists, External Data, Clean Up or Defaults. Save and Save As are the app's (task 0291: a new project's name)."""
+    DRAWN["file"] += 1
+    layout = self.layout
+    layout.operator_context = "INVOKE_AREA"
+    new_project(layout)
+    layout.operator("wm.open_mainfile", text="Open...", icon="FILE_FOLDER")
+    layout.menu("TOPBAR_MT_file_open_recent")
+    layout.operator("wm.revert_mainfile")
+    layout.menu("TOPBAR_MT_file_recover")
+    layout.separator()
+    if _has("fresing.save"):
+        layout.operator("fresing.save", text="Save", icon="FILE_TICK")
+    else:
+        layout.operator("wm.save_mainfile", text="Save", icon="FILE_TICK")
+    if _has("fresing.save_as"):
+        layout.operator("fresing.save_as", text="Save As...")
+    else:
+        layout.operator("wm.save_as_mainfile", text="Save As...")
+    copy = layout.operator("wm.save_as_mainfile", text="Save Copy...")
+    copy.copy = True
+    layout.separator()
+    _op(layout, "fresing.import_step", text="Import STEP...", icon="IMPORT")
+    _op(layout, "fresing.import_mesh", text="Import mesh model...", icon="IMPORT")
+    _op(layout, "fresing.house_import", text="Import House Planner scene...", icon="IMPORT")   # (task 0114)
+    layout.separator()
+    layout.operator("wm.quit_blender", text="Quit", icon="QUIT")
+
+
+def _render(self, context):
+    """Render (task 0367): the app's renders – the picture of the active camera, the selected animation, the render
+    queue – and the last render again (F11). Blender's own Render Image / Animation would skip the app's settings."""
+    DRAWN["render"] += 1
+    layout = self.layout
+    layout.operator_context = "INVOKE_DEFAULT"
+    _op(layout, "fresing.render", text="Render Image", icon="RENDER_STILL")
+    props = _op(layout, "fresing.key_render", text="Render Animation", icon="RENDER_ANIMATION")
+    if props is not None:
+        props.animation = True
+    props = _op(layout, "fresing.make_window", text="Render Queue...", icon="SORTTIME")
+    if props is not None:
+        props.key = "queue"
+    layout.separator()
+    layout.operator("render.view_show", text="View Last Render", icon="IMAGE")
+
+
+def _window(self, context):
+    """Window (task 0367): full screen, the status bar and a screenshot – no new windows and no Next / Previous
+    Workspace (they lead to Blender's workspaces, whose tabs are hidden)."""
+    DRAWN["window"] += 1
+    layout = self.layout
+    layout.operator("wm.window_fullscreen_toggle", icon="FULLSCREEN_ENTER")
+    layout.separator()
+    if context.screen is not None:
+        layout.prop(context.screen, "show_statusbar")
+    layout.separator()
+    layout.operator("screen.screenshot", text="Save Screenshot...")
+
+
+def _help(self, context):
+    """Help (task 0367): Blender's own lines are not drawn here – the sub-menu "Blender" at the bottom holds them."""
+    DRAWN["help"] += 1
+
+
+def _help_blender_line(self, context):
+    """The last line of the quiet Help menu: Blender's own help in one sub-menu (appended last, see ``apply``)."""
+    if not ON[0]:
+        return
+    layout = self.layout
+    layout.separator()
+    layout.menu(HELP_MENU, text="Blender", icon="BLENDER")
+
+
+class TOPBAR_MT_fresing_help_blender(bpy.types.Menu):
+    """Blender's own help: its manual, support and community pages, release notes, Report a Bug and Save System
+    Info (for a bug report to Blender)"""
+
+    bl_idname = HELP_MENU
+    bl_label = "Blender"
+
+    def draw(self, context):
+        DRAWN["help_blender"] += 1
+        help_cls = getattr(bpy.types, "TOPBAR_MT_help", None)
+        orig = blender_draw(help_cls) if help_cls is not None else None
+        if orig is None and help_cls is not None:
+            funcs = draw_funcs(help_cls)
+            i = _own(help_cls, funcs)
+            orig = funcs[i] if i >= 0 else None
+        if orig is not None:
+            orig(self, context)
+
+
+class _Rec:
+    """A stand-in layout that writes down what a menu draws (tests, the PC check): operator ids, menu ids, props."""
+
+    class _Props:
+        def __setattr__(self, name, value):
+            object.__setattr__(self, name, value)
+
+    def __init__(self):
+        self.seen = []
+        self.operator_context = "INVOKE_DEFAULT"
+
+    def operator(self, idname, **kw):
+        self.seen.append(idname)
+        return _Rec._Props()
+
+    def menu(self, idname, **kw):
+        self.seen.append(idname)
+
+    def prop(self, data, name, **kw):
+        self.seen.append(name)
+
+    def label(self, **kw):
+        self.seen.append("label:" + kw.get("text", ""))
+
+    def separator(self, **kw):
+        pass
+
+    def row(self, **kw):
+        return self
+
+    def column(self, **kw):
+        return self
+
+
+def lines(draw_fn, context=None) -> list:
+    """What a quiet menu draws, in order (``_file``, ``_render``, ``_window`` …): operator / menu ids and props."""
+    rec = _Rec()
+
+    class _S:
+        layout = rec
+    ctx = context if context is not None else bpy.context
+    draw_fn(_S(), ctx)
+    return rec.seen
+
+
+def file_menu(self, context) -> bool:
+    """project_name.py's File menu asks this first: True when the quiet File menu was drawn."""
+    if not ON[0]:
+        return False
+    _file(self, context)
+    return True
+
+
 def render_words(scene) -> tuple:
     """What the header of the finished picture says (task 0332): (text, icon, the saved file or '')."""
     import os
@@ -363,6 +540,10 @@ def _classes():
             (getattr(t, "TOPBAR_MT_edit", None), _edit),                     # task 0332: rows 7 and 13
             (getattr(t, "TOPBAR_MT_file_context_menu", None), _file_context),
             (getattr(t, "IMAGE_HT_header", None), _image_header),
+            (getattr(t, "TOPBAR_MT_file", None), _file),                     # task 0367: package C (project_name.py
+            (getattr(t, "TOPBAR_MT_render", None), _render),                 # swaps File first: then it asks
+            (getattr(t, "TOPBAR_MT_window", None), _window),                 # ``file_menu``)
+            (getattr(t, "TOPBAR_MT_help", None), _help),
             (getattr(t, "VIEW3D_PT_tools_active", None), _no_tools))      # task 0260: the left panel without Blender's tools
 
 
@@ -503,6 +684,14 @@ def apply(quiet: bool, toolbar: bool = False) -> bool:
     if not quiet:
         _SEEN_LOUD[0] = True
     ON[0] = quiet
+    _help_line(quiet)
+    try:                                     # task 0367: Blender's side-panel tabs (late panels too, the Item tab)
+        from . import ops_settings, panels
+        if quiet:
+            ops_settings.quiet_panels()
+        panels.hide_c_panels(quiet)
+    except Exception as exc:  # noqa: BLE001 - never break the switch over the side panel
+        print("Fresing Render: Blender's side-panel tabs not switched:", exc)
     if not quiet and changed:
         try:
             render_info(True)                # Blender's text over a render back in Full access
@@ -516,6 +705,16 @@ def apply(quiet: bool, toolbar: bool = False) -> bool:
         from . import lock
         lock._topbar_redraw()
     return changed
+
+
+def _help_line(quiet: bool) -> None:
+    """The "Blender" sub-menu line at the very bottom of Help while quiet (appended again so it stays the last)."""
+    cls = getattr(bpy.types, "TOPBAR_MT_help", None)
+    if cls is None:
+        return
+    cls.remove(_help_blender_line)
+    if quiet:
+        cls.append(_help_blender_line)
 
 
 def _first():
@@ -543,6 +742,7 @@ def unregister() -> None:
     for cls, _fn in _classes():
         if cls is not None:
             unswap(cls)
+    _help_line(False)
     for cls_name, attr in list(_PATCHED):
         cls = getattr(bpy.types, cls_name, None)
         if cls is not None:
@@ -653,4 +853,4 @@ class FRESING_OT_blender_all(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_blender_all,)
+CLASSES = (FRESING_OT_blender_all, TOPBAR_MT_fresing_help_blender)

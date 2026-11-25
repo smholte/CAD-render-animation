@@ -396,6 +396,8 @@ def _make_draw(cls, body):
             self.layout.context_string_set("fr_panel", cls.__name__)    # task 0181: a click knows its panel
         except Exception:  # noqa: BLE001
             pass
+        if not C_PANEL["tried"]:                       # task 0367: Blender's C panels of the side panel
+            _note_panel(self, cls)
         if draw_title(self, context, cls):
             scene = getattr(context, "scene", None)
             if scene is not None:
@@ -434,6 +436,116 @@ def _make_op_poll(cls, own):
 def body_of(cls):
     """The panel's own ``draw`` (its body, without the title row): the Make list draws it in a popover."""
     return getattr(cls.draw, "_fr_body", cls.draw)
+
+
+# ---------------------------------------------------------------------------
+# task 0367: Blender's "Transform" panel (tab Item) is C code – hidden outside Full access by its poll
+# ---------------------------------------------------------------------------
+#
+# Blender's side-panel tabs are hidden by registering their Python panel classes again with a ``poll``
+# (``ops_settings.quiet_panels``, task 0332). The tab Item's "Transform" panel is no Python class: registering a Python
+# panel of that name REPLACES it for good (measured), and with it shown the Item tab stays beside Fresing whenever a part
+# is selected. Blender keeps every panel of the 3D view's side panel in one list of panel types (C ``PanelType``:
+# next, prev, idname at 16, label at 80, category at 284, flag at 688, poll at 696, draw at 720 in Blender 5.2.3 –
+# read on its Linux build; the struct is plain C++ without platform types, the same on Windows x64). While the window is
+# quiet the Transform panel's ``poll`` is the one of Blender's own Vertex Weights panel (``VIEW3D_PT_vgroup``, same tab,
+# same signature: true only in Edit / Weight Paint with weights, false in Object Mode) – so the tab Item is gone in
+# Object Mode, Blender's other modes (only reached in Full access) keep it – and Full access writes Blender's own back.
+# Nothing is written unless every field read matches: the list is reached from a Fresing panel being drawn (its
+# ``Panel`` holds its type at 16), whose idname, category "Fresing", HIDE_HEADER flag, poll and draw must all be
+# right, and both C panels must be found by idname, label and category. Another Blender version: nothing is touched.
+
+C_PANEL = {"tried": False, "transform": 0, "own": 0, "other": 0, "hidden": False, "want": None}
+C_OFF = {"next": 0, "prev": 8, "idname": 16, "label": 80, "category": 284, "flag": 688, "poll": 696, "draw": 720,
+         "panel_type": 16}
+C_HIDDEN = ("VIEW3D_PT_transform",)          # what this hides (tests, the PC check)
+_NO_HEADER = 2                               # PANEL_TYPE_NO_HEADER
+
+
+def _ptr(addr: int) -> int:
+    import ctypes
+    return ctypes.c_void_p.from_address(addr).value or 0
+
+
+def _text(addr: int) -> bytes:
+    import ctypes
+    return ctypes.string_at(addr, 64).split(b"\0")[0]
+
+
+def _note_panel(panel, cls) -> None:
+    """At the first draw of a Fresing side-panel panel: find Blender's Transform panel type (see above)."""
+    if getattr(cls, "bl_region_type", "") != "UI":
+        return                               # the left panel's types are another list
+    C_PANEL["tried"] = True
+    try:
+        found = _find_c_panels(panel.as_pointer(), cls)
+    except Exception as exc:  # noqa: BLE001 - Blender's Item tab then stays
+        print("Fresing Render: Blender's Transform panel not found:", exc)
+        return
+    if found is None:
+        print("Fresing Render: Blender's Transform panel not found for certain; its tab Item stays")
+        return
+    C_PANEL["transform"], C_PANEL["own"], C_PANEL["other"] = found
+    if C_PANEL["want"] is not None:
+        hide_c_panels(C_PANEL["want"])
+
+
+def _find_c_panels(panel_addr: int, cls):
+    """(Transform's type, its own poll, Vertex Weights' poll) or None when anything read does not match."""
+    if bpy.app.version[:2] != (5, 2) or not panel_addr or getattr(cls, "bl_region_type", "") != "UI":
+        return None
+    o = C_OFF
+    pt = _ptr(panel_addr + o["panel_type"])
+    if not pt or pt % 8:
+        return None
+    import ctypes
+    idname = (getattr(cls, "bl_idname", "") or cls.__name__).encode()
+    if (_text(pt + o["idname"]) != idname or _text(pt + o["category"]) != CATEGORY.encode()
+            or not ctypes.c_int.from_address(pt + o["flag"]).value & _NO_HEADER
+            or not _ptr(pt + o["poll"]) or not _ptr(pt + o["draw"])):
+        return None
+    head, steps = pt, 0
+    while _ptr(head + o["prev"]) and steps < 5000:
+        head, steps = _ptr(head + o["prev"]), steps + 1
+    types, p, steps = {}, head, 0
+    while p and steps < 5000:
+        name = _text(p + o["idname"])
+        if name in (b"VIEW3D_PT_transform", b"VIEW3D_PT_vgroup"):
+            types[name] = p
+        p, steps = _ptr(p + o["next"]), steps + 1
+    t, v = types.get(b"VIEW3D_PT_transform"), types.get(b"VIEW3D_PT_vgroup")
+    if not t or not v:
+        return None
+    if (_text(t + o["label"]) != b"Transform" or _text(t + o["category"]) != b"Item"
+            or _text(v + o["label"]) != b"Vertex Weights" or _text(v + o["category"]) != b"Item"):
+        return None
+    own, other = _ptr(t + o["poll"]), _ptr(v + o["poll"])
+    if not own or not other or not _ptr(t + o["draw"]) or own == other:
+        return None
+    return t, own, other
+
+
+def hide_c_panels(hide: bool) -> bool:
+    """Blender's Transform panel (tab Item) hidden (quiet window) or Blender's own again. True when it is as asked;
+    False while its type is not found yet (the next Fresing panel draw tries) or cannot be found."""
+    import ctypes
+    hide = bool(hide)
+    C_PANEL["want"] = hide
+    t = C_PANEL["transform"]
+    if not t:
+        return False
+    slot = ctypes.c_void_p.from_address(t + C_OFF["poll"])
+    now = slot.value or 0
+    if now not in (C_PANEL["own"], C_PANEL["other"]):      # someone else changed it: leave it alone
+        return False
+    slot.value = C_PANEL["other"] if hide else C_PANEL["own"]
+    C_PANEL["hidden"] = hide
+    return True
+
+
+def c_panels_hidden() -> bool:
+    """Is Blender's Transform panel hidden now? (tests, the PC check)"""
+    return bool(C_PANEL["hidden"])
 
 
 def install(classes) -> None:
@@ -586,6 +698,9 @@ def register() -> None:
 
 
 def unregister() -> None:
+    if C_PANEL["hidden"]:
+        hide_c_panels(False)                 # task 0367: Blender's own poll back before the extension goes
+    C_PANEL.update(tried=False, want=None)
     for attr in ("fresing_tab", "fresing_fold_open"):
         if hasattr(bpy.types.WindowManager, attr):
             delattr(bpy.types.WindowManager, attr)
